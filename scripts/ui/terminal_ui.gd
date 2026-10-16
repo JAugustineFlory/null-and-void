@@ -159,6 +159,7 @@ func run(sql: String) -> void:
 		print_line("[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error))
 		return
 	get_node("/root/Game").log_query(sql)
+	_note_tables(sql, db)
 	if result.rows.is_empty():
 		if result.changes > 0:
 			print_line("OK. %d row(s) changed." % result.changes)
@@ -200,6 +201,8 @@ func _command(cmd: String) -> void:
 				print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
 				return
 			print_line("  ".join(db.table_names()))
+			for t in db.table_names():
+				_discover(t, db)
 		".schema":
 			if terminal.is_locked():
 				print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
@@ -214,6 +217,7 @@ func _command(cmd: String) -> void:
 				for c in cols:
 					desc.append("%s %s" % [c["name"], c["type"]])
 				print_line("%s(%s)" % [t, ", ".join(desc)])
+				_discover(t, db)
 		".hint":
 			print_line("[color=#e0b050]WARDEN: %s[/color]" % terminal.next_hint())
 		".clear":
@@ -223,6 +227,24 @@ func _command(cmd: String) -> void:
 			print_line("Backup tape restored. Data is back to how it started.")
 		_:
 			print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
+
+
+## Tables a query read from go on the notebook's Tables page.
+func _note_tables(sql: String, db: FacilityDB) -> void:
+	var known: Array = db.table_names()
+	for m in RegEx.create_from_string("(?i)\\b(?:FROM|JOIN)\\s+([A-Za-z_][A-Za-z0-9_]*)").search_all(sql):
+		var t := m.get_string(1).to_lower()
+		for name in known:
+			if name.to_lower() == t:
+				_discover(name, db)
+
+
+func _discover(table: String, db: FacilityDB) -> void:
+	var cols := []
+	for c in db.table_schema(table):
+		cols.append(c["name"])
+	if not cols.is_empty():
+		get_node("/root/Game").discover_table(table, cols)
 
 
 func _format_table(columns: Array, rows: Array) -> String:

@@ -1,6 +1,9 @@
 extends Node
 ## Global game state and input setup. Autoloaded as `Game`.
 
+## The notebook gained a sticky note or a table.
+signal notebook_changed
+
 const LEVELS := {
 	"world": "res://scenes/world.tscn",
 	"level_0": "res://scenes/level_0.tscn",
@@ -25,6 +28,11 @@ var query_log: Array[String] = []
 var concepts_learned: Array[String] = []
 ## Seed for this run's randomized data (replay scenarios).
 var run_seed := 0
+## This player's notebook. Each machine keeps its own, so in co-op a note belongs to
+## whoever picked it up. Sticky note ids, in the order found (see StickyNotes).
+var notebook_notes: Array[String] = []
+## Tables this player has discovered: name -> column names.
+var notebook_tables := {}
 
 
 func _ready() -> void:
@@ -41,6 +49,8 @@ func new_run(seed_value: int = -1) -> void:
 	next_level = ""
 	query_log.clear()
 	concepts_learned.clear()
+	notebook_notes.clear()
+	notebook_tables.clear()
 
 
 func goto(level_key: String) -> void:
@@ -57,6 +67,34 @@ func log_query(sql: String) -> void:
 			concepts_learned.append(concept)
 
 
+## Add a sticky note to the notebook. False if it was already there.
+func add_note(id: String) -> bool:
+	if notebook_notes.has(id):
+		return false
+	notebook_notes.append(id)
+	notebook_changed.emit()
+	return true
+
+
+## Record a table and its columns on the notebook's Tables page.
+func discover_table(table: String, columns: Array) -> void:
+	if notebook_tables.has(table) and notebook_tables[table] == columns:
+		return
+	notebook_tables[table] = columns
+	notebook_changed.emit()
+
+
+## The notebook as plain data, for saving.
+func notebook_data() -> Dictionary:
+	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true)}
+
+
+func load_notebook(data: Dictionary) -> void:
+	notebook_notes.assign(data.get("notes", []))
+	notebook_tables = data.get("tables", {}).duplicate(true)
+	notebook_changed.emit()
+
+
 func _setup_input() -> void:
 	_bind_keys("move_forward", [KEY_W, KEY_UP])
 	_bind_keys("move_back", [KEY_S, KEY_DOWN])
@@ -69,6 +107,7 @@ func _setup_input() -> void:
 	_bind_keys("alt_interact", [KEY_X])
 	_bind_keys("flashlight", [KEY_F])
 	_bind_keys("pause", [KEY_ESCAPE])
+	_bind_keys("notebook", [KEY_TAB])
 	if not InputMap.has_action("attack"):
 		InputMap.add_action("attack")
 		var click := InputEventMouseButton.new()
