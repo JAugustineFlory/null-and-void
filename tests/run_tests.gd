@@ -18,6 +18,8 @@ func _run() -> void:
 	test_first_hints_show_working_queries()
 	test_voice_codec()
 	test_radio_rules()
+	test_voice_script()
+	await test_voice_playback()
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
@@ -174,6 +176,89 @@ func test_radio_rules() -> void:
 	check(VoiceCodec.rms(clean) > 0.3 and VoiceCodec.rms(noisy) > 0.1, "a good signal carries the voice, a dead one is only static")
 
 
+func test_voice_script() -> void:
+	print("Voice script")
+	var speakers_ok := true
+	var scenes_ok := true
+	for id in VoiceLines.LINES:
+		var l: Dictionary = VoiceLines.LINES[id]
+		if not VoiceLines.CHARACTERS.has(l["speaker"]):
+			speakers_ok = false
+		if VoiceLines.scene(l["scene"]).is_empty():
+			scenes_ok = false
+	check(speakers_ok, "every line's speaker has a character entry")
+	check(scenes_ok, "every line belongs to a scene")
+
+	var used := {}
+	var unknown := []
+	var unvoiced := []
+	var id_re := RegEx.create_from_string("\"(l\\d+_[a-z0-9_]+)\"")
+	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
+	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
+	for f in DirAccess.get_files_at("res://scripts/levels"):
+		if not f.ends_with(".gd"):
+			continue
+		var src := FileAccess.get_file_as_string("res://scripts/levels/" + f)
+		for m in scene_re.search_all(src):
+			if VoiceLines.scene(m.get_string(1)).is_empty():
+				unknown.append(m.get_string(1))
+			for id in VoiceLines.ids_in_scene(m.get_string(1)):
+				used[id] = true
+		for m in id_re.search_all(src):
+			if VoiceLines.has_line(m.get_string(1)):
+				used[m.get_string(1)] = true
+			elif VoiceLines.scene(m.get_string(1)).is_empty():
+				unknown.append(m.get_string(1))
+		for m in say_re.search_all(src):
+			unvoiced.append("%s: %s" % [f, m.get_string(1)])
+	check(unknown.is_empty(), "levels only play lines that are in the script %s" % [unknown])
+	check(unvoiced.is_empty(), "character lines go through hud.line so recordings play %s" % [unvoiced])
+	var unused := []
+	for id in VoiceLines.LINES:
+		if VoiceLines.scene(VoiceLines.LINES[id]["scene"]).get("wired", false) and not used.has(id):
+			unused.append(id)
+	check(unused.is_empty(), "every line marked as in the game is played by a level %s" % [unused])
+
+	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
+		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
+	check(in_sync, "docs/script/ matches voice_lines.gd (run tools/write_script_docs.gd)")
+
+
+func test_voice_playback() -> void:
+	print("Voice playback")
+	var real_folder := Voice.folder
+	Voice.folder = "user://voice_test/"
+	DirAccess.make_dir_recursive_absolute(Voice.folder)
+	var wav_path := Voice.folder.path_join("l0_greet_1.wav")
+	if FileAccess.file_exists(wav_path):
+		DirAccess.remove_absolute(wav_path)
+	var voice := Voice.new()
+	root.add_child(voice)
+	await process_frame
+	check(Voice.path_for("l0_greet_1") == "" and voice.play("l0_greet_1") == 0.0, "a line with no recording stays silent")
+	# Half a second of 16-bit mono silence stands in for a recording.
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = 22050
+	var data := PackedByteArray()
+	data.resize(22050)
+	wav.data = data
+	wav.save_to_wav(wav_path)
+	check(Voice.path_for("l0_greet_1") == wav_path, "a dropped-in recording is found by its line id")
+	var wait := voice.play("l0_greet_1")
+	check(absf(wait - (0.5 + Voice.TAIL)) < 0.05, "the line lasts as long as its recording (%.2f s)" % wait)
+	check(voice.is_playing(), "the recording plays")
+	check(voice._player.bus == &"Master", "Rourke plays without the PA filter")
+	var warden_path := Voice.folder.path_join("l1_sealed.wav")
+	wav.save_to_wav(warden_path)
+	voice.play("l1_sealed")
+	check(voice._player.bus == Voice.PA_BUS and AudioServer.get_bus_index(Voice.PA_BUS) >= 0, "WARDEN plays through the PA speaker sound")
+	voice.queue_free()
+	DirAccess.remove_absolute(wav_path)
+	DirAccess.remove_absolute(warden_path)
+	Voice.folder = real_folder
+
+
 func test_screens_fill_window() -> void:
 	print("Menu screens")
 	var win := root.get_visible_rect().size
@@ -220,6 +305,7 @@ func test_level_1_scene() -> void:
 	for i in 30:
 		await physics_frame
 	check(level.doors["SRA-EXIT"].is_open == false, "exit starts locked")
+	check(not level.terminal.locked, "the trap doesn't spring while the player is still in the antechamber")
 	level._on_trapped(null)
 	check(level.terminal.locked, "Rourke locks the terminal")
 	level.terminal_ui.terminal = level.terminal
@@ -385,7 +471,7 @@ func test_coop_level_1() -> void:
 	host.player.global_position = Vector3(0, 0.1, 3)
 	client.player.global_position = Vector3(0, 0.1, 12.5)
 	await _frames(30)
-	check(not host.terminal.locked, "the trap waits while someone is still outside")
+	check(not host.terminal.locked, "the trap waits while someone is still outside (client seen at %s)" % host.players.puppet(client_id).global_position)
 	client.player.global_position = Vector3(1, 0.1, 3)
 	await _frames(30)
 	check(host.terminal.locked and client.terminal.locked, "the trap springs once everyone is inside")

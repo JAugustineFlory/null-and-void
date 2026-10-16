@@ -7,6 +7,7 @@ signal arrived
 signal downed
 signal resolved(fate: String)  # "killed" or "tied"
 signal hit_player
+signal struck  # the player landed a hit that didn't put him down
 
 enum State { IDLE, WALK, CHASE, STAGGER, DOWN, TIED, DEAD }
 
@@ -216,6 +217,7 @@ func take_hit(by: Node3D) -> void:
 	else:
 		state = State.STAGGER
 		_stagger = 0.55
+		struck.emit()
 
 
 func _go_down() -> void:

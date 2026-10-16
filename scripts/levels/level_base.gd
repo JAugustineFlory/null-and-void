@@ -40,9 +40,11 @@ func _ready() -> void:
 	player = Player.new()
 	player.name = "Player"
 	player.hud = hud
+	# Place it before it enters the world: a body that appears at the origin for
+	# even one physics step can set off triggers there.
+	player.transform = spawn.translated(NetPlayers.spawn_offset(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer)))
 	add_child(player)
 	players = NetPlayers.create(self, player)
-	player.global_transform = spawn.translated(NetPlayers.spawn_offset(players.my_index()))
 	player.died.connect(_on_player_died)
 	voice = VoiceChat.create(self)
 	_build_pause_menu()

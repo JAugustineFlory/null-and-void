@@ -2,6 +2,9 @@ extends LevelBase
 ## Level 1: Server Room A. Rourke's betrayal, then WARDEN's self-test.
 ## Teaches WHERE and AND, and reading test output.
 
+## Least time between Rourke's fight lines.
+const BARK_GAP := 3.5
+
 var rourke: Rourke
 var terminal: Terminal
 var answer := ""
@@ -9,6 +12,7 @@ var rack_panels := {}
 var panels_locked_until := 0.0
 var has_badge := false
 var _red := Color(1.0, 0.18, 0.12)
+var _last_bark := -100.0
 var controller_puzzle := Puzzle.new("controller",
 	"SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false, [
 	"Type this, then press Enter:\n" +
@@ -94,7 +98,7 @@ func start() -> void:
 	rourke.face(player.global_position)
 	hud.set_objective("Follow Rourke inside")
 	rourke.walk_to(Vector3(0.0, 0, 1.0))
-	hud.say("ROURKE", "Vale's last login came from this room. Come on in.")
+	hud.line("l1_enter")
 	# The trap waits until everyone is inside, so nobody is locked out of the fight.
 	var t := Trigger.create(self, Vector3(0, 1, 2.0), Vector3(14, 2, 12))
 	t.require_all = true
@@ -114,19 +118,34 @@ func _on_trapped(_b: Node) -> void:
 	# Tougher with more people swinging at him.
 	rourke.max_hits = Rourke.MAX_HITS + 2 * (players.count() - 1)
 	rourke.hits_left = rourke.max_hits
-	await hud.play_lines([
-		["ROURKE", "Sorry, kid. Nothing personal."],
-		["ROURKE", "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself."],
-	])
+	await hud.lines(["l1_trap_1", "l1_trap_2"])
 	hud.set_objective("Survive. Stop Rourke. (Click to strike)")
 	if sync.is_host():
 		rourke.downed.connect(func(): sync.event("_on_rourke_downed"))
 		rourke.resolved.connect(func(fate): sync.event("_on_rourke_resolved", [fate]))
+		rourke.hit_player.connect(_bark.bind(["l1_hit_1", "l1_hit_2", "l1_hit_3", "l1_hit_4"]))
+		rourke.struck.connect(_bark.bind(["l1_hurt_1", "l1_hurt_2", "l1_hurt_3"]))
 		rourke.start_chase(players.nearest(rourke.global_position))
 
 
 func _on_rourke_downed() -> void:
 	hud.set_objective("He's down. Decide before he gets up.")
+	_last_bark = Time.get_ticks_msec() / 1000.0
+	hud.line("l1_downed")
+
+
+## A short fight line, at most one every few seconds so they don't pile up.
+## The host picks it so everyone hears the same one.
+func _bark(ids: Array) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _last_bark < BARK_GAP:
+		return
+	_last_bark = now
+	sync.event("_on_bark", [ids.pick_random()])
+
+
+func _on_bark(id: String) -> void:
+	hud.line(id)
 
 
 func _on_rourke_resolved(fate: String) -> void:
@@ -138,15 +157,13 @@ func _on_rourke_resolved(fate: String) -> void:
 	terminal.reboot(_self_test_lines())
 	set_all_lights_color(Color(0.92, 0.95, 1.0))
 	if fate == "killed":
-		await hud.say("WARDEN", "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN.", 4.5)
+		await hud.line("l1_killed")
 		set_all_lights_color(_red)
 		hud.notice("WARDEN LOCKDOWN ACTIVE", 5.0, ThemeUtil.RED)
 	else:
-		await hud.play_lines([
-			["ROURKE", "You think a bit of cable holds me?"],
-			["ROURKE", "WARDEN will eat you alive in here."],
-		])
+		await hud.lines(["l1_tied_1", "l1_tied_2"])
 	hud.set_objective("Log in to the terminal with Rourke's badge and find out why the exit is locked")
+	hud.lines(["l1_login", "l1_selftest"])
 
 
 func _self_test_lines() -> Array:
@@ -187,6 +204,7 @@ func _on_controller_found() -> void:
 	terminal.print_line("")
 	terminal.print_line("[color=#e0b050]WARDEN: Controller %s is faulted in zone A. A manual reset at the rack will clear it.[/color]" % answer)
 	hud.set_objective("Reset controller %s at its rack (look for the labels)" % answer)
+	hud.line("l1_found", false)
 
 
 ## Runs on the host when anyone presses a rack panel. It decides, then
@@ -211,6 +229,7 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 	match outcome:
 		"no_badge":
 			hud.notice("RESET REFUSED: badge required.", 2.5, ThemeUtil.RED)
+			hud.line("l1_no_badge", false)
 			return
 		"locked":
 			panels_locked_until = now + seconds
@@ -218,11 +237,13 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 			return
 		"healthy":
 			hud.notice("WARDEN: %s is working normally. Nothing to reset." % id, 4.0)
+			hud.line("l1_panel_ok", false)
 			return
 		"wrong":
 			var row: Dictionary = db.run_silent("SELECT status, zone, note FROM door_controllers WHERE id = '%s'" % id)[0]
 			panels_locked_until = now + seconds
 			hud.notice("WARDEN: %s (zone %s, %s): %s\nNot the exit's controller. Reset refused. Panels locked for 10 s." % [id, row["zone"], row["status"], row["note"]], 6.0, ThemeUtil.RED)
+			hud.line("l1_panel_wrong", false)
 			return
 	db.run_silent("UPDATE door_controllers SET status = 'ok', last_reset = '1997-10-15 23:58' WHERE id = '%s'" % id)
 	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
@@ -231,6 +252,7 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 		p.enabled = false
 	hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SRA-EXIT: OPENED" % id, 4.0, ThemeUtil.GREEN)
 	hud.set_objective("Get out through the emergency exit")
+	hud.line("l1_exit_open", false)
 	var t := Trigger.create(self, Vector3(0, 1, -13.5), Vector3(3, 2, 1.5))
 	t.entered.connect(func(_b): sync.event("_on_exit", [null]))
 
@@ -239,9 +261,8 @@ func _on_exit(_b: Node) -> void:
 	player.input_locked = true
 	if Game.rourke_fate == "tied":
 		await hud.say("", "Behind you, a cut length of network cable lies on the floor. Rourke is gone.", 4.0)
-		await hud.say("WARDEN", "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D.", 4.0)
-	else:
-		await hud.say("WARDEN", "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT.", 4.0)
+		await hud.line("l1_lockdown_tied")
+	await hud.line("l1_sealed")
 	await hud.fade(true, 1.2)
 	Game.goto("field_notes")
 

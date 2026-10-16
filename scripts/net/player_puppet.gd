@@ -23,12 +23,13 @@ var _light: SpotLight3D
 var _tag: Label3D
 
 
-static func create(parent: Node, id: int, player_name: String, color: Color) -> PlayerPuppet:
+static func create(parent: Node, id: int, player_name: String, color: Color, at: Transform3D) -> PlayerPuppet:
 	var p := PlayerPuppet.new()
 	p.peer_id = id
 	p.display_name = player_name
 	p.name = str(id)
 	p._build(color)
+	p.transform = at  # before entering the world, so it never flashes at the origin
 	parent.add_child(p)
 	return p
 

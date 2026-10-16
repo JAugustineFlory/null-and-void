@@ -37,10 +37,10 @@ func _ready() -> void:
 		if id != multiplayer.get_unique_id():
 			var net := get_node_or_null("/root/Net")
 			var who: String = net.display_name(id) if net else "Player %d" % id
-			var p := PlayerPuppet.create(self, id, who, COLORS[i % COLORS.size()])
-			p.players = self
 			# Stand where that player spawns until their first update arrives.
-			p.global_transform = level.spawn.translated(spawn_offset(i))
+			var at: Transform3D = level.spawn.translated(spawn_offset(i))
+			var p := PlayerPuppet.create(self, id, who, COLORS[i % COLORS.size()], at)
+			p.players = self
 			_puppets[id] = p
 
 
@@ -51,15 +51,23 @@ func go_live() -> void:
 
 ## Every player's id in this game, sorted, host first.
 func all_ids() -> Array:
-	var ids := [multiplayer.get_unique_id()]
-	ids.append_array(multiplayer.get_peers())
+	return ids_for(multiplayer)
+
+
+static func ids_for(mp: MultiplayerAPI) -> Array:
+	var ids := [mp.get_unique_id()]
+	ids.append_array(mp.get_peers())
 	ids.sort()
 	return ids
 
 
-## This machine's place in the player order (0 = host).
+## A player's place in the player order (0 = host).
+static func index_of(id: int, mp: MultiplayerAPI) -> int:
+	return ids_for(mp).find(id)
+
+
 func my_index() -> int:
-	return all_ids().find(multiplayer.get_unique_id())
+	return index_of(multiplayer.get_unique_id(), multiplayer)
 
 
 func count() -> int:
