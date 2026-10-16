@@ -26,6 +26,7 @@ func _run() -> void:
 	await test_level_1_scene()
 	await test_level_2_scene()
 	await test_level_2_routes()
+	await load("res://tests/movement_tests.gd").new().run(self, check)
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -473,17 +474,33 @@ func test_level_2_routes() -> void:
 		await physics_frame
 	level.watcher.active = false
 	var p: Player = level.player
+	p.local_control = false
 	# Vent: climb the crate, then into the duct.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(-4.4, 0.1, 4.0))
 	for i in 5:
 		await physics_frame
-	check(p._try_mantle(), "you can climb onto the crate")
-	for i in 30:
+	check(p._try_ledge(false), "you can climb onto the crate")
+	for i in 40:
 		await physics_frame
-	check(p._try_mantle(), "from the crate you can climb into the vent")
-	for i in 30:
+	check(p._try_ledge(false), "from the crate you can climb into the vent")
+	for i in 40:
 		await physics_frame
-	check(p.global_position.y > 1.9 and p.crouching, "inside the vent, crouched (y %.2f)" % p.global_position.y)
+	check(p.global_position.y > 1.9 and p.crouching and p.in_volume(MovementVolume.Kind.VENT) != null, "inside the vent, crouched (y %.2f)" % p.global_position.y)
+	# Ledge: out the smashed window and along the east wall, back to the wall.
+	p.global_transform = Transform3D(Basis(), Vector3(6.44, 0.05, 4.0))
+	for i in 5:
+		await physics_frame
+	p.controls.move = Vector2(0, -1)
+	var shuffled := false
+	var lowest := 10.0
+	for i in 900:
+		await physics_frame
+		shuffled = shuffled or p.state == Player.Move.LEDGE
+		lowest = min(lowest, p.global_position.y)
+		if p.global_position.z < -7.5:
+			break
+	p.controls.move = Vector2.ZERO
+	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
 	# Navigation: the Watcher can walk from the office to the vestibule and the corridor.
 	var map: RID = level.watcher.get_world_3d().navigation_map
 	var to_vest := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(0, 0, -10.5), true)

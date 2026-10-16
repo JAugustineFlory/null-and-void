@@ -37,6 +37,9 @@ func _ready() -> void:
 		Game.new_run()
 		Game.goto("level_2"))
 	box.add_child(skip)
+	var gym := _button("Movement gym (practice)")
+	gym.pressed.connect(func(): Game.goto("movement_gym"))
+	box.add_child(gym)
 	var coop := _button("Co-op (coming in the next build)")
 	coop.disabled = true
 	box.add_child(coop)

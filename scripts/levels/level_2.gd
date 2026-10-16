@@ -253,27 +253,29 @@ func _build_office() -> void:
 
 func _build_vent() -> void:
 	# Duct from the corridor's west wall, north past the office, east into the vestibule.
-	# Inside it's 1 m tall: crawl height. The ceiling is thick so nobody stands up in it.
+	# Inside it's 1.5 m tall: too low to stand, high enough to climb in from the crate.
 	var duct := Color(0.42, 0.44, 0.46)
 	Greybox.box(geo, Vector3(-6.6, 1.95, -3.0), Vector3(1.0, 0.1, 15.1), duct, "VentFloor")
-	Greybox.box(geo, Vector3(-6.6, 3.6, -3.0), Vector3(1.0, 1.2, 15.1), duct, "VentTop")
-	Greybox.box(geo, Vector3(-7.15, 2.5, -3.0), Vector3(0.1, 1.2, 15.2), duct, "VentWall")
-	Greybox.box(geo, Vector3(-6.05, 2.5, -8.75), Vector3(0.1, 1.2, 1.5), duct, "VentWall")
-	Greybox.box(geo, Vector3(-6.6, 2.5, 4.55), Vector3(1.1, 1.2, 0.1), duct, "VentCap")
+	Greybox.box(geo, Vector3(-6.6, 3.55, -3.0), Vector3(1.0, 0.1, 15.1), duct, "VentTop")
+	Greybox.box(geo, Vector3(-7.15, 2.75, -3.0), Vector3(0.1, 1.6, 15.2), duct, "VentWall")
+	Greybox.box(geo, Vector3(-6.05, 2.75, -8.75), Vector3(0.1, 1.6, 1.5), duct, "VentWall")
+	Greybox.box(geo, Vector3(-6.6, 2.75, 4.55), Vector3(1.1, 1.6, 0.1), duct, "VentCap")
 	Greybox.box(geo, Vector3(-4.8, 1.95, -10.0), Vector3(4.6, 0.1, 1.0), duct, "VentFloor")
-	Greybox.box(geo, Vector3(-4.8, 3.6, -10.0), Vector3(4.6, 1.2, 1.0), duct, "VentTop")
-	Greybox.box(geo, Vector3(-4.85, 2.5, -10.55), Vector3(4.7, 1.2, 0.1), duct, "VentWall")
-	Greybox.box(geo, Vector3(-4.3, 2.5, -9.45), Vector3(3.6, 1.2, 0.1), duct, "VentWall")
+	Greybox.box(geo, Vector3(-4.8, 3.55, -10.0), Vector3(4.6, 0.1, 1.0), duct, "VentTop")
+	Greybox.box(geo, Vector3(-4.85, 2.75, -10.55), Vector3(4.7, 1.6, 0.1), duct, "VentWall")
+	Greybox.box(geo, Vector3(-4.3, 2.75, -9.45), Vector3(3.6, 1.6, 0.1), duct, "VentWall")
+	MovementVolume.create(geo, Vector3(-6.6, 2.75, -3.0), Vector3(1.0, 1.5, 15.1), MovementVolume.Kind.VENT)
+	MovementVolume.create(geo, Vector3(-4.3, 2.75, -10.0), Vector3(3.6, 1.5, 1.0), MovementVolume.Kind.VENT)
 	var l := add_light("vent", Vector3(-6.6, 2.95, -3.0), 4.0, 0.25)
 	l.light_color = Color(0.6, 0.7, 0.9)
 
 
 func _build_ledge() -> void:
 	# Half a meter of concrete outside the east wall, and nothing below it.
-	var concrete := Color(0.4, 0.4, 0.38)
-	Greybox.box(geo, Vector3(6.35, -0.1, -2.0), Vector3(0.5, 0.2, 13.1), concrete, "Ledge")
-	Greybox.box(geo, Vector3(4.35, -0.1, -8.325), Vector3(3.5, 0.2, 0.45), concrete, "Ledge")
-	Greybox.box(geo, Vector3(3.1, -0.1, -8.85), Vector3(1.0, 0.2, 1.5), concrete, "LedgeLanding")
+	# Along the east wall, then west along the office's north wall to a landing by the vestibule window.
+	Traversal.ledge(geo, Vector3(6.1, 0, 4.55), Vector3(6.1, 0, -8.55), Vector3(1, 0, 0))
+	Traversal.ledge(geo, Vector3(6.55, 0, -8.1), Vector3(3.6, 0, -8.1), Vector3(0, 0, -1))
+	Greybox.box(geo, Vector3(3.1, -0.1, -8.85), Vector3(1.0, 0.2, 1.5), Traversal.CONCRETE, "LedgeLanding")
 	Greybox.box(geo, Vector3(5, -40, -3), Vector3(30, 1, 40), Color(0.05, 0.05, 0.05), "FarBelow")
 	var moon := add_light("outside", Vector3(9, 4, -2), 12.0, 0.35)
 	moon.light_color = Color(0.5, 0.6, 0.9)
