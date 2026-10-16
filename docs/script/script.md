@@ -81,7 +81,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Amused, he's said this to every visitor. A little eye-roll at corporate.)* And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either. `[l0_memo_3]`
 
-**ROURKE:** *(Friendly, already heading for the hall.)* Go on, hop over and grab a walkie. Then I'll take you to the server room. `[l0_memo_4]`
+**ROURKE:** *(Friendly, already heading for the hall.)* Grab one and I'll take you to the server room. `[l0_memo_4]`
 
 **ROURKE:** *(Offhand.)* Channel one. Keep them on. Reception's lousy once we're past the shutter. This way. `[l0_walkie]`
 

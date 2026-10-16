@@ -64,7 +64,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either."  
   *Amused, he's said this to every visitor. A little eye-roll at corporate.*
 - [ ] `l0_memo_4.wav`  
-  "Go on, hop over and grab a walkie. Then I'll take you to the server room."  
+  "Grab one and I'll take you to the server room."  
   *Friendly, already heading for the hall.*
 - [ ] `l0_walkie.wav`  
   "Channel one. Keep them on. Reception's lousy once we're past the shutter. This way."  
