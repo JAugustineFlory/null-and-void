@@ -436,7 +436,7 @@ func test_level_2_data_every_seed() -> void:
 	var door_ids := []
 	for row in building.run_silent("SELECT id FROM doors ORDER BY id"):
 		door_ids.append(row["id"])
-	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.size() == doors_before + 1, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
+	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.has("SEC-OFFICE") and door_ids.size() == doors_before + 2, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
 	check(pins.size() >= 40 and names.size() >= 4, "PIN and guard vary between runs (%d PINs, %d names)" % [pins.size(), names.size()])
 
 
@@ -466,25 +466,58 @@ func test_level_2_scene() -> void:
 	var w: Watcher = level.watcher
 	var p: Player = level.player
 	check(level.doors["SEC-EXIT"].is_open == false, "stairwell exit starts locked")
-	check(w.is_on_floor() and w.active, "the Watcher stands in the office")
+	check(level.doors["SEC-OFFICE"].is_open == false, "the Security Office door starts locked")
+	check(w.is_on_floor() and not w.active, "the Watcher waits in the office")
+	# At the window, looking in: the office looks empty.
+	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
+	p.head.rotation = Vector3.ZERO
+	await physics_frame
+	check(not w.player_sees(p), "at first it's out of sight from the window")
 	# Player at the booth, facing the terminal: the office is behind them.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
 	level.terminal_ui.terminal = level.booth
 	level.terminal_ui.run("GET /cameras")
-	check(level.cameras_puzzle.solved, "GET /cameras solves the first puzzle")
+	var cams0: Dictionary = JSON.parse_string(level.booth.api.request("GET /cameras").text)
+	check(level.cameras_puzzle.solved and cams0["cameras"][1]["motion"] == true, "GET /cameras solves the first puzzle: CAM-2 sees motion")
 	var start: Vector3 = w.global_position
-	for i in 60:
+	for i in 30:
 		await physics_frame
 	check(w.global_position.distance_to(start) < 0.05, "a working camera holds it while nobody looks")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	check(level.pike_puzzle.solved and level.loose and level.frozen_cams.has("CAM-2"), "the Pike practice freezes CAM-2")
+	await physics_frame
+	await physics_frame
+	check(level.stage == "near" and w.global_position.distance_to(level.to_global(level.STAGES.near[0])) < 0.1, "closer to the PIN, it creeps closer while nobody looks")
+	check(not w.active, "the locked door keeps it in the office")
 	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
 	p.head.rotation = Vector3.ZERO
 	await physics_frame
-	check(w.player_sees(p), "players can see it through the office window")
+	check(w.player_sees(p), "now players can see it through the office window")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
+	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
+	for i in 10:
+		await physics_frame
+	check(level.stage == "near", "it doesn't move while someone is watching it")
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
-	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
-	check(level.pike_puzzle.solved and level.loose and level.frozen_cams.has("CAM-2"), "the Pike practice frees it: CAM-2 freezes")
+	for i in 3:
+		await physics_frame
+	check(level.stage == "window" and w.global_position.distance_to(level.to_global(level.STAGES.window[0])) < 0.1, "look away and it's at the window")
+	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
+	p.head.rotation = Vector3.ZERO
+	await physics_frame
+	check(w.player_sees(p) and not w.active, "with the PIN found, it stares at you through the glass")
+	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
+	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
+	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
+	# Open the office from the east end of the corridor, then look away.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(3, 0.1, 4.6))
+	level._pad_mode = "office"
+	level._on_pin(level.data.pin)
+	for i in 5:
+		await physics_frame
+	check(level.doors["SEC-OFFICE"].is_open and w.active, "the PIN opens the office door, and it's free")
 	var before: float = w.global_position.distance_to(p.global_position)
-	for i in 120:
+	for i in 180:
 		await physics_frame
 	var after: float = w.global_position.distance_to(p.global_position)
 	check(after < before - 1.5, "unseen, it comes for you (%.1f m -> %.1f m)" % [before, after])
@@ -495,6 +528,7 @@ func test_level_2_scene() -> void:
 	var cam2: Dictionary = cams["cameras"][1]
 	check(cam2["status"] == "live" and cam2["last_frame"] == frame and cams["server_time"] != frame, "the lie: CAM-2 says live but its frame is stuck")
 	# It slips out into the corridor. Turn around and look at it: it stops.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
 	w.place(Vector3(2.5, 0, 4.0), p.global_position)
 	p.look_at(w.global_position + Vector3.UP * 1.2, Vector3.UP)
 	p.rotation.x = 0
@@ -506,11 +540,6 @@ func test_level_2_scene() -> void:
 	check(w.seen and w.global_position.distance_to(held) < 0.05, "looking at it freezes it")
 	level.terminal_ui.run("GET /cameras")
 	check(level._lie_explained, "fetching cameras after it left explains the frozen frame")
-	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
-	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
-	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
-	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
-	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
 	level.enter_pin()
 	for i in 5:
 		await physics_frame
@@ -552,7 +581,20 @@ func test_level_2_routes() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	p.local_control = false
-	# Vent: climb the crate, then into the duct.
+	# Vent: the grate is screwed shut until someone finds the screwdriver.
+	level._on_vent_grate(p)
+	await process_frame
+	check(is_instance_valid(level.vent_grate) and not level.has_screwdriver, "the vent grate won't come off by hand")
+	level.has_screwdriver = true
+	level._on_vent_grate(p)
+	await process_frame
+	check(not is_instance_valid(level.vent_grate), "the screwdriver takes the grate off")
+	level.set_hatch(true)
+	check(level.hatch_open and level.vent_hatch.rotation.z != 0.0, "the hinged hatch at the vestibule end swings open")
+	level.set_hatch(false)
+	check(not level.hatch_open, "and closes again")
+	level.set_hatch(true)
+	# Climb the crate, then into the duct.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(-4.4, 0.1, 4.0))
 	for i in 5:
 		await physics_frame
@@ -563,7 +605,12 @@ func test_level_2_routes() -> void:
 	for i in 40:
 		await physics_frame
 	check(p.global_position.y > 1.9 and p.crouching and p.in_volume(MovementVolume.Kind.VENT) != null, "inside the vent, crouched (y %.2f)" % p.global_position.y)
-	# Ledge: out the smashed window and along the east wall, back to the wall.
+	# Ledge: break the outside window first. The office window is security glass.
+	level.office_glass.take_hit(p)
+	level.ledge_glass.take_hit(p)
+	await process_frame
+	check(is_instance_valid(level.office_glass) and not is_instance_valid(level.ledge_glass), "the outside window breaks; the office window doesn't")
+	# Out the broken window and along the east wall, back to the wall.
 	p.global_transform = Transform3D(Basis(), Vector3(6.44, 0.05, 4.0))
 	for i in 5:
 		await physics_frame
@@ -578,6 +625,10 @@ func test_level_2_routes() -> void:
 			break
 	p.controls.move = Vector2.ZERO
 	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
+	level.loose = true
+	level._process(0.0)
+	check(level.watcher.active, "going round the office another way wakes the Watcher too")
+	level.watcher.active = false
 	# Navigation: the Watcher can walk from the office to the vestibule and the corridor.
 	var map: RID = level.watcher.get_world_3d().navigation_map
 	var to_vest := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(0, 0, -10.5), true)
@@ -662,7 +713,7 @@ func test_world() -> void:
 	var landing: Vector3 = sec.spawn_point().origin
 	check(joint.distance_to(Vector3(53.9, 1.2, 3)) < 0.2 and landing.distance_to(Vector3(55, 0.1, 3)) < 0.1,
 		"the security wing's landing meets Server Room A's exit corridor (%s, %s)" % [joint, landing])
-	check(world.db.run_silent("SELECT * FROM doors WHERE id LIKE 'SEC-%'").size() == 1 and world.db.table_names().has("guards"),
+	check(world.db.run_silent("SELECT * FROM doors WHERE id LIKE 'SEC-%'").size() == 2 and world.db.table_names().has("guards"),
 		"the security wing adds its own rows to the one building database")
 	await process_frame
 	check(sec._clock == 0.0, "the security wing's clock doesn't run before players get there")

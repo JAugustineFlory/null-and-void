@@ -84,6 +84,13 @@ func place(at: Vector3, look: Vector3) -> void:
 	_face(look)
 
 
+## Move somewhere while nobody is looking, in a new pose: the next time
+## someone looks, it's standing somewhere else, a little differently.
+func step_to(at: Vector3, look: Vector3) -> void:
+	place(at, look)
+	_new_pose()
+
+
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
