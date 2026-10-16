@@ -71,7 +71,7 @@ const LINES := {
 	# --- Level 0 -------------------------------------------------------------
 	"l0_dispatch_1": {"scene": "l0_van", "speaker": "DISPATCH", "text": "Van three, you're on site at Halcyon Data Systems. After-hours callout.",
 		"note": "Over the van radio. Routine."},
-	"l0_dispatch_2": {"scene": "l0_van", "speaker": "DISPATCH", "text": "Their lead engineer's systems are down. Contact is Dale Rourke, facilities. He'll meet you at the front doors.",
+	"l0_dispatch_2": {"scene": "l0_van", "speaker": "DISPATCH", "text": "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors.",
 		"note": "Reading it off the ticket."},
 	"l0_dispatch_3": {"scene": "l0_van", "speaker": "DISPATCH", "text": "Hop out when you're ready. Dispatch out.",
 		"note": "Signing off, already onto the next call."},
