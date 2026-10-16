@@ -38,7 +38,7 @@ func _ready() -> void:
 			var net := get_node_or_null("/root/Net")
 			var who: String = net.display_name(id) if net else "Player %d" % id
 			# Stand where that player spawns until their first update arrives.
-			var at: Transform3D = level.spawn.translated(spawn_offset(i))
+			var at: Transform3D = level.spawn_point().translated(spawn_offset(i))
 			var p := PlayerPuppet.create(self, id, who, COLORS[i % COLORS.size()], at)
 			p.players = self
 			_puppets[id] = p
@@ -68,6 +68,22 @@ static func index_of(id: int, mp: MultiplayerAPI) -> int:
 
 func my_index() -> int:
 	return index_of(multiplayer.get_unique_id(), multiplayer)
+
+
+## Put everyone at their spot around `at` (puppets until their next update).
+func place_all(at: Transform3D) -> void:
+	var ids := all_ids()
+	for i in ids.size():
+		var body := puppet(ids[i])
+		if body:
+			body.global_transform = at.translated(spawn_offset(i))
+
+
+## The peer id behind a body: the local Player or a puppet.
+func id_of(body: Node) -> int:
+	if body == player:
+		return multiplayer.get_unique_id()
+	return body.get("peer_id") if body.get("peer_id") != null else 0
 
 
 func count() -> int:

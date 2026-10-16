@@ -82,7 +82,7 @@ func leave(notify: bool = true, reason: String = "") -> void:
 		session_ended.emit(reason)
 
 
-## Host only: everyone loads Level 0 with the same run seed.
+## Host only: everyone loads the building with the same run seed.
 func start_game() -> void:
 	if not is_host():
 		return
@@ -95,7 +95,18 @@ func _start(seed_value: int, names: Dictionary) -> void:
 	in_game = true
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
-	game.goto("level_0")
+	game.goto("world")
+
+
+## Host only: everyone goes to the same screen (e.g. on from the field notes).
+func goto_all(key: String) -> void:
+	if is_host():
+		_goto.rpc(key)
+
+
+@rpc("authority", "call_local", "reliable")
+func _goto(key: String) -> void:
+	get_node("/root/Game").goto(key)
 
 
 ## Every machine's player ids, sorted, host first. Solo: just this one.

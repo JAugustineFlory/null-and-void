@@ -60,26 +60,13 @@ CREATE TABLE door_controllers (
 INSERT INTO door_controllers VALUES
 	%s;
 
-CREATE TABLE doors (
-	id TEXT,
-	name TEXT,
-	zone TEXT,
-	locked INTEGER,
-	actuator_fault INTEGER
-);
+-- doors and badges are building-wide tables (FacilityDB.SHARED_SCHEMA); this wing only adds rows.
 INSERT INTO doors VALUES
 	('SRA-ENTRY', 'Server Room A entrance', 'A', 0, 0),
 	('SRA-EXIT', 'Server Room A rear exit', 'A', 1, 0),
 	('COLD-LAB', 'Cold Lab', 'C', 1, 0),
-	('ARCHIVE', 'Records Archive', 'B', 0, 0),
-	('LOBBY-FRONT', 'Main entrance', 'L', 1, 0);
+	('ARCHIVE', 'Records Archive', 'B', 0, 0);
 
-CREATE TABLE badges (
-	badge_id TEXT,
-	holder TEXT,
-	clearance TEXT,
-	last_seen TEXT
-);
 INSERT INTO badges VALUES
 	('R-0117', 'ROURKE, D.', 'ESCORT', 'Server Room A'),
 	('V-0042', 'VALE, I.', 'LEAD', 'Incinerator wing'),

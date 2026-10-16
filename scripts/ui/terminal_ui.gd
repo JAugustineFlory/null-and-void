@@ -81,6 +81,7 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title.text = "HALCYON DATA SYSTEMS  //  %s" % terminal.terminal_name
 	visible = true
+	# Each terminal keeps its own screen; in co-op it shows everyone's queries.
 	if terminal.transcript.is_empty() or terminal.consume_fresh_boot():
 		terminal.transcript.clear()
 		for line in terminal.boot_text():
@@ -162,6 +163,12 @@ func run(sql: String) -> void:
 		print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
 		return
 	var sync := LevelSync.of(terminal)
+	if FacilityAPI.is_request(sql):
+		if sync:
+			sync.submit_request(terminal, sql)
+		else:
+			show_request(terminal, sql, terminal.api.request(sql) if terminal.api else {}, multiplayer.get_unique_id())
+		return
 	if sync:
 		sync.submit_query(terminal, sql)
 		return
@@ -200,6 +207,27 @@ func _echo(sql: String, who: String) -> String:
 	return "[color=#ffffff]%s> %s[/color]" % [_esc(who), _esc(sql).replace("\n", "\n  ")]
 
 
+## Print an HTTP request and its response on `on_terminal`'s screen. An empty
+## response means the terminal has no API. The host calls on_request itself.
+func show_request(on_terminal: Node, line: String, res: Dictionary, from_peer: int) -> void:
+	var mine := from_peer == multiplayer.get_unique_id()
+	var who := ""
+	if not mine:
+		var net := get_node_or_null("/root/Net")
+		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+	on_terminal.print_line(_echo(line, who))
+	if res.is_empty():
+		on_terminal.print_line("[color=#ff6655]No network API on this terminal. It only speaks SQL.[/color]")
+		return
+	if mine:
+		get_node("/root/Game").log_query(line)
+	var color := "#7dff8c" if res.status < 400 else "#ff6655"
+	on_terminal.print_line("[color=%s]HTTP/1.0 %d %s[/color]" % [color, res.status, FacilityAPI.status_text(res.status)])
+	on_terminal.print_line(_esc(res.text))
+	if LevelSync.of(on_terminal) == null:
+		on_terminal.on_request(line, res, self)
+
+
 func _command(cmd: String) -> void:
 	var parts := cmd.split(" ", false)
 	var db: FacilityDB = terminal.db
@@ -211,6 +239,8 @@ func _command(cmd: String) -> void:
 			print_line("  .hint            ask WARDEN for a hint")
 			print_line("  .clear           clear the screen")
 			print_line("  .reset           restore this terminal's data from backup")
+			if terminal.api != null:
+				print_line("  GET /path        send a web request, e.g. GET /cameras")
 			print_line("Anything else is run as SQL. End queries with ; (optional).")
 		".tables":
 			if terminal.is_locked():
@@ -296,7 +326,7 @@ func _sql_highlighter() -> CodeHighlighter:
 	h.function_color = Color(0.85, 1.0, 0.85)
 	h.member_variable_color = Color(0.85, 1.0, 0.85)
 	var kw := Color(1.0, 0.8, 0.35)
-	for word in ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK"]:
+	for word in ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]:
 		h.add_keyword_color(word, kw)
 		h.add_keyword_color(word.to_lower(), kw)
 	h.add_color_region("'", "'", Color(0.6, 1.0, 1.0))

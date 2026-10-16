@@ -17,15 +17,29 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.
 
+**Byte-Right dispatch** (DISPATCH). The IT company's night dispatcher, heard on the van radio.
+
+> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+
 **Harold Mercer** (MERCER). Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
 
 ## Level 0
 
-### The lobby, 11 p.m.
+### The IT van
 
-*The crew walks in through the front doors. WARDEN greets them over the PA, then Rourke steps up from the waiting area.*
+*The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up.*
+
+**DISPATCH:** *(Over the van radio. Routine.)* Van three, you're on site at Halcyon Data Systems. After-hours callout. `[l0_dispatch_1]`
+
+**DISPATCH:** *(Reading it off the ticket.)* They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. `[l0_dispatch_2]`
+
+**DISPATCH:** *(Signing off, already onto the next call.)* Hop out when you're ready. Dispatch out. `[l0_dispatch_3]`
+
+### The front doors, 11 p.m.
+
+*The crew walks up from the van. Rourke opens the front doors and WARDEN greets them over the PA. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log.*
 
 **WARDEN:** *(Over the lobby PA. Pleasant, like a store closing announcement.)* GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. `[l0_pa_1]`
 
@@ -37,6 +51,10 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Still smiling. Should sound like a joke the first time and a threat on replay.)* Badge rules after hours. You don't go anywhere I don't take you. `[l0_greet_3]`
 
+**ROURKE:** *(Holding the door, waving them through.)* Come on in. I'll sign you in at the front desk. `[l0_greet_4]`
+
+**ROURKE:** *(Casual, reassuring. Nothing to worry about. (On a replay it lands differently.))* Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. `[l0_signin]`
+
 ### The tour
 
 *Rourke walks the crew to reception, explaining the job and the building's history.*
@@ -47,7 +65,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Tour-guide mode, enjoying himself.)* Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings. `[l0_tour_3]`
 
-**ROURKE:** Board fired him when they installed WARDEN. That's the AI that runs the campus now. `[l0_tour_4]`
+**ROURKE:** *(Still chatting to the crew, a little proud of the trivia.)* Board fired him when they installed WARDEN. That's the AI that runs the campus now. `[l0_tour_4]`
 
 **ROURKE:** *(Spooky-campfire voice, playing it up.)* Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. `[l0_tour_5]`
 
@@ -153,7 +171,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN:** *(The last sentence slightly slower.)* THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l1_panel_wrong]`
 
-**WARDEN:** CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. `[l1_exit_open]`
+**WARDEN:** *(Polite and a touch reluctant, over the speakers.)* CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. `[l1_exit_open]`
 
 ### Lockdown
 
@@ -167,19 +185,19 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Rourke on the radio (if he escaped)
 
-*Level 2 opening, only if Rourke was tied up in Level 1. He still has his facilities radio on channel 1 and calls the crew's walkie-talkies.* *(Written ahead: not in the game yet.)*
+*Level 2 opening, only if Rourke was tied up in Level 1. He still has his facilities radio on channel 1 and calls the crew's walkie-talkies.*
 
 **ROURKE:** *(Through the walkie. Relaxed, enjoying himself again.)* Still on channel one? Good. Thought you'd want to know I'm out. `[l2_rourke_1]`
 
-**ROURKE:** Security office is the only way down from here. Say hi to the night guard for me. `[l2_rourke_2]`
+**ROURKE:** *(Through the walkie, casual, like giving directions.)* Security office is the only way down from here. Say hi to the night guard for me. `[l2_rourke_2]`
 
 **ROURKE:** *(Let it hang. Then the radio clicks off.)* Oh, he won't say much. Nobody's seen him since Tuesday. `[l2_rourke_3]`
 
 ### The security office
 
-*WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie).* *(Written ahead: not in the game yet.)*
+*WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie).*
 
-**WARDEN:** *(Only if Rourke was killed. Plays on arrival, in place of Rourke's radio call.)* REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. `[l2_dead_escort]`
+**WARDEN:** *(Plays in one version of the story only. Patient, slightly too formal.)* REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. `[l2_dead_escort]`
 
 **WARDEN:** *(Reassuring tone. It is not reassuring.)* SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. `[l2_arrive]`
 
@@ -193,7 +211,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Vale's voicemail
 
-*The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk.* *(Written ahead: not in the game yet.)*
+*The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk.*
 
 **VALE:** *(Beep before this. Hushed, fast.)* Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. `[l2_vale_1]`
 

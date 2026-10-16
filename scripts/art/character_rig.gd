@@ -1,0 +1,421 @@
+class_name CharacterRig
+extends Node3D
+## A low-poly person built from primitives, with procedural animation. One rig
+## serves players (as teammates see them), Rourke and every other NPC.
+##
+##   var rig := CharacterRig.build(body_node, CharacterLooks.rourke())
+##   rig.play("wave")          # or "idle", "talk", "windup", "down", ...
+##
+## Walking and running need no calls: the rig measures how fast it is moving and
+## swings its legs to match, so it animates the same on every machine from the
+## position that is already synced. Actions are either full-body (they replace
+## walking) or upper-body (arms and head only; legs keep walking).
+##
+## The rig stands on its parent's origin and faces -Z, like CharacterBody3D.
+
+## Upper-body actions keep the legs walking; the rest take over the whole body.
+const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike"]
+const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "crouch"]
+const ACTIONS := UPPER_BODY + FULL_BODY
+
+## Meters covered by one full walk cycle (two steps).
+const STRIDE := 1.5
+const WALK_SPEED := 1.9
+## Beyond this distance from the camera the rig updates less often.
+const FAR_DISTANCE := 30.0
+
+## The action playing now (see ACTIONS).
+var action := "idle"
+## Crouched walking: lowers the body and shortens the stride.
+var crouching := false
+## Up/down look, in radians (a teammate's camera pitch). Positive looks up.
+var head_pitch := 0.0
+## A point to turn the head toward, or null.
+var look_target: Variant = null
+## Set >= 0 to drive the walk cycle directly instead of measuring movement.
+var speed_override := -1.0
+
+var look: Dictionary
+var joints := {}  # name -> Node3D
+
+var _pose := {}  # joint -> current Vector3 rotation
+var _root_pos := Vector3.ZERO
+var _root_rot := Vector3.ZERO
+var _phase := 0.0
+var _speed := 0.0
+var _t := 0.0
+var _last_pos := Vector3.ZERO
+var _has_last := false
+var _skip := 0
+var _skipped_delta := 0.0
+
+static var _meshes := {}
+
+
+static func build(parent: Node3D, character: Dictionary) -> CharacterRig:
+	var rig := CharacterRig.new()
+	rig.name = "Rig"
+	rig._make(character)
+	parent.add_child(rig)
+	return rig
+
+
+## Switch to an action. Unknown names fall back to idle.
+func play(new_action: String) -> void:
+	action = new_action if ACTIONS.has(new_action) else "idle"
+
+
+func is_full_body() -> bool:
+	return FULL_BODY.has(action)
+
+
+## How many mesh pieces the rig draws (performance tests keep this small).
+func part_count() -> int:
+	return find_children("*", "MeshInstance3D", true, false).size()
+
+
+func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		return
+	# Far away rigs animate at a quarter rate; nobody can see the difference.
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam and cam.global_position.distance_to(global_position) > FAR_DISTANCE:
+		_skip = (_skip + 1) % 4
+		_skipped_delta += delta
+		if _skip != 0:
+			return
+		delta = _skipped_delta
+	_skipped_delta = 0.0
+	animate(delta)
+
+
+## Advance the animation by `delta` seconds. Called every frame; tests call it directly.
+func animate(delta: float) -> void:
+	_t += delta
+	_measure_speed(delta)
+	var target := _target_pose()
+	var k := 1.0 - exp(-14.0 * delta)
+	var k_root := 1.0 - exp(-7.0 * delta)
+	for j in joints:
+		var cur: Vector3 = _pose.get(j, Vector3.ZERO)
+		var to: Vector3 = target.get(j, Vector3.ZERO)
+		cur = cur.lerp(to, k)
+		_pose[j] = cur
+		joints[j].rotation = cur
+	_root_pos = _root_pos.lerp(target.get("_root_pos", Vector3.ZERO), k_root)
+	_root_rot = _root_rot.lerp(target.get("_root_rot", Vector3.ZERO), k_root)
+	position = _root_pos
+	rotation = _root_rot
+
+
+func _measure_speed(delta: float) -> void:
+	var measured := 0.0
+	if speed_override >= 0.0:
+		measured = speed_override
+	elif is_inside_tree():
+		var p := get_parent_node_3d().global_position if get_parent_node_3d() else global_position
+		if _has_last and delta > 0.0:
+			var d := p - _last_pos
+			d.y = 0.0
+			measured = d.length() / delta
+			if measured > 20.0:  # a teleport or respawn, not a sprint
+				measured = 0.0
+		_last_pos = p
+		_has_last = true
+	_speed = lerpf(_speed, measured, 1.0 - exp(-8.0 * delta))
+	_phase = fmod(_phase + delta * _speed / STRIDE * TAU, TAU)
+
+
+## Speed of the walk cycle right now, in m/s.
+func current_speed() -> float:
+	return _speed
+
+
+# --- Poses -------------------------------------------------------------------
+
+func _target_pose() -> Dictionary:
+	var p := {}
+	if not is_full_body():
+		_locomotion(p)
+	_action_pose(p)
+	_head(p)
+	return p
+
+
+static func _sym(p: Dictionary, joint: String, right: Vector3) -> void:
+	p["r_" + joint] = right
+	p["l_" + joint] = Vector3(right.x, -right.y, -right.z)
+
+
+func _locomotion(p: Dictionary) -> void:
+	var walk := clampf(_speed / WALK_SPEED, 0.0, 1.0)
+	var run := clampf((_speed - WALK_SPEED) / 2.5, 0.0, 1.0)
+	var amp := walk * (0.85 + 0.35 * run)
+	var s := sin(_phase)
+	var c := cos(_phase)
+	var crouch := 1.0 if crouching else 0.0
+	# Legs.
+	p["r_hip"] = Vector3(s * 0.5 * amp + crouch * 1.0, 0, 0.03)
+	p["l_hip"] = Vector3(-s * 0.5 * amp + crouch * 1.0, 0, -0.03)
+	p["r_knee"] = Vector3(-amp * (0.1 + 0.75 * maxf(0.0, c)) - crouch * 1.7, 0, 0)
+	p["l_knee"] = Vector3(-amp * (0.1 + 0.75 * maxf(0.0, -c)) - crouch * 1.7, 0, 0)
+	# Arms swing against the legs; running pumps with bent elbows.
+	p["r_shoulder"] = Vector3(-s * 0.45 * amp, 0, 0.07)
+	p["l_shoulder"] = Vector3(s * 0.45 * amp, 0, -0.07)
+	_sym(p, "elbow", Vector3(0.15 + 0.35 * walk + 0.9 * run, 0, 0))
+	# Body: twist, lean into a run, bob on each footfall, breathe when still.
+	var breathe := sin(_t * 1.7) * 0.02 * (1.0 - walk)
+	p["spine"] = Vector3(-0.03 * walk - 0.18 * run - 0.35 * crouch + breathe, s * 0.07 * amp, 0)
+	p["neck"] = Vector3(0.03 * walk + 0.12 * run + 0.2 * crouch, -s * 0.05 * amp, 0)
+	p["hips"] = Vector3(0, -s * 0.05 * amp, c * 0.03 * amp)
+	p["_root_pos"] = Vector3(0, -0.035 * amp * absf(s) - 0.38 * crouch, 0)
+
+
+func _action_pose(p: Dictionary) -> void:
+	var t := _t
+	match action:
+		"idle":
+			pass
+		"talk":
+			p["r_shoulder"] = Vector3(0.35 + sin(t * 2.3) * 0.15, 0, 0.12)
+			p["r_elbow"] = Vector3(1.0 + sin(t * 3.1) * 0.25, 0, 0)
+			p["l_shoulder"] = Vector3(0.15 + sin(t * 1.7 + 1.0) * 0.08, 0, -0.1)
+			p["l_elbow"] = Vector3(0.6 + sin(t * 2.2) * 0.15, 0, 0)
+			p["neck"] = Vector3(sin(t * 2.7) * 0.06, sin(t * 0.9) * 0.12, 0)
+		"wave":
+			p["r_shoulder"] = Vector3(0.2, 0, 2.5 + sin(t * 8.0) * 0.25)
+			p["r_elbow"] = Vector3(0.5, 0, 0)
+		"point":
+			p["r_shoulder"] = Vector3(1.5, 0.15, 0.05)
+			p["r_elbow"] = Vector3(0.05, 0, 0)
+		"radio":
+			# Walkie up to the mouth in the left hand.
+			p["l_shoulder"] = Vector3(1.0, 0.3, -0.45)
+			p["l_elbow"] = Vector3(2.1, 0, 0)
+			p["neck"] = Vector3(-0.1, -0.15, 0)
+		"flashlight":
+			# Torch held out in the right hand, following where they look.
+			p["r_shoulder"] = Vector3(1.35 + head_pitch * 0.8, 0.1, -0.05)
+			p["r_elbow"] = Vector3(0.3, 0, 0)
+		"type":
+			_sym(p, "shoulder", Vector3(0.55, 0, -0.12))
+			p["r_elbow"] = Vector3(1.15 + sin(t * 11.0) * 0.06, 0, 0)
+			p["l_elbow"] = Vector3(1.15 + sin(t * 9.0 + 2.0) * 0.06, 0, 0)
+			p["neck"] = Vector3(-0.25, 0, 0)
+		"hands_up":
+			_sym(p, "shoulder", Vector3(0.3, 0, 2.3))
+			_sym(p, "elbow", Vector3(1.2, 0, 0))
+		"windup":
+			# Rourke's tell before a hit: lean in, arms back and up.
+			p["spine"] = Vector3(-0.3, 0.25, 0)
+			p["r_shoulder"] = Vector3(1.9, 0, 0.5)
+			p["r_elbow"] = Vector3(1.5, 0, 0)
+			p["l_shoulder"] = Vector3(0.9, 0, -0.25)
+			p["l_elbow"] = Vector3(1.2, 0, 0)
+		"strike":
+			p["spine"] = Vector3(-0.45, -0.2, 0)
+			_sym(p, "shoulder", Vector3(1.45, 0, 0.05))
+			_sym(p, "elbow", Vector3(0.15, 0, 0))
+		"stagger":
+			p["spine"] = Vector3(0.35, 0, 0.05)
+			p["neck"] = Vector3(0.3, 0.2, 0)
+			_sym(p, "shoulder", Vector3(0.5, 0, 0.9))
+			_sym(p, "elbow", Vector3(0.5, 0, 0))
+			p["r_hip"] = Vector3(0.25, 0, 0.05)
+			p["l_hip"] = Vector3(-0.2, 0, -0.05)
+			p["r_knee"] = Vector3(-0.4, 0, 0)
+			p["l_knee"] = Vector3(-0.1, 0, 0)
+		"down", "dead":
+			# Flat on his back, limbs loose.
+			p["_root_rot"] = Vector3(PI / 2, 0, 0)
+			p["_root_pos"] = Vector3(0, 0.14, 0)
+			_sym(p, "shoulder", Vector3(0.1, 0, 0.6 if action == "down" else 1.3))
+			_sym(p, "elbow", Vector3(0.4, 0, 0))
+			p["r_hip"] = Vector3(0.1, 0, 0.12)
+			p["l_hip"] = Vector3(0.25, 0, -0.08)
+			p["l_knee"] = Vector3(-0.4, 0, 0)
+			p["neck"] = Vector3(0.1, 0.9 if action == "dead" else sin(t * 0.8) * 0.15, 0)
+		"tied":
+			# On his side, wrists behind his back, knees drawn up.
+			p["_root_rot"] = Vector3(PI / 2, 0, PI / 2)
+			p["_root_pos"] = Vector3(0, 0.2, 0)
+			_sym(p, "shoulder", Vector3(-0.7, 0, 0.15))
+			_sym(p, "elbow", Vector3(1.3, 0, 0))
+			_sym(p, "hip", Vector3(0.7, 0, 0))
+			_sym(p, "knee", Vector3(-1.2, 0, 0))
+			# He struggles now and then.
+			p["spine"] = Vector3(0.1 + maxf(0.0, sin(t * 0.7)) * 0.15 * sin(t * 9.0), 0, 0)
+		"sit":
+			p["_root_pos"] = Vector3(0, -0.45, 0)
+			_sym(p, "hip", Vector3(1.5, 0, 0.05))
+			_sym(p, "knee", Vector3(-1.5, 0, 0))
+			_sym(p, "shoulder", Vector3(0.35, 0, 0.05))
+			_sym(p, "elbow", Vector3(0.9, 0, 0))
+		"crouch":
+			p["_root_pos"] = Vector3(0, -0.38, 0)
+			_sym(p, "hip", Vector3(1.0, 0, 0.1))
+			_sym(p, "knee", Vector3(-1.7, 0, 0))
+			p["spine"] = Vector3(-0.35, 0, 0)
+			p["neck"] = Vector3(0.2, 0, 0)
+			_sym(p, "shoulder", Vector3(0.4, 0, 0.1))
+			_sym(p, "elbow", Vector3(0.6, 0, 0))
+
+
+func _head(p: Dictionary) -> void:
+	var h: Vector3 = p.get("head", Vector3.ZERO)
+	h.x += clampf(head_pitch, -1.2, 1.2) * 0.7
+	if look_target is Vector3 and not is_full_body() and is_inside_tree():
+		var head_node: Node3D = joints["head"]
+		var d: Vector3 = global_transform.basis.inverse() * ((look_target as Vector3) - head_node.global_position)
+		var flat := Vector2(d.x, d.z).length()
+		if flat > 0.05:
+			h.y += clampf(atan2(-d.x, -d.z), -1.1, 1.1)
+			h.x += clampf(atan2(d.y, flat), -0.6, 0.6)
+	p["head"] = h
+
+
+# --- Building the body ---------------------------------------------------------
+
+func _make(character: Dictionary) -> void:
+	look = CharacterLooks.base()
+	look.merge(character, true)
+	var hs: float = look.height
+	var b: float = look.build
+	scale = Vector3.ONE * hs
+	var skin := ArtPalette.flat(look.skin, 0.7)
+	var shirt := ArtPalette.flat(look.shirt, 0.9)
+	var pants := ArtPalette.flat(look.pants, 0.9)
+	var shoes := ArtPalette.flat(look.shoes, 0.6)
+	var jacket: StandardMaterial3D = ArtPalette.flat(look.jacket, 0.85) if look.jacket is Color else null
+	var sleeve := jacket if jacket else shirt
+	var forearm := sleeve if look.sleeves == "long" or jacket else skin
+
+	var hips := _joint("hips", self, Vector3(0, 0.92, 0))
+	_part(hips, "box", Vector3(0.32 * b, 0.2, 0.2), Vector3(0, 0, 0), pants, true)
+	var spine := _joint("spine", hips, Vector3(0, 0.06, 0))
+	_part(spine, "box", Vector3(0.4 * b, 0.28, 0.23), Vector3(0, 0.35, 0), shirt, true)  # chest
+	_part(spine, "box", Vector3(0.34 * b, 0.22, 0.21), Vector3(0, 0.1, 0), shirt, true)  # waist
+	if jacket:
+		for side in [-1.0, 1.0]:
+			_part(spine, "box", Vector3(0.15 * b, 0.5, 0.25), Vector3(side * 0.13 * b, 0.24, 0.005), jacket, true)
+		_part(spine, "box", Vector3(0.42 * b, 0.12, 0.25), Vector3(0, 0.44, 0.01), jacket)  # collar and shoulders
+	if look.logo is Color:
+		_part(spine, "box", Vector3(0.07, 0.05, 0.01), Vector3(-0.1 * b, 0.38, -0.12), ArtPalette.flat(look.logo))
+	if look.lanyard is Color:
+		_part(spine, "box", Vector3(0.025, 0.24, 0.01), Vector3(0, 0.38, -0.121), ArtPalette.flat(look.lanyard))
+	if look.badge:
+		var badge_y := 0.24 if look.lanyard is Color else 0.33
+		var badge_x := 0.0 if look.lanyard is Color else 0.1 * b
+		_part(spine, "box", Vector3(0.06, 0.085, 0.01), Vector3(badge_x, badge_y, -0.125), ArtPalette.flat(Color(0.95, 0.95, 0.92), 0.4))
+	var neck := _joint("neck", spine, Vector3(0, 0.49, 0))
+	_part(neck, "cyl", Vector3(0.05, 0.08, 0), Vector3(0, 0.03, 0), skin)
+	var head := _joint("head", neck, Vector3(0, 0.07, 0))
+	_part(head, "sphere", Vector3(0.115, 0.135, 0.12), Vector3(0, 0.1, 0), skin, true)
+	_make_face(head)
+	_make_hair(head)
+
+	for side in ["r", "l"]:
+		var sx := 1.0 if side == "r" else -1.0
+		var sh := _joint(side + "_shoulder", spine, Vector3(sx * 0.215 * b, 0.43, 0))
+		_part(sh, "sphere", Vector3(0.062 * b, 0.06, 0.062), Vector3(0, -0.02, 0), sleeve)
+		_part(sh, "capsule", Vector3(0.055 * b, 0.3, 0), Vector3(0, -0.13, 0), sleeve)
+		var el := _joint(side + "_elbow", sh, Vector3(0, -0.28, 0))
+		_part(el, "capsule", Vector3(0.045, 0.28, 0), Vector3(0, -0.12, 0), forearm)
+		_part(el, "box", Vector3(0.07, 0.1, 0.04), Vector3(0, -0.29, 0), skin)
+		var hip := _joint(side + "_hip", hips, Vector3(sx * 0.09 * b, -0.05, 0))
+		_part(hip, "capsule", Vector3(0.075 * b, 0.46, 0), Vector3(0, -0.21, 0), pants, true)
+		var knee := _joint(side + "_knee", hip, Vector3(0, -0.43, 0))
+		_part(knee, "capsule", Vector3(0.06, 0.42, 0), Vector3(0, -0.19, 0), pants, true)
+		_part(knee, "box", Vector3(0.1, 0.08, 0.25), Vector3(0, -0.4, -0.05), shoes)
+		if side == "r" and look.belt_radio:
+			_part(hips, "box", Vector3(0.05, 0.12, 0.07), Vector3(0.19 * b, -0.02, 0.02), ArtPalette.flat(ArtPalette.DARK_PLASTIC, 0.5))
+	if jacket and look.coat:
+		# A long coat (lab coat) hangs from the waist to the knees.
+		_part(hips, "box", Vector3(0.4 * b, 0.5, 0.26), Vector3(0, -0.2, 0.005), jacket, true)
+
+
+func _make_face(head: Node3D) -> void:
+	var dark := ArtPalette.flat(Color(0.06, 0.05, 0.05), 0.4)
+	for sx in [-1.0, 1.0]:
+		_part(head, "box", Vector3(0.025, 0.018, 0.01), Vector3(sx * 0.045, 0.125, -0.108), dark)
+	_part(head, "box", Vector3(0.03, 0.045, 0.03), Vector3(0, 0.09, -0.118), ArtPalette.flat(look.skin, 0.7))
+	if look.mustache is Color:
+		_part(head, "box", Vector3(0.08, 0.02, 0.02), Vector3(0, 0.055, -0.115), ArtPalette.flat(look.mustache))
+	if look.glasses:
+		# Thin frames just above the eyes, so they read as glasses, not shades.
+		_part(head, "box", Vector3(0.15, 0.012, 0.008), Vector3(0, 0.138, -0.118), ArtPalette.flat(Color(0.12, 0.1, 0.1), 0.3))
+
+
+func _make_hair(head: Node3D) -> void:
+	var hair := ArtPalette.flat(look.hair, 0.95)
+	match look.hair_style:
+		"short":
+			_part(head, "sphere", Vector3(0.122, 0.1, 0.127), Vector3(0, 0.15, 0.01), hair)
+		"long":
+			_part(head, "sphere", Vector3(0.125, 0.11, 0.13), Vector3(0, 0.15, 0.012), hair)
+			_part(head, "box", Vector3(0.22, 0.28, 0.08), Vector3(0, 0.0, 0.08), hair)
+		"bald":
+			# A fringe round the back and sides only.
+			_part(head, "sphere", Vector3(0.122, 0.055, 0.11), Vector3(0, 0.09, 0.035), hair)
+		"cap":
+			_part(head, "sphere", Vector3(0.125, 0.09, 0.13), Vector3(0, 0.17, 0.0), hair)
+			_part(head, "box", Vector3(0.18, 0.015, 0.1), Vector3(0, 0.165, -0.15), hair)
+
+
+func _joint(joint_name: String, parent: Node3D, pos: Vector3) -> Node3D:
+	var j := Node3D.new()
+	j.name = joint_name
+	j.position = pos
+	parent.add_child(j)
+	joints[joint_name] = j
+	_pose[joint_name] = Vector3.ZERO
+	return j
+
+
+## One mesh piece. kind: box (size), sphere (radii), capsule (radius, length),
+## cyl (radius, length). Meshes are shared between rigs by size.
+func _part(parent: Node3D, kind: String, dims: Vector3, pos: Vector3, mat: Material, shadow: bool = false) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _mesh(kind, dims)
+	mi.position = pos
+	if kind == "sphere":
+		mi.scale = dims / dims.x
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
+
+
+static func _mesh(kind: String, dims: Vector3) -> Mesh:
+	var key := "%s|%.3f|%.3f|%.3f" % [kind, dims.x, dims.y, dims.z]
+	if _meshes.has(key):
+		return _meshes[key]
+	var m: PrimitiveMesh
+	match kind:
+		"box":
+			var bm := BoxMesh.new()
+			bm.size = dims
+			m = bm
+		"sphere":
+			var sm := SphereMesh.new()
+			sm.radius = dims.x
+			sm.height = dims.x * 2.0
+			sm.radial_segments = 12
+			sm.rings = 6
+			m = sm
+		"capsule":
+			var cm := CapsuleMesh.new()
+			cm.radius = dims.x
+			cm.height = maxf(dims.y, dims.x * 2.0 + 0.01)
+			cm.radial_segments = 8
+			cm.rings = 2
+			m = cm
+		"cyl":
+			var cy := CylinderMesh.new()
+			cy.top_radius = dims.x
+			cy.bottom_radius = dims.x
+			cy.height = dims.y
+			cy.radial_segments = 8
+			m = cy
+	_meshes[key] = m
+	return m

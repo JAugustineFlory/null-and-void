@@ -30,8 +30,13 @@ func _ready() -> void:
 	var start := _button("Start (solo)")
 	start.pressed.connect(func():
 		Game.new_run()
-		Game.goto("level_0"))
+		Game.goto("world"))
 	box.add_child(start)
+	var skip := _button("Playtest: jump to Level 2")
+	skip.pressed.connect(func():
+		Game.new_run()
+		Game.goto("level_2"))
+	box.add_child(skip)
 	var gym := _button("Movement gym (practice)")
 	gym.pressed.connect(func(): Game.goto("movement_gym"))
 	box.add_child(gym)
@@ -49,7 +54,7 @@ func _ready() -> void:
 		box.add_child(msg)
 		net.last_message = ""
 
-	var note := ThemeUtil.label("First playable slice: greybox art, placeholder voices. Levels 0 and 1.", 16, Color(1, 1, 1, 0.4))
+	var note := ThemeUtil.label("First playable slice: greybox art, placeholder voices. Levels 0 to 2.", 16, Color(1, 1, 1, 0.4))
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(note)
 	start.grab_focus()

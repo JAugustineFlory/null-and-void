@@ -20,13 +20,23 @@ func _run() -> void:
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
+	test_facility_api()
+	test_level_2_data_every_seed()
+	test_level_2_hints()
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
+	await test_level_2_scene()
+	await test_level_2_routes()
+	test_wing_seeds_in_order()
+	test_reset_keeps_earlier_wings()
+	await test_world()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
+	await load("res://tests/art_tests.gd").new().run(self, check)
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
+	await test_coop_world()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -43,10 +53,10 @@ func check(cond: bool, name: String) -> void:
 func test_facility_db() -> void:
 	print("FacilityDB")
 	var db := FacilityDB.new()
-	db.load_seed("CREATE TABLE doors (id TEXT, locked INTEGER, actuator_fault INTEGER); INSERT INTO doors VALUES ('A', 1, 0), ('B', 1, 1);")
+	db.load_seed("INSERT INTO doors (id, locked, actuator_fault) VALUES ('A', 1, 0), ('B', 1, 1);")
 	var events := []
 	db.door_changed.connect(func(id, locked, fault): events.append([id, locked, fault]))
-	var r := db.execute("SELECT * FROM doors WHERE locked = 1")
+	var r := db.execute("SELECT id, locked, actuator_fault FROM doors WHERE locked = 1")
 	check(r.ok and r.rows.size() == 2 and r.columns == ["id", "locked", "actuator_fault"], "select returns rows and ordered columns")
 	r = db.execute("SELEC * FROM doors")
 	check(not r.ok and r.error.contains("syntax"), "syntax error is reported")
@@ -119,6 +129,8 @@ func test_first_hints_show_working_queries() -> void:
 	for p in [l0.peek_puzzle, l0.memo_puzzle]:
 		var q := _hint_query(p.hints[0])
 		check(q != "" and p.matches(db, db.execute(q)), "%s: first hint's query solves it (%s)" % [p.id, q])
+	check(l0.memo_puzzle.hints[1].contains("ORDER BY piece_no") and not l0.memo_puzzle.hints[1].contains("visitors"),
+		"memo: second hint names the real column, not an example table")
 	l0.free()
 	var l1 = load("res://scripts/levels/level_1.gd").new()
 	var ok := true
@@ -188,6 +200,8 @@ func test_voice_script() -> void:
 		if VoiceLines.scene(l["scene"]).is_empty():
 			scenes_ok = false
 	check(speakers_ok, "every line's speaker has a character entry")
+	var no_note := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["note"] == "")
+	check(no_note.is_empty(), "every line has an acting note %s" % [no_note])
 	check(scenes_ok, "every line belongs to a scene")
 
 	var used := {}
@@ -223,6 +237,48 @@ func test_voice_script() -> void:
 	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
 		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
 	check(in_sync, "docs/script/ matches voice_lines.gd (run tools/write_script_docs.gd)")
+	var listed := true
+	var recording_list := ScriptDocs.recording_list_markdown()
+	for id in VoiceLines.LINES:
+		if not recording_list.contains("`%s`" % id):
+			listed = false
+	check(listed, "every line is on the recording list")
+
+	var docs := ScriptDocs.character_docs()
+	var on_disk := {}
+	for f in DirAccess.get_files_at(ScriptDocs.CHARACTERS_DIR):
+		if f.ends_with(".md"):
+			on_disk[ScriptDocs.CHARACTERS_DIR.path_join(f)] = true
+	var chars_in_sync := on_disk.size() == docs.size()
+	for path in docs:
+		if FileAccess.get_file_as_string(path) != docs[path]:
+			chars_in_sync = false
+	check(chars_in_sync, "docs/script/characters/ matches voice_lines.gd (run tools/write_script_docs.gd)")
+	var placed_once := []
+	var wrong_file := []
+	for id in VoiceLines.LINES:
+		var hits := 0
+		var slug: String = VoiceLines.CHARACTERS[VoiceLines.LINES[id]["speaker"]]["slug"]
+		for path in docs:
+			if docs[path].contains("`%s.wav`" % id):
+				hits += 1
+				if not path.get_file().begins_with(slug):
+					wrong_file.append(id)
+		if hits != 1:
+			placed_once.append(id)
+	check(placed_once.is_empty(), "every line is in exactly one character's script %s" % [placed_once])
+	check(wrong_file.is_empty(), "lines are only in their own character's script %s" % [wrong_file])
+	var leaks := []
+	for path in docs:
+		for c in VoiceLines.CHARACTERS.values():
+			if docs[path].contains(c["who"]):
+				leaks.append("%s: who %s" % [path.get_file(), c["slug"]])
+		for sc in VoiceLines.SCENES:
+			if docs[path].contains(sc["context"]):
+				leaks.append("%s: context %s" % [path.get_file(), sc["id"]])
+	check(leaks.is_empty(), "actors' scripts leave out the team-only character notes %s" % [leaks])
+	check(VoiceLines.held_back({"level": VoiceLines.REVEAL_LEVEL}) and VoiceLines.held_back({"level": 2, "reveal": true}) \
+		and not VoiceLines.held_back({"level": 2}), "reveal scenes and late levels are held back for a later session")
 
 
 func test_voice_playback() -> void:
@@ -250,6 +306,17 @@ func test_voice_playback() -> void:
 	check(absf(wait - (0.5 + Voice.TAIL)) < 0.05, "the line lasts as long as its recording (%.2f s)" % wait)
 	check(voice.is_playing(), "the recording plays")
 	check(voice._player.bus == &"Master", "Rourke plays without the PA filter")
+	DirAccess.remove_absolute(wav_path)
+	DirAccess.make_dir_recursive_absolute(Voice.folder.path_join("rourke"))
+	var take2 := Voice.folder.path_join("rourke/l0_greet_1_take2.wav")
+	wav.save_to_wav(take2)
+	check(Voice.path_for("l0_greet_1") == "", "a second take alone isn't played")
+	var actor_path := Voice.folder.path_join("rourke/l0_greet_1.wav")
+	wav.save_to_wav(actor_path)
+	check(Voice.path_for("l0_greet_1") == actor_path, "an actor's file in the character's folder is found")
+	DirAccess.remove_absolute(take2)
+	DirAccess.remove_absolute(actor_path)
+	wav.save_to_wav(wav_path)
 	var warden_path := Voice.folder.path_join("l1_sealed.wav")
 	wav.save_to_wav(warden_path)
 	voice.play("l1_sealed")
@@ -286,7 +353,22 @@ func test_level_0_scene() -> void:
 	for i in 30:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
-	check(level.player.global_position.y > -1.0, "player stands on the floor")
+	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
+	var flickering := 0
+	for id in ["lobby", "hall"]:
+		for l in level.lights[id]:
+			for c in l.get_children():
+				if c is FlickerLight:
+					flickering += 1
+	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
+	check(not level.front_doors.is_open, "front doors start closed")
+	level.ready_up(level.player, 1)
+	await create_timer(2.5).timeout
+	var pos: Vector3 = level.player.global_position
+	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	level.player.global_position = Vector3(0, 0.1, 11.5)
+	await create_timer(3.5).timeout
+	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")
 	level.desk_terminal.enabled = true
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments")
@@ -525,5 +607,339 @@ func test_coop_six_players() -> void:
 	await _coop_close(worlds)
 
 
+func test_coop_world() -> void:
+	print("Co-op: the World with a host and a client")
+	_game().new_run(9)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/world.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(machines.all(func(w): return w.sync._begun and w.current != null and w.current.wing_id == "level_0" and w.current.active), "both machines start the World in the lobby wing")
+	check(machines.all(func(w): return w.players.count() == 2), "both see two players in the World")
+	var lobby_h = host.current
+	var lobby_c = client.current
+	check(lobby_c.players == client.players and lobby_c.sync != client.sync, "a wing shares the World's players but has its own events")
+
+	lobby_c.van_seats[0].door.interact(client.player)
+	await _frames(10)
+	check(lobby_h.ready_players.size() == 1 and not lobby_h._intro_started, "a client's van door, pressed inside a wing, reaches the host")
+	lobby_h.van_seats[1].door.interact(host.player)
+	await _frames(10)
+	check(lobby_h._intro_started and lobby_c._intro_started, "once both are ready, everyone climbs out together")
+
+	lobby_h.sync.event("_on_walkies")
+	await _frames(10)
+	check(host.wings.has("level_1") and client.wings.has("level_1"), "the next wing loads on every machine")
+	var sra_h = host.wings["level_1"]
+	var sra_c = client.wings["level_1"]
+	var dump := "SELECT * FROM doors ORDER BY id"
+	check(_table(sra_h, dump) == _table(sra_c, dump), "both machines built the same building from the run seed")
+	lobby_h.sync.event("_on_reach_server_room", [null])
+	await _frames(10)
+	check(host.current == sra_h and client.current == sra_c and sra_c.active, "play moves into Server Room A on every machine")
+
+	sra_h.rourke.global_position = sra_h.to_global(Vector3(-3, 0, 5))
+	await _frames(20)
+	check(sra_c.rourke.global_position.distance_to(sra_h.rourke.global_position) < 1.0, "clients see the wing's Rourke where the host has him")
+	sra_h.sync.event("_on_rourke_resolved", ["tied"])
+	await _frames(10)
+	sra_c.terminal_ui.terminal = sra_c.terminal
+	sra_c.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
+	await _frames(10)
+	check(sra_h.doors["SRA-EXIT"].is_open and sra_c.doors["SRA-EXIT"].is_open, "a client's query in a wing opens the door for everyone")
+	check(_table(sra_h, dump) == _table(sra_c, dump), "the shared database still matches")
+	check(host.players.puppet(client_id) != null, "the client is still in the game")
+	await _coop_close(worlds)
+
+
+func test_facility_api() -> void:
+	print("FacilityAPI")
+	var api := FacilityAPI.new()
+	api.route("GET", "/cameras", func(_p): return {"status": 200, "body": {"cameras": [{"id": "CAM-1", "motion": true}]}})
+	api.route("GET", "/cameras/:id", func(p): return {"status": 200, "body": {"id": p[0]}})
+	check(FacilityAPI.is_request("GET /cameras") and FacilityAPI.is_request("get /cameras;") and not FacilityAPI.is_request("SELECT * FROM cameras"), "HTTP lines are told apart from SQL")
+	var r := api.request("GET /cameras")
+	check(r.status == 200 and JSON.parse_string(r.text)["cameras"][0]["motion"] == true, "GET returns JSON")
+	check(api.request("get /Cameras/;").status == 200, "method and path are case- and slash-tolerant")
+	check(api.request("GET /cameras/CAM-3").body["id"] == "CAM-3", "path parameters are passed through")
+	check(api.request("DELETE /cameras").status == 405, "a known path with the wrong verb is 405")
+	check(api.request("GET /coffee").status == 404, "an unknown path is 404")
+
+
+func test_level_2_data_every_seed() -> void:
+	print("Level 2 data, 50 seeds")
+	var correct := "SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'"
+	var puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false)
+	var pike := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE 'Pike%'", ["name"], false)
+	var one_answer := true
+	var wrongs_fail := true
+	var explained := true
+	var pins_unique := true
+	var practice_ok := true
+	var pins := {}
+	var names := {}
+	for s in 50:
+		var data := Level2Data.build(s)
+		var db := FacilityDB.new()
+		db.load_seed(data.sql)
+		var rows := db.run_silent(correct)
+		if rows.size() != 1 or rows[0]["pin"] != data.pin or rows[0]["name"] != data.name or not puzzle.matches(db, db.execute(correct.to_lower())):
+			one_answer = false
+		for wrong in [
+			"SELECT * FROM guards WHERE name LIKE 'Har%'",
+			"SELECT * FROM guards WHERE name LIKE '%Har%' AND shift = 'night'",
+			"SELECT * FROM guards WHERE shift = 'night'",
+			"SELECT * FROM guards WHERE name LIKE 'Har'",
+			"SELECT * FROM guards LIMIT 5",
+		]:
+			if puzzle.matches(db, db.execute(wrong)):
+				wrongs_fail = false
+		if db.run_silent("SELECT COUNT(*) AS n FROM guards WHERE name LIKE '%Har%' AND shift = 'night'")[0]["n"] < 3:
+			wrongs_fail = false
+		# Every guard a player might try instead has a note that rules them out.
+		var suspects := db.run_silent("SELECT note FROM guards WHERE (name LIKE '%Har%' OR shift = 'night') AND pin != '" + data.pin + "'")
+		for row in suspects:
+			if str(row["note"]) == "" or str(row["note"]).contains("normal"):
+				explained = false
+		if int(db.run_silent("SELECT COUNT(DISTINCT pin) AS n FROM guards")[0]["n"]) != int(db.run_silent("SELECT COUNT(*) AS n FROM guards")[0]["n"]):
+			pins_unique = false
+		if int(db.run_silent("SELECT COUNT(*) AS n FROM guards")[0]["n"]) <= TerminalUI.MAX_ROWS_SHOWN:
+			pins_unique = false
+		if not pike.matches(db, db.execute("SELECT * FROM guards WHERE name LIKE 'pike%'")) or db.run_silent("SELECT * FROM guards WHERE name LIKE 'Pike%'").size() != 1:
+			practice_ok = false
+		pins[data.pin] = true
+		names[data.name] = true
+	check(one_answer, "exactly one night-shift Har- guard, and LIKE + AND finds them")
+	check(wrongs_fail, "LIKE alone, '%Har%', shift alone and LIMIT never solve it")
+	check(explained, "every other Har- or night-shift guard has a note saying why not")
+	check(pins_unique, "PINs are unique and the roster is too long to read in one screen")
+	check(practice_ok, "the Pike practice query finds exactly one row")
+	var building := FacilityDB.new()
+	building.load_seed(Level1Data.build(1).sql)
+	var doors_before := building.run_silent("SELECT id FROM doors").size()
+	var stacked: bool = building.db.query(Level2Data.build(1).sql)
+	var door_ids := []
+	for row in building.run_silent("SELECT id FROM doors ORDER BY id"):
+		door_ids.append(row["id"])
+	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.size() == doors_before + 1, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
+	check(pins.size() >= 40 and names.size() >= 4, "PIN and guard vary between runs (%d PINs, %d names)" % [pins.size(), names.size()])
+
+
+func test_level_2_hints() -> void:
+	print("Level 2 first hints")
+	var l2 = load("res://scripts/levels/level_2.gd").new()
+	var ok := true
+	for s in 20:
+		var d := FacilityDB.new()
+		d.load_seed(Level2Data.build(s).sql)
+		for p in [l2.pike_puzzle, l2.har_puzzle]:
+			if not p.matches(d, d.execute(_hint_query(p.hints[0]))):
+				ok = false
+	check(ok, "pike and har: first hint's query solves it on every seed")
+	check(_hint_query(l2.cameras_puzzle.hints[0]) == "GET /cameras", "cameras: first hint is GET /cameras")
+	check(_hint_query(l2.door_puzzle.hints[0]) == "GET /doors/SEC-EXIT", "door: first hint is GET /doors/SEC-EXIT")
+	l2.free()
+
+
+func test_level_2_scene() -> void:
+	print("Level 2 scene")
+	_game().new_run(11)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var w: Watcher = level.watcher
+	var p: Player = level.player
+	check(level.doors["SEC-EXIT"].is_open == false, "stairwell exit starts locked")
+	check(w.is_on_floor() and w.active, "the Watcher stands in the office")
+	# Player at the booth, facing the terminal: the office is behind them.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
+	level.terminal_ui.terminal = level.booth
+	level.terminal_ui.run("GET /cameras")
+	check(level.cameras_puzzle.solved, "GET /cameras solves the first puzzle")
+	var start: Vector3 = w.global_position
+	for i in 60:
+		await physics_frame
+	check(w.global_position.distance_to(start) < 0.05, "a working camera holds it while nobody looks")
+	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
+	p.head.rotation = Vector3.ZERO
+	await physics_frame
+	check(w.player_sees(p), "players can see it through the office window")
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	check(level.pike_puzzle.solved and level.loose and level.frozen_cams.has("CAM-2"), "the Pike practice frees it: CAM-2 freezes")
+	var before: float = w.global_position.distance_to(p.global_position)
+	for i in 120:
+		await physics_frame
+	var after: float = w.global_position.distance_to(p.global_position)
+	check(after < before - 1.5, "unseen, it comes for you (%.1f m -> %.1f m)" % [before, after])
+	var frame: String = level.db.run_silent("SELECT last_frame FROM cameras WHERE id = 'CAM-2'")[0]["last_frame"]
+	level._clock += 5.0
+	level.update_cameras()
+	var cams: Dictionary = JSON.parse_string(level.booth.api.request("GET /cameras").text)
+	var cam2: Dictionary = cams["cameras"][1]
+	check(cam2["status"] == "live" and cam2["last_frame"] == frame and cams["server_time"] != frame, "the lie: CAM-2 says live but its frame is stuck")
+	# It slips out into the corridor. Turn around and look at it: it stops.
+	w.place(Vector3(2.5, 0, 4.0), p.global_position)
+	p.look_at(w.global_position + Vector3.UP * 1.2, Vector3.UP)
+	p.rotation.x = 0
+	await physics_frame
+	await physics_frame
+	var held: Vector3 = w.global_position
+	for i in 30:
+		await physics_frame
+	check(w.seen and w.global_position.distance_to(held) < 0.05, "looking at it freezes it")
+	level.terminal_ui.run("GET /cameras")
+	check(level._lie_explained, "fetching cameras after it left explains the frozen frame")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
+	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
+	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
+	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
+	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
+	level.enter_pin()
+	for i in 5:
+		await physics_frame
+	check(not level.doors["SEC-EXIT"].is_open and int(level.db.run_silent("SELECT locked FROM doors WHERE id = 'SEC-EXIT'")[0]["locked"]) == 0, "the second lie: the PIN unlocks the row but the door stays shut")
+	level.terminal_ui.terminal = level.panel
+	level.terminal_ui.run("GET /doors/SEC-EXIT")
+	var door: Dictionary = JSON.parse_string(level.booth.api.request("GET /doors/SEC-EXIT").text)
+	check(level.door_checked and door["locked"] == false and door["sensor"] == "closed" and door["actuator"] == "fault", "the door's sensor shows the actuator fault")
+	check(str(door["note"]).contains("B-%d" % level.data.breaker), "the note names the tripped breaker")
+	var wrong_b: int = level.data.breaker % 4 + 1
+	level._on_breaker(null, wrong_b)
+	check(level.frozen_cams.has("CAM-3") and not level.doors["SEC-EXIT"].is_open, "the wrong breaker blacks out the vestibule camera instead")
+	level._on_breaker(null, level.data.breaker)
+	for i in 5:
+		await physics_frame
+	check(level.doors["SEC-EXIT"].is_open and level.door_open, "resetting the right breaker opens the door")
+	check(level.db.run_silent("SELECT sensor FROM door_status WHERE door_id = 'SEC-EXIT'")[0]["sensor"] == "open", "the sensor now agrees")
+	level.seal_exit()
+	for i in 5:
+		await physics_frame
+	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
+	# Caught: put it right behind the player, out of sight.
+	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
+	w.place(Vector3(0, 0, 5.2), p.global_position)
+	for i in 20:
+		await physics_frame
+	check(p.health <= 0.0, "it gets you if you look away")
+	level.queue_free()
+	await process_frame
+
+
+func test_level_2_routes() -> void:
+	print("Level 2 routes")
+	_game().new_run(3)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	for i in 20:
+		await physics_frame
+	level.watcher.active = false
+	var p: Player = level.player
+	p.local_control = false
+	# Vent: climb the crate, then into the duct.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(-4.4, 0.1, 4.0))
+	for i in 5:
+		await physics_frame
+	check(p._try_ledge(false), "you can climb onto the crate")
+	for i in 40:
+		await physics_frame
+	check(p._try_ledge(false), "from the crate you can climb into the vent")
+	for i in 40:
+		await physics_frame
+	check(p.global_position.y > 1.9 and p.crouching and p.in_volume(MovementVolume.Kind.VENT) != null, "inside the vent, crouched (y %.2f)" % p.global_position.y)
+	# Ledge: out the smashed window and along the east wall, back to the wall.
+	p.global_transform = Transform3D(Basis(), Vector3(6.44, 0.05, 4.0))
+	for i in 5:
+		await physics_frame
+	p.controls.move = Vector2(0, -1)
+	var shuffled := false
+	var lowest := 10.0
+	for i in 900:
+		await physics_frame
+		shuffled = shuffled or p.state == Player.Move.LEDGE
+		lowest = min(lowest, p.global_position.y)
+		if p.global_position.z < -7.5:
+			break
+	p.controls.move = Vector2.ZERO
+	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
+	# Navigation: the Watcher can walk from the office to the vestibule and the corridor.
+	var map: RID = level.watcher.get_world_3d().navigation_map
+	var to_vest := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(0, 0, -10.5), true)
+	var to_booth := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(-3, 0, 4.5), true)
+	check(to_vest.size() > 0 and to_vest[-1].distance_to(Vector3(0, 0, -10.5)) < 0.8, "the Watcher can reach the vestibule")
+	check(to_booth.size() > 0 and to_booth[-1].distance_to(Vector3(-3, 0, 4.5)) < 0.8, "the Watcher can reach the booth")
+	var to_ledge := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(6.35, 0, -2), true)
+	check(to_ledge.is_empty() or to_ledge[-1].distance_to(Vector3(6.35, 0, -2)) > 0.8, "the Watcher can't follow onto the ledge")
+	level.queue_free()
+	await process_frame
+
+
 func _game() -> Node:
 	return root.get_node("Game")
+
+
+func test_wing_seeds_in_order() -> void:
+	print("Wing seeds in one database")
+	var lobby := FileAccess.get_file_as_string("res://data/level_0.sql")
+	var ok := true
+	for seed_value in 20:
+		var db := FacilityDB.new()
+		ok = ok and db.add_wing("level_0", lobby)
+		ok = ok and db.add_wing("level_1", Level1Data.build(seed_value).sql)
+		ok = ok and db.add_wing("level_2", Level2Data.build(seed_value).sql)
+		var ids := db.run_silent("SELECT id FROM doors").map(func(r): return r["id"])
+		ok = ok and ids.has("LOBBY-FRONT") and ids.has("SRA-EXIT") and ids.has("SEC-EXIT")
+	check(ok, "Level 0, 1 and 2 seeds load into one database in order on every seed")
+	var clash := FacilityDB.new()
+	clash.add_wing("level_0", lobby)
+	print("  (expected error below: a wing reusing another wing's door id)")
+	check(not clash.add_wing("bad", "INSERT INTO doors VALUES ('LOBBY-FRONT', 'dup', 'L', 0, 0);"),
+		"a wing reusing another wing's door id fails loudly")
+
+
+func test_reset_keeps_earlier_wings() -> void:
+	print("Reset restores the last checkpoint")
+	var db := FacilityDB.new()
+	db.add_wing("level_0", FileAccess.get_file_as_string("res://data/level_0.sql"))
+	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'LOBBY-FRONT'")
+	db.add_wing("level_1", Level1Data.build(3).sql)
+	db.run_silent("UPDATE door_controllers SET status = 'ok'")
+	db.run_silent("DELETE FROM memo_fragments")
+	db.reset()
+	check(db.run_silent("SELECT * FROM door_controllers WHERE status = 'fault'").size() > 0, "reset restores this wing's tables")
+	check(db.run_silent("SELECT * FROM memo_fragments").size() == 7, "reset restores earlier wings' tables too")
+	check(int(db.run_silent("SELECT locked FROM doors WHERE id = 'LOBBY-FRONT'")[0]["locked"]) == 0,
+		"reset keeps what earlier wings changed before the checkpoint")
+
+
+func test_world() -> void:
+	print("World")
+	_game().new_run(5)
+	var world = load("res://scenes/world.tscn").instantiate()
+	root.add_child(world)
+	for i in 30:
+		await physics_frame
+	var lobby = world.current
+	check(lobby != null and lobby.wing_id == "level_0" and lobby.active, "the World starts in the lobby wing")
+	check(world.player.global_position.z > 14.0 and world.player.global_position.y > 0.3, "players start in the van")
+	check(not world.wings.has("level_1"), "Server Room A isn't loaded before it's needed")
+	world.load_next(lobby)
+	var sra = world.wings.get("level_1")
+	check(sra != null and not sra.active, "Server Room A loads behind its door without starting")
+	var entry: Vector3 = sra.doors["SRA-ENTRY"].global_position
+	check(entry.distance_to(Vector3(29, 1.2, 3)) < 0.1, "Server Room A sits at the end of the lobby hall (%s)" % entry)
+	var tables: Array = world.db.table_names()
+	check(tables.has("memo_fragments") and tables.has("door_controllers"), "both wings share one database")
+	lobby.exit_door.set_open(true)
+	world.wing_finished(lobby)
+	check(world.current == sra and sra.active, "finishing the lobby hands play to Server Room A")
+	world.seal_behind(sra)
+	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
+	sra._on_trapped(null)
+	check(sra.terminal.locked, "Server Room A's story runs inside the World")
+	world.wing_finished(sra)
+	check(world._field_notes != null and world.player.input_locked, "Field Notes opens as an overlay at the end")
+	world.queue_free()
+	await process_frame

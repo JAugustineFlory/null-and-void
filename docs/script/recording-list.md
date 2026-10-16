@@ -1,22 +1,23 @@
 # Recording list
 
-61 lines in all.
+66 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
 ## How to record
 
-1. Record each line as its own file, named exactly as the **File** column plus `.wav` or `.ogg` (for example `l0_greet_1.wav`).
-2. Mono, 44.1 or 48 kHz. Leave about a quarter second of silence at the start and end, and keep the loudest part around -3 dB.
-3. Record dry: no reverb or radio effect. The game puts WARDEN through a PA speaker sound, and walkie lines will get radio static once the radio is built.
-4. Do two or three takes and keep the best one. Lines can be any length; the subtitle stays up as long as the recording plays.
-5. Put the files in `audio/voice/` and open the project in Godot once so it imports them. That's it: the game plays a recording whenever one exists and falls back to the timed subtitle when it doesn't.
+Each actor gets only their own character's script from [characters/](characters/), which has the same recording spec:
 
-WARDEN's subtitles are in capitals because that is how WARDEN prints. Say them at normal volume.
+- **Format:** WAV, mono, 48 kHz.
+- **Room:** somewhere quiet, with soft things around (a closet or a carpeted room works). Keep the mic a hand's width away.
+- **Takes:** two per line, in separate files: `<line_id>.wav` and `<line_id>_take2.wav`.
+- **Silence:** half a second at the start and end of every file.
+- **Effects:** none. Record dry; the game adds speakers, radio static and so on.
+- **Level:** the loudest part should sit around -3 dB, never clipping.
 
-Lines marked **later** are written for Level 2, which isn't built yet. Record them whenever, or wait until the level is in.
+Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke/l0_greet_1.wav`); open the project in Godot once so it imports them. The game plays a recording whenever one exists, keeps the subtitle up for as long as it lasts, and falls back to the timed subtitle when it doesn't. Only `<line_id>.wav` is played: to use take 2, rename it.
 
-## Dale Rourke (33 lines)
+## Dale Rourke (35 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
@@ -25,10 +26,12 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | [ ] | `l0_greet_1` | There you are. Dale Rourke, facilities. I'll be your escort tonight. | Friendly, a handshake in the voice. | Level 0 |
 | [ ] | `l0_greet_2` | Don't mind WARDEN. It says that to everybody. | Chuckling, waving at the ceiling speaker. | Level 0 |
 | [ ] | `l0_greet_3` | Badge rules after hours. You don't go anywhere I don't take you. | Still smiling. Should sound like a joke the first time and a threat on replay. | Level 0 |
+| [ ] | `l0_greet_4` | Come on in. I'll sign you in at the front desk. | Holding the door, waving them through. | Level 0 |
+| [ ] | `l0_signin` | Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. | Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) | Level 0 |
 | [ ] | `l0_tour_1` | Here's the job. Dr. Vale, our lead engineer, went missing three nights ago. | Walking. Matter-of-fact, the way you'd mention the weather. | Level 0 |
 | [ ] | `l0_tour_2` | Her systems are a mess and the director wants them recovered by morning. Quietly. | Small beat before "Quietly." | Level 0 |
 | [ ] | `l0_tour_3` | Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
-| [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. |  | Level 0 |
+| [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
 | [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
 | [ ] | `l0_tour_6` | Ghost stories. Anyway. | Dropping it fast. He doesn't want them thinking about it. | Level 0 |
 | [ ] | `l0_desk_1` | The front desk scanner ate one of Vale's memos. The scraps went into a table. | Pointing at the desk. | Level 0 |
@@ -52,9 +55,9 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | [ ] | `l1_downed` | Wait... wait. You don't know what you're doing. | On the floor, out of breath. Genuinely scared for the first time. | Level 1 |
 | [ ] | `l1_tied_1` | You think a bit of cable holds me? | Tied up on the floor, grinning through it. | Level 1 |
 | [ ] | `l1_tied_2` | WARDEN will eat you alive in here. | Quieter. He means it. | Level 1 |
-| [ ] | `l2_rourke_1` | Still on channel one? Good. Thought you'd want to know I'm out. | Through the walkie. Relaxed, enjoying himself again. | Level 2, later |
-| [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. |  | Level 2, later |
-| [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2, later |
+| [ ] | `l2_rourke_1` | Still on channel one? Good. Thought you'd want to know I'm out. | Through the walkie. Relaxed, enjoying himself again. | Level 2 |
+| [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
+| [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
 ## WARDEN (20 lines)
 
@@ -73,15 +76,15 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | [ ] | `l1_no_badge` | RESET REFUSED. BADGE REQUIRED. | Flat, instant. | Level 1 |
 | [ ] | `l1_panel_ok` | THAT CONTROLLER IS WORKING NORMALLY. NOTHING TO RESET. | Patient, like talking to a child. | Level 1 |
 | [ ] | `l1_panel_wrong` | THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. | The last sentence slightly slower. | Level 1 |
-| [ ] | `l1_exit_open` | CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. |  | Level 1 |
+| [ ] | `l1_exit_open` | CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. | Polite and a touch reluctant, over the speakers. | Level 1 |
 | [ ] | `l1_lockdown_tied` | LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D. | Reading a log entry. | Level 1 |
 | [ ] | `l1_sealed` | ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT. | The sign-off for the slice. Warm, like wishing them well. | Level 1 |
-| [ ] | `l2_dead_escort` | REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. | Only if Rourke was killed. Plays on arrival, in place of Rourke's radio call. | Level 2, later |
-| [ ] | `l2_arrive` | SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. | Reassuring tone. It is not reassuring. | Level 2, later |
-| [ ] | `l2_cameras` | LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. | Small pause before "Often." | Level 2, later |
-| [ ] | `l2_smudged` | GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. | Not unfortunate for WARDEN. | Level 2, later |
-| [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2, later |
-| [ ] | `l2_door_fault` | CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. | When the players check the sensor. Deadpan. | Level 2, later |
+| [ ] | `l2_dead_escort` | REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. | Plays in one version of the story only. Patient, slightly too formal. | Level 2 |
+| [ ] | `l2_arrive` | SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. | Reassuring tone. It is not reassuring. | Level 2 |
+| [ ] | `l2_cameras` | LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. | Small pause before "Often." | Level 2 |
+| [ ] | `l2_smudged` | GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. | Not unfortunate for WARDEN. | Level 2 |
+| [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
+| [ ] | `l2_door_fault` | CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. | When the players check the sensor. Deadpan. | Level 2 |
 
 ## Dr. Iris Vale (3 lines)
 
@@ -89,9 +92,19 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2, later |
-| [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2, later |
-| [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2, later |
+| [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2 |
+| [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
+| [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
+
+## Byte-Right dispatch (3 lines)
+
+> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio. Routine. | Level 0 |
+| [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
+| [ ] | `l0_dispatch_3` | Hop out when you're ready. Dispatch out. | Signing off, already onto the next call. | Level 0 |
 
 ## Harold Mercer (5 lines)
 

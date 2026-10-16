@@ -2,8 +2,10 @@ extends Node
 ## Global game state and input setup. Autoloaded as `Game`.
 
 const LEVELS := {
+	"world": "res://scenes/world.tscn",
 	"level_0": "res://scenes/level_0.tscn",
 	"level_1": "res://scenes/level_1.tscn",
+	"level_2": "res://scenes/level_2.tscn",
 	"movement_gym": "res://scenes/movement_gym.tscn",
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",
@@ -13,6 +15,11 @@ const LEVELS := {
 ## How the escort's story went: "unknown", "killed", "tied".
 var rourke_fate := "unknown"
 var has_walkie := false
+## Did the players lock the Watcher in behind them in Level 2?
+var watcher_sealed := false
+## The level the Field Notes screen is summarizing, and where "Continue" goes.
+var completed_level := ""
+var next_level := ""
 ## Every successful query the players ran, for the Field Notes screen.
 var query_log: Array[String] = []
 ## Concepts the players have used, in the order they first used them.
@@ -30,6 +37,9 @@ func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	rourke_fate = "unknown"
 	has_walkie = false
+	watcher_sealed = false
+	completed_level = ""
+	next_level = ""
 	query_log.clear()
 	concepts_learned.clear()
 
@@ -42,7 +52,7 @@ func goto(level_key: String) -> void:
 func log_query(sql: String) -> void:
 	query_log.append(sql.strip_edges())
 	var upper := sql.to_upper()
-	for concept in ["SELECT", "FROM", "ORDER BY", "WHERE", "AND", "OR", "LIKE"]:
+	for concept in ["SELECT", "FROM", "ORDER BY", "WHERE", "AND", "OR", "LIKE", "LIMIT", "COUNT", "GET"]:
 		var pattern := RegEx.create_from_string("\\b" + concept.replace(" ", "\\s+") + "\\b")
 		if pattern.search(upper) and not concepts_learned.has(concept):
 			concepts_learned.append(concept)

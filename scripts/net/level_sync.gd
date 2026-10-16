@@ -10,6 +10,7 @@ extends Node
 ## Solo uses the same path: the offline peer is its own host.
 
 signal began
+signal gate_opened(key: String)
 
 ## Methods a client may ask the host to call on a world node on its behalf.
 const FORWARDABLE := ["interact", "interact_alt", "take_hit"]
@@ -20,6 +21,7 @@ var _ready_peers := {}
 var _begun := false
 var _start_fn: Callable
 var _synchronizers: Array[MultiplayerSynchronizer] = []
+var _gates := {}
 
 
 static func create(for_level: Node) -> LevelSync:
@@ -132,6 +134,32 @@ func _event(method: StringName, args: Array) -> void:
 	level.callv(method, args)
 
 
+## Wait, on every machine, until something happens on the host. Story code that
+## awaits a trigger, an NPC arriving or a button press uses this, because those
+## only fire on the host. `waiter` is a Signal, or a Callable to await.
+##     await sync.gate("at_door", rourke.arrived)
+func gate(key: String, waiter) -> void:
+	if is_host() and not _gates.has(key):
+		_host_gate(key, waiter)
+	while not _gates.has(key):
+		await gate_opened
+
+
+func _host_gate(key: String, waiter) -> void:
+	if waiter is Signal:
+		await waiter
+	elif waiter is Callable:
+		await waiter.call()
+	if not _gates.has(key):
+		_open_gate.rpc(key)
+
+
+@rpc("authority", "call_local", "reliable")
+func _open_gate(key: String) -> void:
+	_gates[key] = true
+	gate_opened.emit(key)
+
+
 ## Show a notice on every machine's HUD (host only).
 func team_notice(text: String, seconds: float = 3.0) -> void:
 	if is_host():
@@ -178,10 +206,25 @@ func replicate(node: Node, properties: Array) -> void:
 	add_child(s)
 	s.root_path = s.get_path_to(node)
 	s.replication_config = cfg
-	s.public_visibility = false
+	# A wing loads after everyone is in the game, so it can talk to all of them;
+	# a standalone level waits for each machine to say it's ready.
+	s.public_visibility = level.get("world") != null
 	_synchronizers.append(s)
+	node.tree_exiting.connect(_drop_synchronizer.bind(s))
 	if not is_host():
 		node.set_physics_process(false)
+
+
+## The node is going away: stop sending it to everyone before freeing the
+## synchronizer, or the host keeps trying to send a sync that no longer exists.
+func _drop_synchronizer(s: MultiplayerSynchronizer) -> void:
+	_synchronizers.erase(s)
+	var peer := multiplayer.multiplayer_peer
+	if peer and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		s.public_visibility = false
+		for id in multiplayer.get_peers():
+			s.set_visibility_for(id, false)
+	s.queue_free()
 
 
 # --- Terminals ---------------------------------------------------------------
@@ -234,6 +277,48 @@ func _show_query(path: NodePath, sql: String, result: Dictionary, from_peer: int
 	level.terminal_ui.show_query(terminal, sql, result, from_peer)
 
 
+## Send a web request typed at `terminal` (e.g. GET /cameras). The host runs
+## it, then every machine runs it on its own copy and shows the response.
+func submit_request(terminal: Node, line: String) -> void:
+	var path := level.get_path_to(terminal)
+	if is_host():
+		_host_request(path, line, multiplayer.get_unique_id())
+	else:
+		_request_request.rpc_id(1, path, line)
+
+
+@rpc("any_peer", "reliable")
+func _request_request(path: NodePath, line: String) -> void:
+	if is_host():
+		_host_request(path, line, multiplayer.get_remote_sender_id())
+
+
+func _host_request(path: NodePath, line: String, from_peer: int) -> void:
+	var terminal := level.get_node_or_null(path)
+	if terminal == null:
+		return
+	if terminal.is_locked():
+		if from_peer == multiplayer.get_unique_id():
+			_query_refused(path)
+		else:
+			_query_refused.rpc_id(from_peer, path)
+		return
+	var res: Dictionary = terminal.api.request(line) if terminal.api else {}
+	_show_request.rpc(path, line, res, from_peer)
+	if not res.is_empty():
+		terminal.on_request(line, res, level.terminal_ui)
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_request(path: NodePath, line: String, res: Dictionary, from_peer: int) -> void:
+	var terminal := level.get_node_or_null(path)
+	if terminal == null:
+		return
+	if not is_host() and terminal.api:
+		terminal.api.request(line)  # keep this machine's copy of the building in step
+	level.terminal_ui.show_request(terminal, line, res, from_peer)
+
+
 ## Restore a terminal's data from backup, on every machine.
 func reset_db(terminal: Node) -> void:
 	if is_host():
@@ -257,4 +342,4 @@ func _reset_db(path: NodePath) -> void:
 
 
 func _players() -> NetPlayers:
-	return level.get_node("NetPlayers")
+	return level.players
