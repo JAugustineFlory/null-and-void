@@ -110,8 +110,6 @@ var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har
 	"Take your Pike query and change 'Pike%' to 'Har%'. Then add AND shift = 'night' to the end, before the ;.",
 	"The pin column is the code for the stairwell keypad, past the far end of the Security Office. " +
 	"Other Har- guards work other shifts or are retired: read their note column.",
-	"Lost track of it? GET /cameras shows which cameras see motion. Compare each last_frame with server_time: " +
-	"a camera whose picture stopped updating can't see anything, whatever its status says.",
 ])
 
 
@@ -428,6 +426,7 @@ func _process(delta: float) -> void:
 		player.take_damage(1000.0)
 	if not reached_vestibule and player and _in(cam_zones["CAM-3"], player.global_position):
 		reached_vestibule = true
+		explain_cam_lie()
 	_update_watcher_stage()
 	_motion_warnings()
 
@@ -542,10 +541,37 @@ func _on_request(line: String, res: Dictionary, ui: TerminalUI) -> void:
 		hud.set_objective("Look up Officer Pike in the guards table")
 	elif loose and not _lie_explained and not _in(cam_zones["CAM-2"], watcher.global_position):
 		_lie_explained = true
+		Game.cam_lie_learned = true
 		ui.print_line("")
 		ui.print_line("[color=#ff6655]CAM-2 says 'live' with motion in the office. It isn't in the office.[/color]")
-		ui.print_line("[color=#e0b050]Compare CAM-2's last_frame with server_time: its picture stopped at %s. A hardware fault froze it." % db.run_silent("SELECT last_frame FROM cameras WHERE id = 'CAM-2'")[0]["last_frame"])
+		ui.print_line("[color=#e0b050]Compare CAM-2's last_frame with server_time: its picture stopped at %s. A hardware fault froze it." % _cam2_frame())
 		ui.print_line("The status said 'live'. The data says otherwise. Trust the data, and check it.[/color]")
+
+
+func _cam2_frame() -> String:
+	return str(db.run_silent("SELECT last_frame FROM cameras WHERE id = 'CAM-2'")[0]["last_frame"])
+
+
+## Everyone gets the frozen-camera lesson: the first time it gets someone, or when
+## they reach the vestibule without having worked it out. Shown on screen, and
+## printed as terminal lines (on both terminals) so it can be written into the notebook.
+func explain_cam_lie() -> void:
+	if _lie_explained or not loose:
+		return
+	_lie_explained = true
+	Game.cam_lie_learned = true
+	var lines := [
+		"",
+		"[color=#ff6655]WARDEN: CAM-2 FROZE AT %s. IT HAS NOT SEEN THE OFFICE SINCE.[/color]" % _cam2_frame(),
+		"A camera can say 'live' and still be stuck. To check one, type:",
+		"    [color=#ffffff]GET /cameras[/color]",
+		"and compare its last_frame with server_time. If last_frame stopped, the camera can't see anything.",
+	]
+	for l in lines:
+		terminal_ui.print_line(l)
+	for t in [booth, panel]:
+		t.boot_lines.append_array(lines)
+	hud.notice("CAM-2's picture froze at %s. It can't see anything.\nAt a terminal: GET /cameras, then compare last_frame with server_time." % _cam2_frame(), 8.0, ThemeUtil.AMBER)
 
 
 func _on_query(sql: String, result: Dictionary, ui: TerminalUI) -> void:
@@ -707,7 +733,6 @@ func enter_pin() -> void:
 
 
 func _on_door_checked(ui: TerminalUI) -> void:
-	door_puzzle.solved = true
 	if not pin_entered or door_checked or door_open:
 		return
 	door_checked = true
@@ -744,6 +769,8 @@ func _update_door() -> bool:
 	var row: Dictionary = db.run_silent("SELECT locked, actuator_fault FROM doors WHERE id = 'SEC-EXIT'")[0]
 	var open := int(row["locked"]) == 0 and int(row["actuator_fault"]) == 0
 	db.run_silent("UPDATE door_status SET sensor = '%s' WHERE door_id = 'SEC-EXIT'" % ("open" if open else "closed"))
+	if open:
+		door_puzzle.solved = true
 	if open and not door_open:
 		door_open = true
 		hud.set_objective("Get in the elevator and press B1. (Lock the door behind you, if you can)")
@@ -791,6 +818,10 @@ func on_player_died() -> void:
 	else:
 		player.respawn(spawn_point())
 		_place_watcher(STAGES[stage][0], STAGES[stage][1])
+	if loose and not _lie_explained:
+		# After "You came to": say why the camera didn't stop it.
+		await get_tree().create_timer(2.5).timeout
+		explain_cam_lie()
 
 
 ## Stand the Watcher at a spot in the level's own space, facing another.

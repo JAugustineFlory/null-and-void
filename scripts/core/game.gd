@@ -16,6 +16,8 @@ var rourke_fate := "unknown"
 var has_walkie := false
 ## Did the players lock the Watcher in behind them in Level 2?
 var watcher_sealed := false
+## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
+var cam_lie_learned := false
 ## The level the Field Notes screen is summarizing.
 var completed_level := ""
 ## Every successful query the players ran, for the Field Notes screen.
@@ -36,6 +38,7 @@ func new_run(seed_value: int = -1) -> void:
 	rourke_fate = "unknown"
 	has_walkie = false
 	watcher_sealed = false
+	cam_lie_learned = false
 	completed_level = ""
 	query_log.clear()
 	concepts_learned.clear()

@@ -564,6 +564,8 @@ func test_level_2_scene() -> void:
 	check(w.global_position.distance_to(start) < 0.05, "a working camera holds it while nobody looks")
 	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
 	check(level.pike_puzzle.solved and level.loose and level.frozen_cams.has("CAM-2"), "the Pike practice freezes CAM-2")
+	level.terminal_ui.run("GET /doors/SEC-EXIT")
+	check(not level.door_puzzle.solved, "checking the door early doesn't use up its puzzle")
 	await physics_frame
 	await physics_frame
 	check(level.stage == "near" and w.global_position.distance_to(level.to_global(level.STAGES.near[0])) < 0.1, "closer to the PIN, it creeps closer while nobody looks")
@@ -619,6 +621,13 @@ func test_level_2_scene() -> void:
 	check(w.seen and w.global_position.distance_to(held) < 0.05, "looking at it freezes it")
 	level.terminal_ui.run("GET /cameras")
 	check(level._lie_explained, "fetching cameras after it left explains the frozen frame")
+	level._lie_explained = false
+	_game().cam_lie_learned = false
+	level.on_player_died()
+	await create_timer(2.8).timeout
+	check(level._lie_explained and _game().cam_lie_learned and level.booth.boot_lines[-1].contains("last_frame"), "dying to it explains the frozen camera, as lines you can note")
+	for i in 3:
+		await physics_frame
 	level.enter_pin()
 	for i in 5:
 		await physics_frame
@@ -634,7 +643,7 @@ func test_level_2_scene() -> void:
 	level._on_breaker(null, level.data.breaker)
 	for i in 5:
 		await physics_frame
-	check(level.doors["SEC-EXIT"].is_open and level.door_open, "resetting the right breaker opens the door")
+	check(level.doors["SEC-EXIT"].is_open and level.door_open and level.door_puzzle.solved, "resetting the right breaker opens the door")
 	check(level.db.run_silent("SELECT sensor FROM door_status WHERE door_id = 'SEC-EXIT'")[0]["sensor"] == "open", "the sensor now agrees")
 	for i in 100:
 		await physics_frame
