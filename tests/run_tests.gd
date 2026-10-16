@@ -352,6 +352,13 @@ func test_level_2_data_every_seed() -> void:
 	check(explained, "every other Har- or night-shift guard has a note saying why not")
 	check(pins_unique, "PINs are unique and the roster is too long to read in one screen")
 	check(practice_ok, "the Pike practice query finds exactly one row")
+	var building := FacilityDB.new()
+	building.load_seed(Level1Data.build(1).sql)
+	var stacked: bool = building.db.query(Level2Data.build(1).sql)
+	var door_ids := []
+	for row in building.run_silent("SELECT id FROM doors ORDER BY id"):
+		door_ids.append(row["id"])
+	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.size() == 6, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
 	check(pins.size() >= 40 and names.size() >= 4, "PIN and guard vary between runs (%d PINs, %d names)" % [pins.size(), names.size()])
 
 

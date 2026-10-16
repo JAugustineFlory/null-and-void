@@ -91,7 +91,8 @@ INSERT INTO cameras VALUES
 	('CAM-4', 'Break room', 'offline', NULL, 0, 'unplugged for the coffee machine'),
 	('CAM-5', 'East ledge (outside)', 'live', '00:41:00', 0, 'normal');
 
-CREATE TABLE doors (
+-- doors is building-wide: Level 1 may have made it already. This wing only adds SEC- rows.
+CREATE TABLE IF NOT EXISTS doors (
 	id TEXT,
 	name TEXT,
 	zone TEXT,
@@ -99,8 +100,7 @@ CREATE TABLE doors (
 	actuator_fault INTEGER
 );
 INSERT INTO doors VALUES
-	('SEC-EXIT', 'Security wing stairwell', 'S', 1, 1),
-	('SRA-EXIT', 'Server Room A rear exit', 'A', 1, 0);
+	('SEC-EXIT', 'Security wing stairwell', 'S', 1, 1);
 
 CREATE TABLE door_status (
 	door_id TEXT,
@@ -109,8 +109,7 @@ CREATE TABLE door_status (
 	note TEXT
 );
 INSERT INTO door_status VALUES
-	('SEC-EXIT', 'closed', 'fault', 'actuator breaker B-%d tripped 00:12. Reset it at the breaker box by the door'),
-	('SRA-EXIT', 'closed', 'ok', 'normal');
+	('SEC-EXIT', 'closed', 'fault', 'actuator breaker B-%d tripped 00:12. Reset it at the breaker box by the door');
 """ % [",\n\t".join(rows), breaker]
 	return {"sql": sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin, "breaker": breaker}
 
