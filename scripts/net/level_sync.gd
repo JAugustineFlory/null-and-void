@@ -76,6 +76,7 @@ func begin_when_ready(start_fn: Callable) -> void:
 				_begin_all.rpc())
 	else:
 		# The host may still be loading, so keep saying so until it starts us.
+		# (If it is, the host logs "Node not found" for the early tries. Harmless.)
 		while not _begun and is_inside_tree() and is_online():
 			_client_ready.rpc_id(1)
 			await get_tree().create_timer(0.5).timeout

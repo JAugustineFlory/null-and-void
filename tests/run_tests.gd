@@ -16,6 +16,8 @@ func _run() -> void:
 	test_level_0_puzzles()
 	test_level_1_data_every_seed()
 	test_first_hints_show_working_queries()
+	test_voice_codec()
+	test_radio_rules()
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
@@ -124,6 +126,52 @@ func test_first_hints_show_working_queries() -> void:
 			ok = false
 	check(ok, "controller: first hint's query solves it on every seed")
 	l1.free()
+
+
+func _tone(n: int, rate: float, amp: float) -> PackedVector2Array:
+	var f := PackedVector2Array()
+	for i in n:
+		var v := sin(TAU * 440.0 * i / rate) * amp
+		f.append(Vector2(v, v))
+	return f
+
+
+func test_voice_codec() -> void:
+	print("Voice codec")
+	var tone := _tone(4800, 48000.0, 0.5)
+	var packet := VoiceCodec.encode(tone, 48000.0)
+	check(packet.size() == 1200, "48 kHz audio is cut to 12 kHz, one byte a sample (%d bytes)" % packet.size())
+	var back := VoiceCodec.decode(packet)
+	var worst := 0.0
+	for i in back.size():
+		worst = maxf(worst, absf(back[i].x - tone[i * 4].x))
+	check(worst < 0.03, "mu-law keeps the voice close to the original (worst error %.3f)" % worst)
+	check(VoiceCodec.rms(back) > 0.3 and VoiceCodec.rms(_tone(100, 48000.0, 0.0)) == 0.0, "loudness tells talking from silence")
+	check(VoiceCodec.mulaw_decode(VoiceCodec.mulaw_encode(-0.25)) < 0.0, "negative samples stay negative")
+
+
+func test_radio_rules() -> void:
+	print("Radio rules")
+	check(Radio.signal_quality(10.0, 0.0) == 1.0, "clear at close range")
+	check(Radio.signal_quality(50.0, 0.0) < 1.0 and Radio.signal_quality(50.0, 0.0) > 0.0, "fades with distance")
+	check(Radio.signal_quality(Radio.MAX_RANGE + 1.0, 0.0) == 0.0, "nothing but static out of range")
+	var near_entity := Radio.interference_at(Vector3.ZERO, [Vector3(2, 0, 0)])
+	check(near_entity > 0.5 and Radio.interference_at(Vector3.ZERO, [Vector3(30, 0, 0)]) == 0.0, "entities nearby cause static, far ones don't")
+	check(Radio.signal_quality(10.0, near_entity) < 0.5, "static near an entity drowns out a close teammate")
+	var r := Radio.new()
+	r.tick(Radio.TALK_TIME / 2.0, true)
+	check(is_equal_approx(r.battery, 0.5) and r.transmitting, "talking drains the battery")
+	r.tick(10.0, false)
+	check(is_equal_approx(r.battery, 0.5), "listening doesn't")
+	r.tick(Radio.TALK_TIME, true)
+	check(not r.can_transmit() and not r.transmitting, "a dead battery can't transmit")
+	r.recharge()
+	check(r.can_transmit(), "fresh batteries bring it back")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	var clean := Radio.degrade(_tone(600, 12000.0, 0.5), 1.0, rng)
+	var noisy := Radio.degrade(_tone(600, 12000.0, 0.0), 0.0, rng)
+	check(VoiceCodec.rms(clean) > 0.3 and VoiceCodec.rms(noisy) > 0.1, "a good signal carries the voice, a dead one is only static")
 
 
 func test_screens_fill_window() -> void:
@@ -304,6 +352,20 @@ func test_coop_level_0() -> void:
 	c2.walkies.interact(c2.player)
 	await _frames(10)
 	check(levels.all(func(l): return not is_instance_valid(l.walkies) or l.walkies.is_queued_for_deletion()), "a client picking up the walkies is seen by everyone")
+
+	_game().has_walkie = true
+	var tone := _tone(4800, 48000.0, 0.5)
+	c1.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
+	c2.player.global_position = Vector3(-17, 0.1, 4)
+	c1.player.global_position = Vector3(23, 0.1, 3)
+	await _frames(30)
+	c1.voice.send_frames(tone, 48000.0, true)
+	await _frames(10)
+	check(c2.voice.heard.near == 1 and c2.voice.heard.radio == 1, "radio reaches a teammate too far away to hear directly")
+	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 40 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
+	_game().has_walkie = false
 
 	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
 	await _frames(30)

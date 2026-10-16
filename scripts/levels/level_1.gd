@@ -106,6 +106,7 @@ func _on_trapped(_b: Node) -> void:
 	db.sync_world()
 	hud.notice("> DOOR SRA-ENTRY: LOCKED", 3.0, ThemeUtil.RED)
 	set_all_lights_color(_red)
+	rourke.add_to_group(VoiceChat.INTERFERENCE_GROUP)
 	terminal.locked = true
 	terminal.locked_message = "SESSION LOCKED BY USER ROURKE_D. ESCORT BADGE REQUIRED."
 	terminal.set_screen_color(Color(1.0, 0.25, 0.2))

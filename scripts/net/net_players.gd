@@ -39,6 +39,8 @@ func _ready() -> void:
 			var who: String = net.display_name(id) if net else "Player %d" % id
 			var p := PlayerPuppet.create(self, id, who, COLORS[i % COLORS.size()])
 			p.players = self
+			# Stand where that player spawns until their first update arrives.
+			p.global_transform = level.spawn.translated(spawn_offset(i))
 			_puppets[id] = p
 
 

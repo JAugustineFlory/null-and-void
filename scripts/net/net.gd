@@ -115,7 +115,17 @@ static func local_addresses() -> Array:
 	return out
 
 
+func _exit_tree() -> void:
+	# Tell the others we're gone instead of letting them time out.
+	if is_online():
+		multiplayer.multiplayer_peer.close()
+
+
 func _on_connected() -> void:
+	# Notice a vanished host in seconds rather than half a minute.
+	var peer := multiplayer.multiplayer_peer
+	if peer is ENetMultiplayerPeer:
+		peer.get_peer(1).set_timeout(32, 3000, 8000)
 	_register.rpc_id(1, player_name)
 
 

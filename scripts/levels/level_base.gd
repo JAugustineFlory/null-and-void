@@ -15,6 +15,7 @@ var spawn := Transform3D.IDENTITY
 ## Co-op: keeps this level the same on every machine (see scripts/net/).
 var sync: LevelSync
 var players: NetPlayers
+var voice: VoiceChat
 var _pause: Control
 
 
@@ -43,6 +44,7 @@ func _ready() -> void:
 	players = NetPlayers.create(self, player)
 	player.global_transform = spawn.translated(NetPlayers.spawn_offset(players.my_index()))
 	player.died.connect(_on_player_died)
+	voice = VoiceChat.create(self)
 	_build_pause_menu()
 	net_setup()
 	sync.began.connect(players.go_live)

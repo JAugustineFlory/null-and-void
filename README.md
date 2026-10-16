@@ -11,7 +11,8 @@ The full design is in [docs/game-plan.md](docs/game-plan.md).
 
 ## Status
 
-First playable slice: **Levels 0 and 1**, solo, greybox art, subtitles for placeholder voices.
+First playable slice: **Levels 0 and 1**, solo or co-op (2 to 6 players), greybox art,
+subtitles for placeholder voices.
 
 - **Level 0, The Lobby:** Rourke's tour, Dr. Vale's shredded memo (`SELECT`, `FROM`, `ORDER BY`),
   walkie-talkies behind the desk (climb over it), a jammed shutter to slide under, and an optional
@@ -30,6 +31,24 @@ Controls: WASD move, mouse look, Shift sprint, Ctrl (or C) crouch, Shift+Ctrl sl
 Space jump/climb, E use, X alternate action, F flashlight, left click strike, Esc pause.
 
 At a terminal: type SQL and press Enter. `.help`, `.tables`, `.schema NAME`, `.hint`, `.reset`.
+
+### Co-op (2 to 6 players)
+
+![A teammate in the lobby](docs/screenshots/coop_teammate.png)
+
+1. Everyone picks **Co-op** on the main menu and types a name.
+2. One player presses **Host a game**. The lobby shows the address friends should use.
+3. Everyone else types that address and presses **Join**. The host presses **Start**.
+
+On the same network, use the address the lobby shows. Over the internet, the host forwards
+UDP port 7777 on their router, or everyone joins the same free VPN such as
+[Tailscale](https://tailscale.com) and uses the host's Tailscale address. (Steam lobbies come later.)
+
+- **Voice:** up close, just talk (open mic; B mutes it).
+- **Radio:** after you pick up the walkie-talkies, hold **V** to talk to everyone. It has a
+  battery, gets crackly past about 35 m, dies out at 70 m, and fills with static near Rourke.
+- Everyone shares one building: a query typed by anyone changes the doors for everyone, and
+  everyone looking at a terminal sees what was typed on it.
 
 ## Tests
 
@@ -56,6 +75,7 @@ xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 -s tools/sc
 | `scripts/player/` | First-person controller: sprint, crouch, slide, mantle, vents, flashlight, strike |
 | `scripts/world/` | Greybox builders, doors driven by the database, terminals, triggers, interactables |
 | `scripts/npc/` | Rourke |
+| `scripts/net/` | Co-op: lobby, `Net` autoload, `LevelSync` (host-decided events, shared terminals), player puppets, voice and radio |
 | `scripts/levels/` | One script per level; geometry is built in code |
 | `scripts/ui/` | HUD, terminal screen, menu, Field Notes |
 | `data/` | Seed SQL for levels |
