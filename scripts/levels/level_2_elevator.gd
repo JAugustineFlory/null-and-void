@@ -5,7 +5,7 @@ extends Node3D
 ## inside that works only when every living player is in the car, and a `closed`
 ## signal once the doors meet. Swap it for the shared component when that lands.
 ##
-## Looks: ArtElevator when the art is in the project, plain greybox otherwise.
+## Looks: ArtElevator (no collision of its own); this adds the collision and mechanics.
 ## Like ArtElevator, the origin is the middle of the doorway at floor level and
 ## the car extends along local +Z (you walk in along +Z).
 
@@ -27,7 +27,9 @@ var open_amount := 0.0:
 		open_amount = clampf(v, 0.0, 1.0)
 		_place_doors()
 var is_closing := false
-var art: Node3D  # ArtElevator, when available
+var art: ArtElevator
+## The floor its button goes to.
+var destination := ""
 var button: Interactable
 ## Why the button didn't work, for the HUD. Set by press().
 var refusal := ""
@@ -48,10 +50,9 @@ static func create(parent: Node3D, geo: Node3D, pos: Vector3, facing_deg: float,
 
 
 func _build(geo: Node3D, floor_label: String, floors: Array) -> void:
-	var art_script: Script = load("res://scripts/art/art_elevator.gd") if ResourceLoader.exists("res://scripts/art/art_elevator.gd") else null
-	if art_script:
-		art = art_script.call("build", self, Vector3.ZERO, 0.0, SIZE, floors)
-		art.call("set_floor", floor_label)
+	destination = floors[floors.size() - 1]
+	art = ArtElevator.build(self, Vector3.ZERO, 0.0, SIZE, floors)
+	art.set_floor(floor_label)
 	# Collision shell: floor, ceiling, back, sides, and the front wall around the doorway.
 	var w := SIZE.x
 	var h := SIZE.y
@@ -121,7 +122,7 @@ func _place_doors() -> void:
 		var sx: int = leaf.get_meta("side")
 		leaf.position = Vector3(sx * (LEAF_W / 2 + open_amount * (LEAF_W - 0.04)), DOOR_H / 2, 0.11)
 	if art:
-		art.set("open_amount", open_amount)
+		art.open_amount = open_amount
 
 
 func open(instant: bool = false) -> void:
@@ -173,7 +174,7 @@ func close() -> void:
 	if _tween:
 		_tween.kill()
 	if art:
-		art.call("light_button", button.prompt.trim_prefix("Press "), true)
+		art.light_button(destination, true)
 	_tween = create_tween()
 	_tween.tween_property(self, "open_amount", 0.0, CLOSE_TIME * open_amount).set_trans(Tween.TRANS_LINEAR)
 	_tween.tween_callback(func():

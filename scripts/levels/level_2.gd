@@ -231,8 +231,8 @@ func _build_booth() -> void:
 	booth.queried.connect(_on_query)
 	booth.requested.connect(_on_request)
 	# Sticky note on the monitor, the sign-in sheet and a poster: found in the world first.
-	Greybox.panel(geo, Vector3(-2.55, 1.35, 5.27), Vector3(0.16, 0.16, 0.01), Color(0.95, 0.9, 0.4))
-	Greybox.label(geo, Vector3(-2.55, 1.35, 5.26), "cameras:\nGET /cameras", 22, Color(0.1, 0.1, 0.4), 180)
+	ArtProps.sticky_note(geo, Vector3(-2.5, 1.32, 5.27), 0.0, "GET /cameras")
+	ArtProps.sticky_note(geo, Vector3(-3.5, 1.32, 5.27), 0.0, "LIKE 'Ro%'", ArtProps.STICKY_COLORS[2])
 	Greybox.panel(geo, Vector3(-1.4, 1.45, 5.89), Vector3(0.6, 0.8, 0.01), Color(0.9, 0.88, 0.8))
 	Greybox.label(geo, Vector3(-1.4, 1.45, 5.88),
 		"NIGHT SHIFT SIGN-IN  10/15\n\nPIKE, H.     NO SHOW\nHar[coffee stain]  22:00\n\nPINs on file in the\nguards table.", 22, Color(0.1, 0.1, 0.15), 180)
