@@ -1,0 +1,178 @@
+class_name Watcher
+extends CharacterBody3D
+## The Watcher (Level 2). A tall, faceless figure that moves only when nobody is
+## looking at it: no player has it on screen with a clear line of sight, and no
+## working camera covers the spot it stands on. Seen, it freezes mid-step.
+## Unseen, it walks toward the nearest player, and if it reaches one, they go down.
+
+signal caught(player: Node)
+## Fired the first time it moves after being seen, so levels can warn players.
+signal started_moving
+
+const SPEED := 1.7
+const CATCH_RANGE := 1.15
+const HEIGHT := 2.35
+const CATCH_COOLDOWN := 3.0
+
+## Off until the level lets it loose.
+var active := false
+## Extra "something is watching it" checks, e.g. live cameras: Callable(watcher) -> bool.
+var holders: Array[Callable] = []
+## Colliders players can see through, like window glass.
+var see_through: Array[RID] = []
+var seen := true
+var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+
+var _agent: NavigationAgent3D
+var _body: Node3D
+var _arms: Array[Node3D] = []
+var _cooldown := 0.0
+var _was_moving := false
+
+
+func _ready() -> void:
+	add_to_group("npc")
+	var shape := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.3
+	cap.height = HEIGHT
+	shape.shape = cap
+	shape.position.y = HEIGHT / 2
+	add_child(shape)
+
+	_body = Node3D.new()
+	add_child(_body)
+	var skin := Color(0.78, 0.76, 0.72)
+	_part(CapsuleMesh.new(), Vector3(0, 1.45, 0), skin, Vector3(0.42, 0.55, 0.3))  # torso
+	for side in [-1, 1]:
+		_part(CapsuleMesh.new(), Vector3(side * 0.1, 0.5, 0), skin, Vector3(0.14, 0.52, 0.14))  # legs
+	_part(SphereMesh.new(), Vector3(0, 2.12, -0.02), skin, Vector3(0.26, 0.36, 0.26))
+	for side in [-1, 1]:
+		var pivot := Node3D.new()
+		pivot.position = Vector3(side * 0.24, 1.78, 0)
+		_body.add_child(pivot)
+		var arm := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.08, 1.15, 0.08)
+		arm.mesh = bm
+		arm.position = Vector3(0, -0.58, 0)
+		arm.material_override = Greybox.mat(skin, 0.0, 0.7)
+		pivot.add_child(arm)
+		_arms.append(pivot)
+
+	_agent = NavigationAgent3D.new()
+	_agent.path_desired_distance = 0.5
+	_agent.target_desired_distance = 0.5
+	_agent.radius = 0.35
+	_agent.height = HEIGHT
+	add_child(_agent)
+
+
+func _part(mesh: PrimitiveMesh, pos: Vector3, color: Color, scale_v: Vector3) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = pos
+	mi.scale = scale_v
+	mi.material_override = Greybox.mat(color, 0.0, 0.7)
+	_body.add_child(mi)
+
+
+## Put it somewhere, standing still, facing a point.
+func place(at: Vector3, look: Vector3) -> void:
+	global_position = at
+	velocity = Vector3.ZERO
+	_face(look)
+
+
+func _physics_process(delta: float) -> void:
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+	else:
+		velocity.y = 0.0
+	_cooldown = max(0.0, _cooldown - delta)
+	seen = is_watched()
+	var target := nearest_player()
+	if not active or seen or target == null or _cooldown > 0.0:
+		velocity.x = 0
+		velocity.z = 0
+		_was_moving = false
+		move_and_slide()
+		return
+	if not _was_moving:
+		_was_moving = true
+		_new_pose()
+		started_moving.emit()
+	_face(target.global_position)
+	if global_position.distance_to(target.global_position) < CATCH_RANGE:
+		_cooldown = CATCH_COOLDOWN
+		velocity = Vector3.ZERO
+		caught.emit(target)
+		return
+	_agent.target_position = target.global_position
+	var next := _agent.get_next_path_position()
+	var dir := next - global_position
+	dir.y = 0
+	if dir.length() < 0.05:
+		dir = target.global_position - global_position
+		dir.y = 0
+	dir = dir.normalized()
+	velocity.x = dir.x * SPEED
+	velocity.z = dir.z * SPEED
+	move_and_slide()
+
+
+func is_watched() -> bool:
+	for p in get_tree().get_nodes_in_group("player"):
+		if player_sees(p):
+			return true
+	for h in holders:
+		if h.call(self):
+			return true
+	return false
+
+
+## True if this player has the Watcher on screen with nothing in the way.
+## A player busy at a terminal is looking at the screen, not at the room.
+func player_sees(p: Node) -> bool:
+	if p.get("input_locked") or p.get("camera") == null:
+		return false
+	var cam: Camera3D = p.camera
+	if not cam.is_inside_tree():
+		return false
+	var space := get_world_3d().direct_space_state
+	var exclude: Array[RID] = [p.get_rid()]
+	exclude.append_array(see_through)
+	for h in [0.4, 1.3, 2.1]:
+		var pt: Vector3 = global_position + Vector3.UP * h
+		if not cam.is_position_in_frustum(pt):
+			continue
+		var q := PhysicsRayQueryParameters3D.create(cam.global_position, pt, 0xFFFFFFFF, exclude)
+		var hit := space.intersect_ray(q)
+		if hit.is_empty() or hit.collider == self:
+			return true
+	return false
+
+
+func nearest_player() -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for p in get_tree().get_nodes_in_group("player"):
+		var d := global_position.distance_to(p.global_position)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+
+func _face(point: Vector3) -> void:
+	var flat := Vector3(point.x, global_position.y, point.z)
+	if flat.distance_to(global_position) > 0.05:
+		look_at(flat, Vector3.UP)
+
+
+## Every time you look back, it is standing a little differently.
+func _new_pose() -> void:
+	for i in _arms.size():
+		_arms[i].rotation = Vector3(randf_range(-1.2, 0.2), 0, randf_range(-0.3, 0.3) * (1 if i == 0 else -1))
+	_body.rotation.z = randf_range(-0.12, 0.12)
+	_body.rotation.x = randf_range(-0.05, 0.18)

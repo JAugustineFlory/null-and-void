@@ -75,13 +75,15 @@ func _ready() -> void:
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
+	var switched := terminal != from_terminal
 	terminal = from_terminal
 	player = by_player
 	player.input_locked = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title.text = "HALCYON DATA SYSTEMS  //  %s" % terminal.terminal_name
 	visible = true
-	if _output.get_parsed_text().strip_edges() == "" or terminal.consume_fresh_boot():
+	# One screen is shared by every terminal, so a different terminal starts fresh.
+	if terminal.consume_fresh_boot() or switched or _output.get_parsed_text().strip_edges() == "":
 		_output.clear()
 		for line in terminal.boot_text():
 			print_line(line)
@@ -147,6 +149,9 @@ func run(sql: String) -> void:
 	if terminal.is_locked():
 		print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
 		return
+	if FacilityAPI.is_request(sql):
+		_http(sql)
+		return
 	var db: FacilityDB = terminal.db
 	var result := db.execute(sql)
 	if not result.ok:
@@ -164,6 +169,18 @@ func run(sql: String) -> void:
 	terminal.on_query(sql, result, self)
 
 
+func _http(line: String) -> void:
+	if terminal.api == null:
+		print_line("[color=#ff6655]No network API on this terminal. It only speaks SQL.[/color]")
+		return
+	var res: Dictionary = terminal.api.request(line)
+	get_node("/root/Game").log_query(line)
+	var color := "#7dff8c" if res.status < 400 else "#ff6655"
+	print_line("[color=%s]HTTP/1.0 %d %s[/color]" % [color, res.status, FacilityAPI.status_text(res.status)])
+	print_line(_esc(res.text))
+	terminal.on_request(line, res, self)
+
+
 func _command(cmd: String) -> void:
 	var parts := cmd.split(" ", false)
 	var db: FacilityDB = terminal.db
@@ -175,6 +192,8 @@ func _command(cmd: String) -> void:
 			print_line("  .hint            ask WARDEN for a hint")
 			print_line("  .clear           clear the screen")
 			print_line("  .reset           restore this terminal's data from backup")
+			if terminal.api != null:
+				print_line("  GET /path        send a web request, e.g. GET /cameras")
 			print_line("Anything else is run as SQL. End queries with ; (optional).")
 		".tables":
 			if terminal.is_locked():
@@ -255,7 +274,7 @@ func _sql_highlighter() -> CodeHighlighter:
 	h.function_color = Color(0.85, 1.0, 0.85)
 	h.member_variable_color = Color(0.85, 1.0, 0.85)
 	var kw := Color(1.0, 0.8, 0.35)
-	for word in ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK"]:
+	for word in ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]:
 		h.add_keyword_color(word, kw)
 		h.add_keyword_color(word.to_lower(), kw)
 	h.add_color_region("'", "'", Color(0.6, 1.0, 1.0))

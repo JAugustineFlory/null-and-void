@@ -181,7 +181,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Rourke on the radio (if he escaped)
 
-*Level 2 opening, only if Rourke was tied up in Level 1. He still has his facilities radio on channel 1 and calls the crew's walkie-talkies.* *(Written ahead: not in the game yet.)*
+*Level 2 opening, only if Rourke was tied up in Level 1. He still has his facilities radio on channel 1 and calls the crew's walkie-talkies.*
 
 **ROURKE:** *(Through the walkie. Relaxed, enjoying himself again.)* Still on channel one? Good. Thought you'd want to know I'm out. `[l2_rourke_1]`
 
@@ -191,7 +191,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The security office
 
-*WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie).* *(Written ahead: not in the game yet.)*
+*WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie).*
 
 **WARDEN:** *(Only if Rourke was killed. Plays on arrival, in place of Rourke's radio call.)* REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. `[l2_dead_escort]`
 
@@ -207,7 +207,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Vale's voicemail
 
-*The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk.* *(Written ahead: not in the game yet.)*
+*The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk.*
 
 **VALE:** *(Beep before this. Hushed, fast.)* Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. `[l2_vale_1]`
 

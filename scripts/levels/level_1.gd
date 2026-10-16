@@ -224,6 +224,8 @@ func _on_exit(_b: Node) -> void:
 		await hud.line("l1_lockdown_tied")
 	await hud.line("l1_sealed")
 	await hud.fade(true, 1.2)
+	Game.completed_level = "level_1"
+	Game.next_level = "level_2"
 	Game.goto("field_notes")
 
 
