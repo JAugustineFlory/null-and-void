@@ -35,7 +35,7 @@ func _run() -> void:
 	_cam(g, Vector3(0.0, 1.5, 1.6), 0, -8)
 	await _frames(20)
 	_save("cast_npcs")
-	for action in ["windup", "down", "tied"]:
+	for action in ["windup", "down", "tied", "crouch", "crawl"]:
 		for r in g.rigs:
 			r.play(action)
 		await _frames(60)

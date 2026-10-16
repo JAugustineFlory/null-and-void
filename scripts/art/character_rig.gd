@@ -15,7 +15,7 @@ extends Node3D
 
 ## Upper-body actions keep the legs walking; the rest take over the whole body.
 const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike"]
-const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "crouch"]
+const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "crouch", "crawl"]
 const ACTIONS := UPPER_BODY + FULL_BODY
 
 ## Meters covered by one full walk cycle (two steps).
@@ -26,8 +26,10 @@ const FAR_DISTANCE := 30.0
 
 ## The action playing now (see ACTIONS).
 var action := "idle"
-## Crouched walking: lowers the body and shortens the stride.
+## Crouched walking: a 1.25 m bent-knee stance, like Player's crouch.
 var crouching := false
+## On hands and knees (Player.crawling: vents and low gaps). Wins over crouching.
+var crawling := false
 ## Up/down look, in radians (a teammate's camera pitch). Positive looks up.
 var head_pitch := 0.0
 ## A point to turn the head toward, or null.
@@ -135,7 +137,9 @@ func current_speed() -> float:
 
 func _target_pose() -> Dictionary:
 	var p := {}
-	if not is_full_body():
+	if crawling and not is_full_body():
+		_crawl(p)
+	elif not is_full_body():
 		_locomotion(p)
 	_action_pose(p)
 	_head(p)
@@ -155,20 +159,20 @@ func _locomotion(p: Dictionary) -> void:
 	var c := cos(_phase)
 	var crouch := 1.0 if crouching else 0.0
 	# Legs.
-	p["r_hip"] = Vector3(s * 0.5 * amp + crouch * 1.0, 0, 0.03)
-	p["l_hip"] = Vector3(-s * 0.5 * amp + crouch * 1.0, 0, -0.03)
-	p["r_knee"] = Vector3(-amp * (0.1 + 0.75 * maxf(0.0, c)) - crouch * 1.7, 0, 0)
-	p["l_knee"] = Vector3(-amp * (0.1 + 0.75 * maxf(0.0, -c)) - crouch * 1.7, 0, 0)
+	p["r_hip"] = Vector3(s * 0.5 * amp * (1.0 - 0.5 * crouch) + crouch * 1.4, 0, 0.03)
+	p["l_hip"] = Vector3(-s * 0.5 * amp * (1.0 - 0.5 * crouch) + crouch * 1.4, 0, -0.03)
+	p["r_knee"] = Vector3(-amp * (0.1 + 0.75 * maxf(0.0, c)) - crouch * 2.2, 0, 0)
+	p["l_knee"] = Vector3(-amp * (0.1 + 0.75 * maxf(0.0, -c)) - crouch * 2.2, 0, 0)
 	# Arms swing against the legs; running pumps with bent elbows.
 	p["r_shoulder"] = Vector3(-s * 0.45 * amp, 0, 0.07)
 	p["l_shoulder"] = Vector3(s * 0.45 * amp, 0, -0.07)
 	_sym(p, "elbow", Vector3(0.15 + 0.35 * walk + 0.9 * run, 0, 0))
 	# Body: twist, lean into a run, bob on each footfall, breathe when still.
 	var breathe := sin(_t * 1.7) * 0.02 * (1.0 - walk)
-	p["spine"] = Vector3(-0.03 * walk - 0.18 * run - 0.35 * crouch + breathe, s * 0.07 * amp, 0)
+	p["spine"] = Vector3(-0.03 * walk - 0.18 * run - 0.3 * crouch + breathe, s * 0.07 * amp, 0)
 	p["neck"] = Vector3(0.03 * walk + 0.12 * run + 0.2 * crouch, -s * 0.05 * amp, 0)
 	p["hips"] = Vector3(0, -s * 0.05 * amp, c * 0.03 * amp)
-	p["_root_pos"] = Vector3(0, -0.035 * amp * absf(s) - 0.38 * crouch, 0)
+	p["_root_pos"] = Vector3(0, -0.035 * amp * absf(s) - 0.48 * crouch, 0)
 
 
 func _action_pose(p: Dictionary) -> void:
@@ -251,14 +255,34 @@ func _action_pose(p: Dictionary) -> void:
 			_sym(p, "knee", Vector3(-1.5, 0, 0))
 			_sym(p, "shoulder", Vector3(0.35, 0, 0.05))
 			_sym(p, "elbow", Vector3(0.9, 0, 0))
+		"crawl":
+			_crawl(p)
 		"crouch":
-			p["_root_pos"] = Vector3(0, -0.38, 0)
-			_sym(p, "hip", Vector3(1.0, 0, 0.1))
-			_sym(p, "knee", Vector3(-1.7, 0, 0))
-			p["spine"] = Vector3(-0.35, 0, 0)
+			p["_root_pos"] = Vector3(0, -0.48, 0)
+			_sym(p, "hip", Vector3(1.4, 0, 0.1))
+			_sym(p, "knee", Vector3(-2.2, 0, 0))
+			p["spine"] = Vector3(-0.3, 0, 0)
 			p["neck"] = Vector3(0.2, 0, 0)
 			_sym(p, "shoulder", Vector3(0.4, 0, 0.1))
 			_sym(p, "elbow", Vector3(0.6, 0, 0))
+
+
+## Hands and knees, body level with the floor, head forward. Opposite hand and
+## knee move together, paced by the measured speed.
+func _crawl(p: Dictionary) -> void:
+	var go := clampf(_speed / 1.0, 0.0, 1.0)
+	var s := sin(_phase * 2.0) * go
+	# Tip the whole body forward onto all fours, then lift it to arm's length.
+	p["_root_rot"] = Vector3(-PI / 2, 0, 0)
+	p["_root_pos"] = Vector3(0, 0.5, 0.55)
+	p["r_shoulder"] = Vector3(1.5 + 0.35 * s, 0, 0.05)
+	p["l_shoulder"] = Vector3(1.5 - 0.35 * s, 0, -0.05)
+	_sym(p, "elbow", Vector3(0.1, 0, 0))
+	p["r_hip"] = Vector3(1.5 + 0.3 * s, 0, 0.05)
+	p["l_hip"] = Vector3(1.5 - 0.3 * s, 0, -0.05)
+	_sym(p, "knee", Vector3(-1.5, 0, 0))
+	p["spine"] = Vector3(0.1, s * 0.06, 0)
+	p["neck"] = Vector3(1.2, 0, 0)  # look ahead down the duct, not at the floor
 
 
 func _head(p: Dictionary) -> void:
