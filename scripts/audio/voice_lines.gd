@@ -5,29 +5,41 @@ extends RefCounted
 ## generated from it, and a recording named after the id replaces the timed subtitle.
 ## Change a line here, then run tools/write_script_docs.gd to refresh the docs.
 
-## Who speaks, and how Augustine should play them.
+## Who speaks, and how to play them. `who` can spoil the story and is for the
+## team; `card` is what an actor who only gets this character's script is told.
+## `slug` names the character's script file and recordings folder.
 const CHARACTERS := {
 	"ROURKE": {
+		"slug": "rourke",
+		"card": "Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an IT crew around after hours, and he's friendlier than he needs to be.",
 		"name": "Dale Rourke",
 		"who": "Facilities manager, 50s. The director's plant.",
 		"voice": "Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.",
 	},
 	"WARDEN": {
+		"slug": "warden",
+		"card": "The building's computer system. It runs the doors, the lights and the speakers, and it talks over the PA and through terminals.",
 		"name": "WARDEN",
 		"who": "The campus AI, heard over 1997 PA speakers and terminals.",
 		"voice": "Calm, polite, flat. Customer-service cadence with even pauses. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.",
 	},
 	"VALE": {
+		"slug": "vale",
+		"card": "Dr. Iris Vale, the lead engineer, 40s. Calling the night desk late at night about something she'd rather nobody saw.",
 		"name": "Dr. Iris Vale",
 		"who": "Lead engineer, 40s. Officially missing, presumed dead.",
 		"voice": "Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.",
 	},
 	"DISPATCH": {
+		"slug": "dispatch",
+		"card": "The IT company's night dispatcher, on the van radio. Just another callout at the end of a long shift.",
 		"name": "Byte-Right dispatch",
 		"who": "The IT company's night dispatcher, heard on the van radio.",
 		"voice": "Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.",
 	},
 	"MERCER": {
+		"slug": "mercer",
+		"card": "Harold Mercer, the company's founder, 70s. Recording a cassette at his desk on his last day, in 1994.",
 		"name": "Harold Mercer",
 		"who": "Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.",
 		"voice": "Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.",
@@ -35,34 +47,51 @@ const CHARACTERS := {
 }
 
 ## Scenes in story order. `wired` is false for lines written ahead of their level.
+## `context` is the plot for the team; `moment` is the spoiler-light version actors see.
+## Set `reveal: true` on scenes that give away a twist: their lines go to a separate
+## "later session" script (so do all lines from REVEAL_LEVEL on).
 const SCENES := [
 	{"id": "l0_van", "level": 0, "title": "The IT van", "wired": true,
+		"moment": "You're on the radio to an IT crew parked outside a client's building at 11 p.m.",
 		"context": "The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up."},
 	{"id": "l0_arrive", "level": 0, "title": "The front doors, 11 p.m.", "wired": true,
+		"moment": "At the building's front doors as the IT crew arrives.",
 		"context": "The crew walks up from the van. Rourke opens the front doors and WARDEN greets them over the PA. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log."},
 	{"id": "l0_tour", "level": 0, "title": "The tour", "wired": true,
+		"moment": "Walking the crew through the lobby to the front desk, chatting as you go.",
 		"context": "Rourke walks the crew to reception, explaining the job and the building's history."},
 	{"id": "l0_memo", "level": 0, "title": "Vale's shredded memo", "wired": true,
+		"moment": "At the front desk while the crew pieces a shredded memo back together on a terminal.",
 		"context": "The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there."},
 	{"id": "l0_tape", "level": 0, "title": "Mercer's cassette (optional)", "wired": true,
+		"moment": "Alone at your desk, talking into a cassette recorder for whoever finds it someday.",
 		"context": "In the forgotten closet behind the air-return vent, a cassette recorder sits on the shelf under the old newspaper clipping. Only players who crawl through the vent hear it."},
 	{"id": "l0_hall", "level": 0, "title": "To Server Room A", "wired": true,
+		"moment": "In a corridor where a security shutter has jammed halfway open.",
 		"context": "Rourke badges the hall shutter; it jams halfway. He leaves to take the staff door and is waiting at Server Room A."},
 	{"id": "l1_trap", "level": 1, "title": "The betrayal", "wired": true,
+		"moment": "Inside a server room with the crew. The door has just locked behind them.",
 		"context": "Rourke leads the crew into Server Room A, the door locks behind them, the lights go red, and he turns on them."},
 	{"id": "l1_fight", "level": 1, "title": "The fight (barks)", "wired": true,
+		"moment": "Short lines in a scuffle. Loud and out of breath; each one can play many times.",
 		"context": "Short lines played at random during the fight: when he lands a hit, when he takes one, and when he goes down. Keep each one short; they can play many times."},
 	{"id": "l1_fate", "level": 1, "title": "Kill or tie him up", "wired": true,
+		"moment": "In the server room, right after the scuffle.",
 		"context": "Rourke is down. If the crew kills him, his badge's dead-man switch fires and WARDEN starts the lockdown. If they tie him up, he taunts them. Either way they take his badge and the terminal logs in with it."},
 	{"id": "l1_controllers", "level": 1, "title": "Resetting the door controller", "wired": true,
+		"moment": "Over the server room speakers while the crew tries to reset door controllers.",
 		"context": "The crew reads WARDEN's self-test, queries door_controllers, and resets the right rack. The terminal shows the details; these lines are WARDEN reacting."},
 	{"id": "l1_exit", "level": 1, "title": "Lockdown", "wired": true,
+		"moment": "Over the speakers as the crew leaves the server room.",
 		"context": "The crew steps through the emergency exit. If Rourke was tied up, he has cut himself loose and authorized the lockdown himself."},
 	{"id": "l2_radio", "level": 2, "title": "Rourke on the radio (if he escaped)", "wired": true,
+		"moment": "On a walkie-talkie to the crew, from somewhere else in the building.",
 		"context": "Level 2 opening, only if Rourke was tied up in Level 1. He still has his facilities radio on channel 1 and calls the crew's walkie-talkies."},
 	{"id": "l2_security", "level": 2, "title": "The security office", "wired": true,
+		"moment": "Over the speakers in a security office.",
 		"context": "WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie)."},
 	{"id": "l2_voicemail", "level": 2, "title": "Vale's voicemail", "wired": true,
+		"moment": "Leaving a message on a desk answering machine, late at night.",
 		"context": "The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk."},
 ]
 
@@ -96,7 +125,7 @@ const LINES := {
 	"l0_tour_3": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings.",
 		"note": "Tour-guide mode, enjoying himself."},
 	"l0_tour_4": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Board fired him when they installed WARDEN. That's the AI that runs the campus now.",
-		"note": ""},
+		"note": "Still chatting to the crew, a little proud of the trivia."},
 	"l0_tour_5": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable.",
 		"note": "Spooky-campfire voice, playing it up."},
 	"l0_tour_6": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Ghost stories. Anyway.",
@@ -167,7 +196,7 @@ const LINES := {
 	"l1_panel_wrong": {"scene": "l1_controllers", "speaker": "WARDEN", "text": "THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS.",
 		"note": "The last sentence slightly slower."},
 	"l1_exit_open": {"scene": "l1_controllers", "speaker": "WARDEN", "text": "CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY.",
-		"note": ""},
+		"note": "Polite and a touch reluctant, over the speakers."},
 	"l1_lockdown_tied": {"scene": "l1_exit", "speaker": "WARDEN", "text": "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D.",
 		"note": "Reading a log entry."},
 	"l1_sealed": {"scene": "l1_exit", "speaker": "WARDEN", "text": "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT.",
@@ -177,11 +206,11 @@ const LINES := {
 	"l2_rourke_1": {"scene": "l2_radio", "speaker": "ROURKE", "text": "Still on channel one? Good. Thought you'd want to know I'm out.",
 		"note": "Through the walkie. Relaxed, enjoying himself again."},
 	"l2_rourke_2": {"scene": "l2_radio", "speaker": "ROURKE", "text": "Security office is the only way down from here. Say hi to the night guard for me.",
-		"note": ""},
+		"note": "Through the walkie, casual, like giving directions."},
 	"l2_rourke_3": {"scene": "l2_radio", "speaker": "ROURKE", "text": "Oh, he won't say much. Nobody's seen him since Tuesday.",
 		"note": "Let it hang. Then the radio clicks off."},
 	"l2_dead_escort": {"scene": "l2_security", "speaker": "WARDEN", "text": "REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE.",
-		"note": "Only if Rourke was killed. Plays on arrival, in place of Rourke's radio call."},
+		"note": "Plays in one version of the story only. Patient, slightly too formal."},
 	"l2_arrive": {"scene": "l2_security", "speaker": "WARDEN", "text": "SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE.",
 		"note": "Reassuring tone. It is not reassuring."},
 	"l2_cameras": {"scene": "l2_security", "speaker": "WARDEN", "text": "LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN.",
@@ -199,6 +228,15 @@ const LINES := {
 	"l2_vale_3": {"scene": "l2_voicemail", "speaker": "VALE", "text": "And please don't give your PIN to anyone. Not even Dale.",
 		"note": "Softer. Then she hangs up."},
 }
+
+
+## From this level on, every line is held back for a later recording session.
+const REVEAL_LEVEL := 10
+
+
+## Lines in this scene would spoil a twist, so actors get them in a later session.
+static func held_back(scene_data: Dictionary) -> bool:
+	return scene_data.get("reveal", false) or int(scene_data.get("level", 0)) >= REVEAL_LEVEL
 
 
 static func has_line(id: String) -> bool:

@@ -144,6 +144,8 @@ func test_voice_script() -> void:
 		if VoiceLines.scene(l["scene"]).is_empty():
 			scenes_ok = false
 	check(speakers_ok, "every line's speaker has a character entry")
+	var no_note := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["note"] == "")
+	check(no_note.is_empty(), "every line has an acting note %s" % [no_note])
 	check(scenes_ok, "every line belongs to a scene")
 
 	var used := {}
@@ -186,6 +188,42 @@ func test_voice_script() -> void:
 			listed = false
 	check(listed, "every line is on the recording list")
 
+	var docs := ScriptDocs.character_docs()
+	var on_disk := {}
+	for f in DirAccess.get_files_at(ScriptDocs.CHARACTERS_DIR):
+		if f.ends_with(".md"):
+			on_disk[ScriptDocs.CHARACTERS_DIR.path_join(f)] = true
+	var chars_in_sync := on_disk.size() == docs.size()
+	for path in docs:
+		if FileAccess.get_file_as_string(path) != docs[path]:
+			chars_in_sync = false
+	check(chars_in_sync, "docs/script/characters/ matches voice_lines.gd (run tools/write_script_docs.gd)")
+	var placed_once := []
+	var wrong_file := []
+	for id in VoiceLines.LINES:
+		var hits := 0
+		var slug: String = VoiceLines.CHARACTERS[VoiceLines.LINES[id]["speaker"]]["slug"]
+		for path in docs:
+			if docs[path].contains("`%s.wav`" % id):
+				hits += 1
+				if not path.get_file().begins_with(slug):
+					wrong_file.append(id)
+		if hits != 1:
+			placed_once.append(id)
+	check(placed_once.is_empty(), "every line is in exactly one character's script %s" % [placed_once])
+	check(wrong_file.is_empty(), "lines are only in their own character's script %s" % [wrong_file])
+	var leaks := []
+	for path in docs:
+		for c in VoiceLines.CHARACTERS.values():
+			if docs[path].contains(c["who"]):
+				leaks.append("%s: who %s" % [path.get_file(), c["slug"]])
+		for sc in VoiceLines.SCENES:
+			if docs[path].contains(sc["context"]):
+				leaks.append("%s: context %s" % [path.get_file(), sc["id"]])
+	check(leaks.is_empty(), "actors' scripts leave out the team-only character notes %s" % [leaks])
+	check(VoiceLines.held_back({"level": VoiceLines.REVEAL_LEVEL}) and VoiceLines.held_back({"level": 2, "reveal": true}) \
+		and not VoiceLines.held_back({"level": 2}), "reveal scenes and late levels are held back for a later session")
+
 
 func test_voice_playback() -> void:
 	print("Voice playback")
@@ -212,6 +250,17 @@ func test_voice_playback() -> void:
 	check(absf(wait - (0.5 + Voice.TAIL)) < 0.05, "the line lasts as long as its recording (%.2f s)" % wait)
 	check(voice.is_playing(), "the recording plays")
 	check(voice._player.bus == &"Master", "Rourke plays without the PA filter")
+	DirAccess.remove_absolute(wav_path)
+	DirAccess.make_dir_recursive_absolute(Voice.folder.path_join("rourke"))
+	var take2 := Voice.folder.path_join("rourke/l0_greet_1_take2.wav")
+	wav.save_to_wav(take2)
+	check(Voice.path_for("l0_greet_1") == "", "a second take alone isn't played")
+	var actor_path := Voice.folder.path_join("rourke/l0_greet_1.wav")
+	wav.save_to_wav(actor_path)
+	check(Voice.path_for("l0_greet_1") == actor_path, "an actor's file in the character's folder is found")
+	DirAccess.remove_absolute(take2)
+	DirAccess.remove_absolute(actor_path)
+	wav.save_to_wav(wav_path)
 	var warden_path := Voice.folder.path_join("l1_sealed.wav")
 	wav.save_to_wav(warden_path)
 	voice.play("l1_sealed")

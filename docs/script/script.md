@@ -65,7 +65,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Tour-guide mode, enjoying himself.)* Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings. `[l0_tour_3]`
 
-**ROURKE:** Board fired him when they installed WARDEN. That's the AI that runs the campus now. `[l0_tour_4]`
+**ROURKE:** *(Still chatting to the crew, a little proud of the trivia.)* Board fired him when they installed WARDEN. That's the AI that runs the campus now. `[l0_tour_4]`
 
 **ROURKE:** *(Spooky-campfire voice, playing it up.)* Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. `[l0_tour_5]`
 
@@ -171,7 +171,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN:** *(The last sentence slightly slower.)* THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l1_panel_wrong]`
 
-**WARDEN:** CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. `[l1_exit_open]`
+**WARDEN:** *(Polite and a touch reluctant, over the speakers.)* CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. `[l1_exit_open]`
 
 ### Lockdown
 
@@ -189,7 +189,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Through the walkie. Relaxed, enjoying himself again.)* Still on channel one? Good. Thought you'd want to know I'm out. `[l2_rourke_1]`
 
-**ROURKE:** Security office is the only way down from here. Say hi to the night guard for me. `[l2_rourke_2]`
+**ROURKE:** *(Through the walkie, casual, like giving directions.)* Security office is the only way down from here. Say hi to the night guard for me. `[l2_rourke_2]`
 
 **ROURKE:** *(Let it hang. Then the radio clicks off.)* Oh, he won't say much. Nobody's seen him since Tuesday. `[l2_rourke_3]`
 
@@ -197,7 +197,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie).*
 
-**WARDEN:** *(Only if Rourke was killed. Plays on arrival, in place of Rourke's radio call.)* REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. `[l2_dead_escort]`
+**WARDEN:** *(Plays in one version of the story only. Patient, slightly too formal.)* REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. `[l2_dead_escort]`
 
 **WARDEN:** *(Reassuring tone. It is not reassuring.)* SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. `[l2_arrive]`
 

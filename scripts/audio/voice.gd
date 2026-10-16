@@ -5,8 +5,9 @@ extends Node
 ## stay silent and their subtitle is timed from the text instead.
 
 const EXTENSIONS := ["ogg", "wav", "mp3"]
-## Gap after a recording before the next line starts.
-const TAIL := 0.35
+## Gap after a recording before the next line starts. Actors leave half a second
+## of silence at each end of their files, so this only needs to be short.
+const TAIL := 0.1
 ## WARDEN speaks through the building's PA: thin, boxy, a little roomy.
 const PA_BUS := &"VoicePA"
 
@@ -23,11 +24,19 @@ func _ready() -> void:
 
 
 ## Path of the recording for this line, or "" if it hasn't been recorded yet.
+## Looks in the character's own folder first (audio/voice/rourke/l0_greet_1.wav,
+## where actors' files go), then in audio/voice/ itself. Extra takes
+## (l0_greet_1_take2.wav) are never picked up; rename the one you want.
 static func path_for(id: String) -> String:
-	for ext in EXTENSIONS:
-		var p: String = folder.path_join("%s.%s" % [id, ext])
-		if ResourceLoader.exists(p) or FileAccess.file_exists(p):
-			return p
+	var dirs: Array[String] = [folder]
+	var speaker: String = VoiceLines.get_line(id).get("speaker", "")
+	if VoiceLines.CHARACTERS.has(speaker):
+		dirs.push_front(folder.path_join(VoiceLines.CHARACTERS[speaker]["slug"]))
+	for dir in dirs:
+		for ext in EXTENSIONS:
+			var p: String = dir.path_join("%s.%s" % [id, ext])
+			if ResourceLoader.exists(p) or FileAccess.file_exists(p):
+				return p
 	return ""
 
 
