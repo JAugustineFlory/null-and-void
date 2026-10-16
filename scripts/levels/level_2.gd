@@ -54,7 +54,7 @@ var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"  GET       ask the security server to send you something (it only reads, it changes nothing)\n" +
 	"  /cameras  the address of the camera list\n" +
 	"The answer is JSON: { } holds one camera's fields, [ ] holds a list of them.",
-	"Read each camera's status and motion. motion: true means that camera sees something moving.",
+	"Look down the list for the camera that says \"motion\": true. Its location is the room where something is moving.",
 ])
 var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE 'Pike%'", ["name"], false, [
 	"Type this, then press Enter:\n" +
@@ -63,15 +63,14 @@ var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE '
 	"  FROM guards      from the guard roster\n" +
 	"  WHERE name LIKE  keep rows whose name matches a pattern\n" +
 	"  'Pike%'          starts with Pike. % stands for any letters (or none) after it",
-	"LIKE ignores capitals, so 'pike%' works too. Text patterns go in 'single quotes'.",
+	"Start with SELECT * FROM guards and add WHERE name LIKE 'Pike%' to the end, before the ;. Keep the 'single quotes' around Pike%.",
 ])
 var door_puzzle := Puzzle.new("door", "", [], false, [
 	"Type this, then press Enter:\n" +
 	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
 	"  GET               ask the security server for data\n" +
 	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says",
-	"locked is what the keypad asked for. sensor and actuator are what the door is actually doing. " +
-	"The note says which breaker to reset. The breaker box is on the wall by the vent.",
+	"Read the \"note\" line in the answer. It names a breaker, like B-2. Go to the breaker box on the wall under the vent and press E on that breaker.",
 ])
 var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, [
 	"Type this, then press Enter:\n" +
@@ -79,6 +78,7 @@ var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har
 	"  SELECT * FROM guards    every column of the guard roster\n" +
 	"  WHERE name LIKE 'Har%'  names that START with Har (all you can read on the sheet)\n" +
 	"  AND shift = 'night'     ...who ALSO work nights: it's the night-shift sign-in sheet",
+	"Take your Pike query and change 'Pike%' to 'Har%'. Then add AND shift = 'night' to the end, before the ;.",
 	"The pin column is the code for the stairwell keypad, past the far end of the Security Office. " +
 	"Other Har- guards work other shifts or are retired: read their note column.",
 	"Lost track of it? GET /cameras shows which cameras see motion. Compare each last_frame with server_time: " +
