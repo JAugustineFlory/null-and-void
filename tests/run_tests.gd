@@ -111,6 +111,8 @@ func test_first_hints_show_working_queries() -> void:
 	for p in [l0.peek_puzzle, l0.memo_puzzle]:
 		var q := _hint_query(p.hints[0])
 		check(q != "" and p.matches(db, db.execute(q)), "%s: first hint's query solves it (%s)" % [p.id, q])
+	check(l0.memo_puzzle.hints[1].contains("ORDER BY piece_no") and not l0.memo_puzzle.hints[1].contains("visitors"),
+		"memo: second hint names the real column, not an example table")
 	l0.free()
 	var l1 = load("res://scripts/levels/level_1.gd").new()
 	var ok := true

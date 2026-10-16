@@ -34,7 +34,9 @@ var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY 
 	"  SELECT *            every column\n" +
 	"  FROM memo_fragments from the scraps table\n" +
 	"  ORDER BY piece_no   sorted by the piece_no column, smallest first",
-	"ORDER BY goes at the end of the query. Type exactly SELECT * FROM memo_fragments ORDER BY piece_no; and press Enter.",
+	"Take the query you just ran and add ORDER BY to the end, then the column to sort by. " +
+	"Here that's piece_no, the scrap numbers in the first column. " +
+	"So: SELECT * FROM memo_fragments, then ORDER BY piece_no, then the semicolon.",
 ])
 
 
@@ -318,8 +320,8 @@ func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
 	if not peek_puzzle.solved and peek_puzzle.matches(db, result):
 		peek_puzzle.solved = true
 		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a piece_no.[/color]")
-		ui.print_line("[color=#e0b050]        Sort rows with ORDER BY. Example: SELECT * FROM visitors ORDER BY checked_in;[/color]")
+		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a number in the piece_no column.[/color]")
+		ui.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the column to sort by: piece_no[/color]")
 		hud.set_objective("Put the memo back in order")
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):
 		memo_puzzle.solved = true
