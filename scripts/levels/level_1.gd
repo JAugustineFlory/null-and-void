@@ -29,6 +29,7 @@ var controller_puzzle := Puzzle.new("controller",
 	"Other faulted or offline controllers belong to other doors or are off on purpose: read their note column.",
 ])
 var rourke_spawn := Transform3D.IDENTITY
+var elevator: Elevator
 
 
 func build() -> void:
@@ -50,7 +51,10 @@ func build() -> void:
 	Greybox.room(geo, Vector3(0, 0, 11.5), Vector3(3, 3, 5), {"floor": floor_c, "wall": wall_c}, ante_gaps)
 	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "n", "at": 0.0, "width": Elevator.DOOR_WIDTH, "height": 2.3},
 	])
+	# The way out: an elevator at the end of the emergency exit corridor.
+	elevator = Elevator.create(self, Vector3(0, 0, -16.0))
 	add_door("SRA-ENTRY", Vector3(0, 1.2, 9), Vector3(1.8, 2.4, 0.15)).slide_axis = Vector3.UP
 	add_door("SRA-EXIT", Vector3(0, 1.2, -9), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.8, -8.88), "EMERGENCY EXIT", 64, Color(0.1, 0.8, 0.2))
@@ -248,21 +252,39 @@ func _on_panel(_p: Node, id: String) -> void:
 	for p in rack_panels.values():
 		p.enabled = false
 	hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SRA-EXIT: OPENED" % id, 4.0, ThemeUtil.GREEN)
-	hud.set_objective("Get out through the emergency exit")
+	hud.set_objective("Get out through the emergency exit to the elevator")
 	hud.line("l1_exit_open", false)
 	var t := Trigger.create(self, Vector3(0, 1, -13.5), Vector3(3, 2, 1.5))
 	t.entered.connect(_on_exit)
 
 
 func _on_exit(_b: Node) -> void:
-	player.input_locked = true
+	elevator.hud = hud
+	elevator.open_doors()
+	elevator.doors_closed.connect(_on_elevator_closed, CONNECT_ONE_SHOT)
+	elevator.arrived.connect(_on_elevator_arrived, CONNECT_ONE_SHOT)
 	if Game.rourke_fate == "tied":
 		await hud.say("", "Behind you, a cut length of network cable lies on the floor. Rourke is gone.", 4.0)
 		await hud.line("l1_lockdown_tied")
-	await hud.line("l1_sealed")
-	await hud.fade(true, 1.2)
+	if not elevator.riding:
+		hud.set_objective("Everyone into the elevator, then press the button")
+
+
+## The doors are shut: this is the checkpoint, and the next wing loads during the ride.
+func _on_elevator_closed() -> void:
+	hud.set_objective("")
+	if world:
+		db.checkpoint()
+	prepare_next()
+	hud.line("l1_sealed")
+
+
+func _on_elevator_arrived() -> void:
 	Game.completed_level = "level_1"
 	Game.next_level = "level_2"
+	if not world:
+		player.input_locked = true
+		await hud.fade(true, 1.2)
 	finish_level("field_notes")
 
 
