@@ -4,6 +4,7 @@ extends Node
 const LEVELS := {
 	"level_0": "res://scenes/level_0.tscn",
 	"level_1": "res://scenes/level_1.tscn",
+	"movement_gym": "res://scenes/movement_gym.tscn",
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",
 	"lobby": "res://scenes/lobby.tscn",

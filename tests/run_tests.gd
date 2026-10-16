@@ -23,6 +23,7 @@ func _run() -> void:
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
+	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
