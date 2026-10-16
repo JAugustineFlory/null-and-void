@@ -59,6 +59,10 @@ func _ready() -> void:
 
 	_tabs = TabContainer.new()
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var page_style := StyleBoxFlat.new()
+	page_style.bg_color = PAPER.darkened(0.04)
+	page_style.set_content_margin_all(12)
+	_tabs.add_theme_stylebox_override("panel", page_style)
 	column.add_child(_tabs)
 	for page in [["Notes", Page.NOTES], ["Tables", Page.TABLES], ["Field Notes", Page.FIELD_NOTES]]:
 		var scroll := ScrollContainer.new()
@@ -77,7 +81,9 @@ func _ready() -> void:
 	if end_of_level:
 		_add_end_buttons(footer)
 	else:
-		footer.add_child(_text("Tab to close", 16, PENCIL))
+		var close_tip := _text("Tab to close", 16, PENCIL)
+		close_tip.autowrap_mode = TextServer.AUTOWRAP_OFF
+		footer.add_child(close_tip)
 	refresh()
 
 
@@ -182,14 +188,17 @@ func _button(text: String, action: Callable) -> Button:
 	return b
 
 
+## Ink on paper: no drop shadow.
 func _text(text: String, size: int, color: Color) -> Label:
 	var l := ThemeUtil.label(text, size, color)
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return l
 
 
 func _mono(text: String) -> Label:
 	var l := ThemeUtil.label(text, 17, INK)
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 	l.add_theme_font_override("font", ThemeUtil.mono())
 	return l
 

@@ -23,6 +23,9 @@ func _run() -> void:
 	await _shot(level, "l0_spawn", Vector3(0, 0.1, 5.6), 0, -5)
 	await _shot(level, "l0_desk", Vector3(1.2, 0.1, 0.4), 10, -18)
 	await _shot(level, "l0_hall_shutter", Vector3(8.5, 0.1, 3), -90, 0)
+	level.shutter.set_open(true, true)
+	await _shot(level, "l0_hall_tray", Vector3(12.5, 0.1, 3), -90, 0)
+	await _shot(level, "l0_desk_stickies", Vector3(1.9, 0.1, 0.1), 15, -30)
 	await _shot(level, "l0_vent", Vector3(-6.5, 0.1, 4), 90, -10)
 	level.desk_terminal.enabled = true
 	level.terminal_ui.open(level.desk_terminal, level.player)
@@ -30,7 +33,18 @@ func _run() -> void:
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	await _frames(10)
 	_save("l0_terminal")
+	level.terminal_ui.run(".tables")
 	level.terminal_ui.close()
+	root.get_node("Game").add_note("select_from")
+	root.get_node("Game").add_note("order_by")
+	level.player.input_locked = false
+	level.notebook.open()
+	await _frames(10)
+	_save("l0_notebook")
+	level.notebook.view.show_page(NotebookView.Page.TABLES)
+	await _frames(10)
+	_save("l0_notebook_tables")
+	level.notebook.close()
 	level.free()
 
 	root.get_node("Game").new_run(3)
