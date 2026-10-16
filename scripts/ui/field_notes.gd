@@ -9,6 +9,12 @@ const CONCEPT_NOTES := {
 	"AND": "AND requires both conditions to be true.",
 	"OR": "OR accepts a row if either condition is true.",
 	"LIKE": "LIKE matches patterns: 'Har%' means starts with Har.",
+	"LIMIT": "LIMIT 5 shows only the first 5 rows.",
+	"COUNT": "COUNT(*) counts rows instead of showing them.",
+	"GET": "GET /path asks a server for data. The answer comes back as JSON.",
+}
+const SUBTITLES := {
+	"level_2": "Level 2  -  Security Office",
 }
 
 
@@ -33,13 +39,15 @@ func _ready() -> void:
 	scroll.add_child(box)
 
 	box.add_child(ThemeUtil.label("FIELD NOTES", 54, ThemeUtil.GREEN))
-	box.add_child(ThemeUtil.label("Levels 0 and 1  -  The Lobby, Server Room A", 20, ThemeUtil.DIM))
+	box.add_child(ThemeUtil.label(SUBTITLES.get(Game.completed_level, "Levels 0 and 1  -  The Lobby, Server Room A"), 20, ThemeUtil.DIM))
 	box.add_child(_spacer())
 
 	box.add_child(ThemeUtil.label("What you learned", 28, ThemeUtil.AMBER))
 	for c in Game.concepts_learned:
 		box.add_child(_mono("  %-9s %s" % [c, CONCEPT_NOTES.get(c, "")]))
 	box.add_child(_mono("  TESTS     A self-test lists PASS/FAIL checks. Failing tests tell you where to look."))
+	if Game.completed_level == "level_2":
+		box.add_child(_mono("  VERIFY    A status can lie. CAM-2 said 'live' while its picture was frozen. Check the data."))
 	box.add_child(_spacer())
 
 	box.add_child(ThemeUtil.label("Queries you wrote", 28, ThemeUtil.AMBER))
@@ -50,14 +58,23 @@ func _ready() -> void:
 		box.add_child(_mono("  > " + q.replace("\n", " ")))
 	box.add_child(_spacer())
 
+	if Game.completed_level == "level_2":
+		box.add_child(ThemeUtil.label("You locked the Watcher in behind you." if Game.watcher_sealed else "You left SEC-EXIT open. The Watcher is still out there.", 22, Color(0.9, 0.85, 0.8)))
 	var fate: String = {
 		"killed": "Rourke is dead. WARDEN locked the building the moment his heart stopped.",
 		"tied": "You tied Rourke up. He didn't stay tied.",
 	}.get(Game.rourke_fate, "Rourke's fate is unknown.")
 	box.add_child(ThemeUtil.label(fate, 22, Color(0.9, 0.85, 0.8)))
-	box.add_child(ThemeUtil.label("End of the first playable slice. Thanks for testing.", 22, Color(0.9, 0.85, 0.8)))
+	if Game.next_level == "":
+		box.add_child(ThemeUtil.label("End of the playable slice. Thanks for testing.", 22, Color(0.9, 0.85, 0.8)))
 	box.add_child(_spacer())
 
+	if Game.next_level != "":
+		var next := Button.new()
+		next.text = "Continue"
+		next.custom_minimum_size = Vector2(320, 50)
+		next.pressed.connect(func(): Game.goto(Game.next_level))
+		box.add_child(next)
 	var again := Button.new()
 	again.text = "Play again (new data)"
 	again.custom_minimum_size = Vector2(320, 50)

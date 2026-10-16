@@ -208,6 +208,8 @@ func _on_exit(_b: Node) -> void:
 	else:
 		await hud.say("WARDEN", "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT.", 4.0)
 	await hud.fade(true, 1.2)
+	Game.completed_level = "level_1"
+	Game.next_level = "level_2"
 	Game.goto("field_notes")
 
 
