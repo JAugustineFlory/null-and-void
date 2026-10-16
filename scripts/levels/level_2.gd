@@ -12,6 +12,10 @@ extends LevelBase
 ## corridor to the vestibule: through the office, the vent over the crate, or the
 ## smashed window and the ledge outside. The keypad PIN is needed on every route.
 
+## Fired at the bottom of the stairs: the wing is done. A streamed world can
+## take over from here; on its own, the level goes to Field Notes.
+signal completed
+
 const CLOCK_START := 41 * 60  # 00:41:00
 ## Where each camera can see, as boxes. Only working cameras hold the Watcher.
 var cam_zones := {
@@ -302,6 +306,8 @@ func _camera_box(pos: Vector3) -> void:
 
 
 func start() -> void:
+	if completed.get_connections().is_empty():
+		completed.connect(_end_standalone)
 	watcher.place(watcher_home, Vector3(-3, 0, 2))
 	watcher.active = true
 	hud.set_objective("Find a way out of the security wing")
@@ -605,9 +611,14 @@ func _on_exit(_b: Node) -> void:
 		await hud.say("", "Behind the locked door, something taps on the metal. Once.", 4.0)
 	else:
 		await hud.say("", "The door behind you is still open. You don't look back. You know better.", 4.5)
-	await hud.fade(true, 1.2)
 	Game.completed_level = "level_2"
 	Game.next_level = ""
+	completed.emit()
+
+
+## Played as its own scene (until wings stream into one world), the level ends on Field Notes.
+func _end_standalone() -> void:
+	await hud.fade(true, 1.2)
 	Game.goto("field_notes")
 
 
