@@ -4,18 +4,19 @@ extends Control
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
 	bg.color = Color(0.01, 0.015, 0.02)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER)
 	box.custom_minimum_size = Vector2(700, 0)
-	box.position = Vector2(-350, -220)
 	box.add_theme_constant_override("separation", 18)
-	add_child(box)
+	center.add_child(box)
 
 	var title := ThemeUtil.label("NULL & VOID", 84, ThemeUtil.GREEN)
 	title.add_theme_font_override("font", ThemeUtil.mono())
