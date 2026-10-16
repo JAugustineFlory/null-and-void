@@ -148,8 +148,13 @@ func test_gate_needs_slide_or_crouch() -> void:
 	p.controls.crouch = true
 	forward(p)
 	p.controls.crouch = true
-	await frames(180)
+	var crawled := false
+	for i in 180:
+		await frames(1)
+		crawled = crawled or p.crawling
+	check(crawled, "you drop to a crawl on your own to fit under")
 	check(p.global_position.z < -4.5, "crouch-walking also gets under (z %.1f)" % p.global_position.z)
+	check(p.crouching and not p.crawling and p._height > 1.1, "crouching is a bent-knee stance, and you rise back to it past the shutter")
 	await done(a)
 
 
@@ -343,6 +348,7 @@ func test_vent() -> void:
 	p.controls.crouch = false
 	await frames(10)
 	check(p.crouching, "you can't stand up in a duct")
+	check(p.crawling and p.head.position.y < 0.8, "in a duct you crawl, camera low (%.2f m)" % p.head.position.y)
 	p.controls.sprint = true
 	await frames(60)
 	check(noises.any(func(l): return l >= 0.9), "hurrying bangs the duct loudly")
