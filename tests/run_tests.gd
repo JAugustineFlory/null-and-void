@@ -19,6 +19,9 @@ func _run() -> void:
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
+	await test_coop_level_0()
+	await test_coop_level_1()
+	await test_coop_six_players()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -126,7 +129,7 @@ func test_first_hints_show_working_queries() -> void:
 func test_screens_fill_window() -> void:
 	print("Menu screens")
 	var win := root.get_visible_rect().size
-	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn"]:
+	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn"]:
 		var screen: Control = load(path).instantiate()
 		root.add_child(screen)
 		await process_frame
@@ -198,6 +201,179 @@ func test_level_1_scene() -> void:
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")
 	level.queue_free()
 	await process_frame
+
+
+# --- Co-op ---------------------------------------------------------------------
+# Each "machine" is a SubViewport with its own 3D world and its own
+# SceneMultiplayer, connected over real ENet on localhost.
+
+var _next_port := 17800
+
+
+## Start a host and `clients` clients. Returns the worlds, host first.
+func _coop_worlds(clients: int) -> Array:
+	_next_port += 1
+	var worlds := []
+	for i in clients + 1:
+		var vp := SubViewport.new()
+		vp.name = "Machine%d" % i
+		vp.own_world_3d = true
+		vp.size = Vector2i(320, 180)
+		root.add_child(vp)
+		var mp := SceneMultiplayer.new()
+		set_multiplayer(mp, vp.get_path())
+		var peer := ENetMultiplayerPeer.new()
+		if i == 0:
+			peer.create_server(_next_port, 6)
+		else:
+			peer.create_client("127.0.0.1", _next_port)
+		mp.multiplayer_peer = peer
+		worlds.append(vp)
+	for f in 300:
+		await process_frame
+		if get_multiplayer(worlds[0].get_path()).get_peers().size() == clients:
+			break
+	return worlds
+
+
+func _coop_load(worlds: Array, scene: String) -> Array:
+	var levels := []
+	for w in worlds:
+		var level = load(scene).instantiate()
+		w.add_child(level)
+		levels.append(level)
+	for f in 300:
+		await physics_frame
+		if levels.all(func(l): return l.sync._begun):
+			break
+	for f in 10:
+		await physics_frame
+	return levels
+
+
+func _coop_close(worlds: Array) -> void:
+	for w in worlds:
+		get_multiplayer(w.get_path()).multiplayer_peer.close()
+		w.queue_free()
+	await process_frame
+
+
+func _frames(n: int) -> void:
+	for i in n:
+		await physics_frame
+
+
+func _table(level: Node, sql: String) -> String:
+	return JSON.stringify(level.db.run_silent(sql))
+
+
+func test_coop_level_0() -> void:
+	print("Co-op: Level 0 with a host and two clients")
+	_game().new_run(11)
+	var worlds := await _coop_worlds(2)
+	check(get_multiplayer(worlds[0].get_path()).get_peers().size() == 2, "two clients connect to the host")
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var host = levels[0]
+	var c1 = levels[1]
+	var c2 = levels[2]
+	check(levels.all(func(l): return l.sync._begun), "every machine starts the level together")
+	check(levels.all(func(l): return l.players.count() == 3), "everyone sees three players")
+	check(host.player.global_position.distance_to(c1.player.global_position) > 0.5, "players spawn apart")
+
+	c1.player.global_position = Vector3(3, 0.1, 3)
+	await _frames(30)
+	var c1_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(host.players.puppet(c1_id).global_position.distance_to(Vector3(3, 0.1, 3)) < 0.3, "the host sees a client move")
+	check(c2.players.puppet(c1_id).global_position.distance_to(Vector3(3, 0.1, 3)) < 0.3, "another client sees it too (relayed by the host)")
+
+	c1.terminal_ui.terminal = c1.desk_terminal
+	c1.terminal_ui.run("SELECT * FROM memo_fragments")
+	await _frames(10)
+	check(host.peek_puzzle.solved and c1.peek_puzzle.solved and c2.peek_puzzle.solved, "a client's query solves the puzzle for everyone")
+	check(host.desk_terminal.transcript.any(func(l): return l.contains("SELECT * FROM memo_fragments")), "the query shows on the host's copy of that terminal")
+	check(c2.desk_terminal.transcript.any(func(l): return l.contains("Those scraps are out of order")), "WARDEN's reply shows on every copy")
+
+	c2.terminal_ui.terminal = c2.desk_terminal
+	c2.terminal_ui.run("INSERT INTO visitors (name) VALUES ('Intruder')")
+	await _frames(10)
+	var dump := "SELECT * FROM visitors ORDER BY rowid"
+	check(_table(host, dump) == _table(c1, dump) and _table(c1, dump) == _table(c2, dump) and _table(host, dump).contains("Intruder"), "a write lands in every machine's copy of the database")
+
+	for l in levels:
+		l.walkies.enabled = true
+	c2.walkies.interact(c2.player)
+	await _frames(10)
+	check(levels.all(func(l): return not is_instance_valid(l.walkies) or l.walkies.is_queued_for_deletion()), "a client picking up the walkies is seen by everyone")
+
+	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
+	await _frames(30)
+	check(host.players.count() == 2 and c1.players.count() == 2, "a player who drops out disappears for the others")
+	await _coop_close(worlds)
+
+
+func test_coop_level_1() -> void:
+	print("Co-op: Level 1 with a host and a client")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	var host = levels[0]
+	var client = levels[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+
+	host.player.global_position = Vector3(0, 0.1, 3)
+	client.player.global_position = Vector3(0, 0.1, 12.5)
+	await _frames(30)
+	check(not host.terminal.locked, "the trap waits while someone is still outside")
+	client.player.global_position = Vector3(1, 0.1, 3)
+	await _frames(30)
+	check(host.terminal.locked and client.terminal.locked, "the trap springs once everyone is inside")
+	check(host.rourke.max_hits == Rourke.MAX_HITS + 2, "Rourke is tougher with two players (%d hits)" % host.rourke.max_hits)
+
+	host.rourke.global_position = Vector3(-3, 0, 5)
+	await _frames(20)
+	check(client.rourke.global_position.distance_to(host.rourke.global_position) < 1.0, "clients see Rourke where the host has him")
+	var before: int = host.rourke.hits_left
+	host.rourke.state = Rourke.State.CHASE
+	client.rourke.take_hit(client.player)
+	await _frames(10)
+	check(host.rourke.hits_left == before - 1, "a client's strike lands on the host's Rourke")
+
+	var hp: float = client.player.health
+	host.players.puppet(client_id).take_damage(10.0)
+	await _frames(10)
+	check(client.player.health == hp - 10.0, "damage reaches the player it was meant for")
+
+	host.rourke.state = Rourke.State.IDLE
+	host.sync.event("_on_rourke_resolved", ["tied"])
+	await _frames(10)
+	check(not client.terminal.locked and client.has_badge, "the badge unlocks the terminal for everyone")
+
+	var wrong: String = host.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
+	client.rack_panels[wrong].interact(client.player)
+	await _frames(10)
+	check(host.panels_locked_until > 0.0 and client.panels_locked_until > 0.0, "a wrong rack locks the panels for everyone")
+
+	client.terminal_ui.terminal = client.terminal
+	client.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
+	await _frames(10)
+	check(host.doors["SRA-EXIT"].is_open and client.doors["SRA-EXIT"].is_open, "a door opened by a client's query opens for everyone")
+	var dump := "SELECT * FROM doors ORDER BY id"
+	check(_table(host, dump) == _table(client, dump), "the doors table matches on both machines")
+	await _coop_close(worlds)
+
+
+func test_coop_six_players() -> void:
+	print("Co-op: six players")
+	_game().new_run(3)
+	var worlds := await _coop_worlds(5)
+	check(get_multiplayer(worlds[0].get_path()).get_peers().size() == 5, "five clients connect")
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	check(levels.all(func(l): return l.sync._begun and l.players.count() == 6), "all six start together and see each other")
+	var spots := {}
+	for l in levels:
+		spots[Vector2i(roundi(l.player.global_position.x * 10), roundi(l.player.global_position.z * 10))] = true
+	check(spots.size() == 6, "six different spawn spots")
+	await _coop_close(worlds)
 
 
 func _game() -> Node:

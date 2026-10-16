@@ -6,6 +6,7 @@ const LEVELS := {
 	"level_1": "res://scenes/level_1.tscn",
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",
+	"lobby": "res://scenes/lobby.tscn",
 }
 
 ## How the escort's story went: "unknown", "killed", "tied".

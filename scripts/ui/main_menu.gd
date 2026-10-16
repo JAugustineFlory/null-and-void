@@ -32,12 +32,19 @@ func _ready() -> void:
 		Game.new_run()
 		Game.goto("level_0"))
 	box.add_child(start)
-	var coop := _button("Co-op (coming in the next build)")
-	coop.disabled = true
+	var coop := _button("Co-op (2 to 6 players)")
+	coop.pressed.connect(func(): Game.goto("lobby"))
 	box.add_child(coop)
 	var quit := _button("Quit")
 	quit.pressed.connect(func(): get_tree().quit())
 	box.add_child(quit)
+
+	var net := get_node("/root/Net")
+	if net.last_message != "":
+		var msg := ThemeUtil.label(net.last_message, 18, ThemeUtil.AMBER)
+		msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(msg)
+		net.last_message = ""
 
 	var note := ThemeUtil.label("First playable slice: greybox art, placeholder voices. Levels 0 and 1.", 16, Color(1, 1, 1, 0.4))
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

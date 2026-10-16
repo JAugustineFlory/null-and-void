@@ -12,6 +12,9 @@ var geo: NavigationRegion3D
 var doors := {}
 var lights := {}  # light id -> Array of Light3D
 var spawn := Transform3D.IDENTITY
+## Co-op: keeps this level the same on every machine (see scripts/net/).
+var sync: LevelSync
+var players: NetPlayers
 var _pause: Control
 
 
@@ -26,19 +29,24 @@ func _ready() -> void:
 	add_child(terminal_ui)
 	db.door_changed.connect(_on_door_changed)
 	db.light_changed.connect(_on_light_changed)
+	sync = LevelSync.create(self)
 
 	build()
 	_bake_navigation()
 	db.sync_world()
+	LevelSync.name_nodes(self)
 
 	player = Player.new()
 	player.name = "Player"
 	player.hud = hud
 	add_child(player)
-	player.global_transform = spawn
+	players = NetPlayers.create(self, player)
+	player.global_transform = spawn.translated(NetPlayers.spawn_offset(players.my_index()))
 	player.died.connect(_on_player_died)
 	_build_pause_menu()
-	start()
+	net_setup()
+	sync.began.connect(players.go_live)
+	sync.begin_when_ready(start)
 
 
 ## Override: build geometry, doors, terminals and load seed data.
@@ -48,6 +56,12 @@ func build() -> void:
 
 ## Override: run the level's story. Usually async.
 func start() -> void:
+	pass
+
+
+## Override: share NPCs and other moving things with co-op clients,
+## e.g. `sync.replicate(npc, [...])`. Runs after node names are fixed.
+func net_setup() -> void:
 	pass
 
 
@@ -153,6 +167,7 @@ func _build_pause_menu() -> void:
 	menu.text = "Quit to menu"
 	menu.pressed.connect(func():
 		get_tree().paused = false
+		get_node("/root/Net").leave()
 		Game.goto("menu"))
 	box.add_child(menu)
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -173,7 +188,10 @@ class PauseCatcher:
 
 
 func _toggle_pause() -> void:
-	var p := not get_tree().paused
-	get_tree().paused = p
+	var p := not _pause.visible
+	# Co-op can't stop time for everyone: the menu opens but the game runs on.
+	if not sync.is_online():
+		get_tree().paused = p
+	player.input_locked = p
 	_pause.visible = p
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if p else Input.MOUSE_MODE_CAPTURED

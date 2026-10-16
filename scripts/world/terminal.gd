@@ -15,6 +15,9 @@ var locked := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
+## What this machine's copy of the screen shows. In co-op everyone's queries
+## appear here, so players can work one terminal together.
+var transcript: Array[String] = []
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
@@ -60,6 +63,19 @@ static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: Stri
 
 func _on_used(player: Node) -> void:
 	ui.open(self, player)
+
+
+## Opening a terminal is local to each player, so it is never sent to the host.
+func interact(player: Node) -> void:
+	if enabled:
+		used.emit(player)
+
+
+## Add a line to the screen (and to the open terminal window, if it shows this terminal).
+func print_line(bbcode: String) -> void:
+	transcript.append(bbcode)
+	if ui:
+		ui.on_terminal_line(self, bbcode)
 
 
 func boot_text() -> Array:

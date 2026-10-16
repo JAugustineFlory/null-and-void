@@ -86,13 +86,19 @@ func build() -> void:
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 12.6))
 
 
+func net_setup() -> void:
+	sync.replicate(rourke, rourke.sync_properties())
+
+
 func start() -> void:
 	rourke.face(player.global_position)
 	hud.set_objective("Follow Rourke inside")
 	rourke.walk_to(Vector3(0.0, 0, 1.0))
 	hud.say("ROURKE", "Vale's last login came from this room. Come on in.")
-	var t := Trigger.create(self, Vector3(0, 1, 6.0), Vector3(3.6, 2, 1.5))
-	t.entered.connect(_on_trapped)
+	# The trap waits until everyone is inside, so nobody is locked out of the fight.
+	var t := Trigger.create(self, Vector3(0, 1, 2.0), Vector3(14, 2, 12))
+	t.require_all = true
+	t.entered.connect(func(_b): sync.event("_on_trapped", [null]))
 
 
 func _on_trapped(_b: Node) -> void:
@@ -104,14 +110,18 @@ func _on_trapped(_b: Node) -> void:
 	terminal.locked_message = "SESSION LOCKED BY USER ROURKE_D. ESCORT BADGE REQUIRED."
 	terminal.set_screen_color(Color(1.0, 0.25, 0.2))
 	rourke.face(player.global_position)
+	# Tougher with more people swinging at him.
+	rourke.max_hits = Rourke.MAX_HITS + 2 * (players.count() - 1)
+	rourke.hits_left = rourke.max_hits
 	await hud.play_lines([
 		["ROURKE", "Sorry, kid. Nothing personal."],
 		["ROURKE", "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself."],
 	])
 	hud.set_objective("Survive. Stop Rourke. (Click to strike)")
-	rourke.downed.connect(_on_rourke_downed)
-	rourke.resolved.connect(_on_rourke_resolved)
-	rourke.start_chase(player)
+	if sync.is_host():
+		rourke.downed.connect(func(): sync.event("_on_rourke_downed"))
+		rourke.resolved.connect(func(fate): sync.event("_on_rourke_resolved", [fate]))
+		rourke.start_chase(players.nearest(rourke.global_position))
 
 
 func _on_rourke_downed() -> void:
@@ -164,31 +174,55 @@ func _self_test_lines() -> Array:
 	]
 
 
-func _on_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
+## Runs on the host; the result plays out on every machine.
+func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 	if controller_puzzle.solved or not controller_puzzle.matches(db, result):
 		return
+	sync.event("_on_controller_found")
+
+
+func _on_controller_found() -> void:
 	controller_puzzle.solved = true
-	ui.print_line("")
-	ui.print_line("[color=#e0b050]WARDEN: Controller %s is faulted in zone A. A manual reset at the rack will clear it.[/color]" % answer)
+	terminal.print_line("")
+	terminal.print_line("[color=#e0b050]WARDEN: Controller %s is faulted in zone A. A manual reset at the rack will clear it.[/color]" % answer)
 	hud.set_objective("Reset controller %s at its rack (look for the labels)" % answer)
 
 
+## Runs on the host when anyone presses a rack panel. It decides, then
+## everyone sees the outcome, so the lockout timer is the same for all.
 func _on_panel(_p: Node, id: String) -> void:
 	if not has_badge:
-		hud.notice("RESET REFUSED: badge required.", 2.5, ThemeUtil.RED)
+		sync.event("_on_panel_result", [id, "no_badge", 0.0])
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < panels_locked_until:
-		hud.notice("PANELS LOCKED: tamper lockout, %d s" % int(panels_locked_until - now), 2.0, ThemeUtil.RED)
+		sync.event("_on_panel_result", [id, "locked", panels_locked_until - now])
 		return
 	if id != answer:
-		var row: Dictionary = db.run_silent("SELECT status, zone, note FROM door_controllers WHERE id = '%s'" % id)[0]
-		if row["status"] == "ok":
+		var row: Dictionary = db.run_silent("SELECT status FROM door_controllers WHERE id = '%s'" % id)[0]
+		sync.event("_on_panel_result", [id, "healthy" if row["status"] == "ok" else "wrong", 10.0])
+		return
+	sync.event("_on_panel_result", [id, "reset", 0.0])
+
+
+func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	match outcome:
+		"no_badge":
+			hud.notice("RESET REFUSED: badge required.", 2.5, ThemeUtil.RED)
+			return
+		"locked":
+			panels_locked_until = now + seconds
+			hud.notice("PANELS LOCKED: tamper lockout, %d s" % int(seconds), 2.0, ThemeUtil.RED)
+			return
+		"healthy":
 			hud.notice("WARDEN: %s is working normally. Nothing to reset." % id, 4.0)
 			return
-		panels_locked_until = now + 10.0
-		hud.notice("WARDEN: %s (zone %s, %s): %s\nNot the exit's controller. Reset refused. Panels locked for 10 s." % [id, row["zone"], row["status"], row["note"]], 6.0, ThemeUtil.RED)
-		return
+		"wrong":
+			var row: Dictionary = db.run_silent("SELECT status, zone, note FROM door_controllers WHERE id = '%s'" % id)[0]
+			panels_locked_until = now + seconds
+			hud.notice("WARDEN: %s (zone %s, %s): %s\nNot the exit's controller. Reset refused. Panels locked for 10 s." % [id, row["zone"], row["status"], row["note"]], 6.0, ThemeUtil.RED)
+			return
 	db.run_silent("UPDATE door_controllers SET status = 'ok', last_reset = '1997-10-15 23:58' WHERE id = '%s'" % id)
 	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
 	db.sync_world()
@@ -197,7 +231,7 @@ func _on_panel(_p: Node, id: String) -> void:
 	hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SRA-EXIT: OPENED" % id, 4.0, ThemeUtil.GREEN)
 	hud.set_objective("Get out through the emergency exit")
 	var t := Trigger.create(self, Vector3(0, 1, -13.5), Vector3(3, 2, 1.5))
-	t.entered.connect(_on_exit)
+	t.entered.connect(func(_b): sync.event("_on_exit", [null]))
 
 
 func _on_exit(_b: Node) -> void:
@@ -213,5 +247,8 @@ func _on_exit(_b: Node) -> void:
 
 func on_player_died() -> void:
 	player.respawn(Transform3D(Basis(), Vector3(0, 0.1, 7.0)))
+	# Solo, the fight starts over. In co-op he just turns on whoever is closest.
+	if sync.is_online():
+		return
 	if rourke.state == Rourke.State.CHASE or rourke.state == Rourke.State.STAGGER or rourke.state == Rourke.State.DOWN:
 		rourke.reset_fight(rourke_spawn)

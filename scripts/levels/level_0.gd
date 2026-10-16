@@ -68,7 +68,7 @@ func build() -> void:
 	Greybox.label(geo, Vector3(-2.5, 0.85, -5.08), "LOST & FOUND", 40, Color(0.1, 0.1, 0.1))
 	walkies = Interactable.create(geo, Vector3(-2.5, 0.8, -5.5), Vector3(0.5, 0.2, 0.3), "Take walkie-talkies", Color(0.1, 0.1, 0.1))
 	walkies.enabled = false
-	walkies.used.connect(_on_walkies)
+	walkies.used.connect(func(_p): sync.event("_on_walkies"))
 
 	# Waiting area chairs (cover, atmosphere)
 	for x in [-6.0, -4.8, 4.8, 6.0]:
@@ -139,21 +139,34 @@ func start() -> void:
 	hud.set_objective("Read Dr. Vale's shredded memo at the front desk terminal")
 
 
-func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
+func net_setup() -> void:
+	sync.replicate(rourke, rourke.sync_properties())
+
+
+## Runs on the host. What the puzzle unlocks then plays out on every machine.
+func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 	if not peek_puzzle.solved and peek_puzzle.matches(db, result):
-		peek_puzzle.solved = true
-		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a piece_no.[/color]")
-		ui.print_line("[color=#e0b050]        Sort rows with ORDER BY. Example: SELECT * FROM visitors ORDER BY checked_in;[/color]")
-		hud.set_objective("Put the memo back in order")
+		sync.event("_on_peek_solved")
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):
-		memo_puzzle.solved = true
-		peek_puzzle.solved = true
-		ui.print_line("")
-		ui.print_line("[color=#ffcc66]-- RECONSTRUCTED --[/color]")
-		for row in db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no"):
-			ui.print_line("[color=#ffcc66]%s[/color]" % row["text"])
-		_after_memo()
+		sync.event("_on_memo_solved")
+
+
+func _on_peek_solved() -> void:
+	peek_puzzle.solved = true
+	desk_terminal.print_line("")
+	desk_terminal.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a piece_no.[/color]")
+	desk_terminal.print_line("[color=#e0b050]        Sort rows with ORDER BY. Example: SELECT * FROM visitors ORDER BY checked_in;[/color]")
+	hud.set_objective("Put the memo back in order")
+
+
+func _on_memo_solved() -> void:
+	memo_puzzle.solved = true
+	peek_puzzle.solved = true
+	desk_terminal.print_line("")
+	desk_terminal.print_line("[color=#ffcc66]-- RECONSTRUCTED --[/color]")
+	for row in db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no"):
+		desk_terminal.print_line("[color=#ffcc66]%s[/color]" % row["text"])
+	_after_memo()
 
 
 func _after_memo() -> void:
@@ -167,13 +180,21 @@ func _after_memo() -> void:
 	hud.set_objective("Get the walkie-talkies (behind the desk. Space to climb over)")
 
 
-func _on_walkies(_p: Node) -> void:
+func _on_walkies() -> void:
 	walkies.queue_free()
 	Game.has_walkie = true
-	hud.notice("Picked up walkie-talkies. Channel 1. (Co-op radio arrives in the next build.)", 5.0)
+	if sync.is_online():
+		hud.notice("Picked up walkie-talkies. Hold V to talk on the radio. Up close, just talk.", 6.0)
+	else:
+		hud.notice("Picked up walkie-talkies. Channel 1. Nobody else is on it.", 5.0)
 	hud.set_objective("Follow Rourke to Server Room A")
-	rourke.walk_to(Vector3(10.2, 0, 3))
-	await rourke.arrived
+	if sync.is_host():
+		rourke.walk_to(Vector3(10.2, 0, 3))
+		await rourke.arrived
+		sync.event("_on_shutter_jam")
+
+
+func _on_shutter_jam() -> void:
 	rourke.face(player.global_position)
 	# Rourke badges the shutter. It jams halfway.
 	var tw := create_tween()
@@ -183,8 +204,10 @@ func _on_walkies(_p: Node) -> void:
 	rourke.visible = false
 	rourke.process_mode = Node.PROCESS_MODE_DISABLED
 	rourke.position = Vector3(22.5, 0, 3)
-	var t := Trigger.create(self, Vector3(21.5, 1, 3), Vector3(1.5, 2, 2))
-	t.entered.connect(_on_reach_server_room)
+	var t := Trigger.create(self, Vector3(20.5, 1, 3), Vector3(5, 2, 2))
+	t.require_all = true
+	t.waiting.connect(func(inside, total): sync.team_notice("Rourke is waiting for everyone at Server Room A (%d/%d)" % [inside, total]))
+	t.entered.connect(func(_b): sync.event("_on_reach_server_room", [null]))
 
 
 func _on_reach_server_room(_b: Node) -> void:

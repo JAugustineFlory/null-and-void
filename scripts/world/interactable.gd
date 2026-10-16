@@ -40,11 +40,17 @@ func get_prompt(_player: Node) -> String:
 	return p
 
 
+## In co-op, a client's press is sent to the host, which decides what happens.
 func interact(player: Node) -> void:
-	if enabled:
+	if enabled and not _forwarded("interact"):
 		used.emit(player)
 
 
 func interact_alt(player: Node) -> void:
-	if enabled and alt_prompt != "":
+	if enabled and alt_prompt != "" and not _forwarded("interact_alt"):
 		alt_used.emit(player)
+
+
+func _forwarded(method: String) -> bool:
+	var sync := LevelSync.of(self)
+	return sync != null and sync.forward(self, method)

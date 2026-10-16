@@ -81,10 +81,13 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title.text = "HALCYON DATA SYSTEMS  //  %s" % terminal.terminal_name
 	visible = true
-	if _output.get_parsed_text().strip_edges() == "" or terminal.consume_fresh_boot():
-		_output.clear()
+	if terminal.transcript.is_empty() or terminal.consume_fresh_boot():
+		terminal.transcript.clear()
 		for line in terminal.boot_text():
-			print_line(line)
+			terminal.transcript.append(line)
+	_output.clear()
+	for line in terminal.transcript:
+		_output.append_text(line + "\n")
 	_input.grab_focus()
 
 
@@ -100,7 +103,16 @@ func close() -> void:
 
 
 func print_line(bbcode: String) -> void:
-	_output.append_text(bbcode + "\n")
+	if terminal and terminal.has_method("print_line"):
+		terminal.print_line(bbcode)
+	else:
+		_output.append_text(bbcode + "\n")
+
+
+## A terminal's screen changed. Show it if that's the one open here.
+func on_terminal_line(from_terminal: Node, bbcode: String) -> void:
+	if visible and from_terminal == terminal:
+		_output.append_text(bbcode + "\n")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -135,11 +147,13 @@ func _submit() -> void:
 		return
 	_history.append(sql)
 	_history_i = _history.size()
-	print_line("[color=#ffffff]> %s[/color]" % _esc(sql).replace("\n", "\n  "))
+	if sql.begins_with(".") or terminal.is_locked():
+		print_line(_echo(sql, ""))
 	run(sql)
 
 
 ## Run a command or query as if typed. Public so tests and scripted events can use it.
+## Queries go through the level's LevelSync, so in co-op the host runs them.
 func run(sql: String) -> void:
 	if sql.begins_with("."):
 		_command(sql)
@@ -147,21 +161,43 @@ func run(sql: String) -> void:
 	if terminal.is_locked():
 		print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
 		return
-	var db: FacilityDB = terminal.db
-	var result := db.execute(sql)
-	if not result.ok:
-		print_line("[color=#ff6655]ERROR: %s[/color]" % _esc(result.error))
-		print_line("[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error))
+	var sync := LevelSync.of(terminal)
+	if sync:
+		sync.submit_query(terminal, sql)
 		return
-	get_node("/root/Game").log_query(sql)
-	if result.rows.is_empty():
-		if result.changes > 0:
-			print_line("OK. %d row(s) changed." % result.changes)
-		else:
-			print_line("(0 rows)")
+	var result: Dictionary = terminal.db.execute(sql)
+	show_query(terminal, sql, result, multiplayer.get_unique_id())
+	if result.ok:
+		terminal.on_query(sql, result, self)
+
+
+## Print a query and its result on `on_terminal`'s screen. `from_peer` typed it.
+func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: int) -> void:
+	var mine := from_peer == multiplayer.get_unique_id()
+	var who := ""
+	if not mine:
+		var net := get_node_or_null("/root/Net")
+		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+	var out: Array[String] = [_echo(sql, who)]
+	if not result.ok:
+		out.append("[color=#ff6655]ERROR: %s[/color]" % _esc(result.error))
+		out.append("[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error))
 	else:
-		print_line(_format_table(result.columns, result.rows))
-	terminal.on_query(sql, result, self)
+		if mine:
+			get_node("/root/Game").log_query(sql)
+		if result.rows.is_empty():
+			if result.changes > 0:
+				out.append("OK. %d row(s) changed." % result.changes)
+			else:
+				out.append("(0 rows)")
+		else:
+			out.append(_format_table(result.columns, result.rows))
+	for line in out:
+		on_terminal.print_line(line)
+
+
+func _echo(sql: String, who: String) -> String:
+	return "[color=#ffffff]%s> %s[/color]" % [_esc(who), _esc(sql).replace("\n", "\n  ")]
 
 
 func _command(cmd: String) -> void:
@@ -199,9 +235,14 @@ func _command(cmd: String) -> void:
 			print_line("[color=#e0b050]WARDEN: %s[/color]" % terminal.next_hint())
 		".clear":
 			_output.clear()
+			terminal.transcript.clear()
 		".reset":
-			db.reset()
-			print_line("Backup tape restored. Data is back to how it started.")
+			var sync := LevelSync.of(terminal)
+			if sync:
+				sync.reset_db(terminal)
+			else:
+				db.reset()
+				print_line("Backup tape restored. Data is back to how it started.")
 		_:
 			print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
 
