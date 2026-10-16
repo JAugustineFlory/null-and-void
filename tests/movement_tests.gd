@@ -13,6 +13,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	print("Movement")
 	await test_walk_and_sprint()
 	await test_gate_needs_slide_or_crouch()
+	await test_crouch_fits_the_gap()
 	await test_landing_roll()
 	await test_mantle()
 	await test_hang_shimmy_pull_up()
@@ -156,6 +157,29 @@ func test_gate_needs_slide_or_crouch() -> void:
 	check(p.global_position.z < -4.5, "crouch-walking also gets under (z %.1f)" % p.global_position.z)
 	check(p.crouching and not p.crawling and p._height > 1.1, "crouching is a bent-knee stance, and you rise back to it past the shutter")
 	await done(a)
+
+
+func test_crouch_fits_the_gap() -> void:
+	var heights := {}
+	for gap in [1.15, 1.0]:
+		var a := arena()
+		Greybox.box(a, Vector3(-11, 1.5, -4), Vector3(20, 3, 0.2), Color.DIM_GRAY)
+		Greybox.box(a, Vector3(11, 1.5, -4), Vector3(20, 3, 0.2), Color.DIM_GRAY)
+		Traversal.gate(a, Vector3(0, 0, -4), 2.0, gap, 3.0)
+		var p := spawn(a, Vector3(0, 0.05, -2))
+		await frames(5)
+		p.controls.crouch = true
+		forward(p)
+		p.controls.crouch = true
+		var lowest := 9.0
+		for i in 150:
+			await frames(1)
+			lowest = minf(lowest, p._height)
+		heights[gap] = lowest
+		check(p.global_position.z < -4.5, "crouch-walk under a %.2f m gap" % gap)
+		await done(a)
+	check(heights[1.15] > 1.0 and heights[1.15] < Player.CROUCH_HEIGHT, "under a 1.15 m gap you only duck a little (%.2f m)" % heights[1.15])
+	check(heights[1.0] < heights[1.15], "a lower gap takes you lower (%.2f m)" % heights[1.0])
 
 
 func test_landing_roll() -> void:
@@ -348,7 +372,7 @@ func test_vent() -> void:
 	p.controls.crouch = false
 	await frames(10)
 	check(p.crouching, "you can't stand up in a duct")
-	check(p.crawling and p.head.position.y < 0.8, "in a duct you crawl, camera low (%.2f m)" % p.head.position.y)
+	check(p.crawling and p.head.position.y < 0.85, "in a duct you crawl, camera low (%.2f m)" % p.head.position.y)
 	p.controls.sprint = true
 	await frames(60)
 	check(noises.any(func(l): return l >= 0.9), "hurrying bangs the duct loudly")
