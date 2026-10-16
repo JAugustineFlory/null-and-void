@@ -84,6 +84,7 @@ func build() -> void:
 		"Loading session history for VALE_I...",
 	]
 	terminal.queried.connect(_on_query)
+	StickyNote.on_monitor(terminal, "where_and")
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
 		add_light("room", p, 9.0, 1.2)

@@ -97,6 +97,9 @@ func build() -> void:
 	desk_terminal.puzzles = [peek_puzzle, memo_puzzle]
 	desk_terminal.enabled = false
 	desk_terminal.queried.connect(_on_desk_query)
+	StickyNote.on_monitor(desk_terminal, "select_from")
+	# Someone's reminder to themselves, propped against the desk lamp's spot.
+	StickyNote.place(geo, Vector3(2.55, 1.19, -0.62), "order_by", false)
 	Greybox.label(geo, Vector3(1.86, 1.2, -0.76), "ORDER matters.\n  - I.", 30, Color(0.1, 0.1, 0.4), 0)
 	Greybox.panel(geo, Vector3(1.86, 1.2, -0.78), Vector3(0.16, 0.16, 0.01), Color(0.95, 0.9, 0.4))
 	visitor_log = Interactable.create(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), "Sign the visitor log", Color(0.92, 0.9, 0.82))
@@ -126,8 +129,8 @@ func build() -> void:
 	])
 	Greybox.label(geo, Vector3(23.85, 2.4, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
 	shutter = add_door("LOBBY-SHUTTER", Vector3(11, 1.5, 3), Vector3(0.15, 3.0, 2.0))
-	cable_tray = Greybox.box(self, Vector3(TRAY_X, 1.65, 3), Vector3(0.6, 0.5, 2.0), Color(0.45, 0.45, 0.42), "CableTray")
-	Greybox.label(self, Vector3(TRAY_X - 0.31, 1.65, 3), "LOW CLEARANCE", 36, Color(0.9, 0.75, 0.1), -90)
+	cable_tray = Greybox.box(self, Vector3(TRAY_X, 1.55, 3), Vector3(0.6, 0.3, 2.0), Color(0.45, 0.45, 0.42), "CableTray")
+	Greybox.label(self, Vector3(TRAY_X - 0.31, 1.55, 3), "LOW CLEARANCE", 36, Color(0.9, 0.75, 0.1), -90)
 	var tray_tip := Trigger.create(self, Vector3(TRAY_X - 2.5, 1, 3), Vector3(1.0, 2, 2))
 	tray_tip.entered.connect(func(_b): hud.notice("Hold Ctrl to crouch under the cable tray.", 5.0))
 	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8))
@@ -492,8 +495,8 @@ func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
 	if not peek_puzzle.solved and peek_puzzle.matches(db, result):
 		peek_puzzle.solved = true
 		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a number in the piece_no column.[/color]")
-		ui.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the column to sort by: piece_no[/color]")
+		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. One of the columns numbers them.[/color]")
+		ui.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the name of the column that numbers the scraps.[/color]")
 		hud.set_objective("Put the memo back in order")
 		hud.line("l0_sort_hint", false)
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):

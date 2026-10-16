@@ -13,6 +13,11 @@ var _output: RichTextLabel
 var _input: TextEdit
 var _title: Label
 var _history: Array[String] = []
+## Every line on screen that can be written into the notebook: {kind, text}.
+## Kinds: info, echo, result, hint, error, schema, note.
+var _noteable: Array[Dictionary] = []
+var _note_label: LineEdit
+var _note_index := -1
 var _history_i := -1
 
 
@@ -57,7 +62,20 @@ func _ready() -> void:
 	_output.add_theme_font_size_override("normal_font_size", 17)
 	_output.add_theme_font_size_override("bold_font_size", 17)
 	_output.add_theme_color_override("default_color", ThemeUtil.GREEN)
+	_output.meta_underlined = false
+	_output.meta_clicked.connect(_on_meta)
 	vbox.add_child(_output)
+
+	# Naming a note before it goes in the notebook.
+	_note_label = LineEdit.new()
+	_note_label.visible = false
+	_note_label.placeholder_text = "Name this note (optional), then Enter. Esc to cancel."
+	_note_label.max_length = 40
+	_note_label.add_theme_font_override("font", ThemeUtil.mono())
+	_note_label.add_theme_font_size_override("font_size", 17)
+	_note_label.text_submitted.connect(func(t): _finish_note(t))
+	_note_label.gui_input.connect(_on_note_key)
+	vbox.add_child(_note_label)
 
 	_input = TextEdit.new()
 	_input.custom_minimum_size = Vector2(0, 110)
@@ -70,7 +88,7 @@ func _ready() -> void:
 	_input.gui_input.connect(_on_input_key)
 	vbox.add_child(_input)
 
-	var foot := ThemeUtil.label("Enter: run    Shift+Enter: new line    Up/Down: previous queries    Esc: step away", 15, ThemeUtil.DIM)
+	var foot := ThemeUtil.label("Enter: run    Shift+Enter: new line    Up/Down: previous queries    +note: write a line in your notebook    Esc: step away", 15, ThemeUtil.DIM)
 	vbox.add_child(foot)
 
 
@@ -84,7 +102,7 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	visible = true
 	# One screen is shared by every terminal, so a different terminal starts fresh.
 	if terminal.consume_fresh_boot() or switched or _output.get_parsed_text().strip_edges() == "":
-		_output.clear()
+		_clear_output()
 		for line in terminal.boot_text():
 			print_line(line)
 	_input.grab_focus()
@@ -95,14 +113,75 @@ func close() -> void:
 		return
 	visible = false
 	_input.release_focus()
+	_cancel_note()
 	if player:
 		player.input_locked = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	closed.emit()
 
 
-func print_line(bbcode: String) -> void:
-	_output.append_text(bbcode + "\n")
+## Print a line. Every non-blank line can be written into the notebook with its
+## +note link; `kind` says what it is ("none" for lines that can't be noted).
+func print_line(bbcode: String, kind: String = "") -> void:
+	var text := _plain(bbcode).strip_edges()
+	if text == "" or kind == "none":
+		_output.append_text(bbcode + "\n")
+		return
+	if kind == "":
+		kind = "error" if text.begins_with("ERROR") else ("hint" if text.begins_with("WARDEN:") else "info")
+	_noteable.append({"kind": kind, "text": text})
+	_output.append_text("%s  [url=note:%d][font_size=12][color=#3d7a4c]+note[/color][/font_size][/url]\n" % [bbcode, _noteable.size() - 1])
+
+
+## What on screen right now can be written into the notebook, oldest first.
+func noteable_lines() -> Array[Dictionary]:
+	return _noteable.duplicate(true)
+
+
+## Copy line `index` into this player's notebook, with an optional label.
+func write_note(index: int, label: String = "") -> bool:
+	if index < 0 or index >= _noteable.size():
+		return false
+	var line: Dictionary = _noteable[index]
+	get_node("/root/Game").write_note(label.strip_edges(), line.text, line.kind)
+	print_line("[color=#7fa88a]Written in your notebook%s.[/color]" % (": " + label.strip_edges() if label.strip_edges() != "" else ""), "none")
+	return true
+
+
+func _on_meta(meta: Variant) -> void:
+	var m := str(meta)
+	if m.begins_with("note:"):
+		_note_index = int(m.substr(5))
+		_note_label.text = ""
+		_note_label.visible = true
+		_note_label.grab_focus()
+
+
+func _finish_note(label: String) -> void:
+	write_note(_note_index, label)
+	_cancel_note()
+
+
+func _cancel_note() -> void:
+	_note_index = -1
+	_note_label.visible = false
+	if visible:
+		_input.grab_focus()
+
+
+func _on_note_key(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_note_label.accept_event()
+		_cancel_note()
+
+
+func _clear_output() -> void:
+	_output.clear()
+	_noteable.clear()
+
+
+static func _plain(bbcode: String) -> String:
+	return RegEx.create_from_string("\\[[^\\]]*\\]").sub(bbcode, "", true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -137,7 +216,7 @@ func _submit() -> void:
 		return
 	_history.append(sql)
 	_history_i = _history.size()
-	print_line("[color=#ffffff]> %s[/color]" % _esc(sql).replace("\n", "\n  "))
+	print_line("[color=#ffffff]> %s[/color]" % _esc(sql).replace("\n", "\n  "), "echo")
 	run(sql)
 
 
@@ -155,17 +234,18 @@ func run(sql: String) -> void:
 	var db: FacilityDB = terminal.db
 	var result := db.execute(sql)
 	if not result.ok:
-		print_line("[color=#ff6655]ERROR: %s[/color]" % _esc(result.error))
-		print_line("[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error))
+		print_line("[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error")
+		print_line("[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error), "hint")
 		return
 	get_node("/root/Game").log_query(sql)
+	_note_tables(sql, db)
 	if result.rows.is_empty():
 		if result.changes > 0:
 			print_line("OK. %d row(s) changed." % result.changes)
 		else:
 			print_line("(0 rows)")
 	else:
-		print_line(_format_table(result.columns, result.rows))
+		print_line(_format_table(result.columns, result.rows), "result")
 	terminal.on_query(sql, result, self)
 
 
@@ -192,6 +272,7 @@ func _command(cmd: String) -> void:
 			print_line("  .hint            ask WARDEN for a hint")
 			print_line("  .clear           clear the screen")
 			print_line("  .reset           restore this terminal's data from backup")
+			print_line("  .note LABEL      write the last line into your notebook (or click +note)")
 			if terminal.api != null:
 				print_line("  GET /path        send a web request, e.g. GET /cameras")
 			print_line("Anything else is run as SQL. End queries with ; (optional).")
@@ -200,6 +281,8 @@ func _command(cmd: String) -> void:
 				print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
 				return
 			print_line("  ".join(db.table_names()))
+			for t in db.table_names():
+				_discover(t, db)
 		".schema":
 			if terminal.is_locked():
 				print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
@@ -213,16 +296,45 @@ func _command(cmd: String) -> void:
 				var desc := PackedStringArray()
 				for c in cols:
 					desc.append("%s %s" % [c["name"], c["type"]])
-				print_line("%s(%s)" % [t, ", ".join(desc)])
+				print_line("%s(%s)" % [t, ", ".join(desc)], "schema")
+				_discover(t, db)
 		".hint":
-			print_line("[color=#e0b050]WARDEN: %s[/color]" % terminal.next_hint())
+			print_line("[color=#e0b050]WARDEN: %s[/color]" % terminal.next_hint(), "hint")
 		".clear":
-			_output.clear()
+			_clear_output()
+		".note":
+			var last := -1
+			for i in range(_noteable.size() - 1, -1, -1):
+				if _noteable[i].kind != "echo":
+					last = i
+					break
+			if last < 0:
+				print_line("Nothing on screen to write down yet.", "none")
+			else:
+				write_note(last, " ".join(parts.slice(1)))
 		".reset":
 			db.reset()
 			print_line("Backup tape restored. Data is back to how it started.")
 		_:
 			print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
+
+
+## Tables a query read from go on the notebook's Tables page.
+func _note_tables(sql: String, db: FacilityDB) -> void:
+	var known: Array = db.table_names()
+	for m in RegEx.create_from_string("(?i)\\b(?:FROM|JOIN)\\s+([A-Za-z_][A-Za-z0-9_]*)").search_all(sql):
+		var t := m.get_string(1).to_lower()
+		for name in known:
+			if name.to_lower() == t:
+				_discover(name, db)
+
+
+func _discover(table: String, db: FacilityDB) -> void:
+	var cols := []
+	for c in db.table_schema(table):
+		cols.append(c["name"])
+	if not cols.is_empty():
+		get_node("/root/Game").discover_table(table, cols)
 
 
 func _format_table(columns: Array, rows: Array) -> String:

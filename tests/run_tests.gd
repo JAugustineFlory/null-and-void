@@ -29,6 +29,8 @@ func _run() -> void:
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
+	test_sticky_notes_never_give_answers()
+	await test_notebook()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	print("\n%d passed, %d failed" % [passed, failed])
@@ -346,6 +348,8 @@ func test_level_0_scene() -> void:
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments")
 	check(level.peek_puzzle.solved, "terminal run solves the peek")
+	var nudge: Array = level.terminal_ui.noteable_lines().filter(func(l): return l.text.contains("ORDER BY"))
+	check(not nudge.is_empty() and nudge.all(func(l): return not l.text.contains("piece_no")), "WARDEN's nudge points at the numbering column without naming it")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
@@ -737,4 +741,110 @@ func test_world() -> void:
 	world.wing_finished(sra)
 	check(world._field_notes != null and world.player.input_locked, "Field Notes opens as an overlay at the end")
 	world.queue_free()
+	await process_frame
+
+
+func test_sticky_notes_never_give_answers() -> void:
+	print("Sticky notes")
+	var l0 = load("res://scripts/levels/level_0.gd").new()
+	var l1 = load("res://scripts/levels/level_1.gd").new()
+	var puzzles: Array = [l0.peek_puzzle, l0.memo_puzzle, l1.controller_puzzle]
+	var every_example_runs := true
+	var gives_answer := []
+	for seed_value in 20:
+		var db := FacilityDB.new()
+		db.add_wing("level_0", FileAccess.get_file_as_string("res://data/level_0.sql"))
+		db.add_wing("level_1", Level1Data.build(seed_value).sql)
+		for id in StickyNotes.NOTES:
+			for example in StickyNotes.NOTES[id].example.split("\n"):
+				var result := db.execute(example)
+				if not result.ok:
+					every_example_runs = false
+					continue
+				for p in puzzles:
+					if p.matches(db, result) and not gives_answer.has(id):
+						gives_answer.append(id)
+	check(every_example_runs, "every sticky note example runs on the real tables")
+	check(gives_answer.is_empty(), "no sticky note example solves a puzzle %s" % [gives_answer])
+	l0.free()
+	l1.free()
+
+
+func test_notebook() -> void:
+	print("Notebook")
+	_game().new_run(3)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	for i in 10:
+		await physics_frame
+	var nb: Notebook = level.notebook
+	level.player.input_locked = false
+	check(nb.open() and nb.is_open() and level.player.input_locked, "Tab opens the notebook and holds the player")
+	check(nb.view.current_page() == NotebookView.Page.NOTES, "it opens on the sticky notes")
+	nb.close()
+	check(not nb.is_open() and not level.player.input_locked, "and closes again")
+	level.terminal_ui.open(level.desk_terminal, level.player)
+	check(not nb.open(), "the notebook can't be opened while using a terminal")
+	level.terminal_ui.run("SELECT * FROM memo_fragments")
+	check(_game().notebook_tables.get("memo_fragments", []) == ["piece_no", "text", "scanned_at"], "a query writes its table and columns on the Tables page")
+	level.terminal_ui.run(".tables")
+	check(_game().notebook_tables.has("visitors") and _game().notebook_tables.has("doors"), ".tables writes down every table")
+	# Write note: any line on the terminal can go in the notebook, with a label.
+	var ui: TerminalUI = level.terminal_ui
+	ui.run("SELEC * FROM memo_fragments")
+	ui.run(".hint")
+	ui.run(".schema memo_fragments")
+	var kinds := {}
+	for line in ui.noteable_lines():
+		kinds[line.kind] = kinds.get(line.kind, 0) + 1
+	check(kinds.has("result") and kinds.has("error") and kinds.has("hint") and kinds.has("schema") and kinds.has("info"), "results, errors, hints, schemas and boot text can all be noted (%s)" % [kinds])
+	var lines: Array = ui.noteable_lines()
+	var taught := lines.filter(func(l): return l.text.contains("SELECT * FROM memo_fragments") and l.kind == "info")
+	check(not taught.is_empty(), "the boot screen's SELECT example can be noted")
+	var result_i := -1
+	for i in lines.size():
+		if lines[i].kind == "result" and lines[i].text.contains("piece_no"):
+			result_i = i
+	check(ui.write_note(result_i, "memo scraps") and _game().notebook_written[-1].label == "memo scraps" and _game().notebook_written[-1].kind == "result", "write note copies a query result under the player's own label")
+	ui._on_meta("note:%d" % taught[0].get("index", lines.find(taught[0])))
+	check(ui._note_label.visible, "clicking +note asks for a label")
+	ui._finish_note("")
+	check(_game().notebook_written.size() == 2 and not ui._note_label.visible, "Enter writes it down, label optional")
+	ui.run(".note schema")
+	check(_game().notebook_written[-1].kind == "schema" and _game().notebook_written[-1].label == "schema", ".note writes the last line down")
+	level.terminal_ui.close()
+	var stickies: Array = level.find_children("*", "StickyNote", true, false)
+	var on_screen: StickyNote
+	var loose: StickyNote
+	for n in stickies:
+		if n.on_terminal:
+			on_screen = n
+		else:
+			loose = n
+	check(on_screen != null and on_screen.note_id == "select_from" and on_screen.get_parent() == level.desk_terminal, "the desk terminal has a SELECT sticky note on its monitor")
+	on_screen.interact(level.player)
+	check(_game().notebook_notes == ["select_from"] and is_instance_valid(on_screen) and not on_screen.is_queued_for_deletion(), "copying a terminal sticky leaves it for the rest of the crew")
+	check(on_screen.get_prompt(level.player) == "", "a copied note has nothing more to offer you")
+	var mate := Player.new()
+	level.add_child(mate)
+	check(on_screen.get_prompt(mate) != "", "but a teammate can still copy it")
+	loose.interact(mate)
+	check(not _game().notebook_notes.has("order_by") and loose.is_queued_for_deletion(), "a loose note goes to whoever picked it up, not into everyone's notebook")
+	mate.queue_free()
+	_game().add_note("order_by")
+	check(not _game().add_note("order_by") and _game().notebook_notes.size() == 2, "a note is only written down once")
+	nb.open(NotebookView.Page.TABLES)
+	check(nb.view.current_page() == NotebookView.Page.TABLES and nb.view._pages[NotebookView.Page.TABLES].get_child_count() >= 2, "the Tables page lists what was found")
+	var notes_text := ""
+	for c in nb.view._pages[NotebookView.Page.NOTES].find_children("*", "Label", true, false):
+		notes_text += c.text + "\n"
+	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
+	check(notes_text.contains("memo scraps") and notes_text.contains("piece_no"), "written notes show on the Notes page with their labels")
+	nb.close()
+	var saved: Dictionary = _game().notebook_data()
+	_game().new_run(4)
+	check(_game().notebook_notes.is_empty(), "a new run starts with an empty notebook")
+	_game().load_notebook(saved)
+	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
+	level.queue_free()
 	await process_frame
