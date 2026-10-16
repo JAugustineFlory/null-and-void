@@ -660,7 +660,7 @@ func test_level_2_scene() -> void:
 	level.completed.disconnect(level._on_completed)
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -18.2)))
 	await physics_frame
-	check(level.exit_lift.contains(p.global_position) and level.exit_lift.press(p), "inside, the button closes the doors")
+	check(level.exit_lift.headcount() == 1 and level.exit_lift.press(p), "inside, the button closes the doors")
 	for i in 160:
 		await physics_frame
 	check(shut[0] and level.exit_lift.open_amount == 0.0, "the doors shut: the wing is done")

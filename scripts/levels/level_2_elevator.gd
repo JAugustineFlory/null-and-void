@@ -12,6 +12,9 @@ extends Node3D
 signal button_pressed(by: Node)
 signal closed
 signal opened
+## Fired when a ride ends here and the doors are about to open (the shared elevator
+## moves players car to car; this stub only declares it).
+signal arrived
 
 const SIZE := Vector3(2.6, 2.5, 2.2)
 const DOOR_H := 2.1
@@ -138,6 +141,15 @@ func open(instant: bool = false) -> void:
 func contains(p: Vector3) -> bool:
 	var l := to_local(p)
 	return absf(l.x) < SIZE.x / 2 and l.z > 0.15 and l.z < SIZE.z and l.y > -0.5 and l.y < SIZE.y
+
+
+## How many living players are in the car.
+func headcount() -> int:
+	var n := 0
+	for p in get_tree().get_nodes_in_group("player"):
+		if (p.get("health") == null or p.health > 0.0) and contains(p.global_position):
+			n += 1
+	return n
 
 
 ## The button: works only when every living player is inside.
