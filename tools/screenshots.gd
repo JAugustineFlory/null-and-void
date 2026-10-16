@@ -64,6 +64,7 @@ func _run() -> void:
 	level.elevator.open(true)
 	await _frames(5)
 	await _shot(level, "l1_elevator", Vector3(0, 0.1, -10.5), 0, -5)
+	await _shot(level, "l1_elevator_inside", Vector3(0.6, 0.1, -17.6), 160, -8)
 	level._on_rourke_resolved("tied")
 	level.terminal_ui.open(level.terminal, level.player)
 	await _frames(10)
