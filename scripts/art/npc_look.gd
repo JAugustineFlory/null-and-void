@@ -36,6 +36,10 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(npc):
 		return
 	rig.play(pick_action(delta))
+	# If his logic ducks his (hidden) greybox body, e.g. under a cable tray, crouch to match.
+	var body: Node3D = npc.get("_body")
+	if body:
+		rig.stance_height = clampf(CharacterRig.STAND_HEIGHT + body.position.y * 1.2, CharacterRig.CRAWL_HEIGHT, CharacterRig.STAND_HEIGHT)
 	# Watch whoever is nearest while he's calm; lock on while he's hunting.
 	var p := _nearest_player()
 	rig.look_target = (p.global_position + Vector3(0, 1.5, 0)) if p else null

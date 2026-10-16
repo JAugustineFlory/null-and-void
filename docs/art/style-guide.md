@@ -94,4 +94,4 @@ How it's wired, so level threads and art never edit the same lines:
 - `ArtDress.link_light_panels` makes each ceiling panel follow its light: red in a lockdown, dark when the `lights` table switches it off.
 - `NpcLook.attach(rourke, CharacterLooks.rourke(), hud)` gives Rourke his model from the outside: it hides his greybox body and picks animations from his `state` (wind-up, stagger, down, tied, dead) and from his subtitles (talking).
 
-Furnished so far: Level 0 (lobby, reception, hall, closet, car park; the van waits for its six-seat rework) and Level 1 (Server Room A).
+Furnished so far: Level 0 (lobby, reception, hall, closet, car park and the six-seat van, `DressVan`) and Level 1 (Server Room A).

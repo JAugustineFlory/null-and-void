@@ -3,7 +3,7 @@ extends RefCounted
 ## Furnishing for Level 0, the lobby wing: a normal, tidy 90s office at night.
 ## Nothing here should look wrong. Called once at the end of Level 0's build(),
 ## before navigation bakes, so solid props are part of the navmesh. All positions
-## are in the wing's own space. The van is left alone until its six-seat rework.
+## are in the wing's own space. The van is DressVan.
 
 const LOBBY := AABB(Vector3(-8.3, -0.5, -7.3), Vector3(16.6, 5.0, 14.6))
 const HALL := AABB(Vector3(7.9, -0.5, 1.8), Vector3(16.3, 4.0, 2.4))
@@ -72,6 +72,12 @@ static func apply(level: LevelBase) -> void:
 	# Car park: two staff cars, one in each side bay. The van has the middle.
 	ArtProps.car(geo, Vector3(-4, 0, 16.6), 0, Color(0.42, 0.12, 0.1))
 	ArtProps.car(geo, Vector3(8, 0, 16.6), 0, Color(0.55, 0.62, 0.68))
+
+	DressVan.apply(level, Vector3(2, 0, 16.6))
+	# The sagging cable tray in the hall (the first crouch) sits outside geo.
+	var tray := level.get("cable_tray") as Node3D
+	if tray:
+		ArtDress.reskin(tray.get_parent() as Node3D, [{"names": ["CableTray"], "mat": metal}])
 
 	ArtDress.link_light_panels(level)
 	var rourke: Node3D = level.get("rourke")

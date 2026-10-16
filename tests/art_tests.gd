@@ -286,7 +286,7 @@ func test_dressed_level_0() -> void:
 		Vector3(1.5, 0, -0.2), Vector3(-1.5, 0, -0.2),  # in front of the terminal and visitor log
 		Vector3(-2.5, 0, -4.7), Vector3(0, 0, -2.2),  # walkies, and landing over the desk
 		Vector3(-7.4, 0, 4), Vector3(-14.6, 0, 4), Vector3(-18.6, 0, 4.5),  # vent mouth, closet side, the tape
-		Vector3(-0.1, 0, 14.8), Vector3(4.1, 0, 14.8), Vector3(0, 0, 11.5),  # out of the van, to the doors
+		Vector3(-0.3, 0, 14.8), Vector3(4.3, 0, 14.8), Vector3(4.3, 0, 15.5), Vector3(4.3, 0, 17.9), Vector3(0, 0, 11.5),  # out of the van (front doors, side door), to the doors
 	]
 	var blocked := _blocked(level, boxes, keep_clear)
 	check(blocked.is_empty(), "props keep Level 0's routes and puzzles clear %s" % [blocked])
@@ -303,6 +303,19 @@ func test_dressed_level_0() -> void:
 		if l.get_node_or_null("PanelLink"):
 			lit += 1
 	check(lit == level.lights["lobby"].size(), "every lobby light panel follows its light")
+	var van: Node3D = level.get_node("Dressing/Van")
+	check(van.find_children("Seat*", "Node3D", false, false).size() == 3, "the van has two front seats and a rear bench")
+	check(van.find_child("SteeringWheel", true, false) != null, "and a steering wheel")
+	var round := 0
+	for w in DressVan.wheels(level.geo, Vector3(2, 0, 16.6)):
+		round += 1 if not (w.get_child(0) as MeshInstance3D).visible else 0
+	check(round == 4, "the van's wheels are round, not greybox blocks")
+	for seat in level.van_seats:
+		check((seat.buckle as Node3D).visible, "seat-belt buckles stay visible to ready up")
+		break
+	level.rourke._body.position.y = -0.45  # ducking under the hall's cable tray
+	look._process(0.016)
+	check(look.rig.stance_height < 1.4, "Rourke's model crouches when he ducks")
 	level.free()
 
 

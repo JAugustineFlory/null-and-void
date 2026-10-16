@@ -22,6 +22,9 @@ func _run() -> void:
 	await _shot(level, "l0_lot", Vector3(4.1, 0.05, 14.5), 15, 5)
 	await _shot(level, "l0_hall", Vector3(8.5, 0.1, 3), -90, 0)
 	await _shot(level, "l0_closet", Vector3(-14.6, 0.1, 4), 90, -10)
+	await _shot(level, "l0_van", Vector3(6.2, 0.05, 11.2), 145, -6)
+	await _shot(level, "l0_van_rear", Vector3(5.6, 0.05, 21.5), 35, -6)
+	await _shot(level, "l0_van_cab", Vector3(2.0, 0.55, 17.5), 0, -8)
 	level.free()
 
 	root.get_node("Game").new_run(3)
