@@ -45,7 +45,7 @@ func execute(sql: String) -> Dictionary:
 	if not ok:
 		res.error = db.error_message
 		return res
-	var rows: Array = db.query_result.duplicate(true)
+	var rows := _normalize(db.query_result)
 	res.ok = true
 	res.rows = rows
 	if not rows.is_empty():
@@ -61,7 +61,7 @@ func run_silent(sql: String) -> Array:
 	if not db.query(sql):
 		push_error("FacilityDB query failed: %s\n%s" % [db.error_message, sql])
 		return []
-	return db.query_result.duplicate(true)
+	return _normalize(db.query_result)
 
 
 func table_names() -> Array:
@@ -104,6 +104,18 @@ static func explain_error(err: String) -> String:
 	if e.contains("disabled"):
 		return "Nice try."
 	return "The database refused that query. Read the error above; it usually says exactly what's wrong."
+
+
+## Copy rows with plain String column names. Newer godot-sqlite builds return
+## StringName keys, which don't compare equal to Strings inside Arrays.
+func _normalize(rows: Array) -> Array:
+	var out := []
+	for row in rows:
+		var clean := {}
+		for k in row.keys():
+			clean[str(k)] = row[k]
+		out.append(clean)
+	return out
 
 
 func _total_changes() -> int:
