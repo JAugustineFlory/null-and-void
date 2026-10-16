@@ -102,7 +102,7 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
 | [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio. Routine. | Level 0 |
-| [ ] | `l0_dispatch_2` | Their lead engineer's systems are down. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
+| [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
 | [ ] | `l0_dispatch_3` | Hop out when you're ready. Dispatch out. | Signing off, already onto the next call. | Level 0 |
 
 ## Harold Mercer (5 lines)

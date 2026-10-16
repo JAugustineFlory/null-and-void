@@ -33,7 +33,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **DISPATCH:** *(Over the van radio. Routine.)* Van three, you're on site at Halcyon Data Systems. After-hours callout. `[l0_dispatch_1]`
 
-**DISPATCH:** *(Reading it off the ticket.)* Their lead engineer's systems are down. Contact is Dale Rourke, facilities. He'll meet you at the front doors. `[l0_dispatch_2]`
+**DISPATCH:** *(Reading it off the ticket.)* They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. `[l0_dispatch_2]`
 
 **DISPATCH:** *(Signing off, already onto the next call.)* Hop out when you're ready. Dispatch out. `[l0_dispatch_3]`
 
