@@ -25,16 +25,25 @@ const CARRY_SPEED := 1.6
 const JUMP_VELOCITY := 4.3
 const SLIDE_SPEED := 9.0
 const SLIDE_TIME := 0.8
+## Sprint lingers this long after Shift is released, so Shift-off-then-Ctrl still slides.
+const SPRINT_GRACE := 0.3
 const ROLL_SPEED := 5.5
 const ROLL_TIME := 0.6
 const STAND_HEIGHT := 1.8
-const CROUCH_HEIGHT := 0.85
+## Crouching is on two feet with bent knees.
+const CROUCH_HEIGHT := 1.25
+## Crawling is on hands and knees: slides, rolls, vents and any gap too low to crouch through.
+const CRAWL_HEIGHT := 0.85
 const RADIUS := 0.32
 const MOUSE_SENS := 0.0022
 ## Highest ledge, above your feet, you can mantle straight onto.
 const MANTLE_MAX := 1.6
 ## Highest ledge, above your feet, you can catch with your hands and hang from.
 const HANG_REACH := 2.25
+## A beat after catching an edge before you can pull up.
+const HANG_SETTLE := 0.15
+## How far (radians) you can turn from your stance while shuffling along a ledge.
+const LEDGE_LOOK := deg_to_rad(100.0)
 const MANTLE_UP_TIME := 0.22
 const MANTLE_OVER_TIME := 0.18
 const SHIMMY_SPEED := 1.2
@@ -51,7 +60,9 @@ const STRIKE_COOLDOWN := 0.55
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var health := 100.0
 var state := Move.WALK
+## True when lower than standing (crouching or crawling).
 var crouching := false
+var crawling := false
 ## True while a terminal or menu has focus.
 var input_locked := false
 var hud: Node
@@ -73,6 +84,11 @@ var _air_time := 0.0
 var _mantle_path: Array[Vector3] = []
 var _hang_normal := Vector3.ZERO
 var _hang_top := 0.0
+## Forward must be let go after catching an edge before it pulls you up.
+var _fwd_released := false
+var _sprint_grace := 0.0
+## The way your body faces on a narrow ledge: into the wall or out over the drop.
+var _ledge_face := Vector3.ZERO
 var _climb: MovementVolume
 var _ledge: MovementVolume
 var _step_t := 0.0
@@ -135,6 +151,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * MOUSE_SENS)
+		if state == Move.LEDGE:
+			_clamp_ledge_yaw()
 		head.rotation.x = clamp(head.rotation.x - event.relative.y * MOUSE_SENS, -1.45, 1.45)
 	elif event.is_action_pressed("flashlight"):
 		flashlight.visible = not flashlight.visible
@@ -317,14 +335,15 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			_roll_queued = true
 	var in_vent := in_volume(MovementVolume.Kind.VENT) != null
 	var flat := Vector3(velocity.x, 0, velocity.z)
+	_sprint_grace = SPRINT_GRACE if controls.sprint else maxf(0.0, _sprint_grace - delta)
+	var sprinting := controls.sprint or _sprint_grace > 0.0
 
-	if state == Move.WALK and rider == null:
-		if controls.crouch and not crouching and on_floor:
-			if controls.sprint and flat.length() > WALK_SPEED and not in_vent:
-				_begin_dash(Move.SLIDE, SLIDE_TIME, flat.normalized())
-			_set_crouch(true)
-		elif not controls.crouch and crouching and _can_stand():
-			_set_crouch(false)
+	if state == Move.WALK and rider == null and on_floor:
+		if controls.crouch and not crouching and sprinting and flat.length() > WALK_SPEED and not in_vent:
+			_begin_dash(Move.SLIDE, SLIDE_TIME, flat.normalized())
+			_set_stance(CRAWL_HEIGHT)
+		else:
+			_settle_stance()
 
 	if state == Move.SLIDE or state == Move.ROLL:
 		_timer -= delta
@@ -334,9 +353,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 		velocity.x = _dir.x * spd
 		velocity.z = _dir.z * spd
 		if _timer <= 0.0 or is_on_wall():
-			state = Move.WALK
-			if not controls.crouch and _can_stand():
-				_set_crouch(false)
+			state = Move.WALK  # stance settles next tick, as high as there's room for
 	else:
 		var dir := (transform.basis * Vector3(controls.move.x, 0, controls.move.y)).normalized()
 		var speed := WALK_SPEED
@@ -344,9 +361,11 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			speed = CARRY_SPEED
 		elif in_vent:
 			speed = VENT_RUSH_SPEED if controls.sprint else CRAWL_SPEED
+		elif crawling:
+			speed = CRAWL_SPEED
 		elif crouching:
 			speed = CROUCH_SPEED
-		elif controls.sprint:
+		elif sprinting:
 			speed = SPRINT_SPEED
 		var accel := 12.0 if on_floor else 3.0
 		if not on_floor and dir == Vector3.ZERO:
@@ -362,13 +381,16 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			velocity = Vector3.ZERO
 			_roll_queued = false
 			if crouching and _can_stand():
-				_set_crouch(false)
+				_set_stance(STAND_HEIGHT)
 			return
 		var ledge := in_volume(MovementVolume.Kind.LEDGE)
 		if ledge and on_floor and _on_ledge_line(ledge, 0.15):
 			_ledge = ledge
 			state = Move.LEDGE
 			velocity = Vector3.ZERO
+			# Keep the stance you stepped on with: facing the wall or back to it.
+			_ledge_face = -ledge.normal if _forward().dot(-ledge.normal) > 0.0 else ledge.normal
+			_clamp_ledge_yaw()
 			return
 		if jump_pressed:
 			if _try_ledge(true):
@@ -393,7 +415,7 @@ func _land(fall_speed: float) -> void:
 	if _roll_queued and flat.length() > 1.5 and rider == null:
 		# Tuck and roll: keeps your speed, gets you under low gaps, and is quiet.
 		_begin_dash(Move.ROLL, ROLL_TIME, flat.normalized())
-		_set_crouch(true)
+		_set_stance(CRAWL_HEIGHT)
 	elif fall_speed > HARD_LANDING:
 		_noise(0.7)
 	_roll_queued = false
@@ -458,7 +480,7 @@ func _ledge_probe(dir: Vector3) -> Dictionary:
 		return {}
 	var target := face - n * (RADIUS + 0.08)
 	target.y = top.position.y + 0.02
-	if not _fits(target, CROUCH_HEIGHT):
+	if not _fits(target, CRAWL_HEIGHT):
 		return {}
 	return {"normal": n, "face": face, "top": top.position.y, "height": height, "target": target}
 
@@ -475,6 +497,8 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		state = Move.HANG
 		_hang_normal = p.normal
 		_hang_top = p.top
+		_timer = 0.0
+		_fwd_released = controls.move.y > -0.5
 		_set_crouch(false)
 		velocity = Vector3.ZERO
 		_roll_queued = false
@@ -486,7 +510,7 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 
 func _start_mantle(target: Vector3) -> void:
 	if not _fits(target, STAND_HEIGHT):
-		_set_crouch(true)
+		_set_stance(CROUCH_HEIGHT if _fits(target, CROUCH_HEIGHT) else CRAWL_HEIGHT)
 	state = Move.MANTLE
 	_timer = 0.0
 	velocity = Vector3.ZERO
@@ -512,6 +536,7 @@ func _step_mantle(delta: float) -> void:
 
 func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 	var n := _hang_normal
+	_timer += delta
 	velocity = Vector3.ZERO
 	if crouch_pressed or controls.move.y > 0.5:
 		# Let go.
@@ -519,11 +544,21 @@ func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 		velocity = n * 1.0
 		_was_on_floor = false
 		return
-	if jump_pressed or controls.move.y < -0.5:
+	if jump_pressed:
+		# Kick off backwards, like off a pipe.
+		state = Move.WALK
+		velocity = n * 3.0 + Vector3.UP * 3.0
+		_was_on_floor = false
+		return
+	var fwd := controls.move.y < -0.5
+	if not fwd:
+		_fwd_released = true
+	elif _fwd_released and _timer >= HANG_SETTLE:
+		# Holding W from the jump only grabs; a fresh W press climbs up.
 		var face := global_position - n * (RADIUS + 0.03)
 		var target := face - n * (RADIUS + 0.08)
 		target.y = _hang_top + 0.02
-		if _fits(target, CROUCH_HEIGHT):
+		if _fits(target, CRAWL_HEIGHT):
 			_start_mantle(target)
 			return
 	if absf(controls.move.x) > 0.1:
@@ -602,6 +637,7 @@ func _step_ledge(delta: float) -> void:
 		state = Move.WALK
 		_ledge = null
 		return
+	_clamp_ledge_yaw()
 	var line := v.b - v.a
 	var length := line.length()
 	var dir := line / length
@@ -623,6 +659,13 @@ func _step_ledge(delta: float) -> void:
 	move_and_slide()
 
 
+func _clamp_ledge_yaw() -> void:
+	var center := atan2(-_ledge_face.x, -_ledge_face.z)
+	var d := angle_difference(center, rotation.y)
+	if absf(d) > LEDGE_LOOK:
+		rotation.y = center + signf(d) * LEDGE_LOOK
+
+
 # --- Helpers ---------------------------------------------------------------
 
 func _forward() -> Vector3:
@@ -641,10 +684,35 @@ func _exclude() -> Array[RID]:
 
 
 func _set_crouch(on: bool) -> void:
-	crouching = on
-	_height = CROUCH_HEIGHT if on else STAND_HEIGHT
-	_capsule.height = _height
-	_collider.position.y = _height / 2
+	_set_stance(CROUCH_HEIGHT if on else STAND_HEIGHT)
+
+
+func _set_stance(height: float) -> void:
+	_height = height
+	crouching = height < STAND_HEIGHT
+	crawling = height <= CRAWL_HEIGHT
+	_capsule.height = height
+	_collider.position.y = height / 2
+
+
+## Pick the stance for this tick: stand, or crouch while Ctrl is held, dropping
+## to a crawl for gaps too low to crouch through and rising only where there's room.
+func _settle_stance() -> void:
+	var target := CROUCH_HEIGHT if controls.crouch else STAND_HEIGHT
+	if target <= CROUCH_HEIGHT or crouching:
+		var wish := transform.basis * Vector3(controls.move.x, 0, controls.move.y)
+		wish.y = 0.0
+		if wish.length() > 0.1:
+			var ahead := global_position + wish.normalized() * 0.45
+			if not _fits(ahead, minf(target, CROUCH_HEIGHT)) and _fits(ahead, CRAWL_HEIGHT):
+				target = CRAWL_HEIGHT
+	if target < _height:
+		_set_stance(target)
+	elif target > _height:
+		if _fits(global_position, target):
+			_set_stance(target)
+		elif target == STAND_HEIGHT and _height < CROUCH_HEIGHT and _fits(global_position, CROUCH_HEIGHT):
+			_set_stance(CROUCH_HEIGHT)
 
 
 func _can_stand() -> bool:

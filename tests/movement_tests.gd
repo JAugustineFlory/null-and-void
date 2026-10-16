@@ -122,13 +122,39 @@ func test_gate_needs_slide_or_crouch() -> void:
 	await done(a)
 
 	a = _gate_arena()
+	p = spawn(a, Vector3(0, 0.05, 4))
+	await frames(5)
+	forward(p, true)
+	await frames(40)
+	p.controls.sprint = false
+	await frames(6)
+	p.controls.crouch = true
+	await frames(2)
+	check(p.state == Player.Move.SLIDE, "letting go of Shift a moment before Ctrl still slides")
+	stop(p)
+	await frames(60)
+	forward(p, true)
+	await frames(40)
+	p.controls.sprint = false
+	await frames(30)
+	p.controls.crouch = true
+	await frames(2)
+	check(p.state != Player.Move.SLIDE, "but not half a second later")
+	await done(a)
+
+	a = _gate_arena()
 	p = spawn(a, Vector3(0, 0.05, 0))
 	await frames(5)
 	p.controls.crouch = true
 	forward(p)
 	p.controls.crouch = true
-	await frames(180)
+	var crawled := false
+	for i in 180:
+		await frames(1)
+		crawled = crawled or p.crawling
+	check(crawled, "you drop to a crawl on your own to fit under")
 	check(p.global_position.z < -4.5, "crouch-walking also gets under (z %.1f)" % p.global_position.z)
+	check(p.crouching and not p.crawling and p._height > 1.1, "crouching is a bent-knee stance, and you rise back to it past the shutter")
 	await done(a)
 
 
@@ -212,7 +238,29 @@ func test_hang_shimmy_pull_up() -> void:
 	await frames(20)
 	p.controls.jump = true
 	await frames(60)
-	check(p.global_position.y > 2.7, "a running jump at a 2.8 m wall grabs and climbs it (y %.2f)" % p.global_position.y)
+	check(p.state == Player.Move.HANG and p.global_position.y < 1.0, "holding W through a running jump at a 2.8 m wall grabs and hangs, without climbing")
+	stop(p)
+	await frames(3)
+	forward(p)
+	for i in 60:
+		await frames(1)
+		if p.state == Player.Move.WALK:
+			break
+	stop(p)
+	await frames(5)
+	check(p.global_position.y > 2.7, "release W and press it again to climb up (y %.2f)" % p.global_position.y)
+	await done(a)
+
+	a = arena()
+	_high_wall(a, 2.0)
+	p = spawn(a, Vector3(0, 0.05, -1.3))
+	await frames(5)
+	p.controls.jump = true
+	await frames(3)
+	var z_hang := p.global_position.z
+	p.controls.jump = true
+	await frames(20)
+	check(p.state == Player.Move.WALK and p.global_position.z > z_hang + 0.5, "Space kicks off the wall from a hang")
 	await done(a)
 
 	a = arena()
@@ -279,6 +327,10 @@ func test_vent() -> void:
 	Greybox.box(a, Vector3(10.6, 1.5, -2), Vector3(20, 3, 0.2), Color.DIM_GRAY)
 	Greybox.box(a, Vector3(0, 2.0, -2), Vector3(1.2, 2.0, 0.2), Color.DIM_GRAY)
 	check(vent.kind == MovementVolume.Kind.VENT, "vent helper builds a crawl volume")
+	await frames(2)
+	var probe := PhysicsRayQueryParameters3D.create(Vector3(0, 0.5, -6), Vector3(0, -0.5, -6))
+	var floor_hit := a.get_world_3d().direct_space_state.intersect_ray(probe)
+	check(not floor_hit.is_empty() and floor_hit.position.y > 0.005, "the duct floor sits just above the room floor, so they don't flicker")
 	var p := spawn(a, Vector3(0, 0.05, 0))
 	await frames(5)
 	forward(p)
@@ -296,6 +348,7 @@ func test_vent() -> void:
 	p.controls.crouch = false
 	await frames(10)
 	check(p.crouching, "you can't stand up in a duct")
+	check(p.crawling and p.head.position.y < 0.8, "in a duct you crawl, camera low (%.2f m)" % p.head.position.y)
 	p.controls.sprint = true
 	await frames(60)
 	check(noises.any(func(l): return l >= 0.9), "hurrying bangs the duct loudly")
@@ -318,9 +371,18 @@ func test_ledge_shuffle() -> void:
 	var shuffled := false
 	var top_speed := 0.0
 	var lowest := 10.0
+	var turned := false
+	var max_turn := 0.0
 	for i in 900:
 		await frames(1)
 		if p.state == Player.Move.LEDGE:
+			if not turned:
+				# Facing the wall on the ledge: try to turn right around.
+				turned = true
+				p.rotation.y = PI
+			elif max_turn == 0.0:
+				max_turn = absf(angle_difference(0.0, p.rotation.y))
+				p.rotation.y = 0.0  # face the wall again and carry on
 			shuffled = true
 			top_speed = max(top_speed, Vector2(p.velocity.x, p.velocity.z).length())
 		lowest = min(lowest, p.global_position.y)
@@ -328,6 +390,7 @@ func test_ledge_shuffle() -> void:
 			break
 	check(shuffled and top_speed < Player.LEDGE_SPEED + 0.6, "stepping onto a ledge shuffles slowly, even sprinting (%.2f m/s)" % top_speed)
 	check(lowest > -0.5 and p.global_position.x > 9.0, "the shuffle reaches the far side without falling")
+	check(turned and max_turn <= Player.LEDGE_LOOK + 0.01, "facing the wall on a ledge, you can't turn your back to it (%.0f deg)" % rad_to_deg(max_turn))
 	check(p.state == Player.Move.WALK, "walking off the end returns to normal movement")
 	await done(a)
 
