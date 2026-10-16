@@ -58,6 +58,9 @@ xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 -s tools/sc
 | `scripts/npc/` | Rourke |
 | `scripts/levels/` | One script per level; geometry is built in code |
 | `scripts/ui/` | HUD, terminal screen, menu, Field Notes |
+| `scripts/audio/` | The voice script (`voice_lines.gd`), recording playback, and the generator for `docs/script/` |
+| `docs/script/` | The voice script and the recording list, generated from `voice_lines.gd` |
+| `audio/voice/` | Voice recordings, named after their line id |
 | `data/` | Seed SQL for levels |
 | `addons/godot-sqlite/` | [godot-sqlite](https://github.com/2shady4u/godot-sqlite) (MIT), desktop binaries |
 | `tests/` | Headless test runner |
