@@ -1,107 +1,176 @@
 class_name Elevator
 extends Node3D
 ## The way out of a level. Everyone gets in, someone presses the button, and the
-## doors have to close before whatever is chasing the crew gets there.
-## The doors closing is the checkpoint; the ride covers loading the next wing.
-## Built facing +Z: the doors are at z = 0 and the car goes back to z = -DEPTH.
+## doors have to shut before whatever is chasing the crew gets there. The doors
+## shutting is the checkpoint and the seal; the ride covers loading the next wing,
+## then carries the crew into the next wing's arrival car (link_to) and opens it.
+##
+## The origin is the middle of the doorway at floor level and the car extends along
+## local +Z: you walk in along +Z. The shell is static and goes under the level's
+## `geo` so it is part of the navigation mesh; the door leaves move, so they don't.
+## Looks: ArtElevator when the art is in the project, plain greybox otherwise.
 ## Co-op: the host decides when the button works and when the doors move.
 
-signal doors_opened
-## Everyone is in and the doors have shut: checkpoint and seal here.
-signal doors_closed
-## The ride is over.
+signal button_pressed(by: Node)
+## The doors have shut.
+signal closed
+## The doors are fully open.
+signal opened
+## The ride is over; the crew is in the destination car, if there is one.
 signal arrived
-## Someone pressed the button with players still outside.
-signal waiting(inside: int, total: int)
 
-const WIDTH := 2.4
-const DEPTH := 2.4
-const HEIGHT := 2.6
-const DOOR_WIDTH := 1.6
-const DOOR_TIME := 0.9
+const SIZE := Vector3(2.6, 2.5, 2.2)
+const DOOR_H := 2.1
+const LEAF_W := 0.62  # each door leaf; together a 1.2 m doorway
+const DOORWAY := LEAF_W * 2
+const CLOSE_TIME := 2.2
+const OPEN_TIME := 1.4
 const RIDE_TIME := 3.0
 
-var doors_open := false
+var open_amount := 0.0:
+	set(v):
+		open_amount = clampf(v, 0.0, 1.0)
+		_place_doors()
+var is_closing := false
 var riding := false
+var art: Node3D  # ArtElevator, when available
 var button: Interactable
+## Why the button didn't work, for the HUD. Set by press().
+var refusal := ""
+## Shows the refusal as a notice when set.
 var hud: Node
-var _inside: Area3D
-var _doors: Array[Node3D] = []
+## The car the crew steps out of after the ride.
+var destination: Elevator
+var floor_label := ""
+var _leaves: Array[AnimatableBody3D] = []
+var _tween: Tween
 var _light: OmniLight3D
 
 
-static func create(parent: Node, at: Vector3, facing_deg: float = 0.0) -> Elevator:
+## Builds the car under `parent` (the level), with its shell under `geo`.
+static func create(parent: Node3D, geo: Node3D, pos: Vector3, facing_deg: float, label: String, floors: Array = ["1", "B1", "B2", "B3"]) -> Elevator:
 	var e := Elevator.new()
-	e.position = at
+	e.name = "Elevator"
+	e.position = pos
 	e.rotation_degrees.y = facing_deg
+	e.floor_label = label
 	parent.add_child(e)
+	e._build(geo, floors)
 	return e
 
 
-func _ready() -> void:
-	var steel := Color(0.55, 0.56, 0.58)
-	var hw := WIDTH / 2
-	Greybox.box(self, Vector3(0, -0.05, -DEPTH / 2), Vector3(WIDTH, 0.1, DEPTH), Color(0.25, 0.25, 0.27), "CarFloor")
-	Greybox.box(self, Vector3(0, HEIGHT + 0.05, -DEPTH / 2), Vector3(WIDTH, 0.1, DEPTH), steel, "CarCeiling")
-	Greybox.box(self, Vector3(-hw - 0.05, HEIGHT / 2, -DEPTH / 2), Vector3(0.1, HEIGHT, DEPTH), steel, "CarWallW")
-	Greybox.box(self, Vector3(hw + 0.05, HEIGHT / 2, -DEPTH / 2), Vector3(0.1, HEIGHT, DEPTH), steel, "CarWallE")
-	Greybox.box(self, Vector3(0, HEIGHT / 2, -DEPTH - 0.05), Vector3(WIDTH, HEIGHT, 0.1), steel, "CarWallBack")
-	# The front wall, either side of the doorway and above it.
-	var side_w := (WIDTH - DOOR_WIDTH) / 2
-	for s in [-1.0, 1.0]:
-		Greybox.box(self, Vector3(s * (DOOR_WIDTH / 2 + side_w / 2), HEIGHT / 2, 0.05), Vector3(side_w, HEIGHT, 0.1), steel, "CarFront")
-	Greybox.box(self, Vector3(0, 2.3 + (HEIGHT - 2.3) / 2, 0.05), Vector3(DOOR_WIDTH, HEIGHT - 2.3, 0.1), steel, "CarLintel")
-	Greybox.label(self, Vector3(0, 2.45, 0.11), "ELEVATOR", 40, Color(0.9, 0.85, 0.6))
-
-	# Two doors that part in the middle.
-	for s in [-1.0, 1.0]:
-		var door := Node3D.new()
-		door.position = Vector3(s * DOOR_WIDTH / 4, 0, 0.12)
-		door.set_meta("closed_x", door.position.x)
-		add_child(door)
-		Greybox.box(door, Vector3(0, 1.15, 0), Vector3(DOOR_WIDTH / 2, 2.3, 0.06), Color(0.7, 0.7, 0.72), "ElevatorDoor")
-		_doors.append(door)
-
-	button = Interactable.create(self, Vector3(hw - 0.03, 1.2, -0.45), Vector3(0.04, 0.14, 0.14), "Press the button", Color(1.0, 0.6, 0.1))
+func _build(geo: Node3D, floors: Array) -> void:
+	var art_script: Script = load("res://scripts/art/art_elevator.gd") if ResourceLoader.exists("res://scripts/art/art_elevator.gd") else null
+	if art_script:
+		art = art_script.call("build", self, Vector3.ZERO, 0.0, SIZE, floors)
+		art.call("set_floor", floor_label)
+	var w := SIZE.x
+	var h := SIZE.y
+	var d := SIZE.z
+	var shell := Node3D.new()
+	shell.name = "ElevatorShell"
+	geo.add_child(shell)
+	shell.global_transform = global_transform
+	var steel := Color(0.55, 0.57, 0.6)
+	var show := art == null
+	_solid(shell, Vector3(w + 0.2, 0.1, d + 0.1), Vector3(0, -0.05, d / 2), steel.darkened(0.6), show)
+	_solid(shell, Vector3(w + 0.2, 0.1, d + 0.1), Vector3(0, h + 0.05, d / 2), steel, show)
+	_solid(shell, Vector3(w + 0.2, h, 0.1), Vector3(0, h / 2, d + 0.05), steel, show)
+	for sx in [-1, 1]:
+		_solid(shell, Vector3(0.1, h, d), Vector3(sx * (w / 2 + 0.05), h / 2, d / 2), steel, show)
+		var jamb := w / 2 - LEAF_W + 0.02
+		_solid(shell, Vector3(jamb, h, 0.1), Vector3(sx * (w / 2 - jamb / 2), h / 2, 0.05), steel, show)
+	_solid(shell, Vector3(DOORWAY, h - DOOR_H, 0.1), Vector3(0, DOOR_H + (h - DOOR_H) / 2, 0.05), steel, show)
+	if show:
+		Greybox.label(shell, Vector3(0, DOOR_H + 0.2, -0.01), "ELEVATOR  " + floor_label, 40, Color(1.0, 0.45, 0.1), 180)
+		_light = OmniLight3D.new()
+		_light.position = Vector3(0, h - 0.2, d / 2)
+		_light.omni_range = 3.2
+		_light.light_energy = 0.9
+		_light.light_color = Color(1.0, 0.95, 0.85)
+		add_child(_light)
+	# Door leaves: they block when shut.
+	for sx in [-1, 1]:
+		var leaf := AnimatableBody3D.new()
+		leaf.name = "Leaf"
+		leaf.sync_to_physics = false
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = Vector3(LEAF_W, DOOR_H, 0.06)
+		cs.shape = bs
+		leaf.add_child(cs)
+		if show:
+			var mi := MeshInstance3D.new()
+			var bm := BoxMesh.new()
+			bm.size = bs.size
+			mi.mesh = bm
+			mi.material_override = Greybox.mat(steel.lightened(0.15), 0.4, 0.5)
+			leaf.add_child(mi)
+		leaf.set_meta("side", sx)
+		add_child(leaf)
+		_leaves.append(leaf)
+	# The button panel inside, on the right as you walk in.
+	button = Interactable.create(self, Vector3(-(w / 2 - 0.08), 1.15, 0.45), Vector3(0.04, 0.3, 0.16), "Press %s" % floors[floors.size() - 1], Color(0.15, 0.15, 0.15), show)
 	button.used.connect(press)
-
-	_inside = Area3D.new()
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(WIDTH - 0.2, 2.0, DEPTH - 0.2)
-	shape.shape = box
-	shape.position = Vector3(0, 1.0, -DEPTH / 2)
-	_inside.add_child(shape)
-	add_child(_inside)
-
-	_light = OmniLight3D.new()
-	_light.position = Vector3(0, HEIGHT - 0.2, -DEPTH / 2)
-	_light.omni_range = 3.2
-	_light.light_energy = 0.9
-	_light.light_color = Color(1.0, 0.95, 0.85)
-	add_child(_light)
+	_place_doors()
 
 
-func open_doors() -> void:
-	if doors_open:
+func _solid(parent: Node3D, box_size: Vector3, pos: Vector3, color: Color, visible_mesh: bool) -> void:
+	var body := StaticBody3D.new()
+	body.position = pos
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = box_size
+	cs.shape = bs
+	body.add_child(cs)
+	if visible_mesh:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = box_size
+		mi.mesh = bm
+		mi.material_override = Greybox.mat(color, 0.3, 0.6)
+		body.add_child(mi)
+	parent.add_child(body)
+
+
+func _place_doors() -> void:
+	for leaf in _leaves:
+		var sx: int = leaf.get_meta("side")
+		leaf.position = Vector3(sx * (LEAF_W / 2 + open_amount * (LEAF_W - 0.04)), DOOR_H / 2, 0.11)
+	if art:
+		art.set("open_amount", open_amount)
+
+
+func open(instant: bool = false) -> void:
+	is_closing = false
+	if _tween:
+		_tween.kill()
+	if instant:
+		open_amount = 1.0
+		opened.emit()
 		return
-	doors_open = true
-	var tw := create_tween().set_parallel()
-	for d in _doors:
-		var s := signf(d.get_meta("closed_x"))
-		tw.tween_property(d, "position:x", d.get_meta("closed_x") + s * DOOR_WIDTH / 2, DOOR_TIME).set_trans(Tween.TRANS_QUAD)
-	await tw.finished
-	doors_opened.emit()
+	_tween = create_tween()
+	_tween.tween_property(self, "open_amount", 1.0, OPEN_TIME * (1.0 - open_amount)).set_trans(Tween.TRANS_QUAD)
+	_tween.tween_callback(opened.emit)
 
 
-func close_doors() -> void:
-	if not doors_open:
-		return
-	doors_open = false
-	var tw := create_tween().set_parallel()
-	for d in _doors:
-		tw.tween_property(d, "position:x", d.get_meta("closed_x"), DOOR_TIME).set_trans(Tween.TRANS_QUAD)
-	await tw.finished
+func close() -> void:
+	is_closing = true
+	if _tween:
+		_tween.kill()
+	if art:
+		art.call("light_button", button.prompt.trim_prefix("Press "), true)
+	_tween = create_tween()
+	_tween.tween_property(self, "open_amount", 0.0, CLOSE_TIME * open_amount).set_trans(Tween.TRANS_LINEAR)
+	_tween.tween_callback(func():
+		is_closing = false
+		closed.emit())
+
+
+## Is this point inside the car (world space)?
+func contains(p: Vector3) -> bool:
+	var l := to_local(p)
+	return absf(l.x) < SIZE.x / 2 and l.z > 0.15 and l.z < SIZE.z and l.y > -0.5 and l.y < SIZE.y
 
 
 ## Every living player, and how many of them are in the car.
@@ -109,37 +178,70 @@ func headcount() -> Vector2i:
 	var total := 0
 	var inside := 0
 	for p in get_tree().get_nodes_in_group("player"):
-		if p.get_viewport() != get_viewport() or p.get("health") != null and p.health <= 0.0:
+		if p.get("health") != null and p.health <= 0.0:
 			continue
 		total += 1
-		if _inside.overlaps_body(p):
+		if contains(p.global_position):
 			inside += 1
 	return Vector2i(inside, total)
 
 
-func everyone_inside() -> bool:
+## The button: works only when every living player is inside.
+func press(by: Node = null) -> bool:
+	refusal = ""
+	if is_closing or riding or open_amount <= 0.0:
+		return false
 	var c := headcount()
-	return c.y > 0 and c.x == c.y
-
-
-## The button: only works once the whole crew is in.
-func press(_p: Node = null) -> void:
-	if riding or not doors_open:
-		return
-	var c := headcount()
-	if c.x < c.y or c.y == 0:
-		waiting.emit(c.x, c.y)
+	if c.y == 0 or c.x < c.y:
+		refusal = "The doors won't close until everyone is inside (%d/%d)." % [c.x, c.y]
 		if hud:
-			hud.notice("The doors won't close until everyone is inside (%d/%d)." % [c.x, c.y], 3.0)
-		return
+			hud.notice(refusal, 3.0)
+		return false
+	button_pressed.emit(by)
+	close()
+	return true
+
+
+## Ride from this car to `other`: the crew steps out of that car when the ride ends.
+func link_to(other: Elevator) -> void:
+	destination = other
+
+
+## The ride, once the doors have shut. The next wing loads meanwhile; then every
+## player in this car moves to the same spot in the destination car, still facing
+## the same way relative to it, and its doors open.
+func ride(seconds: float = RIDE_TIME) -> void:
 	riding = true
-	button.enabled = false
-	await close_doors()
-	doors_closed.emit()
-	# The ride: a low hum and a flicker while the next wing loads behind the walls.
+	if art:
+		art.call("set_direction", -1)
 	var tw := create_tween()
-	tw.tween_property(_light, "light_energy", 0.5, RIDE_TIME * 0.5)
-	tw.tween_property(_light, "light_energy", 0.9, RIDE_TIME * 0.5)
+	tw.tween_method(_set_car_light, 1.0, 0.6, seconds * 0.5)
+	tw.tween_method(_set_car_light, 0.6, 1.0, seconds * 0.5)
 	await tw.finished
+	if art:
+		art.call("set_direction", 0)
+	if destination:
+		carry_players_to(destination)
+		destination.open()
 	riding = false
 	arrived.emit()
+
+
+## Move everyone in this car to the same place in `other`, keeping their facing.
+func carry_players_to(other: Elevator) -> void:
+	var turn := other.global_basis.get_euler().y - global_basis.get_euler().y
+	for p in get_tree().get_nodes_in_group("player"):
+		if not contains(p.global_position):
+			continue
+		var local := to_local(p.global_position)
+		p.global_position = other.to_global(local)
+		p.rotation.y += turn
+		if p is CharacterBody3D:
+			p.velocity = Vector3.ZERO
+
+
+func _set_car_light(scale: float) -> void:
+	if art:
+		art.call("set_car_light", scale)
+	elif _light:
+		_light.light_energy = 0.9 * scale

@@ -51,10 +51,10 @@ func build() -> void:
 	Greybox.room(geo, Vector3(0, 0, 11.5), Vector3(3, 3, 5), {"floor": floor_c, "wall": wall_c}, ante_gaps)
 	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
-		{"wall": "n", "at": 0.0, "width": Elevator.DOOR_WIDTH, "height": 2.3},
+		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
 	])
-	# The way out: an elevator at the end of the emergency exit corridor.
-	elevator = Elevator.create(self, Vector3(0, 0, -16.0))
+	# The way out: an elevator at the end of the emergency exit corridor, going down.
+	elevator = Elevator.create(self, geo, Vector3(0, 0, -16.0), 180, "1", ["1", "B1", "B2"])
 	add_door("SRA-ENTRY", Vector3(0, 1.2, 9), Vector3(1.8, 2.4, 0.15)).slide_axis = Vector3.UP
 	add_door("SRA-EXIT", Vector3(0, 1.2, -9), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.8, -8.88), "EMERGENCY EXIT", 64, Color(0.1, 0.8, 0.2))
@@ -260,26 +260,27 @@ func _on_panel(_p: Node, id: String) -> void:
 
 func _on_exit(_b: Node) -> void:
 	elevator.hud = hud
-	elevator.open_doors()
-	elevator.doors_closed.connect(_on_elevator_closed, CONNECT_ONE_SHOT)
-	elevator.arrived.connect(_on_elevator_arrived, CONNECT_ONE_SHOT)
+	elevator.open()
+	elevator.closed.connect(_on_elevator_closed, CONNECT_ONE_SHOT)
 	if Game.rourke_fate == "tied":
 		await hud.say("", "Behind you, a cut length of network cable lies on the floor. Rourke is gone.", 4.0)
 		await hud.line("l1_lockdown_tied")
-	if not elevator.riding:
-		hud.set_objective("Everyone into the elevator, then press the button")
+	if not elevator.is_closing and not elevator.riding:
+		hud.set_objective("Everyone into the elevator, then press B2")
 
 
-## The doors are shut: this is the checkpoint, and the next wing loads during the ride.
+## The doors are shut: this is the checkpoint and the seal. The next wing loads
+## during the ride, and the crew steps out of its arrival car.
 func _on_elevator_closed() -> void:
 	hud.set_objective("")
 	if world:
 		db.checkpoint()
 	prepare_next()
+	var next: Node = world.wings.get("level_2") if world else null
+	if next and next.get("arrival_lift") is Elevator:
+		elevator.link_to(next.arrival_lift)
 	hud.line("l1_sealed")
-
-
-func _on_elevator_arrived() -> void:
+	await elevator.ride()
 	Game.completed_level = "level_1"
 	Game.next_level = "level_2"
 	if not world:
