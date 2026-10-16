@@ -41,7 +41,7 @@ var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY 
 
 
 func build() -> void:
-	db.load_seed(FileAccess.get_file_as_string(SEED_PATH))
+	load_level_seed(FileAccess.get_file_as_string(SEED_PATH))
 	var carpet := Color(0.22, 0.2, 0.24)
 	var wall := Color(0.62, 0.58, 0.5)
 	# Lobby: x -8..8, z -7..7
@@ -53,9 +53,9 @@ func build() -> void:
 	Greybox.label(geo, Vector3(0, 3.0, -6.88), "HALCYON DATA SYSTEMS", 160, Color(0.15, 0.2, 0.35))
 	Greybox.label(geo, Vector3(0, 2.55, -6.88), "Data you can trust.", 64, Color(0.25, 0.25, 0.3))
 	# Front doors: Rourke lets the crew in, then they lock behind them.
-	front_doors = Door.create(self, "FRONT-DOORS", Vector3(0, 1.3, 6.95), Vector3(3.2, 2.6, 0.12), Color(0.25, 0.35, 0.4))
+	front_doors = Door.create(self, "LOBBY-FRONT", Vector3(0, 1.3, 6.95), Vector3(3.2, 2.6, 0.12), Color(0.25, 0.35, 0.4))
 	front_doors.slide_axis = Vector3.RIGHT
-	doors["FRONT-DOORS"] = front_doors
+	doors["LOBBY-FRONT"] = front_doors
 	Greybox.label(geo, Vector3(0, 2.8, 6.85), "EXIT", 72, Color(0.8, 0.15, 0.1), 180)
 
 	# Reception desk with side partitions: the only way behind it is over the desk.
@@ -99,11 +99,11 @@ func build() -> void:
 	# East hall to Server Room A: x 8..24, z 2..4
 	Greybox.room(geo, Vector3(16, 0, 3), Vector3(16, 3, 2), {"floor": Color(0.3, 0.3, 0.3), "wall": wall}, [
 		{"wall": "w", "at": 0.0, "width": 2.0, "height": 3.0},
+		{"wall": "e", "at": 0.0, "width": 1.8, "height": 2.4},  # into Server Room A's antechamber
 	])
 	Greybox.label(geo, Vector3(23.85, 2.4, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
 	shutter = add_door("LOBBY-SHUTTER", Vector3(11, 1.5, 3), Vector3(0.15, 3.0, 2.0))
-	var serverroom_door := add_door("SRA-ENTRY", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8))
-	serverroom_door.set_open(false, true)
+	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8))
 
 	# The vent in the west wall leads to a forgotten storage closet: x -14..-8, z 3.5..4.5 duct
 	Greybox.box(geo, Vector3(-11, 0.05, 4), Vector3(6, 0.1, 1.0), Color(0.5, 0.5, 0.52), "VentFloor")
@@ -123,8 +123,6 @@ func build() -> void:
 
 	# Lights. An ordinary, well-lit office lobby: every tube works, nothing flickers.
 	# The first thing that looks wrong should be Rourke himself, in Server Room A.
-	environment.ambient_light_energy = 0.3
-	environment.fog_density = 0.01
 	var office := Color(1.0, 0.95, 0.86)
 	for p in [Vector3(-4, 4, -4), Vector3(4, 4, -4), Vector3(-4, 4, 1.5), Vector3(4, 4, 1.5), Vector3(-4, 4, 5), Vector3(4, 4, 5)]:
 		add_light("lobby", p, 9.0, 1.4, office)
@@ -139,6 +137,12 @@ func build() -> void:
 	add_child(rourke)
 	rourke.position = Vector3(0, 0, 4.8)
 	spawn = Transform3D(Basis(), Vector3(2.5, 0.55, 15.3))  # passenger seat of the van
+
+
+## Brighter and clearer than the rest of the building: nothing looks wrong yet.
+func apply_environment(env: Environment) -> void:
+	env.ambient_light_energy = 0.3
+	env.fog_density = 0.01
 
 
 ## The car park in front of the building, at night.
@@ -266,7 +270,7 @@ func start() -> void:
 	var approach := Trigger.create(self, Vector3(0, 1, 11.5), Vector3(16, 2, 2))
 	await approach.entered
 
-	front_doors.set_open(true)
+	_set_front_doors_locked(false)
 	rourke.walk_to(Vector3(0, 0, 8.8))
 	await rourke.arrived
 	rourke.face(player.global_position)
@@ -278,7 +282,7 @@ func start() -> void:
 	rourke.walk_to(Vector3(-0.5, 0, 0.6))
 	hud.set_objective("Follow Rourke to the front desk")
 	await inside.entered
-	front_doors.set_open(false)
+	_set_front_doors_locked(true)
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 5.6))
 	if rourke.state == Rourke.State.WALK:
 		await rourke.arrived
@@ -302,6 +306,11 @@ func start() -> void:
 	await hud.say("ROURKE", "The front desk scanner ate one of Vale's memos. The scraps went into a table. Director wants to know what it said. Go ahead, terminal's on the desk.")
 	desk_terminal.enabled = true
 	hud.set_objective("Read Dr. Vale's shredded memo at the front desk terminal")
+
+
+func _set_front_doors_locked(locked: bool) -> void:
+	db.run_silent("UPDATE doors SET locked = %d WHERE id = 'LOBBY-FRONT'" % int(locked))
+	db.sync_world()
 
 
 ## The van radio, until the crew is ready.
@@ -349,6 +358,7 @@ func _on_walkies(_p: Node) -> void:
 	Game.has_walkie = true
 	hud.notice("Picked up walkie-talkies. Channel 1. (Co-op radio arrives in the next build.)", 5.0)
 	hud.set_objective("Follow Rourke to Server Room A")
+	prepare_next()
 	rourke.walk_to(Vector3(10.2, 0, 3))
 	await rourke.arrived
 	rourke.face(player.global_position)
@@ -365,11 +375,17 @@ func _on_walkies(_p: Node) -> void:
 
 
 func _on_reach_server_room(_b: Node) -> void:
+	exit_door.set_open(true)
+	if world:
+		# Server Room A is already built behind this door, and its own Rourke is
+		# waiting inside to take over the story.
+		rourke.queue_free()
+		finish_level("level_1")
+		return
 	rourke.visible = true
 	rourke.process_mode = Node.PROCESS_MODE_INHERIT
 	rourke.face(player.global_position)
-	doors["SRA-ENTRY"].set_open(true)
 	await hud.say("ROURKE", "Server Room A. After you.")
 	player.input_locked = true
 	await hud.fade(true, 1.0)
-	Game.goto("level_1")
+	finish_level("level_1")

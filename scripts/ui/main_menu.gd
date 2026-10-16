@@ -30,7 +30,7 @@ func _ready() -> void:
 	var start := _button("Start (solo)")
 	start.pressed.connect(func():
 		Game.new_run()
-		Game.goto("level_0"))
+		Game.goto("world"))
 	box.add_child(start)
 	var coop := _button("Co-op (coming in the next build)")
 	coop.disabled = true

@@ -37,3 +37,7 @@ INSERT INTO staff_directory VALUES
 	('Dale Rourke', 'Facilities Manager', 2210, 'ON SHIFT'),
 	('Harlan Pike', 'Night Security', 1102, 'NO SHOW'),
 	('Office of the Director', 'Director', 1000, 'OFFSITE');
+
+-- doors is building-wide (FacilityDB.SHARED_SCHEMA); the lobby only adds its own LOBBY- rows.
+INSERT INTO doors VALUES
+	('LOBBY-FRONT', 'Main entrance', 'L', 1, 0);
