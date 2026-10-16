@@ -4,6 +4,9 @@ extends Interactable
 
 signal queried(sql: String, result: Dictionary, ui: TerminalUI)
 signal requested(line: String, response: Dictionary, ui: TerminalUI)
+## Someone sat down at this terminal. Fires on the host (in co-op a client's
+## opening is reported there), so story code can react to it.
+signal opened(by: Node)
 
 var terminal_name := "TERMINAL"
 var db: FacilityDB
@@ -68,10 +71,17 @@ func _on_used(player: Node) -> void:
 	ui.open(self, player)
 
 
-## Opening a terminal is local to each player, so it is never sent to the host.
+## Opening a terminal is local to each player; the host only hears that it happened.
 func interact(player: Node) -> void:
 	if enabled:
 		used.emit(player)
+		if not _forwarded("report_open"):
+			opened.emit(player)
+
+
+## Host: a client sat down at this terminal.
+func report_open(player: Node) -> void:
+	opened.emit(player)
 
 
 ## Add a line to the screen (and to the open terminal window, if it shows this terminal).

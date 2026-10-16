@@ -21,7 +21,8 @@ static func vent(parent: Node, from: Vector3, to: Vector3, inner := Vector2(1.0,
 	var w := inner.x
 	var h := inner.y
 	var size_floor := Vector3(length, t, w + 2 * t) if along_x else Vector3(w + 2 * t, t, length)
-	Greybox.box(parent, mid + Vector3(0, -t / 2, 0), size_floor, DUCT, "VentFloor")
+	# Floor top sits 1 cm proud of `from` so it never z-fights a room floor under it.
+	Greybox.box(parent, mid + Vector3(0, -t / 2 + 0.01, 0), size_floor, DUCT, "VentFloor")
 	Greybox.box(parent, mid + Vector3(0, h + t / 2, 0), size_floor, DUCT, "VentTop")
 	var side := Vector3(0, 0, w / 2 + t / 2) if along_x else Vector3(w / 2 + t / 2, 0, 0)
 	var size_side := Vector3(length, h, t) if along_x else Vector3(t, h, length)

@@ -30,8 +30,8 @@ subtitles for placeholder voices.
 Controls: WASD move, mouse look, Shift sprint, Ctrl (or C) crouch, Shift+Ctrl slide,
 Space jump/mantle, E use, X alternate action, F flashlight, left click strike, Esc pause.
 
-Movement: jump at a high edge while pushing forward to grab it (A/D shimmy, W pull up,
-Ctrl let go). Tap Ctrl in the air to roll on landing, which is quiet. Walk into a pipe or
+Movement: hold W and jump at a high edge to grab it and hang; release W and press it
+again to pull up (A/D shimmy, S or Ctrl let go, Space kick off). Tap Ctrl in the air to roll on landing, which is quiet. Walk into a pipe or
 ladder to climb it. Crouch to crawl through vents (Shift in a vent bangs the duct). Step
 onto a narrow ledge to shuffle along it. Look at a teammate and press E to climb onto
 their shoulders, up to three high; Space jumps off. **Movement gym** on the main menu

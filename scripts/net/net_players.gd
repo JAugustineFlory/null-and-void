@@ -38,7 +38,7 @@ func _ready() -> void:
 			var net := get_node_or_null("/root/Net")
 			var who: String = net.display_name(id) if net else "Player %d" % id
 			# Stand where that player spawns until their first update arrives.
-			var at: Transform3D = level.spawn_point().translated(spawn_offset(i))
+			var at: Transform3D = level.player_spawn(i)
 			var p := PlayerPuppet.create(self, id, who, COLORS[i % COLORS.size()], at)
 			p.players = self
 			_puppets[id] = p
@@ -70,13 +70,13 @@ func my_index() -> int:
 	return index_of(multiplayer.get_unique_id(), multiplayer)
 
 
-## Put everyone at their spot around `at` (puppets until their next update).
-func place_all(at: Transform3D) -> void:
+## Put everyone at their start spot in `in_level` (puppets until their next update).
+func place_all(in_level: Node) -> void:
 	var ids := all_ids()
 	for i in ids.size():
 		var body := puppet(ids[i])
 		if body:
-			body.global_transform = at.translated(spawn_offset(i))
+			body.global_transform = in_level.player_spawn(i)
 
 
 ## The peer id behind a body: the local Player or a puppet.
@@ -145,14 +145,16 @@ func _physics_process(delta: float) -> void:
 	_send_t = 0.0
 	var pitch: float = player.head.rotation.x if player.get("head") else 0.0
 	var light_on: bool = player.flashlight.visible if player.get("flashlight") else false
-	_state.rpc(player.global_position, player.rotation.y, pitch, bool(player.get("crouching")), light_on)
+	# Stance height covers standing, crouching and crawling in vents alike.
+	var height: float = player.get("_height") if player.get("_height") != null else PlayerPuppet.STAND_HEIGHT
+	_state.rpc(player.global_position, player.rotation.y, pitch, height, light_on)
 
 
 @rpc("any_peer", "unreliable_ordered", "call_remote", 1)
-func _state(pos: Vector3, yaw: float, pitch: float, crouch: bool, light_on: bool) -> void:
+func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool) -> void:
 	var p: PlayerPuppet = _puppets.get(multiplayer.get_remote_sender_id())
 	if p:
-		p.apply_state(pos, yaw, pitch, crouch, light_on)
+		p.apply_state(pos, yaw, pitch, height, light_on)
 
 
 func _on_peer_left(id: int) -> void:

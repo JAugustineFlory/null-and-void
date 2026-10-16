@@ -8,6 +8,8 @@ signal alt_used(player: Node)
 var prompt := "Use"
 var alt_prompt := ""
 var enabled := true
+## Co-op: act on this machine only, instead of asking the host (e.g. hopping a counter).
+var local_only := false
 
 
 static func create(parent: Node, center: Vector3, size: Vector3, prompt_text: String, color: Color = Color(0.3, 0.3, 0.3), visible_mesh: bool = true) -> Interactable:
@@ -52,5 +54,7 @@ func interact_alt(player: Node) -> void:
 
 
 func _forwarded(method: String) -> bool:
+	if local_only:
+		return false
 	var sync := LevelSync.of(self)
 	return sync != null and sync.forward(self, method)

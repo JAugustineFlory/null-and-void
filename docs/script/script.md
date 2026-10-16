@@ -57,19 +57,11 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The tour
 
-*Rourke walks the crew to reception, explaining the job and the building's history.*
+*Rourke walks the crew to reception and explains the job.*
 
 **ROURKE:** *(Walking. Matter-of-fact, the way you'd mention the weather.)* Here's the job. Dr. Vale, our lead engineer, went missing three nights ago. `[l0_tour_1]`
 
 **ROURKE:** *(Small beat before "Quietly.")* Her systems are a mess and the director wants them recovered by morning. Quietly. `[l0_tour_2]`
-
-**ROURKE:** *(Tour-guide mode, enjoying himself.)* Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings. `[l0_tour_3]`
-
-**ROURKE:** *(Still chatting to the crew, a little proud of the trivia.)* Board fired him when they installed WARDEN. That's the AI that runs the campus now. `[l0_tour_4]`
-
-**ROURKE:** *(Spooky-campfire voice, playing it up.)* Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. `[l0_tour_5]`
-
-**ROURKE:** *(Dropping it fast. He doesn't want them thinking about it.)* Ghost stories. Anyway. `[l0_tour_6]`
 
 **ROURKE:** *(Pointing at the desk.)* The front desk scanner ate one of Vale's memos. The scraps went into a table. `[l0_desk_1]`
 
@@ -85,9 +77,13 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(A beat too long before he speaks. Covering.)* ...Huh. She always was dramatic. `[l0_memo_1]`
 
-**ROURKE:** *(Back to friendly, changing the subject.)* Grab the walkie-talkies from lost and found behind the desk. Over the counter, it's fine. `[l0_memo_2]`
+**ROURKE:** *(Back to friendly, changing the subject.)* Grab the walkie-talkies from lost and found, back behind the desk. `[l0_memo_2]`
 
-**ROURKE:** *(Offhand.)* Channel one. Keep them on. Reception's lousy once we're past the shutter. `[l0_walkie]`
+**ROURKE:** *(Amused, he's said this to every visitor. A little eye-roll at corporate.)* And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either. `[l0_memo_3]`
+
+**ROURKE:** *(Friendly, already heading for the hall.)* Grab one and I'll take you to the server room. `[l0_memo_4]`
+
+**ROURKE:** *(Offhand.)* Channel one. Keep them on. Reception's lousy once we're past the shutter. This way. `[l0_walkie]`
 
 ### Mercer's cassette (optional)
 
@@ -105,21 +101,27 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### To Server Room A
 
-*Rourke badges the hall shutter; it jams halfway. He leaves to take the staff door and is waiting at Server Room A.*
+*Rourke badges the hall shutter open and walks the crew to Server Room A himself, filling the walk with the story of the founder and his safe room.*
 
-**ROURKE:** *(Annoyed at the shutter, not at them.)* Jammed again. You'll have to duck under it. `[l0_shutter_1]`
+**ROURKE:** *(Tour-guide mode, enjoying himself.)* Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings. `[l0_tour_3]`
 
-**ROURKE:** *(Already walking away.)* I'll take the staff door and meet you at the server room. `[l0_shutter_2]`
+**ROURKE:** *(Still chatting to the crew, a little proud of the trivia.)* Board fired him when they installed WARDEN. That's the AI that runs the campus now. `[l0_tour_4]`
 
-**ROURKE:** *(Holding the door. Polite. Too polite.)* Server Room A. After you. `[l0_sra]`
+**ROURKE:** *(Spooky-campfire voice, playing it up.)* Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. `[l0_tour_5]`
+
+**ROURKE:** *(Dropping it fast. He doesn't want them thinking about it.)* Ghost stories. Anyway. `[l0_tour_6]`
+
+**ROURKE:** *(Badging the door. Pleasant, like the end of a tour.)* Here we are. Server Room A. `[l0_sra]`
 
 ## Level 1
 
 ### The betrayal
 
-*Rourke leads the crew into Server Room A, the door locks behind them, the lights go red, and he turns on them.*
+*Rourke leads the crew into Server Room A and points them at the terminal. A few seconds after someone starts working, the door locks behind them, the lights go red, and he turns on them.*
 
 **ROURKE:** *(Calling back over his shoulder, inside the room.)* Vale's last login came from this room. Come on in. `[l1_enter]`
+
+**ROURKE:** *(Friendly, pointing. Then he goes quiet and drifts behind them.)* Terminal's on the desk. Pull up her last session, I'll be right here. `[l1_terminal]`
 
 **ROURKE:** *(The door has just locked. The friendliness switches off.)* Sorry about this. Nothing personal. `[l1_trap_1]`
 

@@ -5,11 +5,16 @@ extends AnimatableBody3D
 ## Damage dealt to it here is sent to the machine that owns that player.
 
 const SNAP_DISTANCE := 4.0
+const STAND_HEIGHT := 1.8
+## At or below this the player is on hands and knees (Player.CRAWL_HEIGHT).
+const CRAWL_HEIGHT := 0.85
 const FOLLOW_RATE := 14.0
 
 var peer_id := 0
 var display_name := ""
 var crouching := false
+var crawling := false
+var height := STAND_HEIGHT
 var health := 100.0
 var players: Node  # NetPlayers
 
@@ -21,6 +26,8 @@ var _body: Node3D
 var _head: Node3D
 var _light: SpotLight3D
 var _tag: Label3D
+var _capsule: CapsuleShape3D
+var _shape: CollisionShape3D
 
 
 static func create(parent: Node, id: int, player_name: String, color: Color, at: Transform3D) -> PlayerPuppet:
@@ -38,13 +45,13 @@ func _build(color: Color) -> void:
 	add_to_group("player")
 	add_to_group("puppet")
 	sync_to_physics = false
-	var shape := CollisionShape3D.new()
-	var cap := CapsuleShape3D.new()
-	cap.radius = 0.32
-	cap.height = 1.8
-	shape.shape = cap
-	shape.position.y = 0.9
-	add_child(shape)
+	_shape = CollisionShape3D.new()
+	_capsule = CapsuleShape3D.new()
+	_capsule.radius = 0.32
+	_capsule.height = STAND_HEIGHT
+	_shape.shape = _capsule
+	_shape.position.y = STAND_HEIGHT / 2
+	add_child(_shape)
 
 	_body = Node3D.new()
 	_body.name = "Body"
@@ -100,14 +107,13 @@ func _build(color: Color) -> void:
 
 
 ## A state update from the owning machine.
-func apply_state(pos: Vector3, yaw: float, pitch: float, crouch: bool, light_on: bool) -> void:
+func apply_state(pos: Vector3, yaw: float, pitch: float, stance_height: float, light_on: bool) -> void:
 	_target_pos = pos
 	_target_yaw = yaw
 	_target_pitch = pitch
 	_light.visible = light_on
-	if crouch != crouching:
-		crouching = crouch
-		_body.scale.y = 0.5 if crouch else 1.0
+	if not is_equal_approx(stance_height, height):
+		set_stance(stance_height)
 	if not _has_state or global_position.distance_to(pos) > SNAP_DISTANCE:
 		global_position = pos
 		rotation.y = yaw
@@ -121,6 +127,18 @@ func _physics_process(delta: float) -> void:
 	global_position = global_position.lerp(_target_pos, k)
 	rotation.y = lerp_angle(rotation.y, _target_yaw, k)
 	_head.rotation.x = lerp_angle(_head.rotation.x, _target_pitch, k)
+
+
+## Stand, crouch or crawl: squash the body to the owner's height, and the
+## collider too, so a teammate in a vent fits in it.
+func set_stance(stance_height: float) -> void:
+	height = clampf(stance_height, CRAWL_HEIGHT * 0.5, STAND_HEIGHT)
+	crouching = height < STAND_HEIGHT
+	crawling = height <= CRAWL_HEIGHT
+	_body.scale.y = height / STAND_HEIGHT
+	_capsule.height = maxf(height, _capsule.radius * 2.0)
+	_shape.position.y = _capsule.height / 2
+	_tag.position.y = height + 0.3
 
 
 func take_damage(amount: float) -> void:

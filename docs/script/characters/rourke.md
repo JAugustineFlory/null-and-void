@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (35)
+## Your lines (36)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -45,18 +45,6 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l0_tour_2.wav`  
   "Her systems are a mess and the director wants them recovered by morning. Quietly."  
   *Small beat before "Quietly."*
-- [ ] `l0_tour_3.wav`  
-  "Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings."  
-  *Tour-guide mode, enjoying himself.*
-- [ ] `l0_tour_4.wav`  
-  "Board fired him when they installed WARDEN. That's the AI that runs the campus now."  
-  *Still chatting to the crew, a little proud of the trivia.*
-- [ ] `l0_tour_5.wav`  
-  "Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable."  
-  *Spooky-campfire voice, playing it up.*
-- [ ] `l0_tour_6.wav`  
-  "Ghost stories. Anyway."  
-  *Dropping it fast. He doesn't want them thinking about it.*
 - [ ] `l0_desk_1.wav`  
   "The front desk scanner ate one of Vale's memos. The scraps went into a table."  
   *Pointing at the desk.*
@@ -70,29 +58,44 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "...Huh. She always was dramatic."  
   *A beat too long before he speaks. Covering.*
 - [ ] `l0_memo_2.wav`  
-  "Grab the walkie-talkies from lost and found behind the desk. Over the counter, it's fine."  
+  "Grab the walkie-talkies from lost and found, back behind the desk."  
   *Back to friendly, changing the subject.*
+- [ ] `l0_memo_3.wav`  
+  "And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either."  
+  *Amused, he's said this to every visitor. A little eye-roll at corporate.*
+- [ ] `l0_memo_4.wav`  
+  "Grab one and I'll take you to the server room."  
+  *Friendly, already heading for the hall.*
 - [ ] `l0_walkie.wav`  
-  "Channel one. Keep them on. Reception's lousy once we're past the shutter."  
+  "Channel one. Keep them on. Reception's lousy once we're past the shutter. This way."  
   *Offhand.*
 
-### 4. In a corridor where a security shutter has jammed halfway open.
+### 4. Strolling down a quiet office corridor with the crew, making small talk on the way to the server room.
 
-- [ ] `l0_shutter_1.wav`  
-  "Jammed again. You'll have to duck under it."  
-  *Annoyed at the shutter, not at them.*
-- [ ] `l0_shutter_2.wav`  
-  "I'll take the staff door and meet you at the server room."  
-  *Already walking away.*
+- [ ] `l0_tour_3.wav`  
+  "Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings."  
+  *Tour-guide mode, enjoying himself.*
+- [ ] `l0_tour_4.wav`  
+  "Board fired him when they installed WARDEN. That's the AI that runs the campus now."  
+  *Still chatting to the crew, a little proud of the trivia.*
+- [ ] `l0_tour_5.wav`  
+  "Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable."  
+  *Spooky-campfire voice, playing it up.*
+- [ ] `l0_tour_6.wav`  
+  "Ghost stories. Anyway."  
+  *Dropping it fast. He doesn't want them thinking about it.*
 - [ ] `l0_sra.wav`  
-  "Server Room A. After you."  
-  *Holding the door. Polite. Too polite.*
+  "Here we are. Server Room A."  
+  *Badging the door. Pleasant, like the end of a tour.*
 
-### 5. Inside a server room with the crew. The door has just locked behind them.
+### 5. Inside a server room with the crew. Friendly at first; then, while one of them works at the terminal, the door locks.
 
 - [ ] `l1_enter.wav`  
   "Vale's last login came from this room. Come on in."  
   *Calling back over his shoulder, inside the room.*
+- [ ] `l1_terminal.wav`  
+  "Terminal's on the desk. Pull up her last session, I'll be right here."  
+  *Friendly, pointing. Then he goes quiet and drifts behind them.*
 - [ ] `l1_trap_1.wav`  
   "Sorry about this. Nothing personal."  
   *The door has just locked. The friendliness switches off.*

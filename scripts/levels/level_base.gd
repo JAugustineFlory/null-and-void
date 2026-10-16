@@ -62,7 +62,7 @@ func _ready() -> void:
 	player.hud = hud
 	# Place it before it enters the world: a body that appears at the origin for
 	# even one physics step can set off triggers there.
-	player.transform = spawn_point().translated(NetPlayers.spawn_offset(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer)))
+	player.transform = player_spawn(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))
 	add_child(player)
 	players = NetPlayers.create(self, player)
 	player.died.connect(_on_player_died)
@@ -143,6 +143,12 @@ func load_level_seed(sql: String) -> void:
 ## Where players (re)spawn, in world space. `spawn` is relative to the level.
 func spawn_point() -> Transform3D:
 	return global_transform * spawn
+
+
+## Where player number `index` (0 = host) starts, so up to six people don't
+## appear inside each other. Levels with set places (the van) override this.
+func player_spawn(index: int) -> Transform3D:
+	return spawn_point().translated(NetPlayers.spawn_offset(index))
 
 
 ## Ask the World to load the next wing now, behind its closed door.

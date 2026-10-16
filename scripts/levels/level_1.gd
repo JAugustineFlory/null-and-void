@@ -4,6 +4,8 @@ extends LevelBase
 
 ## Least time between Rourke's fight lines.
 const BARK_GAP := 3.5
+## Rourke turns this long after a player sits down at the terminal.
+const ATTACK_DELAY := 4.0
 
 var rourke: Rourke
 var terminal: Terminal
@@ -13,6 +15,7 @@ var panels_locked_until := 0.0
 var has_badge := false
 var _red := Color(1.0, 0.18, 0.12)
 var _last_bark := -100.0
+var _trapped := false
 var controller_puzzle := Puzzle.new("controller",
 	"SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false, [
 	"Type this, then press Enter:\n" +
@@ -74,7 +77,12 @@ func build() -> void:
 	Greybox.box(geo, Vector3(-4.5, 0.45, 8.4), Vector3(2.2, 0.9, 0.8), Color(0.4, 0.38, 0.35), "TermDesk")
 	terminal = Terminal.spawn(geo, Vector3(-4.5, 0.9, 8.4), 180, "SERVER ROOM A", db, terminal_ui)
 	terminal.puzzles = [controller_puzzle]
-	terminal.boot_lines = ["HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SERVER ROOM A", "Session: ROURKE_D", "Waiting for escort..."]
+	terminal.boot_lines = [
+		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SERVER ROOM A",
+		"Session: ROURKE_D (escort)",
+		"",
+		"Loading session history for VALE_I...",
+	]
 	terminal.queried.connect(_on_query)
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
@@ -97,27 +105,52 @@ func net_setup() -> void:
 
 func start() -> void:
 	if world:
-		# Rourke "took the staff door": he is waiting in the antechamber as the hall door opens.
-		rourke.position = Vector3(0, 0, 10.5)
+		# The lobby's Rourke walked the crew here: this one takes his place, where he stands.
+		var lobby: LevelBase = world.wings.get("level_0")
+		var guide = lobby.get("rourke") if lobby else null
+		if is_instance_valid(guide):
+			rourke.global_transform = guide.global_transform
+			guide.queue_free()
+		else:
+			rourke.position = Vector3(0, 0, 10.5)
 		# Seal the hall only once the whole team is through.
 		var through := Trigger.create(self, Vector3(0, 1, 5.0), Vector3(14, 2, 18))
 		through.require_all = true
 		through.entered.connect(func(_b): sync.event("_on_all_through"))
-	rourke.face(player.global_position)
 	hud.set_objective("Follow Rourke inside")
-	rourke.walk_to(to_global(Vector3(0.0, 0, 1.0)))
-	hud.line("l1_enter")
-	# The trap waits until everyone is inside, so nobody is locked out of the fight.
-	var t := Trigger.create(self, Vector3(0, 1, 2.0), Vector3(14, 2, 12))
-	t.require_all = true
-	t.entered.connect(func(_b): sync.event("_on_trapped", [null]))
+	if sync.is_host():
+		terminal.opened.connect(_on_terminal_opened, CONNECT_ONE_SHOT)
+	rourke.walk_to(to_global(Vector3(-2.4, 0, 6.4)))  # beside the terminal desk
+	await hud.line("l1_enter")
+	await sync.gate("rourke_at_desk", func():
+		if rourke.state == Rourke.State.WALK:
+			await rourke.arrived)
+	rourke.face(player.global_position)
+	await hud.line("l1_terminal")
+	if not _trapped:
+		hud.set_objective("Start work at the Server Room A terminal")
 
 
 func _on_all_through() -> void:
 	world.seal_behind(self)
 
 
+## Host: nothing is wrong until someone sits down to work. Then Rourke turns,
+## once the whole team is inside, so nobody is locked out of the fight.
+func _on_terminal_opened(p: Node) -> void:
+	rourke.walk_to(p.global_position)  # drifting up behind them
+	await get_tree().create_timer(ATTACK_DELAY).timeout
+	var inside := Trigger.create(self, Vector3(0, 1, 2.0), Vector3(14, 2, 12))
+	inside.require_all = true
+	inside.entered.connect(func(_b): sync.event("_on_trapped", [null]), CONNECT_ONE_SHOT)
+
+
 func _on_trapped(_b: Node) -> void:
+	if _trapped:
+		return
+	_trapped = true
+	if terminal_ui.terminal == terminal:
+		terminal_ui.close()
 	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'SRA-ENTRY'")
 	db.sync_world()
 	hud.notice("> DOOR SRA-ENTRY: LOCKED", 3.0, ThemeUtil.RED)
@@ -206,7 +239,7 @@ func _self_test_lines() -> Array:
 
 ## Runs on the host; the result plays out on every machine.
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
-	if controller_puzzle.solved or not controller_puzzle.matches(db, result):
+	if not has_badge or controller_puzzle.solved or not controller_puzzle.matches(db, result):
 		return
 	sync.event("_on_controller_found")
 

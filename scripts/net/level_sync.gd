@@ -13,7 +13,7 @@ signal began
 signal gate_opened(key: String)
 
 ## Methods a client may ask the host to call on a world node on its behalf.
-const FORWARDABLE := ["interact", "interact_alt", "take_hit"]
+const FORWARDABLE := ["interact", "interact_alt", "take_hit", "report_open"]
 const READY_TIMEOUT := 20.0
 
 var level: Node

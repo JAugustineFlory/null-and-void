@@ -362,10 +362,35 @@ func test_level_0_scene() -> void:
 					flickering += 1
 	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
 	check(not level.front_doors.is_open, "front doors start closed")
+	check(level.van_seats.size() == 6, "the van seats six")
+	check(level.seat_spawn(1).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the passenger seat")
+	var exits: Array = level.van_seats.map(func(s): return s.exit)
+	check(exits.count("side") == 4 and exits.has("w") and exits.has("e"), "two front doors and a side door for the rear bench")
+	level.players_needed = 2
+	var mate := Player.new()
+	level.add_child(mate)
+	mate.global_transform = level.seat_spawn(4)
 	level.ready_up(level.player, 1)
-	await create_timer(2.5).timeout
+	check(not level._intro_started, "one of two ready players doesn't start the intro")
+	level.ready_up(mate, 1)
+	check(not level.ready_players.has(mate), "a seat can only be readied once")
+	level.van_seats[4].buckle.interact(mate)
+	check(level._intro_started and level.ready_players[mate] == 4, "the second player's buckle starts the intro")
+	await create_timer(0.55).timeout
+	check(level.player.rotation.y < -1.0 and level.player.head.rotation.x < -0.2, "climbing out, the camera looks down at the door handle (yaw %.2f, pitch %.2f)" % [level.player.rotation.y, level.player.head.rotation.x])
+	var look := InputEventMouseMotion.new()
+	look.relative = Vector2(-5000, 0)
+	var held_yaw: float = level.player.rotation.y
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	level._unhandled_input(look)
+	var turned: float = level.player.rotation.y - held_yaw
+	check(Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or absf(turned - level.LOOK_YAW) < 0.01, "the mouse can look around a little while climbing out, no further (%.2f)" % turned)
+	await create_timer(2.95).timeout
 	var pos: Vector3 = level.player.global_position
 	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	var mpos: Vector3 = mate.global_position
+	check(mpos.x > 3.5 and mpos.y < 0.3 and not mate.input_locked, "a rear-bench player climbs out of the side door (%.1f, %.1f, %.1f)" % [mpos.x, mpos.y, mpos.z])
+	mate.queue_free()
 	level.player.global_position = Vector3(0, 0.1, 11.5)
 	await create_timer(3.5).timeout
 	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")
@@ -376,6 +401,52 @@ func test_level_0_scene() -> void:
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
+	# Over the counter, staff style, and back again.
+	level.rourke.walk_to(Vector3(-0.5, 0, 0.6))
+	level.counter_hop.enabled = true
+	level.player.global_position = Vector3(-3.6, 0.1, 0.4)
+	await physics_frame
+	level.counter_hop.interact(level.player)
+	check(level.player.input_locked, "hopping the counter takes over the camera")
+	await create_timer(1.8).timeout
+	pos = level.player.global_position
+	check(pos.z < -1.6 and pos.y < 0.3 and not level.player.input_locked, "sitting on the counter swings you over to the back (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	level.counter_hop.interact(level.player)
+	await create_timer(1.8).timeout
+	check(level.player.global_position.z > -0.4 and not level.player.input_locked, "and back to the lobby side")
+	# Rourke walks the crew down the hall himself; nothing blocks the way.
+	level._on_walkies()
+	for i in 600:
+		if level.shutter.is_open:
+			break
+		await physics_frame
+	check(level.shutter.is_open, "Rourke opens the hall shutter all the way (Rourke at %s)" % level.rourke.global_position)
+	level.player.global_position = Vector3(8.2, 0.1, 3)
+	for i in 60:
+		await physics_frame
+	check(level.rourke.state == Rourke.State.WALK and level.rourke._walk_target.x > 20.0, "Rourke leads the way down the hall to Server Room A")
+	# The cable tray: a harmless first crouch on the walk.
+	var tray_z: float = level.TRAY_X
+	level.player.global_position = Vector3(tray_z - 1.5, 0.1, 3)
+	level.player.rotation.y = -PI / 2  # facing down the hall
+	level.player.local_control = false  # drive it from the test, not the keyboard
+	for i in 90:
+		level.player.controls.move = Vector2(0, -1)
+		await physics_frame
+	check(level.player.global_position.x < tray_z - 0.3, "standing players can't walk through the cable tray (x %.2f)" % level.player.global_position.x)
+	for i in 120:
+		level.player.controls.move = Vector2(0, -1)
+		level.player.controls.crouch = true
+		await physics_frame
+	check(level.player.global_position.x > tray_z + 0.4, "crouching gets under it (x %.2f)" % level.player.global_position.x)
+	level.player.controls.crouch = false
+	level.player.controls.move = Vector2.ZERO
+	level.player.local_control = true
+	for i in 400:
+		if level.rourke.global_position.x > tray_z + 1.0:
+			break
+		await physics_frame
+	check(level.rourke.global_position.x > tray_z + 1.0, "Rourke ducks under it on his way")
 	level.queue_free()
 	await process_frame
 
@@ -389,8 +460,17 @@ func test_level_1_scene() -> void:
 		await physics_frame
 	check(level.doors["SRA-EXIT"].is_open == false, "exit starts locked")
 	check(not level.terminal.locked, "the trap doesn't spring while the player is still in the antechamber")
-	level._on_trapped(null)
-	check(level.terminal.locked, "Rourke locks the terminal")
+	level.terminal_ui.terminal = level.terminal
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault'")
+	check(not level.controller_puzzle.solved, "the puzzle waits for the self-test")
+	level.player.global_position = level.to_global(Vector3(-4.5, 0.1, 7.4))  # at the terminal desk
+	level.terminal.interact(level.player)
+	check(level.terminal_ui.visible and not level.terminal.locked, "the terminal opens normally: nothing is wrong yet")
+	await create_timer(level.ATTACK_DELAY - 1.0).timeout
+	check(not level._trapped, "Rourke waits a few seconds")
+	await create_timer(1.5).timeout
+	check(level._trapped and level.terminal.locked, "Rourke turns a few seconds after a player starts working, and locks the terminal")
+	check(not level.terminal_ui.visible and not level.player.input_locked, "the terminal screen closes so the player can fight")
 	level.terminal_ui.terminal = level.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers")
 	check(not level.controller_puzzle.solved, "locked terminal refuses queries")
@@ -551,13 +631,19 @@ func test_coop_level_1() -> void:
 	var client = levels[1]
 	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
 
-	host.player.global_position = Vector3(0, 0.1, 3)
-	client.player.global_position = Vector3(0, 0.1, 12.5)
+	host.player.global_position = Vector3(0, 0.1, 12.5)
+	client.player.global_position = Vector3(-4.5, 0.1, 7.4)  # at the terminal desk
 	await _frames(30)
-	check(not host.terminal.locked, "the trap waits while someone is still outside (client seen at %s)" % host.players.puppet(client_id).global_position)
-	client.player.global_position = Vector3(1, 0.1, 3)
+	client.terminal.interact(client.player)
+	await _frames(5)
+	check(client.terminal_ui.visible and not host.terminal_ui.visible, "a client sits down at the terminal on their own screen")
+	await create_timer(host.ATTACK_DELAY + 0.5).timeout
+	check(not host._trapped and not host.terminal.locked, "Rourke holds off while someone is still outside")
+	check(host.rourke.global_position.distance_to(Vector3(-4.5, 0, 7.4)) < 2.5, "the host hears the client sat down: Rourke drifts up behind them")
+	host.player.global_position = Vector3(1, 0.1, 3)
 	await _frames(30)
 	check(host.terminal.locked and client.terminal.locked, "the trap springs once everyone is inside")
+	check(not client.terminal_ui.visible, "the client's terminal screen closes for the fight")
 	check(host.rourke.max_hits == Rourke.MAX_HITS + 2, "Rourke is tougher with two players (%d hits)" % host.rourke.max_hits)
 
 	host.rourke.global_position = Vector3(-3, 0, 5)
@@ -596,6 +682,15 @@ func test_coop_level_1() -> void:
 	check(host.doors["SRA-EXIT"].is_open and client.doors["SRA-EXIT"].is_open, "a door opened by a client's query opens for everyone")
 	var dump := "SELECT * FROM doors ORDER BY id"
 	check(_table(host, dump) == _table(client, dump), "the doors table matches on both machines")
+	client.player.set_physics_process(false)  # hold the stance still for the check
+	client.player._set_stance(Player.CRAWL_HEIGHT)
+	await _frames(10)
+	var mate: PlayerPuppet = host.players.puppet(client_id)
+	check(mate.crawling and mate.height < 1.0, "a teammate crawling shows crawling for the others, not standing")
+	client.player._set_stance(Player.STAND_HEIGHT)
+	await _frames(10)
+	check(not mate.crouching and is_equal_approx(mate.height, Player.STAND_HEIGHT), "and stands back up with them")
+	client.player.set_physics_process(true)
 	await _coop_close(worlds)
 
 
@@ -627,10 +722,10 @@ func test_coop_world() -> void:
 	var lobby_c = client.current
 	check(lobby_c.players == client.players and lobby_c.sync != client.sync, "a wing shares the World's players but has its own events")
 
-	lobby_c.van_seats[0].door.interact(client.player)
+	lobby_c.van_seats[0].buckle.interact(client.player)
 	await _frames(10)
 	check(lobby_h.ready_players.size() == 1 and not lobby_h._intro_started, "a client's van door, pressed inside a wing, reaches the host")
-	lobby_h.van_seats[1].door.interact(host.player)
+	lobby_h.van_seats[1].buckle.interact(host.player)
 	await _frames(10)
 	check(lobby_h._intro_started and lobby_c._intro_started, "once both are ready, everyone climbs out together")
 
@@ -642,6 +737,10 @@ func test_coop_world() -> void:
 	var dump := "SELECT * FROM doors ORDER BY id"
 	check(_table(sra_h, dump) == _table(sra_c, dump), "both machines built the same building from the run seed")
 	lobby_h.sync.event("_on_reach_server_room", [null])
+	for f in 900:  # Rourke's line at the door plays first
+		await physics_frame
+		if host.current == sra_h and client.current == sra_c:
+			break
 	await _frames(10)
 	check(host.current == sra_h and client.current == sra_c and sra_c.active, "play moves into Server Room A on every machine")
 
@@ -939,8 +1038,10 @@ func test_world() -> void:
 	var tables: Array = world.db.table_names()
 	check(tables.has("memo_fragments") and tables.has("door_controllers"), "both wings share one database")
 	lobby.exit_door.set_open(true)
+	var guide_at: Vector3 = lobby.rourke.global_position
 	world.wing_finished(lobby)
 	check(world.current == sra and sra.active, "finishing the lobby hands play to Server Room A")
+	check(sra.rourke.global_position.distance_to(guide_at) < 0.1 and lobby.rourke.is_queued_for_deletion(), "Server Room A's Rourke takes over where the lobby's stood")
 	world.seal_behind(sra)
 	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
 	sra._on_trapped(null)
