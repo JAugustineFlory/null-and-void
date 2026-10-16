@@ -23,6 +23,10 @@ const STRIDE := 1.5
 const WALK_SPEED := 1.9
 ## Beyond this distance from the camera the rig updates less often.
 const FAR_DISTANCE := 30.0
+## Body heights, matching Player's collider.
+const STAND_HEIGHT := 1.8
+const CROUCH_HEIGHT := 1.25
+const CRAWL_HEIGHT := 0.85
 
 ## The action playing now (see ACTIONS).
 var action := "idle"
@@ -30,6 +34,10 @@ var action := "idle"
 var crouching := false
 ## On hands and knees (Player.crawling: vents and low gaps). Wins over crouching.
 var crawling := false
+## How tall the body is right now, in meters, like the player's collider: 1.8
+## standing, 1.25 a bent-knee crouch, 0.85 a crawl. In between, the pose blends
+## (lower crouch, then down onto all fours). Leave at -1 to use the two flags.
+var stance_height := -1.0
 ## Up/down look, in radians (a teammate's camera pitch). Positive looks up.
 var head_pitch := 0.0
 ## A point to turn the head toward, or null.
@@ -137,13 +145,49 @@ func current_speed() -> float:
 
 func _target_pose() -> Dictionary:
 	var p := {}
-	if crawling and not is_full_body():
-		_crawl(p)
-	elif not is_full_body():
-		_locomotion(p)
+	if not is_full_body():
+		var low := crawl_amount()
+		if low >= 1.0:
+			_crawl(p)
+		else:
+			_locomotion(p)
+			if low > 0.0:
+				var on_all_fours := {}
+				_crawl(on_all_fours)
+				_blend_into(p, on_all_fours, low)
 	_action_pose(p)
 	_head(p)
 	return p
+
+
+## The body height the rig is posing for (see stance_height).
+func current_stance() -> float:
+	if stance_height > 0.0:
+		return clampf(stance_height, CRAWL_HEIGHT, STAND_HEIGHT)
+	if crawling:
+		return CRAWL_HEIGHT
+	return CROUCH_HEIGHT if crouching else STAND_HEIGHT
+
+
+## 0 standing .. 1 at the full bent-knee crouch.
+func crouch_amount() -> float:
+	return clampf((STAND_HEIGHT - current_stance()) / (STAND_HEIGHT - CROUCH_HEIGHT), 0.0, 1.0)
+
+
+## 0 at the bent-knee crouch .. 1 on hands and knees.
+func crawl_amount() -> float:
+	return clampf((CROUCH_HEIGHT - current_stance()) / (CROUCH_HEIGHT - CRAWL_HEIGHT), 0.0, 1.0)
+
+
+static func _blend_into(p: Dictionary, other: Dictionary, k: float) -> void:
+	for key in other:
+		var kk := k
+		if key == "_root_rot":
+			kk = pow(k, 0.7)  # tip forward early, so the head drops as the gap does
+		p[key] = (p.get(key, Vector3.ZERO) as Vector3).lerp(other[key], kk)
+	for key in p:
+		if not other.has(key):
+			p[key] = (p[key] as Vector3).lerp(Vector3.ZERO, k)
 
 
 static func _sym(p: Dictionary, joint: String, right: Vector3) -> void:
@@ -157,7 +201,7 @@ func _locomotion(p: Dictionary) -> void:
 	var amp := walk * (0.85 + 0.35 * run)
 	var s := sin(_phase)
 	var c := cos(_phase)
-	var crouch := 1.0 if crouching else 0.0
+	var crouch := crouch_amount()
 	# Legs.
 	p["r_hip"] = Vector3(s * 0.5 * amp * (1.0 - 0.5 * crouch) + crouch * 1.4, 0, 0.03)
 	p["l_hip"] = Vector3(-s * 0.5 * amp * (1.0 - 0.5 * crouch) + crouch * 1.4, 0, -0.03)
