@@ -4,6 +4,9 @@ extends StaticBody3D
 ## A breakable pane shatters when someone strikes it. Wired security glass doesn't.
 
 signal broken(by: Node)
+## Host: someone struck breakable glass. A level listening to this decides when it
+## breaks (in co-op, on every machine at once); with nobody listening it just breaks.
+signal struck(by: Node)
 
 var breakable := true
 ## What a strike on unbreakable glass tells the player.
@@ -11,9 +14,9 @@ var refusal := "Wired security glass. It doesn't even crack."
 var hud: HUD
 
 
-static func create(parent: Node, center: Vector3, size: Vector3, can_break: bool) -> Level2Glass:
+static func create(parent: Node, center: Vector3, size: Vector3, can_break: bool, node_name: String = "Glass") -> Level2Glass:
 	var g := Level2Glass.new()
-	g.name = "Glass"
+	g.name = node_name
 	g.breakable = can_break
 	g.position = center
 	var mesh := MeshInstance3D.new()
@@ -45,13 +48,19 @@ func interact(_player: Node) -> void:
 		hud.notice("Strike it (click) to break it." if breakable else refusal, 3.0)
 
 
-## Called by the player's strike.
+## Called by the player's strike. In co-op a client's strike goes to the host.
 func take_hit(by: Node) -> void:
 	if not breakable:
 		if hud:
 			hud.notice(refusal, 3.0)
 		return
-	shatter(by)
+	var sync := LevelSync.of(self)
+	if sync and sync.forward(self, "take_hit"):
+		return
+	if struck.get_connections().is_empty():
+		shatter(by)
+	else:
+		struck.emit(by)
 
 
 func shatter(by: Node = null) -> void:

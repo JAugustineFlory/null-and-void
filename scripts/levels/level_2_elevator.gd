@@ -147,7 +147,7 @@ func contains(p: Vector3) -> bool:
 ## How many living players are in the car.
 func headcount() -> int:
 	var n := 0
-	for p in get_tree().get_nodes_in_group("player"):
+	for p in _players():
 		if (p.get("health") == null or p.health > 0.0) and contains(p.global_position):
 			n += 1
 	return n
@@ -158,7 +158,7 @@ func press(by: Node = null) -> bool:
 	refusal = ""
 	if is_closing or open_amount <= 0.0:
 		return false
-	for p in get_tree().get_nodes_in_group("player"):
+	for p in _players():
 		if p.get("health") != null and p.health <= 0.0:
 			continue
 		if not contains(p.global_position):
@@ -167,6 +167,10 @@ func press(by: Node = null) -> bool:
 	button_pressed.emit(by)
 	close()
 	return true
+
+
+func _players() -> Array:
+	return get_tree().get_nodes_in_group("player").filter(func(p): return p.get_viewport() == get_viewport())
 
 
 func close() -> void:

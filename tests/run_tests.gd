@@ -38,6 +38,7 @@ func _run() -> void:
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_world()
+	await test_coop_level_2()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -759,6 +760,89 @@ func test_coop_world() -> void:
 	await _coop_close(worlds)
 
 
+func test_coop_level_2() -> void:
+	print("Co-op: Level 2 with a host and a client")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/level_2.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(machines.all(func(l): return l.sync._begun and l.players.count() == 2), "both machines start Level 2 with two players")
+	host.player.input_locked = true  # the host looks at nothing; the client does the work
+	client.terminal_ui.terminal = client.booth
+	client.terminal_ui.run("GET /cameras")
+	await _frames(10)
+	check(machines.all(func(l): return l.cameras_puzzle.solved and l.booth.transcript.any(func(t): return t.contains("JSON"))), "a client's GET /cameras solves it, and the JSON lines print on every machine")
+	client.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	await _frames(10)
+	check(machines.all(func(l): return l.pike_puzzle.solved and l.loose and l.frozen_cams.has("CAM-2")), "the Pike practice freezes CAM-2 for everyone")
+	client.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
+	await _frames(20)
+	check(machines.all(func(l): return l.har_puzzle.solved), "LIKE + AND finds the PIN for everyone")
+	check(client.watcher.global_position.distance_to(host.watcher.global_position) < 0.2, "clients see the Watcher where the host has it")
+	client._pad_mode = "office"
+	client._on_pin(host.data.pin)
+	await _frames(10)
+	check(machines.all(func(l): return l.office_open and l.doors["SEC-OFFICE"].is_open) and host.watcher.active, "a client's PIN opens the office door on every machine, and it's free")
+	host.watcher.holders.append(func(_w): return true)  # hold it still for the rest of the test
+	await _frames(2)
+	host.watcher.place(host.to_global(Vector3(0, 0, 4)), host.to_global(Vector3(3, 0, 4)))
+	await _frames(20)
+	check(client.watcher.global_position.distance_to(host.watcher.global_position) < 0.2, "when it moves, clients see it move")
+
+	# Someone on another machine looking at it holds it too.
+	client.player.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), client.to_global(Vector3(3, 0.1, 4)))
+	client.player.head.rotation = Vector3.ZERO
+	await _frames(20)
+	var puppet = host.players.puppet(client_id)
+	host.watcher.holders.clear()
+	host.watcher.active = false
+	check(puppet != null and host.watcher.player_sees(puppet), "the host knows a client is looking at it")
+	host.watcher.place(host.to_global(Vector3(5.5, 0, 4)), host.to_global(Vector3(3, 0, 4)))
+	await physics_frame
+	check(not host.watcher.player_sees(puppet), "and that it's behind them when it is")
+	host.watcher.holders.append(func(_w): return true)
+	host.watcher.place(host.to_global(Vector3(-4, 0, -6)), host.to_global(Vector3(0, 0, 0)))
+
+	client.key_glass.take_hit(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return not is_instance_valid(l.key_glass)), "a client's strike breaks the glass on every machine")
+	client.geo.get_node("Screwdriver").interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.has_screwdriver and l.geo.get_node_or_null("Screwdriver") == null), "the screwdriver is picked up for everyone")
+	client.vent_grate.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return not is_instance_valid(l.vent_grate)), "the grate comes off on every machine")
+
+	client._pad_mode = "exit"
+	client._on_pin(host.data.pin)
+	await _frames(10)
+	check(machines.all(func(l): return l.pin_entered and not l.door_open), "the stairwell PIN goes through for everyone, and the door still jams")
+	client.breakers[host.data.breaker].interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.door_open and l.doors["SEC-EXIT"].is_open), "a client's breaker reset opens SEC-EXIT for everyone")
+	await _frames(100)
+	for l in machines:
+		l.completed.disconnect(l._on_completed)
+	client.player.global_transform = Transform3D(Basis(), client.to_global(Vector3(0, 0.1, -18.2)))
+	await _frames(20)
+	client.exit_lift.button.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return not l.exit_lift.is_closing), "the doors won't close while someone is still outside")
+	client._pad_mode = "seal"
+	client._on_pin(host.data.pin)
+	await _frames(10)
+	check(machines.all(func(l): return not l.doors["SEC-EXIT"].is_open), "a client can lock SEC-EXIT behind the team")
+	host.player.input_locked = false
+	host.player.global_transform = Transform3D(Basis(), host.to_global(Vector3(0.6, 0.1, -18.4)))
+	await _frames(20)
+	client.exit_lift.button.interact(client.player)
+	await _frames(180)
+	check(machines.all(func(l): return l.exit_lift.open_amount == 0.0), "with everyone inside, the doors shut on every machine")
+	await _coop_close(worlds)
+
+
 func test_facility_api() -> void:
 	print("FacilityAPI")
 	var api := FacilityAPI.new()
@@ -938,7 +1022,7 @@ func test_level_2_scene() -> void:
 	_game().cam_lie_learned = false
 	level.on_player_died()
 	await create_timer(2.8).timeout
-	check(level._lie_explained and _game().cam_lie_learned and level.booth.boot_lines[-1].contains("last_frame"), "dying to it explains the frozen camera, as lines you can note")
+	check(level._lie_explained and _game().cam_lie_learned and level.booth.transcript[-1].contains("last_frame") and level.panel.boot_lines[-1].contains("last_frame"), "dying to it explains the frozen camera, as lines you can note on both terminals")
 	for i in 3:
 		await physics_frame
 	level.enter_pin()
