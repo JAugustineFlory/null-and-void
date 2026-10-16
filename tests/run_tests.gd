@@ -18,9 +18,14 @@ func _run() -> void:
 	test_first_hints_show_working_queries()
 	test_voice_script()
 	await test_voice_playback()
+	test_facility_api()
+	test_level_2_data_every_seed()
+	test_level_2_hints()
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
+	await test_level_2_scene()
+	await test_level_2_routes()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
@@ -282,6 +287,228 @@ func test_level_1_scene() -> void:
 	level.panels_locked_until = 0.0
 	level._on_panel(null, level.answer)
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")
+	level.queue_free()
+	await process_frame
+
+
+func test_facility_api() -> void:
+	print("FacilityAPI")
+	var api := FacilityAPI.new()
+	api.route("GET", "/cameras", func(_p): return {"status": 200, "body": {"cameras": [{"id": "CAM-1", "motion": true}]}})
+	api.route("GET", "/cameras/:id", func(p): return {"status": 200, "body": {"id": p[0]}})
+	check(FacilityAPI.is_request("GET /cameras") and FacilityAPI.is_request("get /cameras;") and not FacilityAPI.is_request("SELECT * FROM cameras"), "HTTP lines are told apart from SQL")
+	var r := api.request("GET /cameras")
+	check(r.status == 200 and JSON.parse_string(r.text)["cameras"][0]["motion"] == true, "GET returns JSON")
+	check(api.request("get /Cameras/;").status == 200, "method and path are case- and slash-tolerant")
+	check(api.request("GET /cameras/CAM-3").body["id"] == "CAM-3", "path parameters are passed through")
+	check(api.request("DELETE /cameras").status == 405, "a known path with the wrong verb is 405")
+	check(api.request("GET /coffee").status == 404, "an unknown path is 404")
+
+
+func test_level_2_data_every_seed() -> void:
+	print("Level 2 data, 50 seeds")
+	var correct := "SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'"
+	var puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false)
+	var pike := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE 'Pike%'", ["name"], false)
+	var one_answer := true
+	var wrongs_fail := true
+	var explained := true
+	var pins_unique := true
+	var practice_ok := true
+	var pins := {}
+	var names := {}
+	for s in 50:
+		var data := Level2Data.build(s)
+		var db := FacilityDB.new()
+		db.load_seed(data.sql)
+		var rows := db.run_silent(correct)
+		if rows.size() != 1 or rows[0]["pin"] != data.pin or rows[0]["name"] != data.name or not puzzle.matches(db, db.execute(correct.to_lower())):
+			one_answer = false
+		for wrong in [
+			"SELECT * FROM guards WHERE name LIKE 'Har%'",
+			"SELECT * FROM guards WHERE name LIKE '%Har%' AND shift = 'night'",
+			"SELECT * FROM guards WHERE shift = 'night'",
+			"SELECT * FROM guards WHERE name LIKE 'Har'",
+			"SELECT * FROM guards LIMIT 5",
+		]:
+			if puzzle.matches(db, db.execute(wrong)):
+				wrongs_fail = false
+		if db.run_silent("SELECT COUNT(*) AS n FROM guards WHERE name LIKE '%Har%' AND shift = 'night'")[0]["n"] < 3:
+			wrongs_fail = false
+		# Every guard a player might try instead has a note that rules them out.
+		var suspects := db.run_silent("SELECT note FROM guards WHERE (name LIKE '%Har%' OR shift = 'night') AND pin != '" + data.pin + "'")
+		for row in suspects:
+			if str(row["note"]) == "" or str(row["note"]).contains("normal"):
+				explained = false
+		if int(db.run_silent("SELECT COUNT(DISTINCT pin) AS n FROM guards")[0]["n"]) != int(db.run_silent("SELECT COUNT(*) AS n FROM guards")[0]["n"]):
+			pins_unique = false
+		if int(db.run_silent("SELECT COUNT(*) AS n FROM guards")[0]["n"]) <= TerminalUI.MAX_ROWS_SHOWN:
+			pins_unique = false
+		if not pike.matches(db, db.execute("SELECT * FROM guards WHERE name LIKE 'pike%'")) or db.run_silent("SELECT * FROM guards WHERE name LIKE 'Pike%'").size() != 1:
+			practice_ok = false
+		pins[data.pin] = true
+		names[data.name] = true
+	check(one_answer, "exactly one night-shift Har- guard, and LIKE + AND finds them")
+	check(wrongs_fail, "LIKE alone, '%Har%', shift alone and LIMIT never solve it")
+	check(explained, "every other Har- or night-shift guard has a note saying why not")
+	check(pins_unique, "PINs are unique and the roster is too long to read in one screen")
+	check(practice_ok, "the Pike practice query finds exactly one row")
+	var building := FacilityDB.new()
+	building.load_seed(Level1Data.build(1).sql)
+	var stacked: bool = building.db.query(Level2Data.build(1).sql)
+	var door_ids := []
+	for row in building.run_silent("SELECT id FROM doors ORDER BY id"):
+		door_ids.append(row["id"])
+	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.size() == 6, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
+	check(pins.size() >= 40 and names.size() >= 4, "PIN and guard vary between runs (%d PINs, %d names)" % [pins.size(), names.size()])
+
+
+func test_level_2_hints() -> void:
+	print("Level 2 first hints")
+	var l2 = load("res://scripts/levels/level_2.gd").new()
+	var ok := true
+	for s in 20:
+		var d := FacilityDB.new()
+		d.load_seed(Level2Data.build(s).sql)
+		for p in [l2.pike_puzzle, l2.har_puzzle]:
+			if not p.matches(d, d.execute(_hint_query(p.hints[0]))):
+				ok = false
+	check(ok, "pike and har: first hint's query solves it on every seed")
+	check(_hint_query(l2.cameras_puzzle.hints[0]) == "GET /cameras", "cameras: first hint is GET /cameras")
+	check(_hint_query(l2.door_puzzle.hints[0]) == "GET /doors/SEC-EXIT", "door: first hint is GET /doors/SEC-EXIT")
+	l2.free()
+
+
+func test_level_2_scene() -> void:
+	print("Level 2 scene")
+	_game().new_run(11)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var w: Watcher = level.watcher
+	var p: Player = level.player
+	check(level.doors["SEC-EXIT"].is_open == false, "stairwell exit starts locked")
+	check(w.is_on_floor() and w.active, "the Watcher stands in the office")
+	# Player at the booth, facing the terminal: the office is behind them.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
+	level.terminal_ui.terminal = level.booth
+	level.terminal_ui.run("GET /cameras")
+	check(level.cameras_puzzle.solved, "GET /cameras solves the first puzzle")
+	var start: Vector3 = w.global_position
+	for i in 60:
+		await physics_frame
+	check(w.global_position.distance_to(start) < 0.05, "a working camera holds it while nobody looks")
+	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
+	p.head.rotation = Vector3.ZERO
+	await physics_frame
+	check(w.player_sees(p), "players can see it through the office window")
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	check(level.pike_puzzle.solved and level.loose and level.frozen_cams.has("CAM-2"), "the Pike practice frees it: CAM-2 freezes")
+	var before: float = w.global_position.distance_to(p.global_position)
+	for i in 120:
+		await physics_frame
+	var after: float = w.global_position.distance_to(p.global_position)
+	check(after < before - 1.5, "unseen, it comes for you (%.1f m -> %.1f m)" % [before, after])
+	var frame: String = level.db.run_silent("SELECT last_frame FROM cameras WHERE id = 'CAM-2'")[0]["last_frame"]
+	level._clock += 5.0
+	level.update_cameras()
+	var cams: Dictionary = JSON.parse_string(level.booth.api.request("GET /cameras").text)
+	var cam2: Dictionary = cams["cameras"][1]
+	check(cam2["status"] == "live" and cam2["last_frame"] == frame and cams["server_time"] != frame, "the lie: CAM-2 says live but its frame is stuck")
+	# It slips out into the corridor. Turn around and look at it: it stops.
+	w.place(Vector3(2.5, 0, 4.0), p.global_position)
+	p.look_at(w.global_position + Vector3.UP * 1.2, Vector3.UP)
+	p.rotation.x = 0
+	await physics_frame
+	await physics_frame
+	var held: Vector3 = w.global_position
+	for i in 30:
+		await physics_frame
+	check(w.seen and w.global_position.distance_to(held) < 0.05, "looking at it freezes it")
+	level.terminal_ui.run("GET /cameras")
+	check(level._lie_explained, "fetching cameras after it left explains the frozen frame")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
+	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
+	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
+	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
+	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
+	level.enter_pin()
+	for i in 5:
+		await physics_frame
+	check(not level.doors["SEC-EXIT"].is_open and int(level.db.run_silent("SELECT locked FROM doors WHERE id = 'SEC-EXIT'")[0]["locked"]) == 0, "the second lie: the PIN unlocks the row but the door stays shut")
+	level.terminal_ui.terminal = level.panel
+	level.terminal_ui.run("GET /doors/SEC-EXIT")
+	var door: Dictionary = JSON.parse_string(level.booth.api.request("GET /doors/SEC-EXIT").text)
+	check(level.door_checked and door["locked"] == false and door["sensor"] == "closed" and door["actuator"] == "fault", "the door's sensor shows the actuator fault")
+	check(str(door["note"]).contains("B-%d" % level.data.breaker), "the note names the tripped breaker")
+	var wrong_b: int = level.data.breaker % 4 + 1
+	level._on_breaker(null, wrong_b)
+	check(level.frozen_cams.has("CAM-3") and not level.doors["SEC-EXIT"].is_open, "the wrong breaker blacks out the vestibule camera instead")
+	level._on_breaker(null, level.data.breaker)
+	for i in 5:
+		await physics_frame
+	check(level.doors["SEC-EXIT"].is_open and level.door_open, "resetting the right breaker opens the door")
+	check(level.db.run_silent("SELECT sensor FROM door_status WHERE door_id = 'SEC-EXIT'")[0]["sensor"] == "open", "the sensor now agrees")
+	level.seal_exit()
+	for i in 5:
+		await physics_frame
+	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
+	# Caught: put it right behind the player, out of sight.
+	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
+	w.place(Vector3(0, 0, 5.2), p.global_position)
+	for i in 20:
+		await physics_frame
+	check(p.health <= 0.0, "it gets you if you look away")
+	level.queue_free()
+	await process_frame
+
+
+func test_level_2_routes() -> void:
+	print("Level 2 routes")
+	_game().new_run(3)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	for i in 20:
+		await physics_frame
+	level.watcher.active = false
+	var p: Player = level.player
+	p.local_control = false
+	# Vent: climb the crate, then into the duct.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(-4.4, 0.1, 4.0))
+	for i in 5:
+		await physics_frame
+	check(p._try_ledge(false), "you can climb onto the crate")
+	for i in 40:
+		await physics_frame
+	check(p._try_ledge(false), "from the crate you can climb into the vent")
+	for i in 40:
+		await physics_frame
+	check(p.global_position.y > 1.9 and p.crouching and p.in_volume(MovementVolume.Kind.VENT) != null, "inside the vent, crouched (y %.2f)" % p.global_position.y)
+	# Ledge: out the smashed window and along the east wall, back to the wall.
+	p.global_transform = Transform3D(Basis(), Vector3(6.44, 0.05, 4.0))
+	for i in 5:
+		await physics_frame
+	p.controls.move = Vector2(0, -1)
+	var shuffled := false
+	var lowest := 10.0
+	for i in 900:
+		await physics_frame
+		shuffled = shuffled or p.state == Player.Move.LEDGE
+		lowest = min(lowest, p.global_position.y)
+		if p.global_position.z < -7.5:
+			break
+	p.controls.move = Vector2.ZERO
+	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
+	# Navigation: the Watcher can walk from the office to the vestibule and the corridor.
+	var map: RID = level.watcher.get_world_3d().navigation_map
+	var to_vest := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(0, 0, -10.5), true)
+	var to_booth := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(-3, 0, 4.5), true)
+	check(to_vest.size() > 0 and to_vest[-1].distance_to(Vector3(0, 0, -10.5)) < 0.8, "the Watcher can reach the vestibule")
+	check(to_booth.size() > 0 and to_booth[-1].distance_to(Vector3(-3, 0, 4.5)) < 0.8, "the Watcher can reach the booth")
+	var to_ledge := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(6.35, 0, -2), true)
+	check(to_ledge.is_empty() or to_ledge[-1].distance_to(Vector3(6.35, 0, -2)) > 0.8, "the Watcher can't follow onto the ledge")
 	level.queue_free()
 	await process_frame
 

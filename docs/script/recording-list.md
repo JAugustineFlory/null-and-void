@@ -14,8 +14,6 @@ Generated from `scripts/audio/voice_lines.gd`. The full script with scene contex
 
 WARDEN's subtitles are in capitals because that is how WARDEN prints. Say them at normal volume.
 
-Lines marked **later** are written for Level 2, which isn't built yet. Record them whenever, or wait until the level is in.
-
 ## Dale Rourke (33 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
@@ -52,9 +50,9 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | [ ] | `l1_downed` | Wait... wait. You don't know what you're doing. | On the floor, out of breath. Genuinely scared for the first time. | Level 1 |
 | [ ] | `l1_tied_1` | You think a bit of cable holds me? | Tied up on the floor, grinning through it. | Level 1 |
 | [ ] | `l1_tied_2` | WARDEN will eat you alive in here. | Quieter. He means it. | Level 1 |
-| [ ] | `l2_rourke_1` | Still on channel one? Good. Thought you'd want to know I'm out. | Through the walkie. Relaxed, enjoying himself again. | Level 2, later |
-| [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. |  | Level 2, later |
-| [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2, later |
+| [ ] | `l2_rourke_1` | Still on channel one? Good. Thought you'd want to know I'm out. | Through the walkie. Relaxed, enjoying himself again. | Level 2 |
+| [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. |  | Level 2 |
+| [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
 ## WARDEN (20 lines)
 
@@ -76,12 +74,12 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | [ ] | `l1_exit_open` | CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. |  | Level 1 |
 | [ ] | `l1_lockdown_tied` | LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D. | Reading a log entry. | Level 1 |
 | [ ] | `l1_sealed` | ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT. | The sign-off for the slice. Warm, like wishing them well. | Level 1 |
-| [ ] | `l2_dead_escort` | REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. | Only if Rourke was killed. Plays on arrival, in place of Rourke's radio call. | Level 2, later |
-| [ ] | `l2_arrive` | SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. | Reassuring tone. It is not reassuring. | Level 2, later |
-| [ ] | `l2_cameras` | LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. | Small pause before "Often." | Level 2, later |
-| [ ] | `l2_smudged` | GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. | Not unfortunate for WARDEN. | Level 2, later |
-| [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2, later |
-| [ ] | `l2_door_fault` | CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. | When the players check the sensor. Deadpan. | Level 2, later |
+| [ ] | `l2_dead_escort` | REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. | Only if Rourke was killed. Plays on arrival, in place of Rourke's radio call. | Level 2 |
+| [ ] | `l2_arrive` | SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. | Reassuring tone. It is not reassuring. | Level 2 |
+| [ ] | `l2_cameras` | LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. | Small pause before "Often." | Level 2 |
+| [ ] | `l2_smudged` | GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. | Not unfortunate for WARDEN. | Level 2 |
+| [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
+| [ ] | `l2_door_fault` | CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. | When the players check the sensor. Deadpan. | Level 2 |
 
 ## Dr. Iris Vale (3 lines)
 
@@ -89,9 +87,9 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2, later |
-| [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2, later |
-| [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2, later |
+| [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2 |
+| [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
+| [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
 ## Harold Mercer (5 lines)
 

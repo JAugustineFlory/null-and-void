@@ -3,9 +3,12 @@ extends Interactable
 ## A CRT terminal in the world. It shares the level's database.
 
 signal queried(sql: String, result: Dictionary, ui: TerminalUI)
+signal requested(line: String, response: Dictionary, ui: TerminalUI)
 
 var terminal_name := "TERMINAL"
 var db: FacilityDB
+## Optional HTTP API this terminal can reach (`GET /cameras`). Null means SQL only.
+var api: FacilityAPI
 var ui: TerminalUI
 ## Lines shown when the terminal boots. Levels can replace these.
 var boot_lines: Array = []
@@ -90,6 +93,10 @@ func set_screen_color(c: Color) -> void:
 
 func on_query(sql: String, result: Dictionary, terminal_ui: TerminalUI) -> void:
 	queried.emit(sql, result, terminal_ui)
+
+
+func on_request(line: String, response: Dictionary, terminal_ui: TerminalUI) -> void:
+	requested.emit(line, response, terminal_ui)
 
 
 func next_hint() -> String:
