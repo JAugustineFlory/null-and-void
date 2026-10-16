@@ -8,7 +8,7 @@ extends Node3D
 ##   Space            cycle every character's action
 
 const MOODS := ["office", "night_exterior", "after_hours", "lockdown", "dark"]
-const SHOWCASE_ACTIONS := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "windup", "stagger", "down", "tied", "sit", "crouch"]
+const SHOWCASE_ACTIONS := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "windup", "stagger", "down", "tied", "sit", "crouch", "crawl"]
 
 var env: Environment
 var vhs: VHSOverlay

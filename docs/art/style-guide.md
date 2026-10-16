@@ -51,14 +51,14 @@ All colors live in `ArtPalette` (`scripts/art/art_palette.gd`). Use the constant
 Procedural, no imported clips, so it is tiny and needs no animation sync:
 
 - **Walking and running are automatic.** The rig measures its own speed from its position each frame (teleports ignored) and drives the walk cycle. Anything that already syncs position animates correctly on every machine.
-- **Actions** via `rig.play(name)`. Upper-body actions keep the legs walking: idle, talk, wave, point, radio, flashlight, type, hands_up, windup, strike. Full-body actions take over: stagger, down, dead, tied, sit, crouch.
+- **Actions** via `rig.play(name)`. Upper-body actions keep the legs walking: idle, talk, wave, point, radio, flashlight, type, hands_up, windup, strike. Full-body actions take over: stagger, down, dead, tied, sit, crouch, crawl. `rig.crouching` (1.25 m bent-knee stance) and `rig.crawling` (vents and low gaps; wins over crouching) follow the player's stance while they move.
 - `rig.head_pitch` follows a teammate's camera pitch; `rig.look_target` turns the head toward a point (Rourke watching the crew on the tour).
 - Poses blend smoothly; the body falls and gets up at a slower, weightier rate.
 
 ### Hooking it up (for the owning threads)
 
 - **Rourke** (`scripts/npc/rourke.gd`): replace the `_part` calls in `_ready` with `_rig = CharacterRig.build(_body, CharacterLooks.rourke())`, then call `_rig.play(...)` on state changes: `windup` during the tell, `stagger`, `down`, `tied`, `dead`, `talk` while he speaks, otherwise `idle`. Drop the manual `_body.rotation.x` tilts, since the rig lies down itself. Because the rig reads `state`-driven actions and position, co-op needs no new synced properties.
-- **Player puppets** (`scripts/net/player_puppet.gd`): build `CharacterRig.build(_body, CharacterLooks.crew(slot))`, set `rig.head_pitch` from the synced pitch, `rig.crouching` from `crouching`, and `play("radio")` while that player transmits.
+- **Player puppets** (`scripts/net/player_puppet.gd`): build `CharacterRig.build(_body, CharacterLooks.crew(slot))`, set `rig.head_pitch` from the synced pitch, `rig.crouching` from `crouching`, `rig.crawling` from `crawling`, and `play("radio")` while that player transmits.
 - **First person** (`scripts/player/`): `HeldItems.attach(camera, CharacterLooks.crew(slot))` shows your flashlight (with shadows) and raises the walkie while push-to-talk is held.
 
 ## Props

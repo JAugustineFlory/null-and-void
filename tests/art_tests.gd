@@ -113,6 +113,22 @@ func test_rig_actions() -> void:
 		rig.animate(1.0 / 60.0)
 		swing = maxf(swing, absf(rig.joints["l_hip"].rotation.x))
 	check(swing > 0.3, "upper-body actions keep the legs walking")
+	rig.play("idle")
+	rig.speed_override = 0.0
+	rig.crouching = true
+	for i in 90:
+		rig.animate(1.0 / 60.0)
+	var crouch_top: float = rig.joints["head"].global_position.y + 0.25 * rig.scale.y
+	check(absf(crouch_top - 1.25) < 0.12, "crouching stands 1.25 m tall, like the player (%.2f m)" % crouch_top)
+	var feet: float = rig.joints["r_knee"].to_global(Vector3(0, -0.44, 0)).y
+	check(absf(feet) < 0.1, "and keeps the feet on the floor (%.2f m)" % feet)
+	rig.crouching = false
+	rig.crawling = true
+	for i in 90:
+		rig.animate(1.0 / 60.0)
+	var head_y: float = rig.joints["head"].global_position.y
+	check(head_y < 0.9 and rig.joints["r_elbow"].to_global(Vector3(0, -0.3, 0)).y < 0.15, "crawling puts him on hands and knees, low enough for a vent (head %.2f m)" % head_y)
+	rig.crawling = false
 	rig.play("not_a_thing")
 	check(rig.action == "idle", "unknown actions fall back to idle")
 	rig.play("idle")
