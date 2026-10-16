@@ -22,7 +22,7 @@ First playable slice: **Levels 0 and 1**, solo, greybox art, subtitles for place
 
 ## Play it
 
-1. Install [Godot 4.4](https://godotengine.org/download) (the standard version, not .NET). It's free.
+1. Install [Godot 4.7](https://godotengine.org/download) or newer (the standard version, not .NET). It's free.
 2. Open Godot, choose **Import**, and select `project.godot` in this folder.
 3. Press **F5** (or the Play button).
 

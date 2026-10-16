@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Godot 4.4.1
+      - name: Install Godot 4.7.1
         run: |
-          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
           unzip -q godot.zip
-          sudo mv Godot_v4.4.1-stable_linux.x86_64 /usr/local/bin/godot
+          sudo mv Godot_v4.7.1-stable_linux.x86_64 /usr/local/bin/godot
       - name: Import project
         run: godot --headless --import
       - name: Run tests
