@@ -33,6 +33,8 @@ var run_seed := 0
 var notebook_notes: Array[String] = []
 ## Tables this player has discovered: name -> column names.
 var notebook_tables := {}
+## Lines this player wrote down from a terminal: {label, text, kind}.
+var notebook_written: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -51,6 +53,7 @@ func new_run(seed_value: int = -1) -> void:
 	concepts_learned.clear()
 	notebook_notes.clear()
 	notebook_tables.clear()
+	notebook_written.clear()
 
 
 func goto(level_key: String) -> void:
@@ -84,14 +87,21 @@ func discover_table(table: String, columns: Array) -> void:
 	notebook_changed.emit()
 
 
+## Write a terminal line into the notebook, under the player's own label.
+func write_note(label: String, text: String, kind: String) -> void:
+	notebook_written.append({"label": label, "text": text, "kind": kind})
+	notebook_changed.emit()
+
+
 ## The notebook as plain data, for saving.
 func notebook_data() -> Dictionary:
-	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true)}
+	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true)}
 
 
 func load_notebook(data: Dictionary) -> void:
 	notebook_notes.assign(data.get("notes", []))
 	notebook_tables = data.get("tables", {}).duplicate(true)
+	notebook_written.assign(data.get("written", []))
 	notebook_changed.emit()
 
 

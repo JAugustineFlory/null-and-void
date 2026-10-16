@@ -787,6 +787,29 @@ func test_notebook() -> void:
 	check(_game().notebook_tables.get("memo_fragments", []) == ["piece_no", "text", "scanned_at"], "a query writes its table and columns on the Tables page")
 	level.terminal_ui.run(".tables")
 	check(_game().notebook_tables.has("visitors") and _game().notebook_tables.has("doors"), ".tables writes down every table")
+	# Write note: any line on the terminal can go in the notebook, with a label.
+	var ui: TerminalUI = level.terminal_ui
+	ui.run("SELEC * FROM memo_fragments")
+	ui.run(".hint")
+	ui.run(".schema memo_fragments")
+	var kinds := {}
+	for line in ui.noteable_lines():
+		kinds[line.kind] = kinds.get(line.kind, 0) + 1
+	check(kinds.has("result") and kinds.has("error") and kinds.has("hint") and kinds.has("schema") and kinds.has("info"), "results, errors, hints, schemas and boot text can all be noted (%s)" % [kinds])
+	var lines: Array = ui.noteable_lines()
+	var taught := lines.filter(func(l): return l.text.contains("SELECT * FROM memo_fragments") and l.kind == "info")
+	check(not taught.is_empty(), "the boot screen's SELECT example can be noted")
+	var result_i := -1
+	for i in lines.size():
+		if lines[i].kind == "result" and lines[i].text.contains("piece_no"):
+			result_i = i
+	check(ui.write_note(result_i, "memo scraps") and _game().notebook_written[-1].label == "memo scraps" and _game().notebook_written[-1].kind == "result", "write note copies a query result under the player's own label")
+	ui._on_meta("note:%d" % taught[0].get("index", lines.find(taught[0])))
+	check(ui._note_label.visible, "clicking +note asks for a label")
+	ui._finish_note("")
+	check(_game().notebook_written.size() == 2 and not ui._note_label.visible, "Enter writes it down, label optional")
+	ui.run(".note schema")
+	check(_game().notebook_written[-1].kind == "schema" and _game().notebook_written[-1].label == "schema", ".note writes the last line down")
 	level.terminal_ui.close()
 	var stickies: Array = level.find_children("*", "StickyNote", true, false)
 	var on_screen: StickyNote
@@ -814,11 +837,12 @@ func test_notebook() -> void:
 	for c in nb.view._pages[NotebookView.Page.NOTES].find_children("*", "Label", true, false):
 		notes_text += c.text + "\n"
 	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
+	check(notes_text.contains("memo scraps") and notes_text.contains("piece_no"), "written notes show on the Notes page with their labels")
 	nb.close()
 	var saved: Dictionary = _game().notebook_data()
 	_game().new_run(4)
 	check(_game().notebook_notes.is_empty(), "a new run starts with an empty notebook")
 	_game().load_notebook(saved)
-	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments"), "a saved notebook loads back")
+	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
 	level.queue_free()
 	await process_frame

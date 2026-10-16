@@ -101,6 +101,7 @@ func refresh() -> void:
 		return
 	var game := get_node("/root/Game")
 	_fill_notes(_pages[Page.NOTES], game.notebook_notes)
+	_fill_written(_pages[Page.NOTES], game.notebook_written)
 	_fill_tables(_pages[Page.TABLES], game.notebook_tables)
 	_fill_field_notes(_pages[Page.FIELD_NOTES], game)
 
@@ -109,7 +110,6 @@ func _fill_notes(box: VBoxContainer, ids: Array) -> void:
 	_clear(box)
 	if ids.is_empty():
 		box.add_child(_text("No sticky notes yet. Look on desks and terminals: the staff leave themselves reminders.", 18, PENCIL))
-		return
 	for id in ids:
 		var n := StickyNotes.get_note(id)
 		var card := PanelContainer.new()
@@ -125,6 +125,18 @@ func _fill_notes(box: VBoxContainer, ids: Array) -> void:
 		inner.add_child(_mono("Example:  " + n.example.replace("\n", "\n          ")))
 		inner.add_child(_text(n.tip, 16, PENCIL))
 		box.add_child(card)
+
+
+## Lines the player wrote down from terminals, under their own labels.
+func _fill_written(box: VBoxContainer, written: Array) -> void:
+	box.add_child(_text("Your notes", 24, INK))
+	if written.is_empty():
+		box.add_child(_text("At a terminal, click +note next to any line to write it down here.", 18, PENCIL))
+		return
+	for w in written:
+		var label: String = w.label if w.label != "" else {"result": "Query result", "hint": "Hint", "error": "Error", "schema": "Table shape"}.get(w.kind, "From the terminal")
+		box.add_child(_text(label, 20, INK))
+		box.add_child(_mono("  " + w.text.replace("\n", "\n  ")))
 
 
 func _fill_tables(box: VBoxContainer, tables: Dictionary) -> void:
