@@ -182,6 +182,12 @@ func test_voice_script() -> void:
 	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
 		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
 	check(in_sync, "docs/script/ matches voice_lines.gd (run tools/write_script_docs.gd)")
+	var listed := true
+	var recording_list := ScriptDocs.recording_list_markdown()
+	for id in VoiceLines.LINES:
+		if not recording_list.contains("`%s`" % id):
+			listed = false
+	check(listed, "every line is on the recording list")
 
 
 func test_voice_playback() -> void:

@@ -22,7 +22,7 @@ CREATE TABLE visitors (
 	checked_in TEXT
 );
 INSERT INTO visitors VALUES
-	(311, 'Contract IT crew', 'Brightline Systems', 'ROURKE, D.', '1997-10-15 23:02'),
+	(311, 'Contract IT crew', 'Byte-Right IT Services', 'ROURKE, D.', '1997-10-15 23:02'),
 	(310, 'P. Okafor', 'Delmont Courier', 'NONE', '1997-10-15 16:40'),
 	(309, 'Board delegation', 'Halcyon Board', 'DIRECTOR', '1997-10-13 09:00');
 
