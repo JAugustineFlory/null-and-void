@@ -49,6 +49,8 @@ var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"
 	"  FROM memo_fragments which table to read them from",
 	"Type exactly SELECT * FROM memo_fragments; and press Enter. Spelling matters, capitals don't.",
 ])
+## Not a solution: the memo sorted biggest first (copying the ORDER BY sticky's DESC).
+var memo_backwards := Puzzle.new("memo_backwards", "SELECT text FROM memo_fragments ORDER BY piece_no DESC", ["text"], true)
 var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY piece_no", ["text"], true, [
 	"Type this, then press Enter:\n" +
 	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY piece_no;[/color]\n" +
@@ -563,6 +565,12 @@ func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 		sync.event("_on_peek_solved")
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):
 		sync.event("_on_memo_solved")
+	elif not memo_puzzle.solved and memo_backwards.matches(db, result):
+		sync.event("_on_memo_backwards")
+
+
+func _on_memo_backwards() -> void:
+	desk_terminal.print_line("[color=#e0b050]WARDEN: That's the memo backwards. Leave out DESC: smallest first.[/color]")
 
 
 func _on_peek_solved() -> void:
