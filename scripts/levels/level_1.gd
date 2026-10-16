@@ -89,6 +89,7 @@ func build() -> void:
 	rourke.position = Vector3(0, 0, 7.6)
 	rourke_spawn = Transform3D(Basis(), Vector3(0, 0, -2))
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 12.6))
+	DressLevel1.apply(self)  # furniture and materials (Graphics thread)
 
 
 func start() -> void:

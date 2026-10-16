@@ -140,6 +140,7 @@ func build() -> void:
 	add_child(rourke)
 	rourke.position = Vector3(0, 0, 4.8)
 	spawn = Transform3D(Basis(), Vector3(2.5, 0.55, 15.3))  # passenger seat of the van
+	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
 
 
 ## Brighter and clearer than the rest of the building: nothing looks wrong yet.

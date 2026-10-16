@@ -75,4 +75,13 @@ Procedural, no imported clips, so it is tiny and needs no animation sync:
 
 ## Furnishing a level
 
-Augustine's rule: a level gets dressed only after the Game design plan thread marks it complete or ready to furnish. Dressing means swapping Greybox colors for `ArtPalette.surface()` materials, adding props, fitting troffers and a mood, and wiring characters to rigs, without moving collision the puzzles or routes depend on. Each furnished level gets before and after screenshots in its PR.
+Augustine's rule: a level gets dressed only after the Game design plan thread marks it complete or ready to furnish. Dressing means swapping Greybox colors for `ArtPalette.surface()` materials, adding props, fitting troffers and a mood, and wiring characters to rigs, without moving collision the puzzles or routes depend on. Each furnished level gets before and after screenshots in its PR (`tools/dress_shots.gd`).
+
+How it's wired, so level threads and art never edit the same lines:
+- Each level's dressing lives in `scripts/art/dress_level_N.gd` (`DressLevelN.apply(self)`), called by **one line** at the end of that level's `build()`, before navigation bakes. Positions are in the wing's own space.
+- `ArtDress.reskin` swaps materials on existing Greybox pieces by name and zone; it never changes their collision.
+- Solid props are tagged `art_prop`; tests check they stay clear of every route, stop, terminal and panel the level needs. Add new keep-clear points to `tests/art_tests.gd` when a level changes.
+- `ArtDress.link_light_panels` makes each ceiling panel follow its light: red in a lockdown, dark when the `lights` table switches it off.
+- `NpcLook.attach(rourke, CharacterLooks.rourke(), hud)` gives Rourke his model from the outside: it hides his greybox body and picks animations from his `state` (wind-up, stagger, down, tied, dead) and from his subtitles (talking).
+
+Furnished so far: Level 0 (lobby, reception, hall, closet, car park; the van waits for its six-seat rework) and Level 1 (Server Room A).
