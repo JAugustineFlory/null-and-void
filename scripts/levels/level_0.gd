@@ -495,8 +495,8 @@ func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
 	if not peek_puzzle.solved and peek_puzzle.matches(db, result):
 		peek_puzzle.solved = true
 		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. One of the columns numbers them.[/color]")
-		ui.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the name of the column that numbers the scraps.[/color]")
+		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a number in the piece_no column.[/color]")
+		ui.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the column to sort by: piece_no[/color]")
 		hud.set_objective("Put the memo back in order")
 		hud.line("l0_sort_hint", false)
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):

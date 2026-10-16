@@ -349,8 +349,6 @@ func test_level_0_scene() -> void:
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments")
 	check(level.peek_puzzle.solved, "terminal run solves the peek")
-	var nudge: Array = level.terminal_ui.noteable_lines().filter(func(l): return l.text.contains("ORDER BY"))
-	check(not nudge.is_empty() and nudge.all(func(l): return not l.text.contains("piece_no")), "WARDEN's nudge points at the numbering column without naming it")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
