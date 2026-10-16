@@ -81,9 +81,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **MERCER:** *(The one moment of anger, still controlled.)* Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out. `[l0_tape_3]`
 
-**MERCER:** *(Quiet, almost proud.)* So I built a room it can't get into. No wires in, no wires out. `[l0_tape_4]`
+**MERCER:** *(Quiet, almost proud, then wry on the last sentence.)* So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter. `[l0_tape_4]`
 
-**MERCER:** *(Slow. Then the click of the stop button.)* If it ever comes to that, find the room. The building's records remember where, even if people don't. `[l0_tape_5]`
+**MERCER:** *(Slow. Then the click of the stop button.)* If it ever comes to that, look for my plans. The building's records remember more than people do. `[l0_tape_5]`
 
 ### To Server Room A
 
@@ -193,9 +193,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Vale's voicemail
 
-*The answering machine on the night desk blinks: one message, left the night Vale vanished. Optional, near the desk.* *(Written ahead: not in the game yet.)*
+*The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk.* *(Written ahead: not in the game yet.)*
 
-**VALE:** *(Beep before this. Hushed, fast.)* Hi, this is for the night desk. It's Iris Vale. I know it's two in the morning, I'm sorry. `[l2_vale_1]`
+**VALE:** *(Beep before this. Hushed, fast.)* Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. `[l2_vale_1]`
 
 **VALE:** *(Urgent. A glance over her shoulder in the voice.)* If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. `[l2_vale_2]`
 

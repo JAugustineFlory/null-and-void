@@ -89,7 +89,7 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2, later |
+| [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2, later |
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2, later |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2, later |
 
@@ -102,5 +102,5 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | [ ] | `l0_tape_1` | Harold Mercer. March of '94. My last day, apparently. | Click of the record button before this. Dry. | Level 0 |
 | [ ] | `l0_tape_2` | If you're hearing this, you crawled through a vent to get in here. Good. You don't trust doors. | Approving, a little smile. | Level 0 |
 | [ ] | `l0_tape_3` | Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out. | The one moment of anger, still controlled. | Level 0 |
-| [ ] | `l0_tape_4` | So I built a room it can't get into. No wires in, no wires out. | Quiet, almost proud. | Level 0 |
-| [ ] | `l0_tape_5` | If it ever comes to that, find the room. The building's records remember where, even if people don't. | Slow. Then the click of the stop button. | Level 0 |
+| [ ] | `l0_tape_4` | So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter. | Quiet, almost proud, then wry on the last sentence. | Level 0 |
+| [ ] | `l0_tape_5` | If it ever comes to that, look for my plans. The building's records remember more than people do. | Slow. Then the click of the stop button. | Level 0 |

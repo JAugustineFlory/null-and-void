@@ -56,7 +56,7 @@ const SCENES := [
 	{"id": "l2_security", "level": 2, "title": "The security office", "wired": false,
 		"context": "WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie)."},
 	{"id": "l2_voicemail", "level": 2, "title": "Vale's voicemail", "wired": false,
-		"context": "The answering machine on the night desk blinks: one message, left the night Vale vanished. Optional, near the desk."},
+		"context": "The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk."},
 ]
 
 ## speaker, text (also the subtitle), and a short note for the actor.
@@ -104,9 +104,9 @@ const LINES := {
 		"note": "Approving, a little smile."},
 	"l0_tape_3": {"scene": "l0_tape", "speaker": "MERCER", "text": "Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out.",
 		"note": "The one moment of anger, still controlled."},
-	"l0_tape_4": {"scene": "l0_tape", "speaker": "MERCER", "text": "So I built a room it can't get into. No wires in, no wires out.",
-		"note": "Quiet, almost proud."},
-	"l0_tape_5": {"scene": "l0_tape", "speaker": "MERCER", "text": "If it ever comes to that, find the room. The building's records remember where, even if people don't.",
+	"l0_tape_4": {"scene": "l0_tape", "speaker": "MERCER", "text": "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter.",
+		"note": "Quiet, almost proud, then wry on the last sentence."},
+	"l0_tape_5": {"scene": "l0_tape", "speaker": "MERCER", "text": "If it ever comes to that, look for my plans. The building's records remember more than people do.",
 		"note": "Slow. Then the click of the stop button."},
 	"l0_shutter_1": {"scene": "l0_hall", "speaker": "ROURKE", "text": "Jammed again. You'll have to duck under it.",
 		"note": "Annoyed at the shutter, not at them."},
@@ -175,7 +175,7 @@ const LINES := {
 		"note": "Confident. It is wrong."},
 	"l2_door_fault": {"scene": "l2_security", "speaker": "WARDEN", "text": "CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE.",
 		"note": "When the players check the sensor. Deadpan."},
-	"l2_vale_1": {"scene": "l2_voicemail", "speaker": "VALE", "text": "Hi, this is for the night desk. It's Iris Vale. I know it's two in the morning, I'm sorry.",
+	"l2_vale_1": {"scene": "l2_voicemail", "speaker": "VALE", "text": "Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry.",
 		"note": "Beep before this. Hushed, fast."},
 	"l2_vale_2": {"scene": "l2_voicemail", "speaker": "VALE", "text": "If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it.",
 		"note": "Urgent. A glance over her shoulder in the voice."},
