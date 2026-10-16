@@ -60,8 +60,9 @@ static func recording_list_markdown() -> String:
 	md.append("")
 	md.append("WARDEN's subtitles are in capitals because that is how WARDEN prints. Say them at normal volume.")
 	md.append("")
-	md.append("Lines marked **later** are written for Level 2, which isn't built yet. Record them whenever, or wait until the level is in.")
-	md.append("")
+	if VoiceLines.SCENES.any(func(sc): return not sc["wired"]):
+		md.append("Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.")
+		md.append("")
 	var total := 0
 	for sp in SPEAKER_ORDER:
 		var c: Dictionary = VoiceLines.CHARACTERS[sp]
