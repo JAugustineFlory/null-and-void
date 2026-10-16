@@ -243,6 +243,8 @@ func _build_office() -> void:
 	Greybox.panel(geo, Vector3(2.62, 0.91, -1.0), Vector3(0.03, 0.02, 0.03), Color(1, 0.2, 0.1), 4.0)
 	machine.used.connect(func(_p):
 		machine.enabled = false
+		# Left before her last badge swipe: it must not hint that she's alive.
+		hud.notice("MESSAGE 1 OF 1 · SUN 10/12 · 1:52 AM", 5.0)
 		hud.lines(["l2_vale_1", "l2_vale_2", "l2_vale_3"]))
 	# Camera housings with a red light when they're running.
 	_camera_box(Vector3(5.7, 3.0, 1.7))

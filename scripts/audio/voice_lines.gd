@@ -51,11 +51,11 @@ const SCENES := [
 		"context": "The crew reads WARDEN's self-test, queries door_controllers, and resets the right rack. The terminal shows the details; these lines are WARDEN reacting."},
 	{"id": "l1_exit", "level": 1, "title": "Lockdown", "wired": true,
 		"context": "The crew steps through the emergency exit. If Rourke was tied up, he has cut himself loose and authorized the lockdown himself."},
-	{"id": "l2_radio", "level": 2, "title": "Rourke on the radio (if he escaped)", "wired": false,
+	{"id": "l2_radio", "level": 2, "title": "Rourke on the radio (if he escaped)", "wired": true,
 		"context": "Level 2 opening, only if Rourke was tied up in Level 1. He still has his facilities radio on channel 1 and calls the crew's walkie-talkies."},
-	{"id": "l2_security", "level": 2, "title": "The security office", "wired": false,
+	{"id": "l2_security", "level": 2, "title": "The security office", "wired": true,
 		"context": "WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie)."},
-	{"id": "l2_voicemail", "level": 2, "title": "Vale's voicemail", "wired": false,
+	{"id": "l2_voicemail", "level": 2, "title": "Vale's voicemail", "wired": true,
 		"context": "The answering machine on the night desk blinks: one message, stamped SUN 10/12 1:52 AM. That is before her last badge swipe and before the memo was scanned, so it must not hint that she is alive (the reveal is at the end of Level 10). Optional, near the desk."},
 ]
 
