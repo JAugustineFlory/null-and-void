@@ -30,6 +30,7 @@ func _run() -> void:
 	test_reset_keeps_earlier_wings()
 	await test_world()
 	test_sticky_notes_never_give_answers()
+	await test_elevator()
 	await test_notebook()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
@@ -446,6 +447,13 @@ func test_level_1_scene() -> void:
 	level.panels_locked_until = 0.0
 	level._on_panel(null, level.answer)
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")
+	check(level.elevator.open_amount == 0.0, "the elevator waits with its doors shut")
+	level._on_exit(null)
+	await level.elevator.opened
+	check(level.elevator.open_amount == 1.0, "reaching the exit corridor opens the elevator")
+	level.player.global_position = level.to_global(Vector3(0, 0.1, -13.5))
+	await physics_frame
+	check(not level.elevator.press() and not level.elevator.is_closing and level.elevator.refusal != "", "the button does nothing while someone is still outside")
 	level.queue_free()
 	await process_frame
 
@@ -738,8 +746,20 @@ func test_world() -> void:
 	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
-	world.wing_finished(sra)
-	check(world._field_notes != null and world.player.input_locked, "Field Notes opens as an overlay at the end")
+	# Out by the elevator: the doors closing are the checkpoint, the ride ends the level.
+	sra.rourke.state = Rourke.State.IDLE
+	sra._on_exit(null)
+	await sra.elevator.opened
+	world.player.global_position = sra.elevator.to_global(Vector3(0, 0.1, Elevator.SIZE.z / 2))
+	for i in 5:
+		await physics_frame
+	check(sra.elevator.press() and sra.elevator.is_closing, "with everyone inside, the button closes the doors")
+	await sra.elevator.closed
+	check(sra.elevator.open_amount == 0.0 and sra.elevator.riding, "the doors shut before it moves")
+	await sra.elevator.arrived
+	await process_frame
+	check(world._field_notes != null and world.player.input_locked, "the ride ends at Field Notes, in the notebook")
+	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
 	await process_frame
 
@@ -864,4 +884,44 @@ func test_notebook() -> void:
 	_game().load_notebook(saved)
 	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
 	level.queue_free()
+	await process_frame
+
+
+func test_elevator() -> void:
+	print("Elevator")
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var geo := Node3D.new()
+	stage.add_child(geo)
+	var lift := Elevator.create(stage, geo, Vector3.ZERO, 0, "1")
+	var dest := Elevator.create(stage, geo, Vector3(40, 0, 10), 90, "B2")
+	var a := Player.new()
+	var b := Player.new()
+	a.local_control = false
+	b.local_control = false
+	a.position = Vector3(0.4, 0.1, 1.2)
+	b.position = Vector3(0, 0.1, -3.0)
+	stage.add_child(a)
+	stage.add_child(b)
+	lift.open(true)
+	for i in 3:
+		await physics_frame
+	check(not lift.press() and lift.headcount() == Vector2i(1, 2), "the button waits for every living player")
+	b.health = 0.0
+	check(lift.headcount() == Vector2i(1, 1), "a downed player doesn't hold the doors")
+	b.health = 100.0
+	b.global_position = Vector3(-0.5, 0.1, 1.5)
+	for i in 3:
+		await physics_frame
+	check(lift.press() and lift.is_closing, "with the whole crew in, the doors close")
+	await lift.closed
+	var a_local: Vector3 = lift.to_local(a.global_position)
+	var a_yaw: float = a.rotation.y
+	lift.link_to(dest)
+	await lift.ride(0.3)
+	check(dest.to_local(a.global_position).distance_to(a_local) < 0.01 and dest.contains(b.global_position), "the ride carries everyone to the same spot in the next car")
+	check(is_equal_approx(angle_difference(a_yaw + PI / 2, a.rotation.y), 0.0), "facing the same way relative to the car")
+	await dest.opened
+	check(dest.open_amount == 1.0 and lift.open_amount == 0.0, "the next car's doors open; the old ones stay shut")
+	stage.queue_free()
 	await process_frame
