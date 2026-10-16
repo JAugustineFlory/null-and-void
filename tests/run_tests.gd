@@ -310,10 +310,26 @@ func test_level_0_scene() -> void:
 					flickering += 1
 	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
 	check(not level.front_doors.is_open, "front doors start closed")
+	check(level.van_seats.size() == 6, "the van seats six")
+	check(level.seat_spawn(1).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the passenger seat")
+	var exits: Array = level.van_seats.map(func(s): return s.exit)
+	check(exits.count("side") == 4 and exits.has("w") and exits.has("e"), "two front doors and a side door for the rear bench")
+	level.players_needed = 2
+	var mate := Player.new()
+	level.add_child(mate)
+	mate.global_transform = level.seat_spawn(4)
 	level.ready_up(level.player, 1)
-	await create_timer(2.5).timeout
+	check(not level._intro_started, "one of two ready players doesn't start the intro")
+	level.ready_up(mate, 1)
+	check(not level.ready_players.has(mate), "a seat can only be readied once")
+	level.van_seats[4].buckle.interact(mate)
+	check(level._intro_started and level.ready_players[mate] == 4, "the second player's buckle starts the intro")
+	await create_timer(3.5).timeout
 	var pos: Vector3 = level.player.global_position
 	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	var mpos: Vector3 = mate.global_position
+	check(mpos.x > 3.5 and mpos.y < 0.3 and not mate.input_locked, "a rear-bench player climbs out of the side door (%.1f, %.1f, %.1f)" % [mpos.x, mpos.y, mpos.z])
+	mate.queue_free()
 	level.player.global_position = Vector3(0, 0.1, 11.5)
 	await create_timer(3.5).timeout
 	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")

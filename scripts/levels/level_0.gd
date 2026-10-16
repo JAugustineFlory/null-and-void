@@ -13,13 +13,18 @@ var shutter: Door
 var walkies: Interactable
 var front_doors: Door
 var visitor_log: Interactable
-## Players ready up by pressing E on their van door. The co-op layer raises this
+## Players ready up by pressing E on their seat-belt buckle. The co-op layer raises this
 ## to the number of connected players; solo play starts as soon as one is ready.
 var players_needed := 1
 ## player -> the van seat they climb out of
 var ready_players := {}
-## Each seat: door pivot, door, how far the door swings, and the climb-out path.
+## Each seat: spawn transform, seat-belt buckle, which door it exits by, and the
+## climb-out path in world space.
 var van_seats: Array[Dictionary] = []
+## Front van doors by side ("w", "e"): hinge pivot and swing angle.
+var van_doors := {}
+var side_door: Node3D
+var _side_door_open := false
 var _intro_started := false
 var tape: Interactable
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
@@ -139,7 +144,7 @@ func build() -> void:
 	rourke.name = "Rourke"
 	add_child(rourke)
 	rourke.position = Vector3(0, 0, 4.8)
-	spawn = Transform3D(Basis(), Vector3(2.5, 0.55, 15.3))  # passenger seat of the van
+	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
 
 
 ## Brighter and clearer than the rest of the building: nothing looks wrong yet.
@@ -181,61 +186,89 @@ func _build_parking_lot() -> void:
 		geo.add_child(lamp)
 
 
-## The crew's IT van, nose to the building. Each seat has its own door; pressing E on
-## your door readies you up. center is the middle of the van at ground level.
+## The crew's IT van, nose to the building. It seats six: two in front and a bench
+## of four in the back. Each player readies up by pressing E on their own seat-belt
+## buckle; front-seat players climb out of their front door, the rest out of the
+## sliding side door. `center` is the middle of the van at ground level.
 func _build_van(center: Vector3) -> void:
 	var white := Color(0.86, 0.86, 0.83)
 	var floor_y := center.y + 0.5
 	var cab := Vector3(center.x, floor_y, center.z)
-	# Body: a hollow box you can stand in. x center±1.1, z center±2.1.
-	Greybox.room(geo, cab, Vector3(2.2, 2.1, 4.2), {"floor": Color(0.2, 0.2, 0.22), "wall": white, "ceiling": white}, [
-		{"wall": "n", "at": 0.0, "width": 1.9, "height": 1.95, "bottom": 0.85},  # windscreen
+	# Body: a hollow box you can stand in. x center±1.3, z center±2.2.
+	Greybox.room(geo, cab, Vector3(2.6, 2.1, 4.4), {"floor": Color(0.2, 0.2, 0.22), "wall": white, "ceiling": white}, [
+		{"wall": "n", "at": 0.0, "width": 2.3, "height": 1.95, "bottom": 0.85},  # windscreen
 		{"wall": "w", "at": -1.5, "width": 0.9, "height": 1.9},  # driver door
 		{"wall": "e", "at": -1.5, "width": 0.9, "height": 1.9},  # passenger door
+		{"wall": "e", "at": 0.1, "width": 1.3, "height": 1.9},  # sliding side door
 	])
-	Greybox.box(geo, center + Vector3(0, 0.2, 0), Vector3(2.3, 0.2, 4.5), Color(0.15, 0.15, 0.15), "Chassis")
-	Greybox.box(geo, center + Vector3(0, 0.95, -2.55), Vector3(2.2, 0.9, 0.9), white, "Bonnet")
+	Greybox.box(geo, center + Vector3(0, 0.2, 0), Vector3(2.7, 0.2, 4.7), Color(0.15, 0.15, 0.15), "Chassis")
+	Greybox.box(geo, center + Vector3(0, 0.95, -2.65), Vector3(2.6, 0.9, 0.9), white, "Bonnet")
 	for dx in [-1.0, 1.0]:
-		for dz in [-1.6, 1.4]:
-			Greybox.box(geo, center + Vector3(dx * 1.05, 0.25, dz), Vector3(0.3, 0.5, 0.7), Color(0.05, 0.05, 0.05), "Wheel")
-	for side in [-1.0, 1.0]:
-		Greybox.label(geo, center + Vector3(1.22 * side, 1.7, 0.6), "BYTE-RIGHT IT SERVICES\nWe fix what's broken.", 60, Color(0.1, 0.3, 0.6), 90.0 * side)
-	# Inside: seats, dashboard, the job ticket, a dome light.
-	for dx in [-0.55, 0.55]:
-		Greybox.panel(geo, cab + Vector3(dx, 0.25, -1.3), Vector3(0.6, 0.5, 0.55), Color(0.15, 0.15, 0.18))
-	Greybox.panel(geo, cab + Vector3(0, 0.75, -1.95), Vector3(2.0, 0.2, 0.3), Color(0.12, 0.12, 0.13))
-	Greybox.box(geo, cab + Vector3(0.6, 0.6, 1.5), Vector3(0.8, 1.2, 0.8), Color(0.3, 0.3, 0.32), "Rack")
-	Greybox.label(geo, cab + Vector3(0.6, 0.9, 1.09),
+		for dz in [-1.7, 1.5]:
+			Greybox.box(geo, center + Vector3(dx * 1.15, 0.25, dz), Vector3(0.3, 0.5, 0.7), Color(0.05, 0.05, 0.05), "Wheel")
+	Greybox.label(geo, center + Vector3(-1.42, 1.7, 0.4), "BYTE-RIGHT IT SERVICES\nWe fix what's broken.", 60, Color(0.1, 0.3, 0.6), -90.0)
+	Greybox.label(geo, center + Vector3(1.42, 1.7, 1.5), "BYTE-RIGHT\nIT SERVICES", 50, Color(0.1, 0.3, 0.6), 90.0)
+	# Inside: dashboard, the job ticket on the equipment rack, a dome light.
+	Greybox.panel(geo, cab + Vector3(0, 0.75, -2.05), Vector3(2.4, 0.2, 0.3), Color(0.12, 0.12, 0.13))
+	Greybox.box(geo, cab + Vector3(-0.6, 0.6, 1.85), Vector3(1.0, 1.2, 0.6), Color(0.3, 0.3, 0.32), "Rack")
+	Greybox.label(geo, cab + Vector3(-0.6, 0.9, 1.54),
 		"JOB TICKET #4471\nHalcyon Data Systems\nAfter-hours callout, 23:00\nRecover lead engineer's systems.\nContact: D. Rourke, facilities.", 22, Color(0.95, 0.95, 0.9), 180)
 	var dome := OmniLight3D.new()
 	dome.position = cab + Vector3(0, 1.9, 0)
-	dome.omni_range = 3.0
+	dome.omni_range = 3.5
 	dome.light_energy = 0.6
 	dome.light_color = Color(1.0, 0.9, 0.7)
 	geo.add_child(dome)
 
-	# Doors hinge at their front edge and swing outward.
+	# Front doors hinge at their front edge and swing outward.
 	for side in [-1.0, 1.0]:
 		var pivot := Node3D.new()
-		pivot.position = cab + Vector3(1.1 * side, 0, -2.05)
+		pivot.position = cab + Vector3(1.3 * side, 0, -1.95)
 		add_child(pivot)
-		var door := Interactable.create(pivot, Vector3(0, 0.95, 0.45), Vector3(0.1, 1.9, 0.9), "Open your door (ready up)", white)
-		van_seats.append({
-			"pivot": pivot,
-			"door": door,
-			"swing": deg_to_rad(90.0 * side),
-			"inside": Vector3(cab.x + 0.85 * side, floor_y + 0.05, cab.z - 1.5),
-			"outside": Vector3(cab.x + 2.1 * side, center.y + 0.05, cab.z - 1.8),
-		})
-		door.used.connect(ready_up.bind(van_seats.size() - 1))
+		Greybox.box(pivot, Vector3(0, 0.95, 0.45), Vector3(0.1, 1.9, 0.9), white, "VanDoor")
+		van_doors["w" if side < 0 else "e"] = {"pivot": pivot, "swing": deg_to_rad(90.0 * side)}
+	# The side door slides back along the outside of the van.
+	side_door = Node3D.new()
+	side_door.position = cab + Vector3(1.3, 0, 0.1)
+	add_child(side_door)
+	Greybox.box(side_door, Vector3(0, 0.95, 0), Vector3(0.1, 1.9, 1.3), white, "SideDoor")
+
+	# Seats: two in front (driver, passenger), then the rear bench left to right.
+	var seats := [
+		[Vector3(-0.55, 0, -1.3), "w"], [Vector3(0.55, 0, -1.3), "e"],
+		[Vector3(-0.99, 0, 0.7), "side"], [Vector3(-0.33, 0, 0.7), "side"],
+		[Vector3(0.33, 0, 0.7), "side"], [Vector3(0.99, 0, 0.7), "side"],
+	]
+	var rear := 0
+	for seat in seats:
+		var at: Vector3 = cab + seat[0]
+		Greybox.panel(geo, at + Vector3(0, 0.25, 0.1), Vector3(0.55, 0.5, 0.5), Color(0.15, 0.15, 0.18))
+		var buckle := Interactable.create(self, at + Vector3(0.15, 0.3, -0.38), Vector3(0.08, 0.06, 0.08), "Unbuckle (ready up)", Color(0.85, 0.1, 0.1))
+		var entry := {
+			"spawn": global_transform * Transform3D(Basis(), at + Vector3(0, 0.05, 0)),
+			"buckle": buckle,
+			"exit": seat[1],
+		}
+		if seat[1] == "side":
+			entry["inside"] = to_global(cab + Vector3(0.95, 0.05, 0.1))
+			entry["outside"] = to_global(Vector3(cab.x + 2.3, center.y + 0.05, cab.z + 0.1 + (rear - 1.5) * 0.8))
+			entry["order"] = rear
+			rear += 1
+		else:
+			var side := -1.0 if seat[1] == "w" else 1.0
+			entry["inside"] = to_global(cab + Vector3(1.05 * side, 0.05, -1.5))
+			entry["outside"] = to_global(Vector3(cab.x + 2.3 * side, center.y + 0.05, cab.z - 1.8))
+			entry["order"] = 0
+		van_seats.append(entry)
+		buckle.used.connect(ready_up.bind(van_seats.size() - 1))
 
 
-## A player pressed E on their van door.
+## A player pressed E on a seat-belt buckle. The co-op layer can call this too.
 func ready_up(p: Node, seat_index: int) -> void:
-	if ready_players.has(p) or _intro_started:
+	if ready_players.has(p) or _intro_started or ready_players.values().has(seat_index):
 		return
 	ready_players[p] = seat_index
-	van_seats[seat_index].door.enabled = false
+	van_seats[seat_index].buckle.enabled = false
 	if ready_players.size() >= players_needed:
 		_intro_started = true
 		all_ready.emit()
@@ -243,27 +276,44 @@ func ready_up(p: Node, seat_index: int) -> void:
 		hud.set_objective("Ready. Waiting for your team (%d/%d)" % [ready_players.size(), players_needed])
 
 
-## Swing the door open and step down onto the tarmac, facing the building.
+## Open the door by this seat and step down onto the tarmac, facing the building.
+## Rear-bench players leave one after another through the side door.
 func climb_out(p: Player, seat: Dictionary) -> void:
 	p.input_locked = true
 	p.velocity = Vector3.ZERO
 	p.process_mode = Node.PROCESS_MODE_DISABLED
+	if seat.exit == "side" and seat.order > 0:
+		await get_tree().create_timer(0.8 * seat.order).timeout
 	var face := p.rotation.y + angle_difference(p.rotation.y, 0.0)
 	var tw := create_tween()
-	tw.tween_property(seat.pivot, "rotation:y", seat.swing, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if seat.exit == "side":
+		if not _side_door_open:
+			_side_door_open = true
+			tw.tween_property(side_door, "position", side_door.position + Vector3(0.15, 0, 1.3), 0.7).set_trans(Tween.TRANS_QUAD)
+		else:
+			tw.tween_interval(0.2)
+	else:
+		var door: Dictionary = van_doors[seat.exit]
+		tw.tween_property(door.pivot, "rotation:y", door.swing, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(p, "global_position", seat.inside, 0.7)
 	tw.parallel().tween_property(p.head, "rotation:x", 0.0, 0.7)
 	tw.tween_property(p, "global_position", seat.outside, 0.8).set_trans(Tween.TRANS_SINE)
 	tw.parallel().tween_property(p, "rotation:y", face, 0.8)
-	tw.tween_property(seat.pivot, "rotation:y", 0.0, 0.4).set_trans(Tween.TRANS_QUAD)
+	if seat.exit != "side":
+		tw.tween_property(van_doors[seat.exit].pivot, "rotation:y", 0.0, 0.4).set_trans(Tween.TRANS_QUAD)
 	await tw.finished
 	p.process_mode = Node.PROCESS_MODE_INHERIT
 	p.input_locked = false
 
 
+## Where a player sits at the start. Solo play uses the passenger seat.
+func seat_spawn(index: int) -> Transform3D:
+	return van_seats[index].spawn
+
+
 func start() -> void:
 	player.flashlight.visible = false  # the lights are on; nobody needs a torch yet
-	hud.set_objective("Press E on your van door when you're ready")
+	hud.set_objective("Look down at your seat belt and press E to unbuckle when you're ready")
 	_dispatch_chatter()
 	await all_ready
 	for p in ready_players:
