@@ -4,6 +4,8 @@ extends LevelBase
 
 ## Least time between Rourke's fight lines.
 const BARK_GAP := 3.5
+## Rourke turns this long after a player sits down at the terminal.
+const ATTACK_DELAY := 4.0
 
 var rourke: Rourke
 var terminal: Terminal
@@ -13,6 +15,7 @@ var panels_locked_until := 0.0
 var has_badge := false
 var _red := Color(1.0, 0.18, 0.12)
 var _last_bark := -100.0
+var _trapped := false
 var controller_puzzle := Puzzle.new("controller",
 	"SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false, [
 	"Type this, then press Enter:\n" +
@@ -80,7 +83,12 @@ func build() -> void:
 	Greybox.box(geo, Vector3(-4.5, 0.45, 8.4), Vector3(2.2, 0.9, 0.8), Color(0.4, 0.38, 0.35), "TermDesk")
 	terminal = Terminal.spawn(geo, Vector3(-4.5, 0.9, 8.4), 180, "SERVER ROOM A", db, terminal_ui)
 	terminal.puzzles = [controller_puzzle]
-	terminal.boot_lines = ["HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SERVER ROOM A", "Session: ROURKE_D", "Waiting for escort..."]
+	terminal.boot_lines = [
+		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SERVER ROOM A",
+		"Session: ROURKE_D (escort)",
+		"",
+		"Loading session history for VALE_I...",
+	]
 	terminal.queried.connect(_on_query)
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
@@ -99,19 +107,41 @@ func build() -> void:
 
 func start() -> void:
 	if world:
-		# Rourke "took the staff door": he is waiting in the antechamber as the hall door opens.
-		rourke.position = Vector3(0, 0, 10.5)
+		# The lobby's Rourke walked the crew here: this one takes his place, where he stands.
+		var lobby: LevelBase = world.wings.get("level_0")
+		var guide = lobby.get("rourke") if lobby else null
+		if is_instance_valid(guide):
+			rourke.global_transform = guide.global_transform
+			guide.queue_free()
+		else:
+			rourke.position = Vector3(0, 0, 10.5)
 		var through := Trigger.create(self, Vector3(0, 1, 12.0), Vector3(3, 2, 1.5))
 		through.entered.connect(func(_b): world.seal_behind(self))
-	rourke.face(player.global_position)
 	hud.set_objective("Follow Rourke inside")
-	rourke.walk_to(to_global(Vector3(0.0, 0, 1.0)))
-	hud.line("l1_enter")
-	var t := Trigger.create(self, Vector3(0, 1, 6.0), Vector3(3.6, 2, 1.5))
-	t.entered.connect(_on_trapped)
+	terminal.used.connect(_on_terminal_opened, CONNECT_ONE_SHOT)
+	rourke.walk_to(to_global(Vector3(-2.4, 0, 6.4)))  # beside the terminal desk
+	await hud.line("l1_enter")
+	if rourke.state == Rourke.State.WALK:
+		await rourke.arrived
+	rourke.face(player.global_position)
+	await hud.line("l1_terminal")
+	if not _trapped:
+		hud.set_objective("Start work at the Server Room A terminal")
+
+
+## Nothing is wrong until someone sits down to work. Then Rourke turns.
+func _on_terminal_opened(p: Node) -> void:
+	rourke.walk_to(p.global_position)  # drifting up behind them
+	await get_tree().create_timer(ATTACK_DELAY).timeout
+	_on_trapped(null)
 
 
 func _on_trapped(_b: Node) -> void:
+	if _trapped:
+		return
+	_trapped = true
+	if terminal_ui.terminal == terminal:
+		terminal_ui.close()
 	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'SRA-ENTRY'")
 	db.sync_world()
 	hud.notice("> DOOR SRA-ENTRY: LOCKED", 3.0, ThemeUtil.RED)
@@ -189,7 +219,7 @@ func _self_test_lines() -> Array:
 
 
 func _on_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
-	if controller_puzzle.solved or not controller_puzzle.matches(db, result):
+	if not has_badge or controller_puzzle.solved or not controller_puzzle.matches(db, result):
 		return
 	controller_puzzle.solved = true
 	ui.print_line("")
