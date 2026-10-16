@@ -1,6 +1,6 @@
 # Recording list
 
-66 lines in all.
+67 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -17,7 +17,7 @@ Each actor gets only their own character's script from [characters/](characters/
 
 Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke/l0_greet_1.wav`); open the project in Godot once so it imports them. The game plays a recording whenever one exists, keeps the subtitle up for as long as it lasts, and falls back to the timed subtitle when it doesn't. Only `<line_id>.wav` is played: to use take 2, rename it.
 
-## Dale Rourke (35 lines)
+## Dale Rourke (36 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
@@ -30,19 +30,20 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 | [ ] | `l0_signin` | Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. | Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) | Level 0 |
 | [ ] | `l0_tour_1` | Here's the job. Dr. Vale, our lead engineer, went missing three nights ago. | Walking. Matter-of-fact, the way you'd mention the weather. | Level 0 |
 | [ ] | `l0_tour_2` | Her systems are a mess and the director wants them recovered by morning. Quietly. | Small beat before "Quietly." | Level 0 |
-| [ ] | `l0_tour_3` | Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
-| [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
-| [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
-| [ ] | `l0_tour_6` | Ghost stories. Anyway. | Dropping it fast. He doesn't want them thinking about it. | Level 0 |
 | [ ] | `l0_desk_1` | The front desk scanner ate one of Vale's memos. The scraps went into a table. | Pointing at the desk. | Level 0 |
 | [ ] | `l0_desk_2` | Director wants to know what it said. Go ahead, terminal's on the desk. | Casual, but he wants to know too. | Level 0 |
 | [ ] | `l0_memo_1` | ...Huh. She always was dramatic. | A beat too long before he speaks. Covering. | Level 0 |
-| [ ] | `l0_memo_2` | Grab the walkie-talkies from lost and found behind the desk. Over the counter, it's fine. | Back to friendly, changing the subject. | Level 0 |
-| [ ] | `l0_walkie` | Channel one. Keep them on. Reception's lousy once we're past the shutter. | Offhand. | Level 0 |
-| [ ] | `l0_shutter_1` | Jammed again. You'll have to duck under it. | Annoyed at the shutter, not at them. | Level 0 |
-| [ ] | `l0_shutter_2` | I'll take the staff door and meet you at the server room. | Already walking away. | Level 0 |
-| [ ] | `l0_sra` | Server Room A. After you. | Holding the door. Polite. Too polite. | Level 0 |
+| [ ] | `l0_memo_2` | Grab the walkie-talkies from lost and found, back behind the desk. | Back to friendly, changing the subject. | Level 0 |
+| [ ] | `l0_memo_3` | And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either. | Amused, he's said this to every visitor. A little eye-roll at corporate. | Level 0 |
+| [ ] | `l0_memo_4` | Go on, hop over and grab a walkie. Then I'll take you to the server room. | Friendly, already heading for the hall. | Level 0 |
+| [ ] | `l0_walkie` | Channel one. Keep them on. Reception's lousy once we're past the shutter. This way. | Offhand. | Level 0 |
+| [ ] | `l0_tour_3` | Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
+| [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
+| [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
+| [ ] | `l0_tour_6` | Ghost stories. Anyway. | Dropping it fast. He doesn't want them thinking about it. | Level 0 |
+| [ ] | `l0_sra` | Here we are. Server Room A. | Badging the door. Pleasant, like the end of a tour. | Level 0 |
 | [ ] | `l1_enter` | Vale's last login came from this room. Come on in. | Calling back over his shoulder, inside the room. | Level 1 |
+| [ ] | `l1_terminal` | Terminal's on the desk. Pull up her last session, I'll be right here. | Friendly, pointing. Then he goes quiet and drifts behind them. | Level 1 |
 | [ ] | `l1_trap_1` | Sorry about this. Nothing personal. | The door has just locked. The friendliness switches off. | Level 1 |
 | [ ] | `l1_trap_2` | Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. | Tired, explaining a chore. | Level 1 |
 | [ ] | `l1_hit_1` | Stay down! | Swinging. | Level 1 |
