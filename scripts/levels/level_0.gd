@@ -568,8 +568,8 @@ func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 func _on_peek_solved() -> void:
 	peek_puzzle.solved = true
 	desk_terminal.print_line("")
-	desk_terminal.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a number in the piece_no column.[/color]")
-	desk_terminal.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the column to sort by: piece_no[/color]")
+	desk_terminal.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. One of the columns numbers them.[/color]")
+	desk_terminal.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the name of the column that numbers the scraps.[/color]")
 	hud.set_objective("Put the memo back in order")
 	hud.line("l0_sort_hint", false)
 
