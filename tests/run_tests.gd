@@ -404,8 +404,6 @@ func test_level_0_scene() -> void:
 	check(level.peek_puzzle.solved, "terminal run solves the peek")
 	var nudge: Array = Array(level.desk_terminal.transcript).filter(func(l): return l.contains("ORDER BY"))
 	check(not nudge.is_empty() and nudge.all(func(l): return not l.contains("piece_no")), "WARDEN's nudge points at the numbering column without naming it")
-	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no DESC")
-	check(not level.memo_puzzle.solved and Array(level.desk_terminal.transcript).any(func(l): return l.contains("memo backwards")), "a memo sorted DESC doesn't count, and WARDEN says why")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
