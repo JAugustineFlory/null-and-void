@@ -189,6 +189,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 					if not has_item(taught, k):
 						outside.append(k)
 			if hints >= max_hints:
+				check(false, "%s: a lost player gets stuck even after %d hints" % [puzzle.id, hints])
 				return -1
 			hints += 1
 			ui.run(".hint")
@@ -314,18 +315,21 @@ func walk_level_2(seed_value: int) -> void:
 	var ui: TerminalUI = level.terminal_ui
 	var p: Player = level.player
 	p.local_control = false
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))  # at the booth
 	ui.open(level.booth, p)
 	var h := solve(level, ui, level.cameras_puzzle, level.loose)
 	check(h == 0, "security: the boot screen gets a new player through GET /cameras (hints %d)" % h)
 	h = solve(level, ui, level.pike_puzzle, level.loose)
 	check(h == 0, "security: LIKE is practised on Pike from the query on screen, safely (hints %d)" % h)
-	check(level.loose, "security: finding Pike lets the Watcher loose (the pressure starts)")
+	check(level.loose, "security: finding Pike freezes CAM-2 (the pressure starts)")
+	# Pressure means the Watcher can actually hunt: it wakes when the office opens.
+	var hunting: bool = level.watcher.active
 	level.watcher.active = false  # keep the walkthrough deterministic from here
 	# The Har query isn't written out: the player builds it from LIKE plus AND, both
 	# taught by now (the solve() check enforces it). A lost player who can't gets it
 	# from the first hint.
-	h = solve(level, ui, level.har_puzzle, true)
-	check(h >= 0 and h <= 1, "security: under pressure, a lost player finds the PIN with at most the first hint (hints %d)" % h)
+	h = solve(level, ui, level.har_puzzle, hunting)
+	check(h >= 0 and h <= 1, "security: a lost player finds the PIN with at most the first hint (hints %d)" % h)
 	var rows := last_table(screen(ui))
 	var pin: String = rows[0].get("pin", "") if rows.size() == 1 else ""
 	check(pin.length() == 4, "security: the result shows one guard and their PIN")
@@ -343,6 +347,8 @@ func walk_level_2(seed_value: int) -> void:
 	office_pad.interact(p)
 	level.keypad_ui._on_submit(pin)
 	check(level.office_open, "security: the PIN read off the screen opens the Security Office")
+	hunting = level.watcher.active
+	level.watcher.active = false
 	var keypad := find_interactable(level, "Enter guard PIN (SEC-EXIT)")
 	check(keypad != null, "security: the stairwell keypad is labelled for a guard PIN")
 	keypad.interact(p)
@@ -353,7 +359,7 @@ func walk_level_2(seed_value: int) -> void:
 	ui.open(level.panel, p)
 	ui.run(".hint")
 	var hint_text := screen(ui).get_slice("WARDEN:", screen(ui).count("WARDEN:"))
-	gap(hint_text.contains("B-") or hint_text.to_lower().contains("breaker"),
+	check(hint_text.contains("B-") or hint_text.to_lower().contains("breaker"),
 		"security: .hint at the panel still helps after the door lies, even if the player checked the door earlier (says: %s)" % hint_text.strip_edges().left(60))
 	var before := screen(ui).length()
 	for q in queries_in(screen(ui)):
@@ -363,7 +369,6 @@ func walk_level_2(seed_value: int) -> void:
 	var after := screen(ui).substr(before)
 	var m := RegEx.create_from_string("B-(\\d)").search(after)
 	check(m != null, "security: re-checking the door shows which breaker tripped")
-	solve(level, ui, level.door_puzzle, level.loose)
 	ui.close()
 	var breaker := find_interactable(level, "Reset breaker " + (m.get_string() if m else "?"))
 	check(breaker != null, "security: that breaker is labelled in the box")
@@ -372,13 +377,17 @@ func walk_level_2(seed_value: int) -> void:
 	for i in 5:
 		await t.physics_frame
 	check(level.doors["SEC-EXIT"].is_open, "security: the breaker read off the screen opens SEC-EXIT")
+	# The door puzzle counts as solved once the door really opens: check what it taught.
+	ui.open(level.panel, p)
+	solve(level, ui, level.door_puzzle, hunting)
+	ui.close()
 
 	# Dying to the Watcher should tell you why it could move.
 	level.loose = true
 	level.hud._notice.text = ""
 	level.on_player_died()
 	var said: String = level.hud._notice.text.to_lower() + level.hud._objective.text.to_lower()
-	gap(said.contains("camera") or said.contains("frozen") or said.contains("last_frame"),
+	check(said.contains("camera") or said.contains("frozen") or said.contains("last_frame"),
 		"security: after the Watcher gets you, the screen says why it could move (a camera froze)")
 	level.queue_free()
 	await t.process_frame
