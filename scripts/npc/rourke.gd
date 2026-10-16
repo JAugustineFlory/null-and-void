@@ -21,6 +21,8 @@ const DOWN_TIME := 12.0
 
 var state := State.IDLE
 var target: Node3D
+## Hits to bring him down. Levels raise it with more players.
+var max_hits := MAX_HITS
 var hits_left := MAX_HITS
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
@@ -31,6 +33,7 @@ var _windup := 0.0
 var _down_timer := 0.0
 var _stagger := 0.0
 var _walk_target := Vector3.ZERO
+var _retarget := 0.0
 
 
 func _ready() -> void:
@@ -81,7 +84,7 @@ func start_chase(player: Node3D) -> void:
 func reset_fight(at: Transform3D) -> void:
 	global_transform = at
 	remove_from_group("interactable")
-	hits_left = MAX_HITS
+	hits_left = max_hits
 	_body.rotation = Vector3.ZERO
 	_body.position = Vector3.ZERO
 	state = State.CHASE if target else State.IDLE
@@ -142,6 +145,12 @@ func _move_along_path(speed: float) -> void:
 
 
 func _chase(delta: float) -> void:
+	_retarget -= delta
+	if _retarget <= 0.0:
+		_retarget = 0.5
+		var near := _nearest_player()
+		if near:
+			target = near
 	if not target:
 		return
 	var dist := global_position.distance_to(target.global_position)
@@ -165,8 +174,37 @@ func _chase(delta: float) -> void:
 	_move_along_path(CHASE_SPEED)
 
 
+## Co-op: what other machines need to see him walk, fight and fall.
+func sync_properties() -> Array:
+	var body := str(get_path_to(_body))
+	# _windup is his attack tell: clients must see it coming too.
+	return [".:position", ".:rotation", ".:visible", ".:state", ".:_windup", body + ":position", body + ":rotation"]
+
+
+## In co-op he goes after whoever is closest.
+func _nearest_player() -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for p in get_tree().get_nodes_in_group("player"):
+		if p.get_viewport() != get_viewport():
+			continue
+		var d := global_position.distance_to(p.global_position)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+
+## A co-op client sends hits and choices to the host, which runs the fight.
+func _forwarded(method: String) -> bool:
+	var sync := LevelSync.of(self)
+	return sync != null and sync.forward(self, method)
+
+
 ## The player struck him.
 func take_hit(by: Node3D) -> void:
+	if _forwarded("take_hit"):
+		return
 	if state != State.CHASE and state != State.STAGGER:
 		return
 	hits_left -= 1
@@ -207,6 +245,8 @@ func get_prompt(_player: Node) -> String:
 
 
 func interact(_player: Node) -> void:
+	if _forwarded("interact"):
+		return
 	if state != State.DOWN:
 		return
 	state = State.TIED
@@ -216,6 +256,8 @@ func interact(_player: Node) -> void:
 
 
 func interact_alt(_player: Node) -> void:
+	if _forwarded("interact_alt"):
+		return
 	if state != State.DOWN:
 		return
 	state = State.DEAD

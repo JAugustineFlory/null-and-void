@@ -18,6 +18,11 @@ config/features=PackedStringArray("4.7")
 [autoload]
 
 Game="*res://scripts/core/game.gd"
+Net="*res://scripts/net/net.gd"
+
+[audio]
+
+driver/enable_input=true
 
 [display]
 

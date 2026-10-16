@@ -21,6 +21,8 @@ static func place(parent: Node, pos: Vector3, id: String, stuck_to_terminal: boo
 	n.note_id = id
 	n.on_terminal = stuck_to_terminal
 	n.prompt = "Copy the sticky note into your notebook" if stuck_to_terminal else "Take the sticky note"
+	# Copying is each player's own business; taking a loose note is decided by the host.
+	n.local_only = stuck_to_terminal
 	n.position = pos
 	n.rotation_degrees.y = facing_deg
 	var shape := CollisionShape3D.new()
@@ -46,14 +48,39 @@ func get_prompt(player: Node) -> String:
 
 
 func _on_used(player: Node) -> void:
-	if _is_local(player):
-		var title: String = StickyNotes.get_note(note_id).get("title", "")
-		var level := _level()
-		if get_node("/root/Game").add_note(note_id) and level and level.hud:
-			level.hud.notice("Added to your notebook (Tab): %s" % title, 4.0)
-	taken.emit(player)
-	if not on_terminal:
-		queue_free()
+	if on_terminal:
+		if _is_local(player):
+			_write_down()
+		taken.emit(player)
+		return
+	# A loose note: the host decides who got it, then it's gone on every machine.
+	var sync := LevelSync.of(self)
+	if sync and sync.level.has_method("run_on"):
+		sync.event("run_on", [sync.level.get_path_to(self), "taken_by", [_peer_of(player)]])
+	else:
+		taken_by(_peer_of(player))
+
+
+## Every machine: `peer` picked this note up. It goes in their notebook only.
+func taken_by(peer: int) -> void:
+	if peer == multiplayer.get_unique_id():
+		_write_down()
+	taken.emit(null)
+	queue_free()
+
+
+func _write_down() -> void:
+	var title: String = StickyNotes.get_note(note_id).get("title", "")
+	var level := _level()
+	if get_node("/root/Game").add_note(note_id) and level and level.hud:
+		level.hud.notice("Added to your notebook (Tab): %s" % title, 4.0)
+
+
+func _peer_of(player: Node) -> int:
+	var level := _level()
+	if player == null or level == null or level.player == null or player == level.player:
+		return multiplayer.get_unique_id()
+	return player.get("peer_id") if player.get("peer_id") != null else 0
 
 
 ## Only the local player's pickups go in this machine's notebook.

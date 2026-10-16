@@ -28,6 +28,11 @@ var wing_id := ""
 var active := false
 ## The door players leave through. The World seals it once they are in the next wing.
 var exit_door: Door
+## Co-op: keeps this level the same on every machine (see scripts/net/). A wing
+## has its own LevelSync for its events; the World's one starts the session.
+var sync: LevelSync
+var players: NetPlayers
+var voice: VoiceChat
 var _pause: Control
 
 
@@ -46,24 +51,34 @@ func _ready() -> void:
 	add_child(terminal_ui)
 	db.door_changed.connect(_on_door_changed)
 	db.light_changed.connect(_on_light_changed)
+	sync = LevelSync.create(self)
 
 	build()
 	_bake_navigation()
 	db.sync_world()
+	LevelSync.name_nodes(self)
 
 	player = Player.new()
 	player.name = "Player"
 	player.hud = hud
+	# Place it before it enters the world: a body that appears at the origin for
+	# even one physics step can set off triggers there.
+	player.transform = player_spawn(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))
 	add_child(player)
-	player.global_transform = spawn_point()
+	players = NetPlayers.create(self, player)
 	player.died.connect(_on_player_died)
+	voice = VoiceChat.create(self)
 	_build_pause_menu()
+	net_setup()
+	sync.began.connect(players.go_live)
+	# Each player's own notebook: local, never synced, added after node names are fixed.
 	notebook = Notebook.new()
+	notebook.name = "Notebook"
 	notebook.player = player
 	notebook.terminal_ui = terminal_ui
 	add_child(notebook)
 	active = true
-	start()
+	sync.begin_when_ready(start)
 
 
 func _ready_as_wing(host: LevelBase) -> void:
@@ -73,7 +88,10 @@ func _ready_as_wing(host: LevelBase) -> void:
 	terminal_ui = host.terminal_ui
 	notebook = host.notebook
 	player = host.player
+	players = host.players
+	voice = host.voice
 	environment = host.environment
+	sync = LevelSync.create(self)
 	geo = NavigationRegion3D.new()
 	geo.name = "Geometry"
 	add_child(geo)
@@ -82,6 +100,8 @@ func _ready_as_wing(host: LevelBase) -> void:
 	build()
 	_bake_navigation()
 	db.sync_world()
+	LevelSync.name_nodes(self)
+	net_setup()
 
 
 ## The World calls this when players reach the wing.
@@ -99,6 +119,20 @@ func build() -> void:
 ## Override: run the level's story. Usually async.
 func start() -> void:
 	pass
+
+
+## Override: share NPCs and other moving things with co-op clients,
+## e.g. `sync.replicate(npc, [...])`. Runs after node names are fixed.
+func net_setup() -> void:
+	pass
+
+
+## A sync event for any node in the level: call `method(args)` on the node at
+## `path` on every machine, e.g. an elevator's doors closing.
+func run_on(path: NodePath, method: StringName, args: Array = []) -> void:
+	var node := get_node_or_null(path)
+	if node:
+		node.callv(method, args)
 
 
 ## Override: what happens when the player dies.
@@ -125,6 +159,12 @@ func load_level_seed(sql: String) -> void:
 ## Where players (re)spawn, in world space. `spawn` is relative to the level.
 func spawn_point() -> Transform3D:
 	return global_transform * spawn
+
+
+## Where player number `index` (0 = host) starts, so up to six people don't
+## appear inside each other. Levels with set places (the van) override this.
+func player_spawn(index: int) -> Transform3D:
+	return spawn_point().translated(NetPlayers.spawn_offset(index))
 
 
 ## Ask the World to load the next wing now, behind its closed door.
@@ -241,6 +281,7 @@ func _build_pause_menu() -> void:
 	menu.text = "Quit to menu"
 	menu.pressed.connect(func():
 		get_tree().paused = false
+		get_node("/root/Net").leave()
 		Game.goto("menu"))
 	box.add_child(menu)
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -261,7 +302,10 @@ class PauseCatcher:
 
 
 func _toggle_pause() -> void:
-	var p := not get_tree().paused
-	get_tree().paused = p
+	var p := not _pause.visible
+	# Co-op can't stop time for everyone: the menu opens but the game runs on.
+	if not sync.is_online():
+		get_tree().paused = p
+	player.input_locked = p
 	_pause.visible = p
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if p else Input.MOUSE_MODE_CAPTURED

@@ -269,12 +269,27 @@ func _place_turn() -> void:
 
 func _add_end_buttons(footer: HBoxContainer) -> void:
 	var game := get_node("/root/Game")
-	if game.next_level != "":
-		footer.add_child(_button("Continue", func(): game.goto(game.next_level)))
-	footer.add_child(_button("Play again (new data)", func():
-		game.new_run()
-		game.goto("world")))
-	footer.add_child(_button("Main menu", func(): game.goto("menu")))
+	var net := get_node_or_null("/root/Net")
+	var online: bool = net != null and net.is_online()
+	# In co-op the host moves everyone on together.
+	var leads: bool = not online or net.is_host()
+	if game.next_level != "" and leads:
+		footer.add_child(_button("Continue", func():
+			if online:
+				net.goto_all(game.next_level)
+			else:
+				game.goto(game.next_level)))
+	if leads:
+		footer.add_child(_button("Play again (new data)", func():
+			if online:
+				net.start_game()
+			else:
+				game.new_run()
+				game.goto("world")))
+	footer.add_child(_button("Main menu", func():
+		if net:
+			net.leave(false)
+		game.goto("menu")))
 
 
 func _button(text: String, action: Callable) -> Button:

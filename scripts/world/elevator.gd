@@ -177,7 +177,7 @@ func contains(p: Vector3) -> bool:
 func headcount() -> Vector2i:
 	var total := 0
 	var inside := 0
-	for p in get_tree().get_nodes_in_group("player"):
+	for p in _players():
 		if p.get("health") != null and p.health <= 0.0:
 			continue
 		total += 1
@@ -186,19 +186,40 @@ func headcount() -> Vector2i:
 	return Vector2i(inside, total)
 
 
+## Everyone in this elevator's level: this machine's player and its teammates.
+## (The nearest ancestor that holds players: a wing's players live in the world.)
+func _players() -> Array:
+	var all := get_tree().get_nodes_in_group("player")
+	var n := get_parent()
+	while n:
+		var mine := all.filter(func(p): return n.is_ancestor_of(p))
+		if not mine.is_empty():
+			return mine
+		n = n.get_parent()
+	return []
+
+
 ## The button: works only when every living player is inside.
 func press(by: Node = null) -> bool:
 	refusal = ""
 	if is_closing or riding or open_amount <= 0.0:
 		return false
 	var c := headcount()
+	var sync := LevelSync.of(self)
 	if c.y == 0 or c.x < c.y:
 		refusal = "The doors won't close until everyone is inside (%d/%d)." % [c.x, c.y]
-		if hud:
+		if sync and sync.is_online():
+			sync.team_notice(refusal, 3.0)
+		elif hud:
 			hud.notice(refusal, 3.0)
 		return false
 	button_pressed.emit(by)
-	close()
+	# In co-op the press reaches the host, which counts heads; then the doors
+	# close on every machine together.
+	if sync and sync.level.has_method("run_on"):
+		sync.event("run_on", [sync.level.get_path_to(self), "close", []])
+	else:
+		close()
 	return true
 
 
@@ -230,7 +251,7 @@ func ride(seconds: float = RIDE_TIME) -> void:
 ## Move everyone in this car to the same place in `other`, keeping their facing.
 func carry_players_to(other: Elevator) -> void:
 	var turn := other.global_basis.get_euler().y - global_basis.get_euler().y
-	for p in get_tree().get_nodes_in_group("player"):
+	for p in _players():
 		if not contains(p.global_position):
 			continue
 		var local := to_local(p.global_position)

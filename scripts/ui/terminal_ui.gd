@@ -13,12 +13,12 @@ var _output: RichTextLabel
 var _input: TextEdit
 var _title: Label
 var _history: Array[String] = []
+var _history_i := -1
 ## Every line on screen that can be written into the notebook: {kind, text}.
 ## Kinds: info, echo, result, hint, error, schema, note.
 var _noteable: Array[Dictionary] = []
 var _note_label: LineEdit
 var _note_index := -1
-var _history_i := -1
 
 
 func _ready() -> void:
@@ -56,14 +56,14 @@ func _ready() -> void:
 	_output.bbcode_enabled = true
 	_output.scroll_following = true
 	_output.selection_enabled = true
+	_output.meta_underlined = false
+	_output.meta_clicked.connect(_on_meta)
 	_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_output.add_theme_font_override("normal_font", ThemeUtil.mono())
 	_output.add_theme_font_override("bold_font", ThemeUtil.mono())
 	_output.add_theme_font_size_override("normal_font_size", 17)
 	_output.add_theme_font_size_override("bold_font_size", 17)
 	_output.add_theme_color_override("default_color", ThemeUtil.GREEN)
-	_output.meta_underlined = false
-	_output.meta_clicked.connect(_on_meta)
 	vbox.add_child(_output)
 
 	# Naming a note before it goes in the notebook.
@@ -93,18 +93,21 @@ func _ready() -> void:
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
-	var switched := terminal != from_terminal
 	terminal = from_terminal
 	player = by_player
 	player.input_locked = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title.text = "HALCYON DATA SYSTEMS  //  %s" % terminal.terminal_name
 	visible = true
-	# One screen is shared by every terminal, so a different terminal starts fresh.
-	if terminal.consume_fresh_boot() or switched or _output.get_parsed_text().strip_edges() == "":
-		_clear_output()
+	# Each terminal keeps its own screen; in co-op it shows everyone's queries.
+	if terminal.transcript.is_empty() or terminal.consume_fresh_boot():
+		terminal.clear_screen()
 		for line in terminal.boot_text():
-			print_line(line)
+			terminal.transcript.append(line)
+			terminal.transcript_kinds.append("")
+	_clear_output()
+	for i in terminal.transcript.size():
+		_render(terminal.transcript[i], terminal.transcript_kinds[i] if i < terminal.transcript_kinds.size() else "")
 	_input.grab_focus()
 
 
@@ -120,9 +123,24 @@ func close() -> void:
 	closed.emit()
 
 
-## Print a line. Every non-blank line can be written into the notebook with its
-## +note link; `kind` says what it is ("none" for lines that can't be noted).
+## Print a line on the open terminal's screen (everyone's copy of it, in co-op).
+## `kind` says what it is, for the notebook; "" works it out.
 func print_line(bbcode: String, kind: String = "") -> void:
+	if terminal and terminal.has_method("print_line"):
+		terminal.print_line(bbcode, kind)
+	else:
+		_render(bbcode, kind)
+
+
+## A terminal's screen changed. Show it if that's the one open here.
+func on_terminal_line(from_terminal: Node, bbcode: String, kind: String = "") -> void:
+	if visible and from_terminal == terminal:
+		_render(bbcode, kind)
+
+
+## Put a line on this machine's screen. Every non-blank line gets a +note link
+## that writes it into this player's own notebook; "none" lines get no link.
+func _render(bbcode: String, kind: String = "") -> void:
 	var text := _plain(bbcode).strip_edges()
 	if text == "" or kind == "none":
 		_output.append_text(bbcode + "\n")
@@ -145,7 +163,7 @@ func write_note(index: int, label: String = "") -> bool:
 		return false
 	var line: Dictionary = _noteable[index]
 	get_node("/root/Game").write_note(label.strip_edges(), line.text, line.kind)
-	print_line("[color=#7fa88a]Written in your notebook%s.[/color]" % (": " + label.strip_edges() if label.strip_edges() != "" else ""), "none")
+	_render("[color=#7fa88a]Written in your notebook%s.[/color]" % (": " + label.strip_edges() if label.strip_edges() != "" else ""), "none")
 	return true
 
 
@@ -217,11 +235,13 @@ func _submit() -> void:
 		return
 	_history.append(sql)
 	_history_i = _history.size()
-	print_line("[color=#ffffff]> %s[/color]" % _esc(sql).replace("\n", "\n  "), "echo")
+	if sql.begins_with(".") or terminal.is_locked():
+		print_line(_echo(sql, ""), "echo")
 	run(sql)
 
 
 ## Run a command or query as if typed. Public so tests and scripted events can use it.
+## Queries go through the level's LevelSync, so in co-op the host runs them.
 func run(sql: String) -> void:
 	if sql.begins_with("."):
 		_command(sql)
@@ -229,37 +249,71 @@ func run(sql: String) -> void:
 	if terminal.is_locked():
 		print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
 		return
+	var sync := LevelSync.of(terminal)
 	if FacilityAPI.is_request(sql):
-		_http(sql)
-		return
-	var db: FacilityDB = terminal.db
-	var result := db.execute(sql)
-	if not result.ok:
-		print_line("[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error")
-		print_line("[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error), "hint")
-		return
-	get_node("/root/Game").log_query(sql)
-	_note_tables(sql, db)
-	if result.rows.is_empty():
-		if result.changes > 0:
-			print_line("OK. %d row(s) changed." % result.changes)
+		if sync:
+			sync.submit_request(terminal, sql)
 		else:
-			print_line("(0 rows)")
-	else:
-		print_line(_format_table(result.columns, result.rows), "result")
-	terminal.on_query(sql, result, self)
-
-
-func _http(line: String) -> void:
-	if terminal.api == null:
-		print_line("[color=#ff6655]No network API on this terminal. It only speaks SQL.[/color]")
+			show_request(terminal, sql, terminal.api.request(sql) if terminal.api else {}, multiplayer.get_unique_id())
 		return
-	var res: Dictionary = terminal.api.request(line)
-	get_node("/root/Game").log_query(line)
+	if sync:
+		sync.submit_query(terminal, sql)
+		return
+	var result: Dictionary = terminal.db.execute(sql)
+	show_query(terminal, sql, result, multiplayer.get_unique_id())
+	if result.ok:
+		terminal.on_query(sql, result, self)
+
+
+## Print a query and its result on `on_terminal`'s screen. `from_peer` typed it.
+func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: int) -> void:
+	var mine := from_peer == multiplayer.get_unique_id()
+	var who := ""
+	if not mine:
+		var net := get_node_or_null("/root/Net")
+		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+	var out: Array = [[_echo(sql, who), "echo"]]
+	if not result.ok:
+		out.append(["[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error"])
+		out.append(["[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error), "hint"])
+	else:
+		if mine:
+			get_node("/root/Game").log_query(sql)
+			_note_tables(sql, on_terminal.db)
+		if result.rows.is_empty():
+			if result.changes > 0:
+				out.append(["OK. %d row(s) changed." % result.changes, "info"])
+			else:
+				out.append(["(0 rows)", "info"])
+		else:
+			out.append([_format_table(result.columns, result.rows), "result"])
+	for line in out:
+		on_terminal.print_line(line[0], line[1])
+
+
+func _echo(sql: String, who: String) -> String:
+	return "[color=#ffffff]%s> %s[/color]" % [_esc(who), _esc(sql).replace("\n", "\n  ")]
+
+
+## Print an HTTP request and its response on `on_terminal`'s screen. An empty
+## response means the terminal has no API. The host calls on_request itself.
+func show_request(on_terminal: Node, line: String, res: Dictionary, from_peer: int) -> void:
+	var mine := from_peer == multiplayer.get_unique_id()
+	var who := ""
+	if not mine:
+		var net := get_node_or_null("/root/Net")
+		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+	on_terminal.print_line(_echo(line, who), "echo")
+	if res.is_empty():
+		on_terminal.print_line("[color=#ff6655]No network API on this terminal. It only speaks SQL.[/color]")
+		return
+	if mine:
+		get_node("/root/Game").log_query(line)
 	var color := "#7dff8c" if res.status < 400 else "#ff6655"
-	print_line("[color=%s]HTTP/1.0 %d %s[/color]" % [color, res.status, FacilityAPI.status_text(res.status)])
-	print_line(_esc(res.text))
-	terminal.on_request(line, res, self)
+	on_terminal.print_line("[color=%s]HTTP/1.0 %d %s[/color]" % [color, res.status, FacilityAPI.status_text(res.status)])
+	on_terminal.print_line(_esc(res.text), "result")
+	if LevelSync.of(on_terminal) == null:
+		on_terminal.on_request(line, res, self)
 
 
 func _command(cmd: String) -> void:
@@ -272,8 +326,8 @@ func _command(cmd: String) -> void:
 			print_line("  .schema NAME     show the columns of a table")
 			print_line("  .hint            ask WARDEN for a hint")
 			print_line("  .clear           clear the screen")
-			print_line("  .reset           restore this terminal's data from backup")
 			print_line("  .note LABEL      write the last line into your notebook (or click +note)")
+			print_line("  .reset           restore this terminal's data from backup")
 			if terminal.api != null:
 				print_line("  GET /path        send a web request, e.g. GET /cameras")
 			print_line("Anything else is run as SQL. End queries with ; (optional).")
@@ -303,6 +357,7 @@ func _command(cmd: String) -> void:
 			print_line("[color=#e0b050]WARDEN: %s[/color]" % terminal.next_hint(), "hint")
 		".clear":
 			_clear_output()
+			terminal.clear_screen()
 		".note":
 			var last := -1
 			for i in range(_noteable.size() - 1, -1, -1):
@@ -310,12 +365,16 @@ func _command(cmd: String) -> void:
 					last = i
 					break
 			if last < 0:
-				print_line("Nothing on screen to write down yet.", "none")
+				_render("Nothing on screen to write down yet.", "none")
 			else:
 				write_note(last, " ".join(parts.slice(1)))
 		".reset":
-			db.reset()
-			print_line("Backup tape restored. Data is back to how it started.")
+			var sync := LevelSync.of(terminal)
+			if sync:
+				sync.reset_db(terminal)
+			else:
+				db.reset()
+				print_line("Backup tape restored. Data is back to how it started.")
 		_:
 			print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
 

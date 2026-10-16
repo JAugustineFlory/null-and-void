@@ -13,9 +13,11 @@ var shutter: Door
 var walkies: Interactable
 var front_doors: Door
 var visitor_log: Interactable
-## Players ready up by pressing E on their seat-belt buckle. The co-op layer raises this
-## to the number of connected players; solo play starts as soon as one is ready.
+## Players ready up by pressing E on their seat-belt buckle. Co-op raises this to the
+## number of connected players; solo play starts as soon as one is ready.
 var players_needed := 1
+## Which seat each player starts in, by player number (0 = host): front seats first.
+const SEAT_ORDER := [1, 0, 2, 3, 4, 5]
 ## player -> the van seat they climb out of
 var ready_players := {}
 ## Each seat: spawn transform, seat-belt buckle, which door it exits by, its handle, and the
@@ -111,10 +113,11 @@ func build() -> void:
 	Greybox.label(geo, Vector3(-2.5, 0.85, -5.08), "LOST & FOUND", 40, Color(0.1, 0.1, 0.1))
 	walkies = Interactable.create(geo, Vector3(-2.5, 0.8, -5.5), Vector3(0.5, 0.2, 0.3), "Take walkie-talkies", Color(0.1, 0.1, 0.1))
 	walkies.enabled = false
-	walkies.used.connect(_on_walkies)
+	walkies.used.connect(func(_p): sync.event("_on_walkies"))
 	# The west end of the counter is clear of the log and terminal: that's where you hop it.
 	counter_hop = Interactable.create(geo, Vector3(-3.6, 1.1, -1.0), Vector3(2.4, 0.06, 0.8), "Hop over the counter", Color(), false)
 	counter_hop.enabled = false
+	counter_hop.local_only = true  # each player hops on their own machine
 	counter_hop.used.connect(hop_counter)
 
 	# Waiting area chairs (cover, atmosphere)
@@ -149,7 +152,7 @@ func build() -> void:
 		"THE HALCYON LEDGER - March 1994\nFOUNDER OUSTED OVER 'WARDEN' PLAN\nHarold Mercer, who built Halcyon from a garage,\nwas removed by the board after refusing to let an\nautomated system run the campus. 'You don't hand\nthe keys to something that can't be locked out,'\nhe told staff on his last day.",
 		26, Color(0.9, 0.88, 0.8), 90)
 	tape = Interactable.create(geo, Vector3(-19.3, 1.88, 5.0), Vector3(0.3, 0.12, 0.2), "Play the cassette", Color(0.12, 0.12, 0.12))
-	tape.used.connect(_on_tape)
+	tape.used.connect(func(_p): sync.event("_on_tape"))
 	var closet_light := Greybox.ceiling_light(geo, Vector3(-17, 2.6, 4), 5.0, 0.9)
 	FlickerLight.attach(closet_light, 0.35)
 
@@ -170,6 +173,10 @@ func build() -> void:
 	rourke.position = Vector3(0, 0, 4.8)
 	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
 	rourke.add_collision_exception_with(cable_tray)
+
+
+func net_setup() -> void:
+	sync.replicate(rourke, rourke.sync_properties())
 
 
 ## Rourke ducks under the cable tray as he walks the hall.
@@ -297,17 +304,73 @@ func _build_van(center: Vector3) -> void:
 		buckle.used.connect(ready_up.bind(van_seats.size() - 1))
 
 
-## A player pressed E on a seat-belt buckle. The co-op layer can call this too.
+## A player pressed E on a seat-belt buckle. Runs on the host (clients' presses are
+## forwarded); once everyone is ready, every machine climbs its own player out.
 func ready_up(p: Node, seat_index: int) -> void:
 	if ready_players.has(p) or _intro_started or ready_players.values().has(seat_index):
 		return
 	ready_players[p] = seat_index
-	van_seats[seat_index].buckle.enabled = false
+	players_needed = maxi(players_needed, players.count())
 	if ready_players.size() >= players_needed:
-		_intro_started = true
-		all_ready.emit()
+		var seats := []
+		for body in ready_players:
+			seats.append([players.id_of(body), ready_players[body]])
+		sync.event("_on_crew_ready", [seats])
 	else:
-		hud.set_objective("Ready. Waiting for your team (%d/%d)" % [ready_players.size(), players_needed])
+		sync.event("_on_waiting_for_crew", [seat_index, ready_players.size(), players_needed])
+
+
+func _on_waiting_for_crew(seat_index: int, ready_count: int, needed: int) -> void:
+	van_seats[seat_index].buckle.enabled = false
+	hud.set_objective("Ready. Waiting for your team (%d/%d)" % [ready_count, needed])
+
+
+## Everyone is ready. `seats` is [peer id, seat] in the order they readied. Each
+## machine climbs out the players it controls and opens the doors for the others.
+func _on_crew_ready(seats: Array) -> void:
+	_intro_started = true
+	var rear := 0
+	for pair in seats:
+		var seat: Dictionary = van_seats[pair[1]]
+		seat.buckle.enabled = false
+		var order := rear if seat.exit == "side" else 0
+		if seat.exit == "side":
+			rear += 1
+		var body = _body_in_seat(pair[0], pair[1])
+		if body is Player:
+			climb_out(body, seat, order)
+		else:
+			_open_door_for(seat, order)
+	all_ready.emit()
+
+
+## The Player in a seat if this machine controls it: its own, or (on the host)
+## any extra local Player that readied up there.
+func _body_in_seat(peer_id: int, seat_index: int) -> Node:
+	if peer_id == multiplayer.get_unique_id():
+		return player
+	for body in ready_players:
+		if ready_players[body] == seat_index and not body is PlayerPuppet:
+			return body
+	return null
+
+
+## A teammate climbs out on their own machine; here we just see their door open.
+func _open_door_for(seat: Dictionary, order: int) -> void:
+	if order > 0:
+		await get_tree().create_timer(0.8 * order).timeout
+	var tw := create_tween()
+	tw.tween_interval(0.5)
+	if seat.exit == "side":
+		if _side_door_open:
+			return
+		_side_door_open = true
+		tw.tween_property(side_door, "position", side_door.position + Vector3(0.15, 0, 1.3), 0.7).set_trans(Tween.TRANS_QUAD)
+	else:
+		var door: Dictionary = van_doors[seat.exit]
+		tw.tween_property(door.pivot, "rotation:y", door.swing, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(1.5)
+		tw.tween_property(door.pivot, "rotation:y", 0.0, 0.4).set_trans(Tween.TRANS_QUAD)
 
 
 ## Open the door by this seat and step down onto the tarmac, facing the building.
@@ -433,41 +496,44 @@ func seat_spawn(index: int) -> Transform3D:
 	return van_seats[index].spawn
 
 
+## Player number `index` (0 = host) starts in their own van seat.
+func player_spawn(index: int) -> Transform3D:
+	return seat_spawn(SEAT_ORDER[index % SEAT_ORDER.size()])
+
+
 func start() -> void:
 	player.flashlight.visible = false  # the lights are on; nobody needs a torch yet
 	hud.set_objective("Look down at your seat belt and press E to unbuckle when you're ready")
 	_dispatch_chatter()
-	await all_ready
-	var rear := 0
-	for p in ready_players:
-		var seat: Dictionary = van_seats[ready_players[p]]
-		climb_out(p, seat, rear if seat.exit == "side" else 0)
-		if seat.exit == "side":
-			rear += 1
+	if not _intro_started:
+		await all_ready
 	await get_tree().create_timer(2.0).timeout
 	hud.set_objective("Meet your contact at the front doors")
+	# Co-op: triggers and Rourke run on the host, so every machine waits on gates.
 	var approach := Trigger.create(self, Vector3(0, 1, 11.5), Vector3(16, 2, 2))
-	await approach.entered
+	await sync.gate("approach", approach.entered)
 
 	_set_front_doors_locked(false)
 	rourke.walk_to(Vector3(0, 0, 8.8))
-	await rourke.arrived
+	await sync.gate("rourke_at_door", rourke.arrived)
 	rourke.face(player.global_position)
 	await hud.lines(["l0_pa_1", "l0_pa_2", "l0_greet_1", "l0_greet_2", "l0_greet_3"])
 	await hud.line("l0_greet_4")
 	var inside := Trigger.create(self, Vector3(0, 1, 4.5), Vector3(10, 2, 2))
 	rourke.walk_to(Vector3(-0.5, 0, 0.6))
 	hud.set_objective("Follow Rourke to the front desk")
-	await inside.entered
+	inside.require_all = true
+	await sync.gate("inside", inside.entered)
 	_set_front_doors_locked(true)
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 5.6))
-	if rourke.state == Rourke.State.WALK:
-		await rourke.arrived
+	await sync.gate("rourke_at_desk", func():
+		if rourke.state == Rourke.State.WALK:
+			await rourke.arrived)
 	rourke.face(player.global_position)
 	await hud.line("l0_signin")
 	visitor_log.enabled = true
 	hud.set_objective("Sign the visitor log on the front desk")
-	await visitor_log.used
+	await sync.gate("signed_in", visitor_log.used)
 	visitor_log.enabled = false
 	hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
 	hud.set_objective("")
@@ -491,22 +557,31 @@ func _dispatch_chatter() -> void:
 		await hud.line(id)
 
 
-func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
+## Runs on the host. What the puzzle unlocks then plays out on every machine.
+func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 	if not peek_puzzle.solved and peek_puzzle.matches(db, result):
-		peek_puzzle.solved = true
-		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a number in the piece_no column.[/color]")
-		ui.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the column to sort by: piece_no[/color]")
-		hud.set_objective("Put the memo back in order")
-		hud.line("l0_sort_hint", false)
+		sync.event("_on_peek_solved")
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):
-		memo_puzzle.solved = true
-		peek_puzzle.solved = true
-		ui.print_line("")
-		ui.print_line("[color=#ffcc66]-- RECONSTRUCTED --[/color]")
-		for row in db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no"):
-			ui.print_line("[color=#ffcc66]%s[/color]" % row["text"])
-		_after_memo()
+		sync.event("_on_memo_solved")
+
+
+func _on_peek_solved() -> void:
+	peek_puzzle.solved = true
+	desk_terminal.print_line("")
+	desk_terminal.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a number in the piece_no column.[/color]")
+	desk_terminal.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the column to sort by: piece_no[/color]")
+	hud.set_objective("Put the memo back in order")
+	hud.line("l0_sort_hint", false)
+
+
+func _on_memo_solved() -> void:
+	memo_puzzle.solved = true
+	peek_puzzle.solved = true
+	desk_terminal.print_line("")
+	desk_terminal.print_line("[color=#ffcc66]-- RECONSTRUCTED --[/color]")
+	for row in db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no"):
+		desk_terminal.print_line("[color=#ffcc66]%s[/color]" % row["text"])
+	_after_memo()
 
 
 func _after_memo() -> void:
@@ -518,10 +593,13 @@ func _after_memo() -> void:
 	hud.set_objective("Hop over the counter (press E on its left end) and grab the walkie-talkies")
 
 
-func _on_walkies(_p: Node) -> void:
+func _on_walkies() -> void:
 	walkies.queue_free()
 	Game.has_walkie = true
-	hud.notice("Picked up walkie-talkies. Channel 1. (Co-op radio arrives in the next build.)", 5.0)
+	if sync.is_online():
+		hud.notice("Picked up walkie-talkies. Hold V to talk on the radio. Up close, just talk.", 6.0)
+	else:
+		hud.notice("Picked up walkie-talkies. Channel 1. Nobody else is on it.", 5.0)
 	prepare_next()
 	hud.line("l0_walkie")
 	hud.set_objective("Hop back over and follow Rourke")
@@ -531,18 +609,22 @@ func _on_walkies(_p: Node) -> void:
 ## Rourke walks the crew down the hall himself, making small talk. Nothing is wrong yet.
 func _walk_to_server_room() -> void:
 	rourke.walk_to(Vector3(9.6, 0, 3))
-	await rourke.arrived
+	await sync.gate("rourke_at_shutter", rourke.arrived)
 	rourke.face(player.global_position)
 	shutter.set_open(true)  # he badges it, and it opens like any other door
 	hud.set_objective("Follow Rourke to Server Room A")
 	var hall := Trigger.create(self, Vector3(8.2, 1, 3), Vector3(1.2, 2, 2))
-	await hall.entered
+	await sync.gate("hall", hall.entered)
 	rourke.walk_to(Vector3(22.4, 0, 3))
 	await hud.lines(["l0_tour_3", "l0_tour_4", "l0_tour_5", "l0_tour_6"])
-	if rourke.state == Rourke.State.WALK:
-		await rourke.arrived
-	var near := Trigger.create(self, Vector3(20.6, 1, 3), Vector3(2.4, 2, 2))
-	near.entered.connect(_on_reach_server_room)
+	await sync.gate("rourke_at_sra", func():
+		if rourke.state == Rourke.State.WALK:
+			await rourke.arrived)
+	# He waits until the whole crew has caught up.
+	var near := Trigger.create(self, Vector3(19.4, 1, 3), Vector3(4.8, 2, 2))
+	near.require_all = true
+	near.waiting.connect(func(inside, total): sync.team_notice("Rourke is waiting for everyone at Server Room A (%d/%d)" % [inside, total]))
+	near.entered.connect(func(_b): sync.event("_on_reach_server_room", [null]))
 
 
 func _on_reach_server_room(_b: Node) -> void:
@@ -559,7 +641,7 @@ func _on_reach_server_room(_b: Node) -> void:
 	finish_level("level_1")
 
 
-## Optional: Mercer's cassette in the forgotten closet.
-func _on_tape(_p: Node) -> void:
+## Optional: Mercer's cassette in the forgotten closet. Everyone hears it.
+func _on_tape() -> void:
 	tape.enabled = false
 	await hud.lines(VoiceLines.ids_in_scene("l0_tape"))
