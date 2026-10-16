@@ -66,6 +66,7 @@ func _run() -> void:
 	book.right.add_child(NotebookArt.heading("Tables"))
 	book.right.add_child(NotebookArt.table_card("doors", ["door_id", "location", "locked", "badge_level"]))
 	book.right.add_child(NotebookArt.table_card("lights", ["light_id", "zone", "on"]))
+	book.right.add_child(NotebookArt.note_line("SEC-EXIT  | locked | badge_level 3", "the way out?"))
 	book.right.add_child(NotebookArt.margin_note("status can lie. check the sensor!"))
 	book.show_book()
 	await _frames(30)

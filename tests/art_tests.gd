@@ -301,6 +301,13 @@ func test_notebook() -> void:
 	check(pressed == ["Tables"], "notebook tabs report which one was clicked")
 	book.left.add_child(NotebookArt.sticky("SELECT", "SELECT columns FROM table;", "SELECT name FROM rooms;"))
 	book.right.add_child(NotebookArt.table_card("doors", ["door_id", "locked"]))
+	var copied := NotebookArt.note_line("SEC-EXIT | locked | badge 3", "the way out?")
+	book.right.add_child(copied)
+	var labels := copied.find_children("*", "Label", true, false)
+	check(labels.size() == 2 and (labels[0] as Label).text == "the way out?", "a copied terminal line keeps the player's label")
+	var pen := NotebookArt.write_button()
+	check(pen is Button and pen.focus_mode == Control.FOCUS_NONE, "the write-it-down button never steals the terminal's focus")
+	pen.free()
 	book.show_book()
 	await t.create_timer(0.4).timeout
 	check(book.visible and book.modulate.a > 0.99, "the notebook opens")

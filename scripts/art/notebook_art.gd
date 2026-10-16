@@ -12,6 +12,7 @@ const INK := Color(0.12, 0.15, 0.32)  # blue-black ballpoint
 const PENCIL := Color(0.35, 0.35, 0.37)
 const RED_PEN := Color(0.7, 0.12, 0.1)
 const TAPE := Color(0.95, 0.94, 0.85, 0.55)
+const GREEN_BAR := Color(0.86, 0.93, 0.84)  # tractor-feed printer paper
 const LINE_HEIGHT := 30  # ruled line spacing in the notebook, pixels at 1x
 
 const HAND_FONT_PATH := "res://assets/art/fonts/PatrickHand-Regular.ttf"
@@ -154,6 +155,69 @@ static func table_card(table_name: String, columns: Array) -> Control:
 		row.add_child(col)
 		box.add_child(row)
 	return box
+
+
+## A terminal line copied into the notebook: a strip torn off green-bar
+## printer paper with the line in typewriter text, taped to the page, and the
+## player's own label handwritten above it ("door code?", "Mercer's badge").
+## Pass label "" for none.
+static func note_line(text: String, label: String = "", tilt: float = INF) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 0)
+	if label != "":
+		var l := hand(label, 24, INK)
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		box.add_child(l)
+	var strip := PanelContainer.new()
+	strip.name = "Strip"
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = GREEN_BAR
+	sb.border_color = Color(GREEN_BAR.darkened(0.08))
+	sb.border_width_left = 10  # the tractor-feed edge, torn off
+	sb.shadow_color = Color(0, 0, 0, 0.2)
+	sb.shadow_size = 3
+	sb.shadow_offset = Vector2(2, 2)
+	sb.content_margin_left = 18
+	sb.content_margin_right = 14
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	strip.add_theme_stylebox_override("panel", sb)
+	strip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var line := code(text, 17)
+	line.autowrap_mode = TextServer.AUTOWRAP_OFF
+	line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	line.custom_minimum_size.x = minf(440.0, 11.0 * text.length() + 8.0)
+	line.clip_text = true
+	strip.add_child(line)
+	strip.rotation_degrees = (float(abs(text.hash()) % 5) - 2.0) * 0.5 if tilt == INF else tilt
+	box.add_child(strip)
+	return box
+
+
+## The small "write it down" tab for each terminal output line: press it to copy
+## the line into the notebook. Sticky-note yellow, handwritten, so players learn
+## that yellow means "this goes in your notebook".
+static func write_button(caption: String = "+ note") -> Button:
+	var b := Button.new()
+	b.name = "WriteNote"
+	b.text = caption
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = "Copy this line into your notebook"
+	for state in ["normal", "hover", "pressed"]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = ArtProps.STICKY_YELLOW.lightened(0.15 if state == "hover" else 0.0).darkened(0.12 if state == "pressed" else 0.0)
+		sb.corner_radius_top_left = 3
+		sb.corner_radius_bottom_right = 3
+		sb.content_margin_left = 8
+		sb.content_margin_right = 8
+		sb.content_margin_top = 1
+		sb.content_margin_bottom = 1
+		b.add_theme_stylebox_override(state, sb)
+	b.add_theme_font_override("font", hand_font())
+	b.add_theme_font_size_override("font_size", 20)
+	for c in ["font_color", "font_hover_color", "font_pressed_color"]:
+		b.add_theme_color_override(c, INK)
+	return b
 
 
 ## A scribbled margin note in red pen, for warnings ("this status can lie").
