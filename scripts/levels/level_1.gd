@@ -45,9 +45,13 @@ func build() -> void:
 	if world:
 		ante_gaps.append({"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4})  # from the lobby hall
 	Greybox.room(geo, Vector3(0, 0, 11.5), Vector3(3, 3, 5), {"floor": floor_c, "wall": wall_c}, ante_gaps)
-	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, [
-		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
-	])
+	var exit_gaps := [{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4}]
+	if world:
+		exit_gaps.append({"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4})  # on to the security wing
+	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, exit_gaps)
+	if world:
+		# The security wing is built behind this door before players reach it.
+		exit_door = add_door("SRA-STAIRS", Vector3(0, 1.2, -15.9), Vector3(1.8, 2.4, 0.15))
 	add_door("SRA-ENTRY", Vector3(0, 1.2, 9), Vector3(1.8, 2.4, 0.15)).slide_axis = Vector3.UP
 	add_door("SRA-EXIT", Vector3(0, 1.2, -9), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.8, -8.88), "EMERGENCY EXIT", 64, Color(0.1, 0.8, 0.2))
@@ -219,19 +223,25 @@ func _on_panel(_p: Node, id: String) -> void:
 	hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SRA-EXIT: OPENED" % id, 4.0, ThemeUtil.GREEN)
 	hud.set_objective("Get out through the emergency exit")
 	hud.line("l1_exit_open", false)
+	prepare_next()
 	var t := Trigger.create(self, Vector3(0, 1, -13.5), Vector3(3, 2, 1.5))
 	t.entered.connect(_on_exit)
 
 
 func _on_exit(_b: Node) -> void:
-	player.input_locked = true
+	# In the World the security wing waits behind the stairwell door: no fade, play carries on.
+	if not world:
+		player.input_locked = true
 	if Game.rourke_fate == "tied":
 		await hud.say("", "Behind you, a cut length of network cable lies on the floor. Rourke is gone.", 4.0)
 		await hud.line("l1_lockdown_tied")
 	await hud.line("l1_sealed")
-	await hud.fade(true, 1.2)
 	Game.completed_level = "level_1"
-	Game.next_level = "level_2"
+	if world:
+		exit_door.set_open(true)
+		finish_level("level_2")
+		return
+	await hud.fade(true, 1.2)
 	finish_level("field_notes")
 
 

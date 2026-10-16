@@ -91,14 +91,7 @@ INSERT INTO cameras VALUES
 	('CAM-4', 'Break room', 'offline', NULL, 0, 'unplugged for the coffee machine'),
 	('CAM-5', 'East ledge (outside)', 'live', '00:41:00', 0, 'normal');
 
--- doors is building-wide: Level 1 may have made it already. This wing only adds SEC- rows.
-CREATE TABLE IF NOT EXISTS doors (
-	id TEXT,
-	name TEXT,
-	zone TEXT,
-	locked INTEGER,
-	actuator_fault INTEGER
-);
+-- doors is building-wide (FacilityDB.SHARED_SCHEMA). This wing only adds SEC- rows.
 INSERT INTO doors VALUES
 	('SEC-EXIT', 'Security wing stairwell', 'S', 1, 1);
 

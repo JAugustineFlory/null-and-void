@@ -16,9 +16,8 @@ var rourke_fate := "unknown"
 var has_walkie := false
 ## Did the players lock the Watcher in behind them in Level 2?
 var watcher_sealed := false
-## The level the Field Notes screen is summarizing, and where "Continue" goes.
+## The level the Field Notes screen is summarizing.
 var completed_level := ""
-var next_level := ""
 ## Every successful query the players ran, for the Field Notes screen.
 var query_log: Array[String] = []
 ## Concepts the players have used, in the order they first used them.
@@ -38,7 +37,6 @@ func new_run(seed_value: int = -1) -> void:
 	has_walkie = false
 	watcher_sealed = false
 	completed_level = ""
-	next_level = ""
 	query_log.clear()
 	concepts_learned.clear()
 

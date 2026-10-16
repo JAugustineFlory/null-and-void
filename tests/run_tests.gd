@@ -653,7 +653,39 @@ func test_world() -> void:
 	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
+	check(not world.wings.has("level_2"), "the security wing isn't loaded before it's needed")
+	world.load_next(sra)
+	var sec = world.wings.get("level_2")
+	check(sec != null and not sec.active, "the security wing loads behind Server Room A's stairwell door")
+	check(sra.exit_door != null and not sra.exit_door.is_open, "Server Room A's stairwell door is shut while the wing waits")
+	var joint: Vector3 = sra.exit_door.global_position
+	var landing: Vector3 = sec.spawn_point().origin
+	check(joint.distance_to(Vector3(53.9, 1.2, 3)) < 0.2 and landing.distance_to(Vector3(55, 0.1, 3)) < 0.1,
+		"the security wing's landing meets Server Room A's exit corridor (%s, %s)" % [joint, landing])
+	check(world.db.run_silent("SELECT * FROM doors WHERE id LIKE 'SEC-%'").size() == 1 and world.db.table_names().has("guards"),
+		"the security wing adds its own rows to the one building database")
+	await process_frame
+	check(sec._clock == 0.0, "the security wing's clock doesn't run before players get there")
+	check(sec._camera_holds(sec.watcher), "cameras cover the Watcher's spot in the office, wherever the wing sits")
+	sra.exit_door.set_open(true)
 	world.wing_finished(sra)
+	check(world.current == sec and sec.active, "finishing Server Room A hands play to the security wing")
+	check(sec.watcher.global_position.distance_to(sec.to_global(sec.watcher_home)) < 0.1, "the Watcher stands in the office")
+	world.seal_behind(sec)
+	check(not sra.exit_door.is_open, "Server Room A's stairwell door seals behind the players")
+	sec.player.global_position = sec.to_global(Vector3(0, 0.1, -10.5))
+	await physics_frame
+	await physics_frame
+	sec._process(0.0)
+	check(sec.reached_vestibule, "the vestibule camera zone works at the wing's position")
+	sec.on_player_died()
+	check(sec.player.global_position.distance_to(sec.to_global(Vector3(0, 0.1, -10.8))) < 0.2, "dying past the office respawns in the vestibule")
+	var map: RID = sec.watcher.get_world_3d().navigation_map
+	for i in 5:
+		await physics_frame
+	var path := NavigationServer3D.map_get_path(map, sec.to_global(sec.watcher_home), sec.to_global(Vector3(-3, 0, 4)), true)
+	check(path.size() > 1 and path[path.size() - 1].distance_to(sec.to_global(Vector3(-3, 0, 4))) < 1.0, "the Watcher can path from the office to the corridor in the World")
+	world.wing_finished(sec)
 	check(world._field_notes != null and world.player.input_locked, "Field Notes opens as an overlay at the end")
 	world.queue_free()
 	await process_frame

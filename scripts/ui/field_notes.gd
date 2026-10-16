@@ -65,16 +65,9 @@ func _ready() -> void:
 		"tied": "You tied Rourke up. He didn't stay tied.",
 	}.get(Game.rourke_fate, "Rourke's fate is unknown.")
 	box.add_child(ThemeUtil.label(fate, 22, Color(0.9, 0.85, 0.8)))
-	if Game.next_level == "":
-		box.add_child(ThemeUtil.label("End of the playable slice. Thanks for testing.", 22, Color(0.9, 0.85, 0.8)))
+	box.add_child(ThemeUtil.label("End of the playable slice. Thanks for testing.", 22, Color(0.9, 0.85, 0.8)))
 	box.add_child(_spacer())
 
-	if Game.next_level != "":
-		var next := Button.new()
-		next.text = "Continue"
-		next.custom_minimum_size = Vector2(320, 50)
-		next.pressed.connect(func(): Game.goto(Game.next_level))
-		box.add_child(next)
 	var again := Button.new()
 	again.text = "Play again (new data)"
 	again.custom_minimum_size = Vector2(320, 50)

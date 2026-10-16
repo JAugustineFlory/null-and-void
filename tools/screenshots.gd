@@ -36,6 +36,11 @@ func _run() -> void:
 	world.load_next(world.current)
 	world.current.exit_door.set_open(true, true)
 	await _shot(world, "world_hall_to_sra", Vector3(19, 0.1, 3), -90, 0)
+	var sra = world.load_wing(1)
+	world.load_next(sra)
+	sra.doors["SRA-EXIT"].set_open(true, true)
+	sra.exit_door.set_open(true, true)
+	await _shot(world, "world_sra_to_security", Vector3(47.5, 0.1, 3), -90, 0)
 	world.free()
 
 	level = await _load("res://scenes/level_1.tscn")

@@ -12,12 +12,13 @@ extends LevelBase
 ## corridor to the vestibule: through the office, the vent over the crate, or the
 ## smashed window and the ledge outside. The keypad PIN is needed on every route.
 
-## Fired at the bottom of the stairs: the wing is done. A streamed world can
-## take over from here; on its own, the level goes to Field Notes.
+## Fired at the bottom of the stairs: the wing is done. In the World that's the
+## end of the route (Field Notes); on its own, the level goes to Field Notes too.
 signal completed
 
 const CLOCK_START := 41 * 60  # 00:41:00
-## Where each camera can see, as boxes. Only working cameras hold the Watcher.
+## Where each camera can see, as boxes in the level's own space (see _in()).
+## Only working cameras hold the Watcher.
 var cam_zones := {
 	"CAM-2": [AABB(Vector3(-6, -1, -8), Vector3(12, 6, 10))],
 	"CAM-3": [AABB(Vector3(-2.5, -1, -12), Vector3(5, 6, 4))],
@@ -88,7 +89,7 @@ var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har
 
 func build() -> void:
 	data = Level2Data.build(Game.run_seed)
-	db.load_seed(data.sql)
+	load_level_seed(data.sql)
 	keypad_ui = Level2Keypad.new()
 	add_child(keypad_ui)
 	keypad_ui.submitted.connect(_on_pin)
@@ -96,10 +97,12 @@ func build() -> void:
 	var floor_c := Color(0.27, 0.27, 0.3)
 	var wall_c := Color(0.52, 0.53, 0.5)
 	var office_wall := Color(0.46, 0.48, 0.5)
-	# Stair landing (spawn): x 2.5..5.5, z 6..10
-	Greybox.room(geo, Vector3(4, 0, 8), Vector3(3, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
-		{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4},
-	])
+	# Stair landing (spawn): x 2.5..5.5, z 6..10. In the World its south side opens
+	# onto Server Room A's exit corridor.
+	var landing_gaps := [{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4}]
+	if world:
+		landing_gaps.append({"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4})
+	Greybox.room(geo, Vector3(4, 0, 8), Vector3(3, 3.2, 4), {"floor": floor_c, "wall": wall_c}, landing_gaps)
 	Greybox.label(geo, Vector3(4, 2.7, 9.88), "FROM SERVER ROOM A", 40, Color(0.2, 0.2, 0.2), 180)
 	# Corridor: x -6..6, z 2..6
 	Greybox.room(geo, Vector3(0, 0, 4), Vector3(12, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
@@ -311,8 +314,12 @@ func _camera_box(pos: Vector3) -> void:
 
 func start() -> void:
 	if completed.get_connections().is_empty():
-		completed.connect(_end_standalone)
-	watcher.place(watcher_home, Vector3(-3, 0, 2))
+		completed.connect(_on_completed)
+	if world:
+		# Seal Server Room A once players are on the landing.
+		var through := Trigger.create(self, Vector3(4, 1, 8.5), Vector3(3, 2, 1.5))
+		through.entered.connect(func(_b): world.seal_behind(self))
+	_place_watcher(watcher_home, Vector3(-3, 0, 2))
 	watcher.active = true
 	hud.set_objective("Find a way out of the security wing")
 	if Game.rourke_fate == "tied":
@@ -325,6 +332,8 @@ func start() -> void:
 
 
 func _process(delta: float) -> void:
+	if not active:
+		return  # built behind Server Room A's exit, waiting for players
 	_clock += delta
 	_cam_tick -= delta
 	if _cam_tick <= 0.0:
@@ -360,9 +369,11 @@ func _camera_holds(w: Watcher) -> bool:
 	return false
 
 
+## Is a world-space point inside any of these level-space boxes?
 func _in(boxes: Array, p: Vector3) -> bool:
+	var local := to_local(p) + Vector3.UP * 0.5
 	for b in boxes:
-		if b.has_point(p + Vector3.UP * 0.5):
+		if b.has_point(local):
 			return true
 	return false
 
@@ -616,14 +627,13 @@ func _on_exit(_b: Node) -> void:
 	else:
 		await hud.say("", "The door behind you is still open. You don't look back. You know better.", 4.5)
 	Game.completed_level = "level_2"
-	Game.next_level = ""
 	completed.emit()
 
 
-## Played as its own scene (until wings stream into one world), the level ends on Field Notes.
-func _end_standalone() -> void:
+## The end of the route: Field Notes, over the live World or as its own scene.
+func _on_completed() -> void:
 	await hud.fade(true, 1.2)
-	Game.goto("field_notes")
+	finish_level("field_notes")
 
 
 func _on_caught(p: Node) -> void:
@@ -634,8 +644,13 @@ func _on_caught(p: Node) -> void:
 func on_player_died() -> void:
 	keypad_ui.close()
 	if reached_vestibule:
-		player.respawn(Transform3D(Basis(), Vector3(0, 0.1, -10.8)))
-		watcher.place(Vector3(-4.5, 0, 4.5), Vector3(0, 0, -10))
+		player.respawn(global_transform * Transform3D(Basis(), Vector3(0, 0.1, -10.8)))
+		_place_watcher(Vector3(-4.5, 0, 4.5), Vector3(0, 0, -10))
 	else:
-		player.respawn(spawn)
-		watcher.place(watcher_home, Vector3(-3, 0, 2))
+		player.respawn(spawn_point())
+		_place_watcher(watcher_home, Vector3(-3, 0, 2))
+
+
+## Stand the Watcher at a spot in the level's own space, facing another.
+func _place_watcher(at: Vector3, look: Vector3) -> void:
+	watcher.place(to_global(at), to_global(look))
