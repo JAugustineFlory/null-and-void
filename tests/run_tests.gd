@@ -607,8 +607,6 @@ func test_coop_level_0() -> void:
 	# for everyone; one stuck to a terminal is copied by each player on their own.
 	var loose: Array = levels.map(func(l): return l.find_children("*", "StickyNote", true, false).filter(func(n): return n.note_id == "order_by")[0])
 	check(not loose[0].on_terminal and levels.all(func(l): return l.find_children("*", "StickyNote", true, false).any(func(n): return n.on_terminal and n.local_only)), "terminal stickies are copied locally, not through the host")
-	var c1_puppet = host.players.puppet(c1_id)
-	check(loose[0]._peer_of(c1_puppet) == c1_id, "the host knows which player took a loose note")
 	_game().notebook_notes.clear()
 	loose[1].interact(c1.player)
 	await _frames(10)

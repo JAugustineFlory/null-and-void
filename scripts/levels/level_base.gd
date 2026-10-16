@@ -127,14 +127,6 @@ func net_setup() -> void:
 	pass
 
 
-## A sync event for any node in the level: call `method(args)` on the node at
-## `path` on every machine, e.g. an elevator's doors closing.
-func run_on(path: NodePath, method: StringName, args: Array = []) -> void:
-	var node := get_node_or_null(path)
-	if node:
-		node.callv(method, args)
-
-
 ## Override: what happens when the player dies.
 func on_player_died() -> void:
 	player.respawn(spawn_point())

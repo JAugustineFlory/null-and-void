@@ -53,18 +53,30 @@ func _on_used(player: Node) -> void:
 			_write_down()
 		taken.emit(player)
 		return
-	# A loose note: the host decides who got it, then it's gone on every machine.
+	# A loose note: the host decides who got it, gives it to them, and removes
+	# it on every machine. Only the taker's machine has their notebook.
 	var sync := LevelSync.of(self)
-	if sync and sync.level.has_method("run_on"):
-		sync.event("run_on", [sync.level.get_path_to(self), "taken_by", [_peer_of(player)]])
-	else:
-		taken_by(_peer_of(player))
-
-
-## Every machine: `peer` picked this note up. It goes in their notebook only.
-func taken_by(peer: int) -> void:
-	if peer == multiplayer.get_unique_id():
+	if sync == null:
 		_write_down()
+		_remove()
+		return
+	var players: Node = sync.level.get("players")
+	var id: int = players.id_of(player) if players else multiplayer.get_unique_id()
+	if id == multiplayer.get_unique_id():
+		_write_down()
+	elif id != 0:
+		_give.rpc_id(id)
+	sync.run_on(self, "_remove")
+
+
+## The taker's machine: the note goes in their notebook.
+@rpc("authority", "reliable")
+func _give() -> void:
+	_write_down()
+
+
+## Every machine: the note is gone.
+func _remove() -> void:
 	taken.emit(null)
 	queue_free()
 
@@ -74,13 +86,6 @@ func _write_down() -> void:
 	var level := _level()
 	if get_node("/root/Game").add_note(note_id) and level and level.hud:
 		level.hud.notice("Added to your notebook (Tab): %s" % title, 4.0)
-
-
-func _peer_of(player: Node) -> int:
-	var level := _level()
-	if player == null or level == null or level.player == null or player == level.player:
-		return multiplayer.get_unique_id()
-	return player.get("peer_id") if player.get("peer_id") != null else 0
 
 
 ## Only the local player's pickups go in this machine's notebook.

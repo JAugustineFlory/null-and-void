@@ -216,8 +216,8 @@ func press(by: Node = null) -> bool:
 	button_pressed.emit(by)
 	# In co-op the press reaches the host, which counts heads; then the doors
 	# close on every machine together.
-	if sync and sync.level.has_method("run_on"):
-		sync.event("run_on", [sync.level.get_path_to(self), "close", []])
+	if sync:
+		sync.run_on(self, "close")
 	else:
 		close()
 	return true

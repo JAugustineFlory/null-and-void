@@ -134,6 +134,20 @@ func _event(method: StringName, args: Array) -> void:
 	level.callv(method, args)
 
 
+## Host: call `node.method(args)` on every machine, e.g. an elevator's doors
+## closing. The path is relative to the level, so it works inside wings.
+func run_on(node: Node, method: StringName, args: Array = []) -> void:
+	if is_host():
+		_run_on.rpc(level.get_path_to(node), method, args)
+
+
+@rpc("authority", "call_local", "reliable")
+func _run_on(path: NodePath, method: StringName, args: Array) -> void:
+	var node := level.get_node_or_null(path)
+	if node:
+		node.callv(method, args)
+
+
 ## Wait, on every machine, until something happens on the host. Story code that
 ## awaits a trigger, an NPC arriving or a button press uses this, because those
 ## only fire on the host. `waiter` is a Signal, or a Callable to await.
