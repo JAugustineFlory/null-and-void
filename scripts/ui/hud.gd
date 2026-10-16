@@ -60,7 +60,7 @@ func _ready() -> void:
 	_notice.position = Vector2(-600, 70)
 	root.add_child(_notice)
 
-	var keys := ThemeUtil.label("WASD move · Shift sprint · Ctrl crouch/slide · Space jump/climb · E use · F flashlight · Click strike", 15, Color(1, 1, 1, 0.45))
+	var keys := ThemeUtil.label("WASD move · Shift sprint · Ctrl crouch/slide/roll · Space jump/mantle/grab · E use/boost · F flashlight · Click strike", 15, Color(1, 1, 1, 0.45))
 	keys.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	keys.position = Vector2(28, -36)
 	root.add_child(keys)

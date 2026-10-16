@@ -19,6 +19,7 @@ func _run() -> void:
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
+	await load("res://tests/movement_tests.gd").new().run(self, check)
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
