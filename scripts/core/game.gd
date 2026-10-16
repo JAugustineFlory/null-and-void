@@ -9,6 +9,7 @@ const LEVELS := {
 	"movement_gym": "res://scenes/movement_gym.tscn",
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",
+	"lobby": "res://scenes/lobby.tscn",
 }
 
 ## How the escort's story went: "unknown", "killed", "tied".

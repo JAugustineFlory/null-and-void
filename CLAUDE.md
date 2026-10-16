@@ -8,3 +8,6 @@
 - Randomize per-run data from `Game.run_seed` so walkthroughs can't be copied, and test across many seeds.
 - Scripts loaded by `tests/run_tests.gd` must not reference the `Game` autoload by name at parse time; use `get_node("/root/Game")` there.
 - Teach in this order on every new concept: found in the world, practiced once safely, then used under pressure.
+- Co-op (`scripts/net/`): the host decides and every machine plays it out. Host-side handlers (triggers, puzzle matches, `Interactable.used`) call `sync.event("_method", [args])`, which runs that level method everywhere in order; never change shared state only on one machine.
+- NPCs are simulated on the host: call `sync.replicate(npc, props)` in the level's `net_setup()`. Level text for a terminal goes through `terminal.print_line()` (screens are shared), not `ui.print_line()`.
+- Use `Trigger.require_all` when everyone must be present (traps, level exits). Set a body's transform before `add_child`, or it sits at the origin for one physics step and can fire triggers there.
