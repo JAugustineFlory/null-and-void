@@ -21,6 +21,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_gallery()
 	await test_dressed_level_0()
 	await test_dressed_level_1()
+	test_sticky_notes()
+	test_elevator()
+	await test_notebook()
 
 
 func check(cond: bool, name: String) -> void:
@@ -306,3 +309,71 @@ func test_dressed_level_1() -> void:
 	level.rourke.state = Rourke.State.TIED
 	check(look.pick_action() == "tied", "and shows him tied up")
 	level.free()
+
+
+func test_sticky_notes() -> void:
+	var stage := _stage()
+	var a := ArtProps.sticky_note(stage, Vector3.ZERO, 0, "WHERE")
+	var b := ArtProps.sticky_note(stage, Vector3(1, 0, 0), 0, "ORDER BY", ArtProps.STICKY_YELLOW, true)
+	var paper: MeshInstance3D = a.find_child("Paper", true, false)
+	check(paper != null and (paper.mesh as BoxMesh).size.x < 0.08, "a sticky note is sticky-note sized")
+	check(paper.material_override == (b.find_child("Paper", true, false) as MeshInstance3D).material_override, "sticky notes of one color share a material")
+	check((paper.material_override as StandardMaterial3D).emission_enabled, "sticky notes glow faintly so they can be spotted")
+	var label: Label3D = b.find_child("Text", true, false)
+	check(label.text == "ORDER BY" and label.font != null, "a sticky note shows its keyword in handwriting")
+	var up := (label.global_transform.basis * Vector3(0, 0, 1)).normalized()
+	check(up.y > 0.9, "a note laid on a desk faces up")
+	stage.free()
+
+
+func test_elevator() -> void:
+	var stage := _stage()
+	var lift := ArtElevator.build(stage, Vector3.ZERO, 0.0, Vector3(2.6, 2.5, 2.2), ["2", "1", "B1"])
+	var shut := lift.door_offsets()
+	check(shut.size() == 2 and absf(shut[0] - shut[1]) < 0.7, "the elevator doors meet in the middle when shut")
+	lift.open_amount = 1.0
+	var open := lift.door_offsets()
+	check(absf(open[0]) > 0.8 and absf(open[1]) > 0.8, "open, both doors slide clear of the 1.2 m doorway")
+	lift.open_amount = 3.0
+	check(lift.open_amount == 1.0, "open_amount stays between 0 and 1")
+	lift.set_floor("B1")
+	lift.set_direction(-1)
+	check(lift.get_floor() == "B1", "the floor indicator shows the floor")
+	lift.light_button("B1")
+	check(lift.is_button_lit("B1") and not lift.is_button_lit("2"), "pressing a floor lights only its button")
+	var pieces := 0
+	for n in lift.find_children("*", "MeshInstance3D", true, false):
+		pieces += 1
+	check(pieces <= 48, "the elevator stays within its piece budget (%d)" % pieces)
+	check(lift.find_children("*", "CollisionShape3D", true, false).is_empty(), "the elevator model adds no collision (mechanics own it)")
+	lift.set_car_light(0.0)
+	check(not (lift.get_node("CarLight") as OmniLight3D).visible, "the car light can be cut")
+	stage.free()
+
+
+func test_notebook() -> void:
+	check(NotebookArt.hand_font() is Font and NotebookArt.type_font() is Font, "the notebook fonts load")
+	check(NotebookArt.hand_font() is FontFile, "the handwriting font ships with the game, not the system")
+	var layer := CanvasLayer.new()
+	t.root.add_child(layer)
+	var book := NotebookView.new()
+	layer.add_child(book)
+	var pressed := []
+	book.tab_pressed.connect(func(n): pressed.append(n))
+	book.add_tab("Notes")
+	var tables := book.add_tab("Tables")
+	tables.pressed.emit()
+	check(pressed == ["Tables"], "notebook tabs report which one was clicked")
+	book.left.add_child(NotebookArt.sticky("SELECT", "SELECT columns FROM table;", "SELECT name FROM rooms;"))
+	book.right.add_child(NotebookArt.table_card("doors", ["door_id", "locked"]))
+	book.show_book()
+	await t.create_timer(0.4).timeout
+	check(book.visible and book.modulate.a > 0.99, "the notebook opens")
+	check(book.book.get_global_rect().size.x <= book.get_viewport_rect().size.x + 1, "the open book fits on screen")
+	book.clear_pages()
+	await t.process_frame
+	check(book.left.get_child_count() == 0 and book.right.get_child_count() == 0, "pages clear for the next section")
+	book.hide_book()
+	await t.create_timer(0.3).timeout
+	check(not book.visible, "the notebook closes")
+	layer.free()
