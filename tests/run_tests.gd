@@ -15,6 +15,7 @@ func _run() -> void:
 	test_facility_db()
 	test_level_0_puzzles()
 	test_level_1_data_every_seed()
+	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
 	print("\n%d passed, %d failed" % [passed, failed])
@@ -90,6 +91,25 @@ func test_level_1_data_every_seed() -> void:
 	check(all_ok, "exactly one zone-A fault on a physical rack, and AND finds it")
 	check(never_guessable, "a single condition is never enough")
 	check(answers.size() >= 5, "the answer varies between runs (%d different racks)" % answers.size())
+
+
+func test_screens_fill_window() -> void:
+	print("Menu screens")
+	var win := root.get_visible_rect().size
+	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn"]:
+		var screen: Control = load(path).instantiate()
+		root.add_child(screen)
+		await process_frame
+		await process_frame
+		check(screen.size.is_equal_approx(win), "%s fills the window (%s vs %s)" % [path.get_file(), screen.size, win])
+		var inside := true
+		for b in screen.find_children("*", "Button", true, false):
+			var r: Rect2 = b.get_global_rect()
+			if r.position.x < 0 or r.position.y < 0 or r.end.x > win.x or r.end.y > win.y:
+				inside = false
+		check(inside, "%s buttons are fully on screen" % path.get_file())
+		screen.queue_free()
+		await process_frame
 
 
 func test_level_0_scene() -> void:

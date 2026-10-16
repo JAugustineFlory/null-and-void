@@ -130,24 +130,31 @@ func _build_pause_menu() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 30
 	add_child(layer)
-	_pause = VBoxContainer.new()
-	_pause.set_anchors_preset(Control.PRESET_CENTER)
-	_pause.position = Vector2(-150, -80)
-	_pause.custom_minimum_size = Vector2(300, 0)
-	_pause.add_theme_constant_override("separation", 12)
+	_pause = ColorRect.new()
+	_pause.color = Color(0, 0, 0, 0.7)
+	_pause.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause.visible = false
 	layer.add_child(_pause)
-	_pause.add_child(ThemeUtil.label("PAUSED", 40))
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause.add_child(center)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(300, 0)
+	box.add_theme_constant_override("separation", 12)
+	center.add_child(box)
+	var title := ThemeUtil.label("PAUSED", 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
 	var resume := Button.new()
 	resume.text = "Resume"
 	resume.pressed.connect(_toggle_pause)
-	_pause.add_child(resume)
+	box.add_child(resume)
 	var menu := Button.new()
 	menu.text = "Quit to menu"
 	menu.pressed.connect(func():
 		get_tree().paused = false
 		Game.goto("menu"))
-	_pause.add_child(menu)
+	box.add_child(menu)
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	var catcher := PauseCatcher.new()
 	catcher.level = self
