@@ -63,7 +63,17 @@ Procedural, no imported clips, so it is tiny and needs no animation sync:
 
 ## Props
 
-`ArtProps`: desk, office_chair, crt_monitor (off, green or blue screen), server_rack (lit or dead), filing_cabinet, potted_plant, water_cooler, exit_sign, troffer (a recessed fluorescent fitting with a real light whose panel glow follows the mood). Solid props are StaticBody3D with one box collider; put them under `LevelBase.geo` so navigation bakes around them. `PropFlashlight` and `PropWalkie` are the hand-held items.
+`ArtProps`: desk, office_chair, crt_monitor (off, green or blue screen), server_rack (lit or dead), filing_cabinet, potted_plant, water_cooler, exit_sign, sticky_note, troffer (a recessed fluorescent fitting with a real light whose panel glow follows the mood). Solid props are StaticBody3D with one box collider; put them under `LevelBase.geo` so navigation bakes around them. `PropFlashlight` and `PropWalkie` are the hand-held items.
+
+## Notebook, sticky notes and elevators
+
+Designed ahead of the mechanics (game plan, "Notebook and elevators"). Playtest fixes builds the behavior with greybox stand-ins; these are the looks to swap in. Lookdev shots: `tools/notebook_shots.gd`, saved in `docs/art/screenshots/notebook/`.
+
+- **Notebook UI** (`NotebookView`, `NotebookArt`): a 1997 spiral notebook on a navy pressboard cover, cream ruled pages with a red margin and wire coils. The player's notes are in handwriting (Patrick Hand); SQL is in a typewriter face (Courier Prime) so quotes, commas and `*` stay readable. Both fonts are OFL and ship in `assets/art/fonts/`. Put the view on CanvasLayer 15: above VHS (3), below the terminal (20).
+  - `book.left` / `book.right` are the pages; `add_tab("Notes")` adds an index tab and emits `tab_pressed`; `show_book()`, `hide_book()`, `turn_page(callable)`, `clear_pages()`.
+  - `NotebookArt.sticky(keyword, syntax, example, color)` is a found note taped onto a page; `table_card(name, columns)` is a table written down for the Tables page; `heading()`, `hand()`, `code()`, `margin_note()` for the rest (Field Notes too).
+- **Sticky notes in the world** (`ArtProps.sticky_note(parent, pos, facing, keyword, color, flat_on_desk)`): 7.6 cm notes in canary, pink, blue or green (`ArtProps.STICKY_COLORS`), one keyword in handwriting, a strip of tape, never stuck on quite straight. They glow very faintly so a note can be spotted on a dark desk. Stick one to a CRT bezel (the corner at about `+0.17, +0.32` from the monitor's origin) or lay it on a desk top (y 0.762). Visual only: parent it under the Interactable that picks it up.
+- **Elevator** (`ArtElevator.build(parent, pos, facing, interior, floors)`): brushed-steel car with center-opening doors, wood handrail, warm ceiling light, a button panel inside, a call button outside and amber floor indicators above the doors on both sides. Origin is the middle of the doorway at floor level, facing -Z (you walk in along +Z); the landing face stands 5 cm proud, so end the wing's wall flush with z = 0. It adds no collision: the mechanics own the shaft and doors and drive the look with `open_amount` (0 shut to 1 open; tween it), `set_floor("B1")`, `set_direction(-1/0/1)`, `light_button("B1")`, `light_call()` and `set_car_light(scale)` for a power cut mid-ride.
 
 ## Performance budget (six players)
 

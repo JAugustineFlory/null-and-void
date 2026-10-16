@@ -142,6 +142,58 @@ static func troffer(parent: Node, ceiling_pos: Vector3, light_range: float = 8.0
 	return light
 
 
+## A sticky note: 7.6 cm square of paper with a strip of tape, one SQL keyword
+## handwritten on it. Faces -Z like a poster, so stick it to a wall or a monitor
+## bezel; pass `flat` to lay it on a desk instead. The paper glows very faintly
+## so it can be spotted on a dark desk (found in the world). Visual only: the
+## mechanics that pick it up or copy it parent this under their Interactable.
+static func sticky_note(parent: Node, pos: Vector3, facing_deg: float, text: String, paper := STICKY_YELLOW, flat_on_desk := false) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "StickyNote")
+	var face := Node3D.new()
+	if flat_on_desk:
+		face.rotation_degrees.x = 90
+	face.rotation_degrees.z = float(abs(text.hash()) % 13 - 6)  # never stuck on quite straight
+	root.add_child(face)
+	var sheet := _piece(face, Vector3(0.076, 0.076, 0.002), Vector3.ZERO, sticky_paper(paper))
+	sheet.name = "Paper"
+	_piece(face, Vector3(0.05, 0.016, 0.001), Vector3(0, 0.036, -0.0015), ArtPalette.flat(Color(0.9, 0.9, 0.85, 1.0), 0.3))  # tape
+	var l := Label3D.new()
+	l.name = "Text"
+	l.text = text
+	l.font = NotebookArt.hand_font()
+	l.font_size = clampi(int(48.0 * 7.0 / maxf(7.0, text.length())), 22, 48)  # long keywords write smaller
+	l.pixel_size = 0.0005
+	l.width = 0.068 / l.pixel_size
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.modulate = NotebookArt.INK
+	l.outline_size = 0
+	l.position = Vector3(0, -0.004, -0.0016)
+	l.rotation_degrees.y = 180
+	l.double_sided = false
+	face.add_child(l)
+	return root
+
+
+## The sticky-note colors (canary, pink, blue, green), as in any 90s office.
+const STICKY_YELLOW := Color(0.98, 0.9, 0.42)
+const STICKY_COLORS: Array[Color] = [STICKY_YELLOW, Color(0.98, 0.66, 0.74), Color(0.6, 0.82, 0.96), Color(0.7, 0.92, 0.6)]
+
+
+## Paper with a faint glow so a note reads in the dark without a flashlight.
+static var _sticky_mats := {}
+
+
+static func sticky_paper(paper: Color) -> StandardMaterial3D:
+	if _sticky_mats.has(paper):
+		return _sticky_mats[paper]
+	var m: StandardMaterial3D = ArtPalette.flat(paper, 0.9).duplicate()
+	m.emission_enabled = true
+	m.emission = paper
+	m.emission_energy_multiplier = 0.2
+	_sticky_mats[paper] = m
+	return m
+
+
 # --- Helpers -------------------------------------------------------------------
 
 static func _node(parent: Node, pos: Vector3, facing_deg: float, node_name: String) -> Node3D:
