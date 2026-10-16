@@ -8,31 +8,37 @@ signal closed
 
 var player: Player
 var terminal_ui: TerminalUI
-var view: NotebookView
+var pages: NotebookPages
+var _open := false
 
 
 func _ready() -> void:
-	layer = 22
-	view = NotebookView.new()
-	view.visible = false
-	add_child(view)
-	get_node("/root/Game").notebook_changed.connect(view.refresh)
+	layer = 15  # above the VHS overlay (3), below the terminal (20)
+	pages = NotebookPages.new()
+	pages.visible = false
+	add_child(pages)
+	get_node("/root/Game").notebook_changed.connect(func():
+		if _open:
+			pages.refresh())
 
 
 func is_open() -> bool:
-	return view.visible
+	return _open
 
 
 ## Open unless something else has the player: a terminal, a scripted move, a menu.
 func open(page: int = -1) -> bool:
-	if is_open() or not player or player.input_locked:
+	if _open or not player or player.input_locked:
 		return false
 	if terminal_ui and terminal_ui.visible:
 		return false
-	view.refresh()
+	_open = true
+	pages.visible = true
 	if page >= 0:
-		view.show_page(page)
-	view.visible = true
+		pages.show_page(page)
+	else:
+		pages.refresh()
+	pages.book.show_book()
 	player.input_locked = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	opened.emit()
@@ -40,9 +46,12 @@ func open(page: int = -1) -> bool:
 
 
 func close() -> void:
-	if not is_open():
+	if not _open:
 		return
-	view.visible = false
+	_open = false
+	pages.book.hide_book().finished.connect(func():
+		if not _open:
+			pages.visible = false)
 	if player:
 		player.input_locked = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -51,11 +60,11 @@ func close() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("notebook"):
-		if is_open():
+		if _open:
 			close()
 		else:
 			open()
 		get_viewport().set_input_as_handled()
-	elif is_open() and event.is_action_pressed("pause"):
+	elif _open and event.is_action_pressed("pause"):
 		close()
 		get_viewport().set_input_as_handled()

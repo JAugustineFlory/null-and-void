@@ -6,7 +6,7 @@ extends Control
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var view := NotebookView.new()
-	view.end_of_level = true
-	add_child(view)
-	view.show_page(NotebookView.Page.FIELD_NOTES)
+	var pages := NotebookPages.new()
+	pages.end_of_level = true
+	add_child(pages)
+	pages.show_page(NotebookPages.Page.FIELD_NOTES)

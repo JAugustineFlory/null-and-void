@@ -41,7 +41,7 @@ func _run() -> void:
 	level.notebook.open()
 	await _frames(10)
 	_save("l0_notebook")
-	level.notebook.view.show_page(NotebookView.Page.TABLES)
+	level.notebook.pages.show_page(NotebookPages.Page.TABLES)
 	await _frames(10)
 	_save("l0_notebook_tables")
 	level.notebook.close()

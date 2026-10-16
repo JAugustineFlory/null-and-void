@@ -16,34 +16,23 @@ static func on_monitor(terminal: Node3D, id: String) -> StickyNote:
 	return place(terminal, Vector3(-0.17, 0.09, 0.237), id, true)
 
 
-static func place(parent: Node, pos: Vector3, id: String, stuck_to_terminal: bool, facing_deg: float = 0.0) -> StickyNote:
+static func place(parent: Node, pos: Vector3, id: String, stuck_to_terminal: bool, facing_deg: float = 0.0, flat: bool = false) -> StickyNote:
 	var n := StickyNote.new()
 	n.note_id = id
 	n.on_terminal = stuck_to_terminal
 	n.prompt = "Copy the sticky note into your notebook" if stuck_to_terminal else "Take the sticky note"
 	n.position = pos
 	n.rotation_degrees.y = facing_deg
-	var mesh := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.16, 0.16, 0.01)
-	mesh.mesh = bm
-	mesh.material_override = Greybox.mat(NotebookView.STICKY)
-	n.add_child(mesh)
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
-	# Deeper than the paper and pushed forward, so it wins over a terminal behind it.
-	bs.size = Vector3(0.18, 0.18, 0.16)
+	# Bigger than the paper and pushed forward, so it's easy to aim at and wins
+	# over a terminal behind it.
+	bs.size = Vector3(0.14, 0.14, 0.16) if not flat else Vector3(0.14, 0.06, 0.14)
 	shape.shape = bs
-	shape.position.z = 0.07
+	shape.position.z = 0.07 if not flat else 0.0
 	n.add_child(shape)
-	var text := Label3D.new()
-	text.text = StickyNotes.get_note(id).get("label", "")
-	text.font_size = 22
-	text.pixel_size = 0.002
-	text.modulate = Color(0.1, 0.1, 0.35)
-	text.outline_size = 0
-	text.position = Vector3(0, 0, 0.007)
-	n.add_child(text)
+	# The look: ArtProps faces -Z, so turn it to face out of the monitor or desk.
+	ArtProps.sticky_note(n, Vector3.ZERO, 180.0, StickyNotes.get_note(id).get("label", ""), ArtProps.STICKY_YELLOW, flat)
 	parent.add_child(n)
 	n.add_to_group("interactable")
 	n.used.connect(n._on_used)

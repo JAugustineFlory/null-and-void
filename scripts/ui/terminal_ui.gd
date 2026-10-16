@@ -130,7 +130,8 @@ func print_line(bbcode: String, kind: String = "") -> void:
 	if kind == "":
 		kind = "error" if text.begins_with("ERROR") else ("hint" if text.begins_with("WARDEN:") else "info")
 	_noteable.append({"kind": kind, "text": text})
-	_output.append_text("%s  [url=note:%d][font_size=12][color=#3d7a4c]+note[/color][/font_size][/url]\n" % [bbcode, _noteable.size() - 1])
+	# Sticky-note yellow, like NotebookArt.write_button: yellow means "this goes in your notebook".
+	_output.append_text("%s  [url=note:%d][font_size=13][bgcolor=#fae66b][color=#1f2652] + note [/color][/bgcolor][/font_size][/url]\n" % [bbcode, _noteable.size() - 1])
 
 
 ## What on screen right now can be written into the notebook, oldest first.

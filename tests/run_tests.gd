@@ -756,8 +756,10 @@ func test_sticky_notes_never_give_answers() -> void:
 		db.add_wing("level_0", FileAccess.get_file_as_string("res://data/level_0.sql"))
 		db.add_wing("level_1", Level1Data.build(seed_value).sql)
 		for id in StickyNotes.NOTES:
-			for example in StickyNotes.NOTES[id].example.split("\n"):
-				var result := db.execute(example)
+			for example in StickyNotes.NOTES[id].example.split(";", false):
+				if example.strip_edges() == "":
+					continue
+				var result := db.execute(example + ";")
 				if not result.ok:
 					every_example_runs = false
 					continue
@@ -766,6 +768,11 @@ func test_sticky_notes_never_give_answers() -> void:
 						gives_answer.append(id)
 	check(every_example_runs, "every sticky note example runs on the real tables")
 	check(gives_answer.is_empty(), "no sticky note example solves a puzzle %s" % [gives_answer])
+	var fits := true
+	for id in StickyNotes.NOTES:
+		var lines: PackedStringArray = (StickyNotes.NOTES[id].syntax + "\n" + StickyNotes.NOTES[id].example).split("\n")
+		fits = fits and lines.size() <= 4 and Array(lines).all(func(line): return line.length() <= 30)
+	check(fits, "every sticky note fits on its paper")
 	l0.free()
 	l1.free()
 
@@ -780,7 +787,7 @@ func test_notebook() -> void:
 	var nb: Notebook = level.notebook
 	level.player.input_locked = false
 	check(nb.open() and nb.is_open() and level.player.input_locked, "Tab opens the notebook and holds the player")
-	check(nb.view.current_page() == NotebookView.Page.NOTES, "it opens on the sticky notes")
+	check(nb.pages.current_page() == NotebookPages.Page.NOTES, "it opens on the sticky notes")
 	nb.close()
 	check(not nb.is_open() and not level.player.input_locked, "and closes again")
 	level.terminal_ui.open(level.desk_terminal, level.player)
@@ -833,13 +840,23 @@ func test_notebook() -> void:
 	mate.queue_free()
 	_game().add_note("order_by")
 	check(not _game().add_note("order_by") and _game().notebook_notes.size() == 2, "a note is only written down once")
-	nb.open(NotebookView.Page.TABLES)
-	check(nb.view.current_page() == NotebookView.Page.TABLES and nb.view._pages[NotebookView.Page.TABLES].get_child_count() >= 2, "the Tables page lists what was found")
-	var notes_text := ""
-	for c in nb.view._pages[NotebookView.Page.NOTES].find_children("*", "Label", true, false):
-		notes_text += c.text + "\n"
+	nb.open(NotebookPages.Page.TABLES)
+	var on_pages: Array = nb.pages.book.left.get_children() + nb.pages.book.right.get_children()
+	check(nb.pages.current_page() == NotebookPages.Page.TABLES and NotebookPages.text_of(on_pages).contains("memo_fragments"), "the Tables page lists what was found")
+	var notes_text := nb.pages.section_text(NotebookPages.Page.NOTES)
 	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
-	check(notes_text.contains("memo scraps") and notes_text.contains("piece_no"), "written notes show on the Notes page with their labels")
+	nb.pages.show_page(NotebookPages.Page.TABLES)
+	check(nb.pages._spreads.size() == 1 and not nb.pages._turn.visible, "a short section fits on one spread")
+	for t in 20:
+		_game().discover_table("extra_%d" % t, ["a", "b", "c", "d"])
+	nb.pages.refresh()
+	check(nb.pages._spreads.size() > 1 and nb.pages._turn.visible, "a long section turns onto more pages")
+	var first_page: Array = nb.pages.book.left.get_children()
+	for i in nb.pages._spreads.size():
+		nb.pages._show_spread(nb.pages._spread + 1)
+	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
+	var written_text := nb.pages.section_text(NotebookPages.Page.WRITTEN)
+	check(written_text.contains("memo scraps") and written_text.contains("piece_no"), "written notes show on My notes with their labels")
 	nb.close()
 	var saved: Dictionary = _game().notebook_data()
 	_game().new_run(4)
