@@ -35,9 +35,9 @@ static func build(run_seed: int) -> Dictionary:
 	guards.append([_full(har[1], rng), "day", _pin(rng, used_pins), "day shift. Clocked out 18:04"])
 	guards.append([_full(har[2], rng), "swing", _pin(rng, used_pins), "retired 1995. PIN revoked"])
 
-	# Officer Pike: signed in legibly, then vanished. Players practice LIKE on him.
+	# Officer Pike: his name is clear on the sheet (marked NO SHOW). Players practice LIKE on him.
 	var pike_pin := _pin(rng, used_pins)
-	guards.append(["PIKE, H.", "night", pike_pin, "missing since 23:40. PIN suspended"])
+	guards.append(["PIKE, H.", "night", pike_pin, "no-show since Tue 10/14. PIN suspended"])
 
 	# Names with "har" in the middle. At least one works nights.
 	var inside := HAR_INSIDE.duplicate()
@@ -58,6 +58,8 @@ static func build(run_seed: int) -> Dictionary:
 		guards.append([_full(n, rng), shift, _pin(rng, used_pins), note])
 
 	_shuffle(guards, rng)
+	# Which breaker tripped the stairwell door's actuator (the first terminal lie).
+	var breaker := rng.randi_range(1, 4)
 	var rows := []
 	for i in guards.size():
 		var g: Array = guards[i]
@@ -97,10 +99,20 @@ CREATE TABLE doors (
 	actuator_fault INTEGER
 );
 INSERT INTO doors VALUES
-	('SEC-EXIT', 'Security wing stairwell', 'S', 1, 0),
+	('SEC-EXIT', 'Security wing stairwell', 'S', 1, 1),
 	('SRA-EXIT', 'Server Room A rear exit', 'A', 1, 0);
-""" % ",\n\t".join(rows)
-	return {"sql": sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin}
+
+CREATE TABLE door_status (
+	door_id TEXT,
+	sensor TEXT,
+	actuator TEXT,
+	note TEXT
+);
+INSERT INTO door_status VALUES
+	('SEC-EXIT', 'closed', 'fault', 'actuator breaker B-%d tripped 00:12. Reset it at the breaker box by the door'),
+	('SRA-EXIT', 'closed', 'ok', 'normal');
+""" % [",\n\t".join(rows), breaker]
+	return {"sql": sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin, "breaker": breaker}
 
 
 static func _full(surname: String, rng: RandomNumberGenerator) -> String:

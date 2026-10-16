@@ -4,6 +4,9 @@ extends LevelBase
 ## GET /cameras, and the first terminal lie: a camera that says "live" but froze.
 ## The Watcher moves only when nobody, person or working camera, is looking at it.
 ##
+## The stairwell door is the second lie: the keypad says "opened", but a tripped
+## breaker jammed its actuator. The vestibule panel's sensor data says so.
+##
 ## Layout (north is -z): stair landing (spawn) > corridor with the security booth >
 ## Security Office (the Watcher) > exit vestibule > stairwell. Three ways from the
 ## corridor to the vestibule: through the office, the vent over the crate, or the
@@ -21,19 +24,25 @@ var frozen_cams := {}
 var data: Dictionary
 var watcher: Watcher
 var booth: Terminal
+var panel: Terminal
+var api: FacilityAPI
+var breakers := {}
 var keypad_ui: Level2Keypad
 var exit_keypad: Interactable
 var seal_keypad: Interactable
 var watcher_home := Vector3(3, 0, -5)
 var loose := false  # CAM-2 has frozen and the Watcher is free
 var reached_vestibule := false
-var door_open := false
+var pin_entered := false
+var door_open := false  # physically open
+var door_checked := false
 var _clock := 0.0
 var _cam_tick := 0.0
 var _lie_explained := false
 var _warned := {}
 var _seal_mode := false
 var _glass: Array[RID] = []
+var _exit_trigger: Trigger
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"Type this, then press Enter:\n" +
@@ -51,6 +60,14 @@ var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE '
 	"  WHERE name LIKE  keep rows whose name matches a pattern\n" +
 	"  'Pike%'          starts with Pike. % stands for any letters (or none) after it",
 	"LIKE ignores capitals, so 'pike%' works too. Text patterns go in 'single quotes'.",
+])
+var door_puzzle := Puzzle.new("door", "", [], false, [
+	"Type this, then press Enter:\n" +
+	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
+	"  GET               ask the security server for data\n" +
+	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says",
+	"locked is what the keypad asked for. sensor and actuator are what the door is actually doing. " +
+	"The note says which breaker to reset. The breaker box is on the wall by the vent.",
 ])
 var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, [
 	"Type this, then press Enter:\n" +
@@ -111,6 +128,7 @@ func build() -> void:
 	add_door("SEC-EXIT", Vector3(0, 1.2, -12), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.75, -11.88), "SEC-EXIT", 56, Color(0.85, 0.2, 0.15))
 
+	api = _make_api()
 	_build_booth()
 	_build_office()
 	_build_vent()
@@ -119,6 +137,7 @@ func build() -> void:
 	exit_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -11.85), Vector3(0.25, 0.3, 0.06), "Enter guard PIN", Color(0.15, 0.15, 0.12))
 	exit_keypad.used.connect(_on_exit_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, -11.81), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
+	_build_panel()
 	seal_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -12.15), Vector3(0.25, 0.3, 0.06), "Lock SEC-EXIT behind you (guard PIN)", Color(0.15, 0.15, 0.12))
 	seal_keypad.used.connect(_on_seal_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, -12.19), "LOCK", 40, Color(0.9, 0.8, 0.3), 180)
@@ -145,7 +164,7 @@ func build() -> void:
 func _build_booth() -> void:
 	Greybox.box(geo, Vector3(-3, 0.45, 5.5), Vector3(2.0, 0.9, 0.8), Color(0.38, 0.36, 0.33), "BoothDesk")
 	booth = Terminal.spawn(geo, Vector3(-3, 0.9, 5.5), 180, "SECURITY BOOTH", db, terminal_ui)
-	booth.api = _make_api()
+	booth.api = api
 	booth.puzzles = [cameras_puzzle, pike_puzzle, har_puzzle]
 	booth.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SECURITY BOOTH",
@@ -165,7 +184,7 @@ func _build_booth() -> void:
 	Greybox.label(geo, Vector3(-2.55, 1.35, 5.26), "cameras:\nGET /cameras", 22, Color(0.1, 0.1, 0.4), 180)
 	Greybox.panel(geo, Vector3(-1.4, 1.45, 5.89), Vector3(0.6, 0.8, 0.01), Color(0.9, 0.88, 0.8))
 	Greybox.label(geo, Vector3(-1.4, 1.45, 5.88),
-		"NIGHT SHIFT SIGN-IN  10/15\n\nPIKE, H.        22:00\nHar[coffee stain]  22:00\n\nPINs on file in the\nguards table.", 22, Color(0.1, 0.1, 0.15), 180)
+		"NIGHT SHIFT SIGN-IN  10/15\n\nPIKE, H.     NO SHOW\nHar[coffee stain]  22:00\n\nPINs on file in the\nguards table.", 22, Color(0.1, 0.1, 0.15), 180)
 	Greybox.panel(geo, Vector3(-5.0, 1.6, 5.89), Vector3(1.3, 0.9, 0.01), Color(0.2, 0.25, 0.4))
 	Greybox.label(geo, Vector3(-5.0, 1.6, 5.88),
 		"ROSTER TIP\nCan't read a whole name?\nname LIKE 'Ro%'\nfinds ROSS, ROURKE...\n% means any letters", 26, Color(0.95, 0.95, 0.9), 180)
@@ -174,6 +193,34 @@ func _build_booth() -> void:
 	Greybox.label(geo, Vector3(-5.85, 2.7, 4.0), "VENT", 30, Color(0.7, 0.7, 0.7), 90)
 	# Smashed window at the east end, onto the ledge.
 	Greybox.label(geo, Vector3(5.85, 1.3, 4.0), "WINDOW SMASHED\nKEEP CLEAR", 26, Color(0.85, 0.2, 0.15), -90)
+
+
+func _build_panel() -> void:
+	# A wall terminal in the vestibule, under CAM-3: the place to check your work.
+	Greybox.box(geo, Vector3(-1.4, 0.45, -11.4), Vector3(1.4, 0.9, 0.7), Color(0.38, 0.36, 0.33), "PanelDesk")
+	panel = Terminal.spawn(geo, Vector3(-1.4, 0.9, -11.4), 0, "VESTIBULE PANEL", db, terminal_ui)
+	panel.api = api
+	panel.puzzles = [door_puzzle]
+	panel.boot_lines = [
+		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  VESTIBULE PANEL",
+		"Door and camera status for this vestibule.",
+		"",
+		"    [color=#ffffff]GET /doors/SEC-EXIT[/color]    the stairwell door",
+		"    [color=#ffffff]GET /cameras[/color]           every camera",
+		"",
+		"Type .help for commands, .hint if you're stuck.",
+	]
+	panel.queried.connect(_on_query)
+	panel.requested.connect(_on_request)
+	# Breaker box on the west wall, under the vent. Only one breaker runs the door.
+	Greybox.panel(geo, Vector3(-2.37, 1.3, -8.95), Vector3(0.04, 0.6, 1.3), Color(0.3, 0.32, 0.3))
+	Greybox.label(geo, Vector3(-2.34, 1.72, -8.95), "BREAKERS", 26, Color(0.9, 0.9, 0.8), 90)
+	for i in range(1, 5):
+		var z := -9.45 + (i - 1) * 0.33
+		var b := Interactable.create(geo, Vector3(-2.33, 1.25, z), Vector3(0.06, 0.18, 0.12), "Reset breaker B-%d" % i, Color(0.1, 0.1, 0.1))
+		b.used.connect(_on_breaker.bind(i))
+		breakers[i] = b
+		Greybox.label(geo, Vector3(-2.3, 1.42, z), "B-%d" % i, 20, Color(0.9, 0.9, 0.8), 90)
 
 
 func _build_office() -> void:
@@ -187,6 +234,12 @@ func _build_office() -> void:
 		Greybox.label(geo, Vector3(-5.82, 2.05, z), id, 26, Color(0.8, 0.8, 0.8), 90)
 	Greybox.box(geo, Vector3(2.5, 0.4, -1.0), Vector3(2.4, 0.8, 1.0), Color(0.36, 0.3, 0.25), "Desk")
 	Greybox.box(geo, Vector3(-2.0, 0.4, -6.0), Vector3(2.4, 0.8, 1.0), Color(0.36, 0.3, 0.25), "Desk")
+	# The night desk's answering machine: one new message.
+	var machine := Interactable.create(geo, Vector3(2.5, 0.85, -1.0), Vector3(0.3, 0.1, 0.25), "Play message (1 new)", Color(0.12, 0.12, 0.12))
+	Greybox.panel(geo, Vector3(2.62, 0.91, -1.0), Vector3(0.03, 0.02, 0.03), Color(1, 0.2, 0.1), 4.0)
+	machine.used.connect(func(_p):
+		machine.enabled = false
+		hud.lines(["l2_vale_1", "l2_vale_2", "l2_vale_3"]))
 	# Camera housings with a red light when they're running.
 	_camera_box(Vector3(5.7, 3.0, 1.7))
 	_camera_box(Vector3(2.2, 3.0, -8.3))
@@ -252,10 +305,11 @@ func start() -> void:
 	watcher.place(watcher_home, Vector3(-3, 0, 2))
 	watcher.active = true
 	hud.set_objective("Find a way out of the security wing")
-	await hud.play_lines([
-		["WARDEN", "SECURITY WING. LOCKDOWN IN EFFECT. STAIRWELL EXIT REQUIRES A GUARD PIN."],
-		["WARDEN", "A GUEST TERMINAL IS AVAILABLE IN THE SECURITY BOOTH. DO TRY TO KEEP UP."],
-	])
+	if Game.rourke_fate == "tied":
+		await hud.lines(["l2_rourke_1", "l2_rourke_2", "l2_rourke_3"])
+	elif Game.rourke_fate == "killed":
+		await hud.line("l2_dead_escort")
+	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
 		hud.set_objective("Use the security booth terminal")
 
@@ -304,14 +358,14 @@ func _in(boxes: Array, p: Vector3) -> bool:
 
 
 func _make_api() -> FacilityAPI:
-	var api := FacilityAPI.new()
-	api.route("GET", "/cameras", func(_p):
+	var a := FacilityAPI.new()
+	a.route("GET", "/cameras", func(_p):
 		update_cameras()
 		var cams := []
 		for row in db.run_silent("SELECT * FROM cameras ORDER BY id"):
 			cams.append(_camera_json(row))
 		return {"status": 200, "body": {"server_time": server_time(), "cameras": cams}})
-	api.route("GET", "/cameras/:id", func(p):
+	a.route("GET", "/cameras/:id", func(p):
 		update_cameras()
 		var rows := db.run_silent("SELECT * FROM cameras WHERE id = '%s'" % str(p[0]).to_upper().replace("'", ""))
 		if rows.is_empty():
@@ -319,7 +373,28 @@ func _make_api() -> FacilityAPI:
 		var cam := _camera_json(rows[0])
 		cam["server_time"] = server_time()
 		return {"status": 200, "body": cam})
-	return api
+	a.route("GET", "/doors", func(_p):
+		var list := []
+		for row in db.run_silent("SELECT * FROM doors JOIN door_status ON door_status.door_id = doors.id ORDER BY id"):
+			list.append(_door_json(row))
+		return {"status": 200, "body": {"doors": list}})
+	a.route("GET", "/doors/:id", func(p):
+		var rows := db.run_silent("SELECT * FROM doors JOIN door_status ON door_status.door_id = doors.id WHERE id = '%s'" % str(p[0]).to_upper().replace("'", ""))
+		if rows.is_empty():
+			return {"status": 404, "body": {"error": "No door called %s. GET /doors lists them." % p[0]}}
+		return {"status": 200, "body": _door_json(rows[0])})
+	return a
+
+
+func _door_json(row: Dictionary) -> Dictionary:
+	return {
+		"id": row["id"],
+		"name": row["name"],
+		"locked": int(row["locked"]) == 1,
+		"sensor": row["sensor"],
+		"actuator": row["actuator"],
+		"note": row["note"],
+	}
 
 
 func _camera_json(row: Dictionary) -> Dictionary:
@@ -334,7 +409,12 @@ func _camera_json(row: Dictionary) -> Dictionary:
 
 
 func _on_request(line: String, res: Dictionary, ui: TerminalUI) -> void:
-	if res.status != 200 or not line.to_lower().contains("/cameras"):
+	if res.status != 200:
+		return
+	if line.to_lower().contains("/doors"):
+		_on_door_checked(ui)
+		return
+	if not line.to_lower().contains("/cameras"):
 		return
 	if not cameras_puzzle.solved:
 		cameras_puzzle.solved = true
@@ -346,7 +426,7 @@ func _on_request(line: String, res: Dictionary, ui: TerminalUI) -> void:
 		ui.print_line("It's a long roster. Count it, or peek at the first few rows:")
 		ui.print_line("    [color=#ffffff]SELECT COUNT(*) FROM guards;[/color]     how many rows")
 		ui.print_line("    [color=#ffffff]SELECT * FROM guards LIMIT 5;[/color]    only the first 5")
-		ui.print_line("Officer Pike signed in clearly. Find his row with a pattern:")
+		ui.print_line("Officer Pike's name is clear on the sign-in sheet. Find his row with a pattern:")
 		ui.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
 		ui.print_line("      LIKE 'Pike%'   names that start with Pike (% = any letters after)")
 		hud.set_objective("Look up Officer Pike in the guards table")
@@ -358,14 +438,15 @@ func _on_request(line: String, res: Dictionary, ui: TerminalUI) -> void:
 		ui.print_line("The status said 'live'. The data says otherwise. Trust the data, and check it.[/color]")
 
 
-func _on_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
+func _on_query(sql: String, result: Dictionary, ui: TerminalUI) -> void:
 	if not pike_puzzle.solved and pike_puzzle.matches(db, result):
 		pike_puzzle.solved = true
 		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. He went missing at 23:40.[/color]")
+		ui.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
 		ui.print_line("The other name on the sign-in sheet is under a coffee stain. Only [b]Har[/b] is readable.")
 		ui.print_line("It's the NIGHT SHIFT sheet. The guard you want starts with Har and works nights.")
 		hud.set_objective("Find the PIN of the night-shift guard whose name starts with Har")
+		hud.line("l2_smudged")
 		_set_loose()
 	if not har_puzzle.solved and har_puzzle.matches(db, result):
 		har_puzzle.solved = true
@@ -374,6 +455,8 @@ func _on_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
 		hud.set_objective("Enter %s's PIN at the stairwell keypad, past the Security Office" % data.name)
 		hud.notice("Three ways there: through the office, the vent over the crate, or out the smashed window.", 6.0)
 		_set_loose()
+	if sql.to_lower().contains("door_status") and not result.rows.is_empty():
+		_on_door_checked(ui)
 
 
 ## CAM-2 freezes on its last frame. The Watcher is free, and the camera still says "live".
@@ -384,7 +467,7 @@ func _set_loose() -> void:
 	frozen_cams["CAM-2"] = true
 	for l in lights.get("office", []):
 		FlickerLight.attach(l, 0.4)
-	hud.say("WARDEN", "CAM-2: LIVE. ALL CAMERAS NOMINAL.", 3.5)
+	hud.notice("> CAM-2: LIVE. ALL CAMERAS NOMINAL.", 3.5)
 
 
 func _on_watcher_moving() -> void:
@@ -399,20 +482,20 @@ func _motion_warnings() -> void:
 	for limit in [10, 6, 3]:
 		if d < limit and not _warned.has(limit):
 			_warned[limit] = true
-			terminal_ui.print_line("[color=#ff6655]BOOTH SENSOR: MOVEMENT %d m FROM YOU[/color]" % limit)
+			terminal_ui.print_line("[color=#ff6655]MOTION SENSOR: MOVEMENT %d m FROM YOU[/color]" % limit)
 
 
 func _on_exit_keypad(p: Node) -> void:
 	_seal_mode = false
-	if door_open:
-		hud.notice("SEC-EXIT is already open.", 2.0)
+	if pin_entered:
+		hud.notice("KEYPAD: SEC-EXIT IS UNLOCKED." if not door_open else "SEC-EXIT is open.", 2.5)
 		return
 	keypad_ui.open(p, "SEC-EXIT  -  ENTER GUARD PIN", "Lockdown: only guards on tonight's night-shift sheet.")
 
 
 func _on_seal_keypad(p: Node) -> void:
 	if not door_open:
-		hud.notice("SEC-EXIT is already locked.", 2.0)
+		hud.notice("SEC-EXIT is already shut.", 2.0)
 		return
 	_seal_mode = true
 	keypad_ui.open(p, "LOCK SEC-EXIT BEHIND YOU", "Same PIN. Whatever is on the other side stays there.")
@@ -425,13 +508,9 @@ func _on_pin(pin: String) -> void:
 		return
 	keypad_ui.close()
 	if _seal_mode:
-		db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'SEC-EXIT'")
-		db.sync_world()
-		door_open = false
-		Game.watcher_sealed = true
-		hud.notice("> DOOR SEC-EXIT: LOCKED\nThe light over the door turns red. It held.", 4.0, ThemeUtil.GREEN)
+		seal_exit()
 		return
-	open_exit()
+	enter_pin()
 
 
 ## Is this the right PIN? Wrong ones say why, in the building's own words.
@@ -447,23 +526,85 @@ func check_pin(pin: String) -> Dictionary:
 	return {"ok": false, "message": "REFUSED: that is %s's PIN (%s shift: %s). Lockdown accepts only guards on tonight's night-shift sign-in sheet." % [g["name"], g["shift"], g["note"]]}
 
 
-func open_exit() -> void:
-	door_open = true
+## The right PIN unlocks the door in the database. If the actuator is still
+## faulted, the door doesn't move, and the keypad says "opened" anyway.
+func enter_pin() -> void:
+	pin_entered = true
 	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'SEC-EXIT'")
 	db.sync_world()
-	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-EXIT: OPEN" % data.name, 4.0, ThemeUtil.GREEN)
-	hud.set_objective("Take the stairs down. (Lock the door behind you, if you can)")
-	var t := Trigger.create(self, Vector3(0, 1, -16), Vector3(3.6, 2, 1.5))
-	t.entered.connect(_on_exit)
+	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-EXIT: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
+	if _update_door():
+		return
+	hud.set_objective("Get through SEC-EXIT")
+	await hud.line("l2_door_ok")
+	await get_tree().create_timer(5.0).timeout
+	if not door_open and not door_checked:
+		hud.notice("It didn't open. Check the door's sensor at the vestibule panel:  GET /doors/SEC-EXIT", 7.0)
+		hud.set_objective("Find out why SEC-EXIT is still shut (vestibule panel)")
+
+
+func _on_door_checked(ui: TerminalUI) -> void:
+	door_puzzle.solved = true
+	if not pin_entered or door_checked or door_open:
+		return
+	door_checked = true
+	ui.print_line("")
+	ui.print_line("[color=#ff6655]The keypad said OPENED. locked is false, so the request went through.[/color]")
+	ui.print_line("[color=#e0b050]But sensor says 'closed' and actuator says 'fault': the door never moved. Read the note.[/color]")
+	ui.print_line("A request being accepted isn't the same as the thing happening. Check the sensor, not the request.")
+	hud.set_objective("Reset breaker B-%d (the box under the vent), then check the door again" % data.breaker)
+	hud.line("l2_door_fault")
+
+
+func _on_breaker(_p: Node, i: int) -> void:
+	if i == data.breaker:
+		db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'SEC-EXIT'")
+		db.run_silent("UPDATE door_status SET actuator = 'ok', note = 'normal' WHERE door_id = 'SEC-EXIT'")
+		breakers[i].enabled = false
+		hud.notice("> BREAKER B-%d: RESET. Something clunks inside the door frame." % i, 3.5, ThemeUtil.GREEN)
+		db.sync_world()
+		_update_door()
+		return
+	# The wrong breaker cuts this room's lights and its camera for a few seconds.
+	hud.notice("B-%d runs the vestibule lights and CAM-3. Everything goes dark." % i, 4.0, ThemeUtil.RED)
+	frozen_cams["CAM-3"] = true
+	for l in lights.get("vestibule", []):
+		l.visible = false
+	await get_tree().create_timer(6.0).timeout
+	frozen_cams.erase("CAM-3")
+	for l in lights.get("vestibule", []):
+		l.visible = true
+
+
+## Is the door physically open now? Keeps door_status in step with the world.
+func _update_door() -> bool:
+	var row: Dictionary = db.run_silent("SELECT locked, actuator_fault FROM doors WHERE id = 'SEC-EXIT'")[0]
+	var open := int(row["locked"]) == 0 and int(row["actuator_fault"]) == 0
+	db.run_silent("UPDATE door_status SET sensor = '%s' WHERE door_id = 'SEC-EXIT'" % ("open" if open else "closed"))
+	if open and not door_open:
+		door_open = true
+		hud.set_objective("Take the stairs down. (Lock the door behind you, if you can)")
+		if _exit_trigger == null:
+			_exit_trigger = Trigger.create(self, Vector3(0, 1, -16), Vector3(3.6, 2, 1.5))
+			_exit_trigger.entered.connect(_on_exit)
+	return open
+
+
+func seal_exit() -> void:
+	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'SEC-EXIT'")
+	db.sync_world()
+	door_open = false
+	_update_door()
+	Game.watcher_sealed = true
+	hud.notice("> DOOR SEC-EXIT: LOCKED\nIt held. Whatever follows you stays in the security wing.", 4.0, ThemeUtil.GREEN)
 
 
 func _on_exit(_b: Node) -> void:
 	player.input_locked = true
 	if Game.watcher_sealed:
-		await hud.say("", "Behind the locked door, something taps on the glass. Once.", 4.0)
+		await hud.say("", "Behind the locked door, something taps on the metal. Once.", 4.0)
 	else:
 		await hud.say("", "The door behind you is still open. You don't look back. You know better.", 4.5)
-	await hud.say("WARDEN", "RECORDS ARCHIVE AHEAD. PLEASE KEEP NOISE TO A MINIMUM.", 3.5)
 	await hud.fade(true, 1.2)
 	Game.completed_level = "level_2"
 	Game.next_level = ""

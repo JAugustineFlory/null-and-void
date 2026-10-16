@@ -11,6 +11,7 @@ var _fade: ColorRect
 var _crosshair: Label
 var _notice_tween: Tween
 var _line_id := 0
+var _voice: Voice
 
 
 func _ready() -> void:
@@ -65,6 +66,10 @@ func _ready() -> void:
 	keys.position = Vector2(28, -36)
 	root.add_child(keys)
 
+	_voice = Voice.new()
+	_voice.name = "Voice"
+	add_child(_voice)
+
 	_fade = ColorRect.new()
 	_fade.color = Color(0, 0, 0, 0)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -92,20 +97,50 @@ func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) 
 
 
 ## Show one line of dialogue. Await it to wait until it has been read.
+## For character lines use line(id) so the recording plays; this is for
+## narration and other text nobody speaks.
 func say(speaker: String, text: String, seconds: float = -1.0) -> void:
+	await _show(speaker, text, seconds if seconds > 0 else Voice.read_time(text))
+
+
+## Play several unvoiced lines in order: [[speaker, text], ...]
+func play_lines(lines: Array) -> void:
+	for line in lines:
+		await say(line[0], line[1])
+
+
+## Speak a line from VoiceLines by id. Plays its recording if there is one
+## and keeps the subtitle up for as long as it lasts; otherwise the subtitle
+## is timed from the text. Await it to wait until the line is over.
+## subtitle = false plays the voice only, for lines the screen already shows.
+func line(id: String, subtitle: bool = true) -> void:
+	var l := VoiceLines.get_line(id)
+	if l.is_empty():
+		push_warning("No voice line with id '%s'" % id)
+		return
+	var dur := _voice.play(id)
+	var has_audio := dur > 0.0
+	if not has_audio:
+		dur = Voice.read_time(l["text"])
+	if subtitle:
+		await _show(l["speaker"], l["text"], dur)
+	elif has_audio:
+		await get_tree().create_timer(dur).timeout
+
+
+## Speak several lines in order.
+func lines(ids: Array) -> void:
+	for id in ids:
+		await line(id)
+
+
+func _show(speaker: String, text: String, dur: float) -> void:
 	_line_id += 1
 	var my_id := _line_id
-	var dur: float = seconds if seconds > 0 else clamp(1.2 + text.length() * 0.055, 2.0, 9.0)
 	_subtitle.text = ("%s: %s" % [speaker, text]) if speaker != "" else text
 	await get_tree().create_timer(dur).timeout
 	if my_id == _line_id:
 		_subtitle.text = ""
-
-
-## Play several lines in order: [[speaker, text], ...]
-func play_lines(lines: Array) -> void:
-	for line in lines:
-		await say(line[0], line[1])
 
 
 func damage_flash(health: float) -> void:

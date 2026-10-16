@@ -75,13 +75,15 @@ func _ready() -> void:
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
+	var switched := terminal != from_terminal
 	terminal = from_terminal
 	player = by_player
 	player.input_locked = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title.text = "HALCYON DATA SYSTEMS  //  %s" % terminal.terminal_name
 	visible = true
-	if _output.get_parsed_text().strip_edges() == "" or terminal.consume_fresh_boot():
+	# One screen is shared by every terminal, so a different terminal starts fresh.
+	if terminal.consume_fresh_boot() or switched or _output.get_parsed_text().strip_edges() == "":
 		_output.clear()
 		for line in terminal.boot_text():
 			print_line(line)

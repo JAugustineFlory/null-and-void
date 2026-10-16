@@ -16,6 +16,8 @@ func _run() -> void:
 	test_level_0_puzzles()
 	test_level_1_data_every_seed()
 	test_first_hints_show_working_queries()
+	test_voice_script()
+	await test_voice_playback()
 	test_facility_api()
 	test_level_2_data_every_seed()
 	test_level_2_hints()
@@ -126,6 +128,89 @@ func test_first_hints_show_working_queries() -> void:
 			ok = false
 	check(ok, "controller: first hint's query solves it on every seed")
 	l1.free()
+
+
+func test_voice_script() -> void:
+	print("Voice script")
+	var speakers_ok := true
+	var scenes_ok := true
+	for id in VoiceLines.LINES:
+		var l: Dictionary = VoiceLines.LINES[id]
+		if not VoiceLines.CHARACTERS.has(l["speaker"]):
+			speakers_ok = false
+		if VoiceLines.scene(l["scene"]).is_empty():
+			scenes_ok = false
+	check(speakers_ok, "every line's speaker has a character entry")
+	check(scenes_ok, "every line belongs to a scene")
+
+	var used := {}
+	var unknown := []
+	var unvoiced := []
+	var id_re := RegEx.create_from_string("\"(l\\d+_[a-z0-9_]+)\"")
+	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
+	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
+	for f in DirAccess.get_files_at("res://scripts/levels"):
+		if not f.ends_with(".gd"):
+			continue
+		var src := FileAccess.get_file_as_string("res://scripts/levels/" + f)
+		for m in scene_re.search_all(src):
+			if VoiceLines.scene(m.get_string(1)).is_empty():
+				unknown.append(m.get_string(1))
+			for id in VoiceLines.ids_in_scene(m.get_string(1)):
+				used[id] = true
+		for m in id_re.search_all(src):
+			if VoiceLines.has_line(m.get_string(1)):
+				used[m.get_string(1)] = true
+			elif VoiceLines.scene(m.get_string(1)).is_empty():
+				unknown.append(m.get_string(1))
+		for m in say_re.search_all(src):
+			unvoiced.append("%s: %s" % [f, m.get_string(1)])
+	check(unknown.is_empty(), "levels only play lines that are in the script %s" % [unknown])
+	check(unvoiced.is_empty(), "character lines go through hud.line so recordings play %s" % [unvoiced])
+	var unused := []
+	for id in VoiceLines.LINES:
+		if VoiceLines.scene(VoiceLines.LINES[id]["scene"]).get("wired", false) and not used.has(id):
+			unused.append(id)
+	check(unused.is_empty(), "every line marked as in the game is played by a level %s" % [unused])
+
+	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
+		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
+	check(in_sync, "docs/script/ matches voice_lines.gd (run tools/write_script_docs.gd)")
+
+
+func test_voice_playback() -> void:
+	print("Voice playback")
+	var real_folder := Voice.folder
+	Voice.folder = "user://voice_test/"
+	DirAccess.make_dir_recursive_absolute(Voice.folder)
+	var wav_path := Voice.folder.path_join("l0_greet_1.wav")
+	if FileAccess.file_exists(wav_path):
+		DirAccess.remove_absolute(wav_path)
+	var voice := Voice.new()
+	root.add_child(voice)
+	await process_frame
+	check(Voice.path_for("l0_greet_1") == "" and voice.play("l0_greet_1") == 0.0, "a line with no recording stays silent")
+	# Half a second of 16-bit mono silence stands in for a recording.
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = 22050
+	var data := PackedByteArray()
+	data.resize(22050)
+	wav.data = data
+	wav.save_to_wav(wav_path)
+	check(Voice.path_for("l0_greet_1") == wav_path, "a dropped-in recording is found by its line id")
+	var wait := voice.play("l0_greet_1")
+	check(absf(wait - (0.5 + Voice.TAIL)) < 0.05, "the line lasts as long as its recording (%.2f s)" % wait)
+	check(voice.is_playing(), "the recording plays")
+	check(voice._player.bus == &"Master", "Rourke plays without the PA filter")
+	var warden_path := Voice.folder.path_join("l1_sealed.wav")
+	wav.save_to_wav(warden_path)
+	voice.play("l1_sealed")
+	check(voice._player.bus == Voice.PA_BUS and AudioServer.get_bus_index(Voice.PA_BUS) >= 0, "WARDEN plays through the PA speaker sound")
+	voice.queue_free()
+	DirAccess.remove_absolute(wav_path)
+	DirAccess.remove_absolute(warden_path)
+	Voice.folder = real_folder
 
 
 func test_screens_fill_window() -> void:
@@ -282,6 +367,7 @@ func test_level_2_hints() -> void:
 				ok = false
 	check(ok, "pike and har: first hint's query solves it on every seed")
 	check(_hint_query(l2.cameras_puzzle.hints[0]) == "GET /cameras", "cameras: first hint is GET /cameras")
+	check(_hint_query(l2.door_puzzle.hints[0]) == "GET /doors/SEC-EXIT", "door: first hint is GET /doors/SEC-EXIT")
 	l2.free()
 
 
@@ -340,10 +426,27 @@ func test_level_2_scene() -> void:
 	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
 	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
 	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
-	level.open_exit()
+	level.enter_pin()
 	for i in 5:
 		await physics_frame
-	check(level.doors["SEC-EXIT"].is_open, "the PIN opens the stairwell door")
+	check(not level.doors["SEC-EXIT"].is_open and int(level.db.run_silent("SELECT locked FROM doors WHERE id = 'SEC-EXIT'")[0]["locked"]) == 0, "the second lie: the PIN unlocks the row but the door stays shut")
+	level.terminal_ui.terminal = level.panel
+	level.terminal_ui.run("GET /doors/SEC-EXIT")
+	var door: Dictionary = JSON.parse_string(level.booth.api.request("GET /doors/SEC-EXIT").text)
+	check(level.door_checked and door["locked"] == false and door["sensor"] == "closed" and door["actuator"] == "fault", "the door's sensor shows the actuator fault")
+	check(str(door["note"]).contains("B-%d" % level.data.breaker), "the note names the tripped breaker")
+	var wrong_b: int = level.data.breaker % 4 + 1
+	level._on_breaker(null, wrong_b)
+	check(level.frozen_cams.has("CAM-3") and not level.doors["SEC-EXIT"].is_open, "the wrong breaker blacks out the vestibule camera instead")
+	level._on_breaker(null, level.data.breaker)
+	for i in 5:
+		await physics_frame
+	check(level.doors["SEC-EXIT"].is_open and level.door_open, "resetting the right breaker opens the door")
+	check(level.db.run_silent("SELECT sensor FROM door_status WHERE door_id = 'SEC-EXIT'")[0]["sensor"] == "open", "the sensor now agrees")
+	level.seal_exit()
+	for i in 5:
+		await physics_frame
+	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
 	# Caught: put it right behind the player, out of sight.
 	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
 	w.place(Vector3(0, 0, 5.2), p.global_position)

@@ -87,6 +87,14 @@ func _run() -> void:
 	level.keypad_ui.show_status(level.check_pin(level.data.pike_pin).message, ThemeUtil.RED)
 	await _frames(10)
 	_save("l2_keypad")
+	level.keypad_ui.close()
+	level.enter_pin()
+	await _shot(level, "l2_breakers", Vector3(-0.2, 0.1, -9.0), 90, -12)
+	level.terminal_ui.open(level.panel, level.player)
+	level.terminal_ui.run("GET /doors/SEC-EXIT")
+	await _frames(10)
+	_save("l2_door_lie")
+	level.terminal_ui.close()
 	quit()
 
 

@@ -47,7 +47,7 @@ func _ready() -> void:
 		box.add_child(_mono("  %-9s %s" % [c, CONCEPT_NOTES.get(c, "")]))
 	box.add_child(_mono("  TESTS     A self-test lists PASS/FAIL checks. Failing tests tell you where to look."))
 	if Game.completed_level == "level_2":
-		box.add_child(_mono("  VERIFY    A status can lie. CAM-2 said 'live' while its picture was frozen. Check the data."))
+		box.add_child(_mono("  VERIFY    A status can lie. CAM-2 said 'live' with a frozen picture; the keypad said\n            'opened' while the door stayed shut. Check the sensor, not the request."))
 	box.add_child(_spacer())
 
 	box.add_child(ThemeUtil.label("Queries you wrote", 28, ThemeUtil.AMBER))
