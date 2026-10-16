@@ -15,6 +15,9 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var level = await _load("res://scenes/level_0.tscn")
+	await _shot(level, "l0_van", Vector3(2.5, 0.55, 15.3), 0, -3)
+	await _shot(level, "l0_van_ticket", Vector3(2.0, 0.55, 16.2), 180, -15)
+	await _shot(level, "l0_lot", Vector3(4.1, 0.05, 14.5), 15, 5)
 	await _shot(level, "l0_spawn", Vector3(0, 0.1, 5.6), 0, -5)
 	await _shot(level, "l0_desk", Vector3(1.2, 0.1, 0.4), 10, -18)
 	await _shot(level, "l0_hall_shutter", Vector3(8.5, 0.1, 3), -90, 0)

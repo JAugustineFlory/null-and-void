@@ -149,7 +149,22 @@ func test_level_0_scene() -> void:
 	for i in 30:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
-	check(level.player.global_position.y > -1.0, "player stands on the floor")
+	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
+	var flickering := 0
+	for id in ["lobby", "hall"]:
+		for l in level.lights[id]:
+			for c in l.get_children():
+				if c is FlickerLight:
+					flickering += 1
+	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
+	check(not level.front_doors.is_open, "front doors start closed")
+	level.ready_up(level.player, 1)
+	await create_timer(2.5).timeout
+	var pos: Vector3 = level.player.global_position
+	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	level.player.global_position = Vector3(0, 0.1, 11.5)
+	await create_timer(3.5).timeout
+	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")
 	level.desk_terminal.enabled = true
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments")

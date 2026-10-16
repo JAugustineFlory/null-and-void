@@ -12,6 +12,8 @@ var geo: NavigationRegion3D
 var doors := {}
 var lights := {}  # light id -> Array of Light3D
 var spawn := Transform3D.IDENTITY
+## The level's WorldEnvironment settings. Levels can brighten or darken it in build().
+var environment: Environment
 var _pause: Control
 
 
@@ -62,8 +64,8 @@ func add_door(id: String, pos: Vector3, size: Vector3) -> Door:
 	return d
 
 
-func add_light(id: String, pos: Vector3, light_range: float = 8.0, energy: float = 1.4) -> OmniLight3D:
-	var l := Greybox.ceiling_light(geo, pos, light_range, energy)
+func add_light(id: String, pos: Vector3, light_range: float = 8.0, energy: float = 1.4, color: Color = Color(0.92, 0.95, 1.0)) -> OmniLight3D:
+	var l := Greybox.ceiling_light(geo, pos, light_range, energy, color)
 	if not lights.has(id):
 		lights[id] = []
 	lights[id].append(l)
@@ -109,6 +111,7 @@ func _environment() -> void:
 	env.fog_density = 0.035
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
+	environment = env
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
