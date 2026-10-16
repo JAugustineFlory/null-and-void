@@ -21,6 +21,7 @@ var ready_players := {}
 ## Each seat: door pivot, door, how far the door swings, and the climb-out path.
 var van_seats: Array[Dictionary] = []
 var _intro_started := false
+var tape: Interactable
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
 	"Type this, then press Enter:\n" +
 	"    [color=#ffffff]SELECT * FROM memo_fragments;[/color]\n" +
@@ -118,6 +119,8 @@ func build() -> void:
 	Greybox.label(geo, Vector3(-19.05, 1.4, 4),
 		"THE HALCYON LEDGER - March 1994\nFOUNDER OUSTED OVER 'WARDEN' PLAN\nHarold Mercer, who built Halcyon from a garage,\nwas removed by the board after refusing to let an\nautomated system run the campus. 'You don't hand\nthe keys to something that can't be locked out,'\nhe told staff on his last day.",
 		26, Color(0.9, 0.88, 0.8), 90)
+	tape = Interactable.create(geo, Vector3(-19.3, 1.88, 5.0), Vector3(0.3, 0.12, 0.2), "Play the cassette", Color(0.12, 0.12, 0.12))
+	tape.used.connect(_on_tape)
 	var closet_light := Greybox.ceiling_light(geo, Vector3(-17, 2.6, 4), 5.0, 0.9)
 	FlickerLight.attach(closet_light, 0.35)
 
@@ -274,10 +277,8 @@ func start() -> void:
 	rourke.walk_to(Vector3(0, 0, 8.8))
 	await rourke.arrived
 	rourke.face(player.global_position)
-	await hud.play_lines([
-		["ROURKE", "You must be the IT crew. Dale Rourke, facilities. I'll be your escort tonight."],
-		["ROURKE", "Badge rules after hours. You don't go anywhere I don't take you. Come on in, I'll sign you in."],
-	])
+	await hud.lines(["l0_pa_1", "l0_pa_2", "l0_greet_1", "l0_greet_2", "l0_greet_3"])
+	await hud.line("l0_greet_4")
 	var inside := Trigger.create(self, Vector3(0, 1, 4.5), Vector3(10, 2, 2))
 	rourke.walk_to(Vector3(-0.5, 0, 0.6))
 	hud.set_objective("Follow Rourke to the front desk")
@@ -287,23 +288,16 @@ func start() -> void:
 	if rourke.state == Rourke.State.WALK:
 		await rourke.arrived
 	rourke.face(player.global_position)
-	await hud.say("ROURKE", "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me.")
+	await hud.line("l0_signin")
 	visitor_log.enabled = true
 	hud.set_objective("Sign the visitor log on the front desk")
 	await visitor_log.used
 	visitor_log.enabled = false
 	hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
 	hud.set_objective("")
-	await hud.play_lines([
-		["ROURKE", "Here's the job. Dr. Vale, our lead engineer, went missing three nights ago."],
-		["ROURKE", "Her systems are a mess and the director wants them recovered by morning. Quietly."],
-		["ROURKE", "Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings."],
-		["ROURKE", "Board fired him when they installed WARDEN. That's the AI that runs the campus now."],
-		["ROURKE", "Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable."],
-		["ROURKE", "Ghost stories. Anyway."],
-	])
+	await hud.lines(["l0_tour_1", "l0_tour_2", "l0_tour_3", "l0_tour_4", "l0_tour_5", "l0_tour_6"])
 	rourke.face(player.global_position)
-	await hud.say("ROURKE", "The front desk scanner ate one of Vale's memos. The scraps went into a table. Director wants to know what it said. Go ahead, terminal's on the desk.")
+	await hud.lines(["l0_desk_1", "l0_desk_2"])
 	desk_terminal.enabled = true
 	hud.set_objective("Read Dr. Vale's shredded memo at the front desk terminal")
 
@@ -315,14 +309,10 @@ func _set_front_doors_locked(locked: bool) -> void:
 
 ## The van radio, until the crew is ready.
 func _dispatch_chatter() -> void:
-	for line in [
-		["DISPATCH", "Van three, you're on site at Halcyon Data Systems. After-hours callout."],
-		["DISPATCH", "Their lead engineer's systems are down. Contact is Dale Rourke, facilities. He'll meet you at the front doors."],
-		["DISPATCH", "Hop out when you're ready. Dispatch out."],
-	]:
+	for id in ["l0_dispatch_1", "l0_dispatch_2", "l0_dispatch_3"]:
 		if _intro_started:
 			return
-		await hud.say(line[0], line[1])
+		await hud.line(id)
 
 
 func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
@@ -332,6 +322,7 @@ func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
 		ui.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. Each one has a number in the piece_no column.[/color]")
 		ui.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the column to sort by: piece_no[/color]")
 		hud.set_objective("Put the memo back in order")
+		hud.line("l0_sort_hint", false)
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):
 		memo_puzzle.solved = true
 		peek_puzzle.solved = true
@@ -344,11 +335,8 @@ func _on_desk_query(_sql: String, result: Dictionary, ui: TerminalUI) -> void:
 
 func _after_memo() -> void:
 	hud.set_objective("")
-	await get_tree().create_timer(1.5).timeout
-	await hud.play_lines([
-		["ROURKE", "...Huh. She always was dramatic."],
-		["ROURKE", "Grab the walkie-talkies from lost and found behind the desk. Over the counter, it's fine."],
-	])
+	await get_tree().create_timer(1.0).timeout
+	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2"])
 	walkies.enabled = true
 	hud.set_objective("Get the walkie-talkies (behind the desk. Space to climb over)")
 
@@ -359,14 +347,15 @@ func _on_walkies(_p: Node) -> void:
 	hud.notice("Picked up walkie-talkies. Channel 1. (Co-op radio arrives in the next build.)", 5.0)
 	hud.set_objective("Follow Rourke to Server Room A")
 	prepare_next()
+	hud.line("l0_walkie")
 	rourke.walk_to(Vector3(10.2, 0, 3))
 	await rourke.arrived
 	rourke.face(player.global_position)
 	# Rourke badges the shutter. It jams halfway.
 	var tw := create_tween()
 	tw.tween_property(shutter, "position:y", shutter.position.y + 2.1, 1.6).set_trans(Tween.TRANS_BOUNCE)
-	await hud.say("ROURKE", "Jammed again. You'll have to duck under. Hold Ctrl, or sprint and slide.")
-	await hud.say("ROURKE", "I'll take the staff door and meet you at the server room.")
+	hud.notice("Hold Ctrl to crouch under, or sprint and press Ctrl to slide.", 6.0)
+	await hud.lines(["l0_shutter_1", "l0_shutter_2"])
 	rourke.visible = false
 	rourke.process_mode = Node.PROCESS_MODE_DISABLED
 	rourke.position = Vector3(22.5, 0, 3)
@@ -385,7 +374,13 @@ func _on_reach_server_room(_b: Node) -> void:
 	rourke.visible = true
 	rourke.process_mode = Node.PROCESS_MODE_INHERIT
 	rourke.face(player.global_position)
-	await hud.say("ROURKE", "Server Room A. After you.")
+	await hud.line("l0_sra")
 	player.input_locked = true
 	await hud.fade(true, 1.0)
 	finish_level("level_1")
+
+
+## Optional: Mercer's cassette in the forgotten closet.
+func _on_tape(_p: Node) -> void:
+	tape.enabled = false
+	await hud.lines(VoiceLines.ids_in_scene("l0_tape"))
