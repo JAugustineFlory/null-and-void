@@ -2,6 +2,7 @@ extends Node
 ## Global game state and input setup. Autoloaded as `Game`.
 
 const LEVELS := {
+	"world": "res://scenes/world.tscn",
 	"level_0": "res://scenes/level_0.tscn",
 	"level_1": "res://scenes/level_1.tscn",
 	"level_2": "res://scenes/level_2.tscn",

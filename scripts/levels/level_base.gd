@@ -2,8 +2,13 @@ class_name LevelBase
 extends Node3D
 ## Shared setup for every level: database, HUD, terminal screen, player,
 ## navigation, doors and lights wired to the database.
+##
+## A level runs in one of two ways. Inside the World (the one continuous map) it is a
+## wing: it builds its geometry and adds its seed data when loaded, borrows the World's
+## player, HUD and database, and waits for activate() before its story starts. On its
+## own (tests, debugging) it creates all of that itself and starts straight away.
 
-var db := FacilityDB.new()
+var db: FacilityDB
 var hud: HUD
 var player: Player
 var terminal_ui: TerminalUI
@@ -14,10 +19,22 @@ var lights := {}  # light id -> Array of Light3D
 var spawn := Transform3D.IDENTITY
 ## The level's WorldEnvironment settings. Levels can brighten or darken it in build().
 var environment: Environment
+## The World this level is a wing of, or null when it runs on its own.
+var world: LevelBase
+## This wing's key in Game.LEVELS. Set by the World before the wing is added.
+var wing_id := ""
+## True once players have reached this level and its story has started.
+var active := false
+## The door players leave through. The World seals it once they are in the next wing.
+var exit_door: Door
 var _pause: Control
 
 
 func _ready() -> void:
+	if get_parent() is LevelBase:
+		_ready_as_wing(get_parent())
+		return
+	db = FacilityDB.new()
 	_environment()
 	geo = NavigationRegion3D.new()
 	geo.name = "Geometry"
@@ -37,9 +54,34 @@ func _ready() -> void:
 	player.name = "Player"
 	player.hud = hud
 	add_child(player)
-	player.global_transform = spawn
+	player.global_transform = spawn_point()
 	player.died.connect(_on_player_died)
 	_build_pause_menu()
+	active = true
+	start()
+
+
+func _ready_as_wing(host: LevelBase) -> void:
+	world = host
+	db = host.db
+	hud = host.hud
+	terminal_ui = host.terminal_ui
+	player = host.player
+	environment = host.environment
+	geo = NavigationRegion3D.new()
+	geo.name = "Geometry"
+	add_child(geo)
+	db.door_changed.connect(_on_door_changed)
+	db.light_changed.connect(_on_light_changed)
+	build()
+	_bake_navigation()
+	db.sync_world()
+
+
+## The World calls this when players reach the wing.
+func activate() -> void:
+	active = true
+	apply_environment(environment)
 	start()
 
 
@@ -55,7 +97,43 @@ func start() -> void:
 
 ## Override: what happens when the player dies.
 func on_player_died() -> void:
-	player.respawn(spawn)
+	player.respawn(spawn_point())
+
+
+## Override: lighting mood while players are in this level. Wings share one
+## environment, so set every value a level might change.
+func apply_environment(env: Environment) -> void:
+	env.ambient_light_energy = 0.08
+	env.fog_density = 0.035
+
+
+## Add this level's seed data: to the shared building database in the World, or
+## to a fresh database when running on its own.
+func load_level_seed(sql: String) -> void:
+	if world:
+		db.add_wing(wing_id, sql)
+	else:
+		db.load_seed(sql)
+
+
+## Where players (re)spawn, in world space. `spawn` is relative to the level.
+func spawn_point() -> Transform3D:
+	return global_transform * spawn
+
+
+## Ask the World to load the next wing now, behind its closed door.
+func prepare_next() -> void:
+	if world:
+		world.load_next(self)
+
+
+## The level is done. In the World this is a checkpoint and play moves into the
+## next wing; on its own it changes scene to `next_key`.
+func finish_level(next_key: String) -> void:
+	if world:
+		world.wing_finished(self)
+	else:
+		Game.goto(next_key)
 
 
 func add_door(id: String, pos: Vector3, size: Vector3) -> Door:
@@ -104,20 +182,21 @@ func _environment() -> void:
 	env.background_color = Color(0.0, 0.0, 0.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.35, 0.4, 0.45)
-	env.ambient_light_energy = 0.08
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.05, 0.06, 0.07)
-	env.fog_density = 0.035
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
 	environment = env
+	apply_environment(env)
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 
 
 func _bake_navigation() -> void:
+	if geo.get_child_count() == 0:
+		return
 	var nm := NavigationMesh.new()
 	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nm.agent_radius = 0.5

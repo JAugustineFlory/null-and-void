@@ -32,6 +32,12 @@ func _run() -> void:
 	level.free()
 
 	root.get_node("Game").new_run(3)
+	var world = await _load("res://scenes/world.tscn")
+	world.load_next(world.current)
+	world.current.exit_door.set_open(true, true)
+	await _shot(world, "world_hall_to_sra", Vector3(19, 0.1, 3), -90, 0)
+	world.free()
+
 	level = await _load("res://scenes/level_1.tscn")
 	await _shot(level, "l1_entry", Vector3(0, 0.1, 10.5), 0, 0)
 	level._on_trapped(null)

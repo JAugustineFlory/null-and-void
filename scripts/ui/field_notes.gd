@@ -80,7 +80,7 @@ func _ready() -> void:
 	again.custom_minimum_size = Vector2(320, 50)
 	again.pressed.connect(func():
 		Game.new_run()
-		Game.goto("level_0"))
+		Game.goto("world"))
 	box.add_child(again)
 	var menu := Button.new()
 	menu.text = "Main menu"

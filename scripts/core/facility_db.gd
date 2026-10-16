@@ -7,9 +7,35 @@ signal door_changed(door_id: String, locked: bool, fault: bool)
 signal light_changed(light_id: String, is_on: bool)
 
 const BLOCKED := ["ATTACH", "DETACH", "LOAD_EXTENSION", "VACUUM"]
+## Building-wide tables. They exist before any wing loads; wings only INSERT their
+## own rows, with ids prefixed by the wing (LOBBY-, SRA-, SEC-). The primary keys
+## make a clash between two wings fail loudly instead of duplicating a door.
+const SHARED_SCHEMA := """
+CREATE TABLE IF NOT EXISTS doors (
+	id TEXT PRIMARY KEY,
+	name TEXT,
+	zone TEXT,
+	locked INTEGER,
+	actuator_fault INTEGER
+);
+CREATE TABLE IF NOT EXISTS lights (
+	id TEXT PRIMARY KEY,
+	name TEXT,
+	is_on INTEGER
+);
+CREATE TABLE IF NOT EXISTS badges (
+	badge_id TEXT PRIMARY KEY,
+	holder TEXT,
+	clearance TEXT,
+	last_seen TEXT
+);
+"""
 
 var db: SQLite
-var _seed_sql := ""
+## The whole database as SQL, as of the last checkpoint. `.reset` restores it.
+var _checkpoint_sql := ""
+## Wings whose seed data has been added, in load order.
+var wings: Array[String] = []
 
 
 func _init() -> void:
@@ -19,17 +45,61 @@ func _init() -> void:
 	db.open_db()
 
 
-## Load (or reload) the level's starting data.
+## Start a fresh building with one wing's data. Used when a level runs on its own.
 func load_seed(sql: String) -> void:
-	_seed_sql = sql
 	_drop_all()
-	db.query(sql)
+	wings.clear()
+	add_wing("", sql)
+
+
+## Add a wing's seed data to the building and checkpoint. Returns false if the seed
+## failed, for example because it reused another wing's door id.
+func add_wing(wing_id: String, sql: String) -> bool:
+	db.query(SHARED_SCHEMA)
+	var ok: bool = db.query(sql)
+	if not ok:
+		push_error("FacilityDB: seed for wing '%s' failed: %s" % [wing_id, db.error_message])
+	if wing_id != "":
+		wings.append(wing_id)
+	checkpoint()
+	sync_world()
+	return ok
+
+
+## Remember the whole building's state. Called when a wing loads and at level checkpoints.
+func checkpoint() -> void:
+	_checkpoint_sql = dump()
+
+
+## Restore the building to the last checkpoint, like restoring from a backup tape.
+## Earlier wings keep the state they had at that checkpoint.
+func reset() -> void:
+	_drop_all()
+	db.query(_checkpoint_sql)
 	sync_world()
 
 
-## Restore the level's starting data, like restoring from a backup tape.
-func reset() -> void:
-	load_seed(_seed_sql)
+## Every table's schema and rows as SQL that rebuilds them.
+func dump() -> String:
+	var out := PackedStringArray()
+	for t in run_silent("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY rowid"):
+		out.append(str(t["sql"]) + ";")
+		for row in run_silent("SELECT * FROM \"%s\"" % t["name"]):
+			var vals := PackedStringArray()
+			for v in row.values():
+				vals.append(_sql_literal(v))
+			out.append("INSERT INTO \"%s\" VALUES (%s);" % [t["name"], ", ".join(vals)])
+	return "\n".join(out)
+
+
+static func _sql_literal(v: Variant) -> String:
+	if v == null:
+		return "NULL"
+	if v is int or v is float:
+		return str(v)
+	if v is PackedByteArray:
+		return "X'%s'" % v.hex_encode()
+	return "'%s'" % str(v).replace("'", "''")
 
 
 ## Run a player's query. Returns {ok, error, columns, rows, changes}.

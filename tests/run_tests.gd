@@ -26,6 +26,9 @@ func _run() -> void:
 	await test_level_1_scene()
 	await test_level_2_scene()
 	await test_level_2_routes()
+	test_wing_seeds_in_order()
+	test_reset_keeps_earlier_wings()
+	await test_world()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	print("\n%d passed, %d failed" % [passed, failed])
@@ -44,10 +47,10 @@ func check(cond: bool, name: String) -> void:
 func test_facility_db() -> void:
 	print("FacilityDB")
 	var db := FacilityDB.new()
-	db.load_seed("CREATE TABLE doors (id TEXT, locked INTEGER, actuator_fault INTEGER); INSERT INTO doors VALUES ('A', 1, 0), ('B', 1, 1);")
+	db.load_seed("INSERT INTO doors (id, locked, actuator_fault) VALUES ('A', 1, 0), ('B', 1, 1);")
 	var events := []
 	db.door_changed.connect(func(id, locked, fault): events.append([id, locked, fault]))
-	var r := db.execute("SELECT * FROM doors WHERE locked = 1")
+	var r := db.execute("SELECT id, locked, actuator_fault FROM doors WHERE locked = 1")
 	check(r.ok and r.rows.size() == 2 and r.columns == ["id", "locked", "actuator_fault"], "select returns rows and ordered columns")
 	r = db.execute("SELEC * FROM doors")
 	check(not r.ok and r.error.contains("syntax"), "syntax error is reported")
@@ -428,11 +431,12 @@ func test_level_2_data_every_seed() -> void:
 	check(practice_ok, "the Pike practice query finds exactly one row")
 	var building := FacilityDB.new()
 	building.load_seed(Level1Data.build(1).sql)
+	var doors_before := building.run_silent("SELECT id FROM doors").size()
 	var stacked: bool = building.db.query(Level2Data.build(1).sql)
 	var door_ids := []
 	for row in building.run_silent("SELECT id FROM doors ORDER BY id"):
 		door_ids.append(row["id"])
-	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.size() == 6, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
+	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.size() == doors_before + 1, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
 	check(pins.size() >= 40 and names.size() >= 4, "PIN and guard vary between runs (%d PINs, %d names)" % [pins.size(), names.size()])
 
 
@@ -588,3 +592,68 @@ func test_level_2_routes() -> void:
 
 func _game() -> Node:
 	return root.get_node("Game")
+
+
+func test_wing_seeds_in_order() -> void:
+	print("Wing seeds in one database")
+	var lobby := FileAccess.get_file_as_string("res://data/level_0.sql")
+	var ok := true
+	for seed_value in 20:
+		var db := FacilityDB.new()
+		ok = ok and db.add_wing("level_0", lobby)
+		ok = ok and db.add_wing("level_1", Level1Data.build(seed_value).sql)
+		ok = ok and db.add_wing("level_2", Level2Data.build(seed_value).sql)
+		var ids := db.run_silent("SELECT id FROM doors").map(func(r): return r["id"])
+		ok = ok and ids.has("LOBBY-FRONT") and ids.has("SRA-EXIT") and ids.has("SEC-EXIT")
+	check(ok, "Level 0, 1 and 2 seeds load into one database in order on every seed")
+	var clash := FacilityDB.new()
+	clash.add_wing("level_0", lobby)
+	print("  (expected error below: a wing reusing another wing's door id)")
+	check(not clash.add_wing("bad", "INSERT INTO doors VALUES ('LOBBY-FRONT', 'dup', 'L', 0, 0);"),
+		"a wing reusing another wing's door id fails loudly")
+
+
+func test_reset_keeps_earlier_wings() -> void:
+	print("Reset restores the last checkpoint")
+	var db := FacilityDB.new()
+	db.add_wing("level_0", FileAccess.get_file_as_string("res://data/level_0.sql"))
+	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'LOBBY-FRONT'")
+	db.add_wing("level_1", Level1Data.build(3).sql)
+	db.run_silent("UPDATE door_controllers SET status = 'ok'")
+	db.run_silent("DELETE FROM memo_fragments")
+	db.reset()
+	check(db.run_silent("SELECT * FROM door_controllers WHERE status = 'fault'").size() > 0, "reset restores this wing's tables")
+	check(db.run_silent("SELECT * FROM memo_fragments").size() == 7, "reset restores earlier wings' tables too")
+	check(int(db.run_silent("SELECT locked FROM doors WHERE id = 'LOBBY-FRONT'")[0]["locked"]) == 0,
+		"reset keeps what earlier wings changed before the checkpoint")
+
+
+func test_world() -> void:
+	print("World")
+	_game().new_run(5)
+	var world = load("res://scenes/world.tscn").instantiate()
+	root.add_child(world)
+	for i in 30:
+		await physics_frame
+	var lobby = world.current
+	check(lobby != null and lobby.wing_id == "level_0" and lobby.active, "the World starts in the lobby wing")
+	check(world.player.global_position.z > 14.0 and world.player.global_position.y > 0.3, "players start in the van")
+	check(not world.wings.has("level_1"), "Server Room A isn't loaded before it's needed")
+	world.load_next(lobby)
+	var sra = world.wings.get("level_1")
+	check(sra != null and not sra.active, "Server Room A loads behind its door without starting")
+	var entry: Vector3 = sra.doors["SRA-ENTRY"].global_position
+	check(entry.distance_to(Vector3(29, 1.2, 3)) < 0.1, "Server Room A sits at the end of the lobby hall (%s)" % entry)
+	var tables: Array = world.db.table_names()
+	check(tables.has("memo_fragments") and tables.has("door_controllers"), "both wings share one database")
+	lobby.exit_door.set_open(true)
+	world.wing_finished(lobby)
+	check(world.current == sra and sra.active, "finishing the lobby hands play to Server Room A")
+	world.seal_behind(sra)
+	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
+	sra._on_trapped(null)
+	check(sra.terminal.locked, "Server Room A's story runs inside the World")
+	world.wing_finished(sra)
+	check(world._field_notes != null and world.player.input_locked, "Field Notes opens as an overlay at the end")
+	world.queue_free()
+	await process_frame

@@ -31,7 +31,7 @@ var rourke_spawn := Transform3D.IDENTITY
 func build() -> void:
 	var data := Level1Data.build(Game.run_seed)
 	answer = data.answer
-	db.load_seed(data.sql)
+	load_level_seed(data.sql)
 
 	var floor_c := Color(0.32, 0.33, 0.35)
 	var wall_c := Color(0.5, 0.52, 0.55)
@@ -41,9 +41,10 @@ func build() -> void:
 		{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4},
 	])
 	# Antechamber (south) and exit corridor (north)
-	Greybox.room(geo, Vector3(0, 0, 11.5), Vector3(3, 3, 5), {"floor": floor_c, "wall": wall_c}, [
-		{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4},
-	])
+	var ante_gaps := [{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4}]
+	if world:
+		ante_gaps.append({"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4})  # from the lobby hall
+	Greybox.room(geo, Vector3(0, 0, 11.5), Vector3(3, 3, 5), {"floor": floor_c, "wall": wall_c}, ante_gaps)
 	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
 	])
@@ -91,9 +92,14 @@ func build() -> void:
 
 
 func start() -> void:
+	if world:
+		# Rourke "took the staff door": he is waiting in the antechamber as the hall door opens.
+		rourke.position = Vector3(0, 0, 10.5)
+		var through := Trigger.create(self, Vector3(0, 1, 12.0), Vector3(3, 2, 1.5))
+		through.entered.connect(func(_b): world.seal_behind(self))
 	rourke.face(player.global_position)
 	hud.set_objective("Follow Rourke inside")
-	rourke.walk_to(Vector3(0.0, 0, 1.0))
+	rourke.walk_to(to_global(Vector3(0.0, 0, 1.0)))
 	hud.line("l1_enter")
 	var t := Trigger.create(self, Vector3(0, 1, 6.0), Vector3(3.6, 2, 1.5))
 	t.entered.connect(_on_trapped)
@@ -226,10 +232,10 @@ func _on_exit(_b: Node) -> void:
 	await hud.fade(true, 1.2)
 	Game.completed_level = "level_1"
 	Game.next_level = "level_2"
-	Game.goto("field_notes")
+	finish_level("field_notes")
 
 
 func on_player_died() -> void:
-	player.respawn(Transform3D(Basis(), Vector3(0, 0.1, 7.0)))
+	player.respawn(global_transform * Transform3D(Basis(), Vector3(0, 0.1, 7.0)))
 	if rourke.state == Rourke.State.CHASE or rourke.state == Rourke.State.STAGGER or rourke.state == Rourke.State.DOWN:
-		rourke.reset_fight(rourke_spawn)
+		rourke.reset_fight(global_transform * rourke_spawn)
