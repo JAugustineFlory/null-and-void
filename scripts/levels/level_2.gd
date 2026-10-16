@@ -68,6 +68,7 @@ var door_checked := false
 var _clock := 0.0
 var _cam_tick := 0.0
 var _lie_explained := false
+var _lie_notice := ""
 var _warned := {}
 var _pad_mode := "exit"  # which keypad is open: office, exit or seal
 var _glass: Array[RID] = []
@@ -98,7 +99,8 @@ var door_puzzle := Puzzle.new("door", "", [], false, [
 	"Type this, then press Enter:\n" +
 	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
 	"  GET               ask the security server for data\n" +
-	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says",
+	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says\n" +
+	"If the door won't move, the note in the answer says why, such as which breaker tripped.",
 	"Read the \"note\" line in the answer. It names a breaker, like B-2. Go to the breaker box on the wall under the vent and press E on that breaker.",
 ])
 var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, [
@@ -150,7 +152,7 @@ func build() -> void:
 	Greybox.label(geo, Vector3(0, 2.75, 2.12), "SECURITY OFFICE", 64, Color(0.75, 0.75, 0.7))
 	office_glass = _glass_pane(Vector3(-3, 2.1, 2), Vector3(2.4, 2.2, 0.05), false)
 	add_door("SEC-OFFICE", Vector3(0, 1.2, 2), Vector3(1.8, 2.4, 0.15))
-	office_keypad = Interactable.create(geo, Vector3(1.3, 1.3, 2.13), Vector3(0.25, 0.3, 0.06), "Enter guard PIN", Color(0.15, 0.15, 0.12))
+	office_keypad = Interactable.create(geo, Vector3(1.3, 1.3, 2.13), Vector3(0.25, 0.3, 0.06), "Enter guard PIN (office door)", Color(0.15, 0.15, 0.12))
 	office_keypad.used.connect(_on_office_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, 2.17), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
 	# Exit vestibule: x -2.5..2.5, z -12..-8
@@ -183,7 +185,7 @@ func build() -> void:
 	_build_vent()
 	_build_ledge()
 
-	exit_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -11.85), Vector3(0.25, 0.3, 0.06), "Enter guard PIN", Color(0.15, 0.15, 0.12))
+	exit_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -11.85), Vector3(0.25, 0.3, 0.06), "Enter guard PIN (SEC-EXIT)", Color(0.15, 0.15, 0.12))
 	exit_keypad.used.connect(_on_exit_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, -11.81), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
 	_build_panel()
@@ -571,7 +573,8 @@ func explain_cam_lie() -> void:
 		terminal_ui.print_line(l)
 	for t in [booth, panel]:
 		t.boot_lines.append_array(lines)
-	hud.notice("CAM-2's picture froze at %s. It can't see anything.\nAt a terminal: GET /cameras, then compare last_frame with server_time." % _cam2_frame(), 8.0, ThemeUtil.AMBER)
+	_lie_notice = "CAM-2's picture froze at %s. It can't see anything.\nAt a terminal: GET /cameras, then compare last_frame with server_time." % _cam2_frame()
+	hud.notice(_lie_notice, 8.0, ThemeUtil.AMBER)
 
 
 func _on_query(sql: String, result: Dictionary, ui: TerminalUI) -> void:
@@ -819,9 +822,10 @@ func on_player_died() -> void:
 		player.respawn(spawn_point())
 		_place_watcher(STAGES[stage][0], STAGES[stage][1])
 	if loose and not _lie_explained:
-		# After "You came to": say why the camera didn't stop it.
-		await get_tree().create_timer(2.5).timeout
 		explain_cam_lie()
+		# Again after "You came to", which replaces it: say why the camera didn't stop it.
+		await get_tree().create_timer(2.5).timeout
+		hud.notice(_lie_notice, 8.0, ThemeUtil.AMBER)
 
 
 ## Stand the Watcher at a spot in the level's own space, facing another.

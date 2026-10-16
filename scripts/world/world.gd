@@ -67,7 +67,7 @@ func load_next(wing: LevelBase) -> void:
 func enter_wing(index: int) -> void:
 	current = load_wing(index)
 	if index == 0:
-		player.global_transform = current.spawn_point()
+		players.place_all(current)
 	current.activate()
 	_unload_behind(index)
 	wing_entered.emit(current)

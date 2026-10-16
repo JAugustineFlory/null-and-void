@@ -690,29 +690,40 @@ func _set_crouch(on: bool) -> void:
 func _set_stance(height: float) -> void:
 	_height = height
 	crouching = height < STAND_HEIGHT
-	crawling = height <= CRAWL_HEIGHT
+	# Below about a metre you're on hands and knees.
+	crawling = height < 1.0
 	_capsule.height = height
 	_collider.position.y = height / 2
 
 
-## Pick the stance for this tick: stand, or crouch while Ctrl is held, dropping
-## to a crawl for gaps too low to crouch through and rising only where there's room.
+## Pick the stance for this tick. Standing unless Ctrl is held; when low, crouch
+## only as far as the space needs: just under a desk, all the way down for a vent.
+## Looks a step ahead so you duck before you hit something, and rises where there's room.
 func _settle_stance() -> void:
-	var target := CROUCH_HEIGHT if controls.crouch else STAND_HEIGHT
-	if target <= CROUCH_HEIGHT or crouching:
-		var wish := transform.basis * Vector3(controls.move.x, 0, controls.move.y)
-		wish.y = 0.0
-		if wish.length() > 0.1:
-			var ahead := global_position + wish.normalized() * 0.45
-			if not _fits(ahead, minf(target, CROUCH_HEIGHT)) and _fits(ahead, CRAWL_HEIGHT):
-				target = CRAWL_HEIGHT
-	if target < _height:
-		_set_stance(target)
-	elif target > _height:
-		if _fits(global_position, target):
-			_set_stance(target)
-		elif target == STAND_HEIGHT and _height < CROUCH_HEIGHT and _fits(global_position, CROUCH_HEIGHT):
-			_set_stance(CROUCH_HEIGHT)
+	if not controls.crouch and not crouching:
+		return
+	if not controls.crouch and _fits(global_position, STAND_HEIGHT):
+		_set_stance(STAND_HEIGHT)
+		return
+	var room := _room(global_position)
+	var wish := transform.basis * Vector3(controls.move.x, 0, controls.move.y)
+	wish.y = 0.0
+	if wish.length() > 0.1:
+		var ahead := _room(global_position + wish.normalized() * 0.45)
+		if ahead > 0.0:
+			room = minf(room, ahead)
+	if room > 0.0 and absf(room - _height) > 0.01:
+		_set_stance(room)
+
+
+## The tallest low stance, crawl to crouch, that fits with feet at `feet`; 0 if none.
+func _room(feet: Vector3) -> float:
+	var h := CROUCH_HEIGHT
+	while h >= CRAWL_HEIGHT - 0.001:
+		if _fits(feet, h + 0.05):  # keep a little headroom; the probe is slimmer than the body
+			return h
+		h -= 0.05
+	return 0.0
 
 
 func _can_stand() -> bool:

@@ -4,6 +4,9 @@ extends Interactable
 
 signal queried(sql: String, result: Dictionary, ui: TerminalUI)
 signal requested(line: String, response: Dictionary, ui: TerminalUI)
+## Someone sat down at this terminal. Fires on the host (in co-op a client's
+## opening is reported there), so story code can react to it.
+signal opened(by: Node)
 
 var terminal_name := "TERMINAL"
 var db: FacilityDB
@@ -18,6 +21,9 @@ var locked := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
+## What this machine's copy of the screen shows. In co-op everyone's queries
+## appear here, so players can work one terminal together.
+var transcript: Array[String] = []
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
@@ -63,6 +69,26 @@ static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: Stri
 
 func _on_used(player: Node) -> void:
 	ui.open(self, player)
+
+
+## Opening a terminal is local to each player; the host only hears that it happened.
+func interact(player: Node) -> void:
+	if enabled:
+		used.emit(player)
+		if not _forwarded("report_open"):
+			opened.emit(player)
+
+
+## Host: a client sat down at this terminal.
+func report_open(player: Node) -> void:
+	opened.emit(player)
+
+
+## Add a line to the screen (and to the open terminal window, if it shows this terminal).
+func print_line(bbcode: String) -> void:
+	transcript.append(bbcode)
+	if ui:
+		ui.on_terminal_line(self, bbcode)
 
 
 func boot_text() -> Array:

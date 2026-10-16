@@ -69,17 +69,26 @@ func _ready() -> void:
 	box.add_child(ThemeUtil.label("End of the playable slice. Thanks for testing.", 22, Color(0.9, 0.85, 0.8)))
 	box.add_child(_spacer())
 
+	var net := get_node("/root/Net")
+	# In co-op the host moves everyone on together.
+	var leads: bool = not net.is_online() or net.is_host()
 	var again := Button.new()
 	again.text = "Play again (new data)"
 	again.custom_minimum_size = Vector2(320, 50)
 	again.pressed.connect(func():
-		Game.new_run()
-		Game.goto("world"))
+		if net.is_online():
+			net.start_game()
+		else:
+			Game.new_run()
+			Game.goto("world"))
+	again.visible = leads
 	box.add_child(again)
 	var menu := Button.new()
 	menu.text = "Main menu"
 	menu.custom_minimum_size = Vector2(320, 50)
-	menu.pressed.connect(func(): Game.goto("menu"))
+	menu.pressed.connect(func():
+		net.leave(false)
+		Game.goto("menu"))
 	box.add_child(menu)
 
 

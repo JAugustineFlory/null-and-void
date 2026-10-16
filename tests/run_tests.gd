@@ -16,6 +16,8 @@ func _run() -> void:
 	test_level_0_puzzles()
 	test_level_1_data_every_seed()
 	test_first_hints_show_working_queries()
+	test_voice_codec()
+	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
 	test_facility_api()
@@ -31,6 +33,11 @@ func _run() -> void:
 	await test_world()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
+	await load("res://tests/teaching_tests.gd").new().run(self, check)
+	await test_coop_level_0()
+	await test_coop_level_1()
+	await test_coop_six_players()
+	await test_coop_world()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -135,6 +142,52 @@ func test_first_hints_show_working_queries() -> void:
 			ok = false
 	check(ok, "controller: first hint's query solves it on every seed")
 	l1.free()
+
+
+func _tone(n: int, rate: float, amp: float) -> PackedVector2Array:
+	var f := PackedVector2Array()
+	for i in n:
+		var v := sin(TAU * 440.0 * i / rate) * amp
+		f.append(Vector2(v, v))
+	return f
+
+
+func test_voice_codec() -> void:
+	print("Voice codec")
+	var tone := _tone(4800, 48000.0, 0.5)
+	var packet := VoiceCodec.encode(tone, 48000.0)
+	check(packet.size() == 1200, "48 kHz audio is cut to 12 kHz, one byte a sample (%d bytes)" % packet.size())
+	var back := VoiceCodec.decode(packet)
+	var worst := 0.0
+	for i in back.size():
+		worst = maxf(worst, absf(back[i].x - tone[i * 4].x))
+	check(worst < 0.03, "mu-law keeps the voice close to the original (worst error %.3f)" % worst)
+	check(VoiceCodec.rms(back) > 0.3 and VoiceCodec.rms(_tone(100, 48000.0, 0.0)) == 0.0, "loudness tells talking from silence")
+	check(VoiceCodec.mulaw_decode(VoiceCodec.mulaw_encode(-0.25)) < 0.0, "negative samples stay negative")
+
+
+func test_radio_rules() -> void:
+	print("Radio rules")
+	check(Radio.signal_quality(10.0, 0.0) == 1.0, "clear at close range")
+	check(Radio.signal_quality(50.0, 0.0) < 1.0 and Radio.signal_quality(50.0, 0.0) > 0.0, "fades with distance")
+	check(Radio.signal_quality(Radio.MAX_RANGE + 1.0, 0.0) == 0.0, "nothing but static out of range")
+	var near_entity := Radio.interference_at(Vector3.ZERO, [Vector3(2, 0, 0)])
+	check(near_entity > 0.5 and Radio.interference_at(Vector3.ZERO, [Vector3(30, 0, 0)]) == 0.0, "entities nearby cause static, far ones don't")
+	check(Radio.signal_quality(10.0, near_entity) < 0.5, "static near an entity drowns out a close teammate")
+	var r := Radio.new()
+	r.tick(Radio.TALK_TIME / 2.0, true)
+	check(is_equal_approx(r.battery, 0.5) and r.transmitting, "talking drains the battery")
+	r.tick(10.0, false)
+	check(is_equal_approx(r.battery, 0.5), "listening doesn't")
+	r.tick(Radio.TALK_TIME, true)
+	check(not r.can_transmit() and not r.transmitting, "a dead battery can't transmit")
+	r.recharge()
+	check(r.can_transmit(), "fresh batteries bring it back")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	var clean := Radio.degrade(_tone(600, 12000.0, 0.5), 1.0, rng)
+	var noisy := Radio.degrade(_tone(600, 12000.0, 0.0), 0.0, rng)
+	check(VoiceCodec.rms(clean) > 0.3 and VoiceCodec.rms(noisy) > 0.1, "a good signal carries the voice, a dead one is only static")
 
 
 func test_voice_script() -> void:
@@ -278,7 +331,7 @@ func test_voice_playback() -> void:
 func test_screens_fill_window() -> void:
 	print("Menu screens")
 	var win := root.get_visible_rect().size
-	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn"]:
+	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn"]:
 		var screen: Control = load(path).instantiate()
 		root.add_child(screen)
 		await process_frame
@@ -363,7 +416,7 @@ func test_level_0_scene() -> void:
 	await create_timer(1.8).timeout
 	check(level.player.global_position.z > -0.4 and not level.player.input_locked, "and back to the lobby side")
 	# Rourke walks the crew down the hall himself; nothing blocks the way.
-	level._on_walkies(level.player)
+	level._on_walkies()
 	for i in 600:
 		if level.shutter.is_open:
 			break
@@ -407,9 +460,11 @@ func test_level_1_scene() -> void:
 	for i in 30:
 		await physics_frame
 	check(level.doors["SRA-EXIT"].is_open == false, "exit starts locked")
+	check(not level.terminal.locked, "the trap doesn't spring while the player is still in the antechamber")
 	level.terminal_ui.terminal = level.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault'")
 	check(not level.controller_puzzle.solved, "the puzzle waits for the self-test")
+	level.player.global_position = level.to_global(Vector3(-4.5, 0.1, 7.4))  # at the terminal desk
 	level.terminal.interact(level.player)
 	check(level.terminal_ui.visible and not level.terminal.locked, "the terminal opens normally: nothing is wrong yet")
 	await create_timer(level.ATTACK_DELAY - 1.0).timeout
@@ -444,6 +499,264 @@ func test_level_1_scene() -> void:
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")
 	level.queue_free()
 	await process_frame
+
+
+# --- Co-op ---------------------------------------------------------------------
+# Each "machine" is a SubViewport with its own 3D world and its own
+# SceneMultiplayer, connected over real ENet on localhost.
+
+var _next_port := 17800
+
+
+## Start a host and `clients` clients. Returns the worlds, host first.
+func _coop_worlds(clients: int) -> Array:
+	_next_port += 1
+	var worlds := []
+	for i in clients + 1:
+		var vp := SubViewport.new()
+		vp.name = "Machine%d" % i
+		vp.own_world_3d = true
+		vp.size = Vector2i(320, 180)
+		root.add_child(vp)
+		var mp := SceneMultiplayer.new()
+		set_multiplayer(mp, vp.get_path())
+		var peer := ENetMultiplayerPeer.new()
+		if i == 0:
+			peer.create_server(_next_port, 6)
+		else:
+			peer.create_client("127.0.0.1", _next_port)
+		mp.multiplayer_peer = peer
+		worlds.append(vp)
+	for f in 300:
+		await process_frame
+		if get_multiplayer(worlds[0].get_path()).get_peers().size() == clients:
+			break
+	return worlds
+
+
+func _coop_load(worlds: Array, scene: String) -> Array:
+	var levels := []
+	for w in worlds:
+		var level = load(scene).instantiate()
+		w.add_child(level)
+		levels.append(level)
+	for f in 300:
+		await physics_frame
+		if levels.all(func(l): return l.sync._begun):
+			break
+	for f in 10:
+		await physics_frame
+	return levels
+
+
+func _coop_close(worlds: Array) -> void:
+	for w in worlds:
+		get_multiplayer(w.get_path()).multiplayer_peer.close()
+		w.queue_free()
+	await process_frame
+
+
+func _frames(n: int) -> void:
+	for i in n:
+		await physics_frame
+
+
+func _table(level: Node, sql: String) -> String:
+	return JSON.stringify(level.db.run_silent(sql))
+
+
+func test_coop_level_0() -> void:
+	print("Co-op: Level 0 with a host and two clients")
+	_game().new_run(11)
+	var worlds := await _coop_worlds(2)
+	check(get_multiplayer(worlds[0].get_path()).get_peers().size() == 2, "two clients connect to the host")
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var host = levels[0]
+	var c1 = levels[1]
+	var c2 = levels[2]
+	check(levels.all(func(l): return l.sync._begun), "every machine starts the level together")
+	check(levels.all(func(l): return l.players.count() == 3), "everyone sees three players")
+	check(host.player.global_position.distance_to(c1.player.global_position) > 0.5, "players spawn apart")
+
+	c1.player.global_position = Vector3(3, 0.1, 3)
+	await _frames(30)
+	var c1_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(host.players.puppet(c1_id).global_position.distance_to(Vector3(3, 0.1, 3)) < 0.3, "the host sees a client move")
+	check(c2.players.puppet(c1_id).global_position.distance_to(Vector3(3, 0.1, 3)) < 0.3, "another client sees it too (relayed by the host)")
+
+	c1.terminal_ui.terminal = c1.desk_terminal
+	c1.terminal_ui.run("SELECT * FROM memo_fragments")
+	await _frames(10)
+	check(host.peek_puzzle.solved and c1.peek_puzzle.solved and c2.peek_puzzle.solved, "a client's query solves the puzzle for everyone")
+	check(host.desk_terminal.transcript.any(func(l): return l.contains("SELECT * FROM memo_fragments")), "the query shows on the host's copy of that terminal")
+	check(c2.desk_terminal.transcript.any(func(l): return l.contains("Those scraps are out of order")), "WARDEN's reply shows on every copy")
+
+	c2.terminal_ui.terminal = c2.desk_terminal
+	c2.terminal_ui.run("INSERT INTO visitors (name) VALUES ('Intruder')")
+	await _frames(10)
+	var dump := "SELECT * FROM visitors ORDER BY rowid"
+	check(_table(host, dump) == _table(c1, dump) and _table(c1, dump) == _table(c2, dump) and _table(host, dump).contains("Intruder"), "a write lands in every machine's copy of the database")
+
+	for l in levels:
+		l.walkies.enabled = true
+	c2.walkies.interact(c2.player)
+	await _frames(10)
+	check(levels.all(func(l): return not is_instance_valid(l.walkies) or l.walkies.is_queued_for_deletion()), "a client picking up the walkies is seen by everyone")
+
+	_game().has_walkie = true
+	var tone := _tone(4800, 48000.0, 0.5)
+	c1.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
+	c2.player.global_position = Vector3(-17, 0.1, 4)
+	c1.player.global_position = Vector3(23, 0.1, 3)
+	await _frames(30)
+	c1.voice.send_frames(tone, 48000.0, true)
+	await _frames(10)
+	check(c2.voice.heard.near == 1 and c2.voice.heard.radio == 1, "radio reaches a teammate too far away to hear directly")
+	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 40 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
+	_game().has_walkie = false
+
+	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
+	await _frames(30)
+	check(host.players.count() == 2 and c1.players.count() == 2, "a player who drops out disappears for the others")
+	await _coop_close(worlds)
+
+
+func test_coop_level_1() -> void:
+	print("Co-op: Level 1 with a host and a client")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	var host = levels[0]
+	var client = levels[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+
+	host.player.global_position = Vector3(0, 0.1, 12.5)
+	client.player.global_position = Vector3(-4.5, 0.1, 7.4)  # at the terminal desk
+	await _frames(30)
+	client.terminal.interact(client.player)
+	await _frames(5)
+	check(client.terminal_ui.visible and not host.terminal_ui.visible, "a client sits down at the terminal on their own screen")
+	await create_timer(host.ATTACK_DELAY + 0.5).timeout
+	check(not host._trapped and not host.terminal.locked, "Rourke holds off while someone is still outside")
+	check(host.rourke.global_position.distance_to(Vector3(-4.5, 0, 7.4)) < 2.5, "the host hears the client sat down: Rourke drifts up behind them")
+	host.player.global_position = Vector3(1, 0.1, 3)
+	await _frames(30)
+	check(host.terminal.locked and client.terminal.locked, "the trap springs once everyone is inside")
+	check(not client.terminal_ui.visible, "the client's terminal screen closes for the fight")
+	check(host.rourke.max_hits == Rourke.MAX_HITS + 2, "Rourke is tougher with two players (%d hits)" % host.rourke.max_hits)
+
+	host.rourke.global_position = Vector3(-3, 0, 5)
+	await _frames(20)
+	check(client.rourke.global_position.distance_to(host.rourke.global_position) < 1.0, "clients see Rourke where the host has him")
+	host.rourke.set_physics_process(false)
+	host.rourke._windup = 0.4
+	await _frames(5)
+	check(client.rourke._windup > 0.0, "clients see Rourke wind up an attack")
+	host.rourke._windup = 0.0
+	host.rourke.set_physics_process(true)
+	var before: int = host.rourke.hits_left
+	host.rourke.state = Rourke.State.CHASE
+	client.rourke.take_hit(client.player)
+	await _frames(10)
+	check(host.rourke.hits_left == before - 1, "a client's strike lands on the host's Rourke")
+
+	var hp: float = client.player.health
+	host.players.puppet(client_id).take_damage(10.0)
+	await _frames(10)
+	check(client.player.health == hp - 10.0, "damage reaches the player it was meant for")
+
+	host.rourke.state = Rourke.State.IDLE
+	host.sync.event("_on_rourke_resolved", ["tied"])
+	await _frames(10)
+	check(not client.terminal.locked and client.has_badge, "the badge unlocks the terminal for everyone")
+
+	var wrong: String = host.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
+	client.rack_panels[wrong].interact(client.player)
+	await _frames(10)
+	check(host.panels_locked_until > 0.0 and client.panels_locked_until > 0.0, "a wrong rack locks the panels for everyone")
+
+	client.terminal_ui.terminal = client.terminal
+	client.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
+	await _frames(10)
+	check(host.doors["SRA-EXIT"].is_open and client.doors["SRA-EXIT"].is_open, "a door opened by a client's query opens for everyone")
+	var dump := "SELECT * FROM doors ORDER BY id"
+	check(_table(host, dump) == _table(client, dump), "the doors table matches on both machines")
+	client.player.set_physics_process(false)  # hold the stance still for the check
+	client.player._set_stance(Player.CRAWL_HEIGHT)
+	await _frames(10)
+	var mate: PlayerPuppet = host.players.puppet(client_id)
+	check(mate.crawling and mate.height < 1.0, "a teammate crawling shows crawling for the others, not standing")
+	client.player._set_stance(Player.STAND_HEIGHT)
+	await _frames(10)
+	check(not mate.crouching and is_equal_approx(mate.height, Player.STAND_HEIGHT), "and stands back up with them")
+	client.player.set_physics_process(true)
+	await _coop_close(worlds)
+
+
+func test_coop_six_players() -> void:
+	print("Co-op: six players")
+	_game().new_run(3)
+	var worlds := await _coop_worlds(5)
+	check(get_multiplayer(worlds[0].get_path()).get_peers().size() == 5, "five clients connect")
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	check(levels.all(func(l): return l.sync._begun and l.players.count() == 6), "all six start together and see each other")
+	var spots := {}
+	for l in levels:
+		spots[Vector2i(roundi(l.player.global_position.x * 10), roundi(l.player.global_position.z * 10))] = true
+	check(spots.size() == 6, "six different spawn spots")
+	await _coop_close(worlds)
+
+
+func test_coop_world() -> void:
+	print("Co-op: the World with a host and a client")
+	_game().new_run(9)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/world.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(machines.all(func(w): return w.sync._begun and w.current != null and w.current.wing_id == "level_0" and w.current.active), "both machines start the World in the lobby wing")
+	check(machines.all(func(w): return w.players.count() == 2), "both see two players in the World")
+	var lobby_h = host.current
+	var lobby_c = client.current
+	check(lobby_c.players == client.players and lobby_c.sync != client.sync, "a wing shares the World's players but has its own events")
+
+	lobby_c.van_seats[0].buckle.interact(client.player)
+	await _frames(10)
+	check(lobby_h.ready_players.size() == 1 and not lobby_h._intro_started, "a client's van door, pressed inside a wing, reaches the host")
+	lobby_h.van_seats[1].buckle.interact(host.player)
+	await _frames(10)
+	check(lobby_h._intro_started and lobby_c._intro_started, "once both are ready, everyone climbs out together")
+
+	lobby_h.sync.event("_on_walkies")
+	await _frames(10)
+	check(host.wings.has("level_1") and client.wings.has("level_1"), "the next wing loads on every machine")
+	var sra_h = host.wings["level_1"]
+	var sra_c = client.wings["level_1"]
+	var dump := "SELECT * FROM doors ORDER BY id"
+	check(_table(sra_h, dump) == _table(sra_c, dump), "both machines built the same building from the run seed")
+	lobby_h.sync.event("_on_reach_server_room", [null])
+	for f in 900:  # Rourke's line at the door plays first
+		await physics_frame
+		if host.current == sra_h and client.current == sra_c:
+			break
+	await _frames(10)
+	check(host.current == sra_h and client.current == sra_c and sra_c.active, "play moves into Server Room A on every machine")
+
+	sra_h.rourke.global_position = sra_h.to_global(Vector3(-3, 0, 5))
+	await _frames(20)
+	check(sra_c.rourke.global_position.distance_to(sra_h.rourke.global_position) < 1.0, "clients see the wing's Rourke where the host has him")
+	sra_h.sync.event("_on_rourke_resolved", ["tied"])
+	await _frames(10)
+	sra_c.terminal_ui.terminal = sra_c.terminal
+	sra_c.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
+	await _frames(10)
+	check(sra_h.doors["SRA-EXIT"].is_open and sra_c.doors["SRA-EXIT"].is_open, "a client's query in a wing opens the door for everyone")
+	check(_table(sra_h, dump) == _table(sra_c, dump), "the shared database still matches")
+	check(host.players.puppet(client_id) != null, "the client is still in the game")
+	await _coop_close(worlds)
 
 
 func test_facility_api() -> void:
