@@ -51,7 +51,9 @@ func build() -> void:
 	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, exit_gaps)
 	if world:
 		# The security wing is built behind this door before players reach it.
-		exit_door = add_door("SRA-STAIRS", Vector3(0, 1.2, -15.9), Vector3(1.8, 2.4, 0.15))
+		# A plain push door, not on the network: nothing to query, it opens when you get there.
+		exit_door = Door.create(self, "SRA-STAIRS", Vector3(0, 1.2, -15.9), Vector3(1.8, 2.4, 0.15), Color(0.42, 0.33, 0.24))
+		Greybox.label(geo, Vector3(0, 2.7, -15.8), "STAIRS  -  SECURITY OFFICE", 48, Color(0.85, 0.85, 0.8))
 	add_door("SRA-ENTRY", Vector3(0, 1.2, 9), Vector3(1.8, 2.4, 0.15)).slide_axis = Vector3.UP
 	add_door("SRA-EXIT", Vector3(0, 1.2, -9), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.8, -8.88), "EMERGENCY EXIT", 64, Color(0.1, 0.8, 0.2))

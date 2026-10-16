@@ -39,6 +39,7 @@ func _run() -> void:
 	var sra = world.load_wing(1)
 	world.load_next(sra)
 	sra.doors["SRA-EXIT"].set_open(true, true)
+	await _shot(world, "world_sra_stairs_door", Vector3(50, 0.1, 3), -90, 0)
 	sra.exit_door.set_open(true, true)
 	await _shot(world, "world_sra_to_security", Vector3(47.5, 0.1, 3), -90, 0)
 	world.free()
