@@ -27,7 +27,14 @@ First playable slice: **Levels 0 and 1**, solo, greybox art, subtitles for place
 3. Press **F5** (or the Play button).
 
 Controls: WASD move, mouse look, Shift sprint, Ctrl (or C) crouch, Shift+Ctrl slide,
-Space jump/climb, E use, X alternate action, F flashlight, left click strike, Esc pause.
+Space jump/mantle, E use, X alternate action, F flashlight, left click strike, Esc pause.
+
+Movement: jump at a high edge while pushing forward to grab it (A/D shimmy, W pull up,
+Ctrl let go). Tap Ctrl in the air to roll on landing, which is quiet. Walk into a pipe or
+ladder to climb it. Crouch to crawl through vents (Shift in a vent bangs the duct). Step
+onto a narrow ledge to shuffle along it. Look at a teammate and press E to climb onto
+their shoulders, up to three high; Space jumps off. **Movement gym** on the main menu
+has a station for each.
 
 At a terminal: type SQL and press Enter. `.help`, `.tables`, `.schema NAME`, `.hint`, `.reset`.
 
@@ -53,11 +60,14 @@ xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 -s tools/sc
 | Path | What's there |
 |---|---|
 | `scripts/core/` | `Game` autoload (run state, input), `FacilityDB` (the building's SQLite database), `Puzzle` (result-set puzzle checks) |
-| `scripts/player/` | First-person controller: sprint, crouch, slide, mantle, vents, flashlight, strike |
-| `scripts/world/` | Greybox builders, doors driven by the database, terminals, triggers, interactables |
+| `scripts/player/` | First-person controller (slide, roll, mantle, ledge grab, climb, vents, ledges, shoulder stands) driven by `PlayerControls` so co-op can replay inputs; `MovementVolume` |
+| `scripts/world/` | Greybox builders, `Traversal` helpers (vents, gates, climbables, ledges), doors driven by the database, terminals, triggers, interactables |
 | `scripts/npc/` | Rourke |
 | `scripts/levels/` | One script per level; geometry is built in code |
 | `scripts/ui/` | HUD, terminal screen, menu, Field Notes |
+| `scripts/audio/` | The voice script (`voice_lines.gd`), recording playback, and the generator for `docs/script/` |
+| `docs/script/` | The voice script and the recording list, generated from `voice_lines.gd` |
+| `audio/voice/` | Voice recordings, named after their line id |
 | `data/` | Seed SQL for levels |
 | `addons/godot-sqlite/` | [godot-sqlite](https://github.com/2shady4u/godot-sqlite) (MIT), desktop binaries |
 | `tests/` | Headless test runner |
