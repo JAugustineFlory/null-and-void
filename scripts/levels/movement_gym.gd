@@ -20,7 +20,7 @@ func build() -> void:
 	Greybox.box(geo, Vector3(-22, 4, -3.25), Vector3(0.2, 8, 3.5), Color.DIM_GRAY)
 	Greybox.box(geo, Vector3(-22, 4, 3.25), Vector3(0.2, 8, 3.5), Color.DIM_GRAY)
 	Traversal.gate(geo, Vector3(-22, 0, 0), 3.0, 1.0, 8.0, false)
-	_sign(Vector3(-23, 2.4, 0), "Sprint (Shift), then Ctrl: slide under.\nOr just crouch-walk.")
+	_sign(Vector3(-23, 2.4, 0), "Sprint (Shift), then Ctrl: slide under.\nYou can let go of Shift just before Ctrl. Or crouch-walk.")
 
 	# Mantle a waist-high wall.
 	Greybox.box(geo, Vector3(-17, 0.6, 0), Vector3(2, 1.2, 10), Color.DIM_GRAY)
@@ -28,7 +28,7 @@ func build() -> void:
 
 	# Grab a high edge, then drop and roll.
 	Greybox.box(geo, Vector3(-12, 1.2, 0), Vector3(1, 2.4, 10), Color.DIM_GRAY)
-	_sign(Vector3(-14, 3.2, 0), "Jump while pushing forward: grab the edge.\nA / D shimmy, W pull up, Ctrl let go.\nTap Ctrl in the air to roll when you land: quiet.")
+	_sign(Vector3(-14, 3.2, 0), "Hold W and jump: grab the edge and hang.\nRelease W and press it again to pull up. A / D shimmy,\nS or Ctrl let go, Space kick off.\nTap Ctrl in the air to roll when you land: quiet.")
 
 	# Crawl through a vent.
 	Traversal.vent(geo, Vector3(-8, 0, 0), Vector3(-4, 0, 0))
