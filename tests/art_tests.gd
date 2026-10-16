@@ -134,6 +134,30 @@ func test_rig_actions() -> void:
 	var head_y: float = rig.joints["head"].global_position.y
 	check(head_y < 0.9 and rig.joints["r_elbow"].to_global(Vector3(0, -0.3, 0)).y < 0.15, "crawling puts him on hands and knees, low enough for a vent (head %.2f m)" % head_y)
 	rig.crawling = false
+	# Movement's crouch height follows the clearance overhead: the pose follows it smoothly.
+	var tops: Array[float] = []
+	var lowest := 0.0
+	for h in [1.8, 1.6, 1.4, 1.25, 1.15, 1.05, 0.95, 0.85]:
+		rig.stance_height = h
+		for i in 120:
+			rig.animate(1.0 / 60.0)
+		var top := -INF
+		for j in rig.joints:
+			var n: Node3D = rig.joints[j]
+			top = maxf(top, n.global_position.y)
+			lowest = minf(lowest, n.global_position.y)
+		top = maxf(top, rig.joints["head"].to_global(Vector3(0, 0.25, 0)).y)
+		tops.append(top)
+	var shrinking := true
+	for i in range(1, tops.size()):
+		shrinking = shrinking and tops[i] <= tops[i - 1] + 0.03
+	check(shrinking, "as the gap gets lower, the body gets lower, with no pop between crouch and crawl")
+	var fits := true
+	for i in tops.size():
+		fits = fits and tops[i] <= [1.8, 1.6, 1.4, 1.25, 1.15, 1.05, 0.95, 0.85][i] + 0.15
+	check(fits, "at every height in between, the body fits the space it's under")
+	check(lowest > -0.12, "and never sinks into the floor (%.2f m)" % lowest)
+	rig.stance_height = -1.0
 	rig.play("not_a_thing")
 	check(rig.action == "idle", "unknown actions fall back to idle")
 	rig.play("idle")
