@@ -563,6 +563,12 @@ func test_coop_level_1() -> void:
 	host.rourke.global_position = Vector3(-3, 0, 5)
 	await _frames(20)
 	check(client.rourke.global_position.distance_to(host.rourke.global_position) < 1.0, "clients see Rourke where the host has him")
+	host.rourke.set_physics_process(false)
+	host.rourke._windup = 0.4
+	await _frames(5)
+	check(client.rourke._windup > 0.0, "clients see Rourke wind up an attack")
+	host.rourke._windup = 0.0
+	host.rourke.set_physics_process(true)
 	var before: int = host.rourke.hits_left
 	host.rourke.state = Rourke.State.CHASE
 	client.rourke.take_hit(client.player)

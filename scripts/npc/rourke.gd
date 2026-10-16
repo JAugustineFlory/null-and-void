@@ -177,7 +177,8 @@ func _chase(delta: float) -> void:
 ## Co-op: what other machines need to see him walk, fight and fall.
 func sync_properties() -> Array:
 	var body := str(get_path_to(_body))
-	return [".:position", ".:rotation", ".:visible", ".:state", body + ":position", body + ":rotation"]
+	# _windup is his attack tell: clients must see it coming too.
+	return [".:position", ".:rotation", ".:visible", ".:state", ".:_windup", body + ":position", body + ":rotation"]
 
 
 ## In co-op he goes after whoever is closest.
