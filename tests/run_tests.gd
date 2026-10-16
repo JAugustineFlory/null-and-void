@@ -15,6 +15,7 @@ func _run() -> void:
 	test_facility_db()
 	test_level_0_puzzles()
 	test_level_1_data_every_seed()
+	test_first_hints_show_working_queries()
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_level_1_scene()
@@ -74,6 +75,7 @@ func test_level_1_data_every_seed() -> void:
 	var puzzle := Puzzle.new("controller", "SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false)
 	var all_ok := true
 	var never_guessable := true
+	var all_explained := true
 	var answers := {}
 	for s in 50:
 		var data := Level1Data.build(s)
@@ -87,10 +89,38 @@ func test_level_1_data_every_seed() -> void:
 			all_ok = false
 		if puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE zone = 'A'")) or puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE status = 'fault'")):
 			never_guessable = false
+		if not db.run_silent("SELECT id FROM door_controllers WHERE status != 'ok' AND id != '%s' AND note = 'normal'" % data.answer).is_empty():
+			all_explained = false
 		answers[data.answer] = true
+	check(all_explained, "every other faulted or offline controller has a note saying why")
 	check(all_ok, "exactly one zone-A fault on a physical rack, and AND finds it")
 	check(never_guessable, "a single condition is never enough")
 	check(answers.size() >= 5, "the answer varies between runs (%d different racks)" % answers.size())
+
+
+func _hint_query(hint: String) -> String:
+	var start := hint.find("[color=#ffffff]") + "[color=#ffffff]".length()
+	return hint.substr(start, hint.find("[/color]", start) - start)
+
+
+func test_first_hints_show_working_queries() -> void:
+	print("First hints")
+	var l0 = load("res://scripts/levels/level_0.gd").new()
+	var db := FacilityDB.new()
+	db.load_seed(FileAccess.get_file_as_string("res://data/level_0.sql"))
+	for p in [l0.peek_puzzle, l0.memo_puzzle]:
+		var q := _hint_query(p.hints[0])
+		check(q != "" and p.matches(db, db.execute(q)), "%s: first hint's query solves it (%s)" % [p.id, q])
+	l0.free()
+	var l1 = load("res://scripts/levels/level_1.gd").new()
+	var ok := true
+	for s in 20:
+		var d := FacilityDB.new()
+		d.load_seed(Level1Data.build(s).sql)
+		if not l1.controller_puzzle.matches(d, d.execute(_hint_query(l1.controller_puzzle.hints[0]))):
+			ok = false
+	check(ok, "controller: first hint's query solves it on every seed")
+	l1.free()
 
 
 func test_screens_fill_window() -> void:
@@ -157,9 +187,12 @@ func test_level_1_scene() -> void:
 	check(not level.terminal.locked and _game().rourke_fate == "tied", "taking the badge unlocks the terminal")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault'")
 	check(level.controller_puzzle.solved, "WHERE + AND solves the controller puzzle")
-	var wrong: String = "DC-1" if level.answer != "DC-1" else "DC-2"
+	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
+	level._on_panel(null, healthy)
+	check(level.panels_locked_until == 0.0, "pressing a healthy rack explains itself without a lockout")
+	var wrong: String = level.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
 	level._on_panel(null, wrong)
-	check(level.doors["SRA-EXIT"].is_open == false, "wrong rack does not open the exit")
+	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until > 0.0, "an offline zone-A rack does not open the exit")
 	level.panels_locked_until = 0.0
 	level._on_panel(null, level.answer)
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")

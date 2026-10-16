@@ -9,14 +9,19 @@ var desk_terminal: Terminal
 var shutter: Door
 var walkies: Interactable
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
-	"The scraps are in a table called memo_fragments. Look at everything in it.",
-	"SELECT picks columns, FROM picks the table, and * means every column.",
-	"SELECT * FROM memo_fragments;",
+	"Type this, then press Enter:\n" +
+	"    [color=#ffffff]SELECT * FROM memo_fragments;[/color]\n" +
+	"  SELECT *            which columns to show (* means every column)\n" +
+	"  FROM memo_fragments which table to read them from",
+	"Type exactly SELECT * FROM memo_fragments; and press Enter. Spelling matters, capitals don't.",
 ])
 var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY piece_no", ["text"], true, [
-	"The scraps are numbered. Read them in number order.",
-	"ORDER BY column_name sorts rows by that column, smallest first.",
-	"SELECT * FROM memo_fragments ORDER BY piece_no;",
+	"Type this, then press Enter:\n" +
+	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY piece_no;[/color]\n" +
+	"  SELECT *            every column\n" +
+	"  FROM memo_fragments from the scraps table\n" +
+	"  ORDER BY piece_no   sorted by the piece_no column, smallest first",
+	"ORDER BY goes at the end of the query. Type exactly SELECT * FROM memo_fragments ORDER BY piece_no; and press Enter.",
 ])
 
 

@@ -2,6 +2,8 @@ class_name Level1Data
 extends RefCounted
 ## Builds Level 1's database from a seed, so each run has a different faulted controller.
 ## The logic stays the same: exactly one controller is in zone A AND has status 'fault'.
+## Every other controller that isn't 'ok' carries a note saying why it can be ignored,
+## so players who read the whole table can tell the decoys apart.
 
 const ROOM_RACKS := 8  # DC-1 .. DC-8 are physical racks in Server Room A
 
@@ -32,8 +34,19 @@ static func build(run_seed: int) -> Dictionary:
 		elif i == offline_a or i == 12:
 			status = "offline"
 		var where := "Server Room A, rack %d" % i if i <= ROOM_RACKS else ("Cold Lab" if zone == "C" else "Records Archive")
+		var note := "normal"
+		if i == answer:
+			note = "lock relay stuck. Needs a manual reset."
+		elif i == offline_a:
+			note = "off on purpose: maintenance 10/14"
+		elif i == fault_b:
+			note = "runs Records Archive door, not this room"
+		elif i == 11:
+			note = "runs Cold Lab door. Ice in lock, ticket open"
+		elif i == 12:
+			note = "decommissioned 1996"
 		var reset_at := "1997-10-%02d %02d:%02d" % [rng.randi_range(1, 12), rng.randi_range(0, 23), rng.randi_range(0, 59)]
-		rows.append("('DC-%d', '%s', '%s', '%s', '%s')" % [i, zone, status, where, reset_at])
+		rows.append("('DC-%d', '%s', '%s', '%s', '%s', '%s')" % [i, zone, status, where, reset_at, note])
 
 	var sql := """
 CREATE TABLE door_controllers (
@@ -41,7 +54,8 @@ CREATE TABLE door_controllers (
 	zone TEXT,
 	status TEXT,
 	location TEXT,
-	last_reset TEXT
+	last_reset TEXT,
+	note TEXT
 );
 INSERT INTO door_controllers VALUES
 	%s;

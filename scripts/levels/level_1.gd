@@ -11,9 +11,15 @@ var has_badge := false
 var _red := Color(1.0, 0.18, 0.12)
 var controller_puzzle := Puzzle.new("controller",
 	"SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false, [
-	"The self-test says the exit's controller is in zone A and has a fault. door_controllers has both columns.",
-	"WHERE keeps only rows that match. AND means both conditions must be true.",
-	"SELECT * FROM door_controllers WHERE zone = '...' AND status = '...';",
+	"Type this, then press Enter:\n" +
+	"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault';[/color]\n" +
+	"  SELECT *              show every column\n" +
+	"  FROM door_controllers from the table of door controllers\n" +
+	"  WHERE zone = 'A'      keep only the rows in zone A (the exit's zone)\n" +
+	"  AND status = 'fault'  ...that are ALSO faulted. Both must be true.",
+	"The id your query returns is the one controller to reset. Every rack in this room has its id " +
+	"(DC-1 to DC-8) on the end facing the center aisle. Press E on that rack's panel. " +
+	"Other faulted or offline controllers belong to other doors or are off on purpose: read their note column.",
 ])
 var rourke_spawn := Transform3D.IDENTITY
 
@@ -146,10 +152,15 @@ func _self_test_lines() -> Array:
 		"  [color=#7dff8c]PASS[/color]  cameras.lobby",
 		"2 failed, 4 passed.",
 		"",
-		"Every controller is listed in the table [b]door_controllers[/b].",
-		"Filter rows with WHERE. Need two conditions? Join them with AND. For example:",
+		"The exit's controller is one row in the table [b]door_controllers[/b]. Only it needs a reset.",
+		"Clues from the self-test: it is in [b]zone A[/b] and its status is [b]'fault'[/b].",
+		"Filter rows with WHERE. Need two conditions? Join them with AND. Example on another table:",
 		"    [color=#ffffff]SELECT * FROM doors WHERE zone = 'A' AND locked = 1;[/color]",
-		"Text values go in 'single quotes'.",
+		"      SELECT *          which columns to show (* = all)",
+		"      FROM doors        which table to read",
+		"      WHERE zone = 'A'  keep only rows where this is true",
+		"      AND locked = 1    ...and this is true as well",
+		"Text values go in 'single quotes'. Stuck? Type [b].hint[/b]",
 	]
 
 
@@ -171,9 +182,12 @@ func _on_panel(_p: Node, id: String) -> void:
 		hud.notice("PANELS LOCKED: tamper lockout, %d s" % int(panels_locked_until - now), 2.0, ThemeUtil.RED)
 		return
 	if id != answer:
-		panels_locked_until = now + 20.0
-		var status: String = db.run_silent("SELECT status FROM door_controllers WHERE id = '%s'" % id)[0]["status"]
-		hud.notice("WARDEN: %s status is '%s'. Reset refused. Tamper logged. Panels locked for 20 s." % [id, status], 5.0, ThemeUtil.RED)
+		var row: Dictionary = db.run_silent("SELECT status, zone, note FROM door_controllers WHERE id = '%s'" % id)[0]
+		if row["status"] == "ok":
+			hud.notice("WARDEN: %s is working normally. Nothing to reset." % id, 4.0)
+			return
+		panels_locked_until = now + 10.0
+		hud.notice("WARDEN: %s (zone %s, %s): %s\nNot the exit's controller. Reset refused. Panels locked for 10 s." % [id, row["zone"], row["status"], row["note"]], 6.0, ThemeUtil.RED)
 		return
 	db.run_silent("UPDATE door_controllers SET status = 'ok', last_reset = '1997-10-15 23:58' WHERE id = '%s'" % id)
 	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
