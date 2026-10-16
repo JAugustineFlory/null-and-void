@@ -34,6 +34,10 @@ var _look_offset := Vector2.ZERO
 var _look_base := Vector2.ZERO
 ## The front desk: players sit on it and swing their legs over, staff style.
 var counter_hop: Interactable
+## A sagging cable tray halfway down the hall: the crew's first, harmless crouch.
+## It sits outside the navmesh and Rourke doesn't collide with it; he just ducks.
+const TRAY_X := 15.5
+var cable_tray: StaticBody3D
 var _intro_started := false
 var tape: Interactable
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
@@ -122,6 +126,10 @@ func build() -> void:
 	])
 	Greybox.label(geo, Vector3(23.85, 2.4, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
 	shutter = add_door("LOBBY-SHUTTER", Vector3(11, 1.5, 3), Vector3(0.15, 3.0, 2.0))
+	cable_tray = Greybox.box(self, Vector3(TRAY_X, 1.65, 3), Vector3(0.6, 0.5, 2.0), Color(0.45, 0.45, 0.42), "CableTray")
+	Greybox.label(self, Vector3(TRAY_X - 0.31, 1.65, 3), "LOW CLEARANCE", 36, Color(0.9, 0.75, 0.1), -90)
+	var tray_tip := Trigger.create(self, Vector3(TRAY_X - 2.5, 1, 3), Vector3(1.0, 2, 2))
+	tray_tip.entered.connect(func(_b): hud.notice("Hold Ctrl to crouch under the cable tray.", 5.0))
 	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8))
 
 	# The vent in the west wall leads to a forgotten storage closet: x -14..-8, z 3.5..4.5 duct
@@ -158,6 +166,15 @@ func build() -> void:
 	add_child(rourke)
 	rourke.position = Vector3(0, 0, 4.8)
 	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
+	rourke.add_collision_exception_with(cable_tray)
+
+
+## Rourke ducks under the cable tray as he walks the hall.
+func _physics_process(delta: float) -> void:
+	if not is_instance_valid(rourke):
+		return
+	var duck := absf(to_local(rourke.global_position).x - TRAY_X) < 0.9
+	rourke._body.position.y = move_toward(rourke._body.position.y, -0.45 if duck else 0.0, 2.5 * delta)
 
 
 ## Brighter and clearer than the rest of the building: nothing looks wrong yet.

@@ -373,6 +373,28 @@ func test_level_0_scene() -> void:
 	for i in 60:
 		await physics_frame
 	check(level.rourke.state == Rourke.State.WALK and level.rourke._walk_target.x > 20.0, "Rourke leads the way down the hall to Server Room A")
+	# The cable tray: a harmless first crouch on the walk.
+	var tray_z: float = level.TRAY_X
+	level.player.global_position = Vector3(tray_z - 1.5, 0.1, 3)
+	level.player.rotation.y = -PI / 2  # facing down the hall
+	level.player.local_control = false  # drive it from the test, not the keyboard
+	for i in 90:
+		level.player.controls.move = Vector2(0, -1)
+		await physics_frame
+	check(level.player.global_position.x < tray_z - 0.3, "standing players can't walk through the cable tray (x %.2f)" % level.player.global_position.x)
+	for i in 120:
+		level.player.controls.move = Vector2(0, -1)
+		level.player.controls.crouch = true
+		await physics_frame
+	check(level.player.global_position.x > tray_z + 0.4, "crouching gets under it (x %.2f)" % level.player.global_position.x)
+	level.player.controls.crouch = false
+	level.player.controls.move = Vector2.ZERO
+	level.player.local_control = true
+	for i in 400:
+		if level.rourke.global_position.x > tray_z + 1.0:
+			break
+		await physics_frame
+	check(level.rourke.global_position.x > tray_z + 1.0, "Rourke ducks under it on his way")
 	level.queue_free()
 	await process_frame
 
