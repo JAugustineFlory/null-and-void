@@ -14,8 +14,9 @@ extends LevelBase
 ## enter the PIN at the stairwell, then (optionally) lock it in behind you. The Watcher
 ## starts out of sight and creeps closer each time players get closer to the PIN.
 ## Two side routes have to be discovered: the vent over the crate (its grate needs
-## the screwdriver from the toolbox) and the corridor's outside window (break the
-## glass, then the ledge). The stairwell PIN is needed on every route.
+## the screwdriver from the break-glass box on the landing) and the corridor's outside
+## window (break the glass, then the ledge). Players arrive by elevator and leave by
+## the elevator past SEC-EXIT, whose doors have to shut before the Watcher gets in. The stairwell PIN is needed on every route.
 
 ## Fired at the bottom of the stairs: the wing is done. In the World that's the
 ## end of the route (Field Notes); on its own, the level goes to Field Notes too.
@@ -72,7 +73,9 @@ var _pad_mode := "exit"  # which keypad is open: office, exit or seal
 var _glass: Array[RID] = []
 ## Corridor and landing: leaving it another way also wakes the Watcher (level space).
 var _corridor_box := AABB(Vector3(-6, -1, 2), Vector3(12, 3, 8.5))
-var _exit_trigger: Trigger
+var arrival_lift: Level2Elevator
+var exit_lift: Level2Elevator
+var key_glass: Level2Glass
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"Type this, then press Enter:\n" +
@@ -124,7 +127,10 @@ func build() -> void:
 	var office_wall := Color(0.46, 0.48, 0.5)
 	# Stair landing (spawn): x 2.5..5.5, z 6..10. In the World its south side opens
 	# onto Server Room A's exit corridor.
-	var landing_gaps := [{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4}]
+	var landing_gaps := [
+		{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "e", "at": 0.0, "width": 1.2, "height": 2.1},  # the arrival elevator
+	]
 	if world:
 		landing_gaps.append({"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4})
 	Greybox.room(geo, Vector3(4, 0, 8), Vector3(3, 3.2, 4), {"floor": floor_c, "wall": wall_c}, landing_gaps)
@@ -156,11 +162,20 @@ func build() -> void:
 		{"wall": "w", "at": 0.0, "width": 1.0, "height": 3.0, "bottom": 2.0},
 		{"wall": "e", "at": 1.25, "width": 1.2, "height": 1.0},
 	])
-	# Stairwell: x -2..2, z -17..-12
+	# Elevator lobby past SEC-EXIT: x -2..2, z -17..-12
 	Greybox.room(geo, Vector3(0, 0, -14.5), Vector3(4, 3.2, 5), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "n", "at": 0.0, "width": 1.2, "height": 2.1},
 	])
-	Greybox.label(geo, Vector3(0, 2.6, -16.88), "STAIRS  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
+	Greybox.label(geo, Vector3(0, 2.75, -16.88), "ELEVATOR  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
+	exit_lift = Level2Elevator.create(self, geo, Vector3(0, 0, -17), 180, "2", ["2", "1", "B1"])
+	exit_lift.button.prompt = "Press B1 (Records Archive)"
+	exit_lift.button.used.connect(func(_p):
+		if exit_lift.refusal != "":
+			hud.notice(exit_lift.refusal, 3.0))
+	exit_lift.closed.connect(func(): _on_exit(null))
+	arrival_lift = Level2Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "2", ["3", "2", "1"])
+	arrival_lift.button.enabled = false
 	add_door("SEC-EXIT", Vector3(0, 1.2, -12), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.75, -11.88), "SEC-EXIT", 56, Color(0.85, 0.2, 0.15))
 
@@ -194,7 +209,7 @@ func build() -> void:
 	watcher.see_through = _glass
 	watcher.caught.connect(_on_caught)
 	watcher.started_moving.connect(_on_watcher_moving)
-	spawn = Transform3D(Basis(), Vector3(4, 0.1, 9))
+	spawn = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(6.7, 0.1, 8))  # in the arrival car, facing out
 
 
 func _build_booth() -> void:
@@ -227,13 +242,17 @@ func _build_booth() -> void:
 	# A crate under the vent, so one person can climb up alone.
 	Greybox.box(geo, Vector3(-5.4, 0.45, 4.0), Vector3(0.9, 0.9, 0.9), Color(0.45, 0.35, 0.2), "Crate")
 	Greybox.label(geo, Vector3(-5.85, 2.7, 4.0), "VENT", 30, Color(0.7, 0.7, 0.7), 90)
-	# A toolbox someone left by the crate.
-	var toolbox := Interactable.create(geo, Vector3(-4.5, 0.15, 5.45), Vector3(0.5, 0.3, 0.25), "Take a screwdriver from the toolbox", Color(0.7, 0.15, 0.1))
-	toolbox.used.connect(func(_p):
-		toolbox.enabled = false
+	# On the landing, safe from anything: a break-glass box with a screwdriver inside.
+	# Players learn here that glass breaks with a strike, and pick up the tool the vent needs.
+	Greybox.box(geo, Vector3(2.66, 1.4, 7.2), Vector3(0.12, 0.55, 0.45), Color(0.7, 0.12, 0.1), "KeyBox")
+	var screwdriver := Interactable.create(geo, Vector3(2.75, 1.4, 7.2), Vector3(0.03, 0.04, 0.24), "Take the screwdriver", Color(0.95, 0.75, 0.1))
+	screwdriver.used.connect(func(_p):
+		screwdriver.queue_free()
 		has_screwdriver = true
-		hud.notice("Picked up a screwdriver.", 3.0))
-	Greybox.label(geo, Vector3(-4.5, 0.32, 5.32), "MAINT.", 22, Color(0.95, 0.95, 0.9), 180)
+		hud.notice("Picked up a screwdriver. Vent grates are held on with screws.", 4.0))
+	key_glass = _glass_pane(Vector3(2.79, 1.4, 7.2), Vector3(0.02, 0.45, 0.38), true)
+	key_glass.broken.connect(func(_by): hud.notice("The glass breaks. Plain glass breaks when you strike it.", 3.5))
+	Greybox.label(geo, Vector3(2.62, 1.82, 7.2), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
 	# Low outside window at the east end, onto the ledge. Plain glass: it breaks.
 	ledge_glass = _glass_pane(Vector3(6.0, 0.5, 4.0), Vector3(0.05, 1.0, 1.1), true)
 	ledge_glass.broken.connect(func(_by): hud.notice("The glass gives. Cold air pours in. There's a ledge out there.", 4.0))
@@ -384,6 +403,7 @@ func start() -> void:
 		# Seal Server Room A once players are on the landing.
 		var through := Trigger.create(self, Vector3(4, 1, 8.5), Vector3(3, 2, 1.5))
 		through.entered.connect(func(_b): world.seal_behind(self))
+	arrival_lift.open()
 	stage = "hidden"
 	_place_watcher(STAGES.hidden[0], STAGES.hidden[1])
 	hud.set_objective("Find a way out of the security wing")
@@ -505,6 +525,9 @@ func _on_request(line: String, res: Dictionary, ui: TerminalUI) -> void:
 		return
 	if not cameras_puzzle.solved:
 		cameras_puzzle.solved = true
+		ui.print_line("")
+		ui.print_line("That answer is JSON: { } holds one camera's fields, [ ] holds a list of cameras.")
+		ui.print_line("Each field is a name and a value, like \"motion\": true.")
 		ui.print_line("")
 		ui.print_line("[color=#e0b050]WARDEN: CAM-2 reports motion in the Security Office.[/color]")
 		ui.print_line("[color=#e0b050]Through the window, the office looks empty. CAM-2 is the only thing watching it.[/color]")
@@ -723,10 +746,8 @@ func _update_door() -> bool:
 	db.run_silent("UPDATE door_status SET sensor = '%s' WHERE door_id = 'SEC-EXIT'" % ("open" if open else "closed"))
 	if open and not door_open:
 		door_open = true
-		hud.set_objective("Take the stairs down. (Lock the door behind you, if you can)")
-		if _exit_trigger == null:
-			_exit_trigger = Trigger.create(self, Vector3(0, 1, -16), Vector3(3.6, 2, 1.5))
-			_exit_trigger.entered.connect(_on_exit)
+		hud.set_objective("Get in the elevator and press B1. (Lock the door behind you, if you can)")
+		exit_lift.open()
 	return open
 
 
@@ -740,6 +761,8 @@ func seal_exit() -> void:
 
 
 func _on_exit(_b: Node) -> void:
+	if not player or player.health <= 0.0:
+		return
 	player.input_locked = true
 	if Game.watcher_sealed:
 		await hud.say("", "Behind the locked door, something taps on the metal. Once.", 4.0)

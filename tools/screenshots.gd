@@ -74,7 +74,8 @@ func _run() -> void:
 	root.get_node("Game").new_run(5)
 	level = await _load("res://scenes/level_2.tscn")
 	level.watcher.active = false
-	await _shot(level, "l2_spawn", Vector3(4, 0.1, 9), 0, 0)
+	await _shot(level, "l2_spawn", Vector3(6.7, 0.1, 8), 90, 0)
+	await _shot(level, "l2_key_box", Vector3(4.0, 0.1, 7.2), 90, -8)
 	await _shot(level, "l2_corridor_window", Vector3(-1.5, 0.1, 4.8), 20, -2)
 	await _shot(level, "l2_booth", Vector3(-3, 0.1, 4.4), 180, -15)
 	await _shot(level, "l2_office", Vector3(0, 0.1, 1.0), 0, -5)
@@ -113,6 +114,8 @@ func _run() -> void:
 	_save("l2_keypad")
 	level.keypad_ui.close()
 	level.enter_pin()
+	level.exit_lift.open(true)
+	await _shot(level, "l2_exit_elevator", Vector3(0, 0.1, -12.6), 0, -2)
 	await _shot(level, "l2_breakers", Vector3(-0.2, 0.1, -9.0), 90, -12)
 	level.terminal_ui.open(level.panel, level.player)
 	level.terminal_ui.run("GET /doors/SEC-EXIT")

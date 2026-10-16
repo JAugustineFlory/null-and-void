@@ -35,6 +35,16 @@ static func create(parent: Node, center: Vector3, size: Vector3, can_break: bool
 	return g
 
 
+## Looking at the glass says plainly what to do with it.
+func get_prompt(_player: Node) -> String:
+	return "[Click] Strike to break the glass" if breakable else "Wired security glass"
+
+
+func interact(_player: Node) -> void:
+	if hud:
+		hud.notice("Strike it (click) to break it." if breakable else refusal, 3.0)
+
+
 ## Called by the player's strike.
 func take_hit(by: Node) -> void:
 	if not breakable:

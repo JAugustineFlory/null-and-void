@@ -636,12 +636,28 @@ func test_level_2_scene() -> void:
 		await physics_frame
 	check(level.doors["SEC-EXIT"].is_open and level.door_open, "resetting the right breaker opens the door")
 	check(level.db.run_silent("SELECT sensor FROM door_status WHERE door_id = 'SEC-EXIT'")[0]["sensor"] == "open", "the sensor now agrees")
+	for i in 100:
+		await physics_frame
+	check(level.exit_lift.open_amount > 0.99, "with SEC-EXIT open, the elevator is waiting")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -14.5)))
+	await physics_frame
+	check(not level.exit_lift.press(p) and level.exit_lift.refusal != "", "the button won't work until everyone is inside")
 	level.seal_exit()
 	for i in 5:
 		await physics_frame
 	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
-	# Caught: put it right behind the player, out of sight.
+	var shut := [false]
+	level.exit_lift.closed.connect(func(): shut[0] = true)
+	level.completed.disconnect(level._on_completed)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -18.2)))
+	await physics_frame
+	check(level.exit_lift.contains(p.global_position) and level.exit_lift.press(p), "inside, the button closes the doors")
+	for i in 160:
+		await physics_frame
+	check(shut[0] and level.exit_lift.open_amount == 0.0, "the doors shut: the wing is done")
+	p.input_locked = false
 	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
+	# Caught: put it right behind the player, out of sight.
 	w.place(Vector3(0, 0, 5.2), p.global_position)
 	for i in 20:
 		await physics_frame
@@ -660,11 +676,21 @@ func test_level_2_routes() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	p.local_control = false
+	# The break-glass box on the landing: the safe place to learn both.
+	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
+	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
 	# Vent: the grate is screwed shut until someone finds the screwdriver.
 	level._on_vent_grate(p)
 	await process_frame
 	check(is_instance_valid(level.vent_grate) and not level.has_screwdriver, "the vent grate won't come off by hand")
-	level.has_screwdriver = true
+	level.key_glass.take_hit(p)
+	await process_frame
+	var sd: Interactable = null
+	for n in level.geo.get_children():
+		if n is Interactable and n.prompt == "Take the screwdriver":
+			sd = n
+	check(not is_instance_valid(level.key_glass) and sd != null, "strike the box's glass and the screwdriver is there")
+	sd.interact(p)
 	level._on_vent_grate(p)
 	await process_frame
 	check(not is_instance_valid(level.vent_grate), "the screwdriver takes the grate off")
@@ -791,8 +817,8 @@ func test_world() -> void:
 	check(sec != null and not sec.active, "the security wing loads behind Server Room A's stairwell door")
 	check(sra.exit_door != null and not sra.exit_door.is_open, "Server Room A's stairwell door is shut while the wing waits")
 	var joint: Vector3 = sra.exit_door.global_position
-	var landing: Vector3 = sec.spawn_point().origin
-	check(joint.distance_to(Vector3(53.9, 1.2, 3)) < 0.2 and landing.distance_to(Vector3(55, 0.1, 3)) < 0.1,
+	var landing: Vector3 = sec.to_global(Vector3(4, 0.1, 9))
+	check(joint.distance_to(Vector3(53.9, 1.2, 3)) < 0.2 and landing.distance_to(Vector3(55, 0.1, 3)) < 0.1 and sec.arrival_lift.contains(sec.spawn_point().origin),
 		"the security wing's landing meets Server Room A's exit corridor (%s, %s)" % [joint, landing])
 	check(world.db.run_silent("SELECT * FROM doors WHERE id LIKE 'SEC-%'").size() == 2 and world.db.table_names().has("guards"),
 		"the security wing adds its own rows to the one building database")
