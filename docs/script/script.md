@@ -17,15 +17,29 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.
 
+**Byte-Right dispatch** (DISPATCH). The IT company's night dispatcher, heard on the van radio.
+
+> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+
 **Harold Mercer** (MERCER). Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
 
 ## Level 0
 
-### The lobby, 11 p.m.
+### The IT van
 
-*The crew walks in through the front doors. WARDEN greets them over the PA, then Rourke steps up from the waiting area.*
+*The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up.*
+
+**DISPATCH:** *(Over the van radio. Routine.)* Van three, you're on site at Halcyon Data Systems. After-hours callout. `[l0_dispatch_1]`
+
+**DISPATCH:** *(Reading it off the ticket.)* They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. `[l0_dispatch_2]`
+
+**DISPATCH:** *(Signing off, already onto the next call.)* Hop out when you're ready. Dispatch out. `[l0_dispatch_3]`
+
+### The front doors, 11 p.m.
+
+*The crew walks up from the van. Rourke opens the front doors and WARDEN greets them over the PA. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log.*
 
 **WARDEN:** *(Over the lobby PA. Pleasant, like a store closing announcement.)* GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. `[l0_pa_1]`
 
@@ -36,6 +50,10 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 **ROURKE:** *(Chuckling, waving at the ceiling speaker.)* Don't mind WARDEN. It says that to everybody. `[l0_greet_2]`
 
 **ROURKE:** *(Still smiling. Should sound like a joke the first time and a threat on replay.)* Badge rules after hours. You don't go anywhere I don't take you. `[l0_greet_3]`
+
+**ROURKE:** *(Holding the door, waving them through.)* Come on in. I'll sign you in at the front desk. `[l0_greet_4]`
+
+**ROURKE:** *(Casual, reassuring. Nothing to worry about. (On a replay it lands differently.))* Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. `[l0_signin]`
 
 ### The tour
 

@@ -119,6 +119,8 @@ func test_first_hints_show_working_queries() -> void:
 	for p in [l0.peek_puzzle, l0.memo_puzzle]:
 		var q := _hint_query(p.hints[0])
 		check(q != "" and p.matches(db, db.execute(q)), "%s: first hint's query solves it (%s)" % [p.id, q])
+	check(l0.memo_puzzle.hints[1].contains("ORDER BY piece_no") and not l0.memo_puzzle.hints[1].contains("visitors"),
+		"memo: second hint names the real column, not an example table")
 	l0.free()
 	var l1 = load("res://scripts/levels/level_1.gd").new()
 	var ok := true
@@ -177,6 +179,12 @@ func test_voice_script() -> void:
 	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
 		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
 	check(in_sync, "docs/script/ matches voice_lines.gd (run tools/write_script_docs.gd)")
+	var listed := true
+	var recording_list := ScriptDocs.recording_list_markdown()
+	for id in VoiceLines.LINES:
+		if not recording_list.contains("`%s`" % id):
+			listed = false
+	check(listed, "every line is on the recording list")
 
 
 func test_voice_playback() -> void:
@@ -240,7 +248,22 @@ func test_level_0_scene() -> void:
 	for i in 30:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
-	check(level.player.global_position.y > -1.0, "player stands on the floor")
+	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
+	var flickering := 0
+	for id in ["lobby", "hall"]:
+		for l in level.lights[id]:
+			for c in l.get_children():
+				if c is FlickerLight:
+					flickering += 1
+	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
+	check(not level.front_doors.is_open, "front doors start closed")
+	level.ready_up(level.player, 1)
+	await create_timer(2.5).timeout
+	var pos: Vector3 = level.player.global_position
+	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	level.player.global_position = Vector3(0, 0.1, 11.5)
+	await create_timer(3.5).timeout
+	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")
 	level.desk_terminal.enabled = true
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments")

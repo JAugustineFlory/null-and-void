@@ -1,6 +1,6 @@
 # Recording list
 
-61 lines in all.
+66 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -14,7 +14,7 @@ Generated from `scripts/audio/voice_lines.gd`. The full script with scene contex
 
 WARDEN's subtitles are in capitals because that is how WARDEN prints. Say them at normal volume.
 
-## Dale Rourke (33 lines)
+## Dale Rourke (35 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
@@ -23,6 +23,8 @@ WARDEN's subtitles are in capitals because that is how WARDEN prints. Say them a
 | [ ] | `l0_greet_1` | There you are. Dale Rourke, facilities. I'll be your escort tonight. | Friendly, a handshake in the voice. | Level 0 |
 | [ ] | `l0_greet_2` | Don't mind WARDEN. It says that to everybody. | Chuckling, waving at the ceiling speaker. | Level 0 |
 | [ ] | `l0_greet_3` | Badge rules after hours. You don't go anywhere I don't take you. | Still smiling. Should sound like a joke the first time and a threat on replay. | Level 0 |
+| [ ] | `l0_greet_4` | Come on in. I'll sign you in at the front desk. | Holding the door, waving them through. | Level 0 |
+| [ ] | `l0_signin` | Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. | Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) | Level 0 |
 | [ ] | `l0_tour_1` | Here's the job. Dr. Vale, our lead engineer, went missing three nights ago. | Walking. Matter-of-fact, the way you'd mention the weather. | Level 0 |
 | [ ] | `l0_tour_2` | Her systems are a mess and the director wants them recovered by morning. Quietly. | Small beat before "Quietly." | Level 0 |
 | [ ] | `l0_tour_3` | Fun fact: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
@@ -90,6 +92,16 @@ WARDEN's subtitles are in capitals because that is how WARDEN prints. Say them a
 | [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2 |
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
+
+## Byte-Right dispatch (3 lines)
+
+> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio. Routine. | Level 0 |
+| [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
+| [ ] | `l0_dispatch_3` | Hop out when you're ready. Dispatch out. | Signing off, already onto the next call. | Level 0 |
 
 ## Harold Mercer (5 lines)
 

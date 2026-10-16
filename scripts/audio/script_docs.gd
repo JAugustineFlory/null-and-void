@@ -6,7 +6,6 @@ extends RefCounted
 
 const SCRIPT_PATH := "res://docs/script/script.md"
 const RECORDING_LIST_PATH := "res://docs/script/recording-list.md"
-const SPEAKER_ORDER := ["ROURKE", "WARDEN", "VALE", "MERCER"]
 
 
 ## The full script in story order, with scene context and acting notes.
@@ -19,7 +18,7 @@ static func script_markdown() -> String:
 	md.append("")
 	md.append("## Cast")
 	md.append("")
-	for sp in SPEAKER_ORDER:
+	for sp in VoiceLines.CHARACTERS:
 		var c: Dictionary = VoiceLines.CHARACTERS[sp]
 		md.append("**%s** (%s). %s" % [c["name"], sp, c["who"]])
 		md.append("")
@@ -64,7 +63,7 @@ static func recording_list_markdown() -> String:
 		md.append("Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.")
 		md.append("")
 	var total := 0
-	for sp in SPEAKER_ORDER:
+	for sp in VoiceLines.CHARACTERS:
 		var c: Dictionary = VoiceLines.CHARACTERS[sp]
 		var rows := PackedStringArray()
 		for s in VoiceLines.SCENES:

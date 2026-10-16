@@ -22,6 +22,11 @@ const CHARACTERS := {
 		"who": "Lead engineer, 40s. Officially missing, presumed dead.",
 		"voice": "Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.",
 	},
+	"DISPATCH": {
+		"name": "Byte-Right dispatch",
+		"who": "The IT company's night dispatcher, heard on the van radio.",
+		"voice": "Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.",
+	},
 	"MERCER": {
 		"name": "Harold Mercer",
 		"who": "Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.",
@@ -31,8 +36,10 @@ const CHARACTERS := {
 
 ## Scenes in story order. `wired` is false for lines written ahead of their level.
 const SCENES := [
-	{"id": "l0_arrive", "level": 0, "title": "The lobby, 11 p.m.", "wired": true,
-		"context": "The crew walks in through the front doors. WARDEN greets them over the PA, then Rourke steps up from the waiting area."},
+	{"id": "l0_van", "level": 0, "title": "The IT van", "wired": true,
+		"context": "The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up."},
+	{"id": "l0_arrive", "level": 0, "title": "The front doors, 11 p.m.", "wired": true,
+		"context": "The crew walks up from the van. Rourke opens the front doors and WARDEN greets them over the PA. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log."},
 	{"id": "l0_tour", "level": 0, "title": "The tour", "wired": true,
 		"context": "Rourke walks the crew to reception, explaining the job and the building's history."},
 	{"id": "l0_memo", "level": 0, "title": "Vale's shredded memo", "wired": true,
@@ -62,6 +69,12 @@ const SCENES := [
 ## speaker, text (also the subtitle), and a short note for the actor.
 const LINES := {
 	# --- Level 0 -------------------------------------------------------------
+	"l0_dispatch_1": {"scene": "l0_van", "speaker": "DISPATCH", "text": "Van three, you're on site at Halcyon Data Systems. After-hours callout.",
+		"note": "Over the van radio. Routine."},
+	"l0_dispatch_2": {"scene": "l0_van", "speaker": "DISPATCH", "text": "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors.",
+		"note": "Reading it off the ticket."},
+	"l0_dispatch_3": {"scene": "l0_van", "speaker": "DISPATCH", "text": "Hop out when you're ready. Dispatch out.",
+		"note": "Signing off, already onto the next call."},
 	"l0_pa_1": {"scene": "l0_arrive", "speaker": "WARDEN", "text": "GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED.",
 		"note": "Over the lobby PA. Pleasant, like a store closing announcement."},
 	"l0_pa_2": {"scene": "l0_arrive", "speaker": "WARDEN", "text": "VISITORS MUST REMAIN WITH THEIR ESCORT AT ALL TIMES. THANK YOU FOR YOUR COOPERATION.",
@@ -72,6 +85,10 @@ const LINES := {
 		"note": "Chuckling, waving at the ceiling speaker."},
 	"l0_greet_3": {"scene": "l0_arrive", "speaker": "ROURKE", "text": "Badge rules after hours. You don't go anywhere I don't take you.",
 		"note": "Still smiling. Should sound like a joke the first time and a threat on replay."},
+	"l0_greet_4": {"scene": "l0_arrive", "speaker": "ROURKE", "text": "Come on in. I'll sign you in at the front desk.",
+		"note": "Holding the door, waving them through."},
+	"l0_signin": {"scene": "l0_arrive", "speaker": "ROURKE", "text": "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me.",
+		"note": "Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)"},
 	"l0_tour_1": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Here's the job. Dr. Vale, our lead engineer, went missing three nights ago.",
 		"note": "Walking. Matter-of-fact, the way you'd mention the weather."},
 	"l0_tour_2": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Her systems are a mess and the director wants them recovered by morning. Quietly.",
