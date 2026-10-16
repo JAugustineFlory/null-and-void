@@ -1,6 +1,6 @@
 # Null & Void: notes for agents
 
-- Engine: Godot 4.7 (GDScript); CI pins 4.7.1. Run tests with `godot --headless --import && godot --headless -s tests/run_tests.gd`. Tests must pass before pushing.
+- Engine: Godot 4.7 (GDScript); CI pins 4.7.1. Run tests with `godot --headless --import; godot --headless --import && godot --headless -s tests/run_tests.gd` (a fresh headless import on 4.7.1 can crash on exit after finishing, so import twice). Tests must pass before pushing.
 - Design source of truth: `docs/game-plan.md`. Augustine directs, playtests and voice-acts; agents build.
 - Levels build their geometry in code with `Greybox` helpers (`scripts/world/greybox.gd`), not hand-edited scenes. Static geometry goes under `LevelBase.geo` so navigation bakes from it; moving things (doors, NPCs) go elsewhere.
 - Puzzles are checked by comparing result sets (`Puzzle.matches`), never by matching query text. Every new puzzle needs tests for the correct solution and for the tempting wrong ones.

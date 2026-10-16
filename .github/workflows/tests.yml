@@ -16,6 +16,11 @@ jobs:
           unzip -q godot.zip
           sudo mv Godot_v4.7.1-stable_linux.x86_64 /usr/local/bin/godot
       - name: Import project
-        run: godot --headless --import
+        # Godot 4.7.1 can segfault while exiting after a first-time headless import
+        # (only with a GDExtension loaded; the editor itself is fine). The import has
+        # finished by then, so run it again and require the second pass to succeed.
+        run: |
+          godot --headless --import || true
+          godot --headless --import
       - name: Run tests
         run: godot --headless -s tests/run_tests.gd

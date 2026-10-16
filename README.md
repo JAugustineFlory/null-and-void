@@ -36,7 +36,7 @@ At a terminal: type SQL and press Enter. `.help`, `.tables`, `.schema NAME`, `.h
 Every puzzle has an automated test proving it can be solved, and that the wrong approaches fail.
 
 ```sh
-godot --headless --import
+godot --headless --import   # run twice on a fresh checkout; see CLAUDE.md
 godot --headless -s tests/run_tests.gd
 ```
 
