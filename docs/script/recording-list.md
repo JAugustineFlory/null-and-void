@@ -1,6 +1,6 @@
 # Recording list
 
-63 lines in all.
+66 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -94,6 +94,16 @@ Lines marked **later** are written for Level 2, which isn't built yet. Record th
 | [ ] | `l2_vale_1` | Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry. | Beep before this. Hushed, fast. | Level 2, later |
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2, later |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2, later |
+
+## Byte-Right dispatch (3 lines)
+
+> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio. Routine. | Level 0 |
+| [ ] | `l0_dispatch_2` | Their lead engineer's systems are down. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
+| [ ] | `l0_dispatch_3` | Hop out when you're ready. Dispatch out. | Signing off, already onto the next call. | Level 0 |
 
 ## Harold Mercer (5 lines)
 

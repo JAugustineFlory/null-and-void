@@ -17,6 +17,10 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.
 
+**Byte-Right dispatch** (DISPATCH). The IT company's night dispatcher, heard on the van radio.
+
+> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+
 **Harold Mercer** (MERCER). Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
