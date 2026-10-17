@@ -12,6 +12,9 @@ signal started_moving
 const SPEED := 1.7
 const CATCH_RANGE := 1.15
 const HEIGHT := 2.35
+## What it collides with: shorter than it looks, so it fits under an open door
+## (it stoops). At full height an opened office door stopped it dead.
+const BODY_HEIGHT := 2.1
 const CATCH_COOLDOWN := 3.0
 ## How far off-center a co-op player on another machine can still see it.
 const PUPPET_VIEW_HALF_ANGLE := 50.0
@@ -37,9 +40,9 @@ func _ready() -> void:
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.3
-	cap.height = HEIGHT
+	cap.height = BODY_HEIGHT
 	shape.shape = cap
-	shape.position.y = HEIGHT / 2
+	shape.position.y = BODY_HEIGHT / 2
 	add_child(shape)
 
 	_body = Node3D.new()
@@ -65,10 +68,12 @@ func _ready() -> void:
 		_arms.append(pivot)
 
 	_agent = NavigationAgent3D.new()
-	_agent.path_desired_distance = 0.5
-	_agent.target_desired_distance = 0.5
+	# The baked path floats about half a meter over the floor, so a point counts as
+	# reached a little further out than that. At 0.5 it never did, and it stalled.
+	_agent.path_desired_distance = 0.8
+	_agent.target_desired_distance = 0.8
 	_agent.radius = 0.35
-	_agent.height = HEIGHT
+	_agent.height = BODY_HEIGHT
 	add_child(_agent)
 
 

@@ -2,7 +2,8 @@ class_name Level2Data
 extends RefCounted
 ## Builds Level 2's database from a seed: the guard roster and the camera list.
 ## The logic stays the same every run: the coffee-smudged name on tonight's
-## night-shift sign-in sheet starts with "Har", and exactly one guard whose name
+## night-shift sign-in sheet (the paper backup of the badge reader, which logs
+## guards into this table) starts with "Har", and exactly one guard whose name
 ## starts with Har works nights. Everyone else who could be mistaken for them
 ## carries a note saying why their PIN won't work.
 
@@ -31,7 +32,7 @@ static func build(run_seed: int) -> Dictionary:
 	_shuffle(har, rng)
 	var answer_name := _full(har[0], rng)
 	var answer_pin := _pin(rng, used_pins)
-	guards.append([answer_name, "night", answer_pin, "night shift lead. Signed in 22:00"])
+	guards.append([answer_name, "night", answer_pin, "night shift lead. Badged in 22:00"])
 	guards.append([_full(har[1], rng), "day", _pin(rng, used_pins), "day shift. Clocked out 18:04"])
 	guards.append([_full(har[2], rng), "swing", _pin(rng, used_pins), "retired 1995. PIN revoked"])
 
@@ -44,13 +45,13 @@ static func build(run_seed: int) -> Dictionary:
 	_shuffle(inside, rng)
 	for i in inside.size():
 		var shift: String = "night" if i < 2 else ["day", "swing"][rng.randi_range(0, 1)]
-		guards.append([_full(inside[i], rng), shift, _pin(rng, used_pins), "not on tonight's sign-in sheet"])
+		guards.append([_full(inside[i], rng), shift, _pin(rng, used_pins), "didn't badge in tonight"])
 
 	var shifts := ["day", "swing", "night"]
 	var reasons := {
 		"day": ["day shift", "day shift. Clocked out 18:00", "day shift. On vacation until 10/20"],
 		"swing": ["swing shift. Clocked out 22:00", "swing shift", "swing shift. Off sick"],
-		"night": ["night off", "on leave", "not on tonight's sign-in sheet"],
+		"night": ["night off", "on leave", "didn't badge in tonight"],
 	}
 	for n in OTHER_NAMES:
 		var shift: String = shifts[rng.randi_range(0, 2)]
