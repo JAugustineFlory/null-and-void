@@ -75,14 +75,14 @@ func _run() -> void:
 
 
 func _landing(world: Node3D) -> void:
-	# A corridor that ends at the elevator: the wall face is flush with z = 0.
+	# A corridor that ends at the elevator: a 20 cm wall centered on z = 0, as Greybox builds them.
 	var floor_mat := ArtPalette.surface("floor_tile")
 	_slab(world, Vector3(0, -0.1, -4), Vector3(12, 0.2, 10), floor_mat)
 	_slab(world, Vector3(0, 3.1, -4), Vector3(12, 0.2, 10), ArtPalette.surface("ceiling_tile"))
 	# wall around the shaft opening (doorway 1.2 m, car 2.6 m wide)
-	_slab(world, Vector3(-3.65, 1.5, 0.1), Vector3(4.7, 3, 0.2), ArtPalette.surface("drywall"))
-	_slab(world, Vector3(3.65, 1.5, 0.1), Vector3(4.7, 3, 0.2), ArtPalette.surface("drywall"))
-	_slab(world, Vector3(0, 2.8, 0.1), Vector3(2.6, 0.4, 0.2), ArtPalette.surface("drywall"))
+	_slab(world, Vector3(-3.65, 1.5, 0.0), Vector3(4.7, 3, 0.2), ArtPalette.surface("drywall"))
+	_slab(world, Vector3(3.65, 1.5, 0.0), Vector3(4.7, 3, 0.2), ArtPalette.surface("drywall"))
+	_slab(world, Vector3(0, 2.8, 0.0), Vector3(2.6, 0.4, 0.2), ArtPalette.surface("drywall"))
 	_slab(world, Vector3(-6, 1.5, -4), Vector3(0.2, 3, 10), ArtPalette.surface("drywall"))
 	_slab(world, Vector3(6, 1.5, -4), Vector3(0.2, 3, 10), ArtPalette.surface("drywall"))
 	lift = ArtElevator.build(world, Vector3.ZERO, 0.0)
