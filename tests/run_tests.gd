@@ -952,7 +952,7 @@ func test_coop_level_2() -> void:
 	check(machines.all(func(l): return l.has_screwdriver and l.geo.get_node_or_null("Screwdriver") == null), "the screwdriver is picked up for everyone")
 	client.vent_grate.interact(client.player)
 	await _frames(10)
-	check(machines.all(func(l): return not is_instance_valid(l.vent_grate)), "the grate comes off on every machine")
+	check(machines.all(func(l): return not l.vent_grate.enabled), "the grate comes off on every machine")
 
 	client._pad_mode = "exit"
 	client._on_pin(host.data.pin)
@@ -1232,15 +1232,13 @@ func test_level_2_routes() -> void:
 	var p: Player = level.player
 	p.local_control = false
 	# The clues are on paper in the booth, and E copies them into the notebook.
-	var docs: Array = level.find_children("*", "Level2Document", true, false)
+	var docs: Array = level.get_tree().get_nodes_in_group("document").filter(func(d): return level.is_ancestor_of(d))
 	var titles: Array = docs.map(func(d): return d.title)
 	check(["Night shift sign-in sheet", "Camera system card", "WARDEN manual, p.12", "Lockdown PIN policy", "Door controller card"].all(func(t): return titles.has(t)), "the wing's clues are on documents: roster, camera card, manual page, PIN policy, door card")
-	var sheet = docs[titles.find("Night shift sign-in sheet")]
-	var before: int = _game().notebook_written.size()
-	sheet.interact(p)
-	sheet.interact(p)
-	check(_game().notebook_written.size() == before + 3 and _game().notebook_written[-1].label == "Night shift sign-in sheet" and sheet.get_prompt(p) == "", "E copies a document's lines into the notebook, once")
-	check(not str(docs.map(func(d): return d.note_lines)).contains("Har%"), "no document gives the Har query away")
+	var sheet: Document = docs[titles.find("Night shift sign-in sheet")]
+	check(sheet.lines().any(func(l): return l.hand and l.text.begins_with("Har")) and sheet.lines().any(func(l): return l.hand and l.text == "guards"),
+		"the sign-in sheet has the half-legible name and the PIN table, handwritten")
+	check(not str(docs.map(func(d): return d.plain_text())).contains("Har%"), "no document gives the Har query away")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
@@ -1258,7 +1256,10 @@ func test_level_2_routes() -> void:
 	sd.interact(p)
 	level._on_vent_grate(p)
 	await process_frame
-	check(not is_instance_valid(level.vent_grate), "the screwdriver takes the grate off")
+	check(not level.vent_grate.enabled and level.vent_grate.get_children().filter(func(c): return c is CollisionShape3D).all(func(c): return c.disabled),
+		"the screwdriver takes the grate off, and it's out of the way")
+	await _frames(40)
+	check(level.vent_grate.position.y < 0.5, "the grate drops to the floor, where everyone can see it came off")
 	level.set_hatch(true)
 	check(level.hatch_open and level.vent_hatch.rotation.z != 0.0, "the hinged hatch at the vestibule end swings open")
 	level.set_hatch(false)

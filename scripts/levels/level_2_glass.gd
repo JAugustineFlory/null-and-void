@@ -12,6 +12,7 @@ var breakable := true
 ## What a strike on unbreakable glass tells the player.
 var refusal := "Wired security glass. It doesn't even crack."
 var hud: HUD
+var size := Vector3.ONE
 
 
 static func create(parent: Node, center: Vector3, size: Vector3, can_break: bool, node_name: String = "Glass") -> Level2Glass:
@@ -19,6 +20,7 @@ static func create(parent: Node, center: Vector3, size: Vector3, can_break: bool
 	g.name = node_name
 	g.breakable = can_break
 	g.position = center
+	g.size = size
 	var mesh := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = size
@@ -67,4 +69,9 @@ func shatter(by: Node = null) -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
 	broken.emit(by)
+	# It bursts: shards on the floor and the sound of it, so nobody has to be told.
+	var parent := get_parent()
+	if parent:
+		Level2FX.shards(parent, position, size, Color(0.7, 0.85, 0.9))
+		Level2FX.sound(parent, position, "glass")
 	queue_free()

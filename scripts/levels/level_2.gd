@@ -24,6 +24,8 @@ extends LevelBase
 signal completed
 
 const CLOCK_START := 41 * 60  # 00:41:00
+## Where the SEC-EXIT door's bolt and motor are: its sounds come from here.
+const SEC_EXIT_FRAME := Vector3(0, 1.2, -12)
 ## Where each camera can see, as boxes in the level's own space (see _in()).
 ## Only working cameras hold the Watcher.
 var cam_zones := {
@@ -154,10 +156,11 @@ func build() -> void:
 	office_keypad.local_only = true  # the keypad screen is yours; the host checks the PIN
 	office_keypad.used.connect(_on_office_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, 2.17), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
-	Level2Document.hang(geo, Vector3(2.15, 1.35, 2.11), Vector2(0.5, 0.36), 0, "Lockdown PIN policy",
-		"LOCKDOWN PIN POLICY\nIn lockdown, doors take only\nthe PINs of guards on tonight's\nNIGHT SHIFT sign-in sheet.\nSuspended or retired: refused.",
-		["In lockdown, doors take only PINs of guards on tonight's night-shift sheet", "Suspended or retired PINs are refused"],
-		Color(0.95, 0.95, 0.85), 14)
+	Document.place(geo, Vector3(2.15, 1.35, 2.11), 180, "Lockdown PIN policy", [
+		"LOCKDOWN PIN POLICY",
+		"In lockdown, doors take only the PINs of guards on tonight's NIGHT SHIFT sign-in sheet.",
+		"Suspended or retired PINs: refused.",
+	], false, "laminated", Vector2(0.5, 0.36))
 	# Exit vestibule: x -2.5..2.5, z -12..-8
 	Greybox.room(geo, Vector3(0, 0, -10), Vector3(5, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.4},
@@ -240,18 +243,33 @@ func _build_booth() -> void:
 	booth.requested.connect(_on_request.bind("booth"))
 	# The clues are on the booth's own paperwork: found in the world first.
 	StickyNote.on_monitor(booth, "like")
-	Level2Document.hang(geo, Vector3(-1.4, 1.45, 5.86), Vector2(0.6, 0.8), 180, "Night shift sign-in sheet",
-		"NIGHT SHIFT SIGN-IN  10/15\n\nPIKE, H.     NO SHOW\nHar[coffee stain]  22:00\n\nPINs on file in the\nguards table.",
-		["NIGHT SHIFT SIGN-IN 10/15: PIKE, H. - NO SHOW", "Har[coffee stain] - signed in 22:00", "PINs on file in the guards table"])
-	Level2Document.hang(geo, Vector3(-4.0, 1.5, 5.86), Vector2(0.62, 0.5), 180, "Camera system card",
-		"OVERWATCH CCTV  -  REMOTE STATUS\nFrom any security terminal:\n  GET /cameras         every camera\n  GET /cameras/CAM-2   one camera\n\nmotion: true   movement seen\nlast_frame     time of the last picture",
-		["GET /cameras = every camera's status", "GET /cameras/CAM-2 = one camera", "motion: true = movement seen; last_frame = time of the last picture"],
-		Color(0.85, 0.88, 0.9), 16)
+	# A clipboard sheet: the names are handwritten, and coffee took most of the second one.
+	Document.place(geo, Vector3(-1.4, 1.45, 5.86), 0, "Night shift sign-in sheet", [
+		"NIGHT SHIFT SIGN-IN   10/15",
+		"NAME                 IN",
+		{"text": "PIKE, H.             no show", "hand": true},
+		{"text": "Har... (coffee stain)   22:00", "hand": true},
+		"",
+		"Guard PINs are kept on file in the table:",
+		{"text": "guards", "hand": true},
+	], false, "paper", Vector2(0.6, 0.8))
+	Document.place(geo, Vector3(-4.0, 1.5, 5.86), 0, "Camera system card", [
+		"OVERWATCH CCTV  -  REMOTE STATUS",
+		"From any security terminal:",
+		"GET /cameras          every camera",
+		"GET /cameras/CAM-2    one camera",
+		"motion: true          movement seen",
+		"last_frame            time of the last picture",
+	], false, "laminated", Vector2(0.62, 0.5))
 	# A page torn from the WARDEN manual, with the old security chief's pencil in the margin.
-	Level2Document.hang(geo, Vector3(-5.2, 1.6, 5.86), Vector2(0.8, 0.9), 180, "WARDEN manual, p.12",
-		"WARDEN v3.1  -  p.12\nGUARD ROSTER: QUICK SEARCH\n\nPart of a name? Search a pattern:\n  WHERE name LIKE 'Ro%'\nfinds ROSS, ROURKE, ROWE...\n\n% = any letters, or none.  - H.M.",
-		["WHERE name LIKE 'Ro%' finds names that start with Ro", "% = any letters, or none. - H.M."],
-		Color(0.93, 0.92, 0.86), 18)
+	Document.place(geo, Vector3(-5.2, 1.6, 5.86), 0, "WARDEN manual, p.12", [
+		"WARDEN v3.1  -  p.12",
+		"GUARD ROSTER: QUICK SEARCH",
+		"Only know part of a name? Search a pattern:",
+		"WHERE name LIKE 'Ro%'",
+		"finds ROSS, ROURKE, ROWE...",
+		{"text": "% = any letters, or none.  - H.M.", "hand": true},
+	], false, "paper", Vector2(0.8, 0.9))
 	# A crate under the vent, so one person can climb up alone.
 	Greybox.box(geo, Vector3(-5.4, 0.45, 4.0), Vector3(0.9, 0.9, 0.9), Color(0.45, 0.35, 0.2), "Crate")
 	Greybox.label(geo, Vector3(-5.85, 2.7, 4.0), "VENT", 30, Color(0.7, 0.7, 0.7), 90)
@@ -273,10 +291,13 @@ func _build_panel() -> void:
 	panel = Terminal.spawn(geo, Vector3(-1.4, 0.9, -11.4), 0, "VESTIBULE PANEL", db, terminal_ui)
 	panel.api = api
 	panel.puzzles = [door_puzzle]
-	Level2Document.hang(geo, Vector3(-2.05, 1.7, -11.86), Vector2(0.62, 0.46), 0, "Door controller card",
-		"DOOR CONTROLLER  -  QUICK REF\n  GET /doors/SEC-EXIT\n\nsensor     what the door is doing\nactuator   the motor. fault = can't move\nnote       why",
-		["GET /doors/SEC-EXIT = one door's record", "sensor = what the door is actually doing", "actuator = the motor; fault means it can't move", "note = why"],
-		Color(0.85, 0.88, 0.9), 15)
+	Document.place(geo, Vector3(-2.05, 1.7, -11.86), 180, "Door controller card", [
+		"DOOR CONTROLLER  -  QUICK REF",
+		"GET /doors/SEC-EXIT    one door's record",
+		"sensor      what the door is actually doing",
+		"actuator    the motor. fault = it can't move",
+		"note        why",
+	], false, "laminated", Vector2(0.62, 0.46))
 	panel.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  VESTIBULE PANEL",
 		"Door and camera status for this vestibule.",
@@ -413,9 +434,16 @@ func _on_vent_grate(_p: Node) -> void:
 
 
 func open_vent_grate() -> void:
-	if not is_instance_valid(vent_grate):
+	if not is_instance_valid(vent_grate) or not vent_grate.enabled:
 		return
-	vent_grate.queue_free()
+	# Four screws out and it drops, clattering onto the floor by the crate.
+	vent_grate.enabled = false
+	vent_grate.prompt = ""
+	for c in vent_grate.get_children():
+		if c is CollisionShape3D:
+			c.disabled = true
+	Level2FX.drop(vent_grate, Vector3(-4.75, 0.03, 4.0), Vector3(0, 0, PI / 2))
+	Level2FX.sound(geo, Vector3(-5.5, 1.0, 4.0), "clatter")
 
 
 ## The hinged hatch at the vestibule end swings up out of the way, or back down.
@@ -441,14 +469,14 @@ func start() -> void:
 	arrival_lift.open()
 	stage = "hidden"
 	_place_watcher(STAGES.hidden[0], STAGES.hidden[1])
-	hud.set_objective("Find a way out of the security wing")
+	hud.todo("Find a way out of the security wing")
 	if Game.rourke_fate == "tied":
 		await hud.lines(["l2_rourke_1", "l2_rourke_2", "l2_rourke_3"])
 	elif Game.rourke_fate == "killed":
 		await hud.line("l2_dead_escort")
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
-		hud.set_objective("Use the security booth terminal")
+		hud.todo("Check the security booth terminal")
 
 
 func _process(delta: float) -> void:
@@ -571,14 +599,13 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 		sync.event("_on_lie_spotted", [which, _cam2_frame()])
 
 
-## How SYSOP's messages look on a terminal. Someone else on the network is typing to you.
-const SYSOP := "[color=#7fd0ff][SYSOP]: %s[/color]"
 ## The only nudge on the HUD: there's something to read at a terminal.
 const NEW_MESSAGE := "New message on the security terminals."
 
 
+## A line from SYSOP: someone else on the network, typing to you.
 func sysop(t: Terminal, text: String) -> void:
-	t.print_line(SYSOP % text)
+	t.print_line(TerminalUI.sysop(text))
 
 
 ## Lines for both security terminals, so they can go in the notebook: on screen if
@@ -611,7 +638,7 @@ func _on_cameras_found(which: String) -> void:
 		sysop(t, "pike's name is clear on the sign-in sheet. find his row with a pattern:")
 		t.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
 		t.print_line("      LIKE 'Pike%'   names that start with Pike. % = any letters after")
-		hud.set_objective("Look up Officer Pike in the guards table")
+		hud.todo("Look up Officer Pike's PIN")
 
 
 ## Someone worked out the frozen camera for themselves.
@@ -643,10 +670,10 @@ func explain_cam_lie(frame: String) -> void:
 	Game.cam_lie_learned = true
 	var lines := [
 		"",
-		SYSOP % ("cam-2 froze at %s. it hasn't seen the office since. it still says 'live'." % frame),
-		SYSOP % "a camera can say 'live' and still be stuck. to check one:",
+		TerminalUI.sysop("cam-2 froze at %s. it hasn't seen the office since. it still says 'live'." % frame),
+		TerminalUI.sysop("a camera can say 'live' and still be stuck. to check one:"),
 		"    [color=#ffffff]GET /cameras[/color]",
-		SYSOP % "then compare its last_frame with server_time. if last_frame stopped, it sees nothing.",
+		TerminalUI.sysop("then compare its last_frame with server_time. if last_frame stopped, it sees nothing."),
 	]
 	_broadcast(lines)
 	_lie_notice = NEW_MESSAGE
@@ -673,7 +700,7 @@ func _on_pike_found(which: String) -> void:
 		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
 		sysop(t, "other name on the sign-in sheet is under a coffee stain. only [b]Har[/b] is readable.")
 		sysop(t, "it's the NIGHT SHIFT sheet. you want a guard whose name starts with Har and who works nights.")
-		hud.set_objective("Find the PIN of the night-shift guard whose name starts with Har")
+		hud.todo("Find out who else has a working PIN")
 		sysop(t, "[color=#ff6655]something in the office is moving. it only moves while nothing is watching it. not you, not a working camera.[/color]")
 		hud.line("l2_smudged")
 		_set_loose()
@@ -691,7 +718,7 @@ func _on_har_found(which: String) -> void:
 		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Signed in 22:00. PIN on file.[/color]" % data.name)
 		sysop(t, "that PIN opens the office door, and the SEC-EXIT keypad past it.")
 		sysop(t, "[color=#ff6655]it's on the other side of that door. open it, and keep your eyes on it.[/color]")
-		hud.set_objective("Open the Security Office door with %s's PIN" % data.name)
+		hud.todo("Open the office door. Keep eyes on it")
 		_set_loose()
 		_set_stage("window")
 
@@ -819,7 +846,7 @@ func open_office() -> void:
 	db.run_silent("UPDATE door_status SET sensor = 'open', note = 'normal' WHERE door_id = 'SEC-OFFICE'")
 	db.sync_world()
 	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-OFFICE: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
-	hud.set_objective("Get past it to the stairwell keypad. Keep your eyes on it")
+	hud.todo("Get past it to the SEC-EXIT keypad. Keep eyes on it")
 	wake_watcher()
 
 
@@ -845,13 +872,13 @@ func enter_pin() -> void:
 	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-EXIT: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
 	if _update_door():
 		return
-	hud.set_objective("Get through SEC-EXIT")
+	hud.todo("Get through SEC-EXIT")
 	await hud.line("l2_door_ok")
 	await get_tree().create_timer(5.0).timeout
 	if not door_open and not door_checked:
-		_broadcast([SYSOP % "it didn't open. check the door's sensor at the vestibule panel:", "    [color=#ffffff]GET /doors/SEC-EXIT[/color]"])
+		_broadcast([TerminalUI.sysop("it didn't open. check the door's sensor at the vestibule panel:"), "    [color=#ffffff]GET /doors/SEC-EXIT[/color]"])
 		hud.notice(NEW_MESSAGE, 4.0)
-		hud.set_objective("Find out why SEC-EXIT is still shut (vestibule panel)")
+		hud.todo("Find out why SEC-EXIT is still shut")
 
 
 func _on_door_checked(which: String) -> void:
@@ -863,7 +890,7 @@ func _on_door_checked(which: String) -> void:
 	sysop(t, "keypad said OPENED. locked is false, so the request went through.")
 	sysop(t, "but sensor says 'closed' and actuator says 'fault'. the door never moved. read the note.")
 	sysop(t, "a request going through isn't the thing happening. check the sensor, not the request.")
-	hud.set_objective("Reset breaker B-%d (the box under the vent), then check the door again" % data.breaker)
+	hud.todo("Fix whatever jammed the door, then check it again")
 	hud.line("l2_door_fault")
 
 
@@ -877,11 +904,16 @@ func _breaker_flipped(i: int) -> void:
 		db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'SEC-EXIT'")
 		db.run_silent("UPDATE door_status SET actuator = 'ok', note = 'normal' WHERE door_id = 'SEC-EXIT'")
 		breakers[i].enabled = false
+		breakers[i].rotation.z = 0.5  # the switch stays thrown
 		hud.notice("> BREAKER B-%d: RESET" % i, 3.5, ThemeUtil.GREEN)
+		# The jammed bolt lets go inside the door frame.
+		Level2FX.sound(geo, breakers[i].position, "click")
+		Level2FX.sound(geo, SEC_EXIT_FRAME, "clunk")
 		db.sync_world()
 		_update_door()
 		return
 	# The wrong breaker cuts this room's lights and its camera for a few seconds.
+	Level2FX.sound(geo, breakers[i].position, "click")
 	frozen_cams["CAM-3"] = true
 	for l in lights.get("vestibule", []):
 		l.visible = false
@@ -900,7 +932,7 @@ func _update_door() -> bool:
 		door_puzzle.solved = true
 	if open and not door_open:
 		door_open = true
-		hud.set_objective("Get in the elevator and press B1. (Lock the door behind you, if you can)")
+		hud.todo("Get in the elevator. Lock SEC-EXIT behind us if we can")
 		exit_lift.open()
 	return open
 
@@ -912,6 +944,7 @@ func seal_exit() -> void:
 	_update_door()
 	Game.watcher_sealed = true
 	hud.notice("> DOOR SEC-EXIT: LOCKED", 4.0, ThemeUtil.GREEN)
+	Level2FX.sound(geo, SEC_EXIT_FRAME, "clunk")
 
 
 func _on_exit(_b: Node) -> void:
