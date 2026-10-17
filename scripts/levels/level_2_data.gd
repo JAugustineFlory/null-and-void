@@ -91,15 +91,9 @@ INSERT INTO cameras VALUES
 	('CAM-4', 'Break room', 'offline', NULL, 0, 'unplugged for the coffee machine'),
 	('CAM-5', 'East ledge (outside)', 'live', '00:41:00', 0, 'normal');
 
--- doors is building-wide: Level 1 may have made it already. This wing only adds SEC- rows.
-CREATE TABLE IF NOT EXISTS doors (
-	id TEXT,
-	name TEXT,
-	zone TEXT,
-	locked INTEGER,
-	actuator_fault INTEGER
-);
+-- doors is building-wide (FacilityDB.SHARED_SCHEMA). This wing only adds SEC- rows.
 INSERT INTO doors VALUES
+	('SEC-OFFICE', 'Security Office', 'S', 1, 0),
 	('SEC-EXIT', 'Security wing stairwell', 'S', 1, 1);
 
 CREATE TABLE door_status (
@@ -109,6 +103,7 @@ CREATE TABLE door_status (
 	note TEXT
 );
 INSERT INTO door_status VALUES
+	('SEC-OFFICE', 'closed', 'ok', 'lockdown: guard PIN required'),
 	('SEC-EXIT', 'closed', 'fault', 'actuator breaker B-%d tripped 00:12. Reset it at the breaker box by the door');
 """ % [",\n\t".join(rows), breaker]
 	return {"sql": sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin, "breaker": breaker}

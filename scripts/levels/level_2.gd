@@ -8,16 +8,24 @@ extends LevelBase
 ## breaker jammed its actuator. The vestibule panel's sensor data says so.
 ##
 ## Layout (north is -z): stair landing (spawn) > corridor with the security booth >
-## Security Office (the Watcher) > exit vestibule > stairwell. Three ways from the
-## corridor to the vestibule: through the office, the vent over the crate, or the
-## smashed window and the ledge outside. The keypad PIN is needed on every route.
+## Security Office (the Watcher, behind a locked door) > exit vestibule > stairwell.
+##
+## The main path: find the PIN, open the office door with it, get past the Watcher,
+## enter the PIN at the stairwell, then (optionally) lock it in behind you. The Watcher
+## starts out of sight, creeps closer once players find Pike, and from then on hunts
+## them, held back only by the locked office door and its glass until the PIN opens it.
+## Two side routes have to be discovered: the vent over the crate (its grate needs
+## the screwdriver from the break-glass box on the landing) and the corridor's outside
+## window (break the glass, then the ledge). Players arrive by elevator and leave by
+## the elevator past SEC-EXIT, whose doors have to shut before the Watcher gets in. The stairwell PIN is needed on every route.
 
-## Fired at the bottom of the stairs: the wing is done. A streamed world can
-## take over from here; on its own, the level goes to Field Notes.
+## Fired at the bottom of the stairs: the wing is done. In the World that's the
+## end of the route (Field Notes); on its own, the level goes to Field Notes too.
 signal completed
 
 const CLOCK_START := 41 * 60  # 00:41:00
-## Where each camera can see, as boxes. Only working cameras hold the Watcher.
+## Where each camera can see, as boxes in the level's own space (see _in()).
+## Only working cameras hold the Watcher.
 var cam_zones := {
 	"CAM-2": [AABB(Vector3(-6, -1, -8), Vector3(12, 6, 10))],
 	"CAM-3": [AABB(Vector3(-2.5, -1, -12), Vector3(5, 6, 4))],
@@ -34,8 +42,26 @@ var breakers := {}
 var keypad_ui: Level2Keypad
 var exit_keypad: Interactable
 var seal_keypad: Interactable
-var watcher_home := Vector3(3, 0, -5)
-var loose := false  # CAM-2 has frozen and the Watcher is free
+## Where the Watcher stands as players get closer to the PIN (level space): out of
+## sight behind the gear lockers, then mid-office, then at the window staring out.
+const STAGES := {
+	"hidden": [Vector3(4.3, 0, -7.2), Vector3(4.3, 0, -3)],
+	"near": [Vector3(-1.5, 0, -3.5), Vector3(-3, 0, 4)],
+	"window": [Vector3(-3, 0, 1.2), Vector3(-3, 0, 5)],
+}
+var watcher_home: Vector3 = STAGES.hidden[0]
+var stage := "hidden"
+var _stage_pending := ""
+var loose := false  # CAM-2 has frozen: no camera holds the office any more
+var office_keypad: Interactable
+var office_open := false
+var has_screwdriver := false
+var vent_grate: Interactable  # screwed shut, corridor end
+var vent_hatch: Interactable  # hinged, vestibule end
+var hatch_open := false
+var ledge_glass: Level2Glass
+var vestibule_glass: Level2Glass
+var office_glass: Level2Glass
 var reached_vestibule := false
 var pin_entered := false
 var door_open := false  # physically open
@@ -43,10 +69,16 @@ var door_checked := false
 var _clock := 0.0
 var _cam_tick := 0.0
 var _lie_explained := false
+var _lie_notice := ""
+var _lie_fresh := false  # just explained: someone who died to it hears why
 var _warned := {}
-var _seal_mode := false
+var _pad_mode := "exit"  # which keypad is open: office, exit or seal
 var _glass: Array[RID] = []
-var _exit_trigger: Trigger
+## Corridor and landing: leaving it another way also wakes the Watcher (level space).
+var _corridor_box := AABB(Vector3(-6, -1, 2), Vector3(12, 3, 8.5))
+var arrival_lift: Elevator
+var exit_lift: Elevator
+var key_glass: Level2Glass
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"Type this, then press Enter:\n" +
@@ -69,7 +101,8 @@ var door_puzzle := Puzzle.new("door", "", [], false, [
 	"Type this, then press Enter:\n" +
 	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
 	"  GET               ask the security server for data\n" +
-	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says",
+	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says\n" +
+	"If the door won't move, the note in the answer says why, such as which breaker tripped.",
 	"Read the \"note\" line in the answer. It names a breaker, like B-2. Go to the breaker box on the wall under the vent and press E on that breaker.",
 ])
 var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, [
@@ -81,14 +114,12 @@ var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har
 	"Take your Pike query and change 'Pike%' to 'Har%'. Then add AND shift = 'night' to the end, before the ;.",
 	"The pin column is the code for the stairwell keypad, past the far end of the Security Office. " +
 	"Other Har- guards work other shifts or are retired: read their note column.",
-	"Lost track of it? GET /cameras shows which cameras see motion. Compare each last_frame with server_time: " +
-	"a camera whose picture stopped updating can't see anything, whatever its status says.",
 ])
 
 
 func build() -> void:
 	data = Level2Data.build(Game.run_seed)
-	db.load_seed(data.sql)
+	load_level_seed(data.sql)
 	keypad_ui = Level2Keypad.new()
 	add_child(keypad_ui)
 	keypad_ui.submitted.connect(_on_pin)
@@ -96,9 +127,10 @@ func build() -> void:
 	var floor_c := Color(0.27, 0.27, 0.3)
 	var wall_c := Color(0.52, 0.53, 0.5)
 	var office_wall := Color(0.46, 0.48, 0.5)
-	# Stair landing (spawn): x 2.5..5.5, z 6..10
+	# Elevator landing (spawn): x 2.5..5.5, z 6..10. Server Room A's elevator rides here.
 	Greybox.room(geo, Vector3(4, 0, 8), Vector3(3, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "e", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},  # the arrival elevator
 	])
 	Greybox.label(geo, Vector3(4, 2.7, 9.88), "FROM SERVER ROOM A", 40, Color(0.2, 0.2, 0.2), 180)
 	# Corridor: x -6..6, z 2..6
@@ -115,8 +147,13 @@ func build() -> void:
 		{"wall": "s", "at": -3.0, "width": 2.4, "height": 2.2, "bottom": 1.0},
 		{"wall": "n", "at": 0.0, "width": 1.6, "height": 2.4},
 	])
-	Greybox.label(geo, Vector3(0, 2.75, 1.88), "SECURITY OFFICE", 64, Color(0.75, 0.75, 0.7), 180)
-	_glass_pane(Vector3(-3, 2.1, 2), Vector3(2.4, 2.2, 0.05))
+	Greybox.label(geo, Vector3(0, 2.75, 2.12), "SECURITY OFFICE", 64, Color(0.75, 0.75, 0.7))
+	office_glass = _glass_pane(Vector3(-3, 2.1, 2), Vector3(2.4, 2.2, 0.05), false, "OfficeGlass")
+	add_door("SEC-OFFICE", Vector3(0, 1.2, 2), Vector3(1.8, 2.4, 0.15))
+	office_keypad = Interactable.create(geo, Vector3(1.3, 1.3, 2.13), Vector3(0.25, 0.3, 0.06), "Enter guard PIN (office door)", Color(0.15, 0.15, 0.12))
+	office_keypad.local_only = true  # the keypad screen is yours; the host checks the PIN
+	office_keypad.used.connect(_on_office_keypad)
+	Greybox.label(geo, Vector3(1.3, 1.55, 2.17), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
 	# Exit vestibule: x -2.5..2.5, z -12..-8
 	Greybox.room(geo, Vector3(0, 0, -10), Vector3(5, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.4},
@@ -124,11 +161,23 @@ func build() -> void:
 		{"wall": "w", "at": 0.0, "width": 1.0, "height": 3.0, "bottom": 2.0},
 		{"wall": "e", "at": 1.25, "width": 1.2, "height": 1.0},
 	])
-	# Stairwell: x -2..2, z -17..-12
+	# Elevator lobby past SEC-EXIT: x -2..2, z -17..-12
 	Greybox.room(geo, Vector3(0, 0, -14.5), Vector3(4, 3.2, 5), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
 	])
-	Greybox.label(geo, Vector3(0, 2.6, -16.88), "STAIRS  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
+	Greybox.label(geo, Vector3(0, 2.75, -16.88), "ELEVATOR  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
+	# The button works on the host, once everyone is in; the doors shut on every machine.
+	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "B2", ["B2", "B3"])
+	exit_lift.name = "ExitElevator"
+	exit_lift.hud = hud
+	exit_lift.closed.connect(func():
+		if sync.is_host():
+			sync.event("_on_exit", [null]))
+	# Server Room A's elevator links to this car and opens it at the end of the ride.
+	arrival_lift = Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "B2", ["1", "B1", "B2"])
+	arrival_lift.name = "ArrivalElevator"
+	arrival_lift.button.enabled = false
 	add_door("SEC-EXIT", Vector3(0, 1.2, -12), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.75, -11.88), "SEC-EXIT", 56, Color(0.85, 0.2, 0.15))
 
@@ -138,11 +187,13 @@ func build() -> void:
 	_build_vent()
 	_build_ledge()
 
-	exit_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -11.85), Vector3(0.25, 0.3, 0.06), "Enter guard PIN", Color(0.15, 0.15, 0.12))
+	exit_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -11.85), Vector3(0.25, 0.3, 0.06), "Enter guard PIN (SEC-EXIT)", Color(0.15, 0.15, 0.12))
+	exit_keypad.local_only = true
 	exit_keypad.used.connect(_on_exit_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, -11.81), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
 	_build_panel()
 	seal_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -12.15), Vector3(0.25, 0.3, 0.06), "Lock SEC-EXIT behind you (guard PIN)", Color(0.15, 0.15, 0.12))
+	seal_keypad.local_only = true
 	seal_keypad.used.connect(_on_seal_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, -12.19), "LOCK", 40, Color(0.9, 0.8, 0.3), 180)
 
@@ -162,7 +213,7 @@ func build() -> void:
 	watcher.see_through = _glass
 	watcher.caught.connect(_on_caught)
 	watcher.started_moving.connect(_on_watcher_moving)
-	spawn = Transform3D(Basis(), Vector3(4, 0.1, 9))
+	spawn = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(6.7, 0.1, 8))  # in the arrival car, facing out
 
 
 func _build_booth() -> void:
@@ -181,11 +232,11 @@ func _build_booth() -> void:
 		"",
 		"Type .help for commands, .hint if you're stuck.",
 	]
-	booth.queried.connect(_on_query)
-	booth.requested.connect(_on_request)
+	booth.queried.connect(_on_query.bind("booth"))
+	booth.requested.connect(_on_request.bind("booth"))
 	# Sticky note on the monitor, the sign-in sheet and a poster: found in the world first.
-	Greybox.panel(geo, Vector3(-2.55, 1.35, 5.27), Vector3(0.16, 0.16, 0.01), Color(0.95, 0.9, 0.4))
-	Greybox.label(geo, Vector3(-2.55, 1.35, 5.26), "cameras:\nGET /cameras", 22, Color(0.1, 0.1, 0.4), 180)
+	ArtProps.sticky_note(geo, Vector3(-2.5, 1.32, 5.27), 0.0, "GET /cameras")
+	ArtProps.sticky_note(geo, Vector3(-3.5, 1.32, 5.27), 0.0, "LIKE 'Ro%'", ArtProps.STICKY_COLORS[2])
 	Greybox.panel(geo, Vector3(-1.4, 1.45, 5.89), Vector3(0.6, 0.8, 0.01), Color(0.9, 0.88, 0.8))
 	Greybox.label(geo, Vector3(-1.4, 1.45, 5.88),
 		"NIGHT SHIFT SIGN-IN  10/15\n\nPIKE, H.     NO SHOW\nHar[coffee stain]  22:00\n\nPINs on file in the\nguards table.", 22, Color(0.1, 0.1, 0.15), 180)
@@ -195,8 +246,18 @@ func _build_booth() -> void:
 	# A crate under the vent, so one person can climb up alone.
 	Greybox.box(geo, Vector3(-5.4, 0.45, 4.0), Vector3(0.9, 0.9, 0.9), Color(0.45, 0.35, 0.2), "Crate")
 	Greybox.label(geo, Vector3(-5.85, 2.7, 4.0), "VENT", 30, Color(0.7, 0.7, 0.7), 90)
-	# Smashed window at the east end, onto the ledge.
-	Greybox.label(geo, Vector3(5.85, 1.3, 4.0), "WINDOW SMASHED\nKEEP CLEAR", 26, Color(0.85, 0.2, 0.15), -90)
+	# On the landing, safe from anything: a break-glass box with a screwdriver inside.
+	# Players learn here that glass breaks with a strike, and pick up the tool the vent needs.
+	Greybox.box(geo, Vector3(2.66, 1.4, 7.2), Vector3(0.12, 0.55, 0.45), Color(0.7, 0.12, 0.1), "KeyBox")
+	var screwdriver := Interactable.create(geo, Vector3(2.75, 1.4, 7.2), Vector3(0.03, 0.04, 0.24), "Take the screwdriver", Color(0.95, 0.75, 0.1))
+	screwdriver.name = "Screwdriver"
+	screwdriver.used.connect(func(_p): sync.event("_take_screwdriver"))
+	key_glass = _glass_pane(Vector3(2.79, 1.4, 7.2), Vector3(0.02, 0.45, 0.38), true, "KeyBoxGlass")
+	key_glass.broken.connect(func(_by): hud.notice("The glass breaks. Plain glass breaks when you strike it.", 3.5))
+	Greybox.label(geo, Vector3(2.62, 1.82, 7.2), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
+	# Low outside window at the east end, onto the ledge. Plain glass: it breaks.
+	ledge_glass = _glass_pane(Vector3(6.0, 0.5, 4.0), Vector3(0.05, 1.0, 1.1), true, "LedgeGlass")
+	ledge_glass.broken.connect(func(_by): hud.notice("The glass gives. Cold air pours in. There's a ledge out there.", 4.0))
 
 
 func _build_panel() -> void:
@@ -214,9 +275,12 @@ func _build_panel() -> void:
 		"",
 		"Type .help for commands, .hint if you're stuck.",
 	]
-	panel.queried.connect(_on_query)
-	panel.requested.connect(_on_request)
+	panel.queried.connect(_on_query.bind("panel"))
+	panel.requested.connect(_on_request.bind("panel"))
 	# Breaker box on the west wall, under the vent. Only one breaker runs the door.
+	# The ledge's way back in: a low window onto the vestibule.
+	vestibule_glass = _glass_pane(Vector3(2.5, 0.5, -8.75), Vector3(0.05, 1.0, 1.2), true, "VestibuleGlass")
+	vestibule_glass.broken.connect(func(_by): hud.notice("The window shatters inward.", 3.0))
 	Greybox.panel(geo, Vector3(-2.37, 1.3, -8.95), Vector3(0.04, 0.6, 1.3), Color(0.3, 0.32, 0.3))
 	Greybox.label(geo, Vector3(-2.34, 1.72, -8.95), "BREAKERS", 26, Color(0.9, 0.9, 0.8), 90)
 	for i in range(1, 5):
@@ -238,14 +302,14 @@ func _build_office() -> void:
 		Greybox.label(geo, Vector3(-5.82, 2.05, z), id, 26, Color(0.8, 0.8, 0.8), 90)
 	Greybox.box(geo, Vector3(2.5, 0.4, -1.0), Vector3(2.4, 0.8, 1.0), Color(0.36, 0.3, 0.25), "Desk")
 	Greybox.box(geo, Vector3(-2.0, 0.4, -6.0), Vector3(2.4, 0.8, 1.0), Color(0.36, 0.3, 0.25), "Desk")
+	# Gear lockers across the back corner: the window can't see behind them.
+	Greybox.box(geo, Vector3(4.2, 1.3, -6.2), Vector3(3.2, 2.6, 0.5), Color(0.3, 0.34, 0.3), "Lockers")
+	Greybox.label(geo, Vector3(4.2, 2.3, -5.94), "GEAR", 40, Color(0.85, 0.85, 0.8))
 	# The night desk's answering machine: one new message.
 	var machine := Interactable.create(geo, Vector3(2.5, 0.85, -1.0), Vector3(0.3, 0.1, 0.25), "Play message (1 new)", Color(0.12, 0.12, 0.12))
 	Greybox.panel(geo, Vector3(2.62, 0.91, -1.0), Vector3(0.03, 0.02, 0.03), Color(1, 0.2, 0.1), 4.0)
-	machine.used.connect(func(_p):
-		machine.enabled = false
-		# Left before her last badge swipe: it must not hint that she's alive.
-		hud.notice("MESSAGE 1 OF 1 · SUN 10/12 · 1:52 AM", 5.0)
-		hud.lines(["l2_vale_1", "l2_vale_2", "l2_vale_3"]))
+	machine.name = "AnsweringMachine"
+	machine.used.connect(func(_p): sync.event("_play_message"))
 	# Camera housings with a red light when they're running.
 	_camera_box(Vector3(5.7, 3.0, 1.7))
 	_camera_box(Vector3(2.2, 3.0, -8.3))
@@ -264,6 +328,13 @@ func _build_vent() -> void:
 	Greybox.box(geo, Vector3(-4.8, 3.55, -10.0), Vector3(4.6, 0.1, 1.0), duct, "VentTop")
 	Greybox.box(geo, Vector3(-4.85, 2.75, -10.55), Vector3(4.7, 1.6, 0.1), duct, "VentWall")
 	Greybox.box(geo, Vector3(-4.3, 2.75, -9.45), Vector3(3.6, 1.6, 0.1), duct, "VentWall")
+	# Corridor end: a grate screwed shut. Vestibule end: a hinged hatch, opened from inside.
+	vent_grate = Interactable.create(geo, Vector3(-5.95, 2.5, 4.0), Vector3(0.06, 1.0, 1.0), "Unscrew the vent grate", Color(0.16, 0.17, 0.18))
+	_slats(vent_grate)
+	vent_grate.used.connect(_on_vent_grate)
+	vent_hatch = Interactable.create(geo, Vector3(-2.45, 2.5, -10.0), Vector3(0.06, 1.0, 1.0), "Push the vent hatch open", Color(0.16, 0.17, 0.18))
+	_slats(vent_hatch)
+	vent_hatch.used.connect(func(_p): sync.event("set_hatch", [not hatch_open]))
 	MovementVolume.create(geo, Vector3(-6.6, 2.75, -3.0), Vector3(1.0, 1.5, 15.1), MovementVolume.Kind.VENT)
 	MovementVolume.create(geo, Vector3(-4.3, 2.75, -10.0), Vector3(3.6, 1.5, 1.0), MovementVolume.Kind.VENT)
 	var l := add_light("vent", Vector3(-6.6, 2.95, -3.0), 4.0, 0.25)
@@ -281,27 +352,68 @@ func _build_ledge() -> void:
 	moon.light_color = Color(0.5, 0.6, 0.9)
 
 
-func _glass_pane(center: Vector3, size: Vector3) -> void:
-	var body := StaticBody3D.new()
-	body.name = "Glass"
-	body.position = center
-	var mesh := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = size
-	mesh.mesh = bm
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.6, 0.75, 0.8, 0.18)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 0.1
-	mesh.material_override = m
-	body.add_child(mesh)
-	var shape := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = size
-	shape.shape = bs
-	body.add_child(shape)
-	geo.add_child(body)
-	_glass.append(body.get_rid())
+func _glass_pane(center: Vector3, size: Vector3, can_break: bool, node_name: String) -> Level2Glass:
+	var g := Level2Glass.create(geo, center, size, can_break, node_name)
+	g.hud = hud
+	g.struck.connect(func(_by): sync.event("_glass_broken", [g.name]))
+	_glass.append(g.get_rid())
+	return g
+
+
+## Everyone's copy of a pane breaks at once.
+func _glass_broken(pane: String) -> void:
+	var g := geo.get_node_or_null(pane) as Level2Glass
+	if g:
+		g.shatter()
+
+
+func _take_screwdriver() -> void:
+	var sd := geo.get_node_or_null("Screwdriver")
+	if sd:
+		sd.queue_free()
+	has_screwdriver = true
+	hud.notice("Picked up a screwdriver. Vent grates are held on with screws.", 4.0)
+
+
+func _play_message() -> void:
+	var machine := geo.get_node_or_null("AnsweringMachine") as Interactable
+	if machine:
+		machine.enabled = false
+	# Left before her last badge swipe: it must not hint that she's alive.
+	hud.notice("MESSAGE 1 OF 1 · SUN 10/12 · 1:52 AM", 5.0)
+	hud.lines(["l2_vale_1", "l2_vale_2", "l2_vale_3"])
+
+
+## Louvers across a vent cover, so it reads as a grate. They go with it when it comes off.
+func _slats(cover: Node3D) -> void:
+	for i in 6:
+		Greybox.panel(cover, Vector3(0.04, -0.4 + i * 0.16, 0), Vector3(0.03, 0.06, 0.92), Color(0.62, 0.64, 0.66))
+	for z in [-0.42, 0.42]:
+		Greybox.panel(cover, Vector3(0.05, 0.42, z), Vector3(0.02, 0.03, 0.03), Color(0.85, 0.82, 0.7))  # screw heads
+		Greybox.panel(cover, Vector3(0.05, -0.42, z), Vector3(0.02, 0.03, 0.03), Color(0.85, 0.82, 0.7))
+
+
+## Host: someone tried the grate.
+func _on_vent_grate(_p: Node) -> void:
+	if not has_screwdriver:
+		sync.team_notice("The grate is screwed shut. Four screws. You'd need a screwdriver.", 4.0)
+		return
+	sync.event("open_vent_grate")
+
+
+func open_vent_grate() -> void:
+	if not is_instance_valid(vent_grate):
+		return
+	hud.notice("You undo four screws. The grate comes away.", 3.0)
+	vent_grate.queue_free()
+
+
+## The hinged hatch at the vestibule end swings up out of the way, or back down.
+func set_hatch(open: bool) -> void:
+	hatch_open = open
+	vent_hatch.prompt = "Close the vent hatch" if open else "Push the vent hatch open"
+	vent_hatch.position = Vector3(-1.95, 2.97, -10.0) if open else Vector3(-2.45, 2.5, -10.0)
+	vent_hatch.rotation.z = PI / 2 if open else 0.0
 
 
 func _camera_box(pos: Vector3) -> void:
@@ -309,11 +421,16 @@ func _camera_box(pos: Vector3) -> void:
 	Greybox.panel(geo, pos + Vector3(0, -0.1, 0), Vector3(0.05, 0.05, 0.05), Color(1, 0.1, 0.1), 4.0)
 
 
+func net_setup() -> void:
+	sync.replicate(watcher, watcher.sync_properties())
+
+
 func start() -> void:
 	if completed.get_connections().is_empty():
-		completed.connect(_end_standalone)
-	watcher.place(watcher_home, Vector3(-3, 0, 2))
-	watcher.active = true
+		completed.connect(_on_completed)
+	arrival_lift.open()
+	stage = "hidden"
+	_place_watcher(STAGES.hidden[0], STAGES.hidden[1])
 	hud.set_objective("Find a way out of the security wing")
 	if Game.rourke_fate == "tied":
 		await hud.lines(["l2_rourke_1", "l2_rourke_2", "l2_rourke_3"])
@@ -325,6 +442,8 @@ func start() -> void:
 
 
 func _process(delta: float) -> void:
+	if not active:
+		return  # built behind Server Room A's exit, waiting for players
 	_clock += delta
 	_cam_tick -= delta
 	if _cam_tick <= 0.0:
@@ -333,7 +452,12 @@ func _process(delta: float) -> void:
 	if player and player.health > 0.0 and player.global_position.y < -6.0:
 		player.take_damage(1000.0)
 	if not reached_vestibule and player and _in(cam_zones["CAM-3"], player.global_position):
-		reached_vestibule = true
+		reached_vestibule = true  # this machine's player respawns here from now on
+	if sync.is_host():
+		# The host runs the Watcher and decides the story beats, for everyone.
+		if loose and not _lie_explained and players.all_players().any(func(p): return _in(cam_zones["CAM-3"], p.global_position)):
+			sync.event("explain_cam_lie", [_cam2_frame()])
+		_update_watcher_stage()
 	_motion_warnings()
 
 
@@ -360,9 +484,11 @@ func _camera_holds(w: Watcher) -> bool:
 	return false
 
 
+## Is a world-space point inside any of these level-space boxes?
 func _in(boxes: Array, p: Vector3) -> bool:
+	var local := to_local(p) + Vector3.UP * 0.5
 	for b in boxes:
-		if b.has_point(p + Vector3.UP * 0.5):
+		if b.has_point(local):
 			return true
 	return false
 
@@ -418,55 +544,135 @@ func _camera_json(row: Dictionary) -> Dictionary:
 	}
 
 
-func _on_request(line: String, res: Dictionary, ui: TerminalUI) -> void:
+## Host: a request went through at `which` terminal ("booth" or "panel").
+## What it means plays out on every machine.
+func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) -> void:
 	if res.status != 200:
 		return
 	if line.to_lower().contains("/doors"):
-		_on_door_checked(ui)
+		if pin_entered and not door_checked and not door_open:
+			sync.event("_on_door_checked", [which])
 		return
 	if not line.to_lower().contains("/cameras"):
 		return
 	if not cameras_puzzle.solved:
-		cameras_puzzle.solved = true
-		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: CAM-2 reports motion in the Security Office. Look through the window.[/color]")
-		ui.print_line("[color=#e0b050]It can only move while nothing is watching it: not you, not a working camera.[/color]")
-		ui.print_line("")
-		ui.print_line("The stairwell keypad wants a guard's PIN. PINs are in the table [b]guards[/b].")
-		ui.print_line("It's a long roster. Count it, or peek at the first few rows:")
-		ui.print_line("    [color=#ffffff]SELECT COUNT(*) FROM guards;[/color]     how many rows")
-		ui.print_line("    [color=#ffffff]SELECT * FROM guards LIMIT 5;[/color]    only the first 5")
-		ui.print_line("Officer Pike's name is clear on the sign-in sheet. Find his row with a pattern:")
-		ui.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
-		ui.print_line("      LIKE 'Pike%'   names that start with Pike (% = any letters after)")
-		hud.set_objective("Look up Officer Pike in the guards table")
+		sync.event("_on_cameras_found", [which])
 	elif loose and not _lie_explained and not _in(cam_zones["CAM-2"], watcher.global_position):
-		_lie_explained = true
-		ui.print_line("")
-		ui.print_line("[color=#ff6655]CAM-2 says 'live' with motion in the office. It isn't in the office.[/color]")
-		ui.print_line("[color=#e0b050]Compare CAM-2's last_frame with server_time: its picture stopped at %s. A hardware fault froze it." % db.run_silent("SELECT last_frame FROM cameras WHERE id = 'CAM-2'")[0]["last_frame"])
-		ui.print_line("The status said 'live'. The data says otherwise. Trust the data, and check it.[/color]")
+		sync.event("_on_lie_spotted", [which, _cam2_frame()])
 
 
-func _on_query(sql: String, result: Dictionary, ui: TerminalUI) -> void:
+func _term(which: String) -> Terminal:
+	return panel if which == "panel" else booth
+
+
+func _on_cameras_found(which: String) -> void:
+	var t := _term(which)
+	if not cameras_puzzle.solved:
+		cameras_puzzle.solved = true
+		t.print_line("")
+		t.print_line("That answer is JSON: { } holds one camera's fields, [ ] holds a list of cameras.")
+		t.print_line("Each field is a name and a value, like \"motion\": true.")
+		t.print_line("")
+		t.print_line("[color=#e0b050]WARDEN: CAM-2 reports motion in the Security Office.[/color]")
+		t.print_line("[color=#e0b050]Through the window, the office looks empty. CAM-2 is the only thing watching it.[/color]")
+		t.print_line("")
+		t.print_line("The stairwell keypad wants a guard's PIN. PINs are in the table [b]guards[/b].")
+		t.print_line("It's a long roster. Count it, or peek at the first few rows:")
+		t.print_line("    [color=#ffffff]SELECT COUNT(*) FROM guards;[/color]     how many rows")
+		t.print_line("    [color=#ffffff]SELECT * FROM guards LIMIT 5;[/color]    only the first 5")
+		t.print_line("Officer Pike's name is clear on the sign-in sheet. Find his row with a pattern:")
+		t.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
+		t.print_line("      LIKE 'Pike%'   names that start with Pike (% = any letters after)")
+		hud.set_objective("Look up Officer Pike in the guards table")
+
+
+## Someone worked out the frozen camera for themselves.
+func _on_lie_spotted(which: String, frame: String) -> void:
+	if _lie_explained:
+		return
+	var t := _term(which)
+	_lie_explained = true
+	Game.cam_lie_learned = true
+	t.print_line("")
+	t.print_line("[color=#ff6655]CAM-2 says 'live' with motion in the office. It isn't in the office.[/color]")
+	t.print_line("[color=#e0b050]Compare CAM-2's last_frame with server_time: its picture stopped at %s. A hardware fault froze it." % frame)
+	t.print_line("The status said 'live'. The data says otherwise. Trust the data, and check it.[/color]")
+
+
+func _cam2_frame() -> String:
+	return str(db.run_silent("SELECT last_frame FROM cameras WHERE id = 'CAM-2'")[0]["last_frame"])
+
+
+## Everyone gets the frozen-camera lesson: the first time it gets someone, or when
+## they reach the vestibule without having worked it out. Shown on screen, and
+## printed as terminal lines (on both terminals) so it can be written into the notebook.
+## Runs on every machine; `frame` is the frozen time, as the host's cameras table has it.
+func explain_cam_lie(frame: String) -> void:
+	if _lie_explained or not loose:
+		return
+	_lie_explained = true
+	_lie_fresh = true
+	Game.cam_lie_learned = true
+	var lines := [
+		"",
+		"[color=#ff6655]WARDEN: CAM-2 FROZE AT %s. IT HAS NOT SEEN THE OFFICE SINCE.[/color]" % frame,
+		"A camera can say 'live' and still be stuck. To check one, type:",
+		"    [color=#ffffff]GET /cameras[/color]",
+		"and compare its last_frame with server_time. If last_frame stopped, the camera can't see anything.",
+	]
+	# On both terminals, so it can go in the notebook: on screen if one has been
+	# used, otherwise in what it shows when someone sits down.
+	for t in [booth, panel]:
+		if t.transcript.is_empty():
+			t.boot_lines.append_array(lines)
+		else:
+			for l in lines:
+				t.print_line(l)
+	_lie_notice = "CAM-2's picture froze at %s. It can't see anything.\nAt a terminal: GET /cameras, then compare last_frame with server_time." % frame
+	hud.notice(_lie_notice, 8.0, ThemeUtil.AMBER)
+	await get_tree().create_timer(6.0).timeout
+	_lie_fresh = false
+
+
+## Host: a query ran at `which` terminal. Puzzle results play out on every machine.
+func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
 	if not pike_puzzle.solved and pike_puzzle.matches(db, result):
+		sync.event("_on_pike_found", [which])
+	if not har_puzzle.solved and har_puzzle.matches(db, result):
+		sync.event("_on_har_found", [which])
+	if sql.to_lower().contains("door_status") and not result.rows.is_empty() and pin_entered and not door_checked and not door_open:
+		sync.event("_on_door_checked", [which])
+
+
+func _on_pike_found(which: String) -> void:
+	var t := _term(which)
+	if not pike_puzzle.solved:
 		pike_puzzle.solved = true
-		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
-		ui.print_line("The other name on the sign-in sheet is under a coffee stain. Only [b]Har[/b] is readable.")
-		ui.print_line("It's the NIGHT SHIFT sheet. The guard you want starts with Har and works nights.")
+		t.print_line("")
+		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
+		t.print_line("The other name on the sign-in sheet is under a coffee stain. Only [b]Har[/b] is readable.")
+		t.print_line("It's the NIGHT SHIFT sheet. The guard you want starts with Har and works nights.")
 		hud.set_objective("Find the PIN of the night-shift guard whose name starts with Har")
+		t.print_line("[color=#ff6655]Something in the office is moving. It moves only while nothing is watching it. Not you, not a working camera.[/color]")
 		hud.line("l2_smudged")
 		_set_loose()
-	if not har_puzzle.solved and har_puzzle.matches(db, result):
+		_set_stage("near")
+		# From here it hunts, so the Har search is typed under pressure. The locked
+		# office door and its glass still stand between it and the booth.
+		wake_watcher()
+
+
+func _on_har_found(which: String) -> void:
+	var t := _term(which)
+	if not har_puzzle.solved:
 		har_puzzle.solved = true
-		ui.print_line("")
-		ui.print_line("[color=#e0b050]WARDEN: %s, night shift. Signed in 22:00. PIN on file.[/color]" % data.name)
-		hud.set_objective("Enter %s's PIN at the stairwell keypad, past the Security Office" % data.name)
-		hud.notice("Three ways there: through the office, the vent over the crate, or out the smashed window.", 6.0)
+		t.print_line("")
+		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Signed in 22:00. PIN on file.[/color]" % data.name)
+		t.print_line("Their PIN opens the Security Office door, and the stairwell keypad on the far side.")
+		t.print_line("[color=#ff6655]It's on the other side of that door. Open it, and keep your eyes on it.[/color]")
+		hud.set_objective("Open the Security Office door with %s's PIN" % data.name)
 		_set_loose()
-	if sql.to_lower().contains("door_status") and not result.rows.is_empty():
-		_on_door_checked(ui)
+		_set_stage("window")
 
 
 ## CAM-2 freezes on its last frame. The Watcher is free, and the camera still says "live".
@@ -478,6 +684,32 @@ func _set_loose() -> void:
 	for l in lights.get("office", []):
 		FlickerLight.attach(l, 0.4)
 	hud.notice("> CAM-2: LIVE. ALL CAMERAS NOMINAL.", 3.5)
+
+
+## Move the Watcher to its next spot as soon as nobody is looking at it.
+## Once it's awake it hunts on its own. The host moves it; clients mirror it.
+func _set_stage(next: String) -> void:
+	if watcher.active or not sync.is_host():
+		return
+	_stage_pending = next
+	_update_watcher_stage()
+
+
+func _update_watcher_stage() -> void:
+	if not watcher.active and not _stage_pending.is_empty() and not watcher.is_watched():
+		stage = _stage_pending
+		_stage_pending = ""
+		watcher.step_to(to_global(STAGES[stage][0]), to_global(STAGES[stage][1]))
+	# It wakes once the office door opens, or once anyone leaves the corridor another way.
+	if not watcher.active and (office_open or (loose and players.all_players().any(func(p): return not _corridor_box.has_point(to_local(p.global_position))))):
+		wake_watcher()
+
+
+func wake_watcher() -> void:
+	if watcher.active:
+		return
+	_stage_pending = ""
+	watcher.active = true
 
 
 func _on_watcher_moving() -> void:
@@ -495,8 +727,16 @@ func _motion_warnings() -> void:
 			terminal_ui.print_line("[color=#ff6655]MOTION SENSOR: MOVEMENT %d m FROM YOU[/color]" % limit)
 
 
+func _on_office_keypad(p: Node) -> void:
+	if office_open:
+		hud.notice("The office door is open.", 2.0)
+		return
+	_pad_mode = "office"
+	keypad_ui.open(p, "SECURITY OFFICE  -  ENTER GUARD PIN", "Lockdown: only guards on tonight's night-shift sheet.")
+
+
 func _on_exit_keypad(p: Node) -> void:
-	_seal_mode = false
+	_pad_mode = "exit"
 	if pin_entered:
 		hud.notice("KEYPAD: SEC-EXIT IS UNLOCKED." if not door_open else "SEC-EXIT is open.", 2.5)
 		return
@@ -507,20 +747,58 @@ func _on_seal_keypad(p: Node) -> void:
 	if not door_open:
 		hud.notice("SEC-EXIT is already shut.", 2.0)
 		return
-	_seal_mode = true
+	_pad_mode = "seal"
 	keypad_ui.open(p, "LOCK SEC-EXIT BEHIND YOU", "Same PIN. Whatever is on the other side stays there.")
 
 
+## This machine's keypad screen. The PIN is checked here for the message, and
+## again on the host, which opens the door for everyone.
 func _on_pin(pin: String) -> void:
 	var result := check_pin(pin)
 	if not result.ok:
 		keypad_ui.show_status(result.message, ThemeUtil.RED)
 		return
 	keypad_ui.close()
-	if _seal_mode:
-		seal_exit()
+	if sync.is_host():
+		_host_pin(_pad_mode, pin)
+	else:
+		_request_pin.rpc_id(1, _pad_mode, pin)
+
+
+@rpc("any_peer", "reliable")
+func _request_pin(mode: String, pin: String) -> void:
+	if sync.is_host():
+		_host_pin(mode, pin)
+
+
+func _host_pin(mode: String, pin: String) -> void:
+	if check_pin(pin).ok:
+		sync.event("_pin_ok", [mode])
+
+
+func _pin_ok(mode: String) -> void:
+	match mode:
+		"office":
+			open_office()
+		"seal":
+			if door_open:
+				seal_exit()
+		_:
+			if not pin_entered:
+				enter_pin()
+
+
+## The office door opens, and whatever is at the window is free to move.
+func open_office() -> void:
+	if office_open:
 		return
-	enter_pin()
+	office_open = true
+	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'SEC-OFFICE'")
+	db.run_silent("UPDATE door_status SET sensor = 'open', note = 'normal' WHERE door_id = 'SEC-OFFICE'")
+	db.sync_world()
+	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-OFFICE: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
+	hud.set_objective("Get past it to the stairwell keypad. Keep your eyes on it")
+	wake_watcher()
 
 
 ## Is this the right PIN? Wrong ones say why, in the building's own words.
@@ -553,20 +831,25 @@ func enter_pin() -> void:
 		hud.set_objective("Find out why SEC-EXIT is still shut (vestibule panel)")
 
 
-func _on_door_checked(ui: TerminalUI) -> void:
-	door_puzzle.solved = true
+func _on_door_checked(which: String) -> void:
+	var t := _term(which)
 	if not pin_entered or door_checked or door_open:
 		return
 	door_checked = true
-	ui.print_line("")
-	ui.print_line("[color=#ff6655]The keypad said OPENED. locked is false, so the request went through.[/color]")
-	ui.print_line("[color=#e0b050]But sensor says 'closed' and actuator says 'fault': the door never moved. Read the note.[/color]")
-	ui.print_line("A request being accepted isn't the same as the thing happening. Check the sensor, not the request.")
+	t.print_line("")
+	t.print_line("[color=#ff6655]The keypad said OPENED. locked is false, so the request went through.[/color]")
+	t.print_line("[color=#e0b050]But sensor says 'closed' and actuator says 'fault': the door never moved. Read the note.[/color]")
+	t.print_line("A request being accepted isn't the same as the thing happening. Check the sensor, not the request.")
 	hud.set_objective("Reset breaker B-%d (the box under the vent), then check the door again" % data.breaker)
 	hud.line("l2_door_fault")
 
 
+## Host: someone pressed breaker `i`. Everyone sees what it does.
 func _on_breaker(_p: Node, i: int) -> void:
+	sync.event("_breaker_flipped", [i])
+
+
+func _breaker_flipped(i: int) -> void:
 	if i == data.breaker:
 		db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'SEC-EXIT'")
 		db.run_silent("UPDATE door_status SET actuator = 'ok', note = 'normal' WHERE door_id = 'SEC-EXIT'")
@@ -591,12 +874,12 @@ func _update_door() -> bool:
 	var row: Dictionary = db.run_silent("SELECT locked, actuator_fault FROM doors WHERE id = 'SEC-EXIT'")[0]
 	var open := int(row["locked"]) == 0 and int(row["actuator_fault"]) == 0
 	db.run_silent("UPDATE door_status SET sensor = '%s' WHERE door_id = 'SEC-EXIT'" % ("open" if open else "closed"))
+	if open:
+		door_puzzle.solved = true
 	if open and not door_open:
 		door_open = true
-		hud.set_objective("Take the stairs down. (Lock the door behind you, if you can)")
-		if _exit_trigger == null:
-			_exit_trigger = Trigger.create(self, Vector3(0, 1, -16), Vector3(3.6, 2, 1.5))
-			_exit_trigger.entered.connect(_on_exit)
+		hud.set_objective("Get in the elevator and press B1. (Lock the door behind you, if you can)")
+		exit_lift.open()
 	return open
 
 
@@ -610,32 +893,53 @@ func seal_exit() -> void:
 
 
 func _on_exit(_b: Node) -> void:
+	if not player or player.health <= 0.0:
+		return
 	player.input_locked = true
 	if Game.watcher_sealed:
 		await hud.say("", "Behind the locked door, something taps on the metal. Once.", 4.0)
 	else:
 		await hud.say("", "The door behind you is still open. You don't look back. You know better.", 4.5)
 	Game.completed_level = "level_2"
-	Game.next_level = ""
+	Game.next_level = ""  # the end of the playable slice, for now
 	completed.emit()
 
 
-## Played as its own scene (until wings stream into one world), the level ends on Field Notes.
-func _end_standalone() -> void:
+## The end of the route: Field Notes, over the live World or as its own scene.
+func _on_completed() -> void:
 	await hud.fade(true, 1.2)
-	Game.goto("field_notes")
+	finish_level("field_notes")
 
 
+## Host: it reached someone. The first time, everyone learns why the camera didn't stop it.
 func _on_caught(p: Node) -> void:
+	if loose and not _lie_explained:
+		sync.event("explain_cam_lie", [_cam2_frame()])
 	if p.has_method("take_damage") and p.health > 0.0:
 		p.take_damage(1000.0)
 
 
 func on_player_died() -> void:
 	keypad_ui.close()
+	var solo := not sync.is_online()
 	if reached_vestibule:
-		player.respawn(Transform3D(Basis(), Vector3(0, 0.1, -10.8)))
-		watcher.place(Vector3(-4.5, 0, 4.5), Vector3(0, 0, -10))
+		player.respawn(global_transform * Transform3D(Basis(), Vector3(0, 0.1, -10.8)))
+		if solo:
+			_place_watcher(Vector3(-4.5, 0, 4.5), Vector3(0, 0, -10))
 	else:
-		player.respawn(spawn)
-		watcher.place(watcher_home, Vector3(-3, 0, 2))
+		player.respawn(spawn_point())
+		if solo:
+			_place_watcher(STAGES[stage][0], STAGES[stage][1])
+	# In co-op it keeps hunting the others where it is.
+	if loose and not _lie_explained and sync.is_host():
+		sync.event("explain_cam_lie", [_cam2_frame()])
+	if _lie_fresh:
+		_lie_fresh = false
+		# Again after "You came to", which replaces it: say why the camera didn't stop it.
+		await get_tree().create_timer(2.5).timeout
+		hud.notice(_lie_notice, 8.0, ThemeUtil.AMBER)
+
+
+## Stand the Watcher at a spot in the level's own space, facing another.
+func _place_watcher(at: Vector3, look: Vector3) -> void:
+	watcher.place(to_global(at), to_global(look))
