@@ -72,7 +72,7 @@ static func recording_list_markdown() -> String:
 				if l["speaker"] != sp:
 					continue
 				var when: String = "Level %d%s" % [s["level"], "" if s["wired"] else ", later"]
-				rows.append("| [ ] | `%s` | %s | %s | %s |" % [id, _cell(l["text"]), _cell(l["note"]), when])
+				rows.append("| [%s] | `%s` | %s | %s | %s |" % [_tick(id), id, _cell(l["text"]), _cell(l["note"]), when])
 		total += rows.size()
 		md.append("## %s (%d lines)" % [c["name"], rows.size()])
 		md.append("")
@@ -120,7 +120,7 @@ static func character_markdown(speaker: String, later: bool = false) -> String:
 		for id in ids:
 			var l: Dictionary = VoiceLines.LINES[id]
 			count += 1
-			body.append("- [ ] `%s.wav`  " % id)
+			body.append("- [%s] `%s.wav`  " % [_tick(id), id])
 			body.append("  \"%s\"  " % l["text"])
 			body.append("  *%s*" % l["note"])
 		body.append("")
@@ -159,6 +159,11 @@ static func _recording_spec() -> PackedStringArray:
 		"- **Effects:** none. Record dry; the game adds speakers, radio static and so on.",
 		"- **Level:** the loudest part should sit around -3 dB, never clipping.",
 	])
+
+
+## "x" once a line has a recording, so the checklists tick themselves.
+static func _tick(id: String) -> String:
+	return "x" if Voice.path_for(id) != "" else " "
 
 
 static func _cell(text: String) -> String:
