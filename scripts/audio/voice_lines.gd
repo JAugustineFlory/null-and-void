@@ -25,10 +25,10 @@ const CHARACTERS := {
 	},
 	"PA": {
 		"slug": "pa",
-		"card": "The building's pre-recorded announcements, played over the ceiling speakers on a loop.",
-		"name": "Building PA",
-		"who": "Halcyon's canned PA announcements. Cheerful and seemingly unaware, but WARDEN picks what plays and when; players realize later it was watching all along. WARDEN itself says nothing in Level 0.",
-		"voice": "A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Record dry: the game adds the PA speaker sound.",
+		"card": "WARDEN's pre-recorded PA tapes: the building computer's canned announcements, played over the ceiling speakers on a loop. Same character as WARDEN, in its bright recorded register; WARDEN's live voice is the flat one.",
+		"name": "WARDEN (PA tapes)",
+		"who": "WARDEN's own pre-recorded PA module. Subtitled as PA so players don't connect it to WARDEN yet; they realize later it was watching all along. The live WARDEN voice says nothing in Level 0.",
+		"voice": "A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.",
 	},
 	"VALE": {
 		"slug": "vale",

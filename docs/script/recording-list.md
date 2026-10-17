@@ -84,9 +84,9 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 | [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
 | [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
 
-## Building PA (3 lines)
+## WARDEN (PA tapes) (3 lines)
 
-> A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Record dry: the game adds the PA speaker sound.
+> A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|

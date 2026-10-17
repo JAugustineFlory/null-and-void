@@ -1,8 +1,8 @@
-# Building PA: your lines
+# WARDEN (PA tapes): your lines
 
-The building's pre-recorded announcements, played over the ceiling speakers on a loop.
+WARDEN's pre-recorded PA tapes: the building computer's canned announcements, played over the ceiling speakers on a loop. Same character as WARDEN, in its bright recorded register; WARDEN's live voice is the flat one.
 
-**How they sound:** A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Record dry: the game adds the PA speaker sound.
+**How they sound:** A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.
 
 ## Recording
 

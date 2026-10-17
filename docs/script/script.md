@@ -13,9 +13,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
-**Building PA** (PA). Halcyon's canned PA announcements. Cheerful and seemingly unaware, but WARDEN picks what plays and when; players realize later it was watching all along. WARDEN itself says nothing in Level 0.
+**WARDEN (PA tapes)** (PA). WARDEN's own pre-recorded PA module. Subtitled as PA so players don't connect it to WARDEN yet; they realize later it was watching all along. The live WARDEN voice says nothing in Level 0.
 
-> A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Record dry: the game adds the PA speaker sound.
+> A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.
 
 **Dr. Iris Vale** (VALE). Lead engineer, 40s. Officially missing, presumed dead.
 
