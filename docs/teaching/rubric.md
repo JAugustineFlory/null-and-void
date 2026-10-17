@@ -25,6 +25,8 @@ to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
 - **WARDEN never helps.** It can state facts, threaten and lie, but never says what to
   type or do. **HUD notices are only for controls** ("Hold Ctrl to crouch", "Added to
   your notebook (Tab)"), never for what to type or where to go.
+- **Objectives are notebook to-dos** in the character's handwriting, never HUD text,
+  and never name a puzzle's answer (no rack id, PIN, breaker or guard name).
 - **Notebook-first:** each level is solvable from what a careful player wrote down
   from terminals, stickies and documents.
 
@@ -77,7 +79,8 @@ Known gaps print as `GAP` (not failures) until the owner fixes them; then they p
 
 `tests/teaching_voice_tests.gd` scans the level, world and terminal scripts and flags
 every tip spoken by WARDEN (or in WARDEN's amber), every `.hint` not from [SYSOP], and
-every HUD notice that says what to type. These print as `GAP` until fixed.
+every HUD notice that says what to type, and every to-do or objective built from a
+puzzle's answer. These print as `GAP` until fixed.
 
 Still to come: a "notes only" player that may use only lines it wrote into the notebook
 (`noteable_lines()` / `write_note()`), and in-world Document lines in the taught set

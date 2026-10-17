@@ -2,7 +2,8 @@ extends RefCounted
 ## Who teaches: every tip and hint comes from inside the world (plan, "Who teaches:
 ## SYSOP, Mercer's notes and the world"). [SYSOP] gives terminal tips and every .hint;
 ## Mercer's notes, stickies and documents teach syntax. WARDEN never says what to type
-## or do, and HUD notices are only for controls.
+## or do, and HUD notices are only for controls. Objectives are handwritten notebook
+## to-dos (Augustine, 2026-10-17) and never name a puzzle's answer.
 ##
 ## Scans the scripts that put text in front of players and lists every line that
 ## breaks this. Known breaks print as GAP until the owning thread fixes them, then
@@ -11,6 +12,8 @@ extends RefCounted
 const SCANNED := ["res://scripts/levels", "res://scripts/world", "res://scripts/ui/terminal_ui.gd"]
 ## WARDEN's terminal colour: an amber line with no speaker reads as WARDEN.
 const WARDEN_AMBER := "#e0b050"
+## Per-run answers in the level scripts: a to-do or objective built from one gives it away.
+const ANSWER_VARS := "\\b(answer|data\\.(pin|breaker|name|answer))\\b"
 
 var _check: Callable
 var gaps := 0
@@ -32,6 +35,8 @@ func run(_tree: SceneTree, check: Callable) -> void:
 	var warden_tips := []
 	var nobody_tips := []
 	var notice_tips := []
+	var spoilers := []
+	var answer_var := RegEx.create_from_string(ANSWER_VARS)
 	for l in lines:
 		var t: String = l.text
 		var speaks := t.contains("print_line(") or t.contains("out.append(")
@@ -42,9 +47,12 @@ func run(_tree: SceneTree, check: Callable) -> void:
 			nobody_tips.append(l.where)
 		if (t.contains("hud.notice(") or t.contains("team_notice(")) and is_tip(t) and not is_control(t):
 			notice_tips.append(l.where)
+		if (t.contains("set_objective(") or t.contains("todo(")) and t.contains("%") and answer_var.search(t.substr(t.rfind("%"))):
+			spoilers.append(l.where)
 	gap(warden_tips.is_empty(), "WARDEN never tells the player what to type or do (%d lines: %s)" % [warden_tips.size(), ", ".join(warden_tips)])
 	gap(nobody_tips.is_empty(), "terminal tips have a speaker: [SYSOP], not an unsigned line (%d lines: %s)" % [nobody_tips.size(), ", ".join(nobody_tips)])
 	gap(notice_tips.is_empty(), "HUD notices never tell the player what to type (%d: %s)" % [notice_tips.size(), ", ".join(notice_tips)])
+	gap(spoilers.is_empty(), "to-dos and objectives never name a puzzle's answer (%d: %s)" % [spoilers.size(), ", ".join(spoilers)])
 	if gaps > 0:
 		print("  (%d voice gap%s, see docs/teaching/rubric.md, \"Who teaches\")" % [gaps, "" if gaps == 1 else "s"])
 
