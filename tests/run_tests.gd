@@ -1422,8 +1422,13 @@ func test_world() -> void:
 	world.wing_finished(lobby)
 	check(world.current == sra and sra.active, "finishing the lobby hands play to Server Room A")
 	check(sra.rourke.global_position.distance_to(guide_at) < 0.1 and lobby.rourke.is_queued_for_deletion(), "Server Room A's Rourke takes over where the lobby's stood")
-	world.seal_behind(sra)
-	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
+	sra.crew_through()
+	await process_frame
+	check(lobby.exit_door.is_open, "the hall door stays open while Rourke is still on his way in")
+	sra.rourke_in = true
+	sra._try_seal()
+	await process_frame
+	check(not lobby.exit_door.is_open, "it seals once the crew and Rourke are both inside")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
 	check(not world.wings.has("level_2"), "the security wing isn't loaded before it's needed")

@@ -16,6 +16,10 @@ var has_badge := false
 var _red := Color(1.0, 0.18, 0.12)
 var _last_bark := -100.0
 var _trapped := false
+## Who is inside Server Room A yet, for sealing the hall behind them.
+var crew_in := false
+var rourke_in := false
+var _sealed := false
 var controller_puzzle := Puzzle.new("controller",
 	"SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false, [
 	"Type this, then press Enter:\n" +
@@ -133,22 +137,59 @@ func start() -> void:
 			guide.queue_free()
 		else:
 			rourke.position = Vector3(0, 0, 10.5)
-		# Seal the hall only once the whole team is through.
+		# Seal the hall only once the whole team is through, and Rourke with them.
 		var through := Trigger.create(self, Vector3(0, 1, 5.0), Vector3(14, 2, 18))
 		through.require_all = true
-		through.entered.connect(func(_b): sync.event("_on_all_through"))
+		through.entered.connect(func(_b): crew_through())
 	hud.todo("Follow Rourke inside")
 	if sync.is_host():
 		terminal.opened.connect(_on_terminal_opened, CONNECT_ONE_SHOT)
-	rourke.walk_to(to_global(Vector3(-2.4, 0, 6.4)))  # beside the terminal desk
+	var led_in := _lead_in()
 	await hud.line("l1_enter")
 	await sync.gate("rourke_at_desk", func():
-		if rourke.state == Rourke.State.WALK:
-			await rourke.arrived)
+		if not led_in.finished:
+			await led_in.done)
+	rourke_in = true
+	_try_seal()
 	rourke.face(player.global_position)
 	await hud.line("l1_terminal")
 	if not _trapped:
 		hud.todo("Start work at the Server Room A terminal")
+
+
+## Host: the crew is all inside Server Room A.
+func crew_through() -> void:
+	crew_in = true
+	_try_seal()
+
+
+## Host: the hall door shuts only once the crew and Rourke are both inside, so
+## nobody (Rourke included) is shut out in the hall.
+func _try_seal() -> void:
+	if sync.is_host() and crew_in and rourke_in and not _sealed:
+		_sealed = true
+		sync.event("_on_all_through")
+
+
+## Rourke leads the crew in: through the antechamber and the door, then to
+## the terminal desk. Waypoints, so he never walks into a wall from the hall.
+class LeadIn:
+	signal done
+	var finished := false
+
+
+func _lead_in() -> LeadIn:
+	var lead := LeadIn.new()
+	var walk := func():
+		for p in [Vector3(0, 0, 12.6), Vector3(0, 0, 7.8), Vector3(-2.4, 0, 6.4)]:
+			if p.z > to_local(rourke.global_position).z:
+				continue  # already past this one
+			rourke.walk_to(to_global(p))
+			await rourke.arrived
+		lead.finished = true
+		lead.done.emit()
+	walk.call()
+	return lead
 
 
 func _on_all_through() -> void:
