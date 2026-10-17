@@ -14,7 +14,10 @@ var terminal_ui: TerminalUI
 var pages: NotebookPages
 ## The notebook in your hands, when it's held rather than full-screen.
 var held: HeldNotebook
+## Where you type a note of your own (from "+ write a note"); shown while writing.
+var writer: LineEdit
 var _open := false
+var _was_locked := false
 
 
 func _ready() -> void:
@@ -40,6 +43,7 @@ func rebuild() -> void:
 
 func _build() -> void:
 	pages = NotebookPages.new()
+	pages.write_requested.connect(start_writing)
 	if get_node("/root/Game").diegetic_ui and player and player.camera:
 		held = HeldNotebook.attach(player.camera, CharacterLooks.crew(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer)))
 		held.set_content(pages)
@@ -87,6 +91,7 @@ func open(page: int = -1) -> bool:
 func close() -> void:
 	if not _open:
 		return
+	stop_writing()
 	if held:
 		player.lower_notebook()
 	else:
@@ -104,7 +109,76 @@ func _set_closed() -> void:
 	closed.emit()
 
 
+## A line at the foot of the screen to write your own note: you stand still
+## while you write, Enter writes it in, Esc puts the pen down.
+func start_writing() -> void:
+	if not _open or is_writing():
+		return
+	if not writer:
+		writer = LineEdit.new()
+		writer.name = "Writer"
+		writer.placeholder_text = "Write a note: a PIN, a name, anything. Enter to write it in, Esc to stop."
+		writer.max_length = 120
+		writer.add_theme_font_override("font", NotebookArt.hand_font())
+		writer.add_theme_font_size_override("font_size", 28)
+		writer.add_theme_color_override("font_color", NotebookArt.INK)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.97, 0.95, 0.88)
+		sb.border_color = NotebookArt.INK
+		sb.border_width_bottom = 2
+		sb.set_content_margin_all(10)
+		writer.add_theme_stylebox_override("normal", sb)
+		writer.add_theme_stylebox_override("focus", sb)
+		writer.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+		writer.custom_minimum_size = Vector2(760, 0)
+		writer.offset_left = -380
+		writer.offset_right = 380
+		writer.offset_top = -120
+		writer.offset_bottom = -64
+		writer.text_submitted.connect(func(t): finish_writing(t))
+		writer.gui_input.connect(_on_writer_key)
+		add_child(writer)
+	writer.text = ""
+	writer.visible = true
+	_was_locked = player.input_locked if player else false
+	if player:
+		player.input_locked = true  # typing doesn't walk you around
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	writer.grab_focus()
+
+
+func is_writing() -> bool:
+	return writer != null and writer.visible
+
+
+## Write `text` into the notebook as your own note (nothing if it's blank).
+func finish_writing(text: String) -> void:
+	text = text.strip_edges()
+	if text != "":
+		get_node("/root/Game").write_note("", text, "mine")
+	stop_writing()
+
+
+func stop_writing() -> void:
+	if not is_writing():
+		return
+	writer.visible = false
+	writer.release_focus()
+	if player:
+		player.input_locked = _was_locked
+		if held:
+			player.set_notebook_cursor(Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
+
+
+func _on_writer_key(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause"):
+		stop_writing()
+		writer.accept_event()
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if is_writing():
+		return
 	if event.is_action_pressed("notebook"):
 		if _open:
 			close()

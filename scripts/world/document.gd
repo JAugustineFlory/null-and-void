@@ -70,9 +70,13 @@ func paper_kind() -> String:
 	return LOOKS.get(look, LOOKS.paper).paper
 
 
-## The prop from ArtProps, with a collider sized to its footprint.
+## The prop from ArtProps, with a collider sized to its footprint. Sheets and
+## cards on a wall are drawn full size instead, with their words readable.
 func _build_look(size: Vector2, flat: bool) -> void:
 	var prop: String = LOOKS.get(look, LOOKS.paper).prop
+	if not flat and prop in ["memo", "desk_card"]:
+		_build_wall_sheet(size)
+		return
 	# Props face -Z like a poster; turn them to face out, as StickyNote does.
 	var art: Node3D
 	match prop:
@@ -95,6 +99,102 @@ func _build_look(size: Vector2, flat: bool) -> void:
 	# On a desk the prop sits on its spot; on a wall it's centred there.
 	shape.position.y = bs.size.y / 2 if flat or prop == "desk_card" else 0.0
 	add_child(shape)
+
+
+## A sheet or laminated card of `size` on the wall, facing -Z: what it says is
+## printed on it big enough to read from where you stand. Laminated cards are
+## glossy, with the title on a navy band.
+func _build_wall_sheet(size: Vector2) -> void:
+	var laminated := look == "laminated"
+	var face := Node3D.new()
+	face.name = "WallSheet"
+	face.rotation_degrees.y = 180  # built facing +Z, turned to face -Z like a poster
+	add_child(face)
+	var paper := Color(0.95, 0.95, 0.92) if laminated else ArtProps.PAPER_WHITE
+	var sheet := Greybox.panel(face, Vector3(0, 0, 0.003), Vector3(size.x, size.y, 0.004), paper)
+	sheet.name = "Paper"
+	if laminated:
+		sheet.material_override = Greybox.mat(paper, 0.0, 0.15)  # glossy
+	var margin := minf(size.x, size.y) * 0.07
+	var top := size.y / 2 - margin
+	var px := 0.0009  # metres per pixel of type
+	var lines := doc_lines.duplicate()
+	if laminated:
+		# The card's own heading (its first printed line) goes on the navy band.
+		var heading := title.to_upper()
+		if not lines.is_empty() and not lines[0].hand:
+			heading = lines.pop_front().text
+		var band_h := size.y * 0.13
+		var band := Greybox.panel(face, Vector3(0, size.y / 2 - band_h / 2 - margin * 0.4, 0.0055), Vector3(size.x - margin * 0.8, band_h, 0.001), ArtPalette.HALCYON_NAVY)
+		band.name = "Band"
+		var t := _wall_text(face, heading, Vector3(0, band.position.y, 0.0065), size.x - margin * 2, NotebookArt.type_font(), Color(0.95, 0.95, 0.92), px)
+		t.name = "Title"
+		t.autowrap_mode = TextServer.AUTOWRAP_OFF
+		while t.font_size > 14 and (t.font.get_string_size(heading, HORIZONTAL_ALIGNMENT_LEFT, -1, t.font_size).x > t.width or t.font.get_height(t.font_size) * px > band_h * 0.8):
+			t.font_size -= 2
+		top = band.position.y - band_h / 2 - margin * 0.5
+	# One label per line, typed or in pen, at the biggest size that fits the sheet.
+	var width := size.x - margin * 2
+	var room := top - (-size.y / 2 + margin)
+	var font_size := 44
+	while font_size > 14 and _lines_height(lines, font_size, width / px) * px > room:
+		font_size -= 2
+	var y := top
+	var n := 0
+	for l in lines:
+		var font := _line_font(l)
+		# Label3D anchors the text at its position: top left here.
+		var label := _wall_text(face, l.text, Vector3(-width / 2, y, 0.0065), width, font, NotebookArt.INK if l.hand else ArtProps.PRINT_INK, px)
+		label.name = "Line%d" % n
+		label.font_size = font_size
+		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		y -= _line_height(l, font_size, width / px) * px
+		n += 1
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(size.x, size.y, 0.05)
+	shape.shape = bs
+	add_child(shape)
+
+
+## A Label3D for a wall sheet, facing +Z, wrapping at `width_m`.
+func _wall_text(parent: Node3D, text: String, pos: Vector3, width_m: float, font: Font, color: Color, px: float) -> Label3D:
+	var l := Label3D.new()
+	l.text = text
+	l.font = font
+	l.font_size = 44
+	l.pixel_size = px
+	l.width = width_m / px
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.modulate = color
+	l.outline_size = 0
+	l.position = pos
+	l.double_sided = false
+	l.shaded = true  # lit by the room, like the paper it's on
+	parent.add_child(l)
+	return l
+
+
+static func _line_font(l: Dictionary) -> Font:
+	return NotebookArt.hand_font() if l.hand else NotebookArt.type_font()
+
+
+## How tall one line is in pixels of type, word-wrapped at `width_px`.
+static func _line_height(l: Dictionary, font_size: int, width_px: float) -> float:
+	var font := _line_font(l)
+	var para := TextParagraph.new()
+	para.width = width_px
+	para.break_flags = TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	para.add_string(l.text if l.text != "" else " ", font, font_size)
+	return maxf(para.get_size().y, font.get_height(font_size))
+
+
+static func _lines_height(lines: Array, font_size: int, width_px: float) -> float:
+	var h := 0.0
+	for l in lines:
+		h += _line_height(l, font_size, width_px)
+	return h
 
 
 func _on_used(player: Node) -> void:

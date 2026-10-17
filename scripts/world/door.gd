@@ -19,6 +19,10 @@ var swing := 0.0:
 		swing = v
 		_pose_swing()
 
+## Hinged doors are ordinary doors: anyone can open and shut them with E,
+## unless `locked` (a badge door: only a badge holder like Rourke opens it).
+var locked := false
+
 var is_open := false
 var _closed_pos := Vector3.ZERO
 var _closed_rot := 0.0
@@ -70,6 +74,26 @@ func _ready() -> void:
 
 func is_hinged() -> bool:
 	return hinge != Vector3.ZERO
+
+
+## What looking at the door says: hinged doors open and shut with E.
+func get_prompt(_player: Node) -> String:
+	if not is_hinged():
+		return ""
+	if locked:
+		return "Locked"
+	return "[E] Close the door" if is_open else "[E] Open the door"
+
+
+## E on a hinged door: the host opens or shuts it on every machine.
+func interact(_player: Node) -> void:
+	if not is_hinged() or locked:
+		return
+	var sync := LevelSync.of(self)
+	if sync == null:
+		set_open(not is_open)
+	elif not sync.forward(self, "interact"):
+		sync.run_on(self, "set_open", [not is_open])
 
 
 func _pose_swing() -> void:

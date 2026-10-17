@@ -148,7 +148,8 @@ func start() -> void:
 		# He's holding the door from the inside. Once the whole team is through,
 		# he lets it swing shut behind them.
 		rourke_in = true
-		var through := Trigger.create(self, Vector3(0, 1, 5.0), Vector3(14, 2, 18))
+		# Through means past Rourke and clear of the door's swing (the wall is at z 14).
+		var through := Trigger.create(self, Vector3(0, 1, 4.0), Vector3(14, 2, 16))
 		through.require_all = true
 		through.entered.connect(func(_b): crew_through())
 	hud.todo("Follow Rourke inside")
