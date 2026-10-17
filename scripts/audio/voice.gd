@@ -31,6 +31,7 @@ func _ready() -> void:
 ## where actors' files go), then in audio/voice/ itself. Extra takes
 ## (l0_greet_1_take2.wav) are never picked up; rename the one you want.
 static func path_for(id: String) -> String:
+	id = VoiceLines.resolve(id)
 	var dirs: Array[String] = [folder]
 	var speaker: String = VoiceLines.get_line(id).get("speaker", "")
 	if VoiceLines.CHARACTERS.has(speaker):
