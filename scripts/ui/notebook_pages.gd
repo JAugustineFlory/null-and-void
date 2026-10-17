@@ -24,7 +24,7 @@ const CONCEPT_NOTES := {
 const SUBTITLES := {
 	"level_2": "Level 2  -  Security Office",
 }
-const KIND_LABELS := {"result": "Query result", "hint": "Hint", "error": "Error", "schema": "Table shape", "echo": "I typed"}
+const KIND_LABELS := {"result": "Query result", "hint": "Hint", "error": "Error", "schema": "Table shape", "echo": "I typed", "document": "From a document"}
 
 ## At the end of a level the notebook opens on Field Notes with buttons to carry on.
 var end_of_level := false
@@ -111,7 +111,7 @@ func section_items(page: int) -> Array[Control]:
 	var game := get_node("/root/Game")
 	match page:
 		Page.NOTES:
-			return _notes_items(game.notebook_notes)
+			return _todo_items(game.notebook_todo) + _notes_items(game.notebook_notes)
 		Page.WRITTEN:
 			return _written_items(game.notebook_written)
 		Page.TABLES:
@@ -138,6 +138,27 @@ static func text_of(items: Array) -> String:
 		for l in item.find_children("*", "Label", true, false):
 			out += l.text + "\n"
 	return out
+
+
+## The crew's job ticket: the printed call-out, then the tasks in the character's
+## hand. The task now in ink, the last few done ones ticked in pencil.
+func _todo_items(todo: Array) -> Array[Control]:
+	var game := get_node("/root/Game")
+	var t: Dictionary = game.TICKET
+	var items: Array[Control] = [NotebookArt.heading("Job ticket")]
+	items.append(NotebookArt.code("%s   WORK ORDER %s" % [t.company, game.ticket_number()], 16))
+	items.append(NotebookArt.code("Customer: %s" % t.customer, 16))
+	items.append(NotebookArt.code("Problem:  %s" % t.problem, 16))
+	items.append(NotebookArt.code("Contact:  %s" % t.contact, 16))
+	if todo.is_empty():
+		items.append(NotebookArt.hand("Nothing yet.", 24, NotebookArt.PENCIL))
+	for task in todo.slice(maxi(0, todo.size() - 6)):
+		var filled: String = task.get("filled", "")
+		if task.done:
+			items.append(NotebookArt.hand("[x]  %s%s" % [task.text, ("  - " + filled) if filled != "" else ""], 22, NotebookArt.PENCIL))
+		else:
+			items.append(NotebookArt.hand("[  ]  %s" % task.text, 26))
+	return items
 
 
 func _notes_items(ids: Array) -> Array[Control]:

@@ -17,6 +17,9 @@ var ui: TerminalUI
 var boot_lines: Array = []
 ## Puzzles this terminal gives hints for, in order.
 var puzzles: Array = []
+## Placeholders shown on this screen (like "table_name") -> what SYSOP says when a
+## player types one literally.
+var blanks := {}
 var locked := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false

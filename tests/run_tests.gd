@@ -438,15 +438,20 @@ func test_level_0_scene() -> void:
 	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")
 	level.desk_terminal.enabled = true
 	level.terminal_ui.terminal = level.desk_terminal
+	level.terminal_ui.run("SELECT * FROM table_name;")
+	check(not level.peek_puzzle.solved and TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("table_name is a blank. the real name is handwritten on the ScanRight card."), "typing table_name literally gets SYSOP pointing at the ScanRight card")
+	level.terminal_ui.run("SELECT * FROM nonsense")
+	check(not TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("ScanRight"), "other missing tables get the usual explanation")
 	level.terminal_ui.run("SELECT * FROM memo_fragments")
 	check(level.peek_puzzle.solved, "terminal run solves the peek")
 	var nudge: Array = Array(level.desk_terminal.transcript).filter(func(l): return l.contains("ORDER BY"))
-	check(not nudge.is_empty() and nudge.all(func(l): return not l.contains("piece_no")), "WARDEN's nudge points at the numbering column without naming it")
+	check(not nudge.is_empty() and nudge.all(func(l): return not l.contains("piece_no")), "SYSOP's nudge points at the numbering column without naming it")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no DESC")
-	check(not level.memo_puzzle.solved and Array(level.desk_terminal.transcript).any(func(l): return l.contains("memo backwards")), "a memo sorted DESC doesn't count, and WARDEN says why")
+	check(not level.memo_puzzle.solved and Array(level.desk_terminal.transcript).any(func(l): return l.contains("memo backwards")), "a memo sorted DESC doesn't count, and SYSOP says why")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
+	_check_l0_documents(level)
 	# Over the counter, staff style, and back again.
 	level.rourke.walk_to(Vector3(-0.5, 0, 0.6))
 	level.counter_hop.enabled = true
@@ -533,12 +538,14 @@ func test_level_1_scene() -> void:
 	check(not level.terminal.locked and _game().rourke_fate == "tied", "taking the badge unlocks the terminal")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault'")
 	check(level.controller_puzzle.solved, "WHERE + AND solves the controller puzzle")
+	_check_l1_documents(level)
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
 	level._on_panel(null, healthy)
 	check(level.panels_locked_until == 0.0, "pressing a healthy rack explains itself without a lockout")
 	var wrong: String = level.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
 	level._on_panel(null, wrong)
 	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until > 0.0, "an offline zone-A rack does not open the exit")
+	check(level.hud._notice.text.contains("'offline'") and level.hud._notice.text.contains("off on purpose"), "the rack's readout shows why it was the wrong one, where the player is standing")
 	level.panels_locked_until = 0.0
 	level._on_panel(null, level.answer)
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")
@@ -641,7 +648,16 @@ func test_coop_level_0() -> void:
 	await _frames(10)
 	check(host.peek_puzzle.solved and c1.peek_puzzle.solved and c2.peek_puzzle.solved, "a client's query solves the puzzle for everyone")
 	check(host.desk_terminal.transcript.any(func(l): return l.contains("SELECT * FROM memo_fragments")), "the query shows on the host's copy of that terminal")
-	check(c2.desk_terminal.transcript.any(func(l): return l.contains("Those scraps are out of order")), "WARDEN's reply shows on every copy")
+	check(c2.desk_terminal.transcript.any(func(l): return l.contains("scraps are out of order")), "SYSOP's reply shows on every copy")
+	# Documents are read and copied on your own machine only.
+	var brochures: Array = levels.map(func(l): return _doc(l, "ScanRight"))
+	check(brochures.all(func(d): return d != null and d.local_only), "documents are read locally, not through the host")
+	brochures[1].interact(c1.player)
+	check(c1.find_children("*", "DocumentReader", true, false).size() == 1 and host.find_children("*", "DocumentReader", true, false).is_empty() \
+		and c2.find_children("*", "DocumentReader", true, false).is_empty(), "a client reading a document opens it on their screen only")
+	c1.find_children("*", "DocumentReader", true, false)[0].close()
+	await _frames(2)
+	check(not c1.player.input_locked, "putting the document down gives the client their controls back")
 
 	# Notebooks are per player: a loose sticky goes to whoever took it and is gone
 	# for everyone; one stuck to a terminal is copied by each player on their own.
@@ -1285,6 +1301,61 @@ func test_level_2_routes() -> void:
 	await process_frame
 
 
+
+func _doc(level: Node, title_part: String) -> Node:
+	for d in level.find_children("*", "Document", true, false):
+		if d.title.contains(title_part):
+			return d
+	return null
+
+
+func _doc_has(level: Node, text: String) -> bool:
+	return level.find_children("*", "Document", true, false).any(func(d): return d.plain_text().contains(text))
+
+
+## Level 0's clues live on paper in the lobby, and copy into the notebook.
+func _check_l0_documents(level: Node) -> void:
+	check(_doc_has(level, "memo_fragments") and _doc_has(level, "piece_no"), "the scanner card names the scraps table and the column that numbers them")
+	check(not level.desk_terminal.boot_lines.any(func(l): return l.contains("memo_fragments")), "the terminal no longer names the table: it's on the card")
+	var todo: Array = _game().notebook_todo.map(func(t): return t.text)
+	check(todo.has("Put the memo back in order") and todo.find("Put the memo back in order") > todo.find("Read Dr. Vale's shredded memo (front desk terminal)") \
+		and _game().notebook_todo.filter(func(t): return t.text.contains("memo")).all(func(t): return t.done), "the to-do list adds sorting the memo after reading it, and ticks both off (%s)" % [todo])
+	check(_game().ticket().tasks.any(func(t): return t.filled.contains("memo_fragments")), "the job ticket records which table the crew rebuilt the memo from")
+	check(Array(level.desk_terminal.transcript).all(func(l): return not TerminalUI._plain(l).strip_edges().begins_with("WARDEN:")), "no tips from WARDEN on the front desk terminal")
+	var tips: Array = Array(level.desk_terminal.transcript).filter(func(l): return TerminalUI._plain(l).begins_with("[SYSOP]: "))
+	check(tips.size() >= 3, "SYSOP gives the tips (%d lines)" % tips.size())
+	var brochure := _doc(level, "ScanRight")
+	var reader: DocumentReader = brochure.open_reader(level.player)
+	check(reader.visible and level.player.input_locked, "reading a document holds the player still")
+	var i: int = brochure.lines().map(func(l): return l.text).find("memo_fragments")
+	check(i >= 0 and brochure.lines()[i].hand, "the table name is handwritten in the brochure's blank")
+	var before: int = _game().notebook_written.size()
+	check(reader.write_note(i), "a document line can be copied")
+	var w: Dictionary = _game().notebook_written.back()
+	check(_game().notebook_written.size() == before + 1 and w.text == "memo_fragments" and w.label == brochure.title and w.kind == "document", "an unnamed copy is labeled with the document's title")
+	reader.write_note(i, "scraps table")
+	check(_game().notebook_written.back().label == "scraps table", "a copy can be given its own name")
+	check(not reader.write_note(brochure.lines().size()) and not reader.write_note(brochure.lines().map(func(l): return l.text).find("")), "blank or missing lines can't be copied")
+	reader.close()
+	check(not level.player.input_locked, "putting the document down gives the controls back")
+	# SYSOP's lines keep their name when copied off the terminal.
+	level.terminal_ui.run(".hint")
+	var t: Array[String] = level.desk_terminal.transcript
+	check(level.desk_terminal.transcript_kinds[t.size() - 1] == "hint" and TerminalUI._plain(t[t.size() - 1]).begins_with("[SYSOP]: "), "a .hint answer comes from SYSOP and copies with its name")
+
+
+## Level 1: the table name and what each status means are on paper by the terminal.
+func _check_l1_documents(level: Node) -> void:
+	check(_doc_has(level, "door_controllers") and _doc_has(level, "zone A"), "the rack card names the controller table and the exit's zone")
+	check(_doc_has(level, "'fault'") and _doc_has(level, "'offline'") and _doc_has(level, "- H.M."), "Mercer's note explains fault vs offline")
+	check(not level._self_test_lines().any(func(l): return l.contains("door_controllers")), "the self-test no longer names the table: it's on the card")
+	check(Array(level.terminal.transcript).all(func(l): return not TerminalUI._plain(l).strip_edges().begins_with("WARDEN:")), "no tips from WARDEN on the Server Room A terminal")
+	check(Array(level.terminal.transcript).any(func(l): return TerminalUI._plain(l).begins_with("[SYSOP]: that's the one")), "SYSOP confirms the controller")
+	check(_game().current_todo() != "" and not _game().current_todo().contains(level.answer), "the to-do names the task, never the answer (%s)" % _game().current_todo())
+	for d in level.find_children("*", "Document", true, false):
+		check(level.terminal.global_position.distance_to(d.global_position) < 1.5, "%s is on the terminal desk" % d.title)
+
+
 func _game() -> Node:
 	return root.get_node("Game")
 
@@ -1457,7 +1528,7 @@ func test_notebook() -> void:
 		kinds[line.kind] = kinds.get(line.kind, 0) + 1
 	check(kinds.has("result") and kinds.has("error") and kinds.has("hint") and kinds.has("schema") and kinds.has("info"), "results, errors, hints, schemas and boot text can all be noted (%s)" % [kinds])
 	var lines: Array = ui.noteable_lines()
-	var taught := lines.filter(func(l): return l.text.contains("SELECT * FROM memo_fragments") and l.kind == "info")
+	var taught := lines.filter(func(l): return l.text.contains("SELECT * FROM table_name") and l.kind == "info")
 	check(not taught.is_empty(), "the boot screen's SELECT example can be noted")
 	var result_i := -1
 	for i in lines.size():
@@ -1496,6 +1567,17 @@ func test_notebook() -> void:
 	check(nb.pages.current_page() == NotebookPages.Page.TABLES and NotebookPages.text_of(on_pages).contains("memo_fragments"), "the Tables page lists what was found")
 	var notes_text := nb.pages.section_text(NotebookPages.Page.NOTES)
 	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
+	_game().set_todo("Find the exit")
+	_game().set_todo("Open the exit door")
+	check(not _game().set_todo("Open the exit door"), "the same task isn't written twice")
+	notes_text = nb.pages.section_text(NotebookPages.Page.NOTES)
+	check(notes_text.contains("Job ticket") and notes_text.contains("Halcyon Data Systems") and notes_text.contains("Rourke") and notes_text.contains(_game().ticket_number()), "the Notes page starts with the crew's Byte-Right job ticket")
+	check(notes_text.contains("[x]  Find the exit") and notes_text.contains("[  ]  Open the exit door\n"), "the ticket's tasks are ticked off as they're done")
+	check(_game().ticket_fill("Find the exit", "stairwell, east side") and nb.pages.section_text(NotebookPages.Page.NOTES).contains("[x]  Find the exit  - stairwell, east side"), "a done task can be filled in")
+	check(_game().ticket().tasks.any(func(t): return t.filled == "stairwell, east side") and _game().ticket().customer == "Halcyon Data Systems", "later levels can read the ticket back")
+	level.hud.todo("")
+	check(_game().current_todo() == "" and _game().notebook_todo.all(func(t): return t.done), "an empty task ticks off the last one")
+	check(_game().notebook_data().todo.map(func(t): return t.text).has("Open the exit door"), "the to-do list is saved with the notebook")
 	nb.pages.show_page(NotebookPages.Page.TABLES)
 	check(nb.pages._spreads.size() == 1 and not nb.pages._turn.visible, "a short section fits on one spread")
 	for t in 20:

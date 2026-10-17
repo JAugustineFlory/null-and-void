@@ -167,7 +167,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Visitor without escort
 
-*Right after the fate scene, in both branches, before the badge login: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.* *(Written ahead: not in the game yet.)*
+*Right after the fate scene, in both branches, before the badge login: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.*
 
 **WARDEN:** *(Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- `[l1_contain_1]`
 

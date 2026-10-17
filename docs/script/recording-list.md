@@ -17,8 +17,6 @@ Each actor gets only their own character's script from [characters/](characters/
 
 Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke/l0_greet_1.wav`); open the project in Godot once so it imports them. The game plays a recording whenever one exists, keeps the subtitle up for as long as it lasts, and falls back to the timed subtitle when it doesn't. Only `<line_id>.wav` is played: to use take 2, rename it.
 
-Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
-
 ## Dale Rourke (37 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
@@ -72,8 +70,8 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l1_killed` | ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN. | Over the room's speakers. Unbothered, like reading a stock price. | Level 1 |
 | [ ] | `l1_login` | BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 1 |
 | [ ] | `l1_selftest` | SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. | The one line with a hint of a smirk. | Level 1 |
-| [ ] | `l1_contain_1` | VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 1, later |
-| [ ] | `l1_contain_2` | VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE. | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 1, later |
+| [ ] | `l1_contain_1` | VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 1 |
+| [ ] | `l1_contain_2` | VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE. | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 1 |
 | [ ] | `l1_found` | QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY. | Reading a rule it knows they're about to break. Cool. | Level 1 |
 | [ ] | `l1_no_badge` | RESET REFUSED. BADGE REQUIRED. | Flat, instant. | Level 1 |
 | [ ] | `l1_panel_ok` | RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU? | Patient, then a small dig. | Level 1 |

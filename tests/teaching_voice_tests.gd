@@ -30,7 +30,7 @@ func run(_tree: SceneTree, check: Callable) -> void:
 		if l.text.contains("next_hint()") and l.text.contains("print_line"):
 			hint_line = l.text
 	check(hint_line != "", "the scan finds where .hint answers are printed")
-	gap(hint_line.contains("[SYSOP]"), ".hint answers are spoken by [SYSOP], not WARDEN")
+	check(is_sysop(hint_line), ".hint answers are spoken by [SYSOP], not WARDEN")
 
 	var warden_tips := []
 	var nobody_tips := []
@@ -43,7 +43,7 @@ func run(_tree: SceneTree, check: Callable) -> void:
 		var warden := t.contains("WARDEN:") or t.contains(WARDEN_AMBER)
 		if speaks and warden and (is_tip(t) or t.contains("explain_error") or is_order(t)):
 			warden_tips.append(l.where)
-		elif speaks and not warden and is_tip(t) and not t.contains("[SYSOP]") and str(l.where).begins_with("scripts/levels"):
+		elif speaks and not warden and is_tip(t) and not is_sysop(t) and str(l.where).begins_with("scripts/levels"):
 			nobody_tips.append(l.where)
 		if (t.contains("hud.notice(") or t.contains("team_notice(")) and is_tip(t) and not is_control(t):
 			notice_tips.append(l.where)
@@ -67,6 +67,11 @@ func gap(ok: bool, name: String) -> void:
 	else:
 		gaps += 1
 		print("  GAP   ", name)
+
+
+## A line SYSOP says: written out, or through TerminalUI.sysop().
+static func is_sysop(text: String) -> bool:
+	return text.contains("[SYSOP]") or text.contains("sysop(")
 
 
 ## Does this line teach: SQL or a terminal command, or tell the player what to do?

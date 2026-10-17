@@ -71,12 +71,15 @@ func screen(ui: TerminalUI) -> String:
 	return ui._output.get_parsed_text()
 
 
-## Text written in the world: signs, sticky notes, labels, plus the objective line.
+## Text written in the world: signs, sticky notes, labels, documents (read with E),
+## plus the objective line.
 func world_text(level: Node) -> String:
 	var parts := PackedStringArray()
 	for n in level.find_children("*", "Label3D", true, false):
 		parts.append(n.text)
-	parts.append(level.hud._objective.text)
+	for d in level.find_children("*", "Document", true, false):
+		parts.append(d.plain_text())
+	parts.append(level.hud.current_todo())
 	return "\n".join(parts)
 
 
@@ -92,6 +95,20 @@ func queries_in(text: String) -> Array[String]:
 			out.append(line.substr(0, line.find(";") + 1))
 		elif upper.begins_with("GET /"):
 			out.append(" ".join(line.split(" ", false).slice(0, 2)))
+	return out
+
+
+## A query on screen with a blank in it ("SELECT * FROM table_name;") is filled in
+## from what's handwritten on a document in the room, like the brochure's blank.
+func fill_blanks(level: Node, query: String) -> Array[String]:
+	if not query.contains("table_name"):
+		return [query]
+	var out: Array[String] = []
+	for d in level.find_children("*", "Document", true, false):
+		for l in d.lines():
+			var word: String = l.text.strip_edges()
+			if l.get("hand", false) and RegEx.create_from_string("^[a-z_]+$").search(word):
+				out.append(query.replace("table_name", word))
 	return out
 
 
@@ -182,9 +199,10 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		var fresh: Array[String] = []
 		# The notebook is reference, not a script: old queries name other levels'
 		# tables, so the player only types what this screen shows.
-		for q in queries_in(text):
-			if not tried.has(q) and not fresh.has(q):
-				fresh.append(q)
+		for shown in queries_in(text):
+			for q in fill_blanks(level, shown):
+				if not tried.has(q) and not fresh.has(q):
+					fresh.append(q)
 		if fresh.is_empty():
 			if hints == 0:
 				for k in needed:
@@ -287,7 +305,7 @@ func walk_level_1(seed_value: int) -> void:
 	level._on_rourke_resolved("tied")
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
-	check(screen(ui).contains("door_controllers") and screen(ui).contains("zone A"), "server room: the self-test names the table and both clues on screen")
+	check(world_text(level).contains("door_controllers") and screen(ui).contains("zone A") and screen(ui).contains("'fault'"), "server room: the desk card names the table, and the self-test shows both clues")
 	var h := solve(level, ui, level.controller_puzzle, false)
 	check(h >= 0 and h <= 1, "server room: a lost player finds the controller with at most the first hint (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
@@ -360,7 +378,7 @@ func walk_level_2(seed_value: int) -> void:
 	# The door didn't open. The player goes back to the panel and asks for help.
 	ui.open(level.panel, p)
 	ui.run(".hint")
-	var hint_text := screen(ui).get_slice("WARDEN:", screen(ui).count("WARDEN:"))
+	var hint_text := screen(ui).get_slice("[SYSOP]:", screen(ui).count("[SYSOP]:"))
 	check(hint_text.contains("B-") or hint_text.to_lower().contains("breaker"),
 		"security: .hint at the panel still helps after the door lies, even if the player checked the door earlier (says: %s)" % hint_text.strip_edges().left(60))
 	var before := screen(ui).length()
@@ -388,7 +406,7 @@ func walk_level_2(seed_value: int) -> void:
 	level.loose = true
 	level.hud._notice.text = ""
 	level.on_player_died()
-	var said: String = level.hud._notice.text.to_lower() + level.hud._objective.text.to_lower()
+	var said: String = level.hud._notice.text.to_lower() + level.hud.current_todo().to_lower()
 	check(said.contains("camera") or said.contains("frozen") or said.contains("last_frame"),
 		"security: after the Watcher gets you, the screen says why it could move (a camera froze)")
 	level.queue_free()
