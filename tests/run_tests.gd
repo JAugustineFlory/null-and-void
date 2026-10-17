@@ -1329,6 +1329,17 @@ func test_level_2_routes() -> void:
 	check(sheet.lines().any(func(l): return l.hand and l.text.begins_with("Har")) and sheet.lines().any(func(l): return l.hand and l.text == "guards"),
 		"the sign-in sheet has the half-legible name and the PIN table, handwritten")
 	check(not str(docs.map(func(d): return d.plain_text())).contains("Har%"), "no document gives the Har query away")
+	# Papers on the walls are drawn full size, their words readable from the room.
+	for d in docs:
+		var wall_sheet: Node3D = d.get_node_or_null("WallSheet")
+		var printed: Array = wall_sheet.find_children("Line*", "Label3D", false, false) if wall_sheet else []
+		var shown := " ".join(printed.map(func(l): return l.text))
+		check(wall_sheet != null and d.lines().all(func(l): return l.text == "" or shown.contains(l.text) or wall_sheet.find_child("Title", false, false).text == l.text), "%s is on the wall with all its words" % d.title)
+		check(printed.all(func(l): return l.font_size >= 20), "%s is printed big enough to read" % d.title)
+	var facing := func(title: String) -> float:
+		var label: Label3D = docs[titles.find(title)].get_node("WallSheet").find_child("Line0", false, false)
+		return label.global_basis.z.z  # Label3D reads from its +Z side
+	check(facing.call("Night shift sign-in sheet") < -0.9 and facing.call("Lockdown PIN policy") > 0.9, "wall papers face into the corridor, not into the wall")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
@@ -1768,6 +1779,26 @@ func test_notebook() -> void:
 	check(_game().notebook_notes.is_empty(), "a new run starts with an empty notebook")
 	_game().load_notebook(saved)
 	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
+	# Your own notes: "+ write a note" on the Notes page, typed at the foot of the screen.
+	level.player.input_locked = false
+	nb.open(NotebookPages.Page.NOTES)
+	var write_btn: Button = nb.pages.book.find_child("WriteMine", true, false)
+	check(write_btn != null and write_btn.text.contains("write a note"), "the Notes page has a button to write your own note")
+	write_btn.pressed.emit()
+	check(nb.is_writing() and nb.writer.has_focus() and level.player.input_locked, "it opens a line to type on, and you stand still while you write")
+	nb.finish_writing("  PIN for HARDY: 2751 ")
+	check(not nb.is_writing() and level.player.input_locked and nb.is_open(), "Enter writes it in and the notebook stays open")
+	check(_game().notebook_written[-1].text == "PIN for HARDY: 2751" and _game().notebook_written[-1].kind == "mine", "the note is written as typed")
+	var mine_text := nb.pages.section_text(NotebookPages.Page.NOTES)
+	check(mine_text.contains("My notes") and mine_text.contains("PIN for HARDY: 2751") and mine_text.find("My notes") < mine_text.find("Sticky notes"), "your own notes come first on the Notes page")
+	check(mine_text.count("PIN for HARDY") == 1, "and aren't listed again under copied lines")
+	var count_before: int = _game().notebook_written.size()
+	nb.start_writing()
+	nb.finish_writing("   ")
+	check(_game().notebook_written.size() == count_before and not nb.is_writing(), "a blank note writes nothing")
+	nb.start_writing()
+	nb.close()
+	check(not nb.is_writing() and not level.player.input_locked, "closing the notebook puts the pen down and frees you")
 	level.queue_free()
 	await process_frame
 

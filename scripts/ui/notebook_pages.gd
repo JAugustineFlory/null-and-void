@@ -5,6 +5,9 @@ extends Control
 ## itself is drawn by NotebookView and NotebookArt (scripts/art/).
 ## Each section fills the left page, then the right; "next" turns to the next spread.
 
+## "+ write a note" on the Notes page: the player wants to write something of their own.
+signal write_requested
+
 enum Page { WORK_ORDER, TABLES, NOTES, FIELD_NOTES }
 
 const TAB_NAMES := ["Work order", "Tables", "Notes", "Field Notes"]
@@ -113,7 +116,9 @@ func section_items(page: int) -> Array[Control]:
 		Page.WORK_ORDER:
 			return WorkOrderForm.build(game.ticket(), book.left.size.y if book else 0.0)
 		Page.NOTES:
-			return _notes_items(game.notebook_notes) + _written_items(game.notebook_written)
+			var copied: Array = game.notebook_written.filter(func(w): return w.kind != "mine")
+			var mine: Array = game.notebook_written.filter(func(w): return w.kind == "mine")
+			return _mine_items(mine) + _notes_items(game.notebook_notes) + _written_items(copied)
 		Page.TABLES:
 			return _table_items(game.notebook_tables)
 		_:
@@ -138,6 +143,21 @@ static func text_of(items: Array) -> String:
 		for l in item.find_children("*", "Label", true, false):
 			out += l.text + "\n"
 	return out
+
+
+## The player's own notes, in their handwriting, with a button to write another.
+func _mine_items(mine: Array) -> Array[Control]:
+	var items: Array[Control] = [NotebookArt.heading("My notes")]
+	for w in mine:
+		items.append(NotebookArt.hand("- " + w.text, 26))
+	if not end_of_level:
+		var write := NotebookArt.write_button("+ write a note")
+		write.name = "WriteMine"
+		write.tooltip_text = "Write your own note in the notebook"
+		write.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		write.pressed.connect(func(): write_requested.emit())
+		items.append(write)
+	return items
 
 
 func _notes_items(ids: Array) -> Array[Control]:
