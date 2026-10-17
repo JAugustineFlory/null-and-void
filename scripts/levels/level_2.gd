@@ -248,11 +248,11 @@ func _build_booth() -> void:
 	# The night lead also keeps a paper sheet, in case the reader goes down.
 	Greybox.panel(geo, Vector3(-2.2, 1.3, 5.9), Vector3(0.1, 0.15, 0.04), Color(0.12, 0.12, 0.13))
 	Greybox.panel(geo, Vector3(-2.2, 1.34, 5.875), Vector3(0.02, 0.02, 0.01), Color(0.1, 1.0, 0.2), 3.0)
-	Document.place(geo, Vector3(-2.2, 1.08, 5.86), 0, "Badge reader card", [
+	Document.place(geo, Vector3(-2.2, 1.0, 5.86), 0, "Badge reader card", [
 		"BADGE IN AT THE START OF EVERY SHIFT",
 		"The reader logs your badge-in time to the guard roster.",
 		"Reader down? Sign the paper sheet. The night lead keeps it as the backup copy.",
-	], false, "laminated", Vector2(0.2, 0.14))
+	], false, "laminated", Vector2(0.42, 0.3))
 	# The backup sheet: the names are handwritten, and coffee took most of the second one.
 	Document.place(geo, Vector3(-1.4, 1.45, 5.86), 0, "Night shift sign-in sheet", [
 		"NIGHT SHIFT SIGN-IN   10/15   (backup copy)",
