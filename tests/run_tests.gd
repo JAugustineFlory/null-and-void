@@ -1231,6 +1231,16 @@ func test_level_2_routes() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	p.local_control = false
+	# The clues are on paper in the booth, and E copies them into the notebook.
+	var docs: Array = level.find_children("*", "Level2Document", true, false)
+	var titles: Array = docs.map(func(d): return d.title)
+	check(["Night shift sign-in sheet", "Camera system card", "WARDEN manual, p.12", "Lockdown PIN policy", "Door controller card"].all(func(t): return titles.has(t)), "the wing's clues are on documents: roster, camera card, manual page, PIN policy, door card")
+	var sheet = docs[titles.find("Night shift sign-in sheet")]
+	var before: int = _game().notebook_written.size()
+	sheet.interact(p)
+	sheet.interact(p)
+	check(_game().notebook_written.size() == before + 3 and _game().notebook_written[-1].label == "Night shift sign-in sheet" and sheet.get_prompt(p) == "", "E copies a document's lines into the notebook, once")
+	check(not str(docs.map(func(d): return d.note_lines)).contains("Har%"), "no document gives the Har query away")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")

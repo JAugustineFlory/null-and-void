@@ -154,6 +154,10 @@ func build() -> void:
 	office_keypad.local_only = true  # the keypad screen is yours; the host checks the PIN
 	office_keypad.used.connect(_on_office_keypad)
 	Greybox.label(geo, Vector3(1.3, 1.55, 2.17), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
+	Level2Document.hang(geo, Vector3(2.15, 1.35, 2.11), Vector2(0.5, 0.36), 0, "Lockdown PIN policy",
+		"LOCKDOWN PIN POLICY\nIn lockdown, doors take only\nthe PINs of guards on tonight's\nNIGHT SHIFT sign-in sheet.\nSuspended or retired: refused.",
+		["In lockdown, doors take only PINs of guards on tonight's night-shift sheet", "Suspended or retired PINs are refused"],
+		Color(0.95, 0.95, 0.85), 14)
 	# Exit vestibule: x -2.5..2.5, z -12..-8
 	Greybox.room(geo, Vector3(0, 0, -10), Vector3(5, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.4},
@@ -234,15 +238,20 @@ func _build_booth() -> void:
 	]
 	booth.queried.connect(_on_query.bind("booth"))
 	booth.requested.connect(_on_request.bind("booth"))
-	# Sticky note on the monitor, the sign-in sheet and a poster: found in the world first.
-	ArtProps.sticky_note(geo, Vector3(-2.5, 1.32, 5.27), 0.0, "GET /cameras")
-	ArtProps.sticky_note(geo, Vector3(-3.5, 1.32, 5.27), 0.0, "LIKE 'Ro%'", ArtProps.STICKY_COLORS[2])
-	Greybox.panel(geo, Vector3(-1.4, 1.45, 5.89), Vector3(0.6, 0.8, 0.01), Color(0.9, 0.88, 0.8))
-	Greybox.label(geo, Vector3(-1.4, 1.45, 5.88),
-		"NIGHT SHIFT SIGN-IN  10/15\n\nPIKE, H.     NO SHOW\nHar[coffee stain]  22:00\n\nPINs on file in the\nguards table.", 22, Color(0.1, 0.1, 0.15), 180)
-	Greybox.panel(geo, Vector3(-5.0, 1.6, 5.89), Vector3(1.3, 0.9, 0.01), Color(0.2, 0.25, 0.4))
-	Greybox.label(geo, Vector3(-5.0, 1.6, 5.88),
-		"ROSTER TIP\nCan't read a whole name?\nname LIKE 'Ro%'\nfinds ROSS, ROURKE...\n% means any letters", 26, Color(0.95, 0.95, 0.9), 180)
+	# The clues are on the booth's own paperwork: found in the world first.
+	StickyNote.on_monitor(booth, "like")
+	Level2Document.hang(geo, Vector3(-1.4, 1.45, 5.86), Vector2(0.6, 0.8), 180, "Night shift sign-in sheet",
+		"NIGHT SHIFT SIGN-IN  10/15\n\nPIKE, H.     NO SHOW\nHar[coffee stain]  22:00\n\nPINs on file in the\nguards table.",
+		["NIGHT SHIFT SIGN-IN 10/15: PIKE, H. - NO SHOW", "Har[coffee stain] - signed in 22:00", "PINs on file in the guards table"])
+	Level2Document.hang(geo, Vector3(-4.0, 1.5, 5.86), Vector2(0.62, 0.5), 180, "Camera system card",
+		"OVERWATCH CCTV  -  REMOTE STATUS\nFrom any security terminal:\n  GET /cameras         every camera\n  GET /cameras/CAM-2   one camera\n\nmotion: true   movement seen\nlast_frame     time of the last picture",
+		["GET /cameras = every camera's status", "GET /cameras/CAM-2 = one camera", "motion: true = movement seen; last_frame = time of the last picture"],
+		Color(0.85, 0.88, 0.9), 16)
+	# A page torn from the WARDEN manual, with the old security chief's pencil in the margin.
+	Level2Document.hang(geo, Vector3(-5.2, 1.6, 5.86), Vector2(0.8, 0.9), 180, "WARDEN manual, p.12",
+		"WARDEN v3.1  -  p.12\nGUARD ROSTER: QUICK SEARCH\n\nPart of a name? Search a pattern:\n  WHERE name LIKE 'Ro%'\nfinds ROSS, ROURKE, ROWE...\n\n% = any letters, or none.  - H.M.",
+		["WHERE name LIKE 'Ro%' finds names that start with Ro", "% = any letters, or none. - H.M."],
+		Color(0.93, 0.92, 0.86), 18)
 	# A crate under the vent, so one person can climb up alone.
 	Greybox.box(geo, Vector3(-5.4, 0.45, 4.0), Vector3(0.9, 0.9, 0.9), Color(0.45, 0.35, 0.2), "Crate")
 	Greybox.label(geo, Vector3(-5.85, 2.7, 4.0), "VENT", 30, Color(0.7, 0.7, 0.7), 90)
@@ -264,6 +273,10 @@ func _build_panel() -> void:
 	panel = Terminal.spawn(geo, Vector3(-1.4, 0.9, -11.4), 0, "VESTIBULE PANEL", db, terminal_ui)
 	panel.api = api
 	panel.puzzles = [door_puzzle]
+	Level2Document.hang(geo, Vector3(-2.05, 1.7, -11.86), Vector2(0.62, 0.46), 0, "Door controller card",
+		"DOOR CONTROLLER  -  QUICK REF\n  GET /doors/SEC-EXIT\n\nsensor     what the door is doing\nactuator   the motor. fault = can't move\nnote       why",
+		["GET /doors/SEC-EXIT = one door's record", "sensor = what the door is actually doing", "actuator = the motor; fault means it can't move", "note = why"],
+		Color(0.85, 0.88, 0.9), 15)
 	panel.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  VESTIBULE PANEL",
 		"Door and camera status for this vestibule.",
