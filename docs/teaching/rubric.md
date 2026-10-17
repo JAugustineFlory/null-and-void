@@ -11,6 +11,23 @@ the owning thread through the Game design plan thread.
 2. **Practised once safely.** The first puzzle that needs it has no threat running.
 3. **Used under pressure.** A later puzzle needs it again while something is after you.
 
+## Who teaches (Augustine, 2026-10-17)
+
+Every tip and hint comes from inside the world. Nothing reads as a game UI talking
+to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
+
+- **[SYSOP]** speaks live tips, nudges and every `.hint` tier on the terminal. SYSOP is
+  Vale: never lies, knows the building, goes quiet when WARDEN watches closely.
+- **Mercer's notes** ("- H.M.") on manuals and printouts, and **sticky notes**, carry
+  syntax and worked examples on non-puzzle tables.
+- **In-world documents** (brochures, desk cards, memos, rosters, manuals) carry table
+  names, column names and codes. They count as taught, like terminal lines.
+- **WARDEN never helps.** It can state facts, threaten and lie, but never says what to
+  type or do. **HUD notices are only for controls** ("Hold Ctrl to crouch", "Added to
+  your notebook (Tab)"), never for what to type or where to go.
+- **Notebook-first:** each level is solvable from what a careful player wrote down
+  from terminals, stickies and documents.
+
 ## Rules on every puzzle
 
 - **Never needs anything not yet taught.** Every keyword, table, column, value and fact
@@ -34,7 +51,7 @@ the owning thread through the Game design plan thread.
 Each puzzle keeps at least one real thinking step that hints don't do for you
 before the player asks:
 
-- **Read the result**: the answer is in the output, not in WARDEN's message.
+- **Read the result**: the answer is in the output, not in a message about it.
 - **Combine two clues**: e.g. a smudged name plus the shift on the sheet.
 - **Act under threat**: type while something is moving.
 
@@ -58,5 +75,10 @@ Known gaps print as `GAP` (not failures) until the owner fixes them; then they p
 `FIXED` and get promoted to normal checks. **Every new puzzle needs a row in
 `tests/curriculum.gd` and a step in the walkthrough.**
 
-When terminals get the "write note" button, the test should ask the terminal which lines
-are notable instead of treating every terminal line as notable.
+`tests/teaching_voice_tests.gd` scans the level, world and terminal scripts and flags
+every tip spoken by WARDEN (or in WARDEN's amber), every `.hint` not from [SYSOP], and
+every HUD notice that says what to type. These print as `GAP` until fixed.
+
+Still to come: a "notes only" player that may use only lines it wrote into the notebook
+(`noteable_lines()` / `write_note()`), and in-world Document lines in the taught set
+once the Document interactable lands.
