@@ -27,6 +27,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_document_props()
 	await test_document_view()
 	await test_held_notebook()
+	await test_terminal_screen()
 
 
 func check(cond: bool, name: String) -> void:
@@ -555,4 +556,45 @@ func test_held_notebook() -> void:
 	held.close_book()
 	await t.create_timer(0.45).timeout
 	check(not held.is_open() and not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the notebook goes back in the pocket")
+	stage.free()
+
+
+func test_terminal_screen() -> void:
+	var stage := _stage()
+	var cam := Camera3D.new()
+	cam.fov = 75
+	stage.add_child(cam)
+	cam.make_current()
+	var term := Node3D.new()
+	term.position = Vector3(2, 0.9, -1)
+	term.rotation_degrees.y = 180
+	var grey := MeshInstance3D.new()
+	grey.mesh = BoxMesh.new()
+	term.add_child(grey)
+	var shape := CollisionShape3D.new()
+	term.add_child(shape)
+	stage.add_child(term)
+	var screen := TerminalScreen.attach(term)
+	check(not grey.visible and shape.get_parent() == term, "the CRT replaces the greybox monitor's look and keeps its collider")
+	check(screen.keyboard != null and screen.keyboard.global_position.distance_to(screen.glass.global_position) < 0.5, "every terminal gets a keyboard in front of it")
+	var kb_front := (screen.keyboard.global_transform.basis * Vector3(0, 0, 1)).dot(screen.glass.global_transform.basis * Vector3(0, 0, 1))
+	check(kb_front > 0.9, "the keyboard faces the same way as the screen")
+	for i in 230:
+		screen.add_line("row %d" % i)
+	check(screen.display.text.text.contains("row 229") and not screen.display.text.text.contains("row 5\n"), "the screen keeps the latest lines")
+	screen.set_typing("SELECT")
+	check(screen.display.prompt.text.begins_with("> SELECT"), "teammates see what's being typed")
+	cam.global_transform = screen.focus_transform(cam.fov)
+	var screen_size := t.root.get_visible_rect().size
+	var mid := cam.unproject_position(screen.glass.global_position)
+	check(mid.distance_to(screen_size / 2.0) < 3.0, "the focused camera looks straight at the screen")
+	var top := cam.unproject_position(screen.glass.global_transform * Vector3(0, TerminalScreen.SCREEN_SIZE.y / 2.0, 0))
+	check(absf((mid.y - top.y) * 2.0 / screen_size.y - 0.85) < 0.03, "focused, the screen fills most of the view")
+	var px := screen.screen_point(cam, screen_size / 2.0)
+	check(px.distance_to(Vector2(TerminalScreen.SCREEN_PX) / 2.0) < 3.0, "a click in the middle of the view lands in the middle of the glass")
+	var ui := CanvasLayer.new()
+	screen.host(ui)
+	check(ui.get_parent() == screen.viewport and not screen.display.visible and screen.viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "the terminal UI can be put on the glass")
+	check(screen.release() == ui and screen.display.visible and ui.get_parent() == null, "and taken off again")
+	ui.free()
 	stage.free()

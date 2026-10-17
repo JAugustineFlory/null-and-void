@@ -197,7 +197,10 @@ uniform vec2 uv_offset = vec2(0.0);
 uniform vec2 uv_scale = vec2(1.0);
 uniform float brightness = 0.93;
 void fragment() {
-	vec4 c = texture(page, UV * uv_scale + uv_offset);
+	vec2 uv = UV * uv_scale + uv_offset;
+	vec2 f = fwidth(uv) * 0.4;  // a few taps: the page is drawn smaller than its pixels, with no mipmaps
+	vec4 c = (texture(page, uv) * 2.0 + texture(page, uv + f) + texture(page, uv - f)
+		+ texture(page, uv + vec2(f.x, -f.y)) + texture(page, uv + vec2(-f.x, f.y))) / 6.0;
 	ALBEDO = c.rgb * brightness;
 	ALPHA = c.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;

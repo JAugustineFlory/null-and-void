@@ -56,6 +56,52 @@ func _run() -> void:
 	_save("held_written")
 	held.close_book()
 	await create_timer(0.5).timeout
+
+	# A terminal on the desk, its text on the glass.
+	var term := Node3D.new()
+	term.position = Vector3(0, 0.762, -0.45)
+	term.rotation_degrees.y = 180
+	var grey := MeshInstance3D.new()  # the greybox monitor the art replaces
+	grey.mesh = BoxMesh.new()
+	term.add_child(grey)
+	world.add_child(term)
+	var screen := TerminalScreen.attach(term)
+	screen.set_title("HALCYON DATA SYSTEMS  //  SERVER ROOM A")
+	for l in ["Type .help for commands.", "", "[color=#cfc]> SELECT name, floor FROM rooms;[/color]",
+			"name          | floor", "--------------+------", "Server Room A | B1", "Badge Office  | B1", "Storeroom     | B2",
+			"(3 rows)", "", "[color=#fc6]SYSOP: B2 is not on the lift panel.[/color]"]:
+		screen.add_line(l)
+	screen.set_typing("SELECT * FROM doors WHERE floor = 'B2'")
+	cam.position = Vector3(0.35, 1.65, -1.6)
+	cam.rotation_degrees = Vector3(-18, 172, 0)
+	await create_timer(0.3).timeout
+	_save("terminal_room")
+	cam.position = Vector3(0.0, 1.62, -1.2)
+	cam.rotation_degrees = Vector3(-22, 180, 0)
+	await create_timer(0.2).timeout
+	_save("terminal_over_shoulder")
+	cam.global_transform = screen.focus_transform(cam.fov)
+	await create_timer(0.2).timeout
+	_save("terminal_focused")
+	# The interactive terminal, hosted on the glass while someone types.
+	var ui := CanvasLayer.new()
+	var panel := ColorRect.new()
+	panel.color = Color(0.02, 0.05, 0.03)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ui.add_child(panel)
+	var out := RichTextLabel.new()
+	out.bbcode_enabled = true
+	out.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	out.offset_left = 40
+	out.offset_top = 40
+	out.add_theme_font_override("normal_font", NotebookArt.type_font())
+	out.add_theme_font_size_override("normal_font_size", 22)
+	out.add_theme_color_override("default_color", Color(0.45, 1.0, 0.55))
+	out.text = "HALCYON DATA SYSTEMS  //  SERVER ROOM A\n\n> SELECT door_id, location, locked FROM doors;\n\ndoor_id   | location        | locked\n----------+-----------------+-------\nB1-01     | Server Room A   | 0\nB1-04     | Storeroom       | 1\nSEC-EXIT  | Stairwell east  | 1\n(3 rows)   [color=#fd6][+ note][/color]"
+	ui.add_child(out)
+	screen.host(ui)
+	await create_timer(0.2).timeout
+	_save("terminal_hosted")
 	quit()
 
 
@@ -65,7 +111,6 @@ func _office(world: Node3D) -> void:
 	_slab(world, Vector3(-4, 1.5, -2), Vector3(0.2, 3, 8), ArtPalette.surface("drywall"))
 	ArtMood.apply_to_lights([ArtProps.troffer(world, Vector3(0, 3.0, -1.0)), ArtProps.troffer(world, Vector3(-2, 3.0, -2.5))], "after_hours")
 	ArtProps.desk(world, Vector3(0, 0, -0.45), 0, 1.6)
-	ArtProps.crt_monitor(world, Vector3(0, 0.762, -0.35), 0, "green")
 	ArtProps.office_chair(world, Vector3(0, 0, -1.1), 180)
 	ArtProps.poster(world, Vector3(-1.8, 1.6, 0.0), 0, "BADGES MUST BE WORN AT ALL TIMES")
 	ArtProps.filing_cabinet(world, Vector3(1.6, 0, -0.3), 0)
