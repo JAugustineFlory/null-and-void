@@ -14,9 +14,19 @@ const STAMP := Color(0.72, 0.16, 0.12, 0.85)
 
 
 ## Every piece in reading order. `ticket` is Game.ticket(): the printed fields,
-## the order number and the crew's tasks.
-static func build(ticket: Dictionary) -> Array[Control]:
-	var items: Array[Control] = [_header(ticket), _details(ticket), _scope(ticket), _signoff()]
+## the order number and the crew's tasks. The printed form fills a page of
+## `page_height` by itself (the crew's notes start on the next page), so it's
+## always seen whole.
+static func build(ticket: Dictionary, page_height: float = 0.0) -> Array[Control]:
+	var form := VBoxContainer.new()
+	form.name = "WorkOrder"
+	form.add_theme_constant_override("separation", 8)
+	var scope := _scope(ticket)
+	scope.size_flags_vertical = Control.SIZE_EXPAND_FILL  # takes up whatever the page has left
+	for part in [_header(ticket), _details(ticket), scope, _signoff()]:
+		form.add_child(part)
+	form.custom_minimum_size.y = page_height
+	var items: Array[Control] = [form]
 	items.append(NotebookArt.hand("Crew notes", 30))
 	var todo: Array = ticket.get("tasks", [])
 	if todo.is_empty():
@@ -30,35 +40,34 @@ static func build(ticket: Dictionary) -> Array[Control]:
 	return items
 
 
-## The blue band across the top: company, form name, order number, priority stamp.
+## The blue band across the top: company and form name, then the order number
+## and the priority stamp.
 static func _header(t: Dictionary) -> Control:
 	var sheet := _sheet()
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
+	box.add_theme_constant_override("separation", 4)
 	sheet.add_child(box)
 	var band := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = BAND
 	sb.content_margin_left = 10
 	sb.content_margin_right = 10
-	sb.content_margin_top = 4
-	sb.content_margin_bottom = 4
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
 	band.add_theme_stylebox_override("panel", sb)
 	var top := HBoxContainer.new()
 	band.add_child(top)
-	var company := _type(t.company, 15, Color.WHITE)
+	var company := _type(t.company, 20, Color.WHITE, false)
 	company.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(company)
-	top.add_child(_type("WORK ORDER", 15, Color.WHITE))
+	top.add_child(_type("WORK ORDER", 20, Color.WHITE, false))
 	box.add_child(band)
-	box.add_child(_type(t.get("tagline", ""), 12, FORM_RULE.darkened(0.3)))
+	box.add_child(_type(t.get("tagline", ""), 15, FORM_RULE.darkened(0.3)))
 	var row := HBoxContainer.new()
-	var num := _type("No. %s" % t.get("order", ""), 16)
+	var num := _type("No. %s" % t.get("order", ""), 23, PRINT, false)
 	num.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(num)
-	var stamp := _type(t.get("priority", ""), 14, STAMP)
-	stamp.rotation_degrees = -3.0
-	row.add_child(stamp)
+	row.add_child(_type(t.get("priority", ""), 20, STAMP, false))
 	box.add_child(row)
 	return sheet
 
@@ -74,10 +83,8 @@ static func _details(t: Dictionary) -> Control:
 	for field in [["Customer:", t.customer], ["Site:", t.get("site", "")], ["Contact:", t.contact], ["Problem:", t.problem], ["Billing:", t.get("billing", "")]]:
 		if str(field[1]) == "":
 			continue
-		var key := _type(field[0], 13, FORM_RULE.darkened(0.35))
-		key.autowrap_mode = TextServer.AUTOWRAP_OFF
-		grid.add_child(key)
-		var value := _type(str(field[1]), 14)
+		grid.add_child(_type(field[0], 17, FORM_RULE.darkened(0.35), false))
+		var value := _type(str(field[1]), 19)
 		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(value)
 	return sheet
@@ -89,11 +96,11 @@ static func _scope(t: Dictionary) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 3)
 	sheet.add_child(box)
-	box.add_child(_type("SCOPE OF WORK", 14, BAND))
+	box.add_child(_type("SCOPE OF WORK", 19, BAND, false))
 	box.add_child(_rule())
 	var tasks: Array = t.get("scope", [])
 	for i in tasks.size():
-		box.add_child(_type("%d. [ ] %s" % [i + 1, tasks[i]], 14))
+		box.add_child(_type("%d. [ ] %s" % [i + 1, tasks[i]], 19))
 	return sheet
 
 
@@ -102,8 +109,8 @@ static func _signoff() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
 	sheet.add_child(box)
-	box.add_child(_type("Technician: ________________  Time in: ____", 13, FORM_RULE.darkened(0.35)))
-	box.add_child(_type("Client sign-off: ____________  Time out: ___", 13, FORM_RULE.darkened(0.35)))
+	box.add_child(_type("Technician: ______________  In: _____", 16, FORM_RULE.darkened(0.35)))
+	box.add_child(_type("Client sign-off: _________  Out: ____", 16, FORM_RULE.darkened(0.35)))
 	return sheet
 
 
@@ -132,7 +139,9 @@ static func _rule() -> ColorRect:
 	return r
 
 
-static func _type(text: String, size: int, color: Color = PRINT) -> Label:
+## Printed text. `wrap` false for short labels that sit beside others in a row,
+## which would otherwise squeeze to a letter per line.
+static func _type(text: String, size: int, color: Color = PRINT, wrap: bool = true) -> Label:
 	var l := NotebookArt.code(text, size, color)
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wrap else TextServer.AUTOWRAP_OFF
 	return l

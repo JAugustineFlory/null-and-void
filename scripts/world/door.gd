@@ -1,15 +1,36 @@
 class_name Door
 extends AnimatableBody3D
-## A sliding security door. Its state comes from the `doors` table.
+## A sliding security door, or an ordinary hinged one (see `hinge`). Its state
+## comes from the `doors` table.
 ## If the actuator is faulted, the database can say "unlocked" while the door stays shut.
 
 @export var door_id := ""
 @export var size := Vector3(1.6, 2.4, 0.2)
 @export var slide_axis := Vector3.UP
 
+## Set to swing open on a hinge instead of sliding: the hinge's offset from the
+## door's centre (its edge, e.g. Vector3(0, 0, -0.9) for a 1.8 m door along z),
+## and how far it swings, in degrees (the sign picks the side it opens to).
+var hinge := Vector3.ZERO
+var swing_deg := 90.0
+## 0 shut, 1 fully open. Hinged doors are posed from it.
+var swing := 0.0:
+	set(v):
+		swing = v
+		_pose_swing()
+
 var is_open := false
 var _closed_pos := Vector3.ZERO
+var _closed_rot := 0.0
 var _tween: Tween
+
+
+## Make it an ordinary door on a hinge at `edge` (offset from its centre) that
+## swings `degrees` when opened.
+func make_hinged(edge: Vector3, degrees: float = 90.0) -> Door:
+	hinge = edge
+	swing_deg = degrees
+	return self
 
 
 static func create(parent: Node, id: String, pos: Vector3, door_size: Vector3, color: Color = Color(0.35, 0.37, 0.4)) -> Door:
@@ -43,13 +64,35 @@ static func create(parent: Node, id: String, pos: Vector3, door_size: Vector3, c
 
 func _ready() -> void:
 	_closed_pos = position
+	_closed_rot = rotation.y
 	sync_to_physics = false
+
+
+func is_hinged() -> bool:
+	return hinge != Vector3.ZERO
+
+
+func _pose_swing() -> void:
+	if not is_hinged() or not is_inside_tree():
+		return
+	var turn := Basis(Vector3.UP, deg_to_rad(swing_deg * swing))
+	position = _closed_pos + hinge + turn * -hinge
+	rotation.y = _closed_rot + deg_to_rad(swing_deg * swing)
 
 
 func set_open(open: bool, instant: bool = false) -> void:
 	if open == is_open:
 		return
 	is_open = open
+	if is_hinged():
+		if _tween:
+			_tween.kill()
+		if instant:
+			swing = 1.0 if open else 0.0
+			return
+		_tween = create_tween()
+		_tween.tween_property(self, "swing", 1.0 if open else 0.0, 0.9 if open else 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		return
 	var target := _closed_pos + (slide_axis * (size.y - 0.15) if open else Vector3.ZERO)
 	if _tween:
 		_tween.kill()

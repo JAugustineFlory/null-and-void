@@ -34,6 +34,7 @@ func _run() -> void:
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
+	await test_rourke_leads_in()
 	test_sticky_notes_never_give_answers()
 	await test_elevator()
 	await test_notebook()
@@ -1515,6 +1516,8 @@ func test_world() -> void:
 	check(sra != null and not sra.active, "Server Room A loads behind its door without starting")
 	var entry: Vector3 = sra.doors["SRA-ENTRY"].global_position
 	check(entry.distance_to(Vector3(29, 1.2, 3)) < 0.1, "Server Room A sits at the end of the lobby hall (%s)" % entry)
+	check(not sra.rourke.visible, "Server Room A's own Rourke isn't seen standing in the room before he takes over")
+	check(lobby.exit_door.is_hinged(), "Server Room A's door is an ordinary hinged one")
 	var tables: Array = world.db.table_names()
 	check(tables.has("memo_fragments") and tables.has("door_controllers"), "both wings share one database")
 	lobby.exit_door.set_open(true)
@@ -1522,13 +1525,10 @@ func test_world() -> void:
 	world.wing_finished(lobby)
 	check(world.current == sra and sra.active, "finishing the lobby hands play to Server Room A")
 	check(sra.rourke.global_position.distance_to(guide_at) < 0.1 and lobby.rourke.is_queued_for_deletion(), "Server Room A's Rourke takes over where the lobby's stood")
+	check(sra.rourke.visible and sra.rourke_in, "he's inside holding the door when Server Room A takes over")
 	sra.crew_through()
 	await process_frame
-	check(lobby.exit_door.is_open, "the hall door stays open while Rourke is still on his way in")
-	sra.rourke_in = true
-	sra._try_seal()
-	await process_frame
-	check(not lobby.exit_door.is_open, "it seals once the crew and Rourke are both inside")
+	check(not lobby.exit_door.is_open and sra.sealed_in, "the door shuts once the whole crew is through")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
 	check(not world.wings.has("level_2"), "the security wing isn't loaded before it's needed")
@@ -1572,6 +1572,48 @@ func test_world() -> void:
 	world.wing_finished(sec)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
+	world.queue_free()
+	await process_frame
+
+
+func test_rourke_leads_in() -> void:
+	print("Rourke leads the crew into Server Room A")
+	_game().new_run(8)
+	var world = load("res://scenes/world.tscn").instantiate()
+	root.add_child(world)
+	for i in 30:
+		await physics_frame
+	var lobby = world.current
+	world.load_next(lobby)
+	var sra = world.wings.get("level_1")
+	var p: Player = world.player
+	lobby._release_camera(p)
+	p.global_position = Vector3(20.5, 0.2, 3)
+	lobby.rourke.global_position = Vector3(22.4, 0.05, 3)
+	lobby.rourke.watch = p
+	for i in 30:
+		await physics_frame
+	var r: Rourke = lobby.rourke
+	var to_p := p.global_position - r.global_position
+	check(to_p.normalized().dot(-r.global_basis.z) > 0.8, "at the door, he turns to talk to the crew, not to the door")
+	lobby.sync.event("_on_reach_server_room", [null])
+	for i in 900:
+		if world.current == sra:
+			break
+		await physics_frame
+	check(world.current == sra and lobby.exit_door.is_open and lobby.exit_door.swing > 0.9, "he swings the door open and goes in first")
+	check(sra.rourke.global_position.distance_to(lobby.HOLD_DOOR_AT) < 0.5, "then holds it, beside the doorway, out of the crew's way (%s)" % sra.rourke.global_position)
+	p.global_position = sra.to_global(Vector3(-1.0, 0.2, 12.0))  # in, and out of his way
+	for i in 60:
+		await physics_frame
+	check(sra.sealed_in and not lobby.exit_door.is_open, "the door swings shut behind the crew")
+	var desk: Vector3 = sra.to_global(Vector3(-2.4, 0, 6.4))
+	for i in 1200:
+		if Vector2(sra.rourke.global_position.x - desk.x, sra.rourke.global_position.z - desk.z).length() < 0.4:
+			break
+		await physics_frame
+	var off := Vector2(sra.rourke.global_position.x - desk.x, sra.rourke.global_position.z - desk.z).length()
+	check(off < 0.4, "and he walks them to the terminal desk (%.2f m off)" % off)
 	world.queue_free()
 	await process_frame
 
@@ -1686,6 +1728,16 @@ func test_notebook() -> void:
 	_game().set_todo("Find the exit")
 	_game().set_todo("Open the exit door")
 	check(not _game().set_todo("Open the exit door"), "the same task isn't written twice")
+	nb.pages.show_page(NotebookPages.Page.WORK_ORDER)
+	for i in 4:
+		await process_frame
+	var form: Control = nb.pages.book.left.find_child("WorkOrder", true, false)
+	var page_h: float = nb.pages.book.left.size.y
+	print("    work order: %.0f px tall on a %.0f px page" % [form.size.y if form else -1.0, page_h])
+	check(form != null and form.get_parent() == nb.pages.book.left and form.size.y <= page_h + 0.5, "the printed work order fills the left page and fits on it")
+	check(not NotebookPages.text_of(nb.pages.book.left.get_children()).contains("Crew notes") and NotebookPages.text_of(nb.pages.book.right.get_children()).contains("Crew notes"), "the crew's own notes start on the facing page")
+	var squeezed := form.find_children("*", "Label", true, false).filter(func(l): return l.autowrap_mode == TextServer.AUTOWRAP_OFF and l.size.x + 1.0 < l.get_minimum_size().x)
+	check(squeezed.is_empty(), "no printed label is squeezed narrower than its text")
 	var order_text := nb.pages.section_text(NotebookPages.Page.WORK_ORDER)
 	check(order_text.contains("WORK ORDER") and order_text.contains("Halcyon Data Systems") and order_text.contains("Rourke") and order_text.contains(_game().ticket_number()), "the Work order page is the crew's printed Byte-Right work order")
 	check(order_text.contains("SCOPE OF WORK") and order_text.contains("Diagnose the reported database problem") and order_text.contains("Client sign-off"), "it lists the job they were hired for and the sign-off lines")
@@ -1740,6 +1792,7 @@ func test_in_world_ui() -> void:
 	check(t.screen != null and t.screen.keyboard != null and t.screen.hosted == null, "every terminal is a CRT with its own screen and keyboard")
 	var sticky: StickyNote = t.find_children("*", "StickyNote", true, false)[0]
 	check(t.to_local(sticky.global_position).z > t.to_local(t.screen.glass.global_position).z, "the monitor's sticky note sits in front of the glass")
+	check(t.to_local(sticky.global_position).x - 0.038 > TerminalScreen.SCREEN_SIZE.x / 2.0, "and off to the right of the glass, so it never covers the screen's text")
 	var sp := t.stand_point.global_position
 	p.global_position = Vector3(sp.x, 0.4, sp.z + 0.3)
 	for i in 60:

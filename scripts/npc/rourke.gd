@@ -33,7 +33,11 @@ var _windup := 0.0
 var _down_timer := 0.0
 var _stagger := 0.0
 var _walk_target := Vector3.ZERO
+var _walk_direct := false
+var _walk_time := 0.0
 var _retarget := 0.0
+## While standing (IDLE), he turns to keep facing this: the crew he's talking to.
+var watch: Node3D
 
 
 func _ready() -> void:
@@ -70,8 +74,13 @@ func _part(parent: Node3D, mesh: PrimitiveMesh, pos: Vector3, color: Color, scal
 	parent.add_child(mi)
 
 
-func walk_to(pos: Vector3) -> void:
+## Walk to `pos` and emit `arrived`. `direct` walks a straight line instead of
+## following the navigation mesh: for short scripted steps (through a doorway,
+## between waypoints) where the path is known to be clear.
+func walk_to(pos: Vector3, direct: bool = false) -> void:
 	_walk_target = pos
+	_walk_direct = direct
+	_walk_time = 0.0
 	_agent.target_position = pos
 	state = State.WALK
 
@@ -104,8 +113,18 @@ func _physics_process(delta: float) -> void:
 	_attack_cd = max(0.0, _attack_cd - delta)
 	match state:
 		State.WALK:
-			_move_along_path(WALK_SPEED)
-			if global_position.distance_to(_walk_target) < 0.7 or _agent.is_navigation_finished():
+			_walk_time += delta
+			if _walk_direct:
+				_move_straight(WALK_SPEED)
+			else:
+				_move_along_path(WALK_SPEED)
+			var flat := Vector3(_walk_target.x - global_position.x, 0, _walk_target.z - global_position.z)
+			# Navigation can report "finished" before it has a path at all, so only
+			# trust it once he has been walking a moment.
+			var nav_done := not _walk_direct and _walk_time > 0.5 and _agent.is_navigation_finished()
+			# A scripted step someone is standing in the way of mustn't hang the story.
+			var gave_up := _walk_direct and _walk_time > 8.0
+			if flat.length() < (0.25 if _walk_direct else 0.7) or nav_done or gave_up:
 				velocity.x = 0
 				velocity.z = 0
 				state = State.IDLE
@@ -127,7 +146,28 @@ func _physics_process(delta: float) -> void:
 		_:
 			velocity.x = 0
 			velocity.z = 0
+			if state == State.IDLE and watch and is_instance_valid(watch):
+				_turn_toward(watch.global_position, delta)
 	move_and_slide()
+
+
+func _move_straight(speed: float) -> void:
+	var dir := _walk_target - global_position
+	dir.y = 0
+	dir = dir.normalized()
+	velocity.x = dir.x * speed
+	velocity.z = dir.z * speed
+	if dir.length() > 0.1:
+		face(global_position + dir)
+
+
+## Turn a little each frame to face `point`, like someone keeping an eye on you.
+func _turn_toward(point: Vector3, delta: float) -> void:
+	var to := Vector3(point.x - global_position.x, 0, point.z - global_position.z)
+	if to.length() < 0.2:
+		return
+	var want := atan2(-to.x, -to.z)
+	rotation.y = lerp_angle(rotation.y, want, minf(1.0, 4.0 * delta))
 
 
 func _move_along_path(speed: float) -> void:

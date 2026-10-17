@@ -20,6 +20,9 @@ var _trapped := false
 var crew_in := false
 var rourke_in := false
 var _sealed := false
+## On every machine: the hall door has shut behind everyone.
+signal sealed
+var sealed_in := false
 var controller_puzzle := Puzzle.new("controller",
 	"SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false, [
 	"Type this, then press Enter:\n" +
@@ -116,8 +119,11 @@ func build() -> void:
 
 	rourke = Rourke.new()
 	rourke.name = "Rourke"
-	add_child(rourke)
 	rourke.position = Vector3(0, 0, 7.6)
+	# In the World the lobby's Rourke walks the crew here and this one takes his
+	# place (start()); until then he mustn't be seen standing in the room.
+	rourke.visible = world == null
+	add_child(rourke)
 	rourke_spawn = Transform3D(Basis(), Vector3(0, 0, -2))
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 12.6))
 	DressLevel1.apply(self)  # furniture and materials (Graphics thread)
@@ -134,24 +140,32 @@ func start() -> void:
 		var guide = lobby.get("rourke") if lobby else null
 		if is_instance_valid(guide):
 			rourke.global_transform = guide.global_transform
+			rourke.watch = guide.watch
 			guide.queue_free()
 		else:
-			rourke.position = Vector3(0, 0, 10.5)
-		# Seal the hall only once the whole team is through, and Rourke with them.
+			rourke.position = Vector3(0, 0, 13.0)
+		rourke.visible = true
+		# He's holding the door from the inside. Once the whole team is through,
+		# he lets it swing shut behind them.
+		rourke_in = true
 		var through := Trigger.create(self, Vector3(0, 1, 5.0), Vector3(14, 2, 18))
 		through.require_all = true
 		through.entered.connect(func(_b): crew_through())
 	hud.todo("Follow Rourke inside")
 	if sync.is_host():
 		terminal.opened.connect(_on_terminal_opened, CONNECT_ONE_SHOT)
+	if world:
+		await sync.gate("sra_sealed", func():
+			if not sealed_in:
+				await sealed)
+	rourke.watch = null
 	var led_in := _lead_in()
 	await hud.line("l1_enter")
 	await sync.gate("rourke_at_desk", func():
 		if not led_in.finished:
 			await led_in.done)
-	rourke_in = true
-	_try_seal()
-	rourke.face(player.global_position)
+	if sync.is_host():
+		rourke.watch = players.nearest(rourke.global_position)
 	await hud.line("l1_terminal")
 	if not _trapped:
 		hud.todo("Start work at the Server Room A terminal")
@@ -172,7 +186,8 @@ func _try_seal() -> void:
 
 
 ## Rourke leads the crew in: through the antechamber and the door, then to
-## the terminal desk. Waypoints, so he never walks into a wall from the hall.
+## the terminal desk. Straight walks between waypoints, so he never depends on
+## a navigation path across the wing's seam.
 class LeadIn:
 	signal done
 	var finished := false
@@ -181,10 +196,10 @@ class LeadIn:
 func _lead_in() -> LeadIn:
 	var lead := LeadIn.new()
 	var walk := func():
-		for p in [Vector3(0, 0, 12.6), Vector3(0, 0, 7.8), Vector3(-2.4, 0, 6.4)]:
-			if p.z > to_local(rourke.global_position).z:
+		for p in [Vector3(0, 0, 11.5), Vector3(0, 0, 7.8), Vector3(-2.4, 0, 6.4)]:
+			if p.z > to_local(rourke.global_position).z + 0.3:
 				continue  # already past this one
-			rourke.walk_to(to_global(p))
+			rourke.walk_to(to_global(p), true)
 			await rourke.arrived
 		lead.finished = true
 		lead.done.emit()
@@ -193,7 +208,10 @@ func _lead_in() -> LeadIn:
 
 
 func _on_all_through() -> void:
+	rourke.face(world.wings["level_0"].exit_door.global_position if world.wings.has("level_0") else rourke.global_position)
 	world.seal_behind(self)
+	sealed_in = true
+	sealed.emit()
 
 
 ## Host: nothing is wrong until someone sits down to work. Then Rourke turns,
@@ -217,6 +235,7 @@ func _on_trapped(_b: Node) -> void:
 	hud.notice("> DOOR SRA-ENTRY: LOCKED", 3.0, ThemeUtil.RED)
 	set_all_lights_color(_red)
 	rourke.add_to_group(VoiceChat.INTERFERENCE_GROUP)
+	rourke.watch = null
 	terminal.locked = true
 	terminal.locked_message = "SESSION LOCKED BY USER ROURKE_D. ESCORT BADGE REQUIRED."
 	terminal.set_screen_color(Color(1.0, 0.25, 0.2))
