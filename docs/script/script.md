@@ -13,6 +13,10 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
+**Building PA** (PA). Halcyon's canned PA announcements. Cheerful and seemingly unaware, but WARDEN picks what plays and when; players realize later it was watching all along. WARDEN itself says nothing in Level 0.
+
+> A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Record dry: the game adds the PA speaker sound.
+
 **Dr. Iris Vale** (VALE). Lead engineer, 40s. Officially missing, presumed dead.
 
 > Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.
@@ -39,15 +43,15 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The front doors, 11 p.m.
 
-*The crew walks up from the van. Rourke opens the front doors and WARDEN greets them over the PA. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log.*
+*The crew walks up from the van. Rourke opens the front doors as the building PA plays its closing announcement. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log.*
 
-**WARDEN:** *(Over the lobby PA. Pleasant, like a store closing announcement.)* GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. `[l0_pa_1]`
+**PA:** *(Over the lobby PA. Pleasant, like a store closing announcement.)* Good evening! Halcyon Data Systems is now closed. `[l0_pa_1]`
 
-**WARDEN:** *(Same announcement, continuing.)* VISITORS MUST REMAIN WITH THEIR ESCORT AT ALL TIMES. THANK YOU FOR YOUR COOPERATION. `[l0_pa_2]`
+**PA:** *(Same announcement, continuing.)* Visitors must remain with their escort at all times. Thank you for your cooperation! `[l0_pa_2]`
 
 **ROURKE:** *(Friendly, a handshake in the voice.)* There you are. Dale Rourke, facilities. I'll be your escort tonight. `[l0_greet_1]`
 
-**ROURKE:** *(Chuckling, waving at the ceiling speaker.)* Don't mind WARDEN. It says that to everybody. `[l0_greet_2]`
+**ROURKE:** *(Chuckling, waving at the ceiling speaker.)* Don't mind the announcements. They play that to everybody. `[l0_greet_2]`
 
 **ROURKE:** *(Still smiling. Should sound like a joke the first time and a threat on replay.)* Badge rules after hours. You don't go anywhere I don't take you. `[l0_greet_3]`
 
@@ -71,9 +75,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there.*
 
-**WARDEN:** *(From the terminal speaker. A routine courtesy reminder, like a facilities notice.)* THOSE RECORDS WERE MARKED FOR DISPOSAL. PLEASE LEAVE THEM WITH FACILITIES. `[l0_sort_hint]`
+**PA:** *(From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening.)* Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! `[l0_sort_hint]`
 
-**WARDEN:** *(A routine confirmation, like a printer finishing a job. WARDEN means nothing by it.)* DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. `[l0_memo_flag]`
+**ROURKE:** *(Pleased, jotting it on his clipboard before he's read it. Warm; on a replay it's the worst thing he says all night.)* Nice work. I'll make sure that goes straight to the director. `[l0_memo_flag]`
 
 **ROURKE:** *(A beat too long before he speaks. Covering.)* ...Huh. She always was dramatic. `[l0_memo_1]`
 

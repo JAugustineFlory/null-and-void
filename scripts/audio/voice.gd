@@ -8,8 +8,9 @@ const EXTENSIONS := ["ogg", "wav", "mp3"]
 ## Gap after a recording before the next line starts. Actors leave half a second
 ## of silence at each end of their files, so this only needs to be short.
 const TAIL := 0.1
-## WARDEN speaks through the building's PA: thin, boxy, a little roomy.
+## WARDEN and the building's announcements play through the PA: thin, boxy, a little roomy.
 const PA_BUS := &"VoicePA"
+const PA_SPEAKERS := ["WARDEN", "PA"]
 
 ## Where recordings live. Tests point this somewhere else.
 static var folder := "res://audio/voice/"
@@ -71,7 +72,7 @@ func play(id: String) -> float:
 	if stream == null:
 		return 0.0
 	_player.stream = stream
-	_player.bus = PA_BUS if VoiceLines.get_line(id).get("speaker") == "WARDEN" else &"Master"
+	_player.bus = PA_BUS if VoiceLines.get_line(id).get("speaker") in PA_SPEAKERS else &"Master"
 	_player.play()
 	return stream.get_length() + TAIL
 
