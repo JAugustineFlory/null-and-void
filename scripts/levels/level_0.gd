@@ -68,7 +68,7 @@ func build() -> void:
 	Greybox.room(geo, Vector3.ZERO, Vector3(16, 4, 14), {"floor": carpet, "wall": wall}, [
 		{"wall": "e", "at": 3.0, "width": 2.0, "height": 3.0},
 		{"wall": "s", "at": 0.0, "width": 3.2, "height": 2.6},
-		{"wall": "w", "at": 4.0, "width": 0.9, "height": 1.05, "bottom": 0.1},
+		{"wall": "w", "at": 4.0, "width": 0.9, "height": 1.0},  # the air return, flush with the floor so you can crawl in
 	])
 	Greybox.label(geo, Vector3(0, 3.0, -6.88), "HALCYON DATA SYSTEMS", 160, Color(0.15, 0.2, 0.35))
 	Greybox.label(geo, Vector3(0, 2.55, -6.88), "Data you can trust.", 64, Color(0.25, 0.25, 0.3))
@@ -146,15 +146,16 @@ func build() -> void:
 		{"wall": "w", "at": 0.0, "width": 2.0, "height": 3.0},
 		{"wall": "e", "at": 0.0, "width": 1.8, "height": 2.4},  # into Server Room A's antechamber
 	])
-	Greybox.label(geo, Vector3(23.85, 2.4, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
+	Greybox.label(geo, Vector3(23.88, 2.72, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
 	shutter = add_door("LOBBY-SHUTTER", Vector3(11, 1.5, 3), Vector3(0.15, 3.0, 2.0))
 	# Server Room A's door is an ordinary one: Rourke opens it, holds it, and it
 	# swings shut behind the crew.
 	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8)).make_hinged(Vector3(0, 0, -0.9), 90.0)
+	exit_door.locked = true  # a badge door: only Rourke opens it
 
 	# The vent in the west wall leads to a forgotten storage closet: x -14..-8, z 3.5..4.5 duct
-	Traversal.vent(geo, Vector3(-8, 0.1, 4), Vector3(-14, 0.1, 4), Vector2(0.9, 0.95))
-	vent_grate = Interactable.create(self, Vector3(-7.96, 0.575, 4), Vector3(0.05, 0.95, 0.9), "Pull the grate off the air return", Color(0.55, 0.56, 0.58))
+	Traversal.vent(geo, Vector3(-8, 0.0, 4), Vector3(-14, 0.0, 4), Vector2(0.9, 0.95))
+	vent_grate = Interactable.create(self, Vector3(-7.96, 0.5, 4), Vector3(0.05, 0.95, 0.9), "Pull the grate off the air return", Color(0.55, 0.56, 0.58))
 	vent_grate.name = "VentGrate"
 	for i in 6:  # louvres
 		var louvre := MeshInstance3D.new()
@@ -165,9 +166,8 @@ func build() -> void:
 		louvre.position = Vector3(0.03, -0.38 + i * 0.15, 0)
 		vent_grate.add_child(louvre)
 	vent_grate.used.connect(func(_p): sync.event("_on_vent_grate"))
-	Greybox.label(geo, Vector3(-7.88, 1.25, 4), "AIR RETURN", 30, Color(0.2, 0.2, 0.2), 90)
 	Greybox.room(geo, Vector3(-17, 0, 4), Vector3(6, 2.6, 6), {"floor": Color(0.2, 0.2, 0.2), "wall": Color(0.4, 0.38, 0.33)}, [
-		{"wall": "e", "at": 0.0, "width": 0.9, "height": 1.05, "bottom": 0.1},
+		{"wall": "e", "at": 0.0, "width": 0.9, "height": 1.0},
 	])
 	Greybox.box(geo, Vector3(-19.5, 0.9, 4), Vector3(0.8, 1.8, 3), Color(0.35, 0.35, 0.35), "Shelf")
 	Greybox.label(geo, Vector3(-19.05, 1.4, 4),
@@ -192,7 +192,9 @@ func build() -> void:
 	rourke = Rourke.new()
 	rourke.name = "Rourke"
 	add_child(rourke)
-	rourke.position = Vector3(0, 0, 4.8)
+	# Already waiting outside the front doors when the van pulls up.
+	rourke.position = ROURKE_OUTSIDE
+	rourke.rotation.y = PI  # looking out at the lot
 	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
 	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
 
@@ -508,12 +510,11 @@ func start() -> void:
 	var approach := Trigger.create(self, Vector3(0, 1, 11.5), Vector3(16, 2, 2))
 	await sync.gate("approach", approach.entered)
 
+	# Rourke is waiting outside: he greets the crew on the steps, then takes them in.
 	_set_front_doors_locked(false)
-	rourke.walk_to(Vector3(0, 0, 8.8))
-	await sync.gate("rourke_at_door", rourke.arrived)
-	rourke.face(player.global_position)
-	await hud.lines(["l0_pa_1", "l0_pa_2", "l0_greet_1", "l0_greet_2", "l0_greet_3"])
-	await hud.line("l0_greet_4")
+	_watch_nearest()
+	await hud.lines(["l0_greet_1", "l0_greet_3", "l0_greet_4"])
+	rourke.watch = null
 	# The whole lobby, not a strip by the door: whoever follows Rourke first walks
 	# on to the desk, and a strip they've left wouldn't count them.
 	var inside := Trigger.create(self, Vector3(0, 1, 0), Vector3(15.6, 2, 13.6))
@@ -523,12 +524,16 @@ func start() -> void:
 	inside.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone to come inside (%d/%d)" % [n, total]))
 	await sync.gate("inside", inside.entered)
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 5.6))
+	# The building's PA greets everyone who walks in, and Rourke apologises for it.
+	await get_tree().create_timer(0.8, false).timeout
+	await hud.lines(["l0_pa_1", "l0_pa_2"])
 	await sync.gate("rourke_at_desk", func():
 		if rourke.state == Rourke.State.WALK:
 			await rourke.arrived)
 	# Only once Rourke is through too: shutting the doors on him would strand him.
 	_set_front_doors_locked(true)
-	rourke.face(player.global_position)
+	_watch_nearest()
+	await hud.line("l0_greet_2")
 	await hud.line("l0_signin")
 	visitor_log.enabled = true
 	hud.todo("Sign the visitor log")
@@ -537,7 +542,7 @@ func start() -> void:
 	hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
 	hud.todo("")
 	await hud.lines(["l0_tour_1", "l0_tour_2"])
-	rourke.face(player.global_position)
+	_watch_nearest()
 	await hud.lines(["l0_desk_1", "l0_desk_2"])
 	desk_terminal.enabled = true
 	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
@@ -596,10 +601,7 @@ func _on_peek_solved() -> void:
 func _on_memo_solved() -> void:
 	memo_puzzle.solved = true
 	peek_puzzle.solved = true
-	desk_terminal.print_line("")
-	desk_terminal.print_line("[color=#ffcc66]-- RECONSTRUCTED --[/color]")
-	for row in db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no"):
-		desk_terminal.print_line("[color=#ffcc66]%s[/color]" % row["text"])
+	# The sorted result on screen is the memo: nothing more to print.
 	_after_memo()
 
 
@@ -611,6 +613,7 @@ func _after_memo() -> void:
 	# and the building's PA only cuts in once he's done.
 	await sync.gate("memo_left_terminal", _crew_off_desk_terminal)
 	await get_tree().create_timer(0.6, false).timeout
+	_watch_nearest()
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
 	_pa_after_memo()
 	walkies.enabled = true
@@ -656,7 +659,7 @@ func _on_walkies() -> void:
 func _walk_to_server_room() -> void:
 	rourke.walk_to(Vector3(9.6, 0, 3))
 	await sync.gate("rourke_at_shutter", rourke.arrived)
-	rourke.face(player.global_position)
+	_watch_nearest()
 	shutter.set_open(true)  # he badges it, and it opens like any other door
 	hud.todo("Follow Rourke to Server Room A")
 	var hall := Trigger.create(self, Vector3(8.2, 1, 3), Vector3(1.2, 2, 2))
@@ -674,6 +677,12 @@ func _walk_to_server_room() -> void:
 	near.entered.connect(func(_b): sync.event("_on_reach_server_room", [null]))
 
 
+## Rourke turns to whoever is closest and keeps facing them while he talks (host).
+func _watch_nearest() -> void:
+	if sync.is_host():
+		rourke.watch = players.nearest(rourke.global_position)
+
+
 ## Host: once he's at the door, he turns round to talk to the crew rather than to it.
 func _face_crew_on_arrival() -> void:
 	if not sync.is_host():
@@ -682,6 +691,9 @@ func _face_crew_on_arrival() -> void:
 		await rourke.arrived
 	rourke.watch = players.nearest(rourke.global_position)
 
+
+## Where Rourke waits for the crew: on the steps outside the front doors.
+const ROURKE_OUTSIDE := Vector3(0, 0, 8.8)
 
 ## Where Rourke stands holding the door: just inside Server Room A's
 ## antechamber, beside the doorway so the crew can walk past him.

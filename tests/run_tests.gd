@@ -434,6 +434,7 @@ func test_level_0_scene() -> void:
 	check(level.van_seats.size() == 6, "the van seats six")
 	check(level.seat_spawn(1).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the passenger seat")
 	check(level.player.seated and level.find_children("Windscreen", "", true, false).size() == 1, "players start belted in, behind a solid windscreen")
+	check(level.rourke.global_position.distance_to(level.ROURKE_OUTSIDE) < 0.3 and level.rourke.visible, "Rourke is already waiting outside the front doors")
 	var exits: Array = level.van_seats.map(func(s): return s.exit)
 	check(exits.count("side") == 4 and exits.has("w") and exits.has("e"), "two front doors and a side door for the rear bench")
 	level.players_needed = 2
@@ -503,6 +504,12 @@ func test_level_0_scene() -> void:
 	check(vaulted and lp.global_position.z > -0.4, "and back to the lobby side")
 	lp.controls.move = Vector2.ZERO
 	lp.local_control = true
+	# Let the greeting on the steps finish and the crew come inside first, as in play.
+	for i in 1800:
+		if level.sync._gates.has("inside"):
+			break
+		await physics_frame
+	check(level.sync._gates.has("inside"), "Rourke greets the crew outside, then they all come in")
 	# Rourke walks the crew down the hall himself; nothing blocks the way.
 	level._on_walkies()
 	for i in 600:
@@ -520,6 +527,32 @@ func test_level_0_scene() -> void:
 	check(level.vent_grate.enabled, "the air return has a grate on it")
 	level._on_vent_grate()
 	check(not level.vent_grate.enabled and level.find_children("*", "MovementVolume", true, false).any(func(v): return v.kind == MovementVolume.Kind.VENT), "the grate comes off, and the duct behind it is a crawlspace")
+	var crawler: Player = level.player
+	var was_seated := crawler.seated
+	crawler.seated = false
+	crawler.local_control = false
+	crawler.global_position = Vector3(-7.0, 0.1, 4)
+	crawler.rotation.y = PI / 2  # facing the air return
+	crawler.controls.crouch = true
+	crawler.controls.move = Vector2(0, -1)
+	for i in 360:
+		await physics_frame
+	check(crawler.global_position.x < -14.0, "holding crouch and walking in crawls all the way through to the closet (x %.1f)" % crawler.global_position.x)
+	crawler.controls.crouch = false
+	crawler.controls.move = Vector2.ZERO
+	crawler.seated = was_seated
+	crawler.local_control = true
+	# Ordinary hinged doors open and shut with E; Server Room A's is a badge door.
+	check(level.exit_door.get_prompt(crawler) == "Locked", "Server Room A's door says it's locked")
+	level.exit_door.interact(crawler)
+	check(not level.exit_door.is_open, "and E doesn't open it: only Rourke's badge does")
+	var plain := Door.create(level, "TEST-PLAIN", Vector3(30, 1.2, 30), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
+	await process_frame
+	check(plain.get_prompt(crawler).contains("Open"), "an ordinary door offers to open")
+	plain.interact(crawler)
+	check(plain.is_open and plain.get_prompt(crawler).contains("Close"), "E opens it, and then offers to close it")
+	plain.interact(crawler)
+	check(not plain.is_open, "E again shuts it")
 	level.queue_free()
 	await process_frame
 
@@ -958,8 +991,8 @@ func test_coop_lobby_walk_in() -> void:
 		p.global_position = h.to_global(Vector3(0, 0.1, 11.5))
 	for f in 2400:
 		await physics_frame
-		if h.rourke.state == Rourke.State.WALK and c.sync._gates.has("rourke_at_door"):
-			break
+		if h.rourke.state == Rourke.State.WALK and c.sync._gates.has("approach"):
+			break  # he's said hello on the steps and is heading in
 	m[0].player.global_position = h.to_global(Vector3(0, 0.1, 4.5))
 	await _frames(20)
 	m[0].player.global_position = h.to_global(Vector3(0, 0.1, 1.8))
@@ -967,7 +1000,7 @@ func test_coop_lobby_walk_in() -> void:
 	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 4.5))
 	await _frames(20)
 	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 1.8))
-	for f in 1200:
+	for f in 3000:
 		await physics_frame
 		if c.visitor_log.enabled:
 			break

@@ -45,17 +45,17 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *The crew walks up from the van. Rourke opens the front doors as the building PA plays its closing announcement. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log.*
 
-**PA:** *(Over the lobby PA. Pleasant, like a store closing announcement.)* Good evening! Halcyon Data Systems is now closed. `[l0_pa_1]`
-
-**PA:** *(Same announcement, continuing.)* Visitors must remain with their escort at all times. Thank you for your cooperation! `[l0_pa_2]`
-
-**ROURKE:** *(Friendly, a handshake in the voice.)* There you are. Dale Rourke, facilities. I'll be your escort tonight. `[l0_greet_1]`
-
-**ROURKE:** *(Chuckling, waving at the ceiling speaker.)* Don't mind the announcements. They play that to everybody. `[l0_greet_2]`
+**ROURKE:** *(Waiting outside the front doors as the crew walks up. Friendly, a handshake in the voice.)* There you are. Dale Rourke, facilities. I'll be your escort tonight. `[l0_greet_1]`
 
 **ROURKE:** *(Still smiling. Should sound like a joke the first time and a threat on replay.)* Badge rules after hours. You don't go anywhere I don't take you. `[l0_greet_3]`
 
 **ROURKE:** *(Holding the door, waving them through.)* Come on in. I'll sign you in at the front desk. `[l0_greet_4]`
+
+**PA:** *(Over the lobby PA, as the crew steps inside. Pleasant, like a store closing announcement.)* Good evening! Halcyon Data Systems is now closed. `[l0_pa_1]`
+
+**PA:** *(Same announcement, continuing.)* Visitors must remain with their escort at all times. Thank you for your cooperation! `[l0_pa_2]`
+
+**ROURKE:** *(Inside the lobby, right after the PA. Chuckling, waving at the ceiling speaker.)* Sorry about that. The company loves its PA system. `[l0_greet_2]`
 
 **ROURKE:** *(Casual, reassuring. Nothing to worry about. (On a replay it lands differently.))* Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. `[l0_signin]`
 
