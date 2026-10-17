@@ -55,9 +55,7 @@ func _run() -> void:
 	var sra = world.load_wing(1)
 	world.load_next(sra)
 	sra.doors["SRA-EXIT"].set_open(true, true)
-	await _shot(world, "world_sra_stairs_door", Vector3(50, 0.1, 3), -90, 0)
-	sra.exit_door.set_open(true, true)
-	await _shot(world, "world_sra_to_security", Vector3(47.5, 0.1, 3), -90, 0)
+	await _shot(world, "world_sra_elevator", Vector3(50, 0.1, 3), -90, 0)
 	world.free()
 
 	level = await _load("res://scenes/level_1.tscn")
@@ -96,6 +94,7 @@ func _run() -> void:
 	await _shot(level, "l2_key_box", Vector3(4.0, 0.1, 7.2), 90, -8)
 	await _shot(level, "l2_corridor_window", Vector3(-1.5, 0.1, 4.8), 20, -2)
 	await _shot(level, "l2_booth", Vector3(-3, 0.1, 4.4), 180, -15)
+	await _shot(level, "l2_booth_papers", Vector3(-3.2, 0.1, 4.2), 180, 5)
 	await _shot(level, "l2_office", Vector3(0, 0.1, 1.0), 0, -5)
 	await _shot(level, "l2_office_door", Vector3(0.6, 0.1, 5.4), 0, -2)
 	await _shot(level, "l2_vent_entry", Vector3(-3.5, 0.1, 4), 90, 20)

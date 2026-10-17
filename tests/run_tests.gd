@@ -1014,7 +1014,7 @@ func test_coop_level_2() -> void:
 	check(machines.all(func(l): return l.has_screwdriver and l.geo.get_node_or_null("Screwdriver") == null), "the screwdriver is picked up for everyone")
 	client.vent_grate.interact(client.player)
 	await _frames(10)
-	check(machines.all(func(l): return not is_instance_valid(l.vent_grate)), "the grate comes off on every machine")
+	check(machines.all(func(l): return not l.vent_grate.enabled), "the grate comes off on every machine")
 
 	client._pad_mode = "exit"
 	client._on_pin(host.data.pin)
@@ -1233,7 +1233,7 @@ func test_level_2_scene() -> void:
 	_game().cam_lie_learned = false
 	level.on_player_died()
 	await create_timer(2.8).timeout
-	check(level._lie_explained and _game().cam_lie_learned and level.booth.transcript[-1].contains("last_frame") and level.panel.boot_lines[-1].contains("last_frame"), "dying to it explains the frozen camera, as lines you can note on both terminals")
+	check(level._lie_explained and _game().cam_lie_learned and level.booth.transcript[-1].contains("last_frame") and (Array(level.panel.transcript) + level.panel.boot_lines).any(func(l): return l.contains("last_frame")), "dying to it explains the frozen camera, as lines you can note on both terminals")
 	for i in 3:
 		await physics_frame
 	level.enter_pin()
@@ -1248,6 +1248,8 @@ func test_level_2_scene() -> void:
 	var wrong_b: int = level.data.breaker % 4 + 1
 	level._on_breaker(null, wrong_b)
 	check(level.frozen_cams.has("CAM-3") and not level.doors["SEC-EXIT"].is_open, "the wrong breaker blacks out the vestibule camera instead")
+	check((Array(level.panel.transcript) + level.panel.boot_lines).any(func(l): return str(l).contains("CAM-3: NO SIGNAL")), "and the panel reports the camera lost its signal")
+	check(level.breaker_status.text.contains("CAM-3: NO SIGNAL"), "the breaker box itself shows what the wrong breaker cut")
 	level._on_breaker(null, level.data.breaker)
 	for i in 5:
 		await physics_frame
@@ -1272,6 +1274,11 @@ func test_level_2_scene() -> void:
 	for i in 160:
 		await physics_frame
 	check(shut[0] and level.exit_lift.open_amount == 0.0, "the doors shut: the wing is done")
+	for i in 120:
+		await physics_frame
+	var taps: Array = level.geo.get_meta("sounds_played", []).filter(func(x): return x.kind == "tap")
+	check(taps.size() == 1 and taps[0].pos == level.SEC_EXIT_FRAME and level.hud._subtitle.text == "",
+		"leaving, there's one tap on the metal behind SEC-EXIT, and no narration")
 	p.input_locked = false
 	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
 	# Caught: put it right behind the player, out of sight.
@@ -1293,6 +1300,14 @@ func test_level_2_routes() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	p.local_control = false
+	# The clues are on paper in the booth, and E copies them into the notebook.
+	var docs: Array = level.get_tree().get_nodes_in_group("document").filter(func(d): return level.is_ancestor_of(d))
+	var titles: Array = docs.map(func(d): return d.title)
+	check(["Night shift sign-in sheet", "Camera system card", "WARDEN manual, p.12", "Lockdown PIN policy", "Door controller card"].all(func(t): return titles.has(t)), "the wing's clues are on documents: roster, camera card, manual page, PIN policy, door card")
+	var sheet: Document = docs[titles.find("Night shift sign-in sheet")]
+	check(sheet.lines().any(func(l): return l.hand and l.text.begins_with("Har")) and sheet.lines().any(func(l): return l.hand and l.text == "guards"),
+		"the sign-in sheet has the half-legible name and the PIN table, handwritten")
+	check(not str(docs.map(func(d): return d.plain_text())).contains("Har%"), "no document gives the Har query away")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
@@ -1310,7 +1325,10 @@ func test_level_2_routes() -> void:
 	sd.interact(p)
 	level._on_vent_grate(p)
 	await process_frame
-	check(not is_instance_valid(level.vent_grate), "the screwdriver takes the grate off")
+	check(not level.vent_grate.enabled and level.vent_grate.get_children().filter(func(c): return c is CollisionShape3D).all(func(c): return c.disabled),
+		"the screwdriver takes the grate off, and it's out of the way")
+	await _frames(40)
+	check(level.vent_grate.position.y < 0.5, "the grate drops to the floor, where everyone can see it came off")
 	level.set_hatch(true)
 	check(level.hatch_open and level.vent_hatch.rotation.z != 0.0, "the hinged hatch at the vestibule end swings open")
 	level.set_hatch(false)

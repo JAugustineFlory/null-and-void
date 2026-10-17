@@ -30,6 +30,14 @@ const NOTES := {
 		"example": "SELECT * FROM doors\n  WHERE zone = 'A'\n  AND locked = 1;",
 		"tip": "Text goes in 'single quotes'. Numbers don't.",
 	},
+	"like": {
+		"title": "LIKE patterns",
+		"label": "LIKE 'Dale%'",
+		"what": "LIKE keeps rows whose text matches a pattern. % stands for any letters, or none.",
+		"syntax": "WHERE col LIKE 'Ab%';",
+		"example": "SELECT * FROM staff_directory\n  WHERE name LIKE 'Dale%';",
+		"tip": "Keep the 'single quotes'. 'Ab%' starts with Ab; '%ab%' has ab anywhere.",
+	},
 }
 
 

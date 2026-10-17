@@ -406,9 +406,11 @@ func walk_level_2(seed_value: int) -> void:
 	level.loose = true
 	level.hud._notice.text = ""
 	level.on_player_died()
-	var said: String = level.hud._notice.text.to_lower() + level.hud.current_todo().to_lower()
-	check(said.contains("camera") or said.contains("frozen") or said.contains("last_frame"),
-		"security: after the Watcher gets you, the screen says why it could move (a camera froze)")
+	# The HUD only points at the terminals; the reason is a terminal line you can note.
+	var said: String = level.hud._notice.text.to_lower()
+	var lines: String = "\n".join(Array(level.booth.transcript) + level.booth.boot_lines).to_lower()
+	check(said.contains("message") and (lines.contains("froze") or lines.contains("last_frame")),
+		"security: after the Watcher gets you, the screen points to a terminal that says why it could move (a camera froze)")
 	level.queue_free()
 	await t.process_frame
 
