@@ -251,6 +251,7 @@ Ctrl  crouch, slide, roll
 Space  jump, mantle, grab a ledge
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
+Tab  your notebook: notes, tables, Field Notes
 V (hold)  talk on the radio, once you have one
 B  mute your open mic
 Esc  this menu"""
