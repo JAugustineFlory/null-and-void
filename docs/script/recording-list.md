@@ -1,6 +1,6 @@
 # Recording list
 
-67 lines in all.
+69 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -17,14 +17,16 @@ Each actor gets only their own character's script from [characters/](characters/
 
 Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke/l0_greet_1.wav`); open the project in Godot once so it imports them. The game plays a recording whenever one exists, keeps the subtitle up for as long as it lasts, and falls back to the timed subtitle when it doesn't. Only `<line_id>.wav` is played: to use take 2, rename it.
 
-## Dale Rourke (36 lines)
+Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
+
+## Dale Rourke (37 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
 | [ ] | `l0_greet_1` | There you are. Dale Rourke, facilities. I'll be your escort tonight. | Friendly, a handshake in the voice. | Level 0 |
-| [ ] | `l0_greet_2` | Don't mind WARDEN. It says that to everybody. | Chuckling, waving at the ceiling speaker. | Level 0 |
+| [ ] | `l0_greet_2` | Don't mind the announcements. They play that to everybody. | Chuckling, waving at the ceiling speaker. | Level 0 |
 | [ ] | `l0_greet_3` | Badge rules after hours. You don't go anywhere I don't take you. | Still smiling. Should sound like a joke the first time and a threat on replay. | Level 0 |
 | [ ] | `l0_greet_4` | Come on in. I'll sign you in at the front desk. | Holding the door, waving them through. | Level 0 |
 | [ ] | `l0_signin` | Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. | Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) | Level 0 |
@@ -32,6 +34,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 | [ ] | `l0_tour_2` | Her systems are a mess and the director wants them recovered by morning. Quietly. | Small beat before "Quietly." | Level 0 |
 | [ ] | `l0_desk_1` | The front desk scanner ate one of Vale's memos. The scraps went into a table. | Pointing at the desk. | Level 0 |
 | [ ] | `l0_desk_2` | Director wants to know what it said. Go ahead, terminal's on the desk. | Casual, but he wants to know too. | Level 0 |
+| [ ] | `l0_memo_flag` | Nice work. I'll make sure that goes straight to the director. | Pleased, jotting it on his clipboard before he's read it. Warm; on a replay it's the worst thing he says all night. | Level 0 |
 | [ ] | `l0_memo_1` | ...Huh. She always was dramatic. | A beat too long before he speaks. Covering. | Level 0 |
 | [ ] | `l0_memo_2` | Grab the walkie-talkies from lost and found, back behind the desk. | Back to friendly, changing the subject. | Level 0 |
 | [ ] | `l0_memo_3` | And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either. | Amused, he's said this to every visitor. A little eye-roll at corporate. | Level 0 |
@@ -60,32 +63,40 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 | [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
 | [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (20 lines)
+## WARDEN (18 lines)
 
-> Calm, polite, flat. Customer-service cadence with even pauses. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_pa_1` | GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
-| [ ] | `l0_pa_2` | VISITORS MUST REMAIN WITH THEIR ESCORT AT ALL TIMES. THANK YOU FOR YOUR COOPERATION. | Same announcement, continuing. | Level 0 |
-| [ ] | `l0_sort_hint` | THOSE SCRAPS ARE OUT OF ORDER. EACH ONE HAS A PIECE NUMBER. SORT THEM WITH ORDER BY. | From the terminal speaker, helpful in the way a parking meter is helpful. | Level 0 |
-| [ ] | `l0_memo_flag` | DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. | Brightly. This should land as a chill. | Level 0 |
 | [ ] | `l1_killed` | ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN. | Over the room's speakers. Unbothered, like reading a stock price. | Level 1 |
 | [ ] | `l1_login` | BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 1 |
-| [ ] | `l1_selftest` | SELF-TEST COMPLETE. TWO FAILURES. I'M SURE YOU'LL WORK IT OUT. | The one line with a hint of a smirk. | Level 1 |
-| [ ] | `l1_found` | THAT IS THE ONE. A MANUAL RESET AT ITS RACK WILL CLEAR IT. | Grudging. | Level 1 |
+| [ ] | `l1_selftest` | SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. | The one line with a hint of a smirk. | Level 1 |
+| [ ] | `l1_contain_1` | VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 1, later |
+| [ ] | `l1_contain_2` | VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE. | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 1, later |
+| [ ] | `l1_found` | QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY. | Reading a rule it knows they're about to break. Cool. | Level 1 |
 | [ ] | `l1_no_badge` | RESET REFUSED. BADGE REQUIRED. | Flat, instant. | Level 1 |
-| [ ] | `l1_panel_ok` | THAT CONTROLLER IS WORKING NORMALLY. NOTHING TO RESET. | Patient, like talking to a child. | Level 1 |
-| [ ] | `l1_panel_wrong` | THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. | The last sentence slightly slower. | Level 1 |
-| [ ] | `l1_exit_open` | CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. | Polite and a touch reluctant, over the speakers. | Level 1 |
+| [ ] | `l1_panel_ok` | RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU? | Patient, then a small dig. | Level 1 |
+| [ ] | `l1_panel_wrong` | UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. | The last sentence slightly slower. | Level 1 |
+| [ ] | `l1_exit_open` | CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED. | Polite, and keeping score. | Level 1 |
 | [ ] | `l1_lockdown_tied` | LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D. | Reading a log entry. | Level 1 |
 | [ ] | `l1_sealed` | ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT. | The sign-off for the slice. Warm, like wishing them well. | Level 1 |
 | [ ] | `l2_dead_escort` | REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. | Plays in one version of the story only. Patient, slightly too formal. | Level 2 |
 | [ ] | `l2_arrive` | SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. | Reassuring tone. It is not reassuring. | Level 2 |
-| [ ] | `l2_cameras` | LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. | Small pause before "Often." | Level 2 |
-| [ ] | `l2_smudged` | GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. | Not unfortunate for WARDEN. | Level 2 |
+| [ ] | `l2_cameras` | CAMERA FEEDS ARE RESTRICTED TO SECURITY STAFF. YOU ARE NOT SECURITY STAFF. | Small pause before the second sentence. | Level 2 |
+| [ ] | `l2_smudged` | TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
-| [ ] | `l2_door_fault` | CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. | When the players check the sensor. Deadpan. | Level 2 |
+| [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
+
+## WARDEN (PA tapes) (3 lines)
+
+> A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
+| [ ] | `l0_pa_2` | Visitors must remain with their escort at all times. Thank you for your cooperation! | Same announcement, continuing. | Level 0 |
+| [ ] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
 
 ## Dr. Iris Vale (3 lines)
 
