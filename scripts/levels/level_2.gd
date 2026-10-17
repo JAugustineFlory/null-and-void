@@ -12,7 +12,8 @@ extends LevelBase
 ##
 ## The main path: find the PIN, open the office door with it, get past the Watcher,
 ## enter the PIN at the stairwell, then (optionally) lock it in behind you. The Watcher
-## starts out of sight and creeps closer each time players get closer to the PIN.
+## starts out of sight, creeps closer once players find Pike, and from then on hunts
+## them, held back only by the locked office door and its glass until the PIN opens it.
 ## Two side routes have to be discovered: the vent over the crate (its grate needs
 ## the screwdriver from the break-glass box on the landing) and the corridor's outside
 ## window (break the glass, then the ledge). Players arrive by elevator and leave by
@@ -666,9 +667,13 @@ func _on_pike_found(which: String) -> void:
 		t.print_line("The other name on the sign-in sheet is under a coffee stain. Only [b]Har[/b] is readable.")
 		t.print_line("It's the NIGHT SHIFT sheet. The guard you want starts with Har and works nights.")
 		hud.set_objective("Find the PIN of the night-shift guard whose name starts with Har")
+		t.print_line("[color=#ff6655]Something in the office is moving. It moves only while nothing is watching it. Not you, not a working camera.[/color]")
 		hud.line("l2_smudged")
 		_set_loose()
 		_set_stage("near")
+		# From here it hunts, so the Har search is typed under pressure. The locked
+		# office door and its glass still stand between it and the booth.
+		wake_watcher()
 
 
 func _on_har_found(which: String) -> void:
@@ -678,7 +683,7 @@ func _on_har_found(which: String) -> void:
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Signed in 22:00. PIN on file.[/color]" % data.name)
 		t.print_line("Their PIN opens the Security Office door, and the stairwell keypad on the far side.")
-		t.print_line("[color=#ff6655]Whatever is in there moves only while nothing is watching it. Not you, not a working camera.[/color]")
+		t.print_line("[color=#ff6655]It's on the other side of that door. Open it, and keep your eyes on it.[/color]")
 		hud.set_objective("Open the Security Office door with %s's PIN" % data.name)
 		_set_loose()
 		_set_stage("window")

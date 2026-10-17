@@ -965,25 +965,35 @@ func test_level_2_scene() -> void:
 	check(not level.door_puzzle.solved, "checking the door early doesn't use up its puzzle")
 	await physics_frame
 	await physics_frame
-	check(level.stage == "near" and w.global_position.distance_to(level.to_global(level.STAGES.near[0])) < 0.1, "closer to the PIN, it creeps closer while nobody looks")
-	check(not w.active, "the locked door keeps it in the office")
+	check(level.stage == "near" and w.global_position.distance_to(level.to_global(level.STAGES.near[0])) < 0.2, "closer to the PIN, it creeps closer while nobody looks")
+	check(w.active, "finding Pike wakes it: the Har search is typed while it hunts")
 	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
 	p.head.rotation = Vector3.ZERO
+	await physics_frame
 	await physics_frame
 	check(w.player_sees(p), "now players can see it through the office window")
-	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
-	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
+	var watched: Vector3 = w.global_position
 	for i in 10:
 		await physics_frame
-	check(level.stage == "near", "it doesn't move while someone is watching it")
+	check(w.global_position.distance_to(watched) < 0.05, "it doesn't move while someone is watching it")
+	# Back at the booth, typing with it behind them: it comes, but the door and glass hold.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
-	for i in 3:
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
+	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
+	for i in 240:
 		await physics_frame
-	check(level.stage == "window" and w.global_position.distance_to(level.to_global(level.STAGES.window[0])) < 0.1, "look away and it's at the window")
-	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
+	check(w.global_position.distance_to(watched) > 1.0 and level.to_local(w.global_position).z < 2.0 and p.health > 0.0, "unseen, it hunts, but the locked office door keeps it in")
+	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 2.35))
 	p.head.rotation = Vector3.ZERO
-	await physics_frame
-	check(w.player_sees(p) and not w.active, "with the PIN found, it stares at you through the glass")
+	w.place(level.to_global(Vector3(-3, 0, 1.6)), p.global_position)
+	w.holders.append(func(_w): return false)
+	p.input_locked = true  # not looking: only the glass is between them
+	for i in 30:
+		await physics_frame
+	check(p.health > 0.0, "it can't get you through the glass")
+	p.input_locked = false
+	w.holders.clear()
+	w.holders.append(level._camera_holds)
 	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
 	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
 	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")

@@ -120,7 +120,7 @@ func _physics_process(delta: float) -> void:
 		_new_pose()
 		started_moving.emit()
 	_face(target.global_position)
-	if global_position.distance_to(target.global_position) < CATCH_RANGE:
+	if global_position.distance_to(target.global_position) < CATCH_RANGE and _can_reach(target):
 		_cooldown = CATCH_COOLDOWN
 		velocity = Vector3.ZERO
 		caught.emit(target)
@@ -187,6 +187,12 @@ func nearest_player() -> Node3D:
 			best_d = d
 			best = p
 	return best
+
+
+## Nothing solid between it and them: a locked door or a pane of glass keeps them safe.
+func _can_reach(p: Node3D) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 1.3, p.global_position + Vector3.UP * 1.0, 0xFFFFFFFF, [get_rid(), p.get_rid()])
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
 ## Players in this world (tests run several co-op worlds in one process).
