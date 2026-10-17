@@ -142,6 +142,62 @@ static func troffer(parent: Node, ceiling_pos: Vector3, light_range: float = 8.0
 	return light
 
 
+## A parked 90s sedan, about 4.5 m long, nose toward -Z. One box collider.
+static func car(parent: Node, pos: Vector3, facing_deg: float = 0.0, paint: Color = Color(0.45, 0.12, 0.1)) -> StaticBody3D:
+	var body := _body(parent, pos, facing_deg, "Car", Vector3(1.8, 1.4, 4.5), Vector3(0, 0.7, 0))
+	var shell := ArtPalette.flat(paint, 0.35, 0.4)
+	_piece(body, Vector3(1.8, 0.65, 4.5), Vector3(0, 0.62, 0), shell, true)  # body
+	_piece(body, Vector3(1.6, 0.55, 2.3), Vector3(0, 1.2, 0.2), shell, true)  # cabin
+	_piece(body, Vector3(1.5, 0.45, 0.02), Vector3(0, 1.2, -0.96), ArtPalette.glass(), false)  # windscreen
+	_piece(body, Vector3(1.5, 0.42, 0.02), Vector3(0, 1.2, 1.36), ArtPalette.glass(), false)  # rear window
+	for sx in [-1.0, 1.0]:
+		_piece(body, Vector3(0.02, 0.4, 2.0), Vector3(sx * 0.81, 1.2, 0.2), ArtPalette.glass(), false)
+	var tyre := ArtPalette.flat(Color(0.05, 0.05, 0.05), 0.9)
+	for sx in [-0.82, 0.82]:
+		for sz in [-1.4, 1.4]:
+			_piece(body, Vector3(0.22, 0.6, 0.6), Vector3(sx, 0.3, sz), tyre)
+	var lamp := ArtPalette.flat(Color(0.85, 0.85, 0.8), 0.2)
+	var tail := ArtPalette.flat(Color(0.5, 0.05, 0.05), 0.3)
+	for sx in [-0.65, 0.65]:
+		_piece(body, Vector3(0.3, 0.12, 0.02), Vector3(sx, 0.75, -2.26), lamp)
+		_piece(body, Vector3(0.3, 0.12, 0.02), Vector3(sx, 0.75, 2.26), tail)
+	return body
+
+
+## A stack of cardboard archive boxes, `count` high (1 to 4).
+static func boxes(parent: Node, pos: Vector3, facing_deg: float = 0.0, count: int = 3) -> StaticBody3D:
+	var h := 0.3
+	count = clampi(count, 1, 4)
+	var body := _body(parent, pos, facing_deg, "Boxes", Vector3(0.5, h * count, 0.4), Vector3(0, h * count / 2.0, 0))
+	var card := ArtPalette.flat(Color(0.62, 0.48, 0.3), 0.9)
+	var label := ArtPalette.flat(Color(0.9, 0.88, 0.8), 0.8)
+	for i in count:
+		var mi := _piece(body, Vector3(0.48, h - 0.01, 0.38), Vector3(0, h * i + h / 2.0, 0), card, i == 0)
+		mi.rotation.y = [0.0, 0.08, -0.05, 0.1][i]
+		_piece(body, Vector3(0.14, 0.08, 0.005), Vector3(0, h * i + h / 2.0, -0.193), label)
+	return body
+
+
+## A framed poster or notice on a wall, facing -Z. Visual only.
+static func poster(parent: Node, pos: Vector3, facing_deg: float, text: String, size := Vector2(0.6, 0.8), paper := Color(0.93, 0.92, 0.86)) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Poster")
+	_piece(root, Vector3(size.x + 0.04, size.y + 0.04, 0.02), Vector3.ZERO, ArtPalette.flat(Color(0.15, 0.14, 0.13), 0.5))
+	_piece(root, Vector3(size.x, size.y, 0.005), Vector3(0, 0, -0.012), ArtPalette.flat(paper, 0.8))
+	var l := Label3D.new()
+	l.text = text
+	l.font_size = 40
+	l.pixel_size = 0.0016
+	l.width = size.x / l.pixel_size * 0.9
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.modulate = Color(0.15, 0.17, 0.25)
+	l.outline_size = 0
+	l.position = Vector3(0, 0, -0.016)
+	l.rotation_degrees.y = 180
+	l.double_sided = false
+	root.add_child(l)
+	return root
+
+
 ## A sticky note: 7.6 cm square of paper with a strip of tape, one SQL keyword
 ## handwritten on it. Faces -Z like a poster, so stick it to a wall or a monitor
 ## bezel; pass `flat` to lay it on a desk instead. The paper glows very faintly
@@ -194,6 +250,17 @@ static func sticky_paper(paper: Color) -> StandardMaterial3D:
 	return m
 
 
+## Overhead cable tray: a shallow open channel, visual only.
+static func cable_tray(parent: Node, center: Vector3, length: float, along_x: bool = false) -> Node3D:
+	var root := _node(parent, center, 90.0 if along_x else 0.0, "CableTray")
+	var mat := ArtPalette.surface("metal")
+	_piece(root, Vector3(0.4, 0.02, length), Vector3.ZERO, mat)
+	for sx in [-0.2, 0.2]:
+		_piece(root, Vector3(0.02, 0.08, length), Vector3(sx, 0.04, 0), mat)
+	_piece(root, Vector3(0.3, 0.05, length), Vector3(0, 0.035, 0), ArtPalette.flat(Color(0.12, 0.2, 0.45), 0.7))  # the cables
+	return root
+
+
 # --- Helpers -------------------------------------------------------------------
 
 static func _node(parent: Node, pos: Vector3, facing_deg: float, node_name: String) -> Node3D:
@@ -209,6 +276,7 @@ static func _node(parent: Node, pos: Vector3, facing_deg: float, node_name: Stri
 static func _body(parent: Node, pos: Vector3, facing_deg: float, node_name: String, size: Vector3, offset: Vector3) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = node_name
+	body.set_meta("art_prop", true)  # tests check dressing keeps routes clear
 	body.position = pos
 	body.rotation_degrees.y = facing_deg
 	var shape := CollisionShape3D.new()

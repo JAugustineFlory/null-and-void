@@ -19,6 +19,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_props()
 	await test_held_items()
 	await test_gallery()
+	await test_dressed_level_0()
+	await test_dressed_level_1()
 	test_sticky_notes()
 	test_elevator()
 	await test_notebook()
@@ -244,6 +246,106 @@ func test_gallery() -> void:
 	g.vhs.intensity = 0.0
 	check(not g.vhs.rect.visible, "a VHS intensity of 0 turns the overlay off entirely")
 	g.free()
+
+
+## Every prop the dressing added, as world-space boxes.
+func _prop_boxes(level: Node) -> Array[AABB]:
+	var out: Array[AABB] = []
+	for body in level.geo.get_children():
+		if not body.has_meta("art_prop"):
+			continue
+		for c in body.get_children():
+			if c is CollisionShape3D:
+				var size: Vector3 = (c.shape as BoxShape3D).size
+				var xf: Transform3D = c.global_transform
+				out.append(xf * AABB(-size / 2.0, size))
+	return out
+
+
+## Points (level-local) that must stay clear of props, with room to stand.
+func _blocked(level: Node, boxes: Array[AABB], points: Array) -> Array:
+	var hits := []
+	for p in points:
+		var gp: Vector3 = level.to_global(p)
+		var probe := AABB(gp - Vector3(0.45, 0, 0.45), Vector3(0.9, 1.6, 0.9))
+		for b in boxes:
+			if b.intersects(probe):
+				hits.append(p)
+				break
+	return hits
+
+
+func test_dressed_level_0() -> void:
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(10)
+	var boxes := _prop_boxes(level)
+	check(boxes.size() >= 10, "Level 0 is furnished (%d solid props)" % boxes.size())
+	var keep_clear := [
+		Vector3(0, 0, 8.8), Vector3(-0.5, 0, 0.6), Vector3(10.2, 0, 3), Vector3(0, 0, 5.6),  # Rourke's stops, respawn
+		Vector3(1.5, 0, -0.2), Vector3(-1.5, 0, -0.2),  # in front of the terminal and visitor log
+		Vector3(-2.5, 0, -4.7), Vector3(0, 0, -2.2),  # walkies, and landing over the desk
+		Vector3(-7.4, 0, 4), Vector3(-14.6, 0, 4), Vector3(-18.6, 0, 4.5),  # vent mouth, closet side, the tape
+		Vector3(-0.3, 0, 14.8), Vector3(4.3, 0, 14.8), Vector3(4.3, 0, 15.5), Vector3(4.3, 0, 17.9), Vector3(0, 0, 11.5),  # out of the van (front doors, side door), to the doors
+	]
+	var blocked := _blocked(level, boxes, keep_clear)
+	check(blocked.is_empty(), "props keep Level 0's routes and puzzles clear %s" % [blocked])
+	var floor_mat: Material = null
+	for b in level.geo.get_children():
+		if b.name.begins_with("Floor") and absf(b.position.x) < 1 and absf(b.position.z) < 1:
+			floor_mat = b.get_child(0).material_override
+	check(floor_mat == ArtPalette.surface("carpet"), "the lobby floor is carpeted")
+	var look: NpcLook = level.rourke.get_node_or_null("Look")
+	check(look != null and not level.rourke._body.visible, "Rourke wears his character model")
+	check(look.pick_action() == "idle", "Rourke stands at ease before the turn")
+	var lit := 0
+	for l in level.lights["lobby"]:
+		if l.get_node_or_null("PanelLink"):
+			lit += 1
+	check(lit == level.lights["lobby"].size(), "every lobby light panel follows its light")
+	var van: Node3D = level.get_node("Dressing/Van")
+	check(van.find_children("Seat*", "Node3D", false, false).size() == 3, "the van has two front seats and a rear bench")
+	check(van.find_child("SteeringWheel", true, false) != null, "and a steering wheel")
+	var round := 0
+	for w in DressVan.wheels(level.geo, Vector3(2, 0, 16.6)):
+		round += 1 if not (w.get_child(0) as MeshInstance3D).visible else 0
+	check(round == 4, "the van's wheels are round, not greybox blocks")
+	for seat in level.van_seats:
+		check((seat.buckle as Node3D).visible, "seat-belt buckles stay visible to ready up")
+		break
+	level.rourke._body.position.y = -0.45  # ducking under the hall's cable tray
+	look._process(0.016)
+	check(look.rig.stance_height < 1.4, "Rourke's model crouches when he ducks")
+	level.free()
+
+
+func test_dressed_level_1() -> void:
+	t.root.get_node("Game").new_run(7)
+	var level = load("res://scenes/level_1.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(10)
+	var keep_clear := [Vector3(0, 0, 12.6), Vector3(0, 0, 6.0), Vector3(-4.5, 0, 7.4), Vector3(0, 0, -8.0), Vector3(0, 0, 10.5)]
+	for z in [-6.0, -3.0, 0.0, 3.0]:
+		for side in [-1, 1]:
+			keep_clear.append(Vector3(side * 1.3, 0, z))  # in front of every reset panel
+	var blocked := _blocked(level, _prop_boxes(level), keep_clear)
+	check(blocked.is_empty(), "props keep Server Room A's aisles, panels and terminal clear %s" % [blocked])
+	var light: OmniLight3D = level.lights["room"][0]
+	var panel: MeshInstance3D = light.get_node("PanelLink").panel
+	level.set_all_lights_color(Color(1.0, 0.18, 0.12))
+	light.get_node("PanelLink").refresh()
+	var m := panel.material_override as StandardMaterial3D
+	check(m.emission_enabled and m.emission.r > 0.9 and m.emission.g < 0.3, "light panels turn red with the lockdown")
+	light.visible = false
+	light.get_node("PanelLink").refresh()
+	check(not (panel.material_override as StandardMaterial3D).emission_enabled, "a light switched off in the lights table goes dark")
+	var look: NpcLook = level.rourke.get_node("Look")
+	level.rourke.state = Rourke.State.CHASE
+	level.rourke._go_down()
+	check(look.pick_action() == "down", "Rourke's model falls when he goes down")
+	level.rourke.state = Rourke.State.TIED
+	check(look.pick_action() == "tied", "and shows him tied up")
+	level.free()
 
 
 func test_sticky_notes() -> void:
