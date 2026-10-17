@@ -525,6 +525,52 @@ func test_document_view() -> void:
 	doc.clear()
 	await t.process_frame
 	check(doc.body.get_child_count() == 1 and not doc.get_node("Paper/Body/Title").visible, "clear leaves a blank page")
+	# A printed form, filled in by hand, as a Document's lines.
+	doc.set_paper("clipboard")
+	doc.add_lines([
+		{"columns": ["NAME", "BADGE #", "IN"], "widths": [3, 2, 1]},
+		{"row": ["PIKE, H.", "", ""], "over": "NO SHOW", "text": "PIKE, H.  no show"},
+		{"row": ["Har", "", "22:00"], "stain": "coffee", "stain_at": 0, "text": "Har... (coffee stain)  22:00"},
+		{"row": ["", "", ""]},
+		"",
+		"Guard PINs are kept on file.",
+		{"text": "guards", "hand": true},
+		{"before": "Date: ", "filled": "10/15", "after": ""},
+		{"stamp": "RECEIVED"},
+	])
+	await t.process_frame
+	await t.process_frame
+	var rows := doc.body.get_children().filter(func(c): return c.get("copy_text") != null)
+	check(rows.size() == 6, "every line of a form that can be read becomes a row (%d)" % rows.size())
+	var head: Control = doc.body.get_node("TableHead")
+	check(head != null and head.find_children("*", "Label", true, false).size() == 3, "a table starts with its printed column names")
+	var pike: Control = rows[0]
+	check(pike.find_child("Over", true, false) is Label and (pike.find_child("Over", true, false) as Label).get_theme_color("font_color") == NotebookArt.RED_PEN, "NO SHOW is written across Pike's row in red pen")
+	var widths := []
+	for c in head.get_child(0).get_children():
+		widths.append(roundi(c.size.x))
+	var row_widths := []
+	for c in pike.get_child(0).get_children():
+		row_widths.append(roundi(c.size.x))
+	check(widths == row_widths and absf(widths[0] - widths[1] * 1.5) < 2, "the rows' cells line up under the column names at their widths")
+	var har: Control = rows[1]
+	var stain: Control = null
+	for c in har.find_children("*", "Control", true, false):
+		if c.get("seed_text") != null:
+			stain = c
+	check(stain != null and stain.z_index > 0, "the coffee stain lies over the Har row's writing")
+	var har_name: Label = har.get_child(0).get_child(0).get_child(0)
+	check(har_name.text == "Har", "only the first letters of the stained name are written out")
+	(har.find_child("AddChip", true, false) as Button).pressed.emit()
+	check(copied.back() == "Har... (coffee stain)  22:00", "adding the stained row copies what can be read")
+	var empty: Control = rows[2]
+	empty.call("_process", 0.0)
+	empty.call("set_hovered", false)
+	check(not (empty.find_child("AddChip", true, false) as Button).visible, "an empty row has nothing to add")
+	check(doc.body.get_node("Stamp") != null, "a rubber stamp goes on the page")
+	doc.clear()
+	await t.process_frame
+	check(doc.get("_columns").is_empty(), "clear forgets the last table")
 	doc.hide_doc()
 	await t.create_timer(0.3).timeout
 	check(not doc.visible, "the document closes")
