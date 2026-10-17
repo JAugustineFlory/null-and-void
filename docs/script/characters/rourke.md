@@ -94,11 +94,11 @@ Each line has the file name to save it as, the line, and a note on how to play i
 ### 5. Inside a server room with the crew. Friendly at first; then, while one of them works at the terminal, the door locks.
 
 - [ ] `l1_enter.wav`  
-  "Vale's last login came from this room. Come on in."  
+  "In you come. Terminal's just over here."  
   *Calling back over his shoulder, inside the room.*
 - [ ] `l1_terminal.wav`  
-  "Terminal's on the desk. Pull up her last session, I'll be right here."  
-  *Friendly, pointing. Then he goes quiet and drifts behind them.*
+  "Boss wants you to look over the door controller and badge tables. See if you can tidy them up, sort them out. I'll be right here."  
+  *Mundane, a facilities guy passing on the boss's request. Then he goes quiet and drifts behind them.*
 - [ ] `l1_trap_1.wav`  
   "Sorry about this. Nothing personal."  
   *The door has just locked. The friendliness switches off.*
