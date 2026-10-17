@@ -42,6 +42,7 @@ func _run() -> void:
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_world()
+	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
@@ -822,6 +823,50 @@ func test_coop_world() -> void:
 	check(sra_h.doors["SRA-EXIT"].is_open and sra_c.doors["SRA-EXIT"].is_open, "a client's query in a wing opens the door for everyone")
 	check(_table(sra_h, dump) == _table(sra_c, dump), "the shared database still matches")
 	check(host.players.puppet(client_id) != null, "the client is still in the game")
+	await _coop_close(worlds)
+
+
+## Augustine's co-op playtest: the host followed Rourke to the desk first, and the
+## story stopped. Walking in one at a time must still count everyone, and Rourke
+## must not be shut out by the front doors.
+func test_coop_lobby_walk_in() -> void:
+	print("Co-op: walking into the lobby one at a time")
+	_game().new_run(9)
+	var worlds := await _coop_worlds(1)
+	var m := await _coop_load(worlds, "res://scenes/world.tscn")
+	var h = m[0].current
+	var c = m[1].current
+	h.van_seats[0].buckle.interact(m[0].player)
+	c.van_seats[1].buckle.interact(m[1].player)
+	for f in 2400:
+		await physics_frame
+		if h.player.input_locked == false and h._intro_started and h.get_tree() and f > 600:
+			break
+	for p in [m[0].player, m[1].player]:
+		p.global_position = h.to_global(Vector3(0, 0.1, 11.5))
+	for f in 2400:
+		await physics_frame
+		if h.rourke.state == Rourke.State.WALK and c.sync._gates.has("rourke_at_door"):
+			break
+	m[0].player.global_position = h.to_global(Vector3(0, 0.1, 4.5))
+	await _frames(20)
+	m[0].player.global_position = h.to_global(Vector3(0, 0.1, 1.8))
+	await _frames(20)
+	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 4.5))
+	await _frames(20)
+	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 1.8))
+	for f in 1200:
+		await physics_frame
+		if c.visitor_log.enabled:
+			break
+	check(h.sync._gates.has("inside") and c.sync._gates.has("inside"), "a crew walking in one at a time all counts as inside")
+	check(c.visitor_log.enabled and h.to_local(h.rourke.global_position).z < 3.0, "Rourke makes it through the front doors to the desk")
+	c.visitor_log.interact(m[1].player)
+	for f in 1500:
+		await physics_frame
+		if c.desk_terminal.enabled:
+			break
+	check(h.desk_terminal.enabled and c.desk_terminal.enabled, "the client signs in and the story carries on for everyone")
 	await _coop_close(worlds)
 
 
