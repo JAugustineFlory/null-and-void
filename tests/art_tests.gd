@@ -26,6 +26,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_notebook()
 	test_document_props()
 	await test_document_view()
+	await test_held_notebook()
 
 
 func check(cond: bool, name: String) -> void:
@@ -511,3 +512,47 @@ func test_document_view() -> void:
 	await t.create_timer(0.3).timeout
 	check(not doc.visible, "the document closes")
 	layer.free()
+
+
+func test_held_notebook() -> void:
+	var stage := _stage()
+	var cam := Camera3D.new()
+	cam.fov = 75
+	stage.add_child(cam)
+	cam.make_current()
+	var held := HeldNotebook.attach(cam, CharacterLooks.crew(1))
+	var book := NotebookView.new()
+	held.set_content(book)
+	book.add_tab("Notes")
+	check(held.view == book and book.embedded and not book.get_node("Dim").visible, "the notebook in your hands draws the pages without dimming the screen")
+	check(not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "a put-away notebook costs nothing to draw")
+	held.open_book()
+	await t.create_timer(0.6).timeout
+	check(held.is_open() and held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "the notebook comes out and opens")
+	var screen := t.root.get_visible_rect().size
+	var spine := cam.unproject_position(held.book_root.global_position)
+	check(absf(spine.x - screen.x / 2.0) < 4.0 and spine.y > screen.y * 0.5, "it's held centred, low in the view (%s)" % spine)
+	var top := cam.unproject_position(held.book_root.global_transform * Vector3(0, held.page_size().y / 2.0, 0))
+	check(top.y > screen.y * 0.3, "the top of the room stays in view above the book")
+	# A pixel on the right page, found again from where it shows on the screen.
+	var quad: MeshInstance3D = held.halves[1]
+	var full := Vector2(NotebookView.EMBED_SIZE)
+	var px := Vector2(1000, 300)
+	var qs: Vector2 = (quad.mesh as QuadMesh).size
+	var mat := quad.material_override as ShaderMaterial
+	var uv: Vector2 = (px / full - (mat.get_shader_parameter("uv_offset") as Vector2)) / (mat.get_shader_parameter("uv_scale") as Vector2)
+	var world := quad.global_transform * Vector3((uv.x - 0.5) * qs.x, (0.5 - uv.y) * qs.y, 0)
+	var back := held.page_point(cam.unproject_position(world))
+	check(back.distance_to(px) < 3.0, "clicks on the pages land on the right spot of the page (%s)" % back)
+	check(held.page_point(Vector2(screen.x / 2.0, 5)).x < 0, "clicks above the book don't reach it")
+	var line := NotebookArt.hand("B1-04 storeroom")
+	book.right.add_child(line)
+	held.write_in(line, 0.3)
+	await t.create_timer(0.15).timeout
+	check(book.book.get_node_or_null("Unwritten") != null and book.book.get_node_or_null("Pen") != null, "a new line is written in with a pen")
+	await t.create_timer(0.3).timeout
+	check(book.book.get_node_or_null("Unwritten") == null, "and is all there once written")
+	held.close_book()
+	await t.create_timer(0.45).timeout
+	check(not held.is_open() and not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the notebook goes back in the pocket")
+	stage.free()

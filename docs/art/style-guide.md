@@ -83,6 +83,12 @@ Where hints and table names hide in the world (game plan: in-world notes, no imm
 - **Reading view** (`DocumentView`, CanvasLayer 15 like the notebook): the document held up close. `set_paper("memo" | "manual" | "card" | "brochure" | "clipboard")`, `set_title()`, `add_line(text)` (typed, with a "+ note" button that emits `copy_requested(text)`), `add_margin_note(text, author)` beside the last line, `add_blank(before, filled, after, author)` for a printed blank filled in by hand (its "+ note" copies the whole sentence), `clear()`, `show_doc()`, `hide_doc()`, and `closed` from its close button.
 - **Two hands.** The crew writes in Patrick Hand, blue ballpoint. Harold Mercer writes in Caveat (OFL, `NotebookArt.old_hand_font()`), dark fountain-pen ink (`NotebookArt.FOUNTAIN_INK`), slanted and a size larger, and signs "- H.M." so players learn to recognize him before they know who he is.
 
+## Held notebook and in-world screens
+
+No full-screen menus (game plan, "Diegetic notebook and terminals"). Lookdev: `tools/diegetic_shots.gd`, saved in `docs/art/screenshots/diegetic/`.
+
+- **Held notebook** (`HeldNotebook.attach(camera, look)`): a pocket notebook held open low in the view, with the room still visible above it. `set_content(control)` puts a NotebookPages (or any Control holding a NotebookView) into its SubViewport, and switches that NotebookView to `embedded`, so it isn't dimmed or scaled. `open_book()` pulls it out of the pocket and opens the cover. `close_book()` puts it away; while it's away the SubViewport doesn't render. `write_in(item)` writes a line that was just added to a page: it appears left to right behind a pen nib (`NotebookView.write_in` does the 2D part). Mouse clicks and hovers on the pages are forwarded to the buttons drawn on them, so the mouse must be visible while it's open. Its size follows the camera's FOV and the window shape: the book spans 62% of the width and at most 62% of the height. `book_root` is the node for Movement to pose.
+
 ## Performance budget (six players)
 
 - A character is at most 32 mesh pieces; props at most ~10. Meshes and materials are cached and shared.
