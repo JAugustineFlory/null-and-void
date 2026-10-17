@@ -389,6 +389,18 @@ func test_elevator() -> void:
 	check(lift.find_children("*", "CollisionShape3D", true, false).is_empty(), "the elevator model adds no collision (mechanics own it)")
 	var call: Node3D = lift.get_node("CallPanel")
 	check(call.position.z < -0.1, "the call button sits in front of a Greybox wall centered on the doorway")
+	# Inside the car, nothing above the doorway may sit in that wall either, or it flickers through it.
+	var inside_ok := true
+	for mi: MeshInstance3D in lift.find_children("*", "MeshInstance3D", true, false):
+		var p := lift.to_local(mi.global_position)
+		var depth: float = (mi.mesh as BoxMesh).size.z if mi.mesh is BoxMesh else 0.0
+		if p.y > 2.1 and p.z > 0.0 and depth < 0.2 and p.z - depth / 2.0 < 0.1 - 0.001:
+			inside_ok = false
+	for l: Label3D in lift.find_children("*", "Label3D", true, false):
+		var p := lift.to_local(l.global_position)
+		if p.z > 0.0 and p.z < 0.1:
+			inside_ok = false
+	check(inside_ok, "the inside floor indicator and car front wall stand clear of the landing wall")
 	lift.set_car_light(0.0)
 	check(not (lift.get_node("CarLight") as OmniLight3D).visible, "the car light can be cut")
 	stage.free()
