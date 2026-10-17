@@ -1,14 +1,14 @@
 class_name DocumentReader
 extends CanvasLayer
-## A document held up to read (see Document). Each line has a "+ note" button
-## that copies it into this player's notebook, with an optional name.
-## E or Esc puts it down.
+## A document held up to read (see Document), drawn by DocumentView. Each line has
+## a "+ note" button that copies it into this player's notebook, with an optional
+## name. E or Esc puts it down.
 
 signal closed
 
 var document: Node
 var player: Node
-var _lines: VBoxContainer
+var view: DocumentView
 var _note_label: LineEdit
 var _note_index := -1
 var _opened_frame := -1
@@ -16,37 +16,21 @@ var _opened_frame := -1
 
 func _ready() -> void:
 	layer = 20
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.6)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720, 0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = NotebookArt.PAPER
-	style.set_corner_radius_all(4)
-	style.set_content_margin_all(28)
-	style.shadow_color = Color(0, 0, 0, 0.5)
-	style.shadow_size = 12
-	panel.add_theme_stylebox_override("panel", style)
-	center.add_child(panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	panel.add_child(box)
-	_lines = VBoxContainer.new()
-	_lines.add_theme_constant_override("separation", 6)
-	box.add_child(_lines)
+	view = DocumentView.new()
+	add_child(view)
+	view.copy_requested.connect(func(text): _start_note(_index_of(text)))
+	view.closed.connect(close)
 	_note_label = LineEdit.new()
 	_note_label.visible = false
 	_note_label.placeholder_text = "Name this note (optional), then Enter. Esc to cancel."
 	_note_label.max_length = 40
+	_note_label.custom_minimum_size = Vector2(520, 0)
+	_note_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_note_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_note_label.offset_top = -64
+	_note_label.offset_bottom = -24
 	_note_label.text_submitted.connect(func(t): _finish_note(t))
-	box.add_child(_note_label)
-	var foot := NotebookArt.hand("+ note: copy a line into your notebook    E or Esc: put it down", 18, NotebookArt.PENCIL)
-	box.add_child(foot)
+	add_child(_note_label)
 
 
 func open(doc: Node, by_player: Node) -> void:
@@ -56,26 +40,19 @@ func open(doc: Node, by_player: Node) -> void:
 	if player and "input_locked" in player:
 		player.input_locked = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	for c in _lines.get_children():
-		c.queue_free()
-	var heading := NotebookArt.code(document.title, 24)
-	_lines.add_child(heading)
-	var all: Array[Dictionary] = document.lines()
-	for i in all.size():
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		var text: String = all[i].text
-		var label: Label = NotebookArt.hand(text, 26) if all[i].get("hand", false) else NotebookArt.code(text, 19)
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.custom_minimum_size.x = 540
-		row.add_child(label)
-		if text.strip_edges() != "":
-			var b := NotebookArt.write_button()
-			b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			b.pressed.connect(_start_note.bind(i))
-			row.add_child(b)
-		_lines.add_child(row)
+	view.clear()
+	view.set_paper(document.paper_kind())
+	view.set_title(document.title)
+	for l in document.lines():
+		if l.has("filled"):
+			view.add_blank(l.get("before", ""), l.filled, l.get("after", ""), l.get("author", "player"))
+		elif str(l.text).strip_edges() == "":
+			view.body.add_child(Control.new())  # a gap between paragraphs
+		elif l.get("hand", false):
+			view.add_hand_line(l.text, l.get("author", "player"))
+		else:
+			view.add_line(l.text)
+	view.show_doc()
 
 
 func close() -> void:
@@ -102,7 +79,17 @@ func write_note(index: int, label: String = "") -> bool:
 	return true
 
 
+func _index_of(text: String) -> int:
+	var all: Array[Dictionary] = document.lines()
+	for i in all.size():
+		if all[i].text == text:
+			return i
+	return -1
+
+
 func _start_note(index: int) -> void:
+	if index < 0:
+		return
 	_note_index = index
 	_note_label.text = ""
 	_note_label.visible = true

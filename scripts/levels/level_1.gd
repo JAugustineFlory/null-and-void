@@ -92,17 +92,16 @@ func build() -> void:
 	# The room's laminated reference card, and Mercer's note on what the statuses mean.
 	Document.place(geo, Vector3(-5.25, 0.902, 8.35), 175.0, "SERVER ROOM A - DOOR CONTROLLERS", [
 		"Each rack drives one door lock. Rack ids DC-1 to DC-8 are on the aisle end.",
-		"Every controller is listed in the table:",
-		{"text": "door_controllers", "hand": true},
+		{"before": "Every controller is listed in the table ", "filled": "door_controllers", "after": "."},
 		"Columns: id, zone, status, location, last_reset, note",
 		"This room's exit (SRA-EXIT) is in zone A.",
 		"Faulted lock? Reset it at its own rack. Never reset a healthy one.",
 	], true, "laminated", Vector2(0.21, 0.15))
 	Document.place(geo, Vector3(-3.55, 0.902, 8.3), 190.0, "Note taped to the desk", [
-		{"text": "status 'fault' = the lock relay is stuck. Needs a hand reset at the rack.", "hand": true},
-		{"text": "status 'offline' = someone switched it off on purpose. Leave it alone.", "hand": true},
-		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true},
-		{"text": "- H.M.", "hand": true},
+		{"text": "status 'fault' = the lock relay is stuck. Needs a hand reset at the rack.", "hand": true, "author": "mercer"},
+		{"text": "status 'offline' = someone switched it off on purpose. Leave it alone.", "hand": true, "author": "mercer"},
+		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true, "author": "mercer"},
+		{"text": "- H.M.", "hand": true, "author": "mercer"},
 	], true, "note", Vector2(0.1, 0.14))
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
