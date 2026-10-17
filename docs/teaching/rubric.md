@@ -77,11 +77,12 @@ Known gaps print as `GAP` (not failures) until the owner fixes them; then they p
 `FIXED` and get promoted to normal checks. **Every new puzzle needs a row in
 `tests/curriculum.gd` and a step in the walkthrough.**
 
-`tests/teaching_voice_tests.gd` scans the level, world and terminal scripts and flags
-every tip spoken by WARDEN (or in WARDEN's amber), every `.hint` not from [SYSOP], and
-every HUD notice that says what to type, and every to-do or objective built from a
-puzzle's answer. These print as `GAP` until fixed.
+`tests/teaching_voice_tests.gd` scans the level, world and terminal scripts and fails on
+every tip spoken by WARDEN (or in WARDEN's amber, or in its subtitled voice lines), every
+`.hint` not from [SYSOP], every unsigned tip, every HUD notice that says what to type, and
+every to-do built from a puzzle's answer. An indented line (an example query) belongs to
+the line above it; a device readout in capitals ("MOTION SENSOR: ...") isn't a tip.
 
-Still to come: a "notes only" player that may use only lines it wrote into the notebook
-(`noteable_lines()` / `write_note()`), and in-world Document lines in the taught set
-once the Document interactable lands.
+Documents (papers read with E) count as found in the world. Still to come: a "notes
+only" player that may use only lines it wrote into the notebook (`noteable_lines()` /
+`write_note()`).
