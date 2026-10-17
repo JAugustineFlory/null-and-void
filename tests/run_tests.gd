@@ -164,6 +164,26 @@ func test_voice_codec() -> void:
 	check(worst < 0.03, "mu-law keeps the voice close to the original (worst error %.3f)" % worst)
 	check(VoiceCodec.rms(back) > 0.3 and VoiceCodec.rms(_tone(100, 48000.0, 0.0)) == 0.0, "loudness tells talking from silence")
 	check(VoiceCodec.mulaw_decode(VoiceCodec.mulaw_encode(-0.25)) < 0.0, "negative samples stay negative")
+	# A microphone at 44.1 kHz, sent in frame-sized chunks, must come out as one
+	# smooth wave: no jumps where one packet ends and the next begins.
+	var mic := _tone(44100, 44100.0, 0.5)
+	var enc := VoiceCodec.Encoder.new()
+	var stream := PackedVector2Array()
+	var at := 0
+	while at < mic.size():
+		var chunk := mic.slice(at, mini(at + 735, mic.size()))
+		stream.append_array(VoiceCodec.decode(enc.encode(chunk, 44100.0)))
+		at += 735
+	var jump := 0.0
+	for i in range(1, stream.size()):
+		jump = maxf(jump, absf(stream[i].x - stream[i - 1].x))
+	check(absi(stream.size() - 12000) <= 2 and jump < 0.15, "a 44.1 kHz mic sent in chunks stays one smooth 12 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
+	var quiet := _tone(4800, 48000.0, 0.02)
+	var louder := VoiceCodec.amplify(quiet, 8.0)
+	var peak := 0.0
+	for f in VoiceCodec.amplify(_tone(4800, 48000.0, 0.9), 8.0):
+		peak = maxf(peak, absf(f.x))
+	check(VoiceCodec.rms(louder) > 0.1 and peak <= 1.0, "a quiet mic is brought up to speaking level, a loud one never clips (peak %.2f)" % peak)
 
 
 func test_radio_rules() -> void:
@@ -188,6 +208,8 @@ func test_radio_rules() -> void:
 	var clean := Radio.degrade(_tone(600, 12000.0, 0.5), 1.0, rng)
 	var noisy := Radio.degrade(_tone(600, 12000.0, 0.0), 0.0, rng)
 	check(VoiceCodec.rms(clean) > 0.3 and VoiceCodec.rms(noisy) > 0.1, "a good signal carries the voice, a dead one is only static")
+	var hiss := Radio.degrade(_tone(600, 12000.0, 0.0), 1.0, rng)
+	check(VoiceCodec.rms(clean) > 15.0 * VoiceCodec.rms(hiss), "close up, the static is faint under the voice (voice %.3f, hiss %.3f)" % [VoiceCodec.rms(clean), VoiceCodec.rms(hiss)])
 
 
 func test_voice_script() -> void:

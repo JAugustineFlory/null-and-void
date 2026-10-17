@@ -27,6 +27,52 @@ static func encode(frames: PackedVector2Array, src_rate: float) -> PackedByteArr
 	return out
 
 
+## Encodes a continuous microphone stream. Unlike encode(), it carries its
+## place between packets (so packet edges don't click 60 times a second) and
+## averages the samples it skips (so hiss above 6 kHz doesn't fold down into
+## the voice).
+class Encoder:
+	var _pos := 0.0  # where the next output sample falls, in input frames from the start of the pending input
+	var _pending := PackedFloat32Array()
+
+	func encode(frames: PackedVector2Array, src_rate: float) -> PackedByteArray:
+		for f in frames:
+			_pending.append((f.x + f.y) * 0.5)
+		var step := src_rate / RATE
+		var out := PackedByteArray()
+		while _pos + step <= _pending.size():
+			# Average the input frames this output sample stands for.
+			var from := int(_pos)
+			var to := mini(int(_pos + step), _pending.size())
+			var sum := 0.0
+			for j in range(from, to):
+				sum += _pending[j]
+			out.append(VoiceCodec.mulaw_encode(sum / maxi(1, to - from)))
+			_pos += step
+		var used := int(_pos)
+		_pending = _pending.slice(used)
+		_pos -= used
+		return out
+
+
+## Bring quiet microphones up to a speaking level. Returns the frames scaled by
+## `gain` with a soft limit, so loud voices round off instead of crackling.
+static func amplify(frames: PackedVector2Array, gain: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	out.resize(frames.size())
+	for i in frames.size():
+		var v := soft_clip(frames[i].x * gain)
+		var w := soft_clip(frames[i].y * gain)
+		out[i] = Vector2(v, w)
+	return out
+
+
+static func soft_clip(v: float) -> float:
+	if absf(v) < 0.6:
+		return v
+	return signf(v) * (0.6 + 0.4 * tanh((absf(v) - 0.6) / 0.4))
+
+
 ## A packet back to playable frames at RATE.
 static func decode(data: PackedByteArray) -> PackedVector2Array:
 	var out := PackedVector2Array()
