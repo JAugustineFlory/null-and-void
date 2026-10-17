@@ -28,6 +28,7 @@ var keyboard: Node3D
 var hosted: Node  # what's on the glass instead of `display`, while someone types
 
 var _terminal: Node3D
+var _followed: Node
 
 
 ## Dresses a Terminal (or any node with its front along +Z) as a CRT with a live screen.
@@ -63,6 +64,38 @@ func set_title(text: String) -> void:
 ## What's being typed at the prompt right now (for teammates watching).
 func set_typing(text: String) -> void:
 	display.set_typing(text)
+	_redraw()
+
+
+## Keeps the glass in step with a Terminal on every machine: redraws on its
+## `screen_changed` from its `transcript`, and shows each seated player's
+## half-typed line from `typing` (peer id -> text) as "name> text_".
+func follow(terminal: Node) -> void:
+	_followed = terminal
+	if terminal.has_signal("screen_changed") and not terminal.is_connected("screen_changed", _sync_from_terminal):
+		terminal.connect("screen_changed", _sync_from_terminal)
+	_sync_from_terminal()
+
+
+func _sync_from_terminal() -> void:
+	var t := _followed
+	if t == null or not is_instance_valid(t):
+		return
+	var lines = t.get("transcript")
+	if lines is Array:
+		display.set_lines(lines)
+	var typing = t.get("typing")
+	var seated = t.get("seated")
+	var prompts: Array[String] = []
+	if typing is Dictionary:
+		var order: Array = seated if seated is Array else typing.keys()
+		var net := get_node_or_null("/root/Net")
+		for peer in order:
+			if not typing.has(peer):
+				continue
+			var who: String = str(net.call("display_name", peer)) if net and net.has_method("display_name") else ""
+			prompts.append(("%s> " % who if who != "" else "> ") + str(typing[peer]) + "_")
+	display.set_prompts(prompts)
 	_redraw()
 
 
@@ -294,3 +327,7 @@ class TerminalDisplay extends Control:
 	func set_typing(t: String) -> void:
 		_typing = t
 		prompt.text = "> " + t + "_"
+
+	## One prompt line per player typing at this terminal; none shows a bare cursor.
+	func set_prompts(lines: Array[String]) -> void:
+		prompt.text = "\n".join(lines) if not lines.is_empty() else "> _"

@@ -592,9 +592,26 @@ func test_terminal_screen() -> void:
 	check(absf((mid.y - top.y) * 2.0 / screen_size.y - 0.85) < 0.03, "focused, the screen fills most of the view")
 	var px := screen.screen_point(cam, screen_size / 2.0)
 	check(px.distance_to(Vector2(TerminalScreen.SCREEN_PX) / 2.0) < 3.0, "a click in the middle of the view lands in the middle of the glass")
+	# Following a Terminal: its transcript and everyone's half-typed lines.
+	var source := _FakeTerminal.new()
+	stage.add_child(source)
+	screen.follow(source)
+	source.transcript = ["BOOT", "> SELECT 1;"]
+	source.seated = [1]
+	source.typing = {1: "SELECT * FROM do"}
+	source.screen_changed.emit()
+	check(screen.display.text.text.ends_with("> SELECT 1;") and screen.display.prompt.text.contains("SELECT * FROM do_"), "the glass follows its terminal's text and what's being typed")
 	var ui := CanvasLayer.new()
 	screen.host(ui)
 	check(ui.get_parent() == screen.viewport and not screen.display.visible and screen.viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "the terminal UI can be put on the glass")
 	check(screen.release() == ui and screen.display.visible and ui.get_parent() == null, "and taken off again")
 	ui.free()
 	stage.free()
+
+
+## Stands in for a Terminal's screen fields (co-op keeps them the same on every machine).
+class _FakeTerminal extends Node:
+	signal screen_changed
+	var transcript: Array[String] = []
+	var seated: Array[int] = []
+	var typing := {}
