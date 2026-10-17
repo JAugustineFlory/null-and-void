@@ -92,9 +92,9 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
-| [ ] | `l0_pa_2` | Visitors must remain with their escort at all times. Thank you for your cooperation! | Same announcement, continuing. | Level 0 |
-| [ ] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
+| [x] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
+| [x] | `l0_pa_2` | Visitors must remain with their escort at all times. Thank you for your cooperation! | Same announcement, continuing. | Level 0 |
+| [x] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
 
 ## Dr. Iris Vale (3 lines)
 
