@@ -91,11 +91,13 @@ func build() -> void:
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  FRONT DESK",
 		"Visitor session opened 23:04.",
 		"",
-		"Shredded documents are scanned into the table [b]memo_fragments[/b].",
-		"To see every row of a table, type this and press Enter:",
+		"ScanRight: 1 shredded document saved, one row per scrap.",
 		"",
-		"    [color=#ffffff]SELECT * FROM memo_fragments;[/color]",
+		TerminalUI.sysop("You're on the front desk terminal. To see every row of a table, type this and press Enter:"),
 		"",
+		"    [color=#ffffff]SELECT * FROM [i]table_name[/i];[/color]",
+		"",
+		TerminalUI.sysop("The scanner's table name is on its card, on the desk."),
 		"Type .help for commands, .hint if you're stuck.",
 	]
 	desk_terminal.puzzles = [peek_puzzle, memo_puzzle]
@@ -106,6 +108,19 @@ func build() -> void:
 	StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true)
 	Greybox.label(geo, Vector3(1.86, 1.2, -0.76), "ORDER matters.\n  - I.", 30, Color(0.1, 0.1, 0.4), 0)
 	Greybox.panel(geo, Vector3(1.86, 1.2, -0.78), Vector3(0.16, 0.16, 0.01), Color(0.95, 0.9, 0.4))
+	# The scanner's quick-start card: the table name is handwritten in its blank.
+	Document.place(geo, Vector3(0.75, 1.102, -0.75), 10.0, "ScanRight 3000 - Quick Start", [
+		"Shredded? Torn? Chewed by the fax?",
+		"ScanRight saves every scrap!",
+		"",
+		"1. Feed the scraps in, any order.",
+		"2. Each scrap is saved as one row in a table of your choice:",
+		{"text": "memo_fragments", "hand": true},
+		"3. The text column holds the words on each scrap.",
+		"4. piece_no numbers each scrap by where it sat on the page, starting at 1.",
+		"",
+		{"text": "Front desk scanner. Don't feed it staples!! - IT", "hand": true},
+	], true, "brochure", Vector2(0.15, 0.21))
 	visitor_log = Interactable.create(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), "Sign the visitor log", Color(0.92, 0.9, 0.82))
 	Greybox.label(geo, Vector3(-1.5, 1.2, -0.66), "VISITOR LOG", 24, Color(0.15, 0.15, 0.2), 0)
 	visitor_log.enabled = false
@@ -596,16 +611,15 @@ func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 
 
 func _on_memo_backwards() -> void:
-	desk_terminal.print_line("[color=#e0b050]WARDEN: That's the memo backwards. Leave out DESC: smallest first.[/color]")
+	desk_terminal.print_line(TerminalUI.sysop("That's the memo backwards. Leave out DESC: smallest first."))
 
 
 func _on_peek_solved() -> void:
 	peek_puzzle.solved = true
 	desk_terminal.print_line("")
-	desk_terminal.print_line("[color=#e0b050]WARDEN: Those scraps are out of order. One of the columns numbers them.[/color]")
-	desk_terminal.print_line("[color=#e0b050]        To sort them, add ORDER BY to the end of your query, then the name of the column that numbers the scraps.[/color]")
+	desk_terminal.print_line(TerminalUI.sysop("Those scraps are out of order. One of the columns numbers them."))
+	desk_terminal.print_line(TerminalUI.sysop("To sort them, add ORDER BY to the end of your query, then the name of that column."))
 	hud.set_objective("Put the memo back in order")
-	hud.line("l0_sort_hint", false)
 
 
 func _on_memo_solved() -> void:

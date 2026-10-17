@@ -15,7 +15,7 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 
 Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
-## Your lines (20)
+## Your lines (18)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -30,9 +30,6 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 ### 2. At the front desk while the crew pieces a shredded memo back together on a terminal.
 
-- [ ] `l0_sort_hint.wav`  
-  "THOSE SCRAPS ARE OUT OF ORDER. EACH ONE HAS A PIECE NUMBER. SORT THEM WITH ORDER BY."  
-  *From the terminal speaker, helpful in the way a parking meter is helpful.*
 - [ ] `l0_memo_flag.wav`  
   "DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR."  
   *Brightly. This should land as a chill.*
@@ -51,9 +48,6 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 ### 4. Over the server room speakers while the crew tries to reset door controllers.
 
-- [ ] `l1_found.wav`  
-  "THAT IS THE ONE. A MANUAL RESET AT ITS RACK WILL CLEAR IT."  
-  *Grudging.*
 - [ ] `l1_no_badge.wav`  
   "RESET REFUSED. BADGE REQUIRED."  
   *Flat, instant.*

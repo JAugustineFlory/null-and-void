@@ -1,6 +1,6 @@
 # Recording list
 
-67 lines in all.
+65 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -60,7 +60,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 | [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
 | [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (20 lines)
+## WARDEN (18 lines)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
@@ -68,12 +68,10 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 |---|---|---|---|---|
 | [ ] | `l0_pa_1` | GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
 | [ ] | `l0_pa_2` | VISITORS MUST REMAIN WITH THEIR ESCORT AT ALL TIMES. THANK YOU FOR YOUR COOPERATION. | Same announcement, continuing. | Level 0 |
-| [ ] | `l0_sort_hint` | THOSE SCRAPS ARE OUT OF ORDER. EACH ONE HAS A PIECE NUMBER. SORT THEM WITH ORDER BY. | From the terminal speaker, helpful in the way a parking meter is helpful. | Level 0 |
 | [ ] | `l0_memo_flag` | DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. | Brightly. This should land as a chill. | Level 0 |
 | [ ] | `l1_killed` | ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN. | Over the room's speakers. Unbothered, like reading a stock price. | Level 1 |
 | [ ] | `l1_login` | BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 1 |
 | [ ] | `l1_selftest` | SELF-TEST COMPLETE. TWO FAILURES. I'M SURE YOU'LL WORK IT OUT. | The one line with a hint of a smirk. | Level 1 |
-| [ ] | `l1_found` | THAT IS THE ONE. A MANUAL RESET AT ITS RACK WILL CLEAR IT. | Grudging. | Level 1 |
 | [ ] | `l1_no_badge` | RESET REFUSED. BADGE REQUIRED. | Flat, instant. | Level 1 |
 | [ ] | `l1_panel_ok` | THAT CONTROLLER IS WORKING NORMALLY. NOTHING TO RESET. | Patient, like talking to a child. | Level 1 |
 | [ ] | `l1_panel_wrong` | THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. | The last sentence slightly slower. | Level 1 |

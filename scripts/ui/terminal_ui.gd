@@ -146,7 +146,7 @@ func _render(bbcode: String, kind: String = "") -> void:
 		_output.append_text(bbcode + "\n")
 		return
 	if kind == "":
-		kind = "error" if text.begins_with("ERROR") else ("hint" if text.begins_with("WARDEN:") else "info")
+		kind = "error" if text.begins_with("ERROR") else ("hint" if text.begins_with("[SYSOP]") else "info")
 	_noteable.append({"kind": kind, "text": text})
 	# Sticky-note yellow, like NotebookArt.write_button: yellow means "this goes in your notebook".
 	_output.append_text("%s  [url=note:%d][font_size=13][bgcolor=#fae66b][color=#1f2652] + note [/color][/bgcolor][/font_size][/url]\n" % [bbcode, _noteable.size() - 1])
@@ -200,7 +200,14 @@ func _clear_output() -> void:
 
 
 static func _plain(bbcode: String) -> String:
-	return RegEx.create_from_string("\\[[^\\]]*\\]").sub(bbcode, "", true)
+	var text := RegEx.create_from_string("\\[(?!lb\\]|rb\\])[^\\]]*\\]").sub(bbcode, "", true)
+	return text.replace("[lb]", "[").replace("[rb]", "]")
+
+
+## A message from SYSOP: an unknown user on the system who sends tips, nudges
+## and .hint answers. (Players never learn who it is until much later.)
+static func sysop(text: String) -> String:
+	return "[color=#7fd4ff][lb]SYSOP[rb]: %s[/color]" % text
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -275,7 +282,7 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	var out: Array = [[_echo(sql, who), "echo"]]
 	if not result.ok:
 		out.append(["[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error"])
-		out.append(["[color=#e0b050]WARDEN: %s[/color]" % FacilityDB.explain_error(result.error), "hint"])
+		out.append([sysop(FacilityDB.explain_error(result.error)), "hint"])
 	else:
 		if mine:
 			get_node("/root/Game").log_query(sql)
@@ -324,7 +331,7 @@ func _command(cmd: String) -> void:
 			print_line("Commands:")
 			print_line("  .tables          list every table")
 			print_line("  .schema NAME     show the columns of a table")
-			print_line("  .hint            ask WARDEN for a hint")
+			print_line("  .hint            ask SYSOP for a hint")
 			print_line("  .clear           clear the screen")
 			print_line("  .note LABEL      write the last line into your notebook (or click +note)")
 			print_line("  .reset           restore this terminal's data from backup")
@@ -354,7 +361,7 @@ func _command(cmd: String) -> void:
 				print_line("%s(%s)" % [t, ", ".join(desc)], "schema")
 				_discover(t, db)
 		".hint":
-			print_line("[color=#e0b050]WARDEN: %s[/color]" % terminal.next_hint(), "hint")
+			print_line(sysop(terminal.next_hint()), "hint")
 		".clear":
 			_clear_output()
 			terminal.clear_screen()

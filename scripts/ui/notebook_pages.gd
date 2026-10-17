@@ -24,7 +24,7 @@ const CONCEPT_NOTES := {
 const SUBTITLES := {
 	"level_2": "Level 2  -  Security Office",
 }
-const KIND_LABELS := {"result": "Query result", "hint": "Hint", "error": "Error", "schema": "Table shape", "echo": "I typed"}
+const KIND_LABELS := {"result": "Query result", "hint": "Hint", "error": "Error", "schema": "Table shape", "echo": "I typed", "document": "From a document"}
 
 ## At the end of a level the notebook opens on Field Notes with buttons to carry on.
 var end_of_level := false

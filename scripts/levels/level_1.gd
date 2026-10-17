@@ -89,6 +89,21 @@ func build() -> void:
 	]
 	terminal.queried.connect(_on_query)
 	StickyNote.on_monitor(terminal, "where_and")
+	# The room's laminated reference card, and Mercer's note on what the statuses mean.
+	Document.place(geo, Vector3(-5.25, 0.902, 8.35), 175.0, "SERVER ROOM A - DOOR CONTROLLERS", [
+		"Each rack drives one door lock. Rack ids DC-1 to DC-8 are on the aisle end.",
+		"Every controller is listed in the table:",
+		{"text": "door_controllers", "hand": true},
+		"Columns: id, zone, status, location, last_reset, note",
+		"This room's exit (SRA-EXIT) is in zone A.",
+		"Faulted lock? Reset it at its own rack. Never reset a healthy one.",
+	], true, "laminated", Vector2(0.21, 0.15))
+	Document.place(geo, Vector3(-3.55, 0.902, 8.3), 190.0, "Note taped to the desk", [
+		{"text": "status 'fault' = the lock relay is stuck. Needs a hand reset at the rack.", "hand": true},
+		{"text": "status 'offline' = someone switched it off on purpose. Leave it alone.", "hand": true},
+		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true},
+		{"text": "- H.M.", "hand": true},
+	], true, "note", Vector2(0.1, 0.14))
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
 		add_light("room", p, 9.0, 1.2)
@@ -230,15 +245,15 @@ func _self_test_lines() -> Array:
 		"  [color=#7dff8c]PASS[/color]  cameras.lobby",
 		"2 failed, 4 passed.",
 		"",
-		"The exit's controller is one row in the table [b]door_controllers[/b]. Only it needs a reset.",
-		"Clues from the self-test: it is in [b]zone A[/b] and its status is [b]'fault'[/b].",
-		"Filter rows with WHERE. Need two conditions? Join them with AND. Example on another table:",
+		TerminalUI.sysop("The exit's controller is one row in the controller table. Only it needs a reset."),
+		TerminalUI.sysop("The table's name is on the rack card on this desk. From the self-test: [b]zone A[/b], status [b]'fault'[/b]."),
+		TerminalUI.sysop("Filter rows with WHERE. Two conditions? Join them with AND. Example on another table:"),
 		"    [color=#ffffff]SELECT * FROM doors WHERE zone = 'A' AND locked = 1;[/color]",
 		"      SELECT *          which columns to show (* = all)",
 		"      FROM doors        which table to read",
 		"      WHERE zone = 'A'  keep only rows where this is true",
 		"      AND locked = 1    ...and this is true as well",
-		"Text values go in 'single quotes'. Stuck? Type [b].hint[/b]",
+		TerminalUI.sysop("Text values go in 'single quotes'. Stuck? Type [b].hint[/b]"),
 	]
 
 
@@ -252,9 +267,8 @@ func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 func _on_controller_found() -> void:
 	controller_puzzle.solved = true
 	terminal.print_line("")
-	terminal.print_line("[color=#e0b050]WARDEN: Controller %s is faulted in zone A. A manual reset at the rack will clear it.[/color]" % answer)
+	terminal.print_line(TerminalUI.sysop("That's the one: %s, faulted in zone A. Reset it by hand at its rack. Quickly." % answer))
 	hud.set_objective("Reset controller %s at its rack (look for the labels)" % answer)
-	hud.line("l1_found", false)
 
 
 ## Runs on the host when anyone presses a rack panel. It decides, then

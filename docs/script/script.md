@@ -71,8 +71,6 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there.*
 
-**WARDEN:** *(From the terminal speaker, helpful in the way a parking meter is helpful.)* THOSE SCRAPS ARE OUT OF ORDER. EACH ONE HAS A PIECE NUMBER. SORT THEM WITH ORDER BY. `[l0_sort_hint]`
-
 **WARDEN:** *(Brightly. This should land as a chill.)* DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. `[l0_memo_flag]`
 
 **ROURKE:** *(A beat too long before he speaks. Covering.)* ...Huh. She always was dramatic. `[l0_memo_1]`
@@ -164,8 +162,6 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 ### Resetting the door controller
 
 *The crew reads WARDEN's self-test, queries door_controllers, and resets the right rack. The terminal shows the details; these lines are WARDEN reacting.*
-
-**WARDEN:** *(Grudging.)* THAT IS THE ONE. A MANUAL RESET AT ITS RACK WILL CLEAR IT. `[l1_found]`
 
 **WARDEN:** *(Flat, instant.)* RESET REFUSED. BADGE REQUIRED. `[l1_no_badge]`
 
