@@ -111,7 +111,7 @@ func section_items(page: int) -> Array[Control]:
 	var game := get_node("/root/Game")
 	match page:
 		Page.NOTES:
-			return _notes_items(game.notebook_notes)
+			return _todo_items(game.notebook_todo) + _notes_items(game.notebook_notes)
 		Page.WRITTEN:
 			return _written_items(game.notebook_written)
 		Page.TABLES:
@@ -138,6 +138,20 @@ static func text_of(items: Array) -> String:
 		for l in item.find_children("*", "Label", true, false):
 			out += l.text + "\n"
 	return out
+
+
+## The to-do list, in the character's hand: the task now in ink, the last few
+## done ones in pencil.
+func _todo_items(todo: Array) -> Array[Control]:
+	var items: Array[Control] = [NotebookArt.heading("To do")]
+	if todo.is_empty():
+		items.append(NotebookArt.hand("Nothing yet.", 24, NotebookArt.PENCIL))
+	for t in todo.slice(maxi(0, todo.size() - 6)):
+		if t.done:
+			items.append(NotebookArt.hand("-  %s  (done)" % t.text, 22, NotebookArt.PENCIL))
+		else:
+			items.append(NotebookArt.hand("-  %s" % t.text, 26))
+	return items
 
 
 func _notes_items(ids: Array) -> Array[Control]:

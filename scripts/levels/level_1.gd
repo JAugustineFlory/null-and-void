@@ -137,7 +137,7 @@ func start() -> void:
 		var through := Trigger.create(self, Vector3(0, 1, 5.0), Vector3(14, 2, 18))
 		through.require_all = true
 		through.entered.connect(func(_b): sync.event("_on_all_through"))
-	hud.set_objective("Follow Rourke inside")
+	hud.todo("Follow Rourke inside")
 	if sync.is_host():
 		terminal.opened.connect(_on_terminal_opened, CONNECT_ONE_SHOT)
 	rourke.walk_to(to_global(Vector3(-2.4, 0, 6.4)))  # beside the terminal desk
@@ -148,7 +148,7 @@ func start() -> void:
 	rourke.face(player.global_position)
 	await hud.line("l1_terminal")
 	if not _trapped:
-		hud.set_objective("Start work at the Server Room A terminal")
+		hud.todo("Start work at the Server Room A terminal")
 
 
 func _on_all_through() -> void:
@@ -184,7 +184,8 @@ func _on_trapped(_b: Node) -> void:
 	rourke.max_hits = Rourke.MAX_HITS + 2 * (players.count() - 1)
 	rourke.hits_left = rourke.max_hits
 	await hud.lines(["l1_trap_1", "l1_trap_2"])
-	hud.set_objective("Survive. Stop Rourke. (Click to strike)")
+	hud.todo("Stop Rourke")
+	hud.notice("Click to strike", 6.0)
 	if sync.is_host():
 		rourke.downed.connect(func(): sync.event("_on_rourke_downed"))
 		rourke.resolved.connect(func(fate): sync.event("_on_rourke_resolved", [fate]))
@@ -194,7 +195,7 @@ func _on_trapped(_b: Node) -> void:
 
 
 func _on_rourke_downed() -> void:
-	hud.set_objective("He's down. Decide before he gets up.")
+	hud.todo("Deal with Rourke before he gets up")
 	_last_bark = Time.get_ticks_msec() / 1000.0
 	hud.line("l1_downed")
 
@@ -227,7 +228,7 @@ func _on_rourke_resolved(fate: String) -> void:
 		hud.notice("WARDEN LOCKDOWN ACTIVE", 5.0, ThemeUtil.RED)
 	else:
 		await hud.lines(["l1_tied_1", "l1_tied_2"])
-	hud.set_objective("Log in to the terminal with Rourke's badge and find out why the exit is locked")
+	hud.todo("Find out why the exit is locked (Rourke's badge works on the terminal)")
 	hud.lines(["l1_login", "l1_selftest"])
 
 
@@ -245,15 +246,15 @@ func _self_test_lines() -> Array:
 		"  [color=#7dff8c]PASS[/color]  cameras.lobby",
 		"2 failed, 4 passed.",
 		"",
-		TerminalUI.sysop("The exit's controller is one row in the controller table. Only it needs a reset."),
-		TerminalUI.sysop("The table's name is on the rack card on this desk. From the self-test: [b]zone A[/b], status [b]'fault'[/b]."),
-		TerminalUI.sysop("Filter rows with WHERE. Two conditions? Join them with AND. Example on another table:"),
+		"The exit's controller is one row in the controller table (see the reference card at this desk).",
+		"Clues from the self-test: it is in [b]zone A[/b] and its status is [b]'fault'[/b].",
+		"Filter rows with WHERE. Need two conditions? Join them with AND. Example on another table:",
 		"    [color=#ffffff]SELECT * FROM doors WHERE zone = 'A' AND locked = 1;[/color]",
 		"      SELECT *          which columns to show (* = all)",
 		"      FROM doors        which table to read",
 		"      WHERE zone = 'A'  keep only rows where this is true",
 		"      AND locked = 1    ...and this is true as well",
-		TerminalUI.sysop("Text values go in 'single quotes'. Stuck? Type [b].hint[/b]"),
+		"Text values go in 'single quotes'. Stuck? Type [b].hint[/b]",
 	]
 
 
@@ -267,8 +268,9 @@ func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 func _on_controller_found() -> void:
 	controller_puzzle.solved = true
 	terminal.print_line("")
-	terminal.print_line(TerminalUI.sysop("That's the one: %s, faulted in zone A. Reset it by hand at its rack. Quickly." % answer))
-	hud.set_objective("Reset controller %s at its rack (look for the labels)" % answer)
+	terminal.print_line(TerminalUI.sysop("that's the one. %s, zone A, 'fault'. reset it by hand at its rack." % answer))
+	hud.todo("Reset the faulted controller at its rack")
+	hud.line("l1_found")
 
 
 ## Runs on the host when anyone presses a rack panel. It decides, then
@@ -300,13 +302,15 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 			hud.notice("PANELS LOCKED: tamper lockout, %d s" % int(seconds), 2.0, ThemeUtil.RED)
 			return
 		"healthy":
-			hud.notice("WARDEN: %s is working normally. Nothing to reset." % id, 4.0)
+			hud.notice("> CONTROLLER %s: OK. NOTHING TO RESET." % id, 4.0)
+			terminal.print_line(TerminalUI.sysop("%s is healthy. you want the one in zone A with status 'fault'." % id))
 			hud.line("l1_panel_ok", false)
 			return
 		"wrong":
 			var row: Dictionary = db.run_silent("SELECT status, zone, note FROM door_controllers WHERE id = '%s'" % id)[0]
 			panels_locked_until = now + seconds
-			hud.notice("WARDEN: %s (zone %s, %s): %s\nNot the exit's controller. Reset refused. Panels locked for 10 s." % [id, row["zone"], row["status"], row["note"]], 6.0, ThemeUtil.RED)
+			hud.notice("> RESET REFUSED. PANELS LOCKED: %d s" % int(seconds), 6.0, ThemeUtil.RED)
+			terminal.print_line(TerminalUI.sysop("not that one. %s is zone %s, '%s': %s" % [id, row["zone"], row["status"], row["note"]]))
 			hud.line("l1_panel_wrong", false)
 			return
 	db.run_silent("UPDATE door_controllers SET status = 'ok', last_reset = '1997-10-15 23:58' WHERE id = '%s'" % id)
@@ -315,7 +319,7 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 	for p in rack_panels.values():
 		p.enabled = false
 	hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SRA-EXIT: OPENED" % id, 4.0, ThemeUtil.GREEN)
-	hud.set_objective("Get out through the emergency exit to the elevator")
+	hud.todo("Get out through the emergency exit to the elevator")
 	hud.line("l1_exit_open", false)
 	var t := Trigger.create(self, Vector3(0, 1, -13.5), Vector3(3, 2, 1.5))
 	t.entered.connect(func(_b): sync.event("_on_exit", [null]))
@@ -329,13 +333,13 @@ func _on_exit(_b: Node) -> void:
 		await hud.say("", "Behind you, a cut length of network cable lies on the floor. Rourke is gone.", 4.0)
 		await hud.line("l1_lockdown_tied")
 	if not elevator.is_closing and not elevator.riding:
-		hud.set_objective("Everyone into the elevator, then press B2")
+		hud.todo("Everyone into the elevator, then press B2")
 
 
 ## The doors are shut: this is the checkpoint and the seal. The next wing loads
 ## during the ride, and the crew steps out of its arrival car.
 func _on_elevator_closed() -> void:
-	hud.set_objective("")
+	hud.todo("")
 	if world:
 		db.checkpoint()
 	prepare_next()

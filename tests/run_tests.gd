@@ -606,7 +606,7 @@ func test_coop_level_0() -> void:
 	await _frames(10)
 	check(host.peek_puzzle.solved and c1.peek_puzzle.solved and c2.peek_puzzle.solved, "a client's query solves the puzzle for everyone")
 	check(host.desk_terminal.transcript.any(func(l): return l.contains("SELECT * FROM memo_fragments")), "the query shows on the host's copy of that terminal")
-	check(c2.desk_terminal.transcript.any(func(l): return l.contains("Those scraps are out of order")), "SYSOP's reply shows on every copy")
+	check(c2.desk_terminal.transcript.any(func(l): return l.contains("scraps are out of order")), "SYSOP's reply shows on every copy")
 	# Documents are read and copied on your own machine only.
 	var brochures: Array = levels.map(func(l): return _doc(l, "ScanRight"))
 	check(brochures.all(func(d): return d != null and d.local_only), "documents are read locally, not through the host")
@@ -1096,6 +1096,9 @@ func _doc_has(level: Node, text: String) -> bool:
 func _check_l0_documents(level: Node) -> void:
 	check(_doc_has(level, "memo_fragments") and _doc_has(level, "piece_no"), "the scanner card names the scraps table and the column that numbers them")
 	check(not level.desk_terminal.boot_lines.any(func(l): return l.contains("memo_fragments")), "the terminal no longer names the table: it's on the card")
+	var todo: Array = _game().notebook_todo.map(func(t): return t.text)
+	check(todo.has("Put the memo back in order") and todo.find("Put the memo back in order") > todo.find("Read Dr. Vale's shredded memo (front desk terminal)") \
+		and _game().notebook_todo.filter(func(t): return t.text.contains("memo")).all(func(t): return t.done), "the to-do list adds sorting the memo after reading it, and ticks both off (%s)" % [todo])
 	check(Array(level.desk_terminal.transcript).all(func(l): return not TerminalUI._plain(l).strip_edges().begins_with("WARDEN:")), "no tips from WARDEN on the front desk terminal")
 	var tips: Array = Array(level.desk_terminal.transcript).filter(func(l): return TerminalUI._plain(l).begins_with("[SYSOP]: "))
 	check(tips.size() >= 3, "SYSOP gives the tips (%d lines)" % tips.size())
@@ -1125,7 +1128,8 @@ func _check_l1_documents(level: Node) -> void:
 	check(_doc_has(level, "'fault'") and _doc_has(level, "'offline'") and _doc_has(level, "- H.M."), "Mercer's note explains fault vs offline")
 	check(not level._self_test_lines().any(func(l): return l.contains("door_controllers")), "the self-test no longer names the table: it's on the card")
 	check(Array(level.terminal.transcript).all(func(l): return not TerminalUI._plain(l).strip_edges().begins_with("WARDEN:")), "no tips from WARDEN on the Server Room A terminal")
-	check(Array(level.terminal.transcript).any(func(l): return TerminalUI._plain(l).begins_with("[SYSOP]: That's the one")), "SYSOP confirms the controller")
+	check(Array(level.terminal.transcript).any(func(l): return TerminalUI._plain(l).begins_with("[SYSOP]: that's the one")), "SYSOP confirms the controller")
+	check(_game().current_todo() != "" and not _game().current_todo().contains(level.answer), "the to-do names the task, never the answer (%s)" % _game().current_todo())
 	for d in level.find_children("*", "Document", true, false):
 		check(level.terminal.global_position.distance_to(d.global_position) < 1.5, "%s is on the terminal desk" % d.title)
 
@@ -1314,6 +1318,14 @@ func test_notebook() -> void:
 	check(nb.pages.current_page() == NotebookPages.Page.TABLES and NotebookPages.text_of(on_pages).contains("memo_fragments"), "the Tables page lists what was found")
 	var notes_text := nb.pages.section_text(NotebookPages.Page.NOTES)
 	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
+	_game().set_todo("Find the exit")
+	_game().set_todo("Open the exit door")
+	check(not _game().set_todo("Open the exit door"), "the same task isn't written twice")
+	notes_text = nb.pages.section_text(NotebookPages.Page.NOTES)
+	check(notes_text.contains("To do") and notes_text.contains("Find the exit  (done)") and notes_text.contains("-  Open the exit door\n"), "the Notes page starts with the to-do list, old tasks ticked off")
+	level.hud.todo("")
+	check(_game().current_todo() == "" and _game().notebook_todo.all(func(t): return t.done), "an empty task ticks off the last one")
+	check(_game().notebook_data().todo.map(func(t): return t.text).has("Open the exit door"), "the to-do list is saved with the notebook")
 	nb.pages.show_page(NotebookPages.Page.TABLES)
 	check(nb.pages._spreads.size() == 1 and not nb.pages._turn.visible, "a short section fits on one spread")
 	for t in 20:

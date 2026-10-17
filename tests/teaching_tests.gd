@@ -79,7 +79,7 @@ func world_text(level: Node) -> String:
 		parts.append(n.text)
 	for d in level.find_children("*", "Document", true, false):
 		parts.append(d.plain_text())
-	parts.append(level.hud._objective.text)
+	parts.append(level.hud.current_todo())
 	return "\n".join(parts)
 
 
@@ -389,7 +389,7 @@ func walk_level_2(seed_value: int) -> void:
 	level.loose = true
 	level.hud._notice.text = ""
 	level.on_player_died()
-	var said: String = level.hud._notice.text.to_lower() + level.hud._objective.text.to_lower()
+	var said: String = level.hud._notice.text.to_lower() + level.hud.current_todo().to_lower()
 	gap(said.contains("camera") or said.contains("frozen") or said.contains("last_frame"),
 		"security: after the Watcher gets you, the screen says why it could move (a camera froze)")
 	level.queue_free()

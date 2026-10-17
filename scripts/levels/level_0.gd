@@ -92,12 +92,11 @@ func build() -> void:
 		"Visitor session opened 23:04.",
 		"",
 		"ScanRight: 1 shredded document saved, one row per scrap.",
-		"",
-		TerminalUI.sysop("You're on the front desk terminal. To see every row of a table, type this and press Enter:"),
+		"Scans go in the table named on the ScanRight card (on the desk).",
+		"To see every row of a table, type this and press Enter:",
 		"",
 		"    [color=#ffffff]SELECT * FROM [i]table_name[/i];[/color]",
 		"",
-		TerminalUI.sysop("The scanner's table name is on its card, on the desk."),
 		"Type .help for commands, .hint if you're stuck.",
 	]
 	desk_terminal.puzzles = [peek_puzzle, memo_puzzle]
@@ -346,7 +345,7 @@ func ready_up(p: Node, seat_index: int) -> void:
 
 func _on_waiting_for_crew(seat_index: int, ready_count: int, needed: int) -> void:
 	van_seats[seat_index].buckle.enabled = false
-	hud.set_objective("Ready. Waiting for your team (%d/%d)" % [ready_count, needed])
+	hud.notice("Ready. Waiting for your team (%d/%d)" % [ready_count, needed], 600.0)
 
 
 ## Everyone is ready. `seats` is [peer id, seat] in the order they readied. Each
@@ -527,12 +526,12 @@ func player_spawn(index: int) -> Transform3D:
 
 func start() -> void:
 	player.flashlight.visible = false  # the lights are on; nobody needs a torch yet
-	hud.set_objective("Look down at your seat belt and press E to unbuckle when you're ready")
+	hud.notice("Look down at your seat belt and press E to unbuckle when you're ready", 600.0)
 	_dispatch_chatter()
 	if not _intro_started:
 		await all_ready
 	await get_tree().create_timer(2.0).timeout
-	hud.set_objective("Meet your contact at the front doors")
+	hud.todo("Meet our contact at the front doors")
 	# Co-op: triggers and Rourke run on the host, so every machine waits on gates.
 	var approach := Trigger.create(self, Vector3(0, 1, 11.5), Vector3(16, 2, 2))
 	await sync.gate("approach", approach.entered)
@@ -547,7 +546,7 @@ func start() -> void:
 	# on to the desk, and a strip they've left wouldn't count them.
 	var inside := Trigger.create(self, Vector3(0, 1, 0), Vector3(15.6, 2, 13.6))
 	rourke.walk_to(Vector3(-0.5, 0, 0.6))
-	hud.set_objective("Follow Rourke to the front desk")
+	hud.todo("Follow Rourke to the front desk")
 	inside.require_all = true
 	inside.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone to come inside (%d/%d)" % [n, total]))
 	await sync.gate("inside", inside.entered)
@@ -560,16 +559,16 @@ func start() -> void:
 	rourke.face(player.global_position)
 	await hud.line("l0_signin")
 	visitor_log.enabled = true
-	hud.set_objective("Sign the visitor log on the front desk")
+	hud.todo("Sign the visitor log")
 	await sync.gate("signed_in", visitor_log.used)
 	visitor_log.enabled = false
 	hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
-	hud.set_objective("")
+	hud.todo("")
 	await hud.lines(["l0_tour_1", "l0_tour_2"])
 	rourke.face(player.global_position)
 	await hud.lines(["l0_desk_1", "l0_desk_2"])
 	desk_terminal.enabled = true
-	hud.set_objective("Read Dr. Vale's shredded memo at the front desk terminal")
+	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
 
 
 ## A shape with no collision, for small props on an interactable (so they don't
@@ -611,15 +610,16 @@ func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 
 
 func _on_memo_backwards() -> void:
-	desk_terminal.print_line(TerminalUI.sysop("That's the memo backwards. Leave out DESC: smallest first."))
+	desk_terminal.print_line(TerminalUI.sysop("that's the memo backwards. leave out DESC: smallest first."))
 
 
 func _on_peek_solved() -> void:
 	peek_puzzle.solved = true
 	desk_terminal.print_line("")
-	desk_terminal.print_line(TerminalUI.sysop("Those scraps are out of order. One of the columns numbers them."))
-	desk_terminal.print_line(TerminalUI.sysop("To sort them, add ORDER BY to the end of your query, then the name of that column."))
-	hud.set_objective("Put the memo back in order")
+	desk_terminal.print_line(TerminalUI.sysop("the scraps are out of order. one of the columns numbers them."))
+	desk_terminal.print_line(TerminalUI.sysop("add ORDER BY to the end of your query, then that column's name."))
+	hud.todo("Put the memo back in order")
+	hud.line("l0_sort_hint")
 
 
 func _on_memo_solved() -> void:
@@ -633,7 +633,7 @@ func _on_memo_solved() -> void:
 
 
 func _after_memo() -> void:
-	hud.set_objective("")
+	hud.todo("")
 	await get_tree().create_timer(1.0).timeout
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
 	walkies.enabled = true
@@ -641,7 +641,8 @@ func _after_memo() -> void:
 	for i in 6:
 		walkies.get_node("Radio%d" % i).visible = i < players.count()
 	counter_hop.enabled = true
-	hud.set_objective("Hop over the counter (press E on its left end) and grab the walkie-talkies")
+	hud.todo("Grab walkie-talkies from behind the counter")
+	hud.notice("Press E on the left end of the counter to hop over", 8.0)
 
 
 func _on_walkies() -> void:
@@ -653,7 +654,7 @@ func _on_walkies() -> void:
 		hud.notice("Picked up walkie-talkies. Channel 1. Nobody else is on it.", 5.0)
 	prepare_next()
 	hud.line("l0_walkie")
-	hud.set_objective("Hop back over and follow Rourke")
+	hud.todo("Follow Rourke")
 	_walk_to_server_room()
 
 
@@ -663,7 +664,7 @@ func _walk_to_server_room() -> void:
 	await sync.gate("rourke_at_shutter", rourke.arrived)
 	rourke.face(player.global_position)
 	shutter.set_open(true)  # he badges it, and it opens like any other door
-	hud.set_objective("Follow Rourke to Server Room A")
+	hud.todo("Follow Rourke to Server Room A")
 	var hall := Trigger.create(self, Vector3(8.2, 1, 3), Vector3(1.2, 2, 2))
 	await sync.gate("hall", hall.entered)
 	rourke.walk_to(Vector3(22.4, 0, 3))

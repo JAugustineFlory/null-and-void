@@ -36,6 +36,8 @@ var notebook_notes: Array[String] = []
 var notebook_tables := {}
 ## Lines this player wrote down from a terminal: {label, text, kind}.
 var notebook_written: Array[Dictionary] = []
+## This player's to-do list, written in the notebook as tasks come up: {text, done}.
+var notebook_todo: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -55,6 +57,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_notes.clear()
 	notebook_tables.clear()
 	notebook_written.clear()
+	notebook_todo.clear()
 
 
 func goto(level_key: String) -> void:
@@ -94,15 +97,39 @@ func write_note(label: String, text: String, kind: String) -> void:
 	notebook_changed.emit()
 
 
+## A new task on the to-do list; the one before it is ticked off. "" ticks off
+## the current task and adds nothing. False if nothing changed.
+func set_todo(text: String) -> bool:
+	if text != "" and current_todo() == text:
+		return false
+	var changed := false
+	for t in notebook_todo:
+		if not t.done:
+			t.done = true
+			changed = true
+	if text != "":
+		notebook_todo.append({"text": text, "done": false})
+		changed = true
+	if changed:
+		notebook_changed.emit()
+	return changed
+
+
+## The task the player is on now, or "".
+func current_todo() -> String:
+	return notebook_todo[-1].text if not notebook_todo.is_empty() and not notebook_todo[-1].done else ""
+
+
 ## The notebook as plain data, for saving.
 func notebook_data() -> Dictionary:
-	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true)}
+	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true)}
 
 
 func load_notebook(data: Dictionary) -> void:
 	notebook_notes.assign(data.get("notes", []))
 	notebook_tables = data.get("tables", {}).duplicate(true)
 	notebook_written.assign(data.get("written", []))
+	notebook_todo.assign(data.get("todo", []))
 	notebook_changed.emit()
 
 

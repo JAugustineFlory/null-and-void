@@ -4,7 +4,6 @@ extends CanvasLayer
 
 var _prompt: Label
 var _subtitle: Label
-var _objective: Label
 var _notice: Label
 var _damage: ColorRect
 var _fade: ColorRect
@@ -49,10 +48,6 @@ func _ready() -> void:
 	_subtitle.position = Vector2(-550, -170)
 	root.add_child(_subtitle)
 
-	_objective = ThemeUtil.label("", 22, Color(0.85, 0.9, 1.0))
-	_objective.position = Vector2(28, 24)
-	root.add_child(_objective)
-
 	_notice = ThemeUtil.label("", 26, ThemeUtil.AMBER)
 	_notice.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -81,8 +76,22 @@ func set_prompt(text: String) -> void:
 	_prompt.text = text
 
 
+## Write a task on the player's to-do list in the notebook (it ticks off the one
+## before). The screen only flashes that the notebook changed. "" ticks off the
+## current task. Never name an answer here: it's what the character would jot down.
+func todo(text: String) -> void:
+	if get_node("/root/Game").set_todo(text) and text != "":
+		notice("Notebook updated (Tab)", 3.0)
+
+
+## The task on top of the to-do list, or "".
+func current_todo() -> String:
+	return get_node("/root/Game").current_todo()
+
+
+## Older name for todo().
 func set_objective(text: String) -> void:
-	_objective.text = "OBJECTIVE: " + text if text != "" else ""
+	todo(text)
 
 
 func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) -> void:
