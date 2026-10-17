@@ -23,10 +23,10 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_greet_1` | There you are. Dale Rourke, facilities. I'll be your escort tonight. | Friendly, a handshake in the voice. | Level 0 |
-| [ ] | `l0_greet_2` | Don't mind the announcements. They play that to everybody. | Chuckling, waving at the ceiling speaker. | Level 0 |
+| [ ] | `l0_greet_1` | There you are. Dale Rourke, facilities. I'll be your escort tonight. | Waiting outside the front doors as the crew walks up. Friendly, a handshake in the voice. | Level 0 |
 | [ ] | `l0_greet_3` | Badge rules after hours. You don't go anywhere I don't take you. | Still smiling. Should sound like a joke the first time and a threat on replay. | Level 0 |
 | [ ] | `l0_greet_4` | Come on in. I'll sign you in at the front desk. | Holding the door, waving them through. | Level 0 |
+| [ ] | `l0_greet_2` | Sorry about that. The company loves its PA system. | Inside the lobby, right after the PA. Chuckling, waving at the ceiling speaker. | Level 0 |
 | [ ] | `l0_signin` | Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. | Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) | Level 0 |
 | [ ] | `l0_tour_1` | Here's the job. Dr. Vale, our lead engineer, went missing three nights ago. | Walking. Matter-of-fact, the way you'd mention the weather. | Level 0 |
 | [ ] | `l0_tour_2` | Her systems are a mess and the director wants them recovered by morning. Quietly. | Small beat before "Quietly." | Level 0 |
@@ -92,7 +92,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [x] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
+| [x] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA, as the crew steps inside. Pleasant, like a store closing announcement. | Level 0 |
 | [x] | `l0_pa_2` | Visitors must remain with their escort at all times. Thank you for your cooperation! | Same announcement, continuing. | Level 0 |
 | [x] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
 

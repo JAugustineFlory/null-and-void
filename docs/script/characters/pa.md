@@ -23,7 +23,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 - [x] `l0_pa_1.wav`  
   "Good evening! Halcyon Data Systems is now closed."  
-  *Over the lobby PA. Pleasant, like a store closing announcement.*
+  *Over the lobby PA, as the crew steps inside. Pleasant, like a store closing announcement.*
 - [x] `l0_pa_2.wav`  
   "Visitors must remain with their escort at all times. Thank you for your cooperation!"  
   *Same announcement, continuing.*
