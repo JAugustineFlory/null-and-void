@@ -100,6 +100,7 @@ func build() -> void:
 		"Type .help for commands, .hint if you're stuck.",
 	]
 	desk_terminal.puzzles = [peek_puzzle, memo_puzzle]
+	desk_terminal.blanks = {"table_name": "table_name is a blank. the real name is handwritten on the ScanRight card."}
 	desk_terminal.enabled = false
 	desk_terminal.queried.connect(_on_desk_query)
 	StickyNote.on_monitor(desk_terminal, "select_from")

@@ -229,6 +229,12 @@ func _on_rourke_resolved(fate: String) -> void:
 		hud.notice("WARDEN LOCKDOWN ACTIVE", 5.0, ThemeUtil.RED)
 	else:
 		await hud.lines(["l1_tied_1", "l1_tied_2"])
+	# WARDEN starts containment, and its own shredder tape talks over it. It waits, then
+	# starts again from the top.
+	await hud.line("l1_contain_1")
+	await hud.line("l0_sort_hint")
+	await get_tree().create_timer(2.0).timeout
+	await hud.line("l1_contain_2")
 	hud.todo("Find out why the exit is locked (Rourke's badge works on the terminal)")
 	hud.lines(["l1_login", "l1_selftest"])
 

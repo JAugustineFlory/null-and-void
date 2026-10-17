@@ -438,6 +438,10 @@ func test_level_0_scene() -> void:
 	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")
 	level.desk_terminal.enabled = true
 	level.terminal_ui.terminal = level.desk_terminal
+	level.terminal_ui.run("SELECT * FROM table_name;")
+	check(not level.peek_puzzle.solved and TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("table_name is a blank. the real name is handwritten on the ScanRight card."), "typing table_name literally gets SYSOP pointing at the ScanRight card")
+	level.terminal_ui.run("SELECT * FROM nonsense")
+	check(not TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("ScanRight"), "other missing tables get the usual explanation")
 	level.terminal_ui.run("SELECT * FROM memo_fragments")
 	check(level.peek_puzzle.solved, "terminal run solves the peek")
 	var nudge: Array = Array(level.desk_terminal.transcript).filter(func(l): return l.contains("ORDER BY"))

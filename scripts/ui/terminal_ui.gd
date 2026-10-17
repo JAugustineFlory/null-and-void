@@ -272,6 +272,15 @@ func run(sql: String) -> void:
 		terminal.on_query(sql, result, self)
 
 
+## What SYSOP says about an error: a typed-in placeholder gets its own answer.
+static func _explain(on_terminal: Node, sql: String, error: String) -> String:
+	var blanks: Dictionary = on_terminal.get("blanks") if on_terminal and on_terminal.get("blanks") != null else {}
+	for blank in blanks:
+		if RegEx.create_from_string("(?i)\\b%s\\b" % blank).search(sql) and error.contains(blank):
+			return blanks[blank]
+	return FacilityDB.explain_error(error)
+
+
 ## Print a query and its result on `on_terminal`'s screen. `from_peer` typed it.
 func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: int) -> void:
 	var mine := from_peer == multiplayer.get_unique_id()
@@ -282,7 +291,7 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	var out: Array = [[_echo(sql, who), "echo"]]
 	if not result.ok:
 		out.append(["[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error"])
-		out.append([sysop(FacilityDB.explain_error(result.error)), "hint"])
+		out.append([sysop(_explain(on_terminal, sql, result.error)), "hint"])
 	else:
 		if mine:
 			get_node("/root/Game").log_query(sql)

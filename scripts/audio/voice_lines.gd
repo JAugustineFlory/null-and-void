@@ -85,7 +85,7 @@ const SCENES := [
 	{"id": "l1_fate", "level": 1, "title": "Kill or tie him up", "wired": true,
 		"moment": "In the server room, right after the scuffle.",
 		"context": "Rourke is down. If the crew kills him, his badge's dead-man switch fires and WARDEN starts the lockdown. If they tie him up, he taunts them. Either way they take his badge and the terminal logs in with it."},
-	{"id": "l1_contain", "level": 1, "title": "Visitor without escort", "wired": false,
+	{"id": "l1_contain", "level": 1, "title": "Visitor without escort", "wired": true,
 		"moment": "Over the server room speakers, the first time the building's computer speaks for itself. Its own recorded announcement cuts it off.",
 		"context": "Right after the fate scene, in both branches, before the badge login: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word."},
 	{"id": "l1_controllers", "level": 1, "title": "Resetting the door controller", "wired": true,
