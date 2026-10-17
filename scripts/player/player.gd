@@ -62,11 +62,9 @@ const STRIKE_RANGE := 2.0
 const STRIKE_COOLDOWN := 0.55
 ## Walking pace while reading the notebook: no sprinting, jumping or climbing.
 const NOTEBOOK_WALK_SPEED := 1.4
-## How long pulling the notebook out of the pocket (or putting it back) takes.
+## How long pulling the notebook out of the pocket (or putting it back) takes,
+## matching HeldNotebook's open motion.
 const NOTEBOOK_RAISE_TIME := 0.45
-## Where the notebook sits relative to the camera: in the jacket pocket, then held.
-static var NOTEBOOK_POCKET: Transform3D = Transform3D(Basis.from_euler(Vector3(deg_to_rad(-80), deg_to_rad(-20), deg_to_rad(25))), Vector3(0.28, -0.75, -0.15))
-static var NOTEBOOK_HELD: Transform3D = Transform3D(Basis.from_euler(Vector3(deg_to_rad(-38), 0, 0)), Vector3(0.0, -0.3, -0.42))
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var health := 100.0
@@ -111,9 +109,10 @@ var stance_height: float:
 	get:
 		return _height
 var _bob_t := 0.0
-## Attach the notebook mesh here (Graphics). A child of the camera that moves from
-## the pocket to in front of you, lower centre of the screen; hidden while stowed.
-var notebook_anchor: Node3D
+## The notebook model in your hands (a HeldNotebook on `camera`, from
+## HeldNotebook.attach). raise/lower_notebook() call its open_book()/close_book(),
+## which play the pull-out and put-away. Optional: without one only the state changes.
+var held_notebook: Node3D
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
 var notebook_amount := 0.0
 var _notebook_held := false
@@ -162,12 +161,6 @@ func _ready() -> void:
 	_ray.collide_with_areas = false
 	camera.add_child(_ray)
 
-	notebook_anchor = Node3D.new()
-	notebook_anchor.name = "NotebookAnchor"
-	notebook_anchor.transform = NOTEBOOK_POCKET
-	notebook_anchor.visible = false
-	camera.add_child(notebook_anchor)
-
 	if local_control:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
@@ -177,7 +170,10 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if input_locked or not local_control:
 		return
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if _notebook_held and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		# The cursor is free for the pages; hold right mouse to look around.
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if event.pressed else Input.MOUSE_MODE_VISIBLE
+	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * MOUSE_SENS)
 		if state == Move.LEDGE:
 			_clamp_ledge_yaw()
@@ -192,7 +188,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var target := _look_target()
 		if target and target.has_method("interact_alt"):
 			target.interact_alt(self)
-	elif event.is_action_pressed("attack"):
+	elif event.is_action_pressed("attack") and not _notebook_held:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else:
@@ -266,18 +262,29 @@ func respawn(at: Transform3D) -> void:
 func raise_notebook() -> bool:
 	if state in [Move.MANTLE, Move.HANG, Move.CLIMB]:
 		return false
+	if _notebook_held:
+		return true
 	_notebook_held = true
-	notebook_anchor.visible = true
+	if held_notebook:
+		held_notebook.open_book()
+	if local_control and not input_locked:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE  # to click the pages
 	return true
 
 
 ## Put the notebook back. `instant` skips the motion (respawns, cutscenes).
 func lower_notebook(instant: bool = false) -> void:
 	var was_out := _notebook_held or notebook_amount > 0.0
+	var was_held := _notebook_held
 	_notebook_held = false
+	if was_held and held_notebook:
+		held_notebook.close_book()
+	if was_held and local_control and not input_locked:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if instant and was_out:
 		notebook_amount = 0.0
-		_pose_notebook()
+		if held_notebook:
+			held_notebook.visible = false
 		notebook_lowered.emit()
 
 
@@ -298,19 +305,10 @@ func _process(delta: float) -> void:
 	if notebook_amount == target:
 		return
 	notebook_amount = move_toward(notebook_amount, target, delta / NOTEBOOK_RAISE_TIME)
-	_pose_notebook()
 	if notebook_amount == 1.0:
 		notebook_raised.emit()
 	elif notebook_amount == 0.0:
 		notebook_lowered.emit()
-
-
-func _pose_notebook() -> void:
-	var t := smoothstep(0.0, 1.0, notebook_amount)
-	var pose := NOTEBOOK_POCKET.interpolate_with(NOTEBOOK_HELD, t)
-	pose.origin.y += sin(t * PI) * 0.08  # an arc up out of the pocket, not a straight slide
-	notebook_anchor.transform = pose
-	notebook_anchor.visible = notebook_amount > 0.0
 
 
 # --- Teammates -------------------------------------------------------------

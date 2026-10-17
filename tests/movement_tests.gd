@@ -478,14 +478,16 @@ func test_notebook_hold() -> void:
 	var events := []
 	p.notebook_raised.connect(func(): events.append("raised"))
 	p.notebook_lowered.connect(func(): events.append("lowered"))
-	check(not p.notebook_anchor.visible and p.notebook_anchor.get_parent() == p.camera, "the notebook anchor rides the camera, hidden in the pocket")
+	var book := FakeHeldNotebook.new()
+	p.held_notebook = book
 	check(p.toggle_notebook() and p.is_holding_notebook(), "Tab pulls the notebook out")
 	await frames(10)
 	var mid := p.notebook_amount
 	await frames(30)
 	check(mid > 0.05 and mid < 0.95 and p.notebook_amount == 1.0 and events == ["raised"], "it comes up over a moment, then says it's raised (%.2f halfway)" % mid)
-	var held_pos := p.notebook_anchor.position
-	check(held_pos.y < -0.1 and held_pos.z < -0.2 and absf(held_pos.x) < 0.05, "held in front, lower centre of the view")
+	check(book.calls == ["open"], "and the notebook model plays its pull-out")
+	p.raise_notebook()
+	check(book.calls == ["open"], "raising it again while held does nothing")
 	var z0 := p.global_position.z
 	forward(p, true)
 	p.controls.jump = true
@@ -498,7 +500,8 @@ func test_notebook_hold() -> void:
 	check(p.is_holding_notebook(), "you can still look around")
 	p.toggle_notebook()
 	await frames(40)
-	check(not p.notebook_anchor.visible and events == ["raised", "lowered"], "Tab again puts it away")
+	check(not p.is_holding_notebook() and events == ["raised", "lowered"] and book.calls == ["open", "close"], "Tab again puts it away")
+	p.held_notebook = null
 	p.rotation.y = 0.0
 	p.global_position = Vector3(0, 0.05, -1.3)
 	await frames(5)
@@ -512,6 +515,17 @@ func test_notebook_hold() -> void:
 	await frames(3)
 	check(p.state == Player.Move.HANG and not p.raise_notebook(), "you can't get the notebook out while hanging")
 	await done(a)
+
+
+## Stands in for Graphics' HeldNotebook: records what the player asks of it.
+class FakeHeldNotebook extends Node3D:
+	var calls := []
+
+	func open_book() -> void:
+		calls.append("open")
+
+	func close_book() -> void:
+		calls.append("close")
 
 
 func test_same_controls_same_moves() -> void:
