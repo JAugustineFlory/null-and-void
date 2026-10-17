@@ -24,6 +24,12 @@ var locked := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
+## Hooks for walking up to use it (Player.use_terminal): where the player stands,
+## its -Z facing the terminal (only its floor position and facing are used), and
+## the middle of the screen, +Z out of it, that the camera focuses on. Move them if
+## a level's desk or a new screen model needs it.
+var stand_point: Marker3D
+var focus_point: Marker3D
 ## What this machine's copy of the screen shows. In co-op everyone's queries
 ## appear here, so players can work one terminal together.
 var transcript: Array[String] = []
@@ -54,6 +60,14 @@ static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: Stri
 	t._screen.material_override = Greybox.mat(Color(0.2, 0.9, 0.35), 1.6)
 	t._screen.position = Vector3(0, 0.23, 0.23)
 	t.add_child(t._screen)
+	t.focus_point = Marker3D.new()
+	t.focus_point.name = "FocusPoint"
+	t.focus_point.position = Vector3(0, 0.23, 0.24)
+	t.add_child(t.focus_point)
+	t.stand_point = Marker3D.new()
+	t.stand_point.name = "StandPoint"
+	t.stand_point.position = Vector3(0, 0, 0.8)  # clear of a 0.8 m deep desk
+	t.add_child(t.stand_point)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.3, 1.0, 0.45)
 	glow.omni_range = 1.8

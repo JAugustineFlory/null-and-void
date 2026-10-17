@@ -16,8 +16,12 @@ signal noise_made(at: Vector3, loudness: float)
 signal notebook_raised
 ## The notebook is back in the pocket.
 signal notebook_lowered
+## You're at a terminal and the camera has settled on its screen: start typing.
+signal terminal_focused
+## You've stepped back from a terminal and can move again.
+signal terminal_left
 
-enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE }
+enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL }
 
 const WALK_SPEED := 3.8
 const SPRINT_SPEED := 6.5
@@ -65,6 +69,11 @@ const NOTEBOOK_WALK_SPEED := 1.4
 ## How long pulling the notebook out of the pocket (or putting it back) takes,
 ## matching HeldNotebook's open motion.
 const NOTEBOOK_RAISE_TIME := 0.45
+## Using a terminal: the step to its stand point, then the camera easing onto the screen.
+const TERMINAL_STEP_TIME := 0.35
+const TERMINAL_FOCUS_TIME := 0.5
+## How far the camera sits from the screen's focus point, metres.
+const TERMINAL_FOCUS_DISTANCE := 0.55
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var health := 100.0
@@ -116,6 +125,13 @@ var held_notebook: Node3D
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
 var notebook_amount := 0.0
 var _notebook_held := false
+## The terminal you're using, its stand and focus points, and how far you are into it:
+## 0..1 stepping over, 1..2 the camera easing onto the screen. Read-only.
+var terminal_amount := 0.0
+var _term_stand: Node3D
+var _term_focus: Node3D
+var _term_leaving := false
+var _term_from := Transform3D()
 
 var head: Node3D
 var camera: Camera3D
@@ -170,6 +186,8 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if input_locked or not local_control:
 		return
+	if state == Move.TERMINAL:
+		return  # the screen has the mouse and keys; the terminal UI calls leave_terminal()
 	if _notebook_held and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 		# The cursor is free for the pages; hold right mouse to look around.
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if event.pressed else Input.MOUSE_MODE_VISIBLE
@@ -224,6 +242,8 @@ func step(delta: float) -> void:
 			_step_climb(delta, jump_pressed)
 		Move.LEDGE:
 			_step_ledge(delta)
+		Move.TERMINAL:
+			_step_terminal(delta)
 		_:
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
@@ -252,6 +272,7 @@ func respawn(at: Transform3D) -> void:
 	state = Move.WALK
 	_set_crouch(false)
 	lower_notebook(true)
+	_end_terminal(false)
 	heal_full()
 
 
@@ -298,6 +319,99 @@ func toggle_notebook() -> bool:
 
 func is_holding_notebook() -> bool:
 	return _notebook_held
+
+
+# --- Terminals -------------------------------------------------------------
+
+## Step up to a terminal: you move onto `stand` (its position and facing; -Z looks
+## at the terminal), then the camera eases onto `focus` and movement locks.
+## `focus` is the terminal's TerminalScreen (the camera goes to its
+## focus_transform()) or any Node3D on the screen with +Z pointing out of it. `terminal_focused` fires when the
+## camera has settled. False if you're busy (mid-air, climbing, on shoulders).
+func use_terminal(stand: Node3D, focus: Node3D) -> bool:
+	if state != Move.WALK or not is_on_floor() or rider or carrier:
+		return false
+	lower_notebook()
+	_term_stand = stand
+	_term_focus = focus
+	_term_from = global_transform
+	_term_leaving = false
+	terminal_amount = 0.0
+	state = Move.TERMINAL
+	velocity = Vector3.ZERO
+	if local_control and not input_locked:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE  # to hover and click lines on the screen
+	return true
+
+
+## Esc or E at the terminal: the camera eases back and you can move again.
+func leave_terminal() -> void:
+	if state == Move.TERMINAL and not _term_leaving:
+		_term_leaving = true
+		terminal_amount = minf(terminal_amount, 2.0)
+
+
+func is_using_terminal() -> bool:
+	return state == Move.TERMINAL
+
+
+## The camera has settled on the screen (and isn't easing back).
+func is_terminal_focused() -> bool:
+	return state == Move.TERMINAL and not _term_leaving and terminal_amount >= 2.0
+
+
+## Where the camera ends up at the terminal: the screen's focus_transform(), or
+## TERMINAL_FOCUS_DISTANCE out from a plain focus point, looking straight at it.
+func terminal_view() -> Transform3D:
+	if _term_focus.has_method("focus_transform"):
+		return _term_focus.focus_transform(camera.fov)
+	var at := _term_focus.global_position
+	var eye := at + _term_focus.global_basis.z.normalized() * TERMINAL_FOCUS_DISTANCE
+	return Transform3D(Basis.IDENTITY, eye).looking_at(at, Vector3.UP)
+
+
+func _step_terminal(delta: float) -> void:
+	velocity = Vector3.ZERO
+	if _term_stand == null or not is_instance_valid(_term_stand) or (_term_focus and not is_instance_valid(_term_focus)):
+		_end_terminal(true)
+		return
+	if _term_leaving:
+		terminal_amount = move_toward(terminal_amount, 1.0, delta / TERMINAL_FOCUS_TIME)
+		if terminal_amount <= 1.0:
+			_end_terminal(true)
+		return
+	if terminal_amount >= 2.0:
+		return
+	if terminal_amount < 1.0:
+		terminal_amount = minf(1.0, terminal_amount + delta / TERMINAL_STEP_TIME)
+		var to := _term_stand.global_position
+		var fwd := -_term_stand.global_basis.z
+		var stand := Transform3D(Basis(Vector3.UP, atan2(-fwd.x, -fwd.z)), Vector3(to.x, global_position.y, to.z))
+		var t := smoothstep(0.0, 1.0, terminal_amount)
+		global_transform = _term_from.interpolate_with(stand, t)
+		head.rotation.x = lerpf(head.rotation.x, 0.0, t)
+	elif _term_focus == null:
+		terminal_amount = 2.0
+		terminal_focused.emit()
+	else:
+		terminal_amount = minf(2.0, terminal_amount + delta / TERMINAL_FOCUS_TIME)
+		if terminal_amount == 2.0:
+			terminal_focused.emit()
+
+
+func _end_terminal(announce: bool) -> void:
+	var was := state == Move.TERMINAL or terminal_amount > 0.0
+	if state == Move.TERMINAL:
+		state = Move.WALK
+	terminal_amount = 0.0
+	_term_stand = null
+	_term_focus = null
+	_term_leaving = false
+	camera.transform = Transform3D.IDENTITY
+	if was and local_control and not input_locked and not _notebook_held:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if was and announce:
+		terminal_left.emit()
 
 
 func _process(delta: float) -> void:
@@ -876,10 +990,13 @@ func _update_head(delta: float) -> void:
 		target_y += sin(_bob_t) * 0.035
 	head.position.y = lerp(head.position.y, target_y, clamp(delta * 12.0, 0.0, 1.0))
 	camera.fov = lerp(camera.fov, 86.0 if state == Move.SLIDE else 78.0, clamp(delta * 8.0, 0.0, 1.0))
-	if state == Move.ROLL:
-		camera.rotation.x = -TAU * (1.0 - clamp(_timer / ROLL_TIME, 0.0, 1.0))
+	if state == Move.TERMINAL and terminal_amount > 1.0 and _term_focus:
+		var f := smoothstep(0.0, 1.0, terminal_amount - 1.0)
+		camera.global_transform = head.global_transform.interpolate_with(terminal_view(), f)
+	elif state == Move.ROLL:
+		camera.transform = Transform3D(Basis(Vector3.RIGHT, -TAU * (1.0 - clamp(_timer / ROLL_TIME, 0.0, 1.0))), Vector3.ZERO)
 	else:
-		camera.rotation.x = 0.0
+		camera.transform = Transform3D.IDENTITY
 
 
 func _update_prompt() -> void:
