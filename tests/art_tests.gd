@@ -26,6 +26,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_notebook()
 	test_document_props()
 	await test_document_view()
+	await test_held_notebook()
+	await test_terminal_screen()
 
 
 func check(cond: bool, name: String) -> void:
@@ -482,8 +484,12 @@ func test_document_view() -> void:
 	doc.set_paper("manual")
 	doc.set_title("FACILITIES MANUAL - 4.2")
 	var line := doc.add_line("Every door has a row in the doors table.")
-	(line.find_child("WriteNote", true, false) as Button).pressed.emit()
-	check(copied == ["Every door has a row in the doors table."], "+ note on a document line copies that line")
+	var chip: Button = line.find_child("AddChip", true, false)
+	check(chip != null and not chip.visible and line.find_child("WriteNote", true, false) == null, "document lines have no buttons until you point at one")
+	line.call("set_hovered", true)
+	check(chip.visible and chip.text == "+ add to notebook" and line.get("hovered"), "pointing at a line highlights it and offers to add it to the notebook")
+	chip.pressed.emit()
+	check(copied == ["Every door has a row in the doors table."], "adding a document line copies that line")
 	var note := doc.add_margin_note("check the timestamps! - H.M.")
 	check(note.get_theme_font("font") == NotebookArt.old_hand_font(), "Mercer's margin notes are in his handwriting")
 	check(line.is_ancestor_of(note), "a margin note sits beside the line it's about")
@@ -492,8 +498,8 @@ func test_document_view() -> void:
 	var blank := doc.add_blank("Clock-in times are stored in a table of ", "guards", " choice.")
 	var filled: Label = blank.find_child("Filled", true, false)
 	check(filled.text.strip_edges() == "guards" and filled.get_theme_font("font") == NotebookArt.old_hand_font(), "the blank is filled in by hand")
-	(blank.find_child("WriteNote", true, false) as Button).pressed.emit()
-	check(copied.back() == "Clock-in times are stored in a table of guards choice.", "+ note on a filled-in line copies the whole sentence")
+	(blank.find_child("AddChip", true, false) as Button).pressed.emit()
+	check(copied.back() == "Clock-in times are stored in a table of guards choice.", "adding a filled-in line copies the whole sentence")
 	doc.show_doc()
 	await t.create_timer(0.35).timeout
 	check(doc.visible and doc.modulate.a > 0.99, "the document opens")
@@ -511,3 +517,105 @@ func test_document_view() -> void:
 	await t.create_timer(0.3).timeout
 	check(not doc.visible, "the document closes")
 	layer.free()
+
+
+func test_held_notebook() -> void:
+	var stage := _stage()
+	var cam := Camera3D.new()
+	cam.fov = 75
+	stage.add_child(cam)
+	cam.make_current()
+	var held := HeldNotebook.attach(cam, CharacterLooks.crew(1))
+	var book := NotebookView.new()
+	held.set_content(book)
+	book.add_tab("Notes")
+	check(held.view == book and book.embedded and not book.get_node("Dim").visible, "the notebook in your hands draws the pages without dimming the screen")
+	check(not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "a put-away notebook costs nothing to draw")
+	held.open_book()
+	await t.create_timer(0.6).timeout
+	check(held.is_open() and held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "the notebook comes out and opens")
+	var screen := t.root.get_visible_rect().size
+	var spine := cam.unproject_position(held.book_root.global_position)
+	check(absf(spine.x - screen.x / 2.0) < 4.0 and spine.y > screen.y * 0.5, "it's held centred, low in the view (%s)" % spine)
+	var top := cam.unproject_position(held.book_root.global_transform * Vector3(0, held.page_size().y / 2.0, 0))
+	check(top.y > screen.y * 0.3, "the top of the room stays in view above the book")
+	# A pixel on the right page, found again from where it shows on the screen.
+	var quad: MeshInstance3D = held.halves[1]
+	var full := Vector2(NotebookView.EMBED_SIZE)
+	var px := Vector2(1000, 300)
+	var qs: Vector2 = (quad.mesh as QuadMesh).size
+	var mat := quad.material_override as ShaderMaterial
+	var uv: Vector2 = (px / full - (mat.get_shader_parameter("uv_offset") as Vector2)) / (mat.get_shader_parameter("uv_scale") as Vector2)
+	var world := quad.global_transform * Vector3((uv.x - 0.5) * qs.x, (0.5 - uv.y) * qs.y, 0)
+	var back := held.page_point(cam.unproject_position(world))
+	check(back.distance_to(px) < 3.0, "clicks on the pages land on the right spot of the page (%s)" % back)
+	check(held.page_point(Vector2(screen.x / 2.0, 5)).x < 0, "clicks above the book don't reach it")
+	var line := NotebookArt.hand("B1-04 storeroom")
+	book.right.add_child(line)
+	held.write_in(line, 0.3)
+	await t.create_timer(0.15).timeout
+	check(book.book.get_node_or_null("Unwritten") != null and book.book.get_node_or_null("Pen") != null, "a new line is written in with a pen")
+	await t.create_timer(0.3).timeout
+	check(book.book.get_node_or_null("Unwritten") == null, "and is all there once written")
+	held.close_book()
+	await t.create_timer(0.45).timeout
+	check(not held.is_open() and not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the notebook goes back in the pocket")
+	stage.free()
+
+
+func test_terminal_screen() -> void:
+	var stage := _stage()
+	var cam := Camera3D.new()
+	cam.fov = 75
+	stage.add_child(cam)
+	cam.make_current()
+	var term := Node3D.new()
+	term.position = Vector3(2, 0.9, -1)
+	term.rotation_degrees.y = 180
+	var grey := MeshInstance3D.new()
+	grey.mesh = BoxMesh.new()
+	term.add_child(grey)
+	var shape := CollisionShape3D.new()
+	term.add_child(shape)
+	stage.add_child(term)
+	var screen := TerminalScreen.attach(term)
+	check(not grey.visible and shape.get_parent() == term, "the CRT replaces the greybox monitor's look and keeps its collider")
+	check(screen.keyboard != null and screen.keyboard.global_position.distance_to(screen.glass.global_position) < 0.5, "every terminal gets a keyboard in front of it")
+	var kb_front := (screen.keyboard.global_transform.basis * Vector3(0, 0, 1)).dot(screen.glass.global_transform.basis * Vector3(0, 0, 1))
+	check(kb_front > 0.9, "the keyboard faces the same way as the screen")
+	for i in 230:
+		screen.add_line("row %d" % i)
+	check(screen.display.text.text.contains("row 229") and not screen.display.text.text.contains("row 5\n"), "the screen keeps the latest lines")
+	screen.set_typing("SELECT")
+	check(screen.display.prompt.text.begins_with("> SELECT"), "teammates see what's being typed")
+	cam.global_transform = screen.focus_transform(cam.fov)
+	var screen_size := t.root.get_visible_rect().size
+	var mid := cam.unproject_position(screen.glass.global_position)
+	check(mid.distance_to(screen_size / 2.0) < 3.0, "the focused camera looks straight at the screen")
+	var top := cam.unproject_position(screen.glass.global_transform * Vector3(0, TerminalScreen.SCREEN_SIZE.y / 2.0, 0))
+	check(absf((mid.y - top.y) * 2.0 / screen_size.y - 0.85) < 0.03, "focused, the screen fills most of the view")
+	var px := screen.screen_point(cam, screen_size / 2.0)
+	check(px.distance_to(Vector2(TerminalScreen.SCREEN_PX) / 2.0) < 3.0, "a click in the middle of the view lands in the middle of the glass")
+	# Following a Terminal: its transcript and everyone's half-typed lines.
+	var source := _FakeTerminal.new()
+	stage.add_child(source)
+	screen.follow(source)
+	source.transcript = ["BOOT", "> SELECT 1;"]
+	source.seated = [1]
+	source.typing = {1: "SELECT * FROM do"}
+	source.screen_changed.emit()
+	check(screen.display.text.text.ends_with("> SELECT 1;") and screen.display.prompt.text.contains("SELECT * FROM do_"), "the glass follows its terminal's text and what's being typed")
+	var ui := CanvasLayer.new()
+	screen.host(ui)
+	check(ui.get_parent() == screen.viewport and not screen.display.visible and screen.viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "the terminal UI can be put on the glass")
+	check(screen.release() == ui and screen.display.visible and ui.get_parent() == null, "and taken off again")
+	ui.free()
+	stage.free()
+
+
+## Stands in for a Terminal's screen fields (co-op keeps them the same on every machine).
+class _FakeTerminal extends Node:
+	signal screen_changed
+	var transcript: Array[String] = []
+	var seated: Array[int] = []
+	var typing := {}

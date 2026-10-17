@@ -7,6 +7,9 @@ signal requested(line: String, response: Dictionary, ui: TerminalUI)
 ## Someone sat down at this terminal. Fires on the host (in co-op a client's
 ## opening is reported there), so story code can react to it.
 signal opened(by: Node)
+## What the screen shows changed: a line, a clear, a seat or a typed character.
+## The in-world screen redraws from transcript, seated and typing.
+signal screen_changed
 
 var terminal_name := "TERMINAL"
 var db: FacilityDB
@@ -24,11 +27,21 @@ var locked := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
+## Hooks for walking up to use it (Player.use_terminal): where the player stands,
+## its -Z facing the terminal (only its floor position and facing are used), and
+## the middle of the screen, +Z out of it, that the camera focuses on. Move them if
+## a level's desk or a new screen model needs it.
+var stand_point: Marker3D
+var focus_point: Marker3D
 ## What this machine's copy of the screen shows. In co-op everyone's queries
 ## appear here, so players can work one terminal together.
 var transcript: Array[String] = []
 ## What each transcript line is ("echo", "result", "hint"...), for the notebook.
 var transcript_kinds: Array[String] = []
+## Peer ids of the players sitting at this terminal, in the order they sat.
+var seated: Array[int] = []
+## What each seated player has typed but not yet entered: peer id -> text.
+var typing := {}
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
@@ -54,6 +67,14 @@ static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: Stri
 	t._screen.material_override = Greybox.mat(Color(0.2, 0.9, 0.35), 1.6)
 	t._screen.position = Vector3(0, 0.23, 0.23)
 	t.add_child(t._screen)
+	t.focus_point = Marker3D.new()
+	t.focus_point.name = "FocusPoint"
+	t.focus_point.position = Vector3(0, 0.23, 0.24)
+	t.add_child(t.focus_point)
+	t.stand_point = Marker3D.new()
+	t.stand_point.name = "StandPoint"
+	t.stand_point.position = Vector3(0, 0, 0.8)  # clear of a 0.8 m deep desk
+	t.add_child(t.stand_point)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.3, 1.0, 0.45)
 	glow.omni_range = 1.8
@@ -95,11 +116,25 @@ func print_line(bbcode: String, kind: String = "") -> void:
 	transcript_kinds.append(kind)
 	if ui:
 		ui.on_terminal_line(self, bbcode, kind)
+	screen_changed.emit()
 
 
 func clear_screen() -> void:
 	transcript.clear()
 	transcript_kinds.clear()
+	if ui:
+		ui.on_terminal_cleared(self)
+	screen_changed.emit()
+
+
+## Put the boot text up if the screen is blank or was rebooted. Every machine
+## does this when someone sits down, so every copy of the screen matches.
+func ensure_booted() -> void:
+	var fresh := consume_fresh_boot()
+	if transcript.is_empty() or fresh:
+		clear_screen()
+		for line in boot_text():
+			print_line(line)
 
 
 func boot_text() -> Array:

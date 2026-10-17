@@ -23,6 +23,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_ledge_shuffle()
 	await test_shoulders()
 	await test_same_controls_same_moves()
+	await test_notebook_hold()
+	await test_use_terminal()
 	await test_movement_gym()
 
 
@@ -467,6 +469,126 @@ func test_shoulders() -> void:
 	await frames(90)
 	check(climber.state == Player.Move.WALK and climber.is_on_floor(), "jumping off with nothing to grab lands you back on the floor")
 	await done(a)
+
+
+func test_notebook_hold() -> void:
+	var a := arena()
+	_high_wall(a, 2.0)  # face at z = -2
+	var p := spawn(a, Vector3(0, 0.05, 6))
+	await frames(5)
+	var events := []
+	p.notebook_raised.connect(func(): events.append("raised"))
+	p.notebook_lowered.connect(func(): events.append("lowered"))
+	var book := FakeHeldNotebook.new()
+	p.held_notebook = book
+	check(p.toggle_notebook() and p.is_holding_notebook(), "Tab pulls the notebook out")
+	await frames(10)
+	var mid := p.notebook_amount
+	await frames(30)
+	check(mid > 0.05 and mid < 0.95 and p.notebook_amount == 1.0 and events == ["raised"], "it comes up over a moment, then says it's raised (%.2f halfway)" % mid)
+	check(book.calls == ["open"], "and the notebook model plays its pull-out")
+	p.raise_notebook()
+	check(book.calls == ["open"], "raising it again while held does nothing")
+	var z0 := p.global_position.z
+	forward(p, true)
+	p.controls.jump = true
+	await frames(60)
+	var moved := z0 - p.global_position.z
+	check(moved > 0.8 and moved < Player.NOTEBOOK_WALK_SPEED + 0.1, "reading, you walk slowly even holding Shift (%.2f m/s)" % moved)
+	check(p.global_position.y < 0.1, "and you can't jump")
+	stop(p)
+	p.rotate_y(1.0)
+	check(p.is_holding_notebook(), "you can still look around")
+	p.toggle_notebook()
+	await frames(40)
+	check(not p.is_holding_notebook() and events == ["raised", "lowered"] and book.calls == ["open", "close"], "Tab again puts it away")
+	p.held_notebook = null
+	p.rotation.y = 0.0
+	p.global_position = Vector3(0, 0.05, -1.3)
+	await frames(5)
+	p.raise_notebook()
+	p.controls.jump = true
+	await frames(3)
+	check(p.state == Player.Move.WALK, "holding the notebook, Space doesn't grab edges either")
+	p.lower_notebook()
+	await frames(30)
+	p.controls.jump = true
+	await frames(3)
+	check(p.state == Player.Move.HANG and not p.raise_notebook(), "you can't get the notebook out while hanging")
+	await done(a)
+
+
+func test_use_terminal() -> void:
+	var a := arena()
+	Greybox.box(a, Vector3(0, 0.45, 0), Vector3(2.2, 0.9, 0.8), Color.DIM_GRAY, "Desk")
+	var term := Terminal.spawn(a, Vector3(0, 0.9, 0), 0, "TEST", null, null)  # screen faces +Z
+	var p := spawn(a, Vector3(1.4, 0.05, 2.6))
+	p.rotate_y(2.0)
+	await frames(20)
+	var events := []
+	p.terminal_focused.connect(func(): events.append("focused"))
+	p.terminal_left.connect(func(): events.append("left"))
+	p.raise_notebook()
+	check(p.use_terminal(term.stand_point, term.focus_point) and p.is_using_terminal(), "E at a terminal steps you up to it")
+	check(not p.is_holding_notebook(), "and puts the notebook away")
+	forward(p, true)
+	await frames(Player.TERMINAL_STEP_TIME * 60 + 2)
+	var stand := term.stand_point.global_position
+	var flat := Vector2(p.global_position.x - stand.x, p.global_position.z - stand.z).length()
+	var facing := -p.global_basis.z
+	check(flat < 0.05 and facing.dot(Vector3(0, 0, -1)) > 0.99, "you end up on its stand point, facing the screen (%.2f m off)" % flat)
+	check(events.is_empty() and not p.is_terminal_focused(), "then the camera starts easing onto the screen")
+	await frames(Player.TERMINAL_FOCUS_TIME * 60 + 2)
+	var cam := p.camera.global_transform
+	var to_screen := (term.focus_point.global_position - cam.origin)
+	check(events == ["focused"] and p.is_terminal_focused(), "and settles on it")
+	check(absf(to_screen.length() - Player.TERMINAL_FOCUS_DISTANCE) < 0.02 and (-cam.basis.z).dot(to_screen.normalized()) > 0.999, "looking straight at the screen from %.2f m" % to_screen.length())
+	var held_at := p.global_position
+	p.controls.jump = true
+	await frames(30)
+	check(p.global_position.distance_to(held_at) < 0.01 and p.state == Player.Move.TERMINAL, "you don't move while using it, whatever you press")
+	stop(p)
+	p.leave_terminal()
+	await frames(Player.TERMINAL_FOCUS_TIME * 60 + 3)
+	check(events == ["focused", "left"] and p.state == Player.Move.WALK, "Esc eases you back and you can move again")
+	check(p.camera.transform.is_equal_approx(Transform3D.IDENTITY), "the camera is back in your head")
+	p.rotate_y(PI)
+	forward(p)
+	await frames(30)
+	check(Vector2(p.global_position.x - stand.x, p.global_position.z - stand.z).length() > 0.5, "and walk away")
+	stop(p)
+	p.controls.jump = true
+	await frames(4)
+	check(not p.use_terminal(term.stand_point, term.focus_point), "you can't start using one mid-jump")
+	await frames(60)
+	var screen := FakeTerminalScreen.new()
+	screen.view = Transform3D(Basis(Vector3.UP, 0.3), Vector3(0.1, 1.2, 0.9))
+	p.use_terminal(term.stand_point, screen)
+	await frames((Player.TERMINAL_STEP_TIME + Player.TERMINAL_FOCUS_TIME) * 60 + 4)
+	check(p.is_terminal_focused() and p.camera.global_transform.is_equal_approx(screen.view), "with a real screen model, the camera goes where the screen says to read it from")
+	p.leave_terminal()
+	await frames(Player.TERMINAL_FOCUS_TIME * 60 + 3)
+	screen.free()
+	await done(a)
+
+
+## Stands in for Graphics' TerminalScreen.
+class FakeTerminalScreen extends Node3D:
+	var view := Transform3D()
+
+	func focus_transform(_fov: float = 75.0, _fill: float = 0.85) -> Transform3D:
+		return view
+
+
+## Stands in for Graphics' HeldNotebook: records what the player asks of it.
+class FakeHeldNotebook extends Node3D:
+	var calls := []
+
+	func open_book() -> void:
+		calls.append("open")
+
+	func close_book() -> void:
+		calls.append("close")
 
 
 func test_same_controls_same_moves() -> void:

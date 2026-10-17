@@ -25,6 +25,8 @@ var _note_index := -1
 var _hover_band: ColorRect
 var _add_chip: Button
 var _hover_index := -1
+## Who else is at this terminal, and what they're typing.
+var _others: Label
 
 
 func _ready() -> void:
@@ -111,7 +113,13 @@ func _ready() -> void:
 	_input.add_theme_color_override("background_color", Color(0.0, 0.1, 0.04))
 	_input.syntax_highlighter = _sql_highlighter()
 	_input.gui_input.connect(_on_input_key)
+	_input.text_changed.connect(_typed)
 	vbox.add_child(_input)
+
+	_others = ThemeUtil.label("", 15, ThemeUtil.DIM)
+	_others.add_theme_font_override("font", ThemeUtil.mono())
+	_others.visible = false
+	vbox.add_child(_others)
 
 	var foot := ThemeUtil.label("Enter: run    Shift+Enter: new line    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away", 15, ThemeUtil.DIM)
 	vbox.add_child(foot)
@@ -125,14 +133,16 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	_title.text = "HALCYON DATA SYSTEMS  //  %s" % terminal.terminal_name
 	visible = true
 	# Each terminal keeps its own screen; in co-op it shows everyone's queries.
-	if terminal.transcript.is_empty() or terminal.consume_fresh_boot():
-		terminal.clear_screen()
-		for line in terminal.boot_text():
-			terminal.transcript.append(line)
-			terminal.transcript_kinds.append("")
+	terminal.ensure_booted()
 	_clear_output()
 	for i in terminal.transcript.size():
 		_render(terminal.transcript[i], terminal.transcript_kinds[i] if i < terminal.transcript_kinds.size() else "")
+	if not terminal.screen_changed.is_connected(_show_others):
+		terminal.screen_changed.connect(_show_others)
+	var mirror := _mirror()
+	if mirror:
+		mirror.seat(terminal, true)
+	_show_others()
 	_input.grab_focus()
 
 
@@ -142,6 +152,12 @@ func close() -> void:
 	visible = false
 	_input.release_focus()
 	_cancel_note()
+	if terminal and terminal.has_signal("screen_changed"):
+		if terminal.screen_changed.is_connected(_show_others):
+			terminal.screen_changed.disconnect(_show_others)
+		var mirror := _mirror()
+		if mirror:
+			mirror.seat(terminal, false)
 	if player:
 		player.input_locked = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -151,7 +167,10 @@ func close() -> void:
 ## Print a line on the open terminal's screen (everyone's copy of it, in co-op).
 ## `kind` says what it is, for the notebook; "" works it out.
 func print_line(bbcode: String, kind: String = "") -> void:
-	if terminal and terminal.has_method("print_line"):
+	var mirror := _mirror()
+	if mirror:
+		mirror.line(terminal, bbcode, kind)
+	elif terminal and terminal.has_method("print_line"):
 		terminal.print_line(bbcode, kind)
 	else:
 		_render(bbcode, kind)
@@ -161,6 +180,48 @@ func print_line(bbcode: String, kind: String = "") -> void:
 func on_terminal_line(from_terminal: Node, bbcode: String, kind: String = "") -> void:
 	if visible and from_terminal == terminal:
 		_render(bbcode, kind)
+
+
+## A terminal's screen was wiped. Clear it if that's the one open here.
+func on_terminal_cleared(from_terminal: Node) -> void:
+	if visible and from_terminal == terminal:
+		_clear_output()
+
+
+## The level's terminal mirror, when this terminal belongs to a synced level.
+## None once the connection has dropped: the screen is then this machine's alone.
+func _mirror() -> TerminalMirror:
+	if terminal == null or not terminal.has_signal("screen_changed"):
+		return null
+	var peer := multiplayer.multiplayer_peer
+	if peer == null or peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return null
+	var sync := LevelSync.of(terminal)
+	return sync.mirror if sync else null
+
+
+## The input line changed: show it on everyone's copy of the screen.
+func _typed() -> void:
+	var mirror := _mirror()
+	if mirror and visible:
+		mirror.typed(terminal, _input.text)
+
+
+## Name the other players at this terminal and show what they're typing.
+func _show_others() -> void:
+	if terminal == null or not visible:
+		return
+	var me := multiplayer.get_unique_id()
+	var net := get_node_or_null("/root/Net")
+	var lines := PackedStringArray()
+	for peer in terminal.seated:
+		if peer == me:
+			continue
+		var who: String = net.display_name(peer) if net else "Player %d" % peer
+		var text: String = terminal.typing.get(peer, "")
+		lines.append("%s> %s_" % [who, text.replace("\n", " ")] if text != "" else "%s is here" % who)
+	_others.text = "\n".join(lines)
+	_others.visible = not lines.is_empty()
 
 
 ## Put a line on this machine's screen. Every non-blank line can be pointed at
@@ -308,10 +369,12 @@ func _on_input_key(event: InputEvent) -> void:
 		_input.accept_event()
 		_history_i = clamp(_history_i - 1, 0, _history.size() - 1)
 		_input.text = _history[_history_i]
+		_typed()
 	elif event.keycode == KEY_DOWN and _input.get_caret_line() == _input.get_line_count() - 1 and not _history.is_empty():
 		_input.accept_event()
 		_history_i = clamp(_history_i + 1, 0, _history.size())
 		_input.text = _history[_history_i] if _history_i < _history.size() else ""
+		_typed()
 
 
 func _submit() -> void:
@@ -321,6 +384,9 @@ func _submit() -> void:
 		return
 	_history.append(sql)
 	_history_i = _history.size()
+	var mirror := _mirror()
+	if mirror:
+		mirror.submitted(terminal)
 	if sql.begins_with(".") or terminal.is_locked():
 		print_line(_echo(sql, ""), "echo")
 	run(sql)
@@ -451,8 +517,12 @@ func _command(cmd: String) -> void:
 		".hint":
 			print_line(sysop(terminal.next_hint()), "hint")
 		".clear":
-			_clear_output()
-			terminal.clear_screen()
+			var mirror := _mirror()
+			if mirror:
+				mirror.clear(terminal)
+			else:
+				_clear_output()
+				terminal.clear_screen()
 		".note":
 			var last := -1
 			for i in range(_noteable.size() - 1, -1, -1):

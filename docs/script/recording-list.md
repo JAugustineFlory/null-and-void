@@ -43,8 +43,8 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 | [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
 | [ ] | `l0_tour_6` | Ghost stories. Anyway. | Dropping it fast. He doesn't want them thinking about it. | Level 0 |
 | [ ] | `l0_sra` | Here we are. Server Room A. | Badging the door. Pleasant, like the end of a tour. | Level 0 |
-| [ ] | `l1_enter` | Vale's last login came from this room. Come on in. | Calling back over his shoulder, inside the room. | Level 1 |
-| [ ] | `l1_terminal` | Terminal's on the desk. Pull up her last session, I'll be right here. | Friendly, pointing. Then he goes quiet and drifts behind them. | Level 1 |
+| [ ] | `l1_enter` | In you come. Terminal's just over here. | Calling back over his shoulder, inside the room. | Level 1 |
+| [ ] | `l1_terminal` | Boss wants you to look over the door controller and badge tables. See if you can tidy them up, sort them out. I'll be right here. | Mundane, a facilities guy passing on the boss's request. Then he goes quiet and drifts behind them. | Level 1 |
 | [ ] | `l1_trap_1` | Sorry about this. Nothing personal. | The door has just locked. The friendliness switches off. | Level 1 |
 | [ ] | `l1_trap_2` | Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. | Tired, explaining a chore. | Level 1 |
 | [ ] | `l1_hit_1` | Stay down! | Swinging. | Level 1 |
@@ -114,7 +114,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 |---|---|---|---|---|
 | [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio. Routine. | Level 0 |
 | [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
-| [ ] | `l0_dispatch_3` | Hop out when you're ready. Dispatch out. | Signing off, already onto the next call. | Level 0 |
+| [ ] | `l0_dispatch_3` | Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. | Bored, reading the form. Signing off, already onto the next call. | Level 0 |
 
 ## Harold Mercer (5 lines)
 

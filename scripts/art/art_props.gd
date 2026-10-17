@@ -53,6 +53,29 @@ static func crt_monitor(parent: Node, pos: Vector3, facing_deg: float = 0.0, scr
 	return root
 
 
+## A beige 90s keyboard (main block, arrows, number pad), its typing side toward
+## +Z, so it sits in front of a monitor facing +Z. `pos` is on the desk top.
+static func keyboard(parent: Node, pos: Vector3, facing_deg: float = 0.0) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Keyboard")
+	var shell := ArtPalette.surface("plastic", Color(0.98, 0.95, 0.85))
+	var keys := ArtPalette.flat(Color(0.86, 0.83, 0.74), 0.7)
+	var dark_keys := ArtPalette.flat(Color(0.62, 0.6, 0.55), 0.7)
+	var deck := Node3D.new()
+	deck.name = "Deck"
+	deck.rotation_degrees.x = 4.0  # feet up at the back
+	root.add_child(deck)
+	_piece(deck, Vector3(0.46, 0.028, 0.17), Vector3(0, 0.016, 0), shell, true)
+	# Key rows as strips with gaps (cheap: a few pieces per row, not 101 keys).
+	for r in 5:
+		var z := -0.06 + r * 0.026
+		_piece(deck, Vector3(0.28, 0.012, 0.021), Vector3(-0.075, 0.035, z), keys)
+		_piece(deck, Vector3(0.075, 0.012, 0.021), Vector3(0.17, 0.035, z), dark_keys if r == 0 else keys)  # number pad
+	_piece(deck, Vector3(0.13, 0.012, 0.021), Vector3(-0.07, 0.036, 0.07), keys)  # space bar
+	_piece(deck, Vector3(0.06, 0.012, 0.045), Vector3(0.085, 0.035, 0.057), dark_keys)  # arrows
+	_piece(deck, Vector3(0.006, 0.004, 0.003), Vector3(0.19, 0.03, -0.083), ArtPalette.glow(Color(0.3, 1.0, 0.4), 1.5))  # num lock
+	return root
+
+
 ## A 42U server rack with rows of status LEDs on the front. `lit` false = dead rack.
 static func server_rack(parent: Node, pos: Vector3, facing_deg: float = 0.0, lit: bool = true) -> StaticBody3D:
 	var body := _body(parent, pos, facing_deg, "Rack", Vector3(0.6, 2.0, 1.0), Vector3(0, 1.0, 0))
