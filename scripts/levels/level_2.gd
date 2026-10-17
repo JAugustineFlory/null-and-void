@@ -81,39 +81,39 @@ var exit_lift: Elevator
 var key_glass: Level2Glass
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
-	"Type this, then press Enter:\n" +
+	"type this, then Enter:\n" +
 	"    [color=#ffffff]GET /cameras[/color]\n" +
-	"  GET       ask the security server to send you something (it only reads, it changes nothing)\n" +
+	"  GET       ask the security server for something. it only reads, it changes nothing\n" +
 	"  /cameras  the address of the camera list\n" +
-	"The answer is JSON: { } holds one camera's fields, [ ] holds a list of them.",
-	"Look down the list for the camera that says \"motion\": true. Its location is the room where something is moving.",
+	"the answer is JSON. { } is one camera's fields, [ ] is a list of them.",
+	"look down the list for \"motion\": true. its location is the room where something's moving.",
 ])
 var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE 'Pike%'", ["name"], false, [
-	"Type this, then press Enter:\n" +
+	"type this, then Enter:\n" +
 	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]\n" +
 	"  SELECT *         every column\n" +
 	"  FROM guards      from the guard roster\n" +
 	"  WHERE name LIKE  keep rows whose name matches a pattern\n" +
-	"  'Pike%'          starts with Pike. % stands for any letters (or none) after it",
-	"Start with SELECT * FROM guards and add WHERE name LIKE 'Pike%' to the end, before the ;. Keep the 'single quotes' around Pike%.",
+	"  'Pike%'          starts with Pike. % = any letters after it, or none",
+	"start with SELECT * FROM guards, then add WHERE name LIKE 'Pike%' at the end, before the ;. keep the 'single quotes' round Pike%.",
 ])
 var door_puzzle := Puzzle.new("door", "", [], false, [
-	"Type this, then press Enter:\n" +
+	"type this, then Enter:\n" +
 	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
 	"  GET               ask the security server for data\n" +
 	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says\n" +
-	"If the door won't move, the note in the answer says why, such as which breaker tripped.",
-	"Read the \"note\" line in the answer. It names a breaker, like B-2. Go to the breaker box on the wall under the vent and press E on that breaker.",
+	"if it won't move, the note in the answer says why. which breaker tripped, say.",
+	"read the \"note\" line. it names a breaker, like B-2. breaker box is on the wall under the vent. press E on that one.",
 ])
 var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, [
-	"Type this, then press Enter:\n" +
+	"type this, then Enter:\n" +
 	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night';[/color]\n" +
 	"  SELECT * FROM guards    every column of the guard roster\n" +
-	"  WHERE name LIKE 'Har%'  names that START with Har (all you can read on the sheet)\n" +
-	"  AND shift = 'night'     ...who ALSO work nights: it's the night-shift sign-in sheet",
-	"Take your Pike query and change 'Pike%' to 'Har%'. Then add AND shift = 'night' to the end, before the ;.",
-	"The pin column is the code for the stairwell keypad, past the far end of the Security Office. " +
-	"Other Har- guards work other shifts or are retired: read their note column.",
+	"  WHERE name LIKE 'Har%'  names that START with Har. all you can read on the sheet\n" +
+	"  AND shift = 'night'     ...and ALSO work nights. it's the night-shift sheet",
+	"take your Pike query. change 'Pike%' to 'Har%', then add AND shift = 'night' at the end, before the ;.",
+	"the pin column is the code. office door first, then the SEC-EXIT keypad past it. " +
+	"the other Har- guards work other shifts or are retired. their note column says.",
 ])
 
 
@@ -253,11 +253,9 @@ func _build_booth() -> void:
 	screwdriver.name = "Screwdriver"
 	screwdriver.used.connect(func(_p): sync.event("_take_screwdriver"))
 	key_glass = _glass_pane(Vector3(2.79, 1.4, 7.2), Vector3(0.02, 0.45, 0.38), true, "KeyBoxGlass")
-	key_glass.broken.connect(func(_by): hud.notice("The glass breaks. Plain glass breaks when you strike it.", 3.5))
 	Greybox.label(geo, Vector3(2.62, 1.82, 7.2), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
 	# Low outside window at the east end, onto the ledge. Plain glass: it breaks.
 	ledge_glass = _glass_pane(Vector3(6.0, 0.5, 4.0), Vector3(0.05, 1.0, 1.1), true, "LedgeGlass")
-	ledge_glass.broken.connect(func(_by): hud.notice("The glass gives. Cold air pours in. There's a ledge out there.", 4.0))
 
 
 func _build_panel() -> void:
@@ -280,7 +278,6 @@ func _build_panel() -> void:
 	# Breaker box on the west wall, under the vent. Only one breaker runs the door.
 	# The ledge's way back in: a low window onto the vestibule.
 	vestibule_glass = _glass_pane(Vector3(2.5, 0.5, -8.75), Vector3(0.05, 1.0, 1.2), true, "VestibuleGlass")
-	vestibule_glass.broken.connect(func(_by): hud.notice("The window shatters inward.", 3.0))
 	Greybox.panel(geo, Vector3(-2.37, 1.3, -8.95), Vector3(0.04, 0.6, 1.3), Color(0.3, 0.32, 0.3))
 	Greybox.label(geo, Vector3(-2.34, 1.72, -8.95), "BREAKERS", 26, Color(0.9, 0.9, 0.8), 90)
 	for i in range(1, 5):
@@ -329,7 +326,7 @@ func _build_vent() -> void:
 	Greybox.box(geo, Vector3(-4.85, 2.75, -10.55), Vector3(4.7, 1.6, 0.1), duct, "VentWall")
 	Greybox.box(geo, Vector3(-4.3, 2.75, -9.45), Vector3(3.6, 1.6, 0.1), duct, "VentWall")
 	# Corridor end: a grate screwed shut. Vestibule end: a hinged hatch, opened from inside.
-	vent_grate = Interactable.create(geo, Vector3(-5.95, 2.5, 4.0), Vector3(0.06, 1.0, 1.0), "Unscrew the vent grate", Color(0.16, 0.17, 0.18))
+	vent_grate = Interactable.create(geo, Vector3(-5.95, 2.5, 4.0), Vector3(0.06, 1.0, 1.0), "Vent grate (screwed shut: needs a screwdriver)", Color(0.16, 0.17, 0.18))
 	_slats(vent_grate)
 	vent_grate.used.connect(_on_vent_grate)
 	vent_hatch = Interactable.create(geo, Vector3(-2.45, 2.5, -10.0), Vector3(0.06, 1.0, 1.0), "Push the vent hatch open", Color(0.16, 0.17, 0.18))
@@ -372,7 +369,9 @@ func _take_screwdriver() -> void:
 	if sd:
 		sd.queue_free()
 	has_screwdriver = true
-	hud.notice("Picked up a screwdriver. Vent grates are held on with screws.", 4.0)
+	if is_instance_valid(vent_grate):
+		vent_grate.prompt = "Unscrew the vent grate"
+	hud.notice("Picked up a screwdriver.", 3.0)
 
 
 func _play_message() -> void:
@@ -396,15 +395,13 @@ func _slats(cover: Node3D) -> void:
 ## Host: someone tried the grate.
 func _on_vent_grate(_p: Node) -> void:
 	if not has_screwdriver:
-		sync.team_notice("The grate is screwed shut. Four screws. You'd need a screwdriver.", 4.0)
-		return
+		return  # its prompt says it needs a screwdriver
 	sync.event("open_vent_grate")
 
 
 func open_vent_grate() -> void:
 	if not is_instance_valid(vent_grate):
 		return
-	hud.notice("You undo four screws. The grate comes away.", 3.0)
 	vent_grate.queue_free()
 
 
@@ -561,6 +558,27 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 		sync.event("_on_lie_spotted", [which, _cam2_frame()])
 
 
+## How SYSOP's messages look on a terminal. Someone else on the network is typing to you.
+const SYSOP := "[color=#7fd0ff][SYSOP]: %s[/color]"
+## The only nudge on the HUD: there's something to read at a terminal.
+const NEW_MESSAGE := "New message on the security terminals."
+
+
+func sysop(t: Terminal, text: String) -> void:
+	t.print_line(SYSOP % text)
+
+
+## Lines for both security terminals, so they can go in the notebook: on screen if
+## a terminal has been used, otherwise in what it shows when someone sits down.
+func _broadcast(lines: Array) -> void:
+	for t in [booth, panel]:
+		if t.transcript.is_empty():
+			t.boot_lines.append_array(lines)
+		else:
+			for l in lines:
+				t.print_line(l)
+
+
 func _term(which: String) -> Terminal:
 	return panel if which == "panel" else booth
 
@@ -570,19 +588,16 @@ func _on_cameras_found(which: String) -> void:
 	if not cameras_puzzle.solved:
 		cameras_puzzle.solved = true
 		t.print_line("")
-		t.print_line("That answer is JSON: { } holds one camera's fields, [ ] holds a list of cameras.")
-		t.print_line("Each field is a name and a value, like \"motion\": true.")
+		sysop(t, "that's JSON. { } is one camera's fields, [ ] is a list of cameras.")
+		sysop(t, "each field is a name and a value, like \"motion\": true.")
+		sysop(t, "cam-2 says motion in the security office. look through the window. cam-2 is the only thing watching that room.")
 		t.print_line("")
-		t.print_line("[color=#e0b050]WARDEN: CAM-2 reports motion in the Security Office.[/color]")
-		t.print_line("[color=#e0b050]Through the window, the office looks empty. CAM-2 is the only thing watching it.[/color]")
-		t.print_line("")
-		t.print_line("The stairwell keypad wants a guard's PIN. PINs are in the table [b]guards[/b].")
-		t.print_line("It's a long roster. Count it, or peek at the first few rows:")
+		sysop(t, "doors here want a guard's PIN. they're in the table [b]guards[/b]. long roster. count it, or peek:")
 		t.print_line("    [color=#ffffff]SELECT COUNT(*) FROM guards;[/color]     how many rows")
-		t.print_line("    [color=#ffffff]SELECT * FROM guards LIMIT 5;[/color]    only the first 5")
-		t.print_line("Officer Pike's name is clear on the sign-in sheet. Find his row with a pattern:")
+		t.print_line("    [color=#ffffff]SELECT * FROM guards LIMIT 5;[/color]    just the first 5")
+		sysop(t, "pike's name is clear on the sign-in sheet. find his row with a pattern:")
 		t.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
-		t.print_line("      LIKE 'Pike%'   names that start with Pike (% = any letters after)")
+		t.print_line("      LIKE 'Pike%'   names that start with Pike. % = any letters after")
 		hud.set_objective("Look up Officer Pike in the guards table")
 
 
@@ -594,9 +609,9 @@ func _on_lie_spotted(which: String, frame: String) -> void:
 	_lie_explained = true
 	Game.cam_lie_learned = true
 	t.print_line("")
-	t.print_line("[color=#ff6655]CAM-2 says 'live' with motion in the office. It isn't in the office.[/color]")
-	t.print_line("[color=#e0b050]Compare CAM-2's last_frame with server_time: its picture stopped at %s. A hardware fault froze it." % frame)
-	t.print_line("The status said 'live'. The data says otherwise. Trust the data, and check it.[/color]")
+	sysop(t, "you saw it. cam-2 says 'live', motion in the office. it isn't in the office.")
+	sysop(t, "cam-2's last_frame stopped at %s. server_time didn't. hardware fault, the picture froze." % frame)
+	sysop(t, "the status says 'live'. the data says otherwise. check the data.")
 
 
 func _cam2_frame() -> String:
@@ -615,21 +630,14 @@ func explain_cam_lie(frame: String) -> void:
 	Game.cam_lie_learned = true
 	var lines := [
 		"",
-		"[color=#ff6655]WARDEN: CAM-2 FROZE AT %s. IT HAS NOT SEEN THE OFFICE SINCE.[/color]" % frame,
-		"A camera can say 'live' and still be stuck. To check one, type:",
+		SYSOP % ("cam-2 froze at %s. it hasn't seen the office since. it still says 'live'." % frame),
+		SYSOP % "a camera can say 'live' and still be stuck. to check one:",
 		"    [color=#ffffff]GET /cameras[/color]",
-		"and compare its last_frame with server_time. If last_frame stopped, the camera can't see anything.",
+		SYSOP % "then compare its last_frame with server_time. if last_frame stopped, it sees nothing.",
 	]
-	# On both terminals, so it can go in the notebook: on screen if one has been
-	# used, otherwise in what it shows when someone sits down.
-	for t in [booth, panel]:
-		if t.transcript.is_empty():
-			t.boot_lines.append_array(lines)
-		else:
-			for l in lines:
-				t.print_line(l)
-	_lie_notice = "CAM-2's picture froze at %s. It can't see anything.\nAt a terminal: GET /cameras, then compare last_frame with server_time." % frame
-	hud.notice(_lie_notice, 8.0, ThemeUtil.AMBER)
+	_broadcast(lines)
+	_lie_notice = NEW_MESSAGE
+	hud.notice(_lie_notice, 5.0, ThemeUtil.AMBER)
 	await get_tree().create_timer(6.0).timeout
 	_lie_fresh = false
 
@@ -650,10 +658,10 @@ func _on_pike_found(which: String) -> void:
 		pike_puzzle.solved = true
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
-		t.print_line("The other name on the sign-in sheet is under a coffee stain. Only [b]Har[/b] is readable.")
-		t.print_line("It's the NIGHT SHIFT sheet. The guard you want starts with Har and works nights.")
+		sysop(t, "other name on the sign-in sheet is under a coffee stain. only [b]Har[/b] is readable.")
+		sysop(t, "it's the NIGHT SHIFT sheet. you want a guard whose name starts with Har and who works nights.")
 		hud.set_objective("Find the PIN of the night-shift guard whose name starts with Har")
-		t.print_line("[color=#ff6655]Something in the office is moving. It moves only while nothing is watching it. Not you, not a working camera.[/color]")
+		sysop(t, "[color=#ff6655]something in the office is moving. it only moves while nothing is watching it. not you, not a working camera.[/color]")
 		hud.line("l2_smudged")
 		_set_loose()
 		_set_stage("near")
@@ -668,8 +676,8 @@ func _on_har_found(which: String) -> void:
 		har_puzzle.solved = true
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Signed in 22:00. PIN on file.[/color]" % data.name)
-		t.print_line("Their PIN opens the Security Office door, and the stairwell keypad on the far side.")
-		t.print_line("[color=#ff6655]It's on the other side of that door. Open it, and keep your eyes on it.[/color]")
+		sysop(t, "that PIN opens the office door, and the SEC-EXIT keypad past it.")
+		sysop(t, "[color=#ff6655]it's on the other side of that door. open it, and keep your eyes on it.[/color]")
 		hud.set_objective("Open the Security Office door with %s's PIN" % data.name)
 		_set_loose()
 		_set_stage("window")
@@ -683,7 +691,8 @@ func _set_loose() -> void:
 	frozen_cams["CAM-2"] = true
 	for l in lights.get("office", []):
 		FlickerLight.attach(l, 0.4)
-	hud.notice("> CAM-2: LIVE. ALL CAMERAS NOMINAL.", 3.5)
+	# WARDEN's fake-out, broadcast to the security terminals.
+	_broadcast(["[color=#e0b050]WARDEN: CAM-2 LIVE. ALL CAMERAS NOMINAL.[/color]"])
 
 
 ## Move the Watcher to its next spot as soon as nobody is looking at it.
@@ -729,7 +738,7 @@ func _motion_warnings() -> void:
 
 func _on_office_keypad(p: Node) -> void:
 	if office_open:
-		hud.notice("The office door is open.", 2.0)
+		hud.notice("KEYPAD: SEC-OFFICE IS OPEN.", 2.0)
 		return
 	_pad_mode = "office"
 	keypad_ui.open(p, "SECURITY OFFICE  -  ENTER GUARD PIN", "Lockdown: only guards on tonight's night-shift sheet.")
@@ -738,14 +747,14 @@ func _on_office_keypad(p: Node) -> void:
 func _on_exit_keypad(p: Node) -> void:
 	_pad_mode = "exit"
 	if pin_entered:
-		hud.notice("KEYPAD: SEC-EXIT IS UNLOCKED." if not door_open else "SEC-EXIT is open.", 2.5)
+		hud.notice("KEYPAD: SEC-EXIT IS UNLOCKED." if not door_open else "KEYPAD: SEC-EXIT IS OPEN.", 2.5)
 		return
 	keypad_ui.open(p, "SEC-EXIT  -  ENTER GUARD PIN", "Lockdown: only guards on tonight's night-shift sheet.")
 
 
 func _on_seal_keypad(p: Node) -> void:
 	if not door_open:
-		hud.notice("SEC-EXIT is already shut.", 2.0)
+		hud.notice("KEYPAD: SEC-EXIT IS SHUT.", 2.0)
 		return
 	_pad_mode = "seal"
 	keypad_ui.open(p, "LOCK SEC-EXIT BEHIND YOU", "Same PIN. Whatever is on the other side stays there.")
@@ -827,7 +836,8 @@ func enter_pin() -> void:
 	await hud.line("l2_door_ok")
 	await get_tree().create_timer(5.0).timeout
 	if not door_open and not door_checked:
-		hud.notice("It didn't open. Check the door's sensor at the vestibule panel:  GET /doors/SEC-EXIT", 7.0)
+		_broadcast([SYSOP % "it didn't open. check the door's sensor at the vestibule panel:", "    [color=#ffffff]GET /doors/SEC-EXIT[/color]"])
+		hud.notice(NEW_MESSAGE, 4.0)
 		hud.set_objective("Find out why SEC-EXIT is still shut (vestibule panel)")
 
 
@@ -837,9 +847,9 @@ func _on_door_checked(which: String) -> void:
 		return
 	door_checked = true
 	t.print_line("")
-	t.print_line("[color=#ff6655]The keypad said OPENED. locked is false, so the request went through.[/color]")
-	t.print_line("[color=#e0b050]But sensor says 'closed' and actuator says 'fault': the door never moved. Read the note.[/color]")
-	t.print_line("A request being accepted isn't the same as the thing happening. Check the sensor, not the request.")
+	sysop(t, "keypad said OPENED. locked is false, so the request went through.")
+	sysop(t, "but sensor says 'closed' and actuator says 'fault'. the door never moved. read the note.")
+	sysop(t, "a request going through isn't the thing happening. check the sensor, not the request.")
 	hud.set_objective("Reset breaker B-%d (the box under the vent), then check the door again" % data.breaker)
 	hud.line("l2_door_fault")
 
@@ -854,12 +864,11 @@ func _breaker_flipped(i: int) -> void:
 		db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'SEC-EXIT'")
 		db.run_silent("UPDATE door_status SET actuator = 'ok', note = 'normal' WHERE door_id = 'SEC-EXIT'")
 		breakers[i].enabled = false
-		hud.notice("> BREAKER B-%d: RESET. Something clunks inside the door frame." % i, 3.5, ThemeUtil.GREEN)
+		hud.notice("> BREAKER B-%d: RESET" % i, 3.5, ThemeUtil.GREEN)
 		db.sync_world()
 		_update_door()
 		return
 	# The wrong breaker cuts this room's lights and its camera for a few seconds.
-	hud.notice("B-%d runs the vestibule lights and CAM-3. Everything goes dark." % i, 4.0, ThemeUtil.RED)
 	frozen_cams["CAM-3"] = true
 	for l in lights.get("vestibule", []):
 		l.visible = false
@@ -889,7 +898,7 @@ func seal_exit() -> void:
 	door_open = false
 	_update_door()
 	Game.watcher_sealed = true
-	hud.notice("> DOOR SEC-EXIT: LOCKED\nIt held. Whatever follows you stays in the security wing.", 4.0, ThemeUtil.GREEN)
+	hud.notice("> DOOR SEC-EXIT: LOCKED", 4.0, ThemeUtil.GREEN)
 
 
 func _on_exit(_b: Node) -> void:

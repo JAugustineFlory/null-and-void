@@ -1171,7 +1171,7 @@ func test_level_2_scene() -> void:
 	_game().cam_lie_learned = false
 	level.on_player_died()
 	await create_timer(2.8).timeout
-	check(level._lie_explained and _game().cam_lie_learned and level.booth.transcript[-1].contains("last_frame") and level.panel.boot_lines[-1].contains("last_frame"), "dying to it explains the frozen camera, as lines you can note on both terminals")
+	check(level._lie_explained and _game().cam_lie_learned and level.booth.transcript[-1].contains("last_frame") and (Array(level.panel.transcript) + level.panel.boot_lines).any(func(l): return l.contains("last_frame")), "dying to it explains the frozen camera, as lines you can note on both terminals")
 	for i in 3:
 		await physics_frame
 	level.enter_pin()
