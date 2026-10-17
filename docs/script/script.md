@@ -9,9 +9,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
-**WARDEN** (WARDEN). The campus AI, heard over 1997 PA speakers and terminals.
+**WARDEN** (WARDEN). The campus security system, heard over 1997 PA speakers and terminals. Not a villain: it enforces protocol, and turns hostile only once the crew breaches it and loses their escort.
 
-> Calm, polite, flat. Customer-service cadence with even pauses. It never helps: every line is a rule, a refusal, a warning or a quiet threat. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 **Dr. Iris Vale** (VALE). Lead engineer, 40s. Officially missing, presumed dead.
 
@@ -71,9 +71,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there.*
 
-**WARDEN:** *(From the terminal speaker. Polite, and a warning.)* THOSE SCRAPS WERE SHREDDED FOR A REASON. I WOULD LEAVE THEM THAT WAY. `[l0_sort_hint]`
+**WARDEN:** *(From the terminal speaker. A routine courtesy reminder, like a facilities notice.)* THOSE RECORDS WERE MARKED FOR DISPOSAL. PLEASE LEAVE THEM WITH FACILITIES. `[l0_sort_hint]`
 
-**WARDEN:** *(Brightly. This should land as a chill.)* DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. `[l0_memo_flag]`
+**WARDEN:** *(A routine confirmation, like a printer finishing a job. WARDEN means nothing by it.)* DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. `[l0_memo_flag]`
 
 **ROURKE:** *(A beat too long before he speaks. Covering.)* ...Huh. She always was dramatic. `[l0_memo_1]`
 

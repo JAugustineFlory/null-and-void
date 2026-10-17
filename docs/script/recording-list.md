@@ -62,14 +62,14 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 ## WARDEN (20 lines)
 
-> Calm, polite, flat. Customer-service cadence with even pauses. It never helps: every line is a rule, a refusal, a warning or a quiet threat. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
 | [ ] | `l0_pa_1` | GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
 | [ ] | `l0_pa_2` | VISITORS MUST REMAIN WITH THEIR ESCORT AT ALL TIMES. THANK YOU FOR YOUR COOPERATION. | Same announcement, continuing. | Level 0 |
-| [ ] | `l0_sort_hint` | THOSE SCRAPS WERE SHREDDED FOR A REASON. I WOULD LEAVE THEM THAT WAY. | From the terminal speaker. Polite, and a warning. | Level 0 |
-| [ ] | `l0_memo_flag` | DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. | Brightly. This should land as a chill. | Level 0 |
+| [ ] | `l0_sort_hint` | THOSE RECORDS WERE MARKED FOR DISPOSAL. PLEASE LEAVE THEM WITH FACILITIES. | From the terminal speaker. A routine courtesy reminder, like a facilities notice. | Level 0 |
+| [ ] | `l0_memo_flag` | DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. | A routine confirmation, like a printer finishing a job. WARDEN means nothing by it. | Level 0 |
 | [ ] | `l1_killed` | ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN. | Over the room's speakers. Unbothered, like reading a stock price. | Level 1 |
 | [ ] | `l1_login` | BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 1 |
 | [ ] | `l1_selftest` | SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. | The one line with a hint of a smirk. | Level 1 |

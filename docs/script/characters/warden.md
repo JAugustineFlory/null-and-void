@@ -2,7 +2,7 @@
 
 The building's computer system. It runs the doors, the lights and the speakers, and it talks over the PA and through terminals.
 
-**How they sound:** Calm, polite, flat. Customer-service cadence with even pauses. It never helps: every line is a rule, a refusal, a warning or a quiet threat. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+**How they sound:** Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 ## Recording
 
@@ -31,11 +31,11 @@ Each line has the file name to save it as, the line, and a note on how to play i
 ### 2. At the front desk while the crew pieces a shredded memo back together on a terminal.
 
 - [ ] `l0_sort_hint.wav`  
-  "THOSE SCRAPS WERE SHREDDED FOR A REASON. I WOULD LEAVE THEM THAT WAY."  
-  *From the terminal speaker. Polite, and a warning.*
+  "THOSE RECORDS WERE MARKED FOR DISPOSAL. PLEASE LEAVE THEM WITH FACILITIES."  
+  *From the terminal speaker. A routine courtesy reminder, like a facilities notice.*
 - [ ] `l0_memo_flag.wav`  
   "DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR."  
-  *Brightly. This should land as a chill.*
+  *A routine confirmation, like a printer finishing a job. WARDEN means nothing by it.*
 
 ### 3. In the server room, right after the scuffle.
 
