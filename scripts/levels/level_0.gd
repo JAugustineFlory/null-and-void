@@ -106,16 +106,14 @@ func build() -> void:
 	StickyNote.on_monitor(desk_terminal, "select_from")
 	# Someone's reminder to themselves, left on the desk.
 	StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true)
-	Greybox.label(geo, Vector3(1.86, 1.2, -0.76), "ORDER matters.\n  - I.", 30, Color(0.1, 0.1, 0.4), 0)
-	Greybox.panel(geo, Vector3(1.86, 1.2, -0.78), Vector3(0.16, 0.16, 0.01), Color(0.95, 0.9, 0.4))
+	ArtProps.sticky_note(geo, Vector3(1.86, 1.102, -0.78), 180.0, "ORDER matters.\n  - I.", ArtProps.STICKY_YELLOW, true)
 	# The scanner's quick-start card: the table name is handwritten in its blank.
 	Document.place(geo, Vector3(0.75, 1.102, -0.75), 10.0, "ScanRight 3000 - Quick Start", [
 		"Shredded? Torn? Chewed by the fax?",
 		"ScanRight saves every scrap!",
 		"",
 		"1. Feed the scraps in, any order.",
-		"2. Each scrap is saved as one row in a table of your choice:",
-		{"text": "memo_fragments", "hand": true},
+		{"before": "2. Each scrap is saved as one row in a table of your choice: ", "filled": "memo_fragments", "after": "."},
 		"3. The text column holds the words on each scrap.",
 		"4. piece_no numbers each scrap by where it sat on the page, starting at 1.",
 		"",
