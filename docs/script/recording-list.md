@@ -42,7 +42,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 | [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
 | [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
 | [ ] | `l0_tour_6` | Ghost stories. Anyway. | Dropping it fast. He doesn't want them thinking about it. | Level 0 |
-| [ ] | `l0_sra` | Here we are. Server Room A. | Badging the door. Pleasant, like the end of a tour. | Level 0 |
+| [ ] | `l0_sra` | Here we go. Server rooms are up on one. | PLACEHOLDER until Voice and Augustine approve the wording. Badging the elevator bank door and holding it for the crew. Pleasant, like the end of a tour. | Level 0 |
 | [ ] | `l1_enter` | In you come. Terminal's just over here. | Calling back over his shoulder, inside the room. | Level 1 |
 | [ ] | `l1_terminal` | Boss wants you to look over the door controller and badge tables. See if you can tidy them up, sort them out. I'll be right here. | Mundane, a facilities guy passing on the boss's request. Then he goes quiet and drifts behind them. | Level 1 |
 | [ ] | `l1_trap_1` | Sorry about this. Nothing personal. | The door has just locked. The friendliness switches off. | Level 1 |

@@ -115,7 +115,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Dropping it fast. He doesn't want them thinking about it.)* Ghost stories. Anyway. `[l0_tour_6]`
 
-**ROURKE:** *(Badging the door. Pleasant, like the end of a tour.)* Here we are. Server Room A. `[l0_sra]`
+**ROURKE:** *(PLACEHOLDER until Voice and Augustine approve the wording. Badging the elevator bank door and holding it for the crew. Pleasant, like the end of a tour.)* Here we go. Server rooms are up on one. `[l0_sra]`
 
 ## Level 1
 

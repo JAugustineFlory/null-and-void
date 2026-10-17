@@ -16,13 +16,6 @@ var has_badge := false
 var _red := Color(1.0, 0.18, 0.12)
 var _last_bark := -100.0
 var _trapped := false
-## Who is inside Server Room A yet, for sealing the hall behind them.
-var crew_in := false
-var rourke_in := false
-var _sealed := false
-## On every machine: the hall door has shut behind everyone.
-signal sealed
-var sealed_in := false
 var controller_puzzle := Puzzle.new("controller",
 	"SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false, [
 	"Type this, then press Enter:\n" +
@@ -37,6 +30,8 @@ var controller_puzzle := Puzzle.new("controller",
 ])
 var rourke_spawn := Transform3D.IDENTITY
 var elevator: Elevator
+## Where the crew arrives from the ground floor (in the World).
+var arrival_lift: Elevator
 
 
 func build() -> void:
@@ -54,8 +49,13 @@ func build() -> void:
 	# Antechamber (south) and exit corridor (north)
 	var ante_gaps := [{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4}]
 	if world:
-		ante_gaps.append({"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4})  # from the lobby hall
+		ante_gaps.append({"wall": "s", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H})  # the arrival elevator
 	Greybox.room(geo, Vector3(0, 0, 11.5), Vector3(3, 3, 5), {"floor": floor_c, "wall": wall_c}, ante_gaps)
+	if world:
+		# The ground floor's elevator links to this car and opens it at the end of the ride.
+		arrival_lift = Elevator.create(self, geo, Vector3(0, 0, 14), 0, "1", ["G", "1"])
+		arrival_lift.name = "ArrivalElevator"
+		arrival_lift.button.enabled = false
 	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
 		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
@@ -135,30 +135,19 @@ func net_setup() -> void:
 
 func start() -> void:
 	if world:
-		# The lobby's Rourke walked the crew here: this one takes his place, where he stands.
+		# The ground floor's Rourke rode up with the crew: this one takes his place,
+		# where he stands in the arrival car.
 		var lobby: LevelBase = world.wings.get("level_0")
 		var guide = lobby.get("rourke") if lobby else null
 		if is_instance_valid(guide):
 			rourke.global_transform = guide.global_transform
-			rourke.watch = guide.watch
 			guide.queue_free()
 		else:
-			rourke.position = Vector3(0, 0, 13.0)
+			rourke.global_transform = arrival_lift.global_transform * Transform3D(Basis(), Vector3(0.75, 0, 1.6))
 		rourke.visible = true
-		# He's holding the door from the inside. Once the whole team is through,
-		# he lets it swing shut behind them.
-		rourke_in = true
-		# Through means past Rourke and clear of the door's swing (the wall is at z 14).
-		var through := Trigger.create(self, Vector3(0, 1, 4.0), Vector3(14, 2, 16))
-		through.require_all = true
-		through.entered.connect(func(_b): crew_through())
 	hud.todo("Follow Rourke inside")
 	if sync.is_host():
 		terminal.opened.connect(_on_terminal_opened, CONNECT_ONE_SHOT)
-	if world:
-		await sync.gate("sra_sealed", func():
-			if not sealed_in:
-				await sealed)
 	rourke.watch = null
 	var led_in := _lead_in()
 	await hud.line("l1_enter")
@@ -172,20 +161,6 @@ func start() -> void:
 		hud.todo("Start work at the Server Room A terminal")
 
 
-## Host: the crew is all inside Server Room A.
-func crew_through() -> void:
-	crew_in = true
-	_try_seal()
-
-
-## Host: the hall door shuts only once the crew and Rourke are both inside, so
-## nobody (Rourke included) is shut out in the hall.
-func _try_seal() -> void:
-	if sync.is_host() and crew_in and rourke_in and not _sealed:
-		_sealed = true
-		sync.event("_on_all_through")
-
-
 ## Rourke leads the crew in: through the antechamber and the door, then to
 ## the terminal desk. Straight walks between waypoints, so he never depends on
 ## a navigation path across the wing's seam.
@@ -197,7 +172,7 @@ class LeadIn:
 func _lead_in() -> LeadIn:
 	var lead := LeadIn.new()
 	var walk := func():
-		for p in [Vector3(0, 0, 11.5), Vector3(0, 0, 7.8), Vector3(-2.4, 0, 6.4)]:
+		for p in [Vector3(0, 0, 14.6), Vector3(0, 0, 11.5), Vector3(0, 0, 7.8), Vector3(-2.4, 0, 6.4)]:
 			if p.z > to_local(rourke.global_position).z + 0.3:
 				continue  # already past this one
 			rourke.walk_to(to_global(p), true)
@@ -206,13 +181,6 @@ func _lead_in() -> LeadIn:
 		lead.done.emit()
 	walk.call()
 	return lead
-
-
-func _on_all_through() -> void:
-	rourke.face(world.wings["level_0"].exit_door.global_position if world.wings.has("level_0") else rourke.global_position)
-	world.seal_behind(self)
-	sealed_in = true
-	sealed.emit()
 
 
 ## Host: nothing is wrong until someone sits down to work. Then Rourke turns,

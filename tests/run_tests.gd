@@ -28,6 +28,7 @@ func _run() -> void:
 	test_level_2_hints()
 	await test_screens_fill_window()
 	await test_level_0_scene()
+	await test_ground_floor()
 	await test_level_1_scene()
 	await test_level_2_scene()
 	await test_level_2_routes()
@@ -557,6 +558,51 @@ func test_level_0_scene() -> void:
 	await process_frame
 
 
+func test_ground_floor() -> void:
+	print("Ground floor")
+	_game().new_run(6)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var p: Player = level.player
+	level._release_camera(p)
+	p.seated = false
+	# Every room off the lobby can be walked to, and the dark corridor loops back to the hall.
+	var map: RID = p.get_world_3d().navigation_map
+	var lobby := Vector3(0, 0, 3)
+	for room in [["mailroom", Vector3(-16.5, 0, -14)], ["men's", Vector3(-11.5, 0, -13)], ["women's", Vector3(-8.5, 0, -13)],
+			["cafeteria", Vector3(0, 0, -14)], ["IT closet", Vector3(10, 0, -12)], ["dark corridor", Vector3(15, 0, -8.5)],
+			["hall, by the dark passage", Vector3(18, 0, 3)], ["elevator bank", Vector3(27, 0, 3)]]:
+		var path := NavigationServer3D.map_get_path(map, lobby, room[1], true)
+		check(path.size() > 1 and path[path.size() - 1].distance_to(room[1]) < 1.0, "the %s can be reached from the lobby" % room[0])
+	var loop := NavigationServer3D.map_get_path(map, Vector3(18, 0, 3), Vector3(6.5, 0, -8.5), true)
+	check(loop.size() > 1 and loop[loop.size() - 1].distance_to(Vector3(6.5, 0, -8.5)) < 1.0 and Array(loop).all(func(q): return q.x < 20.0), "from the hall, the dark corridor leads back round to the lobby without the elevator bank")
+	for id in ["MAILROOM", "MENS", "WOMENS", "IT-CLOSET"]:
+		var d: Door = level.doors[id]
+		check(d.is_hinged() and not d.locked and d.get_prompt(p).contains("Open"), "the %s door is an ordinary door you can open" % id)
+	# Nothing discoverable is labelled.
+	var labels: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text.to_upper())
+	check(not labels.any(func(t): return t.contains("VENT") or t.contains("AIR RETURN")), "vents carry no labels")
+	# The Hum: it grows while you stand in the dark corridor, and fades with your flashlight on.
+	var hum: Hum = level.hum
+	p.flashlight.visible = false
+	p.global_position = Vector3(15, 0.1, -8.5)
+	await create_timer(2.0).timeout
+	var grown: float = hum.intensity
+	check(grown > 0.1 and hum.is_humming(), "standing in the dark corridor, the Hum grows (%.2f)" % grown)
+	p.flashlight.visible = true
+	await create_timer(1.5).timeout
+	check(hum.intensity < grown - 0.2, "with the flashlight on, it fades (%.2f)" % hum.intensity)
+	p.flashlight.visible = false
+	p.global_position = Vector3(0, 0.1, 3)
+	await create_timer(3.0).timeout
+	check(not hum.is_humming(), "back in the lit lobby, it's gone")
+	check(level.elevator.button.enabled == false, "the elevator won't go anywhere until Rourke takes the crew up")
+	level.queue_free()
+	await process_frame
+
+
 func test_level_1_scene() -> void:
 	print("Level 1 scene")
 	_game().new_run(7)
@@ -950,7 +996,24 @@ func test_coop_world() -> void:
 	var dump := "SELECT * FROM doors ORDER BY id"
 	check(_table(sra_h, dump) == _table(sra_c, dump), "both machines built the same building from the run seed")
 	lobby_h.sync.event("_on_reach_server_room", [null])
-	for f in 900:  # Rourke's line at the door plays first
+	for f in 900:  # Rourke opens the elevator bank's door and says his line
+		await physics_frame
+		if lobby_h.sync._gates.has("rourke_holds_door") and lobby_c.sync._gates.has("rourke_holds_door"):
+			break
+	# Both walk past him into the elevator bank; once the door shuts, the car opens.
+	for w in machines:
+		w.player.global_position = Vector3(28.0, 0.2, 1.5)
+	client.player.global_position = Vector3(28.0, 0.2, 4.5)
+	for f in 1200:
+		await physics_frame
+		if lobby_h.elevator.open_amount > 0.99 and lobby_c.elevator.open_amount > 0.99 and lobby_h.sync._gates.has("rourke_in_lift"):
+			break
+	check(lobby_c.elevator.open_amount > 0.99 and not lobby_c.exit_door.is_open, "the door shuts behind the crew and the elevator opens on every machine")
+	host.player.global_position = lobby_h.elevator.to_global(Vector3(-0.6, 0.2, 1.0))
+	client.player.global_position = lobby_c.elevator.to_global(Vector3(0.0, 0.2, 0.7))
+	await _frames(20)
+	lobby_c.elevator.button.interact(client.player)
+	for f in 900:
 		await physics_frame
 		if host.current == sra_h and client.current == sra_c:
 			break
@@ -1558,21 +1621,33 @@ func test_world() -> void:
 	world.load_next(lobby)
 	var sra = world.wings.get("level_1")
 	check(sra != null and not sra.active, "Server Room A loads behind its door without starting")
-	var entry: Vector3 = sra.doors["SRA-ENTRY"].global_position
-	check(entry.distance_to(Vector3(29, 1.2, 3)) < 0.1, "Server Room A sits at the end of the lobby hall (%s)" % entry)
+	check(lobby.elevator != null and sra.arrival_lift != null, "the ground floor's elevator rides up to an arrival car on the server floor")
+	var apart: float = sra.arrival_lift.global_position.distance_to(lobby.elevator.global_position)
+	check(apart > 30.0, "the server floor sits apart from the ground floor, not behind a door (%.0f m)" % apart)
 	check(not sra.rourke.visible, "Server Room A's own Rourke isn't seen standing in the room before he takes over")
-	check(lobby.exit_door.is_hinged(), "Server Room A's door is an ordinary hinged one")
+	check(lobby.exit_door.is_hinged() and lobby.exit_door.locked, "the elevator bank's door is an ordinary hinged one, locked to all but Rourke's badge")
 	var tables: Array = world.db.table_names()
 	check(tables.has("memo_fragments") and tables.has("door_controllers"), "both wings share one database")
-	lobby.exit_door.set_open(true)
-	var guide_at: Vector3 = lobby.rourke.global_position
-	world.wing_finished(lobby)
-	check(world.current == sra and sra.active, "finishing the lobby hands play to Server Room A")
-	check(sra.rourke.global_position.distance_to(guide_at) < 0.1 and lobby.rourke.is_queued_for_deletion(), "Server Room A's Rourke takes over where the lobby's stood")
-	check(sra.rourke.visible and sra.rourke_in, "he's inside holding the door when Server Room A takes over")
-	sra.crew_through()
-	await process_frame
-	check(not lobby.exit_door.is_open and sra.sealed_in, "the door shuts once the whole crew is through")
+	# Rourke and the crew in the ground floor's car; the doors shut and it rides up.
+	lobby._release_camera(world.player)
+	lobby.elevator.open(true)
+	lobby.elevator.closed.connect(lobby._on_elevator_closed, CONNECT_ONE_SHOT)
+	world.player.global_position = lobby.elevator.to_global(Vector3(-0.5, 0.1, 1.0))
+	lobby.rourke.global_position = lobby.elevator.to_global(lobby.ROURKE_IN_LIFT)
+	var guide_local: Vector3 = lobby.elevator.to_local(lobby.rourke.global_position)
+	for i in 5:
+		await physics_frame
+	check(lobby.elevator.press() and lobby.elevator.is_closing, "with everyone in the car, the button closes the doors")
+	for i in 900:
+		if world.current == sra:
+			break
+		await physics_frame
+	check(world.current == sra and sra.active, "the ride up hands play to Server Room A")
+	check(sra.arrival_lift.contains(world.player.global_position), "the crew steps out of the server floor's arrival car")
+	check(sra.rourke.global_position.distance_to(sra.arrival_lift.to_global(guide_local)) < 0.2 and lobby.rourke.is_queued_for_deletion(), "Server Room A's Rourke takes over where the ground floor's stood in the car")
+	for i in 10:
+		await physics_frame
+	check(sra.rourke.visible and sra.arrival_lift.open_amount > 0.0, "he rides up with them, and the car opens on the server floor")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
 	check(not world.wings.has("level_2"), "the security wing isn't loaded before it's needed")
@@ -1621,7 +1696,7 @@ func test_world() -> void:
 
 
 func test_rourke_leads_in() -> void:
-	print("Rourke leads the crew into Server Room A")
+	print("Rourke leads the crew up to Server Room A")
 	_game().new_run(8)
 	var world = load("res://scenes/world.tscn").instantiate()
 	root.add_child(world)
@@ -1641,16 +1716,38 @@ func test_rourke_leads_in() -> void:
 	var to_p := p.global_position - r.global_position
 	check(to_p.normalized().dot(-r.global_basis.z) > 0.8, "at the door, he turns to talk to the crew, not to the door")
 	lobby.sync.event("_on_reach_server_room", [null])
+	for i in 600:
+		if lobby.exit_door.swing > 0.9 and r.global_position.distance_to(lobby.HOLD_DOOR_AT) < 0.5:
+			break
+		await physics_frame
+	check(lobby.exit_door.is_open and lobby.exit_door.swing > 0.9, "he swings the elevator bank's door open and goes in first")
+	check(r.global_position.distance_to(lobby.HOLD_DOOR_AT) < 0.5, "then holds it, beside the doorway, out of the crew's way (%s)" % r.global_position)
+	p.global_position = Vector3(25.0, 0.2, 3)  # in the doorway, still in the door's swing
+	for i in 60:
+		await physics_frame
+	check(lobby.exit_door.is_open, "the door stays open while anyone is still in its swing")
+	p.global_position = Vector3(28.0, 0.2, 1.5)  # past him, clear of the swing
+	for i in 400:
+		if not lobby.exit_door.is_open:
+			break
+		await physics_frame
+	check(not lobby.exit_door.is_open, "it swings shut once the whole crew is past him")
+	for i in 900:
+		if lobby.elevator.contains(r.global_position) and r.state == Rourke.State.IDLE:
+			break
+		await physics_frame
+	check(lobby.elevator.open_amount > 0.9 and lobby.elevator.contains(r.global_position), "the elevator opens and Rourke steps in first")
+	p.global_position = lobby.elevator.to_global(Vector3(-0.6, 0.2, 1.2))
+	for i in 5:
+		await physics_frame
+	check(lobby.elevator.button.get_prompt(p).contains("Press 1"), "inside, the button says where it goes")
+	lobby.elevator.button.interact(p)
 	for i in 900:
 		if world.current == sra:
 			break
 		await physics_frame
-	check(world.current == sra and lobby.exit_door.is_open and lobby.exit_door.swing > 0.9, "he swings the door open and goes in first")
-	check(sra.rourke.global_position.distance_to(lobby.HOLD_DOOR_AT) < 0.5, "then holds it, beside the doorway, out of the crew's way (%s)" % sra.rourke.global_position)
-	p.global_position = sra.to_global(Vector3(-1.0, 0.2, 12.0))  # in, and out of his way
-	for i in 60:
-		await physics_frame
-	check(sra.sealed_in and not lobby.exit_door.is_open, "the door swings shut behind the crew")
+	check(world.current == sra and sra.arrival_lift.contains(p.global_position) and sra.arrival_lift.contains(sra.rourke.global_position), "the crew and Rourke ride up together")
+	p.global_position = sra.to_global(Vector3(-1.0, 0.2, 12.0))  # out of the car and out of his way
 	var desk: Vector3 = sra.to_global(Vector3(-2.4, 0, 6.4))
 	for i in 1200:
 		if Vector2(sra.rourke.global_position.x - desk.x, sra.rourke.global_position.z - desk.z).length() < 0.4:
