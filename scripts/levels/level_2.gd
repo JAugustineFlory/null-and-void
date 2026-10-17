@@ -915,10 +915,12 @@ func _breaker_flipped(i: int) -> void:
 	# The wrong breaker cuts this room's lights and its camera for a few seconds.
 	Level2FX.sound(geo, breakers[i].position, "click")
 	frozen_cams["CAM-3"] = true
+	_broadcast(["[color=#ff6655]> CAM-3: NO SIGNAL[/color]"])
 	for l in lights.get("vestibule", []):
 		l.visible = false
 	await get_tree().create_timer(6.0).timeout
 	frozen_cams.erase("CAM-3")
+	_broadcast(["[color=#7fd47f]> CAM-3: SIGNAL RESTORED[/color]"])
 	for l in lights.get("vestibule", []):
 		l.visible = true
 

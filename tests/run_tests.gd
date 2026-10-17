@@ -1186,6 +1186,7 @@ func test_level_2_scene() -> void:
 	var wrong_b: int = level.data.breaker % 4 + 1
 	level._on_breaker(null, wrong_b)
 	check(level.frozen_cams.has("CAM-3") and not level.doors["SEC-EXIT"].is_open, "the wrong breaker blacks out the vestibule camera instead")
+	check((Array(level.panel.transcript) + level.panel.boot_lines).any(func(l): return str(l).contains("CAM-3: NO SIGNAL")), "and the panel reports the camera lost its signal")
 	level._on_breaker(null, level.data.breaker)
 	for i in 5:
 		await physics_frame
