@@ -12,10 +12,13 @@ extends Node3D
 ##
 ## The car's origin is the middle of its doorway at floor level. It faces -Z:
 ## you walk in along +Z. Interior is `size` (width, height, depth). The landing
-## face stands 5 cm proud of z = 0, so end the level's wall flush with z = 0.
+## face sits on the corridor side of a Greybox wall centered on z = 0 (front
+## face at z = -0.1), so put the origin on the wall's center line.
 
 const FRAME := Color(0.6, 0.62, 0.64)
 const DIGITS := Color(1.0, 0.45, 0.1)  # amber LED segments
+## Where the landing wall's corridor face is: Greybox walls are 0.2 thick, centered.
+const LANDING := -0.1
 
 var size := Vector3(2.6, 2.5, 2.2)
 ## 0 = doors shut, 1 = fully open. Each leaf slides behind the jamb.
@@ -80,14 +83,14 @@ func _build(floors: Array) -> void:
 	_ceiling_light.position = Vector3(0, h - 0.25, d / 2)
 	add_child(_ceiling_light)
 	# Landing face: a steel surround with a pocket behind it that the doors slide into.
-	# Its front is at z = -0.05, so the level's wall should end flush with z = 0 or behind.
+	# It stands just proud of a 20 cm Greybox wall centered on z = 0 (LANDING).
 	var face_side := _door_w + 0.1
 	for sx in [-1, 1]:
-		_box(Vector3(face_side, door_h + 0.5, 0.02), Vector3(sx * (opening / 2 + face_side / 2), (door_h + 0.5) / 2, -0.04), steel)
-		_box(Vector3(0.08, door_h + 0.08, 0.03), Vector3(sx * (opening / 2 + 0.04), (door_h + 0.08) / 2, -0.065), frame)
-	_box(Vector3(opening, 0.5, 0.02), Vector3(0, door_h + 0.25, -0.04), steel)
-	_box(Vector3(opening + 0.16, 0.08, 0.03), Vector3(0, door_h + 0.04, -0.065), frame)
-	_box(Vector3(opening + 0.1, 0.02, 0.2), Vector3(0, 0.01, 0.0), frame)  # sill
+		_box(Vector3(face_side, door_h + 0.5, 0.02), Vector3(sx * (opening / 2 + face_side / 2), (door_h + 0.5) / 2, LANDING - 0.04), steel)
+		_box(Vector3(0.08, door_h + 0.08, 0.03), Vector3(sx * (opening / 2 + 0.04), (door_h + 0.08) / 2, LANDING - 0.065), frame)
+	_box(Vector3(opening, 0.5, 0.02), Vector3(0, door_h + 0.25, LANDING - 0.04), steel)
+	_box(Vector3(opening + 0.16, 0.08, 0.03), Vector3(0, door_h + 0.04, LANDING - 0.065), frame)
+	_box(Vector3(opening + 0.1, 0.02, 0.3), Vector3(0, 0.01, LANDING / 2 - 0.02), frame)  # sill
 	# One pair of center-opening doors, between the landing face and the car's front wall.
 	for side in [-1, 1]:
 		var leaf := Node3D.new()
@@ -99,7 +102,7 @@ func _build(floors: Array) -> void:
 		_doors.append(leaf)
 	# Floor indicators: above the landing frame, and above the doors inside.
 	for inside in [false, true]:
-		var z := 0.09 if inside else -0.06
+		var z := 0.09 if inside else LANDING - 0.06
 		var y := door_h + 0.24
 		var mirror := 1.0 if inside else -1.0  # outside text reads from the other side
 		var dz := 0.012 if inside else -0.012
@@ -134,7 +137,7 @@ func _build(floors: Array) -> void:
 	# Call button beside the landing door.
 	var call := Node3D.new()
 	call.name = "CallPanel"
-	call.position = Vector3(opening / 2 + 0.35, 1.1, -0.057)
+	call.position = Vector3(opening / 2 + 0.35, 1.1, LANDING - 0.057)
 	add_child(call)
 	_piece(call, Vector3(0.12, 0.2, 0.012), Vector3.ZERO, frame)
 	_call_button = _piece(call, Vector3(0.05, 0.05, 0.012), Vector3(0, 0, -0.01), _button_mat(false))
