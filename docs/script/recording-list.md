@@ -62,30 +62,30 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 ## WARDEN (20 lines)
 
-> Calm, polite, flat. Customer-service cadence with even pauses. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. It never helps: every line is a rule, a refusal, a warning or a quiet threat. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
 | [ ] | `l0_pa_1` | GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. | Over the lobby PA. Pleasant, like a store closing announcement. | Level 0 |
 | [ ] | `l0_pa_2` | VISITORS MUST REMAIN WITH THEIR ESCORT AT ALL TIMES. THANK YOU FOR YOUR COOPERATION. | Same announcement, continuing. | Level 0 |
-| [ ] | `l0_sort_hint` | THOSE SCRAPS ARE OUT OF ORDER. EACH ONE HAS A PIECE NUMBER. SORT THEM WITH ORDER BY. | From the terminal speaker, helpful in the way a parking meter is helpful. | Level 0 |
+| [ ] | `l0_sort_hint` | THOSE SCRAPS WERE SHREDDED FOR A REASON. I WOULD LEAVE THEM THAT WAY. | From the terminal speaker. Polite, and a warning. | Level 0 |
 | [ ] | `l0_memo_flag` | DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. | Brightly. This should land as a chill. | Level 0 |
 | [ ] | `l1_killed` | ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN. | Over the room's speakers. Unbothered, like reading a stock price. | Level 1 |
 | [ ] | `l1_login` | BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 1 |
-| [ ] | `l1_selftest` | SELF-TEST COMPLETE. TWO FAILURES. I'M SURE YOU'LL WORK IT OUT. | The one line with a hint of a smirk. | Level 1 |
-| [ ] | `l1_found` | THAT IS THE ONE. A MANUAL RESET AT ITS RACK WILL CLEAR IT. | Grudging. | Level 1 |
+| [ ] | `l1_selftest` | SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. | The one line with a hint of a smirk. | Level 1 |
+| [ ] | `l1_found` | QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY. | Reading a rule it knows they're about to break. Cool. | Level 1 |
 | [ ] | `l1_no_badge` | RESET REFUSED. BADGE REQUIRED. | Flat, instant. | Level 1 |
-| [ ] | `l1_panel_ok` | THAT CONTROLLER IS WORKING NORMALLY. NOTHING TO RESET. | Patient, like talking to a child. | Level 1 |
-| [ ] | `l1_panel_wrong` | THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. | The last sentence slightly slower. | Level 1 |
-| [ ] | `l1_exit_open` | CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. | Polite and a touch reluctant, over the speakers. | Level 1 |
+| [ ] | `l1_panel_ok` | RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU? | Patient, then a small dig. | Level 1 |
+| [ ] | `l1_panel_wrong` | UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. | The last sentence slightly slower. | Level 1 |
+| [ ] | `l1_exit_open` | CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED. | Polite, and keeping score. | Level 1 |
 | [ ] | `l1_lockdown_tied` | LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D. | Reading a log entry. | Level 1 |
 | [ ] | `l1_sealed` | ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT. | The sign-off for the slice. Warm, like wishing them well. | Level 1 |
 | [ ] | `l2_dead_escort` | REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. | Plays in one version of the story only. Patient, slightly too formal. | Level 2 |
 | [ ] | `l2_arrive` | SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. | Reassuring tone. It is not reassuring. | Level 2 |
-| [ ] | `l2_cameras` | LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. | Small pause before "Often." | Level 2 |
-| [ ] | `l2_smudged` | GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. | Not unfortunate for WARDEN. | Level 2 |
+| [ ] | `l2_cameras` | CAMERA FEEDS ARE RESTRICTED TO SECURITY STAFF. YOU ARE NOT SECURITY STAFF. | Small pause before the second sentence. | Level 2 |
+| [ ] | `l2_smudged` | TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
-| [ ] | `l2_door_fault` | CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. | When the players check the sensor. Deadpan. | Level 2 |
+| [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
 
 ## Dr. Iris Vale (3 lines)
 

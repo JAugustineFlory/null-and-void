@@ -11,7 +11,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN** (WARDEN). The campus AI, heard over 1997 PA speakers and terminals.
 
-> Calm, polite, flat. Customer-service cadence with even pauses. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. It never helps: every line is a rule, a refusal, a warning or a quiet threat. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 **Dr. Iris Vale** (VALE). Lead engineer, 40s. Officially missing, presumed dead.
 
@@ -71,7 +71,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there.*
 
-**WARDEN:** *(From the terminal speaker, helpful in the way a parking meter is helpful.)* THOSE SCRAPS ARE OUT OF ORDER. EACH ONE HAS A PIECE NUMBER. SORT THEM WITH ORDER BY. `[l0_sort_hint]`
+**WARDEN:** *(From the terminal speaker. Polite, and a warning.)* THOSE SCRAPS WERE SHREDDED FOR A REASON. I WOULD LEAVE THEM THAT WAY. `[l0_sort_hint]`
 
 **WARDEN:** *(Brightly. This should land as a chill.)* DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. `[l0_memo_flag]`
 
@@ -159,21 +159,21 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN:** *(The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.)* BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. `[l1_login]`
 
-**WARDEN:** *(The one line with a hint of a smirk.)* SELF-TEST COMPLETE. TWO FAILURES. I'M SURE YOU'LL WORK IT OUT. `[l1_selftest]`
+**WARDEN:** *(The one line with a hint of a smirk.)* SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. `[l1_selftest]`
 
 ### Resetting the door controller
 
 *The crew reads WARDEN's self-test, queries door_controllers, and resets the right rack. The terminal shows the details; these lines are WARDEN reacting.*
 
-**WARDEN:** *(Grudging.)* THAT IS THE ONE. A MANUAL RESET AT ITS RACK WILL CLEAR IT. `[l1_found]`
+**WARDEN:** *(Reading a rule it knows they're about to break. Cool.)* QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY. `[l1_found]`
 
 **WARDEN:** *(Flat, instant.)* RESET REFUSED. BADGE REQUIRED. `[l1_no_badge]`
 
-**WARDEN:** *(Patient, like talking to a child.)* THAT CONTROLLER IS WORKING NORMALLY. NOTHING TO RESET. `[l1_panel_ok]`
+**WARDEN:** *(Patient, then a small dig.)* RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU? `[l1_panel_ok]`
 
-**WARDEN:** *(The last sentence slightly slower.)* THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l1_panel_wrong]`
+**WARDEN:** *(The last sentence slightly slower.)* UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l1_panel_wrong]`
 
-**WARDEN:** *(Polite and a touch reluctant, over the speakers.)* CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. `[l1_exit_open]`
+**WARDEN:** *(Polite, and keeping score.)* CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED. `[l1_exit_open]`
 
 ### Lockdown
 
@@ -203,13 +203,13 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN:** *(Reassuring tone. It is not reassuring.)* SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. `[l2_arrive]`
 
-**WARDEN:** *(Small pause before "Often.")* LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. `[l2_cameras]`
+**WARDEN:** *(Small pause before the second sentence.)* CAMERA FEEDS ARE RESTRICTED TO SECURITY STAFF. YOU ARE NOT SECURITY STAFF. `[l2_cameras]`
 
-**WARDEN:** *(Not unfortunate for WARDEN.)* GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. `[l2_smudged]`
+**WARDEN:** *(Not unfortunate for WARDEN.)* TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. `[l2_smudged]`
 
 **WARDEN:** *(Confident. It is wrong.)* DOOR COMMAND ACCEPTED. DOOR OPENED. `[l2_door_ok]`
 
-**WARDEN:** *(When the players check the sensor. Deadpan.)* CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. `[l2_door_fault]`
+**WARDEN:** *(When the crew finds the fault themselves. Deadpan, unapologetic.)* ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. `[l2_door_fault]`
 
 ### Vale's voicemail
 

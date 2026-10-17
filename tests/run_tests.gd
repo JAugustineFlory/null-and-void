@@ -303,6 +303,9 @@ func test_voice_script() -> void:
 			if docs[path].contains(sc["context"]):
 				leaks.append("%s: context %s" % [path.get_file(), sc["id"]])
 	check(leaks.is_empty(), "actors' scripts leave out the team-only character notes %s" % [leaks])
+	var sysop_voiced: bool = VoiceLines.CHARACTERS.has("SYSOP") or VoiceLines.LINES.values().any(func(l): return l["speaker"] == "SYSOP")
+	var sysop_named: Array = docs.keys().filter(func(path): return docs[path].to_upper().contains("SYSOP"))
+	check(not sysop_voiced and sysop_named.is_empty(), "SYSOP stays text-only and out of every actor's script %s" % [sysop_named])
 	check(VoiceLines.held_back({"level": VoiceLines.REVEAL_LEVEL}) and VoiceLines.held_back({"level": 2, "reveal": true}) \
 		and not VoiceLines.held_back({"level": 2}), "reveal scenes and late levels are held back for a later session")
 
