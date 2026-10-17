@@ -8,7 +8,9 @@ const EXTENSIONS := ["ogg", "wav", "mp3"]
 ## Gap after a recording before the next line starts. Actors leave half a second
 ## of silence at each end of their files, so this only needs to be short.
 const TAIL := 0.1
-## WARDEN and the building's announcements play through the PA: thin, boxy, a little roomy.
+## WARDEN and the building's announcements play through the PA: thin, boxy speakers
+## echoing down empty halls. The dry voice stays at full level so subtitles and
+## speech still line up; the hall is added underneath.
 const PA_BUS := &"VoicePA"
 const PA_SPEAKERS := ["WARDEN", "PA"]
 
@@ -96,9 +98,15 @@ static func _ensure_pa_bus() -> void:
 	high.cutoff_hz = 350.0
 	var low := AudioEffectLowPassFilter.new()
 	low.cutoff_hz = 3800.0
-	var room := AudioEffectReverb.new()
-	room.room_size = 0.35
-	room.wet = 0.18
-	room.dry = 0.9
-	for fx in [high, low, room]:
+	var hall := AudioEffectReverb.new()
+	hall.room_size = 0.85
+	hall.damping = 0.45
+	hall.spread = 1.0
+	hall.hipass = 0.3
+	# A short gap and a faint repeat before the tail: the slap off the far wall.
+	hall.predelay_msec = 80.0
+	hall.predelay_feedback = 0.3
+	hall.dry = 1.0
+	hall.wet = 0.32
+	for fx in [high, low, hall]:
 		AudioServer.add_bus_effect(bus, fx)
