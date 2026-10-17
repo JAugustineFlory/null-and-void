@@ -7,6 +7,9 @@ signal requested(line: String, response: Dictionary, ui: TerminalUI)
 ## Someone sat down at this terminal. Fires on the host (in co-op a client's
 ## opening is reported there), so story code can react to it.
 signal opened(by: Node)
+## What the screen shows changed: a line, a clear, a seat or a typed character.
+## The in-world screen redraws from transcript, seated and typing.
+signal screen_changed
 
 var terminal_name := "TERMINAL"
 var db: FacilityDB
@@ -29,6 +32,10 @@ var _screen: MeshInstance3D
 var transcript: Array[String] = []
 ## What each transcript line is ("echo", "result", "hint"...), for the notebook.
 var transcript_kinds: Array[String] = []
+## Peer ids of the players sitting at this terminal, in the order they sat.
+var seated: Array[int] = []
+## What each seated player has typed but not yet entered: peer id -> text.
+var typing := {}
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
@@ -95,11 +102,25 @@ func print_line(bbcode: String, kind: String = "") -> void:
 	transcript_kinds.append(kind)
 	if ui:
 		ui.on_terminal_line(self, bbcode, kind)
+	screen_changed.emit()
 
 
 func clear_screen() -> void:
 	transcript.clear()
 	transcript_kinds.clear()
+	if ui:
+		ui.on_terminal_cleared(self)
+	screen_changed.emit()
+
+
+## Put the boot text up if the screen is blank or was rebooted. Every machine
+## does this when someone sits down, so every copy of the screen matches.
+func ensure_booted() -> void:
+	var fresh := consume_fresh_boot()
+	if transcript.is_empty() or fresh:
+		clear_screen()
+		for line in boot_text():
+			print_line(line)
 
 
 func boot_text() -> Array:

@@ -22,6 +22,8 @@ var _begun := false
 var _start_fn: Callable
 var _synchronizers: Array[MultiplayerSynchronizer] = []
 var _gates := {}
+## Shares what's on each terminal's screen: seats, typed lines, commands.
+var mirror: TerminalMirror
 
 
 static func create(for_level: Node) -> LevelSync:
@@ -29,6 +31,7 @@ static func create(for_level: Node) -> LevelSync:
 	s.name = "LevelSync"
 	s.level = for_level
 	for_level.add_child(s)
+	s.mirror = TerminalMirror.create(s)
 	return s
 
 
