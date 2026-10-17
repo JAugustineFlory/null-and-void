@@ -39,7 +39,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **DISPATCH:** *(Reading it off the ticket.)* They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. `[l0_dispatch_2]`
 
-**DISPATCH:** *(Signing off, already onto the next call.)* Hop out when you're ready. Dispatch out. `[l0_dispatch_3]`
+**DISPATCH:** *(Bored, reading the form. Signing off, already onto the next call.)* Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. `[l0_dispatch_3]`
 
 ### The front doors, 11 p.m.
 
@@ -121,11 +121,11 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The betrayal
 
-*Rourke leads the crew into Server Room A and points them at the terminal. A few seconds after someone starts working, the door locks behind them, the lights go red, and he turns on them.*
+*Rourke leads the crew into Server Room A and gives them a mundane job at the terminal (tidy the door controller and badge tables). Nothing hints at foul play. A few seconds after someone starts working, the door locks behind them, the lights go red, and he turns on them.*
 
-**ROURKE:** *(Calling back over his shoulder, inside the room.)* Vale's last login came from this room. Come on in. `[l1_enter]`
+**ROURKE:** *(Calling back over his shoulder, inside the room.)* In you come. Terminal's just over here. `[l1_enter]`
 
-**ROURKE:** *(Friendly, pointing. Then he goes quiet and drifts behind them.)* Terminal's on the desk. Pull up her last session, I'll be right here. `[l1_terminal]`
+**ROURKE:** *(Mundane, a facilities guy passing on the boss's request. Then he goes quiet and drifts behind them.)* Boss wants you to look over the door controller and badge tables. See if you can tidy them up, sort them out. I'll be right here. `[l1_terminal]`
 
 **ROURKE:** *(The door has just locked. The friendliness switches off.)* Sorry about this. Nothing personal. `[l1_trap_1]`
 

@@ -28,5 +28,5 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors."  
   *Reading it off the ticket.*
 - [ ] `l0_dispatch_3.wav`  
-  "Hop out when you're ready. Dispatch out."  
-  *Signing off, already onto the next call.*
+  "Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out."  
+  *Bored, reading the form. Signing off, already onto the next call.*
