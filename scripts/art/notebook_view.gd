@@ -17,6 +17,9 @@ const BOOK_SIZE := Vector2(1240, 780)  # design size; scaled to fit the screen
 const PAGE_INSET := Vector2(26, 22)
 const SPINE := 56.0
 const COVER := Color(0.16, 0.2, 0.3)  # navy pressboard cover
+## Size of the SubViewport HeldNotebook renders an embedded book into: the book plus its tabs.
+const EMBED_SIZE := Vector2i(1440, 800)
+const EMBED_MARGIN := Vector2(12, 10)
 const TAB_COLORS: Array[Color] = [Color(0.95, 0.82, 0.35), Color(0.55, 0.78, 0.92), Color(0.92, 0.6, 0.62), Color(0.65, 0.85, 0.58)]
 
 var left: VBoxContainer
@@ -24,6 +27,15 @@ var right: VBoxContainer
 var book: Control  # everything that moves when the book opens or a page turns
 var _tabs: VBoxContainer
 var _tab_buttons := {}
+## Drawn into HeldNotebook's SubViewport instead of over the screen: no dimming,
+## no scaling, and HeldNotebook animates it in and out.
+var embedded := false:
+	set(v):
+		embedded = v
+		var dim := get_node_or_null("Dim")
+		if dim:
+			dim.visible = not v
+		_fit()
 
 
 func _init() -> void:
@@ -116,6 +128,11 @@ func clear_pages() -> void:
 func show_book() -> Tween:
 	visible = true
 	_fit()
+	if embedded:
+		modulate.a = 1.0
+		var now := create_tween()
+		now.tween_interval(0.0)
+		return now
 	var rest := book.position
 	book.position.y = rest.y + size.y
 	book.rotation_degrees = -4.0
@@ -129,6 +146,11 @@ func show_book() -> Tween:
 
 ## Drops the book back out of view, then hides it.
 func hide_book() -> Tween:
+	if embedded:
+		var held := create_tween()
+		held.tween_interval(0.25)  # HeldNotebook puts the book away
+		held.tween_callback(func(): visible = false)
+		return held
 	var t := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	t.tween_property(book, "position:y", book.position.y + size.y, 0.2)
 	t.tween_property(self, "modulate:a", 0.0, 0.2)
@@ -146,8 +168,45 @@ func turn_page(between: Callable = Callable()) -> Tween:
 	return t
 
 
+## Writes `item` onto the page: it appears left to right behind a moving pen nib,
+## as if the player were writing it down. Call after adding it to a page.
+func write_in(item: Control, duration: float = 0.8) -> Tween:
+	var cover := ColorRect.new()
+	cover.name = "Unwritten"
+	cover.color = NotebookArt.PAPER
+	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pen := _Pen.new()
+	pen.name = "Pen"
+	pen.visible = false
+	book.add_child(cover)
+	book.add_child(pen)
+	var span := {"x": 0.0, "w": 0.0, "y": 0.0}
+	var t := create_tween()
+	t.tween_interval(0.03)  # let the page lay the item out first
+	t.tween_callback(func():
+		var at := book.get_global_transform().affine_inverse() * item.global_position
+		span.x = at.x - 2
+		span.w = item.size.x + 6
+		span.y = at.y + item.size.y * 0.7
+		cover.position = Vector2(span.x, at.y - 2)
+		cover.size = Vector2(span.w, item.size.y + 4)
+		pen.visible = true)
+	t.tween_method(func(k: float):
+		cover.position.x = span.x + span.w * k
+		cover.size.x = span.w * (1.0 - k)
+		pen.position = Vector2(span.x + span.w * k, span.y + sin(k * 60.0) * 3.0), 0.0, 1.0, duration)
+	t.tween_callback(func():
+		cover.queue_free()
+		pen.queue_free())
+	return t
+
+
 func _fit() -> void:
 	if book == null or size.x <= 0:
+		return
+	if embedded:
+		book.scale = Vector2.ONE
+		book.position = EMBED_MARGIN
 		return
 	var s := minf((size.x - 80) / (BOOK_SIZE.x + 180), (size.y - 60) / BOOK_SIZE.y)
 	s = clampf(s, 0.4, 1.4)
@@ -192,3 +251,15 @@ class _BookDrawing extends Control:
 			draw_line(a, b, Color(0.72, 0.73, 0.76), 4)
 			draw_line(a + Vector2(4, -1), b + Vector2(-4, -1), Color(0.92, 0.93, 0.95), 1.5)
 			cy += 34
+
+
+## A ballpoint pen nib, drawn while a line is being written in.
+class _Pen extends Control:
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		draw_line(Vector2(0, 0), Vector2(70, -110), Color(0, 0, 0, 0.25), 16)  # shadow
+		draw_line(Vector2(4, -6), Vector2(66, -118), Color(0.16, 0.2, 0.42), 12)  # barrel
+		draw_line(Vector2(0, 0), Vector2(8, -14), Color(0.75, 0.76, 0.78), 6)  # tip
+		draw_circle(Vector2(0, 0), 2.5, NotebookArt.INK)

@@ -1,8 +1,8 @@
 class_name DocumentView
 extends Control
 ## A document up close, readable: the page a player is holding after pressing E
-## on a binder, desk card, brochure, memo or clipboard. Typed body lines each get
-## a "+ note" button; handwriting goes in the margin (Mercer's older fountain-pen
+## on a binder, desk card, brochure, memo or clipboard. Pointing at a line lights
+## it with a highlighter band and offers "+ add to notebook"; handwriting goes in the margin (Mercer's older fountain-pen
 ## hand, or a player's) or in a filled-in blank. Drawn in code like NotebookView;
 ## what's on the page and when it opens belong to the mechanics.
 ##
@@ -121,7 +121,8 @@ func set_title(text: String) -> void:
 	paper.queue_redraw()
 
 
-## A typed line with its "+ note" button. Returns the row.
+## A typed line. Pointing at it highlights it and offers "+ add to notebook",
+## which emits copy_requested(text). Returns the row.
 func add_line(text: String) -> Control:
 	var row := _row(text)
 	var l := _typed(text)
@@ -131,8 +132,8 @@ func add_line(text: String) -> Control:
 	return row
 
 
-## A whole line written by hand (a note in someone's writing), with its "+ note"
-## button like a typed line.
+## A whole line written by hand (a note in someone's writing), which can be added
+## to the notebook like a typed line.
 func add_hand_line(text: String, author := "player") -> Control:
 	var row := _row(text)
 	var l := _handwriting(text, author, 24)
@@ -173,7 +174,7 @@ func add_margin_note(text: String, author := "mercer") -> Control:
 
 
 ## A printed line with a blank someone filled in by hand: "a table of ___ choice"
-## with "guards" written on the line. The "+ note" button copies the whole line.
+## with "guards" written on the line. Adding it to the notebook copies the whole line.
 func add_blank(before: String, filled: String, after: String, author := "mercer") -> Control:
 	var row := _row(before + filled + after)
 	var flow := HFlowContainer.new()
@@ -245,19 +246,52 @@ func hide_doc() -> Tween:
 
 
 func _row(copy_text: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
+	var row := _Row.new()
 	row.add_theme_constant_override("separation", 10)
-	var pen := NotebookArt.write_button()
-	pen.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	pen.pressed.connect(func(): copy_requested.emit(copy_text))
-	row.add_child(pen)
+	row.copy_text = copy_text
+	row.margin_width = margin_width
+	# The chip is drawn in the margin while the line is pointed at, so it takes no room from the text.
 	var slot := Control.new()
 	slot.name = "Margin"
 	slot.custom_minimum_size = Vector2(margin_width, 0)
 	row.add_child(slot)
+	var anchor := Control.new()  # last, so the chip draws over any margin note
+	anchor.name = "ChipSlot"
+	anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(anchor)
+	var chip := add_chip()
+	chip.pressed.connect(func(): copy_requested.emit(copy_text))
+	anchor.add_child(chip)
+	row.chip = chip
 	body.add_child(row)
 	_last_row = row
 	return row
+
+
+## The "+ add to notebook" chip that appears on the line under the pointer: the
+## same words and place as on terminal lines, in typewriter ink for paper.
+static func add_chip() -> Button:
+	var chip := Button.new()
+	chip.name = "AddChip"
+	chip.text = "+ add to notebook"
+	chip.focus_mode = Control.FOCUS_NONE
+	chip.tooltip_text = "Copy this line into your notebook"
+	chip.add_theme_font_override("font", NotebookArt.type_font())
+	chip.add_theme_font_size_override("font_size", 15)
+	chip.add_theme_color_override("font_color", Color(NotebookArt.INK, 0.7))
+	chip.add_theme_color_override("font_hover_color", NotebookArt.RED_PEN)
+	chip.add_theme_color_override("font_pressed_color", NotebookArt.RED_PEN.darkened(0.2))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = ArtProps.STICKY_YELLOW
+	sb.shadow_color = Color(0, 0, 0, 0.2)
+	sb.shadow_size = 2
+	sb.set_corner_radius_all(3)
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	for state in ["normal", "hover", "pressed"]:
+		chip.add_theme_stylebox_override(state, sb)
+	chip.visible = false
+	return chip
 
 
 func _typed(text: String, wrap := true) -> Label:
@@ -366,3 +400,44 @@ class _PaperDrawing extends Control:
 
 	func _footer(text: String, r: Rect2) -> void:
 		draw_string(NotebookArt.type_font(), Vector2(120, r.size.y - 30), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.4, 0.4, 0.42))
+
+
+## A line on the page: a highlighter band and the add chip while the pointer is on it.
+class _Row extends HBoxContainer:
+	const BAND := Color(0.98, 0.9, 0.42, 0.38)  # yellow highlighter: yellow means "notebook"
+	var copy_text := ""
+	var margin_width := 0.0
+	var chip: Button
+	var hovered := false
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
+
+	func _process(_delta: float) -> void:
+		var on := is_visible_in_tree() and Rect2(Vector2(-6, -2), size + Vector2(6, 4)).has_point(get_local_mouse_position())
+		if on != hovered:
+			set_hovered(on)
+		elif hovered:
+			_place_chip()
+
+	func set_hovered(on: bool) -> void:
+		hovered = on
+		if chip:
+			chip.visible = on
+			_place_chip()
+		queue_redraw()
+
+	## In the margin beside the line, like a tab: the line's own text stays clear.
+	func _place_chip() -> void:
+		if chip == null or not chip.visible:
+			return
+		chip.reset_size()
+		var anchor := chip.get_parent() as Control
+		chip.position = Vector2(size.x - chip.size.x, (size.y - chip.size.y) / 2.0) - anchor.position
+
+	func _text_rect() -> Rect2:
+		return Rect2(Vector2(-6, -2), Vector2(size.x - margin_width + 2, size.y + 4))
+
+	func _draw() -> void:
+		if hovered:
+			draw_rect(_text_rect(), BAND)
