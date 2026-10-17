@@ -1,13 +1,13 @@
 class_name NotebookPages
 extends Control
-## What goes on which page of the player's notebook: sticky notes found, lines
-## written down from terminals, tables discovered, and Field Notes. The book
+## What goes on which page of the player's notebook: the crew's work order,
+## tables discovered, notes (sticky notes found and lines copied down), and Field Notes. The book
 ## itself is drawn by NotebookView and NotebookArt (scripts/art/).
 ## Each section fills the left page, then the right; "next" turns to the next spread.
 
-enum Page { NOTES, WRITTEN, TABLES, FIELD_NOTES }
+enum Page { WORK_ORDER, TABLES, NOTES, FIELD_NOTES }
 
-const TAB_NAMES := ["Notes", "My notes", "Tables", "Field Notes"]
+const TAB_NAMES := ["Work order", "Tables", "Notes", "Field Notes"]
 
 const CONCEPT_NOTES := {
 	"SELECT": "SELECT picks which columns you want to see. * means all of them.",
@@ -29,7 +29,7 @@ const KIND_LABELS := {"result": "Query result", "hint": "Hint", "error": "Error"
 ## At the end of a level the notebook opens on Field Notes with buttons to carry on.
 var end_of_level := false
 var book: NotebookView
-var _page: Page = Page.NOTES
+var _page: Page = Page.WORK_ORDER
 var _spread := 0
 var _spreads: Array = []  # [[left items], [right items]] per spread
 var _turn: Button
@@ -110,10 +110,10 @@ func refresh() -> void:
 func section_items(page: int) -> Array[Control]:
 	var game := get_node("/root/Game")
 	match page:
+		Page.WORK_ORDER:
+			return WorkOrderForm.build(game.ticket())
 		Page.NOTES:
-			return _todo_items(game.notebook_todo) + _notes_items(game.notebook_notes)
-		Page.WRITTEN:
-			return _written_items(game.notebook_written)
+			return _notes_items(game.notebook_notes) + _written_items(game.notebook_written)
 		Page.TABLES:
 			return _table_items(game.notebook_tables)
 		_:
@@ -140,27 +140,6 @@ static func text_of(items: Array) -> String:
 	return out
 
 
-## The crew's job ticket: the printed call-out, then the tasks in the character's
-## hand. The task now in ink, the last few done ones ticked in pencil.
-func _todo_items(todo: Array) -> Array[Control]:
-	var game := get_node("/root/Game")
-	var t: Dictionary = game.TICKET
-	var items: Array[Control] = [NotebookArt.heading("Job ticket")]
-	items.append(NotebookArt.code("%s   WORK ORDER %s" % [t.company, game.ticket_number()], 16))
-	items.append(NotebookArt.code("Customer: %s" % t.customer, 16))
-	items.append(NotebookArt.code("Problem:  %s" % t.problem, 16))
-	items.append(NotebookArt.code("Contact:  %s" % t.contact, 16))
-	if todo.is_empty():
-		items.append(NotebookArt.hand("Nothing yet.", 24, NotebookArt.PENCIL))
-	for task in todo.slice(maxi(0, todo.size() - 6)):
-		var filled: String = task.get("filled", "")
-		if task.done:
-			items.append(NotebookArt.hand("[x]  %s%s" % [task.text, ("  - " + filled) if filled != "" else ""], 22, NotebookArt.PENCIL))
-		else:
-			items.append(NotebookArt.hand("[  ]  %s" % task.text, 26))
-	return items
-
-
 func _notes_items(ids: Array) -> Array[Control]:
 	var items: Array[Control] = [NotebookArt.heading("Sticky notes")]
 	if ids.is_empty():
@@ -173,9 +152,9 @@ func _notes_items(ids: Array) -> Array[Control]:
 
 
 func _written_items(written: Array) -> Array[Control]:
-	var items: Array[Control] = [NotebookArt.heading("My notes")]
+	var items: Array[Control] = [NotebookArt.heading("Copied lines")]
 	if written.is_empty():
-		items.append(NotebookArt.hand("At a terminal, press + note beside any line to copy it here.", 24, NotebookArt.PENCIL))
+		items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 24, NotebookArt.PENCIL))
 	for w in written:
 		var label: String = w.label if w.label != "" else KIND_LABELS.get(w.kind, "From the terminal")
 		var lines: PackedStringArray = w.text.split("\n")

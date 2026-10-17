@@ -134,7 +134,7 @@ func line(id: String, subtitle: bool = true) -> void:
 	if subtitle:
 		await _show(l["speaker"], l["text"], dur)
 	elif has_audio:
-		await get_tree().create_timer(dur).timeout
+		await get_tree().create_timer(dur, false).timeout
 
 
 ## Speak several lines in order.
@@ -147,7 +147,7 @@ func _show(speaker: String, text: String, dur: float) -> void:
 	_line_id += 1
 	var my_id := _line_id
 	_subtitle.text = ("%s: %s" % [speaker, text]) if speaker != "" else text
-	await get_tree().create_timer(dur).timeout
+	await get_tree().create_timer(dur, false).timeout
 	if my_id == _line_id:
 		_subtitle.text = ""
 

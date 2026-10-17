@@ -83,6 +83,9 @@ var crouching := false
 var crawling := false
 ## True while a terminal or menu has focus.
 var input_locked := false
+## Strapped into a seat (the van): look around and press E, but no walking,
+## crouching or jumping.
+var seated := false
 var hud: Node
 ## This tick's intent. Filled from the keyboard when `local_control` is set.
 var controls := PlayerControls.new()
@@ -216,7 +219,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	_strike_cd = max(0.0, _strike_cd - delta)
 	if local_control:
-		controls.read_local(input_locked)
+		controls.read_local(input_locked or seated)
 	step(delta)
 	_update_head(delta)
 	if local_control:

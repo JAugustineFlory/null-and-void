@@ -12,6 +12,8 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# The full-screen notebook and terminal; test_in_world_ui covers the held and on-screen ones.
+	_game().diegetic_ui = false
 	test_facility_db()
 	test_level_0_puzzles()
 	test_level_1_data_every_seed()
@@ -20,6 +22,7 @@ func _run() -> void:
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
+	await test_pause_holds_subtitles()
 	test_facility_api()
 	test_level_2_data_every_seed()
 	test_level_2_hints()
@@ -34,6 +37,7 @@ func _run() -> void:
 	test_sticky_notes_never_give_answers()
 	await test_elevator()
 	await test_notebook()
+	await test_in_world_ui()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
@@ -370,6 +374,21 @@ func test_voice_playback() -> void:
 	Voice.folder = real_folder
 
 
+func test_pause_holds_subtitles() -> void:
+	print("Pause holds subtitles")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.say("ROURKE", "Front desk is this way.", 0.3)
+	paused = true
+	await create_timer(0.6).timeout  # this wait runs through the pause
+	check(hud._subtitle.text != "", "a subtitle stays up while the game is paused")
+	paused = false
+	await create_timer(0.6).timeout
+	check(hud._subtitle.text == "", "and clears once its time has run after unpausing")
+	hud.queue_free()
+
+
 func test_screens_fill_window() -> void:
 	print("Menu screens")
 	var win := root.get_visible_rect().size
@@ -407,6 +426,7 @@ func test_level_0_scene() -> void:
 	check(not level.front_doors.is_open, "front doors start closed")
 	check(level.van_seats.size() == 6, "the van seats six")
 	check(level.seat_spawn(1).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the passenger seat")
+	check(level.player.seated and level.find_children("Windscreen", "", true, false).size() == 1, "players start belted in, behind a solid windscreen")
 	var exits: Array = level.van_seats.map(func(s): return s.exit)
 	check(exits.count("side") == 4 and exits.has("w") and exits.has("e"), "two front doors and a side door for the rear bench")
 	level.players_needed = 2
@@ -431,6 +451,7 @@ func test_level_0_scene() -> void:
 	await create_timer(2.95).timeout
 	var pos: Vector3 = level.player.global_position
 	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	check(not level.player.seated, "out of the van, the player can walk again")
 	var mpos: Vector3 = mate.global_position
 	check(mpos.x > 3.5 and mpos.y < 0.3 and not mate.input_locked, "a rear-bench player climbs out of the side door (%.1f, %.1f, %.1f)" % [mpos.x, mpos.y, mpos.z])
 	mate.queue_free()
@@ -477,28 +498,12 @@ func test_level_0_scene() -> void:
 	for i in 60:
 		await physics_frame
 	check(level.rourke.state == Rourke.State.WALK and level.rourke._walk_target.x > 20.0, "Rourke leads the way down the hall to Server Room A")
-	# The cable tray: a harmless first crouch on the walk.
-	var tray_z: float = level.TRAY_X
-	level.player.global_position = Vector3(tray_z - 1.5, 0.1, 3)
-	level.player.rotation.y = -PI / 2  # facing down the hall
-	level.player.local_control = false  # drive it from the test, not the keyboard
-	for i in 90:
-		level.player.controls.move = Vector2(0, -1)
-		await physics_frame
-	check(level.player.global_position.x < tray_z - 0.3, "standing players can't walk through the cable tray (x %.2f)" % level.player.global_position.x)
-	for i in 120:
-		level.player.controls.move = Vector2(0, -1)
-		level.player.controls.crouch = true
-		await physics_frame
-	check(level.player.global_position.x > tray_z + 0.4, "crouching gets under it (x %.2f)" % level.player.global_position.x)
-	level.player.controls.crouch = false
-	level.player.controls.move = Vector2.ZERO
-	level.player.local_control = true
-	for i in 400:
-		if level.rourke.global_position.x > tray_z + 1.0:
-			break
-		await physics_frame
-	check(level.rourke.global_position.x > tray_z + 1.0, "Rourke ducks under it on his way")
+	# No pipes in the hall any more: it's a plain walk to the room.
+	check(level.find_children("CableTray", "", true, false).is_empty(), "the hall to Server Room A is clear")
+	# The air return: the grate comes off by hand, then it's a crawl to the closet.
+	check(level.vent_grate.enabled, "the air return has a grate on it")
+	level._on_vent_grate()
+	check(not level.vent_grate.enabled and level.find_children("*", "MovementVolume", true, false).any(func(v): return v.kind == MovementVolume.Kind.VENT), "the grate comes off, and the duct behind it is a crawlspace")
 	level.queue_free()
 	await process_frame
 
@@ -1502,8 +1507,13 @@ func test_world() -> void:
 	world.wing_finished(lobby)
 	check(world.current == sra and sra.active, "finishing the lobby hands play to Server Room A")
 	check(sra.rourke.global_position.distance_to(guide_at) < 0.1 and lobby.rourke.is_queued_for_deletion(), "Server Room A's Rourke takes over where the lobby's stood")
-	world.seal_behind(sra)
-	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
+	sra.crew_through()
+	await process_frame
+	check(lobby.exit_door.is_open, "the hall door stays open while Rourke is still on his way in")
+	sra.rourke_in = true
+	sra._try_seal()
+	await process_frame
+	check(not lobby.exit_door.is_open, "it seals once the crew and Rourke are both inside")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
 	check(not world.wings.has("level_2"), "the security wing isn't loaded before it's needed")
@@ -1594,7 +1604,7 @@ func test_notebook() -> void:
 	var nb: Notebook = level.notebook
 	level.player.input_locked = false
 	check(nb.open() and nb.is_open() and level.player.input_locked, "Tab opens the notebook and holds the player")
-	check(nb.pages.current_page() == NotebookPages.Page.NOTES, "it opens on the sticky notes")
+	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER and NotebookPages.TAB_NAMES == ["Work order", "Tables", "Notes", "Field Notes"], "it opens on the work order, then Tables, Notes and Field Notes")
 	nb.close()
 	check(not nb.is_open() and not level.player.input_locked, "and closes again")
 	level.terminal_ui.open(level.desk_terminal, level.player)
@@ -1620,8 +1630,14 @@ func test_notebook() -> void:
 		if lines[i].kind == "result" and lines[i].text.contains("piece_no"):
 			result_i = i
 	check(ui.write_note(result_i, "memo scraps") and _game().notebook_written[-1].label == "memo scraps" and _game().notebook_written[-1].kind == "result", "write note copies a query result under the player's own label")
-	ui._on_meta("note:%d" % taught[0].get("index", lines.find(taught[0])))
-	check(ui._note_label.visible, "clicking +note asks for a label")
+	var taught_i: int = lines.find(taught[0])
+	var probe: float = ui._para_top(lines[taught_i].from) + 2.0 - ui._output.get_v_scroll_bar().value
+	check(ui._line_at(probe) == taught_i, "the pointer's height finds the line under it")
+	ui._hover_line(taught_i)
+	check(ui._hover_band.visible and ui._add_chip.visible and ui._add_chip.text.contains("add to notebook"), "pointing at a line lights it up and offers to add it to the notebook")
+	check(not ui._output.get_parsed_text().contains("+ note"), "lines carry no + note buttons of their own")
+	ui._add_chip.pressed.emit()
+	check(ui._note_label.visible and ui._note_index == taught_i, "clicking add asks for a label")
 	ui._finish_note("")
 	check(_game().notebook_written.size() == 2 and not ui._note_label.visible, "Enter writes it down, label optional")
 	ui.run(".note schema")
@@ -1655,10 +1671,14 @@ func test_notebook() -> void:
 	_game().set_todo("Find the exit")
 	_game().set_todo("Open the exit door")
 	check(not _game().set_todo("Open the exit door"), "the same task isn't written twice")
-	notes_text = nb.pages.section_text(NotebookPages.Page.NOTES)
-	check(notes_text.contains("Job ticket") and notes_text.contains("Halcyon Data Systems") and notes_text.contains("Rourke") and notes_text.contains(_game().ticket_number()), "the Notes page starts with the crew's Byte-Right job ticket")
-	check(notes_text.contains("[x]  Find the exit") and notes_text.contains("[  ]  Open the exit door\n"), "the ticket's tasks are ticked off as they're done")
-	check(_game().ticket_fill("Find the exit", "stairwell, east side") and nb.pages.section_text(NotebookPages.Page.NOTES).contains("[x]  Find the exit  - stairwell, east side"), "a done task can be filled in")
+	var order_text := nb.pages.section_text(NotebookPages.Page.WORK_ORDER)
+	check(order_text.contains("WORK ORDER") and order_text.contains("Halcyon Data Systems") and order_text.contains("Rourke") and order_text.contains(_game().ticket_number()), "the Work order page is the crew's printed Byte-Right work order")
+	check(order_text.contains("SCOPE OF WORK") and order_text.contains("Diagnose the reported database problem") and order_text.contains("Client sign-off"), "it lists the job they were hired for and the sign-off lines")
+	for word in ["Vale", "trap", "WARDEN", "escape", "lock"]:
+		check(not order_text.contains(word), "nothing on the work order hints at foul play (%s)" % word)
+	check(order_text.contains("[x]  Find the exit") and order_text.contains("[  ]  Open the exit door\n"), "the crew's tasks are written under it and ticked off as they're done")
+	check(not nb.pages.section_text(NotebookPages.Page.NOTES).contains("Find the exit"), "the tasks aren't on the Notes page")
+	check(_game().ticket_fill("Find the exit", "stairwell, east side") and nb.pages.section_text(NotebookPages.Page.WORK_ORDER).contains("[x]  Find the exit  - stairwell, east side"), "a done task can be filled in")
 	check(_game().ticket().tasks.any(func(t): return t.filled == "stairwell, east side") and _game().ticket().customer == "Halcyon Data Systems", "later levels can read the ticket back")
 	level.hud.todo("")
 	check(_game().current_todo() == "" and _game().notebook_todo.all(func(t): return t.done), "an empty task ticks off the last one")
@@ -1673,14 +1693,71 @@ func test_notebook() -> void:
 	for i in nb.pages._spreads.size():
 		nb.pages._show_spread(nb.pages._spread + 1)
 	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
-	var written_text := nb.pages.section_text(NotebookPages.Page.WRITTEN)
-	check(written_text.contains("memo scraps") and written_text.contains("piece_no"), "written notes show on My notes with their labels")
+	var written_text := nb.pages.section_text(NotebookPages.Page.NOTES)
+	check(written_text.contains("memo scraps") and written_text.contains("piece_no") and written_text.contains("Sticky notes"), "copied lines show on Notes with their labels, after the sticky notes")
 	nb.close()
 	var saved: Dictionary = _game().notebook_data()
 	_game().new_run(4)
 	check(_game().notebook_notes.is_empty(), "a new run starts with an empty notebook")
 	_game().load_notebook(saved)
 	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
+	level.queue_free()
+	await process_frame
+
+
+func test_in_world_ui() -> void:
+	print("Notebook in hand, terminals on their own screens")
+	_game().new_run(5)
+	_game().diegetic_ui = true
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	for i in 10:
+		await physics_frame
+	var nb: Notebook = level.notebook
+	var p: Player = level.player
+	level._release_camera(p)  # out of the van intro
+	check(nb.held != null and p.held_notebook == nb.held and nb.pages.get_parent() == nb.held.viewport, "the notebook is held in your hands, its pages drawn on it")
+	check(nb.open() and p.is_holding_notebook() and not p.input_locked, "Tab raises it without freezing you in place")
+	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER, "it opens on the work order")
+	nb.close()
+	check(not nb.is_open() and not p.is_holding_notebook(), "and Tab puts it away")
+	var t: Terminal = level.desk_terminal
+	check(t.screen != null and t.screen.keyboard != null and t.screen.hosted == null, "every terminal is a CRT with its own screen and keyboard")
+	var sticky: StickyNote = t.find_children("*", "StickyNote", true, false)[0]
+	check(t.to_local(sticky.global_position).z > t.to_local(t.screen.glass.global_position).z, "the monitor's sticky note sits in front of the glass")
+	var sp := t.stand_point.global_position
+	p.global_position = Vector3(sp.x, 0.4, sp.z + 0.3)
+	for i in 60:
+		await physics_frame
+	var ui: TerminalUI = level.terminal_ui
+	var home: Node = ui.get_parent()
+	nb.open()
+	t.enabled = true
+	t.interact(p)
+	check(p.is_using_terminal() and not p.is_holding_notebook() and not ui.visible, "E steps you up to the desk and puts the notebook away first")
+	for i in 400:
+		if ui.visible:
+			break
+		await physics_frame
+	check(ui.visible and ui.is_on_screen() and t.screen.hosted == ui and not ui._dim.visible, "once the camera settles, the terminal opens on its own glass")
+	check(not nb.open(), "the notebook can't come out at a terminal")
+	ui.run("SELECT * FROM memo_fragments")
+	check(t.transcript.any(func(l): return l.contains("piece_no")), "queries typed on the glass run as usual")
+	ui.close()
+	await process_frame
+	await process_frame
+	check(ui.get_parent() == home and not ui.is_on_screen() and t.screen.hosted == null and ui._dim.visible, "stepping away puts the window back and the glass shows the screen again")
+	for i in 200:
+		if not p.is_using_terminal():
+			break
+		await physics_frame
+	check(not p.is_using_terminal(), "and you step back from the desk")
+	_game().diegetic_ui = false
+	nb.rebuild()
+	check(nb.held == null and p.held_notebook == null and nb.pages.get_parent() == nb, "the setting switches back to the full-screen notebook")
+	t.interact(p)
+	check(ui.visible and not ui.is_on_screen(), "and the full-screen terminal")
+	ui.close()
 	level.queue_free()
 	await process_frame
 
