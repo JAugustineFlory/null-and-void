@@ -415,6 +415,10 @@ static func memo(parent: Node, pos: Vector3, facing_deg: float, title: String, f
 	var l := _print(face, title, Vector3(0, 0.12, -0.001), 0.18, NotebookArt.type_font(), 26, PRINT_INK)
 	l.name = "Title"
 	_lines(face, Vector3(0, 0.09, -0.0009), 0.17, 12, 0.017)
+	# Company stationery: the gold letterhead rule and Halcyon's mark, as on the page up close.
+	_piece(face, Vector3(0.17, 0.0016, 0.0002), Vector3(0, 0.104, -0.0009), ArtPalette.flat(ArtPalette.HALCYON_GOLD, 0.5))
+	var mark := _piece(face, Vector3(0.011, 0.011, 0.0002), Vector3(0.078, 0.128, -0.0009), ArtPalette.flat(ArtPalette.HALCYON_GOLD, 0.5))
+	mark.rotation_degrees.z = 45
 	var staple := _piece(face, Vector3(0.014, 0.0016, 0.0008), Vector3(-0.088, 0.13, -0.0012), ArtPalette.flat(Color(0.78, 0.79, 0.8), 0.25, 0.9))
 	staple.rotation_degrees.z = 40
 	return root
@@ -460,6 +464,7 @@ static func clipboard(parent: Node, pos: Vector3, facing_deg: float, title: Stri
 	l.name = "Title"
 	# The roster grid: header rule, rows, and a column line for the time.
 	var grid := ArtPalette.flat(Color(0.35, 0.4, 0.55), 0.9)
+	_piece(face, Vector3(0.19, 0.008, 0.0002), Vector3(0, 0.084, -0.0026), ArtPalette.flat(Color(0.82, 0.82, 0.84), 0.9))  # the printed header band
 	for r in 11:
 		_piece(face, Vector3(0.19, 0.0008, 0.0002), Vector3(0, 0.08 - r * 0.02, -0.0027), grid)
 	for x in [-0.03, 0.05]:
