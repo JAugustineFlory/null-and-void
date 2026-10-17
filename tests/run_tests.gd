@@ -1644,7 +1644,7 @@ func test_world() -> void:
 		await physics_frame
 	check(world.current == sra and sra.active, "the ride up hands play to Server Room A")
 	check(sra.arrival_lift.contains(world.player.global_position), "the crew steps out of the server floor's arrival car")
-	check(sra.rourke.global_position.distance_to(sra.arrival_lift.to_global(guide_local)) < 0.2 and lobby.rourke.is_queued_for_deletion(), "Server Room A's Rourke takes over where the ground floor's stood in the car")
+	check(sra.rourke.global_position.distance_to(sra.arrival_lift.to_global(guide_local)) < 0.2 and (not is_instance_valid(lobby.rourke) or lobby.rourke.is_queued_for_deletion()), "Server Room A's Rourke takes over where the ground floor's stood in the car")
 	for i in 10:
 		await physics_frame
 	check(sra.rourke.visible and sra.arrival_lift.open_amount > 0.0, "he rides up with them, and the car opens on the server floor")
