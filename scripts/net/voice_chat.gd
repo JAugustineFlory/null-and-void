@@ -10,6 +10,13 @@ const RADIO_BUS := "Radio"
 const NEAR_RANGE := 25.0
 const OPEN_MIC_THRESHOLD := 0.015
 const OPEN_MIC_HANG := 0.5
+## Automatic gain: bring each talker up to about this loudness (RMS)...
+const VOICE_LEVEL := 0.12
+## ...but never boost a microphone more than this, so room noise stays down.
+const MAX_GAIN := 8.0
+## Audio held back before a voice starts playing, so a late packet doesn't
+## leave a gap (seconds).
+const JITTER_CUSHION := 0.08
 ## Tag nodes with this group to make radios crackle near them.
 const INTERFERENCE_GROUP := "radio_interference"
 
@@ -29,6 +36,8 @@ var _was_transmitting := false
 var _rx_name := ""
 var _rx_t := 0.0
 var _hud: Label
+var _encoder := VoiceCodec.Encoder.new()
+var _gain := 1.0
 
 
 static func create(for_level: Node) -> VoiceChat:
@@ -70,8 +79,10 @@ func _process(delta: float) -> void:
 		var n := _capture.get_frames_available()
 		if n > 0:
 			var frames := _capture.get_buffer(n)
-			if VoiceCodec.rms(frames) > OPEN_MIC_THRESHOLD:
+			var level_rms := VoiceCodec.rms(frames)
+			if level_rms > OPEN_MIC_THRESHOLD:
 				_open_mic_t = OPEN_MIC_HANG
+				_gain = lerpf(_gain, clampf(VOICE_LEVEL / level_rms, 1.0, MAX_GAIN), 0.2)
 			_open_mic_t -= delta
 			if radio.transmitting or (_open_mic_t > 0.0 and not mic_muted):
 				send_frames(frames, AudioServer.get_mix_rate(), radio.transmitting)
@@ -85,7 +96,9 @@ func send_frames(frames: PackedVector2Array, rate: float, on_radio: bool) -> voi
 		return
 	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return
-	_voice.rpc(on_radio, VoiceCodec.encode(frames, rate))
+	var packet := _encoder.encode(VoiceCodec.amplify(frames, _gain), rate)
+	if not packet.is_empty():
+		_voice.rpc(on_radio, packet)
 
 
 @rpc("any_peer", "unreliable_ordered", "call_remote", 2)
@@ -132,12 +145,16 @@ func _speaker(id: int) -> Dictionary:
 	var r := AudioStreamPlayer.new()
 	r.stream = _generator()
 	r.bus = RADIO_BUS
+	r.volume_db = 3.0
 	add_child(r)
 	r.play()
 	var near := AudioStreamPlayer3D.new()
 	near.stream = _generator()
 	near.max_distance = NEAR_RANGE
-	near.unit_size = 4.0
+	# Full volume within a few meters, still clear across a room.
+	near.unit_size = 6.0
+	near.volume_db = 6.0
+	near.max_db = 6.0
 	var body: Node = level.players.puppet(id)
 	(body if body else self).add_child(near)
 	near.position.y = 1.6
@@ -160,6 +177,17 @@ func _push(player: Node, frames: PackedVector2Array) -> void:
 	if pb == null:
 		return
 	var room: int = pb.get_frames_available()
+	# Nothing queued (the talker just started, or a packet was late): hold a
+	# moment of silence first so the next packet arrives before this runs out.
+	var capacity: int = player.get_meta("capacity", 0)
+	if room > capacity:
+		player.set_meta("capacity", room)
+		capacity = room
+	if room >= capacity:
+		var cushion := PackedVector2Array()
+		cushion.resize(int(VoiceCodec.RATE * JITTER_CUSHION))
+		pb.push_buffer(cushion)
+		room -= cushion.size()
 	if room < frames.size():
 		frames = frames.slice(0, room)
 	if not frames.is_empty():
@@ -198,7 +226,7 @@ static func _setup_radio_bus() -> void:
 	AudioServer.add_bus_effect(idx, lp)
 	var dist := AudioEffectDistortion.new()
 	dist.mode = AudioEffectDistortion.MODE_OVERDRIVE
-	dist.drive = 0.35
+	dist.drive = 0.2
 	AudioServer.add_bus_effect(idx, dist)
 
 
