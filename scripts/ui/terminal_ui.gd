@@ -4,7 +4,8 @@ extends CanvasLayer
 
 signal closed
 
-const MAX_COL_WIDTH := 48
+## Cells show in full; this only stops a runaway value from flooding the screen.
+const MAX_COL_WIDTH := 240
 const MAX_ROWS_SHOWN := 60
 
 var terminal: Node  # the Terminal in the world that opened this
@@ -14,11 +15,16 @@ var _input: TextEdit
 var _title: Label
 var _history: Array[String] = []
 var _history_i := -1
-## Every line on screen that can be written into the notebook: {kind, text}.
+## Every line on screen that can be written into the notebook: {kind, text,
+## from, to}, where from/to are the paragraphs it covers in the output.
 ## Kinds: info, echo, result, hint, error, schema, note.
 var _noteable: Array[Dictionary] = []
 var _note_label: LineEdit
 var _note_index := -1
+## Hovering a line lights it up and offers to add it to the notebook.
+var _hover_band: ColorRect
+var _add_chip: Button
+var _hover_index := -1
 
 
 func _ready() -> void:
@@ -64,7 +70,26 @@ func _ready() -> void:
 	_output.add_theme_font_size_override("normal_font_size", 17)
 	_output.add_theme_font_size_override("bold_font_size", 17)
 	_output.add_theme_color_override("default_color", ThemeUtil.GREEN)
+	_output.mouse_exited.connect(func(): if not _chip_hovered(): _hover_line(-1))
+	_output.gui_input.connect(_on_output_mouse)
 	vbox.add_child(_output)
+	_hover_band = ColorRect.new()
+	_hover_band.color = Color(ThemeUtil.GREEN, 0.12)
+	_hover_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hover_band.visible = false
+	_output.add_child(_hover_band)
+	_add_chip = Button.new()
+	_add_chip.text = "+ add to notebook"
+	_add_chip.flat = true
+	_add_chip.focus_mode = Control.FOCUS_NONE
+	_add_chip.add_theme_font_override("font", ThemeUtil.mono())
+	_add_chip.add_theme_font_size_override("font_size", 13)
+	_add_chip.add_theme_color_override("font_color", Color(ThemeUtil.GREEN, 0.75))
+	_add_chip.add_theme_color_override("font_hover_color", Color(0.98, 0.9, 0.42))
+	_add_chip.visible = false
+	_add_chip.pressed.connect(func(): _start_note(_hover_index))
+	_output.add_child(_add_chip)
+	_output.get_v_scroll_bar().value_changed.connect(func(_v): _hover_line(-1))
 
 	# Naming a note before it goes in the notebook.
 	_note_label = LineEdit.new()
@@ -88,7 +113,7 @@ func _ready() -> void:
 	_input.gui_input.connect(_on_input_key)
 	vbox.add_child(_input)
 
-	var foot := ThemeUtil.label("Enter: run    Shift+Enter: new line    Up/Down: previous queries    +note: write a line in your notebook    Esc: step away", 15, ThemeUtil.DIM)
+	var foot := ThemeUtil.label("Enter: run    Shift+Enter: new line    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away", 15, ThemeUtil.DIM)
 	vbox.add_child(foot)
 
 
@@ -138,8 +163,8 @@ func on_terminal_line(from_terminal: Node, bbcode: String, kind: String = "") ->
 		_render(bbcode, kind)
 
 
-## Put a line on this machine's screen. Every non-blank line gets a +note link
-## that writes it into this player's own notebook; "none" lines get no link.
+## Put a line on this machine's screen. Every non-blank line can be pointed at
+## and added to this player's own notebook; "none" lines can't.
 func _render(bbcode: String, kind: String = "") -> void:
 	var text := _plain(bbcode).strip_edges()
 	if text == "" or kind == "none":
@@ -147,9 +172,10 @@ func _render(bbcode: String, kind: String = "") -> void:
 		return
 	if kind == "":
 		kind = "error" if text.begins_with("ERROR") else ("hint" if text.begins_with("[SYSOP]") else "info")
-	_noteable.append({"kind": kind, "text": text})
-	# Sticky-note yellow, like NotebookArt.write_button: yellow means "this goes in your notebook".
-	_output.append_text("%s  [url=note:%d][font_size=13][bgcolor=#fae66b][color=#1f2652] + note [/color][/bgcolor][/font_size][/url]\n" % [bbcode, _noteable.size() - 1])
+	var from := _output.get_paragraph_count() - 1
+	_output.append_text(bbcode + "\n")
+	_noteable.append({"kind": kind, "text": text, "from": from, "to": _output.get_paragraph_count() - 1})
+	_hover_line(-1)  # the screen may scroll under the pointer
 
 
 ## What on screen right now can be written into the notebook, oldest first.
@@ -170,10 +196,62 @@ func write_note(index: int, label: String = "") -> bool:
 func _on_meta(meta: Variant) -> void:
 	var m := str(meta)
 	if m.begins_with("note:"):
-		_note_index = int(m.substr(5))
-		_note_label.text = ""
-		_note_label.visible = true
-		_note_label.grab_focus()
+		_start_note(int(m.substr(5)))
+
+
+## Ask for an optional name, then write line `index` into the notebook.
+func _start_note(index: int) -> void:
+	if index < 0 or index >= _noteable.size():
+		return
+	_note_index = index
+	_note_label.text = ""
+	_note_label.visible = true
+	_note_label.grab_focus()
+
+
+func _on_output_mouse(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_hover_line(_line_at(event.position.y))
+
+
+## Which noteable line is at this height in the output, or -1.
+func _line_at(y: float) -> int:
+	_output.get_content_height()  # lay out first: that can move the scroll
+	var at := y + _output.get_v_scroll_bar().value
+	for i in range(_noteable.size() - 1, -1, -1):
+		var top := _para_top(_noteable[i].from)
+		if at >= top:
+			return i if at < _para_top(_noteable[i].to) else -1
+	return -1
+
+
+## Light up line `index` (-1 for none) and put the add chip at its right end.
+func _hover_line(index: int) -> void:
+	_hover_index = index
+	var on := index >= 0 and index < _noteable.size()
+	_hover_band.visible = on
+	_add_chip.visible = on
+	if not on:
+		return
+	_output.get_content_height()
+	var scroll := _output.get_v_scroll_bar().value
+	var top := _para_top(_noteable[index].from) - scroll
+	var bottom := _para_top(_noteable[index].to) - scroll
+	_hover_band.position = Vector2(0, top)
+	_hover_band.size = Vector2(_output.size.x, maxf(bottom - top, 4.0))
+	_add_chip.reset_size()
+	_add_chip.position = Vector2(_output.size.x - _add_chip.size.x - 18, top + (bottom - top - _add_chip.size.y) / 2.0)
+
+
+## Where paragraph `p` starts in the output's content. Asking for the content
+## height first makes sure the text has been laid out.
+func _para_top(p: int) -> float:
+	_output.get_content_height()
+	return _output.get_paragraph_offset(p)
+
+
+func _chip_hovered() -> bool:
+	return _add_chip.visible and _add_chip.get_global_rect().has_point(_add_chip.get_global_mouse_position())
 
 
 func _finish_note(label: String) -> void:
@@ -197,6 +275,7 @@ func _on_note_key(event: InputEvent) -> void:
 func _clear_output() -> void:
 	_output.clear()
 	_noteable.clear()
+	_hover_line(-1)
 
 
 static func _plain(bbcode: String) -> String:
@@ -342,7 +421,7 @@ func _command(cmd: String) -> void:
 			print_line("  .schema NAME     show the columns of a table")
 			print_line("  .hint            ask SYSOP for a hint")
 			print_line("  .clear           clear the screen")
-			print_line("  .note LABEL      write the last line into your notebook (or click +note)")
+			print_line("  .note LABEL      write the last line into your notebook (or point at a line)")
 			print_line("  .reset           restore this terminal's data from backup")
 			if terminal.api != null:
 				print_line("  GET /path        send a web request, e.g. GET /cameras")

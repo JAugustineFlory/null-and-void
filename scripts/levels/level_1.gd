@@ -87,9 +87,9 @@ func build() -> void:
 	terminal.puzzles = [controller_puzzle]
 	terminal.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SERVER ROOM A",
-		"Session: ROURKE_D (escort)",
+		"Session: ROURKE_D (facilities)",
 		"",
-		"Loading session history for VALE_I...",
+		"Maintenance window open. Table changes allowed until 06:00.",
 	]
 	terminal.queried.connect(_on_query)
 	StickyNote.on_monitor(terminal, "where_and")
@@ -101,7 +101,7 @@ func build() -> void:
 		"This room's exit (SRA-EXIT) is in zone A.",
 		"Faulted lock? Reset it at its own rack. Never reset a healthy one.",
 	], true, "laminated", Vector2(0.21, 0.15))
-	Document.place(geo, Vector3(-3.55, 0.902, 8.3), 190.0, "Note taped to the desk", [
+	Document.place(geo, Vector3(-3.55, 0.902, 8.3), 190.0, "Reminders", [
 		{"text": "status 'fault' = the lock relay is stuck. Needs a hand reset at the rack.", "hand": true, "author": "mercer"},
 		{"text": "status 'offline' = someone switched it off on purpose. Leave it alone.", "hand": true, "author": "mercer"},
 		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true, "author": "mercer"},
@@ -200,7 +200,7 @@ func _on_all_through() -> void:
 ## once the whole team is inside, so nobody is locked out of the fight.
 func _on_terminal_opened(p: Node) -> void:
 	rourke.walk_to(p.global_position)  # drifting up behind them
-	await get_tree().create_timer(ATTACK_DELAY).timeout
+	await get_tree().create_timer(ATTACK_DELAY, false).timeout
 	var inside := Trigger.create(self, Vector3(0, 1, 2.0), Vector3(14, 2, 12))
 	inside.require_all = true
 	inside.entered.connect(func(_b): sync.event("_on_trapped", [null]), CONNECT_ONE_SHOT)
@@ -273,7 +273,7 @@ func _on_rourke_resolved(fate: String) -> void:
 	# starts again from the top.
 	await hud.line("l1_contain_1")
 	await hud.line("l0_sort_hint")
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(2.0, false).timeout
 	await hud.line("l1_contain_2")
 	hud.todo("Find out why the exit is locked (Rourke's badge works on the terminal)")
 	hud.lines(["l1_login", "l1_selftest"])

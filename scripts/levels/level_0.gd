@@ -36,10 +36,9 @@ var _look_offset := Vector2.ZERO
 var _look_base := Vector2.ZERO
 ## The front desk: players sit on it and swing their legs over, staff style.
 var counter_hop: Interactable
-## A sagging cable tray halfway down the hall: the crew's first, harmless crouch.
-## It sits outside the navmesh and Rourke doesn't collide with it; he just ducks.
-const TRAY_X := 15.5
-var cable_tray: StaticBody3D
+## The air return in the lobby's west wall: its grate comes off by hand, and the
+## duct behind it leads to a forgotten closet (an optional find and a first crawl).
+var vent_grate: Interactable
 var _intro_started := false
 var tape: Interactable
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
@@ -154,17 +153,21 @@ func build() -> void:
 	])
 	Greybox.label(geo, Vector3(23.85, 2.4, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
 	shutter = add_door("LOBBY-SHUTTER", Vector3(11, 1.5, 3), Vector3(0.15, 3.0, 2.0))
-	cable_tray = Greybox.box(self, Vector3(TRAY_X, 1.55, 3), Vector3(0.6, 0.3, 2.0), Color(0.45, 0.45, 0.42), "CableTray")
-	Greybox.label(self, Vector3(TRAY_X - 0.31, 1.55, 3), "LOW CLEARANCE", 36, Color(0.9, 0.75, 0.1), -90)
-	var tray_tip := Trigger.create(self, Vector3(TRAY_X - 2.5, 1, 3), Vector3(1.0, 2, 2))
-	tray_tip.entered.connect(func(_b): hud.notice("Hold Ctrl to crouch under the cable tray.", 5.0))
 	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8))
 
 	# The vent in the west wall leads to a forgotten storage closet: x -14..-8, z 3.5..4.5 duct
-	Greybox.box(geo, Vector3(-11, 0.05, 4), Vector3(6, 0.1, 1.0), Color(0.5, 0.5, 0.52), "VentFloor")
-	Greybox.box(geo, Vector3(-11, 1.1, 4), Vector3(6, 0.1, 1.0), Color(0.5, 0.5, 0.52), "VentTop")
-	Greybox.box(geo, Vector3(-11, 0.6, 3.45), Vector3(6, 1.2, 0.1), Color(0.5, 0.5, 0.52), "VentSideN")
-	Greybox.box(geo, Vector3(-11, 0.6, 4.55), Vector3(6, 1.2, 0.1), Color(0.5, 0.5, 0.52), "VentSideS")
+	Traversal.vent(geo, Vector3(-8, 0.1, 4), Vector3(-14, 0.1, 4), Vector2(0.9, 0.95))
+	vent_grate = Interactable.create(self, Vector3(-7.96, 0.575, 4), Vector3(0.05, 0.95, 0.9), "Pull the grate off the air return", Color(0.55, 0.56, 0.58))
+	vent_grate.name = "VentGrate"
+	for i in 6:  # louvres
+		var louvre := MeshInstance3D.new()
+		var lm := BoxMesh.new()
+		lm.size = Vector3(0.02, 0.05, 0.86)
+		louvre.mesh = lm
+		louvre.material_override = Greybox.mat(Color(0.3, 0.3, 0.32))
+		louvre.position = Vector3(0.03, -0.38 + i * 0.15, 0)
+		vent_grate.add_child(louvre)
+	vent_grate.used.connect(func(_p): sync.event("_on_vent_grate"))
 	Greybox.label(geo, Vector3(-7.88, 1.25, 4), "AIR RETURN", 30, Color(0.2, 0.2, 0.2), 90)
 	Greybox.room(geo, Vector3(-17, 0, 4), Vector3(6, 2.6, 6), {"floor": Color(0.2, 0.2, 0.2), "wall": Color(0.4, 0.38, 0.33)}, [
 		{"wall": "e", "at": 0.0, "width": 0.9, "height": 1.05, "bottom": 0.1},
@@ -194,20 +197,11 @@ func build() -> void:
 	add_child(rourke)
 	rourke.position = Vector3(0, 0, 4.8)
 	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
-	rourke.add_collision_exception_with(cable_tray)
 	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
 
 
 func net_setup() -> void:
 	sync.replicate(rourke, rourke.sync_properties())
-
-
-## Rourke ducks under the cable tray as he walks the hall.
-func _physics_process(delta: float) -> void:
-	if not is_instance_valid(rourke):
-		return
-	var duck := absf(to_local(rourke.global_position).x - TRAY_X) < 0.9
-	rourke._body.position.y = move_toward(rourke._body.position.y, -0.45 if duck else 0.0, 2.5 * delta)
 
 
 ## Brighter and clearer than the rest of the building: nothing looks wrong yet.
@@ -264,6 +258,16 @@ func _build_van(center: Vector3) -> void:
 		{"wall": "e", "at": -1.5, "width": 0.9, "height": 1.9},  # passenger door
 		{"wall": "e", "at": 0.1, "width": 1.3, "height": 1.9},  # sliding side door
 	])
+	# The windscreen is glass: you can see through it, not climb through it.
+	var glass := StaticBody3D.new()
+	glass.name = "Windscreen"
+	glass.position = cab + Vector3(0, 0.85 + 1.95 / 2.0, -2.2)
+	var glass_shape := CollisionShape3D.new()
+	var glass_box := BoxShape3D.new()
+	glass_box.size = Vector3(2.3, 1.95, 0.06)
+	glass_shape.shape = glass_box
+	glass.add_child(glass_shape)
+	geo.add_child(glass)
 	Greybox.box(geo, center + Vector3(0, 0.2, 0), Vector3(2.7, 0.2, 4.7), Color(0.15, 0.15, 0.15), "Chassis")
 	Greybox.box(geo, center + Vector3(0, 0.95, -2.65), Vector3(2.6, 0.9, 0.9), white, "Bonnet")
 	for dx in [-1.0, 1.0]:
@@ -275,7 +279,7 @@ func _build_van(center: Vector3) -> void:
 	Greybox.panel(geo, cab + Vector3(0, 0.75, -2.05), Vector3(2.4, 0.2, 0.3), Color(0.12, 0.12, 0.13))
 	Greybox.box(geo, cab + Vector3(-0.6, 0.6, 1.85), Vector3(1.0, 1.2, 0.6), Color(0.3, 0.3, 0.32), "Rack")
 	Greybox.label(geo, cab + Vector3(-0.6, 0.9, 1.54),
-		"JOB TICKET #4471\nHalcyon Data Systems\nAfter-hours callout, 23:00\nRecover lead engineer's systems.\nContact: D. Rourke, facilities.", 22, Color(0.95, 0.95, 0.9), 180)
+		"WORK ORDER %s\nHalcyon Data Systems\nAfter hours, 23:00\nReported: database problem.\nContact: D. Rourke, facilities." % get_node("/root/Game").ticket_number(), 22, Color(0.95, 0.95, 0.9), 180)
 	var dome := OmniLight3D.new()
 	dome.position = cab + Vector3(0, 1.9, 0)
 	dome.omni_range = 3.5
@@ -381,7 +385,7 @@ func _body_in_seat(peer_id: int, seat_index: int) -> Node:
 ## A teammate climbs out on their own machine; here we just see their door open.
 func _open_door_for(seat: Dictionary, order: int) -> void:
 	if order > 0:
-		await get_tree().create_timer(0.8 * order).timeout
+		await get_tree().create_timer(0.8 * order, false).timeout
 	var tw := create_tween()
 	tw.tween_interval(0.5)
 	if seat.exit == "side":
@@ -402,7 +406,7 @@ func _open_door_for(seat: Dictionary, order: int) -> void:
 func climb_out(p: Player, seat: Dictionary, order: int = 0) -> void:
 	_hold_camera(p)
 	if order > 0:
-		await get_tree().create_timer(0.8 * order).timeout
+		await get_tree().create_timer(0.8 * order, false).timeout
 	var eye: Vector3 = seat.spawn.origin + Vector3.UP * p.head.position.y
 	var start := _view(p)
 	var at_handle := _view_at(eye, seat.handle, start.x)
@@ -478,6 +482,7 @@ func _hold_camera(p: Player) -> void:
 func _release_camera(p: Node) -> void:
 	p.process_mode = Node.PROCESS_MODE_INHERIT
 	p.input_locked = false
+	p.seated = false  # out of the van
 	if p == _look_player:
 		_look_player = null
 		_look_offset = Vector2.ZERO
@@ -526,11 +531,12 @@ func player_spawn(index: int) -> Transform3D:
 
 func start() -> void:
 	player.flashlight.visible = false  # the lights are on; nobody needs a torch yet
+	player.seated = true  # belted in until they unbuckle
 	hud.notice("Look down at your seat belt and press E to unbuckle when you're ready", 600.0)
 	_dispatch_chatter()
 	if not _intro_started:
 		await all_ready
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(2.0, false).timeout
 	hud.todo("Meet our contact at the front doors")
 	# Co-op: triggers and Rourke run on the host, so every machine waits on gates.
 	var approach := Trigger.create(self, Vector3(0, 1, 11.5), Vector3(16, 2, 2))
@@ -636,7 +642,7 @@ func _after_memo() -> void:
 	hud.todo("")
 	# Written on the job ticket: what the crew touched, for later levels to read back.
 	get_node("/root/Game").ticket_fill("Put the memo back in order", "rebuilt from memo_fragments. Copy to the director, says Rourke")
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(1.0, false).timeout
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
 	walkies.enabled = true
 	# One radio on the rack for each player.
@@ -693,6 +699,17 @@ func _on_reach_server_room(_b: Node) -> void:
 	player.input_locked = true
 	await hud.fade(true, 1.0)
 	finish_level("level_1")
+
+
+## The grate comes off and leans against the wall, on every machine.
+func _on_vent_grate() -> void:
+	vent_grate.enabled = false
+	for c in vent_grate.get_children():
+		if c is CollisionShape3D:
+			c.disabled = true
+	vent_grate.position = Vector3(-7.75, 0.48, 5.1)
+	vent_grate.rotation_degrees = Vector3(0, 0, -12)
+	hud.notice("Hold Ctrl to crouch, and keep holding it to crawl in.", 5.0)
 
 
 ## Optional: Mercer's cassette in the forgotten closet. Everyone hears it.

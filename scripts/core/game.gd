@@ -38,13 +38,24 @@ var notebook_notes: Array[String] = []
 var notebook_tables := {}
 ## Lines this player wrote down from a terminal: {label, text, kind}.
 var notebook_written: Array[Dictionary] = []
-## The crew's Byte-Right job ticket, clipped in the notebook: the call-out they were
-## hired for. These lines are printed on it; the tasks are written in by hand.
+## The crew's Byte-Right work order, clipped in the notebook: the call-out they
+## were hired for, as dispatch printed it (WorkOrderForm draws it). The scope is
+## the job they think they're doing; the tasks are written in by hand below it.
 const TICKET := {
 	"company": "BYTE-RIGHT IT SERVICES",
+	"tagline": "Networks - Databases - 24 hr call-outs",
+	"priority": "AFTER HOURS",
 	"customer": "Halcyon Data Systems",
+	"site": "Halcyon main building, front entrance",
+	"contact": "D. Rourke, facilities (will escort)",
 	"problem": "\"database problem\", night call-out",
-	"contact": "D. Rourke (night escort)",
+	"billing": "Hourly, 2 hr minimum",
+	"scope": [
+		"Sign in at reception. Wait for site contact.",
+		"Diagnose the reported database problem.",
+		"Housekeeping: tidy/reorganise tables as directed on site.",
+		"Test, write up, get client sign-off.",
+	],
 }
 ## The ticket's task list, in the character's hand as tasks come up:
 ## {text, done, filled}. `filled` is what was written in once it was done.

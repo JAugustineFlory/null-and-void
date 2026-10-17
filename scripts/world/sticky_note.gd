@@ -12,8 +12,10 @@ var on_terminal := false
 
 
 ## Stick a note on a terminal's monitor, bottom-left of the screen.
+## Taped to the lower-left corner of the bezel, proud of the glass (the screen's
+## front is at z 0.24), so the screen never swallows it.
 static func on_monitor(terminal: Node3D, id: String) -> StickyNote:
-	return place(terminal, Vector3(-0.17, 0.09, 0.237), id, true)
+	return place(terminal, Vector3(-0.19, 0.065, 0.252), id, true)
 
 
 static func place(parent: Node, pos: Vector3, id: String, stuck_to_terminal: bool, facing_deg: float = 0.0, flat: bool = false) -> StickyNote:
