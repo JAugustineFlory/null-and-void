@@ -76,8 +76,8 @@ var _pad_mode := "exit"  # which keypad is open: office, exit or seal
 var _glass: Array[RID] = []
 ## Corridor and landing: leaving it another way also wakes the Watcher (level space).
 var _corridor_box := AABB(Vector3(-6, -1, 2), Vector3(12, 3, 8.5))
-var arrival_lift: Level2Elevator
-var exit_lift: Level2Elevator
+var arrival_lift: Elevator
+var exit_lift: Elevator
 var key_glass: Level2Glass
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
@@ -127,15 +127,11 @@ func build() -> void:
 	var floor_c := Color(0.27, 0.27, 0.3)
 	var wall_c := Color(0.52, 0.53, 0.5)
 	var office_wall := Color(0.46, 0.48, 0.5)
-	# Stair landing (spawn): x 2.5..5.5, z 6..10. In the World its south side opens
-	# onto Server Room A's exit corridor.
-	var landing_gaps := [
+	# Elevator landing (spawn): x 2.5..5.5, z 6..10. Server Room A's elevator rides here.
+	Greybox.room(geo, Vector3(4, 0, 8), Vector3(3, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4},
-		{"wall": "e", "at": 0.0, "width": 1.2, "height": 2.1},  # the arrival elevator
-	]
-	if world:
-		landing_gaps.append({"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4})
-	Greybox.room(geo, Vector3(4, 0, 8), Vector3(3, 3.2, 4), {"floor": floor_c, "wall": wall_c}, landing_gaps)
+		{"wall": "e", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},  # the arrival elevator
+	])
 	Greybox.label(geo, Vector3(4, 2.7, 9.88), "FROM SERVER ROOM A", 40, Color(0.2, 0.2, 0.2), 180)
 	# Corridor: x -6..6, z 2..6
 	Greybox.room(geo, Vector3(0, 0, 4), Vector3(12, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
@@ -168,20 +164,19 @@ func build() -> void:
 	# Elevator lobby past SEC-EXIT: x -2..2, z -17..-12
 	Greybox.room(geo, Vector3(0, 0, -14.5), Vector3(4, 3.2, 5), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
-		{"wall": "n", "at": 0.0, "width": 1.2, "height": 2.1},
+		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
 	])
 	Greybox.label(geo, Vector3(0, 2.75, -16.88), "ELEVATOR  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
-	exit_lift = Level2Elevator.create(self, geo, Vector3(0, 0, -17), 180, "2", ["2", "1", "B1"])
-	exit_lift.button.prompt = "Press B1 (Records Archive)"
-	# The button runs on the host (it can see where everyone is); the doors shut for all.
-	exit_lift.button.used.connect(func(_p):
-		if exit_lift.refusal != "":
-			sync.team_notice(exit_lift.refusal, 3.0))
-	exit_lift.button_pressed.connect(func(_b): sync.event("_close_exit_lift"))
+	# The button works on the host, once everyone is in; the doors shut on every machine.
+	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "B2", ["B2", "B3"])
+	exit_lift.name = "ExitElevator"
+	exit_lift.hud = hud
 	exit_lift.closed.connect(func():
 		if sync.is_host():
 			sync.event("_on_exit", [null]))
-	arrival_lift = Level2Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "2", ["3", "2", "1"])
+	# Server Room A's elevator links to this car and opens it at the end of the ride.
+	arrival_lift = Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "B2", ["1", "B1", "B2"])
+	arrival_lift.name = "ArrivalElevator"
 	arrival_lift.button.enabled = false
 	add_door("SEC-EXIT", Vector3(0, 1.2, -12), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.75, -11.88), "SEC-EXIT", 56, Color(0.85, 0.2, 0.15))
@@ -433,11 +428,6 @@ func net_setup() -> void:
 func start() -> void:
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
-	if world:
-		# Seal Server Room A once the whole team is on the landing.
-		var through := Trigger.create(self, Vector3(4, 1, 8.5), Vector3(3, 2, 1.5))
-		through.require_all = true
-		through.entered.connect(func(_b): sync.event("_on_all_through"))
 	arrival_lift.open()
 	stage = "hidden"
 	_place_watcher(STAGES.hidden[0], STAGES.hidden[1])
@@ -449,10 +439,6 @@ func start() -> void:
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
 		hud.set_objective("Use the security booth terminal")
-
-
-func _on_all_through() -> void:
-	world.seal_behind(self)
 
 
 func _process(delta: float) -> void:
@@ -897,11 +883,6 @@ func _update_door() -> bool:
 	return open
 
 
-func _close_exit_lift() -> void:
-	if not exit_lift.is_closing:
-		exit_lift.close()
-
-
 func seal_exit() -> void:
 	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'SEC-EXIT'")
 	db.sync_world()
@@ -920,6 +901,7 @@ func _on_exit(_b: Node) -> void:
 	else:
 		await hud.say("", "The door behind you is still open. You don't look back. You know better.", 4.5)
 	Game.completed_level = "level_2"
+	Game.next_level = ""  # the end of the playable slice, for now
 	completed.emit()
 
 

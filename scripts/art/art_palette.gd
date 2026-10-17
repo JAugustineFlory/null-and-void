@@ -59,6 +59,7 @@ const SURFACES := {
 	"floor_tile": {"color": Color(0.7, 0.69, 0.64), "rough": 0.4, "tex": "tiles", "tile": 0.3},
 	"metal": {"color": METAL, "rough": 0.45, "metal": 0.8, "tex": "brushed", "tile": 1.0},
 	"rack": {"color": RACK_BLACK, "rough": 0.5, "metal": 0.4, "tex": "brushed", "tile": 1.0},
+	"rack_front": {"color": Color(0.11, 0.115, 0.125), "rough": 0.5, "metal": 0.4, "tex": "rackfront", "tile": 0.6},
 	"asphalt": {"color": Color(0.13, 0.13, 0.14), "rough": 1.0, "tex": "speckle", "tile": 1.5},
 	"plastic": {"color": BEIGE_PLASTIC, "rough": 0.5, "tex": "", "tile": 1.0},
 	"dark_plastic": {"color": DARK_PLASTIC, "rough": 0.45, "tex": "", "tile": 1.0},
@@ -138,7 +139,7 @@ static func material_count() -> int:
 
 
 ## A small grayscale texture, generated once. Kinds: speckle, tiles, soft,
-## grain, blotch, brushed. Values sit around 0.85 so the albedo color still reads.
+## grain, blotch, brushed, rackfront. Values sit around 0.85 so the albedo color still reads.
 static func texture(kind: String) -> Texture2D:
 	if _textures.has(kind):
 		return _textures[kind]
@@ -165,10 +166,15 @@ static func texture(kind: String) -> Texture2D:
 				"grain":
 					noise.frequency = 0.02
 					var warp := _tile_noise(noise, x, y, n)
-					v = 0.82 + 0.12 * (0.5 + 0.5 * sin((float(y) / n) * TAU * 9.0 + warp * 5.0))
+					v = 0.87 + 0.06 * (0.5 + 0.5 * sin((float(y) / n) * TAU * 12.0 + warp * 3.0))
 				"brushed":
 					noise.frequency = 0.6
 					v = 0.86 + 0.1 * _tile_noise(noise, x, 0, n)
+				"rackfront":
+					# One cabinet per tile: dark seams down each side, a vented door between.
+					v = 0.9 + 0.06 * (1.0 if (y / 3) % 2 == 0 else 0.0)
+					if mini(x, n - 1 - x) < 3:
+						v = 0.35
 				"tiles":
 					noise.frequency = 0.45
 					v = 0.86 + 0.1 * _tile_noise(noise, x, y, n)

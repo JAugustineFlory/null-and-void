@@ -24,6 +24,8 @@ var _screen: MeshInstance3D
 ## What this machine's copy of the screen shows. In co-op everyone's queries
 ## appear here, so players can work one terminal together.
 var transcript: Array[String] = []
+## What each transcript line is ("echo", "result", "hint"...), for the notebook.
+var transcript_kinds: Array[String] = []
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
@@ -85,10 +87,16 @@ func report_open(player: Node) -> void:
 
 
 ## Add a line to the screen (and to the open terminal window, if it shows this terminal).
-func print_line(bbcode: String) -> void:
+func print_line(bbcode: String, kind: String = "") -> void:
 	transcript.append(bbcode)
+	transcript_kinds.append(kind)
 	if ui:
-		ui.on_terminal_line(self, bbcode)
+		ui.on_terminal_line(self, bbcode, kind)
+
+
+func clear_screen() -> void:
+	transcript.clear()
+	transcript_kinds.clear()
 
 
 func boot_text() -> Array:

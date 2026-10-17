@@ -29,6 +29,7 @@ var controller_puzzle := Puzzle.new("controller",
 	"Other faulted or offline controllers belong to other doors or are off on purpose: read their note column.",
 ])
 var rourke_spawn := Transform3D.IDENTITY
+var elevator: Elevator
 
 
 func build() -> void:
@@ -48,15 +49,12 @@ func build() -> void:
 	if world:
 		ante_gaps.append({"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4})  # from the lobby hall
 	Greybox.room(geo, Vector3(0, 0, 11.5), Vector3(3, 3, 5), {"floor": floor_c, "wall": wall_c}, ante_gaps)
-	var exit_gaps := [{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4}]
-	if world:
-		exit_gaps.append({"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4})  # on to the security wing
-	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, exit_gaps)
-	if world:
-		# The security wing is built behind this door before players reach it.
-		# A plain push door, not on the network: nothing to query, it opens when you get there.
-		exit_door = Door.create(self, "SRA-STAIRS", Vector3(0, 1.2, -15.9), Vector3(1.8, 2.4, 0.15), Color(0.42, 0.33, 0.24))
-		Greybox.label(geo, Vector3(0, 2.7, -15.8), "STAIRS  -  SECURITY OFFICE", 48, Color(0.85, 0.85, 0.8))
+	Greybox.room(geo, Vector3(0, 0, -12.5), Vector3(3, 3, 7), {"floor": floor_c, "wall": wall_c}, [
+		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
+	])
+	# The way out: an elevator at the end of the emergency exit corridor, going down.
+	elevator = Elevator.create(self, geo, Vector3(0, 0, -16.0), 180, "1", ["1", "B1", "B2"])
 	add_door("SRA-ENTRY", Vector3(0, 1.2, 9), Vector3(1.8, 2.4, 0.15)).slide_axis = Vector3.UP
 	add_door("SRA-EXIT", Vector3(0, 1.2, -9), Vector3(1.8, 2.4, 0.15))
 	Greybox.label(geo, Vector3(0, 2.8, -8.88), "EMERGENCY EXIT", 64, Color(0.1, 0.8, 0.2))
@@ -90,6 +88,7 @@ func build() -> void:
 		"Loading session history for VALE_I...",
 	]
 	terminal.queried.connect(_on_query)
+	StickyNote.on_monitor(terminal, "where_and")
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
 		add_light("room", p, 9.0, 1.2)
@@ -103,6 +102,7 @@ func build() -> void:
 	rourke.position = Vector3(0, 0, 7.6)
 	rourke_spawn = Transform3D(Basis(), Vector3(0, 0, -2))
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 12.6))
+	DressLevel1.apply(self)  # furniture and materials (Graphics thread)
 
 
 func net_setup() -> void:
@@ -302,27 +302,40 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 	for p in rack_panels.values():
 		p.enabled = false
 	hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SRA-EXIT: OPENED" % id, 4.0, ThemeUtil.GREEN)
-	hud.set_objective("Get out through the emergency exit")
+	hud.set_objective("Get out through the emergency exit to the elevator")
 	hud.line("l1_exit_open", false)
-	prepare_next()
 	var t := Trigger.create(self, Vector3(0, 1, -13.5), Vector3(3, 2, 1.5))
 	t.entered.connect(func(_b): sync.event("_on_exit", [null]))
 
 
 func _on_exit(_b: Node) -> void:
-	# In the World the security wing waits behind the stairwell door: no fade, play carries on.
-	if not world:
-		player.input_locked = true
+	elevator.hud = hud
+	elevator.open()
+	elevator.closed.connect(_on_elevator_closed, CONNECT_ONE_SHOT)
 	if Game.rourke_fate == "tied":
 		await hud.say("", "Behind you, a cut length of network cable lies on the floor. Rourke is gone.", 4.0)
 		await hud.line("l1_lockdown_tied")
-	await hud.line("l1_sealed")
-	Game.completed_level = "level_1"
+	if not elevator.is_closing and not elevator.riding:
+		hud.set_objective("Everyone into the elevator, then press B2")
+
+
+## The doors are shut: this is the checkpoint and the seal. The next wing loads
+## during the ride, and the crew steps out of its arrival car.
+func _on_elevator_closed() -> void:
+	hud.set_objective("")
 	if world:
-		exit_door.set_open(true)
-		finish_level("level_2")
-		return
-	await hud.fade(true, 1.2)
+		db.checkpoint()
+	prepare_next()
+	var next: Node = world.wings.get("level_2") if world else null
+	if next and next.get("arrival_lift") is Elevator:
+		elevator.link_to(next.arrival_lift)
+	hud.line("l1_sealed")
+	await elevator.ride()
+	Game.completed_level = "level_1"
+	Game.next_level = "level_2"
+	if not world:
+		player.input_locked = true
+		await hud.fade(true, 1.2)
 	finish_level("field_notes")
 
 

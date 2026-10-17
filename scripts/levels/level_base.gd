@@ -12,6 +12,7 @@ var db: FacilityDB
 var hud: HUD
 var player: Player
 var terminal_ui: TerminalUI
+var notebook: Notebook
 ## Static level geometry lives under this node so navigation can bake from it.
 var geo: NavigationRegion3D
 var doors := {}
@@ -70,6 +71,12 @@ func _ready() -> void:
 	_build_pause_menu()
 	net_setup()
 	sync.began.connect(players.go_live)
+	# Each player's own notebook: local, never synced, added after node names are fixed.
+	notebook = Notebook.new()
+	notebook.name = "Notebook"
+	notebook.player = player
+	notebook.terminal_ui = terminal_ui
+	add_child(notebook)
 	active = true
 	sync.begin_when_ready(start)
 
@@ -79,6 +86,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	db = host.db
 	hud = host.hud
 	terminal_ui = host.terminal_ui
+	notebook = host.notebook
 	player = host.player
 	players = host.players
 	voice = host.voice
@@ -280,7 +288,7 @@ class PauseCatcher:
 	var level: LevelBase
 
 	func _unhandled_input(event: InputEvent) -> void:
-		if event.is_action_pressed("pause") and not level.terminal_ui.visible:
+		if event.is_action_pressed("pause") and not level.terminal_ui.visible and not (level.notebook and level.notebook.is_open()):
 			level._toggle_pause()
 			get_viewport().set_input_as_handled()
 
