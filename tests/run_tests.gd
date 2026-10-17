@@ -12,6 +12,8 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# The full-screen notebook and terminal; test_in_world_ui covers the held and on-screen ones.
+	_game().diegetic_ui = false
 	test_facility_db()
 	test_level_0_puzzles()
 	test_level_1_data_every_seed()
@@ -35,6 +37,7 @@ func _run() -> void:
 	test_sticky_notes_never_give_answers()
 	await test_elevator()
 	await test_notebook()
+	await test_in_world_ui()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
@@ -1680,6 +1683,63 @@ func test_notebook() -> void:
 	check(_game().notebook_notes.is_empty(), "a new run starts with an empty notebook")
 	_game().load_notebook(saved)
 	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
+	level.queue_free()
+	await process_frame
+
+
+func test_in_world_ui() -> void:
+	print("Notebook in hand, terminals on their own screens")
+	_game().new_run(5)
+	_game().diegetic_ui = true
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	for i in 10:
+		await physics_frame
+	var nb: Notebook = level.notebook
+	var p: Player = level.player
+	level._release_camera(p)  # out of the van intro
+	check(nb.held != null and p.held_notebook == nb.held and nb.pages.get_parent() == nb.held.viewport, "the notebook is held in your hands, its pages drawn on it")
+	check(nb.open() and p.is_holding_notebook() and not p.input_locked, "Tab raises it without freezing you in place")
+	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER, "it opens on the work order")
+	nb.close()
+	check(not nb.is_open() and not p.is_holding_notebook(), "and Tab puts it away")
+	var t: Terminal = level.desk_terminal
+	check(t.screen != null and t.screen.keyboard != null and t.screen.hosted == null, "every terminal is a CRT with its own screen and keyboard")
+	var sticky: StickyNote = t.find_children("*", "StickyNote", true, false)[0]
+	check(t.to_local(sticky.global_position).z > t.to_local(t.screen.glass.global_position).z, "the monitor's sticky note sits in front of the glass")
+	var sp := t.stand_point.global_position
+	p.global_position = Vector3(sp.x, 0.4, sp.z + 0.3)
+	for i in 60:
+		await physics_frame
+	var ui: TerminalUI = level.terminal_ui
+	var home: Node = ui.get_parent()
+	nb.open()
+	t.enabled = true
+	t.interact(p)
+	check(p.is_using_terminal() and not p.is_holding_notebook() and not ui.visible, "E steps you up to the desk and puts the notebook away first")
+	for i in 400:
+		if ui.visible:
+			break
+		await physics_frame
+	check(ui.visible and ui.is_on_screen() and t.screen.hosted == ui and not ui._dim.visible, "once the camera settles, the terminal opens on its own glass")
+	check(not nb.open(), "the notebook can't come out at a terminal")
+	ui.run("SELECT * FROM memo_fragments")
+	check(t.transcript.any(func(l): return l.contains("piece_no")), "queries typed on the glass run as usual")
+	ui.close()
+	await process_frame
+	await process_frame
+	check(ui.get_parent() == home and not ui.is_on_screen() and t.screen.hosted == null and ui._dim.visible, "stepping away puts the window back and the glass shows the screen again")
+	for i in 200:
+		if not p.is_using_terminal():
+			break
+		await physics_frame
+	check(not p.is_using_terminal(), "and you step back from the desk")
+	_game().diegetic_ui = false
+	nb.rebuild()
+	check(nb.held == null and p.held_notebook == null and nb.pages.get_parent() == nb, "the setting switches back to the full-screen notebook")
+	t.interact(p)
+	check(ui.visible and not ui.is_on_screen(), "and the full-screen terminal")
+	ui.close()
 	level.queue_free()
 	await process_frame
 

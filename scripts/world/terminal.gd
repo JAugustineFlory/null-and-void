@@ -33,6 +33,11 @@ var _screen: MeshInstance3D
 ## a level's desk or a new screen model needs it.
 var stand_point: Marker3D
 var focus_point: Marker3D
+## The CRT with the screen's text on its glass (TerminalScreen). The terminal
+## window opens on it when the player steps up (Game.diegetic_ui).
+var screen: TerminalScreen
+## The player walking up to this terminal, until the camera settles on the glass.
+var _stepping_up: Node
 ## What this machine's copy of the screen shows. In co-op everyone's queries
 ## appear here, so players can work one terminal together.
 var transcript: Array[String] = []
@@ -87,6 +92,9 @@ static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: Stri
 	shape.shape = bs
 	shape.position.y = 0.25
 	t.add_child(shape)
+	t.screen = TerminalScreen.attach(t)
+	t.screen.set_title(name_text)
+	t.screen.follow(t)
 	parent.add_child(t)
 	t.add_to_group("interactable")
 	t.used.connect(t._on_used)
@@ -94,7 +102,30 @@ static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: Stri
 
 
 func _on_used(player: Node) -> void:
+	if ui.visible:
+		return
+	var game := get_node_or_null("/root/Game")
+	if game and game.diegetic_ui and screen and player.has_method("use_terminal"):
+		# Step up to the desk; the window opens on the glass once the camera settles.
+		if player.use_terminal(stand_point, screen):
+			_stepping_up = player
+			if not player.terminal_focused.is_connected(_on_focused):
+				player.terminal_focused.connect(_on_focused)
+				player.terminal_left.connect(_on_walked_off)
+		return
 	ui.open(self, player)
+
+
+func _on_focused() -> void:
+	var player := _stepping_up
+	_stepping_up = null
+	if player and not ui.visible:
+		ui.open_on_screen(self, player, screen)
+
+
+## They stepped back (or respawned) before it opened: don't open it later.
+func _on_walked_off() -> void:
+	_stepping_up = null
 
 
 ## Opening a terminal is local to each player; the host only hears that it happened.

@@ -289,6 +289,16 @@ func _build_pause_menu() -> void:
 	volume.custom_minimum_size = Vector2(300, 24)
 	volume.value_changed.connect(func(v): AudioServer.set_bus_volume_db(0, linear_to_db(maxf(v, 0.0001))))
 	box.add_child(volume)
+	# Off: the notebook and terminals open full-screen, as before (for anyone who finds that easier).
+	var in_world := CheckButton.new()
+	in_world.name = "InWorldUI"
+	in_world.text = "Notebook and terminals in the world"
+	in_world.button_pressed = get_node("/root/Game").diegetic_ui
+	in_world.toggled.connect(func(on):
+		get_node("/root/Game").diegetic_ui = on
+		if notebook:
+			notebook.rebuild())
+	box.add_child(in_world)
 	box.add_child(ThemeUtil.label("Controls", 20))
 	box.add_child(ThemeUtil.label(CONTROLS, 17, Color(0.85, 0.85, 0.85)))
 	var menu := Button.new()

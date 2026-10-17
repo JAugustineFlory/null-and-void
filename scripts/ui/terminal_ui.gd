@@ -27,22 +27,26 @@ var _add_chip: Button
 var _hover_index := -1
 ## Who else is at this terminal, and what they're typing.
 var _others: Label
+## On a terminal's in-world screen (open_on_screen), the window fills the glass:
+## no dimmed backdrop, no margin. `_home` is where it goes back to afterwards.
+var _dim: ColorRect
+var _panel: PanelContainer
+var _screen: Node
+var _home: Node
 
 
 func _ready() -> void:
 	layer = 20
 	visible = false
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.75)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(dim)
+	_dim = ColorRect.new()
+	_dim.color = Color(0, 0, 0, 0.75)
+	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_dim)
 
 	var panel := PanelContainer.new()
+	_panel = panel
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.offset_left = 120
-	panel.offset_right = -120
-	panel.offset_top = 60
-	panel.offset_bottom = -60
+	_set_hosted(false)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.02, 0.05, 0.03)
 	style.border_color = Color(0.2, 0.45, 0.25)
@@ -146,6 +150,40 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	_input.grab_focus()
 
 
+## Open on the terminal's own CRT (a TerminalScreen) instead of over the whole
+## view: the player has stepped up and is looking at the glass.
+func open_on_screen(from_terminal: Node, by_player: Player, screen: Node) -> void:
+	_home = get_parent()
+	_screen = screen
+	_set_hosted(true)
+	screen.host(self)
+	open(from_terminal, by_player)
+
+
+func is_on_screen() -> bool:
+	return _screen != null
+
+
+func _set_hosted(on: bool) -> void:
+	_dim.visible = not on
+	var margin := Vector2.ZERO if on else Vector2(120, 60)
+	_panel.offset_left = margin.x
+	_panel.offset_right = -margin.x
+	_panel.offset_top = margin.y
+	_panel.offset_bottom = -margin.y
+
+
+## Off the glass and back where it lives; the player steps back from the desk.
+func _leave_screen() -> void:
+	var screen := _screen
+	_screen = null
+	if screen and is_instance_valid(screen) and screen.hosted == self:
+		screen.release()
+	_set_hosted(false)
+	if _home and is_instance_valid(_home) and get_parent() == null:
+		_home.add_child(self)
+
+
 func close() -> void:
 	if not visible:
 		return
@@ -160,7 +198,12 @@ func close() -> void:
 			mirror.seat(terminal, false)
 	if player:
 		player.input_locked = false
+		if _screen and player.has_method("leave_terminal"):
+			player.leave_terminal()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if _screen:
+		# Not mid-way through the key that closed it, which the glass is still handing on.
+		_leave_screen.call_deferred()
 	closed.emit()
 
 

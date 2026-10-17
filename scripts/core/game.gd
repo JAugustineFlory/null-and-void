@@ -31,6 +31,9 @@ var query_log: Array[String] = []
 var concepts_learned: Array[String] = []
 ## Seed for this run's randomized data (replay scenarios).
 var run_seed := 0
+## The notebook is held in your hands and terminals are used on their own screens.
+## Off: both open full-screen over the view, as before (a setting in the pause menu).
+var diegetic_ui := true
 ## This player's notebook. Each machine keeps its own, so in co-op a note belongs to
 ## whoever picked it up. Sticky note ids, in the order found (see StickyNotes).
 var notebook_notes: Array[String] = []
