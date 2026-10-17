@@ -22,6 +22,10 @@ func build() -> void:
 	Traversal.gate(geo, Vector3(-22, 0, 0), 3.0, 1.0, 8.0, false)
 	_sign(Vector3(-23, 2.4, 0), "Sprint (Shift), then Ctrl: slide under.\nYou can let go of Shift just before Ctrl. Or crouch-walk.")
 
+	# Vault a desk by walking into it.
+	Greybox.box(geo, Vector3(-20.3, 0.45, 0), Vector3(0.8, 0.9, 10), Color(0.42, 0.3, 0.22))
+	_sign(Vector3(-21.2, 1.7, 0), "Walk into a desk or counter: vault over it.")
+
 	# Mantle a waist-high wall.
 	Greybox.box(geo, Vector3(-17, 0.6, 0), Vector3(2, 1.2, 10), Color.DIM_GRAY)
 	_sign(Vector3(-19, 2.2, 0), "Space at a waist-high wall: mantle.")

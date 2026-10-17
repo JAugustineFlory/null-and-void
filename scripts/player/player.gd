@@ -21,7 +21,7 @@ signal terminal_focused
 ## You've stepped back from a terminal and can move again.
 signal terminal_left
 
-enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL }
+enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT }
 
 const WALK_SPEED := 3.8
 const SPRINT_SPEED := 6.5
@@ -53,6 +53,15 @@ const HANG_SETTLE := 0.15
 ## How far (radians) you can turn from your stance while shuffling along a ledge.
 const LEDGE_LOOK := deg_to_rad(100.0)
 const MANTLE_UP_TIME := 0.22
+## Walking into something knee to waist high (a desk, a counter, a railing) vaults
+## you over it if there's floor on the other side. Taller than that, Space mantles.
+const VAULT_MIN := 0.45
+const VAULT_MAX := 1.15
+## Thicker than this on top and it's a platform to climb onto, not something to vault.
+const VAULT_DEPTH := 1.0
+const VAULT_UP_TIME := 0.16
+const VAULT_OVER_TIME := 0.24
+const VAULT_DOWN_TIME := 0.18
 const MANTLE_OVER_TIME := 0.18
 const SHIMMY_SPEED := 1.2
 const CLIMB_SPEED := 2.2
@@ -66,6 +75,8 @@ const STRIKE_RANGE := 2.0
 const STRIKE_COOLDOWN := 0.55
 ## Walking pace while reading the notebook: no sprinting, jumping or climbing.
 const NOTEBOOK_WALK_SPEED := 1.4
+## Mouse look is a little slower while reading.
+const NOTEBOOK_LOOK_SCALE := 0.75
 ## How long pulling the notebook out of the pocket (or putting it back) takes,
 ## matching HeldNotebook's open motion.
 const NOTEBOOK_RAISE_TIME := 0.45
@@ -124,7 +135,16 @@ var _bob_t := 0.0
 ## The notebook model in your hands (a HeldNotebook on `camera`, from
 ## HeldNotebook.attach). raise/lower_notebook() call its open_book()/close_book(),
 ## which play the pull-out and put-away. Optional: without one only the state changes.
-var held_notebook: Node3D
+## It only takes mouse input while `notebook_cursor` is on.
+var held_notebook: Node3D:
+	set(n):
+		held_notebook = n
+		if n:
+			n.set_process_input(notebook_cursor)
+## While the notebook is held the mouse looks around; holding right mouse shows a
+## cursor for clicking the pages instead. Read-only (set_notebook_cursor()).
+var notebook_cursor := false
+var _rmb_was := false
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
 var notebook_amount := 0.0
 var _notebook_held := false
@@ -191,14 +211,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if state == Move.TERMINAL:
 		return  # the screen has the mouse and keys; the terminal UI calls leave_terminal()
-	if _notebook_held and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
-		# The cursor is free for the pages; hold right mouse to look around.
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if event.pressed else Input.MOUSE_MODE_VISIBLE
-	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * MOUSE_SENS)
+	if event is InputEventMouseMotion and _mouse_looks():
+		var sens := MOUSE_SENS * (NOTEBOOK_LOOK_SCALE if _notebook_held else 1.0)
+		rotate_y(-event.relative.x * sens)
 		if state == Move.LEDGE:
 			_clamp_ledge_yaw()
-		head.rotation.x = clamp(head.rotation.x - event.relative.y * MOUSE_SENS, -1.45, 1.45)
+		head.rotation.x = clamp(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
 	elif event.is_action_pressed("flashlight"):
 		flashlight.visible = not flashlight.visible
 	elif event.is_action_pressed("interact"):
@@ -232,11 +250,13 @@ func step(delta: float) -> void:
 	controls.jump = false
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
-	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB]:
+	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB, Move.VAULT]:
 		lower_notebook()  # you need both hands
 	match state:
 		Move.MANTLE:
 			_step_mantle(delta)
+		Move.VAULT:
+			_step_vault(delta)
 		Move.RIDE:
 			_step_ride(jump_pressed, crouch_pressed)
 		Move.HANG:
@@ -284,15 +304,14 @@ func respawn(at: Transform3D) -> void:
 ## Pull the notebook out of your pocket and hold it up. You can still look around
 ## and walk slowly. False if your hands are busy (climbing, hanging, mantling).
 func raise_notebook() -> bool:
-	if state in [Move.MANTLE, Move.HANG, Move.CLIMB]:
+	if state in [Move.MANTLE, Move.HANG, Move.CLIMB, Move.VAULT]:
 		return false
 	if _notebook_held:
 		return true
 	_notebook_held = true
 	if held_notebook:
 		held_notebook.open_book()
-	if local_control and not input_locked:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE  # to click the pages
+	set_notebook_cursor(local_control and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
 	return true
 
 
@@ -303,8 +322,8 @@ func lower_notebook(instant: bool = false) -> void:
 	_notebook_held = false
 	if was_held and held_notebook:
 		held_notebook.close_book()
-	if was_held and local_control and not input_locked:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if was_held:
+		set_notebook_cursor(false)
 	if instant and was_out:
 		notebook_amount = 0.0
 		if held_notebook:
@@ -322,6 +341,25 @@ func toggle_notebook() -> bool:
 
 func is_holding_notebook() -> bool:
 	return _notebook_held
+
+
+## Right mouse held while reading: show the cursor to click the pages (tabs, next
+## page, "+ add") and stop looking around; released, the mouse looks again.
+## The local player follows the right mouse button by itself.
+func set_notebook_cursor(on: bool) -> void:
+	on = on and _notebook_held
+	notebook_cursor = on
+	if held_notebook:
+		held_notebook.set_process_input(on)  # the pages only take clicks with the cursor up
+	if local_control and not input_locked and state != Move.TERMINAL:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if on else Input.MOUSE_MODE_CAPTURED
+
+
+## Does moving the mouse turn your head right now?
+func _mouse_looks() -> bool:
+	if _notebook_held:
+		return not notebook_cursor
+	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 
 
 # --- Terminals -------------------------------------------------------------
@@ -418,6 +456,14 @@ func _end_terminal(announce: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if local_control:
+		# Polled, not an input event: the pages take clicks under the cursor, the
+		# release included, so an event could be swallowed and leave the cursor stuck.
+		var rmb := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+		if rmb != _rmb_was:
+			_rmb_was = rmb
+			if _notebook_held and not input_locked:
+				set_notebook_cursor(rmb)
 	var target := 1.0 if _notebook_held else 0.0
 	if notebook_amount == target:
 		return
@@ -594,6 +640,9 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			_ledge_face = -ledge.normal if _forward().dot(-ledge.normal) > 0.0 else ledge.normal
 			_clamp_ledge_yaw()
 			return
+		var going := Vector3(velocity.x, 0, velocity.z).length()
+		if on_floor and not jump_pressed and not crouching and not sprinting and controls.move.y < -0.5 and going > 0.3 and _try_vault():
+			return
 		if jump_pressed:
 			if _try_ledge(true):
 				return
@@ -708,6 +757,93 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		_noise(0.25)
 		return true
 	return false
+
+
+## Vault over a low obstacle just ahead: it's VAULT_MIN..VAULT_MAX tall, no deeper
+## than VAULT_DEPTH, with room to pass over it and floor to land on beyond.
+func _try_vault() -> bool:
+	var space := get_world_3d().direct_space_state
+	var feet := global_position
+	var fwd := _forward()
+	var wall := {}
+	for h in [0.3, 0.6]:
+		var from: Vector3 = feet + Vector3.UP * h
+		wall = space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + fwd * (RADIUS + 0.35), collision_mask, _exclude()))
+		if not wall.is_empty():
+			break
+	if wall.is_empty() or absf(wall.normal.y) > 0.3:
+		return false
+	var n := Vector3(wall.normal.x, 0, wall.normal.z).normalized()
+	if fwd.dot(-n) < 0.7:
+		return false  # only when heading at it, not brushing past
+	var face := Vector3(wall.position.x, feet.y, wall.position.z)
+	var top := _surface_at(face - n * 0.1, feet.y + VAULT_MAX + 0.3, VAULT_MAX + 0.3 - 0.2)
+	if top == INF:
+		return false
+	var height := top - feet.y
+	if height < VAULT_MIN or height > VAULT_MAX:
+		return false
+	# Find its far edge: where the top stops.
+	var depth := 0.0
+	var d := 0.2
+	while d <= VAULT_DEPTH + 0.05:
+		if absf(_surface_at(face - n * d, top + 0.2, 0.4) - top) > 0.1:
+			depth = d
+			break
+		d += 0.1
+	if depth == 0.0:
+		return false
+	var over := face - n * (depth / 2.0)
+	over.y = top + 0.05
+	var land := face - n * (depth + RADIUS + 0.12)
+	var floor_y := _surface_at(land, top + 0.2, top + 0.2 - (feet.y - 0.6))
+	if floor_y == INF or floor_y > top - 0.35:
+		return false
+	land.y = floor_y + 0.02
+	if not _fits(over, CRAWL_HEIGHT) or not _fits(land, STAND_HEIGHT):
+		return false
+	state = Move.VAULT
+	_timer = 0.0
+	velocity = Vector3.ZERO
+	_roll_queued = false
+	_dir = -n
+	_set_stance(CROUCH_HEIGHT)  # the camera dips as you go over
+	_mantle_path = [feet, Vector3(feet.x, top + 0.05, feet.z), over, land]
+	_noise(0.3)
+	return true
+
+
+## Height of the first upward-facing surface straight below `at` (from `from_y`,
+## looking down `reach`), or INF.
+func _surface_at(at: Vector3, from_y: float, reach: float) -> float:
+	var from := Vector3(at.x, from_y, at.z)
+	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * reach, collision_mask, _exclude())
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty() or hit.normal.y < 0.7:
+		return INF
+	return hit.position.y
+
+
+func _step_vault(delta: float) -> void:
+	_timer += delta
+	var p := _mantle_path
+	var t1 := VAULT_UP_TIME
+	var t2 := t1 + VAULT_OVER_TIME
+	var t3 := t2 + VAULT_DOWN_TIME
+	if _timer < t1:
+		global_position = p[0].lerp(p[1], ease(_timer / t1, -1.6))
+	elif _timer < t2:
+		global_position = p[1].lerp(p[2], (_timer - t1) / VAULT_OVER_TIME)
+	elif _timer < t3:
+		var k := (_timer - t2) / VAULT_DOWN_TIME
+		var at: Vector3 = p[2].lerp(p[3], k)
+		at.y = lerpf(p[2].y, p[3].y, k * k)  # drop off the far side
+		global_position = at
+	else:
+		global_position = p[3]
+		state = Move.WALK
+		velocity = _dir * WALK_SPEED * 0.6  # carry on walking
+		_was_on_floor = true
 
 
 func _start_mantle(target: Vector3) -> void:

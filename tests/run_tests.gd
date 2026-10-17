@@ -474,19 +474,28 @@ func test_level_0_scene() -> void:
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
 	_check_l0_documents(level)
-	# Over the counter, staff style, and back again.
+	# Walking into the west end of the counter vaults you over it, and back again.
 	level.rourke.walk_to(Vector3(-0.5, 0, 0.6))
-	level.counter_hop.enabled = true
-	level.player.global_position = Vector3(-3.6, 0.1, 0.4)
-	await physics_frame
-	level.counter_hop.interact(level.player)
-	check(level.player.input_locked, "hopping the counter takes over the camera")
-	await create_timer(1.8).timeout
-	pos = level.player.global_position
-	check(pos.z < -1.6 and pos.y < 0.3 and not level.player.input_locked, "sitting on the counter swings you over to the back (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
-	level.counter_hop.interact(level.player)
-	await create_timer(1.8).timeout
-	check(level.player.global_position.z > -0.4 and not level.player.input_locked, "and back to the lobby side")
+	var lp: Player = level.player
+	lp.local_control = false  # driven by the test, not the keyboard
+	lp.global_position = Vector3(-3.6, 0.05, 0.4)
+	lp.rotation.y = 0.0
+	await create_timer(0.3).timeout
+	lp.controls.move = Vector2(0, -1)
+	var vaulted := false
+	for i in 120:
+		await physics_frame
+		vaulted = vaulted or lp.state == Player.Move.VAULT
+	pos = lp.global_position
+	check(vaulted and pos.z < -1.6 and pos.y < 0.3, "walking into the counter vaults you over to the back (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	lp.rotation.y = PI
+	vaulted = false
+	for i in 120:
+		await physics_frame
+		vaulted = vaulted or lp.state == Player.Move.VAULT
+	check(vaulted and lp.global_position.z > -0.4, "and back to the lobby side")
+	lp.controls.move = Vector2.ZERO
+	lp.local_control = true
 	# Rourke walks the crew down the hall himself; nothing blocks the way.
 	level._on_walkies()
 	for i in 600:

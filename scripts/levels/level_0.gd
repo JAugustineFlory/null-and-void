@@ -27,15 +27,13 @@ var van_seats: Array[Dictionary] = []
 var van_doors := {}
 var side_door: Node3D
 var _side_door_open := false
-## Climbing out of the van and hopping the counter move the camera for the player, but
+## Climbing out of the van moves the camera for the player, but
 ## the mouse can still look around a little from where it points.
 const LOOK_YAW := 0.6
 const LOOK_PITCH := 0.4
 var _look_player: Player
 var _look_offset := Vector2.ZERO
 var _look_base := Vector2.ZERO
-## The front desk: players sit on it and swing their legs over, staff style.
-var counter_hop: Interactable
 ## The air return in the lobby's west wall: its grate comes off by hand, and the
 ## duct behind it leads to a forgotten closet (an optional find and a first crawl).
 var vent_grate: Interactable
@@ -135,11 +133,8 @@ func build() -> void:
 		_mesh(radio, Vector3(0.022, 0.14, 0), Vector3(0.012, 0.12, 0.012), Color(0.08, 0.08, 0.08))
 		_mesh(radio, Vector3(0, 0.03, 0.021), Vector3(0.05, 0.04, 0.002), Color(0.35, 0.8, 0.4))  # charge light
 	walkies.used.connect(func(_p): sync.event("_on_walkies"))
-	# The west end of the counter is clear of the log and terminal: that's where you hop it.
-	counter_hop = Interactable.create(geo, Vector3(-3.6, 1.1, -1.0), Vector3(2.4, 0.06, 0.8), "Hop over the counter", Color(), false)
-	counter_hop.enabled = false
-	counter_hop.local_only = true  # each player hops on their own machine
-	counter_hop.used.connect(hop_counter)
+	# The west end of the counter is clear of the log and terminal: walking into it
+	# vaults you over (Player.VAULT_MAX), from either side.
 
 	# Waiting area chairs (cover, atmosphere)
 	for x in [-6.0, -4.8, 4.8, 6.0]:
@@ -437,37 +432,6 @@ func climb_out(p: Player, seat: Dictionary, order: int = 0) -> void:
 		_release_camera(p)
 
 
-## Sit on the counter and swing your legs over, the way the front desk staff do it.
-## Works from either side.
-func hop_counter(p: Node) -> void:
-	if not p is Player or p == _look_player:
-		return
-	var pl: Player = p
-	var here := to_local(pl.global_position)
-	var x := clampf(here.x, -4.6, -2.6)
-	var dir := -1.0 if here.z > -1.0 else 1.0  # which way along z we're going
-	var face := 0.0 if dir < 0.0 else PI  # facing -z is yaw 0
-	_hold_camera(pl)
-	var start := _view(pl)
-	var at_desk := Vector2(_near(start.x, face), -0.55)
-	var sitting := Vector2(_near(at_desk.x, face + PI / 2), -0.15)
-	var over := Vector2(_near(sitting.x, face), -0.3)
-	var tw := create_tween()
-	tw.tween_property(pl, "global_position", to_global(Vector3(x, 0.1, -1.0 - dir * 0.75)), 0.3)
-	tw.parallel().tween_method(_aim.bind(pl), start, at_desk, 0.3)
-	# Up onto the counter, sitting sideways on its edge.
-	tw.tween_property(pl, "global_position", to_global(Vector3(x, 0.22, -1.0 - dir * 0.2)), 0.45).set_trans(Tween.TRANS_SINE)
-	tw.parallel().tween_method(_aim.bind(pl), at_desk, sitting, 0.45).set_trans(Tween.TRANS_SINE)
-	# Swing the legs over and turn to face the far side.
-	tw.tween_property(pl, "global_position", to_global(Vector3(x, 0.22, -1.0 + dir * 0.3)), 0.45).set_trans(Tween.TRANS_SINE)
-	tw.parallel().tween_method(_aim.bind(pl), sitting, over, 0.45).set_trans(Tween.TRANS_SINE)
-	# Drop down.
-	tw.tween_property(pl, "global_position", to_global(Vector3(x, 0.1, -1.0 + dir * 0.85)), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.parallel().tween_method(_aim.bind(pl), over, Vector2(over.x, 0.0), 0.3)
-	await tw.finished
-	_release_camera(pl)
-
-
 ## A scripted move takes over the player's body and camera.
 func _hold_camera(p: Player) -> void:
 	p.input_locked = true
@@ -648,9 +612,7 @@ func _after_memo() -> void:
 	# One radio on the rack for each player.
 	for i in 6:
 		walkies.get_node("Radio%d" % i).visible = i < players.count()
-	counter_hop.enabled = true
 	hud.todo("Grab walkie-talkies from behind the counter")
-	hud.notice("Press E on the left end of the counter to hop over", 8.0)
 
 
 func _on_walkies() -> void:
