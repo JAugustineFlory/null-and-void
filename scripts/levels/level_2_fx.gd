@@ -6,12 +6,18 @@ class_name Level2FX
 const RATE := 22050
 
 
-## A short sound at `pos`: "glass", "clunk" (heavy, a bolt or a motor), "click" or "clatter".
+## A short sound at `pos`: "glass", "clunk" (heavy, a bolt or a motor), "click",
+## "clatter" or "tap" (one knock on a metal door).
 static func sound(parent: Node, pos: Vector3, kind: String) -> void:
 	if not parent.is_inside_tree():
 		return
+	# What played where, for the tests (a played sound frees itself).
+	var played: Array = parent.get_meta("sounds_played", [])
+	played.append({"kind": kind, "pos": pos})
+	parent.set_meta("sounds_played", played)
 	var p := AudioStreamPlayer3D.new()
 	p.stream = _make(kind)
+	p.name = "Sound_" + kind
 	p.position = pos
 	p.unit_size = 6.0
 	parent.add_child(p)
@@ -60,7 +66,7 @@ static func drop(node: Node3D, to_pos: Vector3, to_rot: Vector3, seconds: float 
 static func _make(kind: String) -> AudioStreamWAV:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(kind)
-	var secs: float = {"glass": 0.6, "clunk": 0.35, "click": 0.06, "clatter": 0.7}.get(kind, 0.3)
+	var secs: float = {"glass": 0.6, "clunk": 0.35, "click": 0.06, "clatter": 0.7, "tap": 0.9}.get(kind, 0.3)
 	var n := int(secs * RATE)
 	var data := PackedByteArray()
 	data.resize(n * 2)
@@ -82,6 +88,9 @@ static func _make(kind: String) -> AudioStreamWAV:
 				# Sheet metal hitting the floor, twice.
 				var hit := exp(-t * 12.0) + (exp(-(t - 0.22) * 16.0) * 0.6 if t > 0.22 else 0.0)
 				v = (rng.randf_range(-1, 1) * 0.5 + sin(TAU * 620 * t) * 0.3 + sin(TAU * 1330 * t) * 0.2) * hit
+			"tap":
+				# A knuckle on a steel door: a sharp knock and a long, low ring.
+				v = rng.randf_range(-1, 1) * exp(-t * 90.0) * 0.8 + (sin(TAU * 210 * t) * 0.5 + sin(TAU * 537 * t) * 0.25) * exp(-t * 4.0)
 		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 26000))
 	var w := AudioStreamWAV.new()
 	w.format = AudioStreamWAV.FORMAT_16_BITS

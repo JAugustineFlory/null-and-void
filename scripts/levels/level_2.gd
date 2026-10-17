@@ -41,6 +41,8 @@ var booth: Terminal
 var panel: Terminal
 var api: FacilityAPI
 var breakers := {}
+## The breaker box's own status readout: says what a wrong breaker just cut.
+var breaker_status: Label3D
 var keypad_ui: Level2Keypad
 var exit_keypad: Interactable
 var seal_keypad: Interactable
@@ -314,6 +316,8 @@ func _build_panel() -> void:
 	vestibule_glass = _glass_pane(Vector3(2.5, 0.5, -8.75), Vector3(0.05, 1.0, 1.2), true, "VestibuleGlass")
 	Greybox.panel(geo, Vector3(-2.37, 1.3, -8.95), Vector3(0.04, 0.6, 1.3), Color(0.3, 0.32, 0.3))
 	Greybox.label(geo, Vector3(-2.34, 1.72, -8.95), "BREAKERS", 26, Color(0.9, 0.9, 0.8), 90)
+	breaker_status = Greybox.label(geo, Vector3(-2.34, 1.86, -8.95), "", 22, Color(1.0, 0.4, 0.33), 90)
+	breaker_status.name = "BreakerStatus"
 	for i in range(1, 5):
 		var z := -9.45 + (i - 1) * 0.33
 		var b := Interactable.create(geo, Vector3(-2.33, 1.25, z), Vector3(0.06, 0.18, 0.12), "Reset breaker B-%d" % i, Color(0.1, 0.1, 0.1))
@@ -916,11 +920,13 @@ func _breaker_flipped(i: int) -> void:
 	Level2FX.sound(geo, breakers[i].position, "click")
 	frozen_cams["CAM-3"] = true
 	_broadcast(["[color=#ff6655]> CAM-3: NO SIGNAL[/color]"])
+	breaker_status.text = "> CAM-3: NO SIGNAL"
 	for l in lights.get("vestibule", []):
 		l.visible = false
 	await get_tree().create_timer(6.0).timeout
 	frozen_cams.erase("CAM-3")
 	_broadcast(["[color=#7fd47f]> CAM-3: SIGNAL RESTORED[/color]"])
+	breaker_status.text = ""
 	for l in lights.get("vestibule", []):
 		l.visible = true
 
@@ -953,10 +959,10 @@ func _on_exit(_b: Node) -> void:
 	if not player or player.health <= 0.0:
 		return
 	player.input_locked = true
-	if Game.watcher_sealed:
-		await hud.say("", "Behind the locked door, something taps on the metal. Once.", 4.0)
-	else:
-		await hud.say("", "The door behind you is still open. You don't look back. You know better.", 4.5)
+	# No words: one tap on the metal, from behind SEC-EXIT.
+	await get_tree().create_timer(1.0).timeout
+	Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
+	await get_tree().create_timer(2.5).timeout
 	Game.completed_level = "level_2"
 	Game.next_level = ""  # the end of the playable slice, for now
 	completed.emit()

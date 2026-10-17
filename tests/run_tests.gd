@@ -1187,6 +1187,7 @@ func test_level_2_scene() -> void:
 	level._on_breaker(null, wrong_b)
 	check(level.frozen_cams.has("CAM-3") and not level.doors["SEC-EXIT"].is_open, "the wrong breaker blacks out the vestibule camera instead")
 	check((Array(level.panel.transcript) + level.panel.boot_lines).any(func(l): return str(l).contains("CAM-3: NO SIGNAL")), "and the panel reports the camera lost its signal")
+	check(level.breaker_status.text.contains("CAM-3: NO SIGNAL"), "the breaker box itself shows what the wrong breaker cut")
 	level._on_breaker(null, level.data.breaker)
 	for i in 5:
 		await physics_frame
@@ -1211,6 +1212,11 @@ func test_level_2_scene() -> void:
 	for i in 160:
 		await physics_frame
 	check(shut[0] and level.exit_lift.open_amount == 0.0, "the doors shut: the wing is done")
+	for i in 120:
+		await physics_frame
+	var taps: Array = level.geo.get_meta("sounds_played", []).filter(func(x): return x.kind == "tap")
+	check(taps.size() == 1 and taps[0].pos == level.SEC_EXIT_FRAME and level.hud._subtitle.text == "",
+		"leaving, there's one tap on the metal behind SEC-EXIT, and no narration")
 	p.input_locked = false
 	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
 	# Caught: put it right behind the player, out of sight.
