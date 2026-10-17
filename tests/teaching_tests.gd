@@ -173,6 +173,8 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		if not needed.has(k):
 			missing.append(k)
 	check(missing.is_empty(), "%s: its curriculum needs list covers every keyword in the answer%s" % [puzzle.id, "" if missing.is_empty() else " (add %s)" % ", ".join(missing)])
+	if spec.has("pressure"):
+		check(threat == spec.pressure, "%s: %s while it's typed, as tests/curriculum.gd says" % [puzzle.id, "something can hunt the player" if spec.pressure else "nothing can hurt the player"])
 	var outside := []
 	while not puzzle.solved:
 		remember(level, ui)
