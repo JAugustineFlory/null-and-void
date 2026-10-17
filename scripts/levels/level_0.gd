@@ -635,6 +635,8 @@ func _on_memo_solved() -> void:
 
 func _after_memo() -> void:
 	hud.todo("")
+	# Written on the job ticket: what the crew touched, for later levels to read back.
+	get_node("/root/Game").ticket_fill("Put the memo back in order", "rebuilt from memo_fragments. Copy to the director, says Rourke")
 	await get_tree().create_timer(1.0).timeout
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
 	walkies.enabled = true

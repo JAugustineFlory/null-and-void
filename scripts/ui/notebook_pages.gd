@@ -140,17 +140,24 @@ static func text_of(items: Array) -> String:
 	return out
 
 
-## The to-do list, in the character's hand: the task now in ink, the last few
-## done ones in pencil.
+## The crew's job ticket: the printed call-out, then the tasks in the character's
+## hand. The task now in ink, the last few done ones ticked in pencil.
 func _todo_items(todo: Array) -> Array[Control]:
-	var items: Array[Control] = [NotebookArt.heading("To do")]
+	var game := get_node("/root/Game")
+	var t: Dictionary = game.TICKET
+	var items: Array[Control] = [NotebookArt.heading("Job ticket")]
+	items.append(NotebookArt.code("%s   WORK ORDER %s" % [t.company, game.ticket_number()], 16))
+	items.append(NotebookArt.code("Customer: %s" % t.customer, 16))
+	items.append(NotebookArt.code("Problem:  %s" % t.problem, 16))
+	items.append(NotebookArt.code("Contact:  %s" % t.contact, 16))
 	if todo.is_empty():
 		items.append(NotebookArt.hand("Nothing yet.", 24, NotebookArt.PENCIL))
-	for t in todo.slice(maxi(0, todo.size() - 6)):
-		if t.done:
-			items.append(NotebookArt.hand("-  %s  (done)" % t.text, 22, NotebookArt.PENCIL))
+	for task in todo.slice(maxi(0, todo.size() - 6)):
+		var filled: String = task.get("filled", "")
+		if task.done:
+			items.append(NotebookArt.hand("[x]  %s%s" % [task.text, ("  - " + filled) if filled != "" else ""], 22, NotebookArt.PENCIL))
 		else:
-			items.append(NotebookArt.hand("-  %s" % t.text, 26))
+			items.append(NotebookArt.hand("[  ]  %s" % task.text, 26))
 	return items
 
 
