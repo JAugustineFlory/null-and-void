@@ -111,7 +111,7 @@ func section_items(page: int) -> Array[Control]:
 	var game := get_node("/root/Game")
 	match page:
 		Page.WORK_ORDER:
-			return WorkOrderForm.build(game.ticket())
+			return WorkOrderForm.build(game.ticket(), book.left.size.y if book else 0.0)
 		Page.NOTES:
 			return _notes_items(game.notebook_notes) + _written_items(game.notebook_written)
 		Page.TABLES:

@@ -153,7 +153,9 @@ func build() -> void:
 	])
 	Greybox.label(geo, Vector3(23.85, 2.4, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
 	shutter = add_door("LOBBY-SHUTTER", Vector3(11, 1.5, 3), Vector3(0.15, 3.0, 2.0))
-	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8))
+	# Server Room A's door is an ordinary one: Rourke opens it, holds it, and it
+	# swings shut behind the crew.
+	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8)).make_hinged(Vector3(0, 0, -0.9), 90.0)
 
 	# The vent in the west wall leads to a forgotten storage closet: x -14..-8, z 3.5..4.5 duct
 	Traversal.vent(geo, Vector3(-8, 0.1, 4), Vector3(-14, 0.1, 4), Vector2(0.9, 0.95))
@@ -625,7 +627,6 @@ func _on_peek_solved() -> void:
 	desk_terminal.print_line(TerminalUI.sysop("the scraps are out of order. one of the columns numbers them."))
 	desk_terminal.print_line(TerminalUI.sysop("add ORDER BY to the end of your query, then that column's name."))
 	hud.todo("Put the memo back in order")
-	hud.line("l0_sort_hint")
 
 
 func _on_memo_solved() -> void:
@@ -642,8 +643,12 @@ func _after_memo() -> void:
 	hud.todo("")
 	# Written on the job ticket: what the crew touched, for later levels to read back.
 	get_node("/root/Game").ticket_fill("Put the memo back in order", "rebuilt from memo_fragments. Copy to the director, says Rourke")
-	await get_tree().create_timer(1.0, false).timeout
+	# Rourke waits for the crew to step back from the screen before he says anything,
+	# and the building's PA only cuts in once he's done.
+	await sync.gate("memo_left_terminal", _crew_off_desk_terminal)
+	await get_tree().create_timer(0.6, false).timeout
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
+	_pa_after_memo()
 	walkies.enabled = true
 	# One radio on the rack for each player.
 	for i in 6:
@@ -651,6 +656,25 @@ func _after_memo() -> void:
 	counter_hop.enabled = true
 	hud.todo("Grab walkie-talkies from behind the counter")
 	hud.notice("Press E on the left end of the counter to hop over", 8.0)
+
+
+## Host: until nobody is at the desk terminal any more (or a while has passed,
+## so the story never waits forever on someone who stays).
+func _crew_off_desk_terminal() -> void:
+	var waited := 0.0
+	while waited < 30.0:
+		var anyone: bool = terminal_ui.visible and terminal_ui.terminal == desk_terminal
+		if not desk_terminal.seated.is_empty():
+			anyone = true
+		if not anyone:
+			return
+		await get_tree().create_timer(0.25, false).timeout
+		waited += 0.25
+
+
+func _pa_after_memo() -> void:
+	await get_tree().create_timer(2.5, false).timeout
+	hud.line("l0_sort_hint")
 
 
 func _on_walkies() -> void:
@@ -676,6 +700,7 @@ func _walk_to_server_room() -> void:
 	var hall := Trigger.create(self, Vector3(8.2, 1, 3), Vector3(1.2, 2, 2))
 	await sync.gate("hall", hall.entered)
 	rourke.walk_to(Vector3(22.4, 0, 3))
+	_face_crew_on_arrival()
 	await hud.lines(["l0_tour_3", "l0_tour_4", "l0_tour_5", "l0_tour_6"])
 	await sync.gate("rourke_at_sra", func():
 		if rourke.state == Rourke.State.WALK:
@@ -687,9 +712,35 @@ func _walk_to_server_room() -> void:
 	near.entered.connect(func(_b): sync.event("_on_reach_server_room", [null]))
 
 
+## Host: once he's at the door, he turns round to talk to the crew rather than to it.
+func _face_crew_on_arrival() -> void:
+	if not sync.is_host():
+		return
+	if rourke.state == Rourke.State.WALK:
+		await rourke.arrived
+	rourke.watch = players.nearest(rourke.global_position)
+
+
+## Where Rourke stands holding the door: just inside Server Room A's
+## antechamber, beside the doorway so the crew can walk past him.
+const HOLD_DOOR_AT := Vector3(25.0, 0, 4.05)
+
+
 func _on_reach_server_room(_b: Node) -> void:
+	# He opens the door, steps through, and holds it while the crew files past.
+	rourke.watch = null
+	rourke.face(exit_door.global_position)
 	exit_door.set_open(true)
-	rourke.face(player.global_position)
+	await sync.gate("rourke_holds_door", func():
+		if Vector2(rourke.global_position.x - 22.4, rourke.global_position.z - 3.0).length() > 2.5:
+			rourke.global_position = Vector3(22.4, rourke.global_position.y, 3)  # never left behind
+		await get_tree().create_timer(0.5, false).timeout
+		rourke.walk_to(Vector3(HOLD_DOOR_AT.x, 0, 3), true)
+		await rourke.arrived
+		rourke.walk_to(HOLD_DOOR_AT, true)
+		await rourke.arrived)
+	if sync.is_host():
+		rourke.watch = players.nearest(rourke.global_position)
 	await hud.line("l0_sra")
 	if world:
 		# Server Room A is already built behind this door. Its own Rourke takes over
