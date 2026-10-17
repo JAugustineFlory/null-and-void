@@ -106,8 +106,8 @@ func fill_blanks(level: Node, query: String) -> Array[String]:
 	var out: Array[String] = []
 	for d in level.find_children("*", "Document", true, false):
 		for l in d.lines():
-			var word: String = l.text.strip_edges()
-			if l.get("hand", false) and RegEx.create_from_string("^[a-z_]+$").search(word):
+			var word: String = str(l.get("filled", l.text if l.get("hand", false) else "")).strip_edges()
+			if RegEx.create_from_string("^[a-z_]+$").search(word):
 				out.append(query.replace("table_name", word))
 	return out
 

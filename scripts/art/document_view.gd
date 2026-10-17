@@ -131,6 +131,18 @@ func add_line(text: String) -> Control:
 	return row
 
 
+## A whole line written by hand (a note in someone's writing), with its "+ note"
+## button like a typed line.
+func add_hand_line(text: String, author := "player") -> Control:
+	var row := _row(text)
+	var l := _handwriting(text, author, 24)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	row.move_child(l, 0)
+	return row
+
+
 ## Handwriting in the margin beside the last line (or on a line of its own).
 ## author "mercer": his older fountain-pen hand; "player": the crew's ballpoint.
 func add_margin_note(text: String, author := "mercer") -> Control:

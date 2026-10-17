@@ -5,29 +5,35 @@ extends Interactable
 ## optional name (like "+ note" on a terminal). Reading and copying are each
 ## player's own business, so in co-op nothing goes to the host.
 
+## Each look: the prop on the desk or wall (ArtProps) and its paper up close (DocumentView).
 const LOOKS := {
-	"paper": Color(0.93, 0.91, 0.84),
-	"laminated": Color(0.88, 0.93, 0.95),
-	"brochure": Color(0.84, 0.9, 0.98),
-	"note": Color(0.96, 0.93, 0.78),
+	"paper": {"prop": "memo", "paper": "memo"},
+	"note": {"prop": "memo", "paper": "memo"},
+	"laminated": {"prop": "desk_card", "paper": "card"},
+	"brochure": {"prop": "brochure", "paper": "brochure"},
+	"manual": {"prop": "binder", "paper": "manual"},
+	"clipboard": {"prop": "clipboard", "paper": "clipboard"},
 }
 
 var title := ""
-## What's on it, top to bottom: {"text": String, "hand": bool}. `hand` lines are
-## handwritten (someone filled in a blank or wrote in the margin).
+## What's on it, top to bottom. Each line is one of:
+##   {"text": String, "hand": bool, "author": "mercer"|"player"}: typed, or handwritten
+##   {"before", "filled", "after", "author"}: a printed line with a blank filled in by hand
+## Every line also has "text": the whole line as it reads, which is what gets copied.
 var doc_lines: Array[Dictionary] = []
 var look := "paper"
 
 
-## `lines` is an Array of Strings or {text, hand} Dictionaries. Stands like a
-## poster facing -Z, or lies flat on a desk with `flat`.
+## `lines` is an Array of Strings (typed lines) or Dictionaries (see doc_lines).
+## Stands like a poster facing -Z, or lies flat on a desk with `flat`; on a desk,
+## `pos` is the desk-top spot. `size` is only a fallback for an unknown look.
 static func place(parent: Node, pos: Vector3, facing_deg: float, doc_title: String, lines: Array, flat: bool = false, doc_look: String = "paper", size := Vector2(0.21, 0.28)) -> Document:
 	var d := Document.new()
 	d.name = "Doc_" + doc_title.validate_node_name().replace(" ", "")
 	d.title = doc_title
 	d.look = doc_look
 	for l in lines:
-		d.doc_lines.append(l if l is Dictionary else {"text": str(l), "hand": false})
+		d.doc_lines.append(_line(l))
 	d.prompt = "Read: %s" % doc_title
 	d.local_only = true
 	d.position = pos
@@ -40,6 +46,16 @@ static func place(parent: Node, pos: Vector3, facing_deg: float, doc_title: Stri
 	return d
 
 
+static func _line(l: Variant) -> Dictionary:
+	if not l is Dictionary:
+		return {"text": str(l), "hand": false}
+	var d: Dictionary = l.duplicate()
+	if d.has("filled"):
+		d["text"] = "%s%s%s" % [d.get("before", ""), d.filled, d.get("after", "")]
+	d["hand"] = d.get("hand", false)
+	return d
+
+
 ## The document's text, for the reader and the teaching tests.
 func lines() -> Array[Dictionary]:
 	return doc_lines.duplicate(true)
@@ -49,40 +65,35 @@ func plain_text() -> String:
 	return "\n".join(doc_lines.map(func(l): return l.text))
 
 
-## Greybox look until the art pass: a sheet with its title on it.
+## Which DocumentView paper it reads on.
+func paper_kind() -> String:
+	return LOOKS.get(look, LOOKS.paper).paper
+
+
+## The prop from ArtProps, with a collider sized to its footprint.
 func _build_look(size: Vector2, flat: bool) -> void:
-	var face := Node3D.new()
-	face.name = "Face"
-	if flat:
-		face.rotation_degrees.x = 90
-	add_child(face)
-	var paper: Color = LOOKS.get(look, LOOKS.paper)
-	var sheet := MeshInstance3D.new()
-	sheet.name = "Paper"
-	var bm := BoxMesh.new()
-	bm.size = Vector3(size.x, size.y, 0.002)
-	sheet.mesh = bm
-	sheet.material_override = ArtProps.sticky_paper(paper)
-	face.add_child(sheet)
-	var l := Label3D.new()
-	l.name = "Title"
-	l.text = title
-	l.font_size = 40
-	l.pixel_size = 0.0005
-	l.width = size.x * 0.85 / l.pixel_size
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.modulate = Color(0.12, 0.14, 0.22)
-	l.outline_size = 0
-	l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	l.position = Vector3(0, size.y * 0.42, -0.0016)
-	l.rotation_degrees.y = 180
-	l.double_sided = false
-	face.add_child(l)
+	var prop: String = LOOKS.get(look, LOOKS.paper).prop
+	# Props face -Z like a poster; turn them to face out, as StickyNote does.
+	var art: Node3D
+	match prop:
+		"desk_card":
+			art = ArtProps.desk_card(self, Vector3.ZERO, 180.0, title)
+		"brochure":
+			art = ArtProps.brochure(self, Vector3.ZERO, 180.0, title, flat)
+		"binder":
+			art = ArtProps.binder(self, Vector3.ZERO, 180.0, title, flat)
+		"clipboard":
+			art = ArtProps.clipboard(self, Vector3.ZERO, 180.0, title, flat)
+		_:
+			art = ArtProps.memo(self, Vector3.ZERO, 180.0, title, flat)
+	var footprint: Vector3 = art.get_meta("doc_size", Vector3(size.x, 0.01, size.y) if flat else Vector3(size.x, size.y, 0.01))
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
 	# A little thicker than the paper so it's easy to aim at.
-	bs.size = Vector3(size.x, 0.06, size.y) if flat else Vector3(size.x, size.y, 0.06)
+	bs.size = Vector3(footprint.x, maxf(footprint.y, 0.05), maxf(footprint.z, 0.05))
 	shape.shape = bs
+	# On a desk the prop sits on its spot; on a wall it's centred there.
+	shape.position.y = bs.size.y / 2 if flat or prop == "desk_card" else 0.0
 	add_child(shape)
 
 
