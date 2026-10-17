@@ -41,6 +41,7 @@ func _run() -> void:
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
+	await test_coop_terminal_screens()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -802,6 +803,67 @@ func test_coop_six_players() -> void:
 	for l in levels:
 		spots[Vector2i(roundi(l.player.global_position.x * 10), roundi(l.player.global_position.z * 10))] = true
 	check(spots.size() == 6, "six different spawn spots")
+	await _coop_close(worlds)
+
+
+func test_coop_terminal_screens() -> void:
+	print("Co-op: terminal screens are shared")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var host = levels[0]
+	var c1 = levels[1]
+	var c1_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var screen: Terminal = host.desk_terminal  # the host's copy of the client's terminal
+	var ui: TerminalUI = c1.terminal_ui
+
+	ui.open(c1.desk_terminal, c1.player)
+	await _frames(10)
+	check(screen.seated == [c1_id], "the host sees the client sit down at the terminal")
+	check(not screen.transcript.is_empty() and screen.transcript == c1.desk_terminal.transcript, "the boot screen shows on the host's copy too")
+
+	var changes := [0]
+	screen.screen_changed.connect(func(): changes[0] += 1)
+	for word in ["S", "SE", "SEL", "SELE", "SELEC", "SELECT", "SELECT *", "SELECT * FROM"]:
+		ui._input.text = word
+		ui._typed()
+	await _frames(10)
+	check(screen.typing.get(c1_id, "") == "SELECT * FROM", "the host sees what the client is typing")
+	check(changes[0] <= 2, "typing is rate-limited, not sent per keystroke (%d updates)" % changes[0])
+
+	host.terminal_ui.open(host.desk_terminal, host.player)
+	await _frames(10)
+	check(c1.desk_terminal.seated.size() == 2 and screen.seated.size() == 2, "two players can sit at the same terminal")
+	check(host.terminal_ui._others.visible and host.terminal_ui._others.text.contains("SELECT * FROM"), "the host's screen shows the client's line being typed")
+
+	ui._input.text = ".help"
+	ui._typed()
+	ui._submit()
+	await _frames(10)
+	check(not screen.typing.has(c1_id), "entering the line clears it from the host's screen")
+	check(screen.transcript.any(func(l): return l.contains("Commands:")), ".help output shows on the host's copy of the screen")
+	check(host.terminal_ui._output.get_parsed_text().contains("Commands:"), "and on the host's open terminal window")
+
+	ui.run(".hint")
+	await _frames(10)
+	check(screen.transcript.any(func(l): return l.contains("SYSOP")), "a client's .hint is readable over their shoulder")
+	check(screen.transcript == c1.desk_terminal.transcript, "both copies of the screen match line for line")
+
+	ui.run(".clear")
+	await _frames(10)
+	check(screen.transcript.is_empty() and c1.desk_terminal.transcript.is_empty(), ".clear wipes the screen for everyone")
+	check(host.terminal_ui._output.get_parsed_text().strip_edges() == "", "including the host's open window")
+
+	ui.close()
+	await _frames(10)
+	check(screen.seated.size() == 1 and not screen.seated.has(c1_id), "stepping away frees the seat on the host")
+	host.terminal_ui.close()
+	ui.open(c1.desk_terminal, c1.player)
+	await _frames(10)
+	get_multiplayer(worlds[1].get_path()).multiplayer_peer.close()
+	await _frames(30)
+	check(screen.seated.is_empty() and screen.typing.is_empty(), "a player who drops out leaves the terminal free")
+	ui.close()
 	await _coop_close(worlds)
 
 
