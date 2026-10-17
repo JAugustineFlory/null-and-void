@@ -17,9 +17,12 @@ const LINE_HEIGHT := 30  # ruled line spacing in the notebook, pixels at 1x
 
 const HAND_FONT_PATH := "res://assets/art/fonts/PatrickHand-Regular.ttf"
 const TYPE_FONT_PATH := "res://assets/art/fonts/CourierPrime-Regular.ttf"
+const OLD_HAND_FONT_PATH := "res://assets/art/fonts/Caveat.ttf"
+const FOUNTAIN_INK := Color(0.1, 0.13, 0.28)  # Mercer's fountain pen
 
 static var _hand: Font
 static var _type: Font
+static var _old_hand: Font
 
 
 ## The handwriting font (Patrick Hand, OFL): the player's own notes.
@@ -34,6 +37,13 @@ static func type_font() -> Font:
 	if _type == null:
 		_type = _load_font(TYPE_FONT_PATH, ["Courier New", "DejaVu Sans Mono", "monospace"])
 	return _type
+
+
+## Mercer's handwriting (Caveat, OFL): an older, slanted hand, different from the players'.
+static func old_hand_font() -> Font:
+	if _old_hand == null:
+		_old_hand = _load_font(OLD_HAND_FONT_PATH, ["Segoe Script", "cursive", "sans-serif"])
+	return _old_hand
 
 
 static func _load_font(path: String, fallback: Array) -> Font:
