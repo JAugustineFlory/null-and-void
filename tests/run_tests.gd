@@ -31,6 +31,9 @@ func _run() -> void:
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
+	test_sticky_notes_never_give_answers()
+	await test_elevator()
+	await test_notebook()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
@@ -399,6 +402,10 @@ func test_level_0_scene() -> void:
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments")
 	check(level.peek_puzzle.solved, "terminal run solves the peek")
+	var nudge: Array = Array(level.desk_terminal.transcript).filter(func(l): return l.contains("ORDER BY"))
+	check(not nudge.is_empty() and nudge.all(func(l): return not l.contains("piece_no")), "WARDEN's nudge points at the numbering column without naming it")
+	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no DESC")
+	check(not level.memo_puzzle.solved and Array(level.desk_terminal.transcript).any(func(l): return l.contains("memo backwards")), "a memo sorted DESC doesn't count, and WARDEN says why")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
@@ -497,6 +504,13 @@ func test_level_1_scene() -> void:
 	level.panels_locked_until = 0.0
 	level._on_panel(null, level.answer)
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")
+	check(level.elevator.open_amount == 0.0, "the elevator waits with its doors shut")
+	level._on_exit(null)
+	await level.elevator.opened
+	check(level.elevator.open_amount == 1.0, "reaching the exit corridor opens the elevator")
+	level.player.global_position = level.to_global(Vector3(0, 0.1, -13.5))
+	await physics_frame
+	check(not level.elevator.press() and not level.elevator.is_closing and level.elevator.refusal != "", "the button does nothing while someone is still outside")
 	level.queue_free()
 	await process_frame
 
@@ -590,6 +604,16 @@ func test_coop_level_0() -> void:
 	check(host.peek_puzzle.solved and c1.peek_puzzle.solved and c2.peek_puzzle.solved, "a client's query solves the puzzle for everyone")
 	check(host.desk_terminal.transcript.any(func(l): return l.contains("SELECT * FROM memo_fragments")), "the query shows on the host's copy of that terminal")
 	check(c2.desk_terminal.transcript.any(func(l): return l.contains("Those scraps are out of order")), "WARDEN's reply shows on every copy")
+
+	# Notebooks are per player: a loose sticky goes to whoever took it and is gone
+	# for everyone; one stuck to a terminal is copied by each player on their own.
+	var loose: Array = levels.map(func(l): return l.find_children("*", "StickyNote", true, false).filter(func(n): return n.note_id == "order_by")[0])
+	check(not loose[0].on_terminal and levels.all(func(l): return l.find_children("*", "StickyNote", true, false).any(func(n): return n.on_terminal and n.local_only)), "terminal stickies are copied locally, not through the host")
+	_game().notebook_notes.clear()
+	loose[1].interact(c1.player)
+	await _frames(10)
+	check(loose.all(func(n): return not is_instance_valid(n) or n.is_queued_for_deletion()), "a loose note taken by a client disappears on every machine")
+	check(_game().notebook_notes == ["order_by"], "and goes into the taker's notebook")
 
 	c2.terminal_ui.terminal = c2.desk_terminal
 	c2.terminal_ui.run("INSERT INTO visitors (name) VALUES ('Intruder')")
@@ -692,6 +716,24 @@ func test_coop_level_1() -> void:
 	await _frames(10)
 	check(not mate.crouching and is_equal_approx(mate.height, Player.STAND_HEIGHT), "and stands back up with them")
 	client.player.set_physics_process(true)
+
+	# The elevator: the host counts heads, then the doors close everywhere.
+	host.sync.event("_on_exit", [null])
+	await _frames(5)
+	for l in levels:
+		l.elevator.closed.disconnect(l._on_elevator_closed)  # stay in this level for the checks
+		l.elevator.open(true)
+	host.player.global_position = Vector3(0.4, 0.1, -17.1)
+	client.player.global_position = Vector3(0, 0.1, -12.0)
+	await _frames(30)
+	client.elevator.button.interact(client.player)
+	await _frames(10)
+	check(host.elevator.refusal.contains("1/2") and not host.elevator.is_closing and not client.elevator.is_closing, "the elevator waits for a teammate still outside")
+	client.player.global_position = Vector3(-0.4, 0.1, -17.1)
+	await _frames(30)
+	client.elevator.button.interact(client.player)
+	await _frames(10)
+	check(host.elevator.is_closing and client.elevator.is_closing, "with everyone inside, a client's press closes the doors on every machine")
 	await _coop_close(worlds)
 
 
@@ -1047,7 +1089,182 @@ func test_world() -> void:
 	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
-	world.wing_finished(sra)
-	check(world._field_notes != null and world.player.input_locked, "Field Notes opens as an overlay at the end")
+	# Out by the elevator: the doors closing are the checkpoint, the ride ends the level.
+	sra.rourke.state = Rourke.State.IDLE
+	sra._on_exit(null)
+	await sra.elevator.opened
+	world.player.global_position = sra.elevator.to_global(Vector3(0, 0.1, Elevator.SIZE.z / 2))
+	for i in 5:
+		await physics_frame
+	check(sra.elevator.press() and sra.elevator.is_closing, "with everyone inside, the button closes the doors")
+	await sra.elevator.closed
+	check(sra.elevator.open_amount == 0.0 and sra.elevator.riding, "the doors shut before it moves")
+	await sra.elevator.arrived
+	await process_frame
+	check(world._field_notes != null and world.player.input_locked, "the ride ends at Field Notes, in the notebook")
+	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
+	await process_frame
+
+
+func test_sticky_notes_never_give_answers() -> void:
+	print("Sticky notes")
+	var l0 = load("res://scripts/levels/level_0.gd").new()
+	var l1 = load("res://scripts/levels/level_1.gd").new()
+	var puzzles: Array = [l0.peek_puzzle, l0.memo_puzzle, l1.controller_puzzle]
+	var every_example_runs := true
+	var gives_answer := []
+	for seed_value in 20:
+		var db := FacilityDB.new()
+		db.add_wing("level_0", FileAccess.get_file_as_string("res://data/level_0.sql"))
+		db.add_wing("level_1", Level1Data.build(seed_value).sql)
+		for id in StickyNotes.NOTES:
+			for example in StickyNotes.NOTES[id].example.split(";", false):
+				if example.strip_edges() == "":
+					continue
+				var result := db.execute(example + ";")
+				if not result.ok:
+					every_example_runs = false
+					continue
+				for p in puzzles:
+					if p.matches(db, result) and not gives_answer.has(id):
+						gives_answer.append(id)
+	check(every_example_runs, "every sticky note example runs on the real tables")
+	check(gives_answer.is_empty(), "no sticky note example solves a puzzle %s" % [gives_answer])
+	var fits := true
+	for id in StickyNotes.NOTES:
+		var lines: PackedStringArray = (StickyNotes.NOTES[id].syntax + "\n" + StickyNotes.NOTES[id].example).split("\n")
+		fits = fits and lines.size() <= 4 and Array(lines).all(func(line): return line.length() <= 30)
+	check(fits, "every sticky note fits on its paper")
+	l0.free()
+	l1.free()
+
+
+func test_notebook() -> void:
+	print("Notebook")
+	_game().new_run(3)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	for i in 10:
+		await physics_frame
+	var nb: Notebook = level.notebook
+	level.player.input_locked = false
+	check(nb.open() and nb.is_open() and level.player.input_locked, "Tab opens the notebook and holds the player")
+	check(nb.pages.current_page() == NotebookPages.Page.NOTES, "it opens on the sticky notes")
+	nb.close()
+	check(not nb.is_open() and not level.player.input_locked, "and closes again")
+	level.terminal_ui.open(level.desk_terminal, level.player)
+	check(not nb.open(), "the notebook can't be opened while using a terminal")
+	level.terminal_ui.run("SELECT * FROM memo_fragments")
+	check(_game().notebook_tables.get("memo_fragments", []) == ["piece_no", "text", "scanned_at"], "a query writes its table and columns on the Tables page")
+	level.terminal_ui.run(".tables")
+	check(_game().notebook_tables.has("visitors") and _game().notebook_tables.has("doors"), ".tables writes down every table")
+	# Write note: any line on the terminal can go in the notebook, with a label.
+	var ui: TerminalUI = level.terminal_ui
+	ui.run("SELEC * FROM memo_fragments")
+	ui.run(".hint")
+	ui.run(".schema memo_fragments")
+	var kinds := {}
+	for line in ui.noteable_lines():
+		kinds[line.kind] = kinds.get(line.kind, 0) + 1
+	check(kinds.has("result") and kinds.has("error") and kinds.has("hint") and kinds.has("schema") and kinds.has("info"), "results, errors, hints, schemas and boot text can all be noted (%s)" % [kinds])
+	var lines: Array = ui.noteable_lines()
+	var taught := lines.filter(func(l): return l.text.contains("SELECT * FROM memo_fragments") and l.kind == "info")
+	check(not taught.is_empty(), "the boot screen's SELECT example can be noted")
+	var result_i := -1
+	for i in lines.size():
+		if lines[i].kind == "result" and lines[i].text.contains("piece_no"):
+			result_i = i
+	check(ui.write_note(result_i, "memo scraps") and _game().notebook_written[-1].label == "memo scraps" and _game().notebook_written[-1].kind == "result", "write note copies a query result under the player's own label")
+	ui._on_meta("note:%d" % taught[0].get("index", lines.find(taught[0])))
+	check(ui._note_label.visible, "clicking +note asks for a label")
+	ui._finish_note("")
+	check(_game().notebook_written.size() == 2 and not ui._note_label.visible, "Enter writes it down, label optional")
+	ui.run(".note schema")
+	check(_game().notebook_written[-1].kind == "schema" and _game().notebook_written[-1].label == "schema", ".note writes the last line down")
+	level.terminal_ui.close()
+	var stickies: Array = level.find_children("*", "StickyNote", true, false)
+	var on_screen: StickyNote
+	var loose: StickyNote
+	for n in stickies:
+		if n.on_terminal:
+			on_screen = n
+		else:
+			loose = n
+	check(on_screen != null and on_screen.note_id == "select_from" and on_screen.get_parent() == level.desk_terminal, "the desk terminal has a SELECT sticky note on its monitor")
+	on_screen.interact(level.player)
+	check(_game().notebook_notes == ["select_from"] and is_instance_valid(on_screen) and not on_screen.is_queued_for_deletion(), "copying a terminal sticky leaves it for the rest of the crew")
+	check(on_screen.get_prompt(level.player) == "", "a copied note has nothing more to offer you")
+	var mate := Player.new()
+	level.add_child(mate)
+	check(on_screen.get_prompt(mate) != "", "but a teammate can still copy it")
+	loose.interact(mate)
+	check(not _game().notebook_notes.has("order_by") and loose.is_queued_for_deletion(), "a loose note goes to whoever picked it up, not into everyone's notebook")
+	mate.queue_free()
+	_game().add_note("order_by")
+	check(not _game().add_note("order_by") and _game().notebook_notes.size() == 2, "a note is only written down once")
+	nb.open(NotebookPages.Page.TABLES)
+	var on_pages: Array = nb.pages.book.left.get_children() + nb.pages.book.right.get_children()
+	check(nb.pages.current_page() == NotebookPages.Page.TABLES and NotebookPages.text_of(on_pages).contains("memo_fragments"), "the Tables page lists what was found")
+	var notes_text := nb.pages.section_text(NotebookPages.Page.NOTES)
+	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
+	nb.pages.show_page(NotebookPages.Page.TABLES)
+	check(nb.pages._spreads.size() == 1 and not nb.pages._turn.visible, "a short section fits on one spread")
+	for t in 20:
+		_game().discover_table("extra_%d" % t, ["a", "b", "c", "d"])
+	nb.pages.refresh()
+	check(nb.pages._spreads.size() > 1 and nb.pages._turn.visible, "a long section turns onto more pages")
+	var first_page: Array = nb.pages.book.left.get_children()
+	for i in nb.pages._spreads.size():
+		nb.pages._show_spread(nb.pages._spread + 1)
+	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
+	var written_text := nb.pages.section_text(NotebookPages.Page.WRITTEN)
+	check(written_text.contains("memo scraps") and written_text.contains("piece_no"), "written notes show on My notes with their labels")
+	nb.close()
+	var saved: Dictionary = _game().notebook_data()
+	_game().new_run(4)
+	check(_game().notebook_notes.is_empty(), "a new run starts with an empty notebook")
+	_game().load_notebook(saved)
+	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
+	level.queue_free()
+	await process_frame
+
+
+func test_elevator() -> void:
+	print("Elevator")
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var geo := Node3D.new()
+	stage.add_child(geo)
+	var lift := Elevator.create(stage, geo, Vector3.ZERO, 0, "1")
+	var dest := Elevator.create(stage, geo, Vector3(40, 0, 10), 90, "B2")
+	var a := Player.new()
+	var b := Player.new()
+	a.local_control = false
+	b.local_control = false
+	a.position = Vector3(0.4, 0.1, 1.2)
+	b.position = Vector3(0, 0.1, -3.0)
+	stage.add_child(a)
+	stage.add_child(b)
+	lift.open(true)
+	for i in 3:
+		await physics_frame
+	check(not lift.press() and lift.headcount() == Vector2i(1, 2), "the button waits for every living player")
+	b.health = 0.0
+	check(lift.headcount() == Vector2i(1, 1), "a downed player doesn't hold the doors")
+	b.health = 100.0
+	b.global_position = Vector3(-0.5, 0.1, 1.5)
+	for i in 3:
+		await physics_frame
+	check(lift.press() and lift.is_closing, "with the whole crew in, the doors close")
+	await lift.closed
+	var a_local: Vector3 = lift.to_local(a.global_position)
+	var a_yaw: float = a.rotation.y
+	lift.link_to(dest)
+	await lift.ride(0.3)
+	check(dest.to_local(a.global_position).distance_to(a_local) < 0.01 and dest.contains(b.global_position), "the ride carries everyone to the same spot in the next car")
+	check(is_equal_approx(angle_difference(a_yaw + PI / 2, a.rotation.y), 0.0), "facing the same way relative to the car")
+	await dest.opened
+	check(dest.open_amount == 1.0 and lift.open_amount == 0.0, "the next car's doors open; the old ones stay shut")
+	stage.queue_free()
 	await process_frame
