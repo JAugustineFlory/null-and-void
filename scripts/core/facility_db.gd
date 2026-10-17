@@ -158,7 +158,7 @@ func sync_world() -> void:
 			light_changed.emit(str(row["id"]), int(row["is_on"]) == 1)
 
 
-## A plain-English explanation of a SQLite error, in WARDEN's voice.
+## A plain-English explanation of a SQLite error. The terminal prints it as SYSOP.
 static func explain_error(err: String) -> String:
 	var e := err.to_lower()
 	if e.contains("no such table"):

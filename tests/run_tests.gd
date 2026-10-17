@@ -528,6 +528,7 @@ func test_level_1_scene() -> void:
 	var wrong: String = level.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
 	level._on_panel(null, wrong)
 	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until > 0.0, "an offline zone-A rack does not open the exit")
+	check(level.hud._notice.text.contains("'offline'") and level.hud._notice.text.contains("off on purpose"), "the rack's readout shows why it was the wrong one, where the player is standing")
 	level.panels_locked_until = 0.0
 	level._on_panel(null, level.answer)
 	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")

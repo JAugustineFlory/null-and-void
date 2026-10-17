@@ -303,14 +303,16 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 			hud.notice("PANELS LOCKED: tamper lockout, %d s" % int(seconds), 2.0, ThemeUtil.RED)
 			return
 		"healthy":
-			hud.notice("> CONTROLLER %s: OK. NOTHING TO RESET." % id, 4.0)
+			var zone: String = db.run_silent("SELECT zone FROM door_controllers WHERE id = '%s'" % id)[0]["zone"]
+			hud.notice("> CONTROLLER %s: ZONE %s, OK. NOTHING TO RESET." % [id, zone], 4.0)
 			terminal.print_line(TerminalUI.sysop("%s is healthy. you want the one in zone A with status 'fault'." % id))
 			hud.line("l1_panel_ok", false)
 			return
 		"wrong":
 			var row: Dictionary = db.run_silent("SELECT status, zone, note FROM door_controllers WHERE id = '%s'" % id)[0]
 			panels_locked_until = now + seconds
-			hud.notice("> RESET REFUSED. PANELS LOCKED: %d s" % int(seconds), 6.0, ThemeUtil.RED)
+			# The rack's own readout shows why, right where the player made the mistake.
+			hud.notice("> %s: ZONE %s, '%s': %s\n> RESET REFUSED. PANELS LOCKED: %d s" % [id, row["zone"], row["status"], row["note"], int(seconds)], 6.0, ThemeUtil.RED)
 			terminal.print_line(TerminalUI.sysop("not that one. %s is zone %s, '%s': %s" % [id, row["zone"], row["status"], row["note"]]))
 			hud.line("l1_panel_wrong", false)
 			return
