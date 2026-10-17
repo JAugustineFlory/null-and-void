@@ -23,16 +23,16 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 - [ ] `l0_greet_1.wav`  
   "There you are. Dale Rourke, facilities. I'll be your escort tonight."  
-  *Friendly, a handshake in the voice.*
-- [ ] `l0_greet_2.wav`  
-  "Don't mind the announcements. They play that to everybody."  
-  *Chuckling, waving at the ceiling speaker.*
+  *Waiting outside the front doors as the crew walks up. Friendly, a handshake in the voice.*
 - [ ] `l0_greet_3.wav`  
   "Badge rules after hours. You don't go anywhere I don't take you."  
   *Still smiling. Should sound like a joke the first time and a threat on replay.*
 - [ ] `l0_greet_4.wav`  
   "Come on in. I'll sign you in at the front desk."  
   *Holding the door, waving them through.*
+- [ ] `l0_greet_2.wav`  
+  "Sorry about that. The company loves its PA system."  
+  *Inside the lobby, right after the PA. Chuckling, waving at the ceiling speaker.*
 - [ ] `l0_signin.wav`  
   "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me."  
   *Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)*

@@ -16,6 +16,13 @@ signal noise_made(at: Vector3, loudness: float)
 signal notebook_raised
 ## The notebook is back in the pocket.
 signal notebook_lowered
+## A picked-up paper or card has come up in front of you to read.
+signal prop_raised(prop: Node3D)
+## It's back where you found it.
+signal prop_lowered(prop: Node3D)
+## A sticky note has gone into the open notebook (`prop` is the note, or null if
+## it was freed on the way). Write it onto the page now.
+signal sticky_filed(prop: Node3D)
 ## You're at a terminal and the camera has settled on its screen: start typing.
 signal terminal_focused
 ## You've stepped back from a terminal and can move again.
@@ -80,6 +87,12 @@ const NOTEBOOK_LOOK_SCALE := 0.75
 ## How long pulling the notebook out of the pocket (or putting it back) takes,
 ## matching HeldNotebook's open motion.
 const NOTEBOOK_RAISE_TIME := 0.45
+## Picking up a paper or card to read: how long it takes to come up (or go back
+## down), and how much of the view's height it fills while you read it.
+const PICKUP_TIME := 0.4
+const READ_FILL := 0.7
+## Moving a sticky note from where it is into the open notebook.
+const FILE_TIME := 0.5
 ## Using a terminal: the step to its stand point, then the camera easing onto the screen.
 const TERMINAL_STEP_TIME := 0.35
 const TERMINAL_FOCUS_TIME := 0.5
@@ -148,6 +161,14 @@ var _rmb_was := false
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
 var notebook_amount := 0.0
 var _notebook_held := false
+## The paper or card you're holding up to read (pick_up), or null. Read-only.
+var held_prop: Node3D
+var _prop_home := {}  # where it came from: parent, local transform, collision
+var _prop_read := Transform3D()  # camera-local reading pose
+var _prop_from := Transform3D()  # camera-local, where it started coming up from
+var _prop_t := 0.0  # 0 at home .. 1 held up
+var _prop_lowering := false
+var _filing := {}  # a sticky note on its way into the notebook
 ## The terminal you're using, its stand and focus points, and how far you are into it:
 ## 0..1 stepping over, 1..2 the camera easing onto the screen. Read-only.
 var terminal_amount := 0.0
@@ -212,7 +233,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state == Move.TERMINAL:
 		return  # the screen has the mouse and keys; the terminal UI calls leave_terminal()
 	if event is InputEventMouseMotion and _mouse_looks():
-		var sens := MOUSE_SENS * (NOTEBOOK_LOOK_SCALE if _notebook_held else 1.0)
+		var sens := MOUSE_SENS * (NOTEBOOK_LOOK_SCALE if _reading() else 1.0)
 		rotate_y(-event.relative.x * sens)
 		if state == Move.LEDGE:
 			_clamp_ledge_yaw()
@@ -227,7 +248,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var target := _look_target()
 		if target and target.has_method("interact_alt"):
 			target.interact_alt(self)
-	elif event.is_action_pressed("attack") and not _notebook_held:
+	elif event.is_action_pressed("attack") and not _hands_full():
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else:
@@ -295,6 +316,8 @@ func respawn(at: Transform3D) -> void:
 	state = Move.WALK
 	_set_crouch(false)
 	lower_notebook(true)
+	put_down(true)
+	_end_filing()
 	_end_terminal(false)
 	heal_full()
 
@@ -308,6 +331,7 @@ func raise_notebook() -> bool:
 		return false
 	if _notebook_held:
 		return true
+	put_down()  # one thing in your hands at a time
 	_notebook_held = true
 	if held_notebook:
 		held_notebook.open_book()
@@ -343,23 +367,224 @@ func is_holding_notebook() -> bool:
 	return _notebook_held
 
 
-## Right mouse held while reading: show the cursor to click the pages (tabs, next
-## page, "+ add") and stop looking around; released, the mouse looks again.
+## Right mouse held while reading (the notebook, or a paper you picked up): show the
+## cursor to click the pages (tabs, next page, "+ add") and stop looking around;
+## released, the mouse looks again.
 ## The local player follows the right mouse button by itself.
 func set_notebook_cursor(on: bool) -> void:
-	on = on and _notebook_held
+	on = on and _reading()
 	notebook_cursor = on
 	if held_notebook:
 		held_notebook.set_process_input(on)  # the pages only take clicks with the cursor up
+	if held_prop:
+		held_prop.set_process_input(on)
 	if local_control and not input_locked and state != Move.TERMINAL:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if on else Input.MOUSE_MODE_CAPTURED
 
 
 ## Does moving the mouse turn your head right now?
 func _mouse_looks() -> bool:
-	if _notebook_held:
+	if _reading():
 		return not notebook_cursor
 	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+
+
+# --- Picking things up -----------------------------------------------------
+
+## Lift a paper or card up in front of you to read it. It comes off the desk or
+## wall over PICKUP_TIME and ends up facing you, filling READ_FILL of the view's
+## height; `prop_raised` fires then. `size` is its readable face in metres and
+## `face` the local direction that face points (+Z for a poster on a wall,
+## Vector3.UP for one lying on a desk). You can walk slowly and look around while
+## you read; right mouse gives a cursor (set_notebook_cursor). It doesn't collide
+## while held. False if your hands are busy or you're not on your feet.
+func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) -> bool:
+	if prop == null or held_prop or not _filing.is_empty() or state != Move.WALK:
+		return false
+	lower_notebook()
+	held_prop = prop
+	_prop_home = {"parent": prop.get_parent(), "transform": prop.transform}
+	if prop is CollisionObject3D:
+		_prop_home["layer"] = prop.collision_layer
+		_prop_home["mask"] = prop.collision_mask
+		prop.collision_layer = 0  # not in your face, and not what E aims at
+		prop.collision_mask = 0
+	prop.reparent(camera, true)
+	_prop_from = prop.transform
+	_prop_read = read_pose(size, face)
+	_prop_t = 0.0
+	_prop_lowering = false
+	set_notebook_cursor(local_control and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
+	return true
+
+
+## Put what you're holding back where it came from (`prop_lowered` when it's
+## there). `instant` skips the motion.
+func put_down(instant: bool = false) -> void:
+	if held_prop == null:
+		return
+	if not is_instance_valid(held_prop):
+		_drop_prop()
+		return
+	_prop_lowering = true
+	if instant:
+		_prop_t = 0.0
+		_return_prop()
+
+
+func is_holding_prop() -> bool:
+	return held_prop != null and not _prop_lowering
+
+
+## Camera-local pose for reading something `size` big whose readable side points
+## along its local `face`: centred, tilted back a little, as close as it needs to
+## be to fill READ_FILL of the view's height.
+func read_pose(size: Vector2, face := Vector3.BACK) -> Transform3D:
+	var tan_v := tan(deg_to_rad(camera.fov / 2.0))
+	var aspect := 16.0 / 9.0
+	if is_inside_tree():
+		var rect := get_viewport().get_visible_rect()
+		aspect = rect.size.x / maxf(rect.size.y, 1.0)
+	var d := maxf(size.y / 2.0 / (tan_v * READ_FILL), size.x / 2.0 / (tan_v * aspect * 0.9))
+	# Turn the readable side to face the camera (+Z in camera space), upright.
+	var turn := Basis.IDENTITY
+	if face.normalized().is_equal_approx(Vector3.UP):
+		turn = Basis(Vector3.RIGHT, -PI / 2)
+	elif not face.normalized().is_equal_approx(Vector3.BACK):
+		turn = Basis(Quaternion(face.normalized(), Vector3.BACK))
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(-8.0))
+	return Transform3D(tilt * turn.inverse(), Vector3(0, -0.01, -d))
+
+
+## Take a sticky note and put it in the notebook: the notebook comes out, then the
+## note moves from where it is onto the open page and `sticky_filed` fires. With
+## `keep` (a note stuck to a terminal, copied rather than taken) it stays where it
+## is and a copy goes in; otherwise it's hidden as you take it, and the caller
+## removes it. False if your hands are busy or the notebook can't come out.
+func file_into_notebook(prop: Node3D, keep: bool = false) -> bool:
+	if prop == null or not _filing.is_empty() or state == Move.TERMINAL:
+		return false
+	if not raise_notebook():
+		return false
+	var copy := prop.duplicate(0) as Node3D  # just the look: no script, no signals
+	if copy is CollisionObject3D:
+		copy.collision_layer = 0
+		copy.collision_mask = 0
+	camera.add_child(copy)
+	copy.global_transform = prop.global_transform
+	copy.visible = true
+	if not keep:
+		prop.visible = false
+	_filing = {"copy": copy, "prop": prop, "from": copy.transform, "t": 0.0}
+	return true
+
+
+func is_filing() -> bool:
+	return not _filing.is_empty()
+
+
+func _reading() -> bool:
+	return _notebook_held or is_holding_prop()
+
+
+## Something in your hands: no sprinting, jumping or climbing.
+func _hands_full() -> bool:
+	return _notebook_held or held_prop != null or not _filing.is_empty()
+
+
+func _animate_prop(delta: float) -> void:
+	if held_prop == null:
+		return
+	if not is_instance_valid(held_prop):
+		_drop_prop()
+		return
+	if _prop_lowering:
+		_prop_t = maxf(0.0, _prop_t - delta / PICKUP_TIME)
+		if _prop_t == 0.0:
+			_return_prop()
+			return
+		var home: Node = _prop_home.parent
+		var home_cam: Transform3D = _prop_from
+		if is_instance_valid(home) and home is Node3D:
+			home_cam = camera.global_transform.affine_inverse() * (home as Node3D).global_transform * _prop_home.transform
+		held_prop.transform = home_cam.interpolate_with(_prop_read, smoothstep(0.0, 1.0, _prop_t))
+		return
+	if _prop_t < 1.0:
+		_prop_t = minf(1.0, _prop_t + delta / PICKUP_TIME)
+		var pose := _prop_from.interpolate_with(_prop_read, smoothstep(0.0, 1.0, _prop_t))
+		pose.origin.y += sin(_prop_t * PI) * 0.04  # lifted, not slid
+		held_prop.transform = pose
+		if _prop_t == 1.0:
+			prop_raised.emit(held_prop)
+	else:
+		held_prop.transform = _prop_read
+
+
+## Back on its desk or wall, colliding again.
+func _return_prop() -> void:
+	var prop := held_prop
+	var home: Node = _prop_home.get("parent")
+	if is_instance_valid(home):
+		prop.reparent(home, false)
+		prop.transform = _prop_home.transform
+	if prop is CollisionObject3D and _prop_home.has("layer"):
+		prop.collision_layer = _prop_home.layer
+		prop.collision_mask = _prop_home.mask
+	prop.set_process_input(true)
+	_drop_prop()
+	prop_lowered.emit(prop)
+
+
+func _drop_prop() -> void:
+	held_prop = null
+	_prop_home = {}
+	_prop_lowering = false
+	_prop_t = 0.0
+	if not _notebook_held:
+		set_notebook_cursor(false)
+
+
+func _animate_filing(delta: float) -> void:
+	if _filing.is_empty():
+		return
+	var copy: Node3D = _filing.copy
+	if not is_instance_valid(copy):
+		_filing = {}
+		return
+	if not _notebook_held:
+		_end_filing()  # the notebook went away first
+		return
+	if notebook_amount < 1.0:
+		return  # wait for the notebook to be up and open
+	_filing.t = minf(1.0, _filing.t + delta / FILE_TIME)
+	var page := camera.global_transform.affine_inverse() * _notebook_page()
+	var t := smoothstep(0.0, 1.0, _filing.t)
+	var pose: Transform3D = (_filing.from as Transform3D).interpolate_with(page, t)
+	pose.origin.y += sin(_filing.t * PI) * 0.05
+	copy.transform = pose
+	if _filing.t == 1.0:
+		var prop: Node3D = _filing.prop
+		_end_filing()
+		sticky_filed.emit(prop if is_instance_valid(prop) else null)
+
+
+## Where a filed note lands: on the held notebook's open page, or where the
+## notebook would be held without a model.
+func _notebook_page() -> Transform3D:
+	if held_notebook and is_instance_valid(held_notebook):
+		var book = held_notebook.get("book_root")
+		var at: Node3D = book if book is Node3D else held_notebook
+		return at.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.8), Vector3(0.05, 0.0, 0.005))
+	return camera.global_transform * Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-38)).scaled(Vector3.ONE * 0.8), Vector3(0.04, -0.3, -0.42))
+
+
+func _end_filing() -> void:
+	if _filing.is_empty():
+		return
+	var copy: Node3D = _filing.copy
+	if is_instance_valid(copy):
+		copy.queue_free()
+	_filing = {}
 
 
 # --- Terminals -------------------------------------------------------------
@@ -373,6 +598,7 @@ func use_terminal(stand: Node3D, focus: Node3D) -> bool:
 	if state != Move.WALK or not is_on_floor() or rider or carrier:
 		return false
 	lower_notebook()
+	put_down()
 	_term_stand = stand
 	_term_focus = focus
 	_term_from = global_transform
@@ -449,7 +675,7 @@ func _end_terminal(announce: bool) -> void:
 	_term_focus = null
 	_term_leaving = false
 	camera.transform = Transform3D.IDENTITY
-	if was and local_control and not input_locked and not _notebook_held:
+	if was and local_control and not input_locked and not _reading():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if was and announce:
 		terminal_left.emit()
@@ -462,8 +688,10 @@ func _process(delta: float) -> void:
 		var rmb := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
 		if rmb != _rmb_was:
 			_rmb_was = rmb
-			if _notebook_held and not input_locked:
+			if _reading() and not input_locked:
 				set_notebook_cursor(rmb)
+	_animate_prop(delta)
+	_animate_filing(delta)
 	var target := 1.0 if _notebook_held else 0.0
 	if notebook_amount == target:
 		return
@@ -582,7 +810,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 	var in_vent := in_volume(MovementVolume.Kind.VENT) != null
 	var flat := Vector3(velocity.x, 0, velocity.z)
 	_sprint_grace = SPRINT_GRACE if controls.sprint else maxf(0.0, _sprint_grace - delta)
-	var sprinting := (controls.sprint or _sprint_grace > 0.0) and not _notebook_held
+	var sprinting := (controls.sprint or _sprint_grace > 0.0) and not _hands_full()
 
 	if state == Move.WALK and rider == null and on_floor:
 		if controls.crouch and not crouching and sprinting and flat.length() > WALK_SPEED and not in_vent:
@@ -613,7 +841,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			speed = CROUCH_SPEED
 		elif sprinting:
 			speed = SPRINT_SPEED
-		if _notebook_held:
+		if _hands_full():
 			speed = minf(speed, NOTEBOOK_WALK_SPEED)
 		var accel := 12.0 if on_floor else 3.0
 		if not on_floor and dir == Vector3.ZERO:
@@ -621,7 +849,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * speed * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * speed * delta)
 
-	if state == Move.WALK and rider == null and not in_vent and not _notebook_held:
+	if state == Move.WALK and rider == null and not in_vent and not _hands_full():
 		var climb := in_volume(MovementVolume.Kind.CLIMB)
 		if climb and _forward().dot(-climb.normal) > 0.5 and (controls.move.y < -0.3 or jump_pressed):
 			_climb = climb

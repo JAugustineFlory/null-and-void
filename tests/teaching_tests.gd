@@ -287,7 +287,10 @@ func walk_level_0() -> void:
 	check(h == 0, "lobby: the boot screen alone gets a new player through the first query (hints %d)" % h)
 	h = solve(level, ui, level.memo_puzzle, false)
 	check(h >= 0 and h <= 1, "lobby: a lost player sorts the memo with at most the first hint (hints %d)" % h)
-	check(screen(ui).contains("RECONSTRUCTED"), "lobby: the memo reads back in order on screen")
+	var memo: Array = level.db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no")
+	var shown := screen(ui)
+	check(shown.rfind(memo[0].text) < shown.rfind(memo[1].text) and shown.rfind(memo[1].text) < shown.rfind(memo[-1].text), "lobby: the sorted result on screen reads as the memo, in order")
+	check(not shown.contains("RECONSTRUCTED"), "lobby: the memo isn't printed a second time under the result")
 	ui.close()
 	level.queue_free()
 	await t.process_frame

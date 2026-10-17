@@ -26,6 +26,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_same_controls_same_moves()
 	await test_notebook_hold()
 	await test_use_terminal()
+	await test_pick_up()
+	await test_file_sticky()
 	await test_movement_gym()
 
 
@@ -629,6 +631,110 @@ func test_use_terminal() -> void:
 	p.leave_terminal()
 	await frames(Player.TERMINAL_FOCUS_TIME * 60 + 3)
 	screen.free()
+	await done(a)
+
+
+## A paper-sized prop: a collider and a mesh, like a Document.
+func _paper(parent: Node, pos: Vector3, flat: bool) -> StaticBody3D:
+	var b := StaticBody3D.new()
+	b.position = pos
+	var mesh := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.21, 0.28)
+	mesh.mesh = qm
+	if flat:
+		mesh.rotation_degrees.x = -90  # lying face up
+	b.add_child(mesh)
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.21, 0.02, 0.28) if flat else Vector3(0.21, 0.28, 0.05)
+	shape.shape = bs
+	b.add_child(shape)
+	parent.add_child(b)
+	return b
+
+
+func test_pick_up() -> void:
+	var a := arena()
+	Greybox.box(a, Vector3(0, 0.45, -1), Vector3(1.6, 0.9, 0.8), Color.DIM_GRAY, "Desk")
+	var paper := _paper(a, Vector3(0.3, 0.91, -1), true)
+	var home := paper.global_transform
+	var p := spawn(a, Vector3(0, 0.05, 0.2))
+	await frames(20)
+	var events := []
+	p.prop_raised.connect(func(pr): events.append(["raised", pr]))
+	p.prop_lowered.connect(func(pr): events.append(["lowered", pr]))
+	check(p.pick_up(paper, Vector2(0.21, 0.28), Vector3.UP) and p.is_holding_prop(), "E on a paper picks it up")
+	check(paper.collision_layer == 0 and paper.get_parent() == p.camera, "it's in your hands and doesn't bump into anything")
+	await frames(int(Player.PICKUP_TIME * 60) + 6)
+	check(events == [["raised", paper]], "it comes up over a moment, then it's ready to read")
+	var cam := p.camera.global_transform
+	var face := paper.global_basis * Vector3.UP  # the side with the writing
+	var to_cam := (cam.origin - paper.global_position).normalized()
+	check(face.normalized().dot(to_cam) > 0.95, "the writing faces you")
+	var tan_v := tan(deg_to_rad(p.camera.fov / 2.0))
+	var dist := -(cam.affine_inverse() * paper.global_position).z
+	var fill := 0.28 / (2.0 * tan_v * dist)
+	check(absf(fill - Player.READ_FILL) < 0.05 and absf((cam.affine_inverse() * paper.global_position).x) < 0.01, "held centred, big enough to read (fills %.2f of the view)" % fill)
+	var yaw0 := p.rotation.y
+	_mouse_move(p, Vector2(80, 0))
+	check(p.rotation.y < yaw0, "you can look around while you read")
+	p.set_notebook_cursor(true)
+	check(p.notebook_cursor and paper.is_processing_input(), "right mouse gives a cursor for its lines")
+	p.set_notebook_cursor(false)
+	var z0 := p.global_position.z
+	p.controls.move = Vector2(0, 1)  # back away from the desk
+	p.controls.sprint = true
+	await frames(60)
+	stop(p)
+	check(p.global_position.z - z0 < Player.NOTEBOOK_WALK_SPEED + 0.1 and p.global_position.z - z0 > 0.5, "and walk slowly")
+	p.put_down()
+	check(not p.is_holding_prop(), "E again puts it down")
+	await frames(int(Player.PICKUP_TIME * 60) + 6)
+	check(events.size() == 2 and events[1] == ["lowered", paper] and p.held_prop == null, "it goes back down, then says so")
+	check(paper.get_parent() == a and paper.global_transform.is_equal_approx(home) and paper.collision_layer == 1, "back on the desk where it was, solid again")
+	# A poster on a wall faces out along +Z.
+	var poster := _paper(a, Vector3(-0.5, 1.5, -2), false)
+	p.pick_up(poster)
+	await frames(int(Player.PICKUP_TIME * 60) + 6)
+	var out := (poster.global_basis * Vector3.BACK).normalized()
+	check(out.dot((p.camera.global_position - poster.global_position).normalized()) > 0.95, "a wall poster comes off the wall facing you too")
+	check(p.raise_notebook() and p.is_holding_notebook() and not p.is_holding_prop(), "Tab while reading puts it back and gets the notebook out")
+	await frames(int(Player.PICKUP_TIME * 60) + 6)
+	check(poster.get_parent() == a and p.held_prop == null, "and it's back on the wall")
+	p.lower_notebook(true)
+	check(not p.pick_up(null), "nothing to pick up, nothing happens")
+	await done(a)
+
+
+func test_file_sticky() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.05, 0))
+	await frames(20)
+	var book := FakeHeldNotebook.new()
+	p.camera.add_child(book)
+	book.position = Vector3(0, -0.3, -0.42)
+	p.held_notebook = book
+	var note := _paper(a, Vector3(0.2, 1.2, -0.8), false)
+	note.scale = Vector3.ONE * 0.4
+	var filed := []
+	p.sticky_filed.connect(func(n): filed.append(n))
+	var kids := p.camera.get_child_count()
+	check(p.file_into_notebook(note) and p.is_holding_notebook(), "taking a sticky note gets the notebook out")
+	check(not note.visible and p.camera.get_child_count() == kids + 1, "the note leaves its spot and is in your hand")
+	await frames(10)
+	check(filed.is_empty(), "it waits for the notebook to open")
+	await frames(int((Player.NOTEBOOK_RAISE_TIME + Player.FILE_TIME) * 60) + 10)
+	check(filed == [note] and not p.is_filing(), "then goes onto the page, and says so")
+	await frames(2)
+	check(p.camera.get_child_count() == kids, "the note in your hand is gone into the book")
+	check(p.is_holding_notebook(), "and the notebook stays open to see it")
+	var stuck := _paper(a, Vector3(-0.2, 1.2, -0.8), false)
+	check(p.file_into_notebook(stuck, true) and stuck.visible, "copying a note stuck to a terminal leaves it there")
+	await frames(int(Player.FILE_TIME * 60) + 10)
+	check(filed.size() == 2 and filed[1] == stuck, "and a copy goes in the notebook")
+	p.held_notebook = null
+	book.free()
 	await done(a)
 
 

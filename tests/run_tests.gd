@@ -436,6 +436,7 @@ func test_level_0_scene() -> void:
 	check(level.van_seats.size() == 6, "the van seats six")
 	check(level.seat_spawn(1).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the passenger seat")
 	check(level.player.seated and level.find_children("Windscreen", "", true, false).size() == 1, "players start belted in, behind a solid windscreen")
+	check(level.rourke.global_position.distance_to(level.ROURKE_OUTSIDE) < 0.3 and level.rourke.visible, "Rourke is already waiting outside the front doors")
 	var exits: Array = level.van_seats.map(func(s): return s.exit)
 	check(exits.count("side") == 4 and exits.has("w") and exits.has("e"), "two front doors and a side door for the rear bench")
 	level.players_needed = 2
@@ -505,6 +506,12 @@ func test_level_0_scene() -> void:
 	check(vaulted and lp.global_position.z > -0.4, "and back to the lobby side")
 	lp.controls.move = Vector2.ZERO
 	lp.local_control = true
+	# Let the greeting on the steps finish and the crew come inside first, as in play.
+	for i in 1800:
+		if level.sync._gates.has("inside"):
+			break
+		await physics_frame
+	check(level.sync._gates.has("inside"), "Rourke greets the crew outside, then they all come in")
 	# Rourke walks the crew down the hall himself; nothing blocks the way.
 	level._on_walkies()
 	for i in 600:
@@ -522,6 +529,32 @@ func test_level_0_scene() -> void:
 	check(level.vent_grate.enabled, "the air return has a grate on it")
 	level._on_vent_grate()
 	check(not level.vent_grate.enabled and level.find_children("*", "MovementVolume", true, false).any(func(v): return v.kind == MovementVolume.Kind.VENT), "the grate comes off, and the duct behind it is a crawlspace")
+	var crawler: Player = level.player
+	var was_seated := crawler.seated
+	crawler.seated = false
+	crawler.local_control = false
+	crawler.global_position = Vector3(-7.0, 0.1, 4)
+	crawler.rotation.y = PI / 2  # facing the air return
+	crawler.controls.crouch = true
+	crawler.controls.move = Vector2(0, -1)
+	for i in 360:
+		await physics_frame
+	check(crawler.global_position.x < -14.0, "holding crouch and walking in crawls all the way through to the closet (x %.1f)" % crawler.global_position.x)
+	crawler.controls.crouch = false
+	crawler.controls.move = Vector2.ZERO
+	crawler.seated = was_seated
+	crawler.local_control = true
+	# Ordinary hinged doors open and shut with E; Server Room A's is a badge door.
+	check(level.exit_door.get_prompt(crawler) == "Locked", "Server Room A's door says it's locked")
+	level.exit_door.interact(crawler)
+	check(not level.exit_door.is_open, "and E doesn't open it: only Rourke's badge does")
+	var plain := Door.create(level, "TEST-PLAIN", Vector3(30, 1.2, 30), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
+	await process_frame
+	check(plain.get_prompt(crawler).contains("Open"), "an ordinary door offers to open")
+	plain.interact(crawler)
+	check(plain.is_open and plain.get_prompt(crawler).contains("Close"), "E opens it, and then offers to close it")
+	plain.interact(crawler)
+	check(not plain.is_open, "E again shuts it")
 	level.queue_free()
 	await process_frame
 
@@ -960,8 +993,8 @@ func test_coop_lobby_walk_in() -> void:
 		p.global_position = h.to_global(Vector3(0, 0.1, 11.5))
 	for f in 2400:
 		await physics_frame
-		if h.rourke.state == Rourke.State.WALK and c.sync._gates.has("rourke_at_door"):
-			break
+		if h.rourke.state == Rourke.State.WALK and c.sync._gates.has("approach"):
+			break  # he's said hello on the steps and is heading in
 	m[0].player.global_position = h.to_global(Vector3(0, 0.1, 4.5))
 	await _frames(20)
 	m[0].player.global_position = h.to_global(Vector3(0, 0.1, 1.8))
@@ -969,7 +1002,7 @@ func test_coop_lobby_walk_in() -> void:
 	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 4.5))
 	await _frames(20)
 	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 1.8))
-	for f in 1200:
+	for f in 3000:
 		await physics_frame
 		if c.visitor_log.enabled:
 			break
@@ -1327,6 +1360,17 @@ func test_level_2_routes() -> void:
 	check(sheet.lines().any(func(l): return l.hand and l.text.begins_with("Har")) and sheet.lines().any(func(l): return l.hand and l.text == "guards"),
 		"the sign-in sheet has the half-legible name and the PIN table, handwritten")
 	check(not str(docs.map(func(d): return d.plain_text())).contains("Har%"), "no document gives the Har query away")
+	# Papers on the walls are drawn full size, their words readable from the room.
+	for d in docs:
+		var wall_sheet: Node3D = d.get_node_or_null("WallSheet")
+		var printed: Array = wall_sheet.find_children("Line*", "Label3D", false, false) if wall_sheet else []
+		var shown := " ".join(printed.map(func(l): return l.text))
+		check(wall_sheet != null and d.lines().all(func(l): return l.text == "" or shown.contains(l.text) or wall_sheet.find_child("Title", false, false).text == l.text), "%s is on the wall with all its words" % d.title)
+		check(printed.all(func(l): return l.font_size >= 20), "%s is printed big enough to read" % d.title)
+	var facing := func(title: String) -> float:
+		var label: Label3D = docs[titles.find(title)].get_node("WallSheet").find_child("Line0", false, false)
+		return label.global_basis.z.z  # Label3D reads from its +Z side
+	check(facing.call("Night shift sign-in sheet") < -0.9 and facing.call("Lockdown PIN policy") > 0.9, "wall papers face into the corridor, not into the wall")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
@@ -1864,6 +1908,26 @@ func test_notebook() -> void:
 	check(_game().notebook_notes.is_empty(), "a new run starts with an empty notebook")
 	_game().load_notebook(saved)
 	check(_game().notebook_notes.size() == 2 and _game().notebook_tables.has("memo_fragments") and _game().notebook_written.size() == 3, "a saved notebook loads back")
+	# Your own notes: "+ write a note" on the Notes page, typed at the foot of the screen.
+	level.player.input_locked = false
+	nb.open(NotebookPages.Page.NOTES)
+	var write_btn: Button = nb.pages.book.find_child("WriteMine", true, false)
+	check(write_btn != null and write_btn.text.contains("write a note"), "the Notes page has a button to write your own note")
+	write_btn.pressed.emit()
+	check(nb.is_writing() and nb.writer.has_focus() and level.player.input_locked, "it opens a line to type on, and you stand still while you write")
+	nb.finish_writing("  PIN for HARDY: 2751 ")
+	check(not nb.is_writing() and level.player.input_locked and nb.is_open(), "Enter writes it in and the notebook stays open")
+	check(_game().notebook_written[-1].text == "PIN for HARDY: 2751" and _game().notebook_written[-1].kind == "mine", "the note is written as typed")
+	var mine_text := nb.pages.section_text(NotebookPages.Page.NOTES)
+	check(mine_text.contains("My notes") and mine_text.contains("PIN for HARDY: 2751") and mine_text.find("My notes") < mine_text.find("Sticky notes"), "your own notes come first on the Notes page")
+	check(mine_text.count("PIN for HARDY") == 1, "and aren't listed again under copied lines")
+	var count_before: int = _game().notebook_written.size()
+	nb.start_writing()
+	nb.finish_writing("   ")
+	check(_game().notebook_written.size() == count_before and not nb.is_writing(), "a blank note writes nothing")
+	nb.start_writing()
+	nb.close()
+	check(not nb.is_writing() and not level.player.input_locked, "closing the notebook puts the pen down and frees you")
 	level.queue_free()
 	await process_frame
 
