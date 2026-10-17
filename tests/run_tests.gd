@@ -367,6 +367,12 @@ func test_voice_playback() -> void:
 	voice._player.bus = &"Master"
 	voice.play("l0_pa_1")
 	check(voice._player.bus == Voice.PA_BUS, "the building's announcements play through the PA speaker sound too")
+	var pa_bus := AudioServer.get_bus_index(Voice.PA_BUS)
+	var hall: AudioEffectReverb = null
+	for i in AudioServer.get_bus_effect_count(pa_bus):
+		if AudioServer.get_bus_effect(pa_bus, i) is AudioEffectReverb:
+			hall = AudioServer.get_bus_effect(pa_bus, i)
+	check(hall != null and hall.room_size >= 0.8 and hall.predelay_msec > 0.0 and hall.dry >= 1.0, "the PA echoes like a big empty hall without burying the voice")
 	voice.queue_free()
 	DirAccess.remove_absolute(wav_path)
 	DirAccess.remove_absolute(warden_path)
