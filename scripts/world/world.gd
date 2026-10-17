@@ -15,9 +15,12 @@ signal checkpoint_reached(wing_id: String)
 
 ## Play order, and where each wing sits in the building (its origin and facing).
 ## Server Room A is turned so its antechamber meets the end of the lobby hall at x = 24.
+## The security wing faces the same way, a little further on. Players reach it by
+## Server Room A's elevator, which carries them into its arrival car.
 const ROUTE := [
 	{"key": "level_0", "scene": "res://scenes/level_0.tscn", "at": Transform3D.IDENTITY},
 	{"key": "level_1", "scene": "res://scenes/level_1.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(38, 0, 3))},
+	{"key": "level_2", "scene": "res://scenes/level_2.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -1))},
 ]
 const FIELD_NOTES := "res://scenes/field_notes.tscn"
 

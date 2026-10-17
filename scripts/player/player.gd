@@ -94,6 +94,11 @@ var _ledge: MovementVolume
 var _step_t := 0.0
 var _strike_cd := 0.0
 var _height := STAND_HEIGHT
+## How tall the body is right now: 1.8 standing, 1.25 crouching, 0.85 crawling,
+## or in between. Read-only; co-op sends it so teammates see the same pose.
+var stance_height: float:
+	get:
+		return _height
 var _bob_t := 0.0
 
 var head: Node3D

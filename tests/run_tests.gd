@@ -37,11 +37,13 @@ func _run() -> void:
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
+	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
+	await test_coop_level_2()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -168,6 +170,26 @@ func test_voice_codec() -> void:
 	check(worst < 0.03, "mu-law keeps the voice close to the original (worst error %.3f)" % worst)
 	check(VoiceCodec.rms(back) > 0.3 and VoiceCodec.rms(_tone(100, 48000.0, 0.0)) == 0.0, "loudness tells talking from silence")
 	check(VoiceCodec.mulaw_decode(VoiceCodec.mulaw_encode(-0.25)) < 0.0, "negative samples stay negative")
+	# A microphone at 44.1 kHz, sent in frame-sized chunks, must come out as one
+	# smooth wave: no jumps where one packet ends and the next begins.
+	var mic := _tone(44100, 44100.0, 0.5)
+	var enc := VoiceCodec.Encoder.new()
+	var stream := PackedVector2Array()
+	var at := 0
+	while at < mic.size():
+		var chunk := mic.slice(at, mini(at + 735, mic.size()))
+		stream.append_array(VoiceCodec.decode(enc.encode(chunk, 44100.0)))
+		at += 735
+	var jump := 0.0
+	for i in range(1, stream.size()):
+		jump = maxf(jump, absf(stream[i].x - stream[i - 1].x))
+	check(absi(stream.size() - 12000) <= 2 and jump < 0.15, "a 44.1 kHz mic sent in chunks stays one smooth 12 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
+	var quiet := _tone(4800, 48000.0, 0.02)
+	var louder := VoiceCodec.amplify(quiet, 8.0)
+	var peak := 0.0
+	for f in VoiceCodec.amplify(_tone(4800, 48000.0, 0.9), 8.0):
+		peak = maxf(peak, absf(f.x))
+	check(VoiceCodec.rms(louder) > 0.1 and peak <= 1.0, "a quiet mic is brought up to speaking level, a loud one never clips (peak %.2f)" % peak)
 
 
 func test_radio_rules() -> void:
@@ -192,6 +214,8 @@ func test_radio_rules() -> void:
 	var clean := Radio.degrade(_tone(600, 12000.0, 0.5), 1.0, rng)
 	var noisy := Radio.degrade(_tone(600, 12000.0, 0.0), 0.0, rng)
 	check(VoiceCodec.rms(clean) > 0.3 and VoiceCodec.rms(noisy) > 0.1, "a good signal carries the voice, a dead one is only static")
+	var hiss := Radio.degrade(_tone(600, 12000.0, 0.0), 1.0, rng)
+	check(VoiceCodec.rms(clean) > 15.0 * VoiceCodec.rms(hiss), "close up, the static is faint under the voice (voice %.3f, hiss %.3f)" % [VoiceCodec.rms(clean), VoiceCodec.rms(hiss)])
 
 
 func test_voice_script() -> void:
@@ -712,10 +736,10 @@ func test_coop_level_1() -> void:
 	client.player._set_stance(Player.CRAWL_HEIGHT)
 	await _frames(10)
 	var mate: PlayerPuppet = host.players.puppet(client_id)
-	check(mate.crawling and mate.height < 1.0, "a teammate crawling shows crawling for the others, not standing")
+	check(mate.crawling and mate.stance_height < 1.0 and mate.rig.crawl_amount() > 0.9, "a teammate crawling shows crawling for the others, not standing")
 	client.player._set_stance(Player.STAND_HEIGHT)
 	await _frames(10)
-	check(not mate.crouching and is_equal_approx(mate.height, Player.STAND_HEIGHT), "and stands back up with them")
+	check(not mate.crouching and is_equal_approx(mate.stance_height, Player.STAND_HEIGHT) and mate.rig.crouch_amount() == 0.0, "and stands back up with them")
 	client.player.set_physics_process(true)
 
 	# The elevator: the host counts heads, then the doors close everywhere.
@@ -846,6 +870,89 @@ func test_coop_lobby_walk_in() -> void:
 	await _coop_close(worlds)
 
 
+func test_coop_level_2() -> void:
+	print("Co-op: Level 2 with a host and a client")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/level_2.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(machines.all(func(l): return l.sync._begun and l.players.count() == 2), "both machines start Level 2 with two players")
+	host.player.input_locked = true  # the host looks at nothing; the client does the work
+	client.terminal_ui.terminal = client.booth
+	client.terminal_ui.run("GET /cameras")
+	await _frames(10)
+	check(machines.all(func(l): return l.cameras_puzzle.solved and l.booth.transcript.any(func(t): return t.contains("JSON"))), "a client's GET /cameras solves it, and the JSON lines print on every machine")
+	client.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	await _frames(10)
+	check(machines.all(func(l): return l.pike_puzzle.solved and l.loose and l.frozen_cams.has("CAM-2")), "the Pike practice freezes CAM-2 for everyone")
+	client.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
+	await _frames(20)
+	check(machines.all(func(l): return l.har_puzzle.solved), "LIKE + AND finds the PIN for everyone")
+	check(client.watcher.global_position.distance_to(host.watcher.global_position) < 0.2, "clients see the Watcher where the host has it")
+	client._pad_mode = "office"
+	client._on_pin(host.data.pin)
+	await _frames(10)
+	check(machines.all(func(l): return l.office_open and l.doors["SEC-OFFICE"].is_open) and host.watcher.active, "a client's PIN opens the office door on every machine, and it's free")
+	host.watcher.holders.append(func(_w): return true)  # hold it still for the rest of the test
+	await _frames(2)
+	host.watcher.place(host.to_global(Vector3(0, 0, 4)), host.to_global(Vector3(3, 0, 4)))
+	await _frames(20)
+	check(client.watcher.global_position.distance_to(host.watcher.global_position) < 0.2, "when it moves, clients see it move")
+
+	# Someone on another machine looking at it holds it too.
+	client.player.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), client.to_global(Vector3(3, 0.1, 4)))
+	client.player.head.rotation = Vector3.ZERO
+	await _frames(20)
+	var puppet = host.players.puppet(client_id)
+	host.watcher.holders.clear()
+	host.watcher.active = false
+	check(puppet != null and host.watcher.player_sees(puppet), "the host knows a client is looking at it")
+	host.watcher.place(host.to_global(Vector3(5.5, 0, 4)), host.to_global(Vector3(3, 0, 4)))
+	await physics_frame
+	check(not host.watcher.player_sees(puppet), "and that it's behind them when it is")
+	host.watcher.holders.append(func(_w): return true)
+	host.watcher.place(host.to_global(Vector3(-4, 0, -6)), host.to_global(Vector3(0, 0, 0)))
+
+	client.key_glass.take_hit(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return not is_instance_valid(l.key_glass)), "a client's strike breaks the glass on every machine")
+	client.geo.get_node("Screwdriver").interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.has_screwdriver and l.geo.get_node_or_null("Screwdriver") == null), "the screwdriver is picked up for everyone")
+	client.vent_grate.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return not is_instance_valid(l.vent_grate)), "the grate comes off on every machine")
+
+	client._pad_mode = "exit"
+	client._on_pin(host.data.pin)
+	await _frames(10)
+	check(machines.all(func(l): return l.pin_entered and not l.door_open), "the stairwell PIN goes through for everyone, and the door still jams")
+	client.breakers[host.data.breaker].interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.door_open and l.doors["SEC-EXIT"].is_open), "a client's breaker reset opens SEC-EXIT for everyone")
+	await _frames(100)
+	for l in machines:
+		l.completed.disconnect(l._on_completed)
+	client.player.global_transform = Transform3D(Basis(), client.to_global(Vector3(0, 0.1, -18.2)))
+	await _frames(20)
+	client.exit_lift.button.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return not l.exit_lift.is_closing), "the doors won't close while someone is still outside")
+	client._pad_mode = "seal"
+	client._on_pin(host.data.pin)
+	await _frames(10)
+	check(machines.all(func(l): return not l.doors["SEC-EXIT"].is_open), "a client can lock SEC-EXIT behind the team")
+	host.player.input_locked = false
+	host.player.global_transform = Transform3D(Basis(), host.to_global(Vector3(0.6, 0.1, -18.4)))
+	await _frames(20)
+	client.exit_lift.button.interact(client.player)
+	await _frames(180)
+	check(machines.all(func(l): return l.exit_lift.open_amount == 0.0), "with everyone inside, the doors shut on every machine")
+	await _coop_close(worlds)
+
+
 func test_facility_api() -> void:
 	print("FacilityAPI")
 	var api := FacilityAPI.new()
@@ -915,7 +1022,7 @@ func test_level_2_data_every_seed() -> void:
 	var door_ids := []
 	for row in building.run_silent("SELECT id FROM doors ORDER BY id"):
 		door_ids.append(row["id"])
-	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.size() == doors_before + 1, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
+	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.has("SEC-OFFICE") and door_ids.size() == doors_before + 2, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
 	check(pins.size() >= 40 and names.size() >= 4, "PIN and guard vary between runs (%d PINs, %d names)" % [pins.size(), names.size()])
 
 
@@ -945,25 +1052,70 @@ func test_level_2_scene() -> void:
 	var w: Watcher = level.watcher
 	var p: Player = level.player
 	check(level.doors["SEC-EXIT"].is_open == false, "stairwell exit starts locked")
-	check(w.is_on_floor() and w.active, "the Watcher stands in the office")
+	check(level.doors["SEC-OFFICE"].is_open == false, "the Security Office door starts locked")
+	check(w.is_on_floor() and not w.active, "the Watcher waits in the office")
+	# At the window, looking in: the office looks empty.
+	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
+	p.head.rotation = Vector3.ZERO
+	await physics_frame
+	check(not w.player_sees(p), "at first it's out of sight from the window")
 	# Player at the booth, facing the terminal: the office is behind them.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
 	level.terminal_ui.terminal = level.booth
 	level.terminal_ui.run("GET /cameras")
-	check(level.cameras_puzzle.solved, "GET /cameras solves the first puzzle")
+	var cams0: Dictionary = JSON.parse_string(level.booth.api.request("GET /cameras").text)
+	check(level.cameras_puzzle.solved and cams0["cameras"][1]["motion"] == true, "GET /cameras solves the first puzzle: CAM-2 sees motion")
 	var start: Vector3 = w.global_position
-	for i in 60:
+	for i in 30:
 		await physics_frame
 	check(w.global_position.distance_to(start) < 0.05, "a working camera holds it while nobody looks")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	check(level.pike_puzzle.solved and level.loose and level.frozen_cams.has("CAM-2"), "the Pike practice freezes CAM-2")
+	level.terminal_ui.run("GET /doors/SEC-EXIT")
+	check(not level.door_puzzle.solved, "checking the door early doesn't use up its puzzle")
+	await physics_frame
+	await physics_frame
+	check(level.stage == "near" and w.global_position.distance_to(level.to_global(level.STAGES.near[0])) < 0.2, "closer to the PIN, it creeps closer while nobody looks")
+	check(w.active, "finding Pike wakes it: the Har search is typed while it hunts")
 	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
 	p.head.rotation = Vector3.ZERO
 	await physics_frame
-	check(w.player_sees(p), "players can see it through the office window")
+	await physics_frame
+	check(w.player_sees(p), "now players can see it through the office window")
+	var watched: Vector3 = w.global_position
+	for i in 10:
+		await physics_frame
+	check(w.global_position.distance_to(watched) < 0.05, "it doesn't move while someone is watching it")
+	# Back at the booth, typing with it behind them: it comes, but the door and glass hold.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
-	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
-	check(level.pike_puzzle.solved and level.loose and level.frozen_cams.has("CAM-2"), "the Pike practice frees it: CAM-2 freezes")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
+	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
+	for i in 240:
+		await physics_frame
+	check(w.global_position.distance_to(watched) > 1.0 and level.to_local(w.global_position).z < 2.0 and p.health > 0.0, "unseen, it hunts, but the locked office door keeps it in")
+	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 2.35))
+	p.head.rotation = Vector3.ZERO
+	w.place(level.to_global(Vector3(-3, 0, 1.6)), p.global_position)
+	w.holders.append(func(_w): return false)
+	p.input_locked = true  # not looking: only the glass is between them
+	for i in 30:
+		await physics_frame
+	check(p.health > 0.0, "it can't get you through the glass")
+	p.input_locked = false
+	w.holders.clear()
+	w.holders.append(level._camera_holds)
+	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
+	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
+	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
+	# Open the office from the east end of the corridor, then look away.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(3, 0.1, 4.6))
+	level._pad_mode = "office"
+	level._on_pin(level.data.pin)
+	for i in 5:
+		await physics_frame
+	check(level.doors["SEC-OFFICE"].is_open and w.active, "the PIN opens the office door, and it's free")
 	var before: float = w.global_position.distance_to(p.global_position)
-	for i in 120:
+	for i in 180:
 		await physics_frame
 	var after: float = w.global_position.distance_to(p.global_position)
 	check(after < before - 1.5, "unseen, it comes for you (%.1f m -> %.1f m)" % [before, after])
@@ -974,6 +1126,7 @@ func test_level_2_scene() -> void:
 	var cam2: Dictionary = cams["cameras"][1]
 	check(cam2["status"] == "live" and cam2["last_frame"] == frame and cams["server_time"] != frame, "the lie: CAM-2 says live but its frame is stuck")
 	# It slips out into the corridor. Turn around and look at it: it stops.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))
 	w.place(Vector3(2.5, 0, 4.0), p.global_position)
 	p.look_at(w.global_position + Vector3.UP * 1.2, Vector3.UP)
 	p.rotation.x = 0
@@ -985,11 +1138,13 @@ func test_level_2_scene() -> void:
 	check(w.seen and w.global_position.distance_to(held) < 0.05, "looking at it freezes it")
 	level.terminal_ui.run("GET /cameras")
 	check(level._lie_explained, "fetching cameras after it left explains the frozen frame")
-	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'")
-	check(level.har_puzzle.solved, "LIKE + AND finds the PIN")
-	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
-	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
-	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
+	level._lie_explained = false
+	_game().cam_lie_learned = false
+	level.on_player_died()
+	await create_timer(2.8).timeout
+	check(level._lie_explained and _game().cam_lie_learned and level.booth.transcript[-1].contains("last_frame") and level.panel.boot_lines[-1].contains("last_frame"), "dying to it explains the frozen camera, as lines you can note on both terminals")
+	for i in 3:
+		await physics_frame
 	level.enter_pin()
 	for i in 5:
 		await physics_frame
@@ -1005,14 +1160,30 @@ func test_level_2_scene() -> void:
 	level._on_breaker(null, level.data.breaker)
 	for i in 5:
 		await physics_frame
-	check(level.doors["SEC-EXIT"].is_open and level.door_open, "resetting the right breaker opens the door")
+	check(level.doors["SEC-EXIT"].is_open and level.door_open and level.door_puzzle.solved, "resetting the right breaker opens the door")
 	check(level.db.run_silent("SELECT sensor FROM door_status WHERE door_id = 'SEC-EXIT'")[0]["sensor"] == "open", "the sensor now agrees")
+	for i in 100:
+		await physics_frame
+	check(level.exit_lift.open_amount > 0.99, "with SEC-EXIT open, the elevator is waiting")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -14.5)))
+	await physics_frame
+	check(not level.exit_lift.press(p) and level.exit_lift.refusal != "", "the button won't work until everyone is inside")
 	level.seal_exit()
 	for i in 5:
 		await physics_frame
 	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
-	# Caught: put it right behind the player, out of sight.
+	var shut := [false]
+	level.exit_lift.closed.connect(func(): shut[0] = true)
+	level.completed.disconnect(level._on_completed)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -18.2)))
+	await physics_frame
+	check(level.exit_lift.headcount() == Vector2i(1, 1) and level.exit_lift.press(p), "inside, the button closes the doors")
+	for i in 160:
+		await physics_frame
+	check(shut[0] and level.exit_lift.open_amount == 0.0, "the doors shut: the wing is done")
+	p.input_locked = false
 	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
+	# Caught: put it right behind the player, out of sight.
 	w.place(Vector3(0, 0, 5.2), p.global_position)
 	for i in 20:
 		await physics_frame
@@ -1031,7 +1202,30 @@ func test_level_2_routes() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	p.local_control = false
-	# Vent: climb the crate, then into the duct.
+	# The break-glass box on the landing: the safe place to learn both.
+	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
+	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
+	# Vent: the grate is screwed shut until someone finds the screwdriver.
+	level._on_vent_grate(p)
+	await process_frame
+	check(is_instance_valid(level.vent_grate) and not level.has_screwdriver, "the vent grate won't come off by hand")
+	level.key_glass.take_hit(p)
+	await process_frame
+	var sd: Interactable = null
+	for n in level.geo.get_children():
+		if n is Interactable and n.prompt == "Take the screwdriver":
+			sd = n
+	check(not is_instance_valid(level.key_glass) and sd != null, "strike the box's glass and the screwdriver is there")
+	sd.interact(p)
+	level._on_vent_grate(p)
+	await process_frame
+	check(not is_instance_valid(level.vent_grate), "the screwdriver takes the grate off")
+	level.set_hatch(true)
+	check(level.hatch_open and level.vent_hatch.rotation.z != 0.0, "the hinged hatch at the vestibule end swings open")
+	level.set_hatch(false)
+	check(not level.hatch_open, "and closes again")
+	level.set_hatch(true)
+	# Climb the crate, then into the duct.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(-4.4, 0.1, 4.0))
 	for i in 5:
 		await physics_frame
@@ -1042,7 +1236,12 @@ func test_level_2_routes() -> void:
 	for i in 40:
 		await physics_frame
 	check(p.global_position.y > 1.9 and p.crouching and p.in_volume(MovementVolume.Kind.VENT) != null, "inside the vent, crouched (y %.2f)" % p.global_position.y)
-	# Ledge: out the smashed window and along the east wall, back to the wall.
+	# Ledge: break the outside window first. The office window is security glass.
+	level.office_glass.take_hit(p)
+	level.ledge_glass.take_hit(p)
+	await process_frame
+	check(is_instance_valid(level.office_glass) and not is_instance_valid(level.ledge_glass), "the outside window breaks; the office window doesn't")
+	# Out the broken window and along the east wall, back to the wall.
 	p.global_transform = Transform3D(Basis(), Vector3(6.44, 0.05, 4.0))
 	for i in 5:
 		await physics_frame
@@ -1057,6 +1256,10 @@ func test_level_2_routes() -> void:
 			break
 	p.controls.move = Vector2.ZERO
 	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
+	level.loose = true
+	level._process(0.0)
+	check(level.watcher.active, "going round the office another way wakes the Watcher too")
+	level.watcher.active = false
 	# Navigation: the Watcher can walk from the office to the vestibule and the corridor.
 	var map: RID = level.watcher.get_world_3d().navigation_map
 	var to_vest := NavigationServer3D.map_get_path(map, level.watcher_home, Vector3(0, 0, -10.5), true)
@@ -1134,7 +1337,18 @@ func test_world() -> void:
 	check(not lobby.exit_door.is_open, "the hall door seals behind the players")
 	sra._on_trapped(null)
 	check(sra.terminal.locked, "Server Room A's story runs inside the World")
-	# Out by the elevator: the doors closing are the checkpoint, the ride ends the level.
+	check(not world.wings.has("level_2"), "the security wing isn't loaded before it's needed")
+	world.load_next(sra)
+	var sec = world.wings.get("level_2")
+	check(sec != null and not sec.active, "the security wing loads ahead, out of sight, while players are in Server Room A")
+	var car_back: Vector3 = sec.to_local(sra.elevator.to_global(Vector3(0, 0, Elevator.SIZE.z)))
+	check(car_back.z > 10.5 and sec.arrival_lift.contains(sec.spawn_point().origin), "the security wing doesn't overlap Server Room A's elevator, and players start in its arrival car (%s)" % car_back)
+	check(world.db.run_silent("SELECT * FROM doors WHERE id LIKE 'SEC-%'").size() == 2 and world.db.table_names().has("guards"),
+		"the security wing adds its own rows to the one building database")
+	await process_frame
+	check(sec._clock == 0.0, "the security wing's clock doesn't run before players get there")
+	check(sec._camera_holds(sec.watcher), "cameras cover the Watcher's spot in the office, wherever the wing sits")
+	# Out by the elevator: the doors closing are the checkpoint, the ride ends in the security wing.
 	sra.rourke.state = Rourke.State.IDLE
 	sra._on_exit(null)
 	await sra.elevator.opened
@@ -1146,7 +1360,23 @@ func test_world() -> void:
 	check(sra.elevator.open_amount == 0.0 and sra.elevator.riding, "the doors shut before it moves")
 	await sra.elevator.arrived
 	await process_frame
-	check(world._field_notes != null and world.player.input_locked, "the ride ends at Field Notes, in the notebook")
+	check(sra.elevator.destination == sec.arrival_lift and sec.arrival_lift.contains(world.player.global_position), "the ride carries the crew into the security wing's arrival car")
+	check(world.current == sec and sec.active, "the ride hands play to the security wing")
+	check(sec.watcher.global_position.distance_to(sec.to_global(sec.watcher_home)) < 0.1, "the Watcher stands in the office")
+	sec.player.global_position = sec.to_global(Vector3(0, 0.1, -10.5))
+	await physics_frame
+	await physics_frame
+	sec._process(0.0)
+	check(sec.reached_vestibule, "the vestibule camera zone works at the wing's position")
+	sec.on_player_died()
+	check(sec.player.global_position.distance_to(sec.to_global(Vector3(0, 0.1, -10.8))) < 0.2, "dying past the office respawns in the vestibule")
+	var map: RID = sec.watcher.get_world_3d().navigation_map
+	for i in 5:
+		await physics_frame
+	var path := NavigationServer3D.map_get_path(map, sec.to_global(sec.watcher_home), sec.to_global(Vector3(-3, 0, 4)), true)
+	check(path.size() > 1 and path[path.size() - 1].distance_to(sec.to_global(Vector3(-3, 0, 4))) < 1.0, "the Watcher can path from the office to the corridor in the World")
+	world.wing_finished(sec)
+	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
 	await process_frame

@@ -63,7 +63,7 @@ Procedural, no imported clips, so it is tiny and needs no animation sync:
 
 ## Props
 
-`ArtProps`: desk, office_chair, crt_monitor (off, green or blue screen), server_rack (lit or dead), filing_cabinet, potted_plant, water_cooler, exit_sign, sticky_note, troffer (a recessed fluorescent fitting with a real light whose panel glow follows the mood). Solid props are StaticBody3D with one box collider; put them under `LevelBase.geo` so navigation bakes around them. `PropFlashlight` and `PropWalkie` are the hand-held items.
+`ArtProps`: desk, office_chair, crt_monitor (off, green or blue screen), server_rack (lit or dead), filing_cabinet, potted_plant, water_cooler, exit_sign, sticky_note, car, boxes, poster, cable_tray, troffer (a recessed fluorescent fitting with a real light whose panel glow follows the mood). Solid props are StaticBody3D with one box collider; put them under `LevelBase.geo` so navigation bakes around them. `PropFlashlight` and `PropWalkie` are the hand-held items.
 
 ## Notebook, sticky notes and elevators
 
@@ -73,7 +73,7 @@ Designed ahead of the mechanics (game plan, "Notebook and elevators"). Playtest 
   - `book.left` / `book.right` are the pages; `add_tab("Notes")` adds an index tab and emits `tab_pressed`; `show_book()`, `hide_book()`, `turn_page(callable)`, `clear_pages()`.
   - `NotebookArt.sticky(keyword, syntax, example, color)` is a found note taped onto a page; `table_card(name, columns)` is a table written down for the Tables page; `note_line(text, label)` is a terminal line copied in, a strip of green-bar printout with the player's handwritten label; `write_button()` is the small yellow "+ note" tab to put beside each terminal output line; `heading()`, `hand()`, `code()`, `margin_note()` for the rest (Field Notes too).
 - **Sticky notes in the world** (`ArtProps.sticky_note(parent, pos, facing, keyword, color, flat_on_desk)`): 7.6 cm notes in canary, pink, blue or green (`ArtProps.STICKY_COLORS`), one keyword in handwriting, a strip of tape, never stuck on quite straight. They glow very faintly so a note can be spotted on a dark desk. Stick one to a CRT bezel (the corner at about `+0.17, +0.32` from the monitor's origin) or lay it on a desk top (y 0.762). Visual only: parent it under the Interactable that picks it up.
-- **Elevator** (`ArtElevator.build(parent, pos, facing, interior, floors)`): brushed-steel car with center-opening doors, wood handrail, warm ceiling light, a button panel inside, a call button outside and amber floor indicators above the doors on both sides. Origin is the middle of the doorway at floor level, facing -Z (you walk in along +Z); the landing face stands 5 cm proud, so end the wing's wall flush with z = 0. It adds no collision: the mechanics own the shaft and doors and drive the look with `open_amount` (0 shut to 1 open; tween it), `set_floor("B1")`, `set_direction(-1/0/1)`, `light_button("B1")`, `light_call()` and `set_car_light(scale)` for a power cut mid-ride.
+- **Elevator** (`ArtElevator.build(parent, pos, facing, interior, floors)`): brushed-steel car with center-opening doors, wood handrail, warm ceiling light, a button panel inside, a call button outside and amber floor indicators above the doors on both sides. Origin is the middle of the doorway at floor level, on the center line of the wing's 20 cm Greybox wall, facing -Z (you walk in along +Z); the steel landing face, call button and floor indicator sit just proud of that wall. It adds no collision: the mechanics own the shaft and doors and drive the look with `open_amount` (0 shut to 1 open; tween it), `set_floor("B1")`, `set_direction(-1/0/1)`, `light_button("B1")`, `light_call()` and `set_car_light(scale)` for a power cut mid-ride.
 
 ## Performance budget (six players)
 
@@ -85,4 +85,13 @@ Designed ahead of the mechanics (game plan, "Notebook and elevators"). Playtest 
 
 ## Furnishing a level
 
-Augustine's rule: a level gets dressed only after the Game design plan thread marks it complete or ready to furnish. Dressing means swapping Greybox colors for `ArtPalette.surface()` materials, adding props, fitting troffers and a mood, and wiring characters to rigs, without moving collision the puzzles or routes depend on. Each furnished level gets before and after screenshots in its PR.
+Augustine's rule: a level gets dressed only after the Game design plan thread marks it complete or ready to furnish. Dressing means swapping Greybox colors for `ArtPalette.surface()` materials, adding props, fitting troffers and a mood, and wiring characters to rigs, without moving collision the puzzles or routes depend on. Each furnished level gets before and after screenshots in its PR (`tools/dress_shots.gd`).
+
+How it's wired, so level threads and art never edit the same lines:
+- Each level's dressing lives in `scripts/art/dress_level_N.gd` (`DressLevelN.apply(self)`), called by **one line** at the end of that level's `build()`, before navigation bakes. Positions are in the wing's own space.
+- `ArtDress.reskin` swaps materials on existing Greybox pieces by name and zone; it never changes their collision.
+- Solid props are tagged `art_prop`; tests check they stay clear of every route, stop, terminal and panel the level needs. Add new keep-clear points to `tests/art_tests.gd` when a level changes.
+- `ArtDress.link_light_panels` makes each ceiling panel follow its light: red in a lockdown, dark when the `lights` table switches it off.
+- `NpcLook.attach(rourke, CharacterLooks.rourke(), hud)` gives Rourke his model from the outside: it hides his greybox body and picks animations from his `state` (wind-up, stagger, down, tied, dead) and from his subtitles (talking).
+
+Furnished so far: Level 0 (lobby, reception, hall, closet, car park and the six-seat van, `DressVan`) and Level 1 (Server Room A).

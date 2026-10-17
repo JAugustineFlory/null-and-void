@@ -52,10 +52,12 @@ static func interference_at(pos: Vector3, sources: Array) -> float:
 static func degrade(frames: PackedVector2Array, quality: float, rng: RandomNumberGenerator) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	out.resize(frames.size())
-	var hiss := 0.04 + 0.5 * (1.0 - quality)
+	# A good signal has only a faint hiss under the voice; static takes over as
+	# the signal goes. (The voice was already brought up to speaking level.)
+	var hiss := 0.012 + 0.45 * pow(1.0 - quality, 1.5)
 	# Bad signal cuts out in chunks, like a real radio.
 	var dropout := rng.randf() < pow(1.0 - quality, 2.0)
-	var voice_gain := 0.0 if dropout else quality
+	var voice_gain := 0.0 if dropout else sqrt(quality)
 	for i in frames.size():
 		var n := rng.randf_range(-hiss, hiss)
 		var v := frames[i].x * voice_gain + n
@@ -69,6 +71,6 @@ static func squelch(length: int, rng: RandomNumberGenerator) -> PackedVector2Arr
 	out.resize(length)
 	for i in length:
 		var fade := 1.0 - float(i) / length
-		var v := rng.randf_range(-0.6, 0.6) * fade
+		var v := rng.randf_range(-0.3, 0.3) * fade
 		out[i] = Vector2(v, v)
 	return out

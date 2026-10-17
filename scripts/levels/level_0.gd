@@ -182,6 +182,7 @@ func build() -> void:
 	rourke.position = Vector3(0, 0, 4.8)
 	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
 	rourke.add_collision_exception_with(cable_tray)
+	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
 
 
 func net_setup() -> void:

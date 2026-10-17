@@ -186,7 +186,9 @@ func _field_notes_items(game: Node) -> Array[Control]:
 		items.append(NotebookArt.code("TESTS", 18))
 		items.append(NotebookArt.hand("A self-test lists PASS/FAIL checks. Failing tests tell you where to look.", 22))
 	if game.completed_level == "level_2":
-		items.append(NotebookArt.margin_note("A status can lie. CAM-2 said 'live' with a frozen picture; the keypad said 'opened' while the door stayed shut. Check the sensor, not the request."))
+		# Only claim the camera lie if they saw it explained.
+		var cam := "CAM-2 said 'live' with a frozen picture; the keypad said" if game.cam_lie_learned else "The keypad said"
+		items.append(NotebookArt.margin_note("A status can lie. %s 'opened' while the door stayed shut. Check the sensor, not the request." % cam))
 	items.append(NotebookArt.hand("Queries I wrote", 28))
 	var shown: Array = game.query_log.slice(max(0, game.query_log.size() - 12))
 	if shown.is_empty():

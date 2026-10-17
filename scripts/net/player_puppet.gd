@@ -14,15 +14,18 @@ var peer_id := 0
 var display_name := ""
 var crouching := false
 var crawling := false
-var height := STAND_HEIGHT
+## How tall the owner's body is right now, as their machine sends it: 1.8
+## standing, 1.25 crouching, 0.85 crawling, and anything in between.
+var stance_height := STAND_HEIGHT
 var health := 100.0
 var players: Node  # NetPlayers
+## The teammate's body, posed from the synced position, stance and look.
+var rig: CharacterRig
 
 var _target_pos := Vector3.ZERO
 var _target_yaw := 0.0
 var _target_pitch := 0.0
 var _has_state := false
-var _body: Node3D
 var _head: Node3D
 var _light: SpotLight3D
 var _tag: Label3D
@@ -30,18 +33,19 @@ var _capsule: CapsuleShape3D
 var _shape: CollisionShape3D
 
 
-static func create(parent: Node, id: int, player_name: String, color: Color, at: Transform3D) -> PlayerPuppet:
+## `index` is the player's number (0 = host); it picks how they look.
+static func create(parent: Node, id: int, player_name: String, index: int, at: Transform3D) -> PlayerPuppet:
 	var p := PlayerPuppet.new()
 	p.peer_id = id
 	p.display_name = player_name
 	p.name = str(id)
-	p._build(color)
+	p._build(index)
 	p.transform = at  # before entering the world, so it never flashes at the origin
 	parent.add_child(p)
 	return p
 
 
-func _build(color: Color) -> void:
+func _build(index: int) -> void:
 	add_to_group("player")
 	add_to_group("puppet")
 	sync_to_physics = false
@@ -53,29 +57,13 @@ func _build(color: Color) -> void:
 	_shape.position.y = STAND_HEIGHT / 2
 	add_child(_shape)
 
-	_body = Node3D.new()
-	_body.name = "Body"
-	add_child(_body)
-	var torso := MeshInstance3D.new()
-	var cm := CapsuleMesh.new()
-	cm.radius = 0.3
-	cm.height = 1.45
-	torso.mesh = cm
-	torso.position.y = 0.78
-	torso.material_override = Greybox.mat(color, 0.0, 0.8)
-	_body.add_child(torso)
+	rig = CharacterRig.build(self, CharacterLooks.crew(index))
 
+	# The flashlight rides at eye level, in the direction they look.
 	_head = Node3D.new()
 	_head.name = "Head"
-	_head.position.y = 1.62
-	_body.add_child(_head)
-	var skull := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.15
-	sm.height = 0.3
-	skull.mesh = sm
-	skull.material_override = Greybox.mat(Color(0.8, 0.66, 0.55), 0.0, 0.8)
-	_head.add_child(skull)
+	_head.position.y = STAND_HEIGHT - 0.18
+	add_child(_head)
 	var lamp := MeshInstance3D.new()
 	var lm := BoxMesh.new()
 	lm.size = Vector3(0.06, 0.06, 0.16)
@@ -107,13 +95,13 @@ func _build(color: Color) -> void:
 
 
 ## A state update from the owning machine.
-func apply_state(pos: Vector3, yaw: float, pitch: float, stance_height: float, light_on: bool) -> void:
+func apply_state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool) -> void:
 	_target_pos = pos
 	_target_yaw = yaw
 	_target_pitch = pitch
 	_light.visible = light_on
-	if not is_equal_approx(stance_height, height):
-		set_stance(stance_height)
+	if not is_equal_approx(height, stance_height):
+		set_stance(height)
 	if not _has_state or global_position.distance_to(pos) > SNAP_DISTANCE:
 		global_position = pos
 		rotation.y = yaw
@@ -127,18 +115,20 @@ func _physics_process(delta: float) -> void:
 	global_position = global_position.lerp(_target_pos, k)
 	rotation.y = lerp_angle(rotation.y, _target_yaw, k)
 	_head.rotation.x = lerp_angle(_head.rotation.x, _target_pitch, k)
+	rig.head_pitch = _head.rotation.x
 
 
-## Stand, crouch or crawl: squash the body to the owner's height, and the
-## collider too, so a teammate in a vent fits in it.
-func set_stance(stance_height: float) -> void:
-	height = clampf(stance_height, CRAWL_HEIGHT * 0.5, STAND_HEIGHT)
-	crouching = height < STAND_HEIGHT
-	crawling = height <= CRAWL_HEIGHT
-	_body.scale.y = height / STAND_HEIGHT
-	_capsule.height = maxf(height, _capsule.radius * 2.0)
+## Stand, crouch or crawl at the owner's height: the rig poses for it, and
+## the collider shrinks too, so a teammate in a vent fits in it.
+func set_stance(height: float) -> void:
+	stance_height = clampf(height, CRAWL_HEIGHT * 0.5, STAND_HEIGHT)
+	crouching = stance_height < STAND_HEIGHT
+	crawling = stance_height <= CRAWL_HEIGHT
+	rig.stance_height = stance_height
+	_capsule.height = maxf(stance_height, _capsule.radius * 2.0)
 	_shape.position.y = _capsule.height / 2
-	_tag.position.y = height + 0.3
+	_head.position.y = stance_height - 0.18
+	_tag.position.y = stance_height + 0.3
 
 
 func take_damage(amount: float) -> void:
