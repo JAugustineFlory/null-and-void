@@ -15,7 +15,7 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 
 Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
-## Your lines (16)
+## Your lines (18)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -31,7 +31,16 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM."  
   *The one line with a hint of a smirk.*
 
-### 2. Over the server room speakers while the crew tries to reset door controllers.
+### 2. Over the server room speakers, the first time the building's computer speaks for itself. Its own recorded announcement cuts it off.
+
+- [ ] `l1_contain_1.wav`  
+  "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--"  
+  *Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.*
+- [ ] `l1_contain_2.wav`  
+  "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE."  
+  *From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.*
+
+### 3. Over the server room speakers while the crew tries to reset door controllers.
 
 - [ ] `l1_found.wav`  
   "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY."  
@@ -49,7 +58,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED."  
   *Polite, and keeping score.*
 
-### 3. Over the speakers as the crew leaves the server room.
+### 4. Over the speakers as the crew leaves the server room.
 
 - [ ] `l1_lockdown_tied.wav`  
   "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D."  
@@ -58,7 +67,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT."  
   *The sign-off for the slice. Warm, like wishing them well.*
 
-### 4. Over the speakers in a security office.
+### 5. Over the speakers in a security office.
 
 - [ ] `l2_dead_escort.wav`  
   "REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE."  

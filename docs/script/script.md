@@ -165,6 +165,14 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN:** *(The one line with a hint of a smirk.)* SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. `[l1_selftest]`
 
+### Visitor without escort
+
+*Right after the fate scene, in both branches, before the badge login: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- `[l1_contain_1]`
+
+**WARDEN:** *(From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE. `[l1_contain_2]`
+
 ### Resetting the door controller
 
 *The crew reads WARDEN's self-test, queries door_controllers, and resets the right rack. The terminal shows the details; these lines are WARDEN reacting.*
