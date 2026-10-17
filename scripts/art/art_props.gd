@@ -261,6 +261,258 @@ static func cable_tray(parent: Node, center: Vector3, length: float, along_x: bo
 	return root
 
 
+# --- Documents -------------------------------------------------------------------
+# Paper the players read: binders, desk cards, brochures, memos, corkboards and
+# clipboards. Visual only, facing -Z like a poster; the mechanics put an
+# Interactable around them and open DocumentView to read them up close. Each sets
+# meta "doc_size" (its footprint, Vector3) so a collider can be sized to it. On a
+# desk, `pos` is the spot on the desk top it rests on; on a wall, its center.
+
+const PAPER_WHITE := Color(0.95, 0.94, 0.9)
+const PAPER_CREAM := Color(0.93, 0.89, 0.78)
+const PRINT_INK := Color(0.16, 0.16, 0.2)
+
+
+## A three-ring binder: open on a desk to a manual page with typed lines and
+## Mercer's fountain-pen notes in the margin ("- H.M."), or closed and standing
+## with its title on the spine.
+static func binder(parent: Node, pos: Vector3, facing_deg: float, title: String, open := true) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Binder")
+	var vinyl := ArtPalette.flat(ArtPalette.HALCYON_NAVY, 0.45)
+	if not open:
+		root.set_meta("doc_size", Vector3(0.06, 0.3, 0.27))
+		_piece(root, Vector3(0.06, 0.3, 0.27), Vector3(0, 0.15, 0), vinyl, true)
+		_piece(root, Vector3(0.046, 0.288, 0.262), Vector3(0, 0.15, 0.006), ArtPalette.flat(PAPER_CREAM, 0.9))  # page edges
+		_piece(root, Vector3(0.04, 0.16, 0.002), Vector3(0, 0.17, -0.136), ArtPalette.flat(PAPER_WHITE, 0.8))  # spine label
+		var spine := _print(root, title, Vector3(0, 0.17, -0.138), 0.15, NotebookArt.type_font(), 26, PRINT_INK)
+		spine.rotation_degrees.z = -90
+		return root
+	root.set_meta("doc_size", Vector3(0.58, 0.03, 0.31))
+	var face := _flat_face(root, true, 0.0)
+	face.position.y = 0.007  # the covers lie on the desk, the pages on them
+	for side in [-1, 1]:
+		_piece(face, Vector3(0.29, 0.31, 0.006), Vector3(side * 0.145, 0, 0.003), vinyl, true)
+		_piece(face, Vector3(0.215, 0.28, 0.01 if side < 0 else 0.016), Vector3(side * 0.142, 0, -0.005 if side < 0 else -0.008), ArtPalette.flat(PAPER_CREAM, 0.9))
+	var page := Node3D.new()
+	page.name = "Page"
+	page.position = Vector3(0.142, 0, -0.0165)
+	face.add_child(page)
+	var ring := ArtPalette.flat(Color(0.75, 0.76, 0.78), 0.25, 0.9)
+	for y in [-0.09, 0.0, 0.09]:
+		_piece(face, Vector3(0.022, 0.012, 0.012), Vector3(0.0, y, -0.012), ring)
+		page.add_child(_hole(Vector3(-0.09, y, -0.0002)))
+	var title_l := _print(page, title, Vector3(0.0, 0.118, -0.0003), 0.17, NotebookArt.type_font(), 30, PRINT_INK)
+	title_l.name = "Title"
+	_lines(page, Vector3(-0.005, 0.09, -0.0003), 0.15, 9, 0.019)
+	_lines(face, Vector3(-0.142, 0.1, -0.0103), 0.16, 11, 0.019)
+	var hm := _print(page, "check the timestamps!\n- H.M.", Vector3(0.062, -0.1, -0.0004), 0.08, NotebookArt.old_hand_font(), 30, NotebookArt.FOUNTAIN_INK)
+	hm.name = "Margin"
+	hm.rotation_degrees.z = 6
+	return root
+
+
+## A laminated tent card standing on a desk (the guard clock-in card, the visitor
+## rules): glossy, leaning back, its title and a few printed lines on the front.
+static func desk_card(parent: Node, pos: Vector3, facing_deg: float, title: String) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "DeskCard")
+	root.set_meta("doc_size", Vector3(0.22, 0.13, 0.1))
+	var gloss := ArtPalette.flat(PAPER_WHITE, 0.12)
+	var lean := 20.0
+	var foot := 0.13 * sin(deg_to_rad(lean))  # the two panels meet at the top
+	for side in [-1, 1]:
+		var panel := Node3D.new()
+		panel.position = Vector3(0, 0, -side * foot)
+		panel.rotation_degrees.x = lean * side
+		root.add_child(panel)
+		_piece(panel, Vector3(0.21, 0.13, 0.002), Vector3(0, 0.065, 0), gloss, true)
+		if side == 1:
+			panel.name = "Front"
+			_piece(panel, Vector3(0.21, 0.026, 0.0005), Vector3(0, 0.115, -0.0012), ArtPalette.flat(ArtPalette.HALCYON_NAVY, 0.15))
+			var l := _print(panel, title, Vector3(0, 0.115, -0.0016), 0.19, NotebookArt.type_font(), 22, Color(0.95, 0.95, 0.92))
+			l.name = "Title"
+			_lines(panel, Vector3(0, 0.088, -0.0013), 0.17, 4, 0.016)
+			_piece(panel, Vector3(0.05, 0.004, 0.0005), Vector3(0.035, 0.024, -0.0014), ArtPalette.flat(NotebookArt.INK, 0.5))  # a handwritten fill-in
+	return root
+
+
+## A trifold brochure: open flat on a desk with its side panels curling up, or
+## folded and standing in a clear acrylic holder on a counter.
+static func brochure(parent: Node, pos: Vector3, facing_deg: float, title: String, flat_on_desk := true) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Brochure")
+	var gloss := ArtPalette.flat(PAPER_WHITE, 0.2)
+	var navy := ArtPalette.flat(ArtPalette.HALCYON_NAVY, 0.2)
+	var w := 0.093
+	var h := 0.216
+	if not flat_on_desk:
+		root.set_meta("doc_size", Vector3(0.12, 0.2, 0.08))
+		var acrylic := ArtPalette.glass(Color(0.85, 0.9, 0.92))
+		_piece(root, Vector3(0.11, 0.004, 0.07), Vector3(0, 0.002, 0), acrylic)
+		_piece(root, Vector3(0.11, 0.08, 0.003), Vector3(0, 0.04, -0.03), acrylic)
+		var lean := Node3D.new()
+		lean.position = Vector3(0, 0.004, 0.0)
+		lean.rotation_degrees.x = -15
+		root.add_child(lean)
+		var front := Node3D.new()
+		front.name = "Front"
+		front.position = Vector3(0, h / 2, 0)
+		lean.add_child(front)
+		_piece(front, Vector3(w, h, 0.004), Vector3.ZERO, gloss, true)
+		_panel_print(front, title, w, h, navy, true)
+		return root
+	root.set_meta("doc_size", Vector3(w * 3, 0.02, h))
+	var face := _flat_face(root, true, 0.0)
+	for i in 3:
+		var panel := Node3D.new()
+		panel.position = Vector3((i - 1) * w, 0, 0)
+		if i != 1:  # side panels hinge on the folds and curl up a little
+			var hinge := Node3D.new()
+			hinge.position = Vector3((i - 1) * w * 0.5, 0, 0)
+			hinge.rotation_degrees.y = (i - 1) * 10.0
+			face.add_child(hinge)
+			panel.position = Vector3((i - 1) * w * 0.5, 0, 0)
+			hinge.add_child(panel)
+		else:
+			panel.name = "Front"
+			face.add_child(panel)
+		_piece(panel, Vector3(w, h, 0.0006), Vector3.ZERO, gloss)
+		_panel_print(panel, title if i == 1 else "", w, h, navy, i == 1)
+	return root
+
+
+## Two stapled sheets: pinned to a wall or a corkboard, or lying on a desk.
+static func memo(parent: Node, pos: Vector3, facing_deg: float, title: String, flat_on_desk := false) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Memo")
+	root.set_meta("doc_size", Vector3(0.21, 0.297, 0.01) if not flat_on_desk else Vector3(0.21, 0.01, 0.297))
+	var face := _flat_face(root, flat_on_desk, float(abs(title.hash()) % 7 - 3) * 0.8)
+	var paper := sticky_paper(PAPER_WHITE)
+	var under := _piece(face, Vector3(0.21, 0.297, 0.0004), Vector3(0.004, -0.004, 0), ArtPalette.flat(PAPER_WHITE.darkened(0.05), 0.9))
+	under.rotation_degrees.z = -2.0
+	var sheet := _piece(face, Vector3(0.21, 0.297, 0.0004), Vector3(0, 0, -0.0006), paper)
+	sheet.name = "Paper"
+	var l := _print(face, title, Vector3(0, 0.12, -0.001), 0.18, NotebookArt.type_font(), 26, PRINT_INK)
+	l.name = "Title"
+	_lines(face, Vector3(0, 0.09, -0.0009), 0.17, 12, 0.017)
+	var staple := _piece(face, Vector3(0.014, 0.0016, 0.0008), Vector3(-0.088, 0.13, -0.0012), ArtPalette.flat(Color(0.78, 0.79, 0.8), 0.25, 0.9))
+	staple.rotation_degrees.z = 40
+	return root
+
+
+## A cork noticeboard in a wood frame, with a few pushpins. Hang it on a wall and
+## pin memos to it: its cork face is 1.5 cm in front of `pos` (z = -0.015).
+static func corkboard(parent: Node, pos: Vector3, facing_deg: float, size := Vector2(1.2, 0.9)) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Corkboard")
+	root.set_meta("doc_size", Vector3(size.x, size.y, 0.03))
+	var wood := ArtPalette.flat(Color(0.48, 0.33, 0.2), 0.6)
+	_piece(root, Vector3(size.x, size.y, 0.02), Vector3(0, 0, -0.005), ArtPalette.flat(Color(0.64, 0.47, 0.3), 0.95))
+	for sy in [-1, 1]:
+		_piece(root, Vector3(size.x + 0.04, 0.04, 0.03), Vector3(0, sy * (size.y / 2 + 0.01), -0.005), wood, true)
+	for sx in [-1, 1]:
+		_piece(root, Vector3(0.04, size.y, 0.03), Vector3(sx * (size.x / 2 + 0.01), 0, -0.005), wood, true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1994
+	var speck := ArtPalette.flat(Color(0.45, 0.31, 0.19), 0.95)
+	for i in 14:  # darker flecks so it reads as cork
+		_piece(root, Vector3(0.012, 0.008, 0.001), Vector3(rng.randf_range(-0.45, 0.45) * size.x, rng.randf_range(-0.43, 0.43) * size.y, -0.0155), speck)
+	for i in 4:  # spare pins
+		var col: Color = STICKY_COLORS[i % STICKY_COLORS.size()].darkened(0.25)
+		_piece(root, Vector3(0.012, 0.012, 0.014), Vector3(rng.randf_range(-0.4, 0.4) * size.x, rng.randf_range(-0.4, 0.4) * size.y, -0.022), ArtPalette.flat(col, 0.3))
+	return root
+
+
+## A clipboard with a ruled roster or sign-in sheet under its metal clip: on a
+## desk, or hanging on a wall hook by the door.
+static func clipboard(parent: Node, pos: Vector3, facing_deg: float, title: String, flat_on_desk := true) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Clipboard")
+	root.set_meta("doc_size", Vector3(0.23, 0.02, 0.32) if flat_on_desk else Vector3(0.23, 0.32, 0.02))
+	var face := _flat_face(root, flat_on_desk, float(abs(title.hash()) % 5 - 2) * 1.2)
+	if flat_on_desk:
+		face.position.y = 0.003
+	_piece(face, Vector3(0.23, 0.32, 0.004), Vector3.ZERO, ArtPalette.flat(Color(0.42, 0.29, 0.18), 0.55), true)
+	var sheet := _piece(face, Vector3(0.21, 0.28, 0.0004), Vector3(0, -0.012, -0.0024), sticky_paper(PAPER_WHITE))
+	sheet.name = "Paper"
+	var metal := ArtPalette.flat(Color(0.74, 0.75, 0.77), 0.25, 0.9)
+	_piece(face, Vector3(0.1, 0.035, 0.012), Vector3(0, 0.14, -0.007), metal, true)
+	_piece(face, Vector3(0.03, 0.012, 0.02), Vector3(0, 0.155, -0.012), metal)
+	var l := _print(face, title, Vector3(0, 0.1, -0.0028), 0.18, NotebookArt.type_font(), 24, PRINT_INK)
+	l.name = "Title"
+	# The roster grid: header rule, rows, and a column line for the time.
+	var grid := ArtPalette.flat(Color(0.35, 0.4, 0.55), 0.9)
+	for r in 11:
+		_piece(face, Vector3(0.19, 0.0008, 0.0002), Vector3(0, 0.08 - r * 0.02, -0.0027), grid)
+	for x in [-0.03, 0.05]:
+		_piece(face, Vector3(0.0008, 0.2, 0.0002), Vector3(x, -0.02, -0.0027), grid)
+	for r in 4:  # names signed in so far
+		_piece(face, Vector3(0.05 + float(r % 2) * 0.02, 0.004, 0.0002), Vector3(-0.07, 0.07 - r * 0.02, -0.0029), ArtPalette.flat(NotebookArt.INK, 0.5))
+	return root
+
+
+## The node a document is drawn on: flat on the desk (facing up) or upright.
+static func _flat_face(root: Node3D, flat: bool, tilt_deg: float) -> Node3D:
+	var face := Node3D.new()
+	face.name = "Face"
+	if flat:
+		face.rotation_degrees.x = 90
+		face.position.y = 0.002
+	face.rotation_degrees.z = tilt_deg
+	root.add_child(face)
+	return face
+
+
+## Printed (or handwritten) words on a document, facing -Z.
+static func _print(parent: Node3D, text: String, pos: Vector3, width_m: float, font: Font, font_size: int, color: Color) -> Label3D:
+	var l := Label3D.new()
+	l.text = text
+	l.font = font
+	l.font_size = font_size
+	l.pixel_size = 0.00025
+	l.width = width_m / l.pixel_size
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.modulate = color
+	l.outline_size = 0
+	l.position = pos
+	l.rotation_degrees.y = 180
+	l.double_sided = false
+	parent.add_child(l)
+	return l
+
+
+## Grey bars standing in for body text too small to read from arm's length.
+static func _lines(parent: Node3D, top: Vector3, width: float, count: int, spacing: float) -> void:
+	var mat := ArtPalette.flat(Color(0.55, 0.55, 0.58), 0.9)
+	for i in count:
+		var w := width * (0.62 if i % 4 == 3 else 1.0)
+		_piece(parent, Vector3(w, 0.003, 0.0002), top + Vector3(-(width - w) / 2, -i * spacing, 0), mat)
+
+
+static func _hole(pos: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.004
+	cm.bottom_radius = 0.004
+	cm.height = 0.0004
+	cm.radial_segments = 10
+	mi.mesh = cm
+	mi.material_override = ArtPalette.flat(Color(0.2, 0.2, 0.22), 0.9)
+	mi.position = pos
+	mi.rotation_degrees.x = 90
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
+
+
+## One brochure panel's print: a navy band with the title, then body lines.
+static func _panel_print(panel: Node3D, title: String, w: float, h: float, navy: Material, header: bool) -> void:
+	var z := -0.0008 if header else -0.0005
+	if header:
+		_piece(panel, Vector3(w, 0.05, 0.0002), Vector3(0, h / 2 - 0.025, z + 0.0003), navy)
+		var l := _print(panel, title, Vector3(0, h / 2 - 0.025, z - 0.0003), w * 0.9, NotebookArt.type_font(), 22, Color(0.96, 0.95, 0.9))
+		l.name = "Title"
+		_lines(panel, Vector3(0, h / 2 - 0.07, z), w * 0.8, 6, 0.014)
+		_piece(panel, Vector3(0.045, 0.004, 0.0002), Vector3(0.008, -0.04, z - 0.0002), ArtPalette.flat(NotebookArt.INK, 0.5))  # the handwritten fill-in
+	else:
+		_piece(panel, Vector3(w * 0.8, 0.05, 0.0002), Vector3(0, h / 2 - 0.05, z), ArtPalette.flat(ArtPalette.HALCYON_GOLD, 0.4))
+		_lines(panel, Vector3(0, h / 2 - 0.1, z), w * 0.8, 6, 0.014)
+
+
 # --- Helpers -------------------------------------------------------------------
 
 static func _node(parent: Node, pos: Vector3, facing_deg: float, node_name: String) -> Node3D:

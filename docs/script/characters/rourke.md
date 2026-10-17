@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (36)
+## Your lines (37)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -25,7 +25,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "There you are. Dale Rourke, facilities. I'll be your escort tonight."  
   *Friendly, a handshake in the voice.*
 - [ ] `l0_greet_2.wav`  
-  "Don't mind WARDEN. It says that to everybody."  
+  "Don't mind the announcements. They play that to everybody."  
   *Chuckling, waving at the ceiling speaker.*
 - [ ] `l0_greet_3.wav`  
   "Badge rules after hours. You don't go anywhere I don't take you."  
@@ -54,6 +54,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 ### 3. At the front desk while the crew pieces a shredded memo back together on a terminal.
 
+- [ ] `l0_memo_flag.wav`  
+  "Nice work. I'll make sure that goes straight to the director."  
+  *Pleased, jotting it on his clipboard before he's read it. Warm; on a replay it's the worst thing he says all night.*
 - [ ] `l0_memo_1.wav`  
   "...Huh. She always was dramatic."  
   *A beat too long before he speaks. Covering.*

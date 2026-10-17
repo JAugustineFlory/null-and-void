@@ -306,6 +306,13 @@ func test_voice_script() -> void:
 			if docs[path].contains(sc["context"]):
 				leaks.append("%s: context %s" % [path.get_file(), sc["id"]])
 	check(leaks.is_empty(), "actors' scripts leave out the team-only character notes %s" % [leaks])
+	var sysop_voiced: bool = VoiceLines.CHARACTERS.has("SYSOP") or VoiceLines.LINES.values().any(func(l): return l["speaker"] == "SYSOP")
+	var sysop_named: Array = docs.keys().filter(func(path): return docs[path].to_upper().contains("SYSOP"))
+	var warden_l0: Array = VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "WARDEN" and VoiceLines.scene(VoiceLines.LINES[id]["scene"])["level"] == 0)
+	var cut: String = VoiceLines.get_line("l1_contain_1")["text"].trim_suffix("--")
+	check(VoiceLines.get_line("l1_contain_2")["text"].begins_with(cut), "after its PA tape interrupts, WARDEN repeats its warning word for word")
+	check(warden_l0.is_empty(), "WARDEN says nothing in Level 0 %s" % [warden_l0])
+	check(not sysop_voiced and sysop_named.is_empty(), "SYSOP stays text-only and out of every actor's script %s" % [sysop_named])
 	check(VoiceLines.held_back({"level": VoiceLines.REVEAL_LEVEL}) and VoiceLines.held_back({"level": 2, "reveal": true}) \
 		and not VoiceLines.held_back({"level": 2}), "reveal scenes and late levels are held back for a later session")
 
@@ -350,9 +357,15 @@ func test_voice_playback() -> void:
 	wav.save_to_wav(warden_path)
 	voice.play("l1_sealed")
 	check(voice._player.bus == Voice.PA_BUS and AudioServer.get_bus_index(Voice.PA_BUS) >= 0, "WARDEN plays through the PA speaker sound")
+	var pa_path := Voice.folder.path_join("l0_pa_1.wav")
+	wav.save_to_wav(pa_path)
+	voice._player.bus = &"Master"
+	voice.play("l0_pa_1")
+	check(voice._player.bus == Voice.PA_BUS, "the building's announcements play through the PA speaker sound too")
 	voice.queue_free()
 	DirAccess.remove_absolute(wav_path)
 	DirAccess.remove_absolute(warden_path)
+	DirAccess.remove_absolute(pa_path)
 	Voice.folder = real_folder
 
 

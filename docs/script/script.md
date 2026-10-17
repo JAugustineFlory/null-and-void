@@ -9,9 +9,13 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
-**WARDEN** (WARDEN). The campus AI, heard over 1997 PA speakers and terminals.
+**WARDEN** (WARDEN). The campus security system, heard over 1997 PA speakers and terminals. Not a villain: it enforces protocol, and turns hostile only once the crew breaches it and loses their escort.
 
-> Calm, polite, flat. Customer-service cadence with even pauses. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+
+**WARDEN (PA tapes)** (PA). WARDEN's own pre-recorded PA module. Subtitled as PA so players don't connect it to WARDEN yet; they realize later it was watching all along. The live WARDEN voice says nothing in Level 0.
+
+> A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.
 
 **Dr. Iris Vale** (VALE). Lead engineer, 40s. Officially missing, presumed dead.
 
@@ -39,15 +43,15 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The front doors, 11 p.m.
 
-*The crew walks up from the van. Rourke opens the front doors and WARDEN greets them over the PA. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log.*
+*The crew walks up from the van. Rourke opens the front doors as the building PA plays its closing announcement. Rourke walks them in to the front desk; the doors lock behind them and he has them sign the visitor log.*
 
-**WARDEN:** *(Over the lobby PA. Pleasant, like a store closing announcement.)* GOOD EVENING. HALCYON DATA SYSTEMS IS CLOSED. `[l0_pa_1]`
+**PA:** *(Over the lobby PA. Pleasant, like a store closing announcement.)* Good evening! Halcyon Data Systems is now closed. `[l0_pa_1]`
 
-**WARDEN:** *(Same announcement, continuing.)* VISITORS MUST REMAIN WITH THEIR ESCORT AT ALL TIMES. THANK YOU FOR YOUR COOPERATION. `[l0_pa_2]`
+**PA:** *(Same announcement, continuing.)* Visitors must remain with their escort at all times. Thank you for your cooperation! `[l0_pa_2]`
 
 **ROURKE:** *(Friendly, a handshake in the voice.)* There you are. Dale Rourke, facilities. I'll be your escort tonight. `[l0_greet_1]`
 
-**ROURKE:** *(Chuckling, waving at the ceiling speaker.)* Don't mind WARDEN. It says that to everybody. `[l0_greet_2]`
+**ROURKE:** *(Chuckling, waving at the ceiling speaker.)* Don't mind the announcements. They play that to everybody. `[l0_greet_2]`
 
 **ROURKE:** *(Still smiling. Should sound like a joke the first time and a threat on replay.)* Badge rules after hours. You don't go anywhere I don't take you. `[l0_greet_3]`
 
@@ -71,9 +75,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there.*
 
-**WARDEN:** *(From the terminal speaker, helpful in the way a parking meter is helpful.)* THOSE SCRAPS ARE OUT OF ORDER. EACH ONE HAS A PIECE NUMBER. SORT THEM WITH ORDER BY. `[l0_sort_hint]`
+**PA:** *(From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening.)* Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! `[l0_sort_hint]`
 
-**WARDEN:** *(Brightly. This should land as a chill.)* DOCUMENT RECONSTRUCTED. A COPY HAS BEEN SENT TO THE DIRECTOR. `[l0_memo_flag]`
+**ROURKE:** *(Pleased, jotting it on his clipboard before he's read it. Warm; on a replay it's the worst thing he says all night.)* Nice work. I'll make sure that goes straight to the director. `[l0_memo_flag]`
 
 **ROURKE:** *(A beat too long before he speaks. Covering.)* ...Huh. She always was dramatic. `[l0_memo_1]`
 
@@ -159,21 +163,29 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN:** *(The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.)* BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. `[l1_login]`
 
-**WARDEN:** *(The one line with a hint of a smirk.)* SELF-TEST COMPLETE. TWO FAILURES. I'M SURE YOU'LL WORK IT OUT. `[l1_selftest]`
+**WARDEN:** *(The one line with a hint of a smirk.)* SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. `[l1_selftest]`
+
+### Visitor without escort
+
+*Right after the fate scene, in both branches, before the badge login: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- `[l1_contain_1]`
+
+**WARDEN:** *(From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE. `[l1_contain_2]`
 
 ### Resetting the door controller
 
 *The crew reads WARDEN's self-test, queries door_controllers, and resets the right rack. The terminal shows the details; these lines are WARDEN reacting.*
 
-**WARDEN:** *(Grudging.)* THAT IS THE ONE. A MANUAL RESET AT ITS RACK WILL CLEAR IT. `[l1_found]`
+**WARDEN:** *(Reading a rule it knows they're about to break. Cool.)* QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY. `[l1_found]`
 
 **WARDEN:** *(Flat, instant.)* RESET REFUSED. BADGE REQUIRED. `[l1_no_badge]`
 
-**WARDEN:** *(Patient, like talking to a child.)* THAT CONTROLLER IS WORKING NORMALLY. NOTHING TO RESET. `[l1_panel_ok]`
+**WARDEN:** *(Patient, then a small dig.)* RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU? `[l1_panel_ok]`
 
-**WARDEN:** *(The last sentence slightly slower.)* THAT IS NOT THE EXIT'S CONTROLLER. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l1_panel_wrong]`
+**WARDEN:** *(The last sentence slightly slower.)* UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l1_panel_wrong]`
 
-**WARDEN:** *(Polite and a touch reluctant, over the speakers.)* CONTROLLER RESET. EXIT UNLOCKED. PLEASE PROCEED CALMLY. `[l1_exit_open]`
+**WARDEN:** *(Polite, and keeping score.)* CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED. `[l1_exit_open]`
 
 ### Lockdown
 
@@ -203,13 +215,13 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN:** *(Reassuring tone. It is not reassuring.)* SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. `[l2_arrive]`
 
-**WARDEN:** *(Small pause before "Often.")* LIVE CAMERA STATES ARE AVAILABLE AT GET SLASH CAMERAS. I SUGGEST CHECKING THEM. OFTEN. `[l2_cameras]`
+**WARDEN:** *(Small pause before the second sentence.)* CAMERA FEEDS ARE RESTRICTED TO SECURITY STAFF. YOU ARE NOT SECURITY STAFF. `[l2_cameras]`
 
-**WARDEN:** *(Not unfortunate for WARDEN.)* GUARD PINS ARE KEPT IN STAFF RECORDS. THE NAME ON TONIGHT'S SIGN-IN SHEET IS SMUDGED. HOW UNFORTUNATE. `[l2_smudged]`
+**WARDEN:** *(Not unfortunate for WARDEN.)* TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. `[l2_smudged]`
 
 **WARDEN:** *(Confident. It is wrong.)* DOOR COMMAND ACCEPTED. DOOR OPENED. `[l2_door_ok]`
 
-**WARDEN:** *(When the players check the sensor. Deadpan.)* CORRECTION. THE DOOR REPORTS AN ACTUATOR FAULT. THE REQUEST WAS RECEIVED. THE DOOR DID NOT CARE. `[l2_door_fault]`
+**WARDEN:** *(When the crew finds the fault themselves. Deadpan, unapologetic.)* ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. `[l2_door_fault]`
 
 ### Vale's voicemail
 

@@ -24,6 +24,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_sticky_notes()
 	test_elevator()
 	await test_notebook()
+	test_document_props()
+	await test_document_view()
 
 
 func check(cond: bool, name: String) -> void:
@@ -422,4 +424,90 @@ func test_notebook() -> void:
 	book.hide_book()
 	await t.create_timer(0.3).timeout
 	check(not book.visible, "the notebook closes")
+	layer.free()
+
+
+func test_document_props() -> void:
+	var stage := _stage()
+	var docs := [
+		ArtProps.binder(stage, Vector3(0, 0, 0), 0, "FACILITIES MANUAL"),
+		ArtProps.binder(stage, Vector3(1, 0, 0), 0, "FACILITIES MANUAL", false),
+		ArtProps.desk_card(stage, Vector3(2, 0, 0), 0, "GUARD CLOCK-IN"),
+		ArtProps.brochure(stage, Vector3(3, 0, 0), 0, "WELCOME TO HALCYON"),
+		ArtProps.brochure(stage, Vector3(4, 0, 0), 0, "WELCOME TO HALCYON", false),
+		ArtProps.memo(stage, Vector3(5, 1, 0), 0, "MEMO: badge audit"),
+		ArtProps.memo(stage, Vector3(6, 0, 0), 0, "MEMO: badge audit", true),
+		ArtProps.corkboard(stage, Vector3(7, 1.4, 0), 0),
+		ArtProps.clipboard(stage, Vector3(8, 0, 0), 0, "NIGHT ROSTER"),
+		ArtProps.clipboard(stage, Vector3(9, 1.2, 0), 0, "NIGHT ROSTER", false),
+	]
+	for d in docs:
+		check(d.get_meta("doc_size", null) is Vector3, "%s has a footprint for its collider" % d.name)
+		check(d.find_children("*", "CollisionShape3D", true, false).is_empty(), "%s adds no collision (mechanics own it)" % d.name)
+	for d in [docs[0], docs[3], docs[6], docs[8]]:
+		var title: Label3D = d.find_child("Title", true, false)
+		var up := (title.global_transform.basis * Vector3(0, 0, 1)).normalized()
+		check(title != null and up.y > 0.9, "a %s lying on a desk reads facing up" % d.name)
+		var low := INF
+		for mi in d.find_children("*", "MeshInstance3D", true, false):
+			low = minf(low, _lowest(mi))
+		check(low > -0.002, "a %s rests on the desk, not in it (%.3f)" % [d.name, low])
+	var memo_title: Label3D = docs[5].find_child("Title", true, false)
+	check(memo_title.text == "MEMO: badge audit" and (memo_title.global_transform.basis * Vector3(0, 0, 1)).z < -0.9, "a memo on a wall faces out of it, like a poster")
+	var hm: Label3D = docs[0].find_child("Margin", true, false)
+	check(hm.font == NotebookArt.old_hand_font() and hm.text.ends_with("- H.M."), "Mercer signs his margin notes in his own hand")
+	check(NotebookArt.old_hand_font() is FontFile and NotebookArt.old_hand_font() != NotebookArt.hand_font(), "Mercer's handwriting ships with the game and differs from the players'")
+	var front: Node3D = docs[2].get_node("Front")
+	check(front.rotation_degrees.x > 10, "the desk card leans back")
+	stage.free()
+
+
+func _lowest(mi: MeshInstance3D) -> float:
+	var box := mi.get_aabb()
+	var low := INF
+	for i in 8:
+		low = minf(low, (mi.global_transform * box.get_endpoint(i)).y)
+	return low
+
+
+func test_document_view() -> void:
+	var layer := CanvasLayer.new()
+	t.root.add_child(layer)
+	var doc := DocumentView.new()
+	layer.add_child(doc)
+	var copied := []
+	doc.copy_requested.connect(func(text): copied.append(text))
+	var was_closed := [false]
+	doc.closed.connect(func(): was_closed[0] = true)
+	doc.set_paper("manual")
+	doc.set_title("FACILITIES MANUAL - 4.2")
+	var line := doc.add_line("Every door has a row in the doors table.")
+	(line.find_child("WriteNote", true, false) as Button).pressed.emit()
+	check(copied == ["Every door has a row in the doors table."], "+ note on a document line copies that line")
+	var note := doc.add_margin_note("check the timestamps! - H.M.")
+	check(note.get_theme_font("font") == NotebookArt.old_hand_font(), "Mercer's margin notes are in his handwriting")
+	check(line.is_ancestor_of(note), "a margin note sits beside the line it's about")
+	var mine := doc.add_margin_note("ask Dee", "player")
+	check(mine.get_theme_font("font") == NotebookArt.hand_font(), "a player's margin note is in the crew's handwriting")
+	var blank := doc.add_blank("Clock-in times are stored in a table of ", "guards", " choice.")
+	var filled: Label = blank.find_child("Filled", true, false)
+	check(filled.text.strip_edges() == "guards" and filled.get_theme_font("font") == NotebookArt.old_hand_font(), "the blank is filled in by hand")
+	(blank.find_child("WriteNote", true, false) as Button).pressed.emit()
+	check(copied.back() == "Clock-in times are stored in a table of guards choice.", "+ note on a filled-in line copies the whole sentence")
+	doc.show_doc()
+	await t.create_timer(0.35).timeout
+	check(doc.visible and doc.modulate.a > 0.99, "the document opens")
+	for k in DocumentView.KINDS:
+		doc.set_paper(k)
+		var r := doc.paper.get_global_rect()
+		var screen := doc.get_viewport_rect()
+		check(r.size.x <= screen.size.x + 1 and r.size.y <= screen.size.y + 1, "a %s fits on screen" % k)
+	(doc.get_node("Paper/Close") as Button).pressed.emit()
+	check(was_closed[0], "the close button asks to put the document down")
+	doc.clear()
+	await t.process_frame
+	check(doc.body.get_child_count() == 1 and not doc.get_node("Paper/Body/Title").visible, "clear leaves a blank page")
+	doc.hide_doc()
+	await t.create_timer(0.3).timeout
+	check(not doc.visible, "the document closes")
 	layer.free()
