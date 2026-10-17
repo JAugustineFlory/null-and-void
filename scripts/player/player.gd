@@ -12,6 +12,10 @@ extends CharacterBody3D
 signal died
 ## A sound entities could hear. `loudness` runs from 0 (silent) to 1 (a bang).
 signal noise_made(at: Vector3, loudness: float)
+## The notebook finished coming out of the pocket and is up in front of you.
+signal notebook_raised
+## The notebook is back in the pocket.
+signal notebook_lowered
 
 enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE }
 
@@ -56,6 +60,13 @@ const MAX_STACK := 3
 const HARD_LANDING := 7.0
 const STRIKE_RANGE := 2.0
 const STRIKE_COOLDOWN := 0.55
+## Walking pace while reading the notebook: no sprinting, jumping or climbing.
+const NOTEBOOK_WALK_SPEED := 1.4
+## How long pulling the notebook out of the pocket (or putting it back) takes.
+const NOTEBOOK_RAISE_TIME := 0.45
+## Where the notebook sits relative to the camera: in the jacket pocket, then held.
+static var NOTEBOOK_POCKET: Transform3D = Transform3D(Basis.from_euler(Vector3(deg_to_rad(-80), deg_to_rad(-20), deg_to_rad(25))), Vector3(0.28, -0.75, -0.15))
+static var NOTEBOOK_HELD: Transform3D = Transform3D(Basis.from_euler(Vector3(deg_to_rad(-38), 0, 0)), Vector3(0.0, -0.3, -0.42))
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var health := 100.0
@@ -100,6 +111,12 @@ var stance_height: float:
 	get:
 		return _height
 var _bob_t := 0.0
+## Attach the notebook mesh here (Graphics). A child of the camera that moves from
+## the pocket to in front of you, lower centre of the screen; hidden while stowed.
+var notebook_anchor: Node3D
+## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
+var notebook_amount := 0.0
+var _notebook_held := false
 
 var head: Node3D
 var camera: Camera3D
@@ -144,6 +161,12 @@ func _ready() -> void:
 	_ray.add_exception(self)
 	_ray.collide_with_areas = false
 	camera.add_child(_ray)
+
+	notebook_anchor = Node3D.new()
+	notebook_anchor.name = "NotebookAnchor"
+	notebook_anchor.transform = NOTEBOOK_POCKET
+	notebook_anchor.visible = false
+	camera.add_child(notebook_anchor)
 
 	if local_control:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -192,6 +215,8 @@ func step(delta: float) -> void:
 	controls.jump = false
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
+	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB]:
+		lower_notebook()  # you need both hands
 	match state:
 		Move.MANTLE:
 			_step_mantle(delta)
@@ -230,7 +255,62 @@ func respawn(at: Transform3D) -> void:
 	head.rotation = Vector3.ZERO
 	state = Move.WALK
 	_set_crouch(false)
+	lower_notebook(true)
 	heal_full()
+
+
+# --- Notebook --------------------------------------------------------------
+
+## Pull the notebook out of your pocket and hold it up. You can still look around
+## and walk slowly. False if your hands are busy (climbing, hanging, mantling).
+func raise_notebook() -> bool:
+	if state in [Move.MANTLE, Move.HANG, Move.CLIMB]:
+		return false
+	_notebook_held = true
+	notebook_anchor.visible = true
+	return true
+
+
+## Put the notebook back. `instant` skips the motion (respawns, cutscenes).
+func lower_notebook(instant: bool = false) -> void:
+	var was_out := _notebook_held or notebook_amount > 0.0
+	_notebook_held = false
+	if instant and was_out:
+		notebook_amount = 0.0
+		_pose_notebook()
+		notebook_lowered.emit()
+
+
+## Tab: raise or lower. Returns whether the notebook is now held.
+func toggle_notebook() -> bool:
+	if _notebook_held:
+		lower_notebook()
+		return false
+	return raise_notebook()
+
+
+func is_holding_notebook() -> bool:
+	return _notebook_held
+
+
+func _process(delta: float) -> void:
+	var target := 1.0 if _notebook_held else 0.0
+	if notebook_amount == target:
+		return
+	notebook_amount = move_toward(notebook_amount, target, delta / NOTEBOOK_RAISE_TIME)
+	_pose_notebook()
+	if notebook_amount == 1.0:
+		notebook_raised.emit()
+	elif notebook_amount == 0.0:
+		notebook_lowered.emit()
+
+
+func _pose_notebook() -> void:
+	var t := smoothstep(0.0, 1.0, notebook_amount)
+	var pose := NOTEBOOK_POCKET.interpolate_with(NOTEBOOK_HELD, t)
+	pose.origin.y += sin(t * PI) * 0.08  # an arc up out of the pocket, not a straight slide
+	notebook_anchor.transform = pose
+	notebook_anchor.visible = notebook_amount > 0.0
 
 
 # --- Teammates -------------------------------------------------------------
@@ -341,7 +421,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 	var in_vent := in_volume(MovementVolume.Kind.VENT) != null
 	var flat := Vector3(velocity.x, 0, velocity.z)
 	_sprint_grace = SPRINT_GRACE if controls.sprint else maxf(0.0, _sprint_grace - delta)
-	var sprinting := controls.sprint or _sprint_grace > 0.0
+	var sprinting := (controls.sprint or _sprint_grace > 0.0) and not _notebook_held
 
 	if state == Move.WALK and rider == null and on_floor:
 		if controls.crouch and not crouching and sprinting and flat.length() > WALK_SPEED and not in_vent:
@@ -372,13 +452,15 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			speed = CROUCH_SPEED
 		elif sprinting:
 			speed = SPRINT_SPEED
+		if _notebook_held:
+			speed = minf(speed, NOTEBOOK_WALK_SPEED)
 		var accel := 12.0 if on_floor else 3.0
 		if not on_floor and dir == Vector3.ZERO:
 			accel = 0.0  # keep your momentum through the air
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * speed * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * speed * delta)
 
-	if state == Move.WALK and rider == null and not in_vent:
+	if state == Move.WALK and rider == null and not in_vent and not _notebook_held:
 		var climb := in_volume(MovementVolume.Kind.CLIMB)
 		if climb and _forward().dot(-climb.normal) > 0.5 and (controls.move.y < -0.3 or jump_pressed):
 			_climb = climb

@@ -23,6 +23,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_ledge_shuffle()
 	await test_shoulders()
 	await test_same_controls_same_moves()
+	await test_notebook_hold()
 	await test_movement_gym()
 
 
@@ -466,6 +467,50 @@ func test_shoulders() -> void:
 	climber.controls.jump = true
 	await frames(90)
 	check(climber.state == Player.Move.WALK and climber.is_on_floor(), "jumping off with nothing to grab lands you back on the floor")
+	await done(a)
+
+
+func test_notebook_hold() -> void:
+	var a := arena()
+	_high_wall(a, 2.0)  # face at z = -2
+	var p := spawn(a, Vector3(0, 0.05, 6))
+	await frames(5)
+	var events := []
+	p.notebook_raised.connect(func(): events.append("raised"))
+	p.notebook_lowered.connect(func(): events.append("lowered"))
+	check(not p.notebook_anchor.visible and p.notebook_anchor.get_parent() == p.camera, "the notebook anchor rides the camera, hidden in the pocket")
+	check(p.toggle_notebook() and p.is_holding_notebook(), "Tab pulls the notebook out")
+	await frames(10)
+	var mid := p.notebook_amount
+	await frames(30)
+	check(mid > 0.05 and mid < 0.95 and p.notebook_amount == 1.0 and events == ["raised"], "it comes up over a moment, then says it's raised (%.2f halfway)" % mid)
+	var held_pos := p.notebook_anchor.position
+	check(held_pos.y < -0.1 and held_pos.z < -0.2 and absf(held_pos.x) < 0.05, "held in front, lower centre of the view")
+	var z0 := p.global_position.z
+	forward(p, true)
+	p.controls.jump = true
+	await frames(60)
+	var moved := z0 - p.global_position.z
+	check(moved > 0.8 and moved < Player.NOTEBOOK_WALK_SPEED + 0.1, "reading, you walk slowly even holding Shift (%.2f m/s)" % moved)
+	check(p.global_position.y < 0.1, "and you can't jump")
+	stop(p)
+	p.rotate_y(1.0)
+	check(p.is_holding_notebook(), "you can still look around")
+	p.toggle_notebook()
+	await frames(40)
+	check(not p.notebook_anchor.visible and events == ["raised", "lowered"], "Tab again puts it away")
+	p.rotation.y = 0.0
+	p.global_position = Vector3(0, 0.05, -1.3)
+	await frames(5)
+	p.raise_notebook()
+	p.controls.jump = true
+	await frames(3)
+	check(p.state == Player.Move.WALK, "holding the notebook, Space doesn't grab edges either")
+	p.lower_notebook()
+	await frames(30)
+	p.controls.jump = true
+	await frames(3)
+	check(p.state == Player.Move.HANG and not p.raise_notebook(), "you can't get the notebook out while hanging")
 	await done(a)
 
 
