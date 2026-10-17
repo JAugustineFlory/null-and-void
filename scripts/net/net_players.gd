@@ -4,7 +4,6 @@ extends Node
 ## for each other player. Sends this player's position to the others.
 
 const SEND_RATE := 20.0
-const COLORS := [Color(0.25, 0.45, 0.7), Color(0.7, 0.35, 0.2), Color(0.3, 0.6, 0.3), Color(0.6, 0.3, 0.6), Color(0.7, 0.6, 0.2), Color(0.3, 0.6, 0.65)]
 
 var level: Node
 var player: Node3D  # this machine's Player
@@ -39,7 +38,7 @@ func _ready() -> void:
 			var who: String = net.display_name(id) if net else "Player %d" % id
 			# Stand where that player spawns until their first update arrives.
 			var at: Transform3D = level.player_spawn(i)
-			var p := PlayerPuppet.create(self, id, who, COLORS[i % COLORS.size()], at)
+			var p := PlayerPuppet.create(self, id, who, i, at)
 			p.players = self
 			_puppets[id] = p
 
@@ -146,7 +145,7 @@ func _physics_process(delta: float) -> void:
 	var pitch: float = player.head.rotation.x if player.get("head") else 0.0
 	var light_on: bool = player.flashlight.visible if player.get("flashlight") else false
 	# Stance height covers standing, crouching and crawling in vents alike.
-	var height: float = player.get("_height") if player.get("_height") != null else PlayerPuppet.STAND_HEIGHT
+	var height: float = player.get("stance_height") if player.get("stance_height") != null else PlayerPuppet.STAND_HEIGHT
 	_state.rpc(player.global_position, player.rotation.y, pitch, height, light_on)
 
 

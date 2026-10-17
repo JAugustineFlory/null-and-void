@@ -734,10 +734,10 @@ func test_coop_level_1() -> void:
 	client.player._set_stance(Player.CRAWL_HEIGHT)
 	await _frames(10)
 	var mate: PlayerPuppet = host.players.puppet(client_id)
-	check(mate.crawling and mate.height < 1.0, "a teammate crawling shows crawling for the others, not standing")
+	check(mate.crawling and mate.stance_height < 1.0 and mate.rig.crawl_amount() > 0.9, "a teammate crawling shows crawling for the others, not standing")
 	client.player._set_stance(Player.STAND_HEIGHT)
 	await _frames(10)
-	check(not mate.crouching and is_equal_approx(mate.height, Player.STAND_HEIGHT), "and stands back up with them")
+	check(not mate.crouching and is_equal_approx(mate.stance_height, Player.STAND_HEIGHT) and mate.rig.crouch_amount() == 0.0, "and stands back up with them")
 	client.player.set_physics_process(true)
 
 	# The elevator: the host counts heads, then the doors close everywhere.
