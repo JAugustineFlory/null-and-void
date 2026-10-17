@@ -383,6 +383,8 @@ func test_elevator() -> void:
 		pieces += 1
 	check(pieces <= 48, "the elevator stays within its piece budget (%d)" % pieces)
 	check(lift.find_children("*", "CollisionShape3D", true, false).is_empty(), "the elevator model adds no collision (mechanics own it)")
+	var call: Node3D = lift.get_node("CallPanel")
+	check(call.position.z < -0.1, "the call button sits in front of a Greybox wall centered on the doorway")
 	lift.set_car_light(0.0)
 	check(not (lift.get_node("CarLight") as OmniLight3D).visible, "the car light can be cut")
 	stage.free()
