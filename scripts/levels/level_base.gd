@@ -246,6 +246,16 @@ func _bake_navigation() -> void:
 	geo.bake_navigation_mesh(false)
 
 
+const CONTROLS := """WASD  move          Shift  sprint
+Ctrl  crouch, slide, roll
+Space  jump, mantle, grab a ledge
+E  use, boost a teammate     X  other use
+F  flashlight     Click  strike
+V (hold)  talk on the radio, once you have one
+B  mute your open mic
+Esc  this menu"""
+
+
 func _build_pause_menu() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 30
@@ -269,6 +279,17 @@ func _build_pause_menu() -> void:
 	resume.text = "Resume"
 	resume.pressed.connect(_toggle_pause)
 	box.add_child(resume)
+	box.add_child(ThemeUtil.label("Volume", 20))
+	var volume := HSlider.new()
+	volume.min_value = 0.0
+	volume.max_value = 2.0
+	volume.step = 0.05
+	volume.value = db_to_linear(AudioServer.get_bus_volume_db(0))
+	volume.custom_minimum_size = Vector2(300, 24)
+	volume.value_changed.connect(func(v): AudioServer.set_bus_volume_db(0, linear_to_db(maxf(v, 0.0001))))
+	box.add_child(volume)
+	box.add_child(ThemeUtil.label("Controls", 20))
+	box.add_child(ThemeUtil.label(CONTROLS, 17, Color(0.85, 0.85, 0.85)))
 	var menu := Button.new()
 	menu.text = "Quit to menu"
 	menu.pressed.connect(func():

@@ -113,8 +113,15 @@ func build() -> void:
 	# Lost & found behind the desk.
 	Greybox.box(geo, Vector3(-2.5, 0.35, -5.5), Vector3(1.2, 0.7, 0.8), Color(0.45, 0.35, 0.2), "LostFound")
 	Greybox.label(geo, Vector3(-2.5, 0.85, -5.08), "LOST & FOUND", 40, Color(0.1, 0.1, 0.1))
-	walkies = Interactable.create(geo, Vector3(-2.5, 0.8, -5.5), Vector3(0.5, 0.2, 0.3), "Take walkie-talkies", Color(0.1, 0.1, 0.1))
+	# A charging rack with one walkie-talkie for each of the crew (up to six).
+	walkies = Interactable.create(geo, Vector3(-2.5, 0.8, -5.5), Vector3(0.9, 0.2, 0.3), "Take the walkie-talkies (one each)", Color(0.1, 0.1, 0.1), false)
 	walkies.enabled = false
+	_mesh(walkies, Vector3(0, -0.07, 0), Vector3(0.9, 0.06, 0.26), Color(0.12, 0.12, 0.13))
+	for i in 6:
+		var radio := _mesh(walkies, Vector3(-0.375 + i * 0.15, 0.04, 0), Vector3(0.07, 0.17, 0.04), Color(0.15, 0.16, 0.14))
+		radio.name = "Radio%d" % i
+		_mesh(radio, Vector3(0.022, 0.14, 0), Vector3(0.012, 0.12, 0.012), Color(0.08, 0.08, 0.08))
+		_mesh(radio, Vector3(0, 0.03, 0.021), Vector3(0.05, 0.04, 0.002), Color(0.35, 0.8, 0.4))  # charge light
 	walkies.used.connect(func(_p): sync.event("_on_walkies"))
 	# The west end of the counter is clear of the log and terminal: that's where you hop it.
 	counter_hop = Interactable.create(geo, Vector3(-3.6, 1.1, -1.0), Vector3(2.4, 0.06, 0.8), "Hop over the counter", Color(), false)
@@ -521,16 +528,20 @@ func start() -> void:
 	rourke.face(player.global_position)
 	await hud.lines(["l0_pa_1", "l0_pa_2", "l0_greet_1", "l0_greet_2", "l0_greet_3"])
 	await hud.line("l0_greet_4")
-	var inside := Trigger.create(self, Vector3(0, 1, 4.5), Vector3(10, 2, 2))
+	# The whole lobby, not a strip by the door: whoever follows Rourke first walks
+	# on to the desk, and a strip they've left wouldn't count them.
+	var inside := Trigger.create(self, Vector3(0, 1, 0), Vector3(15.6, 2, 13.6))
 	rourke.walk_to(Vector3(-0.5, 0, 0.6))
 	hud.set_objective("Follow Rourke to the front desk")
 	inside.require_all = true
+	inside.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone to come inside (%d/%d)" % [n, total]))
 	await sync.gate("inside", inside.entered)
-	_set_front_doors_locked(true)
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 5.6))
 	await sync.gate("rourke_at_desk", func():
 		if rourke.state == Rourke.State.WALK:
 			await rourke.arrived)
+	# Only once Rourke is through too: shutting the doors on him would strand him.
+	_set_front_doors_locked(true)
 	rourke.face(player.global_position)
 	await hud.line("l0_signin")
 	visitor_log.enabled = true
@@ -544,6 +555,21 @@ func start() -> void:
 	await hud.lines(["l0_desk_1", "l0_desk_2"])
 	desk_terminal.enabled = true
 	hud.set_objective("Read Dr. Vale's shredded memo at the front desk terminal")
+
+
+## A shape with no collision, for small props on an interactable (so they don't
+## catch the player's aim instead of it).
+static func _mesh(parent: Node, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mi.material_override = mat
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
 
 
 func _set_front_doors_locked(locked: bool) -> void:
@@ -597,6 +623,9 @@ func _after_memo() -> void:
 	await get_tree().create_timer(1.0).timeout
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
 	walkies.enabled = true
+	# One radio on the rack for each player.
+	for i in 6:
+		walkies.get_node("Radio%d" % i).visible = i < players.count()
 	counter_hop.enabled = true
 	hud.set_objective("Hop over the counter (press E on its left end) and grab the walkie-talkies")
 
@@ -605,7 +634,7 @@ func _on_walkies() -> void:
 	walkies.queue_free()
 	Game.has_walkie = true
 	if sync.is_online():
-		hud.notice("Picked up walkie-talkies. Hold V to talk on the radio. Up close, just talk.", 6.0)
+		hud.notice("Walkie-talkies handed out, one each. Hold V to talk on the radio. Up close, just talk.", 6.0)
 	else:
 		hud.notice("Picked up walkie-talkies. Channel 1. Nobody else is on it.", 5.0)
 	prepare_next()
