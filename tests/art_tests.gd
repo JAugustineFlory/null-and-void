@@ -615,10 +615,69 @@ func test_held_notebook() -> void:
 	check(book.book.get_node_or_null("Unwritten") != null and book.book.get_node_or_null("Pen") != null, "a new line is written in with a pen")
 	await t.create_timer(0.3).timeout
 	check(book.book.get_node_or_null("Unwritten") == null, "and is all there once written")
+	check(held.page_to_world(px).distance_to(world) < 0.002, "a spot on the page image has its place in the world")
+	# A sticky note on the wall, peeled off and pressed onto the page.
+	var note := ArtProps.sticky_note(stage, cam.global_position + Vector3(0.1, -0.2, -0.6), 0, "LIKE")
+	var stuck := NotebookArt.sticky("LIKE", "WHERE col LIKE 'Ab%';", "WHERE name LIKE 'Dale%';")
+	book.right.add_child(stuck)
+	await t.process_frame
+	var take := held.take_sticky(note, stuck, false, 0.4)
+	await t.create_timer(0.1).timeout
+	var on_wall: Node3D = note.find_child("Paper", true, false).get_parent()
+	check(not on_wall.visible and stuck.modulate.a < 0.01, "taking a sticky note lifts it off the wall, and the page waits for it")
+	check(held.get_node("ReachHand").visible and not held.book_root.get_node("RightHand").visible, "your free hand reaches for it while the other holds the book")
+	await take.finished
+	check(stuck.modulate.a > 0.99 and not held.get_node("ReachHand").visible and held.book_root.get_node("RightHand").visible, "pressed onto the page, it becomes the page's sticky and the hand goes back to the book")
+	var copy_note := ArtProps.sticky_note(stage, cam.global_position + Vector3(0, -0.2, -0.6), 0, "ORDER BY")
+	await held.take_sticky(copy_note, null, true, 0.2).finished
+	check(copy_note.find_child("Paper", true, false).get_parent().visible, "copying a note off a terminal leaves it where it was")
 	held.close_book()
 	await t.create_timer(0.45).timeout
 	check(not held.is_open() and not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the notebook goes back in the pocket")
 	stage.free()
+
+
+func test_held_paper() -> void:
+	var stage := _stage()
+	var cam := Camera3D.new()
+	cam.fov = 75
+	stage.add_child(cam)
+	cam.make_current()
+	var held := HeldPaper.attach(cam, CharacterLooks.crew(2))
+	check(not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "empty hands cost nothing to draw")
+	var doc := _FakeDocument.new()
+	doc.position = Vector3(0.3, -0.4, -1.2)
+	stage.add_child(doc)
+	ArtProps.clipboard(doc, Vector3.ZERO, 180.0, doc.title, false)
+	var tw := held.lift(doc, 0.3)
+	await t.process_frame
+	check(held.view.kind == "clipboard" and held.view.body.get_node_or_null("TableHead") != null, "the paper in your hands is the document's own page, table and all")
+	check(doc.find_children("*", "MeshInstance3D", true, false).all(func(m): return not m.visible), "the paper leaves its place while you hold it")
+	await tw.finished
+	var read := cam.global_transform * held.reading_transform()
+	check(held.paper.global_position.distance_to(read.origin) < 0.01, "it ends up held in front of you to read")
+	var top := cam.unproject_position(held.paper.global_transform * Vector3(0, held.face.mesh.size.y / 2.0, 0))
+	var bottom := cam.unproject_position(held.paper.global_transform * Vector3(0, -held.face.mesh.size.y / 2.0, 0))
+	var screen := cam.get_viewport().get_visible_rect().size
+	check(top.y > 0 and bottom.y < screen.y and (bottom.y - top.y) / screen.y > 0.7, "the held paper fills most of the view without leaving it")
+	check(held.right_hand.visible and held.left_hand.visible, "both hands hold it")
+	var ratio: float = held.face.mesh.size.x / held.face.mesh.size.y
+	check(absf(ratio - held.view.paper.size.x / held.view.paper.size.y) < 0.01, "the paper keeps its own shape")
+	await held.put_back(0.2).finished
+	check(not held.visible and not held.is_held(), "putting it down empties your hands")
+	check(doc.find_children("*", "MeshInstance3D", true, false).all(func(m): return m.visible), "and it's back where it was")
+	stage.free()
+
+
+## Stands in for a Document (scripts/world), which the art tests don't load.
+class _FakeDocument extends Node3D:
+	var title := "NIGHT SHIFT SIGN-IN"
+
+	func paper_kind() -> String:
+		return "clipboard"
+
+	func lines() -> Array:
+		return [{"columns": ["NAME", "IN"]}, {"row": ["PIKE, H.", ""], "over": "NO SHOW"}]
 
 
 func test_terminal_screen() -> void:

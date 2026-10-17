@@ -10,6 +10,7 @@ extends Node3D
 ##   held.set_content(pages)          # a NotebookPages, or any Control holding a NotebookView
 ##   held.open_book()                 # pulls it out and opens it; close_book() puts it away
 ##   held.write_in(item)              # after adding a line to a page: it's written in
+##   held.take_sticky(note, item)     # your hand peels a sticky note off the world onto the page
 ##
 ## The view is not dimmed and nothing else on screen is covered. Mouse mode must be
 ## visible while it's open, so the player can click the pages.
@@ -36,6 +37,13 @@ var _open := false
 var _open_t := 0.0  # 0 put away, 1 open in hand
 var _tween: Tween
 var _wiggle := 0.0
+var _reach: Node3D  # the free hand that fetches sticky notes
+var _sticky: Node3D  # the note in flight
+var _sticky_from: Transform3D
+var _sticky_item: Control
+var _sticky_px := Vector2.ZERO
+var _sticky_scale := 1.0  # the note shrinks to the size it's drawn on the page
+var _dip := 0.0  # the book lowers out of the way while the free hand reaches past it
 
 
 static func attach(camera: Camera3D, look: Dictionary = {}) -> HeldNotebook:
@@ -86,6 +94,110 @@ func write_in(item: Control, duration: float = 0.8) -> Tween:
 	var t := create_tween()
 	t.tween_interval(duration)
 	return t
+
+
+## Takes a sticky note off a wall, desk or monitor and presses it onto the open
+## page: your free hand reaches for it, peels it off and brings it to the page,
+## where `item` (the sticky you just added to the NotebookView, hidden until now)
+## takes its place. `note` is the StickyNote (or any node holding ArtProps'
+## sticky_note). With `keep`, the note in the world stays where it was and a copy
+## comes to the page. Returns the tween; the book should be open.
+func take_sticky(note: Node3D, item: Control = null, keep := false, time := 0.9) -> Tween:
+	var face := _sticky_face(note)
+	if _sticky:
+		_sticky.queue_free()
+	_sticky_item = item
+	if item:
+		item.modulate.a = 0.0
+	_sticky_px = _page_px_of(item)
+	_sticky_scale = clampf(_px_to_m(item.size.x) * 0.8 / 0.076, 0.2, 1.0) if item else 0.5
+	if face:
+		_sticky = face.duplicate()
+		_sticky.top_level = true
+		add_child(_sticky)
+		_sticky_from = face.global_transform
+		_sticky.global_transform = _sticky_from
+		if not keep:
+			face.visible = false
+	var t := create_tween()
+	t.tween_method(_pose_take, 0.0, 1.0, time)
+	t.tween_callback(func():
+		if _sticky:
+			_sticky.queue_free()
+			_sticky = null
+		_dip = 0.0
+		_reach.visible = false
+		book_root.get_node("RightHand").visible = true
+		if _sticky_item:
+			_sticky_item.modulate.a = 1.0
+			_sticky_item = null)
+	return t
+
+
+## A point on the page image (viewport pixels) in the world, on whichever half shows it.
+func page_to_world(px: Vector2) -> Vector3:
+	var full := Vector2(NotebookView.EMBED_SIZE)
+	var uv := px / full
+	for quad in halves:
+		var mat := quad.material_override as ShaderMaterial
+		var off: Vector2 = mat.get_shader_parameter("uv_offset")
+		var sc: Vector2 = mat.get_shader_parameter("uv_scale")
+		var local_uv := (uv - off) / sc
+		if local_uv.x < 0.0 or local_uv.x > 1.0:
+			continue
+		var qs: Vector2 = (quad.mesh as QuadMesh).size
+		return quad.global_transform * Vector3((local_uv.x - 0.5) * qs.x, (0.5 - local_uv.y) * qs.y, 0.0)
+	return halves[1].global_position
+
+
+## 0: the free hand at rest below the screen; 0.35: it has the note; 0.8: the note
+## is over the page; 1: pressed flat onto it.
+func _pose_take(t: float) -> void:
+	var cam := _camera.global_transform
+	var rest := cam * Transform3D(Basis.from_euler(Vector3(0.4, 0.3, 0.2)), Vector3(0.26, -0.42, -0.3))
+	var reach := clampf(t / 0.35, 0.0, 1.0)
+	var carry := clampf((t - 0.35) / 0.45, 0.0, 1.0)
+	var press := clampf((t - 0.8) / 0.2, 0.0, 1.0)
+	book_root.get_node("RightHand").visible = false  # one hand holds the book, the other fetches
+	_reach.visible = true
+	_dip = sin(PI * clampf(t / 0.8, 0.0, 1.0))
+	if _open:
+		_pose(_open_t)
+	var page_basis := right_half.global_basis * Basis(Vector3.UP, PI)  # the note's face looks back at you
+	var on_page := Transform3D(page_basis, page_to_world(_sticky_px) + right_half.global_basis.z * 0.002)
+	var above := on_page.translated(right_half.global_basis.z * 0.015 + Vector3(0, 0.006, 0))
+	var target := _sticky_from
+	# A note across the room comes to meet the hand; the arm only stretches so far.
+	var grab := _sticky_from
+	var to_note := grab.origin - cam.origin
+	if to_note.length() > 0.55:
+		grab.origin = cam.origin + to_note.normalized() * 0.55
+	if _sticky:
+		if carry <= 0.0:
+			target = _sticky_from
+		elif press <= 0.0:
+			target = _sticky_from.interpolate_with(above, ease(carry, -1.8))
+		else:
+			target = above.interpolate_with(on_page, ease(press, 0.5))
+		_sticky.global_transform = target.scaled_local(Vector3.ONE * lerpf(1.0, _sticky_scale, ease(carry, -1.8)))
+	var hand_at := rest.interpolate_with(Transform3D(rest.basis, grab.origin), ease(reach, -1.6))
+	if carry > 0.0 and _sticky:
+		hand_at = Transform3D(rest.basis, target.origin - cam.basis.z * 0.015 - cam.basis.y * 0.025)
+	_reach.global_transform = hand_at
+
+
+func _sticky_face(note: Node3D) -> Node3D:
+	if note == null:
+		return null
+	var paper := note.find_child("Paper", true, false)
+	return paper.get_parent() as Node3D if paper else null
+
+
+func _page_px_of(item: Control) -> Vector2:
+	if item == null or not item.is_inside_tree():
+		return Vector2(NotebookView.EMBED_SIZE) * Vector2(0.72, 0.4)  # the right page
+	var r := item.get_global_rect()
+	return r.get_center()
 
 
 ## Where the open book sits in front of the camera, for the camera's field of view
@@ -171,6 +283,10 @@ func _make(look_in: Dictionary) -> void:
 		else:
 			right_half = half
 	_hands(look_in, size, book_mid_y, book_h)
+	_reach = HeldNotebook.make_hand(self, 1.0, look_in)
+	_reach.name = "ReachHand"
+	_reach.top_level = true
+	_reach.visible = false
 	_pose(0.0)
 
 
@@ -210,32 +326,43 @@ void fragment() {
 
 
 func _hands(look_in: Dictionary, size: Vector2, mid_y: float, book_h: float) -> void:
+	var bw := _px_to_m(NotebookView.BOOK_SIZE.x / 2.0)
+	for side in [-1.0, 1.0]:
+		var hand := HeldNotebook.make_hand(book_root, side, look_in)
+		hand.name = "LeftHand" if side < 0 else "RightHand"
+		hand.position = Vector3(side * (bw - 0.012), mid_y - book_h / 2.0 + 0.012, 0.0)
+
+
+## A first-person hand (palm, thumb and sleeve) under `parent`, holding something
+## by its edge: its origin is where the thumb pinches. `side` -1 left, 1 right.
+static func make_hand(parent: Node3D, side: float, look_in: Dictionary = {}) -> Node3D:
 	var look := CharacterLooks.base()
 	look.merge(look_in, true)
 	var skin := ArtPalette.flat(look.skin, 0.7)
 	var sleeve := ArtPalette.flat(look.jacket if look.jacket is Color else look.shirt, 0.9)
-	var bw := _px_to_m(NotebookView.BOOK_SIZE.x / 2.0)
-	for side in [-1.0, 1.0]:
-		var hand := Node3D.new()
-		hand.name = "LeftHand" if side < 0 else "RightHand"
-		hand.position = Vector3(side * (bw - 0.012), mid_y - book_h / 2.0 + 0.012, 0.0)
-		book_root.add_child(hand)
-		_box(hand, Vector3(0.05, 0.06, 0.02), Vector3(side * 0.012, -0.02, -0.013), skin)  # palm under the cover
-		var thumb := _box(hand, Vector3(0.012, 0.03, 0.009), Vector3(-side * 0.002, 0.0, 0.007), skin)  # thumb on the page corner
-		thumb.rotation_degrees.z = side * 35.0
-		var arm := MeshInstance3D.new()
-		var cm := CapsuleMesh.new()
-		cm.radius = 0.028
-		cm.height = 0.3
-		arm.mesh = cm
-		arm.material_override = sleeve
-		arm.position = Vector3(side * 0.03, -0.12, -0.06)
-		arm.rotation_degrees = Vector3(-25, 0, side * 25)
-		arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		hand.add_child(arm)
+	var hand := Node3D.new()
+	parent.add_child(hand)
+	_piece(hand, Vector3(0.05, 0.06, 0.02), Vector3(side * 0.012, -0.02, -0.013), skin)  # palm behind what it holds
+	var thumb := _piece(hand, Vector3(0.012, 0.03, 0.009), Vector3(-side * 0.002, 0.0, 0.007), skin)  # thumb in front
+	thumb.rotation_degrees.z = side * 35.0
+	var arm := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = 0.028
+	cm.height = 0.3
+	arm.mesh = cm
+	arm.material_override = sleeve
+	arm.position = Vector3(side * 0.03, -0.12, -0.06)
+	arm.rotation_degrees = Vector3(-25, 0, side * 25)
+	arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	hand.add_child(arm)
+	return hand
 
 
 func _box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
+	return _piece(parent, size, pos, mat)
+
+
+static func _piece(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = size
@@ -267,7 +394,7 @@ func _pose(t: float) -> void:
 	var pocket := Transform3D(Basis.from_euler(Vector3(deg_to_rad(-60), deg_to_rad(-20), deg_to_rad(35))), read.origin + Vector3(0.12, -0.2, 0.04))
 	var lift := clampf(t / 0.7, 0.0, 1.0)  # comes up first, then opens
 	var open := clampf((t - 0.45) / 0.55, 0.0, 1.0)
-	book_root.transform = pocket.interpolate_with(read, ease(lift, 0.6))
+	book_root.transform = pocket.interpolate_with(read, ease(lift, 0.6)).translated(Vector3(0.05 * _dip, -0.16 * _dip, 0.03 * _dip))
 	var hinge := lerpf(CLOSED_ANGLE, SPREAD_ANGLE, ease(open, 0.5))
 	left_half.rotation_degrees.y = hinge  # the front cover swings open on the spine
 	right_half.rotation_degrees.y = -SPREAD_ANGLE
