@@ -365,17 +365,13 @@ func walk_level_2(seed_value: int) -> void:
 	ui.close()
 
 	# The main path: the PIN opens the office door, then the stairwell keypad past the Watcher.
-	var office_pad := find_interactable(level, "Enter guard PIN (office door)")
-	check(office_pad != null, "security: the office door's keypad is labelled for a guard PIN")
-	office_pad.interact(p)
-	level.keypad_ui._on_submit(pin)
+	check(level.office_pad.screen.text.contains("GUARD PIN"), "security: the office door's wall keypad asks for a guard PIN")
+	level.type_pin("office", pin, p)
 	check(level.office_open, "security: the PIN read off the screen opens the Security Office")
 	hunting = level.watcher.active
 	level.watcher.active = false
-	var keypad := find_interactable(level, "Enter guard PIN (SEC-EXIT)")
-	check(keypad != null, "security: the stairwell keypad is labelled for a guard PIN")
-	keypad.interact(p)
-	level.keypad_ui._on_submit(pin)
+	check(level.exit_pad.screen.text.contains("GUARD PIN"), "security: the stairwell's wall keypad asks for a guard PIN")
+	level.type_pin("exit", pin, p)
 	check(level.pin_entered and not level.door_open, "security: the PIN read off the screen is accepted, and the door lies")
 
 	# The door didn't open. The player goes back to the panel and asks for help.

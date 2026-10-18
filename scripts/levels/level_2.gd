@@ -28,12 +28,16 @@ const CLOCK_START := 41 * 60  # 00:41:00
 const SEC_EXIT_FRAME := Vector3(0, 1.2, -12)
 ## Where each camera can see, as boxes in the level's own space (see _in()).
 ## Only working cameras hold the Watcher.
+## CAM-3 only watches the vestibule's panel corner, so the Watcher can still come
+## through the vestibule after players on the main route.
 var cam_zones := {
 	"CAM-2": [AABB(Vector3(-6, -1, -8), Vector3(12, 6, 10))],
-	"CAM-3": [AABB(Vector3(-2.5, -1, -12), Vector3(5, 6, 4))],
+	"CAM-3": [AABB(Vector3(-2.5, -1, -12), Vector3(2.2, 6, 1.7))],
 	"CAM-5": [AABB(Vector3(6.1, -3, -8.6), Vector3(0.6, 8, 13.2)), AABB(Vector3(2.6, -3, -9.6), Vector3(3.6, 8, 1.6))],
 }
 var frozen_cams := {}
+## The whole exit vestibule (level space): reaching it is a checkpoint.
+var _vestibule_box := AABB(Vector3(-2.5, -1, -12), Vector3(5, 6, 4))
 
 var data: Dictionary
 var watcher: Watcher
@@ -43,9 +47,11 @@ var api: FacilityAPI
 var breakers := {}
 ## The breaker box's own status readout: says what a wrong breaker just cut.
 var breaker_status: Label3D
-var keypad_ui: Level2Keypad
-var exit_keypad: Interactable
-var seal_keypad: Interactable
+## The guard-PIN keypads on the walls: the office door's, and SEC-EXIT's.
+var office_pad: Level2Keypad
+var exit_pad: Level2Keypad
+## On the far side of SEC-EXIT: shuts and locks it behind you. No PIN needed.
+var seal_button: Interactable
 ## Where the Watcher stands as players get closer to the PIN (level space): out of
 ## sight behind the gear lockers, then mid-office, then at the window staring out.
 const STAGES := {
@@ -57,7 +63,6 @@ var watcher_home: Vector3 = STAGES.hidden[0]
 var stage := "hidden"
 var _stage_pending := ""
 var loose := false  # CAM-2 has frozen: no camera holds the office any more
-var office_keypad: Interactable
 var office_open := false
 var has_screwdriver := false
 var vent_grate: Interactable  # screwed shut, corridor end
@@ -76,7 +81,7 @@ var _lie_explained := false
 var _lie_notice := ""
 var _lie_fresh := false  # just explained: someone who died to it hears why
 var _warned := {}
-var _pad_mode := "exit"  # which keypad is open: office, exit or seal
+var _lift_full_for := 0.0  # how long everyone has stood in the exit car
 var _glass: Array[RID] = []
 ## Corridor and landing: leaving it another way also wakes the Watcher (level space).
 var _corridor_box := AABB(Vector3(-6, -1, 2), Vector3(12, 3, 8.5))
@@ -124,9 +129,6 @@ var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har
 func build() -> void:
 	data = Level2Data.build(Game.run_seed)
 	load_level_seed(data.sql)
-	keypad_ui = Level2Keypad.new()
-	add_child(keypad_ui)
-	keypad_ui.submitted.connect(_on_pin)
 
 	var floor_c := Color(0.27, 0.27, 0.3)
 	var wall_c := Color(0.52, 0.53, 0.5)
@@ -154,13 +156,11 @@ func build() -> void:
 	Greybox.label(geo, Vector3(0, 2.75, 2.12), "SECURITY OFFICE", 64, Color(0.75, 0.75, 0.7))
 	office_glass = _glass_pane(Vector3(-3, 2.1, 2), Vector3(2.4, 2.2, 0.05), false, "OfficeGlass")
 	add_door("SEC-OFFICE", Vector3(0, 1.2, 2), Vector3(1.8, 2.4, 0.15))
-	office_keypad = Interactable.create(geo, Vector3(1.3, 1.3, 2.13), Vector3(0.25, 0.3, 0.06), "Enter guard PIN (office door)", Color(0.15, 0.15, 0.12))
-	office_keypad.local_only = true  # the keypad screen is yours; the host checks the PIN
-	office_keypad.used.connect(_on_office_keypad)
-	Greybox.label(geo, Vector3(1.3, 1.55, 2.17), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
+	office_pad = Level2Keypad.mount(geo, Vector3(1.3, 1.3, 2.13), 0, "office", "SEC-OFFICE\nENTER GUARD PIN")
+	office_pad.key_pressed.connect(_on_pad_key.bind("office"))
 	Document.place(geo, Vector3(2.15, 1.35, 2.11), 180, "Lockdown PIN policy", [
 		"LOCKDOWN PIN POLICY",
-		"In lockdown, doors take only the PINs of guards on tonight's NIGHT SHIFT sign-in sheet.",
+		"In lockdown, doors take only the PINs of NIGHT SHIFT guards who badged in tonight.",
 		"Suspended or retired PINs: refused.",
 	], false, "laminated", Vector2(0.5, 0.36))
 	# Exit vestibule: x -2.5..2.5, z -12..-8
@@ -196,15 +196,14 @@ func build() -> void:
 	_build_vent()
 	_build_ledge()
 
-	exit_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -11.85), Vector3(0.25, 0.3, 0.06), "Enter guard PIN (SEC-EXIT)", Color(0.15, 0.15, 0.12))
-	exit_keypad.local_only = true
-	exit_keypad.used.connect(_on_exit_keypad)
-	Greybox.label(geo, Vector3(1.3, 1.55, -11.81), "GUARD PIN", 40, Color(0.9, 0.8, 0.3))
+	exit_pad = Level2Keypad.mount(geo, Vector3(1.3, 1.3, -11.85), 0, "exit", "SEC-EXIT\nENTER GUARD PIN")
+	exit_pad.key_pressed.connect(_on_pad_key.bind("exit"))
 	_build_panel()
-	seal_keypad = Interactable.create(geo, Vector3(1.3, 1.3, -12.15), Vector3(0.25, 0.3, 0.06), "Lock SEC-EXIT behind you (guard PIN)", Color(0.15, 0.15, 0.12))
-	seal_keypad.local_only = true
-	seal_keypad.used.connect(_on_seal_keypad)
-	Greybox.label(geo, Vector3(1.3, 1.55, -12.19), "LOCK", 40, Color(0.9, 0.8, 0.3), 180)
+	# Closing a door needs no PIN: a big button on the far side shuts and locks it.
+	Greybox.panel(geo, Vector3(1.3, 1.3, -12.13), Vector3(0.16, 0.2, 0.02), Color(0.13, 0.13, 0.12))
+	seal_button = Interactable.create(geo, Vector3(1.3, 1.3, -12.16), Vector3(0.09, 0.09, 0.03), "Close and lock SEC-EXIT", Color(0.7, 0.12, 0.1))
+	seal_button.name = "SealButton"
+	seal_button.used.connect(func(_p): sync.event("_seal_pressed"))
 
 	add_light("landing", Vector3(4, 3.2, 8), 6.0, 0.8)
 	for x in [-4.0, 0.0, 4.0]:
@@ -245,9 +244,18 @@ func _build_booth() -> void:
 	booth.requested.connect(_on_request.bind("booth"))
 	# The clues are on the booth's own paperwork: found in the world first.
 	StickyNote.on_monitor(booth, "like")
-	# A clipboard sheet: the names are handwritten, and coffee took most of the second one.
+	# Guards badge in at the reader by the booth; it logs them in the guards table.
+	# The night lead also keeps a paper sheet, in case the reader goes down.
+	Greybox.panel(geo, Vector3(-2.2, 1.3, 5.9), Vector3(0.1, 0.15, 0.04), Color(0.12, 0.12, 0.13))
+	Greybox.panel(geo, Vector3(-2.2, 1.34, 5.875), Vector3(0.02, 0.02, 0.01), Color(0.1, 1.0, 0.2), 3.0)
+	Document.place(geo, Vector3(-2.2, 1.0, 5.86), 0, "Badge reader card", [
+		"BADGE IN AT THE START OF EVERY SHIFT",
+		"The reader logs your badge-in time to the guard roster.",
+		"Reader down? Sign the paper sheet. The night lead keeps it as the backup copy.",
+	], false, "laminated", Vector2(0.42, 0.3))
+	# The backup sheet: the names are handwritten, and coffee took most of the second one.
 	Document.place(geo, Vector3(-1.4, 1.45, 5.86), 0, "Night shift sign-in sheet", [
-		"NIGHT SHIFT SIGN-IN   10/15",
+		"NIGHT SHIFT SIGN-IN   10/15   (backup copy)",
 		"NAME                 IN",
 		{"text": "PIKE, H.             no show", "hand": true},
 		{"text": "Har... (coffee stain)   22:00", "hand": true},
@@ -274,7 +282,6 @@ func _build_booth() -> void:
 	], false, "paper", Vector2(0.8, 0.9))
 	# A crate under the vent, so one person can climb up alone.
 	Greybox.box(geo, Vector3(-5.4, 0.45, 4.0), Vector3(0.9, 0.9, 0.9), Color(0.45, 0.35, 0.2), "Crate")
-	Greybox.label(geo, Vector3(-5.85, 2.7, 4.0), "VENT", 30, Color(0.7, 0.7, 0.7), 90)
 	# On the landing, safe from anything: a break-glass box with a screwdriver inside.
 	# Players learn here that glass breaks with a strike, and pick up the tool the vent needs.
 	Greybox.box(geo, Vector3(2.66, 1.4, 7.2), Vector3(0.12, 0.55, 0.45), Color(0.7, 0.12, 0.1), "KeyBox")
@@ -493,13 +500,14 @@ func _process(delta: float) -> void:
 		update_cameras()
 	if player and player.health > 0.0 and player.global_position.y < -6.0:
 		player.take_damage(1000.0)
-	if not reached_vestibule and player and _in(cam_zones["CAM-3"], player.global_position):
+	if not reached_vestibule and player and _in([_vestibule_box], player.global_position):
 		reached_vestibule = true  # this machine's player respawns here from now on
 	if sync.is_host():
 		# The host runs the Watcher and decides the story beats, for everyone.
-		if loose and not _lie_explained and players.all_players().any(func(p): return _in(cam_zones["CAM-3"], p.global_position)):
+		if loose and not _lie_explained and players.all_players().any(func(p): return _in([_vestibule_box], p.global_position)):
 			sync.event("explain_cam_lie", [_cam2_frame()])
 		_update_watcher_stage()
+		_close_lift_when_full(delta)
 	_motion_warnings()
 
 
@@ -719,7 +727,7 @@ func _on_har_found(which: String) -> void:
 	if not har_puzzle.solved:
 		har_puzzle.solved = true
 		t.print_line("")
-		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Signed in 22:00. PIN on file.[/color]" % data.name)
+		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Badged in 22:00. PIN on file.[/color]" % data.name)
 		sysop(t, "that PIN opens the office door, and the SEC-EXIT keypad past it.")
 		sysop(t, "[color=#ff6655]it's on the other side of that door. open it, and keep your eyes on it.[/color]")
 		hud.todo("Open the office door. Keep eyes on it")
@@ -780,65 +788,56 @@ func _motion_warnings() -> void:
 			terminal_ui.print_line("[color=#ff6655]MOTION SENSOR: MOVEMENT %d m FROM YOU[/color]" % limit)
 
 
-func _on_office_keypad(p: Node) -> void:
-	if office_open:
-		hud.notice("KEYPAD: SEC-OFFICE IS OPEN.", 2.0)
+## Host: a key went down on a door's keypad. Every machine plays it in order,
+## so the pads show the same digits everywhere and the same PIN opens the door.
+func _on_pad_key(key: String, _by: Node, which: String) -> void:
+	sync.event("_pad_key", [which, key])
+
+
+func _pad(which: String) -> Level2Keypad:
+	return office_pad if which == "office" else exit_pad
+
+
+func _pad_key(which: String, key: String) -> void:
+	var pad := _pad(which)
+	if which == "office" and office_open:
+		pad.show_text("SEC-OFFICE\nOPEN", ThemeUtil.GREEN)
 		return
-	_pad_mode = "office"
-	keypad_ui.open(p, "SECURITY OFFICE  -  ENTER GUARD PIN", "Lockdown: only guards on tonight's night-shift sheet.")
-
-
-func _on_exit_keypad(p: Node) -> void:
-	_pad_mode = "exit"
-	if pin_entered:
-		hud.notice("KEYPAD: SEC-EXIT IS UNLOCKED." if not door_open else "KEYPAD: SEC-EXIT IS OPEN.", 2.5)
+	if which == "exit" and pin_entered:
+		pad.show_text("SEC-EXIT\n" + ("OPEN" if door_open else "UNLOCKED"), ThemeUtil.GREEN)
 		return
-	keypad_ui.open(p, "SEC-EXIT  -  ENTER GUARD PIN", "Lockdown: only guards on tonight's night-shift sheet.")
-
-
-func _on_seal_keypad(p: Node) -> void:
-	if not door_open:
-		hud.notice("KEYPAD: SEC-EXIT IS SHUT.", 2.0)
+	if key != "E":
+		pad.press(key)
 		return
-	_pad_mode = "seal"
-	keypad_ui.open(p, "LOCK SEC-EXIT BEHIND YOU", "Same PIN. Whatever is on the other side stays there.")
-
-
-## This machine's keypad screen. The PIN is checked here for the message, and
-## again on the host, which opens the door for everyone.
-func _on_pin(pin: String) -> void:
-	var result := check_pin(pin)
+	var result := check_pin(pad.take_code())
 	if not result.ok:
-		keypad_ui.show_status(result.message, ThemeUtil.RED)
+		pad.show_text(result.message, ThemeUtil.RED)
 		return
-	keypad_ui.close()
-	if sync.is_host():
-		_host_pin(_pad_mode, pin)
-	else:
-		_request_pin.rpc_id(1, _pad_mode, pin)
+	pad.show_text(result.message, ThemeUtil.GREEN)
+	_pin_ok(which)
 
 
-@rpc("any_peer", "reliable")
-func _request_pin(mode: String, pin: String) -> void:
-	if sync.is_host():
-		_host_pin(mode, pin)
+## Type a PIN on a door's keypad and press Enter, key by key, as a player does.
+func type_pin(which: String, pin: String, by: Node = null) -> void:
+	var pad := _pad(which)
+	var who: Node = by if by else player
+	for k in pin.split(""):
+		if pad.keys.has(k):
+			pad.keys[k].interact(who)
+	pad.keys["E"].interact(who)
 
 
-func _host_pin(mode: String, pin: String) -> void:
-	if check_pin(pin).ok:
-		sync.event("_pin_ok", [mode])
+func _pin_ok(which: String) -> void:
+	if which == "office":
+		open_office()
+	elif not pin_entered:
+		enter_pin()
 
 
-func _pin_ok(mode: String) -> void:
-	match mode:
-		"office":
-			open_office()
-		"seal":
-			if door_open:
-				seal_exit()
-		_:
-			if not pin_entered:
-				enter_pin()
+## The button past SEC-EXIT: shuts and locks it. Closing a door needs no PIN.
+func _seal_pressed() -> void:
+	if door_open:
+		seal_exit()
 
 
 ## The office door opens, and whatever is at the window is free to move.
@@ -857,14 +856,14 @@ func open_office() -> void:
 ## Is this the right PIN? Wrong ones say why, in the building's own words.
 func check_pin(pin: String) -> Dictionary:
 	if pin.length() != 4 or not pin.is_valid_int():
-		return {"ok": false, "message": "A PIN is 4 digits."}
+		return {"ok": false, "message": "A PIN IS 4 DIGITS"}
 	if pin == data.pin:
-		return {"ok": true, "message": "PIN ACCEPTED: %s" % data.name}
+		return {"ok": true, "message": "PIN ACCEPTED\n%s" % data.name}
 	var rows := db.run_silent("SELECT name, shift, note FROM guards WHERE pin = '%s'" % pin)
 	if rows.is_empty():
-		return {"ok": false, "message": "PIN NOT RECOGNIZED."}
+		return {"ok": false, "message": "PIN NOT RECOGNIZED"}
 	var g: Dictionary = rows[0]
-	return {"ok": false, "message": "REFUSED: that is %s's PIN (%s shift: %s). Lockdown accepts only guards on tonight's night-shift sign-in sheet." % [g["name"], g["shift"], g["note"]]}
+	return {"ok": false, "message": "REFUSED: %s\n%s shift. %s\nLOCKDOWN: NIGHT SHIFT, BADGED IN" % [g["name"], g["shift"], g["note"]]}
 
 
 ## The right PIN unlocks the door in the database. If the actuator is still
@@ -955,6 +954,23 @@ func seal_exit() -> void:
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "clunk")
 
 
+## Host: everyone has stood in the exit car for a moment, so its doors shut by themselves.
+## (The button still works, for whoever wants to be quicker.)
+func _close_lift_when_full(delta: float) -> void:
+	if exit_lift.is_closing or exit_lift.riding or exit_lift.open_amount < 1.0:
+		_lift_full_for = 0.0
+		return
+	var c := exit_lift.headcount()
+	_lift_full_for = _lift_full_for + delta if c.y > 0 and c.x == c.y else 0.0
+	if _lift_full_for >= LIFT_DWELL:
+		_lift_full_for = 0.0
+		exit_lift.press()
+
+
+const LIFT_DWELL := 1.5
+
+
+## The doors are shut. Until Level 3 is built, the car drops and the slice ends.
 func _on_exit(_b: Node) -> void:
 	if not player or player.health <= 0.0:
 		return
@@ -962,7 +978,12 @@ func _on_exit(_b: Node) -> void:
 	# No words: one tap on the metal, from behind SEC-EXIT.
 	await get_tree().create_timer(1.0).timeout
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
-	await get_tree().create_timer(2.5).timeout
+	await get_tree().create_timer(1.2).timeout
+	# The car lurches down, its light stuttering, then it's dark.
+	Level2FX.sound(exit_lift, Vector3(0, 1.2, Elevator.SIZE.z / 2), "clunk")
+	Level2FX.drop_car(exit_lift, player)
+	await get_tree().create_timer(Level2FX.DROP_TIME).timeout
+	await Level2FX.end_card(self, "To be continued.")
 	Game.completed_level = "level_2"
 	Game.next_level = ""  # the end of the playable slice, for now
 	completed.emit()
@@ -983,7 +1004,6 @@ func _on_caught(p: Node) -> void:
 
 
 func on_player_died() -> void:
-	keypad_ui.close()
 	var solo := not sync.is_online()
 	if reached_vestibule:
 		player.respawn(global_transform * Transform3D(Basis(), Vector3(0, 0.1, -10.8)))
