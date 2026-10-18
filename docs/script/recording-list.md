@@ -40,12 +40,12 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_memo_3` | And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either. | Amused, he's said this to every visitor. A little eye-roll at corporate. | Level 0 |
 | [ ] | `l0_memo_4` | Grab one and I'll take you to the server room. | Friendly, already heading for the hall. | Level 0 |
 | [ ] | `l0_walkie` | Channel one. Keep them on. Reception's lousy once we're past the shutter. This way. | Offhand. | Level 0 |
-| [ ] | `l0_coffee` | Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities. | In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick. | Level 0, later |
-| [ ] | `l0_boost_1` | Panel's stuck up top? Here, step on my hands. I've got you. | Interlocking his fingers for a boost. Easy, practised. | Level 0, later |
-| [ ] | `l0_boost_2` | See? Teamwork. | Brushing his hands off. | Level 0, later |
-| [ ] | `l0_hum` | Don't mind the hum down that way. Old transformer. There's been a ticket open on it since before my time. | Near the dark east corridor. Casual, but he doesn't look down it. | Level 0, later |
-| [ ] | `l0_cover` | They're with me. Escort's right here. | Toward the ceiling speaker when the PA's escort reminder replays while the crew is behind the counter. Covering for them like a friend. | Level 0, later |
-| [ ] | `l0_elevator` | Server floor's one up. Elevator's slow, but it gets there. | At the elevator bank, holding the door. | Level 0, later |
+| [ ] | `l0_coffee` | Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities. | In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick. | Level 0 |
+| [ ] | `l0_boost_1` | Panel's stuck up top? Here, step on my hands. I've got you. | Interlocking his fingers for a boost. Easy, practised. | Level 0 |
+| [ ] | `l0_boost_2` | See? Teamwork. | Brushing his hands off. | Level 0 |
+| [ ] | `l0_hum` | Don't mind the hum down that way. Old transformer. There's been a ticket open on it since before my time. | Near the dark east corridor. Casual, but he doesn't look down it. | Level 0 |
+| [ ] | `l0_cover` | They're with me. Escort's right here. | Toward the ceiling speaker when the PA's escort reminder replays while the crew is behind the counter. Covering for them like a friend. | Level 0 |
+| [ ] | `l0_elevator` | Server floor's one up. Elevator's slow, but it gets there. | At the elevator bank, holding the door. | Level 0 |
 | [ ] | `l0_tour_3` | Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
 | [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
 | [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |

@@ -73,7 +73,7 @@ const SCENES := [
 	{"id": "l0_tape", "level": 0, "title": "Mercer's cassette (optional)", "wired": true,
 		"moment": "Alone at your desk, talking into a cassette recorder for whoever finds it someday.",
 		"context": "In the forgotten closet behind the air-return vent, a cassette recorder sits on the shelf under the old newspaper clipping. Only players who crawl through the vent hear it."},
-	{"id": "l0_floor", "level": 0, "title": "Around the ground floor", "wired": false,
+	{"id": "l0_floor", "level": 0, "title": "Around the ground floor", "wired": true,
 		"moment": "Showing the crew around an office building's ground floor at night. Friendly and helpful.",
 		"context": "Optional trust beats on the expanded ground floor: vending-machine coffee, a boost up to a stuck panel, the hum down the dark east corridor, covering for the crew when the PA's escort tape replays, and the elevator up to the server floor."},
 	{"id": "l0_hall", "level": 0, "title": "To Server Room A", "wired": true,

@@ -516,7 +516,7 @@ func test_level_0_scene() -> void:
 	check(level.sync._gates.has("inside"), "Rourke greets the crew outside, then they all come in")
 	# Rourke walks the crew down the hall himself; nothing blocks the way.
 	level._on_walkies()
-	for i in 600:
+	for i in 1500:  # the PA's escort tape and Rourke's cover come first
 		if level.shutter.is_open:
 			break
 		await physics_frame
@@ -602,6 +602,37 @@ func test_ground_floor() -> void:
 	await create_timer(3.0).timeout
 	check(not hum.is_humming(), "back in the lit lobby, it's gone")
 	check(level.elevator.button.enabled == false, "the elevator won't go anywhere until Rourke takes the crew up")
+	# Trust beats while the crew works on the memo: Rourke wanders over to help.
+	level.rourke.global_position = level.DESK_SPOT
+	level._on_hatch(null)
+	await process_frame
+	check(level.hud._notice.text.contains("stuck"), "the ceiling panel in the IT closet is stuck and too high alone")
+	level._rourke_free = true
+	level._on_vending(null)
+	for i in 1800:
+		if level.geo.has_node("CoffeeCup"):
+			break
+		await physics_frame
+	check(level.geo.has_node("CoffeeCup") and level.rourke.global_position.distance_to(Vector3(6.2, 0, -12)) < 1.0, "at the vending machine, Rourke knows the trick and gets a coffee out")
+	level._on_vending(null)
+	await process_frame
+	check(not level.vending.enabled or level.hud._notice.text.contains("keeps it"), "only once")
+	for i in 1800:
+		if level._rourke_can_help():
+			break
+		await physics_frame
+	check(level._rourke_can_help(), "he walks back to the front desk")
+	level._on_hatch(null)
+	for i in 1800:
+		if level.find_children("*", "Document", true, false).any(func(d): return d.title == "Old sticker"):
+			break
+		await physics_frame
+	check(not level.ceiling_hatch.enabled and level.rourke.global_position.distance_to(Vector3(10, 0, -11)) < 1.0, "in the IT closet, he gives a leg up to the stuck ceiling panel")
+	for i in 1800:
+		if level.rourke.global_position.distance_to(level.DESK_SPOT) < 0.5:
+			break
+		await physics_frame
+	check(level.rourke.global_position.distance_to(level.DESK_SPOT) < 0.5, "then goes back to the front desk")
 	level.queue_free()
 	await process_frame
 

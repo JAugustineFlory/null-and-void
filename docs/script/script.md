@@ -105,7 +105,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Around the ground floor
 
-*Optional trust beats on the expanded ground floor: vending-machine coffee, a boost up to a stuck panel, the hum down the dark east corridor, covering for the crew when the PA's escort tape replays, and the elevator up to the server floor.* *(Written ahead: not in the game yet.)*
+*Optional trust beats on the expanded ground floor: vending-machine coffee, a boost up to a stuck panel, the hum down the dark east corridor, covering for the crew when the PA's escort tape replays, and the elevator up to the server floor.*
 
 **ROURKE:** *(In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick.)* Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities. `[l0_coffee]`
 

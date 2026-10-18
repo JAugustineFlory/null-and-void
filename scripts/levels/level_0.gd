@@ -41,6 +41,15 @@ var _intro_started := false
 var tape: Interactable
 ## The dark east corridor's Hum.
 var hum: Hum
+## Optional trust beats Rourke helps with while the crew works on the memo.
+var vending: Interactable
+var ceiling_hatch: Interactable
+## Host: Rourke is just waiting at the desk, so he can wander over to help.
+var _rourke_free := false
+var _coffee_done := false
+var _boost_done := false
+## Host: bumped whenever Rourke's walk back to the desk should stop.
+var _errand := 0
 ## Up to the server floor, at the end of the hall.
 var elevator: Elevator
 ## The elevator's doorway, in the elevator bank's east wall.
@@ -556,6 +565,7 @@ func start() -> void:
 	_watch_nearest()
 	await hud.lines(["l0_desk_1", "l0_desk_2"])
 	desk_terminal.enabled = true
+	_rourke_free = true
 	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
 
 
@@ -620,6 +630,8 @@ func _build_ground_floor(wall: Color) -> void:
 	Greybox.box(geo, Vector3(0.5, 0.5, -17.4), Vector3(8.0, 1.0, 0.9), Color(0.6, 0.6, 0.62), "ServingCounter")
 	Greybox.box(geo, Vector3(7.4, 0.9, -12.0), Vector3(0.9, 1.8, 0.8), Color(0.25, 0.3, 0.5), "VendingMachine")
 	Greybox.box(geo, Vector3(7.4, 0.9, -13.2), Vector3(0.9, 1.8, 0.8), Color(0.6, 0.15, 0.12), "VendingMachine")
+	vending = Interactable.create(geo, Vector3(6.92, 1.0, -12.0), Vector3(0.06, 0.6, 0.6), "Buy a coffee", Color.WHITE, false)
+	vending.used.connect(_on_vending)
 	for x in [-3.5, 4.5]:
 		add_light("cafeteria", Vector3(x, 3.5, -14), 8.0, 1.1, office)
 
@@ -630,6 +642,9 @@ func _build_ground_floor(wall: Color) -> void:
 	Greybox.box(geo, Vector3(8.4, 1.0, -12.0), Vector3(0.6, 2.0, 3.4), Color(0.4, 0.4, 0.42), "SpareShelf")
 	Greybox.box(geo, Vector3(11.7, 1.3, -12.5), Vector3(0.3, 1.2, 1.6), Color(0.12, 0.12, 0.14), "PatchPanel")
 	Greybox.box(geo, Vector3(10.8, 0.3, -13.4), Vector3(0.8, 0.6, 0.6), Color(0.45, 0.35, 0.2), "Crate")
+	# A ceiling access panel that sticks: out of reach without a leg up.
+	ceiling_hatch = Interactable.create(self, Vector3(10.2, 2.97, -12.6), Vector3(0.7, 0.04, 0.7), "Push the ceiling panel", Color(0.78, 0.78, 0.74))
+	ceiling_hatch.used.connect(_on_hatch)
 	add_light("it_closet", Vector3(10, 3, -12), 4.0, 0.7, office)
 
 	# The dark east corridor: x 12..19, z -10..-7, then a passage south (x 17..19)
@@ -716,6 +731,10 @@ func _on_memo_solved() -> void:
 
 func _after_memo() -> void:
 	hud.todo("")
+	_rourke_free = false
+	if sync.is_host() and Vector2(rourke.global_position.x - DESK_SPOT.x, rourke.global_position.z - DESK_SPOT.z).length() > 1.5:
+		var from_it: bool = rourke.global_position.x > 8.0
+		_rourke_back_to_desk(TO_IT_CLOSET if from_it else TO_CAFETERIA)
 	# Written on the job ticket: what the crew touched, for later levels to read back.
 	get_node("/root/Game").ticket_fill("Put the memo back in order", "rebuilt from memo_fragments. Copy to the director, says Rourke")
 	# Rourke waits for the crew to step back from the screen before he says anything,
@@ -725,6 +744,8 @@ func _after_memo() -> void:
 	_watch_nearest()
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
 	_pa_after_memo()
+	if not is_instance_valid(walkies):
+		return  # already handed out
 	walkies.enabled = true
 	# One radio on the rack for each player.
 	for i in 6:
@@ -752,6 +773,7 @@ func _pa_after_memo() -> void:
 
 
 func _on_walkies() -> void:
+	_errand += 1  # the story has him now
 	walkies.queue_free()
 	Game.has_walkie = true
 	if sync.is_online():
@@ -759,6 +781,10 @@ func _on_walkies() -> void:
 	else:
 		hud.notice("Picked up walkie-talkies. Channel 1. Nobody else is on it.", 5.0)
 	prepare_next()
+	# Behind the counter, the PA's escort tape replays; Rourke covers for the crew.
+	await hud.line("l0_pa_2")
+	_watch_nearest()
+	await hud.line("l0_cover")
 	hud.line("l0_walkie")
 	hud.todo("Follow Rourke")
 	_walk_to_server_room()
@@ -808,6 +834,9 @@ const ROURKE_OUTSIDE := Vector3(0, 0, 8.8)
 
 ## Where Rourke stands in the elevator car, at the back by the buttons.
 const ROURKE_IN_LIFT := Vector3(0.75, 0, 1.6)
+
+## Where Rourke waits at the front desk while the crew works.
+const DESK_SPOT := Vector3(-0.5, 0, 0.6)
 
 ## Where Rourke stands holding the door: just inside the elevator bank, beside
 ## the doorway so the crew can walk past him.
@@ -879,6 +908,117 @@ func _on_elevator_closed() -> void:
 	player.input_locked = true
 	await hud.fade(true, 1.0)
 	finish_level("level_1")
+
+
+## Rourke's walks from the front desk, round the west partition and along the north
+## corridor: straight steps, so he never snags on the desk's corner.
+const TO_CAFETERIA := [Vector3(-6.3, 0, 0.6), Vector3(-6.5, 0, -6.5), Vector3(-6.5, 0, -8.5), Vector3(0, 0, -8.5), Vector3(0, 0, -10.6), Vector3(6.2, 0, -11.0), Vector3(6.2, 0, -12.0)]
+const TO_IT_CLOSET := [Vector3(-6.3, 0, 0.6), Vector3(-6.5, 0, -6.5), Vector3(-6.5, 0, -8.5), Vector3(10.0, 0, -8.5), Vector3(10.0, 0, -11.0)]
+
+
+## Host: Rourke walks over to help with something, if he's free. True once he's
+## there and still free (the story hasn't called him away).
+func _rourke_errand(route: Array) -> bool:
+	_errand += 1
+	var mine := _errand
+	rourke.watch = null
+	for spot in route:
+		if not _rourke_free or mine != _errand:
+			return false
+		rourke.walk_to(spot, true)
+		await rourke.arrived
+	return _rourke_free and mine == _errand
+
+
+## Host: Rourke is free and standing at the front desk, so he can come and help.
+func _rourke_can_help() -> bool:
+	return _rourke_free and Vector2(rourke.global_position.x - DESK_SPOT.x, rourke.global_position.z - DESK_SPOT.z).length() < 1.5
+
+
+## Host: back to the desk the way he came, from wherever he is along the route.
+## Stops if the story takes him somewhere else (_on_walkies).
+func _rourke_back_to_desk(route: Array) -> void:
+	_errand += 1
+	var mine := _errand
+	var k := 0
+	for i in route.size():
+		if rourke.global_position.distance_to(route[i]) < rourke.global_position.distance_to(route[k]):
+			k = i
+	var back := route.slice(0, k + 1)
+	back.reverse()
+	back.append(DESK_SPOT)
+	for spot in back:
+		if mine != _errand:
+			return
+		rourke.walk_to(spot, true)
+		await rourke.arrived
+	if mine == _errand:
+		_watch_nearest()
+
+
+## Host: the vending machine eats quarters. Rourke knows the trick, once.
+func _on_vending(_p: Node) -> void:
+	if _coffee_done or not _rourke_can_help():
+		sync.event("_on_vending_eats")
+		return
+	_coffee_done = true
+	sync.event("_on_vending_eats")
+	if await _rourke_errand(TO_CAFETERIA):
+		sync.event("_on_coffee")
+
+
+func _on_vending_eats() -> void:
+	hud.notice("The machine takes your quarter and keeps it.", 2.5)
+
+
+func _on_coffee() -> void:
+	rourke.face(vending.global_position)
+	await hud.line("l0_coffee")
+	vending.enabled = false
+	var cup := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.04
+	cm.bottom_radius = 0.035
+	cm.height = 0.1
+	cup.mesh = cm
+	cup.material_override = Greybox.mat(Color(0.92, 0.9, 0.85))
+	cup.name = "CoffeeCup"
+	cup.position = Vector3(6.85, 0.55, -12.0)
+	geo.add_child(cup)
+	if sync.is_host():
+		_rourke_back_to_desk(TO_CAFETERIA)
+
+
+## Host: the ceiling panel is too high to shift alone. Rourke gives a leg up, once.
+func _on_hatch(_p: Node) -> void:
+	if _boost_done or not _rourke_can_help():
+		sync.event("_on_hatch_stuck")
+		return
+	_boost_done = true
+	sync.run_on(doors["IT-CLOSET"], "set_open", [true])  # he opens the closet if it's shut
+	if await _rourke_errand(TO_IT_CLOSET):
+		sync.event("_on_boost")
+	else:
+		_boost_done = false
+
+
+func _on_hatch_stuck() -> void:
+	hud.notice("It's stuck, and too high to get any force on it.", 2.5)
+
+
+func _on_boost() -> void:
+	rourke.face(ceiling_hatch.global_position)
+	await hud.line("l0_boost_1")
+	ceiling_hatch.enabled = false
+	ceiling_hatch.position.y += 0.3  # pushed up into the ceiling void
+	hud.notice("You step on Rourke's hands and shove the panel up. Something drops out of the ceiling void.", 4.0)
+	Document.place(geo, Vector3(10.8, 0.602, -13.4), 20.0, "Old sticker", [
+		"FIXED BY BYTE-RIGHT IT SERVICES!",
+		{"text": "ceiling cable run, 3/94", "hand": true},
+	], true, "note", Vector2(0.1, 0.07))
+	await hud.line("l0_boost_2")
+	if sync.is_host():
+		_rourke_back_to_desk(TO_IT_CLOSET)
 
 
 ## The grate comes off and leans against the wall, on every machine.
