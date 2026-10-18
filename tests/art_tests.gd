@@ -21,6 +21,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_gallery()
 	await test_dressed_level_0()
 	await test_dressed_level_1()
+	await test_dressed_level_2()
 	test_sticky_notes()
 	test_elevator()
 	await test_notebook()
@@ -374,6 +375,28 @@ func test_dressed_level_1() -> void:
 	check(look.pick_action() == "down", "Rourke's model falls when he goes down")
 	level.rourke.state = Rourke.State.TIED
 	check(look.pick_action() == "tied", "and shows him tied up")
+	level.free()
+
+
+func test_dressed_level_2() -> void:
+	t.root.get_node("Game").new_run(5)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(10)
+	var dressing: Node = level.get_node("Dressing")
+	check(dressing.get_child_count() > 20, "the security floor is furnished")
+	check(_prop_boxes(level).is_empty() and dressing.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"nothing the security floor's dressing adds collides: the Watcher's sight lines and paths are unchanged")
+	var chair: Node = level.geo.get_node("NightDeskChair")
+	check(not (chair.get_child(0) as MeshInstance3D).visible and chair.find_children("*", "CollisionShape3D", false, false).size() == 1,
+		"the night desk's chair block shows a chair, and still collides as before")
+	var lab_wall: MeshInstance3D = null
+	for b in level.geo.get_children():
+		if b.name.begins_with("Wall_") and Level2Floor.LAB_BOX.has_point(b.position) and DressLevel2.LAB.has_point(b.position):
+			lab_wall = b.get_child(0)
+			break
+	check(lab_wall != null and (lab_wall.material_override as StandardMaterial3D).albedo_color.b > 0.9, "Secure Lab B is clean and white")
+	check(level.lab.rourke.get_node_or_null("Look") != null, "Rourke wears his character model on the security floor too")
 	level.free()
 
 

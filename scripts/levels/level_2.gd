@@ -229,6 +229,7 @@ func build() -> void:
 	watcher.caught.connect(_on_caught)
 	watcher.started_moving.connect(_on_watcher_moving)
 	spawn = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(6.7, 0.1, 8))  # in the arrival car, facing out
+	DressLevel2.apply(self)  # furniture and materials (Graphics thread)
 
 
 func _build_booth() -> void:
