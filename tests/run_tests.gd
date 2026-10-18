@@ -1472,8 +1472,8 @@ func test_level_2_routes() -> void:
 	# The clues are on paper in the booth, and E copies them into the notebook.
 	var docs: Array = level.get_tree().get_nodes_in_group("document").filter(func(d): return level.is_ancestor_of(d))
 	var titles: Array = docs.map(func(d): return d.title)
-	check(["Night shift sign-in sheet", "Camera system card", "WARDEN manual, p.12", "Lockdown PIN policy", "Door controller card"].all(func(t): return titles.has(t)), "the wing's clues are on documents: roster, camera card, manual page, PIN policy, door card")
-	var sheet: Document = docs[titles.find("Night shift sign-in sheet")]
+	check(["NIGHT SHIFT SIGN-IN      DATE: 10/15", "Camera system card", "WARDEN manual, p.12", "Lockdown PIN policy", "Door controller card"].all(func(t): return titles.has(t)), "the wing's clues are on documents: roster, camera card, manual page, PIN policy, door card")
+	var sheet: Document = docs[titles.find("NIGHT SHIFT SIGN-IN      DATE: 10/15")]
 	check(sheet.lines().any(func(l): return l.hand and l.text.begins_with("Har")) and sheet.lines().any(func(l): return l.hand and l.text == "guards"),
 		"the sign-in sheet has the half-legible name and the PIN table, handwritten")
 	check(not str(docs.map(func(d): return d.plain_text())).contains("Har%"), "no document gives the Har query away")
@@ -1487,7 +1487,7 @@ func test_level_2_routes() -> void:
 	var facing := func(title: String) -> float:
 		var label: Label3D = docs[titles.find(title)].get_node("WallSheet").find_child("Line0", false, false)
 		return label.global_basis.z.z  # Label3D reads from its +Z side
-	check(facing.call("Night shift sign-in sheet") < -0.9 and facing.call("Lockdown PIN policy") > 0.9, "wall papers face into the corridor, not into the wall")
+	check(facing.call("NIGHT SHIFT SIGN-IN      DATE: 10/15") < -0.9 and facing.call("Lockdown PIN policy") > 0.9, "wall papers face into the corridor, not into the wall")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
