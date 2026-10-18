@@ -160,6 +160,7 @@ func ticket_fill(task: String, filled: String) -> bool:
 func ticket() -> Dictionary:
 	var t := TICKET.duplicate()
 	t["order"] = ticket_number()
+	t["caller"] = Level0Data.caller_line(run_seed)  # who placed the call: not the contact
 	t["tasks"] = notebook_todo.duplicate(true)
 	return t
 
