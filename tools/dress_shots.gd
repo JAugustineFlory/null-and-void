@@ -52,10 +52,14 @@ func _level_1() -> void:
 	root.get_node("Game").new_run(3)
 	var level = await _load("res://scenes/level_1.tscn")
 	await _shot(level, "l1_entry", Vector3(0, 0.1, 10.5), 0, 0)
-	level._on_trapped(null)
-	level.rourke.state = Rourke.State.IDLE
-	level.rourke.global_position = Vector3(0, 0, 2.5)
-	await _shot(level, "l1_betrayal", Vector3(0, 0.1, 6.0), 0, -3)
+	await _shot(level, "l1_room_a", Vector3(-1.0, 0.1, 7.5), 20, -8)
+	await _shot(level, "l1_south_corridor", Vector3(-20.5, 0.1, 11.0), -90, -3)
+	await _shot(level, "l1_north_corridor", Vector3(20.5, 0.1, -11.0), 90, -3)
+	await _shot(level, "l1_noc", Vector3(-10.0, 0.1, 7.5), 50, -10)
+	await _shot(level, "l1_cable_vault", Vector3(-9.5, 0.1, -4.0), 60, -10)
+	await _shot(level, "l1_server_b", Vector3(9.0, 0.1, 7.8), -50, -6)
+	await _shot(level, "l1_break", Vector3(9.0, 0.1, -4.0), -75, -10)
+	await _shot(level, "l1_server_c", Vector3(-12.0, 0.1, -14.0), 0, -8)
 	level.free()
 
 

@@ -346,6 +346,14 @@ func test_dressed_level_1() -> void:
 	t.root.add_child(level)
 	await _frames(10)
 	var keep_clear := [Vector3(0, 0, 12.6), Vector3(0, 0, 6.0), Vector3(-4.5, 0, 7.4), Vector3(0, 0, -8.0), Vector3(0, 0, 10.5)]
+	keep_clear.append_array([
+		Vector3(-2.4, 0, 6.4), Vector3(0, 0, -11.0), Vector3(0, 0, -12.4),  # Rourke's lead-in, the way to the elevator
+		Vector3(-14.5, 0, 8.4), Vector3(-15.0, 0, 5.6),  # into the NOC, reading its shift log
+		Vector3(-12.0, 0, -6.0), Vector3(-17.5, 0, -7.4),  # through the cable vault, to the spare coil
+		Vector3(12.0, 0, -6.0), Vector3(20.3, 0, -6.0),  # through the break room, to the coffee-fund note
+		Vector3(-12.0, 0, -14.0), Vector3(-12.0, 0, -22.4),  # into Server Room C, to the syslog printout
+		Vector3(14.5, 0, 8.4), Vector3(15.0, 0, 3.5),  # Server Room B's door and aisle
+	])
 	for z in [-6.0, -3.0, 0.0, 3.0]:
 		for side in [-1, 1]:
 			keep_clear.append(Vector3(side * 1.3, 0, z))  # in front of every reset panel
