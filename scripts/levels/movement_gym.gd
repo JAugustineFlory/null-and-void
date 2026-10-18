@@ -24,15 +24,15 @@ func build() -> void:
 
 	# Vault a desk by walking into it.
 	Greybox.box(geo, Vector3(-20.3, 0.45, 0), Vector3(0.8, 0.9, 10), Color(0.42, 0.3, 0.22))
-	_sign(Vector3(-21.2, 1.7, 0), "Walk into a desk or counter: vault over it.")
+	_sign(Vector3(-21.2, 1.7, 0), "W + Space at a desk, table or counter: vault over it.")
 
 	# Mantle a waist-high wall.
 	Greybox.box(geo, Vector3(-17, 0.6, 0), Vector3(2, 1.2, 10), Color.DIM_GRAY)
-	_sign(Vector3(-19, 2.2, 0), "Space at a waist-high wall: mantle.")
+	_sign(Vector3(-19, 2.2, 0), "W + Space at a waist-high wall: mantle.")
 
 	# Grab a high edge, then drop and roll.
 	Greybox.box(geo, Vector3(-12, 1.2, 0), Vector3(1, 2.4, 10), Color.DIM_GRAY)
-	_sign(Vector3(-14, 3.2, 0), "Hold W and jump: grab the edge and hang.\nRelease W and press it again to pull up. A / D shimmy,\nS or Ctrl let go, Space kick off.\nTap Ctrl in the air to roll when you land: quiet.")
+	_sign(Vector3(-14, 3.2, 0), "W + Space at a high wall: grab the edge and hang.\nRelease W and press it again to pull up. A / D shimmy,\nS or Ctrl let go, Space kick off.\nTap Ctrl in the air to roll when you land: quiet.")
 
 	# Crawl through a vent.
 	Traversal.vent(geo, Vector3(-8, 0, 0), Vector3(-4, 0, 0))
@@ -44,7 +44,7 @@ func build() -> void:
 	# Climb a pipe to a platform.
 	Greybox.box(geo, Vector3(7, 2, 0), Vector3(6, 4, 10), Color.DIM_GRAY)
 	Traversal.climbable(geo, Vector3(4, 0, 0), Vector3(4, 4, 0), Vector3(-1, 0, 0))
-	_sign(Vector3(2, 2.6, -1.5), "Walk into the pipe: climb.\nW / S up and down, Space to kick off.")
+	_sign(Vector3(2, 2.6, -1.5), "W + Space at the pipe: climb.\nW / S up and down, Space to kick off.")
 
 	# Shuffle along a narrow ledge to the far platform.
 	Traversal.ledge(geo, Vector3(10, 4, -4.9), Vector3(20, 4, -4.9), Vector3(0, 0, 1))

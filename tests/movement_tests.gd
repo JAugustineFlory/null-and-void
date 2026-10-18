@@ -16,7 +16,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_crouch_fits_the_gap()
 	await test_landing_roll()
 	await test_mantle()
-	await test_auto_vault()
+	await test_vault()
 	await test_hang_shimmy_pull_up()
 	await test_too_high_alone()
 	await test_climb()
@@ -237,17 +237,25 @@ func _high_wall(a: Node, height: float) -> void:
 	Greybox.box(a, Vector3(0, height / 2, -3), Vector3(6, height, 2), Color.DIM_GRAY)  # face at z = -2
 
 
-## Walk a player at an obstacle built by `build` (in an arena, facing -Z from z = 2)
-## and report whether they vaulted and where they ended up.
-func _vault_run(build: Callable, sprint := false, crouch := false) -> Dictionary:
+## Walk a player at an obstacle built by `build` (in an arena, facing -Z from z = 2),
+## pressing Space once when close if `jump`, and report whether they vaulted and
+## where they ended up.
+func _vault_run(build: Callable, jump := true, sprint := false, crouch := false, push := true) -> Dictionary:
 	var a := arena()
 	build.call(a)
 	var p := spawn(a, Vector3(0, 0.05, 2))
 	await frames(20)
 	p.controls.crouch = crouch
-	forward(p, sprint)
+	if push:
+		forward(p, sprint)
+	else:
+		p.global_position.z = 0.6
 	var vaulted := false
+	var jumped := false
 	for i in 150:
+		if jump and not jumped and p.global_position.z < 0.75:
+			p.controls.jump = true
+			jumped = true
 		await t.physics_frame
 		vaulted = vaulted or p.state == Player.Move.VAULT
 	var out := {"vaulted": vaulted, "pos": p.global_position, "state": p.state}
@@ -255,21 +263,29 @@ func _vault_run(build: Callable, sprint := false, crouch := false) -> Dictionary
 	return out
 
 
-func test_auto_vault() -> void:
+func test_vault() -> void:
 	# Desk: 0.9 m tall, 0.8 m deep, near face at z = 0.
 	var desk := func(a): Greybox.box(a, Vector3(0, 0.45, -0.4), Vector3(3, 0.9, 0.8), Color.DIM_GRAY)
-	var r: Dictionary = await _vault_run(desk)
-	check(r.vaulted and r.pos.z < -1.0 and r.pos.y < 0.1, "walking into a desk vaults you over it (%.1f, %.1f)" % [r.pos.z, r.pos.y])
+	var r: Dictionary = await _vault_run(desk, false)
+	check(not r.vaulted and r.pos.z > 0.0, "just walking into a desk doesn't vault it")
+	r = await _vault_run(desk)
+	check(r.vaulted and r.pos.z < -1.0 and r.pos.y < 0.1, "W + Space at a desk vaults you over it (%.1f, %.1f)" % [r.pos.z, r.pos.y])
 	r = await _vault_run(func(a): Greybox.box(a, Vector3(0, 0.55, -0.4), Vector3(3, 1.1, 0.8), Color.DIM_GRAY))
 	check(r.vaulted and r.pos.z < -1.0, "and over a 1.1 m front-desk counter")
 	r = await _vault_run(func(a): Greybox.box(a, Vector3(0, 0.5, -0.05), Vector3(3, 1.0, 0.1), Color.DIM_GRAY))
 	check(r.vaulted and r.pos.z < -0.5, "and over a thin railing")
-	r = await _vault_run(func(a): Greybox.box(a, Vector3(0, 0.15, -0.4), Vector3(3, 0.3, 0.8), Color.DIM_GRAY))
-	check(not r.vaulted, "not over something below the knee")
+	r = await _vault_run(func(a): Greybox.box(a, Vector3(0, 0.2, -0.4), Vector3(3, 0.4, 0.8), Color.DIM_GRAY))
+	check(r.vaulted and r.pos.z < -1.0, "and over a 0.4 m coffee table")
+	r = await _vault_run(desk, true, true)
+	check(r.vaulted and r.pos.z < -1.0, "sprinting in and pressing Space vaults too")
+	r = await _vault_run(desk, true, false, false, false)
+	check(not r.vaulted, "Space alone, standing at it, just jumps")
+	r = await _vault_run(func(a): Greybox.box(a, Vector3(0, 0.1, -0.4), Vector3(3, 0.2, 0.8), Color.DIM_GRAY))
+	check(not r.vaulted, "not over a kerb below the shin")
 	r = await _vault_run(func(a): Greybox.box(a, Vector3(0, 0.7, -0.4), Vector3(3, 1.4, 0.8), Color.DIM_GRAY))
-	check(not r.vaulted and r.pos.z > 0.0, "not over something chest high: that's a mantle with Space")
+	check(not r.vaulted, "not over something chest high: the same keys mantle it")
 	r = await _vault_run(func(a): Greybox.box(a, Vector3(0, 0.45, -2), Vector3(3, 0.9, 4), Color.DIM_GRAY))
-	check(not r.vaulted and r.pos.z > 0.0, "not onto a deep platform")
+	check(not r.vaulted, "not onto a deep platform")
 	r = await _vault_run(func(a):
 		desk.call(a)
 		Greybox.box(a, Vector3(0, 1.5, -1.1), Vector3(3, 3, 0.4), Color.DIM_GRAY))  # a wall right behind it
@@ -278,10 +294,8 @@ func test_auto_vault() -> void:
 		desk.call(a)
 		Greybox.box(a, Vector3(0, 1.35, -0.4), Vector3(3, 0.2, 1.4), Color.DIM_GRAY))  # a shelf low over it
 	check(not r.vaulted, "not with no headroom over the top")
-	r = await _vault_run(desk, true)
-	check(not r.vaulted and r.pos.z > 0.0, "sprinting into it doesn't vault")
-	r = await _vault_run(desk, false, true)
-	check(not r.vaulted, "neither does crouching into it")
+	r = await _vault_run(desk, true, false, true)
+	check(not r.vaulted, "not while crouching")
 
 
 func test_hang_shimmy_pull_up() -> void:
@@ -289,9 +303,10 @@ func test_hang_shimmy_pull_up() -> void:
 	_high_wall(a, 2.0)
 	var p := spawn(a, Vector3(0, 0.05, -1.3))
 	await frames(5)
+	p.controls.move = Vector2(0, -0.5)  # a direction key with Space
 	p.controls.jump = true
 	await frames(3)
-	check(p.state == Player.Move.HANG, "jumping at a 2 m wall catches the edge")
+	check(p.state == Player.Move.HANG, "W + Space at a 2 m wall catches the edge")
 	var x0 := p.global_position.x
 	p.controls.move = Vector2(1, 0)
 	await frames(60)
@@ -331,8 +346,10 @@ func test_hang_shimmy_pull_up() -> void:
 	_high_wall(a, 2.0)
 	p = spawn(a, Vector3(0, 0.05, -1.3))
 	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
 	p.controls.jump = true
 	await frames(3)
+	stop(p)
 	var z_hang := p.global_position.z
 	p.controls.jump = true
 	await frames(20)
@@ -343,8 +360,10 @@ func test_hang_shimmy_pull_up() -> void:
 	_high_wall(a, 2.0)
 	p = spawn(a, Vector3(0, 0.05, -1.3))
 	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
 	p.controls.jump = true
 	await frames(3)
+	stop(p)
 	p.controls.crouch = true
 	await frames(30)
 	check(p.state == Player.Move.WALK and p.global_position.y < 0.2, "crouch lets go")
@@ -375,19 +394,25 @@ func test_climb() -> void:
 	forward(p)
 	var climbed := false
 	for i in 300:
+		p.controls.jump = not climbed and p.global_position.z < -1.0  # W + Space at the pipe
 		await frames(1)
 		climbed = climbed or p.state == Player.Move.CLIMB
 		if climbed and p.state == Player.Move.WALK:
 			break
 	stop(p)
 	await frames(10)
-	check(climbed and p.global_position.y > 3.9 and p.global_position.z < -2.0, "walk into a pipe to climb it and step off on top (y %.2f)" % p.global_position.y)
+	check(climbed and p.global_position.y > 3.9 and p.global_position.z < -2.0, "W + Space at a pipe climbs it, and you step off on top (y %.2f)" % p.global_position.y)
 
 	# Climbing down and kicking off.
-	var q := spawn(a, Vector3(0.0, 0.05, 0))
+	var q := spawn(a, Vector3(0.0, 0.05, -1.2))
 	await frames(5)
+	q.global_position.z = -1.2
+	check(q.state == Player.Move.WALK, "standing at a pipe doesn't climb it")
 	forward(q)
-	await frames(60)
+	await frames(20)
+	check(q.state == Player.Move.WALK, "nor does walking into it")
+	q.controls.jump = true
+	await frames(40)
 	var mid := q.global_position.y
 	q.controls.move = Vector2(0, 1)
 	await frames(90)
@@ -530,6 +555,7 @@ func test_notebook_hold() -> void:
 	p.notebook_raised.connect(func(): events.append("raised"))
 	p.notebook_lowered.connect(func(): events.append("lowered"))
 	var book := FakeHeldNotebook.new()
+	p.camera.add_child(book)
 	p.held_notebook = book
 	check(p.toggle_notebook() and p.is_holding_notebook(), "Tab pulls the notebook out")
 	await frames(10)
@@ -548,10 +574,27 @@ func test_notebook_hold() -> void:
 	check(p.global_position.y < 0.1, "and you can't jump")
 	stop(p)
 	var yaw0 := p.rotation.y
+	var book_at := book.global_basis
+	var cam_at := p.camera.global_basis
 	_mouse_move(p, Vector2(100, 0))
 	var turned := yaw0 - p.rotation.y
-	check(p.is_holding_notebook() and not p.notebook_cursor and absf(turned - 100 * Player.MOUSE_SENS * Player.NOTEBOOK_LOOK_SCALE) < 0.001, "reading, the mouse still looks around, a little slower")
+	check(p.is_holding_notebook() and not p.notebook_cursor and absf(turned - 100 * Player.MOUSE_SENS * Player.NOTEBOOK_LOOK_SCALE) < 0.001, "reading, the mouse still looks around, slower")
 	check(not book.is_processing_input(), "and the pages ignore the mouse while it's looking")
+	check(book.global_basis.is_equal_approx(book_at) and (-p.camera.global_basis.z).dot(-cam_at.z) < 0.999, "glancing across the spread, the book stays put while your view moves")
+	_mouse_move(p, Vector2(0, 150))
+	check(book.global_basis.is_equal_approx(book_at) and p.notebook_drift.y < -0.1, "and looking down the page, too")
+	_mouse_move(p, Vector2(400, 0))
+	var off := (-book.global_basis.z).signed_angle_to(-book_at.z, Vector3.UP)
+	check(absf(p.notebook_drift.x + Player.NOTEBOOK_SLACK_SIDE) < 0.001 and off > 0.2, "look further and it comes with you (%.2f rad)" % off)
+	var in_view := p.camera.global_basis.inverse() * (-book.global_basis.z)
+	check(in_view.z < -0.95, "so it stays in front of you")
+	p.toggle_notebook()
+	await frames(40)
+	p.toggle_notebook()
+	check(p.notebook_drift == Vector2.ZERO and book.transform.is_equal_approx(Transform3D.IDENTITY), "out again, it comes up square in front of you")
+	await frames(40)
+	events.clear()
+	book.calls.clear()
 	p.set_notebook_cursor(true)
 	yaw0 = p.rotation.y
 	_mouse_move(p, Vector2(100, 40))
@@ -563,8 +606,9 @@ func test_notebook_hold() -> void:
 	p.toggle_notebook()
 	check(not p.notebook_cursor, "putting the notebook away drops the cursor")
 	await frames(40)
-	check(not p.is_holding_notebook() and events == ["raised", "lowered"] and book.calls == ["open", "close"], "Tab again puts it away")
+	check(not p.is_holding_notebook() and events == ["lowered"] and book.calls == ["close"], "Tab again puts it away")
 	p.held_notebook = null
+	book.free()
 	p.rotation.y = 0.0
 	p.global_position = Vector3(0, 0.05, -1.3)
 	await frames(5)
@@ -574,8 +618,10 @@ func test_notebook_hold() -> void:
 	check(p.state == Player.Move.WALK, "holding the notebook, Space doesn't grab edges either")
 	p.lower_notebook()
 	await frames(30)
+	p.controls.move = Vector2(0, -0.5)
 	p.controls.jump = true
 	await frames(3)
+	p.controls.move = Vector2.ZERO
 	check(p.state == Player.Move.HANG and not p.raise_notebook(), "you can't get the notebook out while hanging")
 	await done(a)
 
@@ -594,7 +640,15 @@ func test_use_terminal() -> void:
 	check(p.use_terminal(term.stand_point, term.focus_point) and p.is_using_terminal(), "E at a terminal steps you up to it")
 	check(not p.is_holding_notebook(), "and puts the notebook away")
 	forward(p, true)
-	await frames(Player.TERMINAL_STEP_TIME * 60 + 2)
+	var screen_at := term.focus_point.global_position
+	var look_at_screen := func() -> float:
+		var c: Transform3D = p.camera.global_transform
+		return (-c.basis.z).dot((screen_at - c.origin).normalized())
+	var looked_before: float = look_at_screen.call()
+	await frames(Player.TERMINAL_STEP_TIME * 30)
+	check(look_at_screen.call() > looked_before + 0.2 and p.terminal_amount < 1.0, "your eyes turn onto the screen as you step up (%.2f to %.2f)" % [looked_before, look_at_screen.call()])
+	await frames(Player.TERMINAL_STEP_TIME * 30 + 2)
+	check(look_at_screen.call() > 0.999, "and are on it by the time you get there, before the camera moves in")
 	var stand := term.stand_point.global_position
 	var flat := Vector2(p.global_position.x - stand.x, p.global_position.z - stand.z).length()
 	var facing := -p.global_basis.z
@@ -614,6 +668,7 @@ func test_use_terminal() -> void:
 	await frames(Player.TERMINAL_FOCUS_TIME * 60 + 3)
 	check(events == ["focused", "left"] and p.state == Player.Move.WALK, "Esc eases you back and you can move again")
 	check(p.camera.transform.is_equal_approx(Transform3D.IDENTITY), "the camera is back in your head")
+	check(look_at_screen.call() > 0.99, "still looking at the screen, so nothing snaps")
 	p.rotate_y(PI)
 	forward(p)
 	await frames(30)
@@ -815,6 +870,7 @@ func test_movement_gym() -> void:
 	forward(p)
 	var vaulted := false
 	for i in 60:
+		p.controls.jump = not vaulted and p.global_position.x > -21.3
 		await t.physics_frame
 		vaulted = vaulted or p.state == Player.Move.VAULT
 	check(vaulted and p.global_position.x > -19.9, "the gym has a desk to vault")

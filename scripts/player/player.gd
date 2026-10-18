@@ -60,9 +60,10 @@ const HANG_SETTLE := 0.15
 ## How far (radians) you can turn from your stance while shuffling along a ledge.
 const LEDGE_LOOK := deg_to_rad(100.0)
 const MANTLE_UP_TIME := 0.22
-## Walking into something knee to waist high (a desk, a counter, a railing) vaults
-## you over it if there's floor on the other side. Taller than that, Space mantles.
-const VAULT_MIN := 0.45
+## W + Space at something shin to waist high (a coffee table, a desk, a counter, a
+## railing) vaults you over it if there's floor on the other side. Taller than
+## that, the same keys mantle.
+const VAULT_MIN := 0.3
 const VAULT_MAX := 1.15
 ## Thicker than this on top and it's a platform to climb onto, not something to vault.
 const VAULT_DEPTH := 1.0
@@ -82,8 +83,13 @@ const STRIKE_RANGE := 2.0
 const STRIKE_COOLDOWN := 0.55
 ## Walking pace while reading the notebook: no sprinting, jumping or climbing.
 const NOTEBOOK_WALK_SPEED := 1.4
-## Mouse look is a little slower while reading.
-const NOTEBOOK_LOOK_SCALE := 0.75
+## Mouse look is slower while reading.
+const NOTEBOOK_LOOK_SCALE := 0.45
+## How far your view can drift off the held notebook before it follows (radians):
+## enough to look across the spread or down a page, never enough to lose it.
+const NOTEBOOK_SLACK_SIDE := 0.2
+const NOTEBOOK_SLACK_DOWN := 0.2
+const NOTEBOOK_SLACK_UP := 0.08
 ## How long pulling the notebook out of the pocket (or putting it back) takes,
 ## matching HeldNotebook's open motion.
 const NOTEBOOK_RAISE_TIME := 0.45
@@ -161,6 +167,9 @@ var _rmb_was := false
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
 var notebook_amount := 0.0
 var _notebook_held := false
+## How far your view has drifted off the held notebook: x yaw (+ left), y pitch
+## (+ up), radians. The book stays put inside the slack and follows past it. Read-only.
+var notebook_drift := Vector2.ZERO
 ## The paper or card you're holding up to read (pick_up), or null. Read-only.
 var held_prop: Node3D
 var _prop_home := {}  # where it came from: parent, local transform, collision
@@ -176,6 +185,7 @@ var _term_stand: Node3D
 var _term_focus: Node3D
 var _term_leaving := false
 var _term_from := Transform3D()
+var _term_look_from := Basis()
 
 var head: Node3D
 var camera: Camera3D
@@ -234,10 +244,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return  # the screen has the mouse and keys; the terminal UI calls leave_terminal()
 	if event is InputEventMouseMotion and _mouse_looks():
 		var sens := MOUSE_SENS * (NOTEBOOK_LOOK_SCALE if _reading() else 1.0)
+		var yaw0 := rotation.y
+		var pitch0 := head.rotation.x
 		rotate_y(-event.relative.x * sens)
 		if state == Move.LEDGE:
 			_clamp_ledge_yaw()
 		head.rotation.x = clamp(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
+		if _notebook_held:
+			_drift_notebook(wrapf(rotation.y - yaw0, -PI, PI), head.rotation.x - pitch0)
 	elif event.is_action_pressed("flashlight"):
 		flashlight.visible = not flashlight.visible
 	elif event.is_action_pressed("interact"):
@@ -333,6 +347,8 @@ func raise_notebook() -> bool:
 		return true
 	put_down()  # one thing in your hands at a time
 	_notebook_held = true
+	notebook_drift = Vector2.ZERO
+	_pose_notebook()
 	if held_notebook:
 		held_notebook.open_book()
 	set_notebook_cursor(local_control and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
@@ -380,6 +396,25 @@ func set_notebook_cursor(on: bool) -> void:
 		held_prop.set_process_input(on)
 	if local_control and not input_locked and state != Move.TERMINAL:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if on else Input.MOUSE_MODE_CAPTURED
+
+
+## Your view turned by `yaw`, `pitch` while holding the notebook: the book stays
+## where it is in front of you until you look past the slack, then comes along.
+func _drift_notebook(yaw: float, pitch: float) -> void:
+	notebook_drift.x = clampf(notebook_drift.x + yaw, -NOTEBOOK_SLACK_SIDE, NOTEBOOK_SLACK_SIDE)
+	notebook_drift.y = clampf(notebook_drift.y + pitch, -NOTEBOOK_SLACK_DOWN, NOTEBOOK_SLACK_UP)
+	_pose_notebook()
+
+
+## Turns the held notebook (the HeldNotebook node itself; Graphics poses its book
+## inside) back against the drift, so it holds still in the room. Body yaw then
+## head pitch: undo the pitch, the yaw drift, then pitch back to where the book was.
+func _pose_notebook() -> void:
+	if not held_notebook or not is_instance_valid(held_notebook):
+		return
+	var pitch := head.rotation.x
+	var b := Basis(Vector3.RIGHT, -pitch) * Basis(Vector3.UP, -notebook_drift.x) * Basis(Vector3.RIGHT, pitch - notebook_drift.y)
+	held_notebook.transform = Transform3D(b, Vector3.ZERO)
 
 
 ## Does moving the mouse turn your head right now?
@@ -590,7 +625,8 @@ func _end_filing() -> void:
 # --- Terminals -------------------------------------------------------------
 
 ## Step up to a terminal: you move onto `stand` (its position and facing; -Z looks
-## at the terminal), then the camera eases onto `focus` and movement locks.
+## at the terminal) while your eyes turn onto the screen, then the camera eases in
+## to `focus` and movement locks.
 ## `focus` is the terminal's TerminalScreen (the camera goes to its
 ## focus_transform()) or any Node3D on the screen with +Z pointing out of it. `terminal_focused` fires when the
 ## camera has settled. False if you're busy (mid-air, climbing, on shoulders).
@@ -602,6 +638,7 @@ func use_terminal(stand: Node3D, focus: Node3D) -> bool:
 	_term_stand = stand
 	_term_focus = focus
 	_term_from = global_transform
+	_term_look_from = camera.global_basis
 	_term_leaving = false
 	terminal_amount = 0.0
 	state = Move.TERMINAL
@@ -625,6 +662,17 @@ func is_using_terminal() -> bool:
 ## The camera has settled on the screen (and isn't easing back).
 func is_terminal_focused() -> bool:
 	return state == Move.TERMINAL and not _term_leaving and terminal_amount >= 2.0
+
+
+## Your eyes on the screen from where your head is: what you look at while stepping
+## up, before the camera moves in.
+func _terminal_aim() -> Basis:
+	var view := terminal_view()
+	var at := view.origin - view.basis.z.normalized() * TERMINAL_FOCUS_DISTANCE
+	var from := head.global_position
+	if from.distance_squared_to(at) < 0.0001:
+		return view.basis
+	return Basis.looking_at(at - from, Vector3.UP)
 
 
 ## Where the camera ends up at the terminal: the screen's focus_transform(), or
@@ -656,7 +704,8 @@ func _step_terminal(delta: float) -> void:
 		var stand := Transform3D(Basis(Vector3.UP, atan2(-fwd.x, -fwd.z)), Vector3(to.x, global_position.y, to.z))
 		var t := smoothstep(0.0, 1.0, terminal_amount)
 		global_transform = _term_from.interpolate_with(stand, t)
-		head.rotation.x = lerpf(head.rotation.x, 0.0, t)
+		if _term_focus == null:
+			head.rotation.x = lerpf(head.rotation.x, 0.0, t)
 	elif _term_focus == null:
 		terminal_amount = 2.0
 		terminal_focused.emit()
@@ -670,6 +719,11 @@ func _end_terminal(announce: bool) -> void:
 	var was := state == Move.TERMINAL or terminal_amount > 0.0
 	if state == Move.TERMINAL:
 		state = Move.WALK
+		if _term_leaving and is_instance_valid(_term_focus):
+			# Hand the view back where it is, still on the screen, so nothing snaps.
+			var look := -_terminal_aim().z
+			rotation.y = atan2(-look.x, -look.z)
+			head.rotation.x = clampf(asin(clampf(look.y, -1.0, 1.0)), -1.45, 1.45)
 	terminal_amount = 0.0
 	_term_stand = null
 	_term_focus = null
@@ -692,6 +746,7 @@ func _process(delta: float) -> void:
 				set_notebook_cursor(rmb)
 	_animate_prop(delta)
 	_animate_filing(delta)
+	_pose_notebook()
 	var target := 1.0 if _notebook_held else 0.0
 	if notebook_amount == target:
 		return
@@ -851,7 +906,10 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 
 	if state == Move.WALK and rider == null and not in_vent and not _hands_full():
 		var climb := in_volume(MovementVolume.Kind.CLIMB)
-		if climb and _forward().dot(-climb.normal) > 0.5 and (controls.move.y < -0.3 or jump_pressed):
+		# W + Space starts a climb (or W while already in the air), so walking past
+		# a pipe never grabs it.
+		var pushing := controls.move.y < -0.3
+		if climb and _forward().dot(-climb.normal) > 0.5 and pushing and (jump_pressed or (not on_floor and _air_time > 0.1)):
 			_climb = climb
 			state = Move.CLIMB
 			velocity = Vector3.ZERO
@@ -868,11 +926,12 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			_ledge_face = -ledge.normal if _forward().dot(-ledge.normal) > 0.0 else ledge.normal
 			_clamp_ledge_yaw()
 			return
-		var going := Vector3(velocity.x, 0, velocity.z).length()
-		if on_floor and not jump_pressed and not crouching and not sprinting and controls.move.y < -0.5 and going > 0.3 and _try_vault():
-			return
 		if jump_pressed:
-			if _try_ledge(true):
+			# A direction key plus Space: vault something low, mantle or grab something
+			# higher. Space alone just jumps, so nothing happens by accident.
+			if pushing and on_floor and not crouching and _try_vault():
+				return
+			if pushing and _try_ledge(true):
 				return
 			if on_floor and not crouching:
 				velocity.y = JUMP_VELOCITY
@@ -994,9 +1053,9 @@ func _try_vault() -> bool:
 	var feet := global_position
 	var fwd := _forward()
 	var wall := {}
-	for h in [0.3, 0.6]:
+	for h in [0.2, 0.5]:
 		var from: Vector3 = feet + Vector3.UP * h
-		wall = space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + fwd * (RADIUS + 0.35), collision_mask, _exclude()))
+		wall = space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + fwd * (RADIUS + 0.5), collision_mask, _exclude()))
 		if not wall.is_empty():
 			break
 	if wall.is_empty() or absf(wall.normal.y) > 0.3:
@@ -1357,9 +1416,15 @@ func _update_head(delta: float) -> void:
 		target_y += sin(_bob_t) * 0.035
 	head.position.y = lerp(head.position.y, target_y, clamp(delta * 12.0, 0.0, 1.0))
 	camera.fov = lerp(camera.fov, 86.0 if state == Move.SLIDE else 78.0, clamp(delta * 8.0, 0.0, 1.0))
-	if state == Move.TERMINAL and terminal_amount > 1.0 and _term_focus:
-		var f := smoothstep(0.0, 1.0, terminal_amount - 1.0)
-		camera.global_transform = head.global_transform.interpolate_with(terminal_view(), f)
+	if state == Move.TERMINAL and _term_focus:
+		# Eyes onto the screen while stepping up, then the camera moves in to read it.
+		var aim := _terminal_aim()
+		if terminal_amount <= 1.0:
+			var turn := smoothstep(0.0, 1.0, terminal_amount)
+			camera.global_transform = Transform3D(_term_look_from.slerp(aim, turn).orthonormalized(), head.global_position)
+		else:
+			var f := smoothstep(0.0, 1.0, terminal_amount - 1.0)
+			camera.global_transform = Transform3D(aim, head.global_position).interpolate_with(terminal_view(), f)
 	elif state == Move.ROLL:
 		camera.transform = Transform3D(Basis(Vector3.RIGHT, -TAU * (1.0 - clamp(_timer / ROLL_TIME, 0.0, 1.0))), Vector3.ZERO)
 	else:
