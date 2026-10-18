@@ -1029,6 +1029,10 @@ func test_coop_world() -> void:
 	var sra_c = client.wings["level_1"]
 	var dump := "SELECT * FROM doors ORDER BY id"
 	check(_table(sra_h, dump) == _table(sra_c, dump), "both machines built the same building from the run seed")
+	for f in 1800:  # the PA tape and Rourke's cover, then he walks to the hall shutter
+		await physics_frame
+		if lobby_h.sync._gates.has("rourke_at_shutter"):
+			break
 	lobby_h.sync.event("_on_reach_server_room", [null])
 	for f in 900:  # Rourke opens the elevator bank's door and says his line
 		await physics_frame
