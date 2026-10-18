@@ -45,9 +45,14 @@ func _build() -> void:
 	pages = NotebookPages.new()
 	pages.write_requested.connect(start_writing)
 	if get_node("/root/Game").diegetic_ui and player and player.camera:
-		held = HeldNotebook.attach(player.camera, CharacterLooks.crew(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer)))
+		var look := CharacterLooks.crew(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))
+		held = HeldNotebook.attach(player.camera, look)
 		held.set_content(pages)
+		held.follow(player)  # its hand reaches for a sticky note being filed
 		player.held_notebook = held
+		# The same hands hold papers you pick up to read.
+		if player.camera.get_node_or_null("HeldPaper") == null:
+			HeldPaper.attach(player.camera, look).follow(player)
 		# Put away by the player's own moves too (stepping up to a terminal, a respawn).
 		if not player.notebook_lowered.is_connected(_on_lowered):
 			player.notebook_lowered.connect(_on_lowered)
