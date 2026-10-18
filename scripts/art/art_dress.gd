@@ -61,10 +61,34 @@ static func trim(parent: Node3D, center: Vector3, size: Vector3, mat: Material) 
 	return mi
 
 
+## Show a solid Greybox box as a table: its block mesh is hidden and a top and
+## four legs drawn in its place. Its collision stays the full block, so it still
+## stops a player walking under it and can still be climbed onto.
+static func table_look(body: StaticBody3D, top: Material, legs: Material, top_thickness := 0.04) -> void:
+	var size := Vector3.ZERO
+	for c in body.get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is BoxMesh:
+			size = ((c as MeshInstance3D).mesh as BoxMesh).size
+			(c as MeshInstance3D).visible = false
+	if size == Vector3.ZERO:
+		return
+	var look := Node3D.new()
+	look.name = "TableLook"
+	body.add_child(look)
+	var top_mi := trim(look, Vector3(0, size.y / 2.0 - top_thickness / 2.0, 0), Vector3(size.x, top_thickness, size.z), top)
+	top_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var leg_h := size.y - top_thickness
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			trim(look, Vector3(sx * (size.x / 2.0 - 0.06), -size.y / 2.0 + leg_h / 2.0, sz * (size.z / 2.0 - 0.06)), Vector3(0.045, leg_h, 0.045), legs)
+
+
 ## Skirting board round the inside of a room (Greybox.room geometry), skipping
 ## openings. `gaps` uses the same format as Greybox.room.
-static func skirting(parent: Node3D, center: Vector3, size: Vector3, gaps: Array = [], height: float = 0.1) -> void:
-	var mat := ArtPalette.flat(ArtPalette.OFFICE_TRIM, 0.6)
+## A taller `height` with `mat` makes a wainscot, such as a restroom's tiles.
+static func skirting(parent: Node3D, center: Vector3, size: Vector3, gaps: Array = [], height: float = 0.1, mat: Material = null) -> void:
+	if mat == null:
+		mat = ArtPalette.flat(ArtPalette.OFFICE_TRIM, 0.6)
 	var t := 0.1  # half the wall thickness: sits on the wall's inner face
 	for wall in ["n", "s", "e", "w"]:
 		var along_x: bool = wall == "n" or wall == "s"
