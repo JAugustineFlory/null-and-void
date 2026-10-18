@@ -261,11 +261,13 @@ func _build_booth() -> void:
 		"Reader down? Sign the paper sheet. The night lead keeps it as the backup copy.",
 	], false, "laminated", Vector2(0.42, 0.3))
 	# The backup sheet: the names are handwritten, and coffee took most of the second one.
-	Document.place(geo, Vector3(-1.4, 1.45, 5.86), 0, "Night shift sign-in sheet", [
-		"NIGHT SHIFT SIGN-IN   10/15   (backup copy)",
-		"NAME                 IN",
-		{"text": "PIKE, H.             no show", "hand": true},
-		{"text": "Har... (coffee stain)   22:00", "hand": true},
+	Document.place(geo, Vector3(-1.4, 1.45, 5.86), 0, "NIGHT SHIFT SIGN-IN      DATE: 10/15", [
+		"(backup copy)",
+		{"columns": ["NAME", "BADGE #", "IN", "OUT", "INIT."], "widths": [3.4, 1.8, 1.3, 1.3, 1.2], "text": "NAME  BADGE #  IN  OUT  INIT."},
+		{"row": ["PIKE, H.", "", "", "", ""], "over": "NO SHOW", "text": "PIKE, H.  no show", "hand": true},
+		{"row": ["Har", "", "22:00", "", ""], "stain": "coffee", "stain_at": 0, "text": "Har... (coffee stain)   22:00", "hand": true},
+		{"row": ["", "", "", "", ""]},
+		{"row": ["", "", "", "", ""]},
 		"",
 		"Guard PINs are kept on file in the table:",
 		{"text": "guards", "hand": true},
