@@ -61,6 +61,26 @@ static func trim(parent: Node3D, center: Vector3, size: Vector3, mat: Material) 
 	return mi
 
 
+## Take the collision out of a prop, so it's only seen: for floors where what
+## blocks a line of sight or a path is part of the puzzle (Level 2's Watcher).
+static func visual_only(prop: Node) -> Node:
+	for c in prop.find_children("*", "CollisionShape3D", true, false):
+		c.free()
+	if prop is CollisionObject3D:
+		(prop as CollisionObject3D).collision_layer = 0
+		(prop as CollisionObject3D).collision_mask = 0
+	prop.remove_meta("art_prop")
+	return prop
+
+
+## Hide a Greybox piece's block mesh (its collision stays), to draw something
+## else in its place.
+static func hide_block(body: Node) -> void:
+	for c in body.get_children():
+		if c is MeshInstance3D:
+			(c as MeshInstance3D).visible = false
+
+
 ## Show a solid Greybox box as a table: its block mesh is hidden and a top and
 ## four legs drawn in its place. Its collision stays the full block, so it still
 ## stops a player walking under it and can still be climbed onto.

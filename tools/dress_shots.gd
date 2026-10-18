@@ -21,6 +21,8 @@ func _run() -> void:
 		await _level_0()
 	if only in ["", "l1"]:
 		await _level_1()
+	if only in ["", "l2"]:
+		await _level_2()
 	quit()
 
 
@@ -60,6 +62,25 @@ func _level_1() -> void:
 	await _shot(level, "l1_server_b", Vector3(9.0, 0.1, 7.8), -50, -6)
 	await _shot(level, "l1_break", Vector3(9.0, 0.1, -4.0), -75, -10)
 	await _shot(level, "l1_server_c", Vector3(-12.0, 0.1, -14.0), 0, -8)
+	level.free()
+
+
+func _level_2() -> void:
+	root.get_node("Game").new_run(3)
+	var level = await _load("res://scenes/level_2.tscn")
+	await _shot(level, "l2_landing", Vector3(5.0, 0.1, 8.0), 90, -4)
+	await _shot(level, "l2_corridor", Vector3(5.0, 0.1, 4.6), 95, -6)
+	await _shot(level, "l2_office", Vector3(4.5, 0.1, 0.8), 45, -10)
+	await _shot(level, "l2_vestibule", Vector3(0.0, 0.1, -8.6), 0, -8)
+	await _shot(level, "l2_exit_lobby", Vector3(0.0, 0.1, -12.6), 0, -4)
+	await _shot(level, "l2_night_desk", Vector3(1.5, 0.1, 9.0), 75, -10)
+	await _shot(level, "l2_patrol", Vector3(-9.0, 0.1, 9.2), 0, -3)
+	await _shot(level, "l2_interview", Vector3(-10.6, 0.1, 6.0), 90, -10)
+	await _shot(level, "l2_briefing", Vector3(-10.6, 0.1, -7.0), 70, -10)
+	await _shot(level, "l2_lockers", Vector3(-10.6, 0.1, -13.0), 90, -6)
+	await _shot(level, "l2_lab", Vector3(-10.6, 0.1, 0.0), 80, -10)
+	await _shot(level, "l2_service", Vector3(-17.0, 0.1, 7.5), 0, -3)
+	await _shot(level, "l2_camera_room", Vector3(-7.2, 0.1, -15.6), -35, -10)
 	level.free()
 
 
