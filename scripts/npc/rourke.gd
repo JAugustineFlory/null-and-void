@@ -24,6 +24,10 @@ var target: Node3D
 ## Hits to bring him down. Levels raise it with more players.
 var max_hits := MAX_HITS
 var hits_left := MAX_HITS
+## How long he stays down before getting up again. Levels can keep him down.
+var down_time := DOWN_TIME
+## Who can tie him up: Callable(player) -> bool. Unset, anyone can.
+var can_tie: Callable
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 var _agent: NavigationAgent3D
@@ -263,7 +267,7 @@ func take_hit(by: Node3D) -> void:
 
 func _go_down() -> void:
 	state = State.DOWN
-	_down_timer = DOWN_TIME
+	_down_timer = down_time
 	_body.rotation.x = -PI / 2
 	_body.position = Vector3(0, 0.3, 0.9)
 	add_to_group("interactable")
@@ -278,16 +282,22 @@ func _get_up() -> void:
 	state = State.CHASE
 
 
-func get_prompt(_player: Node) -> String:
-	if state == State.DOWN:
-		return "[E] Tie him up with network cable    [X] Finish it"
-	return ""
+func get_prompt(player: Node) -> String:
+	if state != State.DOWN:
+		return ""
+	if not _may_tie(player):
+		return "[X] Finish it"
+	return "[E] Tie him up with network cable    [X] Finish it"
 
 
-func interact(_player: Node) -> void:
+func _may_tie(player: Node) -> bool:
+	return not can_tie.is_valid() or can_tie.call(player)
+
+
+func interact(player: Node) -> void:
 	if _forwarded("interact"):
 		return
-	if state != State.DOWN:
+	if state != State.DOWN or not _may_tie(player):
 		return
 	state = State.TIED
 	remove_from_group("interactable")

@@ -107,7 +107,120 @@ INSERT INTO door_status VALUES
 	('SEC-OFFICE', 'closed', 'ok', 'lockdown: guard PIN required'),
 	('SEC-EXIT', 'closed', 'fault', 'actuator breaker B-%d tripped 00:12. Reset it at the breaker box by the door');
 """ % [",\n\t".join(rows), breaker]
-	return {"sql": sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin, "breaker": breaker}
+	var lab := _lab(run_seed)
+	return {"sql": sql + lab.sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin, "breaker": breaker,
+		"lab_zone": lab.zone, "lab_answer": lab.answer, "lab_switches": lab.switches}
+
+
+## Secure Lab B: its door controllers and the badge log. A separate random stream,
+## so the guard roster stays the same for a seed.
+## The lab's zone changes per run, and its door is the one controller in that zone
+## with status 'fault'. Another zone on this floor has a fault too, and the lab's
+## zone has an offline and an ok one, so both WHERE conditions matter.
+const LAB_ZONES := ["D", "E", "F", "H"]
+const VISITOR_BADGES := 6
+
+
+static func _lab(run_seed: int) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = run_seed * 7919 + 2
+	var zone: String = LAB_ZONES[rng.randi_range(0, LAB_ZONES.size() - 1)]
+	var c := _lab_controllers(zone, rng)
+	var rows: Array = c.rows
+	# Who badged where tonight, in the order the reader stored them (not by time).
+	var log := [
+		"('1997-10-15 23:12', 'V-0042', 'VALE, I.', 'SECLAB-B')",
+		"('1997-10-15 23:40', 'R-0117', 'ROURKE, D.', 'SECLAB-B-REAR')",
+		"('1997-10-15 23:55', 'R-0117', 'ROURKE, D.', 'NIGHT DESK')",
+		"('1997-10-15 21:58', 'V-0042', 'VALE, I.', 'NIGHT DESK')",
+	]
+	_shuffle(log, rng)
+	var sorted_log := log.duplicate()
+	sorted_log.sort()
+	if log == sorted_log:  # stored out of order, so ORDER BY shows something
+		log.reverse()
+	var visitors := []
+	for i in range(1, VISITOR_BADGES + 1):
+		visitors.append("('VIS-%02d', 'BYTE-RIGHT IT (VISITOR)', 'VISITOR', 'Front desk')" % i)
+	var sql := """
+
+-- Secure Lab B. door_controllers is the server floor's table; on its own this wing makes it.
+CREATE TABLE IF NOT EXISTS door_controllers (
+	id TEXT,
+	zone TEXT,
+	status TEXT,
+	location TEXT,
+	last_reset TEXT,
+	note TEXT
+);
+INSERT INTO door_controllers VALUES
+	%s;
+
+-- The badge readers' log: every swipe, at every reader on this floor.
+CREATE TABLE badge_log (
+	time TEXT,
+	badge_id TEXT,
+	holder TEXT,
+	door TEXT
+);
+INSERT INTO badge_log VALUES
+	%s;
+
+INSERT OR IGNORE INTO badges VALUES
+	%s;
+
+INSERT INTO doors VALUES
+	('SECLAB-B', 'Secure Lab B', '%s', 1, 0),
+	('SECLAB-B-REAR', 'Secure Lab B rear door', '%s', 1, 0);
+INSERT INTO door_status VALUES
+	('SECLAB-B', 'closed', 'ok', 'badge door: staff badge or escort'),
+	('SECLAB-B-REAR', 'closed', 'ok', 'staff only');
+""" % [",\n\t".join(rows), ",\n\t".join(log), ",\n\t".join(visitors), zone, zone]
+	return {"sql": sql, "zone": zone, "answer": c.answer, "switches": c.switches}
+
+
+## Caught by the security response, the crew wakes up locked in again, and the lab's
+## controllers have been re-keyed to another zone. `attempt` counts from 1.
+static func lab_rekey(run_seed: int, attempt: int, old_zone: String) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = run_seed * 7919 + 2 + attempt * 104729
+	var zones := LAB_ZONES.filter(func(z): return z != old_zone)
+	var zone: String = zones[rng.randi_range(0, zones.size() - 1)]
+	var c := _lab_controllers(zone, rng)
+	var sql := """
+DELETE FROM door_controllers WHERE id IN (%s);
+INSERT INTO door_controllers VALUES
+	%s;
+UPDATE doors SET zone = '%s' WHERE id IN ('SECLAB-B', 'SECLAB-B-REAR');
+""" % [", ".join(c.ids.map(func(i): return "'%s'" % i)), ",\n\t".join(c.rows), zone]
+	return {"sql": sql, "zone": zone, "answer": c.answer, "switches": c.switches}
+
+
+## The six controllers DC-13 to DC-18: three in the lab's zone, three in zone S.
+static func _lab_controllers(zone: String, rng: RandomNumberGenerator) -> Dictionary:
+	var ids := []
+	for i in range(13, 19):
+		ids.append("DC-%d" % i)
+	_shuffle(ids, rng)
+	# [zone, status, location, note]
+	var specs := [
+		[zone, "fault", "Secure Lab B, main door", "lockdown relay latched. Needs a manual reset."],
+		[zone, "offline", "Secure Lab B, fume hood", "off on purpose: hood serviced 10/13"],
+		[zone, "ok", "Secure Lab B, rear door", "normal"],
+		["S", "fault", "Interview room door", "runs the interview room, not the lab. Ticket open"],
+		["S", "ok", "Briefing room door", "normal"],
+		["S", "offline", "Camera room door", "decommissioned 1996"],
+	]
+	var rows := []
+	var switches := []
+	for i in specs.size():
+		var c: Array = specs[i]
+		var reset_at := "1997-10-%02d %02d:%02d" % [rng.randi_range(1, 14), rng.randi_range(0, 23), rng.randi_range(0, 59)]
+		rows.append("('%s', '%s', '%s', '%s', '%s', '%s')" % [ids[i], c[0], c[1], c[2], reset_at, c[3]])
+		if c[0] == zone:
+			switches.append(ids[i])
+	switches.sort()
+	return {"rows": rows, "ids": ids, "answer": ids[0], "switches": switches}
 
 
 static func _full(surname: String, rng: RandomNumberGenerator) -> String:

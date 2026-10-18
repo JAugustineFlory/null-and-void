@@ -42,6 +42,13 @@ const PUZZLES := {
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
 	},
+	# Optional, in the lab: the visitor log sorted shows the crew's badges at the scene.
+	"badge_log": {
+		"level": 2,
+		"pressure": true,
+		"teaches": ["badge_log"],
+		"needs": ["SELECT", "FROM", "ORDER BY", "badge_log", "time"],
+	},
 	"cameras": {
 		"level": 2,
 		"pressure": false,
