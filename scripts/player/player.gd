@@ -85,6 +85,10 @@ const STRIKE_COOLDOWN := 0.55
 const NOTEBOOK_WALK_SPEED := 1.4
 ## Mouse look is slower while reading.
 const NOTEBOOK_LOOK_SCALE := 0.45
+## Reading with the cursor out: within this share of the screen from an edge the
+## view turns that way, up to EDGE_LOOK_SPEED (radians per second) at the edge.
+const EDGE_LOOK_MARGIN := 0.08
+const EDGE_LOOK_SPEED := 1.6
 ## How far your view can drift off the held notebook before it follows (radians):
 ## enough to look across the spread or down a page, never enough to lose it.
 const NOTEBOOK_SLACK_SIDE := 0.2
@@ -237,6 +241,48 @@ func _ready() -> void:
 		_add_body_mesh()
 
 
+## Turn your view right by `yaw` and down by `pitch` (radians); a held notebook
+## drifts, then follows.
+func _turn_view(yaw: float, pitch: float) -> void:
+	var yaw0 := rotation.y
+	var pitch0 := head.rotation.x
+	rotate_y(-yaw)
+	if state == Move.LEDGE:
+		_clamp_ledge_yaw()
+	head.rotation.x = clamp(head.rotation.x - pitch, -1.45, 1.45)
+	if _notebook_held:
+		_drift_notebook(wrapf(rotation.y - yaw0, -PI, PI), head.rotation.x - pitch0)
+
+
+## Reading with the cursor out, the cursor near an edge of the screen turns your
+## view that way (radians per second: x right, y down), faster the closer it gets.
+func edge_turn(cursor: Vector2, screen: Vector2) -> Vector2:
+	var turn := Vector2.ZERO
+	if screen.x <= 0.0 or screen.y <= 0.0 or not Rect2(Vector2.ZERO, screen).has_point(cursor):
+		return turn
+	var mx := screen.x * EDGE_LOOK_MARGIN
+	var my := screen.y * EDGE_LOOK_MARGIN
+	if cursor.x < mx:
+		turn.x = -pow(1.0 - cursor.x / mx, 2.0)
+	elif cursor.x > screen.x - mx:
+		turn.x = pow(1.0 - (screen.x - cursor.x) / mx, 2.0)
+	if cursor.y < my:
+		turn.y = -pow(1.0 - cursor.y / my, 2.0)
+	elif cursor.y > screen.y - my:
+		turn.y = pow(1.0 - (screen.y - cursor.y) / my, 2.0)
+	return turn * EDGE_LOOK_SPEED
+
+
+func _edge_look(delta: float) -> void:
+	if not (local_control and notebook_cursor and _reading()) or input_locked or state == Move.TERMINAL:
+		return
+	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE or not get_window().has_focus():
+		return
+	var turn := edge_turn(get_viewport().get_mouse_position(), get_viewport().get_visible_rect().size)
+	if turn != Vector2.ZERO:
+		_turn_view(turn.x * delta, turn.y * delta)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if input_locked or not local_control:
 		return
@@ -244,14 +290,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return  # the screen has the mouse and keys; the terminal UI calls leave_terminal()
 	if event is InputEventMouseMotion and _mouse_looks():
 		var sens := MOUSE_SENS * (NOTEBOOK_LOOK_SCALE if _reading() else 1.0)
-		var yaw0 := rotation.y
-		var pitch0 := head.rotation.x
-		rotate_y(-event.relative.x * sens)
-		if state == Move.LEDGE:
-			_clamp_ledge_yaw()
-		head.rotation.x = clamp(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
-		if _notebook_held:
-			_drift_notebook(wrapf(rotation.y - yaw0, -PI, PI), head.rotation.x - pitch0)
+		_turn_view(event.relative.x * sens, event.relative.y * sens)
 	elif event.is_action_pressed("flashlight"):
 		flashlight.visible = not flashlight.visible
 	elif event.is_action_pressed("interact"):
@@ -384,8 +423,9 @@ func is_holding_notebook() -> bool:
 
 
 ## While reading (the notebook, or a paper you picked up) the cursor is out to click
-## the pages (tabs, next page, "+ add"), so a trackpad can click them; holding right
-## mouse puts it away and the mouse looks around instead.
+## the pages (tabs, next page, "+ add"), so a trackpad can click them; pushing it to
+## an edge of the screen looks that way (edge_turn). Holding right mouse also puts
+## it away and the mouse looks around instead.
 ## The local player follows the right mouse button by itself.
 func set_notebook_cursor(on: bool) -> void:
 	on = on and _reading()
@@ -765,6 +805,7 @@ func _process(delta: float) -> void:
 			_rmb_was = rmb
 			if _reading() and not input_locked:
 				set_notebook_cursor(_wants_cursor())
+	_edge_look(delta)
 	_animate_prop(delta)
 	_animate_filing(delta)
 	_pose_notebook()

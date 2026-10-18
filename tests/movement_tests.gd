@@ -588,6 +588,13 @@ func test_notebook_hold() -> void:
 	check(moved > 0.8 and moved < Player.NOTEBOOK_WALK_SPEED + 0.1, "reading, you walk slowly even holding Shift (%.2f m/s)" % moved)
 	check(p.global_position.y < 0.1, "and you can't jump")
 	stop(p)
+	var screen := Vector2(1920, 1080)
+	check(p.edge_turn(screen / 2, screen) == Vector2.ZERO and p.edge_turn(Vector2(900, 300), screen) == Vector2.ZERO, "with the cursor over the page the view holds still")
+	check(p.edge_turn(Vector2(2, 540), screen).x < -1.0 and p.edge_turn(Vector2(1917, 540), screen).x > 1.0, "the cursor at the left or right edge turns your view that way")
+	check(p.edge_turn(Vector2(960, 1078), screen).y > 1.0 and p.edge_turn(Vector2(960, 3), screen).y < -1.0, "and at the top or bottom edge, up or down")
+	var slight := p.edge_turn(Vector2(screen.x * Player.EDGE_LOOK_MARGIN * 0.8, 540), screen).x
+	check(slight < 0.0 and slight > -0.2, "just inside the edge zone it turns slowly")
+	check(p.edge_turn(Vector2(-5, 540), screen) == Vector2.ZERO, "and off the window it doesn't turn at all")
 	p.set_notebook_cursor(false)  # right mouse held: look around
 	var yaw0 := p.rotation.y
 	var book_at := book.global_basis
