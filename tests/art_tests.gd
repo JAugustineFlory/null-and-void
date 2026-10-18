@@ -525,6 +525,64 @@ func test_document_view() -> void:
 	doc.clear()
 	await t.process_frame
 	check(doc.body.get_child_count() == 1 and not doc.get_node("Paper/Body/Title").visible, "clear leaves a blank page")
+	# A printed form, filled in by hand, as a Document's lines.
+	doc.set_paper("clipboard")
+	doc.add_lines([
+		{"columns": ["NAME", "BADGE #", "IN"], "widths": [3, 2, 1]},
+		{"row": ["PIKE, H.", "", ""], "over": "NO SHOW", "text": "PIKE, H.  no show"},
+		{"row": ["Har", "", "22:00"], "stain": "coffee", "stain_at": 0, "text": "Har... (coffee stain)  22:00"},
+		{"row": ["", "", ""]},
+		"",
+		"Guard PINs are kept on file.",
+		{"text": "guards", "hand": true},
+		{"before": "Date: ", "filled": "10/15", "after": ""},
+		{"stamp": "RECEIVED"},
+	])
+	await t.process_frame
+	await t.process_frame
+	var rows := doc.body.get_children().filter(func(c): return c.get("copy_text") != null)
+	check(rows.size() == 6, "every line of a form that can be read becomes a row (%d)" % rows.size())
+	var head: Control = doc.body.get_node("TableHead")
+	check(head != null and head.find_children("*", "Label", true, false).size() == 3, "a table starts with its printed column names")
+	var pike: Control = rows[0]
+	check(pike.find_child("Over", true, false) is Label and (pike.find_child("Over", true, false) as Label).get_theme_color("font_color") == NotebookArt.RED_PEN, "NO SHOW is written across Pike's row in red pen")
+	var widths := []
+	for c in head.get_child(0).get_children():
+		widths.append(roundi(c.size.x))
+	var row_widths := []
+	for c in pike.get_child(0).get_children():
+		row_widths.append(roundi(c.size.x))
+	check(widths == row_widths and absf(widths[0] - widths[1] * 1.5) < 2, "the rows' cells line up under the column names at their widths")
+	var har: Control = rows[1]
+	var stain: Control = null
+	for c in har.find_children("*", "Control", true, false):
+		if c.get("seed_text") != null:
+			stain = c
+	check(stain != null and stain.z_index > 0, "the coffee stain lies over the Har row's writing")
+	var har_name: Label = har.get_child(0).get_child(0).get_child(0)
+	check(har_name.text == "Har", "only the first letters of the stained name are written out")
+	(har.find_child("AddChip", true, false) as Button).pressed.emit()
+	check(copied.back() == "Har... (coffee stain)  22:00", "adding the stained row copies what can be read")
+	var empty: Control = rows[2]
+	empty.call("_process", 0.0)
+	empty.call("set_hovered", false)
+	check(not (empty.find_child("AddChip", true, false) as Button).visible, "an empty row has nothing to add")
+	check(doc.body.get_node("Stamp") != null, "a rubber stamp goes on the page")
+	doc.clear()
+	await t.process_frame
+	check(doc.get("_columns").is_empty(), "clear forgets the last table")
+	# The same page as a texture, for a sheet on a wall.
+	var holder := Node.new()
+	layer.add_child(holder)
+	var tex := DocumentView.paper_texture(holder, [{"columns": ["NAME", "IN"]}, {"row": ["Har", "22:00"], "stain": "coffee", "stain_at": 0, "text": "Har...  22:00"}], "clipboard", "NIGHT SHIFT SIGN-IN")
+	var vp: SubViewport = holder.get_node("PaperTexture")
+	var drawn: DocumentView = vp.get_child(0)
+	check(tex is ViewportTexture and vp.size == Vector2i(DocumentView.PAPERS.clipboard.size), "a paper drawn to a texture is its design size")
+	check(drawn.flat and not drawn.get_node("Dim").visible and drawn.paper.position == Vector2.ZERO, "drawn flat: just the paper, no dimming")
+	check(drawn.plain_text() == "NIGHT SHIFT SIGN-IN\nNAME  IN\nHar...  22:00", "what's on it can be read back (%s)" % drawn.plain_text().c_escape())
+	for i in 10:
+		await t.process_frame
+	check(vp.render_target_update_mode != SubViewport.UPDATE_ALWAYS, "once drawn, it stops redrawing")
 	doc.hide_doc()
 	await t.create_timer(0.3).timeout
 	check(not doc.visible, "the document closes")
@@ -569,10 +627,89 @@ func test_held_notebook() -> void:
 	check(book.book.get_node_or_null("Unwritten") != null and book.book.get_node_or_null("Pen") != null, "a new line is written in with a pen")
 	await t.create_timer(0.3).timeout
 	check(book.book.get_node_or_null("Unwritten") == null, "and is all there once written")
+	check(held.page_to_world(px).distance_to(world) < 0.002, "a spot on the page image has its place in the world")
+	# A sticky note being filed (Movement moves it): your free hand carries it in.
+	var filer := _FakePlayer.new()
+	stage.add_child(filer)
+	held.follow(filer)
+	var note := ArtProps.sticky_note(cam, Vector3(0.05, -0.1, -0.3), 0, "LIKE")
+	filer.note = note
+	filer.t = 0.5
+	await t.process_frame
+	await t.process_frame
+	check(held.get_node("ReachHand").visible and not held.book_root.get_node("RightHand").visible, "your free hand carries a sticky note in while the other holds the book")
+	check(held.get_node("ReachHand").global_position.distance_to(note.global_position) < 0.05, "the hand is on the note")
+	filer.note = null
+	await t.process_frame
+	check(not held.get_node("ReachHand").visible and held.book_root.get_node("RightHand").visible, "filed, the hand goes back to the book")
 	held.close_book()
 	await t.create_timer(0.45).timeout
 	check(not held.is_open() and not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the notebook goes back in the pocket")
 	stage.free()
+
+
+func test_held_paper() -> void:
+	var stage := _stage()
+	var cam := Camera3D.new()
+	cam.fov = 75
+	stage.add_child(cam)
+	cam.make_current()
+	var held := HeldPaper.attach(cam, CharacterLooks.crew(2))
+	var player := _FakePlayer.new()
+	stage.add_child(player)
+	held.follow(player)
+	await t.process_frame
+	check(not held.right_hand.visible and not held.left_hand.visible, "empty hands stay out of view")
+	var doc := _FakeDocument.new()
+	doc.position = Vector3(0.3, -0.4, -1.5)
+	stage.add_child(doc)
+	ArtProps.clipboard(doc, Vector3.ZERO, 180.0, doc.title, false)
+	player.held_prop = doc
+	held.hold(doc, Vector2(0.23, 0.32), Vector3.BACK, doc)
+	for i in 30:
+		await t.process_frame
+	check(held.right_hand.visible and held.right_hand.global_position.distance_to(cam.global_position) <= HeldPaper.REACH + 0.01, "the right hand reaches out for the paper, only as far as an arm goes")
+	check(not held.left_hand.visible, "the other hand waits until the paper is close")
+	var page_view: DocumentView = held.find_child("PaperTexture", true, false).get_child(0)
+	check(held.page != null and doc.is_ancestor_of(held.page) and page_view.plain_text().contains("PIKE, H."), "the document's real page lies over the prop you picked up")
+	# Movement brings it up to read; the hands hold its bottom corners.
+	doc.reparent(cam, false)
+	doc.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.01, -0.3))
+	for i in 40:
+		await t.process_frame
+	var corner := doc.global_transform * Vector3(0.23 / 2.0 - 0.02, -0.32 / 2.0 + 0.03, 0)
+	check(held.right_hand.global_position.distance_to(corner) < 0.01 and held.left_hand.visible, "held up to read, both hands hold it by the bottom corners")
+	player.prop_lowered.emit(doc)
+	player.held_prop = null
+	for i in 60:
+		await t.process_frame
+	check(held.page == null and not held.right_hand.visible and not held.left_hand.visible, "put back, the page comes off and the hands go down")
+	stage.free()
+
+
+## Stands in for a Document (scripts/world), which the art tests don't load.
+class _FakeDocument extends Node3D:
+	var title := "NIGHT SHIFT SIGN-IN"
+
+	func paper_kind() -> String:
+		return "clipboard"
+
+	func lines() -> Array:
+		return [{"columns": ["NAME", "IN"]}, {"row": ["PIKE, H.", ""], "over": "NO SHOW", "text": "PIKE, H.  no show"}]
+
+
+## Stands in for the Player's pick-up and filing state (scripts/player).
+class _FakePlayer extends Node3D:
+	signal prop_lowered(prop: Node3D)
+	var held_prop: Node3D
+	var note: Node3D  # the sticky note being filed
+	var t := 0.0
+
+	func filing_note() -> Node3D:
+		return note
+
+	func filing_progress() -> float:
+		return t if note else 0.0
 
 
 func test_terminal_screen() -> void:

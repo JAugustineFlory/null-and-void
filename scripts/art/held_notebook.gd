@@ -10,6 +10,7 @@ extends Node3D
 ##   held.set_content(pages)          # a NotebookPages, or any Control holding a NotebookView
 ##   held.open_book()                 # pulls it out and opens it; close_book() puts it away
 ##   held.write_in(item)              # after adding a line to a page: it's written in
+##   held.follow(player)              # your free hand carries notes in (player.file_into_notebook)
 ##
 ## The view is not dimmed and nothing else on screen is covered. Mouse mode must be
 ## visible while it's open, so the player can click the pages.
@@ -36,6 +37,9 @@ var _open := false
 var _open_t := 0.0  # 0 put away, 1 open in hand
 var _tween: Tween
 var _wiggle := 0.0
+var _reach: Node3D  # the free hand that carries sticky notes in
+var _player: Node  # whose filing to follow
+var _dip := 0.0  # the book lowers out of the way while a note comes in
 
 
 static func attach(camera: Camera3D, look: Dictionary = {}) -> HeldNotebook:
@@ -86,6 +90,62 @@ func write_in(item: Control, duration: float = 0.8) -> Tween:
 	var t := create_tween()
 	t.tween_interval(duration)
 	return t
+
+
+## Follow the player's sticky-note filing (player.file_into_notebook, read through
+## filing_note() and filing_progress()): while a
+## note travels onto the page, your free hand carries it there and the book dips
+## out of its way, then the hand goes back to the book.
+func follow(player: Node) -> void:
+	_player = player
+
+
+## The note being filed right now, and how far along it is (0..1), or null.
+func _filing() -> Array:
+	if _player == null or not is_instance_valid(_player):
+		return []
+	if not _player.has_method("filing_note"):
+		return []
+	var note = _player.call("filing_note")
+	if not (note is Node3D) or not is_instance_valid(note):
+		return []
+	return [note, float(_player.call("filing_progress"))]
+
+
+## A point on the page image (viewport pixels) in the world, on whichever half shows it.
+func page_to_world(px: Vector2) -> Vector3:
+	var full := Vector2(NotebookView.EMBED_SIZE)
+	var uv := px / full
+	for quad in halves:
+		var mat := quad.material_override as ShaderMaterial
+		var off: Vector2 = mat.get_shader_parameter("uv_offset")
+		var sc: Vector2 = mat.get_shader_parameter("uv_scale")
+		var local_uv := (uv - off) / sc
+		if local_uv.x < 0.0 or local_uv.x > 1.0:
+			continue
+		var qs: Vector2 = (quad.mesh as QuadMesh).size
+		return quad.global_transform * Vector3((local_uv.x - 0.5) * qs.x, (0.5 - local_uv.y) * qs.y, 0.0)
+	return halves[1].global_position
+
+
+## The free hand on the note being filed, the book lowered while it's on its way.
+func _carry_note(delta: float) -> void:
+	var f := _filing()
+	var right := book_root.get_node("RightHand")
+	if f.is_empty():
+		if _reach.visible:
+			_reach.visible = false
+			right.visible = true
+			_dip = 0.0
+		return
+	var note: Node3D = f[0]
+	var t: float = f[1]
+	right.visible = false
+	_reach.visible = true
+	_dip = move_toward(_dip, sin(PI * clampf(t, 0.0, 1.0)), delta * 6.0)
+	# Pinching the note's bottom edge, palm behind it.
+	var at := note.global_transform.orthonormalized()
+	_reach.global_transform = Transform3D(at.basis, at.origin - at.basis.y * 0.03)
 
 
 ## Where the open book sits in front of the camera, for the camera's field of view
@@ -171,6 +231,10 @@ func _make(look_in: Dictionary) -> void:
 		else:
 			right_half = half
 	_hands(look_in, size, book_mid_y, book_h)
+	_reach = HeldNotebook.make_hand(self, 1.0, look_in)
+	_reach.name = "ReachHand"
+	_reach.top_level = true
+	_reach.visible = false
 	_pose(0.0)
 
 
@@ -210,32 +274,43 @@ void fragment() {
 
 
 func _hands(look_in: Dictionary, size: Vector2, mid_y: float, book_h: float) -> void:
+	var bw := _px_to_m(NotebookView.BOOK_SIZE.x / 2.0)
+	for side in [-1.0, 1.0]:
+		var hand := HeldNotebook.make_hand(book_root, side, look_in)
+		hand.name = "LeftHand" if side < 0 else "RightHand"
+		hand.position = Vector3(side * (bw - 0.012), mid_y - book_h / 2.0 + 0.012, 0.0)
+
+
+## A first-person hand (palm, thumb and sleeve) under `parent`, holding something
+## by its edge: its origin is where the thumb pinches. `side` -1 left, 1 right.
+static func make_hand(parent: Node3D, side: float, look_in: Dictionary = {}) -> Node3D:
 	var look := CharacterLooks.base()
 	look.merge(look_in, true)
 	var skin := ArtPalette.flat(look.skin, 0.7)
 	var sleeve := ArtPalette.flat(look.jacket if look.jacket is Color else look.shirt, 0.9)
-	var bw := _px_to_m(NotebookView.BOOK_SIZE.x / 2.0)
-	for side in [-1.0, 1.0]:
-		var hand := Node3D.new()
-		hand.name = "LeftHand" if side < 0 else "RightHand"
-		hand.position = Vector3(side * (bw - 0.012), mid_y - book_h / 2.0 + 0.012, 0.0)
-		book_root.add_child(hand)
-		_box(hand, Vector3(0.05, 0.06, 0.02), Vector3(side * 0.012, -0.02, -0.013), skin)  # palm under the cover
-		var thumb := _box(hand, Vector3(0.012, 0.03, 0.009), Vector3(-side * 0.002, 0.0, 0.007), skin)  # thumb on the page corner
-		thumb.rotation_degrees.z = side * 35.0
-		var arm := MeshInstance3D.new()
-		var cm := CapsuleMesh.new()
-		cm.radius = 0.028
-		cm.height = 0.3
-		arm.mesh = cm
-		arm.material_override = sleeve
-		arm.position = Vector3(side * 0.03, -0.12, -0.06)
-		arm.rotation_degrees = Vector3(-25, 0, side * 25)
-		arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		hand.add_child(arm)
+	var hand := Node3D.new()
+	parent.add_child(hand)
+	_piece(hand, Vector3(0.05, 0.06, 0.02), Vector3(side * 0.012, -0.02, -0.013), skin)  # palm behind what it holds
+	var thumb := _piece(hand, Vector3(0.012, 0.03, 0.009), Vector3(-side * 0.002, 0.0, 0.007), skin)  # thumb in front
+	thumb.rotation_degrees.z = side * 35.0
+	var arm := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = 0.028
+	cm.height = 0.3
+	arm.mesh = cm
+	arm.material_override = sleeve
+	arm.position = Vector3(side * 0.03, -0.12, -0.06)
+	arm.rotation_degrees = Vector3(-25, 0, side * 25)
+	arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	hand.add_child(arm)
+	return hand
 
 
 func _box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
+	return _piece(parent, size, pos, mat)
+
+
+static func _piece(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = size
@@ -267,7 +342,7 @@ func _pose(t: float) -> void:
 	var pocket := Transform3D(Basis.from_euler(Vector3(deg_to_rad(-60), deg_to_rad(-20), deg_to_rad(35))), read.origin + Vector3(0.12, -0.2, 0.04))
 	var lift := clampf(t / 0.7, 0.0, 1.0)  # comes up first, then opens
 	var open := clampf((t - 0.45) / 0.55, 0.0, 1.0)
-	book_root.transform = pocket.interpolate_with(read, ease(lift, 0.6))
+	book_root.transform = pocket.interpolate_with(read, ease(lift, 0.6)).translated(Vector3(0.04 * _dip, -0.1 * _dip, 0.02 * _dip))
 	var hinge := lerpf(CLOSED_ANGLE, SPREAD_ANGLE, ease(open, 0.5))
 	left_half.rotation_degrees.y = hinge  # the front cover swings open on the spine
 	right_half.rotation_degrees.y = -SPREAD_ANGLE
@@ -277,6 +352,7 @@ func _pose(t: float) -> void:
 func _process(delta: float) -> void:
 	if not visible:
 		return
+	_carry_note(delta)
 	if _open and (_tween == null or not _tween.is_running()):
 		_pose(1.0)  # follow fov and window changes
 	if _wiggle > 0.0:

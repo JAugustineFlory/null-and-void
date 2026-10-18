@@ -21,6 +21,8 @@ var t: SceneTree
 var _check: Callable
 var gaps := 0
 const Curriculum := preload("res://tests/curriculum.gd")
+## How far from a terminal a sign or paper still counts as in its room, in metres.
+const ROOM_REACH := 8.0
 
 ## Everything the player has been shown so far on terminals and sticky notes: the
 ## lines it could have written into its notebook. It remembers all of it.
@@ -72,13 +74,16 @@ func screen(ui: TerminalUI) -> String:
 
 
 ## Text written in the world: signs, sticky notes, labels, documents (read with E),
-## plus the objective line.
-func world_text(level: Node) -> String:
+## plus the to-do. With `at`, only what's in the same room as that terminal: on a
+## whole floor, a paper three rooms away isn't something the player has found.
+func world_text(level: Node, at: Node3D = null) -> String:
 	var parts := PackedStringArray()
 	for n in level.find_children("*", "Label3D", true, false):
-		parts.append(n.text)
+		if in_room(n, at):
+			parts.append(n.text)
 	for d in level.find_children("*", "Document", true, false):
-		parts.append(d.plain_text())
+		if in_room(d, at):
+			parts.append(d.plain_text())
 	parts.append(level.hud.current_todo())
 	return "\n".join(parts)
 
@@ -98,13 +103,20 @@ func queries_in(text: String) -> Array[String]:
 	return out
 
 
+## Is this sign or paper within reach of the terminal `at` (null: anywhere)?
+func in_room(n: Node3D, at: Node3D) -> bool:
+	return at == null or n.global_position.distance_to(at.global_position) <= ROOM_REACH
+
+
 ## A query on screen with a blank in it ("SELECT * FROM table_name;") is filled in
 ## from what's handwritten on a document in the room, like the brochure's blank.
-func fill_blanks(level: Node, query: String) -> Array[String]:
+func fill_blanks(level: Node, query: String, at: Node3D = null) -> Array[String]:
 	if not query.contains("table_name"):
 		return [query]
 	var out: Array[String] = []
 	for d in level.find_children("*", "Document", true, false):
+		if not in_room(d, at):
+			continue
 		for l in d.lines():
 			var word: String = str(l.get("filled", l.text if l.get("hand", false) else "")).strip_edges()
 			if RegEx.create_from_string("^[a-z_]+$").search(word):
@@ -124,7 +136,7 @@ func keywords_in(text: String) -> Array:
 
 ## Remember every line on this screen and every sign in view (write-note candidates).
 func remember(level: Node, ui: TerminalUI) -> void:
-	for line in (screen(ui) + "\n" + world_text(level)).split("\n"):
+	for line in (screen(ui) + "\n" + world_text(level, ui.terminal)).split("\n"):
 		if line.strip_edges() != "" and not taught.contains(line):
 			taught += line + "\n"
 
@@ -200,7 +212,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		# The notebook is reference, not a script: old queries name other levels'
 		# tables, so the player only types what this screen shows.
 		for shown in queries_in(text):
-			for q in fill_blanks(level, shown):
+			for q in fill_blanks(level, shown, ui.terminal):
 				if not tried.has(q) and not fresh.has(q):
 					fresh.append(q)
 		if fresh.is_empty():
@@ -309,7 +321,7 @@ func walk_level_1(seed_value: int) -> void:
 	check(todo != "" and not todo.contains(level.answer), "server floor: the to-do names the job, never the controller (%s)" % todo)
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
-	check(world_text(level).contains("door_controllers") and screen(ui).contains("zone A") and screen(ui).contains("'fault'"), "server room: the desk card names the table, and the self-test shows both clues")
+	check(world_text(level, level.terminal).contains("door_controllers") and screen(ui).contains("zone A") and screen(ui).contains("'fault'"), "server room: the desk card names the table, and the self-test shows both clues")
 	var h := solve(level, ui, level.controller_puzzle, false)
 	check(h >= 0 and h <= 1, "server room: a lost player finds the controller with at most the first hint (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
