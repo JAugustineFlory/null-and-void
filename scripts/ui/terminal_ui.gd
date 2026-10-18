@@ -27,6 +27,7 @@ var _add_chip: Button
 var _hover_index := -1
 ## Who else is at this terminal, and what they're typing.
 var _others: Label
+var _foot: Label
 ## On a terminal's in-world screen (open_on_screen), the window fills the glass:
 ## no dimmed backdrop, no margin. `_home` is where it goes back to afterwards.
 var _dim: ColorRect
@@ -125,8 +126,8 @@ func _ready() -> void:
 	_others.visible = false
 	vbox.add_child(_others)
 
-	var foot := ThemeUtil.label("Enter: run    Shift+Enter: new line    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away", 15, ThemeUtil.DIM)
-	vbox.add_child(foot)
+	_foot = ThemeUtil.label("Enter: run (a query ends with ;)    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away", 15, ThemeUtil.DIM)
+	vbox.add_child(_foot)
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
@@ -171,6 +172,32 @@ func _set_hosted(on: bool) -> void:
 	_panel.offset_right = -margin.x
 	_panel.offset_top = margin.y
 	_panel.offset_bottom = -margin.y
+	if _output == null:
+		return
+	# On the glass the text stays the size it was when you walked up
+	# (TerminalScreen.TYPE_SIZE), so it doesn't shrink when you sit down.
+	var big := TerminalScreen.TYPE_SIZE
+	_output.add_theme_font_size_override("normal_font_size", big if on else 17)
+	_output.add_theme_font_size_override("bold_font_size", big if on else 17)
+	_input.add_theme_font_size_override("font_size", big if on else 18)
+	_note_label.add_theme_font_size_override("font_size", big if on else 17)
+	_title.add_theme_font_size_override("font_size", TerminalScreen.TITLE_SIZE if on else 18)
+	for l in [_others, _foot]:
+		l.add_theme_font_size_override("font_size", 20 if on else 15)
+	_add_chip.add_theme_font_size_override("font_size", 18 if on else 13)
+	_input.custom_minimum_size.y = big * 4 if on else 110
+	# Subtitles move above the glass, off the line you're typing.
+	var hud = _hud()
+	if hud and hud.has_method("subtitles_on_top"):
+		hud.subtitles_on_top(on)
+
+
+## The level's HUD, found from the terminal's level (duck-typed, like Document._level).
+func _hud() -> Node:
+	var n: Node = terminal if terminal and is_instance_valid(terminal) else _screen
+	while n and n.get("hud") == null:
+		n = n.get_parent()
+	return n.get("hud") if n else null
 
 
 ## Off the glass and back where it lives; the player steps back from the desk.

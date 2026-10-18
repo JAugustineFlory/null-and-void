@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (61)
+## Your lines (63)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -93,6 +93,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l0_elevator.wav`  
   "Server floor's one up. Elevator's slow, but it gets there."  
   *At the elevator bank, holding the door.*
+- [ ] `l0_lift_button.wav`  
+  "Press one for me, would you? Server floor."  
+  *Inside the car, back against the far wall from the buttons. Easy, polite.*
 
 ### 5. Strolling down a quiet office corridor with the crew, making small talk on the way to the server room.
 
@@ -150,6 +153,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l1_pivot_3.wav`  
   "Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you."  
   *Already walking. Friendly, steering.*
+- [ ] `l1_lift_button.wav`  
+  "Two. Security floor. Go on."  
+  *Inside the car, across from the buttons. A little clipped now, eager to get there.*
 
 ### 9. At a scientist's lab with the crew. You have them badge in, act shocked at what's inside, step out, lock the door and call security on them.
 

@@ -2338,12 +2338,16 @@ func test_in_world_ui() -> void:
 		await physics_frame
 	check(ui.visible and ui.is_on_screen() and t.screen.hosted == ui and not ui._dim.visible, "once the camera settles, the terminal opens on its own glass")
 	check(not nb.open(), "the notebook can't come out at a terminal")
+	check(ui._output.get_theme_font_size("normal_font_size") == TerminalScreen.DISPLAY_FONT and ui._input.get_theme_font_size("font_size") == TerminalScreen.DISPLAY_FONT,
+		"sitting down, the screen's text stays the size it was from across the room")
+	check(level.hud._subtitle.anchor_top == 0.0 and level.hud._notice.anchor_top == 1.0 and not level.hud._keys.visible, "subtitles and notices move off the glass while you're at it")
 	ui.run("SELECT * FROM memo_fragments")
 	check(t.transcript.any(func(l): return l.contains("piece_no")), "queries typed on the glass run as usual")
 	ui.close()
 	await process_frame
 	await process_frame
 	check(ui.get_parent() == home and not ui.is_on_screen() and t.screen.hosted == null and ui._dim.visible, "stepping away puts the window back and the glass shows the screen again")
+	check(level.hud._subtitle.anchor_top == 1.0 and level.hud._keys.visible, "and they come back when you step away")
 	for i in 200:
 		if not p.is_using_terminal():
 			break

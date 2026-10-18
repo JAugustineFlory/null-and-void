@@ -1,6 +1,6 @@
 # Recording list
 
-92 lines in all.
+94 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -19,7 +19,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
 
-## Dale Rourke (61 lines)
+## Dale Rourke (63 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
@@ -46,6 +46,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_hum` | Don't mind the hum down that way. Old transformer. There's been a ticket open on it since before my time. | Near the dark east corridor. Casual, but he doesn't look down it. | Level 0 |
 | [ ] | `l0_cover` | They're with me. Escort's right here. | Toward the ceiling speaker when the PA's escort reminder replays while the crew is behind the counter. Covering for them like a friend. | Level 0 |
 | [ ] | `l0_elevator` | Server floor's one up. Elevator's slow, but it gets there. | At the elevator bank, holding the door. | Level 0 |
+| [ ] | `l0_lift_button` | Press one for me, would you? Server floor. | Inside the car, back against the far wall from the buttons. Easy, polite. | Level 0 |
 | [ ] | `l0_tour_3` | Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
 | [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
 | [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
@@ -61,6 +62,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l1_pivot_1` | Hang on. That fault log... every reset this week came from Vale's login. | Reading over a shoulder. Curious, a little too quickly. | Level 1 |
 | [ ] | `l1_pivot_2` | Her lab's up on the security floor. Secure Lab B. | Thinking out loud. | Level 1 |
 | [ ] | `l1_pivot_3` | Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you. | Already walking. Friendly, steering. | Level 1 |
+| [ ] | `l1_lift_button` | Two. Security floor. Go on. | Inside the car, across from the buttons. A little clipped now, eager to get there. | Level 1 |
 | [ ] | `l2_lab_arrive` | Secure Lab B. Vale practically lived in here. | Fond, a little sad. | Level 2, later |
 | [ ] | `l2_lab_badge_1` | Badge in for me, each of you. Visitor log. Security floor's fussy about it. | Routine, holding the reader out. The frame happens in plain sight. | Level 2, later |
 | [ ] | `l2_lab_badge_2` | Thanks. Paperwork keeps everybody honest. | Once everyone has badged. | Level 2, later |
