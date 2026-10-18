@@ -31,6 +31,8 @@ func _run() -> void:
 	await test_level_1_scene()
 	await test_level_2_scene()
 	await test_level_2_routes()
+	await test_level_2_wall_controls()
+	await test_level_2_main_route()
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
@@ -1039,8 +1041,7 @@ func test_coop_level_2() -> void:
 	await _frames(20)
 	check(machines.all(func(l): return l.har_puzzle.solved), "LIKE + AND finds the PIN for everyone")
 	check(client.watcher.global_position.distance_to(host.watcher.global_position) < 0.2, "clients see the Watcher where the host has it")
-	client._pad_mode = "office"
-	client._on_pin(host.data.pin)
+	client.type_pin("office", host.data.pin, client.player)
 	await _frames(10)
 	check(machines.all(func(l): return l.office_open and l.doors["SEC-OFFICE"].is_open) and host.watcher.active, "a client's PIN opens the office door on every machine, and it's free")
 	host.watcher.holders.append(func(_w): return true)  # hold it still for the rest of the test
@@ -1073,8 +1074,7 @@ func test_coop_level_2() -> void:
 	await _frames(10)
 	check(machines.all(func(l): return not l.vent_grate.enabled), "the grate comes off on every machine")
 
-	client._pad_mode = "exit"
-	client._on_pin(host.data.pin)
+	client.type_pin("exit", host.data.pin, client.player)
 	await _frames(10)
 	check(machines.all(func(l): return l.pin_entered and not l.door_open), "the stairwell PIN goes through for everyone, and the door still jams")
 	client.breakers[host.data.breaker].interact(client.player)
@@ -1088,8 +1088,7 @@ func test_coop_level_2() -> void:
 	client.exit_lift.button.interact(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return not l.exit_lift.is_closing), "the doors won't close while someone is still outside")
-	client._pad_mode = "seal"
-	client._on_pin(host.data.pin)
+	client.seal_button.interact(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return not l.doors["SEC-EXIT"].is_open), "a client can lock SEC-EXIT behind the team")
 	host.player.input_locked = false
@@ -1257,16 +1256,15 @@ func test_level_2_scene() -> void:
 	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
 	# Open the office from the east end of the corridor, then look away.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(3, 0.1, 4.6))
-	level._pad_mode = "office"
-	level._on_pin(level.data.pin)
+	level.type_pin("office", level.data.pin)
 	for i in 5:
 		await physics_frame
 	check(level.doors["SEC-OFFICE"].is_open and w.active, "the PIN opens the office door, and it's free")
 	var before: float = w.global_position.distance_to(p.global_position)
-	for i in 180:
+	for i in 90:
 		await physics_frame
 	var after: float = w.global_position.distance_to(p.global_position)
-	check(after < before - 1.5, "unseen, it comes for you (%.1f m -> %.1f m)" % [before, after])
+	check(after < before - 1.5 and p.health > 0.0, "unseen, it comes for you, through the open door (%.1f m -> %.1f m)" % [before, after])
 	var frame: String = level.db.run_silent("SELECT last_frame FROM cameras WHERE id = 'CAM-2'")[0]["last_frame"]
 	level._clock += 5.0
 	level.update_cameras()
@@ -1448,6 +1446,104 @@ func test_level_2_routes() -> void:
 	level.queue_free()
 	await process_frame
 
+
+## The doors are worked from the wall, nothing floats a sign over what's hidden,
+## and the exit car closes and drops by itself once everyone is in.
+func test_level_2_wall_controls() -> void:
+	print("Level 2 wall controls")
+	_game().new_run(7)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	await _frames(20)
+	level.watcher.active = false
+	level.watcher.holders.append(func(_w): return true)
+	var p: Player = level.player
+	var signs: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text.to_upper())
+	check(not signs.any(func(t): return t.contains("VENT") or t == "LOCK" or t == "GUARD PIN"), "no floating sign marks the vent or the lock")
+	check(_doc(level, "Badge reader") != null and _doc_has(level, "backup copy"), "a laminated card by the badge reader says the paper sheet is the backup")
+	check(_doc_has(level, "(backup copy)") and level.db.run_silent("SELECT note FROM guards WHERE pin = '%s'" % level.data.pin)[0]["note"].contains("Badged in 22:00"), "the sheet is the backup copy, and the answer's row says it badged in")
+	var pad: Level2Keypad = level.office_pad
+	check(pad.keys.size() == 12 and pad.keys["5"].get_prompt(p).contains("Press 5") and pad.screen.text.contains("GUARD PIN"), "the office door has a wall keypad with twelve keys")
+	pad.keys["1"].interact(p)
+	pad.keys["2"].interact(p)
+	check(pad.screen.text == "12__", "pressed digits show on the pad's screen")
+	pad.keys["C"].interact(p)
+	check(pad.code == "" and pad.screen.text.contains("GUARD PIN"), "Clear empties it")
+	level.type_pin("office", level.data.pike_pin)
+	await process_frame
+	check(not level.doors["SEC-OFFICE"].is_open and pad.screen.text.contains("REFUSED") and pad.screen.text.contains("suspended"), "a wrong guard's PIN is refused on the pad, saying why")
+	level.type_pin("office", level.data.pin)
+	await _frames(5)
+	check(level.office_open and pad.screen.text.contains("ACCEPTED"), "the right PIN, typed on the wall, opens the office")
+	level.type_pin("exit", level.data.pin)
+	level._on_breaker(null, level.data.breaker)
+	await _frames(5)
+	check(level.door_open and level.doors["SEC-EXIT"].is_open, "the exit pad and breaker open SEC-EXIT")
+	check(level.seal_button.get_prompt(p).contains("lock") and level.exit_pad.keys.size() == 12, "past the door, a button closes it")
+	level.seal_button.interact(p)
+	await _frames(5)
+	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "closing and locking SEC-EXIT needs no PIN")
+	level.completed.disconnect(level._on_completed)
+	var done := [false]
+	level.completed.connect(func(): done[0] = true)
+	await _frames(100)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -18.2)))
+	await _frames(30)
+	check(not level.exit_lift.is_closing, "the car waits a moment once you walk in")
+	await create_timer(1.6).timeout
+	check(level.exit_lift.is_closing or level.exit_lift.open_amount < 1.0, "then, with everyone inside, its doors close by themselves")
+	await create_timer(6.0).timeout
+	var card: Node = level.get_node_or_null("EndCard")
+	check(card != null and card.find_children("*", "Label", true, false).any(func(l): return l.text == "To be continued."), "the car drops and a black card reads \"To be continued.\"")
+	check(level.geo.get_meta("sounds_played", []).any(func(x): return x.kind == "clunk"), "the drop clunks")
+	for i in 20:
+		if done[0]:
+			break
+		await create_timer(0.5).timeout
+	check(done[0], "after the card, the wing is complete")
+	level.queue_free()
+	await process_frame
+
+
+## Augustine's playtest: through the office by the main route, the Watcher never
+## moved. Inside the World, it now follows through the open office door and the
+## vestibule, and gets you if you look away.
+func test_level_2_main_route() -> void:
+	print("Level 2 main route, in the World")
+	_game().new_run(5)
+	var world = load("res://scenes/world.tscn").instantiate()
+	root.add_child(world)
+	await _frames(30)
+	world.load_next(world.current)
+	var sra = world.wings["level_1"]
+	world.wing_finished(world.current)
+	world.load_next(sra)
+	var sec = world.wings["level_2"]
+	world.wing_finished(sra)
+	await _frames(10)
+	check(world.current == sec and sec.active, "play is in the security wing")
+	var p: Player = world.player
+	p.global_position = sec.to_global(Vector3(-3, 0.1, 4.4))
+	sec._on_cameras_found("booth")
+	sec._on_pike_found("booth")
+	sec._on_har_found("booth")
+	sec.type_pin("office", sec.data.pin)
+	await _frames(5)
+	check(sec.office_open and sec.watcher.active, "the main route opens the office and frees it")
+	# Into the vestibule, back to the office.
+	p.global_transform = sec.global_transform * Transform3D(Basis(), Vector3(0, 0.1, -10.5))
+	p.head.rotation = Vector3.ZERO
+	var start: Vector3 = sec.watcher.global_position
+	var passed_door := false
+	for i in 900:
+		await physics_frame
+		passed_door = passed_door or sec.to_local(sec.watcher.global_position).z < -3.0
+		if p.health <= 0.0:
+			break
+	check(start.distance_to(sec.watcher.global_position) > 3.0 and passed_door, "it walks out through the open office door")
+	check(p.health <= 0.0 or sec.watcher.global_position.distance_to(p.global_position) < 2.0, "and through the vestibule to you (%.1f m)" % sec.watcher.global_position.distance_to(p.global_position))
+	world.queue_free()
+	await process_frame
 
 
 func _doc(level: Node, title_part: String) -> Node:
