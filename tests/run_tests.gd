@@ -33,6 +33,9 @@ func _run() -> void:
 	await test_level_2_routes()
 	await test_level_2_wall_controls()
 	await test_level_2_main_route()
+	test_level_2_lab_data_every_seed()
+	for outcome in ["killed", "tied", "untied"]:
+		await test_level_2_lab(outcome)
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
@@ -52,6 +55,7 @@ func _run() -> void:
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
+	await test_coop_level_2_lab()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -1023,6 +1027,7 @@ func test_coop_lobby_walk_in() -> void:
 func test_coop_level_2() -> void:
 	print("Co-op: Level 2 with a host and a client")
 	_game().new_run(5)
+	_game().rourke_fate = "killed"  # just the security section: Rourke turned before it
 	var worlds := await _coop_worlds(1)
 	var machines := await _coop_load(worlds, "res://scenes/level_2.tscn")
 	var host = machines[0]
@@ -1169,7 +1174,7 @@ func test_level_2_data_every_seed() -> void:
 	var door_ids := []
 	for row in building.run_silent("SELECT id FROM doors ORDER BY id"):
 		door_ids.append(row["id"])
-	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.has("SEC-OFFICE") and door_ids.size() == doors_before + 2, "the wing's seed loads on top of Level 1's: only SEC- doors added (%s)" % [door_ids])
+	check(stacked and door_ids.has("SRA-EXIT") and door_ids.has("SEC-EXIT") and door_ids.has("SEC-OFFICE") and door_ids.has("SECLAB-B") and door_ids.size() == doors_before + 4, "the wing's seed loads on top of Level 1's: only SEC- and SECLAB- doors added (%s)" % [door_ids])
 	check(pins.size() >= 40 and names.size() >= 4, "PIN and guard vary between runs (%d PINs, %d names)" % [pins.size(), names.size()])
 
 
@@ -1192,6 +1197,7 @@ func test_level_2_hints() -> void:
 func test_level_2_scene() -> void:
 	print("Level 2 scene")
 	_game().new_run(11)
+	_game().rourke_fate = "killed"  # just the security section: Rourke turned before it
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	root.add_child(level)
 	for i in 30:
@@ -1348,6 +1354,7 @@ func test_level_2_scene() -> void:
 func test_level_2_routes() -> void:
 	print("Level 2 routes")
 	_game().new_run(3)
+	_game().rourke_fate = "killed"  # just the security section: Rourke turned before it
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	root.add_child(level)
 	for i in 20:
@@ -1452,6 +1459,7 @@ func test_level_2_routes() -> void:
 func test_level_2_wall_controls() -> void:
 	print("Level 2 wall controls")
 	_game().new_run(7)
+	_game().rourke_fate = "killed"  # just the security section: Rourke turned before it
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	root.add_child(level)
 	await _frames(20)
@@ -1544,6 +1552,155 @@ func test_level_2_main_route() -> void:
 	check(p.health <= 0.0 or sec.watcher.global_position.distance_to(p.global_position) < 2.0, "and through the vestibule to you (%.1f m)" % sec.watcher.global_position.distance_to(p.global_position))
 	world.queue_free()
 	await process_frame
+
+
+## Secure Lab B's door: one controller in the lab's zone has status 'fault', on every seed.
+## Zone alone or status alone gives more than one row, so both conditions matter.
+func test_level_2_lab_data_every_seed() -> void:
+	print("Secure Lab B data, 50 seeds")
+	var ok := true
+	var zones := {}
+	var lab := Level2Lab.new()
+	for s in 50:
+		var data := Level2Data.build(s)
+		var d := FacilityDB.new()
+		d.load_seed(data.sql)
+		zones[data.lab_zone] = true
+		var pz := Level2Lab.door_puzzle_for(data.lab_zone)
+		var right: Array = d.run_silent(pz.solution_sql)
+		var by_zone := d.run_silent("SELECT * FROM door_controllers WHERE zone = '%s'" % data.lab_zone)
+		var by_status := d.run_silent("SELECT * FROM door_controllers WHERE status = 'fault'")
+		ok = ok and right.size() == 1 and right[0]["id"] == data.lab_answer and by_zone.size() == 3 and by_status.size() >= 2
+		ok = ok and data.lab_switches.size() == 3 and data.lab_switches.has(data.lab_answer)
+		for wrong in [
+			"SELECT * FROM door_controllers WHERE zone = '%s'" % data.lab_zone,
+			"SELECT * FROM door_controllers WHERE status = 'fault'",
+			"SELECT * FROM door_controllers WHERE zone = '%s' OR status = 'fault'" % data.lab_zone,
+			"SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'offline'" % data.lab_zone,
+			"SELECT * FROM door_controllers WHERE zone = 'S' AND status = 'fault'",
+		]:
+			ok = ok and not pz.matches(d, d.execute(wrong))
+		ok = ok and pz.matches(d, d.execute("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % data.lab_zone))
+		var order: Puzzle = lab.log_puzzle
+		ok = ok and order.matches(d, d.execute("SELECT * FROM badge_log ORDER BY time")) and not order.matches(d, d.execute("SELECT * FROM badge_log"))
+	lab.free()
+	check(ok, "the lab door is the one 'fault' in the lab's zone, and only zone AND status finds it, on every seed")
+	check(zones.size() > 1, "the lab's zone changes between runs (%s)" % [zones.keys()])
+	check(Level2Lab.door_puzzle_for("E").hints[0].contains("WHERE zone = 'E'") and Level2Lab.door_puzzle_for("E").hints[0].contains("AND status = 'fault'"), "the first hint is the exact query, a line per keyword")
+
+
+## Wait up to `seconds` (game time) for `cond`.
+func _until(cond: Callable, seconds: float) -> bool:
+	var end := Time.get_ticks_msec() + int(seconds * 1000.0 / Engine.time_scale)
+	while not cond.call():
+		if Time.get_ticks_msec() > end:
+			return false
+		await physics_frame
+	return true
+
+
+## The betrayal in Vale's lab, with each of the three ways it ends for Rourke.
+func test_level_2_lab(outcome: String) -> void:
+	print("Level 2 lab: Rourke %s" % outcome)
+	_game().new_run(21)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	Engine.time_scale = 4.0
+	await _frames(20)
+	level.watcher.active = false
+	var lab: Level2Lab = level.lab
+	var p: Player = level.player
+	var r: Rourke = lab.rourke
+	check(r.visible and _game().notebook_todo.any(func(t): return t.text == "Follow Rourke to Dr. Vale's lab"), "Rourke walks the crew up to Vale's lab")
+	check(level.booth.locked, "the night desk terminal stays locked while he's their escort")
+	check(await _until(func(): return lab.phase == "badge", 40.0), "at the lab door he asks them to badge in")
+	check(level.doors["SECLAB-B"].is_open == false and lab.reader.enabled, "the lab door waits for everyone's badge")
+	lab.reader.interact(p)
+	await _frames(3)
+	var swipes: Array = level.db.run_silent("SELECT * FROM badge_log WHERE door = 'SECLAB-B' AND badge_id LIKE 'VIS-%'")
+	check(swipes.size() == 1 and str(swipes[0]["time"]).begins_with("1997-10-16"), "the swipe is in badge_log: the crew's own badge, at her door, tonight")
+	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 10.0), "once everyone has badged, the door opens")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
+	check(await _until(func(): return lab.phase == "locked", 40.0), "with everyone inside and Rourke out, the door locks")
+	check(level.doors["SECLAB-B"].is_open == false and lab.terminal.locked, "locked in, and her terminal is locked too")
+	check(await _until(func(): return lab.phase == "fight", 60.0), "he comes back in through the rear door")
+	check(not level.doors["SECLAB-B-REAR"].is_open, "and the rear door shuts behind him")
+	p.health = 100000.0  # this test is about what happens to him
+	for i in 30:
+		if r.state == Rourke.State.DOWN:
+			break
+		r.take_hit(p)
+		await _frames(2)
+	check(r.state == Rourke.State.DOWN, "struck enough times, he goes down")
+	check(r.get_prompt(p) == "[X] Finish it", "with no cable, there's no way to tie him up")
+	r.interact(p)
+	check(r.state == Rourke.State.DOWN, "and pressing E does nothing")
+	match outcome:
+		"killed":
+			r.interact_alt(p)
+		"tied":
+			lab.cable.interact(p)
+			await _frames(3)
+			check(lab.cable_holders.has(level.players.id_of(p)) and r.get_prompt(p).contains("Tie him up"), "holding the cable from the shelf, you can tie him up")
+			r.interact(p)
+		"untied":
+			pass
+	check(await _until(func(): return lab.fate == outcome, 30.0), "Rourke's fate: %s" % outcome)
+	check(_game().rourke_fate == outcome, "the game remembers it, from Level 2")
+	check(await _until(func(): return lab.switches.values().all(func(s): return s.enabled) and not lab.terminal.locked, 60.0), "the lockdown starts, and her terminal opens on Rourke's badge")
+	check(_game().current_todo() != "" and not _game().current_todo().contains(level.data.lab_answer) and not _game().current_todo().contains(level.data.lab_zone + "'"), "the to-do names no answer (%s)" % _game().current_todo())
+	level.terminal_ui.terminal = lab.terminal
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
+	check(not lab.door_puzzle.solved, "the zone alone isn't enough")
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % level.data.lab_zone)
+	check(lab.door_puzzle.solved, "zone AND status finds the lab door's controller")
+	level.terminal_ui.run("SELECT * FROM badge_log ORDER BY time")
+	check(lab.log_puzzle.solved, "ORDER BY time lays out the visitor log")
+	var wrong: String = lab.switches.keys().filter(func(k): return k != level.data.lab_answer)[0]
+	lab.switches[wrong].interact(p)
+	await _frames(3)
+	check(not level.doors["SECLAB-B"].is_open, "the wrong switch doesn't open the door")
+	lab.switches_locked_until = 0.0
+	lab.switches[level.data.lab_answer].interact(p)
+	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "the right switch resets it, and the door opens")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-3, 0.1, 4.0)))
+	check(await _until(func(): return lab.phase == "done" and not level.booth.locked, 20.0), "out of the lab, it's over, and the night desk terminal works")
+	check(not level.watcher.active, "the Watcher stays still: it's quiet until Pike")
+	if outcome == "untied":
+		check(await _until(func(): return not r.visible, 30.0), "left untied, he's gone soon after")
+	else:
+		await _frames(30)
+		check(r.visible == (outcome == "killed" or outcome == "tied"), "tied or dead, he's still lying there for now")
+	Engine.time_scale = 1.0
+	level.queue_free()
+	await process_frame
+
+
+## Co-op in Vale's lab: everyone has to badge in, and the cable is held by whoever took it.
+func test_coop_level_2_lab() -> void:
+	print("Co-op: Level 2 lab with a host and a client")
+	_game().new_run(9)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/level_2.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	Engine.time_scale = 4.0
+	host.player.input_locked = true
+	check(await _until(func(): return machines.all(func(l): return l.lab.phase == "badge"), 40.0), "Rourke leads both players to the lab door")
+	client.lab.reader.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.lab.badged.size() == 1 and not l.doors["SECLAB-B"].is_open), "one badge in, the door waits for the other player")
+	host.lab.reader.interact(host.player)
+	check(await _until(func(): return machines.all(func(l): return l.doors["SECLAB-B"].is_open), 10.0), "with both badged in, it opens on every machine")
+	check(machines.all(func(l): return l.db.run_silent("SELECT * FROM badge_log WHERE badge_id LIKE 'VIS-%'").size() == 2), "both visitor badges are in badge_log on every machine")
+	client.lab.cable.interact(client.player)
+	await _frames(10)
+	var holder: Node = host.players.puppet(client_id)
+	check(machines.all(func(l): return l.lab.cable_holders.has(client_id)) and host.lab.rourke.can_tie.call(holder) and not host.lab.rourke.can_tie.call(host.player),
+		"the client took the cable: only they can tie Rourke up")
+	Engine.time_scale = 1.0
+	await _coop_close(worlds)
 
 
 func _doc(level: Node, title_part: String) -> Node:

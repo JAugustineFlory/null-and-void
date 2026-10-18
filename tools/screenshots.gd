@@ -88,8 +88,14 @@ func _run() -> void:
 	level.free()
 
 	root.get_node("Game").new_run(5)
+	root.get_node("Game").rourke_fate = "killed"  # the lab open and quiet, the booth working
 	level = await _load("res://scenes/level_2.tscn")
 	level.watcher.active = false
+	await _shot(level, "l2_night_desk", Vector3(1.6, 0.1, 8), 90, -5)
+	await _shot(level, "l2_patrol", Vector3(-9, 0.1, 9.4), 0, 0)
+	await _shot(level, "l2_lab_door", Vector3(-8.3, 0.1, 0.4), 90, -5)
+	await _shot(level, "l2_lab", Vector3(-10.6, 0.1, 2.8), 50, -12)
+	await _shot(level, "l2_lab_switches", Vector3(-14.7, 0.1, -1.6), 90, -12)
 	await _shot(level, "l2_spawn", Vector3(6.7, 0.1, 8), 90, 0)
 	await _shot(level, "l2_key_box", Vector3(4.0, 0.1, 7.2), 90, -8)
 	await _shot(level, "l2_corridor_window", Vector3(-1.5, 0.1, 4.8), 20, -2)

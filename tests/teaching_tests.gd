@@ -331,6 +331,7 @@ func walk_level_1(seed_value: int) -> void:
 
 func walk_level_2(seed_value: int) -> void:
 	_game().new_run(seed_value)
+	_game().rourke_fate = "killed"  # the security section; the lab has its own walk
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	t.root.add_child(level)
 	for i in 20:

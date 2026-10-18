@@ -85,7 +85,11 @@ var _lift_full_for := 0.0  # how long everyone has stood in the exit car
 var _glass: Array[RID] = []
 ## Corridor and landing: leaving it another way also wakes the Watcher (level space).
 var _corridor_box := AABB(Vector3(-6, -1, 2), Vector3(12, 3, 8.5))
+## Just the booth's corridor, not the landing or the night desk.
+var _booth_corridor := AABB(Vector3(-6, -1, 2), Vector3(12, 4, 4))
 var arrival_lift: Elevator
+## Secure Lab B, where Rourke turns (see Level2Lab), and the rooms round it (Level2Floor).
+var lab: Level2Lab
 var exit_lift: Elevator
 var key_glass: Level2Glass
 
@@ -136,6 +140,7 @@ func build() -> void:
 	# Elevator landing (spawn): x 2.5..5.5, z 6..10. Server Room A's elevator rides here.
 	Greybox.room(geo, Vector3(4, 0, 8), Vector3(3, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "n", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},  # to the night desk
 		{"wall": "e", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},  # the arrival elevator
 	])
 	Greybox.label(geo, Vector3(4, 2.7, 9.88), "FROM SERVER ROOM A", 40, Color(0.2, 0.2, 0.2), 180)
@@ -195,6 +200,8 @@ func build() -> void:
 	_build_office()
 	_build_vent()
 	_build_ledge()
+	Level2Floor.build(self)
+	lab = Level2Lab.create(self, data)
 
 	exit_pad = Level2Keypad.mount(geo, Vector3(1.3, 1.3, -11.85), 0, "exit", "SEC-EXIT\nENTER GUARD PIN")
 	exit_pad.key_pressed.connect(_on_pad_key.bind("exit"))
@@ -472,6 +479,7 @@ func _camera_box(pos: Vector3) -> void:
 
 func net_setup() -> void:
 	sync.replicate(watcher, watcher.sync_properties())
+	lab.net_setup()
 
 
 func start() -> void:
@@ -480,14 +488,60 @@ func start() -> void:
 	arrival_lift.open()
 	stage = "hidden"
 	_place_watcher(STAGES.hidden[0], STAGES.hidden[1])
+	if lab.wanted():
+		# Rourke is still their escort: he takes them to Vale's lab first, and turns there.
+		booth.locked = true
+		booth.locked_message = "NIGHT DESK TERMINAL. STAFF LOGIN REQUIRED."
+		await lab.run()
+		booth.locked = false
+		_escape_radio(RADIO_AFTER_UNTIED if Game.rourke_fate == "untied" else -1.0)
+		# A quiet stretch: the alarm is over, and nothing moves until they find Pike.
+		await sync.gate("back_at_booth", func():
+			if not _anyone_in_booth_corridor():
+				await _crew_reaches_corridor())
+	else:
+		lab.skip()
+		if Game.rourke_fate == "tied":
+			await _escape_radio(0.0)
 	hud.todo("Find a way out of the security wing")
-	if Game.rourke_fate == "tied":
-		await hud.lines(["l2_rourke_1", "l2_rourke_2", "l2_rourke_3"])
-	elif Game.rourke_fate == "killed":
-		await hud.line("l2_dead_escort")
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
 		hud.todo("Check the security booth terminal")
+
+
+## Left untied, Rourke comes round soon after the crew leaves the lab. Tied, it
+## takes him a while longer to cut himself loose: he's on the radio once they
+## start on the cameras. `after` < 0 waits for that.
+const RADIO_AFTER_UNTIED := 15.0
+var _radio_played := false
+
+
+func _escape_radio(after: float) -> void:
+	if Game.rourke_fate != "tied" and Game.rourke_fate != "untied":
+		return
+	if after < 0.0:
+		await sync.gate("radio_tied", func():
+			while not cameras_puzzle.solved:
+				await get_tree().create_timer(0.5, false).timeout
+			await get_tree().create_timer(10.0, false).timeout)
+	else:
+		await get_tree().create_timer(after, false).timeout
+	if _radio_played:
+		return
+	_radio_played = true
+	lab.rourke.visible = false
+	lab.rourke.process_mode = Node.PROCESS_MODE_DISABLED
+	await hud.lines(["l2_rourke_1", "l2_rourke_2", "l2_rourke_3"])
+
+
+## Host: wait until someone walks back into the booth's corridor.
+func _crew_reaches_corridor() -> void:
+	while not _anyone_in_booth_corridor():
+		await get_tree().create_timer(0.25, false).timeout
+
+
+func _anyone_in_booth_corridor() -> bool:
+	return players.all_players().any(func(p): return _booth_corridor.has_point(to_local(p.global_position) + Vector3.UP * 0.5))
 
 
 func _process(delta: float) -> void:
@@ -1005,6 +1059,11 @@ func _on_caught(p: Node) -> void:
 
 func on_player_died() -> void:
 	var solo := not sync.is_online()
+	if lab.in_progress():
+		player.respawn(lab.respawn_point())
+		if solo:
+			lab.reset_fight()
+		return
 	if reached_vestibule:
 		player.respawn(global_transform * Transform3D(Basis(), Vector3(0, 0.1, -10.8)))
 		if solo:
