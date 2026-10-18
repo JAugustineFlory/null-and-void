@@ -44,6 +44,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	for s in [7, 23]:
 		await walk_level_1(s)
 	for s in [11, 42]:
+		await walk_lab(s)
+	for s in [11, 42]:
 		await walk_level_2(s)
 	check_teaching_order()
 	if gaps > 0:
@@ -191,7 +193,8 @@ func has_world_label(level: Node, text: String) -> bool:
 ## puzzle is solved. Returns how many hints it needed (-1: stuck). Before the first
 ## hint, everything the puzzle needs must be taught already or on screen now; after
 ## it's solved, everything it teaches must have been on a terminal line or sticky note.
-func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints: int = 3) -> int:
+## `pressure_gap` names a known gap: a pressure mismatch prints as GAP, not a failure.
+func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints: int = 3, pressure_gap: String = "") -> int:
 	var tried := {}
 	var hints := 0
 	var spec: Dictionary = Curriculum.PUZZLES.get(puzzle.id, {})
@@ -203,7 +206,11 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			missing.append(k)
 	check(missing.is_empty(), "%s: its curriculum needs list covers every keyword in the answer%s" % [puzzle.id, "" if missing.is_empty() else " (add %s)" % ", ".join(missing)])
 	if spec.has("pressure"):
-		check(threat == spec.pressure, "%s: %s while it's typed, as tests/curriculum.gd says" % [puzzle.id, "something can hunt the player" if spec.pressure else "nothing can hurt the player"])
+		var said := "%s: %s while it's typed, as tests/curriculum.gd says" % [puzzle.id, "something can hunt the player" if spec.pressure else "nothing can hurt the player"]
+		if pressure_gap != "":
+			gap(threat == spec.pressure, "%s (%s)" % [said, pressure_gap])
+		else:
+			check(threat == spec.pressure, said)
 	var outside := []
 	while not puzzle.solved:
 		remember(level, ui)
@@ -340,6 +347,67 @@ func walk_level_1(seed_value: int) -> void:
 
 
 # --- Level 2: Security Office -----------------------------------------------
+
+# --- Level 2: Secure Lab B (Rourke turns) -------------------------------------
+
+## Wait up to `seconds` of game time for `cond`.
+func _until(cond: Callable, seconds: float) -> bool:
+	var end := Time.get_ticks_msec() + int(seconds * 1000.0 / Engine.time_scale)
+	while not cond.call():
+		if Time.get_ticks_msec() > end:
+			return false
+		await t.physics_frame
+	return true
+
+
+## Locked in Vale's lab after the fight, the lost player gets out with Level 1's
+## WHERE / AND on this lab's zone, read off the room, and may read the frame in
+## badge_log with ORDER BY. Rourke is left untied: the case with the most going on.
+func walk_lab(seed_value: int) -> void:
+	_game().new_run(seed_value)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	t.root.add_child(level)
+	Engine.time_scale = 4.0
+	for i in 20:
+		await t.physics_frame
+	level.watcher.active = false
+	var lab = level.lab
+	var p: Player = level.player
+	var ui: TerminalUI = level.terminal_ui
+	check(await _until(func(): return lab.phase == "badge", 40.0), "lab: Rourke leads the crew to the lab door")
+	check(world_text(level).contains("CTRL ZONE " + level.data.lab_zone), "lab: the door plate shows the lab's controller zone before anyone goes in")
+	lab.reader.interact(p)
+	await _until(func(): return level.doors["SECLAB-B"].is_open, 10.0)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
+	await _until(func(): return lab.phase == "fight", 100.0)
+	p.health = 100000.0
+	for i in 30:
+		if lab.rourke.state == Rourke.State.DOWN:
+			break
+		lab.rourke.take_hit(p)
+		await t.physics_frame
+		await t.physics_frame
+	check(await _until(func(): return lab.switches.values().all(func(s): return s.enabled) and not lab.terminal.locked, 60.0), "lab: after the fight, her terminal opens and the switches wake")
+	ui.open(lab.terminal, p)
+	var near: String = world_text(level, lab.terminal)
+	check(near.contains("zone " + level.data.lab_zone) or near.contains("ZONE " + level.data.lab_zone), "lab: a card inside the lab gives its controller zone (the door plate is outside the locked door)")
+	var hunted: bool = level.watcher.active or (lab.rourke.visible and lab.rourke.state != Rourke.State.DOWN) or lab.response_left > 0.0
+	var h := solve(level, ui, lab.door_puzzle, hunted, 3)
+	check(h >= 0 and h <= 1, "lab: a lost player finds the lab door's controller with at most the first hint (hints %d)" % h)
+	check(lab.response_left > Level2Lab.RESPONSE_TIME / 2.0, "lab: ...well inside the security response's clock (%d s of %d left)" % [lab.response_left, Level2Lab.RESPONSE_TIME])
+	check(not _game().current_todo().contains(level.data.lab_answer), "lab: the to-do doesn't name the controller")
+	solve(level, ui, lab.log_puzzle, hunted, 3)
+	check(screen(ui).contains("VIS-"), "lab: the sorted badge_log shows the crew's own badges at her door")
+	ui.close()
+	var sw: Interactable = find_interactable(level, "Reset " + level.data.lab_answer)
+	check(sw != null, "lab: a switch on the wall carries the id the query gave")
+	if sw:
+		sw.interact(p)
+	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "lab: resetting the controller read off the screen opens the lab door")
+	Engine.time_scale = 1.0
+	level.queue_free()
+	await t.process_frame
+
 
 func walk_level_2(seed_value: int) -> void:
 	_game().new_run(seed_value)

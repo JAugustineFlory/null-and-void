@@ -1625,6 +1625,7 @@ func test_level_2_main_route() -> void:
 func test_level_2_lab_data_every_seed() -> void:
 	print("Secure Lab B data, 50 seeds")
 	var ok := true
+	var rekey_ok := true
 	var zones := {}
 	var lab := Level2Lab.new()
 	for s in 50:
@@ -1649,7 +1650,20 @@ func test_level_2_lab_data_every_seed() -> void:
 		ok = ok and pz.matches(d, d.execute("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % data.lab_zone))
 		var order: Puzzle = lab.log_puzzle
 		ok = ok and order.matches(d, d.execute("SELECT * FROM badge_log ORDER BY time")) and not order.matches(d, d.execute("SELECT * FROM badge_log"))
+		# Caught twice: each re-key moves the lab to another zone, still with one answer.
+		var z: String = data.lab_zone
+		for attempt in [1, 2]:
+			var k := Level2Data.lab_rekey(s, attempt, z)
+			d.run_silent(k.sql)
+			var again := Level2Lab.door_puzzle_for(k.zone)
+			var found: Array = d.run_silent(again.solution_sql)
+			var doors: Array = d.run_silent("SELECT zone FROM doors WHERE id = 'SECLAB-B'")
+			rekey_ok = rekey_ok and k.zone != z and found.size() == 1 and found[0]["id"] == k.answer and k.switches.has(k.answer)
+			rekey_ok = rekey_ok and d.run_silent("SELECT * FROM door_controllers").size() == 6 and doors[0]["zone"] == k.zone
+			rekey_ok = rekey_ok and not again.matches(d, d.execute("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z))
+			z = k.zone
 	lab.free()
+	check(rekey_ok, "caught by the security response, the lab is re-keyed to a new zone with exactly one answer, on every seed")
 	check(ok, "the lab door is the one 'fault' in the lab's zone, and only zone AND status finds it, on every seed")
 	check(zones.size() > 1, "the lab's zone changes between runs (%s)" % [zones.keys()])
 	check(Level2Lab.door_puzzle_for("E").hints[0].contains("WHERE zone = 'E'") and Level2Lab.door_puzzle_for("E").hints[0].contains("AND status = 'fault'"), "the first hint is the exact query, a line per keyword")
@@ -1663,6 +1677,10 @@ func _until(cond: Callable, seconds: float) -> bool:
 			return false
 		await physics_frame
 	return true
+
+
+func _in_lab_room(level: Node, p: Node3D) -> bool:
+	return Level2Floor.LAB_BOX.has_point(level.to_local(p.global_position) + Vector3.UP * 0.5)
 
 
 ## The betrayal in Vale's lab, with each of the three ways it ends for Rourke.
@@ -1715,6 +1733,24 @@ func test_level_2_lab(outcome: String) -> void:
 	check(_game().rourke_fate == outcome, "the game remembers it, from Level 2")
 	check(await _until(func(): return lab.switches.values().all(func(s): return s.enabled) and not lab.terminal.locked, 60.0), "the lockdown starts, and her terminal opens on Rourke's badge")
 	check(_game().current_todo() != "" and not _game().current_todo().contains(level.data.lab_answer) and not _game().current_todo().contains(level.data.lab_zone + "'"), "the to-do names no answer (%s)" % _game().current_todo())
+	var screen_text := "\n".join(lab.terminal.transcript)
+	check(not screen_text.contains("ORDER BY") and screen_text.contains("badge_log"), "the lockdown screen names badge_log but doesn't give the query")
+	check(screen_text.contains("[lb]SYSOP[rb]: two conditions?"), "the two-conditions tip is SYSOP's, not the system's")
+	check(lab.response_left > Level2Lab.RESPONSE_TIME - 5.0 and lab.clock.text.begins_with("RESPONSE  "), "WARDEN sends a security response, and the clock over the door counts down")
+	if outcome == "killed":
+		# Too slow: the response arrives, and the lab's controllers are re-keyed.
+		var old_zone: String = level.data.lab_zone
+		lab.response_left = 0.2
+		check(await _until(func(): return lab.phase == "caught", 5.0), "when the clock runs out, the crew is caught")
+		check(await _until(func(): return lab.phase == "escape" and lab.response_left > 0.0, 20.0), "and the escape starts over, with the clock reset")
+		var new_zone: String = level.data.lab_zone
+		check(new_zone != old_zone and lab.zone == new_zone, "the lab's controllers are re-keyed to another zone (%s to %s)" % [old_zone, new_zone])
+		check(lab._plate.text.contains("ZONE " + new_zone) and lab._card.plain_text().contains("zone " + new_zone), "the door plate and the card inside show the new zone")
+		check(lab.switches.keys() == level.data.lab_switches and lab.switches.values().all(func(s): return s.enabled), "the switches carry the new zone's ids, ready to use")
+		check(_in_lab_room(level, p), "the crew wakes up inside the lab")
+		level.terminal_ui.terminal = lab.terminal
+		level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % old_zone)
+		check(not lab.door_puzzle.solved, "the old zone's answer no longer works")
 	level.terminal_ui.terminal = lab.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
 	check(not lab.door_puzzle.solved, "the zone alone isn't enough")

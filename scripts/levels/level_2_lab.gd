@@ -7,7 +7,9 @@ extends Node
 ## comes back in through the rear door, and the crew kills him, ties him up (only
 ## with cable someone has picked up) or leaves him down. The lockdown starts, and
 ## the way out is the door-controller query they practised on the server floor,
-## on this lab's own zone.
+## on this lab's own zone, against the clock: WARDEN has sent a security response.
+## If it arrives first, the crew is caught, the lab's controllers are re-keyed to
+## another zone, and they start the escape again.
 ##
 ## Co-op: the host decides (badge swipes, Rourke's walks, the fight, the switch
 ## presses) and plays each result on every machine with sync.run_on(self, ...).
@@ -18,6 +20,10 @@ const LINE_GAP := 1.5  # a beat for a line that isn't recorded yet
 ## Left down without cable, Rourke stays down this long before the crew's choice counts.
 const UNTIED_AFTER := 15.0
 const LOCKOUT := 10.0
+## How long the crew has to get the lab door open once the lockdown starts.
+const RESPONSE_TIME := 180.0
+## When WARDEN's PA calls out the time left.
+const RESPONSE_CALLS := [60.0, 30.0]
 const RED := Color(1.0, 0.18, 0.12)
 const WHITE := Color(0.92, 0.95, 1.0)
 const FIGHT_BARKS := ["l2_hit_1", "l2_hit_2", "l2_hit_3", "l2_hit_4", "l2_hit_prints"]
@@ -43,7 +49,7 @@ var cable: Interactable
 var switches := {}
 var zone := ""
 ## The phase of the betrayal, the same on every machine:
-## off, lead, badge, inside, locked, fight, down, escape, done.
+## off, lead, badge, inside, locked, fight, down, escape, caught, done.
 var phase := "off"
 var badged := {}  # peer id -> true
 var cable_holders := {}  # peer id -> true
@@ -52,6 +58,14 @@ var switches_locked_until := 0.0
 var _steps := {}
 var _last_bark := -100.0
 var _down_for := 0.0
+## Seconds until the security response arrives; below zero, nobody is coming.
+var response_left := -1.0
+## How many times the response has caught the crew.
+var caught := 0
+var clock: Label3D
+var _plate: Label3D
+var _card: Document
+var _stamps := []
 
 var door_puzzle: Puzzle
 var log_puzzle := Puzzle.new("badge_log", "SELECT time, badge_id FROM badge_log ORDER BY time", ["time", "badge_id"], true, [
@@ -95,7 +109,6 @@ func _build() -> void:
 	level.add_door("SECLAB-B-REAR", Vector3(-15.8, 1.2, 0), Vector3(0.15, 2.4, 1.8))
 	# Outside, in the patrol corridor: the room's name, its door plate, and the badge reader.
 	Greybox.label(geo, Vector3(-9.88, 2.7, 0), "SECURE LAB B", 48, Color(0.75, 0.75, 0.7), 90)
-	Greybox.label(geo, Vector3(-9.88, 1.75, -1.25), "SECLAB-B\nCTRL ZONE %s" % zone, 22, Color(0.2, 0.2, 0.2), 90)
 	Greybox.panel(geo, Vector3(-9.89, 1.75, -1.25), Vector3(0.01, 0.16, 0.36), Color(0.75, 0.72, 0.6))
 	Greybox.panel(geo, Vector3(-9.88, 1.3, 1.2), Vector3(0.02, 0.16, 0.1), Color(0.12, 0.12, 0.13))
 	reader = Interactable.create(geo, Vector3(-9.86, 1.3, 1.2), Vector3(0.02, 0.07, 0.07), "Badge in", Color(0.1, 0.6, 0.2))
@@ -124,12 +137,6 @@ func _build() -> void:
 	Greybox.panel(geo, Vector3(-15.66, 1.5, -2.6), Vector3(0.04, 0.05, 0.12), Color(0.5, 0.5, 0.5))  # hook
 	Greybox.panel(geo, Vector3(-15.62, 1.0, -2.6), Vector3(0.1, 0.95, 0.45), Color(0.7, 0.62, 0.48))  # her coat
 	Greybox.box(geo, Vector3(-13, 0.45, 3.25), Vector3(4.2, 0.9, 0.8), Color(0.4, 0.4, 0.42), "LabBench")
-	Document.place(geo, Vector3(-12.2, 1.4, 3.68), 0, "Secure Lab B door card", [
-		"SECURE LAB B  -  DOORS",
-		"Main and rear doors: controller zone %s" % zone,
-		"Lockdown latches the main door's controller.",
-		"It has to be reset by hand, here, in the lab.",
-	], false, "laminated", Vector2(0.42, 0.3))
 	# A coil of network cable on the shelf: whoever takes it can tie someone up.
 	Greybox.box(geo, Vector3(-10.53, 1.0, 2.9), Vector3(0.45, 0.05, 1.0), Color(0.35, 0.35, 0.36), "CableShelf")
 	cable = Interactable.create(geo, Vector3(-10.58, 1.1, 2.9), Vector3(0.28, 0.12, 0.28), "Take the network cable", Color(0.15, 0.3, 0.75))
@@ -138,16 +145,10 @@ func _build() -> void:
 	# The reset switches for this zone's controllers, on the west wall. No sign: the
 	# card says they're here, and the hint says where.
 	Greybox.panel(geo, Vector3(-15.68, 1.3, -1.6), Vector3(0.05, 0.5, 0.75), Color(0.3, 0.32, 0.3))
-	var ids: Array = data.lab_switches
-	for i in ids.size():
-		var z := -1.85 + i * 0.25
-		var s := Interactable.create(geo, Vector3(-15.64, 1.25, z), Vector3(0.05, 0.14, 0.08), "Reset %s" % ids[i], Color(0.1, 0.1, 0.1))
-		s.name = "Switch_" + str(ids[i])
-		s.enabled = false
-		s.used.connect(_on_switch.bind(ids[i]))
-		switches[ids[i]] = s
-		var stamp := Greybox.label(geo, Vector3(-15.62, 1.42, z), str(ids[i]), 16, Color(0.9, 0.9, 0.8), 90)
-		stamp.name = "Stamp_" + str(ids[i])
+	_place_zone()
+	# The response clock, over the main door on the inside.
+	clock = Greybox.label(geo, Vector3(-10.32, 2.75, 0), "", 40, RED, -90)
+	clock.name = "ResponseClock"
 	level.add_light("lab", Vector3(-13, 3.2, -1.5), 7.0, 1.1)
 	level.add_light("lab", Vector3(-13, 3.2, 2.5), 7.0, 0.9)
 
@@ -158,6 +159,36 @@ func _build() -> void:
 	rourke.down_time = 1.0e9  # in the lab he stays down: the crew decides what happens to him
 	rourke.can_tie = func(p): return cable_holders.has(level.players.id_of(p))
 	level.add_child(rourke)
+
+
+## Everything that names the lab's zone or its controllers: the door plate, the
+## card inside, and the reset switches with their stamped ids. Rebuilt when the
+## controllers are re-keyed.
+func _place_zone() -> void:
+	var geo: Node3D = level.geo
+	for n in [_plate, _card] + _stamps + switches.values():
+		if is_instance_valid(n):
+			n.queue_free()
+	_stamps.clear()
+	switches.clear()
+	_plate = Greybox.label(geo, Vector3(-9.88, 1.75, -1.25), "SECLAB-B\nCTRL ZONE %s" % zone, 22, Color(0.2, 0.2, 0.2), 90)
+	_card = Document.place(geo, Vector3(-12.2, 1.4, 3.68), 0, "Secure Lab B door card", [
+		"SECURE LAB B  -  DOORS",
+		"Main and rear doors: controller zone %s" % zone,
+		"Lockdown latches the main door's controller.",
+		"It has to be reset by hand, here, in the lab.",
+	], false, "laminated", Vector2(0.42, 0.3))
+	var ids: Array = data.lab_switches
+	for i in ids.size():
+		var z := -1.85 + i * 0.25
+		var s := Interactable.create(geo, Vector3(-15.64, 1.25, z), Vector3(0.05, 0.14, 0.08), "Reset %s" % ids[i], Color(0.1, 0.1, 0.1))
+		s.name = "Switch_" + str(ids[i])
+		s.enabled = false
+		s.used.connect(_on_switch.bind(ids[i]))
+		switches[ids[i]] = s
+		var stamp := Greybox.label(geo, Vector3(-15.62, 1.42, z), str(ids[i]), 16, Color(0.9, 0.9, 0.8), 90)
+		stamp.name = "Stamp_" + str(ids[i])
+		_stamps.append(stamp)
 
 
 ## Is there a betrayal to play? Only while Rourke is still the crew's friendly escort.
@@ -176,7 +207,7 @@ func skip() -> void:
 	rourke.process_mode = Node.PROCESS_MODE_DISABLED
 	rourke.position = Vector3(-13, -20, 0)
 	_set_door("SECLAB-B", false)
-	terminal.reboot(_lockdown_lines())
+	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
 
@@ -247,7 +278,10 @@ func run() -> void:
 
 
 func _process(delta: float) -> void:
-	if not level.sync.is_host() or not level.active:
+	if not level.active:
+		return
+	_run_clock(delta)
+	if not level.sync.is_host():
 		return
 	var inside: bool = level.players.all_players().all(func(p): return _in_lab(p.global_position))
 	if inside and phase == "inside":
@@ -450,10 +484,19 @@ func _lockdown() -> void:
 	await _line("l2_contain_2")
 	terminal.locked = false
 	terminal.set_screen_color(Color(0.2, 0.9, 0.35))
-	terminal.reboot(_lockdown_lines())
+	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
 	level.hud.todo("Find out what's wrong with the lab door")
+	_start_response()
+
+
+## Her terminal's lockdown screen, then SYSOP's tip under it. Put on the screen now,
+## on every machine, so the tip isn't wiped when someone sits down.
+func _boot_lockdown() -> void:
+	terminal.reboot(_lockdown_lines())
+	terminal.ensure_booted()
+	terminal.print_line(TerminalUI.sysop("two conditions? WHERE the first, AND the second. same as the server floor."))
 
 
 func _lockdown_lines() -> Array:
@@ -465,11 +508,77 @@ func _lockdown_lines() -> Array:
 		"[color=#ff6655]DOOR SECLAB-B: CONTROLLER LATCHED. MANUAL RESET REQUIRED.[/color]",
 		"",
 		"Door controllers are rows in [b]door_controllers[/b]. This lab's zone is on its door plate.",
-		"Two conditions? WHERE the first, AND the second, as on the server floor.",
-		"Every badge swipe on this floor is in [b]badge_log[/b]. ORDER BY sorts the rows:",
-		"    [color=#ffffff]SELECT * FROM badge_log ORDER BY time;[/color]    earliest first",
+		"Every badge swipe on this floor is in [b]badge_log[/b]: the time, the badge, the door.",
 		"Type .help for commands, .hint if you're stuck.",
 	]
+
+
+# --- The security response ---------------------------------------------------
+
+## Every machine: WARDEN sends a security response, and the clock over the door starts.
+func _start_response() -> void:
+	response_left = RESPONSE_TIME
+	_show_clock()
+	level.hud.notice("WARDEN (PA): SECURITY RESPONSE TO SECURE LAB B: %d MINUTES" % int(RESPONSE_TIME / 60.0), 6.0, ThemeUtil.RED)
+
+
+## Every machine counts down; the host decides when the response arrives.
+func _run_clock(delta: float) -> void:
+	if response_left < 0.0 or phase != "escape":
+		return
+	var before := response_left
+	response_left = maxf(0.0, response_left - delta)
+	for t in RESPONSE_CALLS:
+		if before > t and response_left <= t:
+			level.hud.notice("WARDEN (PA): SECURITY RESPONSE TO SECURE LAB B: %d SECONDS" % int(t), 4.0, ThemeUtil.RED)
+	_show_clock()
+	if response_left <= 0.0 and level.sync.is_host():
+		response_left = -1.0
+		level.sync.run_on(self, "_caught")
+
+
+func _show_clock() -> void:
+	if response_left < 0.0:
+		clock.text = ""
+		return
+	var s := int(ceilf(response_left))
+	clock.text = "RESPONSE  %d:%02d" % [s / 60, s % 60]
+
+
+## Every machine: the response arrived first. The crew is dragged back into the lab,
+## WARDEN re-keys its controllers to another zone, and the escape starts over.
+func _caught() -> void:
+	phase = "caught"
+	response_left = -1.0
+	_show_clock()
+	for s in switches.values():
+		s.enabled = false
+	if level.terminal_ui.terminal == terminal:
+		level.terminal_ui.close()
+	level.hud.notice("SECURITY RESPONSE ON SITE. OCCUPANTS DETAINED.", 4.0, ThemeUtil.RED)
+	await level.hud.fade(true, 1.0)
+	caught += 1
+	var k := Level2Data.lab_rekey(_game().run_seed, caught, zone)
+	level.db.run_silent(k.sql)
+	level.db.run_silent("UPDATE door_status SET note = 'lockdown: controller latched' WHERE door_id = 'SECLAB-B'")
+	zone = k.zone
+	data.lab_zone = k.zone
+	data.lab_answer = k.answer
+	data.lab_switches = k.switches
+	door_puzzle = door_puzzle_for(zone)
+	terminal.puzzles = [door_puzzle, log_puzzle]
+	switches_locked_until = 0.0
+	_place_zone()
+	level.player.respawn(respawn_point())
+	await get_tree().create_timer(1.5, false).timeout
+	await level.hud.fade(false, 1.0)
+	level.hud.notice("WARDEN (PA): SECURE LAB B CONTROLLERS RE-KEYED. OCCUPANTS HELD FOR QUESTIONING.", 5.0, ThemeUtil.RED)
+	phase = "escape"
+	_boot_lockdown()
+	for s in switches.values():
+		s.enabled = true
+	level.hud.todo("Find out what's wrong with the lab door")
+	_start_response()
 
 
 # --- The way out -------------------------------------------------------------
@@ -530,6 +639,8 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	_set_door("SECLAB-B", false)
 	for s in switches.values():
 		s.enabled = false
+	response_left = -1.0
+	_show_clock()
 	# The alarm ends. Whatever comes next, it's quiet for a while.
 	level.set_all_lights_color(WHITE)
 	level.hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SECLAB-B: OPENED" % id, 4.0, ThemeUtil.GREEN)
@@ -550,4 +661,4 @@ func reset_fight() -> void:
 
 
 func in_progress() -> bool:
-	return phase in ["locked", "fight", "down", "escape"] and not _steps.has("crew_out")
+	return phase in ["locked", "fight", "down", "escape", "caught"] and not _steps.has("crew_out")
