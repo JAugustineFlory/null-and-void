@@ -120,7 +120,7 @@ func build() -> void:
 	StickyNote.on_monitor(desk_terminal, "select_from")
 	# Someone's reminder to themselves, left on the desk.
 	StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true)
-	ArtProps.sticky_note(geo, Vector3(1.86, 1.102, -0.78), 180.0, "ORDER matters.\n  - I.", ArtProps.STICKY_YELLOW, true)
+	Document.place(geo, Vector3(1.86, 1.102, -0.78), 0.0, "Sticky note", [{"text": "ORDER matters.", "hand": true}, {"text": "  - I.", "hand": true}], true, "sticky")
 	# The scanner's quick-start card: the table name is handwritten in its blank.
 	Document.place(geo, Vector3(0.75, 1.102, -0.75), 10.0, "ScanRight 3000 - Quick Start", [
 		"Shredded? Torn? Chewed by the fax?",
@@ -137,13 +137,15 @@ func build() -> void:
 	Greybox.label(geo, Vector3(-1.5, 1.2, -0.66), "VISITOR LOG", 24, Color(0.15, 0.15, 0.2), 0)
 	visitor_log.enabled = false
 
-	# Lost & found behind the desk.
-	Greybox.box(geo, Vector3(-2.5, 0.35, -5.5), Vector3(1.2, 0.7, 0.8), Color(0.45, 0.35, 0.2), "LostFound")
-	Greybox.label(geo, Vector3(-2.5, 0.85, -5.08), "LOST & FOUND", 40, Color(0.1, 0.1, 0.1))
-	# A charging rack with one walkie-talkie for each of the crew (up to six).
+	# A side table behind the desk with the walkie-talkies' charging dock on it.
+	Greybox.box(geo, Vector3(-2.5, 0.68, -5.5), Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
+	for leg in [Vector3(-0.55, 0, -0.25), Vector3(0.55, 0, -0.25), Vector3(-0.55, 0, 0.25), Vector3(0.55, 0, 0.25)]:
+		Greybox.box(geo, Vector3(-2.5, 0.33, -5.5) + leg, Vector3(0.05, 0.66, 0.05), Color(0.3, 0.3, 0.32), "TableChargerLeg")
+	# The dock stays on the table when the radios are taken; the radios sit in it,
+	# one for each of the crew (up to six).
+	_mesh(geo, Vector3(-2.5, 0.73, -5.5), Vector3(0.9, 0.06, 0.26), Color(0.12, 0.12, 0.13)).name = "ChargingDock"
 	walkies = Interactable.create(geo, Vector3(-2.5, 0.8, -5.5), Vector3(0.9, 0.2, 0.3), "Take the walkie-talkies (one each)", Color(0.1, 0.1, 0.1), false)
 	walkies.enabled = false
-	_mesh(walkies, Vector3(0, -0.07, 0), Vector3(0.9, 0.06, 0.26), Color(0.12, 0.12, 0.13))
 	for i in 6:
 		var radio := _mesh(walkies, Vector3(-0.375 + i * 0.15, 0.04, 0), Vector3(0.07, 0.17, 0.04), Color(0.15, 0.16, 0.14))
 		radio.name = "Radio%d" % i
@@ -613,7 +615,8 @@ func _build_ground_floor(wall: Color) -> void:
 		Greybox.room(geo, Vector3(r, 0, -14), Vector3(3, 3, 8), {"floor": tile, "wall": tile.darkened(0.1)}, [
 			{"wall": "s", "at": 0.0, "width": 1.4, "height": 2.2},
 		])
-		Greybox.box(geo, Vector3(r - 0.9, 0.45, -11.2), Vector3(1.0, 0.9, 0.5), Color(0.85, 0.85, 0.82), "Sinks")
+		# Along the west wall, past where the door swings.
+		Greybox.box(geo, Vector3(r - 1.25, 0.45, -12.3), Vector3(0.5, 0.9, 1.0), Color(0.85, 0.85, 0.82), "Sinks")
 		for k in 2:
 			var z := -15.2 - k * 1.4
 			Greybox.box(geo, Vector3(r + 0.2, 1.0, z + 0.7), Vector3(2.2, 2.0, 0.05), Color(0.55, 0.6, 0.62), "StallWall")

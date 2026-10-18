@@ -369,11 +369,11 @@ static func wet_floor_sign(parent: Node, pos: Vector3, facing_deg: float = 0.0, 
 	root.add_child(hold)
 	for side in [-1.0, 1.0]:
 		var leaf := _piece(hold, Vector3(0.3, 0.6, 0.012), Vector3(0, 0.3, side * 0.09), yellow, true)
-		leaf.rotation_degrees.x = side * 15.0
-	var l := _print(hold, "CAUTION\nWET FLOOR", Vector3(0, 0.36, -0.105), 0.26, NotebookArt.type_font(), 48, Color(0.1, 0.1, 0.1))
+		leaf.rotation_degrees.x = -side * 15.0  # an A: the leaves meet at the top
+	var l := _print(hold, "CAUTION\nWET FLOOR", Vector3(0, 0.36, -0.084), 0.26, NotebookArt.type_font(), 48, Color(0.1, 0.1, 0.1))
 	l.pixel_size = 0.0005
 	l.width = 0.27 / l.pixel_size
-	l.rotation_degrees.x = -15
+	l.rotation_degrees.x = -15  # turned to face out, so this leans it with its leaf
 	return root
 
 

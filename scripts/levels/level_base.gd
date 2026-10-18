@@ -251,7 +251,8 @@ Ctrl  crouch, slide, roll
 Space  jump, mantle, grab a ledge
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
-Tab  your notebook: notes, tables, Field Notes
+Tab  your notebook: notes, tables, Field Notes (1-4 turn to a tab)
+     hold right mouse to look around while reading; Tab also closes menus
 V (hold)  talk on the radio, once you have one
 B  mute your open mic
 Esc  this menu"""
@@ -322,6 +323,9 @@ class PauseCatcher:
 	func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("pause") and not level.terminal_ui.visible and not (level.notebook and level.notebook.is_open()):
 			level._toggle_pause()
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("notebook") and level._pause.visible:
+			level._toggle_pause()  # Tab closes any menu but a terminal's
 			get_viewport().set_input_as_handled()
 
 

@@ -19,6 +19,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_vault()
 	await test_hang_shimmy_pull_up()
 	await test_too_high_alone()
+	await test_no_climbing_through_the_ceiling()
 	await test_climb()
 	await test_vent()
 	await test_ledge_shuffle()
@@ -384,6 +385,20 @@ func test_too_high_alone() -> void:
 	await done(a)
 
 
+## Up on a crate under the ceiling, the next room's roof is over a thin wall
+## within reach: it's not a ledge.
+func test_no_climbing_through_the_ceiling() -> void:
+	var a := arena()
+	Greybox.box(a, Vector3(0, 1.6, -3.05), Vector3(6, 3.2, 0.1), Color.DIM_GRAY)  # a thin wall up to the roof
+	Greybox.box(a, Vector3(0, 3.1, -2.0), Vector3(6, 0.2, 9), Color.GRAY)  # one ceiling over both rooms
+	Greybox.box(a, Vector3(0, 0.55, -2.5), Vector3(6, 1.1, 1), Color.DIM_GRAY)  # a crate against the wall
+	var p := spawn(a, Vector3(0, 1.15, -2.45))
+	await frames(20)
+	check(p.is_on_floor() and p.global_position.y > 1.0, "standing on the crate, facing the wall")
+	check(p._ledge_probe(Vector3.FORWARD).is_empty(), "the roof over the wall isn't a ledge to climb onto")
+	await done(a)
+
+
 func test_climb() -> void:
 	var a := arena()
 	# A 4 m platform with a pipe up its face.
@@ -573,6 +588,7 @@ func test_notebook_hold() -> void:
 	check(moved > 0.8 and moved < Player.NOTEBOOK_WALK_SPEED + 0.1, "reading, you walk slowly even holding Shift (%.2f m/s)" % moved)
 	check(p.global_position.y < 0.1, "and you can't jump")
 	stop(p)
+	p.set_notebook_cursor(false)  # right mouse held: look around
 	var yaw0 := p.rotation.y
 	var book_at := book.global_basis
 	var cam_at := p.camera.global_basis
@@ -591,6 +607,7 @@ func test_notebook_hold() -> void:
 	p.toggle_notebook()
 	await frames(40)
 	p.toggle_notebook()
+	p.set_notebook_cursor(false)
 	check(p.notebook_drift == Vector2.ZERO and book.transform.is_equal_approx(Transform3D.IDENTITY), "out again, it comes up square in front of you")
 	await frames(40)
 	events.clear()
@@ -598,10 +615,10 @@ func test_notebook_hold() -> void:
 	p.set_notebook_cursor(true)
 	yaw0 = p.rotation.y
 	_mouse_move(p, Vector2(100, 40))
-	check(p.notebook_cursor and p.rotation.y == yaw0 and book.is_processing_input(), "holding right mouse shows a cursor for the pages and stops looking")
+	check(p.notebook_cursor and p.rotation.y == yaw0 and book.is_processing_input(), "with the cursor out the pages take the mouse and the view holds still")
 	p.set_notebook_cursor(false)
 	_mouse_move(p, Vector2(100, 0))
-	check(p.rotation.y < yaw0 and not book.is_processing_input(), "letting go of right mouse looks around again")
+	check(p.rotation.y < yaw0 and not book.is_processing_input(), "holding right mouse looks around again")
 	p.set_notebook_cursor(true)
 	p.toggle_notebook()
 	check(not p.notebook_cursor, "putting the notebook away drops the cursor")
@@ -723,6 +740,7 @@ func test_pick_up() -> void:
 	check(paper.collision_layer == 0 and paper.get_parent() == p.camera, "it's in your hands and doesn't bump into anything")
 	await frames(int(Player.PICKUP_TIME * 60) + 6)
 	check(events == [["raised", paper]], "it comes up over a moment, then it's ready to read")
+	p.set_notebook_cursor(false)  # right mouse held: look around
 	var cam := p.camera.global_transform
 	var face := paper.global_basis * Vector3.UP  # the side with the writing
 	var to_cam := (cam.origin - paper.global_position).normalized()
@@ -735,7 +753,7 @@ func test_pick_up() -> void:
 	_mouse_move(p, Vector2(80, 0))
 	check(p.rotation.y < yaw0, "you can look around while you read")
 	p.set_notebook_cursor(true)
-	check(p.notebook_cursor and paper.is_processing_input(), "right mouse gives a cursor for its lines")
+	check(p.notebook_cursor and paper.is_processing_input(), "letting go of right mouse brings the cursor back for its lines")
 	p.set_notebook_cursor(false)
 	var z0 := p.global_position.z
 	p.controls.move = Vector2(0, 1)  # back away from the desk

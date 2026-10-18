@@ -160,8 +160,8 @@ var held_notebook: Node3D:
 		held_notebook = n
 		if n:
 			n.set_process_input(notebook_cursor)
-## While the notebook is held the mouse looks around; holding right mouse shows a
-## cursor for clicking the pages instead. Read-only (set_notebook_cursor()).
+## While the notebook is held a cursor is out for clicking the pages; holding right
+## mouse looks around instead. Read-only (set_notebook_cursor()).
 var notebook_cursor := false
 var _rmb_was := false
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
@@ -351,7 +351,7 @@ func raise_notebook() -> bool:
 	_pose_notebook()
 	if held_notebook:
 		held_notebook.open_book()
-	set_notebook_cursor(local_control and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
+	set_notebook_cursor(_wants_cursor())
 	return true
 
 
@@ -383,9 +383,9 @@ func is_holding_notebook() -> bool:
 	return _notebook_held
 
 
-## Right mouse held while reading (the notebook, or a paper you picked up): show the
-## cursor to click the pages (tabs, next page, "+ add") and stop looking around;
-## released, the mouse looks again.
+## While reading (the notebook, or a paper you picked up) the cursor is out to click
+## the pages (tabs, next page, "+ add"), so a trackpad can click them; holding right
+## mouse puts it away and the mouse looks around instead.
 ## The local player follows the right mouse button by itself.
 func set_notebook_cursor(on: bool) -> void:
 	on = on and _reading()
@@ -417,6 +417,11 @@ func _pose_notebook() -> void:
 	held_notebook.transform = Transform3D(b, held_notebook.position)
 
 
+## The cursor is out while reading unless right mouse is held to look around.
+func _wants_cursor() -> bool:
+	return local_control and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+
+
 ## Does moving the mouse turn your head right now?
 func _mouse_looks() -> bool:
 	if _reading():
@@ -431,7 +436,7 @@ func _mouse_looks() -> bool:
 ## height; `prop_raised` fires then. `size` is its readable face in metres and
 ## `face` the local direction that face points (+Z for a poster on a wall,
 ## Vector3.UP for one lying on a desk). You can walk slowly and look around while
-## you read; right mouse gives a cursor (set_notebook_cursor). It doesn't collide
+## you read (hold right mouse); otherwise a cursor is out (set_notebook_cursor). It doesn't collide
 ## while held. False if your hands are busy or you're not on your feet.
 func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) -> bool:
 	if prop == null or held_prop or not _filing.is_empty() or state != Move.WALK:
@@ -449,7 +454,7 @@ func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) ->
 	_prop_read = read_pose(size, face)
 	_prop_t = 0.0
 	_prop_lowering = false
-	set_notebook_cursor(local_control and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
+	set_notebook_cursor(_wants_cursor())
 	return true
 
 
@@ -759,7 +764,7 @@ func _process(delta: float) -> void:
 		if rmb != _rmb_was:
 			_rmb_was = rmb
 			if _reading() and not input_locked:
-				set_notebook_cursor(rmb)
+				set_notebook_cursor(_wants_cursor())
 	_animate_prop(delta)
 	_animate_filing(delta)
 	_pose_notebook()
@@ -1024,6 +1029,11 @@ func _ledge_probe(dir: Vector3) -> Dictionary:
 	var n := Vector3(wall.normal.x, 0, wall.normal.z).normalized()
 	var face := Vector3(wall.position.x, feet.y, wall.position.z)
 	var probe := face - n * 0.25 + Vector3.UP * (HANG_REACH + 0.25)
+	# Never reach up past a ceiling: the top of the room's ceiling isn't a ledge.
+	var head := feet + Vector3.UP * (_height - 0.05)
+	var lid := space.intersect_ray(PhysicsRayQueryParameters3D.create(head, Vector3(head.x, probe.y, head.z), collision_mask, _exclude()))
+	if not lid.is_empty():
+		probe.y = minf(probe.y, lid.position.y - 0.02)
 	var q := PhysicsRayQueryParameters3D.create(probe, probe + Vector3.DOWN * (HANG_REACH - 0.05), collision_mask, _exclude())
 	q.hit_from_inside = true
 	var top := space.intersect_ray(q)

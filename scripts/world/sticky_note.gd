@@ -6,6 +6,10 @@ extends Interactable
 
 signal taken(player: Node)
 
+## A note lying on a desk is drawn this much bigger than a real one, so it reads
+## from where you stand.
+const DESK_SCALE := 1.5
+
 var note_id := ""
 ## Stuck to a terminal: copied, not taken.
 var on_terminal := false
@@ -32,12 +36,14 @@ static func place(parent: Node, pos: Vector3, id: String, stuck_to_terminal: boo
 	var bs := BoxShape3D.new()
 	# Bigger than the paper and pushed forward, so it's easy to aim at and wins
 	# over a terminal behind it.
-	bs.size = Vector3(0.14, 0.14, 0.16) if not flat else Vector3(0.14, 0.06, 0.14)
+	bs.size = Vector3(0.14, 0.14, 0.16) if not flat else Vector3(0.18, 0.06, 0.18)
 	shape.shape = bs
 	shape.position.z = 0.07 if not flat else 0.0
 	n.add_child(shape)
 	# The look: ArtProps faces -Z, so turn it to face out of the monitor or desk.
-	ArtProps.sticky_note(n, Vector3.ZERO, 180.0, StickyNotes.get_note(id).get("label", ""), ArtProps.STICKY_YELLOW, flat)
+	var art := ArtProps.sticky_note(n, Vector3.ZERO, 180.0, StickyNotes.get_note(id).get("label", ""), ArtProps.STICKY_YELLOW, flat)
+	if flat:
+		art.scale = Vector3.ONE * DESK_SCALE  # read from standing height, not leaning over the desk
 	parent.add_child(n)
 	n.add_to_group("interactable")
 	n.used.connect(n._on_used)

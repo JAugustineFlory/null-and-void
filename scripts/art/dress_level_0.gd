@@ -157,7 +157,7 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	var tile := ArtPalette.surface("floor_tile", Color(1.3, 1.33, 1.34))
 	for r in [-11.5, -8.5]:
 		ArtDress.skirting(dress, Vector3(r, 0, -14), Vector3(3, 3, 8), [{"wall": "s", "at": 0.0, "width": 1.4}], 1.5, tile)
-		ArtProps.restroom_mirror(dress, Vector3(r - 1.39, 1.5, -11.2), -90, 0.5)
+		ArtProps.restroom_mirror(dress, Vector3(r - 1.39, 1.5, -12.3), -90, 0.5)
 		ArtProps.hand_dryer(dress, Vector3(r + 1.39, 1.2, -11.0), 90)
 		for z in [-15.2, -16.9]:
 			ArtProps.toilet(dress, Vector3(r + 1.05, 0, z), 90)

@@ -526,6 +526,10 @@ func test_level_0_scene() -> void:
 	check(level.sync._gates.has("inside"), "Rourke greets the crew outside, then they all come in")
 	# Rourke walks the crew down the hall himself; nothing blocks the way.
 	level._on_walkies()
+	await process_frame
+	check(not is_instance_valid(level.walkies) and level.geo.get_node_or_null("ChargingDock") != null, "taking the walkies leaves their charging dock on the table")
+	var panel: Node3D = level.elevator.art.get_node("ButtonPanel") if level.elevator.art else null
+	check(panel == null or level.elevator.button.global_position.distance_to(panel.global_position) < 0.35, "the elevator's button is pressed where its panel is drawn")
 	for i in 1500:  # the PA's escort tape and Rourke's cover come first
 		if level.shutter.is_open:
 			break
@@ -2366,6 +2370,8 @@ func test_pick_up_papers() -> void:
 	var face: Vector3 = card.global_basis * card.read_face
 	check(face.dot(p.camera.global_position - card.global_position) > 0.0, "its printed side faces you")
 	check(hands.prop == card and hands.page != null and reader.page_viewport != null, "the hands hold it, with its real page on it")
+	var flaps: Array = reader._hidden.duplicate()
+	check(not flaps.is_empty() and flaps.all(func(g): return not g.visible) and hands.page.visible, "the tri-fold comes up opened out flat: its folded panels don't cover the page")
 	var centre := p.get_viewport().get_visible_rect().size / 2.0
 	check(reader.page_point(centre).x >= 0.0 and reader.page_point(Vector2(2, 2)).x < 0.0, "the pointer in the middle of the view is on the page, and the corner isn't")
 	var line: String = card.lines()[4].text
@@ -2379,6 +2385,7 @@ func test_pick_up_papers() -> void:
 			break
 		await physics_frame
 	check(not is_instance_valid(reader) and p.held_prop == null and card.global_transform.origin.distance_to(home.origin) < 0.01, "E puts it back where it was")
+	check(flaps.all(func(g): return g.visible), "and back on the desk it's folded as before")
 	# A sheet on a wall comes off the wall the same way, its printed side to you.
 	var sheet := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Wall test", ["one", "two"])
 	p.look_at(Vector3(1.0, p.global_position.y, -3.2))
@@ -2390,8 +2397,35 @@ func test_pick_up_papers() -> void:
 		await physics_frame
 	face = sheet.global_basis * sheet.read_face
 	check(p.held_prop == sheet and face.dot(p.camera.global_position - sheet.global_position) > 0.0, "a wall sheet comes up printed side to you")
-	p.put_down(true)
+	var tab := InputEventKey.new()
+	tab.keycode = KEY_TAB
+	tab.physical_keycode = KEY_TAB
+	tab.pressed = true
+	var sheet_reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
+	sheet_reader._input(tab)
+	for i in 120:
+		if p.held_prop == null:
+			break
+		await physics_frame
+	check(p.held_prop == null and not level.notebook.is_open(), "Tab puts a paper down too, without opening the notebook")
 	await physics_frame
+	# The sticky by the keyboard can be picked up and read; desk stickies are drawn big.
+	var by_keys: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Sticky note")
+	check(by_keys.size() == 1 and by_keys[0].plain_text().contains("ORDER matters."), "the sticky by the keyboard is a note you can pick up and read")
+	var desk_sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
+	check(desk_sticky.find_child("StickyNote", false, false).scale.x > 1.2, "stickies lying on the desk are drawn big enough to read standing up")
+	# The notebook: 1-4 turn to its tabs; Tab closes it.
+	level.notebook.open()
+	var three := InputEventKey.new()
+	three.keycode = KEY_3
+	three.physical_keycode = KEY_3
+	three.pressed = true
+	level.notebook._unhandled_input(three)
+	check(level.notebook.pages.current_page() == NotebookPages.Page.NOTES, "3 turns the notebook to its third tab")
+	level.notebook._unhandled_input(tab)
+	check(not level.notebook.is_open(), "and Tab puts it away")
+	for i in 40:
+		await physics_frame
 	# A loose sticky note goes onto the notebook's page, then in the notebook.
 	var sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
 	var id := sticky.note_id
