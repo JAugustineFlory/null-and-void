@@ -498,13 +498,16 @@ func test_level_0_scene() -> void:
 	lp.controls.move = Vector2(0, -1)
 	var vaulted := false
 	for i in 120:
+		lp.controls.jump = not vaulted and lp.global_position.z < -0.1  # W + Space at the counter
 		await physics_frame
 		vaulted = vaulted or lp.state == Player.Move.VAULT
 	pos = lp.global_position
-	check(vaulted and pos.z < -1.6 and pos.y < 0.3, "walking into the counter vaults you over to the back (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	check(vaulted and pos.z < -1.6 and pos.y < 0.3, "W + Space at the counter vaults you over to the back (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
 	lp.rotation.y = PI
+	lp.global_position.z = -2.6
 	vaulted = false
 	for i in 120:
+		lp.controls.jump = not vaulted and lp.global_position.z > -1.9
 		await physics_frame
 		vaulted = vaulted or lp.state == Player.Move.VAULT
 	check(vaulted and lp.global_position.z > -0.4, "and back to the lobby side")
