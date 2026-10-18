@@ -254,15 +254,17 @@ func _build_booth() -> void:
 	StickyNote.on_monitor(booth, "like")
 	# Guards badge in at the reader by the booth; it logs them in the guards table.
 	# The night lead also keeps a paper sheet, in case the reader goes down.
-	Greybox.panel(geo, Vector3(-2.2, 1.3, 5.9), Vector3(0.1, 0.15, 0.04), Color(0.12, 0.12, 0.13))
-	Greybox.panel(geo, Vector3(-2.2, 1.34, 5.875), Vector3(0.02, 0.02, 0.01), Color(0.1, 1.0, 0.2), 3.0)
-	Document.place(geo, Vector3(-2.2, 1.0, 5.86), 0, "Badge reader card", [
+	# Laid out along the wall so nothing overlaps (the poster at x -1 is Graphics'):
+	# manual x -5.3, camera card -4.3, monitor -3, sign-in sheet -2.3, reader and its card -1.6.
+	Greybox.panel(geo, Vector3(-1.6, 1.3, 5.9), Vector3(0.1, 0.15, 0.04), Color(0.12, 0.12, 0.13))
+	Greybox.panel(geo, Vector3(-1.6, 1.34, 5.875), Vector3(0.02, 0.02, 0.01), Color(0.1, 1.0, 0.2), 3.0)
+	Document.place(geo, Vector3(-1.6, 1.0, 5.86), 0, "Badge reader card", [
 		"BADGE IN AT THE START OF EVERY SHIFT",
 		"The reader logs your badge-in time to the guard roster.",
 		"Reader down? Sign the paper sheet. The night lead keeps it as the backup copy.",
 	], false, "laminated", Vector2(0.42, 0.3))
 	# The backup sheet: the names are handwritten, and coffee took most of the second one.
-	Document.place(geo, Vector3(-1.4, 1.45, 5.86), 0, "NIGHT SHIFT SIGN-IN      DATE: 10/15", [
+	Document.place(geo, Vector3(-2.3, 1.45, 5.86), 0, "NIGHT SHIFT SIGN-IN      DATE: 10/15", [
 		"(backup copy)",
 		{"columns": ["NAME", "BADGE #", "IN", "OUT", "INIT."], "widths": [3.4, 1.8, 1.3, 1.3, 1.2], "text": "NAME  BADGE #  IN  OUT  INIT."},
 		{"row": ["PIKE, H.", "", "", "", ""], "over": "NO SHOW", "text": "PIKE, H.  no show", "hand": true},
@@ -273,7 +275,7 @@ func _build_booth() -> void:
 		"Guard PINs are kept on file in the table:",
 		{"text": "guards", "hand": true},
 	], false, "paper", Vector2(0.6, 0.8))
-	Document.place(geo, Vector3(-4.0, 1.5, 5.86), 0, "Camera system card", [
+	Document.place(geo, Vector3(-4.3, 1.5, 5.86), 0, "Camera system card", [
 		"OVERWATCH CCTV  -  REMOTE STATUS",
 		"From any security terminal:",
 		"GET /cameras          every camera",
@@ -282,7 +284,7 @@ func _build_booth() -> void:
 		"last_frame            time of the last picture",
 	], false, "laminated", Vector2(0.62, 0.5))
 	# A page torn from the WARDEN manual, with the old security chief's pencil in the margin.
-	Document.place(geo, Vector3(-5.2, 1.6, 5.86), 0, "WARDEN manual, p.12", [
+	Document.place(geo, Vector3(-5.3, 1.6, 5.86), 0, "WARDEN manual, p.12", [
 		"WARDEN v3.1  -  p.12",
 		"GUARD ROSTER: QUICK SEARCH",
 		"Only know part of a name? Search a pattern:",
@@ -294,12 +296,13 @@ func _build_booth() -> void:
 	Greybox.box(geo, Vector3(-5.4, 0.45, 4.0), Vector3(0.9, 0.9, 0.9), Color(0.45, 0.35, 0.2), "Crate")
 	# On the landing, safe from anything: a break-glass box with a screwdriver inside.
 	# Players learn here that glass breaks with a strike, and pick up the tool the vent needs.
-	Greybox.box(geo, Vector3(2.66, 1.4, 7.2), Vector3(0.12, 0.55, 0.45), Color(0.7, 0.12, 0.1), "KeyBox")
-	var screwdriver := Interactable.create(geo, Vector3(2.75, 1.4, 7.2), Vector3(0.03, 0.04, 0.24), "Take the screwdriver", Color(0.95, 0.75, 0.1))
+	# On the landing's west wall, beside the doorway to the night desk (not in it).
+	Greybox.box(geo, Vector3(2.66, 1.4, 9.4), Vector3(0.12, 0.55, 0.45), Color(0.7, 0.12, 0.1), "KeyBox")
+	var screwdriver := Interactable.create(geo, Vector3(2.75, 1.4, 9.4), Vector3(0.03, 0.04, 0.24), "Take the screwdriver", Color(0.95, 0.75, 0.1))
 	screwdriver.name = "Screwdriver"
 	screwdriver.used.connect(func(_p): sync.event("_take_screwdriver"))
-	key_glass = _glass_pane(Vector3(2.79, 1.4, 7.2), Vector3(0.02, 0.45, 0.38), true, "KeyBoxGlass")
-	Greybox.label(geo, Vector3(2.62, 1.82, 7.2), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
+	key_glass = _glass_pane(Vector3(2.79, 1.4, 9.4), Vector3(0.02, 0.45, 0.38), true, "KeyBoxGlass")
+	Greybox.label(geo, Vector3(2.62, 1.82, 9.4), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
 	# Low outside window at the east end, onto the ledge. Plain glass: it breaks.
 	ledge_glass = _glass_pane(Vector3(6.0, 0.5, 4.0), Vector3(0.05, 1.0, 1.1), true, "LedgeGlass")
 
