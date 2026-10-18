@@ -571,6 +571,18 @@ func test_document_view() -> void:
 	doc.clear()
 	await t.process_frame
 	check(doc.get("_columns").is_empty(), "clear forgets the last table")
+	# The same page as a texture, for a sheet on a wall.
+	var holder := Node.new()
+	layer.add_child(holder)
+	var tex := DocumentView.paper_texture(holder, [{"columns": ["NAME", "IN"]}, {"row": ["Har", "22:00"], "stain": "coffee", "stain_at": 0, "text": "Har...  22:00"}], "clipboard", "NIGHT SHIFT SIGN-IN")
+	var vp: SubViewport = holder.get_node("PaperTexture")
+	var drawn: DocumentView = vp.get_child(0)
+	check(tex is ViewportTexture and vp.size == Vector2i(DocumentView.PAPERS.clipboard.size), "a paper drawn to a texture is its design size")
+	check(drawn.flat and not drawn.get_node("Dim").visible and drawn.paper.position == Vector2.ZERO, "drawn flat: just the paper, no dimming")
+	check(drawn.plain_text() == "NIGHT SHIFT SIGN-IN\nNAME  IN\nHar...  22:00", "what's on it can be read back (%s)" % drawn.plain_text().c_escape())
+	for i in 10:
+		await t.process_frame
+	check(vp.render_target_update_mode != SubViewport.UPDATE_ALWAYS, "once drawn, it stops redrawing")
 	doc.hide_doc()
 	await t.create_timer(0.3).timeout
 	check(not doc.visible, "the document closes")
@@ -616,21 +628,19 @@ func test_held_notebook() -> void:
 	await t.create_timer(0.3).timeout
 	check(book.book.get_node_or_null("Unwritten") == null, "and is all there once written")
 	check(held.page_to_world(px).distance_to(world) < 0.002, "a spot on the page image has its place in the world")
-	# A sticky note on the wall, peeled off and pressed onto the page.
-	var note := ArtProps.sticky_note(stage, cam.global_position + Vector3(0.1, -0.2, -0.6), 0, "LIKE")
-	var stuck := NotebookArt.sticky("LIKE", "WHERE col LIKE 'Ab%';", "WHERE name LIKE 'Dale%';")
-	book.right.add_child(stuck)
+	# A sticky note being filed (Movement moves it): your free hand carries it in.
+	var filer := _FakePlayer.new()
+	stage.add_child(filer)
+	held.follow(filer)
+	var note := ArtProps.sticky_note(cam, Vector3(0.05, -0.1, -0.3), 0, "LIKE")
+	filer._filing = {"copy": note, "t": 0.5}
 	await t.process_frame
-	var take := held.take_sticky(note, stuck, false, 0.4)
-	await t.create_timer(0.1).timeout
-	var on_wall: Node3D = note.find_child("Paper", true, false).get_parent()
-	check(not on_wall.visible and stuck.modulate.a < 0.01, "taking a sticky note lifts it off the wall, and the page waits for it")
-	check(held.get_node("ReachHand").visible and not held.book_root.get_node("RightHand").visible, "your free hand reaches for it while the other holds the book")
-	await take.finished
-	check(stuck.modulate.a > 0.99 and not held.get_node("ReachHand").visible and held.book_root.get_node("RightHand").visible, "pressed onto the page, it becomes the page's sticky and the hand goes back to the book")
-	var copy_note := ArtProps.sticky_note(stage, cam.global_position + Vector3(0, -0.2, -0.6), 0, "ORDER BY")
-	await held.take_sticky(copy_note, null, true, 0.2).finished
-	check(copy_note.find_child("Paper", true, false).get_parent().visible, "copying a note off a terminal leaves it where it was")
+	await t.process_frame
+	check(held.get_node("ReachHand").visible and not held.book_root.get_node("RightHand").visible, "your free hand carries a sticky note in while the other holds the book")
+	check(held.get_node("ReachHand").global_position.distance_to(note.global_position) < 0.05, "the hand is on the note")
+	filer._filing = {}
+	await t.process_frame
+	check(not held.get_node("ReachHand").visible and held.book_root.get_node("RightHand").visible, "filed, the hand goes back to the book")
 	held.close_book()
 	await t.create_timer(0.45).timeout
 	check(not held.is_open() and not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the notebook goes back in the pocket")
@@ -644,28 +654,35 @@ func test_held_paper() -> void:
 	stage.add_child(cam)
 	cam.make_current()
 	var held := HeldPaper.attach(cam, CharacterLooks.crew(2))
-	check(not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "empty hands cost nothing to draw")
+	var player := _FakePlayer.new()
+	stage.add_child(player)
+	held.follow(player)
+	await t.process_frame
+	check(not held.right_hand.visible and not held.left_hand.visible, "empty hands stay out of view")
 	var doc := _FakeDocument.new()
-	doc.position = Vector3(0.3, -0.4, -1.2)
+	doc.position = Vector3(0.3, -0.4, -1.5)
 	stage.add_child(doc)
 	ArtProps.clipboard(doc, Vector3.ZERO, 180.0, doc.title, false)
-	var tw := held.lift(doc, 0.3)
-	await t.process_frame
-	check(held.view.kind == "clipboard" and held.view.body.get_node_or_null("TableHead") != null, "the paper in your hands is the document's own page, table and all")
-	check(doc.find_children("*", "MeshInstance3D", true, false).all(func(m): return not m.visible), "the paper leaves its place while you hold it")
-	await tw.finished
-	var read := cam.global_transform * held.reading_transform()
-	check(held.paper.global_position.distance_to(read.origin) < 0.01, "it ends up held in front of you to read")
-	var top := cam.unproject_position(held.paper.global_transform * Vector3(0, held.face.mesh.size.y / 2.0, 0))
-	var bottom := cam.unproject_position(held.paper.global_transform * Vector3(0, -held.face.mesh.size.y / 2.0, 0))
-	var screen := cam.get_viewport().get_visible_rect().size
-	check(top.y > 0 and bottom.y < screen.y and (bottom.y - top.y) / screen.y > 0.7, "the held paper fills most of the view without leaving it")
-	check(held.right_hand.visible and held.left_hand.visible, "both hands hold it")
-	var ratio: float = held.face.mesh.size.x / held.face.mesh.size.y
-	check(absf(ratio - held.view.paper.size.x / held.view.paper.size.y) < 0.01, "the paper keeps its own shape")
-	await held.put_back(0.2).finished
-	check(not held.visible and not held.is_held(), "putting it down empties your hands")
-	check(doc.find_children("*", "MeshInstance3D", true, false).all(func(m): return m.visible), "and it's back where it was")
+	player.held_prop = doc
+	held.hold(doc, Vector2(0.23, 0.32), Vector3.BACK, doc)
+	for i in 30:
+		await t.process_frame
+	check(held.right_hand.visible and held.right_hand.global_position.distance_to(cam.global_position) <= HeldPaper.REACH + 0.01, "the right hand reaches out for the paper, only as far as an arm goes")
+	check(not held.left_hand.visible, "the other hand waits until the paper is close")
+	var page_view: DocumentView = held.find_child("PaperTexture", true, false).get_child(0)
+	check(held.page != null and doc.is_ancestor_of(held.page) and page_view.plain_text().contains("PIKE, H."), "the document's real page lies over the prop you picked up")
+	# Movement brings it up to read; the hands hold its bottom corners.
+	doc.reparent(cam, false)
+	doc.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.01, -0.3))
+	for i in 40:
+		await t.process_frame
+	var corner := doc.global_transform * Vector3(0.23 / 2.0 - 0.02, -0.32 / 2.0 + 0.03, 0)
+	check(held.right_hand.global_position.distance_to(corner) < 0.01 and held.left_hand.visible, "held up to read, both hands hold it by the bottom corners")
+	player.prop_lowered.emit(doc)
+	player.held_prop = null
+	for i in 60:
+		await t.process_frame
+	check(held.page == null and not held.right_hand.visible and not held.left_hand.visible, "put back, the page comes off and the hands go down")
 	stage.free()
 
 
@@ -677,7 +694,14 @@ class _FakeDocument extends Node3D:
 		return "clipboard"
 
 	func lines() -> Array:
-		return [{"columns": ["NAME", "IN"]}, {"row": ["PIKE, H.", ""], "over": "NO SHOW"}]
+		return [{"columns": ["NAME", "IN"]}, {"row": ["PIKE, H.", ""], "over": "NO SHOW", "text": "PIKE, H.  no show"}]
+
+
+## Stands in for the Player's pick-up and filing state (scripts/player).
+class _FakePlayer extends Node3D:
+	signal prop_lowered(prop: Node3D)
+	var held_prop: Node3D
+	var _filing := {}
 
 
 func test_terminal_screen() -> void:

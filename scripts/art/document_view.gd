@@ -50,6 +50,14 @@ var _title: Label
 var _close: Button
 var _last_row: HBoxContainer
 var _columns: Array[float] = []  # widths of the ruled table being filled in, if any
+## Drawn into a texture (paper_texture): just the paper, at scale 1 from the
+## top-left corner, with no dimming and no close button.
+var flat := false:
+	set(v):
+		flat = v
+		get_node("Dim").visible = not v
+		_close.visible = not v
+		_fit()
 
 
 func _init() -> void:
@@ -227,7 +235,7 @@ func add_lines(lines: Array) -> void:
 ## One line of a Document. A String is a typed line. A Dictionary is one of:
 ##   {"text", "hand": true, "author"}                handwriting ("" text: a gap)
 ##   {"before", "filled", "after", "author"}         a printed blank filled in by hand
-##   {"columns": ["NAME", "BADGE", ...], "widths"}   starts a ruled printed table
+##   {"columns": ["NAME", "BADGE", ...], "widths"}   starts a ruled printed table (add "text": the names joined)
 ##   {"row": ["PIKE, H.", "", "22:00"], "text", "over"}  a table row filled in by hand;
 ##       "over" is written across it in red pen ("NO SHOW")
 ##   {"stamp": "RECEIVED 10/15", "color": "blue"}    a rubber stamp over the lines above
@@ -371,6 +379,42 @@ static func _jitter(key: String, degrees: float) -> float:
 	return (float(absi(key.hash()) % 1000) / 1000.0 - 0.5) * 2.0 * degrees
 
 
+## A Document's page as a texture, for a sheet on a wall or the paper in your
+## hands: the same paper, letterhead, table and coffee as the close-up. Its
+## SubViewport goes under `owner` (named "PaperTexture"), draws for a few frames
+## while the page lays out, then keeps the picture and stops drawing. The texture
+## is the paper's design size (PAPERS[kind].size); its DocumentView is the
+## viewport's child, so `plain_text()` there says what's on it.
+static func paper_texture(owner: Node, lines: Array, kind := "memo", title := "") -> ViewportTexture:
+	var vp := _RenderOnce.new()
+	vp.name = "PaperTexture"
+	vp.transparent_bg = true
+	var view := DocumentView.new()
+	vp.add_child(view)
+	view.flat = true
+	view.set_paper(kind)
+	view.set_title(title)
+	view.add_lines(lines)
+	vp.size = Vector2i(view.paper.size)
+	view.size = view.paper.size
+	owner.add_child(vp)
+	return vp.get_texture()
+
+
+## Everything written on the page, top to bottom: the title, then each line as
+## it would be copied (a table's column names joined).
+func plain_text() -> String:
+	var out: Array[String] = []
+	if _title.text != "":
+		out.append(_title.text)
+	for c in body.get_children():
+		if c.get("copy_text") != null and str(c.copy_text) != "":
+			out.append(str(c.copy_text))
+		elif c.name.begins_with("TableHead"):
+			out.append("  ".join(c.find_children("*", "Label", true, false).map(func(l): return l.text)))
+	return "\n".join(out)
+
+
 ## Empties the page for the next document.
 func clear() -> void:
 	for c in body.get_children():
@@ -482,7 +526,14 @@ func _style_title() -> void:
 
 
 func _fit() -> void:
-	if paper == null or size.x <= 0:
+	if paper == null:
+		return
+	if flat:
+		paper.scale = Vector2.ONE
+		paper.position = Vector2.ZERO
+		paper.rotation = 0.0
+		return
+	if size.x <= 0:
 		return
 	var s := minf((size.x - 80) / paper.size.x, (size.y - 110) / paper.size.y)
 	s = clampf(s, 0.4, 1.4)
@@ -601,6 +652,20 @@ class _PaperDrawing extends Control:
 
 	func _footer(text: String, r: Rect2) -> void:
 		draw_string(NotebookArt.type_font(), Vector2(120, r.size.y - 30), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.4, 0.4, 0.42))
+
+
+## A SubViewport that draws for a few frames, then keeps its last picture.
+class _RenderOnce extends SubViewport:
+	var _frames := 0
+
+	func _init() -> void:
+		render_target_update_mode = SubViewport.UPDATE_ALWAYS
+
+	func _process(_delta: float) -> void:
+		_frames += 1
+		if _frames == 8:
+			render_target_update_mode = SubViewport.UPDATE_ONCE
+			set_process(false)
 
 
 ## The cells of a ruled table row, with the printed rules drawn under the writing.

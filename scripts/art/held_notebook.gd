@@ -10,7 +10,7 @@ extends Node3D
 ##   held.set_content(pages)          # a NotebookPages, or any Control holding a NotebookView
 ##   held.open_book()                 # pulls it out and opens it; close_book() puts it away
 ##   held.write_in(item)              # after adding a line to a page: it's written in
-##   held.take_sticky(note, item)     # your hand peels a sticky note off the world onto the page
+##   held.follow(player)              # your free hand carries notes in (player.file_into_notebook)
 ##
 ## The view is not dimmed and nothing else on screen is covered. Mouse mode must be
 ## visible while it's open, so the player can click the pages.
@@ -37,13 +37,9 @@ var _open := false
 var _open_t := 0.0  # 0 put away, 1 open in hand
 var _tween: Tween
 var _wiggle := 0.0
-var _reach: Node3D  # the free hand that fetches sticky notes
-var _sticky: Node3D  # the note in flight
-var _sticky_from: Transform3D
-var _sticky_item: Control
-var _sticky_px := Vector2.ZERO
-var _sticky_scale := 1.0  # the note shrinks to the size it's drawn on the page
-var _dip := 0.0  # the book lowers out of the way while the free hand reaches past it
+var _reach: Node3D  # the free hand that carries sticky notes in
+var _player: Node  # whose filing to follow
+var _dip := 0.0  # the book lowers out of the way while a note comes in
 
 
 static func attach(camera: Camera3D, look: Dictionary = {}) -> HeldNotebook:
@@ -96,42 +92,21 @@ func write_in(item: Control, duration: float = 0.8) -> Tween:
 	return t
 
 
-## Takes a sticky note off a wall, desk or monitor and presses it onto the open
-## page: your free hand reaches for it, peels it off and brings it to the page,
-## where `item` (the sticky you just added to the NotebookView, hidden until now)
-## takes its place. `note` is the StickyNote (or any node holding ArtProps'
-## sticky_note). With `keep`, the note in the world stays where it was and a copy
-## comes to the page. Returns the tween; the book should be open.
-func take_sticky(note: Node3D, item: Control = null, keep := false, time := 0.9) -> Tween:
-	var face := _sticky_face(note)
-	if _sticky:
-		_sticky.queue_free()
-	_sticky_item = item
-	if item:
-		item.modulate.a = 0.0
-	_sticky_px = _page_px_of(item)
-	_sticky_scale = clampf(_px_to_m(item.size.x) * 0.8 / 0.076, 0.2, 1.0) if item else 0.5
-	if face:
-		_sticky = face.duplicate()
-		_sticky.top_level = true
-		add_child(_sticky)
-		_sticky_from = face.global_transform
-		_sticky.global_transform = _sticky_from
-		if not keep:
-			face.visible = false
-	var t := create_tween()
-	t.tween_method(_pose_take, 0.0, 1.0, time)
-	t.tween_callback(func():
-		if _sticky:
-			_sticky.queue_free()
-			_sticky = null
-		_dip = 0.0
-		_reach.visible = false
-		book_root.get_node("RightHand").visible = true
-		if _sticky_item:
-			_sticky_item.modulate.a = 1.0
-			_sticky_item = null)
-	return t
+## Follow the player's sticky-note filing (player.file_into_notebook): while a
+## note travels onto the page, your free hand carries it there and the book dips
+## out of its way, then the hand goes back to the book.
+func follow(player: Node) -> void:
+	_player = player
+
+
+## The note being filed right now, and how far along it is (0..1), or null.
+func _filing() -> Array:
+	if _player == null or not is_instance_valid(_player):
+		return []
+	var f = _player.get("_filing")
+	if not (f is Dictionary) or f.is_empty() or not is_instance_valid(f.get("copy")):
+		return []
+	return [f.copy, float(f.get("t", 0.0))]
 
 
 ## A point on the page image (viewport pixels) in the world, on whichever half shows it.
@@ -150,54 +125,24 @@ func page_to_world(px: Vector2) -> Vector3:
 	return halves[1].global_position
 
 
-## 0: the free hand at rest below the screen; 0.35: it has the note; 0.8: the note
-## is over the page; 1: pressed flat onto it.
-func _pose_take(t: float) -> void:
-	var cam := _camera.global_transform
-	var rest := cam * Transform3D(Basis.from_euler(Vector3(0.4, 0.3, 0.2)), Vector3(0.26, -0.42, -0.3))
-	var reach := clampf(t / 0.35, 0.0, 1.0)
-	var carry := clampf((t - 0.35) / 0.45, 0.0, 1.0)
-	var press := clampf((t - 0.8) / 0.2, 0.0, 1.0)
-	book_root.get_node("RightHand").visible = false  # one hand holds the book, the other fetches
+## The free hand on the note being filed, the book lowered while it's on its way.
+func _carry_note(delta: float) -> void:
+	var f := _filing()
+	var right := book_root.get_node("RightHand")
+	if f.is_empty():
+		if _reach.visible:
+			_reach.visible = false
+			right.visible = true
+			_dip = 0.0
+		return
+	var note: Node3D = f[0]
+	var t: float = f[1]
+	right.visible = false
 	_reach.visible = true
-	_dip = sin(PI * clampf(t / 0.8, 0.0, 1.0))
-	if _open:
-		_pose(_open_t)
-	var page_basis := right_half.global_basis * Basis(Vector3.UP, PI)  # the note's face looks back at you
-	var on_page := Transform3D(page_basis, page_to_world(_sticky_px) + right_half.global_basis.z * 0.002)
-	var above := on_page.translated(right_half.global_basis.z * 0.015 + Vector3(0, 0.006, 0))
-	var target := _sticky_from
-	# A note across the room comes to meet the hand; the arm only stretches so far.
-	var grab := _sticky_from
-	var to_note := grab.origin - cam.origin
-	if to_note.length() > 0.55:
-		grab.origin = cam.origin + to_note.normalized() * 0.55
-	if _sticky:
-		if carry <= 0.0:
-			target = _sticky_from
-		elif press <= 0.0:
-			target = _sticky_from.interpolate_with(above, ease(carry, -1.8))
-		else:
-			target = above.interpolate_with(on_page, ease(press, 0.5))
-		_sticky.global_transform = target.scaled_local(Vector3.ONE * lerpf(1.0, _sticky_scale, ease(carry, -1.8)))
-	var hand_at := rest.interpolate_with(Transform3D(rest.basis, grab.origin), ease(reach, -1.6))
-	if carry > 0.0 and _sticky:
-		hand_at = Transform3D(rest.basis, target.origin - cam.basis.z * 0.015 - cam.basis.y * 0.025)
-	_reach.global_transform = hand_at
-
-
-func _sticky_face(note: Node3D) -> Node3D:
-	if note == null:
-		return null
-	var paper := note.find_child("Paper", true, false)
-	return paper.get_parent() as Node3D if paper else null
-
-
-func _page_px_of(item: Control) -> Vector2:
-	if item == null or not item.is_inside_tree():
-		return Vector2(NotebookView.EMBED_SIZE) * Vector2(0.72, 0.4)  # the right page
-	var r := item.get_global_rect()
-	return r.get_center()
+	_dip = move_toward(_dip, sin(PI * clampf(t, 0.0, 1.0)), delta * 6.0)
+	# Pinching the note's bottom edge, palm behind it.
+	var at := note.global_transform.orthonormalized()
+	_reach.global_transform = Transform3D(at.basis, at.origin - at.basis.y * 0.03)
 
 
 ## Where the open book sits in front of the camera, for the camera's field of view
@@ -394,7 +339,7 @@ func _pose(t: float) -> void:
 	var pocket := Transform3D(Basis.from_euler(Vector3(deg_to_rad(-60), deg_to_rad(-20), deg_to_rad(35))), read.origin + Vector3(0.12, -0.2, 0.04))
 	var lift := clampf(t / 0.7, 0.0, 1.0)  # comes up first, then opens
 	var open := clampf((t - 0.45) / 0.55, 0.0, 1.0)
-	book_root.transform = pocket.interpolate_with(read, ease(lift, 0.6)).translated(Vector3(0.05 * _dip, -0.16 * _dip, 0.03 * _dip))
+	book_root.transform = pocket.interpolate_with(read, ease(lift, 0.6)).translated(Vector3(0.04 * _dip, -0.1 * _dip, 0.02 * _dip))
 	var hinge := lerpf(CLOSED_ANGLE, SPREAD_ANGLE, ease(open, 0.5))
 	left_half.rotation_degrees.y = hinge  # the front cover swings open on the spine
 	right_half.rotation_degrees.y = -SPREAD_ANGLE
@@ -404,6 +349,7 @@ func _pose(t: float) -> void:
 func _process(delta: float) -> void:
 	if not visible:
 		return
+	_carry_note(delta)
 	if _open and (_tween == null or not _tween.is_running()):
 		_pose(1.0)  # follow fov and window changes
 	if _wiggle > 0.0:
