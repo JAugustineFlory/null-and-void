@@ -19,7 +19,13 @@ const SIGN_IN := [
 class StandIn extends Node3D:
 	signal prop_lowered(prop: Node3D)
 	var held_prop: Node3D
-	var _filing := {}
+	var note: Node3D
+
+	func filing_note() -> Node3D:
+		return note
+
+	func filing_progress() -> float:
+		return 0.5 if note else 0.0
 
 
 func _run() -> void:
@@ -74,10 +80,10 @@ func _run() -> void:
 	player.prop_lowered.emit(doc)
 	await nb.open_book().finished
 	var note := ArtProps.sticky_note(cam, Vector3(0.1, -0.05, -0.35), 180, "LIKE 'Dale%'")
-	player._filing = {"copy": note, "t": 0.5}
+	player.note = note
 	await create_timer(0.3).timeout
 	_save("sticky_carry")
-	player._filing = {}
+	player.note = null
 	note.queue_free()
 	await create_timer(0.3).timeout
 	_save("sticky_done")

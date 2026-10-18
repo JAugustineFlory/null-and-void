@@ -633,12 +633,13 @@ func test_held_notebook() -> void:
 	stage.add_child(filer)
 	held.follow(filer)
 	var note := ArtProps.sticky_note(cam, Vector3(0.05, -0.1, -0.3), 0, "LIKE")
-	filer._filing = {"copy": note, "t": 0.5}
+	filer.note = note
+	filer.t = 0.5
 	await t.process_frame
 	await t.process_frame
 	check(held.get_node("ReachHand").visible and not held.book_root.get_node("RightHand").visible, "your free hand carries a sticky note in while the other holds the book")
 	check(held.get_node("ReachHand").global_position.distance_to(note.global_position) < 0.05, "the hand is on the note")
-	filer._filing = {}
+	filer.note = null
 	await t.process_frame
 	check(not held.get_node("ReachHand").visible and held.book_root.get_node("RightHand").visible, "filed, the hand goes back to the book")
 	held.close_book()
@@ -701,7 +702,14 @@ class _FakeDocument extends Node3D:
 class _FakePlayer extends Node3D:
 	signal prop_lowered(prop: Node3D)
 	var held_prop: Node3D
-	var _filing := {}
+	var note: Node3D  # the sticky note being filed
+	var t := 0.0
+
+	func filing_note() -> Node3D:
+		return note
+
+	func filing_progress() -> float:
+		return t if note else 0.0
 
 
 func test_terminal_screen() -> void:

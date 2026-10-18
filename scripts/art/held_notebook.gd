@@ -92,7 +92,8 @@ func write_in(item: Control, duration: float = 0.8) -> Tween:
 	return t
 
 
-## Follow the player's sticky-note filing (player.file_into_notebook): while a
+## Follow the player's sticky-note filing (player.file_into_notebook, read through
+## filing_note() and filing_progress()): while a
 ## note travels onto the page, your free hand carries it there and the book dips
 ## out of its way, then the hand goes back to the book.
 func follow(player: Node) -> void:
@@ -103,10 +104,12 @@ func follow(player: Node) -> void:
 func _filing() -> Array:
 	if _player == null or not is_instance_valid(_player):
 		return []
-	var f = _player.get("_filing")
-	if not (f is Dictionary) or f.is_empty() or not is_instance_valid(f.get("copy")):
+	if not _player.has_method("filing_note"):
 		return []
-	return [f.copy, float(f.get("t", 0.0))]
+	var note = _player.call("filing_note")
+	if not (note is Node3D) or not is_instance_valid(note):
+		return []
+	return [note, float(_player.call("filing_progress"))]
 
 
 ## A point on the page image (viewport pixels) in the world, on whichever half shows it.
