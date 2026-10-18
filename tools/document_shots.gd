@@ -3,6 +3,19 @@ extends SceneTree
 ##   xvfb-run -a -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 -s tools/document_shots.gd -- OUT_DIR
 
 var out_dir := "user://document_shots"
+## Level 2's night-shift sheet as a Document's lines (see DocumentView.add_entry).
+const SIGN_IN := [
+	{"columns": ["NAME", "BADGE #", "IN", "OUT", "INIT."], "widths": [3.4, 1.8, 1.3, 1.3, 1.2]},
+	{"row": ["PIKE, H.", "", "", "", ""], "over": "NO SHOW", "text": "PIKE, H.  no show"},
+	{"row": ["Har", "", "22:00", "", ""], "stain": "coffee", "stain_at": 0, "text": "Har... (coffee stain)  22:00"},
+	{"row": ["", "", "", "", ""]},
+	{"row": ["", "", "", "", ""]},
+	{"row": ["", "", "", "", ""]},
+	"",
+	"Guard PINs are kept on file in the table:",
+	{"text": "guards", "hand": true},
+	{"stamp": "WARDEN  LOGGED", "color": "blue"},
+]
 var cam: Camera3D
 
 
@@ -87,6 +100,14 @@ func _run() -> void:
 	doc.add_margin_note("why is Rourke always on B?", "player")
 	await _frames(10)
 	_save("doc_view_clipboard")
+
+	# A printed form on a clipboard, filled in by hand, coffee over one name.
+	doc.clear()
+	doc.set_paper("clipboard")
+	doc.set_title("NIGHT SHIFT SIGN-IN      DATE: 10/15")
+	doc.add_lines(SIGN_IN)
+	await _frames(10)
+	_save("doc_view_signin")
 
 	doc.clear()
 	doc.set_paper("memo")
