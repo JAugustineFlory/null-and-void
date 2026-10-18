@@ -414,7 +414,7 @@ func _pose_notebook() -> void:
 		return
 	var pitch := head.rotation.x
 	var b := Basis(Vector3.RIGHT, -pitch) * Basis(Vector3.UP, -notebook_drift.x) * Basis(Vector3.RIGHT, pitch - notebook_drift.y)
-	held_notebook.transform = Transform3D(b, Vector3.ZERO)
+	held_notebook.transform = Transform3D(b, held_notebook.position)
 
 
 ## Does moving the mouse turn your head right now?
@@ -516,6 +516,16 @@ func file_into_notebook(prop: Node3D, keep: bool = false) -> bool:
 
 func is_filing() -> bool:
 	return not _filing.is_empty()
+
+
+## The copy of the note travelling into the notebook while filing, or null.
+func filing_note() -> Node3D:
+	return _filing.get("copy") as Node3D
+
+
+## How far the note is into the notebook: 0 just picked off, 1 on the page; 0 when not filing.
+func filing_progress() -> float:
+	return _filing.get("t", 0.0)
 
 
 func _reading() -> bool:
