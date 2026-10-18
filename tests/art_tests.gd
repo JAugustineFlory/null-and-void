@@ -37,6 +37,7 @@ func check(cond: bool, name: String) -> void:
 func test_materials_are_shared() -> void:
 	var a := ArtPalette.surface("carpet")
 	check(a == ArtPalette.surface("carpet"), "the same surface returns one shared material")
+	check(ArtPalette.surface("drywall", Color(1.3, 1.3, 1.3)) != ArtPalette.surface("drywall"), "a tint brighter than white is its own material, not plain white's")
 	check(a.albedo_texture != null and a.uv1_world_triplanar, "surfaces are textured in world space")
 	check(ArtPalette.flat(Color.RED) == ArtPalette.flat(Color.RED), "flat materials are shared")
 	var tex := ArtPalette.texture("tiles")
