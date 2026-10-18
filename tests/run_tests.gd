@@ -42,6 +42,7 @@ func _run() -> void:
 	await test_elevator()
 	await test_notebook()
 	await test_in_world_ui()
+	await test_pick_up_papers()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
@@ -2130,6 +2131,78 @@ func test_in_world_ui() -> void:
 	t.interact(p)
 	check(ui.visible and not ui.is_on_screen(), "and the full-screen terminal")
 	ui.close()
+	level.queue_free()
+	await process_frame
+
+
+## Papers come up off the desk or wall into your hands, and sticky notes go onto
+## the notebook's page (Game.diegetic_ui).
+func test_pick_up_papers() -> void:
+	print("Picking up papers and filing sticky notes")
+	_game().new_run(5)
+	_game().diegetic_ui = true
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	for i in 10:
+		await physics_frame
+	var p: Player = level.player
+	level._release_camera(p)
+	p.seated = false
+	p.global_position = Vector3(1.0, 0.1, -1.9)  # behind the front desk
+	p.rotation.y = 0.0
+	for i in 20:
+		await physics_frame
+	var hands: HeldPaper = p.camera.get_node_or_null("HeldPaper")
+	check(hands != null, "the notebook's hands also hold papers")
+	var card: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title.begins_with("ScanRight"))[0]
+	var home := card.global_transform
+	card._on_used(p)
+	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
+	check(reader.held and p.held_prop == card and not p.input_locked and not reader.view.visible, "E lifts the card off the desk into your hands, with no full-screen page and no freezing in place")
+	for i in 120:
+		if p.is_holding_prop() and p._prop_t >= 1.0:
+			break
+		await physics_frame
+	var face: Vector3 = card.global_basis * card.read_face
+	check(face.dot(p.camera.global_position - card.global_position) > 0.0, "its printed side faces you")
+	check(hands.prop == card and hands.page != null and reader.page_viewport != null, "the hands hold it, with its real page on it")
+	var centre := p.get_viewport().get_visible_rect().size / 2.0
+	check(reader.page_point(centre).x >= 0.0 and reader.page_point(Vector2(2, 2)).x < 0.0, "the pointer in the middle of the view is on the page, and the corner isn't")
+	var line: String = card.lines()[4].text
+	(reader.page_viewport.get_child(0) as DocumentView).copy_requested.emit(line)
+	check(reader._note_label.visible and p.input_locked, "a line's \"+ note\" on the page asks for a name, standing still to type it")
+	reader._finish_note("scanner")
+	check(_game().notebook_written.any(func(n): return n.text == line.strip_edges() and n.label == "scanner") and not p.input_locked, "and goes in the notebook")
+	reader.close()
+	for i in 120:
+		if not is_instance_valid(reader):
+			break
+		await physics_frame
+	check(not is_instance_valid(reader) and p.held_prop == null and card.global_transform.origin.distance_to(home.origin) < 0.01, "E puts it back where it was")
+	# A sheet on a wall comes off the wall the same way, its printed side to you.
+	var sheet := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Wall test", ["one", "two"])
+	p.look_at(Vector3(1.0, p.global_position.y, -3.2))
+	await physics_frame
+	sheet._on_used(p)
+	for i in 120:
+		if p.is_holding_prop() and p._prop_t >= 1.0:
+			break
+		await physics_frame
+	face = sheet.global_basis * sheet.read_face
+	check(p.held_prop == sheet and face.dot(p.camera.global_position - sheet.global_position) > 0.0, "a wall sheet comes up printed side to you")
+	p.put_down(true)
+	await physics_frame
+	# A loose sticky note goes onto the notebook's page, then in the notebook.
+	var sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
+	var id := sticky.note_id
+	sticky._on_used(p)
+	check(p.is_filing() and level.notebook.is_open(), "taking a sticky note opens the notebook and puts the note on its page")
+	for i in 240:
+		if _game().notebook_notes.has(id):
+			break
+		await physics_frame
+	check(_game().notebook_notes.has(id) and not is_instance_valid(sticky), "once it lands it's in the notebook, and gone from the desk")
+	_game().diegetic_ui = false
 	level.queue_free()
 	await process_frame
 

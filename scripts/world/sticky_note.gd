@@ -53,20 +53,20 @@ func get_prompt(player: Node) -> String:
 func _on_used(player: Node) -> void:
 	if on_terminal:
 		if _is_local(player):
-			_write_down()
+			_file(player)
 		taken.emit(player)
 		return
 	# A loose note: the host decides who got it, gives it to them, and removes
 	# it on every machine. Only the taker's machine has their notebook.
 	var sync := LevelSync.of(self)
 	if sync == null:
-		_write_down()
+		_file(player)
 		_remove()
 		return
 	var players: Node = sync.level.get("players")
 	var id: int = players.id_of(player) if players else multiplayer.get_unique_id()
 	if id == multiplayer.get_unique_id():
-		_write_down()
+		_file(player)
 	elif id != 0:
 		_give.rpc_id(id)
 	sync.run_on(self, "_remove")
@@ -75,20 +75,58 @@ func _on_used(player: Node) -> void:
 ## The taker's machine: the note goes in their notebook.
 @rpc("authority", "reliable")
 func _give() -> void:
-	_write_down()
+	var level := _level()
+	_file(level.player if level else null)
 
 
-## Every machine: the note is gone.
+## Into the notebook. Held in your hands (Game.diegetic_ui), you watch it go onto
+## the page first (player.file_into_notebook), and it's written down when it lands;
+## a note on a terminal stays where it is and a copy goes in.
+func _file(player: Node) -> void:
+	if not (get_node("/root/Game").diegetic_ui and player and player.has_method("file_into_notebook")):
+		_write_down()
+		return
+	var level := _level()
+	if level and level.get("notebook") and not level.notebook.is_open():
+		level.notebook.open(NotebookPages.Page.NOTES)  # open at the page it goes on
+	if not player.file_into_notebook(self, on_terminal):
+		_write_down()  # hands busy: it still goes in
+		return
+	# The note itself may be gone by the time it lands (a loose one is removed at
+	# once), so what's written down doesn't depend on it.
+	var id := note_id
+	var hud = _level().hud if _level() else null
+	var game := get_node("/root/Game")
+	player.sticky_filed.connect(func(_p): StickyNote.write_down(game, hud, id), CONNECT_ONE_SHOT)
+
+
+## Every machine: the note is gone. While it's still flying onto the taker's
+## notebook page it's only hidden, and freed once it lands.
 func _remove() -> void:
 	taken.emit(null)
-	queue_free()
+	remove_from_group("interactable")
+	visible = false
+	for c in get_children():
+		if c is CollisionShape3D:
+			c.set_deferred("disabled", true)
+	var level := _level()
+	var p: Node = level.player if level else null
+	if p and p.has_method("is_filing") and p.is_filing() and p.has_signal("sticky_filed"):
+		p.sticky_filed.connect(func(_n): queue_free(), CONNECT_ONE_SHOT)
+	else:
+		queue_free()
 
 
 func _write_down() -> void:
-	var title: String = StickyNotes.get_note(note_id).get("title", "")
 	var level := _level()
-	if get_node("/root/Game").add_note(note_id) and level and level.hud:
-		level.hud.notice("Added to your notebook (Tab): %s" % title, 4.0)
+	StickyNote.write_down(get_node("/root/Game"), level.hud if level else null, note_id)
+
+
+## Note `id` goes in this machine's notebook, with a notice on `hud`.
+static func write_down(game: Node, hud: Node, id: String) -> void:
+	var title: String = StickyNotes.get_note(id).get("title", "")
+	if game.add_note(id) and hud:
+		hud.notice("Added to your notebook (Tab): %s" % title, 4.0)
 
 
 ## Only the local player's pickups go in this machine's notebook.
