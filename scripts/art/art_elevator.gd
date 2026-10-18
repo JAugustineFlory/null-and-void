@@ -19,6 +19,10 @@ const FRAME := Color(0.6, 0.62, 0.64)
 const DIGITS := Color(1.0, 0.45, 0.1)  # amber LED segments
 ## Where the landing wall's corridor face is: Greybox walls are 0.2 thick, centered.
 const LANDING := -0.1
+## The car's front wall stands just inside the landing wall's other face (z = +0.1),
+## so nothing on it shares a plane with the wall and flickers through it.
+const CAR_FRONT := 0.12
+const CAR_FACE := CAR_FRONT + 0.02  # its inside face
 
 var size := Vector3(2.6, 2.5, 2.2)
 ## 0 = doors shut, 1 = fully open. Each leaf slides behind the jamb.
@@ -66,8 +70,8 @@ func _build(floors: Array) -> void:
 	for sx in [-1, 1]:
 		_box(Vector3(0.05, h, d), Vector3(sx * w / 2, h / 2, d / 2), steel)
 		var jamb := (w - opening) / 2.0
-		_box(Vector3(jamb, h, 0.04), Vector3(sx * (opening / 2 + jamb / 2), h / 2, 0.06), steel)
-	_box(Vector3(opening, h - door_h, 0.04), Vector3(0, door_h + (h - door_h) / 2, 0.06), steel)
+		_box(Vector3(jamb, h, 0.04), Vector3(sx * (opening / 2 + jamb / 2), h / 2, CAR_FRONT), steel)
+	_box(Vector3(opening, h - door_h, 0.04), Vector3(0, door_h + (h - door_h) / 2, CAR_FRONT), steel)
 	# Wood-trim handrail on three walls (a nice building, once).
 	var rail := ArtPalette.surface("laminate")
 	_box(Vector3(w - 0.2, 0.05, 0.05), Vector3(0, 0.95, d - 0.07), rail)
@@ -102,7 +106,7 @@ func _build(floors: Array) -> void:
 		_doors.append(leaf)
 	# Floor indicators: above the landing frame, and above the doors inside.
 	for inside in [false, true]:
-		var z := 0.09 if inside else LANDING - 0.06
+		var z := CAR_FACE + 0.01 if inside else LANDING - 0.06
 		var y := door_h + 0.24
 		var mirror := 1.0 if inside else -1.0  # outside text reads from the other side
 		var dz := 0.012 if inside else -0.012
@@ -117,7 +121,7 @@ func _build(floors: Array) -> void:
 	var px := -(w / 2 - 0.04)
 	var panel := Node3D.new()
 	panel.name = "ButtonPanel"
-	panel.position = Vector3(opening / 2 + 0.25, 1.2, 0.09) if (w - opening) / 2 > 0.4 else Vector3(px, 1.2, 0.5)
+	panel.position = Vector3(opening / 2 + 0.25, 1.2, CAR_FACE + 0.008) if (w - opening) / 2 > 0.4 else Vector3(px, 1.2, 0.5)
 	panel.rotation_degrees.y = 180 if (w - opening) / 2 > 0.4 else -90
 	add_child(panel)
 	var n := floors.size()

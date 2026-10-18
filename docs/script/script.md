@@ -103,6 +103,22 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **MERCER:** *(Slow. Then the click of the stop button.)* If it ever comes to that, look for my plans. The building's records remember more than people do. `[l0_tape_5]`
 
+### Around the ground floor
+
+*Optional trust beats on the expanded ground floor: vending-machine coffee, a boost up to a stuck panel, the hum down the dark east corridor, covering for the crew when the PA's escort tape replays, and the elevator up to the server floor.* *(Written ahead: not in the game yet.)*
+
+**ROURKE:** *(In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick.)* Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities. `[l0_coffee]`
+
+**ROURKE:** *(Interlocking his fingers for a boost. Easy, practised.)* Panel's stuck up top? Here, step on my hands. I've got you. `[l0_boost_1]`
+
+**ROURKE:** *(Brushing his hands off.)* See? Teamwork. `[l0_boost_2]`
+
+**ROURKE:** *(Near the dark east corridor. Casual, but he doesn't look down it.)* Don't mind the hum down that way. Old transformer. There's been a ticket open on it since before my time. `[l0_hum]`
+
+**ROURKE:** *(Toward the ceiling speaker when the PA's escort reminder replays while the crew is behind the counter. Covering for them like a friend.)* They're with me. Escort's right here. `[l0_cover]`
+
+**ROURKE:** *(At the elevator bank, holding the door.)* Server floor's one up. Elevator's slow, but it gets there. `[l0_elevator]`
+
 ### To Server Room A
 
 *Rourke badges the hall shutter open and walks the crew to Server Room A himself, filling the walk with the story of the founder and his safe room.*
@@ -119,83 +135,131 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ## Level 1
 
-### The betrayal
+### The database problem
 
-*Rourke leads the crew into Server Room A and gives them a mundane job at the terminal (tidy the door controller and badge tables). Nothing hints at foul play. A few seconds after someone starts working, the door locks behind them, the lights go red, and he turns on them.*
+*Rourke walks the crew into Server Room A on the server floor and gives them the real job: find and reset a faulting door controller. Level 1 is all trust; nothing hints at foul play.*
 
 **ROURKE:** *(Calling back over his shoulder, inside the room.)* In you come. Terminal's just over here. `[l1_enter]`
 
-**ROURKE:** *(Mundane, a facilities guy passing on the boss's request. Then he goes quiet and drifts behind them.)* Boss wants you to look over the door controller and badge tables. See if you can tidy them up, sort them out. I'll be right here. `[l1_terminal]`
+**ROURKE:** *(Mundane, a facilities guy with a real problem. Hopeful.)* Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix. `[l1_terminal]`
 
-**ROURKE:** *(The door has just locked. The friendliness switches off.)* Sorry about this. Nothing personal. `[l1_trap_1]`
+### The door-controller fix
 
-**ROURKE:** *(Tired, explaining a chore.)* Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. `[l1_trap_2]`
+*Rourke's lines while the crew practises WHERE / AND on door_controllers and resets the faulting one. He doesn't teach (SYSOP and Mercer's notes do). He lends his own badge for the reset: the badge they take off him in Level 2.* *(Written ahead: not in the game yet.)*
+
+**ROURKE:** *(Leaning on the doorframe. Patient.)* Take your time. I've been staring at that rack for a week. `[l1_waiting]`
+
+**ROURKE:** *(Swiping his badge for them. Helpful, no hesitation.)* Reset wants a badge? Here, use mine. `[l1_badge_help]`
+
+**ROURKE:** *(Shrugging, no blame.)* Nope, panel's not having it. Try another? `[l1_wrong_panel]`
+
+**ROURKE:** *(Genuinely impressed.)* Would you look at that. Green across the board. Six months I've been filing tickets on that thing. `[l1_fixed_1]`
+
+**ROURKE:** *(Warm. On a replay, the director hearing about them is the problem.)* You lot are good. Director's going to want to hear about this. `[l1_fixed_2]`
+
+### Vale's login
+
+*The fault log points at Dr. Vale's account. Rourke steers the crew up the now-working elevator to her lab, Secure Lab B, on the security floor.* *(Written ahead: not in the game yet.)*
+
+**ROURKE:** *(Reading over a shoulder. Curious, a little too quickly.)* Hang on. That fault log... every reset this week came from Vale's login. `[l1_pivot_1]`
+
+**ROURKE:** *(Thinking out loud.)* Her lab's up on the security floor. Secure Lab B. `[l1_pivot_2]`
+
+**ROURKE:** *(Already walking. Friendly, steering.)* Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you. `[l1_pivot_3]`
+
+## Level 2
+
+### Secure Lab B
+
+*Rourke has every player badge in 'for the visitor log', so the log puts the crew at the scene. Inside: a struggle, a tipped chair, blood on the desk edge, Vale's coat on the hook. He fakes shock, sends them to her terminal, locks them in and radios WARDEN that contractors hurt Dr. Vale, then admits it through the glass.* *(Written ahead: not in the game yet.)*
+
+**ROURKE:** *(Fond, a little sad.)* Secure Lab B. Vale practically lived in here. `[l2_lab_arrive]`
+
+**ROURKE:** *(Routine, holding the reader out. The frame happens in plain sight.)* Badge in for me, each of you. Visitor log. Security floor's fussy about it. `[l2_lab_badge_1]`
+
+**ROURKE:** *(Once everyone has badged.)* Thanks. Paperwork keeps everybody honest. `[l2_lab_badge_2]`
+
+**ROURKE:** *(Fake shock. Good enough to fool them the first time, a beat too rehearsed on a replay.)* Oh, no. No, no. Iris? `[l2_lab_shock_1]`
+
+**ROURKE:** *(Quiet, staring at it.)* That's her coat. She never leaves without her coat. `[l2_lab_shock_2]`
+
+**ROURKE:** *(Backing toward the door, already reaching for his radio.)* Her terminal's still logged in. Check it, see what she was working on. I'll call this in. `[l2_lab_terminal]`
+
+**ROURKE:** *(On his radio to WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance.)* Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale. `[l2_frame]`
+
+**ROURKE:** *(The door has just locked. The friendliness switches off.)* Sorry about this. Nothing personal. `[l2_trap_1]`
+
+**ROURKE:** *(Tired, explaining a chore.)* Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. `[l2_trap_2]`
 
 ### The fight (barks)
 
-*Short lines played at random during the fight: when he lands a hit, when he takes one, and when he goes down. Keep each one short; they can play many times.*
+*Rourke comes back in through the lab's second door or the vent. Short lines played at random during the fight: when he lands a hit, when he takes one, and when he goes down.* *(Written ahead: not in the game yet.)*
 
-**ROURKE:** *(Swinging.)* Stay down! `[l1_hit_1]`
+**ROURKE:** *(Coming back in. Calm, cracking his neck.)* Should've checked the other door. `[l2_return]`
 
-**ROURKE:** *(Breathing hard.)* Should've stayed in the van. `[l1_hit_2]`
+**ROURKE:** *(Taunting. Can repeat.)* Go on, touch everything. Your prints are all over her desk now. `[l2_hit_prints]`
 
-**ROURKE:** *(Low.)* Nobody's coming for you. `[l1_hit_3]`
+**ROURKE:** *(Swinging.)* Stay down! `[l2_hit_1]`
 
-**ROURKE:** *(Frustrated.)* Hold still! `[l1_hit_4]`
+**ROURKE:** *(Breathing hard.)* Should've stayed in the van. `[l2_hit_2]`
 
-**ROURKE:** *(Just a grunt of pain.)* Agh! `[l1_hurt_1]`
+**ROURKE:** *(Low.)* Nobody's coming for you. `[l2_hit_3]`
 
-**ROURKE:** *(Winded, almost laughing.)* Okay. Okay, that one hurt. `[l1_hurt_2]`
+**ROURKE:** *(Frustrated.)* Hold still! `[l2_hit_4]`
 
-**ROURKE:** *(Spat out.)* Lucky. `[l1_hurt_3]`
+**ROURKE:** *(Just a grunt of pain.)* Agh! `[l2_hurt_1]`
 
-**ROURKE:** *(On the floor, out of breath. Genuinely scared for the first time.)* Wait... wait. You don't know what you're doing. `[l1_downed]`
+**ROURKE:** *(Winded, almost laughing.)* Okay. Okay, that one hurt. `[l2_hurt_2]`
+
+**ROURKE:** *(Spat out.)* Lucky. `[l2_hurt_3]`
+
+**ROURKE:** *(On the floor, out of breath. Genuinely scared for the first time.)* Wait... wait. You don't know what you're doing. `[l2_downed]`
 
 ### Kill or tie him up
 
-*Rourke is down. If the crew kills him, his badge's dead-man switch fires and WARDEN starts the lockdown. If they tie him up, he taunts them. Either way they take his badge and the terminal logs in with it.*
+*Rourke is down. If the crew kills him, his badge's dead-man switch fires and WARDEN starts the lockdown. If they tie him up, he taunts them and says the frame out loud. Either way they take his badge.* *(Written ahead: not in the game yet.)*
 
-**WARDEN:** *(Over the room's speakers. Unbothered, like reading a stock price.)* ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN. `[l1_killed]`
+**WARDEN:** *(Over the room's speakers. Unbothered, like reading a stock price.)* ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN. `[l2_killed]`
 
-**ROURKE:** *(Tied up on the floor, grinning through it.)* You think a bit of cable holds me? `[l1_tied_1]`
+**ROURKE:** *(Tied up on the floor, grinning through it.)* You think a bit of cable holds me? `[l2_tied_1]`
 
-**ROURKE:** *(Quieter. He means it.)* WARDEN will eat you alive in here. `[l1_tied_2]`
+**ROURKE:** *(Quieter. He means it.)* WARDEN will eat you alive in here. `[l2_tied_2]`
 
-**WARDEN:** *(The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.)* BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. `[l1_login]`
-
-**WARDEN:** *(The one line with a hint of a smirk.)* SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. `[l1_selftest]`
+**ROURKE:** *(Tied up, smiling. The frame, said out loud.)* Run if you like. Every camera on this floor already thinks you killed her. `[l2_tied_3]`
 
 ### Visitor without escort
 
-*Right after the fate scene, in both branches, before the badge login: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.*
+*Right after the fate scene, in both branches: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.* *(Written ahead: not in the game yet.)*
 
-**WARDEN:** *(Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- `[l1_contain_1]`
+**WARDEN:** *(Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW-- `[l2_contain_1]`
 
-**WARDEN:** *(From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE. `[l1_contain_2]`
+**WARDEN:** *(From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.)* VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE. `[l2_contain_2]`
 
-### Resetting the door controller
+### Out of the lab
 
-*The crew reads WARDEN's self-test, queries door_controllers, and resets the right rack. The terminal shows the details; these lines are WARDEN reacting.*
+*The lab door is on a faulted controller. The crew logs in with Rourke's badge, reads WARDEN's self-test, queries door_controllers and resets the right one: the task they practised on the server floor, now under pressure. These lines are WARDEN reacting.* *(Written ahead: not in the game yet.)*
 
-**WARDEN:** *(Reading a rule it knows they're about to break. Cool.)* QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY. `[l1_found]`
+**WARDEN:** *(The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.)* BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE. `[l2_login]`
 
-**WARDEN:** *(Flat, instant.)* RESET REFUSED. BADGE REQUIRED. `[l1_no_badge]`
+**WARDEN:** *(The one line with a hint of a smirk.)* SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM. `[l2_selftest]`
 
-**WARDEN:** *(Patient, then a small dig.)* RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU? `[l1_panel_ok]`
+**WARDEN:** *(Reading a rule it knows they're about to break. Cool.)* QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY. `[l2_found]`
 
-**WARDEN:** *(The last sentence slightly slower.)* UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l1_panel_wrong]`
+**WARDEN:** *(Flat, instant.)* RESET REFUSED. BADGE REQUIRED. `[l2_no_badge]`
 
-**WARDEN:** *(Polite, and keeping score.)* CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED. `[l1_exit_open]`
+**WARDEN:** *(Patient, then a small dig.)* RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU? `[l2_panel_ok]`
+
+**WARDEN:** *(The last sentence slightly slower.)* UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS. `[l2_panel_wrong]`
+
+**WARDEN:** *(Polite, and keeping score.)* CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED. `[l2_exit_open]`
 
 ### Lockdown
 
-*The crew steps through the emergency exit. If Rourke was tied up, he has cut himself loose and authorized the lockdown himself.*
+*The crew gets out of the lab. If Rourke was tied up, he has cut himself loose and authorized the lockdown himself.* *(Written ahead: not in the game yet.)*
 
-**WARDEN:** *(Reading a log entry.)* LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D. `[l1_lockdown_tied]`
+**WARDEN:** *(Reading a log entry.)* LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D. `[l2_lockdown_tied]`
 
-**WARDEN:** *(The sign-off for the slice. Warm, like wishing them well.)* ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT. `[l1_sealed]`
-
-## Level 2
+**WARDEN:** *(The sign-off for the slice. Warm, like wishing them well.)* ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT. `[l2_sealed]`
 
 ### Rourke on the radio (if he escaped)
 
@@ -210,8 +274,6 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 ### The security office
 
 *WARDEN on the security office PA. The Watcher moves only when unseen; GET /cameras shows live camera states; the guard's name on the sign-in sheet is smudged (LIKE 'Har%'); a door command reports success but the door has an actuator fault (the first terminal lie).*
-
-**WARDEN:** *(Plays in one version of the story only. Patient, slightly too formal.)* REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE. `[l2_dead_escort]`
 
 **WARDEN:** *(Reassuring tone. It is not reassuring.)* SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE. `[l2_arrive]`
 

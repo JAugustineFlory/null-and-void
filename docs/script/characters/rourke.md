@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (37)
+## Your lines (61)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -73,7 +73,28 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Channel one. Keep them on. Reception's lousy once we're past the shutter. This way."  
   *Offhand.*
 
-### 4. Strolling down a quiet office corridor with the crew, making small talk on the way to the server room.
+### 4. Showing the crew around an office building's ground floor at night. Friendly and helpful.
+
+- [ ] `l0_coffee.wav`  
+  "Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities."  
+  *In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick.*
+- [ ] `l0_boost_1.wav`  
+  "Panel's stuck up top? Here, step on my hands. I've got you."  
+  *Interlocking his fingers for a boost. Easy, practised.*
+- [ ] `l0_boost_2.wav`  
+  "See? Teamwork."  
+  *Brushing his hands off.*
+- [ ] `l0_hum.wav`  
+  "Don't mind the hum down that way. Old transformer. There's been a ticket open on it since before my time."  
+  *Near the dark east corridor. Casual, but he doesn't look down it.*
+- [ ] `l0_cover.wav`  
+  "They're with me. Escort's right here."  
+  *Toward the ceiling speaker when the PA's escort reminder replays while the crew is behind the counter. Covering for them like a friend.*
+- [ ] `l0_elevator.wav`  
+  "Server floor's one up. Elevator's slow, but it gets there."  
+  *At the elevator bank, holding the door.*
+
+### 5. Strolling down a quiet office corridor with the crew, making small talk on the way to the server room.
 
 - [ ] `l0_tour_3.wav`  
   "Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings."  
@@ -91,58 +112,121 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Here we go. Server rooms are up on one."  
   *PLACEHOLDER until Voice and Augustine approve the wording. Badging the elevator bank door and holding it for the crew. Pleasant, like the end of a tour.*
 
-### 5. Inside a server room with the crew. Friendly at first; then, while one of them works at the terminal, the door locks.
+### 6. Showing the crew into a server room and explaining the job.
 
 - [ ] `l1_enter.wav`  
   "In you come. Terminal's just over here."  
   *Calling back over his shoulder, inside the room.*
 - [ ] `l1_terminal.wav`  
-  "Boss wants you to look over the door controller and badge tables. See if you can tidy them up, sort them out. I'll be right here."  
-  *Mundane, a facilities guy passing on the boss's request. Then he goes quiet and drifts behind them.*
-- [ ] `l1_trap_1.wav`  
+  "Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix."  
+  *Mundane, a facilities guy with a real problem. Hopeful.*
+
+### 7. Hanging around while the crew fixes a faulty door controller. Patient, helpful, impressed when it works.
+
+- [ ] `l1_waiting.wav`  
+  "Take your time. I've been staring at that rack for a week."  
+  *Leaning on the doorframe. Patient.*
+- [ ] `l1_badge_help.wav`  
+  "Reset wants a badge? Here, use mine."  
+  *Swiping his badge for them. Helpful, no hesitation.*
+- [ ] `l1_wrong_panel.wav`  
+  "Nope, panel's not having it. Try another?"  
+  *Shrugging, no blame.*
+- [ ] `l1_fixed_1.wav`  
+  "Would you look at that. Green across the board. Six months I've been filing tickets on that thing."  
+  *Genuinely impressed.*
+- [ ] `l1_fixed_2.wav`  
+  "You lot are good. Director's going to want to hear about this."  
+  *Warm. On a replay, the director hearing about them is the problem.*
+
+### 8. Reading a log over the crew's shoulders and suggesting where to go next.
+
+- [ ] `l1_pivot_1.wav`  
+  "Hang on. That fault log... every reset this week came from Vale's login."  
+  *Reading over a shoulder. Curious, a little too quickly.*
+- [ ] `l1_pivot_2.wav`  
+  "Her lab's up on the security floor. Secure Lab B."  
+  *Thinking out loud.*
+- [ ] `l1_pivot_3.wav`  
+  "Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you."  
+  *Already walking. Friendly, steering.*
+
+### 9. At a scientist's lab with the crew. You have them badge in, act shocked at what's inside, step out, lock the door and call security on them.
+
+- [ ] `l2_lab_arrive.wav`  
+  "Secure Lab B. Vale practically lived in here."  
+  *Fond, a little sad.*
+- [ ] `l2_lab_badge_1.wav`  
+  "Badge in for me, each of you. Visitor log. Security floor's fussy about it."  
+  *Routine, holding the reader out. The frame happens in plain sight.*
+- [ ] `l2_lab_badge_2.wav`  
+  "Thanks. Paperwork keeps everybody honest."  
+  *Once everyone has badged.*
+- [ ] `l2_lab_shock_1.wav`  
+  "Oh, no. No, no. Iris?"  
+  *Fake shock. Good enough to fool them the first time, a beat too rehearsed on a replay.*
+- [ ] `l2_lab_shock_2.wav`  
+  "That's her coat. She never leaves without her coat."  
+  *Quiet, staring at it.*
+- [ ] `l2_lab_terminal.wav`  
+  "Her terminal's still logged in. Check it, see what she was working on. I'll call this in."  
+  *Backing toward the door, already reaching for his radio.*
+- [ ] `l2_frame.wav`  
+  "Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale."  
+  *On his radio to WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance.*
+- [ ] `l2_trap_1.wav`  
   "Sorry about this. Nothing personal."  
   *The door has just locked. The friendliness switches off.*
-- [ ] `l1_trap_2.wav`  
+- [ ] `l2_trap_2.wav`  
   "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself."  
   *Tired, explaining a chore.*
 
-### 6. Short lines in a scuffle. Loud and out of breath; each one can play many times.
+### 10. Short lines in a scuffle. Loud and out of breath; each one can play many times.
 
-- [ ] `l1_hit_1.wav`  
+- [ ] `l2_return.wav`  
+  "Should've checked the other door."  
+  *Coming back in. Calm, cracking his neck.*
+- [ ] `l2_hit_prints.wav`  
+  "Go on, touch everything. Your prints are all over her desk now."  
+  *Taunting. Can repeat.*
+- [ ] `l2_hit_1.wav`  
   "Stay down!"  
   *Swinging.*
-- [ ] `l1_hit_2.wav`  
+- [ ] `l2_hit_2.wav`  
   "Should've stayed in the van."  
   *Breathing hard.*
-- [ ] `l1_hit_3.wav`  
+- [ ] `l2_hit_3.wav`  
   "Nobody's coming for you."  
   *Low.*
-- [ ] `l1_hit_4.wav`  
+- [ ] `l2_hit_4.wav`  
   "Hold still!"  
   *Frustrated.*
-- [ ] `l1_hurt_1.wav`  
+- [ ] `l2_hurt_1.wav`  
   "Agh!"  
   *Just a grunt of pain.*
-- [ ] `l1_hurt_2.wav`  
+- [ ] `l2_hurt_2.wav`  
   "Okay. Okay, that one hurt."  
   *Winded, almost laughing.*
-- [ ] `l1_hurt_3.wav`  
+- [ ] `l2_hurt_3.wav`  
   "Lucky."  
   *Spat out.*
-- [ ] `l1_downed.wav`  
+- [ ] `l2_downed.wav`  
   "Wait... wait. You don't know what you're doing."  
   *On the floor, out of breath. Genuinely scared for the first time.*
 
-### 7. In the server room, right after the scuffle.
+### 11. In the lab, right after the scuffle.
 
-- [ ] `l1_tied_1.wav`  
+- [ ] `l2_tied_1.wav`  
   "You think a bit of cable holds me?"  
   *Tied up on the floor, grinning through it.*
-- [ ] `l1_tied_2.wav`  
+- [ ] `l2_tied_2.wav`  
   "WARDEN will eat you alive in here."  
   *Quieter. He means it.*
+- [ ] `l2_tied_3.wav`  
+  "Run if you like. Every camera on this floor already thinks you killed her."  
+  *Tied up, smiling. The frame, said out loud.*
 
-### 8. On a walkie-talkie to the crew, from somewhere else in the building.
+### 12. On a walkie-talkie to the crew, from somewhere else in the building.
 
 - [ ] `l2_rourke_1.wav`  
   "Still on channel one? Good. Thought you'd want to know I'm out."  

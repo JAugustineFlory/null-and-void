@@ -257,7 +257,7 @@ func test_voice_script() -> void:
 				used[id] = true
 		for m in id_re.search_all(src):
 			if VoiceLines.has_line(m.get_string(1)):
-				used[m.get_string(1)] = true
+				used[VoiceLines.resolve(m.get_string(1))] = true
 			elif VoiceLines.scene(m.get_string(1)).is_empty():
 				unknown.append(m.get_string(1))
 		for m in say_re.search_all(src):
@@ -316,8 +316,11 @@ func test_voice_script() -> void:
 	var sysop_voiced: bool = VoiceLines.CHARACTERS.has("SYSOP") or VoiceLines.LINES.values().any(func(l): return l["speaker"] == "SYSOP")
 	var sysop_named: Array = docs.keys().filter(func(path): return docs[path].to_upper().contains("SYSOP"))
 	var warden_l0: Array = VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "WARDEN" and VoiceLines.scene(VoiceLines.LINES[id]["scene"])["level"] == 0)
-	var cut: String = VoiceLines.get_line("l1_contain_1")["text"].trim_suffix("--")
-	check(VoiceLines.get_line("l1_contain_2")["text"].begins_with(cut), "after its PA tape interrupts, WARDEN repeats its warning word for word")
+	var cut: String = VoiceLines.get_line("l2_contain_1")["text"].trim_suffix("--")
+	check(VoiceLines.get_line("l2_contain_2")["text"].begins_with(cut), "after its PA tape interrupts, WARDEN repeats its warning word for word")
+	var renamed_ok := VoiceLines.RENAMED.keys().all(func(old): return not VoiceLines.LINES.has(old) and VoiceLines.LINES.has(VoiceLines.RENAMED[old]) and VoiceLines.get_line(old) == VoiceLines.LINES[VoiceLines.RENAMED[old]])
+	check(renamed_ok, "old ids of moved lines still find the line under its new id")
+	check(VoiceLines.CUT.all(func(id): return VoiceLines.has_line(id) and VoiceLines.get_line(id).is_empty()), "cut lines are known but play nothing")
 	check(warden_l0.is_empty(), "WARDEN says nothing in Level 0 %s" % [warden_l0])
 	check(not sysop_voiced and sysop_named.is_empty(), "SYSOP stays text-only and out of every actor's script %s" % [sysop_named])
 	check(VoiceLines.held_back({"level": VoiceLines.REVEAL_LEVEL}) and VoiceLines.held_back({"level": 2, "reveal": true}) \
@@ -360,9 +363,9 @@ func test_voice_playback() -> void:
 	DirAccess.remove_absolute(take2)
 	DirAccess.remove_absolute(actor_path)
 	wav.save_to_wav(wav_path)
-	var warden_path := Voice.folder.path_join("l1_sealed.wav")
+	var warden_path := Voice.folder.path_join("l2_sealed.wav")
 	wav.save_to_wav(warden_path)
-	voice.play("l1_sealed")
+	voice.play("l2_sealed")
 	check(voice._player.bus == Voice.PA_BUS and AudioServer.get_bus_index(Voice.PA_BUS) >= 0, "WARDEN plays through the PA speaker sound")
 	var pa_path := Voice.folder.path_join("l0_pa_1.wav")
 	wav.save_to_wav(pa_path)
