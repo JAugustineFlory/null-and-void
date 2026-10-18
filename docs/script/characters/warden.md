@@ -15,63 +15,60 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 
 Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
-## Your lines (18)
+## Your lines (17)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
-### 1. In the server room, right after the scuffle.
+### 1. In the lab, right after the scuffle.
 
-- [ ] `l1_killed.wav`  
+- [ ] `l2_killed.wav`  
   "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN."  
   *Over the room's speakers. Unbothered, like reading a stock price.*
-- [ ] `l1_login.wav`  
-  "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE."  
-  *The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.*
-- [ ] `l1_selftest.wav`  
-  "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM."  
-  *The one line with a hint of a smirk.*
 
-### 2. Over the server room speakers, the first time the building's computer speaks for itself. Its own recorded announcement cuts it off.
+### 2. Over the lab's speakers, the first time the building's computer speaks for itself. Its own recorded announcement cuts it off.
 
-- [ ] `l1_contain_1.wav`  
+- [ ] `l2_contain_1.wav`  
   "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--"  
   *Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.*
-- [ ] `l1_contain_2.wav`  
+- [ ] `l2_contain_2.wav`  
   "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE."  
   *From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.*
 
-### 3. Over the server room speakers while the crew tries to reset door controllers.
+### 3. Over the speakers while the crew tries to reset door controllers to get out of a locked lab.
 
-- [ ] `l1_found.wav`  
+- [ ] `l2_login.wav`  
+  "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE."  
+  *The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.*
+- [ ] `l2_selftest.wav`  
+  "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM."  
+  *The one line with a hint of a smirk.*
+- [ ] `l2_found.wav`  
   "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY."  
   *Reading a rule it knows they're about to break. Cool.*
-- [ ] `l1_no_badge.wav`  
+- [ ] `l2_no_badge.wav`  
   "RESET REFUSED. BADGE REQUIRED."  
   *Flat, instant.*
-- [ ] `l1_panel_ok.wav`  
+- [ ] `l2_panel_ok.wav`  
   "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?"  
   *Patient, then a small dig.*
-- [ ] `l1_panel_wrong.wav`  
+- [ ] `l2_panel_wrong.wav`  
   "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS."  
   *The last sentence slightly slower.*
-- [ ] `l1_exit_open.wav`  
+- [ ] `l2_exit_open.wav`  
   "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED."  
   *Polite, and keeping score.*
 
-### 4. Over the speakers as the crew leaves the server room.
+### 4. Over the speakers as the crew leaves the lab.
 
-- [ ] `l1_lockdown_tied.wav`  
+- [ ] `l2_lockdown_tied.wav`  
   "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D."  
   *Reading a log entry.*
-- [ ] `l1_sealed.wav`  
+- [ ] `l2_sealed.wav`  
   "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT."  
   *The sign-off for the slice. Warm, like wishing them well.*
 
 ### 5. Over the speakers in a security office.
 
-- [ ] `l2_dead_escort.wav`  
-  "REMINDER: VISITORS MUST REMAIN WITH THEIR ESCORT. YOUR ESCORT IS NO LONGER AVAILABLE. PLEASE WAIT WHERE YOU ARE."  
-  *Plays in one version of the story only. Patient, slightly too formal.*
 - [ ] `l2_arrive.wav`  
   "SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE."  
   *Reassuring tone. It is not reassuring.*
