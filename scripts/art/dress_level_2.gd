@@ -16,6 +16,17 @@ const RECEPTION := AABB(Vector3(-7.9, -0.5, 6.1), Vector3(10.3, 4.0, 3.8))
 const CAMERA_ROOM := AABB(Vector3(-7.7, -0.5, -19.9), Vector3(4.6, 4.0, 4.8))
 const LAB := AABB(Vector3(-15.9, -0.5, -3.9), Vector3(5.8, 4.5, 7.8))
 const SERVICE := AABB(Vector3(-18.2, -0.5, -18.2), Vector3(4.2, 4.0, 28.4))
+## Every room and corridor, for ArtDress.explain_dark.
+const DARK_CHECK := [
+	LANDING, OFFICE, RECEPTION, CAMERA_ROOM, LAB,
+	AABB(Vector3(-18, 0, -16), Vector3(2, 3, 24)),  # service passage (SERVICE also takes in the lab's wall)
+	AABB(Vector3(-6, 0, 2), Vector3(12, 3, 4)),  # corridor
+	AABB(Vector3(-2.5, 0, -12), Vector3(5, 3, 4)), AABB(Vector3(-2, 0, -17), Vector3(4, 3, 5)),  # vestibule, elevator lobby
+	AABB(Vector3(-10, 0, -18), Vector3(2, 3, 28)),  # patrol corridor
+	AABB(Vector3(-18, 0, 8), Vector3(8, 3, 2)), AABB(Vector3(-18, 0, -18), Vector3(8, 3, 2)),  # the passages round the lab
+	AABB(Vector3(-16, 0, 4.2), Vector3(6, 3, 3.6)), AABB(Vector3(-16, 0, -9.8), Vector3(6, 3, 5.6)),  # interview, briefing
+	AABB(Vector3(-16, 0, -15.8), Vector3(6, 3, 5.6)),  # lockers
+]
 
 
 static func apply(level: LevelBase) -> void:
@@ -57,6 +68,12 @@ static func apply(level: LevelBase) -> void:
 	_back(dress)
 
 	ArtDress.link_light_panels(level)
+	var vent: Array = []
+	for z in range(-11, 5):
+		vent.append(Vector3(-6.6, 0, z))  # the vent's duct runs under this ceiling
+	for x in [-4.8, -3.0]:
+		vent.append(Vector3(x, 0, -10.0))
+	ArtDress.explain_dark(level, DARK_CHECK, 3.6, vent)
 	var lab = level.get("lab")
 	var rourke: Node3D = lab.get("rourke") if lab else null
 	if rourke:

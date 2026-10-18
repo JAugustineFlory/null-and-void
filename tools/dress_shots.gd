@@ -61,6 +61,7 @@ func _level_1() -> void:
 	await _shot(level, "l1_cable_vault", Vector3(-9.5, 0.1, -4.0), 60, -10)
 	await _shot(level, "l1_server_b", Vector3(9.0, 0.1, 7.8), -50, -6)
 	await _shot(level, "l1_break", Vector3(9.0, 0.1, -4.0), -75, -10)
+	await _shot(level, "l1_break_west", Vector3(16.0, 0.1, -5.0), 80, 18)
 	await _shot(level, "l1_server_c", Vector3(-12.0, 0.1, -14.0), 0, -8)
 	level.free()
 

@@ -285,6 +285,8 @@ func test_dressed_level_0() -> void:
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(10)
+	var unexplained := ArtDress.unexplained_dark(level, DressLevel0.DARK_CHECK)
+	check(unexplained.is_empty(), "Level 0: every dark patch has a cause you can see, a dead fitting (%s)" % str(unexplained.slice(0, 6)))
 	var boxes := _prop_boxes(level)
 	check(boxes.size() >= 10, "Level 0 is furnished (%d solid props)" % boxes.size())
 	var keep_clear := [
@@ -346,6 +348,23 @@ func test_dressed_level_1() -> void:
 	var level = load("res://scenes/level_1.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(10)
+	var unexplained := ArtDress.unexplained_dark(level, DressLevel1.DARK_CHECK)
+	check(unexplained.is_empty(), "Level 1: every dark patch has a cause you can see, a dead fitting (%s)" % str(unexplained.slice(0, 6)))
+	var break_dead := 0
+	for c in t.get_nodes_in_group("dark_cause"):
+		var at: Vector3 = ArtDress._in(level.get_node("Dressing"), c)
+		if level.is_ancestor_of(c) and DressLevel1.BREAK.has_point(Vector3(at.x, 1.0, at.z)):
+			break_dead += 1
+	check(break_dead > 0, "the break room's dark end has a fitting with a dead tube")
+	var facing_table := 0
+	var chairs := 0
+	for b in level.geo.get_children():
+		if b is StaticBody3D and String(b.name).begins_with("CafeChair") and DressLevel1.BREAK.has_point(b.position + Vector3(0, 0.5, 0)):
+			chairs += 1
+			var to_table: Vector3 = Vector3(17.5, 0, -5.5) - b.position
+			if (-b.transform.basis.z).dot(to_table.normalized()) > 0.5:
+				facing_table += 1
+	check(chairs == 4 and facing_table == 3, "break room chairs face the table, one pushed back askew (%d of %d)" % [facing_table, chairs])
 	var keep_clear := [Vector3(0, 0, 12.6), Vector3(0, 0, 6.0), Vector3(-4.5, 0, 7.4), Vector3(0, 0, -8.0), Vector3(0, 0, 10.5)]
 	keep_clear.append_array([
 		Vector3(-2.4, 0, 6.4), Vector3(0, 0, -11.0), Vector3(0, 0, -12.4),  # Rourke's lead-in, the way to the elevator
@@ -383,6 +402,8 @@ func test_dressed_level_2() -> void:
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(10)
+	var unexplained := ArtDress.unexplained_dark(level, DressLevel2.DARK_CHECK)
+	check(unexplained.is_empty(), "Level 2: every dark patch has a cause you can see, a dead fitting (%s)" % str(unexplained.slice(0, 6)))
 	var dressing: Node = level.get_node("Dressing")
 	check(dressing.get_child_count() > 20, "the security floor is furnished")
 	check(_prop_boxes(level).is_empty() and dressing.find_children("*", "CollisionShape3D", true, false).is_empty(),
@@ -668,6 +689,11 @@ func test_held_notebook() -> void:
 	var back := held.page_point(cam.unproject_position(world))
 	check(back.distance_to(px) < 3.0, "clicks on the pages land on the right spot of the page (%s)" % back)
 	check(held.page_point(Vector2(screen.x / 2.0, 5)).x < 0, "clicks above the book don't reach it")
+	for i in 2:
+		var page: MeshInstance3D = held.halves[i]
+		var thumb: MeshInstance3D = page.get_parent().get_node("LeftHand" if i == 0 else "RightHand").get_node("Thumb")
+		var pad := page.global_transform.affine_inverse() * thumb.global_transform * thumb.get_aabb()
+		check(pad.position.z > 0.0, "%s: the thumb lies on the open page, not through it" % thumb.get_parent().name)
 	var line := NotebookArt.hand("B1-04 storeroom")
 	book.right.add_child(line)
 	held.write_in(line, 0.3)
@@ -685,11 +711,11 @@ func test_held_notebook() -> void:
 	filer.t = 0.5
 	await t.process_frame
 	await t.process_frame
-	check(held.get_node("ReachHand").visible and not held.book_root.get_node("RightHand").visible, "your free hand carries a sticky note in while the other holds the book")
+	check(held.get_node("ReachHand").visible and not held.right_half.get_node("RightHand").visible, "your free hand carries a sticky note in while the other holds the book")
 	check(held.get_node("ReachHand").global_position.distance_to(note.global_position) < 0.05, "the hand is on the note")
 	filer.note = null
 	await t.process_frame
-	check(not held.get_node("ReachHand").visible and held.book_root.get_node("RightHand").visible, "filed, the hand goes back to the book")
+	check(not held.get_node("ReachHand").visible and held.right_half.get_node("RightHand").visible, "filed, the hand goes back to the book")
 	held.close_book()
 	await t.create_timer(0.45).timeout
 	check(not held.is_open() and not held.visible and held.viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the notebook goes back in the pocket")
@@ -725,8 +751,24 @@ func test_held_paper() -> void:
 	doc.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.01, -0.3))
 	for i in 40:
 		await t.process_frame
-	var corner := doc.global_transform * Vector3(0.23 / 2.0 - 0.02, -0.32 / 2.0 + 0.03, 0)
-	check(held.right_hand.global_position.distance_to(corner) < 0.01 and held.left_hand.visible, "held up to read, both hands hold it by the bottom corners")
+	var corner := doc.global_transform * Vector3(0.23 / 2.0, -0.32 / 2.0 + 0.03, held.page.position.z)
+	check(held.right_hand.global_position.distance_to(corner) < 0.01 and held.left_hand.visible, "held up to read, both hands hold it by the bottom corners, on its face at the edge")
+	# Thumbs on the page, never through it; palms and sleeves behind the board, never above the hands.
+	var to_doc := doc.global_transform.affine_inverse()
+	var back_z := INF
+	for n in doc.find_children("*", "MeshInstance3D", true, false):
+		if n != held.page:
+			back_z = minf(back_z, (to_doc * (n as MeshInstance3D).global_transform * (n as MeshInstance3D).get_aabb()).position.z)
+	for hand in [held.right_hand, held.left_hand]:
+		var thumb: MeshInstance3D = hand.get_node("Thumb")
+		var palm: MeshInstance3D = hand.get_node("Palm")
+		var sleeve: MeshInstance3D = hand.get_node("Sleeve")
+		var tb := to_doc * thumb.global_transform * thumb.get_aabb()
+		var pb := to_doc * palm.global_transform * palm.get_aabb()
+		var sb := to_doc * sleeve.global_transform * sleeve.get_aabb()
+		check(tb.position.z > held.page.position.z, "%s: the thumb lies on the page, not through it" % hand.name)
+		check(pb.end.z < back_z, "%s: the palm stays behind the clipboard" % hand.name)
+		check(sb.end.y < pb.end.y, "%s: the sleeve hangs below the hand, not past it" % hand.name)
 	player.prop_lowered.emit(doc)
 	player.held_prop = null
 	for i in 60:
