@@ -45,6 +45,7 @@ func _run() -> void:
 	await test_elevator()
 	await test_notebook()
 	await test_in_world_ui()
+	await test_pick_up_papers()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
@@ -525,7 +526,7 @@ func test_level_0_scene() -> void:
 	check(level.sync._gates.has("inside"), "Rourke greets the crew outside, then they all come in")
 	# Rourke walks the crew down the hall himself; nothing blocks the way.
 	level._on_walkies()
-	for i in 600:
+	for i in 1500:  # the PA's escort tape and Rourke's cover come first
 		if level.shutter.is_open:
 			break
 		await physics_frame
@@ -611,62 +612,118 @@ func test_ground_floor() -> void:
 	await create_timer(3.0).timeout
 	check(not hum.is_humming(), "back in the lit lobby, it's gone")
 	check(level.elevator.button.enabled == false, "the elevator won't go anywhere until Rourke takes the crew up")
+	# Trust beats while the crew works on the memo: Rourke wanders over to help.
+	level.rourke.global_position = level.DESK_SPOT
+	level._on_hatch(null)
+	await process_frame
+	check(level.hud._notice.text.contains("stuck"), "the ceiling panel in the IT closet is stuck and too high alone")
+	level._rourke_free = true
+	level._on_vending(null)
+	for i in 1800:
+		if level.geo.has_node("CoffeeCup"):
+			break
+		await physics_frame
+	check(level.geo.has_node("CoffeeCup") and level.rourke.global_position.distance_to(Vector3(6.2, 0, -12)) < 1.0, "at the vending machine, Rourke knows the trick and gets a coffee out")
+	level._on_vending(null)
+	await process_frame
+	check(not level.vending.enabled or level.hud._notice.text.contains("keeps it"), "only once")
+	for i in 1800:
+		if level._rourke_can_help():
+			break
+		await physics_frame
+	check(level._rourke_can_help(), "he walks back to the front desk")
+	level._on_hatch(null)
+	for i in 1800:
+		if level.find_children("*", "Document", true, false).any(func(d): return d.title == "Old sticker"):
+			break
+		await physics_frame
+	check(not level.ceiling_hatch.enabled and level.rourke.global_position.distance_to(Vector3(10, 0, -11)) < 1.0, "in the IT closet, he gives a leg up to the stuck ceiling panel")
+	for i in 1800:
+		if level.rourke.global_position.distance_to(level.DESK_SPOT) < 0.5:
+			break
+		await physics_frame
+	check(level.rourke.global_position.distance_to(level.DESK_SPOT) < 0.5, "then goes back to the front desk")
 	level.queue_free()
 	await process_frame
 
 
 func test_level_1_scene() -> void:
-	print("Level 1 scene")
+	print("Level 1 scene: the server floor")
 	_game().new_run(7)
 	var level = load("res://scenes/level_1.tscn").instantiate()
 	root.add_child(level)
 	for i in 30:
 		await physics_frame
-	check(level.doors["SRA-EXIT"].is_open == false, "exit starts locked")
-	check(not level.terminal.locked, "the trap doesn't spring while the player is still in the antechamber")
-	level.terminal_ui.terminal = level.terminal
-	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault'")
-	check(not level.controller_puzzle.solved, "the puzzle waits for the self-test")
-	level.player.global_position = level.to_global(Vector3(-4.5, 0.1, 7.4))  # at the terminal desk
-	level.terminal.interact(level.player)
-	check(level.terminal_ui.visible and not level.terminal.locked, "the terminal opens normally: nothing is wrong yet")
-	await create_timer(level.ATTACK_DELAY - 1.0).timeout
-	check(not level._trapped, "Rourke waits a few seconds")
-	await create_timer(1.5).timeout
-	check(level._trapped and level.terminal.locked, "Rourke turns a few seconds after a player starts working, and locks the terminal")
-	check(not level.terminal_ui.visible and not level.player.input_locked, "the terminal screen closes so the player can fight")
-	level.terminal_ui.terminal = level.terminal
-	level.terminal_ui.run("SELECT * FROM door_controllers")
-	check(not level.controller_puzzle.solved, "locked terminal refuses queries")
-	level.player.global_position = Vector3(-6.4, 0.1, -7.5)  # far corner, behind the racks
-	level.rourke.global_position = Vector3(0, 0, 4)
-	level.rourke.start_chase(level.player)
-	var start_dist: float = level.rourke.global_position.distance_to(level.player.global_position)
-	for i in 240:
+	check(level.doors["SRA-EXIT"].is_open == false and level.room_c_door.locked, "Server Room A's rear door and Server Room C start stuck")
+	check(not level.elevator.button.enabled and level.elevator.open_amount == 0.0, "the elevator up is out of service")
+	check(level.terminal.locked, "the terminal waits for Rourke's maintenance session")
+	level._on_panel(null, level.answer)
+	check(not level.controller_puzzle.solved and level.doors["SRA-EXIT"].is_open == false, "the racks do nothing before Rourke asks")
+	level._on_asked()
+	check(not level.terminal.locked and _game().current_todo() != "", "once Rourke asks, the terminal opens and the job goes on the to-do list")
+	check(not level.rourke.is_in_group(VoiceChat.INTERFERENCE_GROUP) and Rourke.State.keys()[level.rourke.state] != "CHASE", "no fight on the server floor")
+	# Every room of the floor is on the navigation mesh, reachable from the arrival corridor.
+	var map: RID = level.get_world_3d().navigation_map
+	for i in 5:
 		await physics_frame
-	var end_dist: float = level.rourke.global_position.distance_to(level.player.global_position)
-	check(end_dist < start_dist - 4.0, "Rourke chases around the racks (%.1f m -> %.1f m)" % [start_dist, end_dist])
-	level.rourke.state = Rourke.State.IDLE
-	level._on_rourke_resolved("tied")
-	check(not level.terminal.locked and _game().rourke_fate == "tied", "taking the badge unlocks the terminal")
+	var from: Vector3 = level.to_global(Vector3(0, 0, 11))
+	var rooms := {"the NOC": Vector3(-15, 0, 3), "the cable vault": Vector3(-15, 0, -6), "Server Room B": Vector3(15, 0, 3),
+		"the break room": Vector3(15, 0, -6), "Server Room C": Vector3(-12, 0, -18.5), "the north corridor": Vector3(0, 0, -11)}
+	for room_name in rooms:
+		var to: Vector3 = level.to_global(rooms[room_name])
+		var path := NavigationServer3D.map_get_path(map, from, to, true)
+		check(path.size() > 1 and path[path.size() - 1].distance_to(to) < 1.0, "%s is reachable on foot" % room_name)
+	var round_west := NavigationServer3D.map_get_path(map, level.to_global(Vector3(-14.5, 0, 10)), level.to_global(Vector3(-12, 0, -10.5)), true)
+	check(round_west.size() > 1 and Array(round_west).all(func(q): return level.to_local(q).x < -7.5), "the west side loops round through the NOC and the cable vault, not Server Room A")
+
+	level.terminal_ui.terminal = level.terminal
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A'")
+	check(not level.controller_puzzle.solved, "zone alone isn't enough")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault'")
-	check(level.controller_puzzle.solved, "WHERE + AND solves the controller puzzle")
+	check(level.controller_puzzle.solved, "WHERE + AND finds the controller")
 	_check_l1_documents(level)
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
 	level._on_panel(null, healthy)
 	check(level.panels_locked_until == 0.0, "pressing a healthy rack explains itself without a lockout")
 	var wrong: String = level.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
 	level._on_panel(null, wrong)
-	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until > 0.0, "an offline zone-A rack does not open the exit")
+	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until > 0.0, "an offline zone-A rack fixes nothing")
 	check(level.hud._notice.text.contains("'offline'") and level.hud._notice.text.contains("off on purpose"), "the rack's readout shows why it was the wrong one, where the player is standing")
 	level.panels_locked_until = 0.0
 	level._on_panel(null, level.answer)
-	check(level.doors["SRA-EXIT"].is_open, "resetting the right rack opens the exit")
-	check(level.elevator.open_amount == 0.0, "the elevator waits with its doors shut")
-	level._on_exit(null)
-	await level.elevator.opened
-	check(level.elevator.open_amount == 1.0, "reaching the exit corridor opens the elevator")
-	level.player.global_position = level.to_global(Vector3(0, 0.1, -13.5))
+	for i in 1500:
+		if level.doors["SRA-EXIT"].is_open:
+			break
+		await physics_frame
+	check(level.rourke.global_position.distance_to(level.rack_panels[level.answer].global_position) < 1.6, "Rourke comes over to badge the reset")
+	check(level.doors["SRA-EXIT"].is_open and not level.room_c_door.locked, "resetting the right rack frees the floor's stuck doors")
+	var shown := "\n".join(Array(level.terminal.transcript))
+	check(shown.contains("VALE_I") and shown.contains("SECURE LAB B"), "the controller's log points at Vale's lab")
+	check(level.find_children("*", "Document", true, false).any(func(d): return d.title == "SYSLOG PRINTOUT" and str(d.doc_lines).contains("VALE")), "and so does the syslog printout in Server Room C")
+	check(_game().rourke_fate == "unknown", "Rourke's fate is still open after the server floor")
+
+	# The cable vault's spare coil: whoever takes it carries it up.
+	level.cable_coil.interact(level.player)
+	await physics_frame
+	check(level.cable_holders.has(level.players.id_of(level.player)) and not level.cable_coil.visible, "taking the coil of network cable marks who carries it")
+
+	# Rourke heads for the elevator; it opens once the crew is with him.
+	for i in 2400:
+		if level.sync._gates.has("rourke_at_lift"):
+			break
+		await physics_frame
+	check(level.sync._gates.has("rourke_at_lift") and level.rourke.global_position.distance_to(level.to_global(Vector3(1.8, 0, -11))) < 0.5, "Rourke walks the crew through Server Room A to the elevator")
+	check(level.elevator.open_amount == 0.0, "the elevator waits for the crew")
+	level.player.global_position = level.to_global(Vector3(-1.5, 0.1, -11))
+	for i in 900:
+		if level.sync._gates.has("rourke_in_lift"):
+			break
+		await physics_frame
+	check(level.elevator.open_amount > 0.9 and level.elevator.contains(level.rourke.global_position), "with everyone there, the elevator opens and Rourke steps in")
+	level.player.global_position = level.elevator.to_global(Vector3(-0.6, 0.1, 1.2))
+	await physics_frame
+	check(level.elevator.button.get_prompt(level.player).contains("Press 2"), "inside, the button says where it goes")
+	level.player.global_position = level.to_global(Vector3(0, 0.1, -10.5))
 	await physics_frame
 	check(not level.elevator.press() and not level.elevator.is_closing and level.elevator.refusal != "", "the button does nothing while someone is still outside")
 	level.queue_free()
@@ -823,45 +880,19 @@ func test_coop_level_1() -> void:
 	var client = levels[1]
 	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
 
-	host.player.global_position = Vector3(0, 0.1, 12.5)
+	host.player.global_position = Vector3(0, 0.1, 11.5)
 	client.player.global_position = Vector3(-4.5, 0.1, 7.4)  # at the terminal desk
+	host.sync.event("_on_asked")
 	await _frames(30)
+	check(not host.terminal.locked and not client.terminal.locked, "Rourke's ask opens the terminal for everyone")
 	client.terminal.interact(client.player)
 	await _frames(5)
 	check(client.terminal_ui.visible and not host.terminal_ui.visible, "a client sits down at the terminal on their own screen")
-	await create_timer(host.ATTACK_DELAY + 0.5).timeout
-	check(not host._trapped and not host.terminal.locked, "Rourke holds off while someone is still outside")
-	check(host.rourke.global_position.distance_to(Vector3(-4.5, 0, 7.4)) < 2.5, "the host hears the client sat down: Rourke drifts up behind them")
-	host.player.global_position = Vector3(1, 0.1, 3)
-	await _frames(30)
-	check(host.terminal.locked and client.terminal.locked, "the trap springs once everyone is inside")
-	check(not client.terminal_ui.visible, "the client's terminal screen closes for the fight")
-	check(host.rourke.max_hits == Rourke.MAX_HITS + 2, "Rourke is tougher with two players (%d hits)" % host.rourke.max_hits)
+	client.terminal_ui.close()
 
 	host.rourke.global_position = Vector3(-3, 0, 5)
 	await _frames(20)
 	check(client.rourke.global_position.distance_to(host.rourke.global_position) < 1.0, "clients see Rourke where the host has him")
-	host.rourke.set_physics_process(false)
-	host.rourke._windup = 0.4
-	await _frames(5)
-	check(client.rourke._windup > 0.0, "clients see Rourke wind up an attack")
-	host.rourke._windup = 0.0
-	host.rourke.set_physics_process(true)
-	var before: int = host.rourke.hits_left
-	host.rourke.state = Rourke.State.CHASE
-	client.rourke.take_hit(client.player)
-	await _frames(10)
-	check(host.rourke.hits_left == before - 1, "a client's strike lands on the host's Rourke")
-
-	var hp: float = client.player.health
-	host.players.puppet(client_id).take_damage(10.0)
-	await _frames(10)
-	check(client.player.health == hp - 10.0, "damage reaches the player it was meant for")
-
-	host.rourke.state = Rourke.State.IDLE
-	host.sync.event("_on_rourke_resolved", ["tied"])
-	await _frames(10)
-	check(not client.terminal.locked and client.has_badge, "the badge unlocks the terminal for everyone")
 
 	var wrong: String = host.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
 	client.rack_panels[wrong].interact(client.player)
@@ -884,19 +915,25 @@ func test_coop_level_1() -> void:
 	check(not mate.crouching and is_equal_approx(mate.stance_height, Player.STAND_HEIGHT) and mate.rig.crouch_amount() == 0.0, "and stands back up with them")
 	client.player.set_physics_process(true)
 
+	client.player.global_position = Vector3(-17.5, 0.1, -7.2)
+	await _frames(5)
+	client.cable_coil.interact(client.player)
+	await _frames(10)
+	check(host.cable_holders.has(client_id) and client.cable_holders.has(client_id) and not host.cable_coil.visible, "the client takes the cable coil, and every machine knows who carries it")
+
 	# The elevator: the host counts heads, then the doors close everywhere.
-	host.sync.event("_on_exit", [null])
+	host.sync.event("_on_crew_at_lift")
 	await _frames(5)
 	for l in levels:
 		l.elevator.closed.disconnect(l._on_elevator_closed)  # stay in this level for the checks
 		l.elevator.open(true)
-	host.player.global_position = Vector3(0.4, 0.1, -17.1)
-	client.player.global_position = Vector3(0, 0.1, -12.0)
+	host.player.global_position = host.elevator.to_global(Vector3(0.4, 0.1, 1.2))
+	client.player.global_position = Vector3(-3, 0.1, -11.0)
 	await _frames(30)
 	client.elevator.button.interact(client.player)
 	await _frames(10)
 	check(host.elevator.refusal.contains("1/2") and not host.elevator.is_closing and not client.elevator.is_closing, "the elevator waits for a teammate still outside")
-	client.player.global_position = Vector3(-0.4, 0.1, -17.1)
+	client.player.global_position = client.elevator.to_global(Vector3(-0.4, 0.1, 1.2))
 	await _frames(30)
 	client.elevator.button.interact(client.player)
 	await _frames(10)
@@ -1007,6 +1044,10 @@ func test_coop_world() -> void:
 	var sra_c = client.wings["level_1"]
 	var dump := "SELECT * FROM doors ORDER BY id"
 	check(_table(sra_h, dump) == _table(sra_c, dump), "both machines built the same building from the run seed")
+	for f in 1800:  # the PA tape and Rourke's cover, then he walks to the hall shutter
+		await physics_frame
+		if lobby_h.sync._gates.has("rourke_at_shutter"):
+			break
 	lobby_h.sync.event("_on_reach_server_room", [null])
 	for f in 900:  # Rourke opens the elevator bank's door and says his line
 		await physics_frame
@@ -1035,7 +1076,7 @@ func test_coop_world() -> void:
 	sra_h.rourke.global_position = sra_h.to_global(Vector3(-3, 0, 5))
 	await _frames(20)
 	check(sra_c.rourke.global_position.distance_to(sra_h.rourke.global_position) < 1.0, "clients see the wing's Rourke where the host has him")
-	sra_h.sync.event("_on_rourke_resolved", ["tied"])
+	sra_h.sync.event("_on_asked")
 	await _frames(10)
 	sra_c.terminal_ui.terminal = sra_c.terminal
 	sra_c.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
@@ -1861,7 +1902,8 @@ func _check_l1_documents(level: Node) -> void:
 	check(Array(level.terminal.transcript).any(func(l): return TerminalUI._plain(l).begins_with("[SYSOP]: that's the one")), "SYSOP confirms the controller")
 	check(_game().current_todo() != "" and not _game().current_todo().contains(level.answer), "the to-do names the task, never the answer (%s)" % _game().current_todo())
 	for d in level.find_children("*", "Document", true, false):
-		check(level.terminal.global_position.distance_to(d.global_position) < 1.5, "%s is on the terminal desk" % d.title)
+		if d.title in ["SERVER ROOM A - DOOR CONTROLLERS", "Reminders"]:
+			check(level.terminal.global_position.distance_to(d.global_position) < 1.5, "%s is on the terminal desk" % d.title)
 
 
 func _game() -> Node:
@@ -1943,8 +1985,8 @@ func test_world() -> void:
 	for i in 10:
 		await physics_frame
 	check(sra.rourke.visible and sra.arrival_lift.open_amount > 0.0, "he rides up with them, and the car opens on the server floor")
-	sra._on_trapped(null)
-	check(sra.terminal.locked, "Server Room A's story runs inside the World")
+	sra._on_asked()
+	check(not sra.terminal.locked and sra.asked, "the server floor's story runs inside the World")
 	check(not world.wings.has("level_2"), "the security wing isn't loaded before it's needed")
 	world.load_next(sra)
 	var sec = world.wings.get("level_2")
@@ -1957,8 +1999,8 @@ func test_world() -> void:
 	check(sec._clock == 0.0, "the security wing's clock doesn't run before players get there")
 	check(sec._camera_holds(sec.watcher), "cameras cover the Watcher's spot in the office, wherever the wing sits")
 	# Out by the elevator: the doors closing are the checkpoint, the ride ends in the security wing.
-	sra.rourke.state = Rourke.State.IDLE
-	sra._on_exit(null)
+	sra.elevator.closed.connect(sra._on_elevator_closed, CONNECT_ONE_SHOT)
+	sra.elevator.open()
 	await sra.elevator.opened
 	world.player.global_position = sra.elevator.to_global(Vector3(0, 0.1, Elevator.SIZE.z / 2))
 	for i in 5:
@@ -2282,6 +2324,78 @@ func test_in_world_ui() -> void:
 	t.interact(p)
 	check(ui.visible and not ui.is_on_screen(), "and the full-screen terminal")
 	ui.close()
+	level.queue_free()
+	await process_frame
+
+
+## Papers come up off the desk or wall into your hands, and sticky notes go onto
+## the notebook's page (Game.diegetic_ui).
+func test_pick_up_papers() -> void:
+	print("Picking up papers and filing sticky notes")
+	_game().new_run(5)
+	_game().diegetic_ui = true
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	for i in 10:
+		await physics_frame
+	var p: Player = level.player
+	level._release_camera(p)
+	p.seated = false
+	p.global_position = Vector3(1.0, 0.1, -1.9)  # behind the front desk
+	p.rotation.y = 0.0
+	for i in 20:
+		await physics_frame
+	var hands: HeldPaper = p.camera.get_node_or_null("HeldPaper")
+	check(hands != null, "the notebook's hands also hold papers")
+	var card: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title.begins_with("ScanRight"))[0]
+	var home := card.global_transform
+	card._on_used(p)
+	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
+	check(reader.held and p.held_prop == card and not p.input_locked and not reader.view.visible, "E lifts the card off the desk into your hands, with no full-screen page and no freezing in place")
+	for i in 120:
+		if p.is_holding_prop() and p._prop_t >= 1.0:
+			break
+		await physics_frame
+	var face: Vector3 = card.global_basis * card.read_face
+	check(face.dot(p.camera.global_position - card.global_position) > 0.0, "its printed side faces you")
+	check(hands.prop == card and hands.page != null and reader.page_viewport != null, "the hands hold it, with its real page on it")
+	var centre := p.get_viewport().get_visible_rect().size / 2.0
+	check(reader.page_point(centre).x >= 0.0 and reader.page_point(Vector2(2, 2)).x < 0.0, "the pointer in the middle of the view is on the page, and the corner isn't")
+	var line: String = card.lines()[4].text
+	(reader.page_viewport.get_child(0) as DocumentView).copy_requested.emit(line)
+	check(reader._note_label.visible and p.input_locked, "a line's \"+ note\" on the page asks for a name, standing still to type it")
+	reader._finish_note("scanner")
+	check(_game().notebook_written.any(func(n): return n.text == line.strip_edges() and n.label == "scanner") and not p.input_locked, "and goes in the notebook")
+	reader.close()
+	for i in 120:
+		if not is_instance_valid(reader):
+			break
+		await physics_frame
+	check(not is_instance_valid(reader) and p.held_prop == null and card.global_transform.origin.distance_to(home.origin) < 0.01, "E puts it back where it was")
+	# A sheet on a wall comes off the wall the same way, its printed side to you.
+	var sheet := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Wall test", ["one", "two"])
+	p.look_at(Vector3(1.0, p.global_position.y, -3.2))
+	await physics_frame
+	sheet._on_used(p)
+	for i in 120:
+		if p.is_holding_prop() and p._prop_t >= 1.0:
+			break
+		await physics_frame
+	face = sheet.global_basis * sheet.read_face
+	check(p.held_prop == sheet and face.dot(p.camera.global_position - sheet.global_position) > 0.0, "a wall sheet comes up printed side to you")
+	p.put_down(true)
+	await physics_frame
+	# A loose sticky note goes onto the notebook's page, then in the notebook.
+	var sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
+	var id := sticky.note_id
+	sticky._on_used(p)
+	check(p.is_filing() and level.notebook.is_open(), "taking a sticky note opens the notebook and puts the note on its page")
+	for i in 240:
+		if _game().notebook_notes.has(id):
+			break
+		await physics_frame
+	check(_game().notebook_notes.has(id) and not is_instance_valid(sticky), "once it lands it's in the notebook, and gone from the desk")
+	_game().diegetic_ui = false
 	level.queue_free()
 	await process_frame
 

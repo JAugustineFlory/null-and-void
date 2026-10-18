@@ -315,7 +315,7 @@ func walk_level_0() -> void:
 	await t.process_frame
 
 
-# --- Level 1: Server Room A -------------------------------------------------
+# --- Level 1: the server floor -------------------------------------------------
 
 func walk_level_1(seed_value: int) -> void:
 	_game().new_run(seed_value)
@@ -323,8 +323,9 @@ func walk_level_1(seed_value: int) -> void:
 	t.root.add_child(level)
 	for i in 20:
 		await t.physics_frame
-	level.rourke.state = Rourke.State.IDLE
-	level._on_rourke_resolved("tied")
+	level._on_asked()  # Rourke has asked the crew to find the fault
+	var todo: String = _game().current_todo()
+	check(todo != "" and not todo.contains(level.answer), "server floor: the to-do names the job, never the controller (%s)" % todo)
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
 	check(world_text(level, level.terminal).contains("door_controllers") and screen(ui).contains("zone A") and screen(ui).contains("'fault'"), "server room: the desk card names the table, and the self-test shows both clues")
@@ -339,9 +340,11 @@ func walk_level_1(seed_value: int) -> void:
 	check(panel != null, "server room: that rack has a reset panel the player can press")
 	if panel:
 		panel.interact(level.player)
-	for i in 5:
+	for i in 1500:  # Rourke walks over to badge the reset
+		if level.doors["SRA-EXIT"].is_open:
+			break
 		await t.physics_frame
-	check(level.doors["SRA-EXIT"].is_open, "server room: resetting the controller read off the screen opens the exit")
+	check(level.doors["SRA-EXIT"].is_open and not level.room_c_door.locked, "server room: resetting the controller read off the screen frees the floor's stuck doors")
 	level.queue_free()
 	await t.process_frame
 

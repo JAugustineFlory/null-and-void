@@ -22,6 +22,10 @@ var title := ""
 ## Every line also has "text": the whole line as it reads, which is what gets copied.
 var doc_lines: Array[Dictionary] = []
 var look := "paper"
+## Its readable face, for picking it up (player.pick_up): size in metres, and the
+## local direction that face points.
+var read_size := Vector2(0.21, 0.28)
+var read_face := Vector3.BACK
 
 
 ## `lines` is an Array of Strings (typed lines) or Dictionaries (see doc_lines).
@@ -52,6 +56,12 @@ static func _line(l: Variant) -> Dictionary:
 	var d: Dictionary = l.duplicate()
 	if d.has("filled"):
 		d["text"] = "%s%s%s" % [d.get("before", ""), d.filled, d.get("after", "")]
+	elif d.has("columns") and not d.has("text"):
+		d["text"] = "  ".join(d.columns.map(func(c): return str(c)))  # a table's header copies as its names
+	elif d.has("row") and not d.has("text"):
+		d["text"] = "  ".join(d.row.map(func(c): return str(c)))
+	elif d.has("stamp") and not d.has("text"):
+		d["text"] = str(d.stamp)
 	d["hand"] = d.get("hand", false)
 	return d
 
@@ -76,6 +86,8 @@ func _build_look(size: Vector2, flat: bool) -> void:
 	var prop: String = LOOKS.get(look, LOOKS.paper).prop
 	if not flat and prop in ["memo", "desk_card"]:
 		_build_wall_sheet(size)
+		read_size = size
+		read_face = Vector3.FORWARD
 		return
 	# Props face -Z like a poster; turn them to face out, as StickyNote does.
 	var art: Node3D
@@ -91,6 +103,8 @@ func _build_look(size: Vector2, flat: bool) -> void:
 		_:
 			art = ArtProps.memo(self, Vector3.ZERO, 180.0, title, flat)
 	var footprint: Vector3 = art.get_meta("doc_size", Vector3(size.x, 0.01, size.y) if flat else Vector3(size.x, size.y, 0.01))
+	read_size = Vector2(footprint.x, footprint.z) if flat else Vector2(footprint.x, footprint.y)
+	read_face = Vector3.UP if flat else Vector3.BACK  # the art is turned to face +Z
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
 	# A little thicker than the paper so it's easy to aim at.
@@ -201,7 +215,21 @@ func _on_used(player: Node) -> void:
 	var level := _level()
 	if level and level.get("player") != null and player != level.player:
 		return
-	open_reader(player)
+	if get_node("/root/Game").diegetic_ui and player.has_method("pick_up"):
+		pick_up(player)
+	else:
+		open_reader(player)
+
+
+## Lift it up off the desk or wall to read it in your hands (Game.diegetic_ui).
+## Returns the reader, or null if the player's hands are busy.
+func pick_up(player: Node) -> DocumentReader:
+	var reader := DocumentReader.new()
+	var level := _level()
+	(level if level else get_tree().root).add_child(reader)
+	if not reader.hold(self, player):
+		return null
+	return reader
 
 
 ## Open this document on this machine's screen. Returns the reader.

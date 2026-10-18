@@ -18,14 +18,14 @@ static func apply(level: LevelBase) -> void:
 		{"names": ["Floor"], "zone": ROOM, "mat": ArtPalette.surface("floor_tile", Color(0.72, 0.74, 0.76))},
 		{"names": ["Ceiling"], "zone": ROOM, "mat": ArtPalette.surface("ceiling_tile", Color(0.8, 0.82, 0.84))},
 		{"names": ["Wall_"], "zone": ROOM, "mat": ArtPalette.surface("drywall", Color(0.78, 0.82, 0.86))},
-		# ...bare concrete in the antechamber and the exit corridor.
+		# ...bare concrete in the corridors and the rest of the server floor.
 		{"names": ["Floor", "Ceiling", "Wall_"], "mat": ArtPalette.surface("concrete")},
 	])
 
 	# Cable trays over each row of racks.
 	for x in [-3.8, 3.8]:
 		ArtProps.cable_tray(dress, Vector3(x, 3.0, -1.5), 11.0)
-	ArtProps.poster(dress, Vector3(1.39, 1.6, 12.0), 90,
+	ArtProps.poster(dress, Vector3(2.4, 1.6, 9.12), 180,
 		"SERVER ROOM A\n\nAUTHORIZED PERSONNEL ONLY\n\nEscort badge required\nafter 18:00.", Vector2(0.5, 0.6))
 	# Spare-parts boxes in two far corners, out of the aisles.
 	ArtProps.boxes(geo, Vector3(6.3, 0, 8.3), 0, 3)
