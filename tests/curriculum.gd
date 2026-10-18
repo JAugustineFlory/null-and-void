@@ -11,6 +11,10 @@ extends RefCounted
 ## Items are SQL keywords (matched as capitalised words), or plain text that must
 ## appear as written: table and column names, values, and facts.
 ## Owned by the Teaching and UX thread. Add a row for every new puzzle.
+## `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
+## its first hint stays the exact query. Every other puzzle uses hint ladder A.
+## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
+## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 
 const PUZZLES := {
 	# Level 0: the lobby.
@@ -26,12 +30,51 @@ const PUZZLES := {
 		"teaches": ["ORDER BY", "piece_no"],
 		"needs": ["SELECT", "FROM", "memo_fragments", "ORDER BY", "piece_no"],
 	},
+	# Depth pass (plan/depth-pass-floors-0-2.md): ground floor. Provisional ids and
+	# names until Playtest fixes sends the built puzzle ids and chain values.
+	# "Who called us?": the ticket's extension, matched in the staff directory.
+	"caller": {
+		"level": 0,
+		"pressure": false,
+		"teaches": ["COLUMNS", "staff_directory", "extension"],
+		"needs": ["SELECT", "FROM", "COLUMNS", "staff_directory", "extension"],
+	},
+	# Optional: the newest visitor first.
+	"last_visitor": {
+		"level": 0,
+		"pressure": false,
+		"teaches": ["DESC", "visitors", "signed_in"],
+		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "visitors", "signed_in"],
+	},
 	# Level 1: Server Room A.
 	"controller": {
 		"level": 1,
 		"pressure": false,
 		"teaches": ["WHERE", "AND", "door_controllers", "single quotes", "zone A", "'fault'"],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'", "'A'"],
+	},
+	# Depth pass, server floor (provisional ids). Step 1 of the controller chain:
+	# the stuck doors share one zone. The controller row then needs that zone, read
+	# off this result, instead of a zone printed on the self-test.
+	"stuck_doors": {
+		"level": 1,
+		"pressure": false,
+		"teaches": ["doors", "locked"],
+		"needs": ["SELECT", "FROM", "WHERE", "doors", "locked", "zone"],
+	},
+	# Optional: the overheating rack, comparison taught safely.
+	"hot_rack": {
+		"level": 1,
+		"pressure": false,
+		"teaches": [">", "racks", "temp_c"],
+		"needs": ["SELECT", "FROM", "WHERE", ">", "racks", "temp_c"],
+	},
+	# Optional: why the break room is dark.
+	"dark_room": {
+		"level": 1,
+		"pressure": false,
+		"teaches": ["lights"],
+		"needs": ["SELECT", "FROM", "WHERE", "lights", "floor"],
 	},
 	# Level 2: the security floor. Rourke turns in Secure Lab B (plan/floors-expansion.md);
 	# the lab door's controller is Level 1's WHERE / AND, now under pressure, with the
@@ -46,12 +89,14 @@ const PUZZLES := {
 	"badge_log": {
 		"level": 2,
 		"pressure": true,
+		"ladder": "exact",
 		"teaches": ["badge_log"],
 		"needs": ["SELECT", "FROM", "ORDER BY", "badge_log", "time"],
 	},
 	"cameras": {
 		"level": 2,
 		"pressure": false,
+		"ladder": "exact",
 		"teaches": ["GET", "GET /cameras", "motion"],
 		"needs": ["GET", "/cameras"],
 	},
