@@ -33,7 +33,15 @@ const PUZZLES := {
 		"teaches": ["WHERE", "AND", "door_controllers", "single quotes", "zone A", "'fault'"],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'", "'A'"],
 	},
-	# Level 2: Security Office.
+	# Level 2: the security floor. Rourke turns in Secure Lab B (plan/floors-expansion.md);
+	# the lab door's controller is Level 1's WHERE / AND, now under pressure, with the
+	# lab's own zone read off the room, not the screen. Walked once Level 2 builds the lab.
+	"lab_door": {
+		"level": 2,
+		"pressure": true,
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
+	},
 	"cameras": {
 		"level": 2,
 		"pressure": false,

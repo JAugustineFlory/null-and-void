@@ -39,6 +39,12 @@ var _look_base := Vector2.ZERO
 var vent_grate: Interactable
 var _intro_started := false
 var tape: Interactable
+## The dark east corridor's Hum.
+var hum: Hum
+## Up to the server floor, at the end of the hall.
+var elevator: Elevator
+## The elevator's doorway, in the elevator bank's east wall.
+const LIFT_AT := Vector3(30, 0, 3)
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
 	"Type this, then press Enter:\n" +
 	"    [color=#ffffff]SELECT * FROM memo_fragments;[/color]\n" +
@@ -68,6 +74,8 @@ func build() -> void:
 	Greybox.room(geo, Vector3.ZERO, Vector3(16, 4, 14), {"floor": carpet, "wall": wall}, [
 		{"wall": "e", "at": 3.0, "width": 2.0, "height": 3.0},
 		{"wall": "s", "at": 0.0, "width": 3.2, "height": 2.6},
+		{"wall": "n", "at": -6.5, "width": 1.6, "height": 2.6},  # to the north corridor, either side of the desk
+		{"wall": "n", "at": 6.5, "width": 1.6, "height": 2.6},
 		{"wall": "w", "at": 4.0, "width": 0.9, "height": 1.0},  # the air return, flush with the floor so you can crawl in
 	])
 	Greybox.label(geo, Vector3(0, 3.0, -6.88), "HALCYON DATA SYSTEMS", 160, Color(0.15, 0.2, 0.35))
@@ -141,17 +149,20 @@ func build() -> void:
 		Greybox.box(geo, Vector3(x, 0.25, 4.5), Vector3(0.9, 0.5, 0.9), Color(0.3, 0.12, 0.12), "Chair")
 	Greybox.box(geo, Vector3(-5.4, 0.2, 2.8), Vector3(2.0, 0.4, 0.8), Color(0.35, 0.28, 0.2), "Table")
 
-	# East hall to Server Room A: x 8..24, z 2..4
+	# East hall to the elevator bank: x 8..24, z 2..4. Halfway along, an unlit
+	# passage turns north into the dark east corridor.
 	Greybox.room(geo, Vector3(16, 0, 3), Vector3(16, 3, 2), {"floor": Color(0.3, 0.3, 0.3), "wall": wall}, [
 		{"wall": "w", "at": 0.0, "width": 2.0, "height": 3.0},
-		{"wall": "e", "at": 0.0, "width": 1.8, "height": 2.4},  # into Server Room A's antechamber
+		{"wall": "e", "at": 0.0, "width": 1.8, "height": 2.4},  # into the elevator bank
+		{"wall": "n", "at": 2.0, "width": 2.0, "height": 2.6},  # the dark passage
 	])
-	Greybox.label(geo, Vector3(23.88, 2.72, 3), "SERVER ROOM A  >", 64, Color(0.7, 0.1, 0.1), -90)
+	Greybox.label(geo, Vector3(23.88, 2.72, 3), "ELEVATORS  >", 64, Color(0.7, 0.1, 0.1), -90)
 	shutter = add_door("LOBBY-SHUTTER", Vector3(11, 1.5, 3), Vector3(0.15, 3.0, 2.0))
-	# Server Room A's door is an ordinary one: Rourke opens it, holds it, and it
+	# The elevator bank's door is an ordinary one: Rourke opens it, holds it, and it
 	# swings shut behind the crew.
 	exit_door = add_door("LOBBY-HALL-END", Vector3(23.9, 1.2, 3), Vector3(0.15, 2.4, 1.8)).make_hinged(Vector3(0, 0, -0.9), 90.0)
 	exit_door.locked = true  # a badge door: only Rourke opens it
+	_build_ground_floor(wall)
 
 	# The vent in the west wall leads to a forgotten storage closet: x -14..-8, z 3.5..4.5 duct
 	Traversal.vent(geo, Vector3(-8, 0.0, 4), Vector3(-14, 0.0, 4), Vector2(0.9, 0.95))
@@ -548,6 +559,104 @@ func start() -> void:
 	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
 
 
+## The rest of the ground floor around the lobby: a corridor along the back with
+## the mailroom, restrooms, cafeteria and IT closet off it; the unlit east corridor
+## where the Hum lives, looping back to the hall; and the elevator bank at the end
+## of the hall. Optional to explore: nothing here is needed to finish the level.
+func _build_ground_floor(wall: Color) -> void:
+	var lino := Color(0.3, 0.31, 0.3)
+	var tile := Color(0.75, 0.76, 0.74)
+	var office := Color(1.0, 0.95, 0.86)
+	# North corridor: x -20..12, z -10..-7, behind the lobby.
+	Greybox.room(geo, Vector3(-4, 0, -8.5), Vector3(32, 3, 3), {"floor": lino, "wall": wall}, [
+		{"wall": "s", "at": -2.5, "width": 1.6, "height": 2.6},  # lobby, west of the desk
+		{"wall": "s", "at": 10.5, "width": 1.6, "height": 2.6},  # lobby, east of the desk
+		{"wall": "e", "at": 0.0, "width": 2.8, "height": 3.0},  # into the dark east corridor
+		{"wall": "n", "at": -12.5, "width": 1.4, "height": 2.2},  # mailroom
+		{"wall": "n", "at": -7.5, "width": 1.4, "height": 2.2},  # men's
+		{"wall": "n", "at": -4.5, "width": 1.4, "height": 2.2},  # women's
+		{"wall": "n", "at": 4.0, "width": 2.4, "height": 2.6},  # cafeteria
+		{"wall": "n", "at": 14.0, "width": 1.4, "height": 2.2},  # IT closet
+	])
+	for x in [-16.0, -8.0, 0.0, 8.0]:
+		add_light("corridor", Vector3(x, 3, -8.5), 6.0, 1.0, office)
+	# Rooms off the corridor, each behind an ordinary door that players can shut.
+	for d in [["MAILROOM", -16.5], ["MENS", -11.5], ["WOMENS", -8.5], ["IT-CLOSET", 10.0]]:
+		add_door(d[0], Vector3(d[1], 1.1, -10.0), Vector3(1.35, 2.2, 0.08)).make_hinged(Vector3(-0.675, 0, 0), 90.0)
+	Greybox.label(geo, Vector3(-16.5, 2.45, -9.88), "MAILROOM", 36, Color(0.15, 0.15, 0.2))
+	Greybox.label(geo, Vector3(-11.5, 2.45, -9.88), "MEN", 36, Color(0.15, 0.15, 0.2))
+	Greybox.label(geo, Vector3(-8.5, 2.45, -9.88), "WOMEN", 36, Color(0.15, 0.15, 0.2))
+	Greybox.label(geo, Vector3(0, 2.8, -9.88), "CAFETERIA", 48, Color(0.15, 0.15, 0.2))
+	Greybox.label(geo, Vector3(10, 2.45, -9.88), "IT", 36, Color(0.15, 0.15, 0.2))
+
+	# Mailroom: x -20..-13, z -18..-10. Pigeonholes, a sorting table, a cart.
+	Greybox.room(geo, Vector3(-16.5, 0, -14), Vector3(7, 3, 8), {"floor": lino, "wall": wall}, [
+		{"wall": "s", "at": 0.0, "width": 1.4, "height": 2.2},
+	])
+	Greybox.box(geo, Vector3(-16.5, 1.1, -17.6), Vector3(5.5, 2.2, 0.6), Color(0.45, 0.38, 0.28), "Pigeonholes")
+	Greybox.box(geo, Vector3(-16.5, 0.45, -14.5), Vector3(3.0, 0.9, 1.2), Color(0.5, 0.45, 0.38), "SortingTable")
+	Greybox.box(geo, Vector3(-19.0, 0.5, -12.0), Vector3(1.0, 1.0, 1.4), Color(0.35, 0.35, 0.38), "MailCart")
+	add_light("mailroom", Vector3(-16.5, 3, -14), 6.0, 1.0, office)
+
+	# Restrooms: two narrow rooms with stalls to duck into.
+	for r in [-11.5, -8.5]:
+		Greybox.room(geo, Vector3(r, 0, -14), Vector3(3, 3, 8), {"floor": tile, "wall": tile.darkened(0.1)}, [
+			{"wall": "s", "at": 0.0, "width": 1.4, "height": 2.2},
+		])
+		Greybox.box(geo, Vector3(r - 0.9, 0.45, -11.2), Vector3(1.0, 0.9, 0.5), Color(0.85, 0.85, 0.82), "Sinks")
+		for k in 2:
+			var z := -15.2 - k * 1.4
+			Greybox.box(geo, Vector3(r + 0.2, 1.0, z + 0.7), Vector3(2.2, 2.0, 0.05), Color(0.55, 0.6, 0.62), "StallWall")
+		Greybox.box(geo, Vector3(r + 0.2, 1.0, -17.95), Vector3(2.2, 2.0, 0.05), Color(0.55, 0.6, 0.62), "StallWall")
+		add_light("restrooms", Vector3(r, 3, -13), 4.5, 0.8, office)
+
+	# Cafeteria: x -7..8, z -18..-10. Tables to hop, a serving counter, vending machines.
+	Greybox.room(geo, Vector3(0.5, 0, -14), Vector3(15, 3.5, 8), {"floor": lino, "wall": wall}, [
+		{"wall": "s", "at": -0.5, "width": 2.4, "height": 2.6},
+	])
+	for tx in [-4.0, 0.0, 4.0]:
+		for tz in [-12.5, -15.0]:
+			Greybox.box(geo, Vector3(tx, 0.375, tz), Vector3(2.0, 0.75, 1.0), Color(0.55, 0.42, 0.3), "CafTable")
+	Greybox.box(geo, Vector3(0.5, 0.5, -17.4), Vector3(8.0, 1.0, 0.9), Color(0.6, 0.6, 0.62), "ServingCounter")
+	Greybox.box(geo, Vector3(7.4, 0.9, -12.0), Vector3(0.9, 1.8, 0.8), Color(0.25, 0.3, 0.5), "VendingMachine")
+	Greybox.box(geo, Vector3(7.4, 0.9, -13.2), Vector3(0.9, 1.8, 0.8), Color(0.6, 0.15, 0.12), "VendingMachine")
+	for x in [-3.5, 4.5]:
+		add_light("cafeteria", Vector3(x, 3.5, -14), 8.0, 1.1, office)
+
+	# IT closet: x 8..12, z -14..-10. Shelves of spares and a patch panel.
+	Greybox.room(geo, Vector3(10, 0, -12), Vector3(4, 3, 4), {"floor": lino, "wall": wall}, [
+		{"wall": "s", "at": 0.0, "width": 1.4, "height": 2.2},
+	])
+	Greybox.box(geo, Vector3(8.4, 1.0, -12.0), Vector3(0.6, 2.0, 3.4), Color(0.4, 0.4, 0.42), "SpareShelf")
+	Greybox.box(geo, Vector3(11.7, 1.3, -12.5), Vector3(0.3, 1.2, 1.6), Color(0.12, 0.12, 0.14), "PatchPanel")
+	Greybox.box(geo, Vector3(10.8, 0.3, -13.4), Vector3(0.8, 0.6, 0.6), Color(0.45, 0.35, 0.2), "Crate")
+	add_light("it_closet", Vector3(10, 3, -12), 4.0, 0.7, office)
+
+	# The dark east corridor: x 12..19, z -10..-7, then a passage south (x 17..19)
+	# to the hall. No working lights: this is where the Hum lives.
+	Greybox.room(geo, Vector3(15.5, 0, -8.5), Vector3(7, 3, 3), {"floor": lino.darkened(0.2), "wall": wall.darkened(0.3)}, [
+		{"wall": "w", "at": 0.0, "width": 2.8, "height": 3.0},
+		{"wall": "s", "at": 2.5, "width": 2.0, "height": 2.6},
+	])
+	Greybox.room(geo, Vector3(18, 0, -2.5), Vector3(2, 3, 9), {"floor": lino.darkened(0.2), "wall": wall.darkened(0.3)}, [
+		{"wall": "n", "at": 0.0, "width": 2.0, "height": 2.6},
+		{"wall": "s", "at": 0.0, "width": 2.0, "height": 2.6},
+	])
+	Greybox.panel(geo, Vector3(15.5, 2.97, -8.5), Vector3(1.2, 0.05, 0.3), Color(0.3, 0.3, 0.3))  # a dead light
+	hum = Hum.create(self, AABB(Vector3(12, 0, -10), Vector3(7, 3, 12)))
+
+	# Elevator bank: x 24..30, z -1..7, through the badge door at the end of the hall.
+	Greybox.room(geo, Vector3(27, 0, 3), Vector3(6, 3.2, 8), {"floor": Color(0.35, 0.33, 0.3), "wall": wall}, [
+		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "e", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
+	])
+	add_light("elevators", Vector3(27, 3.2, 1), 7.0, 1.1, office)
+	add_light("elevators", Vector3(27, 3.2, 5), 7.0, 1.1, office)
+	elevator = Elevator.create(self, geo, LIFT_AT, 90, "G", ["G", "1"])
+	elevator.name = "Elevator"
+	elevator.button.enabled = false
+
+
 ## A shape with no collision, for small props on an interactable (so they don't
 ## catch the player's aim instead of it).
 static func _mesh(parent: Node, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
@@ -667,6 +776,8 @@ func _walk_to_server_room() -> void:
 	rourke.walk_to(Vector3(22.4, 0, 3))
 	_face_crew_on_arrival()
 	await hud.lines(["l0_tour_3", "l0_tour_4", "l0_tour_5", "l0_tour_6"])
+	# Past the dark passage to the east corridor, he waves the hum away.
+	await hud.line("l0_hum")
 	await sync.gate("rourke_at_sra", func():
 		if rourke.state == Rourke.State.WALK:
 			await rourke.arrived)
@@ -695,8 +806,11 @@ func _face_crew_on_arrival() -> void:
 ## Where Rourke waits for the crew: on the steps outside the front doors.
 const ROURKE_OUTSIDE := Vector3(0, 0, 8.8)
 
-## Where Rourke stands holding the door: just inside Server Room A's
-## antechamber, beside the doorway so the crew can walk past him.
+## Where Rourke stands in the elevator car, at the back by the buttons.
+const ROURKE_IN_LIFT := Vector3(0.75, 0, 1.6)
+
+## Where Rourke stands holding the door: just inside the elevator bank, beside
+## the doorway so the crew can walk past him.
 const HOLD_DOOR_AT := Vector3(25.0, 0, 4.05)
 
 
@@ -713,12 +827,53 @@ func _on_reach_server_room(_b: Node) -> void:
 		await rourke.arrived
 		rourke.walk_to(HOLD_DOOR_AT, true)
 		await rourke.arrived)
-	if sync.is_host():
-		rourke.watch = players.nearest(rourke.global_position)
-	await hud.line("l0_sra")
+	_watch_nearest()
+	await hud.line("l0_elevator")
+	hud.todo("Follow Rourke to the elevator")
+	# The door swings shut once the whole crew is past him and clear of its swing.
+	var past := Trigger.create(self, Vector3(28.1, 1, 3), Vector3(3.8, 2, 8))
+	past.require_all = true
+	past.waiting.connect(func(n, total): sync.team_notice("Rourke is holding the door for everyone (%d/%d)" % [n, total]))
+	past.entered.connect(func(_b): sync.event("_on_crew_at_elevators"))
+
+
+## Everyone is through: the door shuts behind them, the elevator opens and Rourke
+## steps in first.
+func _on_crew_at_elevators() -> void:
+	exit_door.set_open(false)
+	elevator.hud = hud
+	elevator.open()
+	elevator.closed.connect(_on_elevator_closed, CONNECT_ONE_SHOT)
+	elevator.button.enabled = true
+	prepare_next()
+	rourke.watch = null
+	await sync.gate("rourke_in_lift", func():
+		await get_tree().create_timer(0.6, false).timeout
+		rourke.walk_to(elevator.to_global(Vector3(0, 0, 0.6)), true)
+		await rourke.arrived
+		rourke.walk_to(elevator.to_global(ROURKE_IN_LIFT), true)
+		await rourke.arrived)
+	_watch_nearest()
+	if not elevator.is_closing and not elevator.riding:
+		hud.todo("Everyone into the elevator, then press 1")
+
+
+## The doors are shut: the checkpoint. The server floor loads during the ride, and
+## everyone (Rourke too) steps out of its arrival car.
+func _on_elevator_closed() -> void:
+	hud.todo("")
 	if world:
-		# Server Room A is already built behind this door. Its own Rourke takes over
-		# from this one where he stands and leads the crew in.
+		db.checkpoint()
+	prepare_next()
+	var next: Node = world.wings.get("level_1") if world else null
+	if next and next.get("arrival_lift") is Elevator:
+		elevator.link_to(next.arrival_lift)
+	await elevator.ride()
+	if elevator.destination:
+		# He rides up with the crew: the server floor's Rourke takes over where he stands.
+		var into := elevator.destination.global_transform * elevator.global_transform.affine_inverse()
+		rourke.global_transform = into * rourke.global_transform
+	if world:
 		finish_level("level_1")
 		return
 	player.input_locked = true
