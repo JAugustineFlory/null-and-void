@@ -352,7 +352,9 @@ static func fire_extinguisher(parent: Node, pos: Vector3, facing_deg: float) -> 
 	_piece(root, Vector3(0.05, 0.07, 0.05), Vector3(0, 0.28, -0.09), ArtPalette.flat(Color(0.15, 0.15, 0.15), 0.4))  # valve
 	_piece(root, Vector3(0.1, 0.04, 0.02), Vector3(0, 0.1, -0.01), ArtPalette.flat(Color(0.2, 0.2, 0.2), 0.4, 0.6))  # bracket
 	_piece(root, Vector3(0.2, 0.2, 0.004), Vector3(0, 0.5, -0.002), ArtPalette.flat(Color(0.75, 0.1, 0.08), 0.6))
-	_print(root, "FIRE\nEXTINGUISHER", Vector3(0, 0.5, -0.005), 0.18, NotebookArt.type_font(), 64, Color(0.97, 0.95, 0.9)).pixel_size = 0.0006
+	var l := _print(root, "FIRE\nEXTINGUISHER", Vector3(0, 0.5, -0.005), 0.18, NotebookArt.type_font(), 40, Color(0.97, 0.95, 0.9))
+	l.pixel_size = 0.0004
+	l.width = 0.19 / l.pixel_size
 	return root
 
 
@@ -368,8 +370,9 @@ static func wet_floor_sign(parent: Node, pos: Vector3, facing_deg: float = 0.0, 
 	for side in [-1.0, 1.0]:
 		var leaf := _piece(hold, Vector3(0.3, 0.6, 0.012), Vector3(0, 0.3, side * 0.09), yellow, true)
 		leaf.rotation_degrees.x = side * 15.0
-	var l := _print(hold, "CAUTION\nWET FLOOR", Vector3(0, 0.36, -0.105), 0.26, NotebookArt.type_font(), 64, Color(0.1, 0.1, 0.1))
-	l.pixel_size = 0.0006
+	var l := _print(hold, "CAUTION\nWET FLOOR", Vector3(0, 0.36, -0.105), 0.26, NotebookArt.type_font(), 48, Color(0.1, 0.1, 0.1))
+	l.pixel_size = 0.0005
+	l.width = 0.27 / l.pixel_size
 	l.rotation_degrees.x = -15
 	return root
 
