@@ -1486,11 +1486,17 @@ func test_level_2_routes() -> void:
 		var wall_sheet: Node3D = d.get_node_or_null("WallSheet")
 		var printed: Array = wall_sheet.find_children("Line*", "Label3D", false, false) if wall_sheet else []
 		var shown := " ".join(printed.map(func(l): return l.text))
+		if d.is_form():
+			check(wall_sheet != null and wall_sheet.get_node_or_null("Print") != null, "%s is on the wall as its detailed page" % d.title)
+			continue
 		check(wall_sheet != null and d.lines().all(func(l): return l.text == "" or shown.contains(l.text) or wall_sheet.find_child("Title", false, false).text == l.text), "%s is on the wall with all its words" % d.title)
 		check(printed.all(func(l): return l.font_size >= 20), "%s is printed big enough to read" % d.title)
 	var facing := func(title: String) -> float:
-		var label: Label3D = docs[titles.find(title)].get_node("WallSheet").find_child("Line0", false, false)
-		return label.global_basis.z.z  # Label3D reads from its +Z side
+		var on_wall: Node3D = docs[titles.find(title)].get_node("WallSheet")
+		var label: Node3D = on_wall.find_child("Line0", false, false)
+		if label == null:
+			label = on_wall.get_node("Print")
+		return label.global_basis.z.z  # Label3D and the print read from their +Z side
 	check(facing.call("NIGHT SHIFT SIGN-IN      DATE: 10/15") < -0.9 and facing.call("Lockdown PIN policy") > 0.9, "wall papers face into the corridor, not into the wall")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
@@ -1908,6 +1914,11 @@ func _check_l1_documents(level: Node) -> void:
 	for d in level.find_children("*", "Document", true, false):
 		if d.title in ["SERVER ROOM A - DOOR CONTROLLERS", "Reminders"]:
 			check(level.terminal.global_position.distance_to(d.global_position) < 1.5, "%s is on the terminal desk" % d.title)
+			# A flat paper's page reads from its +Z side up (HeldPaper): the top of the
+			# page points at the terminal and wall, the reader stands in the room.
+			check((d.global_basis * Vector3.BACK).z > 0.9, "%s reads the right way up from the room, so it isn't spun round as you pick it up" % d.title)
+		elif d.title == "SYSLOG PRINTOUT":
+			check((d.global_basis * Vector3.BACK).z < -0.9, "the syslog printout reads the right way up from the room, not from the wall")
 
 
 func _game() -> Node:
@@ -2155,8 +2166,17 @@ func test_notebook() -> void:
 	check(not nb.is_open() and not level.player.input_locked, "and closes again")
 	level.terminal_ui.open(level.desk_terminal, level.player)
 	check(not nb.open(), "the notebook can't be opened while using a terminal")
-	level.terminal_ui.run("SELECT * FROM memo_fragments")
-	check(_game().notebook_tables.get("memo_fragments", []) == ["piece_no", "text", "scanned_at"], "a query writes its table and columns on the Tables page")
+	# Like a real SQL prompt, Enter only runs a query that ends with ;.
+	var enter := InputEventKey.new()
+	enter.keycode = KEY_ENTER
+	enter.pressed = true
+	level.terminal_ui._input.text = "SELECT * FROM memo_fragments"
+	level.terminal_ui._on_input_key(enter)
+	check(level.terminal_ui._input.text == "SELECT * FROM memo_fragments\n" and not _game().notebook_tables.has("memo_fragments"), "Enter without a ; doesn't run the query: it carries on to a new line")
+	level.terminal_ui._input.text += ";"
+	level.terminal_ui._on_input_key(enter)
+	check(level.terminal_ui._input.text == "" and _game().notebook_tables.get("memo_fragments", []) == ["piece_no", "text", "scanned_at"], "with the ; it runs, and the query writes its table and columns on the Tables page")
+	check(TerminalUI.is_complete(".tables") and TerminalUI.is_complete("GET /doors") and not TerminalUI.is_complete("SELECT 1"), "dot-commands and requests need no ;")
 	level.terminal_ui.run(".tables")
 	check(_game().notebook_tables.has("visitors") and _game().notebook_tables.has("doors"), ".tables writes down every table")
 	# Write note: any line on the terminal can go in the notebook, with a label.
@@ -2358,6 +2378,21 @@ func test_pick_up_papers() -> void:
 		await physics_frame
 	var hands: HeldPaper = p.camera.get_node_or_null("HeldPaper")
 	check(hands != null, "the notebook's hands also hold papers")
+	# The sticky on the desk terminal's bezel is what you aim at, not the terminal.
+	var on_bezel: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return n.on_terminal)[0]
+	var term: Node3D = on_bezel.get_parent()
+	var stand := term.to_global(Vector3(0, 0, 0.85))
+	p.global_position = Vector3(stand.x, 0.1, stand.z)
+	for i in 10:
+		await physics_frame
+	p.camera.look_at(on_bezel.global_position)
+	p._ray.force_raycast_update()
+	check(p._look_target() == on_bezel, "looking straight at the sticky on the terminal's bezel aims at the sticky")
+	p.camera.rotation = Vector3.ZERO
+	p.global_position = Vector3(1.0, 0.1, -1.9)
+	p.rotation.y = 0.0
+	for i in 10:
+		await physics_frame
 	var card: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title.begins_with("ScanRight"))[0]
 	var home := card.global_transform
 	card._on_used(p)
@@ -2397,6 +2432,17 @@ func test_pick_up_papers() -> void:
 		await physics_frame
 	face = sheet.global_basis * sheet.read_face
 	check(p.held_prop == sheet and face.dot(p.camera.global_position - sheet.global_position) > 0.0, "a wall sheet comes up printed side to you")
+	var big_reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
+	var two: Label3D = sheet.get_node("WallSheet/Line1")
+	check(not hands.page.visible and two.visible, "a wall sheet in big print is read in that same big print, with no smaller page laid over it")
+	var on_two := big_reader.label_rect(two).get_center()
+	check(big_reader.line_at(on_two) == 1, "the pointer over a printed line finds that line")
+	big_reader._hover(on_two)
+	check(big_reader._chip.visible and big_reader._chip_index == 1, "and a \"+ note\" chip shows beside it")
+	big_reader._chip.pressed.emit()
+	check(big_reader._note_label.visible and not big_reader._chip.visible, "the chip asks for the note's name")
+	big_reader._finish_note("")
+	check(_game().notebook_written.any(func(n): return n.text == "two" and n.label == "Wall test"), "and copies the line")
 	var tab := InputEventKey.new()
 	tab.keycode = KEY_TAB
 	tab.physical_keycode = KEY_TAB
@@ -2409,6 +2455,26 @@ func test_pick_up_papers() -> void:
 		await physics_frame
 	check(p.held_prop == null and not level.notebook.is_open(), "Tab puts a paper down too, without opening the notebook")
 	await physics_frame
+	# A form on the wall is printed small and detailed, the same page you read held up.
+	var form := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Form test", [
+		{"columns": ["NAME", "IN"], "widths": [3.0, 1.0]},
+		{"row": ["PIKE", "22:00"], "hand": true},
+	])
+	var printed: MeshInstance3D = form.get_node_or_null("WallSheet/Print")
+	check(form.is_form() and printed != null and form.find_children("Line*", "Label3D", true, false).is_empty(), "a form on the wall is printed as its detailed page, not in big type")
+	form._on_used(p)
+	for i in 120:
+		if p.is_holding_prop() and p._prop_t >= 1.0:
+			break
+		await physics_frame
+	check(not printed.visible and hands.page.visible, "held, only one copy of its page shows")
+	level.find_children("*", "DocumentReader", true, false)[0].close()
+	for i in 120:
+		if p.held_prop == null:
+			break
+		await physics_frame
+	check(printed.visible, "and back on the wall it's printed again")
+	form.queue_free()
 	# The sticky by the keyboard can be picked up and read; desk stickies are drawn big.
 	var by_keys: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Sticky note")
 	check(by_keys.size() == 1 and by_keys[0].plain_text().contains("ORDER matters."), "the sticky by the keyboard is a note you can pick up and read")

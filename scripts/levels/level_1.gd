@@ -35,7 +35,7 @@ var cable_coil: Interactable
 ## Who carries cable up to Level 2: peer id -> true, the same on every machine.
 var cable_holders := {}
 
-const ROURKE_IN_LIFT := Vector3(0.75, 0, 1.6)
+const ROURKE_IN_LIFT := Vector3(-0.75, 0, 1.6)  # across the car from the buttons
 const RESPAWN := Vector3(0, 0.1, 11.0)
 ## Seconds after Rourke's ask before he tells a slow crew to take their time.
 const WAITING_AFTER := 60.0
@@ -119,14 +119,14 @@ func build() -> void:
 	terminal.queried.connect(_on_query)
 	StickyNote.on_monitor(terminal, "where_and")
 	# The room's laminated reference card, and Mercer's note on what the statuses mean.
-	Document.place(geo, Vector3(-5.25, 0.902, 8.35), 175.0, "SERVER ROOM A - DOOR CONTROLLERS", [
+	Document.place(geo, Vector3(-5.25, 0.902, 8.35), -5.0, "SERVER ROOM A - DOOR CONTROLLERS", [
 		"Each rack drives one door lock. Rack ids DC-1 to DC-8 are on the aisle end.",
 		{"before": "Every controller is listed in the table ", "filled": "door_controllers", "after": "."},
 		"Columns: id, zone, status, location, last_reset, note",
 		"This floor's doors and elevator are in zone A.",
 		"Faulted lock? Reset it at its own rack. Never reset a healthy one.",
 	], true, "laminated", Vector2(0.21, 0.15))
-	Document.place(geo, Vector3(-3.55, 0.902, 8.3), 190.0, "Reminders", [
+	Document.place(geo, Vector3(-3.55, 0.902, 8.3), 10.0, "Reminders", [
 		{"text": "status 'fault' = the lock relay is stuck. Needs a hand reset at the rack.", "hand": true, "author": "mercer"},
 		{"text": "status 'offline' = someone switched it off on purpose. Leave it alone.", "hand": true, "author": "mercer"},
 		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true, "author": "mercer"},
@@ -227,7 +227,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		Greybox.box(geo, Vector3(x, 1.05, -19), Vector3(0.9, 2.1, 6.0), rack_c, "RackC")
 	Greybox.box(geo, Vector3(-12, 0.38, -23.2), Vector3(2.0, 0.76, 0.8), desk_c, "PrinterDesk")
 	# The floor's syslog printer: the night's events, in-world proof of Vale's override.
-	Document.place(geo, Vector3(-12, 0.762, -23.1), 0.0, "SYSLOG PRINTOUT", [
+	Document.place(geo, Vector3(-12, 0.762, -23.1), 180.0, "SYSLOG PRINTOUT", [
 		"SERVER FLOOR  -  SYSLOG  -  15 OCT 1997",
 		"23:02  LAB B   badge V-0042 (VALE, I.) door open",
 		"23:12  ZONE A  manual override by user VALE_I, from SECURE LAB B",
@@ -471,6 +471,7 @@ func _on_crew_at_lift() -> void:
 	_watch_nearest()
 	if not elevator.is_closing and not elevator.riding:
 		hud.todo("Everyone into the elevator, then press 2")
+		hud.line("l1_lift_button")
 
 
 ## Host: someone took the spare cable. Everyone sees it go, and Level 2 knows who has it.

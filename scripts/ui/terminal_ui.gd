@@ -407,7 +407,10 @@ func _on_input_key(event: InputEvent) -> void:
 		close()
 	elif (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER) and not event.shift_pressed:
 		_input.accept_event()
-		_submit()
+		if is_complete(_input.text):
+			_submit()
+		else:
+			_continue_statement()
 	elif event.keycode == KEY_UP and _input.get_caret_line() == 0 and not _history.is_empty():
 		_input.accept_event()
 		_history_i = clamp(_history_i - 1, 0, _history.size() - 1)
@@ -418,6 +421,24 @@ func _on_input_key(event: InputEvent) -> void:
 		_history_i = clamp(_history_i + 1, 0, _history.size())
 		_input.text = _history[_history_i] if _history_i < _history.size() else ""
 		_typed()
+
+
+## Is `text` ready to run? Like a real SQL prompt, a query runs only once it ends
+## with ; (dot-commands and API requests are one line and need none).
+static func is_complete(text: String) -> bool:
+	var t := text.strip_edges()
+	return t == "" or t.begins_with(".") or FacilityAPI.is_request(t) or t.ends_with(";")
+
+
+## Enter before the ;: the statement carries on, on a new line.
+func _continue_statement() -> void:
+	var blank_line := _input.text.ends_with("\n") or _input.text.strip_edges() == ""
+	_input.set_caret_line(_input.get_line_count() - 1)
+	_input.set_caret_column(_input.get_line(_input.get_line_count() - 1).length())
+	_input.insert_text_at_caret("\n")
+	_typed()
+	if blank_line:
+		print_line("[color=#6f8f6f]... the statement isn't finished until it ends with ;[/color]")
 
 
 func _submit() -> void:
