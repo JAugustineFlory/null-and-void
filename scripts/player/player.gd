@@ -520,7 +520,8 @@ func is_filing() -> bool:
 
 ## The copy of the note travelling into the notebook while filing, or null.
 func filing_note() -> Node3D:
-	return _filing.get("copy") as Node3D
+	var copy = _filing.get("copy")
+	return copy if is_instance_valid(copy) else null
 
 
 ## How far the note is into the notebook: 0 just picked off, 1 on the page; 0 when not filing.
@@ -592,9 +593,14 @@ func _drop_prop() -> void:
 func _animate_filing(delta: float) -> void:
 	if _filing.is_empty():
 		return
-	var copy: Node3D = _filing.copy
+	# Untyped: a typed var errors on a freed object, and the note can be freed
+	# under us (a level clearing it, a teammate's pickup).
+	var copy = _filing.copy
 	if not is_instance_valid(copy):
 		_filing = {}
+		return
+	if not is_instance_valid(_filing.prop):
+		_end_filing()  # the note is gone: nothing to file
 		return
 	if not _notebook_held:
 		_end_filing()  # the notebook went away first
@@ -610,7 +616,7 @@ func _animate_filing(delta: float) -> void:
 	if _filing.t == 1.0:
 		var prop: Node3D = _filing.prop
 		_end_filing()
-		sticky_filed.emit(prop if is_instance_valid(prop) else null)
+		sticky_filed.emit(prop)
 
 
 ## Where a filed note lands: on the held notebook's open page, or where the
@@ -626,7 +632,7 @@ func _notebook_page() -> Transform3D:
 func _end_filing() -> void:
 	if _filing.is_empty():
 		return
-	var copy: Node3D = _filing.copy
+	var copy = _filing.copy
 	if is_instance_valid(copy):
 		copy.queue_free()
 	_filing = {}

@@ -791,6 +791,15 @@ func test_file_sticky() -> void:
 	check(p.file_into_notebook(stuck, true) and stuck.visible, "copying a note stuck to a terminal leaves it there")
 	await frames(int(Player.FILE_TIME * 60) + 10)
 	check(filed.size() == 2 and filed[1] == stuck, "and a copy goes in the notebook")
+	await frames(2)
+	var gone := _paper(a, Vector3(0.0, 1.2, -0.8), false)
+	check(p.file_into_notebook(gone), "filing another note")
+	await frames(5)
+	gone.free()  # cleared by the level, or a teammate took it, while it travels
+	await frames(int(Player.FILE_TIME * 60) + 10)
+	check(not p.is_filing() and p.filing_note() == null and filed.size() == 2, "a note that disappears mid-file just stops, with nothing filed")
+	await frames(2)
+	check(p.camera.get_child_count() == kids, "and the copy in your hand goes too")
 	p.held_notebook = null
 	book.free()
 	await done(a)
