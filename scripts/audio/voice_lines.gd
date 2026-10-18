@@ -180,8 +180,8 @@ const LINES := {
 		"note": "Quiet, almost proud, then wry on the last sentence."},
 	"l0_tape_5": {"scene": "l0_tape", "speaker": "MERCER", "text": "If it ever comes to that, look for my plans. The building's records remember more than people do.",
 		"note": "Slow. Then the click of the stop button."},
-	"l0_sra": {"scene": "l0_hall", "speaker": "ROURKE", "text": "Here we go. Server rooms are up on one.",
-		"note": "PLACEHOLDER until Voice and Augustine approve the wording. Badging the elevator bank door and holding it for the crew. Pleasant, like the end of a tour."},
+	"l0_sra": {"scene": "l0_hall", "speaker": "ROURKE", "text": "Here we are. Server Room A.",
+		"note": "Badging the door. Pleasant, like the end of a tour."},
 
 	# --- Level 1 -------------------------------------------------------------
 	"l0_coffee": {"scene": "l0_floor", "speaker": "ROURKE", "text": "Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities.",

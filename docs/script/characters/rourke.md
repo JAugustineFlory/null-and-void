@@ -109,8 +109,8 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Ghost stories. Anyway."  
   *Dropping it fast. He doesn't want them thinking about it.*
 - [ ] `l0_sra.wav`  
-  "Here we go. Server rooms are up on one."  
-  *PLACEHOLDER until Voice and Augustine approve the wording. Badging the elevator bank door and holding it for the crew. Pleasant, like the end of a tour.*
+  "Here we are. Server Room A."  
+  *Badging the door. Pleasant, like the end of a tour.*
 
 ### 6. Showing the crew into a server room and explaining the job.
 

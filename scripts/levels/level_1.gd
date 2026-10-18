@@ -150,6 +150,8 @@ func start() -> void:
 		terminal.opened.connect(_on_terminal_opened, CONNECT_ONE_SHOT)
 	rourke.watch = null
 	var led_in := _lead_in()
+	if world:
+		await hud.line("l0_sra")  # off the elevator, at the server room door
 	await hud.line("l1_enter")
 	await sync.gate("rourke_at_desk", func():
 		if not led_in.finished:

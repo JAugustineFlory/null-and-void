@@ -776,6 +776,8 @@ func _walk_to_server_room() -> void:
 	rourke.walk_to(Vector3(22.4, 0, 3))
 	_face_crew_on_arrival()
 	await hud.lines(["l0_tour_3", "l0_tour_4", "l0_tour_5", "l0_tour_6"])
+	# Past the dark passage to the east corridor, he waves the hum away.
+	await hud.line("l0_hum")
 	await sync.gate("rourke_at_sra", func():
 		if rourke.state == Rourke.State.WALK:
 			await rourke.arrived)
@@ -826,7 +828,7 @@ func _on_reach_server_room(_b: Node) -> void:
 		rourke.walk_to(HOLD_DOOR_AT, true)
 		await rourke.arrived)
 	_watch_nearest()
-	await hud.line("l0_sra")
+	await hud.line("l0_elevator")
 	hud.todo("Follow Rourke to the elevator")
 	# The door swings shut once the whole crew is past him and clear of its swing.
 	var past := Trigger.create(self, Vector3(28.1, 1, 3), Vector3(3.8, 2, 8))
