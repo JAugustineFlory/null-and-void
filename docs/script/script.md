@@ -145,7 +145,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The door-controller fix
 
-*Rourke's lines while the crew practises WHERE / AND on door_controllers and resets the faulting one. He doesn't teach (SYSOP and Mercer's notes do). He lends his own badge for the reset: the badge they take off him in Level 2.* *(Written ahead: not in the game yet.)*
+*Rourke's lines while the crew practises WHERE / AND on door_controllers and resets the faulting one. He doesn't teach (SYSOP and Mercer's notes do). He lends his own badge for the reset: the badge they take off him in Level 2.*
 
 **ROURKE:** *(Leaning on the doorframe. Patient.)* Take your time. I've been staring at that rack for a week. `[l1_waiting]`
 
@@ -159,7 +159,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Vale's login
 
-*The fault log points at Dr. Vale's account. Rourke steers the crew up the now-working elevator to her lab, Secure Lab B, on the security floor.* *(Written ahead: not in the game yet.)*
+*The fault log points at Dr. Vale's account. Rourke steers the crew up the now-working elevator to her lab, Secure Lab B, on the security floor.*
 
 **ROURKE:** *(Reading over a shoulder. Curious, a little too quickly.)* Hang on. That fault log... every reset this week came from Vale's login. `[l1_pivot_1]`
 

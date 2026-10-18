@@ -53,14 +53,14 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_sra` | Here we are. Server Room A. | Badging the door. Pleasant, like the end of a tour. | Level 0 |
 | [ ] | `l1_enter` | In you come. Terminal's just over here. | Calling back over his shoulder, inside the room. | Level 1 |
 | [ ] | `l1_terminal` | Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix. | Mundane, a facilities guy with a real problem. Hopeful. | Level 1 |
-| [ ] | `l1_waiting` | Take your time. I've been staring at that rack for a week. | Leaning on the doorframe. Patient. | Level 1, later |
-| [ ] | `l1_badge_help` | Reset wants a badge? Here, use mine. | Swiping his badge for them. Helpful, no hesitation. | Level 1, later |
-| [ ] | `l1_wrong_panel` | Nope, panel's not having it. Try another? | Shrugging, no blame. | Level 1, later |
-| [ ] | `l1_fixed_1` | Would you look at that. Green across the board. Six months I've been filing tickets on that thing. | Genuinely impressed. | Level 1, later |
-| [ ] | `l1_fixed_2` | You lot are good. Director's going to want to hear about this. | Warm. On a replay, the director hearing about them is the problem. | Level 1, later |
-| [ ] | `l1_pivot_1` | Hang on. That fault log... every reset this week came from Vale's login. | Reading over a shoulder. Curious, a little too quickly. | Level 1, later |
-| [ ] | `l1_pivot_2` | Her lab's up on the security floor. Secure Lab B. | Thinking out loud. | Level 1, later |
-| [ ] | `l1_pivot_3` | Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you. | Already walking. Friendly, steering. | Level 1, later |
+| [ ] | `l1_waiting` | Take your time. I've been staring at that rack for a week. | Leaning on the doorframe. Patient. | Level 1 |
+| [ ] | `l1_badge_help` | Reset wants a badge? Here, use mine. | Swiping his badge for them. Helpful, no hesitation. | Level 1 |
+| [ ] | `l1_wrong_panel` | Nope, panel's not having it. Try another? | Shrugging, no blame. | Level 1 |
+| [ ] | `l1_fixed_1` | Would you look at that. Green across the board. Six months I've been filing tickets on that thing. | Genuinely impressed. | Level 1 |
+| [ ] | `l1_fixed_2` | You lot are good. Director's going to want to hear about this. | Warm. On a replay, the director hearing about them is the problem. | Level 1 |
+| [ ] | `l1_pivot_1` | Hang on. That fault log... every reset this week came from Vale's login. | Reading over a shoulder. Curious, a little too quickly. | Level 1 |
+| [ ] | `l1_pivot_2` | Her lab's up on the security floor. Secure Lab B. | Thinking out loud. | Level 1 |
+| [ ] | `l1_pivot_3` | Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you. | Already walking. Friendly, steering. | Level 1 |
 | [ ] | `l2_lab_arrive` | Secure Lab B. Vale practically lived in here. | Fond, a little sad. | Level 2, later |
 | [ ] | `l2_lab_badge_1` | Badge in for me, each of you. Visitor log. Security floor's fussy about it. | Routine, holding the reader out. The frame happens in plain sight. | Level 2, later |
 | [ ] | `l2_lab_badge_2` | Thanks. Paperwork keeps everybody honest. | Once everyone has badged. | Level 2, later |
