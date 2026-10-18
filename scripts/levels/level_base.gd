@@ -252,7 +252,7 @@ Space  jump, mantle, grab a ledge
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
 Tab  your notebook: notes, tables, Field Notes (1-4 turn to a tab)
-     hold right mouse to look around while reading; Tab also closes menus
+     reading, push the cursor to a screen edge to look that way; Tab also closes menus
 V (hold)  talk on the radio, once you have one
 B  mute your open mic
 Esc  this menu"""
