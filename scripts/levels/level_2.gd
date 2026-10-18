@@ -297,7 +297,7 @@ func _build_booth() -> void:
 	Greybox.box(geo, Vector3(2.66, 1.4, 7.2), Vector3(0.12, 0.55, 0.45), Color(0.7, 0.12, 0.1), "KeyBox")
 	var screwdriver := Interactable.create(geo, Vector3(2.75, 1.4, 7.2), Vector3(0.03, 0.04, 0.24), "Take the screwdriver", Color(0.95, 0.75, 0.1))
 	screwdriver.name = "Screwdriver"
-	screwdriver.used.connect(func(_p): sync.event("_take_screwdriver"))
+	screwdriver.used.connect(func(p): sync.event("_take_screwdriver", [players.id_of(p)]))
 	key_glass = _glass_pane(Vector3(2.79, 1.4, 7.2), Vector3(0.02, 0.45, 0.38), true, "KeyBoxGlass")
 	Greybox.label(geo, Vector3(2.62, 1.82, 7.2), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
 	# Low outside window at the east end, onto the ledge. Plain glass: it breaks.
@@ -419,11 +419,14 @@ func _glass_broken(pane: String) -> void:
 		g.shatter()
 
 
-func _take_screwdriver() -> void:
+## Everyone sees it go; it's in the taker's inventory (`id`, their peer id).
+func _take_screwdriver(id: int = 0) -> void:
 	var sd := geo.get_node_or_null("Screwdriver")
 	if sd:
 		sd.queue_free()
 	has_screwdriver = true
+	if id == 0 or id == players.id_of(player):
+		player.inventory.add("screwdriver")
 	if is_instance_valid(vent_grate):
 		vent_grate.prompt = "Unscrew the vent grate"
 	hud.notice("Picked up a screwdriver.", 3.0)

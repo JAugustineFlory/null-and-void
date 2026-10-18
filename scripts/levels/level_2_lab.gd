@@ -383,6 +383,7 @@ func _take_cable(id: int) -> void:
 	if is_instance_valid(cable):
 		cable.queue_free()
 	if id == level.players.id_of(level.player):
+		level.player.inventory.add("cable")
 		level.hud.notice("Picked up a coil of network cable.", 3.0)
 
 

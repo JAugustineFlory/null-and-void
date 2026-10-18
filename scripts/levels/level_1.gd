@@ -484,6 +484,7 @@ func _on_cable_taken(id: int) -> void:
 	cable_coil.enabled = false
 	cable_coil.visible = false
 	if id == players.id_of(player):
+		player.inventory.add("cable")
 		hud.notice("You sling the coil of network cable over your shoulder.", 3.0)
 
 

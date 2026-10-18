@@ -117,6 +117,9 @@ var crouching := false
 var crawling := false
 ## True while a terminal or menu has focus.
 var input_locked := false
+## What you carry: the hotbar on keys 1-4 (Inventory). LevelBase hands it the
+## run's inventory; a bare Player gets its own.
+var inventory := Inventory.new()
 ## Strapped into a seat (the van): look around and press E, but no walking,
 ## crouching or jumping.
 var seated := false
@@ -293,6 +296,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_turn_view(event.relative.x * sens, event.relative.y * sens)
 	elif event.is_action_pressed("flashlight"):
 		flashlight.visible = not flashlight.visible
+	elif event is InputEventKey and event.pressed and not event.echo and not _reading() \
+			and event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
+		inventory.use_slot(event.physical_keycode - KEY_1)  # reading, 1-4 turn the notebook's tabs
 	elif event.is_action_pressed("interact"):
 		var target := _look_target()
 		if target and target.has_method("interact"):
