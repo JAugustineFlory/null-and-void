@@ -2005,6 +2005,9 @@ func test_world() -> void:
 	world.player.global_position = sra.elevator.to_global(Vector3(0, 0.1, Elevator.SIZE.z / 2))
 	for i in 5:
 		await physics_frame
+	sra.cable_holders[sra.players.id_of(world.player)] = true  # carrying the server floor's spare coil
+	sra.rourke.global_position = sra.elevator.to_global(Vector3(0.6, 0.05, Elevator.SIZE.z / 2))  # he rides up with them
+	var rourke_up: Vector3 = sra.elevator.to_local(sra.rourke.global_position)
 	check(sra.elevator.press() and sra.elevator.is_closing, "with everyone inside, the button closes the doors")
 	await sra.elevator.closed
 	check(sra.elevator.open_amount == 0.0 and sra.elevator.riding, "the doors shut before it moves")
@@ -2012,6 +2015,10 @@ func test_world() -> void:
 	await process_frame
 	check(sra.elevator.destination == sec.arrival_lift and sec.arrival_lift.contains(world.player.global_position), "the ride carries the crew into the security wing's arrival car")
 	check(world.current == sec and sec.active, "the ride hands play to the security wing")
+	await physics_frame
+	check(_game().rourke_fate == "unknown" and sec.lab.phase == "lead" and sec.lab.rourke.visible, "Rourke is still their escort, so he walks them to Vale's lab")
+	check(sec.lab.rourke.global_position.distance_to(sec.arrival_lift.to_global(rourke_up)) < 1.0 and not is_instance_valid(sra.rourke), "the Rourke who rode up from the server floor is the one who leads them on")
+	check(sec.lab.cable_holders.has(sec.players.id_of(world.player)), "cable carried up from the server floor still ties him up")
 	check(sec.watcher.global_position.distance_to(sec.to_global(sec.watcher_home)) < 0.1, "the Watcher stands in the office")
 	sec.player.global_position = sec.to_global(Vector3(0, 0.1, -10.5))
 	await physics_frame

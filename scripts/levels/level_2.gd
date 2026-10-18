@@ -182,14 +182,14 @@ func build() -> void:
 	])
 	Greybox.label(geo, Vector3(0, 2.75, -16.88), "ELEVATOR  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
 	# The button works on the host, once everyone is in; the doors shut on every machine.
-	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "B2", ["B2", "B3"])
+	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "2", ["2", "3"])
 	exit_lift.name = "ExitElevator"
 	exit_lift.hud = hud
 	exit_lift.closed.connect(func():
 		if sync.is_host():
 			sync.event("_on_exit", [null]))
 	# Server Room A's elevator links to this car and opens it at the end of the ride.
-	arrival_lift = Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "B2", ["1", "B1", "B2"])
+	arrival_lift = Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "2", ["G", "1", "2"])
 	arrival_lift.name = "ArrivalElevator"
 	arrival_lift.button.enabled = false
 	add_door("SEC-EXIT", Vector3(0, 1.2, -12), Vector3(1.8, 2.4, 0.15))
