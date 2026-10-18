@@ -98,7 +98,7 @@ No full-screen menus (game plan, "Diegetic notebook and terminals"). Lookdev: `t
 ## Performance budget (six players)
 
 - A character is at most 32 mesh pieces; props at most ~10. Meshes and materials are cached and shared.
-- Only big pieces cast shadows. Only the local player's flashlight has shadows; teammates' flashlights light the room without them.
+- Only big pieces cast shadows. Only the local player's flashlight has shadows; teammates' flashlights light the room without them. Shadows from lamps and flashlights use a 32-bit shadow atlas (`rendering/lights_and_shadows/positional_shadow/atlas_16_bits=false`); at 16 bits a flashlight striped walls more than about 4 m away.
 - Rigs more than 30 m from the camera animate at a quarter rate; hidden rigs don't animate.
 - Ceiling lights stay shadowless omnis (as Greybox does). Use a shadowed light only where a shadow is the point of the scene.
 - The VHS overlay is a single full-screen pass and switches off completely at intensity 0.
