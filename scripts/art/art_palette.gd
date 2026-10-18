@@ -74,7 +74,7 @@ static var _textures := {}
 ## A shared, textured material for a kind of surface, e.g. surface("carpet").
 ## `tint` multiplies the base color, for a stained or sun-faded variant.
 static func surface(kind: String, tint: Color = Color.WHITE) -> StandardMaterial3D:
-	var key := "%s|%s" % [kind, tint.to_html()]
+	var key := "%s|%s" % [kind, tint]  # not to_html(): it clamps, so a brightening tint would share white's material
 	if _cache.has(key):
 		return _cache[key]
 	var s: Dictionary = SURFACES.get(kind, SURFACES["plastic"])

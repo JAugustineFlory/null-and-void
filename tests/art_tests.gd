@@ -37,6 +37,7 @@ func check(cond: bool, name: String) -> void:
 func test_materials_are_shared() -> void:
 	var a := ArtPalette.surface("carpet")
 	check(a == ArtPalette.surface("carpet"), "the same surface returns one shared material")
+	check(ArtPalette.surface("drywall", Color(1.3, 1.3, 1.3)) != ArtPalette.surface("drywall"), "a tint brighter than white is its own material, not plain white's")
 	check(a.albedo_texture != null and a.uv1_world_triplanar, "surfaces are textured in world space")
 	check(ArtPalette.flat(Color.RED) == ArtPalette.flat(Color.RED), "flat materials are shared")
 	var tex := ArtPalette.texture("tiles")
@@ -291,6 +292,13 @@ func test_dressed_level_0() -> void:
 		Vector3(-2.5, 0, -4.7), Vector3(0, 0, -2.2),  # walkies, and landing over the desk
 		Vector3(-7.4, 0, 4), Vector3(-14.6, 0, 4), Vector3(-18.6, 0, 4.5),  # vent mouth, closet side, the tape
 		Vector3(-0.3, 0, 14.8), Vector3(4.3, 0, 14.8), Vector3(4.3, 0, 15.5), Vector3(4.3, 0, 17.9), Vector3(0, 0, 11.5),  # out of the van (front doors, side door), to the doors
+		Vector3(-6.5, 0, -8.5), Vector3(0, 0, -8.5), Vector3(10.0, 0, -8.5), Vector3(0, 0, -10.6),  # Rourke's walks along the back corridor
+		Vector3(6.2, 0, -11.0), Vector3(6.2, 0, -12.0), Vector3(6.2, 0, -13.2),  # to the vending machines
+		Vector3(10.0, 0, -11.0), Vector3(10.2, 0, -12.6),  # into the IT closet, under the ceiling panel
+		Vector3(-11.5, 0, -15.2), Vector3(-8.5, 0, -16.9),  # into the restroom stalls
+		Vector3(-2.0, 0, -13.75), Vector3(2.0, 0, -13.75),  # between the cafeteria tables
+		Vector3(15.5, 0, -8.5), Vector3(18.0, 0, -2.5),  # the dark corridor
+		Vector3(25.0, 0, 4.05), Vector3(28.5, 0, 3.0),  # holding the elevator, the car's doors
 	]
 	var blocked := _blocked(level, boxes, keep_clear)
 	check(blocked.is_empty(), "props keep Level 0's routes and puzzles clear %s" % [blocked])
@@ -299,6 +307,15 @@ func test_dressed_level_0() -> void:
 		if b.name.begins_with("Floor") and absf(b.position.x) < 1 and absf(b.position.z) < 1:
 			floor_mat = b.get_child(0).material_override
 	check(floor_mat == ArtPalette.surface("carpet"), "the lobby floor is carpeted")
+	var corridor_floor: Node = null
+	var bare_tables := 0
+	for b in level.geo.get_children():
+		if b.name.begins_with("Floor") and is_equal_approx(b.position.z, -8.5) and is_equal_approx(b.position.x, -4.0):
+			corridor_floor = b
+		if b.name.begins_with("CafTable") and b.get_node_or_null("TableLook") == null:
+			bare_tables += 1
+	check(corridor_floor != null and corridor_floor.get_child(0).material_override != Greybox.mat(Color(0.3, 0.31, 0.3)), "the back corridor's floor is dressed too, not just the first room's")
+	check(bare_tables == 0, "every cafeteria table has a top and legs")
 	var look: NpcLook = level.rourke.get_node_or_null("Look")
 	check(look != null and not level.rourke._body.visible, "Rourke wears his character model")
 	check(look.pick_action() == "idle", "Rourke stands at ease before the turn")

@@ -284,6 +284,165 @@ static func cable_tray(parent: Node, center: Vector3, length: float, along_x: bo
 	return root
 
 
+# --- Fittings -------------------------------------------------------------------
+# The ordinary things every office floor has: cafeteria chairs, vending-machine
+# fronts, restroom fixtures, an extinguisher on the wall. Fronts and fixtures
+# dress Greybox boxes the level already has (visual only, so they never change
+# its collision); chairs and buckets are props you bump into.
+
+
+## A stackable cafeteria chair: tubular legs, moulded plastic seat and back.
+static func cafe_chair(parent: Node, pos: Vector3, facing_deg: float = 0.0, shell := Color(0.72, 0.45, 0.2)) -> StaticBody3D:
+	var body := _body(parent, pos, facing_deg, "CafeChair", Vector3(0.44, 0.84, 0.44), Vector3(0, 0.42, 0))
+	var seat := ArtPalette.flat(shell, 0.45)
+	var tube := ArtPalette.flat(Color(0.7, 0.71, 0.72), 0.3, 0.8)
+	_piece(body, Vector3(0.42, 0.03, 0.4), Vector3(0, 0.45, 0), seat, true)
+	var back := _piece(body, Vector3(0.4, 0.3, 0.025), Vector3(0, 0.66, 0.2), seat, true)
+	back.rotation_degrees.x = -8
+	for sx in [-0.18, 0.18]:
+		for sz in [-0.17, 0.17]:
+			_piece(body, Vector3(0.022, 0.45, 0.022), Vector3(sx, 0.225, sz), tube)
+	return body
+
+
+## The front of a vending machine, for a Greybox box: a lit window of rows of
+## snacks or cans, a keypad and coin slot, and the pick-up flap. `pos` is the
+## middle of the box's front face, `size` that face (width, height).
+static func vending_front(parent: Node, pos: Vector3, facing_deg: float, size: Vector2, body_color: Color, drinks := false) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "VendingFront")
+	var w := size.x
+	var h := size.y
+	_piece(root, Vector3(w, h, 0.01), Vector3(0, 0, -0.005), ArtPalette.flat(body_color, 0.4, 0.2))
+	var win_w := w * 0.62
+	var win_h := h * 0.62
+	var win_c := Vector3(-w * 0.14, h * 0.08, -0.012)
+	_piece(root, Vector3(win_w, win_h, 0.004), win_c, ArtPalette.glow(Color(0.9, 0.92, 0.95), 0.55))
+	var rows := 5 if not drinks else 4
+	var item_cols: Array[Color] = [Color(0.85, 0.15, 0.1), Color(0.95, 0.75, 0.1), Color(0.2, 0.45, 0.85), Color(0.15, 0.6, 0.25), Color(0.6, 0.25, 0.55)]
+	for r in rows:
+		var y := win_c.y + win_h / 2.0 - (r + 0.6) * win_h / rows
+		_piece(root, Vector3(win_w * 0.96, 0.008, 0.02), Vector3(win_c.x, y - 0.035, -0.02), ArtPalette.flat(Color(0.3, 0.3, 0.32), 0.4, 0.6))
+		for c in 5:
+			var col: Color = item_cols[(r * 2 + c) % item_cols.size()]
+			var item := Vector3(0.06, 0.08 if not drinks else 0.11, 0.03)
+			_piece(root, item, Vector3(win_c.x - win_w / 2.0 + (c + 0.5) * win_w / 5.0, y + item.y / 2.0 - 0.03, -0.025), ArtPalette.flat(col, 0.5))
+	var dark := ArtPalette.flat(Color(0.08, 0.08, 0.09), 0.4)
+	var px := w * 0.36
+	_piece(root, Vector3(w * 0.18, h * 0.16, 0.006), Vector3(px, h * 0.22, -0.013), dark)  # keypad
+	_piece(root, Vector3(w * 0.12, 0.05, 0.006), Vector3(px, h * 0.34, -0.013), ArtPalette.glow(Color(0.9, 0.2, 0.1), 1.2))  # price display
+	_piece(root, Vector3(0.012, 0.05, 0.008), Vector3(px, h * 0.05, -0.014), ArtPalette.flat(Color(0.75, 0.75, 0.76), 0.25, 0.9))  # coin slot
+	_piece(root, Vector3(win_w, h * 0.1, 0.01), Vector3(win_c.x, -h * 0.38, -0.012), dark)  # pick-up flap
+	return root
+
+
+## A wall-hung red fire extinguisher on its bracket, with a small sign above.
+static func fire_extinguisher(parent: Node, pos: Vector3, facing_deg: float) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Extinguisher")
+	var red := ArtPalette.flat(Color(0.72, 0.08, 0.06), 0.35)
+	var can := MeshInstance3D.new()
+	var cy := CylinderMesh.new()
+	cy.top_radius = 0.075
+	cy.bottom_radius = 0.075
+	cy.height = 0.5
+	cy.radial_segments = 12
+	can.mesh = cy
+	can.position = Vector3(0, 0, -0.09)
+	can.material_override = red
+	root.add_child(can)
+	_piece(root, Vector3(0.05, 0.07, 0.05), Vector3(0, 0.28, -0.09), ArtPalette.flat(Color(0.15, 0.15, 0.15), 0.4))  # valve
+	_piece(root, Vector3(0.1, 0.04, 0.02), Vector3(0, 0.1, -0.01), ArtPalette.flat(Color(0.2, 0.2, 0.2), 0.4, 0.6))  # bracket
+	_piece(root, Vector3(0.2, 0.2, 0.004), Vector3(0, 0.5, -0.002), ArtPalette.flat(Color(0.75, 0.1, 0.08), 0.6))
+	var l := _print(root, "FIRE\nEXTINGUISHER", Vector3(0, 0.5, -0.005), 0.18, NotebookArt.type_font(), 40, Color(0.97, 0.95, 0.9))
+	l.pixel_size = 0.0004
+	l.width = 0.19 / l.pixel_size
+	return root
+
+
+## A yellow folding wet-floor sign. `knocked` lays it on its side.
+static func wet_floor_sign(parent: Node, pos: Vector3, facing_deg: float = 0.0, knocked := false) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "WetFloor")
+	var yellow := ArtPalette.flat(Color(0.95, 0.78, 0.1), 0.45)
+	var hold := Node3D.new()
+	if knocked:
+		hold.rotation_degrees.z = 90
+		hold.position.y = 0.15
+	root.add_child(hold)
+	for side in [-1.0, 1.0]:
+		var leaf := _piece(hold, Vector3(0.3, 0.6, 0.012), Vector3(0, 0.3, side * 0.09), yellow, true)
+		leaf.rotation_degrees.x = side * 15.0
+	var l := _print(hold, "CAUTION\nWET FLOOR", Vector3(0, 0.36, -0.105), 0.26, NotebookArt.type_font(), 48, Color(0.1, 0.1, 0.1))
+	l.pixel_size = 0.0005
+	l.width = 0.27 / l.pixel_size
+	l.rotation_degrees.x = -15
+	return root
+
+
+## A wall-hung toilet and its cistern, against a wall behind it (+Z). Visual only.
+static func toilet(parent: Node, pos: Vector3, facing_deg: float) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Toilet")
+	var china := ArtPalette.flat(Color(0.93, 0.93, 0.91), 0.15)
+	_piece(root, Vector3(0.38, 0.35, 0.55), Vector3(0, 0.25, -0.1), china, true)
+	_piece(root, Vector3(0.4, 0.04, 0.5), Vector3(0, 0.44, -0.12), ArtPalette.flat(Color(0.85, 0.85, 0.83), 0.3))  # seat
+	_piece(root, Vector3(0.45, 0.4, 0.16), Vector3(0, 0.7, 0.16), china, true)
+	_piece(root, Vector3(0.012, 0.18, 0.012), Vector3(0.24, 0.85, 0.2), ArtPalette.flat(Color(0.72, 0.73, 0.75), 0.25, 0.9))  # pipe
+	return root
+
+
+## A restroom mirror with a steel frame and a hot-air hand dryer.
+static func restroom_mirror(parent: Node, pos: Vector3, facing_deg: float, width := 0.9) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Mirror")
+	_piece(root, Vector3(width + 0.03, 0.73, 0.015), Vector3.ZERO, ArtPalette.flat(Color(0.7, 0.71, 0.72), 0.25, 0.9))
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.55, 0.6, 0.62)
+	glass.metallic = 1.0
+	glass.roughness = 0.04
+	_piece(root, Vector3(width, 0.7, 0.004), Vector3(0, 0, -0.009), glass)
+	return root
+
+
+static func hand_dryer(parent: Node, pos: Vector3, facing_deg: float) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "HandDryer")
+	_piece(root, Vector3(0.26, 0.24, 0.16), Vector3(0, 0, -0.08), ArtPalette.flat(Color(0.88, 0.88, 0.86), 0.35), true)
+	_piece(root, Vector3(0.06, 0.04, 0.06), Vector3(0, -0.13, -0.11), ArtPalette.flat(Color(0.7, 0.71, 0.72), 0.25, 0.9))  # nozzle
+	_piece(root, Vector3(0.05, 0.05, 0.01), Vector3(0, 0.03, -0.162), ArtPalette.flat(Color(0.3, 0.3, 0.32), 0.5))  # button
+	return root
+
+
+## A microwave on a counter (sitting on `pos`).
+static func microwave(parent: Node, pos: Vector3, facing_deg: float = 0.0) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Microwave")
+	_piece(root, Vector3(0.5, 0.3, 0.38), Vector3(0, 0.15, 0), ArtPalette.flat(Color(0.88, 0.87, 0.84), 0.4), true)
+	_piece(root, Vector3(0.32, 0.22, 0.005), Vector3(-0.06, 0.15, -0.191), ArtPalette.glass(Color(0.05, 0.05, 0.05)))
+	_piece(root, Vector3(0.08, 0.22, 0.005), Vector3(0.19, 0.15, -0.191), ArtPalette.flat(Color(0.25, 0.25, 0.27), 0.5))
+	_piece(root, Vector3(0.05, 0.015, 0.003), Vector3(0.19, 0.24, -0.194), ArtPalette.glow(Color(0.2, 1.0, 0.4), 1.2))  # the clock
+	return root
+
+
+## A grid of wooden pigeonholes for a Greybox box's front face (`size`), about
+## half of them with mail in. A big fitting: dividers and envelopes go past the
+## usual prop budget, so use it once a room.
+static func pigeonhole_front(parent: Node, pos: Vector3, facing_deg: float, size: Vector2, cols := 10, rows := 6) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Pigeonholes")
+	var wood := ArtPalette.flat(Color(0.52, 0.38, 0.24), 0.7)
+	_piece(root, Vector3(size.x, size.y, 0.01), Vector3(0, 0, -0.005), ArtPalette.flat(Color(0.16, 0.12, 0.08), 0.9))  # the dark insides
+	for c in cols + 1:
+		_piece(root, Vector3(0.02, size.y, 0.06), Vector3(-size.x / 2.0 + c * size.x / cols, 0, -0.03), wood)
+	for r in rows + 1:
+		_piece(root, Vector3(size.x, 0.02, 0.06), Vector3(0, -size.y / 2.0 + r * size.y / rows, -0.03), wood)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7311
+	var env := ArtPalette.flat(PAPER_WHITE, 0.9)
+	var manila := ArtPalette.flat(Color(0.85, 0.72, 0.48), 0.9)
+	for i in int(cols * rows * 0.45):
+		var c := rng.randi_range(0, cols - 1)
+		var r := rng.randi_range(0, rows - 1)
+		var cx := -size.x / 2.0 + (c + 0.5) * size.x / cols
+		var cy := -size.y / 2.0 + r * size.y / rows + 0.04
+		var e := _piece(root, Vector3(size.x / cols * 0.75, 0.05, 0.004), Vector3(cx, cy, -0.035 - rng.randf() * 0.01), env if rng.randf() < 0.7 else manila)
+		e.rotation_degrees.x = -70
+	return root
+
+
 # --- Documents -------------------------------------------------------------------
 # Paper the players read: binders, desk cards, brochures, memos, corkboards and
 # clipboards. Visual only, facing -Z like a poster; the mechanics put an

@@ -38,7 +38,7 @@ static func box(parent: Node, center: Vector3, size: Vector3, color: Color, name
 	bs.size = size
 	shape.shape = bs
 	body.add_child(shape)
-	parent.add_child(body)
+	parent.add_child(body, true)  # a second "Floor" becomes "Floor2", not "@StaticBody3D@42", so dressing can find it by name
 	return body
 
 
