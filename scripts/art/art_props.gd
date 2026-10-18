@@ -443,6 +443,72 @@ static func pigeonhole_front(parent: Node, pos: Vector3, facing_deg: float, size
 	return root
 
 
+## A 90s dot-matrix printer on a desk (sitting on `pos`), green-bar paper
+## feeding in from a box underneath and folding out over the back.
+static func dot_matrix_printer(parent: Node, pos: Vector3, facing_deg: float = 0.0) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Printer")
+	var shell := ArtPalette.surface("plastic")
+	_piece(root, Vector3(0.46, 0.13, 0.32), Vector3(0, 0.065, 0), shell, true)
+	_piece(root, Vector3(0.4, 0.04, 0.12), Vector3(0, 0.15, 0.06), ArtPalette.flat(Color(0.3, 0.3, 0.3), 0.4))  # the lid
+	_piece(root, Vector3(0.05, 0.012, 0.004), Vector3(0.17, 0.09, -0.161), ArtPalette.glow(Color(0.2, 1.0, 0.4), 1.2))  # on-line light
+	var paper := ArtPalette.flat(Color(0.92, 0.95, 0.88), 0.9)
+	var bars := ArtPalette.flat(Color(0.7, 0.86, 0.72), 0.9)
+	var out := _piece(root, Vector3(0.38, 0.002, 0.3), Vector3(0, 0.2, 0.2), paper)
+	out.rotation_degrees.x = -50
+	for i in 3:
+		var bar := _piece(root, Vector3(0.38, 0.0025, 0.03), Vector3(0, 0.2 + i * 0.05 * 0.77, 0.12 + i * 0.05 * 0.64), bars)
+		bar.rotation_degrees.x = -50
+	return root
+
+
+## A wooden cable drum, lying on its side with blue network cable wound on it.
+## For a Greybox spool box: `pos` is the floor under its middle; visual only.
+static func cable_drum(parent: Node, pos: Vector3, facing_deg: float, radius := 0.4, width := 0.7) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "CableDrum")
+	var wood := ArtPalette.flat(Color(0.55, 0.4, 0.25), 0.9)
+	for side in [-1.0, 1.0]:
+		var flange := MeshInstance3D.new()
+		var cy := CylinderMesh.new()
+		cy.top_radius = radius
+		cy.bottom_radius = radius
+		cy.height = 0.04
+		cy.radial_segments = 16
+		flange.mesh = cy
+		flange.material_override = wood
+		flange.rotation_degrees.z = 90
+		flange.position = Vector3(side * width / 2.0, radius, 0)
+		root.add_child(flange)
+	var core := MeshInstance3D.new()
+	var cc := CylinderMesh.new()
+	cc.top_radius = radius * 0.8
+	cc.bottom_radius = radius * 0.8
+	cc.height = width - 0.04
+	cc.radial_segments = 16
+	core.mesh = cc
+	core.material_override = ArtPalette.flat(Color(0.12, 0.25, 0.6), 0.6)
+	core.rotation_degrees.z = 90
+	core.position = Vector3(0, radius, 0)
+	root.add_child(core)
+	return root
+
+
+## A coil of cable hung on a shelf edge or hook, facing -Z.
+static func cable_coil(parent: Node, pos: Vector3, facing_deg: float, color := Color(0.85, 0.75, 0.15)) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "CableCoil")
+	var mi := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.11
+	tm.outer_radius = 0.15
+	tm.rings = 14
+	tm.ring_segments = 6
+	mi.mesh = tm
+	mi.rotation_degrees.x = 90
+	mi.position = Vector3(0, -0.15, -0.03)
+	mi.material_override = ArtPalette.flat(color, 0.6)
+	root.add_child(mi)
+	return root
+
+
 # --- Documents -------------------------------------------------------------------
 # Paper the players read: binders, desk cards, brochures, memos, corkboards and
 # clipboards. Visual only, facing -Z like a poster; the mechanics put an
