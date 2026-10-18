@@ -1,6 +1,6 @@
 class_name Notebook
 extends CanvasLayer
-## The player's notebook, opened with Tab. It can't be opened while using a terminal,
+## The player's notebook, opened with Tab; 1-4 turn to its tabs. It can't be opened while using a terminal,
 ## so players have to read it, remember, and then type.
 ## With Game.diegetic_ui it's held in your hands (HeldNotebook on the camera, raised
 ## by the Player): you can still look round and walk slowly. Without, it opens
@@ -172,7 +172,7 @@ func stop_writing() -> void:
 	if player:
 		player.input_locked = _was_locked
 		if held:
-			player.set_notebook_cursor(Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
+			player.set_notebook_cursor(not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
 
 
 func _on_writer_key(event: InputEvent) -> void:
@@ -187,8 +187,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("notebook"):
 		if _open:
 			close()
-		else:
-			open()
+		elif not open():
+			return  # Tab is someone else's (the pause menu closes on it)
+		get_viewport().set_input_as_handled()
+	elif _open and event is InputEventKey and event.pressed and not event.echo \
+			and event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
+		pages.show_page(event.physical_keycode - KEY_1)  # 1-4: the tabs, in order
 		get_viewport().set_input_as_handled()
 	elif _open and event.is_action_pressed("pause"):
 		close()

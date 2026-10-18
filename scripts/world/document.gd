@@ -13,6 +13,7 @@ const LOOKS := {
 	"brochure": {"prop": "brochure", "paper": "brochure"},
 	"manual": {"prop": "binder", "paper": "manual"},
 	"clipboard": {"prop": "clipboard", "paper": "clipboard"},
+	"sticky": {"prop": "sticky", "paper": "memo"},  # a handwritten sticky: its text is its only line
 }
 
 var title := ""
@@ -100,6 +101,11 @@ func _build_look(size: Vector2, flat: bool) -> void:
 			art = ArtProps.binder(self, Vector3.ZERO, 180.0, title, flat)
 		"clipboard":
 			art = ArtProps.clipboard(self, Vector3.ZERO, 180.0, title, flat)
+		"sticky":
+			art = ArtProps.sticky_note(self, Vector3.ZERO, 180.0, "\n".join(doc_lines.map(func(l): return l.text)), ArtProps.STICKY_YELLOW, flat)
+			art.scale = Vector3.ONE * StickyNote.DESK_SCALE
+			var side := 0.076 * StickyNote.DESK_SCALE
+			art.set_meta("doc_size", Vector3(side, 0.01, side) if flat else Vector3(side, side, 0.01))
 		_:
 			art = ArtProps.memo(self, Vector3.ZERO, 180.0, title, flat)
 	var footprint: Vector3 = art.get_meta("doc_size", Vector3(size.x, 0.01, size.y) if flat else Vector3(size.x, size.y, 0.01))

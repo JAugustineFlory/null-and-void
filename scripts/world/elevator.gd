@@ -111,6 +111,14 @@ func _build(geo: Node3D, floors: Array) -> void:
 		_leaves.append(leaf)
 	# The button panel inside, on the right as you walk in.
 	button = Interactable.create(self, Vector3(-(w / 2 - 0.08), 1.15, 0.45), Vector3(0.04, 0.3, 0.16), "Press %s" % floors[floors.size() - 1], Color(0.15, 0.15, 0.15), show)
+	# Pressed where its buttons are drawn, when there's art for them.
+	var panel: Node3D = art.get_node_or_null("ButtonPanel") if art else null
+	if panel:
+		var ph := 0.16 + floors.size() * 0.09 + 0.1
+		button.transform = panel.transform.translated_local(Vector3(0, ph / 2 - 0.3, 0))
+		for c in button.get_children():
+			if c is CollisionShape3D:
+				(c.shape as BoxShape3D).size = Vector3(0.3, ph + 0.06, 0.14)
 	button.used.connect(press)
 	_place_doors()
 

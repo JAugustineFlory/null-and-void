@@ -2,10 +2,10 @@ class_name DocumentReader
 extends CanvasLayer
 ## A document held up to read (see Document), drawn by DocumentView. Each line has
 ## a "+ note" button that copies it into this player's notebook, with an optional
-## name. E or Esc puts it down.
+## name. E, Esc or Tab puts it down.
 ## Two ways to read: open() shows it full screen; hold() (Game.diegetic_ui) lifts
 ## the paper itself up to your eyes in your hands (player.pick_up, HeldPaper), and
-## with the cursor out (right mouse) the pointer reaches the chips on its page.
+## the cursor (out unless right mouse is held) reaches the chips on its page.
 
 signal closed
 
@@ -21,6 +21,7 @@ var hands: HeldPaper
 ## The page drawn on the held paper, whose chips the pointer reaches.
 var page_viewport: SubViewport
 var _closing := false
+var _hidden: Array[Node3D] = []  # the prop's own look, while its page is held up instead
 
 
 func _ready() -> void:
@@ -72,6 +73,12 @@ func hold(doc: Node, by_player: Node) -> bool:
 		hands = HeldPaper.attach(player.camera)
 		hands.follow(player)
 	hands.hold(doc, doc.read_size, doc.read_face, doc)
+	if doc.paper_kind() == "brochure":
+		# Its side panels fold up in front of the page; held, you see it opened out flat.
+		for mi in doc.find_children("*", "GeometryInstance3D", true, false):
+			if mi != hands.page and mi.visible:
+				mi.visible = false
+				_hidden.append(mi)
 	for vp in hands.get_children():
 		if vp is SubViewport and not vp.is_queued_for_deletion():
 			page_viewport = vp
@@ -131,6 +138,9 @@ func _finish_close() -> void:
 	if not is_inside_tree():
 		return
 	if held:
+		for mi in _hidden:
+			if is_instance_valid(mi):
+				mi.visible = true
 		if player and player.prop_lowered.is_connected(_on_lowered):
 			player.prop_lowered.disconnect(_on_lowered)
 		closed.emit()
@@ -203,7 +213,7 @@ func _input(event: InputEvent) -> void:
 	# The E that opened it mustn't also put it down.
 	if Engine.get_process_frames() == _opened_frame:
 		return
-	if event.is_action_pressed("pause") or event.is_action_pressed("interact"):
+	if event.is_action_pressed("pause") or event.is_action_pressed("interact") or event.is_action_pressed("notebook"):
 		get_viewport().set_input_as_handled()
 		close()
 
