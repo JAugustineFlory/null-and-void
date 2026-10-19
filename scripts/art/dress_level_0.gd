@@ -17,6 +17,12 @@ const CAFETERIA := AABB(Vector3(-6.8, -0.5, -17.8), Vector3(14.6, 4.5, 7.6))
 const IT_CLOSET := AABB(Vector3(8.2, -0.5, -13.8), Vector3(3.6, 4.0, 3.6))
 const DARK := AABB(Vector3(12.0, -0.5, -10.2), Vector3(7.2, 4.0, 12.0))
 const LIFTS := AABB(Vector3(23.9, -0.5, -1.1), Vector3(6.2, 4.0, 8.2))
+## Every room and corridor, one box each, for ArtDress.explain_dark.
+const DARK_CHECK := [
+	LOBBY, HALL, CLOSET, CORRIDOR, MAILROOM, CAFETERIA, IT_CLOSET, LIFTS,
+	AABB(Vector3(-13, 0, -18), Vector3(3, 3, 8)), AABB(Vector3(-10, 0, -18), Vector3(3, 3, 8)),  # restrooms
+	AABB(Vector3(12, 0, -10), Vector3(7, 3, 3)), AABB(Vector3(17, 0, -7), Vector3(2, 3, 9)),  # dark corridor and its passage
+]
 
 
 static func apply(level: LevelBase) -> void:
@@ -116,6 +122,7 @@ static func apply(level: LevelBase) -> void:
 		ArtDress.reskin(tray.get_parent() as Node3D, [{"names": ["CableTray"], "mat": metal}])
 
 	ArtDress.link_light_panels(level)
+	ArtDress.explain_dark(level, DARK_CHECK, 3.6, [Vector3(10.2, 0, -12.6)])  # the IT closet's ceiling panel stays bare
 	var rourke: Node3D = level.get("rourke")
 	if rourke:
 		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
@@ -207,6 +214,11 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	ArtProps.boxes(geo, Vector3(14.0, 0, -9.55), 5, 3)
 	ArtProps.boxes(geo, Vector3(14.6, 0, -9.55), -8, 2)
 	ArtProps.wet_floor_sign(dress, Vector3(17.6, 0, -6.0), 70, true)
+	# Its one fitting is dead, the diffuser hanging: why nobody's lit it.
+	for c in geo.get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).position.distance_to(Vector3(15.5, 2.97, -8.5)) < 0.05:
+			c.visible = false
+	ArtProps.dead_troffer(dress, Vector3(15.5, 3.0, -8.5), 0.0, true)
 
 	# Elevator bank: plants either side, a bin and a fire notice by the doors.
 	ArtProps.potted_plant(geo, Vector3(29.4, 0, -0.4))

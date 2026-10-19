@@ -165,6 +165,40 @@ static func troffer(parent: Node, ceiling_pos: Vector3, light_range: float = 8.0
 	return light
 
 
+## A troffer whose tubes have died: the housing, two grey tubes burnt black at
+## the ends, no light. `hanging` drops one edge of its diffuser, the way a
+## fitting looks after someone gave up changing it. Visual only. The reason a
+## patch of ceiling is dark (see ArtDress.explain_dark).
+static func dead_troffer(parent: Node, ceiling_pos: Vector3, facing_deg := 0.0, hanging := false) -> Node3D:
+	var root := _node(parent, ceiling_pos, facing_deg, "DeadTroffer")
+	root.add_to_group("dark_cause")
+	_piece(root, Vector3(1.24, 0.03, 0.64), Vector3(0, -0.005, 0), ArtPalette.flat(Color(0.8, 0.8, 0.78), 0.4, 0.3))
+	_piece(root, Vector3(1.16, 0.005, 0.56), Vector3(0, -0.022, 0), ArtPalette.flat(Color(0.18, 0.18, 0.19), 0.8))  # the empty reflector
+	var tube_mat := ArtPalette.flat(Color(0.62, 0.63, 0.64), 0.3)
+	var burnt := ArtPalette.flat(Color(0.08, 0.07, 0.07), 0.8)
+	for tz in [-0.14, 0.14]:
+		var tube := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.016
+		cm.bottom_radius = 0.016
+		cm.height = 1.1
+		tube.mesh = cm
+		tube.material_override = tube_mat
+		tube.rotation_degrees.z = 90
+		tube.position = Vector3(0, -0.045, tz)
+		tube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(tube)
+		for tx in [-0.5, 0.5]:
+			_piece(root, Vector3(0.1, 0.034, 0.034), Vector3(tx, -0.045, tz), burnt)
+	if hanging:
+		var hinge := Node3D.new()
+		hinge.position = Vector3(0, -0.03, 0.29)
+		hinge.rotation_degrees.x = -38
+		root.add_child(hinge)
+		_piece(hinge, Vector3(1.16, 0.008, 0.56), Vector3(0, 0, -0.28), ArtPalette.flat(Color(0.78, 0.78, 0.76), 0.5))
+	return root
+
+
 ## A parked 90s sedan, about 4.5 m long, nose toward -Z. One box collider.
 static func car(parent: Node, pos: Vector3, facing_deg: float = 0.0, paint: Color = Color(0.45, 0.12, 0.1)) -> StaticBody3D:
 	var body := _body(parent, pos, facing_deg, "Car", Vector3(1.8, 1.4, 4.5), Vector3(0, 0.7, 0))
@@ -773,7 +807,7 @@ static func _node(parent: Node, pos: Vector3, facing_deg: float, node_name: Stri
 	n.name = node_name
 	n.position = pos
 	n.rotation_degrees.y = facing_deg
-	parent.add_child(n)
+	parent.add_child(n, true)
 	return n
 
 
@@ -790,7 +824,7 @@ static func _body(parent: Node, pos: Vector3, facing_deg: float, node_name: Stri
 	shape.shape = bs
 	shape.position = offset
 	body.add_child(shape)
-	parent.add_child(body)
+	parent.add_child(body, true)  # "CafeChair2", not "@StaticBody3D@7", like Greybox
 	return body
 
 

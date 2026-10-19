@@ -131,7 +131,7 @@ func page_to_world(px: Vector2) -> Vector3:
 ## The free hand on the note being filed, the book lowered while it's on its way.
 func _carry_note(delta: float) -> void:
 	var f := _filing()
-	var right := book_root.get_node("RightHand")
+	var right := right_half.get_node("RightHand")
 	if f.is_empty():
 		if _reach.visible:
 			_reach.visible = false
@@ -276,31 +276,48 @@ void fragment() {
 func _hands(look_in: Dictionary, size: Vector2, mid_y: float, book_h: float) -> void:
 	var bw := _px_to_m(NotebookView.BOOK_SIZE.x / 2.0)
 	for side in [-1.0, 1.0]:
-		var hand := HeldNotebook.make_hand(book_root, side, look_in)
+		# On the page's face at its half's outer edge, turning with it; the cover and page block are behind.
+		var hand := HeldNotebook.make_hand(left_half if side < 0 else right_half, side, look_in, 0.0035 + 0.0015)
 		hand.name = "LeftHand" if side < 0 else "RightHand"
-		hand.position = Vector3(side * (bw - 0.012), mid_y - book_h / 2.0 + 0.012, 0.0)
+		hand.position = Vector3(side * bw, mid_y - book_h / 2.0 + 0.03, 0.0035)
 
 
 ## A first-person hand (palm, thumb and sleeve) under `parent`, holding something
-## by its edge: its origin is where the thumb pinches. `side` -1 left, 1 right.
-static func make_hand(parent: Node3D, side: float, look_in: Dictionary = {}) -> Node3D:
+## by its edge. Its origin is on the held thing's front face, right at the edge;
+## `depth` is how thick the thing is behind that face. The thumb comes round the
+## edge and lies flat on the front, the palm and fingers stay behind it, and the
+## sleeve runs from the wrist down and back towards you, never above the hand.
+## `side` -1 left, 1 right.
+static func make_hand(parent: Node3D, side: float, look_in: Dictionary = {}, depth := 0.004) -> Node3D:
 	var look := CharacterLooks.base()
 	look.merge(look_in, true)
 	var skin := ArtPalette.flat(look.skin, 0.7)
 	var sleeve := ArtPalette.flat(look.jacket if look.jacket is Color else look.shirt, 0.9)
 	var hand := Node3D.new()
 	parent.add_child(hand)
-	_piece(hand, Vector3(0.05, 0.06, 0.02), Vector3(side * 0.012, -0.02, -0.013), skin)  # palm behind what it holds
-	var thumb := _piece(hand, Vector3(0.012, 0.03, 0.009), Vector3(-side * 0.002, 0.0, 0.007), skin)  # thumb in front
-	thumb.rotation_degrees.z = side * 35.0
+	var back := -depth - 0.002  # just behind what it holds
+	var palm := _piece(hand, Vector3(0.05, 0.06, 0.018), Vector3(side * 0.012, -0.02, back - 0.009), skin)
+	palm.name = "Palm"
+	var fingers := _piece(hand, Vector3(0.026, 0.05, 0.01), Vector3(-side * 0.02, -0.012, back - 0.005), skin)
+	fingers.name = "Fingers"
+	# The thumb's root wraps the edge; its pad lies on the front face, pointing in.
+	var root := _piece(hand, Vector3(0.012, 0.022, depth + 0.012), Vector3(side * 0.007, -0.006, (0.006 - depth) / 2.0), skin)
+	root.name = "ThumbRoot"
+	var pad := _piece(hand, Vector3(0.026, 0.014, 0.005), Vector3(-side * 0.006, -0.002, 0.0035), skin)
+	pad.name = "Thumb"
+	pad.rotation_degrees.z = side * -18.0
+	# Forearm: from the wrist, down and out and back towards the camera.
+	var wrist := Vector3(side * 0.02, -0.05, back - 0.009)
+	var dir := Vector3(side * 0.3, -0.75, 0.6).normalized()
 	var arm := MeshInstance3D.new()
+	arm.name = "Sleeve"
 	var cm := CapsuleMesh.new()
 	cm.radius = 0.028
-	cm.height = 0.3
+	cm.height = 0.34
 	arm.mesh = cm
 	arm.material_override = sleeve
-	arm.position = Vector3(side * 0.03, -0.12, -0.06)
-	arm.rotation_degrees = Vector3(-25, 0, side * 25)
+	arm.basis = Basis(Quaternion(Vector3.UP, dir))
+	arm.position = wrist + dir * (cm.height / 2.0 - cm.radius)
 	arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	hand.add_child(arm)
 	return hand
@@ -346,7 +363,7 @@ func _pose(t: float) -> void:
 	var hinge := lerpf(CLOSED_ANGLE, SPREAD_ANGLE, ease(open, 0.5))
 	left_half.rotation_degrees.y = hinge  # the front cover swings open on the spine
 	right_half.rotation_degrees.y = -SPREAD_ANGLE
-	book_root.get_node("LeftHand").visible = open > 0.6
+	left_half.get_node("LeftHand").visible = open > 0.6
 
 
 func _process(delta: float) -> void:
