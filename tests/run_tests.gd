@@ -1488,6 +1488,15 @@ func test_level_2_routes() -> void:
 		var shown := " ".join(printed.map(func(l): return l.text))
 		check(wall_sheet != null and d.lines().all(func(l): return l.text == "" or shown.contains(l.text) or wall_sheet.find_child("Title", false, false).text == l.text), "%s is on the wall with all its words" % d.title)
 		check(printed.all(func(l): return l.font_size >= 20), "%s is printed big enough to read" % d.title)
+	# Nothing pinned to a wall overlaps anything else on it, Graphics' posters included.
+	var pinned: Array = docs.filter(func(d): return d.has_node("WallSheet"))
+	pinned.append_array(level.find_children("Poster*", "Node3D", true, false))
+	var clash := []
+	for i in pinned.size():
+		for j in range(i + 1, pinned.size()):
+			if _flat_overlap(_visual_box(pinned[i]), _visual_box(pinned[j])):
+				clash.append("%s / %s" % [pinned[i].name, pinned[j].name])
+	check(clash.is_empty(), "papers and posters on the walls don't overlap %s" % [clash])
 	var facing := func(title: String) -> float:
 		var label: Label3D = docs[titles.find(title)].get_node("WallSheet").find_child("Line0", false, false)
 		return label.global_basis.z.z  # Label3D reads from its +Z side
@@ -1495,6 +1504,8 @@ func test_level_2_routes() -> void:
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
+	var box_at: Vector3 = level.to_local(level.geo.get_node("KeyBox").global_position)
+	check(absf(box_at.z - 8.0) > 0.9 + 0.25, "the break-glass box hangs on the landing's wall, not in the doorway to the night desk")
 	# Vent: the grate is screwed shut until someone finds the screwdriver.
 	level._on_vent_grate(p)
 	await process_frame
@@ -1724,6 +1735,32 @@ func _until(cond: Callable, seconds: float) -> bool:
 	return true
 
 
+## A node's drawn extent in world space: every mesh and label under it.
+func _visual_box(n: Node) -> AABB:
+	var box := AABB()
+	var first := true
+	for v in n.find_children("*", "VisualInstance3D", true, false) + ([n] if n is VisualInstance3D else []):
+		var b: AABB = v.global_transform * v.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
+
+
+## Two things hung on a wall overlap: they share more than a few mm of the wall,
+## whatever their depth off it (a poster's frame stands proud of a taped sheet).
+func _flat_overlap(a: AABB, b: AABB) -> bool:
+	var thin := 0.1
+	for k in 3:
+		var lo := maxf(a.position[k], b.position[k])
+		var hi := minf(a.end[k], b.end[k])
+		if a.size[k] < thin and b.size[k] < thin:
+			if hi < lo - thin:  # on different walls
+				return false
+		elif hi - lo < 0.004:
+			return false
+	return true
+
+
 func _in_lab_room(level: Node, p: Node3D) -> bool:
 	return Level2Floor.LAB_BOX.has_point(level.to_local(p.global_position) + Vector3.UP * 0.5)
 
@@ -1744,6 +1781,8 @@ func test_level_2_lab(outcome: String) -> void:
 	check(level.booth.locked, "the night desk terminal stays locked while he's their escort")
 	check(await _until(func(): return lab.phase == "badge", 40.0), "at the lab door he asks them to badge in")
 	check(level.doors["SECLAB-B"].is_open == false and lab.reader.enabled, "the lab door waits for everyone's badge")
+	var r_at: Vector3 = level.to_local(r.global_position)
+	check(r_at.z < level.to_local(lab.reader.global_position).z - 0.8 and r_at.z < -0.9, "he waits past the door, so the reader is on the crew's side of him, not behind him")
 	lab.reader.interact(p)
 	await _frames(3)
 	var swipes: Array = level.db.run_silent("SELECT * FROM badge_log WHERE door = 'SECLAB-B' AND badge_id LIKE 'VIS-%'")

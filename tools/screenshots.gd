@@ -97,7 +97,7 @@ func _run() -> void:
 	await _shot(level, "l2_lab", Vector3(-10.6, 0.1, 2.8), 50, -12)
 	await _shot(level, "l2_lab_switches", Vector3(-14.7, 0.1, -1.6), 90, -12)
 	await _shot(level, "l2_spawn", Vector3(6.7, 0.1, 8), 90, 0)
-	await _shot(level, "l2_key_box", Vector3(4.0, 0.1, 7.2), 90, -8)
+	await _shot(level, "l2_key_box", Vector3(4.0, 0.1, 9.4), 90, -8)
 	await _shot(level, "l2_corridor_window", Vector3(-1.5, 0.1, 4.8), 20, -2)
 	await _shot(level, "l2_booth", Vector3(-3, 0.1, 4.4), 180, -15)
 	await _shot(level, "l2_booth_papers", Vector3(-3.2, 0.1, 4.2), 180, 5)
