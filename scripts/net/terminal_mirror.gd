@@ -69,7 +69,21 @@ func _set_seat(path: NodePath, peer: int, on: bool) -> void:
 	else:
 		terminal.seated.erase(peer)
 		terminal.typing.erase(peer)
+	_place_puppets(terminal)
 	terminal.screen_changed.emit()
+
+
+## Teammates at `terminal` lean in from its sides; anyone who left stands up.
+func _place_puppets(terminal: Node) -> void:
+	var players = _level().get("players")
+	if players == null:
+		return
+	for p in players.all_players():
+		if p is PlayerPuppet:
+			if terminal.seated.has(p.peer_id):
+				p.sit_at(terminal, terminal.seated.find(p.peer_id))
+			elif p.at_terminal == terminal:
+				p.sit_at(null)
 
 
 func _on_peer_left(id: int) -> void:

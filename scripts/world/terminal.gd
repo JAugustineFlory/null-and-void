@@ -11,6 +11,9 @@ signal opened(by: Node)
 ## The in-world screen redraws from transcript, seated and typing.
 signal screen_changed
 
+## How much of a teammate's half-typed line shows when you look at the terminal.
+const TYPING_SHOWN := 60
+
 var terminal_name := "TERMINAL"
 var db: FacilityDB
 ## Optional HTTP API this terminal can reach (`GET /cameras`). Null means SQL only.
@@ -126,6 +129,23 @@ func _on_focused() -> void:
 ## They stepped back (or respawned) before it opened: don't open it later.
 func _on_walked_off() -> void:
 	_stepping_up = null
+
+
+## Looking at the terminal also shows what teammates sitting at it are typing,
+## big enough to read when their body is between you and the glass.
+func get_prompt(player: Node) -> String:
+	var p := super(player)
+	var me := multiplayer.get_unique_id()
+	var net := get_node_or_null("/root/Net")
+	for peer in seated:
+		var text: String = typing.get(peer, "").replace("\n", " ").strip_edges()
+		if peer == me or text == "":
+			continue
+		if text.length() > TYPING_SHOWN:
+			text = "..." + text.right(TYPING_SHOWN)
+		var who: String = net.display_name(peer) if net else "Player %d" % peer
+		p = "%s> %s_\n%s" % [who, text, p]
+	return p
 
 
 ## Opening a terminal is local to each player; the host only hears that it happened.

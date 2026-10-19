@@ -9,6 +9,9 @@ const STAND_HEIGHT := 1.8
 ## At or below this the player is on hands and knees (Player.CRAWL_HEIGHT).
 const CRAWL_HEIGHT := 0.85
 const FOLLOW_RATE := 14.0
+## How far to the side of a terminal's stand point a teammate typing at it is
+## drawn, so the people behind them can read the screen over their shoulder.
+const TERMINAL_STEP_ASIDE := 0.55
 
 var peer_id := 0
 var display_name := ""
@@ -21,6 +24,10 @@ var health := 100.0
 var players: Node  # NetPlayers
 ## The teammate's body, posed from the synced position, stance and look.
 var rig: CharacterRig
+## The terminal they're sitting at, if any (set by TerminalMirror).
+var at_terminal: Node3D
+## Which side of it they lean in from: 1 right, -1 left.
+var terminal_side := 1.0
 
 var _target_pos := Vector3.ZERO
 var _target_yaw := 0.0
@@ -112,10 +119,26 @@ func _physics_process(delta: float) -> void:
 	if not _has_state:
 		return
 	var k: float = clamp(delta * FOLLOW_RATE, 0.0, 1.0)
-	global_position = global_position.lerp(_target_pos, k)
-	rotation.y = lerp_angle(rotation.y, _target_yaw, k)
+	var pos := _target_pos
+	var yaw := _target_yaw
+	if at_terminal and is_instance_valid(at_terminal):
+		# On their own screen they're centred on the glass; here they lean in
+		# from the side, turned to it, so the screen stays readable from behind.
+		var glass: Vector3 = at_terminal.global_position
+		pos += at_terminal.global_basis.x.normalized() * TERMINAL_STEP_ASIDE * terminal_side
+		var to_glass := glass - pos
+		yaw = atan2(-to_glass.x, -to_glass.z)
+	global_position = global_position.lerp(pos, k)
+	rotation.y = lerp_angle(rotation.y, yaw, k)
 	_head.rotation.x = lerp_angle(_head.rotation.x, _target_pitch, k)
 	rig.head_pitch = _head.rotation.x
+
+
+## They sat down at `terminal` (null: stood up). `seat` is their place in
+## the queue there; neighbours lean in from opposite sides.
+func sit_at(terminal: Node3D, seat: int = 0) -> void:
+	at_terminal = terminal
+	terminal_side = 1.0 if seat % 2 == 0 else -1.0
 
 
 ## Stand, crouch or crawl at the owner's height: the rig poses for it, and

@@ -982,6 +982,11 @@ func test_coop_terminal_screens() -> void:
 		ui._typed()
 	await _frames(10)
 	check(screen.typing.get(c1_id, "") == "SELECT * FROM", "the host sees what the client is typing")
+	check(screen.get_prompt(host.player).contains("SELECT * FROM_"), "looking at the terminal shows the client's half-typed line, no need to use it")
+	var typist: PlayerPuppet = host.players.puppet(c1_id)
+	await _frames(30)
+	var aside: Vector3 = typist.global_position - typist._target_pos
+	check(typist.at_terminal == screen and Vector2(aside.x, aside.z).length() > 0.4, "the typist leans in from the side, so the glass isn't hidden behind them")
 	check(changes[0] <= 2, "typing is rate-limited, not sent per keystroke (%d updates)" % changes[0])
 
 	host.terminal_ui.open(host.desk_terminal, host.player)
@@ -1010,6 +1015,10 @@ func test_coop_terminal_screens() -> void:
 	ui.close()
 	await _frames(10)
 	check(screen.seated.size() == 1 and not screen.seated.has(c1_id), "stepping away frees the seat on the host")
+	await _frames(30)
+	aside = typist.global_position - typist._target_pos
+	check(typist.at_terminal == null and Vector2(aside.x, aside.z).length() < 0.05, "and they step back to where they really are")
+	check(not screen.get_prompt(host.player).contains("_"), "with nobody typing, looking at it just offers to use it")
 	host.terminal_ui.close()
 	ui.open(c1.desk_terminal, c1.player)
 	await _frames(10)
