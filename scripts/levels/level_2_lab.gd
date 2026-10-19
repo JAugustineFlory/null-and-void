@@ -364,10 +364,16 @@ func _set_door(id: String, locked: bool) -> void:
 
 # --- Badges ------------------------------------------------------------------
 
+## What a card reader shows when it turns someone away: no badge on them, or a badge
+## without clearance for that door (Augustine's wording, 2026-10-19).
+const DENIED_NO_BADGE := "> ACCESS DENIED: NO BADGE READ"
+const DENIED_NOT_AUTHORIZED := "> ACCESS DENIED: NOT AUTHORIZED"
+
+
 ## The presser's machine: the reader wants the visitor badge Rourke clipped on them.
 func _on_reader(p: Node) -> void:
 	if not p.inventory.has("visitor_badge"):
-		level.hud.notice("> NO BADGE READ", 2.0)
+		level.hud.notice(DENIED_NO_BADGE, 2.5, ThemeUtil.RED)
 		return
 	reader_relay.interact(p)
 

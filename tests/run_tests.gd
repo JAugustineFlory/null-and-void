@@ -1964,6 +1964,7 @@ func test_level_2_lab(outcome: String) -> void:
 	lab.reader.interact(p)
 	await _frames(3)
 	check(lab.badged.is_empty() and level.db.run_silent("SELECT * FROM badge_log WHERE badge_id LIKE 'VIS-%'").is_empty(), "with no visitor badge on, the reader logs nothing")
+	check(level.hud._notice.text == Level2Lab.DENIED_NO_BADGE, "and the reader says why: access denied, no badge read")
 	p.inventory.add("visitor_badge")
 	lab.reader.interact(p)
 	await _frames(3)
