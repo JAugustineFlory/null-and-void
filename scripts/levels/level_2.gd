@@ -202,7 +202,7 @@ func build() -> void:
 	])
 	Greybox.label(geo, Vector3(0, 2.75, -16.88), "ELEVATOR  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
 	# The button works on the host, once everyone is in; the doors shut on every machine.
-	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "22", ["22", "3"], "3")
+	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "22", ["26", "22"], "26")
 	exit_lift.name = "ExitElevator"
 	exit_lift.hud = hud
 	exit_lift.closed.connect(func():
