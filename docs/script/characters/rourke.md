@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (63)
+## Your lines (70)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -60,6 +60,18 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l0_memo_1.wav`  
   "...Huh. She always was dramatic."  
   *A beat too long before he speaks. Covering.*
+- [ ] `l0_caller_1.wav`  
+  "One thing on your paperwork. It says I called you in. I didn't. That call came from building services."  
+  *Mild, a little puzzled, tapping the work order. Not suspicious yet.*
+- [ ] `l0_caller_2.wav`  
+  "Want to know who? The staff directory's on that terminal."  
+  *Helpful, easygoing. Nodding at the terminal.*
+- [ ] `l0_mailroom_1.wav`  
+  "Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it."  
+  *Nodding down the back corridor toward the mailroom. Amused, a little fond.*
+- [ ] `l0_caller_3.wav`  
+  "Mercer? Huh. That line's been dead for years. Somebody's having fun with the phones. Anyway."  
+  *A beat of real surprise, then he brushes it off and moves on.*
 - [ ] `l0_memo_2.wav`  
   "Grab the walkie-talkies from lost and found, back behind the desk."  
   *Back to friendly, changing the subject.*
@@ -75,6 +87,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 ### 4. Showing the crew around an office building's ground floor at night. Friendly and helpful.
 
+- [ ] `l0_mailroom_2.wav`  
+  "Don't touch the outgoing tray. Last guy who did got a memo about it."  
+  *Only if a player goes inside the mailroom. Mock-serious.*
 - [ ] `l0_coffee.wav`  
   "Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities."  
   *In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick.*
@@ -123,6 +138,12 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l1_terminal.wav`  
   "Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix."  
   *Mundane, a facilities guy with a real problem. Hopeful.*
+- [ ] `l1_noc_1.wav`  
+  "That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break."  
+  *Passing the NOC window on the way to Server Room A, after the elevator. Easy, tour-guide tone.*
+- [ ] `l1_noc_2.wav`  
+  "Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not."  
+  *Only if a player goes into the NOC. Leaning in the doorway.*
 
 ### 7. Hanging around while the crew fixes a faulty door controller. Patient, helpful, impressed when it works.
 

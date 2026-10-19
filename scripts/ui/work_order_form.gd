@@ -80,7 +80,7 @@ static func _details(t: Dictionary) -> Control:
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 3)
 	sheet.add_child(grid)
-	for field in [["Customer:", t.customer], ["Site:", t.get("site", "")], ["Contact:", t.contact], ["Problem:", t.problem], ["Billing:", t.get("billing", "")]]:
+	for field in [["Customer:", t.customer], ["Site:", t.get("site", "")], ["Contact:", t.contact], ["Caller:", t.get("caller", "")], ["Problem:", t.problem], ["Billing:", t.get("billing", "")]]:
 		if str(field[1]) == "":
 			continue
 		grid.add_child(_type(field[0], 17, FORM_RULE.darkened(0.35), false))

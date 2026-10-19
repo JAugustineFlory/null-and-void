@@ -20,8 +20,10 @@ CREATE TABLE IF NOT EXISTS doors (
 );
 CREATE TABLE IF NOT EXISTS lights (
 	id TEXT PRIMARY KEY,
-	name TEXT,
-	is_on INTEGER
+	room TEXT,
+	floor INTEGER,
+	is_on INTEGER,
+	status TEXT
 );
 CREATE TABLE IF NOT EXISTS badges (
 	badge_id TEXT PRIMARY KEY,
@@ -154,8 +156,8 @@ func sync_world() -> void:
 		for row in run_silent("SELECT id, locked, actuator_fault FROM doors"):
 			door_changed.emit(str(row["id"]), int(row["locked"]) == 1, int(row["actuator_fault"]) == 1)
 	if names.has("lights"):
-		for row in run_silent("SELECT id, is_on FROM lights"):
-			light_changed.emit(str(row["id"]), int(row["is_on"]) == 1)
+		for row in run_silent("SELECT id, is_on, status FROM lights"):
+			light_changed.emit(str(row["id"]), int(row["is_on"]) == 1 and str(row["status"]) != "dead")
 
 
 ## A plain-English explanation of a SQLite error. The terminal prints it as SYSOP.

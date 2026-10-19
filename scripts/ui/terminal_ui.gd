@@ -539,6 +539,10 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 				out.append(["(0 rows)", "info"])
 		else:
 			out.append([_format_table(result.columns, result.rows), "result"])
+	# A hint's shape typed in as it is: SQLite takes ? as an empty value, so the
+	# query runs but finds nothing useful.
+	if sql.contains("?"):
+		out.append([sysop("? is the blank from the hint. Type the real value in its place."), "hint"])
 	for line in out:
 		on_terminal.print_line(line[0], line[1])
 

@@ -3,7 +3,10 @@ extends Interactable
 ## A paper in the world: a brochure, a laminated card, one of Mercer's notes.
 ## E opens it to read, and any line can be copied into your notebook with an
 ## optional name (like "+ note" on a terminal). Reading and copying are each
-## player's own business, so in co-op nothing goes to the host.
+## player's own business; the host only hears that someone read it (read_by).
+
+## Host: someone picked this up or opened it, on any machine.
+signal read_by(player: Node)
 
 ## Each look: the prop on the desk or wall (ArtProps) and its paper up close (DocumentView).
 const LOOKS := {
@@ -271,6 +274,7 @@ func pick_up(player: Node) -> DocumentReader:
 	(level if level else get_tree().root).add_child(reader)
 	if not reader.hold(self, player):
 		return null
+	_report_read(player)
 	return reader
 
 
@@ -280,7 +284,20 @@ func open_reader(player: Node) -> DocumentReader:
 	var level := _level()
 	(level if level else get_tree().root).add_child(reader)
 	reader.open(self, player)
+	_report_read(player)
 	return reader
+
+
+## Tell the host this was read (a story step may wait on a paper being found).
+func _report_read(player: Node) -> void:
+	var sync := LevelSync.of(self)
+	if sync == null or not sync.forward(self, "report_open"):
+		read_by.emit(player)
+
+
+## Host: a client read it.
+func report_open(player: Node) -> void:
+	read_by.emit(player)
 
 
 ## The level this document is in. Duck-typed, like StickyNote, so the test

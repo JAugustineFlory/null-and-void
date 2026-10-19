@@ -414,7 +414,7 @@ func walk_level_1(seed_value: int) -> void:
 	check(todo != "" and not todo.contains(level.answer), "server floor: the to-do names the job, never the controller (%s)" % todo)
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
-	check(world_text(level, level.terminal).contains("door_controllers") and screen(ui).contains("zone A") and screen(ui).contains("'fault'"), "server room: the desk card names the table, and the self-test shows both clues")
+	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone is read off the doors, not the screen")
 	var h := await solve(level, ui, level.controller_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.controller_puzzle), "server room: a lost player finds the controller once a hint gives the query (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
