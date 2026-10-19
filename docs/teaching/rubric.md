@@ -38,9 +38,19 @@ to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
 - **Everything taught can be written down.** Each thing a puzzle teaches appears on a
   terminal line (or a sticky note), so the player is offered it as a "write note" line.
   Voice lines and HUD notices alone don't count.
-- **First hint** is the exact query, then one line per keyword saying what it does.
-- **Later hints** say exactly what to type and where ("add AND shift = 'night' to the
-  end, before the ;"), use the real tables, never an example table.
+- **Hint ladder (option A, Augustine 2026-10-18).** Players find the value; hints teach
+  how, and only the last one gives it away:
+  1. **Hint 1** is the query's shape with the value left as `'?'`, one line per keyword
+     saying what it does, and where the value can be found ("the zone is whichever one
+     the stuck doors share"). It never contains the value.
+  2. **Hint 2** says how to find the value (which paper, room or query), without the
+     full query.
+  3. **The last hint** is the exact query, and typing it solves the puzzle.
+  All hints use the real tables, never an example table, and say exactly what to type
+  and where.
+- **Every gate is a short investigation** (plan/depth-pass-floors-0-2.md): a step's
+  result is the next step's input, and values come from data or the world, not from a
+  hint paper or a SYSOP line.
 - **Hints are opt-in tiers**, and `.hint` must still help at every step, including after
   a "lie" (the keypad says opened, the door didn't move).
 - **Every decoy has a visible reason**: a `note` column, or a refusal that says why.
@@ -68,10 +78,25 @@ cumulative taught set (every terminal line and sticky note seen so far) and fail
 
 - a puzzle needs something outside the taught set before any hint,
 - something a puzzle teaches never appears on a terminal line or sticky note,
-- the needs list misses a keyword from the first hint's query,
-- the player can't finish with at most the first hint, or can't read the physical step
-  (rack, PIN, breaker) off the screen,
+- the needs list misses a keyword from the exact-query hint,
+- a puzzle breaks the hint ladder (checked every time a puzzle is walked, on every
+  seed): hint 1 isn't the exact query's shape with `'?'`, gives the value away, or lacks
+  a line per keyword; a middle hint holds the full query; the exact query doesn't solve
+  the puzzle; or a hint uses an example table. Puzzles still on the old ladder print
+  `GAP` until their floor's depth pass lands,
+- the player can't finish once a hint gives the exact query, or can't read the
+  physical step (rack, PIN, breaker) off the screen,
 - a keyword is first needed under threat.
+
+The lost player never fills in a `'?'` itself: that's the thinking step the ladder
+leaves to real players. Keywords include `DESC`, `>` (a comparison with a value) and
+`COLUMNS` (SELECT naming columns instead of `*`).
+
+**The lab's 3:00 clock is measured, not estimated.** In the lab walk, game time passes
+as a first-time player would spend it: reading new text at 15 characters a second,
+4 seconds to decide each command, typing at 2.5 characters a second, and 10 seconds
+to cross to the switch wall. The run prints the seconds used per seed and fails if
+the security response arrives first.
 
 Known gaps print as `GAP` (not failures) until the owner fixes them; then they print
 `FIXED` and get promoted to normal checks. **Every new puzzle needs a row in
