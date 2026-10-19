@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (70)
+## Your lines (71)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -36,6 +36,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l0_signin.wav`  
   "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me."  
   *Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)*
+- [ ] `l0_badges.wav`  
+  "Visitor badges. Keep them on you. Doors upstairs won't let you through without one."  
+  *Handing them over the desk, routine. Helpful, a little bored.*
 
 ### 2. Walking the crew through the lobby to the front desk, chatting as you go.
 

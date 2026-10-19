@@ -59,6 +59,8 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Casual, reassuring. Nothing to worry about. (On a replay it lands differently.))* Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. `[l0_signin]`
 
+**ROURKE:** *(Handing them over the desk, routine. Helpful, a little bored.)* Visitor badges. Keep them on you. Doors upstairs won't let you through without one. `[l0_badges]`
+
 ### The tour
 
 *Rourke walks the crew to reception and explains the job.*

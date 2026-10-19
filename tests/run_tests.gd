@@ -43,6 +43,7 @@ func _run() -> void:
 	await test_world()
 	await test_rourke_leads_in()
 	test_sticky_notes_never_give_answers()
+	test_visitor_badge()
 	await test_elevator()
 	await test_notebook()
 	await test_in_world_ui()
@@ -1229,11 +1230,13 @@ func test_coop_lobby_walk_in() -> void:
 	check(h.sync._gates.has("inside") and c.sync._gates.has("inside"), "a crew walking in one at a time all counts as inside")
 	check(c.visitor_log.enabled and h.to_local(h.rourke.global_position).z < 3.0, "Rourke makes it through the front doors to the desk")
 	c.visitor_log.interact(m[1].player)
-	for f in 1500:
+	for f in 2400:  # the tour lines, and the badge handout before them
 		await physics_frame
 		if c.desk_terminal.enabled:
 			break
 	check(h.desk_terminal.enabled and c.desk_terminal.enabled, "the client signs in and the story carries on for everyone")
+	var inv: Inventory = _game().inventory
+	check(inv.has("visitor_badge") and _game().visitor_badge_no.begins_with("VIS-0") and not inv.hotbar.has("visitor_badge"), "Rourke hands out visitor badges at the desk, clipped on rather than on the hotbar")
 	await _coop_close(worlds)
 
 
@@ -2356,6 +2359,15 @@ func test_sticky_notes_never_give_answers() -> void:
 		fits = fits and lines.size() <= 4 and Array(lines).all(func(line): return line.length() <= 30)
 	check(fits, "every sticky note fits on its paper")
 	l0.free()
+
+
+## The visitor badge is worn: carried and listed, never on the hotbar, numbered by player.
+func test_visitor_badge() -> void:
+	print("Visitor badge")
+	var inv := Inventory.new()
+	check(inv.add("visitor_badge") and inv.has("visitor_badge") and not inv.hotbar.has("visitor_badge"), "a visitor badge is carried, not put on the hotbar")
+	check(not inv.assign(0, "visitor_badge") and not inv.stowed().has("visitor_badge"), "and the inventory won't put it in your hands")
+	check(Inventory.item_name("visitor_badge") == "Visitor badge", "it has a name in the inventory")
 
 
 func test_notebook() -> void:

@@ -1,6 +1,6 @@
 # Recording list
 
-101 lines in all.
+102 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -19,7 +19,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
 
-## Dale Rourke (70 lines)
+## Dale Rourke (71 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
@@ -30,6 +30,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_greet_4` | Come on in. I'll sign you in at the front desk. | Holding the door, waving them through. | Level 0 |
 | [ ] | `l0_greet_2` | Sorry about that. The company loves its PA system. | Inside the lobby, right after the PA. Chuckling, waving at the ceiling speaker. | Level 0 |
 | [ ] | `l0_signin` | Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me. | Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) | Level 0 |
+| [ ] | `l0_badges` | Visitor badges. Keep them on you. Doors upstairs won't let you through without one. | Handing them over the desk, routine. Helpful, a little bored. | Level 0 |
 | [ ] | `l0_tour_1` | Here's the job. Dr. Vale, our lead engineer, went missing three nights ago. | Walking. Matter-of-fact, the way you'd mention the weather. | Level 0 |
 | [ ] | `l0_tour_2` | Her systems are a mess and the director wants them recovered by morning. Quietly. | Small beat before "Quietly." | Level 0 |
 | [ ] | `l0_desk_1` | The front desk scanner ate one of Vale's memos. The scraps went into a table. | Pointing at the desk. | Level 0 |

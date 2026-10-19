@@ -18,6 +18,8 @@ const LEVELS := {
 ## How the escort's story went: "unknown", "killed", "tied".
 var rourke_fate := "unknown"
 var has_walkie := false
+## This machine's player's visitor badge, "VIS-01".."VIS-06" ("" before the front desk).
+var visitor_badge_no := ""
 ## This player's inventory and hotbar. Each machine keeps its own (see Inventory).
 var inventory := Inventory.new()
 ## Did the players lock the Watcher in behind them in Level 2?
@@ -76,6 +78,7 @@ func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	rourke_fate = "unknown"
 	has_walkie = false
+	visitor_badge_no = ""
 	watcher_sealed = false
 	cam_lie_learned = false
 	completed_level = ""
