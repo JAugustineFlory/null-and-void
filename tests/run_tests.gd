@@ -2368,6 +2368,10 @@ func test_visitor_badge() -> void:
 	check(inv.add("visitor_badge") and inv.has("visitor_badge") and not inv.hotbar.has("visitor_badge"), "a visitor badge is carried, not put on the hotbar")
 	check(not inv.assign(0, "visitor_badge") and not inv.stowed().has("visitor_badge"), "and the inventory won't put it in your hands")
 	check(Inventory.item_name("visitor_badge") == "Visitor badge", "it has a name in the inventory")
+	var saved := inv.to_dict()
+	saved["hotbar"] = ["visitor_badge", "", "", ""]
+	inv.load_dict(saved)
+	check(inv.has("visitor_badge") and not inv.hotbar.has("visitor_badge"), "a saved run loads the badge back, still off the hotbar")
 
 
 func test_notebook() -> void:

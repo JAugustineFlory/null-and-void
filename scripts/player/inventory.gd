@@ -151,7 +151,7 @@ func load_dict(data: Dictionary) -> void:
 	hotbar.fill("")
 	var bar: Array = data.get("hotbar", [])
 	for i in mini(bar.size(), HOTBAR_SIZE):
-		if items.has(bar[i]) and not FIXED.has(bar[i]) and not hotbar.has(bar[i]):
+		if items.has(bar[i]) and not FIXED.has(bar[i]) and not WORN.has(bar[i]) and not hotbar.has(bar[i]):
 			hotbar[i] = bar[i]
 	active = -1
 	changed.emit()

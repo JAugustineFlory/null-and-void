@@ -247,12 +247,13 @@ func _build_panel() -> void:
 	for item in inventory.items:
 		var info: Dictionary = Inventory.ITEMS.get(item, {})
 		var fixed := Inventory.FIXED.has(item)
+		var worn := Inventory.WORN.has(item)
 		var where := "always at hand (%s)" % info.get("key", "") if fixed else \
-				("hotbar %d" % (inventory.hotbar.find(item) + 1) if inventory.hotbar.has(item) else "in your bag")
+				("worn" if worn else ("hotbar %d" % (inventory.hotbar.find(item) + 1) if inventory.hotbar.has(item) else "in your bag"))
 		var b := Button.new()
 		b.text = "%s  -  %s\n%s" % [Inventory.item_name(item), where, info.get("about", "")]
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.disabled = fixed
+		b.disabled = fixed or worn
 		b.toggle_mode = true
 		b.button_pressed = item == picked
 		b.pressed.connect(pick.bind(item))
