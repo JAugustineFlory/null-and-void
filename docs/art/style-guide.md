@@ -110,7 +110,7 @@ Halcyon Tower is 30 storeys over dark woods and car parks (game plan §2). The W
 - Only big pieces cast shadows. Only the local player's flashlight has shadows; teammates' flashlights light the room without them. Shadows from lamps and flashlights use a 32-bit shadow atlas (`rendering/lights_and_shadows/positional_shadow/atlas_16_bits=false`); at 16 bits a flashlight striped walls more than about 4 m away.
 - Rigs more than 30 m from the camera animate at a quarter rate; hidden rigs don't animate.
 - Ceiling lights cast soft shadows only near the camera: `ArtDress.ceiling_shadow` points each one down with a dual-paraboloid shadow that fades out past `SHADOW_NEAR` (9 m), so only the few lights round each player draw one. Props still choose whether they cast.
-- `ArtMood.polish` adds ambient occlusion, a little bounce light (SSIL) and glow on bright things only. These are Forward+ features, so take screenshots with Vulkan (see `tools/dress_shots.gd`).
+- `ArtMood.polish` adds ambient occlusion, a little bounce light (SSIL), reflections on polished floors (SSR) and glow on bright things only. These are Forward+ features, so take screenshots with Vulkan (see `tools/dress_shots.gd`).
 - The VHS overlay is a single full-screen pass and switches off completely at intensity 0.
 
 ## Furnishing a level
