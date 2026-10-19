@@ -7,6 +7,14 @@ signal closed
 ## Cells show in full; this only stops a runaway value from flooding the screen.
 const MAX_COL_WIDTH := 240
 const MAX_ROWS_SHOWN := 60
+## Screen colors, so each kind of line reads apart: tables amber and green,
+## hints cyan, SQL keywords gold (as the input line colors them).
+const TABLE_HEAD := "#ffd27f"
+const TABLE_RULE := "#4f8a5c"
+const TABLE_ROWS := ["#e2ffe6", "#8fdca2"]
+const HINT := "#7fd4ff"
+const KEYWORD := "#ffcc59"
+const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]
 
 var terminal: Node  # the Terminal in the world that opened this
 var player: Player
@@ -416,8 +424,22 @@ static func _plain(bbcode: String) -> String:
 
 ## A message from SYSOP: an unknown user on the system who sends tips, nudges
 ## and .hint answers. (Players never learn who it is until much later.)
+## Its messages are cyan, and the SQL in them is colored the way the input line
+## colors what you type, so a hint's query reads apart from the advice around it.
 static func sysop(text: String) -> String:
-	return "[color=#7fd4ff][lb]SYSOP[rb]: %s[/color]" % text
+	var lit := RegEx.create_from_string("\\[color=#ffffff\\](.*?)\\[/color\\]")
+	var out := ""
+	var at := 0
+	for m in lit.search_all(text):
+		out += text.substr(at, m.get_start() - at) + "[color=#ffffff]%s[/color]" % _keywords(m.get_string(1))
+		at = m.get_end()
+	out += text.substr(at)
+	return "[color=%s][lb]SYSOP[rb]: %s[/color]" % [HINT, out]
+
+
+## SQL keywords in a line of query text, in the input line's keyword color.
+static func _keywords(sql: String) -> String:
+	return RegEx.create_from_string("\\b(%s)\\b" % "|".join(KEYWORDS)).sub(sql, "[color=%s]$1[/color]" % KEYWORD, true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -607,10 +629,11 @@ func _command(cmd: String) -> void:
 				var desc := PackedStringArray()
 				for c in cols:
 					desc.append("%s %s" % [c["name"], c["type"]])
-				print_line("%s(%s)" % [t, ", ".join(desc)], "schema")
+				print_line("[color=%s]%s[/color](%s)" % [TABLE_HEAD, t, ", ".join(desc)], "schema")
 				_discover(t, db)
 		".hint":
-			print_line(sysop(terminal.next_hint()), "hint")
+			var case_id: String = terminal.hint_case()
+			print_line(sysop(_noted_hint(case_id, terminal.next_hint())), "hint")
 		".clear":
 			var mirror := _mirror()
 			if mirror:
@@ -637,6 +660,13 @@ func _command(cmd: String) -> void:
 				print_line("Backup tape restored. Data is back to how it started.")
 		_:
 			print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
+
+
+## Every hint asked for also goes on its puzzle's case page. Returns the hint.
+func _noted_hint(case_id: String, hint: String) -> String:
+	if case_id != "":
+		get_node("/root/Game").add_clue(case_id, _plain(hint), "SYSOP hint")
+	return hint
 
 
 ## Tables a query read from go on the notebook's Tables page.
@@ -671,17 +701,19 @@ func _format_table(columns: Array, rows: Array) -> String:
 	for i in columns.size():
 		header.append(_pad(str(columns[i]), widths[i]))
 		rule.append("-".repeat(widths[i]))
-	lines.append("[b]%s[/b]" % _esc(" | ".join(header)))
-	lines.append(" + ".join(rule).replace(" + ", "-+-"))
-	for row in shown:
+	# Results read apart from everything else: an amber header, then rows in two
+	# alternating shades so the eye can follow one across.
+	lines.append("[b][color=%s]%s[/color][/b]" % [TABLE_HEAD, _esc(" | ".join(header))])
+	lines.append("[color=%s]%s[/color]" % [TABLE_RULE, " + ".join(rule).replace(" + ", "-+-")])
+	for r in shown.size():
 		var cells := PackedStringArray()
 		for i in columns.size():
-			cells.append(_pad(_cell(row[columns[i]]), widths[i]))
-		lines.append(_esc(" | ".join(cells)))
+			cells.append(_pad(_cell(shown[r][columns[i]]), widths[i]))
+		lines.append("[color=%s]%s[/color]" % [TABLE_ROWS[r % 2], _esc(" | ".join(cells))])
 	var footer := "(%d row%s)" % [rows.size(), "" if rows.size() == 1 else "s"]
 	if rows.size() > MAX_ROWS_SHOWN:
 		footer += "  showing first %d. Try LIMIT or WHERE." % MAX_ROWS_SHOWN
-	lines.append(footer)
+	lines.append("[color=%s]%s[/color]" % [TABLE_RULE, footer])
 	return "\n".join(lines)
 
 
@@ -705,8 +737,8 @@ func _sql_highlighter() -> CodeHighlighter:
 	h.symbol_color = Color(0.8, 0.9, 0.8)
 	h.function_color = Color(0.85, 1.0, 0.85)
 	h.member_variable_color = Color(0.85, 1.0, 0.85)
-	var kw := Color(1.0, 0.8, 0.35)
-	for word in ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]:
+	var kw := Color(KEYWORD)
+	for word in KEYWORDS:
 		h.add_keyword_color(word, kw)
 		h.add_keyword_color(word.to_lower(), kw)
 	h.add_color_region("'", "'", Color(0.6, 1.0, 1.0))

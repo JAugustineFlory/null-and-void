@@ -46,6 +46,7 @@ func _run() -> void:
 	test_visitor_badge()
 	await test_elevator()
 	await test_notebook()
+	await test_case_pages()
 	await test_in_world_ui()
 	await test_pick_up_papers()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
@@ -741,6 +742,8 @@ func test_level_1_scene() -> void:
 	check(not level.controller_puzzle.solved and level.doors["SRA-EXIT"].is_open == false, "the racks do nothing before Rourke asks")
 	level._on_asked()
 	check(not level.terminal.locked and _game().current_todo() != "", "once Rourke asks, the terminal opens and the job goes on the to-do list")
+	level._on_panel(null, level.answer)
+	check(not level.controller_puzzle.solved and level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until == 0.0 and level.hud._notice.text.contains("NO POWER"), "pressing racks can't stand in for the query: no power until the terminal finds the controller")
 	check(not level.rourke.is_in_group(VoiceChat.INTERFERENCE_GROUP) and Rourke.State.keys()[level.rourke.state] != "CHASE", "no fight on the server floor")
 	# Every room of the floor is on the navigation mesh, reachable from the arrival corridor.
 	var map: RID = level.get_world_3d().navigation_map
@@ -793,10 +796,13 @@ func test_level_1_scene() -> void:
 	# Server Room B's hot rack: reseating its fan tray releases the cable vault's back door.
 	check(level.vault_back.locked, "the cable vault's back door starts sealed by its fire interlock")
 	var cool: String = level.db.run_silent("SELECT id FROM racks WHERE room = 'Server Room B' AND temp_c <= 40")[0]["id"]
+	level._on_tray(null, level.hot_rack)
+	check(level.vault_back.locked and level.trays_locked_until == 0.0 and level.hud._notice.text.contains("LATCH LOCKED"), "even the hot rack's tray stays latched until the terminal finds it")
+	level.terminal_ui.run("SELECT id, temp_c FROM racks WHERE temp_c > 40")
+	check(level.hot_rack_found and "\n".join(Array(level.terminal.transcript)).contains("LATCH RELEASED"), "the query releases the tray latch")
 	level._on_tray(null, cool)
 	check(level.vault_back.locked and level.trays_locked_until > 0.0, "reseating a healthy rack's tray does nothing but lock the trays")
 	level.trays_locked_until = 0.0
-	level.terminal_ui.run("SELECT id, temp_c FROM racks WHERE temp_c > 40")
 	check(level.hot_rack_puzzle.matches(level.db, level.db.execute("SELECT id FROM racks WHERE temp_c > 40")), "WHERE temp_c > 40 finds the hot rack")
 	level._on_tray(null, level.hot_rack)
 	for i in 300:
@@ -947,7 +953,14 @@ func test_coop_level_0() -> void:
 		l.walkies.enabled = true
 	c2.walkies.interact(c2.player)
 	await _frames(10)
-	check(levels.all(func(l): return not is_instance_valid(l.walkies) or l.walkies.is_queued_for_deletion()), "a client picking up the walkies is seen by everyone")
+	check(levels.all(func(l): return is_instance_valid(l.walkies) and l._radios_taken.size() == 1) and _game().has_walkie, "a client taking a walkie-talkie takes only their own; the rest stay on the dock")
+	c2.walkies.interact(c2.player)
+	await _frames(10)
+	check(levels.all(func(l): return l._radios_taken.size() == 1), "and can't take a second one")
+	host.walkies.interact(host.player)
+	c1.walkies.interact(c1.player)
+	await _frames(10)
+	check(levels.all(func(l): return not is_instance_valid(l.walkies) or l.walkies.is_queued_for_deletion()), "once everyone has one, the dock is empty for everyone")
 
 	_game().has_walkie = true
 	var tone := _tone(4800, 48000.0, 0.5)
@@ -993,6 +1006,10 @@ func test_coop_level_1() -> void:
 	check(client.rourke.global_position.distance_to(host.rourke.global_position) < 1.0, "clients see Rourke where the host has him")
 
 	var wrong: String = host.db.run_silent("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'offline'" % host.zone)[0]["id"]
+	client.terminal_ui.terminal = client.terminal
+	client.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % host.zone)
+	await _frames(10)
+	check(host.controller_puzzle.solved and client.controller_puzzle.solved, "a client's query finds the controller for everyone")
 	client.rack_panels[wrong].interact(client.player)
 	await _frames(10)
 	check(host.panels_locked_until > 0.0 and client.panels_locked_until > 0.0, "a wrong rack locks the panels for everyone")
@@ -1223,14 +1240,19 @@ func test_coop_lobby_walk_in() -> void:
 	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 4.5))
 	await _frames(20)
 	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 1.8))
+	check(c.visitor_log.enabled, "the visitor log can be signed as soon as the crew is in, without waiting on Rourke")
 	for f in 3000:
 		await physics_frame
-		if c.visitor_log.enabled:
+		if c.sync._gates.has("inside"):
 			break
 	check(h.sync._gates.has("inside") and c.sync._gates.has("inside"), "a crew walking in one at a time all counts as inside")
-	check(c.visitor_log.enabled and h.to_local(h.rourke.global_position).z < 3.0, "Rourke makes it through the front doors to the desk")
 	c.visitor_log.interact(m[1].player)
-	for f in 2400:  # the tour lines, and the badge handout before them
+	for f in 3000:
+		await physics_frame
+		if c.desk_terminal.enabled:
+			break
+	check(h.to_local(h.rourke.global_position).z < 3.0, "Rourke makes it through the front doors to the desk")
+	for f in 2400:  # the badge handout
 		await physics_frame
 		if c.desk_terminal.enabled:
 			break
@@ -2393,6 +2415,65 @@ func test_visitor_badge() -> void:
 	check(inv.has("visitor_badge") and not inv.hotbar.has("visitor_badge"), "a saved run loads the badge back, still off the hotbar")
 
 
+func test_case_pages() -> void:
+	print("Case pages")
+	_game().new_run(7)
+	var g := _game()
+	check(not g.add_clue("memo", "a clue read early", "Desk") and g.notebook_cases.size() == 1 and not g.case_info("memo").open, "a clue read before its case opens is kept, but no page shows yet")
+	check(g.open_case("memo", "What does the memo say?", ["memo_fragments"]) and g.case_info("memo").clues.size() == 1, "opening the case brings the early clue onto its page")
+	check(not g.add_clue("memo", "a clue read early", "Desk"), "the same clue isn't noted twice")
+	var pages := NotebookPages.new()
+	var text := NotebookPages.text_of(pages._case_items(g))
+	check(text.contains("What does the memo say?") and text.contains("a clue read early") and text.contains("Desk") and not text.contains("memo_fragments"), "the page shows the question and the clue with where it came from, and no table the player hasn't found")
+	g.discover_table("memo_fragments", ["piece_no", "text"])
+	text = NotebookPages.text_of(pages._case_items(g))
+	check(text.contains("memo_fragments") and text.contains("piece_no"), "once found, the case's table is on its page")
+	g.open_case("caller", "Who called?")
+	g.solve_case("memo", "sorted by piece_no.")
+	var items := pages._case_items(g)
+	text = NotebookPages.text_of(items)
+	check(text.find("Who called?") < text.find("[x]  What does the memo say?") and text.contains("Solved: sorted by piece_no."), "open cases come first; a solved one is ticked with how")
+	for i in items:
+		i.free()
+	pages.free()
+	var saved: Dictionary = g.notebook_data()
+	g.notebook_cases.clear()
+	g.load_notebook(saved)
+	check(g.case_info("caller").title == "Who called?", "case pages are saved with the notebook")
+	g.new_run(7)
+	check(g.notebook_cases.is_empty(), "a new run starts with no cases")
+
+	# In the server room: papers and plates fill the controller's page.
+	var level = load("res://scenes/level_1.tscn").instantiate()
+	root.add_child(level)
+	for i in 10:
+		await physics_frame
+	level._on_asked()
+	check(g.case_info("controller").open, "Rourke's ask opens the controller case")
+	for d in level.find_children("*", "Document", true, false):
+		if d.title in ["SERVER ROOM A - DOOR CONTROLLERS", "Reminders", "NOC SHIFT LOG"]:
+			d._note_clues()
+	var page := "\n".join(PackedStringArray(g.case_info("controller").clues.map(func(k): return k.text)))
+	check(page.contains("door_controllers") and page.contains("'fault'") and page.contains("Server Room C"), "reading the desk papers and the shift log notes the table, the statuses and the stuck doors")
+	check(not page.contains(level.answer), "nothing read so far names the controller")
+	var cam := Camera3D.new()
+	level.add_child(cam)
+	var plate: Node3D = level.geo.get_node("Plate_SRC")
+	cam.global_position = plate.global_position + plate.global_basis.z * 1.5
+	cam.look_at(plate.global_position)
+	cam.make_current()
+	for i in 5:
+		await process_frame
+	check(g.case_info("controller").clues.any(func(k): return k.text.contains("SRC door: ZONE %s" % level.zone)), "looking at a stuck door's plate notes its zone")
+	level.terminal_ui.terminal = level.terminal
+	level.terminal_ui.run(".hint")
+	check(g.case_info("controller").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the case page too")
+	level.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % level.zone)
+	check(g.case_info("controller").clues.any(func(k): return k.text.contains(level.answer)), "SYSOP's answer is noted once the query finds it")
+	level.queue_free()
+	await process_frame
+
+
 func test_notebook() -> void:
 	print("Notebook")
 	_game().new_run(3)
@@ -2403,7 +2484,7 @@ func test_notebook() -> void:
 	var nb: Notebook = level.notebook
 	level.player.input_locked = false
 	check(nb.open() and nb.is_open() and level.player.input_locked, "Tab opens the notebook and holds the player")
-	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER and NotebookPages.TAB_NAMES == ["Work order", "Tables", "Notes", "Field Notes"], "it opens on the work order, then Tables, Notes and Field Notes")
+	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER and NotebookPages.TAB_NAMES == ["Work order", "Cases", "Tables", "Notes", "Field Notes"], "it opens on the work order, then Cases, Tables, Notes and Field Notes")
 	nb.close()
 	check(not nb.is_open() and not level.player.input_locked, "and closes again")
 	level.terminal_ui.open(level.desk_terminal, level.player)
@@ -2737,7 +2818,7 @@ func test_pick_up_papers() -> void:
 	three.physical_keycode = KEY_3
 	three.pressed = true
 	level.notebook._unhandled_input(three)
-	check(level.notebook.pages.current_page() == NotebookPages.Page.NOTES, "3 turns the notebook to its third tab")
+	check(level.notebook.pages.current_page() == NotebookPages.Page.TABLES, "3 turns the notebook to its third tab")
 	level.notebook._unhandled_input(tab)
 	check(not level.notebook.is_open(), "and Tab puts it away")
 	for i in 40:

@@ -44,6 +44,10 @@ var vending: Interactable
 var ceiling_hatch: Interactable
 ## Host: Rourke is just waiting at the desk, so he can wander over to help.
 var _rourke_free := false
+## The crew has signed the visitor log (they can do it as soon as they are in).
+var _signed_in := false
+## Who has taken a walkie-talkie off the dock (peer id -> true). One each.
+var _radios_taken := {}
 var _coffee_done := false
 var _boost_done := false
 ## Host: bumped whenever Rourke's walk back to the desk should stop.
@@ -52,6 +56,8 @@ var _errand := 0
 var elevator: Elevator
 ## The elevator's doorway, in the elevator bank's east wall.
 const LIFT_AT := Vector3(30, 0, 3)
+## The visitor book's case page, opened by reading the book (optional).
+const BOOK_CASE := "Who signed in last? The book's last page is gone."
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
 	"The shape of it:\n" +
 	"    [color=#ffffff]SELECT * FROM ?;[/color]\n" +
@@ -131,6 +137,7 @@ func build() -> void:
 		"",
 		"Type .help for commands, .hint if you're stuck.",
 	]
+	peek_puzzle.case_id = "memo"
 	desk_terminal.puzzles = [peek_puzzle, memo_puzzle, caller_puzzle, visitor_puzzle]
 	desk_terminal.blanks = {"table_name": "table_name is a blank. the real name is handwritten on the ScanRight card."}
 	desk_terminal.enabled = false
@@ -138,9 +145,11 @@ func build() -> void:
 	StickyNote.on_monitor(desk_terminal, "select_from")
 	# Someone's reminder to themselves, left on the desk.
 	StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true)
-	Document.place(geo, Vector3(1.86, 1.102, -0.78), 0.0, "Sticky note", [{"text": "ORDER matters.", "hand": true}, {"text": "  - I.", "hand": true}], true, "sticky")
+	Document.place(geo, Vector3(1.86, 1.102, -0.78), 0.0, "Sticky note", [{"text": "ORDER matters.", "hand": true}, {"text": "  - I.", "hand": true}], true, "sticky").clues = [
+		{"case": "memo", "text": "\"ORDER matters.\" - I."},
+	]
 	# The scanner's quick-start card: the table name is handwritten in its blank.
-	Document.place(geo, Vector3(0.75, 1.102, -0.75), 10.0, "ScanRight 3000 - Quick Start", [
+	var scan_card := Document.place(geo, Vector3(0.75, 1.102, -0.75), 10.0, "ScanRight 3000 - Quick Start", [
 		"Shredded? Torn? Chewed by the fax?",
 		"ScanRight saves every scrap!",
 		"",
@@ -151,15 +160,22 @@ func build() -> void:
 		"",
 		{"text": "Front desk scanner. Don't feed it staples!! - IT", "hand": true},
 	], true, "brochure", Vector2(0.15, 0.21))
+	scan_card.clues = [
+		{"case": "memo", "text": "The scanner saves each scrap as one row in the table memo_fragments."},
+		{"case": "memo", "text": "piece_no numbers each scrap by where it sat on the page, starting at 1."},
+	]
 	visitor_log = Interactable.create(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), "Sign the visitor log", Color(0.92, 0.9, 0.82))
 	Greybox.label(geo, Vector3(-1.5, 1.2, -0.66), "VISITOR LOG", 24, Color(0.15, 0.15, 0.2), 0)
 	visitor_log.enabled = false
+	visitor_log.used.connect(func(_p): if not _signed_in: sync.event("_on_signed_in"))
 	# The book's own last page is gone; the visitors table still has it.
-	Document.place(geo, Vector3(-2.25, 1.102, -0.72), -10.0, "Visitor book", [
+	var book := Document.place(geo, Vector3(-2.25, 1.102, -0.72), -10.0, "Visitor book", [
 		"VISITOR BOOK - AFTER HOURS",
 		"Sign in AND out. All visitors are also logged in visitors.",
 		{"text": "Who tore the last page out?? - N.F.", "hand": true},
 	], true, "note", Vector2(0.15, 0.2))
+	book.clues = [{"case": "last_visitor", "opens": BOOK_CASE, "tables": ["visitors"],
+		"text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
 
 	# A side table behind the desk with the walkie-talkies' charging dock on it.
 	Greybox.box(geo, Vector3(-2.5, 0.68, -5.5), Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
@@ -168,14 +184,17 @@ func build() -> void:
 	# The dock stays on the table when the radios are taken; the radios sit in it,
 	# one for each of the crew (up to six).
 	_mesh(geo, Vector3(-2.5, 0.73, -5.5), Vector3(0.9, 0.06, 0.26), Color(0.12, 0.12, 0.13)).name = "ChargingDock"
-	walkies = Interactable.create(geo, Vector3(-2.5, 0.8, -5.5), Vector3(0.9, 0.2, 0.3), "Take the walkie-talkies (one each)", Color(0.1, 0.1, 0.1), false)
+	walkies = Interactable.create(geo, Vector3(-2.5, 0.8, -5.5), Vector3(0.9, 0.2, 0.3), "Take a walkie-talkie", Color(0.1, 0.1, 0.1), false)
 	walkies.enabled = false
 	for i in 6:
 		var radio := _mesh(walkies, Vector3(-0.375 + i * 0.15, 0.04, 0), Vector3(0.07, 0.17, 0.04), Color(0.15, 0.16, 0.14))
 		radio.name = "Radio%d" % i
 		_mesh(radio, Vector3(0.022, 0.14, 0), Vector3(0.012, 0.12, 0.012), Color(0.08, 0.08, 0.08))
 		_mesh(radio, Vector3(0, 0.03, 0.021), Vector3(0.05, 0.04, 0.002), Color(0.35, 0.8, 0.4))  # charge light
-	walkies.used.connect(func(_p): sync.event("_on_walkies"))
+	walkies.used.connect(func(p):
+		var id := players.id_of(p)
+		if not _radios_taken.has(id):
+			sync.event("_on_radio_taken", [id]))
 	# The west end of the counter is clear of the log and terminal: walking into it
 	# vaults you over (Player.VAULT_MAX), from either side.
 
@@ -558,6 +577,7 @@ func start() -> void:
 
 	# Rourke is waiting outside: he greets the crew on the steps, then takes them in.
 	_set_front_doors_locked(false)
+	visitor_log.enabled = true  # sign in whenever you reach the desk, no waiting on Rourke
 	_watch_nearest()
 	await hud.lines(["l0_greet_1", "l0_greet_3", "l0_greet_4"])
 	rourke.watch = null
@@ -579,22 +599,27 @@ func start() -> void:
 	# Only once Rourke is through too: shutting the doors on him would strand him.
 	_set_front_doors_locked(true)
 	_watch_nearest()
-	await hud.line("l0_greet_2")
-	await hud.line("l0_signin")
-	visitor_log.enabled = true
-	hud.todo("Sign the visitor log")
-	await sync.gate("signed_in", visitor_log.used)
-	visitor_log.enabled = false
-	hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
+	if not _signed_in:
+		hud.todo("Sign the visitor log")
+		hud.lines(["l0_greet_2", "l0_signin"])  # not awaited: the log works while he talks
+	await sync.gate("signed_in", func():
+		if not _signed_in:
+			await visitor_log.used)
 	hud.todo("")
 	_give_badge()
-	await hud.line("l0_badges")
-	await hud.lines(["l0_tour_1", "l0_tour_2"])
-	_watch_nearest()
-	await hud.lines(["l0_desk_1", "l0_desk_2"])
+	# The terminal is ready at once: nobody waits on Rourke to finish talking.
 	desk_terminal.enabled = true
 	_rourke_free = true
+	hud.lines(["l0_badges", "l0_tour_1", "l0_tour_2", "l0_desk_1", "l0_desk_2"])
 	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
+	get_node("/root/Game").open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
+
+
+## Someone signed the visitor log: on every machine.
+func _on_signed_in() -> void:
+	_signed_in = true
+	visitor_log.enabled = false
+	hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
 
 
 ## The rest of the ground floor around the lobby: a corridor along the back with
@@ -646,6 +671,7 @@ func _build_ground_floor(wall: Color) -> void:
 			listing.append({"row": [row[0], row[2], str(row[3])]})
 	listing.append({"text": "Mercer's still on here?? - mailroom", "hand": true})
 	directory_printout = Document.place(geo, Vector3(-13.12, 1.5, -13.0), 90.0, "HALCYON STAFF DIRECTORY", listing, false, "paper", Vector2(0.5, 0.66))
+	directory_printout.clues = [{"case": "caller", "text": "The mailroom's printout of the staff directory lists everyone's extension."}]
 	directory_printout.read_by.connect(_on_printout_read)
 	var in_mailroom := Trigger.create(self, Vector3(-16.5, 1, -14), Vector3(6.6, 2, 7.6))
 	in_mailroom.entered.connect(func(_b): sync.event("_on_mailroom_entered"), CONNECT_ONE_SHOT)
@@ -784,6 +810,7 @@ func _after_memo() -> void:
 		_rourke_back_to_desk(TO_IT_CLOSET if from_it else TO_CAFETERIA)
 	# Written on the job ticket: what the crew touched, for later levels to read back.
 	get_node("/root/Game").ticket_fill("Put the memo back in order", "rebuilt from memo_fragments. Copy to the director, says Rourke")
+	get_node("/root/Game").solve_case("memo", "the scraps sorted by piece_no read as the memo.")
 	# Rourke waits for the crew to step back from the screen before he says anything,
 	# and the building's PA only cuts in once he's done.
 	await sync.gate("memo_left_terminal", _crew_off_desk_terminal)
@@ -804,7 +831,7 @@ func _after_memo() -> void:
 	# One radio on the rack for each player.
 	for i in 6:
 		walkies.get_node("Radio%d" % i).visible = i < players.count()
-	hud.todo("Grab walkie-talkies from behind the counter")
+	hud.todo("Grab a walkie-talkie from behind the counter")
 
 
 ## Who called, for a run whose work order shows extension `ext`. Hints follow
@@ -844,6 +871,10 @@ static func visitor_puzzle_for() -> Puzzle:
 func _ask_caller() -> void:
 	caller_asked = true
 	hud.todo("Find out who called from ext. %d" % data.extension)
+	var game := get_node("/root/Game")
+	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"])
+	game.add_clue("caller", "The call came from ext. %d." % data.extension, "Work order")
+	game.add_clue("caller", "Name just the columns you want, with commas between them: SELECT column, column FROM table_name;", "SYSOP")
 	desk_terminal.print_line("")
 	desk_terminal.print_line(TerminalUI.sysop("staff_directory is wide. Instead of *, name just the columns you want, with commas between them:"))
 	desk_terminal.print_line("    [color=#ffffff]SELECT [i]column[/i], [i]column[/i] FROM [i]table_name[/i];[/color]")
@@ -866,12 +897,15 @@ func _on_caller_found() -> void:
 	var task := "Find out who called from ext. %d" % data.extension
 	hud.todo("")
 	get_node("/root/Game").ticket_fill(task, "ext. %d: Harold Mercer, Building Services (left 03/94)" % data.extension)
+	get_node("/root/Game").solve_case("caller", "ext. %d is Harold Mercer, Building Services. He left in 03/94." % data.extension)
 	caller_found.emit()
 
 
 ## Optional: the visitor log, newest first. Vale signed in tonight and never left.
 func _on_last_visitor() -> void:
 	visitor_puzzle.solved = true
+	get_node("/root/Game").open_case("last_visitor", BOOK_CASE, ["visitors"])
+	get_node("/root/Game").solve_case("last_visitor", "VALE, I. signed in at %s tonight and never signed out." % str(data.vale_in).right(5))
 	get_node("/root/Game").write_note("Last visitor", "VALE, I. signed in %s tonight. Never signed out." % str(data.vale_in).right(5), "result")
 	hud.notice("Added to your notebook (Tab)", 3.0)
 
@@ -903,15 +937,40 @@ func _give_badge() -> void:
 	hud.notice("Visitor badge %s clipped on." % Game.visitor_badge_no, 4.0)
 
 
+## Someone took a radio off the dock: on every machine. Only the taker gets it,
+## and the story moves on once every player has their own.
+func _on_radio_taken(id: int) -> void:
+	if _radios_taken.has(id) or not is_instance_valid(walkies):
+		return
+	_radios_taken[id] = true
+	var left := players.count() - _radios_taken.size()
+	var on_dock := walkies.get_node_or_null("Radio%d" % maxi(left, 0))
+	if on_dock:
+		on_dock.visible = false
+	if id == players.id_of(player):
+		_take_radio()
+	if left <= 0:
+		_on_walkies()
+	elif id == players.id_of(player):
+		hud.todo("Wait for everyone to grab a walkie-talkie")
+
+
+func _take_radio() -> void:
+	Game.has_walkie = true
+	player.inventory.add("radio")
+	if sync.is_online():
+		hud.notice("Walkie-talkie clipped on. Hold V to talk on the radio. Up close, just talk.", 6.0)
+	else:
+		hud.notice("Picked up a walkie-talkie. Channel 1. Nobody else is on it.", 5.0)
+
+
+## Everyone has a radio: the dock is empty and Rourke takes the crew on.
 func _on_walkies() -> void:
 	_errand += 1  # the story has him now
-	walkies.queue_free()
-	Game.has_walkie = true
-	player.inventory.add("radio")  # one each: every machine's player takes one
-	if sync.is_online():
-		hud.notice("Walkie-talkies handed out, one each. Hold V to talk on the radio. Up close, just talk.", 6.0)
-	else:
-		hud.notice("Picked up walkie-talkies. Channel 1. Nobody else is on it.", 5.0)
+	if is_instance_valid(walkies):
+		walkies.queue_free()
+	if not player.inventory.has("radio"):
+		_take_radio()
 	prepare_next()
 	# Behind the counter, the PA's escort tape replays; Rourke covers for the crew.
 	await hud.line("l0_pa_2")
@@ -1016,7 +1075,7 @@ func _on_crew_at_elevators() -> void:
 		await rourke.arrived)
 	_watch_nearest()
 	if not elevator.is_closing and not elevator.riding:
-		hud.todo("Everyone into the elevator, then press 1")
+		hud.todo("Everyone into the elevator, then press 14")
 		hud.line("l0_lift_button")
 
 

@@ -1,16 +1,16 @@
 class_name NotebookPages
 extends Control
 ## What goes on which page of the player's notebook: the crew's work order,
-## tables discovered, notes (sticky notes found and lines copied down), and Field Notes. The book
+## a case page per puzzle (everything found about it, in one place), tables discovered, notes (sticky notes found and lines copied down), and Field Notes. The book
 ## itself is drawn by NotebookView and NotebookArt (scripts/art/).
 ## Each section fills the left page, then the right; "next" turns to the next spread.
 
 ## "+ write a note" on the Notes page: the player wants to write something of their own.
 signal write_requested
 
-enum Page { WORK_ORDER, TABLES, NOTES, FIELD_NOTES }
+enum Page { WORK_ORDER, CASES, TABLES, NOTES, FIELD_NOTES }
 
-const TAB_NAMES := ["Work order", "Tables", "Notes", "Field Notes"]
+const TAB_NAMES := ["Work order", "Cases", "Tables", "Notes", "Field Notes"]
 
 const CONCEPT_NOTES := {
 	"SELECT": "SELECT picks which columns you want to see. * means all of them.",
@@ -119,6 +119,8 @@ func section_items(page: int) -> Array[Control]:
 			var copied: Array = game.notebook_written.filter(func(w): return w.kind != "mine")
 			var mine: Array = game.notebook_written.filter(func(w): return w.kind == "mine")
 			return _mine_items(mine) + _notes_items(game.notebook_notes) + _written_items(copied)
+		Page.CASES:
+			return _case_items(game)
 		Page.TABLES:
 			return _table_items(game.notebook_tables)
 		_:
@@ -182,6 +184,42 @@ func _written_items(written: Array) -> Array[Control]:
 		for extra in lines.slice(1, 12):
 			items.append(NotebookArt.note_line(extra))
 	return items
+
+
+## A page per open case, unsolved ones first: the question, what this player has
+## read about it and where, and the tables it needs that they've found.
+func _case_items(game: Node) -> Array[Control]:
+	var items: Array[Control] = []
+	var open: Array = game.notebook_cases.filter(func(c): return c.open)
+	if open.is_empty():
+		items.append(NotebookArt.heading("Cases"))
+		items.append(NotebookArt.hand("No open cases. When the job turns up something to figure out, it gets a page here.", 24, NotebookArt.PENCIL))
+		return items
+	open.sort_custom(func(a, b): return not a.solved and b.solved)
+	for c in open:
+		items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
+		if c.solved:
+			items.append(NotebookArt.hand("Solved: " + c.how, 22))
+		if c.clues.is_empty():
+			items.append(NotebookArt.hand("Nothing yet. Read what's around: papers, plates on the doors, the terminal.", 22, NotebookArt.PENCIL))
+		for k in c.clues:
+			items.append(_clue_item(k.text, k.from))
+		for t in c.tables:
+			if game.notebook_tables.has(t):
+				items.append(NotebookArt.table_card(t, game.notebook_tables[t]))
+	return items
+
+
+## One clue: where it came from in pencil, then the clue itself, wrapped to the
+## page. A hint keeps its lines, in typewriter text like the screen it came from.
+func _clue_item(text: String, from: String) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 0)
+	box.add_child(NotebookArt.hand(from, 18, NotebookArt.PENCIL))
+	var line: Label = NotebookArt.code(text, 15) if text.contains("\n") else NotebookArt.hand(text, 22)
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(line)
+	return box
 
 
 func _table_items(tables: Dictionary) -> Array[Control]:
