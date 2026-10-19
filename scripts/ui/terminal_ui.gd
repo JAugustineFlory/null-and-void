@@ -27,6 +27,7 @@ var _add_chip: Button
 var _hover_index := -1
 ## Who else is at this terminal, and what they're typing.
 var _others: Label
+var _foot: Label
 ## On a terminal's in-world screen (open_on_screen), the window fills the glass:
 ## no dimmed backdrop, no margin. `_home` is where it goes back to afterwards.
 var _dim: ColorRect
@@ -125,8 +126,8 @@ func _ready() -> void:
 	_others.visible = false
 	vbox.add_child(_others)
 
-	var foot := ThemeUtil.label("Enter: run    Shift+Enter: new line    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away", 15, ThemeUtil.DIM)
-	vbox.add_child(foot)
+	_foot = ThemeUtil.label("Enter: run (a query ends with ;)    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away", 15, ThemeUtil.DIM)
+	vbox.add_child(_foot)
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
@@ -171,6 +172,32 @@ func _set_hosted(on: bool) -> void:
 	_panel.offset_right = -margin.x
 	_panel.offset_top = margin.y
 	_panel.offset_bottom = -margin.y
+	if _output == null:
+		return
+	# On the glass the text stays the size it was when you walked up
+	# (TerminalScreen.TYPE_SIZE), so it doesn't shrink when you sit down.
+	var big := TerminalScreen.TYPE_SIZE
+	_output.add_theme_font_size_override("normal_font_size", big if on else 17)
+	_output.add_theme_font_size_override("bold_font_size", big if on else 17)
+	_input.add_theme_font_size_override("font_size", big if on else 18)
+	_note_label.add_theme_font_size_override("font_size", big if on else 17)
+	_title.add_theme_font_size_override("font_size", TerminalScreen.TITLE_SIZE if on else 18)
+	for l in [_others, _foot]:
+		l.add_theme_font_size_override("font_size", 20 if on else 15)
+	_add_chip.add_theme_font_size_override("font_size", 18 if on else 13)
+	_input.custom_minimum_size.y = big * 4 if on else 110
+	# Subtitles move above the glass, off the line you're typing.
+	var hud = _hud()
+	if hud and hud.has_method("subtitles_on_top"):
+		hud.subtitles_on_top(on)
+
+
+## The level's HUD, found from the terminal's level (duck-typed, like Document._level).
+func _hud() -> Node:
+	var n: Node = terminal if terminal and is_instance_valid(terminal) else _screen
+	while n and n.get("hud") == null:
+		n = n.get_parent()
+	return n.get("hud") if n else null
 
 
 ## Off the glass and back where it lives; the player steps back from the desk.
@@ -407,7 +434,10 @@ func _on_input_key(event: InputEvent) -> void:
 		close()
 	elif (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER) and not event.shift_pressed:
 		_input.accept_event()
-		_submit()
+		if is_complete(_input.text):
+			_submit()
+		else:
+			_continue_statement()
 	elif event.keycode == KEY_UP and _input.get_caret_line() == 0 and not _history.is_empty():
 		_input.accept_event()
 		_history_i = clamp(_history_i - 1, 0, _history.size() - 1)
@@ -418,6 +448,24 @@ func _on_input_key(event: InputEvent) -> void:
 		_history_i = clamp(_history_i + 1, 0, _history.size())
 		_input.text = _history[_history_i] if _history_i < _history.size() else ""
 		_typed()
+
+
+## Is `text` ready to run? Like a real SQL prompt, a query runs only once it ends
+## with ; (dot-commands and API requests are one line and need none).
+static func is_complete(text: String) -> bool:
+	var t := text.strip_edges()
+	return t == "" or t.begins_with(".") or FacilityAPI.is_request(t) or t.ends_with(";")
+
+
+## Enter before the ;: the statement carries on, on a new line.
+func _continue_statement() -> void:
+	var blank_line := _input.text.ends_with("\n") or _input.text.strip_edges() == ""
+	_input.set_caret_line(_input.get_line_count() - 1)
+	_input.set_caret_column(_input.get_line(_input.get_line_count() - 1).length())
+	_input.insert_text_at_caret("\n")
+	_typed()
+	if blank_line:
+		print_line("[color=#6f8f6f]... the statement isn't finished until it ends with ;[/color]")
 
 
 func _submit() -> void:

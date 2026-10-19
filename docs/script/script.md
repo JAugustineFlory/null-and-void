@@ -119,6 +119,8 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(At the elevator bank, holding the door.)* Server floor's one up. Elevator's slow, but it gets there. `[l0_elevator]`
 
+**ROURKE:** *(Inside the car, back against the far wall from the buttons. Easy, polite.)* Press one for me, would you? Server floor. `[l0_lift_button]`
+
 ### To Server Room A
 
 *Rourke badges the hall shutter open and walks the crew to Server Room A himself, filling the walk with the story of the founder and his safe room.*
@@ -166,6 +168,8 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 **ROURKE:** *(Thinking out loud.)* Her lab's up on the security floor. Secure Lab B. `[l1_pivot_2]`
 
 **ROURKE:** *(Already walking. Friendly, steering.)* Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you. `[l1_pivot_3]`
+
+**ROURKE:** *(Inside the car, across from the buttons. A little clipped now, eager to get there.)* Two. Security floor. Go on. `[l1_lift_button]`
 
 ## Level 2
 

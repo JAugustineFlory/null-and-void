@@ -85,10 +85,14 @@ const STRIKE_COOLDOWN := 0.55
 const NOTEBOOK_WALK_SPEED := 1.4
 ## Mouse look is slower while reading.
 const NOTEBOOK_LOOK_SCALE := 0.45
-## Reading with the cursor out: within this share of the screen from an edge the
-## view turns that way, up to EDGE_LOOK_SPEED (radians per second) at the edge.
+## Reading with the cursor out, off the page the view turns that way, up to
+## EDGE_LOOK_SPEED (radians per second) at the screen's edge (edge_turn).
 const EDGE_LOOK_MARGIN := 0.08
 const EDGE_LOOK_SPEED := 1.6
+## Pixels past the edge of what you read before the view starts to turn.
+const EDGE_LOOK_DEADZONE := 12.0
+## The turn ramps up over at least this share of the screen past the page.
+const EDGE_LOOK_MIN_ROOM := 0.04
 ## How far your view can drift off the held notebook before it follows (radians):
 ## enough to look across the spread or down a page, never enough to lose it.
 const NOTEBOOK_SLACK_SIDE := 0.2
@@ -253,27 +257,61 @@ func _turn_view(yaw: float, pitch: float) -> void:
 	if state == Move.LEDGE:
 		_clamp_ledge_yaw()
 	head.rotation.x = clamp(head.rotation.x - pitch, -1.45, 1.45)
-	if _notebook_held:
+	if _notebook_held or _prop_settled():
 		_drift_notebook(wrapf(rotation.y - yaw0, -PI, PI), head.rotation.x - pitch0)
 
 
-## Reading with the cursor out, the cursor near an edge of the screen turns your
-## view that way (radians per second: x right, y down), faster the closer it gets.
-func edge_turn(cursor: Vector2, screen: Vector2) -> Vector2:
+## Up in front of you and read: what you hold drifts with your view like the notebook.
+func _prop_settled() -> bool:
+	return held_prop != null and _prop_t >= 1.0 and not _prop_lowering
+
+
+## Reading with the cursor out: over what you're reading (`reading`, its rect on
+## screen) the view holds still, so its tabs and lines can be clicked; once the
+## cursor leaves it, the view turns that way (radians per second: x right, y
+## down), faster the nearer the screen's edge. Without a rect, only a band at
+## each edge (EDGE_LOOK_MARGIN of the screen) turns.
+func edge_turn(cursor: Vector2, screen: Vector2, reading := Rect2()) -> Vector2:
 	var turn := Vector2.ZERO
 	if screen.x <= 0.0 or screen.y <= 0.0 or not Rect2(Vector2.ZERO, screen).has_point(cursor):
 		return turn
-	var mx := screen.x * EDGE_LOOK_MARGIN
-	var my := screen.y * EDGE_LOOK_MARGIN
-	if cursor.x < mx:
-		turn.x = -pow(1.0 - cursor.x / mx, 2.0)
-	elif cursor.x > screen.x - mx:
-		turn.x = pow(1.0 - (screen.x - cursor.x) / mx, 2.0)
-	if cursor.y < my:
-		turn.y = -pow(1.0 - cursor.y / my, 2.0)
-	elif cursor.y > screen.y - my:
-		turn.y = pow(1.0 - (screen.y - cursor.y) / my, 2.0)
+	var inner := reading if reading.has_area() else Rect2(screen * EDGE_LOOK_MARGIN, screen * (1.0 - 2.0 * EDGE_LOOK_MARGIN))
+	inner = inner.grow(EDGE_LOOK_DEADZONE)
+	turn.x = _edge_axis(cursor.x, inner.position.x, inner.end.x, screen.x)
+	turn.y = _edge_axis(cursor.y, inner.position.y, inner.end.y, screen.y)
 	return turn * EDGE_LOOK_SPEED
+
+
+## -1..1 along one axis: 0 between `lo` and `hi`, easing up to 1 at the screen's edge.
+static func _edge_axis(at: float, lo: float, hi: float, screen: float) -> float:
+	var room := screen * EDGE_LOOK_MIN_ROOM  # even when the page reaches the edge
+	if at < lo:
+		return -pow(clampf((lo - at) / maxf(lo, room), 0.0, 1.0), 2.0)
+	if at > hi:
+		return pow(clampf((at - hi) / maxf(screen - hi, room), 0.0, 1.0), 2.0)
+	return 0.0
+
+
+## Where the notebook or the paper you hold is on screen (empty if neither).
+func reading_rect() -> Rect2:
+	var root: Node3D = held_prop if held_prop else (held_notebook.get("book_root") if held_notebook and _notebook_held else null)
+	if root == null or not is_instance_valid(root):
+		return Rect2()
+	var rect := Rect2()
+	var first := true
+	for n in root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if not g.is_visible_in_tree():
+			continue
+		var box := g.get_aabb()
+		for i in 8:
+			var corner := g.global_transform * box.get_endpoint(i)
+			if camera.is_position_behind(corner):
+				continue
+			var at := camera.unproject_position(corner)
+			rect = Rect2(at, Vector2.ZERO) if first else rect.expand(at)
+			first = false
+	return rect
 
 
 func _edge_look(delta: float) -> void:
@@ -281,7 +319,7 @@ func _edge_look(delta: float) -> void:
 		return
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE or not get_window().has_focus():
 		return
-	var turn := edge_turn(get_viewport().get_mouse_position(), get_viewport().get_visible_rect().size)
+	var turn := edge_turn(get_viewport().get_mouse_position(), get_viewport().get_visible_rect().size, reading_rect())
 	if turn != Vector2.ZERO:
 		_turn_view(turn.x * delta, turn.y * delta)
 
@@ -458,9 +496,13 @@ func _drift_notebook(yaw: float, pitch: float) -> void:
 func _pose_notebook() -> void:
 	if not held_notebook or not is_instance_valid(held_notebook):
 		return
+	held_notebook.transform = Transform3D(_drift_basis(), held_notebook.position)
+
+
+## The turn that holds what you read still in the room against `notebook_drift`.
+func _drift_basis() -> Basis:
 	var pitch := head.rotation.x
-	var b := Basis(Vector3.RIGHT, -pitch) * Basis(Vector3.UP, -notebook_drift.x) * Basis(Vector3.RIGHT, pitch - notebook_drift.y)
-	held_notebook.transform = Transform3D(b, held_notebook.position)
+	return Basis(Vector3.RIGHT, -pitch) * Basis(Vector3.UP, -notebook_drift.x) * Basis(Vector3.RIGHT, pitch - notebook_drift.y)
 
 
 ## The cursor is out while reading unless right mouse is held to look around.
@@ -498,6 +540,7 @@ func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) ->
 	prop.reparent(camera, true)
 	_prop_from = prop.transform
 	_prop_read = read_pose(size, face)
+	notebook_drift = Vector2.ZERO
 	_prop_t = 0.0
 	_prop_lowering = false
 	set_notebook_cursor(_wants_cursor())
@@ -604,7 +647,7 @@ func _animate_prop(delta: float) -> void:
 		var home_cam: Transform3D = _prop_from
 		if is_instance_valid(home) and home is Node3D:
 			home_cam = camera.global_transform.affine_inverse() * (home as Node3D).global_transform * _prop_home.transform
-		held_prop.transform = home_cam.interpolate_with(_prop_read, smoothstep(0.0, 1.0, _prop_t))
+		held_prop.transform = home_cam.interpolate_with(Transform3D(_drift_basis()) * _prop_read, smoothstep(0.0, 1.0, _prop_t))
 		return
 	if _prop_t < 1.0:
 		_prop_t = minf(1.0, _prop_t + delta / PICKUP_TIME)
@@ -614,7 +657,7 @@ func _animate_prop(delta: float) -> void:
 		if _prop_t == 1.0:
 			prop_raised.emit(held_prop)
 	else:
-		held_prop.transform = _prop_read
+		held_prop.transform = Transform3D(_drift_basis()) * _prop_read
 
 
 ## Back on its desk or wall, colliding again.

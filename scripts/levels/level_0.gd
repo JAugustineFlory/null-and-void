@@ -837,7 +837,7 @@ func _face_crew_on_arrival() -> void:
 const ROURKE_OUTSIDE := Vector3(0, 0, 8.8)
 
 ## Where Rourke stands in the elevator car, at the back by the buttons.
-const ROURKE_IN_LIFT := Vector3(0.75, 0, 1.6)
+const ROURKE_IN_LIFT := Vector3(-0.75, 0, 1.6)  # across the car from the buttons
 
 ## Where Rourke waits at the front desk while the crew works.
 const DESK_SPOT := Vector3(-0.5, 0, 0.6)
@@ -889,6 +889,7 @@ func _on_crew_at_elevators() -> void:
 	_watch_nearest()
 	if not elevator.is_closing and not elevator.riding:
 		hud.todo("Everyone into the elevator, then press 1")
+		hud.line("l0_lift_button")
 
 
 ## The doors are shut: the checkpoint. The server floor loads during the ride, and

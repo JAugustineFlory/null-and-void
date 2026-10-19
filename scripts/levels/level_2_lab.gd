@@ -31,8 +31,9 @@ const HURT_BARKS := ["l2_hurt_1", "l2_hurt_2", "l2_hurt_3"]
 const BARK_GAP := 3.5
 
 ## Rourke's walk up from the arrival car (level space), and where he stands.
-const LEAD_PATH := [Vector3(5.0, 0, 8), Vector3(0, 0, 8), Vector3(-9, 0, 8), Vector3(-9, 0, 1.8)]
-const AT_DOOR := Vector3(-9.1, 0, 1.8)
+## He stops past the lab door, so the badge reader is on the crew's side of him.
+const LEAD_PATH := [Vector3(5.0, 0, 8), Vector3(0, 0, 8), Vector3(-9, 0, 8), Vector3(-9, 0, -1.8)]
+const AT_DOOR := Vector3(-9, 0, -1.8)
 const BY_COAT := Vector3(-14.6, 0, -2.0)
 const OUTSIDE := Vector3(-9.0, 0, -1.4)
 const ROUND_BACK := [Vector3(-9, 0, 9), Vector3(-17, 0, 9), Vector3(-17, 0, 0)]

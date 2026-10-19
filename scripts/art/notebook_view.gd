@@ -85,7 +85,8 @@ func add_tab(tab_name: String) -> Button:
 	b.name = tab_name
 	b.text = tab_name
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(150, 54)
+	b.custom_minimum_size = Vector2(0, 54)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN  # as wide as its name, not the widest tab
 	b.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var col: Color = TAB_COLORS[_tab_buttons.size() % TAB_COLORS.size()]
 	for state in ["normal", "hover", "pressed", "focus"]:
@@ -94,7 +95,7 @@ func add_tab(tab_name: String) -> Button:
 		sb.corner_radius_top_right = 10
 		sb.corner_radius_bottom_right = 10
 		sb.content_margin_right = 14
-		sb.content_margin_left = 30
+		sb.content_margin_left = 22  # tucked under the cover's edge
 		sb.shadow_color = Color(0, 0, 0, 0.25)
 		sb.shadow_size = 3
 		b.add_theme_stylebox_override(state, sb)
@@ -113,7 +114,10 @@ func add_tab(tab_name: String) -> Button:
 ## Pushes the chosen tab further out so you can see which section is open.
 func select_tab(tab_name: String) -> void:
 	for n in _tab_buttons:
-		_tab_buttons[n].custom_minimum_size.x = 172 if n == tab_name else 150
+		var b: Button = _tab_buttons[n]
+		b.custom_minimum_size.x = 0
+		if n == tab_name:
+			b.custom_minimum_size.x = b.get_combined_minimum_size().x + 22
 
 
 ## Empties both pages (before showing another section).
