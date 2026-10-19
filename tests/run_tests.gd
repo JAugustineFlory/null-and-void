@@ -57,6 +57,7 @@ func _run() -> void:
 	await test_coop_six_players()
 	await test_coop_terminal_screens()
 	await test_coop_shared_notes()
+	await test_coop_looks()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -1157,6 +1158,47 @@ func test_coop_shared_notes() -> void:
 	solo.queue_free()
 	_game().new_run(6)
 
+
+
+func test_coop_looks() -> void:
+	print("Co-op: picking a look in the lobby")
+	var net := root.get_node("Net")
+	check(net.free_look({}, 1, 3) == 3 and net.free_look({7: 3}, 1, 3) == 0 and net.free_look({7: 0, 8: 1}, 1, -1) == 2 and net.free_look({1: 3}, 1, 3) == 3,
+		"the host gives each player the look they want, or the first one nobody has")
+	net.looks = {1: 0, 55: 2}
+	net._assign_look(1, 2)
+	check(net.looks[1] == 0, "a teammate's look can't be taken")
+	net._assign_look(1, 4)
+	check(net.looks[1] == 4, "a free one can")
+	# The lobby: swatches, a teammate's greyed out, and a preview of your pick.
+	net.looks = {}
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var look4: Button = lobby.find_child("Look4", true, false)
+	look4.pressed.emit()
+	await process_frame
+	check(lobby.my_look() == 3 and lobby._preview_rig.look.shirt == ArtPalette.CREW_COLORS[3], "pressing a color shows that crew member turning in the preview")
+	net.looks = {55: 1}
+	net.roster = {55: "Ana"}
+	net.roster_changed.emit()
+	var look2: Button = lobby.find_child("Look2", true, false)
+	check(look2.disabled and look2.tooltip_text == "Taken by Ana", "a teammate's look is greyed out, with their name")
+	net.roster = {}
+	lobby.queue_free()
+	# In the building, everyone wears what they picked.
+	_game().new_run(8)
+	var worlds := await _coop_worlds(1)
+	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
+	var c_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	net.looks = {host_id: 5, c_id: 2}
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var host_seen: PlayerPuppet = levels[1].players.puppet(host_id)
+	var c_seen: PlayerPuppet = levels[0].players.puppet(c_id)
+	check(host_seen.rig.look.shirt == ArtPalette.CREW_COLORS[5] and c_seen.rig.look.shirt == ArtPalette.CREW_COLORS[2], "teammates see each other in the looks they picked")
+	await _coop_close(worlds)
+	net.looks = {}
+	net.wanted_look = -1
 
 
 func _share_buttons(pages: NotebookPages) -> int:

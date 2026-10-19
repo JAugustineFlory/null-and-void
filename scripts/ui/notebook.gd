@@ -45,7 +45,7 @@ func _build() -> void:
 	pages = NotebookPages.new()
 	pages.write_requested.connect(start_writing)
 	if get_node("/root/Game").diegetic_ui and player and player.camera:
-		var look := CharacterLooks.crew(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))
+		var look := CharacterLooks.crew(NetPlayers.look_for(self, multiplayer.get_unique_id()))
 		held = HeldNotebook.attach(player.camera, look)
 		held.set_content(pages)
 		held.follow(player)  # its hand reaches for a sticky note being filed

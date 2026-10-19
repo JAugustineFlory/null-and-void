@@ -13,6 +13,11 @@ const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Ha
 
 ## peer id -> player name, identical on every machine.
 var roster := {}
+## peer id -> the crew look they picked (CharacterLooks.crew index), identical
+## on every machine. No two players share one.
+var looks := {}
+## The look this player picks in the lobby; the host gives it to them if it's free.
+var wanted_look := -1
 var player_name := ""
 var in_game := false
 ## Why the last session ended, for the menu to show.
@@ -49,6 +54,55 @@ func display_name(peer_id: int) -> String:
 	return str(roster.get(peer_id, "Player %d" % peer_id))
 
 
+## Which crew look `peer_id` wears. `fallback` (their place in the player order)
+## is used when they never picked one.
+func look_of(peer_id: int, fallback: int) -> int:
+	if looks.has(peer_id):
+		return int(looks[peer_id])
+	if not is_online() and wanted_look >= 0:
+		return wanted_look
+	return fallback
+
+
+## The look `peer` gets: `wanted` if no one else has it, else the first free one.
+static func free_look(taken_looks: Dictionary, peer: int, wanted: int) -> int:
+	var taken := []
+	for id in taken_looks:
+		if id != peer:
+			taken.append(int(taken_looks[id]))
+	if wanted >= 0 and wanted < MAX_PLAYERS and not taken.has(wanted):
+		return wanted
+	for i in MAX_PLAYERS:
+		if not taken.has(i):
+			return i
+	return 0
+
+
+## Pick look `index` in the lobby. Refused if a teammate already has it.
+func choose_look(index: int) -> void:
+	wanted_look = index
+	if not is_online():
+		roster_changed.emit()
+	elif is_host():
+		_assign_look(1, index)
+	else:
+		_request_look.rpc_id(1, index)
+
+
+@rpc("any_peer", "reliable")
+func _request_look(index: int) -> void:
+	if is_host() and not in_game and roster.has(multiplayer.get_remote_sender_id()):
+		_assign_look(multiplayer.get_remote_sender_id(), index)
+
+
+func _assign_look(peer: int, index: int) -> void:
+	if free_look(looks, peer, index) != index:
+		return
+	looks[peer] = index
+	_set_roster.rpc(roster, looks)
+	roster_changed.emit()
+
+
 func host(port: int = DEFAULT_PORT) -> Error:
 	leave(false)
 	var peer := transport.create_host(port, MAX_PLAYERS - 1)
@@ -56,6 +110,7 @@ func host(port: int = DEFAULT_PORT) -> Error:
 		return ERR_CANT_CREATE
 	multiplayer.multiplayer_peer = peer
 	roster = {1: player_name}
+	looks = {1: free_look({}, 1, wanted_look)}
 	roster_changed.emit()
 	return OK
 
@@ -76,6 +131,7 @@ func leave(notify: bool = true, reason: String = "") -> void:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	roster = {}
+	looks = {}
 	in_game = false
 	if was_online and notify:
 		last_message = reason
@@ -86,12 +142,13 @@ func leave(notify: bool = true, reason: String = "") -> void:
 func start_game() -> void:
 	if not is_host():
 		return
-	_start.rpc(randi(), roster)
+	_start.rpc(randi(), roster, looks)
 
 
 @rpc("authority", "call_local", "reliable")
-func _start(seed_value: int, names: Dictionary) -> void:
+func _start(seed_value: int, names: Dictionary, picked: Dictionary) -> void:
 	roster = names
+	looks = picked
 	in_game = true
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
@@ -137,11 +194,11 @@ func _on_connected() -> void:
 	var peer := multiplayer.multiplayer_peer
 	if peer is ENetMultiplayerPeer:
 		peer.get_peer(1).set_timeout(32, 3000, 8000)
-	_register.rpc_id(1, player_name)
+	_register.rpc_id(1, player_name, wanted_look)
 
 
 @rpc("any_peer", "reliable")
-func _register(wanted: String) -> void:
+func _register(wanted: String, look: int) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
@@ -152,14 +209,18 @@ func _register(wanted: String) -> void:
 		_refused.rpc_id(id, "That lobby is full (%d players)." % MAX_PLAYERS)
 		return
 	roster[id] = _unique_name(wanted.strip_edges().left(16))
-	_set_roster.rpc(roster)
+	looks[id] = free_look(looks, id, look)
+	_set_roster.rpc(roster, looks)
 	roster_changed.emit()
 
 
 @rpc("authority", "reliable")
-func _set_roster(names: Dictionary) -> void:
+func _set_roster(names: Dictionary, picked: Dictionary) -> void:
 	var first := roster.is_empty()
 	roster = names
+	looks = picked
+	if looks.has(multiplayer.get_unique_id()):
+		wanted_look = int(looks[multiplayer.get_unique_id()])
 	roster_changed.emit()
 	if first:
 		joined.emit()
@@ -184,9 +245,10 @@ func _on_peer_disconnected(id: int) -> void:
 	if not roster.has(id):
 		return
 	roster.erase(id)
+	looks.erase(id)
 	roster_changed.emit()
 	if is_host():
-		_set_roster.rpc(roster)
+		_set_roster.rpc(roster, looks)
 
 
 func _on_connection_failed() -> void:

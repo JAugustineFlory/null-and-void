@@ -40,19 +40,19 @@ var _capsule: CapsuleShape3D
 var _shape: CollisionShape3D
 
 
-## `index` is the player's number (0 = host); it picks how they look.
-static func create(parent: Node, id: int, player_name: String, index: int, at: Transform3D) -> PlayerPuppet:
+## `look` is the crew look they picked (CharacterLooks.crew index).
+static func create(parent: Node, id: int, player_name: String, look: int, at: Transform3D) -> PlayerPuppet:
 	var p := PlayerPuppet.new()
 	p.peer_id = id
 	p.display_name = player_name
 	p.name = str(id)
-	p._build(index)
+	p._build(look)
 	p.transform = at  # before entering the world, so it never flashes at the origin
 	parent.add_child(p)
 	return p
 
 
-func _build(index: int) -> void:
+func _build(look: int) -> void:
 	add_to_group("player")
 	add_to_group("puppet")
 	sync_to_physics = false
@@ -64,7 +64,7 @@ func _build(index: int) -> void:
 	_shape.position.y = STAND_HEIGHT / 2
 	add_child(_shape)
 
-	rig = CharacterRig.build(self, CharacterLooks.crew(index))
+	rig = CharacterRig.build(self, CharacterLooks.crew(look))
 
 	# The flashlight rides at eye level, in the direction they look.
 	_head = Node3D.new()
