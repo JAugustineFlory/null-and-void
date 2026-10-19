@@ -128,10 +128,19 @@ func discover_table(table: String, columns: Array) -> void:
 	notebook_changed.emit()
 
 
-## Write a terminal line into the notebook, under the player's own label.
+## Write a terminal line into the notebook, under the player's own label. It goes
+## on the page of the case being worked on (current_case), or under Other notes.
 func write_note(label: String, text: String, kind: String) -> void:
-	notebook_written.append({"label": label, "text": text, "kind": kind})
+	notebook_written.append({"label": label, "text": text, "kind": kind, "case": current_case()})
 	notebook_changed.emit()
+
+
+## The case being worked on: the newest open one not yet solved, or "".
+func current_case() -> String:
+	for c in notebook_cases:
+		if c.open and not c.solved:
+			return c.id
+	return ""
 
 
 ## A new task on the job ticket; the one before it is ticked off. "" ticks off

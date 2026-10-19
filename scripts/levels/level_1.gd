@@ -36,7 +36,9 @@ var arrival_lift: Elevator
 ## Server Room C stays shut while its lock is on the faulted zone.
 var room_c_door: Door
 ## The spare coil of network cable in the cable vault.
-var cable_coil: Interactable
+var cable_coil: ItemDock
+## Spare walkie-talkies on the NOC desk, for anyone who left theirs in the lobby.
+var spare_walkies: ItemDock
 ## Who carries cable up to Level 2: peer id -> true, the same on every machine.
 var cable_holders := {}
 
@@ -292,6 +294,11 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		{"case": "controller", "text": "The stuck doors on this floor: Server Room A's rear exit, Server Room C, Lift 1."},
 		{"case": "controller", "text": "The Records Archive and Cold Lab faults aren't this floor's."},
 	]
+	# A charger of spare walkie-talkies on the front desk.
+	Greybox.box(geo, Vector3(-13.5, 0.78, 1.2), Vector3(0.9, 0.04, 0.26), Color(0.12, 0.12, 0.13), "ChargingDock")
+	spare_walkies = ItemDock.walkies(geo, Vector3(-13.5, 0.8, 1.2))
+	spare_walkies.prompt = "Take a spare walkie-talkie"
+	spare_walkies.stock(6)
 	for x in [-18.0, -12.0]:
 		add_light("noc", Vector3(x, 3, 3), 7.0, 1.0, office)
 	var in_noc := Trigger.create(self, Vector3(-15, 1, 3), Vector3(13.6, 2, 11.6))
@@ -305,8 +312,11 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		Greybox.box(geo, Vector3(x, 1.0, -8.4), Vector3(2.4, 2.0, 0.6), Color(0.35, 0.36, 0.38), "CableShelf")
 	Greybox.box(geo, Vector3(-21.6, 1.0, -5.5), Vector3(0.6, 2.0, 3.0), Color(0.35, 0.36, 0.38), "CableShelf")
 	Greybox.box(geo, Vector3(-18.5, 0.4, -5.0), Vector3(2.0, 0.8, 1.0), Color(0.3, 0.28, 0.25), "Spool")
-	cable_coil = Interactable.create(geo, Vector3(-17.5, 1.25, -8.3), Vector3(0.6, 0.3, 0.5), "Take the coil of network cable", Color(0.15, 0.3, 0.75))
-	cable_coil.used.connect(_on_cable_coil)
+	# Spare coils on the shelf, one each for whoever wants one.
+	cable_coil = ItemDock.make(geo, Vector3(-17.5, 1.25, -8.3), Vector3(2.3, 0.3, 0.5), "Take a coil of network cable", "cable")
+	cable_coil.already = "You've already got a coil of cable."
+	cable_coil.add_boxes(6, 0.38, Vector3(0.32, 0.28, 0.4), Color(0.15, 0.3, 0.75), -0.15)
+	cable_coil.taken.connect(_on_cable_taken)
 	add_light("vault", Vector3(-15, 3, -6), 6.0, 0.7, office)
 	# Its back door, into the ops room, is on a fire interlock rather than WARDEN:
 	# a room full of cable stays sealed while any rack on the floor runs hot.
@@ -386,6 +396,7 @@ func net_setup() -> void:
 
 
 func start() -> void:
+	cable_coil.stock(players.count())
 	if world:
 		# The ground floor's Rourke rode up with the crew: this one takes his place,
 		# where he stands in the arrival car.
@@ -676,18 +687,10 @@ func _on_tray_result(id: String, outcome: String, seconds: float) -> void:
 			hud.notice("> FIRE INTERLOCK RELEASED: CABLE VAULT", 3.0, ThemeUtil.GREEN)
 
 
-## Host: someone took the spare cable. Everyone sees it go, and Level 2 knows who has it.
-func _on_cable_coil(p: Node) -> void:
-	if cable_holders.is_empty():
-		sync.event("_on_cable_taken", [players.id_of(p)])
-
-
+## Someone took a coil of cable (every machine): Level 2 knows who carries one.
 func _on_cable_taken(id: int) -> void:
 	cable_holders[id] = true
-	cable_coil.enabled = false
-	cable_coil.visible = false
 	if id == players.id_of(player):
-		player.inventory.add("cable")
 		hud.notice("You sling the coil of network cable over your shoulder.", 3.0)
 
 

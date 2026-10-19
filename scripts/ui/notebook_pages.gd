@@ -1,16 +1,18 @@
 class_name NotebookPages
 extends Control
 ## What goes on which page of the player's notebook: the crew's work order,
-## a case page per puzzle (everything found about it, in one place), tables discovered, notes (sticky notes found and lines copied down), and Field Notes. The book
+## a case page per puzzle (everything found about it in one place, with the notes
+## the player writes or copies while on it), tables discovered with the sticky
+## notes found, and Field Notes. The book
 ## itself is drawn by NotebookView and NotebookArt (scripts/art/).
 ## Each section fills the left page, then the right; "next" turns to the next spread.
 
-## "+ write a note" on the Notes page: the player wants to write something of their own.
+## "+ write a note" on the Cases page: the player wants to write something of their own.
 signal write_requested
 
-enum Page { WORK_ORDER, CASES, TABLES, NOTES, FIELD_NOTES }
+enum Page { WORK_ORDER, CASES, TABLES, FIELD_NOTES }
 
-const TAB_NAMES := ["Work order", "Cases", "Tables", "Notes", "Field Notes"]
+const TAB_NAMES := ["Work order", "Cases", "Tables", "Field Notes"]
 
 const CONCEPT_NOTES := {
 	"SELECT": "SELECT picks which columns you want to see. * means all of them.",
@@ -115,14 +117,10 @@ func section_items(page: int) -> Array[Control]:
 	match page:
 		Page.WORK_ORDER:
 			return WorkOrderForm.build(game.ticket(), book.left.size.y if book else 0.0)
-		Page.NOTES:
-			var copied: Array = game.notebook_written.filter(func(w): return w.kind != "mine")
-			var mine: Array = game.notebook_written.filter(func(w): return w.kind == "mine")
-			return _mine_items(mine) + _notes_items(game.notebook_notes) + _written_items(copied)
 		Page.CASES:
 			return _case_items(game)
 		Page.TABLES:
-			return _table_items(game.notebook_tables)
+			return _table_items(game.notebook_tables) + _notes_items(game.notebook_notes)
 		_:
 			return _field_notes_items(game)
 
@@ -147,19 +145,16 @@ static func text_of(items: Array) -> String:
 	return out
 
 
-## The player's own notes, in their handwriting, with a button to write another.
-func _mine_items(mine: Array) -> Array[Control]:
-	var items: Array[Control] = [NotebookArt.heading("My notes")]
-	for w in mine:
-		items.append(NotebookArt.hand("- " + w.text, 26))
-	if not end_of_level:
-		var write := NotebookArt.write_button("+ write a note")
-		write.name = "WriteMine"
-		write.tooltip_text = "Write your own note in the notebook"
-		write.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		write.pressed.connect(func(): write_requested.emit())
-		items.append(write)
-	return items
+## "+ write a note": it goes on the case being worked on.
+func _write_button() -> Array[Control]:
+	if end_of_level:
+		return []
+	var write := NotebookArt.write_button("+ write a note")
+	write.name = "WriteMine"
+	write.tooltip_text = "Write your own note on this case's page"
+	write.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	write.pressed.connect(func(): write_requested.emit())
+	return [write]
 
 
 func _notes_items(ids: Array) -> Array[Control]:
@@ -173,40 +168,52 @@ func _notes_items(ids: Array) -> Array[Control]:
 	return items
 
 
-func _written_items(written: Array) -> Array[Control]:
-	var items: Array[Control] = [NotebookArt.heading("Copied lines")]
-	if written.is_empty():
-		items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 24, NotebookArt.PENCIL))
-	for w in written:
-		var label: String = w.label if w.label != "" else KIND_LABELS.get(w.kind, "From the terminal")
-		var lines: PackedStringArray = w.text.split("\n")
-		items.append(NotebookArt.note_line(lines[0], label))
-		for extra in lines.slice(1, 12):
-			items.append(NotebookArt.note_line(extra))
-	return items
+## A note the player wrote or copied, as a clue: their label, then the lines.
+func _written_item(w: Dictionary) -> Control:
+	var label: String = "My note" if w.kind == "mine" else (w.label if w.label != "" else KIND_LABELS.get(w.kind, "From the terminal"))
+	var lines: PackedStringArray = w.text.split("\n")
+	return _clue_item("\n".join(lines.slice(0, 12)), label)
 
 
 ## A page per open case, unsolved ones first: the question, what this player has
-## read about it and where, and the tables it needs that they've found.
+## read about it and where, the notes they wrote or copied while on it, and the
+## tables it needs that they've found. Notes from before any case, or from one
+## not open, go under Other notes at the end.
 func _case_items(game: Node) -> Array[Control]:
 	var items: Array[Control] = []
 	var open: Array = game.notebook_cases.filter(func(c): return c.open)
+	var current: String = game.current_case()
+	var shown := {}
 	if open.is_empty():
 		items.append(NotebookArt.heading("Cases"))
 		items.append(NotebookArt.hand("No open cases. When the job turns up something to figure out, it gets a page here.", 24, NotebookArt.PENCIL))
-		return items
 	open.sort_custom(func(a, b): return not a.solved and b.solved)
 	for c in open:
+		shown[c.id] = true
+		var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
 		items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
 		if c.solved:
 			items.append(NotebookArt.hand("Solved: " + c.how, 22))
-		if c.clues.is_empty():
+		if c.clues.is_empty() and notes.is_empty():
 			items.append(NotebookArt.hand("Nothing yet. Read what's around: papers, plates on the doors, the terminal.", 22, NotebookArt.PENCIL))
 		for k in c.clues:
 			items.append(_clue_item(k.text, k.from))
+		for w in notes:
+			items.append(_written_item(w))
+		if c.id == current:
+			items.append_array(_write_button())
 		for t in c.tables:
 			if game.notebook_tables.has(t):
 				items.append(NotebookArt.table_card(t, game.notebook_tables[t]))
+	var other: Array = game.notebook_written.filter(func(w): return not shown.has(w.get("case", "")))
+	if not other.is_empty() or current == "":
+		items.append(NotebookArt.heading("Other notes"))
+		if other.is_empty():
+			items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 22, NotebookArt.PENCIL))
+		for w in other:
+			items.append(_written_item(w))
+		if current == "":
+			items.append_array(_write_button())
 	return items
 
 

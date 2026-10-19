@@ -259,7 +259,7 @@ Ctrl  crouch, slide, roll
 Space  jump     W + Space  vault, mantle, grab a ledge or pipe
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
-Tab  your notebook: work order, cases, tables, notes, Field Notes (1-5 turn to a tab)
+Tab  your notebook: work order, cases, tables, Field Notes (1-4 turn to a tab)
      reading, push the cursor to a screen edge to look that way; Tab also closes menus
 1-4  take out a hotbar item     I  inventory: choose what's on the hotbar
 V (hold)  talk on the radio, once you have one

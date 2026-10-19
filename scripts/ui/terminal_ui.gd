@@ -424,22 +424,37 @@ static func _plain(bbcode: String) -> String:
 
 ## A message from SYSOP: an unknown user on the system who sends tips, nudges
 ## and .hint answers. (Players never learn who it is until much later.)
-## Its messages are cyan, and the SQL in them is colored the way the input line
-## colors what you type, so a hint's query reads apart from the advice around it.
+## Its messages are cyan, in the terminal's own colours: SQL keywords gold, as on
+## the input line, and names like memo_fragments amber, as in a table's header,
+## in its queries and in the advice around them alike. Only capitals count as
+## keywords, so "or" in a sentence stays plain.
 static func sysop(text: String) -> String:
-	var lit := RegEx.create_from_string("\\[color=#ffffff\\](.*?)\\[/color\\]")
+	return "[color=%s][lb]SYSOP[rb]: %s[/color]" % [HINT, _words(text)]
+
+
+## Keywords gold and snake_case names amber, leaving BBCode tags alone.
+static func _words(text: String) -> String:
+	return _outside_tags(text, func(t: String) -> String:
+		return _keyword_re().sub(_names(t), "[color=%s]$1[/color]" % KEYWORD, true))
+
+
+static func _names(text: String) -> String:
+	return RegEx.create_from_string("\\b([a-z]+(?:_[a-z0-9]+)+)\\b").sub(text, "[color=%s]$1[/color]" % TABLE_HEAD, true)
+
+
+static func _keyword_re() -> RegEx:
+	var words: Array = ["ORDER BY", "GROUP BY"] + KEYWORDS
+	return RegEx.create_from_string("\\b(%s)\\b" % "|".join(words))
+
+
+## Apply `fn` to the text between BBCode tags, leaving the tags alone.
+static func _outside_tags(text: String, fn: Callable) -> String:
 	var out := ""
 	var at := 0
-	for m in lit.search_all(text):
-		out += text.substr(at, m.get_start() - at) + "[color=#ffffff]%s[/color]" % _keywords(m.get_string(1))
+	for m in RegEx.create_from_string("\\[[^\\]]*\\]").search_all(text):
+		out += fn.call(text.substr(at, m.get_start() - at)) + m.get_string()
 		at = m.get_end()
-	out += text.substr(at)
-	return "[color=%s][lb]SYSOP[rb]: %s[/color]" % [HINT, out]
-
-
-## SQL keywords in a line of query text, in the input line's keyword color.
-static func _keywords(sql: String) -> String:
-	return RegEx.create_from_string("\\b(%s)\\b" % "|".join(KEYWORDS)).sub(sql, "[color=%s]$1[/color]" % KEYWORD, true)
+	return out + fn.call(text.substr(at))
 
 
 func _unhandled_input(event: InputEvent) -> void:
