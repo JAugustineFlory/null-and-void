@@ -32,6 +32,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_inventory()
 	await test_hotbar_keys()
 	await test_inventory_screen()
+	await test_sit()
 	await test_movement_gym()
 
 
@@ -1018,6 +1019,56 @@ func test_same_controls_same_moves() -> void:
 	await done(a)
 
 
+func test_sit() -> void:
+	var a := arena()
+	Greybox.box(a, Vector3(0, 0.225, -1.5), Vector3(0.5, 0.45, 0.5), Color.DIM_GRAY, "Chair")
+	var chair := Seat.create_at(a, Vector3(0, 0.45, -1.5), PI)  # faces +Z, toward the player
+	var p := spawn(a, Vector3(0, 0.05, 0))
+	var q := spawn(a, Vector3(2, 0.05, 0))
+	await frames(20)
+	var stood := p.global_position
+	var eyes := p.camera.global_position.y
+	var settle := int(Player.SIT_TIME * 60) + 10
+	p.controls.sit = true
+	await frames(2)
+	check(p.is_sitting() and p.seat == null, "Z sits you down on the floor")
+	await frames(settle)
+	check(p.camera.global_position.y < eyes - 0.8 and p.global_position.distance_to(stood) < 0.05, "down low, right where you were")
+	forward(p)
+	p.controls.sprint = true
+	await frames(20)
+	stop(p)
+	check(p.is_sitting() and p.global_position.distance_to(stood) < 0.05, "W doesn't walk you off: you're sitting")
+	check(p.raise_notebook() and p.is_sitting(), "you can read your notebook sitting down")
+	p.lower_notebook(true)
+	p.controls.jump = true
+	await frames(settle + 20)  # up, then the view eases back to standing height
+	check(not p.is_sitting() and p.stance_height == Player.STAND_HEIGHT and absf(p.camera.global_position.y - eyes) < 0.05, "Space stands you up")
+
+	check(chair.get_prompt(p) == "[E] Sit down", "a chair says E to sit")
+	chair.interact(p)
+	await frames(settle)
+	check(p.is_sitting() and p.seat == chair and p.global_position.distance_to(Vector3(0, 0.45, -1.5)) < 0.02, "E at a chair sits you on it")
+	check((-p.global_basis.z).dot(Vector3.BACK) > 0.99, "facing the way the chair faces")
+	check(absf(p.camera.global_position.y - (0.45 + Player.SIT_HEIGHT - 0.12)) < 0.05, "eyes at sitting height")
+	check(not chair.is_free(q) and chair.get_prompt(q) == "" and not q.sit(chair), "one to a chair")
+	p._turn_view(4.0, 0.0)
+	check(absf(angle_difference(PI, p.rotation.y)) <= Player.SIT_LOOK + 0.001, "you can look around, but not turn your back on the desk")
+	p.controls.sit = true
+	await frames(settle)
+	check(not p.is_sitting() and p.global_position.distance_to(stood) < 0.05 and chair.is_free(q), "Z gets you up, back where you stood, and frees the chair")
+
+	p.controls.jump = true
+	await frames(3)
+	check(not p.sit(), "you can't sit in mid-air")
+	await frames(40)
+	chair.interact(p)
+	await frames(settle)
+	p.respawn(Transform3D(Basis(), Vector3(3, 0.05, 2)))
+	check(not p.is_sitting() and p.global_position.distance_to(Vector3(3, 0.05, 2)) < 0.01 and chair.is_free(q), "respawning gets you up and frees the chair")
+	await done(a)
+
+
 func test_movement_gym() -> void:
 	var level = load("res://scenes/movement_gym.tscn").instantiate()
 	t.root.add_child(level)
@@ -1041,5 +1092,6 @@ func test_movement_gym() -> void:
 		await t.physics_frame
 		vaulted = vaulted or p.state == Player.Move.VAULT
 	check(vaulted and p.global_position.x > -19.9, "the gym has a desk to vault")
+	check(level.find_children("*", "Seat", true, false).size() == 1, "the gym has a chair to sit on")
 	level.queue_free()
 	await t.process_frame

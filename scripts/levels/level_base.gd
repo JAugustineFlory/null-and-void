@@ -254,6 +254,7 @@ func _bake_navigation() -> void:
 const CONTROLS := """WASD  move          Shift  sprint
 Ctrl  crouch, slide, roll
 Space  jump     W + Space  vault, mantle, grab a ledge or pipe
+Z  sit on the floor (E at a chair sits on it)     Space or Z  stand up
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
 Tab  your notebook: notes, tables, Field Notes (1-4 turn to a tab)

@@ -2,8 +2,8 @@ class_name Player
 extends CharacterBody3D
 ## First-person player: walk, sprint, crouch, slide, landing roll, mantle, ledge
 ## grab and shimmy, climb, crawl through vents, shuffle along narrow ledges and
-## stand on a teammate's shoulders (up to three high). Also flashlight, interact
-## and strike.
+## stand on a teammate's shoulders (up to three high), sit on a chair or the
+## floor. Also flashlight, interact and strike.
 ##
 ## Movement reads only `controls`, never `Input`, so a copy of this player on
 ## another machine moves the same way when fed the same controls. Only the
@@ -27,8 +27,11 @@ signal sticky_filed(prop: Node3D)
 signal terminal_focused
 ## You've stepped back from a terminal and can move again.
 signal terminal_left
+## You've sat down (on `seat`, or the floor when null), or got back up.
+signal sat_down(seat: Node3D)
+signal stood_up
 
-enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT }
+enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT }
 
 const WALK_SPEED := 3.8
 const SPRINT_SPEED := 6.5
@@ -112,6 +115,12 @@ const TERMINAL_STEP_TIME := 0.35
 const TERMINAL_FOCUS_TIME := 0.5
 ## How far the camera sits from the screen's focus point, metres.
 const TERMINAL_FOCUS_DISTANCE := 0.55
+## Sitting: your body's height above what you sit on (eyes about 1.25 m up on a
+## chair, 0.8 m on the floor), and how long sitting down or getting up takes.
+const SIT_HEIGHT := 0.95
+const SIT_TIME := 0.4
+## How far (radians) you can turn from the way a chair faces.
+const SIT_LOOK := deg_to_rad(110.0)
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var health := 100.0
@@ -197,6 +206,13 @@ var _term_focus: Node3D
 var _term_leaving := false
 var _term_from := Transform3D()
 var _term_look_from := Basis()
+## The seat you're on (a Seat), or null on the floor or standing. Read-only.
+var seat: Node3D
+## 0 standing, 1 sat down; eases between them. Read-only.
+var sit_amount := 0.0
+var _sit_from := Transform3D()  # where you stood before sitting on a chair
+var _sit_to := Transform3D()
+var _sit_leaving := false
 
 var head: Node3D
 var camera: Camera3D
@@ -256,6 +272,8 @@ func _turn_view(yaw: float, pitch: float) -> void:
 	rotate_y(-yaw)
 	if state == Move.LEDGE:
 		_clamp_ledge_yaw()
+	elif state == Move.SIT and is_instance_valid(seat):
+		_clamp_seat_yaw()
 	head.rotation.x = clamp(head.rotation.x - pitch, -1.45, 1.45)
 	if _notebook_held or _prop_settled():
 		_drift_notebook(wrapf(rotation.y - yaw0, -PI, PI), head.rotation.x - pitch0)
@@ -366,6 +384,8 @@ func _physics_process(delta: float) -> void:
 func step(delta: float) -> void:
 	var jump_pressed := controls.jump
 	controls.jump = false
+	var sit_pressed := controls.sit
+	controls.sit = false
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
 	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB, Move.VAULT]:
@@ -385,7 +405,11 @@ func step(delta: float) -> void:
 			_step_ledge(delta)
 		Move.TERMINAL:
 			_step_terminal(delta)
+		Move.SIT:
+			_step_sit(delta, jump_pressed or sit_pressed)
 		_:
+			if sit_pressed and sit():
+				return
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
 
@@ -404,6 +428,7 @@ func heal_full() -> void:
 
 
 func respawn(at: Transform3D) -> void:
+	_end_sit()
 	if rider:
 		rider._leave_carrier()
 	_leave_carrier()
@@ -529,7 +554,7 @@ func _mouse_looks() -> bool:
 ## you read (hold right mouse); otherwise a cursor is out (set_notebook_cursor). It doesn't collide
 ## while held. False if your hands are busy or you're not on your feet.
 func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) -> bool:
-	if prop == null or held_prop or not _filing.is_empty() or state != Move.WALK:
+	if prop == null or held_prop or not _filing.is_empty() or not state in [Move.WALK, Move.SIT]:
 		return false
 	lower_notebook()
 	held_prop = prop
@@ -868,6 +893,98 @@ func _process(delta: float) -> void:
 		notebook_raised.emit()
 	elif notebook_amount == 0.0:
 		notebook_lowered.emit()
+
+
+# --- Sitting -------------------------------------------------------------
+
+## Sit down: on `on_seat` (a Seat: you turn and lower onto it) or, with null, on
+## the floor where you stand. You can look around, read and use things you can
+## reach; Space or Z stands you up (stand_up). False if you can't: mid-air, busy,
+## on or under a teammate, in a vent, or the seat is taken.
+func sit(on_seat: Node3D = null) -> bool:
+	if state != Move.WALK or not is_on_floor() or rider or carrier or not _filing.is_empty():
+		return false
+	if in_volume(MovementVolume.Kind.VENT) or crawling:
+		return false
+	if on_seat:
+		if on_seat.has_method("is_free") and not on_seat.is_free(self):
+			return false
+		on_seat.set("occupant", self)
+	seat = on_seat
+	_sit_from = global_transform
+	_sit_to = global_transform
+	if on_seat:
+		var fwd := -on_seat.global_basis.z
+		_sit_to = Transform3D(Basis(Vector3.UP, atan2(-fwd.x, -fwd.z)), on_seat.global_position)
+	_sit_leaving = false
+	sit_amount = 0.0
+	state = Move.SIT
+	velocity = Vector3.ZERO
+	_height = SIT_HEIGHT
+	crouching = false
+	crawling = false
+	_capsule.height = SIT_HEIGHT
+	_collider.position.y = SIT_HEIGHT / 2
+	sat_down.emit(on_seat)
+	return true
+
+
+## Get back up: off a chair to where you stood before, or up off the floor (into a
+## crouch if something's overhead). `instant` skips the motion.
+func stand_up(instant: bool = false) -> void:
+	if state != Move.SIT:
+		return
+	_sit_leaving = true
+	if instant:
+		_end_sit()
+
+
+func is_sitting() -> bool:
+	return state == Move.SIT
+
+
+func _step_sit(delta: float, stand_pressed: bool) -> void:
+	velocity = Vector3.ZERO
+	if _sit_from.origin != _sit_to.origin and not is_instance_valid(seat):
+		_sit_leaving = true  # the chair's gone
+	if stand_pressed and not _sit_leaving:
+		stand_up()
+	sit_amount = move_toward(sit_amount, 0.0 if _sit_leaving else 1.0, delta / SIT_TIME)
+	if _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
+		# Onto the chair, turning to face the way it does; or back off it, looking
+		# wherever you were looking.
+		var t := smoothstep(0.0, 1.0, sit_amount)
+		global_position = _sit_from.origin.lerp(_sit_to.origin, t)
+		if not _sit_leaving:
+			rotation.y = lerp_angle(_sit_from.basis.get_euler().y, _sit_to.basis.get_euler().y, t)
+	if _sit_leaving and sit_amount <= 0.0:
+		_end_sit()
+
+
+func _end_sit() -> void:
+	if state != Move.SIT:
+		return
+	if is_instance_valid(seat) and seat.get("occupant") == self:
+		seat.set("occupant", null)
+	if _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
+		global_position = _sit_from.origin
+	seat = null
+	sit_amount = 0.0
+	_sit_leaving = false
+	state = Move.WALK
+	if _can_stand():
+		_set_stance(STAND_HEIGHT)
+	else:
+		_set_stance(maxf(_room(global_position), CRAWL_HEIGHT))
+	stood_up.emit()
+
+
+func _clamp_seat_yaw() -> void:
+	var fwd := -seat.global_basis.z
+	var center := atan2(-fwd.x, -fwd.z)
+	var d := angle_difference(center, rotation.y)
+	if absf(d) > SIT_LOOK:
+		rotation.y = center + signf(d) * SIT_LOOK
 
 
 # --- Teammates -------------------------------------------------------------
@@ -1557,4 +1674,6 @@ func _update_prompt() -> void:
 		var target := _look_target()
 		if target and target.has_method("get_prompt"):
 			text = target.get_prompt(self)
+		if text == "" and state == Move.SIT and not _sit_leaving:
+			text = "[Space] Stand up"
 	hud.set_prompt(text)
