@@ -160,7 +160,7 @@ static func troffer(parent: Node, ceiling_pos: Vector3, light_range: float = 8.0
 	light.light_energy = energy
 	light.light_color = ArtPalette.LIGHT_FLUORESCENT
 	root.add_child(light)
-	var diffuser := _piece(light, Vector3(1.16, 0.01, 0.56), Vector3(0, 0.38, 0), ArtPalette.glow(ArtPalette.LIGHT_FLUORESCENT, 2.2))
+	var diffuser := _piece(light, Vector3(1.16, 0.01, 0.56), Vector3(0, 0.38, 0), ArtPalette.troffer_glow(ArtPalette.LIGHT_FLUORESCENT, 2.2))
 	diffuser.name = "Diffuser"
 	return light
 

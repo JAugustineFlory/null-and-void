@@ -69,6 +69,7 @@ static func apply(level: LevelBase) -> void:
 	_outside(level)
 
 	ArtDress.link_light_panels(level)
+	ArtMood.polish(level.environment)
 	var vent: Array = []
 	for z in range(-11, 5):
 		vent.append(Vector3(-6.6, 0, z))  # the vent's duct runs under this ceiling

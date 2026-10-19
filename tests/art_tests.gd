@@ -328,6 +328,7 @@ func test_dressed_level_0() -> void:
 		if l.get_node_or_null("PanelLink"):
 			lit += 1
 	check(lit == level.lights["lobby"].size(), "every lobby light panel follows its light")
+	_check_polish(level, "Level 0")
 	var van: Node3D = level.get_node("Dressing/Van")
 	check(van.find_children("Seat*", "Node3D", false, false).size() == 3, "the van has two front seats and a rear bench")
 	check(van.find_child("SteeringWheel", true, false) != null, "and a steering wheel")
@@ -396,6 +397,7 @@ func test_dressed_level_1() -> void:
 	check(look.pick_action() == "down", "Rourke's model falls when he goes down")
 	level.rourke.state = Rourke.State.TIED
 	check(look.pick_action() == "tied", "and shows him tied up")
+	_check_polish(level, "Level 1")
 	_check_skyline(level, "level_1")
 	level.free()
 
@@ -421,12 +423,38 @@ func test_dressed_level_2() -> void:
 			break
 	check(lab_wall != null and (lab_wall.material_override as StandardMaterial3D).albedo_color.b > 0.9, "Secure Lab B is clean and white")
 	check(level.lab.rourke.get_node_or_null("Look") != null, "Rourke wears his character model on the security floor too")
+	_check_polish(level, "Level 2")
 	_check_skyline(level, "level_2")
 	level.free()
 
 
 ## Halcyon Tower: every wing sees the sky and the campus at its own storey's height,
 ## and nothing outside collides or shows through into a wing next door.
+## The quality pass: ceiling lights cast soft shadows up close and drop them with
+## distance, fittings glow through louvres, and the room gets AO and reflections.
+func _check_polish(level: Node3D, label: String) -> void:
+	var lights := 0
+	var unshadowed := []
+	for id in level.lights:
+		for l in level.lights[id]:
+			var omni := l as OmniLight3D
+			if not omni:
+				continue
+			lights += 1
+			if not (omni.shadow_enabled and omni.distance_fade_enabled and omni.distance_fade_shadow <= ArtDress.SHADOW_NEAR):
+				unshadowed.append(str(omni.name))
+	check(lights > 0 and unshadowed.is_empty(), "%s: ceiling lights cast shadows that fade out with distance %s" % [label, unshadowed.slice(0, 6)])
+	var env: Environment = level.environment
+	check(env.ssao_enabled and env.ssr_enabled, "%s: corners get ambient occlusion and polished floors reflect" % label)
+	var panel: MeshInstance3D = null
+	for id in level.lights:
+		for l in level.lights[id]:
+			var link = l.get_node_or_null("PanelLink")
+			if link and l.visible and l.light_energy > 0.05 and is_instance_valid(link.panel):
+				panel = link.panel
+	check(panel != null and panel.material_override.emission_texture == ArtPalette.texture("louvre"), "%s: lit fittings show their louvres" % label)
+
+
 func _check_skyline(level: Node3D, wing: String) -> void:
 	var sky: Node3D = level.get_node_or_null("Dressing/Skyline")
 	check(sky != null and sky.get_meta("storey") == ArtSkyline.FLOORS[wing], "%s looks out on the campus from storey %d" % [wing, ArtSkyline.FLOORS[wing]])

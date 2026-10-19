@@ -74,6 +74,32 @@ static func environment(mood: String) -> Environment:
 	return env
 
 
+## Rendering polish on the game's own Environment, whatever its mood: ambient
+## occlusion in corners and under furniture, a little bounce light, reflections
+## on polished floors, and glow that blooms only off things that really are bright. Forward+ only; the
+## Compatibility renderer ignores what it can't do.
+static func polish(env: Environment) -> void:
+	if env == null:
+		return
+	env.ssao_enabled = true
+	env.ssao_radius = 1.2
+	env.ssao_intensity = 1.8
+	env.ssao_power = 1.4
+	env.ssao_detail = 0.6
+	env.ssao_light_affect = 0.15
+	env.ssil_enabled = true
+	env.ssil_radius = 3.0
+	env.ssil_intensity = 0.6
+	env.glow_hdr_threshold = 1.1
+	env.glow_bloom = 0.04
+	# Polished vinyl and glass pick up the ceiling lights.
+	env.ssr_enabled = true
+	env.ssr_max_steps = 48
+	env.ssr_fade_in = 0.15
+	env.ssr_fade_out = 2.0
+	env.ssr_depth_tolerance = 0.2
+
+
 ## Switch an existing Environment to `mood`.
 static func apply(env: Environment, mood: String) -> void:
 	var m := get_mood(mood)
@@ -103,4 +129,4 @@ static func apply_to_lights(lights: Array, mood: String) -> void:
 		# A fitting's glowing panel (ArtProps.troffer) follows its light.
 		var panel := light.get_node_or_null("Diffuser") as MeshInstance3D
 		if panel:
-			panel.material_override = ArtPalette.glow(m.light_color, 2.2) if m.light_energy > 0.0 else ArtPalette.flat(Color(0.35, 0.36, 0.36), 0.3)
+			panel.material_override = ArtPalette.troffer_glow(m.light_color, 2.2) if m.light_energy > 0.0 else ArtPalette.flat(Color(0.35, 0.36, 0.36), 0.3)
