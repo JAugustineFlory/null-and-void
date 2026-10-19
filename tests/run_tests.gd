@@ -528,6 +528,7 @@ func test_level_0_scene() -> void:
 	level._on_walkies()
 	await process_frame
 	check(not is_instance_valid(level.walkies) and level.geo.get_node_or_null("ChargingDock") != null, "taking the walkies leaves their charging dock on the table")
+	check(level.player.inventory.has("radio") and level.player.inventory.hotbar.has("radio"), "your walkie-talkie goes on the hotbar")
 	var panel: Node3D = level.elevator.art.get_node("ButtonPanel") if level.elevator.art else null
 	check(panel == null or level.elevator.button.global_position.distance_to(panel.global_position) < 0.35, "the elevator's button is pressed where its panel is drawn")
 	for i in 1500:  # the PA's escort tape and Rourke's cover come first
@@ -1192,9 +1193,12 @@ func test_coop_level_2() -> void:
 	client.key_glass.take_hit(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return not is_instance_valid(l.key_glass)), "a client's strike breaks the glass on every machine")
+	for l in machines:  # one process plays every machine: give each its own inventory, as on real machines
+		l.player.inventory = Inventory.new()
 	client.geo.get_node("Screwdriver").interact(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return l.has_screwdriver and l.geo.get_node_or_null("Screwdriver") == null), "the screwdriver is picked up for everyone")
+	check(client.player.inventory.has("screwdriver") and not host.player.inventory.has("screwdriver"), "and it's in the taker's inventory, not everyone's")
 	client.vent_grate.interact(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return not l.vent_grate.enabled), "the grate comes off on every machine")

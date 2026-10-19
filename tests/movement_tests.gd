@@ -29,6 +29,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_use_terminal()
 	await test_pick_up()
 	await test_file_sticky()
+	await test_inventory()
+	await test_hotbar_keys()
+	await test_inventory_screen()
 	await test_movement_gym()
 
 
@@ -838,6 +841,127 @@ func test_file_sticky() -> void:
 
 
 ## A mouse movement as the local player gets it.
+func test_inventory() -> void:
+	var inv := Inventory.new()
+	check(inv.items == Array(["notebook", "flashlight"], TYPE_STRING, "", null) and inv.hotbar.all(func(i): return i == ""), "you start with the notebook and flashlight, and an empty hotbar")
+	check(inv.add("radio") and inv.hotbar[0] == "radio", "a pickup fills the first empty hotbar slot")
+	check(not inv.add("radio") and inv.items.count("radio") == 1, "picking up something you have does nothing")
+	check(not inv.add("notebook") and not inv.hotbar.has("notebook"), "the notebook and flashlight never go on the hotbar")
+	inv.add("screwdriver")
+	inv.add("cable")
+	inv.add("keycard")
+	check(inv.hotbar == Array(["radio", "screwdriver", "cable", "keycard"], TYPE_STRING, "", null), "four items fill the four slots in order")
+	inv.add("fuse")
+	check(inv.has("fuse") and not inv.hotbar.has("fuse") and inv.stowed() == Array(["fuse"], TYPE_STRING, "", null), "a fifth goes in the bag, not over another slot")
+	inv.use_slot(1)
+	check(inv.active_item() == "screwdriver", "1-4 take out what's in that slot")
+	inv.assign(3, "screwdriver")
+	check(inv.hotbar[3] == "screwdriver" and inv.hotbar[1] == "keycard" and inv.active_item() == "screwdriver", "moving an item to another slot swaps them, and it stays in your hands")
+	inv.assign(0, "fuse")
+	check(inv.hotbar[0] == "fuse" and inv.stowed().has("radio"), "putting a bag item on a full slot sends that slot's item to the bag")
+	inv.assign(3, "")
+	check(inv.hotbar[3] == "" and inv.active_item() == "" and inv.stowed().has("screwdriver"), "taking what you hold off the hotbar puts it away")
+	check(not inv.assign(2, "flashlight") and not inv.assign(2, "crowbar") and not inv.assign(7, "radio"), "nothing fixed, missing or out of range goes on the bar")
+	inv.use_slot(0)
+	inv.use_slot(0)
+	check(inv.active_item() == "", "pressing the same key again puts it away")
+	inv.use_slot(3)
+	check(inv.active_item() == "", "an empty slot leaves your hands empty")
+	inv.remove("fuse")
+	check(not inv.has("fuse") and inv.hotbar[0] == "", "using up an item frees its slot")
+	var copy := Inventory.new()
+	copy.load_dict(inv.to_dict())
+	check(copy.items == inv.items and copy.hotbar == inv.hotbar, "an inventory saves and loads")
+	check(not inv.add_for_peer("crowbar", 2, 1) and inv.add_for_peer("crowbar", 1, 1), "a pickup played out on every machine only lands in the taker's inventory")
+	inv.clear()
+	check(inv.items.size() == 2 and inv.hotbar.all(func(i): return i == ""), "a new run starts empty-handed")
+
+
+func test_hotbar_keys() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.05, 0))
+	await frames(20)
+	p.inventory.add("radio")
+	p.inventory.add("screwdriver")
+	var picked := []
+	p.inventory.selected.connect(func(i): picked.append(i))
+	_key(p, KEY_2)
+	check(p.inventory.active_item() == "screwdriver" and picked == ["screwdriver"], "2 takes out the screwdriver")
+	_key(p, KEY_1)
+	check(p.inventory.active_item() == "radio", "1 swaps to the walkie-talkie")
+	var flashlight_on := p.flashlight.visible
+	_key(p, KEY_F)
+	check(p.flashlight.visible != flashlight_on and p.inventory.active_item() == "radio", "F is still the flashlight, whatever's in your hands")
+	p.raise_notebook()
+	_key(p, KEY_2)
+	check(p.inventory.active_item() == "radio", "reading the notebook, 1-4 are its tabs, not the hotbar")
+	p.lower_notebook(true)
+	p.input_locked = true
+	_key(p, KEY_2)
+	check(p.inventory.active_item() == "radio", "nor in a menu")
+	p.input_locked = false
+	await done(a)
+
+
+func test_inventory_screen() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.05, 0))
+	await frames(20)
+	var screen := InventoryScreen.create(a, p, null)
+	await t.process_frame
+	p.inventory.add("radio")
+	p.inventory.add("screwdriver")
+	p.inventory.add("cable")
+	p.inventory.add("keycard")
+	p.inventory.add("fuse")
+	check(screen._bar.visible, "the hotbar is on screen")
+	var stand := Node3D.new()
+	a.add_child(stand)
+	p.use_terminal(stand, null)
+	await t.process_frame
+	check(not screen._bar.visible, "and steps aside while you're at a terminal")
+	p.leave_terminal()
+	await frames(40)
+	await t.process_frame
+	check(screen._bar.visible and not p.is_using_terminal(), "then comes back")
+	check(screen.open() and screen.is_open() and p.input_locked, "I opens the inventory, and you stop walking around")
+	screen.pick("fuse")
+	screen.choose_slot(1)
+	check(p.inventory.hotbar[1] == "fuse" and p.inventory.stowed().has("screwdriver") and screen.picked == "", "click a bag item, then a slot, to put it on the hotbar")
+	screen.choose_slot(0)
+	check(screen.picked == "radio", "clicking a filled slot picks up its item")
+	screen.choose_slot(3)
+	check(p.inventory.hotbar[3] == "radio" and p.inventory.hotbar[0] == "keycard", "and clicking another slot swaps them")
+	screen.pick("cable")
+	screen.stow_picked()
+	check(not p.inventory.hotbar.has("cable") and p.inventory.has("cable"), "an item can come off the hotbar into the bag")
+	screen.pick("cable")
+	p.local_control = true
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_3
+	ev.pressed = true
+	screen._unhandled_input(ev)
+	p.local_control = false
+	check(p.inventory.hotbar[2] == "cable", "or press 1-4 to drop the picked item in that slot")
+	screen.close()
+	check(not screen.is_open() and not p.input_locked, "I again closes it")
+	p.raise_notebook()
+	check(not screen.open(), "it doesn't open over the notebook")
+	p.lower_notebook(true)
+	screen.queue_free()
+	await done(a)
+
+
+## A key press as the local player gets it.
+func _key(p: Player, key: Key) -> void:
+	var ev := InputEventKey.new()
+	ev.physical_keycode = key
+	ev.pressed = true
+	p.local_control = true
+	p._unhandled_input(ev)
+	p.local_control = false
+
+
 func _mouse_move(p: Player, by: Vector2) -> void:
 	var ev := InputEventMouseMotion.new()
 	ev.relative = by

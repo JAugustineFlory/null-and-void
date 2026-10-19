@@ -18,6 +18,8 @@ const LEVELS := {
 ## How the escort's story went: "unknown", "killed", "tied".
 var rourke_fate := "unknown"
 var has_walkie := false
+## This player's inventory and hotbar. Each machine keeps its own (see Inventory).
+var inventory := Inventory.new()
 ## Did the players lock the Watcher in behind them in Level 2?
 var watcher_sealed := false
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
@@ -84,6 +86,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_tables.clear()
 	notebook_written.clear()
 	notebook_todo.clear()
+	inventory.clear()
 
 
 func goto(level_key: String) -> void:
@@ -197,6 +200,7 @@ func _setup_input() -> void:
 	_bind_keys("flashlight", [KEY_F])
 	_bind_keys("pause", [KEY_ESCAPE])
 	_bind_keys("notebook", [KEY_TAB])
+	_bind_keys("inventory", [KEY_I])
 	if not InputMap.has_action("attack"):
 		InputMap.add_action("attack")
 		var click := InputEventMouseButton.new()
