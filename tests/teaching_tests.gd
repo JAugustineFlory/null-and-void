@@ -15,7 +15,13 @@ extends RefCounted
 ## stays green while the owning thread fixes them. When a gap is fixed, its check
 ## prints FIXED: move it to a normal check() then.
 
-const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "LIKE", "LIMIT", "COUNT", "GET"]
+const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS"]
+## Concepts that aren't one capitalised word: comparing a column with a value, and
+## picking columns instead of *.
+const KEYWORD_PATTERNS := {
+	">": "\\w\\s*>=?\\s*['\\d]",
+	"COLUMNS": "\\bSELECT\\s+\\w+\\s*,",
+}
 
 var t: SceneTree
 var _check: Callable
@@ -39,7 +45,6 @@ func run(tree: SceneTree, check: Callable) -> void:
 	taught = ""
 	first_use.clear()
 	used_under_threat.clear()
-	test_first_hints_explain_every_keyword()
 	await walk_level_0()
 	for s in [7, 23]:
 		await walk_level_1(s)
@@ -113,6 +118,8 @@ func in_room(n: Node3D, at: Node3D) -> bool:
 ## A query on screen with a blank in it ("SELECT * FROM table_name;") is filled in
 ## from what's handwritten on a document in the room, like the brochure's blank.
 func fill_blanks(level: Node, query: String, at: Node3D = null) -> Array[String]:
+	if query.contains("?"):
+		return []  # a hint's shape: filling in the value is the thinking step
 	if not query.contains("table_name"):
 		return [query]
 	var out: Array[String] = []
@@ -131,16 +138,21 @@ func keywords_in(text: String) -> Array:
 	# or "from" doesn't count as having shown the keyword.
 	var found := []
 	for k in KEYWORDS:
-		if RegEx.create_from_string("\\b" + k.replace(" ", "\\s+") + "\\b").search(text):
+		var pattern: String = KEYWORD_PATTERNS.get(k, "\\b" + k.replace(" ", "\\s+") + "\\b")
+		if RegEx.create_from_string(pattern).search(text):
 			found.append(k)
 	return found
 
 
 ## Remember every line on this screen and every sign in view (write-note candidates).
-func remember(level: Node, ui: TerminalUI) -> void:
+## Returns how many characters were new: what the player had to read.
+func remember(level: Node, ui: TerminalUI) -> int:
+	var read := 0
 	for line in (screen(ui) + "\n" + world_text(level, ui.terminal)).split("\n"):
 		if line.strip_edges() != "" and not taught.contains(line):
 			taught += line + "\n"
+			read += line.length()
+	return read
 
 
 ## Is this curriculum item in the text? Keywords match as capitalised words.
@@ -194,9 +206,12 @@ func has_world_label(level: Node, text: String) -> bool:
 ## hint, everything the puzzle needs must be taught already or on screen now; after
 ## it's solved, everything it teaches must have been on a terminal line or sticky note.
 ## `pressure_gap` names a known gap: a pressure mismatch prints as GAP, not a failure.
-func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints: int = 3, pressure_gap: String = "") -> int:
+## With `pace`, game time passes as a first-time player would take: reading what's
+## new, thinking, typing (see PACE_* below). `paced` adds up those seconds.
+func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints: int = 3, pressure_gap: String = "", pace := false) -> int:
 	var tried := {}
 	var hints := 0
+	check_ladder(ui, puzzle)
 	var spec: Dictionary = Curriculum.PUZZLES.get(puzzle.id, {})
 	check(not spec.is_empty(), "%s: tests/curriculum.gd says what it teaches and needs" % puzzle.id)
 	var needed: Array = spec.get("needs", [])
@@ -213,7 +228,9 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			check(threat == spec.pressure, said)
 	var outside := []
 	while not puzzle.solved:
-		remember(level, ui)
+		var read := remember(level, ui)
+		if pace:
+			await _spend(read / PACE_READ_CPS)
 		var text := screen(ui)
 		var fresh: Array[String] = []
 		# The notebook is reference, not a script: old queries name other levels'
@@ -231,14 +248,20 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 				check(false, "%s: a lost player gets stuck even after %d hints" % [puzzle.id, hints])
 				return -1
 			hints += 1
+			if pace:
+				await _spend(PACE_THINK + ".hint".length() / PACE_TYPE_CPS)
 			ui.run(".hint")
 			continue
 		for q in fresh:
 			tried[q] = true
+			if pace:
+				await _spend(PACE_THINK + q.length() / PACE_TYPE_CPS)
 			ui.run(q)
 			if puzzle.solved:
 				break
-	remember(level, ui)
+	var read_last := remember(level, ui)
+	if pace:
+		await _spend(read_last / PACE_READ_CPS)
 	for k in needed:
 		if not KEYWORDS.has(k):
 			continue
@@ -255,41 +278,104 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 	return hints
 
 
-## The query the first hint spells out: the answer a player is expected to type.
+# --- Pacing: how long a first-time player takes ----------------------------
+
+## A non-coder reading a terminal: about 180 words a minute.
+const PACE_READ_CPS := 15.0
+## Hunt-and-peck typing of SQL, symbols included.
+const PACE_TYPE_CPS := 2.5
+## Deciding what to type next.
+const PACE_THINK := 4.0
+var paced := 0.0
+
+
+## Let `seconds` of game time pass (time_scale-aware, counted in physics steps).
+func _spend(seconds: float) -> void:
+	paced += seconds
+	var left := seconds
+	while left > 0.0:
+		await t.physics_frame
+		left -= Engine.time_scale / float(Engine.physics_ticks_per_second)
+
+
+# --- The hint ladder ----------------------------------------------------------
+
+func _plain(hint: String) -> String:
+	return hint.replace("[color=#ffffff]", "").replace("[/color]", "")
+
+
+## Hint 1's query with the value left as '?', or "" (the old ladder: hint 1 is exact).
+func _shape(p: Puzzle) -> String:
+	for q in queries_in(_plain(p.hints[0])):
+		if q.contains("?"):
+			return q
+	return ""
+
+
+## The exact query the hints end on: the last hint under ladder A, else the first.
 func _answer_query(p: Puzzle) -> String:
-	var queries := queries_in(p.hints[0].replace("[color=#ffffff]", "").replace("[/color]", ""))
-	return queries[0] if not queries.is_empty() else p.solution_sql
+	var from: String = p.hints[-1] if _shape(p) != "" else p.hints[0]
+	for q in queries_in(_plain(from)):
+		if not q.contains("?"):
+			return q
+	return p.solution_sql
 
 
-# --- Rules on every first hint ----------------------------------------------
+## How many hints a player who only copies needs at most: the tier with the exact query.
+func rescue_tier(p: Puzzle) -> int:
+	return p.hints.size() if _shape(p) != "" else 1
 
-func test_first_hints_explain_every_keyword() -> void:
-	var l0 = load("res://scripts/levels/level_0.gd").new()
-	var l1 = load("res://scripts/levels/level_1.gd").new()
-	var l2 = load("res://scripts/levels/level_2.gd").new()
-	var all: Array = [l0.peek_puzzle, l0.memo_puzzle, l1.controller_puzzle, l2.cameras_puzzle, l2.pike_puzzle, l2.har_puzzle, l2.door_puzzle]
-	for p in all:
-		var hint: String = p.hints[0].replace("[color=#ffffff]", "").replace("[/color]", "")
-		var q := _answer_query(p)
-		var explained := true
-		var missing := []
-		for k in keywords_in(q):
-			var has_line := false
-			for line in hint.split("\n"):
-				if not line.contains(";") and line.strip_edges() != q and keywords_in(line).has(k):
-					has_line = true
-			if not has_line:
-				explained = false
-				missing.append(k)
-		check(q != "" and explained, "%s: first hint is the exact query with a line for each keyword%s" % [p.id, "" if explained else " (missing %s)" % ", ".join(missing)])
-	for p in all:
-		var real := true
-		for h in p.hints.slice(1):
-			real = real and not RegEx.create_from_string("(?i)\\b(employees|customers|users|students|orders)\\b").search(h)
-		check(real, "%s: later hints use the real tables, never an example one" % p.id)
-	l0.free()
-	l1.free()
-	l2.free()
+
+func _escape(text: String) -> String:
+	var out := ""
+	for c in text:
+		out += ("\\" + c) if "\\.^$*+?()[]{}|/".contains(c) else c
+	return out
+
+
+## Augustine's hint ladder (option A, 2026-10-18). Hint 1 is the query's shape with
+## the value as '?', a line per keyword, and where to find the value; hint 2 says how
+## to find it, without the query; the last hint is the exact query, and it solves the
+## puzzle. Every hint uses the real tables. Puzzles still on the old ladder (hint 1
+## exact) print as GAP until their floor's depth pass lands; a puzzle with no value
+## to find is marked "ladder": "exact" in tests/curriculum.gd.
+func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
+	var first := _plain(p.hints[0])
+	var q := _answer_query(p)
+	var shape := _shape(p)
+	if Curriculum.PUZZLES.get(p.id, {}).get("ladder", "") == "exact":
+		check(shape == "", "%s: no value to find, so hint 1 is the exact query" % p.id)
+	else:
+		gap(shape != "", "%s: hint 1 is the query's shape with the value as '?' (ladder A)" % p.id)
+	if FacilityAPI.is_request(q):
+		check(q.begins_with("GET /"), "%s: the exact-query hint is a request the player can type (%s)" % [p.id, q])
+	else:
+		check(p.matches(ui.terminal.db, ui.terminal.db.execute(q)), "%s: the exact-query hint solves it (%s)" % [p.id, q])
+	var missing := []
+	for k in keywords_in(q):
+		var has_line := false
+		for line in first.split("\n"):
+			var l := line.strip_edges()
+			if not l.contains(";") and l != q and l != shape and keywords_in(l).has(k):
+				has_line = true
+		if not has_line:
+			missing.append(k)
+	check(missing.is_empty(), "%s: hint 1 has a line for each keyword%s" % [p.id, "" if missing.is_empty() else " (missing %s)" % ", ".join(missing)])
+	if shape != "":
+		var m := RegEx.create_from_string("^" + _escape(shape).replace("\\?", "(.+?)") + "$").search(q)
+		check(m != null, "%s: hint 1's shape is the last hint's query with the value blanked (%s vs %s)" % [p.id, shape, q])
+		if m:
+			for i in range(1, m.get_group_count() + 1):
+				var v := m.get_string(i).strip_edges()
+				var given := RegEx.create_from_string("(?i)(?<![A-Za-z0-9_])" + _escape(v) + "(?![A-Za-z0-9_])").search(first) != null
+				check(not given, "%s: hint 1 doesn't give the value away (%s)" % [p.id, v])
+		check(p.hints.size() >= 3, "%s: three tiers: shape, how to find the value, exact query" % p.id)
+		for h in p.hints.slice(1, p.hints.size() - 1):
+			check(not _plain(h).contains(q), "%s: the middle hints say how to find the value, not the query" % p.id)
+	var real := true
+	for h in p.hints:
+		real = real and not RegEx.create_from_string("(?i)\\b(employees|customers|users|students|orders)\\b").search(h)
+	check(real, "%s: hints use the real tables, never an example one" % p.id)
 
 
 # --- Level 0: the lobby -----------------------------------------------------
@@ -302,10 +388,10 @@ func walk_level_0() -> void:
 		await t.physics_frame
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.desk_terminal, level.player)
-	var h := solve(level, ui, level.peek_puzzle, false)
+	var h := await solve(level, ui, level.peek_puzzle, false)
 	check(h == 0, "lobby: the boot screen alone gets a new player through the first query (hints %d)" % h)
-	h = solve(level, ui, level.memo_puzzle, false)
-	check(h >= 0 and h <= 1, "lobby: a lost player sorts the memo with at most the first hint (hints %d)" % h)
+	h = await solve(level, ui, level.memo_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.memo_puzzle), "lobby: a lost player sorts the memo once a hint gives the query (hints %d)" % h)
 	var memo: Array = level.db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no")
 	var shown := screen(ui)
 	check(shown.rfind(memo[0].text) < shown.rfind(memo[1].text) and shown.rfind(memo[1].text) < shown.rfind(memo[-1].text), "lobby: the sorted result on screen reads as the memo, in order")
@@ -329,8 +415,8 @@ func walk_level_1(seed_value: int) -> void:
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
 	check(world_text(level, level.terminal).contains("door_controllers") and screen(ui).contains("zone A") and screen(ui).contains("'fault'"), "server room: the desk card names the table, and the self-test shows both clues")
-	var h := solve(level, ui, level.controller_puzzle, false)
-	check(h >= 0 and h <= 1, "server room: a lost player finds the controller with at most the first hint (hints %d)" % h)
+	var h := await solve(level, ui, level.controller_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.controller_puzzle), "server room: a lost player finds the controller once a hint gives the query (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
 	var rows := last_table(screen(ui))
 	var id: String = rows[0].get("id", "") if rows.size() == 1 else ""
@@ -395,11 +481,20 @@ func walk_lab(seed_value: int) -> void:
 	var near: String = world_text(level, lab.terminal)
 	check(near.contains("zone " + level.data.lab_zone) or near.contains("ZONE " + level.data.lab_zone), "lab: a card inside the lab gives its controller zone (the door plate is outside the locked door)")
 	var hunted: bool = level.watcher.active or (lab.rourke.visible and lab.rourke.state != Rourke.State.DOWN) or lab.response_left > 0.0
-	var h := solve(level, ui, lab.door_puzzle, hunted, 3)
-	check(h >= 0 and h <= 1, "lab: a lost player finds the lab door's controller with at most the first hint (hints %d)" % h)
-	check(lab.response_left > Level2Lab.RESPONSE_TIME / 2.0, "lab: ...well inside the security response's clock (%d s of %d left)" % [lab.response_left, Level2Lab.RESPONSE_TIME])
+	# The 3:00 clock, measured: game time passes as a first-time player reads,
+	# thinks and types (PACE_*), so the clock and any re-key run for real.
+	paced = 0.0
+	var clock_from: float = lab.response_left
+	var zone: String = level.data.lab_zone
+	var h := await solve(level, ui, lab.door_puzzle, hunted, 3, "", true)
+	check(h >= 0 and h <= rescue_tier(lab.door_puzzle), "lab: a lost player finds the lab door's controller once a hint gives the query (hints %d)" % h)
 	check(not _game().current_todo().contains(level.data.lab_answer), "lab: the to-do doesn't name the controller")
-	solve(level, ui, lab.log_puzzle, hunted, 3)
+	await _spend(10.0)  # across the lab to the switch wall
+	var used: float = clock_from - lab.response_left
+	print("  INFO  lab clock (seed %d): a first-time player reaches the switch after %d s of %d (%d hint%s)" % [seed_value, used, Level2Lab.RESPONSE_TIME, h, "" if h == 1 else "s"])
+	check(lab.response_left > 0.0 and level.data.lab_zone == zone, "lab: a first-time player who reads the hints reaches the switch before the security response re-keys the zone (%d s left)" % lab.response_left)
+	# The badge log is optional here: read unpaced, so its time isn't on the clock.
+	await solve(level, ui, lab.log_puzzle, hunted, 3)
 	check(screen(ui).contains("VIS-"), "lab: the sorted badge_log shows the crew's own badges at her door")
 	ui.close()
 	var sw: Interactable = find_interactable(level, "Reset " + level.data.lab_answer)
@@ -424,9 +519,9 @@ func walk_level_2(seed_value: int) -> void:
 	p.local_control = false
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))  # at the booth
 	ui.open(level.booth, p)
-	var h := solve(level, ui, level.cameras_puzzle, level.loose)
+	var h := await solve(level, ui, level.cameras_puzzle, level.loose)
 	check(h == 0, "security: the boot screen gets a new player through GET /cameras (hints %d)" % h)
-	h = solve(level, ui, level.pike_puzzle, level.loose)
+	h = await solve(level, ui, level.pike_puzzle, level.loose)
 	check(h == 0, "security: LIKE is practised on Pike from the query on screen, safely (hints %d)" % h)
 	check(level.loose, "security: finding Pike freezes CAM-2 (the pressure starts)")
 	# Pressure means the Watcher can actually hunt: it wakes when the office opens.
@@ -434,9 +529,9 @@ func walk_level_2(seed_value: int) -> void:
 	level.watcher.active = false  # keep the walkthrough deterministic from here
 	# The Har query isn't written out: the player builds it from LIKE plus AND, both
 	# taught by now (the solve() check enforces it). A lost player who can't gets it
-	# from the first hint.
-	h = solve(level, ui, level.har_puzzle, hunting)
-	check(h >= 0 and h <= 1, "security: a lost player finds the PIN with at most the first hint (hints %d)" % h)
+	# from the hint that gives the query.
+	h = await solve(level, ui, level.har_puzzle, hunting)
+	check(h >= 0 and h <= rescue_tier(level.har_puzzle), "security: a lost player finds the PIN once a hint gives the query (hints %d)" % h)
 	var rows := last_table(screen(ui))
 	var pin: String = rows[0].get("pin", "") if rows.size() == 1 else ""
 	check(pin.length() == 4, "security: the result shows one guard and their PIN")
@@ -482,7 +577,7 @@ func walk_level_2(seed_value: int) -> void:
 	check(level.doors["SEC-EXIT"].is_open, "security: the breaker read off the screen opens SEC-EXIT")
 	# The door puzzle counts as solved once the door really opens: check what it taught.
 	ui.open(level.panel, p)
-	solve(level, ui, level.door_puzzle, hunting)
+	await solve(level, ui, level.door_puzzle, hunting)
 	ui.close()
 
 	# Dying to the Watcher should tell you why it could move.
