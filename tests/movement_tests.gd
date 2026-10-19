@@ -766,7 +766,6 @@ func test_pick_up() -> void:
 	var yaw0 := p.rotation.y
 	_mouse_move(p, Vector2(80, 0))
 	check(p.rotation.y < yaw0, "you can look around while you read")
-	await frames(1)
 	var in_view := p.camera.global_basis.inverse() * (paper.global_position - p.camera.global_position)
 	check(p.notebook_drift.x != 0.0 and in_view.x < -0.01, "glancing aside, the paper stays put a moment, like the notebook")
 	p.set_notebook_cursor(true)
