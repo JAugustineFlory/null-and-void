@@ -22,6 +22,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_dressed_level_0()
 	await test_dressed_level_1()
 	await test_dressed_level_2()
+	test_skyline_heights()
 	test_sticky_notes()
 	test_elevator()
 	await test_notebook()
