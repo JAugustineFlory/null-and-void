@@ -26,6 +26,7 @@ func _run() -> void:
 	test_facility_api()
 	test_level_2_data_every_seed()
 	test_level_2_hints()
+	test_level_2_badge_route()
 	await test_screens_fill_window()
 	await test_level_0_scene()
 	await test_ground_floor()
@@ -96,7 +97,7 @@ func test_facility_db() -> void:
 func test_level_0_puzzles() -> void:
 	print("Level 0 puzzles")
 	var db := FacilityDB.new()
-	db.load_seed(FileAccess.get_file_as_string("res://data/level_0.sql"))
+	db.load_seed(Level0Data.build(1).sql)
 	var peek := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false)
 	var memo := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY piece_no", ["text"], true)
 	check(peek.matches(db, db.execute("SELECT * FROM memo_fragments;")), "SELECT * solves the peek")
@@ -107,12 +108,41 @@ func test_level_0_puzzles() -> void:
 	check(not memo.matches(db, db.execute("SELECT piece_no FROM memo_fragments ORDER BY piece_no")), "missing the text column doesn't count")
 	var memo_text := db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no")
 	check(str(memo_text[0]["text"]).begins_with("If you are reading this") and str(memo_text[-1]["text"]) == "-- I.V.", "memo reads in the right order")
+	# Who called: the work order's extension, looked up in the staff directory.
+	var l0 = load("res://scripts/levels/level_0.gd")
+	var exts := {}
+	var caller_ok := true
+	var visitor_ok := true
+	for seed_value in 30:
+		var data := Level0Data.build(seed_value)
+		var d := FacilityDB.new()
+		d.load_seed(data.sql)
+		exts[data.extension] = true
+		var caller: Puzzle = l0.caller_puzzle_for(data.extension)
+		var rows := d.run_silent("SELECT name, dept, status FROM staff_directory WHERE extension = %d" % data.extension)
+		caller_ok = caller_ok and rows.size() == 1 and rows[0]["name"] == "Harold Mercer" and str(rows[0]["status"]).begins_with("LEFT")
+		caller_ok = caller_ok and d.run_silent("SELECT name FROM staff_directory WHERE dept = 'Building Services'").size() > 1
+		caller_ok = caller_ok and caller.matches(d, d.execute("SELECT name, extension, dept FROM staff_directory;"))
+		caller_ok = caller_ok and caller.matches(d, d.execute("SELECT * FROM staff_directory"))
+		caller_ok = caller_ok and not caller.matches(d, d.execute("SELECT name, dept FROM staff_directory"))
+		caller_ok = caller_ok and not caller.matches(d, d.execute("SELECT name, extension FROM staff_directory WHERE dept = 'Research'"))
+		var visitor: Puzzle = l0.visitor_puzzle_for()
+		var newest := d.run_silent("SELECT name, signed_out FROM visitors ORDER BY signed_in DESC")
+		visitor_ok = visitor_ok and newest[1]["name"] == "VALE, I." and newest[1]["signed_out"] == null and str(data.vale_in).begins_with("1997-10-15 21:")
+		visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors"))
+	check(caller_ok, "the caller's extension is Harold Mercer's, gone since '94; listing names beside extensions finds it, the department alone doesn't")
+	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it")
+	check(exts.size() >= 10, "the caller's extension varies between runs (%d different)" % exts.size())
 
 
 func test_level_1_data_every_seed() -> void:
 	print("Level 1 data, 50 seeds")
-	var puzzle := Puzzle.new("controller", "SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'fault'", ["id"], false)
 	var all_ok := true
+	var doors_ok := true
+	var racks_ok := true
+	var zones := {}
 	var never_guessable := true
 	var all_explained := true
 	var answers := {}
@@ -120,14 +150,26 @@ func test_level_1_data_every_seed() -> void:
 		var data := Level1Data.build(s)
 		var db := FacilityDB.new()
 		db.load_seed(data.sql)
+		var z: String = data.zone
+		zones[z] = true
+		var puzzle: Puzzle = load("res://scripts/levels/level_1.gd").controller_puzzle_for(z)
 		var rows := db.run_silent(puzzle.solution_sql)
 		var n := int(str(data.answer).trim_prefix("DC-"))
 		if rows.size() != 1 or rows[0]["id"] != data.answer or n < 1 or n > 8:
 			all_ok = false
-		if not puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE status = 'fault' AND zone = 'A';")):
+		if not puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE status = 'fault' AND zone = '%s';" % z)):
 			all_ok = false
-		if puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE zone = 'A'")) or puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE status = 'fault'")):
+		if puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE zone = '%s'" % z)) or puzzle.matches(db, db.execute("SELECT * FROM door_controllers WHERE status = 'fault'")):
 			never_guessable = false
+		# The stuck doors the NOC log names all share the zone; no other zone's fault is on this floor.
+		var stuck := db.run_silent("SELECT id, zone FROM doors WHERE locked = 1 AND id IN ('SRA-EXIT', 'SRC', 'LIFT-1')")
+		doors_ok = doors_ok and stuck.size() == 3 and stuck.all(func(r): return r["zone"] == z)
+		doors_ok = doors_ok and db.run_silent("SELECT id FROM doors WHERE locked = 0 AND zone = '%s'" % z).size() == 1  # the entrance
+		# One rack is over the interlock limit; another sits right on it, so >= finds two.
+		var hot := db.run_silent("SELECT id FROM racks WHERE temp_c > %d" % Level1Data.INTERLOCK_C)
+		racks_ok = racks_ok and hot.size() == 1 and hot[0]["id"] == data.hot_rack
+		racks_ok = racks_ok and db.run_silent("SELECT id FROM racks WHERE temp_c >= %d" % Level1Data.INTERLOCK_C).size() == 2
+		racks_ok = racks_ok and db.run_silent("SELECT status FROM lights WHERE room = 'Break room' AND floor = 1")[0]["status"] == "dead"
 		if not db.run_silent("SELECT id FROM door_controllers WHERE status != 'ok' AND id != '%s' AND note = 'normal'" % data.answer).is_empty():
 			all_explained = false
 		answers[data.answer] = true
@@ -135,6 +177,9 @@ func test_level_1_data_every_seed() -> void:
 	check(all_ok, "exactly one zone-A fault on a physical rack, and AND finds it")
 	check(never_guessable, "a single condition is never enough")
 	check(answers.size() >= 5, "the answer varies between runs (%d different racks)" % answers.size())
+	check(doors_ok, "the doors the NOC log names are all locked, and all in the faulted zone")
+	check(zones.size() >= 4, "the zone varies between runs (%d different)" % zones.size())
+	check(racks_ok, "exactly one Server Room B rack is over 40°C, one sits on it, and the break room's light is dead")
 
 
 func _hint_query(hint: String) -> String:
@@ -142,26 +187,50 @@ func _hint_query(hint: String) -> String:
 	return hint.substr(start, hint.find("[/color]", start) - start)
 
 
+## The exact query a last hint gives, on its own line.
+func _exact_query(hint: String) -> String:
+	for line in hint.replace("[color=#ffffff]", "").replace("[/color]", "").split("\n"):
+		var l := line.strip_edges()
+		if l.to_upper().begins_with("SELECT ") and l.ends_with(";") and not l.contains("?"):
+			return l
+	return ""
+
+
+## The hint ladder (Augustine, 2026-10-18): hint 1 is the query's shape with ? for
+## the value and doesn't give `secret` away; the last hint's exact query solves it.
+func _check_hint_ladder(p: Puzzle, db: FacilityDB, secret: String) -> bool:
+	if p.hints.size() < 3 or not p.hints[0].contains("?"):
+		return false
+	# Whole words only: "phone extensions" says what to look for, not the column's name.
+	if secret != "" and RegEx.create_from_string("(?<![\\w'])%s(?![\\w'])" % secret).search(p.hints[0]):
+		return false
+	var q := _exact_query(p.hints[-1])
+	return q != "" and p.matches(db, db.execute(q))
+
+
 func test_first_hints_show_working_queries() -> void:
-	print("First hints")
-	var l0 = load("res://scripts/levels/level_0.gd").new()
-	var db := FacilityDB.new()
-	db.load_seed(FileAccess.get_file_as_string("res://data/level_0.sql"))
-	for p in [l0.peek_puzzle, l0.memo_puzzle]:
-		var q := _hint_query(p.hints[0])
-		check(q != "" and p.matches(db, db.execute(q)), "%s: first hint's query solves it (%s)" % [p.id, q])
-	check(l0.memo_puzzle.hints[1].contains("ORDER BY piece_no") and not l0.memo_puzzle.hints[1].contains("visitors"),
-		"memo: second hint names the real column, not an example table")
-	l0.free()
-	var l1 = load("res://scripts/levels/level_1.gd").new()
-	var ok := true
-	for s in 20:
-		var d := FacilityDB.new()
-		d.load_seed(Level1Data.build(s).sql)
-		if not l1.controller_puzzle.matches(d, d.execute(_hint_query(l1.controller_puzzle.hints[0]))):
-			ok = false
-	check(ok, "controller: first hint's query solves it on every seed")
-	l1.free()
+	print("Hint ladder")
+	var l0 = load("res://scripts/levels/level_0.gd")
+	var l0i = l0.new()
+	var l1 = load("res://scripts/levels/level_1.gd")
+	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true}
+	for seed_value in 20:
+		var d0 := FacilityDB.new()
+		var data0 := Level0Data.build(seed_value)
+		d0.load_seed(data0.sql)
+		ok.peek = ok.peek and _check_hint_ladder(l0i.peek_puzzle, d0, "memo_fragments")
+		ok.memo = ok.memo and _check_hint_ladder(l0i.memo_puzzle, d0, "piece_no")
+		ok.caller = ok.caller and _check_hint_ladder(l0.caller_puzzle_for(data0.extension), d0, "extension")
+		ok.last_visitor = ok.last_visitor and _check_hint_ladder(l0.visitor_puzzle_for(), d0, "signed_in")
+		var d1 := FacilityDB.new()
+		var data1 := Level1Data.build(seed_value)
+		d1.load_seed(data1.sql)
+		ok.controller = ok.controller and _check_hint_ladder(l1.controller_puzzle_for(data1.zone), d1, "'%s'" % data1.zone)
+		ok.hot_rack = ok.hot_rack and _check_hint_ladder(l1.hot_rack_puzzle_for(), d1, str(Level1Data.INTERLOCK_C))
+	for id in ok:
+		check(ok[id], "%s: hint 1 is the query's shape with ?, and the last hint's query solves it, on every seed" % id)
+	check(not l0i.memo_puzzle.hints[1].contains("visitors"), "memo: hints never use an example table")
+	l0i.free()
 
 
 func _tone(n: int, rate: float, amp: float) -> PackedVector2Array:
@@ -660,6 +729,11 @@ func test_level_1_scene() -> void:
 	for i in 30:
 		await physics_frame
 	check(level.doors["SRA-EXIT"].is_open == false and level.room_c_door.locked, "Server Room A's rear door and Server Room C start stuck")
+	var z: String = level.zone
+	check(level.plate_zone("SRA-EXIT") == z and level.plate_zone("SRC") == z and level.plate_zone("NOC") == level.other_zone, "each door's plate shows its zone")
+	check((level.door_plates["SRC"].material_override as StandardMaterial3D).albedo_color.r > 0.8 and (level.door_plates["NOC"].material_override as StandardMaterial3D).albedo_color.g > 0.8, "stuck doors' plates are red, the rest green")
+	check(not _doc_has(level, "zone %s" % z) and not _doc_has(level, "zone A") and not Array(level.terminal.boot_lines).any(func(l): return l.contains("zone %s" % z) or l.contains("(zone")), "nothing printed names the faulted zone")
+	check(not level.lights["1-BREAK"][0].visible and level.lights["noc"][0].visible, "the break room's bulb is dead, by its row in the lights table")
 	check(not level.elevator.button.enabled and level.elevator.open_amount == 0.0, "the elevator up is out of service")
 	check(level.terminal.locked, "the terminal waits for Rourke's maintenance session")
 	level._on_panel(null, level.answer)
@@ -682,15 +756,17 @@ func test_level_1_scene() -> void:
 	check(round_west.size() > 1 and Array(round_west).all(func(q): return level.to_local(q).x < -7.5), "the west side loops round through the NOC and the cable vault, not Server Room A")
 
 	level.terminal_ui.terminal = level.terminal
-	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A'")
+	level.terminal_ui.run("SELECT name, zone FROM doors WHERE locked = 1")
+	check(not level.controller_puzzle.solved, "the stuck doors' zone is a step, not the answer")
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % z)
 	check(not level.controller_puzzle.solved, "zone alone isn't enough")
-	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = 'A' AND status = 'fault'")
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z)
 	check(level.controller_puzzle.solved, "WHERE + AND finds the controller")
 	_check_l1_documents(level)
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
 	level._on_panel(null, healthy)
 	check(level.panels_locked_until == 0.0, "pressing a healthy rack explains itself without a lockout")
-	var wrong: String = level.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
+	var wrong: String = level.db.run_silent("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'offline'" % z)[0]["id"]
 	level._on_panel(null, wrong)
 	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until > 0.0, "an offline zone-A rack fixes nothing")
 	check(level.hud._notice.text.contains("'offline'") and level.hud._notice.text.contains("off on purpose"), "the rack's readout shows why it was the wrong one, where the player is standing")
@@ -702,6 +778,7 @@ func test_level_1_scene() -> void:
 		await physics_frame
 	check(level.rourke.global_position.distance_to(level.rack_panels[level.answer].global_position) < 1.6, "Rourke comes over to badge the reset")
 	check(level.doors["SRA-EXIT"].is_open and not level.room_c_door.locked, "resetting the right rack frees the floor's stuck doors")
+	check((level.door_plates["SRC"].material_override as StandardMaterial3D).albedo_color.g > 0.8, "and their plates go green")
 	var shown := "\n".join(Array(level.terminal.transcript))
 	check(shown.contains("VALE_I") and shown.contains("SECURE LAB B"), "the controller's log points at Vale's lab")
 	check(level.find_children("*", "Document", true, false).any(func(d): return d.title == "SYSLOG PRINTOUT" and str(d.doc_lines).contains("VALE")), "and so does the syslog printout in Server Room C")
@@ -711,6 +788,21 @@ func test_level_1_scene() -> void:
 	level.cable_coil.interact(level.player)
 	await physics_frame
 	check(level.cable_holders.has(level.players.id_of(level.player)) and not level.cable_coil.visible, "taking the coil of network cable marks who carries it")
+
+	# Server Room B's hot rack: reseating its fan tray releases the cable vault's back door.
+	check(level.vault_back.locked, "the cable vault's back door starts sealed by its fire interlock")
+	var cool: String = level.db.run_silent("SELECT id FROM racks WHERE room = 'Server Room B' AND temp_c <= 40")[0]["id"]
+	level._on_tray(null, cool)
+	check(level.vault_back.locked and level.trays_locked_until > 0.0, "reseating a healthy rack's tray does nothing but lock the trays")
+	level.trays_locked_until = 0.0
+	level.terminal_ui.run("SELECT id, temp_c FROM racks WHERE temp_c > 40")
+	check(level.hot_rack_puzzle.matches(level.db, level.db.execute("SELECT id FROM racks WHERE temp_c > 40")), "WHERE temp_c > 40 finds the hot rack")
+	level._on_tray(null, level.hot_rack)
+	for i in 300:
+		if not level.vault_back.locked:
+			break
+		await physics_frame
+	check(not level.vault_back.locked and level.hot_rack_puzzle.solved, "reseating the hot rack's tray releases the interlock")
 
 	# Rourke heads for the elevator; it opens once the crew is with him.
 	for i in 2400:
@@ -899,13 +991,13 @@ func test_coop_level_1() -> void:
 	await _frames(20)
 	check(client.rourke.global_position.distance_to(host.rourke.global_position) < 1.0, "clients see Rourke where the host has him")
 
-	var wrong: String = host.db.run_silent("SELECT id FROM door_controllers WHERE zone = 'A' AND status = 'offline'")[0]["id"]
+	var wrong: String = host.db.run_silent("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'offline'" % host.zone)[0]["id"]
 	client.rack_panels[wrong].interact(client.player)
 	await _frames(10)
 	check(host.panels_locked_until > 0.0 and client.panels_locked_until > 0.0, "a wrong rack locks the panels for everyone")
 
 	client.terminal_ui.terminal = client.terminal
-	client.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
+	client.terminal_ui.run("UPDATE doors SET locked = 0, actuator_fault = 0 WHERE id = 'SRA-EXIT'")
 	await _frames(10)
 	check(host.doors["SRA-EXIT"].is_open and client.doors["SRA-EXIT"].is_open, "a door opened by a client's query opens for everyone")
 	var dump := "SELECT * FROM doors ORDER BY id"
@@ -1093,7 +1185,7 @@ func test_coop_world() -> void:
 	sra_h.sync.event("_on_asked")
 	await _frames(10)
 	sra_c.terminal_ui.terminal = sra_c.terminal
-	sra_c.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
+	sra_c.terminal_ui.run("UPDATE doors SET locked = 0, actuator_fault = 0 WHERE id = 'SRA-EXIT'")
 	await _frames(10)
 	check(sra_h.doors["SRA-EXIT"].is_open and sra_c.doors["SRA-EXIT"].is_open, "a client's query in a wing opens the door for everyone")
 	check(_table(sra_h, dump) == _table(sra_c, dump), "the shared database still matches")
@@ -1303,19 +1395,67 @@ func test_level_2_data_every_seed() -> void:
 
 
 func test_level_2_hints() -> void:
-	print("Level 2 first hints")
+	print("Level 2 hints")
 	var l2 = load("res://scripts/levels/level_2.gd").new()
 	var ok := true
 	for s in 20:
 		var d := FacilityDB.new()
-		d.load_seed(Level2Data.build(s).sql)
-		for p in [l2.pike_puzzle, l2.har_puzzle]:
-			if not p.matches(d, d.execute(_hint_query(p.hints[0]))):
-				ok = false
-	check(ok, "pike and har: first hint's query solves it on every seed")
-	check(_hint_query(l2.cameras_puzzle.hints[0]) == "GET /cameras", "cameras: first hint is GET /cameras")
-	check(_hint_query(l2.door_puzzle.hints[0]) == "GET /doors/SEC-EXIT", "door: first hint is GET /doors/SEC-EXIT")
+		var data := Level2Data.build(s)
+		d.load_seed(data.sql)
+		for p in [l2.pike_puzzle, Puzzle.new("har", l2.har_puzzle.solution_sql, ["pin"], false, l2.pin_hints(data.badge))]:
+			ok = ok and p.matches(d, d.execute(_hint_query(p.hints[-1]))) and not p.matches(d, d.execute(_hint_query(p.hints[0])))
+	check(ok, "pike and the PIN: the last hint's query solves it on every seed, the first hint's shape doesn't")
+	var shapes := true
+	for p in [l2.pike_puzzle, Puzzle.new("har", "", [], false, l2.pin_hints("G-123")), l2.door_puzzle, Level2Lab.door_puzzle_for("E")]:
+		shapes = shapes and _hint_query(p.hints[0]).contains("?") and p.hints.size() == 3 and not _hint_query(p.hints[-1]).contains("?")
+	check(shapes, "first hints give the query's shape with the value as ?, the last hint the exact query")
+	check(_hint_query(l2.pin_hints("G-123")[1]).contains("badge_log ORDER BY time"), "the PIN's second hint shows how to find the badge")
+	check(_hint_query(l2.cameras_puzzle.hints[0]) == "GET /cameras", "cameras: first hint is GET /cameras (nothing to find)")
+	check(_hint_query(l2.door_puzzle.hints[-1]) == "GET /doors/SEC-EXIT", "door: last hint is GET /doors/SEC-EXIT")
 	l2.free()
+
+
+## The badge readers' log leads to the PIN: its last guard badge through SEC-EXIT
+## is the night lead, and that badge finds them in guards. The Har sheet and the
+## briefing room's roster are other ways to the same guard.
+func test_level_2_badge_route() -> void:
+	print("Level 2 badge log to the PIN")
+	var l2 = load("res://scripts/levels/level_2.gd").new()
+	var pin: Puzzle = l2.har_puzzle
+	var ok := true
+	var unsorted_misleads := true
+	var badges := {}
+	for s in 50:
+		var data := Level2Data.build(s)
+		var d := FacilityDB.new()
+		d.load_seed(data.sql)
+		var exits := d.run_silent("SELECT * FROM badge_log WHERE door = 'SEC-EXIT' ORDER BY time")
+		var lead: Dictionary = exits[-1]
+		ok = ok and lead["badge_id"] == data.badge and str(lead["badge_id"]).begins_with("G-") and lead["holder"] == "SECURITY STAFF"
+		var guard := d.run_silent("SELECT * FROM guards WHERE badge_id = '%s'" % data.badge)
+		ok = ok and guard.size() == 1 and guard[0]["name"] == data.name and guard[0]["pin"] == data.pin and guard[0]["shift"] == "night"
+		ok = ok and pin.matches(d, d.execute("SELECT * FROM guards WHERE badge_id = '%s'" % data.badge))
+		ok = ok and pin.matches(d, d.execute("SELECT pin FROM guards WHERE name = '%s'" % data.name))
+		ok = ok and pin.matches(d, d.execute("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'"))
+		for wrong in data.decoy_badges:
+			ok = ok and wrong != data.badge and not pin.matches(d, d.execute("SELECT * FROM guards WHERE badge_id = '%s'" % wrong))
+			var g := d.run_silent("SELECT shift, note FROM guards WHERE badge_id = '%s'" % wrong)
+			ok = ok and g.size() == 1 and g[0]["shift"] != "night" and str(g[0]["note"]).contains("Clocked out")
+		# Read as stored, the last SEC-EXIT swipe is someone who went home.
+		var stored := d.run_silent("SELECT * FROM badge_log WHERE door = 'SEC-EXIT'")
+		unsorted_misleads = unsorted_misleads and stored[-1]["badge_id"] != data.badge
+		# The roster board names the lead with the same badge; the others are crossed out.
+		var roster: Array = data.roster
+		ok = ok and roster[0] == [data.name, data.badge, "LEAD"] and roster.slice(1).all(func(r): return r[2] != "LEAD" and d.run_silent("SELECT * FROM guards WHERE badge_id = '%s' AND name = '%s'" % [r[1], r[0]]).size() == 1)
+		badges[data.badge] = true
+	l2.free()
+	check(ok, "the last guard badge through SEC-EXIT is the night lead's, and guards finds their PIN by badge, by name or by Har, on every seed")
+	check(unsorted_misleads, "without ORDER BY, the last SEC-EXIT row stored is the wrong guard")
+	check(badges.size() >= 10, "the lead's badge varies between runs (%d badges)" % badges.size())
+	# Vale's swipe matches the server floor's syslog: she was in her lab at 23:12.
+	var d2 := FacilityDB.new()
+	d2.load_seed(Level2Data.build(3).sql)
+	check(d2.run_silent("SELECT * FROM badge_log WHERE badge_id = 'V-0042' AND door = 'SECLAB-B' AND time LIKE '%23:12'").size() == 1, "badge_log has Vale into Secure Lab B at 23:12, as the server floor's syslog says")
 
 
 func test_level_2_scene() -> void:
@@ -1331,6 +1471,17 @@ func test_level_2_scene() -> void:
 	check(level.doors["SEC-EXIT"].is_open == false, "stairwell exit starts locked")
 	check(level.doors["SEC-OFFICE"].is_open == false, "the Security Office door starts locked")
 	check(w.is_on_floor() and not w.active, "the Watcher waits in the office")
+	# The side rooms hold leads: Rourke's blank statement, and tonight's roster.
+	var statement: Node = _doc(level, "Incident statement")
+	var roster: Node = _doc(level, "Night shift roster")
+	check(statement != null and statement.plain_text().contains("at __:__") and statement.plain_text().contains("night desk") and AABB(Vector3(-16, -1, 4), Vector3(6, 4, 4)).has_point(level.to_local(statement.global_position)),
+		"the interview room's table has Rourke's statement, the time left blank")
+	check(roster != null and roster.plain_text().contains(level.data.name + "  " + level.data.badge) and AABB(Vector3(-16, -1, -10), Vector3(6, 4, 6)).has_point(level.to_local(roster.global_position)),
+		"the briefing room's board lists the night lead's name by their badge")
+	var pin_last: String = _hint_query(level.har_puzzle.hints[-1])
+	check(pin_last.contains("'%s'" % level.data.badge) and level.har_puzzle.matches(level.db, level.db.execute(pin_last)),
+		"the PIN's last hint, as this run shows it, names this run's badge and solves it (%s)" % pin_last)
+	check(level.find_children("CableCoil", "", true, false).is_empty(), "the lab has no cable of its own")
 	# At the window, looking in: the office looks empty.
 	p.global_transform = Transform3D(Basis(), Vector3(-3, 0.1, 3.4))
 	p.head.rotation = Vector3.ZERO
@@ -1495,7 +1646,8 @@ func test_level_2_routes() -> void:
 		"the sign-in sheet has the half-legible name and the PIN table, handwritten")
 	check(not str(docs.map(func(d): return d.plain_text())).contains("Har%"), "no document gives the Har query away")
 	# Papers on the walls are drawn full size, their words readable from the room.
-	for d in docs:
+	# (Papers lying on a table, like Rourke's statement, are picked up to be read.)
+	for d in docs.filter(func(d): return d.read_face != Vector3.UP):
 		var wall_sheet: Node3D = d.get_node_or_null("WallSheet")
 		var printed: Array = wall_sheet.find_children("Line*", "Label3D", false, false) if wall_sheet else []
 		var shown := " ".join(printed.map(func(l): return l.text))
@@ -1741,7 +1893,9 @@ func test_level_2_lab_data_every_seed() -> void:
 	check(rekey_ok, "caught by the security response, the lab is re-keyed to a new zone with exactly one answer, on every seed")
 	check(ok, "the lab door is the one 'fault' in the lab's zone, and only zone AND status finds it, on every seed")
 	check(zones.size() > 1, "the lab's zone changes between runs (%s)" % [zones.keys()])
-	check(Level2Lab.door_puzzle_for("E").hints[0].contains("WHERE zone = 'E'") and Level2Lab.door_puzzle_for("E").hints[0].contains("AND status = 'fault'"), "the first hint is the exact query, a line per keyword")
+	var lab_hints: Array = Level2Lab.door_puzzle_for("E").hints
+	check(lab_hints[0].contains("WHERE zone = '?'") and not lab_hints[0].contains("'E'") and lab_hints[0].contains("AND status = 'fault'"), "the first hint is the query's shape, the zone left as ?, a line per keyword")
+	check(lab_hints[-1].contains("WHERE zone = 'E' AND status = 'fault'"), "the last hint is the exact query")
 
 
 ## Wait up to `seconds` (game time) for `cond`.
@@ -1826,9 +1980,8 @@ func test_level_2_lab(outcome: String) -> void:
 		"killed":
 			r.interact_alt(p)
 		"tied":
-			lab.cable.interact(p)
-			await _frames(3)
-			check(lab.cable_holders.has(level.players.id_of(p)) and r.get_prompt(p).contains("Tie him up"), "holding the cable from the shelf, you can tie him up")
+			lab.cable_holders[level.players.id_of(p)] = true  # carried up from the server floor
+			check(r.get_prompt(p).contains("Tie him up"), "carrying cable from the server floor, you can tie him up")
 			r.interact(p)
 		"untied":
 			pass
@@ -1881,7 +2034,7 @@ func test_level_2_lab(outcome: String) -> void:
 	await process_frame
 
 
-## Co-op in Vale's lab: everyone has to badge in, and the cable is held by whoever took it.
+## Co-op in Vale's lab: everyone has to badge in, and the cable is held by whoever carried it up.
 func test_coop_level_2_lab() -> void:
 	print("Co-op: Level 2 lab with a host and a client")
 	_game().new_run(9)
@@ -1899,8 +2052,8 @@ func test_coop_level_2_lab() -> void:
 	host.lab.reader.interact(host.player)
 	check(await _until(func(): return machines.all(func(l): return l.doors["SECLAB-B"].is_open), 10.0), "with both badged in, it opens on every machine")
 	check(machines.all(func(l): return l.db.run_silent("SELECT * FROM badge_log WHERE badge_id LIKE 'VIS-%'").size() == 2), "both visitor badges are in badge_log on every machine")
-	client.lab.cable.interact(client.player)
-	await _frames(10)
+	for l in machines:
+		l.lab.cable_holders[client_id] = true  # the client carried the server floor's coil up
 	var holder: Node = host.players.puppet(client_id)
 	check(machines.all(func(l): return l.lab.cable_holders.has(client_id)) and host.lab.rourke.can_tie.call(holder) and not host.lab.rourke.can_tie.call(host.player),
 		"the client took the cable: only they can tie Rourke up")
@@ -1957,7 +2110,7 @@ func _check_l0_documents(level: Node) -> void:
 
 ## Level 1: the table name and what each status means are on paper by the terminal.
 func _check_l1_documents(level: Node) -> void:
-	check(_doc_has(level, "door_controllers") and _doc_has(level, "zone A"), "the rack card names the controller table and the exit's zone")
+	check(_doc_has(level, "door_controllers") and not _doc_has(level, "zone %s" % level.zone), "the rack card names the controller table, never the stuck doors' zone")
 	check(_doc_has(level, "'fault'") and _doc_has(level, "'offline'") and _doc_has(level, "- H.M."), "Mercer's note explains fault vs offline")
 	check(not level._self_test_lines().any(func(l): return l.contains("door_controllers")), "the self-test no longer names the table: it's on the card")
 	check(Array(level.terminal.transcript).all(func(l): return not TerminalUI._plain(l).strip_edges().begins_with("WARDEN:")), "no tips from WARDEN on the Server Room A terminal")
@@ -1979,7 +2132,7 @@ func _game() -> Node:
 
 func test_wing_seeds_in_order() -> void:
 	print("Wing seeds in one database")
-	var lobby := FileAccess.get_file_as_string("res://data/level_0.sql")
+	var lobby: String = Level0Data.build(1).sql
 	var ok := true
 	for seed_value in 20:
 		var db := FacilityDB.new()
@@ -1999,7 +2152,7 @@ func test_wing_seeds_in_order() -> void:
 func test_reset_keeps_earlier_wings() -> void:
 	print("Reset restores the last checkpoint")
 	var db := FacilityDB.new()
-	db.add_wing("level_0", FileAccess.get_file_as_string("res://data/level_0.sql"))
+	db.add_wing("level_0", Level0Data.build(3).sql)
 	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'LOBBY-FRONT'")
 	db.add_wing("level_1", Level1Data.build(3).sql)
 	db.run_silent("UPDATE door_controllers SET status = 'ok'")
@@ -2172,14 +2325,14 @@ func test_rourke_leads_in() -> void:
 
 func test_sticky_notes_never_give_answers() -> void:
 	print("Sticky notes")
-	var l0 = load("res://scripts/levels/level_0.gd").new()
-	var l1 = load("res://scripts/levels/level_1.gd").new()
-	var puzzles: Array = [l0.peek_puzzle, l0.memo_puzzle, l1.controller_puzzle]
+	var l0s = load("res://scripts/levels/level_0.gd")
+	var l1s = load("res://scripts/levels/level_1.gd")
+	var l0 = l0s.new()
 	var every_example_runs := true
 	var gives_answer := []
 	for seed_value in 20:
 		var db := FacilityDB.new()
-		db.add_wing("level_0", FileAccess.get_file_as_string("res://data/level_0.sql"))
+		db.add_wing("level_0", Level0Data.build(seed_value).sql)
 		db.add_wing("level_1", Level1Data.build(seed_value).sql)
 		for id in StickyNotes.NOTES:
 			for example in StickyNotes.NOTES[id].example.split(";", false):
@@ -2189,6 +2342,9 @@ func test_sticky_notes_never_give_answers() -> void:
 				if not result.ok:
 					every_example_runs = false
 					continue
+				var data0 := Level0Data.build(seed_value)
+				var puzzles: Array = [l0.peek_puzzle, l0.memo_puzzle, l0s.caller_puzzle_for(data0.extension), l0s.visitor_puzzle_for(),
+					l1s.controller_puzzle_for(Level1Data.build(seed_value).zone), l1s.hot_rack_puzzle_for()]
 				for p in puzzles:
 					if p.matches(db, result) and not gives_answer.has(id):
 						gives_answer.append(id)
@@ -2200,7 +2356,6 @@ func test_sticky_notes_never_give_answers() -> void:
 		fits = fits and lines.size() <= 4 and Array(lines).all(func(line): return line.length() <= 30)
 	check(fits, "every sticky note fits on its paper")
 	l0.free()
-	l1.free()
 
 
 func test_notebook() -> void:
@@ -2285,7 +2440,7 @@ func test_notebook() -> void:
 	var on_pages: Array = nb.pages.book.left.get_children() + nb.pages.book.right.get_children()
 	check(nb.pages.current_page() == NotebookPages.Page.TABLES and NotebookPages.text_of(on_pages).contains("memo_fragments"), "the Tables page lists what was found")
 	var notes_text := nb.pages.section_text(NotebookPages.Page.NOTES)
-	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
+	check(notes_text.contains("ORDER BY") and notes_text.contains("FROM lights"), "the Notes page shows each note's example")
 	_game().set_todo("Find the exit")
 	_game().set_todo("Open the exit door")
 	check(not _game().set_todo("Open the exit door"), "the same task isn't written twice")
@@ -2311,6 +2466,10 @@ func test_notebook() -> void:
 	level.hud.todo("")
 	check(_game().current_todo() == "" and _game().notebook_todo.all(func(t): return t.done), "an empty task ticks off the last one")
 	check(_game().notebook_data().todo.map(func(t): return t.text).has("Open the exit door"), "the to-do list is saved with the notebook")
+	# .tables wrote down every lobby table; keep two for a short section.
+	for k in _game().notebook_tables.keys():
+		if not k in ["memo_fragments", "doors"]:
+			_game().notebook_tables.erase(k)
 	nb.pages.show_page(NotebookPages.Page.TABLES)
 	check(nb.pages._spreads.size() == 1 and not nb.pages._turn.visible, "a short section fits on one spread")
 	for t in 20:

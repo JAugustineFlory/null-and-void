@@ -5,8 +5,6 @@ extends LevelBase
 
 signal all_ready
 
-const SEED_PATH := "res://data/level_0.sql"
-
 var rourke: Rourke
 var desk_terminal: Terminal
 var shutter: Door
@@ -55,28 +53,48 @@ var elevator: Elevator
 ## The elevator's doorway, in the elevator bank's east wall.
 const LIFT_AT := Vector3(30, 0, 3)
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
-	"Type this, then press Enter:\n" +
-	"    [color=#ffffff]SELECT * FROM memo_fragments;[/color]\n" +
-	"  SELECT *            which columns to show (* means every column)\n" +
-	"  FROM memo_fragments which table to read them from",
-	"Type exactly SELECT * FROM memo_fragments; and press Enter. Spelling matters, capitals don't.",
+	"The shape of it:\n" +
+	"    [color=#ffffff]SELECT * FROM ?;[/color]\n" +
+	"  SELECT *   which columns to show (* means every column)\n" +
+	"  FROM ?     which table to read them from\n" +
+	"? is the table's name. It's handwritten on the ScanRight card.",
+	"The ScanRight card lies on the desk, left of the keyboard. Step 2 has the table name written into its blank. " +
+	"Or type .tables to list every table.",
+	"Type this exactly and press Enter. Spelling matters, capitals don't:\n" +
+	"    [color=#ffffff]SELECT * FROM memo_fragments;[/color]",
 ])
 ## Not a solution: the memo sorted biggest first (copying the ORDER BY sticky's DESC).
 var memo_backwards := Puzzle.new("memo_backwards", "SELECT text FROM memo_fragments ORDER BY piece_no DESC", ["text"], true)
 var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY piece_no", ["text"], true, [
-	"Type this, then press Enter:\n" +
-	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY piece_no;[/color]\n" +
-	"  SELECT *            every column\n" +
-	"  FROM memo_fragments from the scraps table\n" +
-	"  ORDER BY piece_no   sorted by the piece_no column, smallest first",
-	"Take the query you just ran and add ORDER BY to the end, then the column to sort by. " +
-	"Here that's piece_no, the scrap numbers in the first column. " +
-	"So: SELECT * FROM memo_fragments, then ORDER BY piece_no, then the semicolon.",
+	"The shape of it:\n" +
+	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY ?;[/color]\n" +
+	"  SELECT *             every column\n" +
+	"  FROM memo_fragments  from the scraps table\n" +
+	"  ORDER BY ?           sorted by a column, smallest first\n" +
+	"? is the column that numbers the scraps.",
+	"Step 4 of the ScanRight card says which column numbers each scrap. .schema memo_fragments lists every column.",
+	"Type this exactly and press Enter:\n" +
+	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY piece_no;[/color]",
 ])
+## Who placed the call: the work order's caller extension, looked up in the staff
+## directory (Level0Data). Any query listing names beside extensions finds it.
+var caller_puzzle: Puzzle
+## Optional: the visitor log newest first shows Vale signed in and never left.
+var visitor_puzzle: Puzzle
+## This run's ground-floor data (Level0Data.build).
+var data := {}
+## Rourke has asked who called: the directory query or the mailroom printout counts.
+var caller_asked := false
+signal caller_found
+## The staff directory printout in the mailroom: the walking route to the caller.
+var directory_printout: Document
 
 
 func build() -> void:
-	load_level_seed(FileAccess.get_file_as_string(SEED_PATH))
+	data = Level0Data.build(Game.run_seed)
+	load_level_seed(data.sql)
+	caller_puzzle = caller_puzzle_for(data.extension)
+	visitor_puzzle = visitor_puzzle_for()
 	var carpet := Color(0.22, 0.2, 0.24)
 	var wall := Color(0.62, 0.58, 0.5)
 	# Lobby: x -8..8, z -7..7
@@ -113,7 +131,7 @@ func build() -> void:
 		"",
 		"Type .help for commands, .hint if you're stuck.",
 	]
-	desk_terminal.puzzles = [peek_puzzle, memo_puzzle]
+	desk_terminal.puzzles = [peek_puzzle, memo_puzzle, caller_puzzle, visitor_puzzle]
 	desk_terminal.blanks = {"table_name": "table_name is a blank. the real name is handwritten on the ScanRight card."}
 	desk_terminal.enabled = false
 	desk_terminal.queried.connect(_on_desk_query)
@@ -136,6 +154,12 @@ func build() -> void:
 	visitor_log = Interactable.create(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), "Sign the visitor log", Color(0.92, 0.9, 0.82))
 	Greybox.label(geo, Vector3(-1.5, 1.2, -0.66), "VISITOR LOG", 24, Color(0.15, 0.15, 0.2), 0)
 	visitor_log.enabled = false
+	# The book's own last page is gone; the visitors table still has it.
+	Document.place(geo, Vector3(-2.25, 1.102, -0.72), -10.0, "Visitor book", [
+		"VISITOR BOOK - AFTER HOURS",
+		"Sign in AND out. All visitors are also logged in visitors.",
+		{"text": "Who tore the last page out?? - N.F.", "hand": true},
+	], true, "note", Vector2(0.15, 0.2))
 
 	# A side table behind the desk with the walkie-talkies' charging dock on it.
 	Greybox.box(geo, Vector3(-2.5, 0.68, -5.5), Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
@@ -300,7 +324,7 @@ func _build_van(center: Vector3) -> void:
 	Greybox.panel(geo, cab + Vector3(0, 0.75, -2.05), Vector3(2.4, 0.2, 0.3), Color(0.12, 0.12, 0.13))
 	Greybox.box(geo, cab + Vector3(-0.6, 0.6, 1.85), Vector3(1.0, 1.2, 0.6), Color(0.3, 0.3, 0.32), "Rack")
 	Greybox.label(geo, cab + Vector3(-0.6, 0.9, 1.54),
-		"WORK ORDER %s\nHalcyon Data Systems\nAfter hours, 23:00\nReported: database problem.\nContact: D. Rourke, facilities." % get_node("/root/Game").ticket_number(), 22, Color(0.95, 0.95, 0.9), 180)
+		"WORK ORDER %s\nHalcyon Data Systems\nAfter hours, 23:00\nReported: database problem.\nContact: D. Rourke, facilities.\nCaller: %s" % [get_node("/root/Game").ticket_number(), Level0Data.caller_line(get_node("/root/Game").run_seed)], 22, Color(0.95, 0.95, 0.9), 180)
 	var dome := OmniLight3D.new()
 	dome.position = cab + Vector3(0, 1.9, 0)
 	dome.omni_range = 3.5
@@ -609,6 +633,20 @@ func _build_ground_floor(wall: Color) -> void:
 	Greybox.box(geo, Vector3(-16.5, 0.45, -14.5), Vector3(3.0, 0.9, 1.2), Color(0.5, 0.45, 0.38), "SortingTable")
 	Greybox.box(geo, Vector3(-19.0, 0.5, -12.0), Vector3(1.0, 1.0, 1.4), Color(0.35, 0.35, 0.38), "MailCart")
 	add_light("mailroom", Vector3(-16.5, 3, -14), 6.0, 1.0, office)
+	# The directory printout, pinned to the wall so nobody walks off with it: the
+	# walking route to the caller.
+	var listing: Array = [
+		"Printed 09/30/97. Report changes to the mailroom.",
+		{"columns": ["NAME", "DEPT", "EXT."], "widths": [3.0, 2.6, 1.0]},
+	]
+	for row in data.staff:
+		if row[0] != "Office of the Director":
+			listing.append({"row": [row[0], row[2], str(row[3])]})
+	listing.append({"text": "Mercer's still on here?? - mailroom", "hand": true})
+	directory_printout = Document.place(geo, Vector3(-13.12, 1.5, -13.0), 90.0, "HALCYON STAFF DIRECTORY", listing, false, "paper", Vector2(0.5, 0.66))
+	directory_printout.read_by.connect(_on_printout_read)
+	var in_mailroom := Trigger.create(self, Vector3(-16.5, 1, -14), Vector3(6.6, 2, 7.6))
+	in_mailroom.entered.connect(func(_b): sync.event("_on_mailroom_entered"), CONNECT_ONE_SHOT)
 
 	# Restrooms: two narrow rooms with stalls to duck into.
 	for r in [-11.5, -8.5]:
@@ -711,6 +749,10 @@ func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 		sync.event("_on_memo_solved")
 	elif not memo_puzzle.solved and memo_backwards.matches(db, result):
 		sync.event("_on_memo_backwards")
+	if caller_asked and not caller_puzzle.solved and caller_puzzle.matches(db, result):
+		sync.event("_on_caller_found")
+	if not visitor_puzzle.solved and visitor_puzzle.matches(db, result):
+		sync.event("_on_last_visitor")
 
 
 func _on_memo_backwards() -> void:
@@ -745,7 +787,14 @@ func _after_memo() -> void:
 	await sync.gate("memo_left_terminal", _crew_off_desk_terminal)
 	await get_tree().create_timer(0.6, false).timeout
 	_watch_nearest()
-	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
+	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_caller_1", "l0_caller_2", "l0_mailroom_1"])
+	_ask_caller()
+	await sync.gate("caller_found", func():
+		if not caller_puzzle.solved:
+			await caller_found)
+	await get_tree().create_timer(0.6, false).timeout
+	_watch_nearest()
+	await hud.lines(["l0_caller_3", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
 	_pa_after_memo()
 	if not is_instance_valid(walkies):
 		return  # already handed out
@@ -754,6 +803,75 @@ func _after_memo() -> void:
 	for i in 6:
 		walkies.get_node("Radio%d" % i).visible = i < players.count()
 	hud.todo("Grab walkie-talkies from behind the counter")
+
+
+## Who called, for a run whose work order shows extension `ext`. Hints follow
+## the ladder: the query's shape with ?, then how to find it, then exact.
+static func caller_puzzle_for(ext: int) -> Puzzle:
+	return Puzzle.new("caller", "SELECT name, extension FROM staff_directory", ["name", "extension"], false, [
+		"The shape of it:\n" +
+		"    [color=#ffffff]SELECT name, ? FROM staff_directory;[/color]\n" +
+		"  SELECT name, ?        just these columns, so each row fits on the screen\n" +
+		"  FROM staff_directory  from the staff directory\n" +
+		"? is the column holding phone extensions. Then find %d, the number on your work order." % ext,
+		"Type .schema staff_directory to list its columns. One of them holds the phone extensions.",
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT name, extension FROM staff_directory;[/color]\n" +
+		"Then find %d in the extension column." % ext,
+	])
+
+
+## Optional: the visitor log, newest first.
+static func visitor_puzzle_for() -> Puzzle:
+	return Puzzle.new("last_visitor", "SELECT name, signed_in FROM visitors ORDER BY signed_in DESC", ["name", "signed_in"], true, [
+		"The shape of it:\n" +
+		"    [color=#ffffff]SELECT * FROM visitors ORDER BY ? DESC;[/color]\n" +
+		"  SELECT *       every column\n" +
+		"  FROM visitors  from the visitor log\n" +
+		"  ORDER BY ?     sorted by a column\n" +
+		"  DESC           biggest (newest) first\n" +
+		"? is the column with the sign-in time.",
+		".schema visitors lists its columns. One of them holds the sign-in time.",
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT * FROM visitors ORDER BY signed_in DESC;[/color]",
+	])
+
+
+## Rourke didn't place the call: who did? The work order has the extension; the
+## staff directory (or the mailroom's printout of it) has the name.
+func _ask_caller() -> void:
+	caller_asked = true
+	hud.todo("Find out who called from ext. %d" % data.extension)
+	desk_terminal.print_line("")
+	desk_terminal.print_line(TerminalUI.sysop("staff_directory is wide. Instead of *, name just the columns you want, with commas between them:"))
+	desk_terminal.print_line("    [color=#ffffff]SELECT [i]column[/i], [i]column[/i] FROM [i]table_name[/i];[/color]")
+
+
+func _on_mailroom_entered() -> void:
+	hud.line("l0_mailroom_2")
+
+
+## Host: someone picked up the directory printout in the mailroom.
+func _on_printout_read(_p: Node) -> void:
+	if caller_asked and not caller_puzzle.solved:
+		sync.event("_on_caller_found")
+
+
+func _on_caller_found() -> void:
+	if caller_puzzle.solved:
+		return
+	caller_puzzle.solved = true
+	var task := "Find out who called from ext. %d" % data.extension
+	hud.todo("")
+	get_node("/root/Game").ticket_fill(task, "ext. %d: Harold Mercer, Building Services (left 03/94)" % data.extension)
+	caller_found.emit()
+
+
+## Optional: the visitor log, newest first. Vale signed in tonight and never left.
+func _on_last_visitor() -> void:
+	visitor_puzzle.solved = true
+	get_node("/root/Game").write_note("Last visitor", "VALE, I. signed in %s tonight. Never signed out." % str(data.vale_in).right(5), "result")
+	hud.notice("Added to your notebook (Tab)", 3.0)
 
 
 ## Host: until nobody is at the desk terminal any more (or a while has passed,

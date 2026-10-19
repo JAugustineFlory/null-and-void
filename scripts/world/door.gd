@@ -127,8 +127,15 @@ func set_open(open: bool, instant: bool = false) -> void:
 	_tween.tween_property(self, "position", target, 1.1 if open else 0.35).set_trans(Tween.TRANS_QUAD)
 
 
-## Called when the database row changes. A faulted actuator ignores the change.
-func apply_db_state(locked: bool, fault: bool) -> void:
+## Called when the database row changes. A hinged door's row is its lock: it
+## shuts and stays shut while locked, and players open it themselves once it
+## isn't. A sliding door opens itself when unlocked, unless its actuator is faulted.
+func apply_db_state(db_locked: bool, fault: bool) -> void:
+	if is_hinged():
+		locked = db_locked
+		if db_locked:
+			set_open(false)
+		return
 	if fault:
 		return
-	set_open(not locked)
+	set_open(not db_locked)

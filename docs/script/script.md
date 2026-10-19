@@ -73,13 +73,21 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### Vale's shredded memo
 
-*The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there.*
+*The crew rebuilds Vale's memo at the front desk terminal. It says not to trust anyone who offers to escort you. Rourke is standing right there. Then he points out the work order's caller isn't him: the call came from Harold Mercer's old extension, dead since 1994.*
 
 **PA:** *(From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening.)* Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! `[l0_sort_hint]`
 
 **ROURKE:** *(Pleased, jotting it on his clipboard before he's read it. Warm; on a replay it's the worst thing he says all night.)* Nice work. I'll make sure that goes straight to the director. `[l0_memo_flag]`
 
 **ROURKE:** *(A beat too long before he speaks. Covering.)* ...Huh. She always was dramatic. `[l0_memo_1]`
+
+**ROURKE:** *(Mild, a little puzzled, tapping the work order. Not suspicious yet.)* One thing on your paperwork. It says I called you in. I didn't. That call came from building services. `[l0_caller_1]`
+
+**ROURKE:** *(Helpful, easygoing. Nodding at the terminal.)* Want to know who? The staff directory's on that terminal. `[l0_caller_2]`
+
+**ROURKE:** *(Nodding down the back corridor toward the mailroom. Amused, a little fond.)* Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it. `[l0_mailroom_1]`
+
+**ROURKE:** *(A beat of real surprise, then he brushes it off and moves on.)* Mercer? Huh. That line's been dead for years. Somebody's having fun with the phones. Anyway. `[l0_caller_3]`
 
 **ROURKE:** *(Back to friendly, changing the subject.)* Grab the walkie-talkies from lost and found, back behind the desk. `[l0_memo_2]`
 
@@ -107,6 +115,8 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 *Optional trust beats on the expanded ground floor: vending-machine coffee, a boost up to a stuck panel, the hum down the dark east corridor, covering for the crew when the PA's escort tape replays, and the elevator up to the server floor.*
 
+**ROURKE:** *(Only if a player goes inside the mailroom. Mock-serious.)* Don't touch the outgoing tray. Last guy who did got a memo about it. `[l0_mailroom_2]`
+
 **ROURKE:** *(In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick.)* Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities. `[l0_coffee]`
 
 **ROURKE:** *(Interlocking his fingers for a boost. Easy, practised.)* Panel's stuck up top? Here, step on my hands. I've got you. `[l0_boost_1]`
@@ -121,15 +131,11 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Inside the car, back against the far wall from the buttons. Easy, polite.)* Press one for me, would you? Server floor. `[l0_lift_button]`
 
-### Badges and the mailroom
+### Visitor badges
 
-*Depth pass: at the front desk Rourke hands out visitor badges, which the upstairs doors check (continuity). Then he points the crew at the mailroom, where the staff directory printout is pinned to the wall (the physical route to the ext. 4471 match). He says where the list is kept, never what's on it.* *(Written ahead: not in the game yet.)*
+*Depth pass (continuity): Rourke hands out visitor badges at the front desk. The upstairs doors check them.* *(Written ahead: not in the game yet.)*
 
 **ROURKE:** *(At the front desk, handing out the badges. Routine, friendly.)* Visitor badges. Keep them on you. Doors upstairs won't let you through without one. `[l0_badges]`
-
-**ROURKE:** *(Walking past the open door, nodding at it. Amused, a little fond.)* Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it. `[l0_mailroom_1]`
-
-**ROURKE:** *(Only if a player goes inside. Mock-serious.)* Don't touch the outgoing tray. Last guy who did got a memo about it. `[l0_mailroom_2]`
 
 ### To Server Room A
 
@@ -147,14 +153,6 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ## Level 1
 
-### The NOC
-
-*Depth pass: Rourke points the crew at the NOC, where the night shift's log holds step 1 of the controller diagnosis ("doors that won't release"). He points at the log but never reads it to them. Plays before l0_sra.* *(Written ahead: not in the game yet.)*
-
-**ROURKE:** *(Passing the NOC window on the way to Server Room A. Easy, tour-guide tone.)* That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break. `[l1_noc_1]`
-
-**ROURKE:** *(Only if a player goes into the NOC. Leaning in the doorway.)* Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not. `[l1_noc_2]`
-
 ### The database problem
 
 *Rourke walks the crew into Server Room A on the server floor and gives them the real job: find and reset a faulting door controller. Level 1 is all trust; nothing hints at foul play.*
@@ -162,6 +160,10 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 **ROURKE:** *(Calling back over his shoulder, inside the room.)* In you come. Terminal's just over here. `[l1_enter]`
 
 **ROURKE:** *(Mundane, a facilities guy with a real problem. Hopeful.)* Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix. `[l1_terminal]`
+
+**ROURKE:** *(Passing the NOC window on the way to Server Room A, after the elevator. Easy, tour-guide tone.)* That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break. `[l1_noc_1]`
+
+**ROURKE:** *(Only if a player goes into the NOC. Leaning in the doorway.)* Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not. `[l1_noc_2]`
 
 ### The door-controller fix
 

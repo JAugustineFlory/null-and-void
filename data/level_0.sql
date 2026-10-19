@@ -14,30 +14,8 @@ INSERT INTO memo_fragments VALUES
 	(2, 'The director knows I found out.', '1997-10-12 02:12'),
 	(5, 'Do not trust anyone who offers to escort you.', '1997-10-12 02:15');
 
-CREATE TABLE visitors (
-	id INTEGER,
-	name TEXT,
-	company TEXT,
-	escort TEXT,
-	checked_in TEXT
-);
-INSERT INTO visitors VALUES
-	(311, 'Contract IT crew', 'Byte-Right IT Services', 'ROURKE, D.', '1997-10-15 23:02'),
-	(310, 'P. Okafor', 'Delmont Courier', 'NONE', '1997-10-15 16:40'),
-	(309, 'Board delegation', 'Halcyon Board', 'DIRECTOR', '1997-10-13 09:00');
-
-CREATE TABLE staff_directory (
-	name TEXT,
-	title TEXT,
-	extension INTEGER,
-	status TEXT
-);
-INSERT INTO staff_directory VALUES
-	('Iris Vale', 'Lead Engineer', 4471, 'MISSING'),
-	('Dale Rourke', 'Facilities Manager', 2210, 'ON SHIFT'),
-	('Harlan Pike', 'Night Security', 1102, 'NO SHOW'),
-	('Office of the Director', 'Director', 1000, 'OFFSITE');
+-- staff_directory, visitors and lights are seeded per run (Level0Data).
 
 -- doors is building-wide (FacilityDB.SHARED_SCHEMA); the lobby only adds its own LOBBY- rows.
 INSERT INTO doors VALUES
-	('LOBBY-FRONT', 'Main entrance', 'L', 1, 0);
+	('LOBBY-FRONT', 'Main entrance, ground floor', 'L', 1, 0);

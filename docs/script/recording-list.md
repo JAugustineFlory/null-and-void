@@ -1,6 +1,6 @@
 # Recording list
 
-99 lines in all.
+102 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -19,7 +19,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
 
-## Dale Rourke (68 lines)
+## Dale Rourke (71 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
@@ -36,10 +36,15 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_desk_2` | Director wants to know what it said. Go ahead, terminal's on the desk. | Casual, but he wants to know too. | Level 0 |
 | [ ] | `l0_memo_flag` | Nice work. I'll make sure that goes straight to the director. | Pleased, jotting it on his clipboard before he's read it. Warm; on a replay it's the worst thing he says all night. | Level 0 |
 | [ ] | `l0_memo_1` | ...Huh. She always was dramatic. | A beat too long before he speaks. Covering. | Level 0 |
+| [ ] | `l0_caller_1` | One thing on your paperwork. It says I called you in. I didn't. That call came from building services. | Mild, a little puzzled, tapping the work order. Not suspicious yet. | Level 0 |
+| [ ] | `l0_caller_2` | Want to know who? The staff directory's on that terminal. | Helpful, easygoing. Nodding at the terminal. | Level 0 |
+| [ ] | `l0_mailroom_1` | Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it. | Nodding down the back corridor toward the mailroom. Amused, a little fond. | Level 0 |
+| [ ] | `l0_caller_3` | Mercer? Huh. That line's been dead for years. Somebody's having fun with the phones. Anyway. | A beat of real surprise, then he brushes it off and moves on. | Level 0 |
 | [ ] | `l0_memo_2` | Grab the walkie-talkies from lost and found, back behind the desk. | Back to friendly, changing the subject. | Level 0 |
 | [ ] | `l0_memo_3` | And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either. | Amused, he's said this to every visitor. A little eye-roll at corporate. | Level 0 |
 | [ ] | `l0_memo_4` | Grab one and I'll take you to the server room. | Friendly, already heading for the hall. | Level 0 |
 | [ ] | `l0_walkie` | Channel one. Keep them on. Reception's lousy once we're past the shutter. This way. | Offhand. | Level 0 |
+| [ ] | `l0_mailroom_2` | Don't touch the outgoing tray. Last guy who did got a memo about it. | Only if a player goes inside the mailroom. Mock-serious. | Level 0 |
 | [ ] | `l0_coffee` | Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities. | In the cafeteria. He thumps the vending machine and it drops a cup. Proud of the trick. | Level 0 |
 | [ ] | `l0_boost_1` | Panel's stuck up top? Here, step on my hands. I've got you. | Interlocking his fingers for a boost. Easy, practised. | Level 0 |
 | [ ] | `l0_boost_2` | See? Teamwork. | Brushing his hands off. | Level 0 |
@@ -48,17 +53,15 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_elevator` | Server floor's one up. Elevator's slow, but it gets there. | At the elevator bank, holding the door. | Level 0 |
 | [ ] | `l0_lift_button` | Press one for me, would you? Server floor. | Inside the car, back against the far wall from the buttons. Easy, polite. | Level 0 |
 | [ ] | `l0_badges` | Visitor badges. Keep them on you. Doors upstairs won't let you through without one. | At the front desk, handing out the badges. Routine, friendly. | Level 0, later |
-| [ ] | `l0_mailroom_1` | Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it. | Walking past the open door, nodding at it. Amused, a little fond. | Level 0, later |
-| [ ] | `l0_mailroom_2` | Don't touch the outgoing tray. Last guy who did got a memo about it. | Only if a player goes inside. Mock-serious. | Level 0, later |
 | [ ] | `l0_tour_3` | Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
 | [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
 | [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
 | [ ] | `l0_tour_6` | Ghost stories. Anyway. | Dropping it fast. He doesn't want them thinking about it. | Level 0 |
 | [ ] | `l0_sra` | Here we are. Server Room A. | Badging the door. Pleasant, like the end of a tour. | Level 0 |
-| [ ] | `l1_noc_1` | That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break. | Passing the NOC window on the way to Server Room A. Easy, tour-guide tone. | Level 1, later |
-| [ ] | `l1_noc_2` | Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not. | Only if a player goes into the NOC. Leaning in the doorway. | Level 1, later |
 | [ ] | `l1_enter` | In you come. Terminal's just over here. | Calling back over his shoulder, inside the room. | Level 1 |
 | [ ] | `l1_terminal` | Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix. | Mundane, a facilities guy with a real problem. Hopeful. | Level 1 |
+| [ ] | `l1_noc_1` | That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break. | Passing the NOC window on the way to Server Room A, after the elevator. Easy, tour-guide tone. | Level 1 |
+| [ ] | `l1_noc_2` | Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not. | Only if a player goes into the NOC. Leaning in the doorway. | Level 1 |
 | [ ] | `l1_waiting` | Take your time. I've been staring at that rack for a week. | Leaning on the doorframe. Patient. | Level 1 |
 | [ ] | `l1_badge_help` | Reset wants a badge? Here, use mine. | Swiping his badge for them. Helpful, no hesitation. | Level 1 |
 | [ ] | `l1_wrong_panel` | Nope, panel's not having it. Try another? | Shrugging, no blame. | Level 1 |

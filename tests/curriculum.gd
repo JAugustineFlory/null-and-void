@@ -50,8 +50,8 @@ const PUZZLES := {
 	"controller": {
 		"level": 1,
 		"pressure": false,
-		"teaches": ["WHERE", "AND", "door_controllers", "single quotes", "zone A", "'fault'"],
-		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'", "'A'"],
+		"teaches": ["WHERE", "AND", "door_controllers", "single quotes", "'fault'"],
+		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
 	},
 	# Depth pass, server floor (provisional ids). Step 1 of the controller chain:
 	# the stuck doors share one zone. The controller row then needs that zone, read
