@@ -60,7 +60,8 @@ var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"
 	"? is the table's name. It's handwritten on the ScanRight card.",
 	"The ScanRight card lies on the desk, left of the keyboard. Step 2 has the table name written into its blank. " +
 	"Or type .tables to list every table.",
-	"Type exactly SELECT * FROM memo_fragments; and press Enter. Spelling matters, capitals don't.",
+	"Type this exactly and press Enter. Spelling matters, capitals don't:\n" +
+	"    [color=#ffffff]SELECT * FROM memo_fragments;[/color]",
 ])
 ## Not a solution: the memo sorted biggest first (copying the ORDER BY sticky's DESC).
 var memo_backwards := Puzzle.new("memo_backwards", "SELECT text FROM memo_fragments ORDER BY piece_no DESC", ["text"], true)
@@ -72,7 +73,8 @@ var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY 
 	"  ORDER BY ?           sorted by a column, smallest first\n" +
 	"? is the column that numbers the scraps.",
 	"Step 4 of the ScanRight card says which column numbers each scrap. .schema memo_fragments lists every column.",
-	"Type exactly SELECT * FROM memo_fragments ORDER BY piece_no; and press Enter.",
+	"Type this exactly and press Enter:\n" +
+	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY piece_no;[/color]",
 ])
 ## Who placed the call: the work order's caller extension, looked up in the staff
 ## directory (Level0Data). Any query listing names beside extensions finds it.
@@ -813,7 +815,9 @@ static func caller_puzzle_for(ext: int) -> Puzzle:
 		"  FROM staff_directory  from the staff directory\n" +
 		"? is the column holding phone extensions. Then find %d, the number on your work order." % ext,
 		"Type .schema staff_directory to list its columns. One of them holds the phone extensions.",
-		"Type exactly SELECT name, extension, dept FROM staff_directory; then find %d in the extension column." % ext,
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT name, extension FROM staff_directory;[/color]\n" +
+		"Then find %d in the extension column." % ext,
 	])
 
 
@@ -828,7 +832,8 @@ static func visitor_puzzle_for() -> Puzzle:
 		"  DESC           biggest (newest) first\n" +
 		"? is the column with the sign-in time.",
 		".schema visitors lists its columns. One of them holds the sign-in time.",
-		"Type exactly SELECT * FROM visitors ORDER BY signed_in DESC; and press Enter.",
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT * FROM visitors ORDER BY signed_in DESC;[/color]",
 	])
 
 

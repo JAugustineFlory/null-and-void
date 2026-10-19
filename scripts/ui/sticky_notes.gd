@@ -11,7 +11,7 @@ const NOTES := {
 		"label": "SELECT * FROM",
 		"what": "SELECT picks which columns to show. * means every column. FROM names the table to read them from.",
 		"syntax": "SELECT columns FROM table;",
-		"example": "SELECT * FROM staff_directory;\nSELECT name, title\n  FROM staff_directory;",
+		"example": "SELECT * FROM lights;\nSELECT room, status\n  FROM lights;",
 		"tip": "Swap in the table you want. End with ; and press Enter.",
 	},
 	"order_by": {
@@ -19,7 +19,7 @@ const NOTES := {
 		"label": "ORDER BY",
 		"what": "ORDER BY sorts the rows by one column, smallest first. Add DESC after the column for biggest first.",
 		"syntax": "SELECT ... ORDER BY column;",
-		"example": "SELECT * FROM staff_directory\n  ORDER BY extension DESC;",
+		"example": "SELECT * FROM lights\n  ORDER BY room DESC;",
 		"tip": "ORDER BY goes at the end, just before the ;. Use a column from your own table.",
 	},
 	"where_and": {

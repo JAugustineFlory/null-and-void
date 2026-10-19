@@ -186,13 +186,13 @@ func _hint_query(hint: String) -> String:
 	return hint.substr(start, hint.find("[/color]", start) - start)
 
 
-## The query a "Type exactly ..." hint gives, up to its semicolon.
+## The exact query a last hint gives, on its own line.
 func _exact_query(hint: String) -> String:
-	var at := hint.find("Type exactly ")
-	if at < 0:
-		return ""
-	var q := hint.substr(at + "Type exactly ".length())
-	return q.substr(0, q.find(";") + 1).strip_edges()
+	for line in hint.replace("[color=#ffffff]", "").replace("[/color]", "").split("\n"):
+		var l := line.strip_edges()
+		if l.to_upper().begins_with("SELECT ") and l.ends_with(";") and not l.contains("?"):
+			return l
+	return ""
 
 
 ## The hint ladder (Augustine, 2026-10-18): hint 1 is the query's shape with ? for
@@ -1184,7 +1184,7 @@ func test_coop_world() -> void:
 	sra_h.sync.event("_on_asked")
 	await _frames(10)
 	sra_c.terminal_ui.terminal = sra_c.terminal
-	sra_c.terminal_ui.run("UPDATE doors SET locked = 0 WHERE id = 'SRA-EXIT'")
+	sra_c.terminal_ui.run("UPDATE doors SET locked = 0, actuator_fault = 0 WHERE id = 'SRA-EXIT'")
 	await _frames(10)
 	check(sra_h.doors["SRA-EXIT"].is_open and sra_c.doors["SRA-EXIT"].is_open, "a client's query in a wing opens the door for everyone")
 	check(_table(sra_h, dump) == _table(sra_c, dump), "the shared database still matches")
@@ -2378,7 +2378,7 @@ func test_notebook() -> void:
 	var on_pages: Array = nb.pages.book.left.get_children() + nb.pages.book.right.get_children()
 	check(nb.pages.current_page() == NotebookPages.Page.TABLES and NotebookPages.text_of(on_pages).contains("memo_fragments"), "the Tables page lists what was found")
 	var notes_text := nb.pages.section_text(NotebookPages.Page.NOTES)
-	check(notes_text.contains("ORDER BY") and notes_text.contains("staff_directory"), "the Notes page shows each note's example")
+	check(notes_text.contains("ORDER BY") and notes_text.contains("FROM lights"), "the Notes page shows each note's example")
 	_game().set_todo("Find the exit")
 	_game().set_todo("Open the exit door")
 	check(not _game().set_todo("Open the exit door"), "the same task isn't written twice")
@@ -2404,6 +2404,10 @@ func test_notebook() -> void:
 	level.hud.todo("")
 	check(_game().current_todo() == "" and _game().notebook_todo.all(func(t): return t.done), "an empty task ticks off the last one")
 	check(_game().notebook_data().todo.map(func(t): return t.text).has("Open the exit door"), "the to-do list is saved with the notebook")
+	# .tables wrote down every lobby table; keep two for a short section.
+	for k in _game().notebook_tables.keys():
+		if not k in ["memo_fragments", "doors"]:
+			_game().notebook_tables.erase(k)
 	nb.pages.show_page(NotebookPages.Page.TABLES)
 	check(nb.pages._spreads.size() == 1 and not nb.pages._turn.visible, "a short section fits on one spread")
 	for t in 20:

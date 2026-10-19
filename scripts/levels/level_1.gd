@@ -223,7 +223,8 @@ static func controller_puzzle_for(z: String) -> Puzzle:
 		"The NOC shift log names the stuck doors. Look up their zone: " +
 		"SELECT name, zone FROM doors WHERE locked = 1; " +
 		"Or walk the floor and read the plates on the doors with a red light.",
-		"Type exactly SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault'; " % z +
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % z +
 		"Then press E on that rack's panel in Server Room A: its id is on the end facing the center aisle.",
 	])
 
@@ -239,7 +240,9 @@ static func hot_rack_puzzle_for() -> Puzzle:
 		"  WHERE temp_c > ?   only rows where temp_c is more than ?\n" +
 		"? is the limit on the cable vault's back door.",
 		"The fire interlock plate on the cable vault's back door (in the ops room) gives the limit, in °C.",
-		"Type exactly SELECT id, temp_c FROM racks WHERE temp_c > %d; then reseat that rack's fan tray in Server Room B." % Level1Data.INTERLOCK_C,
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT id, temp_c FROM racks WHERE temp_c > %d;[/color]\n" % Level1Data.INTERLOCK_C +
+		"Then reseat that rack's fan tray in Server Room B.",
 	])
 
 
