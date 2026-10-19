@@ -72,7 +72,7 @@ INSERT INTO visitors VALUES
 	(308, 'T. Reyes', 'Coastline Elevator Co.', 'ROURKE, D.', '1997-10-14 10:15', '1997-10-14 13:40'),
 	(309, 'P. Okafor', 'Delmont Courier', 'NONE', '1997-10-15 16:40', '1997-10-15 16:52'),
 	(310, 'VALE, I.', 'Halcyon (staff)', 'NONE', '%s', NULL),
-	(311, 'Contract IT crew', 'Byte-Right IT Services', 'ROURKE, D.', '1997-10-15 23:02', NULL);
+	(311, 'Contract IT crew', 'Byte-Right IT Services', 'ROURKE, D.', '1997-10-15 23:04', NULL);
 
 -- lights is building-wide (FacilityDB.SHARED_SCHEMA): one row per room. A row
 -- whose id is a light group (LevelBase.add_light) switches that group's lights.

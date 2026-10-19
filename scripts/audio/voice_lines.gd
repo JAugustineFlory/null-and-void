@@ -140,6 +140,8 @@ const LINES := {
 		"note": "Inside the lobby, right after the PA. Chuckling, waving at the ceiling speaker."},
 	"l0_signin": {"scene": "l0_arrive", "speaker": "ROURKE", "text": "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me.",
 		"note": "Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)"},
+	"l0_badges": {"scene": "l0_arrive", "speaker": "ROURKE", "text": "Visitor badges. Keep them on you. Doors upstairs won't let you through without one.",
+		"note": "Handing them over the desk, routine. Helpful, a little bored."},
 	"l0_tour_1": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Here's the job. Dr. Vale, our lead engineer, went missing three nights ago.",
 		"note": "Walking. Matter-of-fact, the way you'd mention the weather."},
 	"l0_tour_2": {"scene": "l0_tour", "speaker": "ROURKE", "text": "Her systems are a mess and the director wants them recovered by morning. Quietly.",

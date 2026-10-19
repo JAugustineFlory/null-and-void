@@ -16,6 +16,8 @@ signal selected(item: String)
 const HOTBAR_SIZE := 4
 ## Always carried, with their own keys; listed in the inventory but never on the hotbar.
 const FIXED := ["notebook", "flashlight"]
+## Clipped on, not held: carried and listed, but never on the hotbar.
+const WORN := ["visitor_badge"]
 ## Everything a player can carry: id -> name and a line about it.
 const ITEMS := {
 	"notebook": {"name": "Notebook", "key": "Tab", "about": "Notes, tables and the work order."},
@@ -23,6 +25,7 @@ const ITEMS := {
 	"radio": {"name": "Walkie-talkie", "about": "Channel 1. Hold V to talk to the crew."},
 	"screwdriver": {"name": "Screwdriver", "about": "Flat-head. Undoes screws: grates, panels, covers."},
 	"cable": {"name": "Network cable", "about": "A coil of Cat5. Strong enough to tie someone up."},
+	"visitor_badge": {"name": "Visitor badge", "about": "Clipped on. Card readers upstairs want to see it."},
 }
 
 ## Every item carried, in the order picked up (the fixed ones first).
@@ -61,7 +64,7 @@ func add(item: String) -> bool:
 	if item == "" or items.has(item):
 		return false
 	items.append(item)
-	if not FIXED.has(item):
+	if not FIXED.has(item) and not WORN.has(item):
 		var slot := hotbar.find("")
 		if slot >= 0:
 			hotbar[slot] = item
@@ -92,7 +95,7 @@ func remove(item: String) -> void:
 func stowed() -> Array[String]:
 	var out: Array[String] = []
 	for item in items:
-		if not FIXED.has(item) and not hotbar.has(item):
+		if not FIXED.has(item) and not WORN.has(item) and not hotbar.has(item):
 			out.append(item)
 	return out
 
@@ -102,7 +105,7 @@ func stowed() -> Array[String]:
 func assign(slot: int, item: String) -> bool:
 	if slot < 0 or slot >= HOTBAR_SIZE:
 		return false
-	if item != "" and (not items.has(item) or FIXED.has(item)):
+	if item != "" and (not items.has(item) or FIXED.has(item) or WORN.has(item)):
 		return false
 	var was := hotbar.find(item) if item != "" else -1
 	var held := hotbar[active] if active >= 0 else ""
@@ -148,7 +151,7 @@ func load_dict(data: Dictionary) -> void:
 	hotbar.fill("")
 	var bar: Array = data.get("hotbar", [])
 	for i in mini(bar.size(), HOTBAR_SIZE):
-		if items.has(bar[i]) and not FIXED.has(bar[i]) and not hotbar.has(bar[i]):
+		if items.has(bar[i]) and not FIXED.has(bar[i]) and not WORN.has(bar[i]) and not hotbar.has(bar[i]):
 			hotbar[i] = bar[i]
 	active = -1
 	changed.emit()

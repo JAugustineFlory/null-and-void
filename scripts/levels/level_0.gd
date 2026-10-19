@@ -587,6 +587,8 @@ func start() -> void:
 	visitor_log.enabled = false
 	hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
 	hud.todo("")
+	_give_badge()
+	await hud.line("l0_badges")
 	await hud.lines(["l0_tour_1", "l0_tour_2"])
 	_watch_nearest()
 	await hud.lines(["l0_desk_1", "l0_desk_2"])
@@ -891,6 +893,14 @@ func _crew_off_desk_terminal() -> void:
 func _pa_after_memo() -> void:
 	await get_tree().create_timer(2.5, false).timeout
 	hud.line("l0_sort_hint")
+
+
+## Rourke hands out clip-on visitor badges at the desk, one each, numbered in player
+## order. Runs on every machine: each gives its own player theirs.
+func _give_badge() -> void:
+	Game.visitor_badge_no = "VIS-%02d" % (NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer) + 1)
+	player.inventory.add("visitor_badge")
+	hud.notice("Visitor badge %s clipped on." % Game.visitor_badge_no, 4.0)
 
 
 func _on_walkies() -> void:
