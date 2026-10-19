@@ -47,6 +47,9 @@ func _level_0() -> void:
 	await _shot(level, "l0_it_closet", Vector3(10.0, 0.1, -10.4), 0, -8)
 	await _shot(level, "l0_dark", Vector3(13.0, 0.1, -8.5), -90, -4)
 	await _shot(level, "l0_elevators", Vector3(24.8, 0.1, 6.4), -60, -6)
+	# Halcyon Tower over the car park.
+	await _shot(level, "l0_tower", Vector3(6.0, 0.05, 25.0), 10, 32)
+	await _shot(level, "l0_tower_top", Vector3(-14.0, 0.05, 26.0), -25, 62)
 	level.free()
 
 
@@ -82,6 +85,11 @@ func _level_2() -> void:
 	await _shot(level, "l2_lab", Vector3(-10.6, 0.1, 0.0), 80, -10)
 	await _shot(level, "l2_service", Vector3(-17.0, 0.1, 7.5), 0, -3)
 	await _shot(level, "l2_camera_room", Vector3(-7.2, 0.1, -15.6), -35, -10)
+	# Out on the ledge, 22 floors up.
+	await _shot(level, "l2_ledge_down", Vector3(6.33, 0.05, 0.0), -90, -55)
+	await _shot(level, "l2_ledge_out", Vector3(6.33, 0.05, -2.0), -110, -12)
+	await _shot(level, "l2_ledge_along", Vector3(6.33, 0.05, 3.5), 12, -50)
+	await _shot(level, "l2_ledge_up", Vector3(6.33, 0.05, 2.5), 12, 55)
 	level.free()
 
 
