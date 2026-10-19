@@ -17,6 +17,7 @@ static func create(for_level: Node, local_player: Node3D) -> NetPlayers:
 	np.name = "NetPlayers"
 	np.level = for_level
 	np.player = local_player
+	np.add_to_group("net_players")
 	for_level.add_child(np)
 	return np
 
@@ -154,6 +155,36 @@ func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: boo
 	var p: PlayerPuppet = _puppets.get(multiplayer.get_remote_sender_id())
 	if p:
 		p.apply_state(pos, yaw, pitch, height, light_on)
+
+
+# --- Shared notes ---------------------------------------------------------------
+
+## The NetPlayers of the game in progress, if it's co-op (for the notebook).
+static func of_session(tree: SceneTree) -> NetPlayers:
+	for np in tree.get_nodes_in_group("net_players"):
+		if np.is_inside_tree() and np.multiplayer.has_multiplayer_peer() and np.multiplayer.get_peers().size() > 0:
+			return np
+	return null
+
+
+## Copy `entry` (one of this player's notebook_written lines) into every
+## teammate's notebook. It's marked shared here so it isn't sent twice.
+func share_note(entry: Dictionary) -> void:
+	if entry.get("shared", false):
+		return
+	entry["shared"] = true
+	_note.rpc({"label": entry.get("label", ""), "text": entry.get("text", ""), "kind": entry.get("kind", "")})
+	get_node("/root/Game").notebook_changed.emit()
+
+
+@rpc("any_peer", "reliable")
+func _note(entry: Dictionary) -> void:
+	var from := multiplayer.get_remote_sender_id()
+	var p: PlayerPuppet = _puppets.get(from)
+	var who: String = p.display_name if p else "Player %d" % from
+	get_node("/root/Game").receive_shared(who, entry)
+	if level.get("hud"):
+		level.hud.notice("%s shared a note (Tab)" % who, 3.0)
 
 
 func _on_peer_left(id: int) -> void:

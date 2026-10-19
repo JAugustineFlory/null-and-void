@@ -118,7 +118,7 @@ func section_items(page: int) -> Array[Control]:
 		Page.NOTES:
 			var copied: Array = game.notebook_written.filter(func(w): return w.kind != "mine")
 			var mine: Array = game.notebook_written.filter(func(w): return w.kind == "mine")
-			return _mine_items(mine) + _notes_items(game.notebook_notes) + _written_items(copied)
+			return _mine_items(mine) + _crew_items(game.notebook_shared) + _notes_items(game.notebook_notes) + _written_items(copied)
 		Page.TABLES:
 			return _table_items(game.notebook_tables)
 		_:
@@ -150,6 +150,7 @@ func _mine_items(mine: Array) -> Array[Control]:
 	var items: Array[Control] = [NotebookArt.heading("My notes")]
 	for w in mine:
 		items.append(NotebookArt.hand("- " + w.text, 26))
+		_add_share(items, w)
 	if not end_of_level:
 		var write := NotebookArt.write_button("+ write a note")
 		write.name = "WriteMine"
@@ -179,6 +180,41 @@ func _written_items(written: Array) -> Array[Control]:
 		var label: String = w.label if w.label != "" else KIND_LABELS.get(w.kind, "From the terminal")
 		var lines: PackedStringArray = w.text.split("\n")
 		items.append(NotebookArt.note_line(lines[0], label))
+		for extra in lines.slice(1, 12):
+			items.append(NotebookArt.note_line(extra))
+		_add_share(items, w)
+	return items
+
+
+## In co-op, a button under a line to copy it into every teammate's notebook.
+func _add_share(items: Array[Control], entry: Dictionary) -> void:
+	if end_of_level:
+		return
+	var crew := NetPlayers.of_session(get_tree()) if is_inside_tree() else null
+	if crew == null:
+		return
+	if entry.get("shared", false):
+		items.append(NotebookArt.hand("(shared with the crew)", 20, NotebookArt.PENCIL))
+		return
+	var share := NotebookArt.write_button("share with the crew")
+	share.name = "Share"
+	share.tooltip_text = "Put this line in your teammates' notebooks too"
+	share.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	share.pressed.connect(func(): crew.share_note(entry))
+	items.append(share)
+
+
+## Lines teammates shared, under their names.
+func _crew_items(shared: Array) -> Array[Control]:
+	if shared.is_empty():
+		return []
+	var items: Array[Control] = [NotebookArt.heading("From the crew")]
+	for s in shared:
+		var lines: PackedStringArray = s.text.split("\n")
+		var label: String = s.label if s.label != "" else KIND_LABELS.get(s.kind, "Note")
+		if s.kind == "mine":
+			label = ""
+		items.append(NotebookArt.note_line(lines[0], "%s: %s" % [s.from, label] if label != "" else s.from))
 		for extra in lines.slice(1, 12):
 			items.append(NotebookArt.note_line(extra))
 	return items

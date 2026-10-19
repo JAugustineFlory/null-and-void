@@ -56,6 +56,7 @@ func _run() -> void:
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_terminal_screens()
+	await test_coop_shared_notes()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -1121,6 +1122,49 @@ func test_coop_terminal_screens() -> void:
 	check(screen.seated.is_empty() and screen.typing.is_empty(), "a player who drops out leaves the terminal free")
 	ui.close()
 	await _coop_close(worlds)
+
+
+func test_coop_shared_notes() -> void:
+	print("Co-op: sharing notebook notes")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(2)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var c1 = levels[1]
+	var c1_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	_game().write_note("scraps table", "memo_fragments", "result")
+	_game().write_note("", "Rourke keeps looking at the clock", "mine")
+	var pages := NotebookPages.new()
+	root.add_child(pages)
+	check(_share_buttons(pages) == 2, "in co-op, each written line can be shared with the crew")
+	var entry: Dictionary = _game().notebook_written[0]
+	c1.players.share_note(entry)
+	await _frames(10)
+	var got: Array = _game().notebook_shared.filter(func(s): return s.text == "memo_fragments")
+	# Every machine shares this one Game in tests: one copy per teammate's machine.
+	check(got.size() == 2 and got.all(func(s): return s.from == "Player %d" % c1_id and s.label == "scraps table"), "a shared line lands in both teammates' notebooks under the sender's name")
+	c1.players.share_note(entry)
+	await _frames(10)
+	check(_game().notebook_shared.size() == 2, "sharing the same line again sends nothing")
+	var notes := pages.section_text(NotebookPages.Page.NOTES)
+	check(notes.contains("From the crew") and notes.contains("Player %d: scraps table" % c1_id), "teammates' lines show in a From the crew section")
+	check(notes.contains("(shared with the crew)") and _share_buttons(pages) == 1, "a shared line says so instead of offering to share again")
+	check(_game().notebook_data().shared.size() == 2, "shared lines are saved with the notebook")
+	pages.queue_free()
+	await _coop_close(worlds)
+	var solo := NotebookPages.new()
+	root.add_child(solo)
+	check(_share_buttons(solo) == 0, "solo, there's nobody to share with")
+	solo.queue_free()
+	_game().new_run(6)
+
+
+
+func _share_buttons(pages: NotebookPages) -> int:
+	var items := pages.section_items(NotebookPages.Page.NOTES)
+	var n := items.filter(func(i): return i is Button and i.name == "Share").size()
+	for i in items:
+		i.free()
+	return n
 
 
 func test_coop_world() -> void:

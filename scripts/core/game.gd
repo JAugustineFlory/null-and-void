@@ -45,6 +45,8 @@ var notebook_notes: Array[String] = []
 var notebook_tables := {}
 ## Lines this player wrote down from a terminal: {label, text, kind}.
 var notebook_written: Array[Dictionary] = []
+## Lines teammates shared into this notebook in co-op: {from, label, text, kind}.
+var notebook_shared: Array[Dictionary] = []
 ## The crew's Byte-Right work order, clipped in the notebook: the call-out they
 ## were hired for, as dispatch printed it (WorkOrderForm draws it). The scope is
 ## the job they think they're doing; the tasks are written in by hand below it.
@@ -88,6 +90,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_notes.clear()
 	notebook_tables.clear()
 	notebook_written.clear()
+	notebook_shared.clear()
 	notebook_todo.clear()
 	inventory.clear()
 
@@ -126,6 +129,12 @@ func discover_table(table: String, columns: Array) -> void:
 ## Write a terminal line into the notebook, under the player's own label.
 func write_note(label: String, text: String, kind: String) -> void:
 	notebook_written.append({"label": label, "text": text, "kind": kind})
+	notebook_changed.emit()
+
+
+## A teammate shared a line from their notebook (NetPlayers.share_note).
+func receive_shared(from: String, entry: Dictionary) -> void:
+	notebook_shared.append({"from": from, "label": str(entry.get("label", "")), "text": str(entry.get("text", "")), "kind": str(entry.get("kind", ""))})
 	notebook_changed.emit()
 
 
@@ -180,13 +189,14 @@ func current_todo() -> String:
 
 ## The notebook as plain data, for saving.
 func notebook_data() -> Dictionary:
-	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true)}
+	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "shared": notebook_shared.duplicate(true), "todo": notebook_todo.duplicate(true)}
 
 
 func load_notebook(data: Dictionary) -> void:
 	notebook_notes.assign(data.get("notes", []))
 	notebook_tables = data.get("tables", {}).duplicate(true)
 	notebook_written.assign(data.get("written", []))
+	notebook_shared.assign(data.get("shared", []))
 	notebook_todo.assign(data.get("todo", []))
 	notebook_changed.emit()
 
