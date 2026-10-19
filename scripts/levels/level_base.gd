@@ -13,6 +13,8 @@ var hud: HUD
 var player: Player
 var terminal_ui: TerminalUI
 var notebook: Notebook
+## The hotbar and inventory (I) for this machine's player.
+var inventory_screen: InventoryScreen
 ## Static level geometry lives under this node so navigation can bake from it.
 var geo: NavigationRegion3D
 var doors := {}
@@ -61,6 +63,7 @@ func _ready() -> void:
 	player = Player.new()
 	player.name = "Player"
 	player.hud = hud
+	player.inventory = get_node("/root/Game").inventory  # one run's inventory, across levels
 	# Place it before it enters the world: a body that appears at the origin for
 	# even one physics step can set off triggers there.
 	player.transform = player_spawn(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))
@@ -77,6 +80,7 @@ func _ready() -> void:
 	notebook.player = player
 	notebook.terminal_ui = terminal_ui
 	add_child(notebook)
+	inventory_screen = InventoryScreen.create(self, player, hud)
 	active = true
 	sync.begin_when_ready(start)
 
@@ -87,6 +91,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	hud = host.hud
 	terminal_ui = host.terminal_ui
 	notebook = host.notebook
+	inventory_screen = host.inventory_screen
 	player = host.player
 	players = host.players
 	voice = host.voice
@@ -248,11 +253,12 @@ func _bake_navigation() -> void:
 
 const CONTROLS := """WASD  move          Shift  sprint
 Ctrl  crouch, slide, roll
-Space  jump, mantle, grab a ledge
+Space  jump     W + Space  vault, mantle, grab a ledge or pipe
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
 Tab  your notebook: notes, tables, Field Notes (1-4 turn to a tab)
      reading, push the cursor to a screen edge to look that way; Tab also closes menus
+1-4  take out a hotbar item     I  inventory: choose what's on the hotbar
 V (hold)  talk on the radio, once you have one
 B  mute your open mic
 Esc  this menu"""
@@ -321,7 +327,8 @@ class PauseCatcher:
 	var level: LevelBase
 
 	func _unhandled_input(event: InputEvent) -> void:
-		if event.is_action_pressed("pause") and not level.terminal_ui.visible and not (level.notebook and level.notebook.is_open()):
+		if event.is_action_pressed("pause") and not level.terminal_ui.visible and not (level.notebook and level.notebook.is_open()) \
+				and not (level.inventory_screen and level.inventory_screen.is_open()):
 			level._toggle_pause()
 			get_viewport().set_input_as_handled()
 		elif event.is_action_pressed("notebook") and level._pause.visible:

@@ -16,6 +16,7 @@ extends Node3D
 const REACH := 0.55  # metres: the arm stretches no further; the paper comes the rest of the way
 const TWO_HANDS := 0.7  # the left hand takes the other corner once the paper is this close
 const FOLLOW := 14.0  # how quickly the hands catch up with where they're going
+const PAGE_LIFT := 0.006  # the readable page sits this far out of the prop's origin
 
 var right_hand: Node3D
 var left_hand: Node3D
@@ -27,6 +28,10 @@ var _player: Node
 var _size := Vector2(0.21, 0.28)
 var _face := Vector3.BACK
 var _sized := false  # hold() said how big it is; otherwise guessed from the prop
+var _front := 0.0  # how far the readable face stands out of the prop's origin
+var _depth := 0.004  # how thick it is behind that face
+var _look: Dictionary
+var _built_depth := -1.0
 
 
 static func attach(camera: Camera3D, look: Dictionary = {}) -> HeldPaper:
@@ -54,6 +59,7 @@ func hold(held: Node3D, size: Vector2, face := Vector3.BACK, document: Node = nu
 	_size = size
 	_face = face.normalized()
 	_sized = true
+	_measure_depth(held)
 	_clear_page()
 	if document and document.has_method("lines"):
 		var kind: String = document.call("paper_kind") if document.has_method("paper_kind") else "memo"
@@ -71,8 +77,10 @@ func hold(held: Node3D, size: Vector2, face := Vector3.BACK, document: Node = nu
 		m.shader = _paper_shader()
 		m.set_shader_parameter("page", tex)
 		page.material_override = m
-		page.transform = _face_transform().translated_local(Vector3(0, 0, 0.006))
+		page.transform = _face_transform().translated_local(Vector3(0, 0, PAGE_LIFT))
 		held.add_child(page)
+		_depth += PAGE_LIFT - _front if PAGE_LIFT > _front else 0.0
+		_front = maxf(_front, PAGE_LIFT)
 
 
 ## Hands back down and the page off the prop.
@@ -92,8 +100,22 @@ func _clear_page() -> void:
 
 
 func _make(look: Dictionary) -> void:
+	_look = look
+	_build_hands()
+
+
+## Hands sized for what they hold, so the thumb lies on its face and the palm
+## stays behind it, however thick it is. Rebuilt in place when that changes.
+func _build_hands() -> void:
+	var was: Array[Transform3D] = []
+	var shown: Array[bool] = []
+	for h in [right_hand, left_hand]:
+		if h:
+			was.append(h.global_transform)
+			shown.append(h.visible)
+			h.free()
 	for side in [1.0, -1.0]:
-		var hand := HeldNotebook.make_hand(self, side, look)
+		var hand := HeldNotebook.make_hand(self, side, _look, _depth)
 		hand.name = "RightHand" if side > 0 else "LeftHand"
 		hand.top_level = true
 		hand.visible = false
@@ -101,6 +123,12 @@ func _make(look: Dictionary) -> void:
 			right_hand = hand
 		else:
 			left_hand = hand
+	if was.size() == 2:
+		right_hand.global_transform = was[0]
+		right_hand.visible = shown[0]
+		left_hand.global_transform = was[1]
+		left_hand.visible = shown[1]
+	_built_depth = _depth
 
 
 ## Where the readable face sits on the prop, in its own space: x across it, y up
@@ -123,6 +151,7 @@ func _process(delta: float) -> void:
 			prop = p
 			if not _sized:
 				_guess_size(p)
+				_measure_depth(p)
 	if prop and not is_instance_valid(prop):
 		release()
 	var cam := _camera.global_transform
@@ -131,9 +160,12 @@ func _process(delta: float) -> void:
 	var target_r := rest_r
 	var target_l := rest_l
 	if prop:
+		if absf(_depth - _built_depth) > 0.002:
+			_build_hands()
 		var face := prop.global_transform * _face_transform()
-		var grip_r := face * Transform3D(Basis.IDENTITY, Vector3(_size.x / 2.0 - 0.02, -_size.y / 2.0 + 0.03, 0.0))
-		var grip_l := face * Transform3D(Basis.IDENTITY, Vector3(-_size.x / 2.0 + 0.02, -_size.y / 2.0 + 0.03, 0.0))
+		# On the readable face, right at the side edges, a little up from the bottom.
+		var grip_r := face * Transform3D(Basis.IDENTITY, Vector3(_size.x / 2.0, -_size.y / 2.0 + 0.03, _front))
+		var grip_l := face * Transform3D(Basis.IDENTITY, Vector3(-_size.x / 2.0, -_size.y / 2.0 + 0.03, _front))
 		target_r = grip_r
 		var to := grip_r.origin - cam.origin
 		if to.length() > REACH:
@@ -178,6 +210,27 @@ func _guess_size(p: Node3D) -> void:
 	else:
 		_face = Vector3.BACK
 		_size = Vector2(s.x, s.y)
+
+
+## How far the readable face stands out of the prop's origin, and how thick the
+## prop is behind it, from its meshes.
+func _measure_depth(p: Node3D) -> void:
+	var lo := INF
+	var hi := -INF
+	var to_face := _face_transform().affine_inverse()
+	for n in p.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.mesh == null or not mi.visible or mi == page:
+			continue
+		var b := to_face * p.global_transform.affine_inverse() * mi.global_transform * mi.get_aabb()
+		lo = minf(lo, b.position.z)
+		hi = maxf(hi, b.end.z)
+	if hi < lo:
+		_front = 0.0
+		_depth = 0.004
+		return
+	_front = hi
+	_depth = clampf(hi - lo, 0.002, 0.08)
 
 
 static var _shader: Shader

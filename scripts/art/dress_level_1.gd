@@ -15,6 +15,11 @@ const SERVER_C := AABB(Vector3(-16.8, -0.5, -23.8), Vector3(9.6, 4.5, 10.6))
 const NOC := AABB(Vector3(-21.8, -0.5, -2.8), Vector3(13.6, 4.0, 11.6))
 const VAULT := AABB(Vector3(-21.8, -0.5, -8.8), Vector3(13.6, 4.0, 5.6))
 const BREAK := AABB(Vector3(8.2, -0.5, -8.8), Vector3(13.6, 4.0, 5.6))
+## Every room and corridor, for ArtDress.explain_dark.
+const DARK_CHECK := [
+	ROOM, SERVER_B, SERVER_C, NOC, VAULT, BREAK,
+	AABB(Vector3(-22, 0, 9), Vector3(44, 3, 4)), AABB(Vector3(-22, 0, -13), Vector3(44, 3, 4)),  # corridors
+]
 
 
 static func apply(level: LevelBase) -> void:
@@ -66,6 +71,7 @@ static func apply(level: LevelBase) -> void:
 	_server_room_c(dress)
 
 	ArtDress.link_light_panels(level)
+	ArtDress.explain_dark(level, DARK_CHECK, 4.0)
 	var rourke: Node3D = level.get("rourke")
 	if rourke:
 		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
@@ -156,10 +162,12 @@ static func _server_room_b(dress: Node3D) -> void:
 ## and a microwave. The coffee-fund note stays where it is on the counter.
 static func _break_room(geo: Node3D, dress: Node3D) -> void:
 	var shells := [Color(0.72, 0.45, 0.2), Color(0.28, 0.42, 0.55)]
-	for i in 2:
-		var x := 16.8 + i * 1.4
-		ArtProps.cafe_chair(geo, Vector3(x, 0, -4.45), 180 + i * 7, shells[i])
-		ArtProps.cafe_chair(geo, Vector3(x, 0, -6.55), -5 + i * 9, shells[1 - i])
+	# Tucked in to the table (0 faces -Z, towards it from the south side), except
+	# one someone pushed back and left turned away.
+	ArtProps.cafe_chair(geo, Vector3(16.8, 0, -4.45), -4, shells[0])
+	ArtProps.cafe_chair(geo, Vector3(18.2, 0, -4.45), 7, shells[1])
+	ArtProps.cafe_chair(geo, Vector3(16.8, 0, -6.55), 176, shells[1])
+	ArtProps.cafe_chair(geo, Vector3(18.35, 0, -6.85), 35, shells[0])
 	var line := ArtPalette.flat(Color(0.45, 0.43, 0.4), 0.6)
 	for z in [-7.0, -6.0, -5.0]:
 		ArtDress.trim(dress, Vector3(20.99, 0.45, z), Vector3(0.01, 0.8, 0.01), line)  # cupboard door gaps

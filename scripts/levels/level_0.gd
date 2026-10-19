@@ -779,6 +779,7 @@ func _on_walkies() -> void:
 	_errand += 1  # the story has him now
 	walkies.queue_free()
 	Game.has_walkie = true
+	player.inventory.add("radio")  # one each: every machine's player takes one
 	if sync.is_online():
 		hud.notice("Walkie-talkies handed out, one each. Hold V to talk on the radio. Up close, just talk.", 6.0)
 	else:
