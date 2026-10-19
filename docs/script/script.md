@@ -121,6 +121,16 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Inside the car, back against the far wall from the buttons. Easy, polite.)* Press one for me, would you? Server floor. `[l0_lift_button]`
 
+### Badges and the mailroom
+
+*Depth pass: at the front desk Rourke hands out visitor badges, which the upstairs doors check (continuity). Then he points the crew at the mailroom, where the staff directory printout is pinned to the wall (the physical route to the ext. 4471 match). He says where the list is kept, never what's on it.* *(Written ahead: not in the game yet.)*
+
+**ROURKE:** *(At the front desk, handing out the badges. Routine, friendly.)* Visitor badges. Keep them on you. Doors upstairs won't let you through without one. `[l0_badges]`
+
+**ROURKE:** *(Walking past the open door, nodding at it. Amused, a little fond.)* Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it. `[l0_mailroom_1]`
+
+**ROURKE:** *(Only if a player goes inside. Mock-serious.)* Don't touch the outgoing tray. Last guy who did got a memo about it. `[l0_mailroom_2]`
+
 ### To Server Room A
 
 *Rourke badges the hall shutter open and walks the crew to Server Room A himself, filling the walk with the story of the founder and his safe room.*
@@ -136,6 +146,14 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 **ROURKE:** *(Badging the door. Pleasant, like the end of a tour.)* Here we are. Server Room A. `[l0_sra]`
 
 ## Level 1
+
+### The NOC
+
+*Depth pass: Rourke points the crew at the NOC, where the night shift's log holds step 1 of the controller diagnosis ("doors that won't release"). He points at the log but never reads it to them. Plays before l0_sra.* *(Written ahead: not in the game yet.)*
+
+**ROURKE:** *(Passing the NOC window on the way to Server Room A. Easy, tour-guide tone.)* That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break. `[l1_noc_1]`
+
+**ROURKE:** *(Only if a player goes into the NOC. Leaning in the doorway.)* Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not. `[l1_noc_2]`
 
 ### The database problem
 

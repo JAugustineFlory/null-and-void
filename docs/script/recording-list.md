@@ -1,6 +1,6 @@
 # Recording list
 
-94 lines in all.
+99 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -19,7 +19,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
 
-## Dale Rourke (63 lines)
+## Dale Rourke (68 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
 
@@ -47,11 +47,16 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_cover` | They're with me. Escort's right here. | Toward the ceiling speaker when the PA's escort reminder replays while the crew is behind the counter. Covering for them like a friend. | Level 0 |
 | [ ] | `l0_elevator` | Server floor's one up. Elevator's slow, but it gets there. | At the elevator bank, holding the door. | Level 0 |
 | [ ] | `l0_lift_button` | Press one for me, would you? Server floor. | Inside the car, back against the far wall from the buttons. Easy, polite. | Level 0 |
+| [ ] | `l0_badges` | Visitor badges. Keep them on you. Doors upstairs won't let you through without one. | At the front desk, handing out the badges. Routine, friendly. | Level 0, later |
+| [ ] | `l0_mailroom_1` | Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it. | Walking past the open door, nodding at it. Amused, a little fond. | Level 0, later |
+| [ ] | `l0_mailroom_2` | Don't touch the outgoing tray. Last guy who did got a memo about it. | Only if a player goes inside. Mock-serious. | Level 0, later |
 | [ ] | `l0_tour_3` | Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings. | Tour-guide mode, enjoying himself. | Level 0 |
 | [ ] | `l0_tour_4` | Board fired him when they installed WARDEN. That's the AI that runs the campus now. | Still chatting to the crew, a little proud of the trivia. | Level 0 |
 | [ ] | `l0_tour_5` | Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable. | Spooky-campfire voice, playing it up. | Level 0 |
 | [ ] | `l0_tour_6` | Ghost stories. Anyway. | Dropping it fast. He doesn't want them thinking about it. | Level 0 |
 | [ ] | `l0_sra` | Here we are. Server Room A. | Badging the door. Pleasant, like the end of a tour. | Level 0 |
+| [ ] | `l1_noc_1` | That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break. | Passing the NOC window on the way to Server Room A. Easy, tour-guide tone. | Level 1, later |
+| [ ] | `l1_noc_2` | Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not. | Only if a player goes into the NOC. Leaning in the doorway. | Level 1, later |
 | [ ] | `l1_enter` | In you come. Terminal's just over here. | Calling back over his shoulder, inside the room. | Level 1 |
 | [ ] | `l1_terminal` | Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix. | Mundane, a facilities guy with a real problem. Hopeful. | Level 1 |
 | [ ] | `l1_waiting` | Take your time. I've been staring at that rack for a week. | Leaning on the doorframe. Patient. | Level 1 |

@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (63)
+## Your lines (68)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -97,7 +97,19 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Press one for me, would you? Server floor."  
   *Inside the car, back against the far wall from the buttons. Easy, polite.*
 
-### 5. Strolling down a quiet office corridor with the crew, making small talk on the way to the server room.
+### 5. Handing a visiting crew their badges, then walking them past an office mailroom at night, making small talk.
+
+- [ ] `l0_badges.wav`  
+  "Visitor badges. Keep them on you. Doors upstairs won't let you through without one."  
+  *At the front desk, handing out the badges. Routine, friendly.*
+- [ ] `l0_mailroom_1.wav`  
+  "Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it."  
+  *Walking past the open door, nodding at it. Amused, a little fond.*
+- [ ] `l0_mailroom_2.wav`  
+  "Don't touch the outgoing tray. Last guy who did got a memo about it."  
+  *Only if a player goes inside. Mock-serious.*
+
+### 6. Strolling down a quiet office corridor with the crew, making small talk on the way to the server room.
 
 - [ ] `l0_tour_3.wav`  
   "Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings."  
@@ -115,7 +127,16 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Here we are. Server Room A."  
   *Badging the door. Pleasant, like the end of a tour.*
 
-### 6. Showing the crew into a server room and explaining the job.
+### 7. Walking the crew past a network operations room on the way to the server room.
+
+- [ ] `l1_noc_1.wav`  
+  "That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break."  
+  *Passing the NOC window on the way to Server Room A. Easy, tour-guide tone.*
+- [ ] `l1_noc_2.wav`  
+  "Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not."  
+  *Only if a player goes into the NOC. Leaning in the doorway.*
+
+### 8. Showing the crew into a server room and explaining the job.
 
 - [ ] `l1_enter.wav`  
   "In you come. Terminal's just over here."  
@@ -124,7 +145,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix."  
   *Mundane, a facilities guy with a real problem. Hopeful.*
 
-### 7. Hanging around while the crew fixes a faulty door controller. Patient, helpful, impressed when it works.
+### 9. Hanging around while the crew fixes a faulty door controller. Patient, helpful, impressed when it works.
 
 - [ ] `l1_waiting.wav`  
   "Take your time. I've been staring at that rack for a week."  
@@ -142,7 +163,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "You lot are good. Director's going to want to hear about this."  
   *Warm. On a replay, the director hearing about them is the problem.*
 
-### 8. Reading a log over the crew's shoulders and suggesting where to go next.
+### 10. Reading a log over the crew's shoulders and suggesting where to go next.
 
 - [ ] `l1_pivot_1.wav`  
   "Hang on. That fault log... every reset this week came from Vale's login."  
@@ -157,7 +178,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Two. Security floor. Go on."  
   *Inside the car, across from the buttons. A little clipped now, eager to get there.*
 
-### 9. At a scientist's lab with the crew. You have them badge in, act shocked at what's inside, step out, lock the door and call security on them.
+### 11. At a scientist's lab with the crew. You have them badge in, act shocked at what's inside, step out, lock the door and call security on them.
 
 - [ ] `l2_lab_arrive.wav`  
   "Secure Lab B. Vale practically lived in here."  
@@ -187,7 +208,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself."  
   *Tired, explaining a chore.*
 
-### 10. Short lines in a scuffle. Loud and out of breath; each one can play many times.
+### 12. Short lines in a scuffle. Loud and out of breath; each one can play many times.
 
 - [ ] `l2_return.wav`  
   "Should've checked the other door."  
@@ -220,7 +241,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Wait... wait. You don't know what you're doing."  
   *On the floor, out of breath. Genuinely scared for the first time.*
 
-### 11. In the lab, right after the scuffle.
+### 13. In the lab, right after the scuffle.
 
 - [ ] `l2_tied_1.wav`  
   "You think a bit of cable holds me?"  
@@ -232,7 +253,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Run if you like. Every camera on this floor already thinks you killed her."  
   *Tied up, smiling. The frame, said out loud.*
 
-### 12. On a walkie-talkie to the crew, from somewhere else in the building.
+### 14. On a walkie-talkie to the crew, from somewhere else in the building.
 
 - [ ] `l2_rourke_1.wav`  
   "Still on channel one? Good. Thought you'd want to know I'm out."  
