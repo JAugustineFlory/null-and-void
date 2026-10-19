@@ -224,6 +224,18 @@ bool outside_view(vec3 cam) {
 }
 
 const vec3 HAZE = vec3(0.025, 0.03, 0.045);
+
+// The colours here are picked by eye as sRGB. Forward+ (the game) draws in linear
+// light, so convert (a little short of the full 2.2, so the moonlit ground still
+// reads); the Compatibility renderer draws them as they are.
+vec3 out_color(vec3 c) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return c;
+#else
+	// Past 1.0 (lamps, lit windows) keep the value, so glow doesn't run away.
+	return mix(pow(max(c, vec3(0.0)), vec3(1.7)), c, step(vec3(1.0), c));
+#endif
+}
 """
 
 ## The backdrop: night sky above, the campus below at the ground's height.
@@ -359,7 +371,7 @@ void fragment() {
 	float tree_top = (14.0 + 9.0 * fbm(normalize(d.xz + vec2(0.0001)) * 9.0) - (v_cam.y - ground_y)) / 240.0;
 	float trees = smoothstep(0.002, -0.002, d.y / max(length(d.xz), 0.001) - tree_top) * step(-0.02, d.y);
 	col = mix(col, mix(vec3(0.006, 0.009, 0.008), horizon, 0.3), trees);
-	ALBEDO = col;
+	ALBEDO = out_color(col);
 }
 """
 
@@ -423,7 +435,7 @@ void fragment() {
 	}
 	float dist = length(v_pos - v_cam);
 	col = mix(col, HAZE, (1.0 - exp(-dist * 0.003)) * (1.0 - lit * 0.5));
-	ALBEDO = col;
+	ALBEDO = out_color(col);
 }
 """
 
@@ -447,7 +459,7 @@ void fragment() {
 	float t = fract(TIME * 0.5 + phase);
 	float on = mix(1.0, smoothstep(0.0, 0.06, t) * (1.0 - smoothstep(0.35, 0.45, t)), flashing);
 	float g = exp(-r * r * 40.0) * 4.0 + exp(-r * 4.0) * 0.35;
-	ALBEDO = vec3(1.0, 0.12, 0.06) * g * on * (1.0 - smoothstep(0.85, 1.0, r));
+	ALBEDO = out_color(vec3(1.0, 0.12, 0.06) * g * on * (1.0 - smoothstep(0.85, 1.0, r)));
 }
 """
 

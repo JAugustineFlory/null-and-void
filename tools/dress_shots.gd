@@ -1,6 +1,9 @@
 extends SceneTree
 ## Before/after screenshots of furnished levels, for art PRs. Needs a display:
-##   xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 -s tools/dress_shots.gd -- OUT_DIR [l0|l1|l2]
+##   xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver vulkan -s tools/dress_shots.gd -- OUT_DIR [l0|l1|l2]
+## Vulkan shows the game's own renderer (Forward+: shadows, ambient occlusion); with no
+## GPU, Mesa's software Vulkan (apt mesa-vulkan-drivers) works. opengl3 is quicker but
+## skips both.
 
 var out_dir := "user://dress_shots"
 var only := ""
