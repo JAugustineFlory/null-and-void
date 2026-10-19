@@ -135,20 +135,32 @@ func _build_wall_sheet(size: Vector2) -> void:
 	sheet.name = "Paper"
 	if laminated:
 		sheet.material_override = Greybox.mat(paper, 0.0, 0.15)  # glossy
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(size.x, size.y, 0.05)
+	shape.shape = bs
+	add_child(shape)
+	if is_form():
+		_print_form(face, size)
+		return
 	var margin := minf(size.x, size.y) * 0.07
 	var top := size.y / 2 - margin
 	var px := 0.0009  # metres per pixel of type
 	var lines := doc_lines.duplicate()
+	var first := 0  # the doc line the first Line label shows
 	if laminated:
 		# The card's own heading (its first printed line) goes on the navy band.
 		var heading := title.to_upper()
 		if not lines.is_empty() and not lines[0].hand:
 			heading = lines.pop_front().text
+			first = 1
 		var band_h := size.y * 0.13
 		var band := Greybox.panel(face, Vector3(0, size.y / 2 - band_h / 2 - margin * 0.4, 0.0055), Vector3(size.x - margin * 0.8, band_h, 0.001), ArtPalette.HALCYON_NAVY)
 		band.name = "Band"
 		var t := _wall_text(face, heading, Vector3(0, band.position.y, 0.0065), size.x - margin * 2, NotebookArt.type_font(), Color(0.95, 0.95, 0.92), px)
 		t.name = "Title"
+		if first == 1:
+			t.set_meta("line_index", 0)
 		t.autowrap_mode = TextServer.AUTOWRAP_OFF
 		while t.font_size > 14 and (t.font.get_string_size(heading, HORIZONTAL_ALIGNMENT_LEFT, -1, t.font_size).x > t.width or t.font.get_height(t.font_size) * px > band_h * 0.8):
 			t.font_size -= 2
@@ -166,16 +178,40 @@ func _build_wall_sheet(size: Vector2) -> void:
 		# Label3D anchors the text at its position: top left here.
 		var label := _wall_text(face, l.text, Vector3(-width / 2, y, 0.0065), width, font, NotebookArt.INK if l.hand else ArtProps.PRINT_INK, px)
 		label.name = "Line%d" % n
+		label.set_meta("line_index", first + n)
 		label.font_size = font_size
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		y -= _line_height(l, font_size, width / px) * px
 		n += 1
-	var shape := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(size.x, size.y, 0.05)
-	shape.shape = bs
-	add_child(shape)
+
+
+## A form (a sign-in sheet, a table, a stamped page) is printed small and in
+## detail, as it reads in your hands, rather than in big type that can't hold
+## its columns.
+func is_form() -> bool:
+	return doc_lines.any(func(l): return l.has("columns") or l.has("row") or l.has("stamp"))
+
+
+## The form's page (DocumentView, the same one you read held up) printed on the
+## sheet, as big as fits it.
+func _print_form(face: Node3D, size: Vector2) -> void:
+	var kind := paper_kind()
+	var px := Vector2(DocumentView.PAPERS[kind].size)
+	var quad := QuadMesh.new()
+	var scale_to := minf(size.x / px.x, size.y / px.y)
+	quad.size = px * scale_to
+	var print_mi := MeshInstance3D.new()
+	print_mi.name = "Print"
+	print_mi.mesh = quad
+	print_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = DocumentView.paper_texture(self, lines(), kind, title)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.roughness = 0.9
+	print_mi.material_override = m
+	print_mi.position = Vector3(0, 0, 0.0055)
+	face.add_child(print_mi)
 
 
 ## A Label3D for a wall sheet, facing +Z, wrapping at `width_m`.

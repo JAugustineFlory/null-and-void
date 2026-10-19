@@ -5,7 +5,8 @@ extends CanvasLayer
 ## name. E, Esc or Tab puts it down.
 ## Two ways to read: open() shows it full screen; hold() (Game.diegetic_ui) lifts
 ## the paper itself up to your eyes in your hands (player.pick_up, HeldPaper), and
-## the cursor (out unless right mouse is held) reaches the chips on its page.
+## the cursor reaches the chips on its page (or, on a wall sheet in big print, a
+## chip beside the line it's over).
 
 signal closed
 
@@ -22,6 +23,11 @@ var hands: HeldPaper
 var page_viewport: SubViewport
 var _closing := false
 var _hidden: Array[Node3D] = []  # the prop's own look, while its page is held up instead
+## A wall sheet in big print is read off its own labels (the text doesn't shrink
+## when you pick it up); this chip copies the line under the pointer.
+var _labels: Array[Label3D] = []
+var _chip: Button
+var _chip_index := -1
 
 
 func _ready() -> void:
@@ -79,6 +85,21 @@ func hold(doc: Node, by_player: Node) -> bool:
 			if mi != hands.page and mi.visible:
 				mi.visible = false
 				_hidden.append(mi)
+	var sheet: Node = doc.get_node_or_null("WallSheet")
+	if sheet:
+		var printed := sheet.get_node_or_null("Print") as GeometryInstance3D
+		if printed:
+			# A form: the page laid over it is the same print, so only one shows.
+			printed.visible = false
+			_hidden.append(printed)
+		else:
+			# Big print: read the words on the sheet itself, not a smaller page over them.
+			hands.page.visible = false
+			for l in sheet.get_children():
+				if l is Label3D and l.has_meta("line_index"):
+					_labels.append(l)
+			_make_chip()
+			return _finish_hold()
 	for vp in hands.get_children():
 		if vp is SubViewport and not vp.is_queued_for_deletion():
 			page_viewport = vp
@@ -89,8 +110,71 @@ func hold(doc: Node, by_player: Node) -> bool:
 		var page_view := page_viewport.get_child(0) as DocumentView
 		if page_view:
 			page_view.copy_requested.connect(func(text): _start_note(_index_of(text)))
+	return _finish_hold()
+
+
+func _finish_hold() -> bool:
 	player.prop_lowered.connect(_on_lowered, CONNECT_ONE_SHOT)
 	return true
+
+
+func _make_chip() -> void:
+	_chip = Button.new()
+	_chip.name = "NoteChip"
+	_chip.text = "+ note"
+	_chip.visible = false
+	_chip.focus_mode = Control.FOCUS_NONE
+	_chip.pressed.connect(func(): _start_note(_chip_index))
+	add_child(_chip)
+
+
+## The screen rect a held label covers, or an empty rect when it's off screen.
+func label_rect(l: Label3D) -> Rect2:
+	var cam: Camera3D = player.camera
+	var box := l.get_aabb()
+	var r := Rect2()
+	var first := true
+	for i in 8:
+		var at := l.global_transform * box.get_endpoint(i)
+		if cam.is_position_behind(at):
+			return Rect2()
+		var p := cam.unproject_position(at)
+		if first:
+			r = Rect2(p, Vector2.ZERO)
+			first = false
+		else:
+			r = r.expand(p)
+	return r
+
+
+## Big print: the line under the pointer (its doc index), or -1.
+func line_at(screen_pos: Vector2) -> int:
+	for l in _labels:
+		if is_instance_valid(l) and l.text.strip_edges() != "" and label_rect(l).grow(4).has_point(screen_pos):
+			return l.get_meta("line_index")
+	return -1
+
+
+## The chip sits just right of the line under the pointer, and stays while the
+## pointer moves onto it.
+func _hover(screen_pos: Vector2) -> void:
+	if _chip == null:
+		return
+	if _chip.visible and _chip.get_global_rect().grow(6).has_point(screen_pos):
+		return
+	var index := line_at(screen_pos) if not _note_label.visible else -1
+	_chip_index = index
+	_chip.visible = index >= 0
+	if index < 0:
+		return
+	for l in _labels:
+		if is_instance_valid(l) and l.get_meta("line_index") == index:
+			var r := label_rect(l)
+			_chip.reset_size()
+			var at := Vector2(r.end.x + 6, r.position.y + r.size.y / 2 - _chip.size.y / 2)
+			var screen := get_viewport().get_visible_rect().size
+			at.x = minf(at.x, screen.x - _chip.size.x - 4)
+			_chip.position = at
 
 
 ## The point on the held page's image (viewport pixels) under a screen position,
@@ -179,6 +263,8 @@ func _start_note(index: int) -> void:
 	if index < 0:
 		return
 	_note_index = index
+	if _chip:
+		_chip.visible = false
 	_note_label.text = ""
 	_note_label.visible = true
 	_note_label.grab_focus()
@@ -221,6 +307,9 @@ func _input(event: InputEvent) -> void:
 ## Held: the pointer over the paper reaches its page, so "+ note" chips work there.
 func _forward_mouse(event: InputEventMouse) -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE or _note_label.visible:
+		return
+	if _chip:
+		_hover(event.position)  # the chip is a button on this layer; the click reaches it
 		return
 	var at := page_point(event.position)
 	if at.x < 0.0:

@@ -35,6 +35,8 @@ var is_closing := false
 var riding := false
 var art: Node3D  # ArtElevator, when available
 var button: Interactable
+## The other floors' buttons (with art): pressing one does nothing but light it.
+var other_buttons: Array[Interactable] = []
 ## Why the button didn't work, for the HUD. Set by press().
 var refusal := ""
 ## Shows the refusal as a notice when set.
@@ -111,14 +113,24 @@ func _build(geo: Node3D, floors: Array) -> void:
 		_leaves.append(leaf)
 	# The button panel inside, on the right as you walk in.
 	button = Interactable.create(self, Vector3(-(w / 2 - 0.08), 1.15, 0.45), Vector3(0.04, 0.3, 0.16), "Press %s" % floors[floors.size() - 1], Color(0.15, 0.15, 0.15), show)
-	# Pressed where its buttons are drawn, when there's art for them.
+	# With art, each floor's button is pressed where it's drawn: only the floor
+	# you're going to (the last) takes you there.
 	var panel: Node3D = art.get_node_or_null("ButtonPanel") if art else null
 	if panel:
-		var ph := 0.16 + floors.size() * 0.09 + 0.1
-		button.transform = panel.transform.translated_local(Vector3(0, ph / 2 - 0.3, 0))
-		for c in button.get_children():
-			if c is CollisionShape3D:
-				(c.shape as BoxShape3D).size = Vector3(0.3, ph + 0.06, 0.14)
+		var n := floors.size()
+		for i in n:
+			var at := panel.transform * Vector3(0.04, -0.04 + (n - 1 - i) * 0.09, -0.03)
+			var b := button if i == n - 1 else Interactable.create(self, at, Vector3(0.08, 0.08, 0.06), "Press %s" % floors[i], Color(0.15, 0.15, 0.15), false)
+			b.basis = panel.basis
+			b.position = at
+			if b == button:
+				for c in button.get_children():
+					if c is CollisionShape3D:
+						(c.shape as BoxShape3D).size = Vector3(0.08, 0.08, 0.06)
+			else:
+				var label: String = floors[i]
+				b.used.connect(func(by): _press_other(label, by))
+				other_buttons.append(b)
 	button.used.connect(press)
 	_place_doors()
 
@@ -229,6 +241,20 @@ func press(by: Node = null) -> bool:
 	else:
 		close()
 	return true
+
+
+## Another floor's button: it lights, and goes dark again. Not this trip.
+func _press_other(label: String, _by: Node) -> void:
+	if art:
+		art.call("light_button", label, true)
+		get_tree().create_timer(0.6, false).timeout.connect(func():
+			if is_instance_valid(art):
+				art.call("light_button", label, false))
+
+
+func _process(_delta: float) -> void:
+	for b in other_buttons:
+		b.enabled = button.enabled  # the panel works as a whole
 
 
 ## Ride from this car to `other`: the crew steps out of that car when the ride ends.
