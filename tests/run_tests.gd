@@ -1734,6 +1734,15 @@ func test_level_2_routes() -> void:
 			break
 	p.controls.move = Vector2.ZERO
 	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
+	check(level.wind.playing and level.wind.volume_db > -12.0, "out on the ledge the wind is loud (%.0f dB)" % level.wind.volume_db)
+	check(absf(p.head.rotation.z) > 0.0005, "and the view sways a little")
+	# A step off the edge, 80 m up, is the end of that player: they come to at the floor's checkpoint.
+	p.state = Player.Move.WALK  # off the ledge, a step clear of it
+	p._ledge = null
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(9.0, 0.5, -2.0)))
+	p.velocity = Vector3.ZERO
+	check(await _until(func(): return p.health == 100.0 and [level.spawn_point().origin, level.to_global(Vector3(0, 0.1, -10.8))].any(func(c): return p.global_position.distance_to(c) < 1.5), 15.0), "falling off the ledge kills you, and you come to back inside")
+	check(await _until(func(): return not level.wind.playing, 10.0) and absf(p.head.rotation.z) < 0.002, "back inside, the wind dies away and the view is level")
 	level.loose = true
 	level._process(0.0)
 	check(level.watcher.active, "going round the office another way wakes the Watcher too")
