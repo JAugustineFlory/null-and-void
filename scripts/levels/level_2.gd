@@ -101,38 +101,58 @@ var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"the answer is JSON. { } is one camera's fields, [ ] is a list of them.",
 	"look down the list for \"motion\": true. its location is the room where something's moving.",
 ])
+## Hints climb from the query's shape, with the value to find left as '?', to how
+## to find that value, to the exact query.
 var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE 'Pike%'", ["name"], false, [
-	"type this, then Enter:\n" +
-	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]\n" +
+	"the shape, with the name left as ?:\n" +
+	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE '?%';[/color]\n" +
 	"  SELECT *         every column\n" +
 	"  FROM guards      from the guard roster\n" +
 	"  WHERE name LIKE  keep rows whose name matches a pattern\n" +
-	"  'Pike%'          starts with Pike. % = any letters after it, or none",
-	"start with SELECT * FROM guards, then add WHERE name LIKE 'Pike%' at the end, before the ;. keep the 'single quotes' round Pike%.",
+	"  '?%'             starts with ?. % = any letters after it, or none\n" +
+	"? is the one name you can read clearly on the sign-in sheet.",
+	"the sign-in sheet is on the booth wall. the first name on it is marked NO SHOW. " +
+	"put that surname where the ? is, with the % straight after it.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]\n" +
+	"keep the 'single quotes' round Pike%.",
 ])
 var door_puzzle := Puzzle.new("door", "", [], false, [
+	"the shape, with the door left as ?:\n" +
+	"    [color=#ffffff]GET /doors/?[/color]\n" +
+	"  GET        ask the security server for data\n" +
+	"  /doors/?   one door's record: what was asked of it, and what its sensor says\n" +
+	"? is the id of the door that won't open. if it won't move, the note in the answer says why. which breaker tripped, say.",
+	"the stairwell door's id is in red letters over it. GET that, then read the \"note\" line: it names a breaker, like B-2.",
 	"type this, then Enter:\n" +
 	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
-	"  GET               ask the security server for data\n" +
-	"  /doors/SEC-EXIT   one door's record: what was asked of it, and what its sensor says\n" +
-	"if it won't move, the note in the answer says why. which breaker tripped, say.",
-	"read the \"note\" line. it names a breaker, like B-2. breaker box is on the wall under the vent. press E on that one.",
+	"the note names a breaker. the breaker box is on the wall under the vent. press E on that one.",
 ])
-var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, [
-	"type this, then Enter:\n" +
-	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night';[/color]\n" +
-	"  SELECT * FROM guards    every column of the guard roster\n" +
-	"  WHERE name LIKE 'Har%'  names that START with Har. all you can read on the sheet\n" +
-	"  AND shift = 'night'     ...and ALSO work nights. it's the night-shift sheet",
-	"take your Pike query. change 'Pike%' to 'Har%', then add AND shift = 'night' at the end, before the ;.",
-	"the pin column is the code. office door first, then the SEC-EXIT keypad past it. " +
-	"the other Har- guards work other shifts or are retired. their note column says.",
-])
+## Finding the PIN: the main route runs through the badge readers' log. The coffee-
+## stained "Har" on the sign-in sheet (LIKE + AND) and the briefing room's roster
+## board get there too: any query that comes back with just the night lead's PIN works.
+var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, pin_hints("G-1??"))
 
+
+static func pin_hints(badge: String) -> Array:
+	return [
+		"the shape, with the badge left as ?:\n" +
+		"    [color=#ffffff]SELECT * FROM guards WHERE badge_id = '?';[/color]\n" +
+		"  SELECT * FROM guards   every column of the guard roster, pin too\n" +
+		"  WHERE badge_id = '?'   only the guard with that badge\n" +
+		"? is the last guard badge (G-) through SEC-EXIT tonight. the readers keep every swipe in [b]badge_log[/b].",
+		"sort the swipes by time:\n" +
+		"    [color=#ffffff]SELECT * FROM badge_log ORDER BY time;[/color]\n" +
+		"read down the door column for SEC-EXIT. the last G- badge there is your guard. put it where the ? is.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]SELECT * FROM guards WHERE badge_id = '%s';[/color]\n" % badge +
+		"the pin column is the code. office door first, then the SEC-EXIT keypad past it.",
+	]
 
 func build() -> void:
 	data = Level2Data.build(Game.run_seed)
 	load_level_seed(data.sql)
+	har_puzzle.hints = pin_hints(data.badge)
 
 	var floor_c := Color(0.27, 0.27, 0.3)
 	var wall_c := Color(0.52, 0.53, 0.5)
@@ -260,7 +280,7 @@ func _build_booth() -> void:
 	Greybox.panel(geo, Vector3(-1.6, 1.34, 5.875), Vector3(0.02, 0.02, 0.01), Color(0.1, 1.0, 0.2), 3.0)
 	Document.place(geo, Vector3(-1.6, 1.0, 5.86), 0, "Badge reader card", [
 		"BADGE IN AT THE START OF EVERY SHIFT",
-		"The reader logs your badge-in time to the guard roster.",
+		"The reader logs every swipe in badge_log: the time, your badge, the door.",
 		"Reader down? Sign the paper sheet. The night lead keeps it as the backup copy.",
 	], false, "laminated", Vector2(0.42, 0.3))
 	# The backup sheet: the names are handwritten, and coffee took most of the second one.
@@ -773,8 +793,7 @@ func _on_pike_found(which: String) -> void:
 		pike_puzzle.solved = true
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
-		sysop(t, "other name on the sign-in sheet is under a coffee stain. only [b]Har[/b] is readable.")
-		sysop(t, "it's the NIGHT SHIFT sheet. you want a guard whose name starts with Har and who works nights.")
+		sysop(t, "you need a night-shift guard who badged in tonight. the badge readers know who. so does the sign-in sheet, under the coffee.")
 		hud.todo("Find out who else has a working PIN")
 		sysop(t, "[color=#ff6655]something in the office is moving. it only moves while nothing is watching it. not you, not a working camera.[/color]")
 		hud.line("l2_smudged")

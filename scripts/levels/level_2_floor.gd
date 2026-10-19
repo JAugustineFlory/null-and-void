@@ -53,9 +53,32 @@ static func build(level: Node3D) -> void:
 	for x in [-14.8, -12.2]:
 		Greybox.box(geo, Vector3(x, 0.25, 6), Vector3(0.45, 0.5, 0.45), Color(0.25, 0.25, 0.27), "Chair")
 	Greybox.panel(geo, Vector3(-13, 1.6, 7.88), Vector3(2.0, 1.0, 0.03), Color(0.08, 0.09, 0.1), 0.2)  # the one-way glass
+	# Rourke wrote his statement before the crew had even badged in: the time is blank.
+	# badge_log fills it in, and says where he really was at 23:40.
+	Document.place(geo, Vector3(-13.5, 0.76, 6.1), 90, "Incident statement", [
+		"HALCYON DATA SYSTEMS  -  SECURITY INCIDENT STATEMENT",
+		"Reporting officer: ROURKE, D.   Badge R-0117",
+		"Location: Secure Lab B",
+		{"text": "Dr. Vale found injured in her lab.", "hand": true},
+		{"text": "Contractors (Byte-Right IT) entered SECLAB-B at __:__.", "hand": true},
+		{"text": "I was at the night desk all evening.", "hand": true},
+		"Signed: ____________",
+	], true, "clipboard")
 	_room(level, "Briefing", Vector3(-13, 0, -7), Vector3(6, 3.2, 6))
 	Greybox.box(geo, Vector3(-13.2, 0.38, -7), Vector3(1.2, 0.76, 3.6), Color(0.36, 0.3, 0.25), "BriefingTable")
 	Greybox.panel(geo, Vector3(-15.88, 1.5, -7), Vector3(0.03, 1.1, 2.2), Color(0.9, 0.9, 0.88))  # whiteboard
+	# Tonight's night shift, with badge numbers: another way to the night lead's name.
+	var roster: Array = [
+		"NIGHT SHIFT  -  THU 10/15",
+		{"columns": ["NAME", "BADGE", ""], "widths": [3.2, 1.6, 1.6], "text": "NAME  BADGE"},
+	]
+	for r in level.data.get("roster", []):
+		# The lead is marked; a red pen goes through the rest.
+		var row := {"row": [r[0], r[1], "LEAD"], "text": "%s  %s  %s" % r, "hand": true}
+		if r[2] != "LEAD":
+			row = {"row": [r[0], r[1], ""], "over": r[2], "text": "%s  %s  %s" % r, "hand": true}
+		roster.append(row)
+	Document.place(geo, Vector3(-15.85, 1.5, -7), -90, "Night shift roster", roster, false, "paper", Vector2(1.6, 0.9))
 	_room(level, "Lockers", Vector3(-13, 0, -13), Vector3(6, 3.2, 6))
 	# Two rows of lockers, with room to crouch behind the far row.
 	for z in [-14.5, -11.8]:

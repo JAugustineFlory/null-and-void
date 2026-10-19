@@ -5,7 +5,8 @@ extends Node
 ## chair, blood on the desk, her coat on its hook. While they look, he steps out,
 ## the door locks behind him, and he tells WARDEN the contractors hurt her. Then he
 ## comes back in through the rear door, and the crew kills him, ties him up (only
-## with cable someone has picked up) or leaves him down. The lockdown starts, and
+## with cable someone carried up from the server floor) or leaves him down. Untied,
+## he comes round and gets away sooner. The lockdown starts, and
 ## the way out is the door-controller query they practised on the server floor,
 ## on this lab's own zone, against the clock: WARDEN has sent a security response.
 ## If it arrives first, the crew is caught, the lab's controllers are re-keyed to
@@ -21,7 +22,7 @@ const LINE_GAP := 1.5  # a beat for a line that isn't recorded yet
 const UNTIED_AFTER := 15.0
 const LOCKOUT := 10.0
 ## How long the crew has to get the lab door open once the lockdown starts.
-const RESPONSE_TIME := 180.0
+const RESPONSE_TIME := 240.0
 ## When WARDEN's PA calls out the time left.
 const RESPONSE_CALLS := [60.0, 30.0]
 const RED := Color(1.0, 0.18, 0.12)
@@ -46,14 +47,13 @@ var data: Dictionary
 var rourke: Rourke
 var terminal: Terminal
 var reader: Interactable
-var cable: Interactable
 var switches := {}
 var zone := ""
 ## The phase of the betrayal, the same on every machine:
 ## off, lead, badge, inside, locked, fight, down, escape, caught, done.
 var phase := "off"
 var badged := {}  # peer id -> true
-var cable_holders := {}  # peer id -> true
+var cable_holders := {}  # peer id -> true: who carried cable up from the server floor
 var fate := ""
 var switches_locked_until := 0.0
 var _steps := {}
@@ -90,18 +90,22 @@ static func create(for_level: Node3D, level_data: Dictionary) -> Level2Lab:
 
 
 ## The lab door's query: its own zone, and status 'fault'. Both conditions matter.
+## Hints: the shape with the zone left as '?', then where the zone is, then the query.
 static func door_puzzle_for(zone: String) -> Puzzle:
 	return Puzzle.new("lab_door", "SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % zone, ["id"], false, [
-		"type this, then Enter:\n" +
-		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % zone +
+		"the shape, with the zone left as ?:\n" +
+		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '?' AND status = 'fault';[/color]\n" +
 		"  SELECT *               every column\n" +
 		"  FROM door_controllers  the building's door controllers\n" +
-		"  WHERE zone = '%s'       only this lab's zone. it's on the plate by the door\n" % zone +
-		"  AND status = 'fault'   ...that are ALSO faulted. both must be true",
+		"  WHERE zone = '?'       only this lab's zone\n" +
+		"  AND status = 'fault'   ...that are ALSO faulted. both must be true\n" +
+		"? is this lab's controller zone. it's on the plate by the door, and on a card in here.",
+		"the door card hangs over the bench. it says \"controller zone\" and a letter. put that letter where the ? is.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % zone +
 		"the id it gives you is the one to reset. the switches are on this lab's wall, by the coat. " +
 		"press E on the one with that id. the others in zone %s are offline or ok: read their note column." % zone,
 	])
-
 
 func _build() -> void:
 	var geo: Node3D = level.geo
@@ -138,11 +142,7 @@ func _build() -> void:
 	Greybox.panel(geo, Vector3(-15.66, 1.5, -2.6), Vector3(0.04, 0.05, 0.12), Color(0.5, 0.5, 0.5))  # hook
 	Greybox.panel(geo, Vector3(-15.62, 1.0, -2.6), Vector3(0.1, 0.95, 0.45), Color(0.7, 0.62, 0.48))  # her coat
 	Greybox.box(geo, Vector3(-13, 0.45, 3.25), Vector3(4.2, 0.9, 0.8), Color(0.4, 0.4, 0.42), "LabBench")
-	# A coil of network cable on the shelf: whoever takes it can tie someone up.
-	Greybox.box(geo, Vector3(-10.53, 1.0, 2.9), Vector3(0.45, 0.05, 1.0), Color(0.35, 0.35, 0.36), "CableShelf")
-	cable = Interactable.create(geo, Vector3(-10.58, 1.1, 2.9), Vector3(0.28, 0.12, 0.28), "Take the network cable", Color(0.15, 0.3, 0.75))
-	cable.name = "CableCoil"
-	cable.used.connect(func(p): level.sync.run_on(self, "_take_cable", [level.players.id_of(p)]))
+	# No cable in here: only a coil carried up from the server floor ties him up.
 	# The reset switches for this zone's controllers, on the west wall. No sign: the
 	# card says they're here, and the hint says where.
 	Greybox.panel(geo, Vector3(-15.68, 1.3, -1.6), Vector3(0.05, 0.5, 0.75), Color(0.3, 0.32, 0.3))
@@ -379,15 +379,6 @@ func _log_swipe(badge: String, holder: String) -> void:
 	level.db.run_silent("INSERT INTO badge_log VALUES ('1997-10-16 %s', '%s', '%s', 'SECLAB-B')" % [level.server_time(), badge, holder])
 
 
-func _take_cable(id: int) -> void:
-	cable_holders[id] = true
-	if is_instance_valid(cable):
-		cable.queue_free()
-	if id == level.players.id_of(level.player):
-		level.player.inventory.add("cable")
-		level.hud.notice("Picked up a coil of network cable.", 3.0)
-
-
 # --- The frame and the fight -------------------------------------------------
 
 ## The door locks with the crew inside. Red light, and her terminal locks too.
@@ -600,11 +591,11 @@ func _door_found() -> void:
 	level.hud.todo("Reset the lab door's controller")
 
 
-## The visitor log, sorted: the crew's own badges, at the scene, minutes ago.
+## The visitor log, sorted: the crew's own badges, at the scene, minutes ago. Nobody
+## says what it means: Vale's 23:12, Rourke's rear door at 23:40, and the server
+## floor's syslog are for the players to put together.
 func _log_read() -> void:
 	log_puzzle.solved = true
-	terminal.print_line("")
-	terminal.print_line(TerminalUI.sysop("look at the last rows. your badges, at her door, tonight. that's what WARDEN will show anyone who asks."))
 
 
 ## Host: someone pressed a reset switch. The host decides; everyone sees it.
