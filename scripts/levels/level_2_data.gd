@@ -1,6 +1,7 @@
 class_name Level2Data
 extends RefCounted
-## Builds Level 2's database from a seed: the guard roster and the camera list.
+## Builds Level 2's database from a seed: the guard roster, the camera list, and
+## the badge readers' log, whose last guard swipe through SEC-EXIT is the night lead.
 ## The logic stays the same every run: the coffee-smudged name on tonight's
 ## night-shift sign-in sheet (the paper backup of the badge reader, which logs
 ## guards into this table) starts with "Har", and exactly one guard whose name
@@ -61,10 +62,28 @@ static func build(run_seed: int) -> Dictionary:
 	_shuffle(guards, rng)
 	# Which breaker tripped the stairwell door's actuator (the first terminal lie).
 	var breaker := rng.randi_range(1, 4)
+	var badge_of := {}  # name -> badge id
+	for i in guards.size():
+		badge_of[guards[i][0]] = "G-%03d" % (100 + i)
+	# Guards' swipes through the stairwell door tonight. The readers log a guard's
+	# badge number, not the name. The day and swing guards went out before the night
+	# lead came in, so the last guard badge through SEC-EXIT is tonight's lead.
+	var swipes := [["1997-10-15 18:04", badge_of[guards.filter(func(g): return g[3] == "day shift. Clocked out 18:04")[0][0]]]]
+	var swing := guards.filter(func(g): return g[1] == "swing" and not str(g[3]).begins_with("retired"))
+	for i in 2:
+		var at: String = ["21:52", "21:57"][i]
+		swing[i][3] = "swing shift. Clocked out " + at
+		swipes.append(["1997-10-15 " + at, badge_of[swing[i][0]]])
+	swipes.append(["1997-10-15 22:00", badge_of[answer_name]])
+	# The briefing room's roster board: tonight's night shift, with badge numbers.
+	var roster := [[answer_name, badge_of[answer_name], "LEAD"], ["PIKE, H.", badge_of["PIKE, H."], "NO SHOW"]]
+	for g in guards:
+		if g[1] == "night" and g[3] == "didn't badge in tonight" and roster.size() < 4:
+			roster.append([g[0], badge_of[g[0]], "OFF"])
 	var rows := []
 	for i in guards.size():
 		var g: Array = guards[i]
-		rows.append("('G-%03d', '%s', '%s', '%s', '%s')" % [100 + i, g[0], g[1], g[2], str(g[3]).replace("'", "''")])
+		rows.append("('%s', '%s', '%s', '%s', '%s')" % [badge_of[g[0]], g[0], g[1], g[2], str(g[3]).replace("'", "''")])
 
 	var sql := """
 CREATE TABLE guards (
@@ -107,9 +126,10 @@ INSERT INTO door_status VALUES
 	('SEC-OFFICE', 'closed', 'ok', 'lockdown: guard PIN required'),
 	('SEC-EXIT', 'closed', 'fault', 'actuator breaker B-%d tripped 00:12. Reset it at the breaker box by the door');
 """ % [",\n\t".join(rows), breaker]
-	var lab := _lab(run_seed)
+	var lab := _lab(run_seed, swipes)
 	return {"sql": sql + lab.sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin, "breaker": breaker,
-		"lab_zone": lab.zone, "lab_answer": lab.answer, "lab_switches": lab.switches}
+		"badge": badge_of[answer_name], "badge_time": "22:00", "decoy_badges": swipes.slice(0, 3).map(func(w): return w[1]),
+		"roster": roster, "lab_zone": lab.zone, "lab_answer": lab.answer, "lab_switches": lab.switches}
 
 
 ## Secure Lab B: its door controllers and the badge log. A separate random stream,
@@ -121,24 +141,38 @@ const LAB_ZONES := ["D", "E", "F", "H"]
 const VISITOR_BADGES := 6
 
 
-static func _lab(run_seed: int) -> Dictionary:
+## `guard_swipes` are [time, badge] pairs through SEC-EXIT; the last is the night lead's.
+static func _lab(run_seed: int, guard_swipes: Array) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed * 7919 + 2
 	var zone: String = LAB_ZONES[rng.randi_range(0, LAB_ZONES.size() - 1)]
 	var c := _lab_controllers(zone, rng)
 	var rows: Array = c.rows
 	# Who badged where tonight, in the order the reader stored them (not by time).
+	# Vale's 23:12 swipe is the same minute as the server floor's syslog line.
 	var log := [
-		"('1997-10-15 23:12', 'V-0042', 'VALE, I.', 'SECLAB-B')",
-		"('1997-10-15 23:40', 'R-0117', 'ROURKE, D.', 'SECLAB-B-REAR')",
-		"('1997-10-15 23:55', 'R-0117', 'ROURKE, D.', 'NIGHT DESK')",
-		"('1997-10-15 21:58', 'V-0042', 'VALE, I.', 'NIGHT DESK')",
+		["1997-10-15 23:12", "V-0042", "VALE, I.", "SECLAB-B"],
+		["1997-10-15 23:40", "R-0117", "ROURKE, D.", "SECLAB-B-REAR"],
+		["1997-10-15 23:55", "R-0117", "ROURKE, D.", "NIGHT DESK"],
+		["1997-10-15 21:58", "V-0042", "VALE, I.", "NIGHT DESK"],
 	]
+	for w in guard_swipes:
+		log.append([w[0], w[1], "SECURITY STAFF", "SEC-EXIT"])
 	_shuffle(log, rng)
+	# Stored out of time order, and the last SEC-EXIT row stored isn't the latest,
+	# so reading the table as it comes gives the wrong guard. ORDER BY time doesn't.
+	var lead: Array = log.filter(func(r): return r[1] == guard_swipes[-1][1])[0]
+	var exits := log.filter(func(r): return r[3] == "SEC-EXIT")
+	if exits[-1] == lead:
+		var a := log.find(lead)
+		var b := log.find(exits[0])
+		log[a] = exits[0]
+		log[b] = lead
 	var sorted_log := log.duplicate()
 	sorted_log.sort()
-	if log == sorted_log:  # stored out of order, so ORDER BY shows something
+	if log == sorted_log:
 		log.reverse()
+	log = log.map(func(r): return "('%s', '%s', '%s', '%s')" % r)
 	var visitors := []
 	for i in range(1, VISITOR_BADGES + 1):
 		visitors.append("('VIS-%02d', 'BYTE-RIGHT IT (VISITOR)', 'VISITOR', 'Front desk')" % i)
