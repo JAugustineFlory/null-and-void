@@ -488,6 +488,8 @@ func _drift_notebook(yaw: float, pitch: float) -> void:
 	notebook_drift.x = clampf(notebook_drift.x + yaw, -NOTEBOOK_SLACK_SIDE, NOTEBOOK_SLACK_SIDE)
 	notebook_drift.y = clampf(notebook_drift.y + pitch, -NOTEBOOK_SLACK_DOWN, NOTEBOOK_SLACK_UP)
 	_pose_notebook()
+	if _prop_settled() and is_instance_valid(held_prop):
+		held_prop.transform = Transform3D(_drift_basis()) * _prop_read  # now, not on the next frame
 
 
 ## Turns the held notebook (the HeldNotebook node itself; Graphics poses its book
