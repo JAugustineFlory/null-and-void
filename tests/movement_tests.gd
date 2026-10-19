@@ -595,6 +595,10 @@ func test_notebook_hold() -> void:
 	var slight := p.edge_turn(Vector2(screen.x * Player.EDGE_LOOK_MARGIN * 0.8, 540), screen).x
 	check(slight < 0.0 and slight > -0.2, "just inside the edge zone it turns slowly")
 	check(p.edge_turn(Vector2(-5, 540), screen) == Vector2.ZERO, "and off the window it doesn't turn at all")
+	var on_screen := Rect2(400, 100, 1100, 900)  # the notebook and its tabs on screen
+	check(p.edge_turn(Vector2(1490, 300), screen, on_screen) == Vector2.ZERO and p.edge_turn(Vector2(1508, 300), screen, on_screen) == Vector2.ZERO, "over the notebook, its tabs included, the view holds still")
+	check(p.edge_turn(Vector2(1600, 300), screen, on_screen).x > 0.0 and p.edge_turn(Vector2(1910, 300), screen, on_screen).x > 1.0, "off the notebook it starts turning, fastest at the screen's edge")
+	check(p.edge_turn(Vector2(300, 540), screen, on_screen).x < 0.0, "and off its left side, the other way")
 	p.set_notebook_cursor(false)  # right mouse held: look around
 	var yaw0 := p.rotation.y
 	var book_at := book.global_basis
@@ -759,6 +763,9 @@ func test_pick_up() -> void:
 	var yaw0 := p.rotation.y
 	_mouse_move(p, Vector2(80, 0))
 	check(p.rotation.y < yaw0, "you can look around while you read")
+	await frames(1)
+	var in_view := p.camera.global_basis.inverse() * (paper.global_position - p.camera.global_position)
+	check(p.notebook_drift.x != 0.0 and in_view.x < -0.01, "glancing aside, the paper stays put a moment, like the notebook")
 	p.set_notebook_cursor(true)
 	check(p.notebook_cursor and paper.is_processing_input(), "letting go of right mouse brings the cursor back for its lines")
 	p.set_notebook_cursor(false)

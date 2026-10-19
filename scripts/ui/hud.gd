@@ -5,6 +5,7 @@ extends CanvasLayer
 var _prompt: Label
 var _subtitle: Label
 var _notice: Label
+var _keys: Label
 var _damage: ColorRect
 var _fade: ColorRect
 var _crosshair: Label
@@ -56,10 +57,10 @@ func _ready() -> void:
 	_notice.position = Vector2(-600, 70)
 	root.add_child(_notice)
 
-	var keys := ThemeUtil.label("WASD move · Shift sprint · Ctrl crouch · Space jump · E use · F flashlight · Tab notebook · Esc menu and all controls", 17, Color(1, 1, 1, 0.7))
-	keys.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	keys.position = Vector2(28, -36)
-	root.add_child(keys)
+	_keys = ThemeUtil.label("WASD move · Shift sprint · Ctrl crouch · Space jump · E use · F flashlight · Tab notebook · Esc menu and all controls", 17, Color(1, 1, 1, 0.7))
+	_keys.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_keys.position = Vector2(28, -36)
+	root.add_child(_keys)
 
 	_voice = Voice.new()
 	_voice.name = "Voice"
@@ -116,6 +117,22 @@ func say(speaker: String, text: String, seconds: float = -1.0) -> void:
 func play_lines(lines: Array) -> void:
 	for line in lines:
 		await say(line[0], line[1])
+
+
+## While a terminal's glass fills the view, subtitles go above it and notices
+## below it (where the walking keys were), so neither covers its text.
+func subtitles_on_top(on: bool) -> void:
+	_subtitle.set_anchors_preset(Control.PRESET_CENTER_TOP if on else Control.PRESET_CENTER_BOTTOM)
+	_subtitle.offset_left = -550
+	_subtitle.offset_right = 550
+	_subtitle.offset_top = 8 if on else -170
+	_subtitle.offset_bottom = _subtitle.offset_top
+	_notice.set_anchors_preset(Control.PRESET_CENTER_BOTTOM if on else Control.PRESET_CENTER_TOP)
+	_notice.offset_left = -600
+	_notice.offset_right = 600
+	_notice.offset_top = -46 if on else 70
+	_notice.offset_bottom = _notice.offset_top
+	_keys.visible = not on
 
 
 ## Speak a line from VoiceLines by id. Plays its recording if there is one

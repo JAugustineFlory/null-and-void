@@ -20,7 +20,14 @@ var on_terminal := false
 ## case's edge rather than over the glass, so it never covers the screen's text
 ## (which runs from the left).
 static func on_monitor(terminal: Node3D, id: String) -> StickyNote:
-	return place(terminal, Vector3(0.232, 0.335, 0.195), id, true)
+	var n := place(terminal, Vector3(0.232, 0.335, 0.195), id, true)
+	# The note sits inside the terminal's own box (Terminal: 0.6 m deep), so its
+	# aim box stands out in front of the bezel, where you look at it from above.
+	for c in n.get_children():
+		if c is CollisionShape3D:
+			(c.shape as BoxShape3D).size = Vector3(0.14, 0.18, 0.12)
+			c.position = Vector3(0, 0.02, 0.17)
+	return n
 
 
 static func place(parent: Node, pos: Vector3, id: String, stuck_to_terminal: bool, facing_deg: float = 0.0, flat: bool = false) -> StickyNote:

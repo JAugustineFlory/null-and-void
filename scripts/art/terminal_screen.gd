@@ -17,7 +17,13 @@ extends Node3D
 
 const SCREEN_PX := Vector2i(1280, 960)  # 4:3, like the tube
 const SCREEN_SIZE := Vector2(0.36, 0.27)  # visible glass, metres
-const DISPLAY_FONT := 40  # big enough to read over a teammate's shoulder
+## One size of type on the glass, whether you're looking over a teammate's
+## shoulder or sitting at it yourself (TerminalUI uses it while hosted), so
+## the text never jumps in size when you press E. Small enough that a table
+## row (about 85 characters) fits on one line.
+const TYPE_SIZE := 24
+const TITLE_SIZE := 20
+const DISPLAY_FONT := TYPE_SIZE
 const MAX_LINES := 200
 const PHOSPHOR := Color(0.45, 1.0, 0.55)
 
@@ -292,7 +298,7 @@ class TerminalDisplay extends Control:
 		var mono := NotebookArt.type_font()
 		title = Label.new()
 		title.add_theme_font_override("font", mono)
-		title.add_theme_font_size_override("font_size", 30)
+		title.add_theme_font_size_override("font_size", TerminalScreen.TITLE_SIZE)
 		title.add_theme_color_override("font_color", Color(TerminalScreen.PHOSPHOR, 0.55))
 		box.add_child(title)
 		text = RichTextLabel.new()
