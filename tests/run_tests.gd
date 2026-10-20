@@ -50,6 +50,7 @@ func _run() -> void:
 	await test_elevator()
 	await test_notebook()
 	await test_case_pages()
+	await test_level_2_cases()
 	test_sysop_colors()
 	await test_stairwells()
 	await test_in_world_ui()
@@ -2380,9 +2381,12 @@ func test_level_2_lab(outcome: String) -> void:
 	check(not screen_text.contains("ORDER BY") and screen_text.contains("badge_log"), "the lockdown screen names badge_log but doesn't give the query")
 	check(screen_text.contains("[lb]SYSOP[rb]: two conditions?"), "the two-conditions tip is SYSOP's, not the system's")
 	check(lab.response_left > Level2Lab.RESPONSE_TIME - 5.0 and lab.clock.text.begins_with("RESPONSE  "), "WARDEN sends a security response, and the clock over the door counts down")
+	check(_game().current_case() == "lab_door" and _game().case_info("lab_door").title == Level2Lab.LAB_CASE, "the lockdown opens the lab door's case page")
 	if outcome == "killed":
 		# Too slow: the response arrives, and the lab's controllers are re-keyed.
 		var old_zone: String = level.data.lab_zone
+		lab._card._note_clues()
+		check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains("zone " + old_zone)), "reading the lab's door card notes its zone")
 		lab.response_left = 0.2
 		check(await _until(func(): return lab.phase == "caught", 5.0), "when the clock runs out, the crew is caught")
 		check(await _until(func(): return lab.phase == "escape" and lab.response_left > 0.0, 20.0), "and the escape starts over, with the clock reset")
@@ -2394,11 +2398,17 @@ func test_level_2_lab(outcome: String) -> void:
 		level.terminal_ui.terminal = lab.terminal
 		level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % old_zone)
 		check(not lab.door_puzzle.solved, "the old zone's answer no longer works")
+		var lab_page: Array = _game().case_info("lab_door").clues
+		check(lab_page.any(func(k): return k.text.contains("re-keyed")) and not lab_page.any(func(k): return k.text.contains("'%s'" % old_zone) or k.text.contains("zone " + old_zone)),
+			"the case page says the zone changed, and nothing on it names the old zone")
+		lab._card._note_clues()
+		check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains("zone " + new_zone)), "the card read again notes the new one")
 	level.terminal_ui.terminal = lab.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
 	check(not lab.door_puzzle.solved, "the zone alone isn't enough")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % level.data.lab_zone)
 	check(lab.door_puzzle.solved, "zone AND status finds the lab door's controller")
+	check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains(level.data.lab_answer)), "SYSOP's answer goes on the lab door's page")
 	level.terminal_ui.run("SELECT * FROM badge_log ORDER BY time")
 	check(lab.log_puzzle.solved, "ORDER BY time lays out the visitor log")
 	var wrong: String = lab.switches.keys().filter(func(k): return k != level.data.lab_answer)[0]
@@ -2408,6 +2418,7 @@ func test_level_2_lab(outcome: String) -> void:
 	lab.switches_locked_until = 0.0
 	lab.switches[level.data.lab_answer].interact(p)
 	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "the right switch resets it, and the door opens")
+	check(_game().case_info("lab_door").solved and _game().case_info("lab_door").how.contains(level.data.lab_answer), "and the lab door's case is solved")
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-3, 0.1, 4.0)))
 	check(await _until(func(): return lab.phase == "done" and not level.booth.locked, 20.0), "out of the lab, it's over, and the night desk terminal works")
 	check(not level.watcher.active, "the Watcher stays still: it's quiet until Pike")
@@ -2916,6 +2927,54 @@ func test_case_pages() -> void:
 	check(g.case_info("controller").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the case page too")
 	level.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % level.zone)
 	check(g.case_info("controller").clues.any(func(k): return k.text.contains(level.answer)), "SYSOP's answer is noted once the query finds it")
+	level.queue_free()
+	await process_frame
+
+
+## Floor 22's case pages: each puzzle has one, and the wing's papers fill them in.
+func test_level_2_cases() -> void:
+	print("Floor 22 case pages")
+	_game().new_run(5)
+	_game().rourke_fate = "killed"  # just the security section
+	var g := _game()
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	level.watcher.active = false
+	check(await _until(func(): return g.current_case() == "cameras", 30.0) and g.case_info("cameras").title == level.CASES.cameras, "at the booth, the cameras case is open")
+	for d in level.find_children("*", "Document", true, false):
+		d._note_clues()
+	var cams := "\n".join(PackedStringArray(g.case_info("cameras").clues.map(func(k): return k.text)))
+	check(cams.contains("GET /cameras") and cams.contains("motion"), "the camera card notes how to ask for the cameras")
+	var pin_clues: Array = g.case_info("pin").clues.map(func(k): return k.text)
+	var pins := "\n".join(PackedStringArray(pin_clues))
+	check(not g.case_info("pin").open and pins.contains("NO SHOW") and pins.contains("guards") and pins.contains("LIKE") and pins.contains("badge_log"),
+		"the booth papers are already noted on the PIN case, ready for when it opens")
+	check(not pins.contains(level.data.name) and not pins.contains(level.data.badge) and not pins.contains("Har%"), "no paper's note gives away the night lead, their badge or the query")
+	check(g.case_info("door").clues.any(func(k): return k.text.contains("GET /doors/SEC-EXIT")), "the vestibule's door card is noted on the SEC-EXIT case")
+	level.terminal_ui.terminal = level.booth
+	level.terminal_ui.run(".hint")
+	check(g.case_info("cameras").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the open case")
+	level.terminal_ui.run("GET /cameras")
+	check(g.case_info("cameras").solved and g.case_info("cameras").how.contains("CAM-2") and g.current_case() == "pin", "GET /cameras solves it; the PIN case opens next")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	check(g.case_info("pin").clues.any(func(k): return k.text.contains("suspended")) and not g.case_info("pin").solved, "Pike's suspended PIN is noted, and the case stays open")
+	level.watcher.active = false  # this test is about the pages, not the chase
+	level.terminal_ui.run(".hint")
+	check(g.case_info("pin").clues.any(func(k): return k.from == "SYSOP hint"), "the PIN hints are noted on the PIN case")
+	level.terminal_ui.run(_hint_query(level.har_puzzle.hints[-1]))
+	check(g.case_info("pin").solved and g.case_info("pin").how.contains(level.data.name), "the night lead's PIN solves it")
+	level.enter_pin()
+	for i in 5:
+		await physics_frame
+	level._on_door_checked("panel")
+	check(g.current_case() == "door" and g.case_info("door").clues.any(func(k): return k.text.contains("sensor says closed")), "checking the stuck door opens its case with what the sensor says")
+	level._on_breaker(null, level.data.breaker)
+	for i in 5:
+		await physics_frame
+	check(g.case_info("door").solved and g.case_info("door").how.contains("B-%d" % level.data.breaker), "resetting the breaker solves it")
+	check(g.current_case() == "", "every floor 22 case is closed once SEC-EXIT is open")
 	level.queue_free()
 	await process_frame
 
