@@ -27,6 +27,8 @@ var door_plates := {}
 var vault_back: Door
 var fan_trays := {}
 var trays_locked_until := 0.0
+## The terminal has found the hot rack: until then its tray's latch stays shut.
+var hot_rack_found := false
 ## The way up to Level 2. Out of service until the controller is reset.
 var elevator: Elevator
 ## Where the crew arrives from the ground floor (in the World).
@@ -34,7 +36,11 @@ var arrival_lift: Elevator
 ## Server Room C stays shut while its lock is on the faulted zone.
 var room_c_door: Door
 ## The spare coil of network cable in the cable vault.
-var cable_coil: Interactable
+var cable_coil: ItemDock
+## The emergency stairs beside the lift up: locked after hours.
+var stair_door: Door
+## Spare walkie-talkies on the NOC desk, for anyone who left theirs in the lobby.
+var spare_walkies: ItemDock
 ## Who carries cable up to Level 2: peer id -> true, the same on every machine.
 var cable_holders := {}
 
@@ -84,7 +90,9 @@ func build() -> void:
 		_gap("s", -12.0, door), _gap("s", 12.0, door),  # cable vault, break room
 		_gap("n", -12.0, door),  # Server Room C
 		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
+		{"wall": "n", "at": 5.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},  # the stairs
 	])
+	stair_door = Stairwell.build(self, geo, Vector3(5, 0, -13), 0.0, "14")
 	elevator = Elevator.create(self, geo, Vector3(0, 0, -13), 180, "14", ["22", "14", "G", "B1"], "22")
 	elevator.button.enabled = false
 	for x in [-16.0, -6.0, 6.0, 16.0]:
@@ -128,18 +136,26 @@ func build() -> void:
 	terminal.queried.connect(_on_query)
 	StickyNote.on_monitor(terminal, "where_and")
 	# The room's laminated reference card, and Mercer's note on what the statuses mean.
-	Document.place(geo, Vector3(-5.25, 0.902, 8.35), -5.0, "SERVER ROOM A - DOOR CONTROLLERS", [
+	var card := Document.place(geo, Vector3(-5.25, 0.902, 8.35), -5.0, "SERVER ROOM A - DOOR CONTROLLERS", [
 		"Each rack drives one door lock. Rack ids DC-1 to DC-8 are on the aisle end.",
 		{"before": "Every controller is listed in the table ", "filled": "door_controllers", "after": "."},
 		"Columns: id, zone, status, location, last_reset, note",
 		"Faulted lock? Reset it at its own rack. Never reset a healthy one.",
 	], true, "laminated", Vector2(0.21, 0.15))
-	Document.place(geo, Vector3(-3.55, 0.902, 8.3), 10.0, "Reminders", [
+	card.clues = [
+		{"case": "controller", "text": "Every controller is listed in the table door_controllers. Columns: id, zone, status, location, last_reset, note."},
+		{"case": "controller", "text": "Reset a faulted lock at its own rack. Never reset a healthy one."},
+	]
+	var reminders := Document.place(geo, Vector3(-3.55, 0.902, 8.3), 10.0, "Reminders", [
 		{"text": "status 'fault' = the lock relay is stuck. Needs a hand reset at the rack.", "hand": true, "author": "mercer"},
 		{"text": "status 'offline' = someone switched it off on purpose. Leave it alone.", "hand": true, "author": "mercer"},
 		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true, "author": "mercer"},
 		{"text": "- H.M.", "hand": true, "author": "mercer"},
 	], true, "note", Vector2(0.1, 0.14))
+	reminders.clues = [
+		{"case": "controller", "text": "status 'fault' means the lock relay is stuck. 'offline' means switched off on purpose: leave it alone."},
+		{"case": "controller", "text": "Zone first, then status. Plenty of faults in this building aren't yours. - H.M."},
+	]
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
 		add_light("room", p, 9.0, 1.2)
@@ -186,6 +202,21 @@ func _build_door_plates() -> void:
 		lamp.name = "Lamp"
 		door_plates[p[0]] = lamp
 		_light_plate(p[0], int(row[0]["locked"]) == 1)
+		if int(row[0]["locked"]) == 1:
+			ClueSpot.watch(plate, Vector3.ZERO, "controller", "%s door: ZONE %s, red light (stuck)." % [p[0], row[0]["zone"]], "Door plate")
+
+
+func _rack_card(pos: Vector3, facing: float, flat: bool) -> void:
+	Document.place(geo, pos, facing, "SERVER ROOM B - RACK MONITORING", [
+		"SERVER ROOM B - RACK MONITORING",
+		{"before": "Rack temperatures are logged in the table ", "filled": "racks", "after": "."},
+		"Columns: id, room, temp_c, load_pct, note",
+		"ALERT if temp_c > %d" % Level1Data.INTERLOCK_C,
+		"Running hot? Reseat that rack's fan tray.",
+	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15)).clues = [
+		{"case": "hot_rack", "text": "Rack temperatures are in the table racks. Columns: id, room, temp_c, load_pct, note."},
+		{"case": "hot_rack", "text": "ALERT if temp_c > %d. Running hot? Reseat that rack's fan tray." % Level1Data.INTERLOCK_C},
+	]
 
 
 func _light_plate(id: String, stuck: bool) -> void:
@@ -270,12 +301,21 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		Greybox.box(geo, Vector3(-15, 0.38, row), Vector3(8, 0.76, 1.0), desk_c, "NocDesk")
 		for x in [-18.0, -15.0, -12.0]:
 			Greybox.panel(geo, Vector3(x, 1.0, row - 0.3), Vector3(0.6, 0.4, 0.04), Color(0.2, 0.7, 0.4), 1.2)
-	Document.place(geo, Vector3(-15, 0.762, 4.6), 180.0, "NOC SHIFT LOG", [
+	var shift_log := Document.place(geo, Vector3(-15, 0.762, 4.6), 180.0, "NOC SHIFT LOG", [
 		"22:40  Alarms: doors on this floor won't release. Server Room A rear exit, Server Room C, Lift 1.",
 		"22:41  Facilities (Rourke) informed. Contractor called out.",
 		"22:55  Records Archive and Cold Lab faults: not ours, tickets open.",
 		{"text": "Contractor: use the terminal in Server Room A.", "hand": true},
 	], true, "paper")
+	shift_log.clues = [
+		{"case": "controller", "text": "The stuck doors on this floor: Server Room A's rear exit, Server Room C, Lift 1."},
+		{"case": "controller", "text": "The Records Archive and Cold Lab faults aren't this floor's."},
+	]
+	# A charger of spare walkie-talkies on the front desk.
+	Greybox.box(geo, Vector3(-13.5, 0.78, 1.2), Vector3(0.9, 0.04, 0.26), Color(0.12, 0.12, 0.13), "ChargingDock")
+	spare_walkies = ItemDock.walkies(geo, Vector3(-13.5, 0.8, 1.2))
+	spare_walkies.prompt = "Take a spare walkie-talkie"
+	spare_walkies.stock(6)
 	for x in [-18.0, -12.0]:
 		add_light("noc", Vector3(x, 3, 3), 7.0, 1.0, office)
 	var in_noc := Trigger.create(self, Vector3(-15, 1, 3), Vector3(13.6, 2, 11.6))
@@ -289,8 +329,11 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		Greybox.box(geo, Vector3(x, 1.0, -8.4), Vector3(2.4, 2.0, 0.6), Color(0.35, 0.36, 0.38), "CableShelf")
 	Greybox.box(geo, Vector3(-21.6, 1.0, -5.5), Vector3(0.6, 2.0, 3.0), Color(0.35, 0.36, 0.38), "CableShelf")
 	Greybox.box(geo, Vector3(-18.5, 0.4, -5.0), Vector3(2.0, 0.8, 1.0), Color(0.3, 0.28, 0.25), "Spool")
-	cable_coil = Interactable.create(geo, Vector3(-17.5, 1.25, -8.3), Vector3(0.6, 0.3, 0.5), "Take the coil of network cable", Color(0.15, 0.3, 0.75))
-	cable_coil.used.connect(_on_cable_coil)
+	# Spare coils on the shelf, one each for whoever wants one.
+	cable_coil = ItemDock.make(geo, Vector3(-17.5, 1.25, -8.3), Vector3(2.3, 0.3, 0.5), "Take a coil of network cable", "cable")
+	cable_coil.already = "You've already got a coil of cable."
+	cable_coil.add_boxes(6, 0.38, Vector3(0.32, 0.28, 0.4), Color(0.15, 0.3, 0.75), -0.15)
+	cable_coil.taken.connect(_on_cable_taken)
 	add_light("vault", Vector3(-15, 3, -6), 6.0, 0.7, office)
 	# Its back door, into the ops room, is on a fire interlock rather than WARDEN:
 	# a room full of cable stays sealed while any rack on the floor runs hot.
@@ -299,7 +342,10 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	Document.place(geo, Vector3(-10.85, 1.5, -2.89), 180.0, "Fire interlock", [
 		"FIRE INTERLOCK",
 		"This door stays sealed while any rack on this floor reads over %d°C." % Level1Data.INTERLOCK_C,
-	], false, "laminated", Vector2(0.36, 0.24))
+	], false, "laminated", Vector2(0.36, 0.24)).clues = [
+		{"case": "hot_rack", "opens": "Why won't the cable vault's back door open?", "tables": ["racks"],
+			"text": "It stays sealed while any rack on this floor reads over %d°C." % Level1Data.INTERLOCK_C},
+	]
 
 	# Server Room B: x 8..22, z -3..9. Racks on another zone; nothing to fix here.
 	Greybox.room(geo, Vector3(15, 0, 3), Vector3(14, 3.6, 12), machine, [_gap("s", -0.5, door), _gap("n", -3.0, door)])
@@ -322,6 +368,11 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 			rb += 1
 	for z in [0.0, 6.0]:
 		add_light("srb", Vector3(15, 3.6, z), 8.0, 1.0)
+	# Inside the door, the room's monitoring card: where the temperatures live and
+	# what counts as too hot (the > the hot rack's query needs, found in the world).
+	# A copy lies on Server Room A's terminal desk, where the query is typed.
+	_rack_card(Vector3(12.6, 1.5, 8.89), 0.0, false)
+	_rack_card(Vector3(-3.7, 0.902, 8.35), -5.0, true)
 
 	# Break room: x 8..22, z -9..-3. Coffee, a fridge, a table.
 	Greybox.room(geo, Vector3(15, 0, -6), Vector3(14, 3, 6), c, [_gap("n", -3.0, door), _gap("s", -3.0, door)])
@@ -367,6 +418,7 @@ func net_setup() -> void:
 
 
 func start() -> void:
+	cable_coil.stock(players.count())
 	if world:
 		# The ground floor's Rourke rode up with the crew: this one takes his place,
 		# where he stands in the arrival car.
@@ -401,6 +453,7 @@ func _on_asked() -> void:
 	terminal.locked = false
 	if not controller_puzzle.solved:
 		hud.todo("Find the door controller that keeps faulting, and reset it")
+		get_node("/root/Game").open_case("controller", "Which door controller keeps faulting?", ["door_controllers", "doors"])
 	if sync.is_host():
 		await get_tree().create_timer(WAITING_AFTER, false).timeout
 		if not controller_puzzle.solved:
@@ -470,15 +523,24 @@ func _self_test_lines() -> Array:
 
 ## Runs on the host; the result plays out on every machine.
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
+	if not hot_rack_found and hot_rack_puzzle.matches(db, result):
+		sync.event("_on_hot_rack_found")
 	if not asked or controller_puzzle.solved or not controller_puzzle.matches(db, result):
 		return
 	sync.event("_on_controller_found")
+
+
+## The query, not trial and error, opens the hot rack's tray.
+func _on_hot_rack_found() -> void:
+	hot_rack_found = true
+	terminal.print_line("> FAN TRAY LATCH RELEASED: RACK %s RUNNING HOT." % hot_rack)
 
 
 func _on_controller_found() -> void:
 	controller_puzzle.solved = true
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the one. %s, zone %s, 'fault'. reset it by hand at its rack." % [answer, zone]))
+	get_node("/root/Game").add_clue("controller", "%s is the one: zone %s, 'fault'. Reset it by hand at its rack." % [answer, zone], "SYSOP")
 	hud.todo("Reset the faulted controller at its rack")
 
 
@@ -487,6 +549,11 @@ func _on_controller_found() -> void:
 func _on_panel(_p: Node, id: String) -> void:
 	if not asked:
 		sync.event("_on_panel_result", [id, "not_yet", 0.0])
+		return
+	# The reset circuits stay dead until the terminal has found the controller, so
+	# pressing every rack can't stand in for the query.
+	if not controller_puzzle.solved:
+		sync.event("_on_panel_result", [id, "unpowered", 0.0])
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < panels_locked_until:
@@ -504,6 +571,9 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 	match outcome:
 		"not_yet":
 			hud.notice("RESET REFUSED: no maintenance session open.", 2.5, ThemeUtil.RED)
+			return
+		"unpowered":
+			hud.notice("> %s: NO POWER TO THE RESET CIRCUIT.\n> It powers up once the terminal finds the faulted controller." % id, 4.0, ThemeUtil.RED)
 			return
 		"locked":
 			panels_locked_until = now + seconds
@@ -549,6 +619,7 @@ func _on_reset(id: String) -> void:
 	for door_id in Level1Data.STUCK_DOORS:
 		_light_plate(door_id, false)
 	hud.notice("> CONTROLLER %s: RESET OK\n> ZONE %s DOORS: OK\n> LIFT 1: IN SERVICE" % [id, zone], 4.0, ThemeUtil.GREEN)
+	get_node("/root/Game").solve_case("controller", "%s, reset at its rack. Its log says VALE_I kept resetting it from Secure Lab B." % id)
 	terminal.print_line("")
 	for line in _controller_log(id):
 		terminal.print_line(line)
@@ -596,7 +667,7 @@ func _on_crew_at_lift() -> void:
 		await rourke.arrived)
 	_watch_nearest()
 	if not elevator.is_closing and not elevator.riding:
-		hud.todo("Everyone into the elevator, then press 2")
+		hud.todo("Everyone into the elevator, then press 22")
 		hud.line("l1_lift_button")
 
 
@@ -606,7 +677,9 @@ func _on_tray(_p: Node, id: String) -> void:
 	if not vault_back.locked:
 		return
 	var now := Time.get_ticks_msec() / 1000.0
-	if now < trays_locked_until:
+	if not hot_rack_found:
+		sync.event("_on_tray_result", [id, "latched", 0.0])
+	elif now < trays_locked_until:
 		sync.event("_on_tray_result", [id, "locked", trays_locked_until - now])
 	elif id == hot_rack:
 		sync.event("_on_tray_result", [id, "fixed", 0.0])
@@ -617,6 +690,8 @@ func _on_tray(_p: Node, id: String) -> void:
 func _on_tray_result(id: String, outcome: String, seconds: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	match outcome:
+		"latched":
+			hud.notice("> %s: TRAY LATCH LOCKED.\n> It releases once the terminal finds the rack over the limit." % id, 4.0, ThemeUtil.RED)
 		"locked":
 			trays_locked_until = now + seconds
 			hud.notice("TRAYS LOCKED: %d s" % int(seconds), 2.0, ThemeUtil.RED)
@@ -626,6 +701,7 @@ func _on_tray_result(id: String, outcome: String, seconds: float) -> void:
 			hud.notice("> %s: fans already fine. %d°C\n> TRAYS LOCKED: %d s" % [id, t, int(seconds)], 5.0, ThemeUtil.RED)
 		"fixed":
 			hot_rack_puzzle.solved = true
+			get_node("/root/Game").solve_case("hot_rack", "%s ran over the limit. Reseating its fan tray let the interlock go." % id)
 			db.run_silent("UPDATE racks SET temp_c = 33, note = 'fan tray reseated' WHERE id = '%s'" % id)
 			hud.notice("> %s: FANS 100%%. TEMP FALLING" % id, 3.0, ThemeUtil.GREEN)
 			await get_tree().create_timer(2.5, false).timeout
@@ -633,18 +709,10 @@ func _on_tray_result(id: String, outcome: String, seconds: float) -> void:
 			hud.notice("> FIRE INTERLOCK RELEASED: CABLE VAULT", 3.0, ThemeUtil.GREEN)
 
 
-## Host: someone took the spare cable. Everyone sees it go, and Level 2 knows who has it.
-func _on_cable_coil(p: Node) -> void:
-	if cable_holders.is_empty():
-		sync.event("_on_cable_taken", [players.id_of(p)])
-
-
+## Someone took a coil of cable (every machine): Level 2 knows who carries one.
 func _on_cable_taken(id: int) -> void:
 	cable_holders[id] = true
-	cable_coil.enabled = false
-	cable_coil.visible = false
 	if id == players.id_of(player):
-		player.inventory.add("cable")
 		hud.notice("You sling the coil of network cable over your shoulder.", 3.0)
 
 

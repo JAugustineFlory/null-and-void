@@ -80,6 +80,9 @@ func _ready() -> void:
 	notebook.player = player
 	notebook.terminal_ui = terminal_ui
 	add_child(notebook)
+	# While it's open, subtitles go above the book instead of across its pages.
+	notebook.opened.connect(func(): hud.subtitles_on_top(true))
+	notebook.closed.connect(func(): if not terminal_ui.visible: hud.subtitles_on_top(false))
 	inventory_screen = InventoryScreen.create(self, player, hud)
 	active = true
 	sync.begin_when_ready(start)
@@ -256,7 +259,7 @@ Ctrl  crouch, slide, roll
 Space  jump     W + Space  vault, mantle, grab a ledge or pipe
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
-Tab  your notebook: notes, tables, Field Notes (1-4 turn to a tab)
+Tab  your notebook: work order, cases, tables, Field Notes (1-4 turn to a tab)
      reading, push the cursor to a screen edge to look that way; Tab also closes menus
 1-4  take out a hotbar item     I  inventory: choose what's on the hotbar
 V (hold)  talk on the radio, once you have one
