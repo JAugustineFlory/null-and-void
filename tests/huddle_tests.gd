@@ -185,6 +185,9 @@ func _at_mark(home, mark: String) -> bool:
 ## The punch bag drill, solo: it only swings at someone standing by it, a miss
 ## costs nothing, and a block lets the crew move on to the huddle.
 func _spar(home, p) -> void:
+	var net: Node = _tree.root.get_node("/root/Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()  # in memory, so tests never touch a real save
 	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag, before the huddle")
 	var swung := await _until(func(): return home.swing_in, 200)
 	_check.call(not swung, "the bag leaves you be while you're nowhere near it")
@@ -200,6 +203,8 @@ func _spar(home, p) -> void:
 	p.combat.raise_guard()
 	_check.call(await _until(func(): return home.spar_blocked.size() == 1, 120), "right-clicking as it swings in blocks it")
 	_check.call(p.health == health, "blocking it costs nothing either")
+	_check.call(not net.profile.earned.has(CrewVitals.FIRST_BLOCK), "and it's practice: the punch bag never earns the High-tops")
+	net.profile = real_profile
 
 
 func test_flashback() -> void:

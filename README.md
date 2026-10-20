@@ -26,6 +26,7 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 Newest first. Floors are listed by their in-game floor number.
 
 ### 2026-10-20
+- **Added:** block a hit in a real fight to unlock the High-tops for everyone in the crew. The garage punch bag doesn't count.
 - **New:** dress your character in the co-op lobby. Crew, Look and Gear tabs let you pick hair, hat, top, jacket, glasses, earrings and more, a colour for each, and the colour of your flashlight, walkie, notebook and terminal screen. A shared terminal takes the screen colour of whoever sat down first. Your name and picks are saved for next time.
 - **Added:** the crew jots down what people tell them. Spoken tasks go on the Work order, and facts go on the case page or under Other notes, so a missed line can be read back.
 - **Added:** the garage's folding chairs can be sat on.
