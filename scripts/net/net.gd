@@ -13,13 +13,15 @@ const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Ha
 
 ## peer id -> player name, identical on every machine.
 var roster := {}
-## peer id -> how they look, identical on every machine: {color, skin, crew, body}.
-## crew is who they play (a PlayableCrew slug: voice and body type) and color
-## their polo (CharacterLooks.crew index). skin is a
-## CharacterLooks.SKIN_TONES index (-1: the default); body (1 or 2) comes with the crew member.
+## peer id -> their whole loadout (Cosmetics.clean), identical on every machine:
+## crew member (voice and body type), skin, and an item and color per worn slot and tool.
 var looks := {}
-## What this player picks in the lobby; the host gives them the color if it's free.
-var wanted_look := {"color": -1, "skin": -1, "crew": ""}
+## What this player picked in the lobby: a partial loadout (Cosmetics.trim).
+## Anything left out follows their place in the player order, so teammates who
+## never open the picker still look different.
+var wanted_look := {}
+## This player's saved name, picks and unlocks (user://profile.cfg).
+var profile: Profile
 var player_name := ""
 var in_game := false
 ## Why the last session ended, for the menu to show.
@@ -28,7 +30,9 @@ var transport: NetTransport = NetTransport.Enet.new()
 
 
 func _ready() -> void:
-	player_name = NAMES[randi() % NAMES.size()]
+	profile = Profile.open()
+	player_name = profile.name if profile.name != "" else NAMES[randi() % NAMES.size()]
+	wanted_look = profile.loadout.duplicate(true)
 	_bind_key("radio_talk", KEY_V)
 	_bind_key("voice_toggle", KEY_B)
 	var mp := get_tree().get_multiplayer()
@@ -56,36 +60,27 @@ func display_name(peer_id: int) -> String:
 	return str(roster.get(peer_id, "Player %d" % peer_id))
 
 
-## How `peer_id` looks. `fallback` (their place in the player order) picks
-## their color and crew member when they never chose.
+## `peer_id`'s loadout. `fallback` (their place in the player order) fills in
+## whatever they never chose.
 func look_of(peer_id: int, fallback: int) -> Dictionary:
 	if looks.has(peer_id):
 		return looks[peer_id]
-	var out := clean_look(wanted_look if not is_online() else {})
-	if out.color < 0:
-		out.color = fallback
-	if out.crew == "":
-		out = clean_look(out.merged({"crew": PlayableCrew.slugs()[posmod(fallback, PlayableCrew.CAST.size())]}, true))
-	return out
+	return Cosmetics.clean(wanted_look if not is_online() else {}, fallback)
 
 
-## A look with every field in range. The crew member fixes the body type.
-static func clean_look(choice: Dictionary) -> Dictionary:
-	var color := int(choice.get("color", -1))
-	var skin := int(choice.get("skin", -1))
-	var crew: Dictionary = PlayableCrew.info(str(choice.get("crew", "")))
-	return {
-		"color": color if color >= 0 and color < MAX_PLAYERS else -1,
-		"skin": skin if skin >= 0 and skin < CharacterLooks.SKIN_TONES.size() else -1,
-		"crew": crew.get("slug", ""),
-		"body": crew.get("body", 1),
-	}
+## The color `peer`'s terminal skin draws in: the whole screen when they sat
+## down first, and their own prompt line.
+func terminal_color(peer: int) -> Color:
+	return look_of(peer, maxi(player_ids().find(peer), 0)).terminal.color
 
 
-## Change part of this player's look in the lobby, e.g. {"skin": 2} or
-## {"crew": "dana"}. Teammates can pick the same as each other.
+## Change part of this player's loadout in the lobby, e.g. {"skin": 2},
+## {"crew": "dana"} or {"top": {"color": Color.RED}}. Saved to their profile.
+## Teammates can pick the same as each other.
 func choose_look(change: Dictionary) -> void:
-	wanted_look.merge(change, true)
+	wanted_look = Cosmetics.trim(Cosmetics.merge(wanted_look, change), profile)
+	profile.loadout = wanted_look.duplicate(true)
+	profile.save()
 	if not is_online():
 		roster_changed.emit()
 	elif is_host():
@@ -94,23 +89,34 @@ func choose_look(change: Dictionary) -> void:
 		_request_look.rpc_id(1, wanted_look)
 
 
+## The name teammates see, saved to the profile.
+func set_player_name(n: String) -> void:
+	player_name = n.strip_edges().left(16) if n.strip_edges() != "" else "Player"
+	profile.name = n.strip_edges().left(16)
+	profile.save()
+
+
+## This player earned an achievement or found a secret ("secret:<id>"): own
+## what it unlocks and say so on `hud`. Each machine calls it for its own player.
+func earn(source: String, hud: Node = null) -> Array:
+	var got := profile.earn(source)
+	for k in got:
+		var it := Cosmetics.info(k.get_slice("/", 0), k.get_slice("/", 1))
+		if hud:
+			hud.notice("Unlocked: %s" % it.name, 4.0)
+	return got
+
+
 @rpc("any_peer", "reliable")
 func _request_look(choice: Dictionary) -> void:
 	if is_host() and not in_game and roster.has(multiplayer.get_remote_sender_id()):
 		_assign_look(multiplayer.get_remote_sender_id(), choice)
 
 
+## The host checks a loadout against the catalogue (it trusts what they own)
+## and tells everyone.
 func _assign_look(peer: int, choice: Dictionary) -> void:
-	var look := clean_look(choice)
-	# Anything left unpicked keeps what they had, else follows their place in the order.
-	var had: Dictionary = looks.get(peer, {})
-	var fallback := maxi(roster.keys().find(peer), 0)
-	if look.color < 0:
-		look.color = had.get("color", fallback % MAX_PLAYERS)
-	if look.crew == "":
-		look.crew = had.get("crew", PlayableCrew.slugs()[fallback % PlayableCrew.CAST.size()])
-	look = clean_look(look)
-	looks[peer] = look
+	looks[peer] = Cosmetics.clean(choice, maxi(roster.keys().find(peer), 0))
 	_set_roster.rpc(roster, looks)
 	roster_changed.emit()
 
@@ -232,8 +238,6 @@ func _set_roster(names: Dictionary, picked: Dictionary) -> void:
 	var first := roster.is_empty()
 	roster = names
 	looks = picked
-	if looks.has(multiplayer.get_unique_id()):
-		wanted_look = looks[multiplayer.get_unique_id()].duplicate()
 	roster_changed.emit()
 	if first:
 		joined.emit()
