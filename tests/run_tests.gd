@@ -22,6 +22,8 @@ const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coo
 func _run() -> void:
 	# The full-screen notebook and terminal; test_in_world_ui covers the held and on-screen ones.
 	_game().diegetic_ui = false
+	# Unlocks are earned as levels finish: keep them in memory, never in a real save.
+	root.get_node("Net").profile = Profile.new()
 	var only := _groups_from_args()
 	for g in only:
 		if g not in GROUPS:
@@ -2325,10 +2327,12 @@ func test_level_2_wall_controls() -> void:
 	var done := [false]
 	level.completed.connect(func(): done[0] = true)
 	await _frames(100)
+	root.get_node("Net").profile.earned.erase("achievement:floor_22")
 	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
 	await create_timer(6.0).timeout
 	var card: Node = level.get_node_or_null("EndCard")
 	check(card != null and card.find_children("*", "Label", true, false).any(func(l): return l.text == "To be continued."), "down the stairs, a black card reads \"To be continued.\"")
+	check(root.get_node("Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its achievement")
 	for i in 20:
 		if done[0]:
 			break
@@ -2601,8 +2605,11 @@ func _check_crew_beaten(level: Node, lab: Level2Lab, p: Player, r: Rourke) -> vo
 	var news: NewsEnding = level.get_node("NewsEnding")
 	check(news.paper != null and NewsEnding.HEADLINE.contains("IT CONTRACTORS"), "the frame worked: the paper says the crew killed her")
 	check(lab.phase == "fight" and _game().rourke_fate == "unknown", "the story doesn't move on")
+	var net = root.get_node("Net")
+	net.profile.earned.erase("secret:ending_news")
 	news.skip()
 	check(await _until(func(): return level.get_node_or_null("NewsEnding") == null and p.health == 100.0, 20.0), "then you come to, healed")
+	check(await _until(func(): return net.profile.earned.has("secret:ending_news"), 5.0), "seeing the news ending earns its secret")
 	check(_in_lab_room(level, p) and r.hits_left == r.max_hits and r.wounds.shown() == 0, "back in the lab, and the fight starts over with him unhurt")
 	await _frames(30)
 
