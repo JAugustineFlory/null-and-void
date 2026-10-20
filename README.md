@@ -27,6 +27,7 @@ Newest first. Floors are listed by their in-game floor number.
 
 ### 2026-10-20
 - **New:** sit down on a chair (E) or on the floor (Z). Running, jumping and climbing tire you; stand still to get your breath back.
+- **New:** the crew's garage home base is furnished like a 1997 startup: bare bulbs, folding tables, CRTs, a whiteboard, pizza boxes, the Byte-Right banner, and *Easy SQL* on the bench.
 - **New:** the game opens in the crew's garage, with a short controls intro. The crew huddles round *Easy SQL* to read a chapter aloud and vote on its quiz together, and flashes back to the garage when a new chapter is needed.
 - **Changed:** Maddison is there in person in the garage, and at the bench whenever the crew huddles round the book.
 - **Added:** a punch bag in the garage to practise blocking before the job.

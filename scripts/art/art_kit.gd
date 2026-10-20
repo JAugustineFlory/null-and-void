@@ -171,11 +171,12 @@ static func whiteboard(parent: Node, pos: Vector3, facing_deg: float, text: Stri
 	var l := Label3D.new()
 	l.text = text
 	l.font = NotebookArt.hand_font()
-	l.font_size = 48
+	l.font_size = 64
 	l.pixel_size = 0.0016
 	l.width = size.x / l.pixel_size * 0.9
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	l.offset = Vector2(-l.width / 2, 0)  # a left-aligned box starts at the label's origin: centre it on the board
 	l.modulate = Color(0.1, 0.2, 0.55)
 	l.outline_size = 0
 	l.position = Vector3(0, 0, -0.02)

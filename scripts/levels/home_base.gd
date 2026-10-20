@@ -133,6 +133,7 @@ func build() -> void:
 	flashback_camera.position = BENCH + Vector3(1.6, 2.3, 3.0)
 	flashback_camera.look_at_from_position(flashback_camera.position, BENCH + Vector3(1.2, 0.6, 0), Vector3.UP)
 	spawn = Transform3D(Basis(), Vector3(-0.5, 0.1, 3.0))
+	DressHomeBase.apply(self)  # furniture and materials (Graphics thread)
 
 
 ## The crew's van, parked nose to the roll-up door: a hollow body with a sliding
