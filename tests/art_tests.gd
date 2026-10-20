@@ -480,6 +480,16 @@ func _check_polish(level: Node3D, label: String) -> void:
 		if text.x > paper.x or text.y > paper.y or l.font_size < 16:
 			spill.append(l.text.get_slice("\n", 0))
 	check(spill.is_empty(), "%s: every poster's text fits on its paper %s" % [label, spill])
+	for holder in level.geo.get_children():
+		if holder.name.begins_with("Stairwell"):
+			var plate: Node = holder.get_node_or_null("LandingNumber")
+			var lamp: Node = holder.get_node_or_null("EmergencyLight")
+			var colliders: Array = holder.find_children("*", "CollisionObject3D", true, false)
+			var ours := 0
+			for c in colliders:
+				if plate and plate.is_ancestor_of(c) or lamp and lamp.is_ancestor_of(c):
+					ours += 1
+			check(plate != null and lamp != null and holder.get_node_or_null("Handrail") != null and ours == 0, "%s: the fire stairs have their floor plate, emergency light and handrail, all visual only" % label)
 	var lights := 0
 	var unshadowed := []
 	for id in level.lights:
