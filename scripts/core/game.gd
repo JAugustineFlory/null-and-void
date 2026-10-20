@@ -75,6 +75,8 @@ var notebook_todo: Array[Dictionary] = []
 ## {id, title, open, solved, how, tables, clues: [{text, from}]}. Clues read before
 ## the case opens are kept and show once it does.
 var notebook_cases: Array[Dictionary] = []
+## Voice line ids already jotted down this run, so a replayed line isn't jotted twice.
+var notebook_jotted: Array[String] = []
 
 
 func _ready() -> void:
@@ -100,6 +102,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_written.clear()
 	notebook_todo.clear()
 	notebook_cases.clear()
+	notebook_jotted.clear()
 	inventory.clear()
 
 
@@ -250,6 +253,31 @@ func case_info(id: String) -> Dictionary:
 	return {}
 
 
+## The crew jots down a spoken line that sets a task or states a needed fact, so a
+## player who missed it can read it back (plan/teaching/dialogue-notes-and-commentary.md).
+## `line` is its VoiceLines entry: "jot" is the paraphrase; "todo": true puts it on the
+## work order, "case" on that case page if it's open, otherwise under Other notes.
+## Secret lines are never jotted, and each line only once a run. True if jotted.
+func jot(id: String, line: Dictionary) -> bool:
+	var text := str(line.get("jot", ""))
+	if text == "" or line.get("secret", false) or id in notebook_jotted:
+		return false
+	notebook_jotted.append(id)
+	var who := str(line.get("speaker", ""))
+	if not who in ["PA", "WARDEN"]:
+		who = who.capitalize()  # as the subtitle names them, never the cast list's "who"
+	if line.get("todo", false):
+		set_todo(text)
+	elif case_info(str(line.get("case", ""))).get("open", false):
+		add_clue(line["case"], text, who)
+	else:
+		# A fact with no case of its own, or whose case isn't open (yet, or on a floor
+		# that opens none), goes under Other notes, whatever case is open.
+		notebook_written.append({"label": who, "text": text, "kind": "jot", "case": ""})
+		notebook_changed.emit()
+	return true
+
+
 ## The task the player is on now, or "".
 func current_todo() -> String:
 	return notebook_todo[-1].text if not notebook_todo.is_empty() and not notebook_todo[-1].done else ""
@@ -257,7 +285,7 @@ func current_todo() -> String:
 
 ## The notebook as plain data, for saving.
 func notebook_data() -> Dictionary:
-	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true), "cases": notebook_cases.duplicate(true)}
+	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true), "cases": notebook_cases.duplicate(true), "jotted": notebook_jotted.duplicate()}
 
 
 func load_notebook(data: Dictionary) -> void:
@@ -266,6 +294,7 @@ func load_notebook(data: Dictionary) -> void:
 	notebook_written.assign(data.get("written", []))
 	notebook_todo.assign(data.get("todo", []))
 	notebook_cases.assign(data.get("cases", []))
+	notebook_jotted.assign(data.get("jotted", []))
 	notebook_changed.emit()
 
 
