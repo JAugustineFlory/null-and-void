@@ -71,6 +71,7 @@ static func apply(level: LevelBase) -> void:
 	_server_room_c(dress)
 
 	ArtDress.link_light_panels(level)
+	ArtKit.dress_stairwells(level)
 	ArtMood.polish(level.environment)
 	ArtDress.explain_dark(level, DARK_CHECK, 4.0)
 	ArtSkyline.backdrop(level, "level_1")  # 14 floors up, for any window onto the outside
