@@ -1,6 +1,9 @@
 extends Control
-## Co-op lobby: host a game or join a friend's, pick your look, see who's in,
-## start together.
+## Co-op lobby: host a game or join a friend's, pick who you play and how you
+## look, see who's in, start together.
+##
+## Three columns: a turning figure of your look, the picker (Crew, Look and
+## Gear tabs), and the session. Picks are saved to your profile.
 
 ## How fast the look preview turns, in degrees a second.
 const PREVIEW_TURN := 30.0
@@ -13,12 +16,13 @@ var _host_btn: Button
 var _join_btn: Button
 var _start_btn: Button
 var _connect_box: Control
-## One button per crew polo color, in CharacterLooks.crew order.
-var _look_buttons: Array[Button] = []
 ## One per CharacterLooks.SKIN_TONES.
 var _skin_buttons: Array[Button] = []
 ## One per crew member, by PlayableCrew slug.
 var _crew_buttons := {}
+## Per slot (Cosmetics.all_slots): the item list and its color.
+var _item_lists := {}
+var _color_buttons := {}
 ## Who you're playing, under the preview.
 var _crew_caption: Label
 var _preview_pivot: Node3D
@@ -38,26 +42,31 @@ func _ready() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 32)
+	columns.add_theme_constant_override("separation", 28)
 	center.add_child(columns)
 	columns.add_child(_build_preview())
+
+	var picker := VBoxContainer.new()
+	picker.custom_minimum_size = Vector2(540, 0)
+	picker.add_theme_constant_override("separation", 14)
+	columns.add_child(picker)
+	_name = _field(picker, "Your name", _net().player_name)
+	_name.max_length = 16
+	_name.text_changed.connect(func(t): _net().set_player_name(t))
+	_build_tabs(picker)
+
 	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(760, 0)
+	box.custom_minimum_size = Vector2(560, 0)
 	box.add_theme_constant_override("separation", 14)
 	columns.add_child(box)
-
 	var title := ThemeUtil.label("CO-OP", 64, ThemeUtil.GREEN)
 	title.add_theme_font_override("font", ThemeUtil.mono())
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	var sub := ThemeUtil.label("Up to %d players. One hosts, the others join by address." % _net().MAX_PLAYERS, 18, ThemeUtil.DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(sub)
-
-	_name = _field(box, "Your name", _net().player_name)
-	_name.max_length = 16
-	_name.text_changed.connect(func(t): _net().player_name = t.strip_edges() if t.strip_edges() != "" else "Player")
-	_build_look_row(box)
 
 	_connect_box = VBoxContainer.new()
 	_connect_box.add_theme_constant_override("separation", 10)
@@ -151,7 +160,7 @@ func _refresh() -> void:
 		var swatch := ColorRect.new()
 		swatch.custom_minimum_size = Vector2(18, 18)
 		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		swatch.color = _look_color(_net().look_of(id, ids.find(id)).color)
+		swatch.color = _net().look_of(id, ids.find(id)).top.color
 		row.add_child(swatch)
 		row.add_child(ThemeUtil.label("%s%s%s" % [roster[id], tag, you], 22))
 		_list.add_child(row)
@@ -165,45 +174,104 @@ func _refresh() -> void:
 	_refresh_looks()
 
 
-## This player's look now ({color, skin, crew, body}): the host's say once
-## connected, else their pick. A skin of -1 is shown as the polo color's own.
+## This player's whole loadout now: the host's say once connected, else their
+## picks with the rest filled in (Cosmetics.clean).
 func my_look() -> Dictionary:
-	var look: Dictionary = _net().look_of(multiplayer.get_unique_id(), maxi(int(_net().wanted_look.color), 0)).duplicate()
-	if look.skin < 0:
-		look.skin = CharacterLooks.SKIN_TONES.find(CharacterLooks.crew(look.color).skin)
-	return look
+	var me := multiplayer.get_unique_id()
+	return _net().look_of(me, maxi(_net().roster.keys().find(me), 0))
 
 
-## Who you play (one row per body type, 1 and 2), then the polo color (one
-## each) and skin tone.
-func _build_look_row(parent: Control) -> void:
+## Crew: who you play (voice and body type). Look: skin and what you wear.
+## Gear: your tools' skins.
+func _build_tabs(parent: Control) -> void:
+	var tabs := TabContainer.new()
+	tabs.name = "Customize"
+	tabs.add_theme_font_size_override("font_size", 20)
+	parent.add_child(tabs)
+	var crew := _tab(tabs, "Crew")
 	for body in [1, 2]:
-		var row: Array[Button] = []
+		crew.add_child(ThemeUtil.label("Body %d" % body, 20))
+		var row := HFlowContainer.new()
+		row.add_theme_constant_override("h_separation", 8)
+		row.add_theme_constant_override("v_separation", 8)
+		crew.add_child(row)
 		for slug in PlayableCrew.on_body(body):
 			var b := _swatch("Crew_" + slug, {"crew": slug})
 			b.text = PlayableCrew.info(slug).name.get_slice(" ", 0)
-			b.custom_minimum_size = Vector2(88, 40)
-			b.add_theme_font_size_override("font_size", 18)
+			b.custom_minimum_size = Vector2(76, 40)
+			b.add_theme_font_size_override("font_size", 17)
 			_crew_buttons[slug] = b
-			row.append(b)
-		_look_row(parent, "Body %d" % body, row)
-	for i in _net().MAX_PLAYERS:
-		_look_buttons.append(_swatch("Look%d" % (i + 1), {"color": i}))
+			row.add_child(b)
+	var look := _tab(tabs, "Look")
+	var skins := _row(look, "Skin")
 	for i in CharacterLooks.SKIN_TONES.size():
-		_skin_buttons.append(_swatch("Skin%d" % (i + 1), {"skin": i}))
-	_look_row(parent, "Your color", _look_buttons)
-	_look_row(parent, "Skin", _skin_buttons)
+		var b := _swatch("Skin%d" % (i + 1), {"skin": i})
+		b.custom_minimum_size = Vector2(40, 40)
+		_skin_buttons.append(b)
+		skins.add_child(b)
+	for slot in Cosmetics.WORN_SLOTS:
+		_slot_row(look, slot)
+	var gear := _tab(tabs, "Gear")
+	for slot in Cosmetics.TOOL_SLOTS:
+		_slot_row(gear, slot)
 
 
-func _look_row(parent: Control, label_text: String, buttons: Array[Button]) -> void:
+func _tab(tabs: TabContainer, title: String) -> VBoxContainer:
+	var page := VBoxContainer.new()
+	page.name = title
+	page.add_theme_constant_override("separation", 8)
+	var pad := MarginContainer.new()
+	pad.name = title
+	for side in ["left", "right", "top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + side, 12)
+	pad.add_child(page)
+	tabs.add_child(pad)
+	return page
+
+
+func _row(parent: Control, label_text: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 8)
 	parent.add_child(row)
 	var l := ThemeUtil.label(label_text, 20)
-	l.custom_minimum_size = Vector2(170, 0)
+	l.custom_minimum_size = Vector2(120, 0)
 	row.add_child(l)
-	for b in buttons:
-		row.add_child(b)
+	return row
+
+
+## One slot: the items you can pick and a color for it. Items you don't own
+## yet show as locked with how to unlock them; secret ones don't show at all.
+func _slot_row(parent: Control, slot: String) -> void:
+	var row := _row(parent, Cosmetics.SLOT_NAMES[slot])
+	var list := OptionButton.new()
+	list.name = "Item_" + slot
+	list.custom_minimum_size = Vector2(260, 40)
+	list.add_theme_font_size_override("font_size", 18)
+	list.focus_mode = Control.FOCUS_NONE
+	var profile: Profile = _net().profile
+	for it in Cosmetics.items_in(slot):
+		var owned := profile.has_item(Cosmetics.key(slot, it.item))
+		if not owned and Cosmetics.is_secret(it):
+			continue
+		var i := list.item_count
+		list.add_item(it.name if owned else "%s (locked)" % it.name)
+		list.set_item_metadata(i, it.item)
+		list.set_item_disabled(i, not owned)
+		if not owned:
+			list.set_item_tooltip(i, str(it.get("hint", "")))
+	list.item_selected.connect(func(i): _net().choose_look({slot: {"item": list.get_item_metadata(i)}}))
+	row.add_child(list)
+	_item_lists[slot] = list
+	var color := ColorPickerButton.new()
+	color.name = "Color_" + slot
+	color.custom_minimum_size = Vector2(64, 40)
+	color.edit_alpha = false
+	color.focus_mode = Control.FOCUS_NONE
+	# The figure follows the picker as it moves; the pick is kept when it closes.
+	color.color_changed.connect(func(c): _show_look(Cosmetics.merge(my_look(), {slot: {"color": c}})))
+	color.popup_closed.connect(func(): _net().choose_look({slot: {"color": color.color}}))
+	row.add_child(color)
+	_color_buttons[slot] = color
 
 
 func _swatch(button_name: String, change: Dictionary) -> Button:
@@ -217,13 +285,20 @@ func _swatch(button_name: String, change: Dictionary) -> Button:
 
 func _refresh_looks() -> void:
 	var mine := my_look()
-	for i in _look_buttons.size():
-		_paint(_look_buttons[i], _look_color(i), i == mine.color)
 	for i in _skin_buttons.size():
 		_paint(_skin_buttons[i], CharacterLooks.SKIN_TONES[i], i == mine.skin)
 	for slug in _crew_buttons:
 		var b: Button = _crew_buttons[slug]
 		_paint(b, Color(0.15, 0.17, 0.18), slug == mine.crew)
+	for slot in _item_lists:
+		var list: OptionButton = _item_lists[slot]
+		for i in list.item_count:
+			if list.get_item_metadata(i) == mine[slot].item:
+				list.select(i)
+		_color_buttons[slot].color = mine[slot].color
+		var empty: bool = mine[slot].item == "none"
+		_color_buttons[slot].disabled = empty
+		_color_buttons[slot].modulate.a = 0.25 if empty else 1.0
 	var who := PlayableCrew.info(mine.crew)
 	_crew_caption.text = "%s, %s\n%s" % [who.name, who.age, who.about] if not who.is_empty() else ""
 	_show_look(mine)
@@ -237,10 +312,6 @@ func _paint(b: Button, color: Color, picked: bool) -> void:
 	style.border_color = Color(0.95, 0.95, 0.9)
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		b.add_theme_stylebox_override(state, style)
-
-
-func _look_color(index: int) -> Color:
-	return ArtPalette.CREW_COLORS[posmod(index, ArtPalette.CREW_COLORS.size())]
 
 
 ## A turning figure of the picked look, left of the form.
@@ -297,7 +368,7 @@ func _show_look(look: Dictionary) -> void:
 	_preview_look = look
 	if _preview_rig:
 		_preview_rig.queue_free()
-	_preview_rig = CharacterRig.build(_preview_pivot, NetPlayers.crew_look(look))
+	_preview_rig = CharacterRig.build(_preview_pivot, NetPlayers.loadout_look(look))
 	_preview_rig.play("idle")
 
 

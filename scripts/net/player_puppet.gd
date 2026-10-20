@@ -74,11 +74,14 @@ func _build(look: Dictionary) -> void:
 	_head.position.y = STAND_HEIGHT - 0.18
 	add_child(_head)
 	var lamp := MeshInstance3D.new()
+	lamp.name = "Lamp"
 	var lm := BoxMesh.new()
 	lm.size = Vector3(0.06, 0.06, 0.16)
 	lamp.mesh = lm
 	lamp.position = Vector3(0.18, -0.15, -0.12)
-	lamp.material_override = Greybox.mat(Color(0.1, 0.1, 0.1))
+	# In their flashlight skin's color.
+	var torch = look.get("tools", {}).get("flashlight", {}).get("color")
+	lamp.material_override = Greybox.mat(torch if torch is Color else Color(0.1, 0.1, 0.1))
 	_head.add_child(lamp)
 
 	_light = SpotLight3D.new()
