@@ -222,6 +222,16 @@ func on_request(line: String, response: Dictionary, terminal_ui: TerminalUI) -> 
 	requested.emit(line, response, terminal_ui)
 
 
+## The case page the next hint is for, or "".
+func hint_case() -> String:
+	if locked:
+		return ""
+	for p in puzzles:
+		if not p.solved:
+			return p.case_id
+	return ""
+
+
 func next_hint() -> String:
 	if locked:
 		return "This terminal is locked. Find a way to authorize it."

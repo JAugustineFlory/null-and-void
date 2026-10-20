@@ -101,7 +101,7 @@ func _file(player: Node) -> void:
 		return
 	var level := _level()
 	if level and level.get("notebook") and not level.notebook.is_open():
-		level.notebook.open(NotebookPages.Page.NOTES)  # open at the page it goes on
+		level.notebook.open(NotebookPages.Page.TABLES)  # open at the page it goes on
 	if not player.file_into_notebook(self, on_terminal):
 		_write_down()  # hands busy: it still goes in
 		return

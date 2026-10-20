@@ -12,6 +12,8 @@ var ordered: bool
 var hints: Array
 var hint_index := 0
 var solved := false
+## The notebook case page this puzzle belongs to (its own id unless set).
+var case_id := ""
 
 
 func _init(p_id: String, p_solution: String, p_columns: Array, p_ordered: bool, p_hints: Array = []) -> void:
@@ -20,6 +22,7 @@ func _init(p_id: String, p_solution: String, p_columns: Array, p_ordered: bool, 
 	columns = p_columns
 	ordered = p_ordered
 	hints = p_hints
+	case_id = p_id
 
 
 func matches(db: FacilityDB, result: Dictionary) -> bool:

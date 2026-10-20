@@ -67,6 +67,10 @@ const TICKET := {
 ## The ticket's task list, in the character's hand as tasks come up:
 ## {text, done, filled}. `filled` is what was written in once it was done.
 var notebook_todo: Array[Dictionary] = []
+## Case pages: one per puzzle, so everything found about it is in one place.
+## {id, title, open, solved, how, tables, clues: [{text, from}]}. Clues read before
+## the case opens are kept and show once it does.
+var notebook_cases: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -89,6 +93,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_tables.clear()
 	notebook_written.clear()
 	notebook_todo.clear()
+	notebook_cases.clear()
 	inventory.clear()
 
 
@@ -123,10 +128,22 @@ func discover_table(table: String, columns: Array) -> void:
 	notebook_changed.emit()
 
 
-## Write a terminal line into the notebook, under the player's own label.
-func write_note(label: String, text: String, kind: String) -> void:
-	notebook_written.append({"label": label, "text": text, "kind": kind})
+## Write a terminal line into the notebook, under the player's own label. It goes
+## on `case_id`'s page (at a terminal: the case its hints are for), else on the
+## case being worked on (current_case), or under Other notes.
+func write_note(label: String, text: String, kind: String, case_id: String = "") -> void:
+	if case_id == "" or not case_info(case_id).get("open", false):
+		case_id = current_case()
+	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
 	notebook_changed.emit()
+
+
+## The case being worked on: the newest open one not yet solved, or "".
+func current_case() -> String:
+	for c in notebook_cases:
+		if c.open and not c.solved:
+			return c.id
+	return ""
 
 
 ## A new task on the job ticket; the one before it is ticked off. "" ticks off
@@ -173,6 +190,60 @@ func ticket_number() -> String:
 	return "WO-%05d" % (run_seed % 100000)
 
 
+func _case(id: String) -> Dictionary:
+	for c in notebook_cases:
+		if c.id == id:
+			return c
+	var c := {"id": id, "title": "", "open": false, "solved": false, "how": "", "tables": [], "clues": []}
+	notebook_cases.append(c)
+	return c
+
+
+## Open a case page: `title` is the question, never its answer; `tables` are the
+## ones that matter (the page only names those this player has found). True if new.
+func open_case(id: String, title: String, tables: Array = []) -> bool:
+	var c := _case(id)
+	if c.open:
+		return false
+	c.title = title
+	c.open = true
+	c.tables = tables.duplicate()
+	# The newest open case goes on top.
+	notebook_cases.erase(c)
+	notebook_cases.insert(0, c)
+	notebook_changed.emit()
+	return true
+
+
+## Note a clue on a case page (once). `from` says where it was read. True if new.
+func add_clue(id: String, text: String, from: String) -> bool:
+	var c := _case(id)
+	for k in c.clues:
+		if k.text == text:
+			return false
+	c.clues.append({"text": text, "from": from})
+	if c.open:
+		notebook_changed.emit()
+	return c.open
+
+
+## Close a case: solved, with what was found written in.
+func solve_case(id: String, how: String) -> void:
+	var c := _case(id)
+	if c.solved:
+		return
+	c.solved = true
+	c.how = how
+	notebook_changed.emit()
+
+
+func case_info(id: String) -> Dictionary:
+	for c in notebook_cases:
+		if c.id == id:
+			return c
+	return {}
+
+
 ## The task the player is on now, or "".
 func current_todo() -> String:
 	return notebook_todo[-1].text if not notebook_todo.is_empty() and not notebook_todo[-1].done else ""
@@ -180,7 +251,7 @@ func current_todo() -> String:
 
 ## The notebook as plain data, for saving.
 func notebook_data() -> Dictionary:
-	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true)}
+	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true), "cases": notebook_cases.duplicate(true)}
 
 
 func load_notebook(data: Dictionary) -> void:
@@ -188,6 +259,7 @@ func load_notebook(data: Dictionary) -> void:
 	notebook_tables = data.get("tables", {}).duplicate(true)
 	notebook_written.assign(data.get("written", []))
 	notebook_todo.assign(data.get("todo", []))
+	notebook_cases.assign(data.get("cases", []))
 	notebook_changed.emit()
 
 
