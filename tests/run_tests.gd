@@ -1212,6 +1212,9 @@ func test_coop_notes_huddle() -> void:
 	var c2_id: int = ids[2]
 	var host_seen_by_c1: PlayerPuppet = levels[1].players.puppet(h_id)
 	check(host_seen_by_c1.get_prompt(levels[1].player) == "[E] Huddle up to share notes", "E on a crewmate offers to huddle up")
+	host_seen_by_c1.downed = true
+	check(not host_seen_by_c1.get_prompt(levels[1].player).contains("huddle"), "a crewmate who's down is helped up, not huddled with")
+	host_seen_by_c1.downed = false
 	host_seen_by_c1.interact(levels[1].player)
 	await _frames(10)
 	check(levels.all(func(l): return l.sync.huddle.members(c1_id) == [h_id, c1_id] and l.sync.huddle.group_of(c2_id) == 0), "they're in a huddle, the same on every machine")
@@ -1289,7 +1292,7 @@ func test_coop_looks() -> void:
 	lobby.find_child("Crew_kit", true, false).pressed.emit()
 	await process_frame
 	var shown: Dictionary = lobby._preview_rig.look
-	check(lobby.my_look() == {"color": 3, "skin": 5, "crew": "kit", "body": 2} and shown.shirt == ArtPalette.CREW_COLORS[3] and shown.skin == NetPlayers.SKIN_TONES[5] and shown.build < 1.0,
+	check(lobby.my_look() == {"color": 3, "skin": 5, "crew": "kit", "body": 2} and shown.shirt == ArtPalette.CREW_COLORS[3] and shown.skin == CharacterLooks.SKIN_TONES[5] and shown.body == 2,
 		"crew member, color and skin show on the figure turning in the preview")
 	check(lobby.find_child("CrewCaption", true, false).text.begins_with("Kit Larsen, 20s") and lobby.find_child("Crew_kit", true, false).text == "Kit", "with who they are underneath")
 	lobby.queue_free()
@@ -1302,7 +1305,7 @@ func test_coop_looks() -> void:
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
 	var host_seen: PlayerPuppet = levels[1].players.puppet(host_id)
 	var c_seen: PlayerPuppet = levels[0].players.puppet(c_id)
-	check(host_seen.rig.look.shirt == ArtPalette.CREW_COLORS[5] and host_seen.rig.look.skin == NetPlayers.SKIN_TONES[0] and host_seen.rig.look.build < 1.0
+	check(host_seen.rig.look.shirt == ArtPalette.CREW_COLORS[5] and host_seen.rig.look.skin == CharacterLooks.SKIN_TONES[0] and host_seen.rig.look.body == 2
 		and c_seen.rig.look.shirt == ArtPalette.CREW_COLORS[2] and c_seen.rig.look.skin == CharacterLooks.crew(2).skin, "teammates see each other as they picked")
 	await _coop_close(worlds)
 	net.looks = {}

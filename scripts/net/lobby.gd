@@ -15,7 +15,7 @@ var _start_btn: Button
 var _connect_box: Control
 ## One button per crew polo color, in CharacterLooks.crew order.
 var _look_buttons: Array[Button] = []
-## One per NetPlayers.SKIN_TONES.
+## One per CharacterLooks.SKIN_TONES.
 var _skin_buttons: Array[Button] = []
 ## One per crew member, by PlayableCrew slug.
 var _crew_buttons := {}
@@ -170,7 +170,7 @@ func _refresh() -> void:
 func my_look() -> Dictionary:
 	var look: Dictionary = _net().look_of(multiplayer.get_unique_id(), maxi(int(_net().wanted_look.color), 0)).duplicate()
 	if look.skin < 0:
-		look.skin = NetPlayers.SKIN_TONES.find(CharacterLooks.crew(look.color).skin)
+		look.skin = CharacterLooks.SKIN_TONES.find(CharacterLooks.crew(look.color).skin)
 	return look
 
 
@@ -189,7 +189,7 @@ func _build_look_row(parent: Control) -> void:
 		_look_row(parent, "Body %d" % body, row)
 	for i in _net().MAX_PLAYERS:
 		_look_buttons.append(_swatch("Look%d" % (i + 1), {"color": i}))
-	for i in NetPlayers.SKIN_TONES.size():
+	for i in CharacterLooks.SKIN_TONES.size():
 		_skin_buttons.append(_swatch("Skin%d" % (i + 1), {"skin": i}))
 	_look_row(parent, "Your color", _look_buttons)
 	_look_row(parent, "Skin", _skin_buttons)
@@ -220,7 +220,7 @@ func _refresh_looks() -> void:
 	for i in _look_buttons.size():
 		_paint(_look_buttons[i], _look_color(i), i == mine.color)
 	for i in _skin_buttons.size():
-		_paint(_skin_buttons[i], NetPlayers.SKIN_TONES[i], i == mine.skin)
+		_paint(_skin_buttons[i], CharacterLooks.SKIN_TONES[i], i == mine.skin)
 	for slug in _crew_buttons:
 		var b: Button = _crew_buttons[slug]
 		_paint(b, Color(0.15, 0.17, 0.18), slug == mine.crew)

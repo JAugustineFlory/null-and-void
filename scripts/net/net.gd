@@ -16,7 +16,7 @@ var roster := {}
 ## peer id -> how they look, identical on every machine: {color, skin, crew, body}.
 ## crew is who they play (a PlayableCrew slug: voice and body type) and color
 ## their polo (CharacterLooks.crew index). skin is a
-## NetPlayers.SKIN_TONES index (-1: the default); body (1 or 2) comes with the crew member.
+## CharacterLooks.SKIN_TONES index (-1: the default); body (1 or 2) comes with the crew member.
 var looks := {}
 ## What this player picks in the lobby; the host gives them the color if it's free.
 var wanted_look := {"color": -1, "skin": -1, "crew": ""}
@@ -76,7 +76,7 @@ static func clean_look(choice: Dictionary) -> Dictionary:
 	var crew: Dictionary = PlayableCrew.info(str(choice.get("crew", "")))
 	return {
 		"color": color if color >= 0 and color < MAX_PLAYERS else -1,
-		"skin": skin if skin >= 0 and skin < NetPlayers.SKIN_TONES.size() else -1,
+		"skin": skin if skin >= 0 and skin < CharacterLooks.SKIN_TONES.size() else -1,
 		"crew": crew.get("slug", ""),
 		"body": crew.get("body", 1),
 	}

@@ -65,14 +65,6 @@ static func index_of(id: int, mp: MultiplayerAPI) -> int:
 	return ids_for(mp).find(id)
 
 
-## The skin tones a player can pick in the lobby, light to dark. (Graphics'
-## CharacterLooks.crew(index, picks) takes over these and body types when it lands.)
-const SKIN_TONES: Array[Color] = [
-	Color(0.95, 0.8, 0.7), Color(0.9, 0.75, 0.62), Color(0.85, 0.68, 0.56),
-	Color(0.74, 0.56, 0.42), Color(0.55, 0.38, 0.27), Color(0.4, 0.27, 0.19),
-]
-
-
 ## How player `id` looks (a CharacterLooks dictionary): what they picked in the
 ## lobby, else the crew look for their place in the player order.
 static func look_for(from: Node, id: int) -> Dictionary:
@@ -82,17 +74,11 @@ static func look_for(from: Node, id: int) -> Dictionary:
 
 
 ## A lobby pick ({color, skin, crew, body}) as a CharacterLooks dictionary.
-## Until Graphics' looks for each crew member land, body 2 is just slighter and
-## a little shorter.
 static func crew_look(choice: Dictionary) -> Dictionary:
-	var look := CharacterLooks.crew(maxi(int(choice.get("color", 0)), 0))
-	var skin := int(choice.get("skin", -1))
-	if skin >= 0 and skin < SKIN_TONES.size():
-		look.skin = SKIN_TONES[skin]
-	if int(choice.get("body", 1)) == 2:
-		look.build = 0.86
-		look.height = 0.95
-	return look
+	var picks := {"body": int(choice.get("body", 1))}
+	if int(choice.get("skin", -1)) >= 0:
+		picks.skin = int(choice.skin)
+	return CharacterLooks.crew(maxi(int(choice.get("color", 0)), 0), picks)
 
 
 func my_index() -> int:

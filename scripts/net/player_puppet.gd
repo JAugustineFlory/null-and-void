@@ -103,27 +103,6 @@ func _build(look: Dictionary) -> void:
 	add_child(_tag)
 
 
-## E on a teammate: huddle up to share notes, or join the huddle they're in.
-func get_prompt(_player: Node) -> String:
-	var h := _huddle()
-	if h == null:
-		return ""
-	var theirs := h.group_of(peer_id)
-	if theirs != 0 and theirs == h.group_of(multiplayer.get_unique_id()):
-		return ""
-	return "[E] Join the notes huddle" if theirs != 0 else "[E] Huddle up to share notes"
-
-
-func interact(player: Node) -> void:
-	if get_prompt(player) != "":
-		_huddle().huddle_with(peer_id)
-
-
-func _huddle() -> NotesHuddle:
-	var s := LevelSync.of(self)
-	return s.huddle if s else null
-
-
 ## A state update from the owning machine.
 func apply_state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool) -> void:
 	_target_pos = pos
@@ -192,16 +171,37 @@ func _crew() -> Node:
 	return CrewVitals.of(players.level) if players else null
 
 
-## A teammate who's down can be helped up.
+## E on a teammate: help them up if they're down; otherwise huddle up to share
+## notes, or join the huddle they're in.
 func get_prompt(_by: Node) -> String:
-	var c := _crew()
-	return c.revive_prompt(peer_id) if c else ""
+	if downed:
+		var c := _crew()
+		return c.revive_prompt(peer_id) if c else ""
+	return _huddle_prompt()
 
 
 func interact(_by: Node) -> void:
-	var c := _crew()
-	if c and downed:
-		c.revive(peer_id)
+	if downed:
+		var c := _crew()
+		if c:
+			c.revive(peer_id)
+	elif _huddle_prompt() != "":
+		_huddle().huddle_with(peer_id)
+
+
+func _huddle() -> NotesHuddle:
+	var s := LevelSync.of(self)
+	return s.huddle if s else null
+
+
+func _huddle_prompt() -> String:
+	var h := _huddle()
+	if h == null:
+		return ""
+	var theirs := h.group_of(peer_id)
+	if theirs != 0 and theirs == h.group_of(multiplayer.get_unique_id()):
+		return ""
+	return "[E] Join the notes huddle" if theirs != 0 else "[E] Huddle up to share notes"
 
 
 func flashlight_on() -> bool:
