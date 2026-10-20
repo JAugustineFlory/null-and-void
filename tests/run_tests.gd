@@ -1655,7 +1655,7 @@ func test_coop_sitting() -> void:
 	check(sitter.sit(null), "the client sits on the floor")
 	await _frames(20)
 	check(seen.sitting == PlayerPuppet.Sit.FLOOR and seen.find_child("Body", false, false).position.y == 0.0
-		and seen.rig.action == ("sit_floor" if CharacterRig.ACTIONS.has("sit_floor") else "idle"), "the host sees them sitting on the floor where they are")
+		and seen.rig.action == "sit_floor", "the host sees them sitting on the floor where they are")
 	sitter.stand_up(true)
 	chair.queue_free()
 	await _coop_close(worlds)
