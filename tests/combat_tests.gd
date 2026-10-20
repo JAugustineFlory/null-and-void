@@ -172,9 +172,11 @@ func test_injuries() -> void:
 	r.max_hits = 6
 	r.hits_left = 4
 	await t.process_frame
+	await t.process_frame
 	var some := r.wounds.shown()
 	check(some > 0 and r.wounds.speed_scale() < 1.0, "a couple of hits in, his jacket is torn and he's slower (%d marks)" % some)
 	r.hits_left = 1
+	await t.process_frame
 	await t.process_frame
 	check(r.wounds.shown() > some and r.wounds.speed_scale() < 0.7, "nearly beaten, more wounds and a heavy limp (%d marks)" % r.wounds.shown())
 	check(not a.find_children("*", "ProgressBar", true, false).size() and not a.find_children("*", "HealthBar", true, false).size(), "and no health bar over his head")
@@ -186,6 +188,7 @@ func test_injuries() -> void:
 	var on_rig := r.wounds._marks.all(func(m): return rig.is_ancestor_of(m))
 	check(on_rig and r.wounds.shown() > some, "on his rig, the wounds sit on its joints, so they lie down when he does")
 	r.reset_fight(Transform3D(Basis(), Vector3(0, 0.1, 0)))
+	await t.process_frame
 	await t.process_frame
 	check(r.wounds.shown() == 0, "a fight that starts over starts him unhurt")
 	# A machine scorches and sparks instead of bleeding (any entity with a _body will do).

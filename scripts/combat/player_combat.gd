@@ -66,6 +66,8 @@ var _since_hurt := 100.0
 var _left_floor := false
 ## Input we locked, so we only hand back what we took.
 var _locked := false
+## Held by something (grabbed_by can be freed under us, so it can't say).
+var _held := false
 
 
 static func create(for_player: Node) -> PlayerCombat:
@@ -90,7 +92,7 @@ func now() -> float:
 
 ## Right mouse: put your guard up for a moment.
 func raise_guard() -> bool:
-	if down or thrown or grabbed_by:
+	if down or thrown or _held:
 		return false
 	return guard.raise(_clock)
 
@@ -236,12 +238,14 @@ func grab(by: Node3D) -> void:
 	player.put_down(true)
 	player.state = Player.Move.WALK
 	grabbed_by = by
+	_held = true
 	_lock(true)
 
 
 func release() -> void:
-	if grabbed_by == null:
+	if not _held:
 		return
+	_held = false
 	grabbed_by = null
 	if not down and not thrown:
 		_lock(false)
@@ -267,7 +271,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if player.health > 0.0 and player.health < MAX_HEALTH and _since_hurt > REGEN_DELAY:
 		player.health = minf(MAX_HEALTH, player.health + REGEN_RATE * delta)
-	if grabbed_by:
+	if _held:
 		if not is_instance_valid(grabbed_by) or not grabbed_by.is_inside_tree():
 			release()
 		else:
