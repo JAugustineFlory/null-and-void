@@ -6,8 +6,40 @@ on:
   pull_request:
 
 jobs:
-  godot-tests:
+  # Reads the test groups from tests/run_tests.gd (GROUPS), and skips the tests when a
+  # pull request only changes docs (Markdown files or docs/).
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.plan.outputs.code }}
+      groups: ${{ steps.plan.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: plan
+        run: |
+          groups=$(python3 -c "import re, json; s = open('tests/run_tests.gd').read(); print(json.dumps(re.findall(r'\"(\w+)\"', re.search(r'const GROUPS := \[(.*?)\]', s).group(1))))")
+          echo "groups=$groups" >> "$GITHUB_OUTPUT"
+          code=true
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qvE '(\.md$|^docs/)'; then
+              code=false
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "groups: $groups, run tests: $code"
+
+  # One job per test group, all running side by side.
+  godot-tests:
+    needs: plan
+    if: needs.plan.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.plan.outputs.groups) }}
+    name: godot-tests (${{ matrix.group }})
     steps:
       - uses: actions/checkout@v4
       - name: Install Godot 4.7.1
@@ -23,4 +55,20 @@ jobs:
           godot --headless --import || true
           godot --headless --import
       - name: Run tests
-        run: godot --headless -s tests/run_tests.gd
+        run: godot --headless -s tests/run_tests.gd -- --group=${{ matrix.group }}
+
+  # The one result to look at: green when every group passed, or when only docs changed.
+  all-tests:
+    needs: [plan, godot-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          result="${{ needs.godot-tests.result }}"
+          code="${{ needs.plan.outputs.code }}"
+          if [ "$result" = "success" ] || { [ "$result" = "skipped" ] && [ "$code" = "false" ]; }; then
+            echo "All test groups passed (or only docs changed)."
+          else
+            echo "Tests did not pass: plan=${{ needs.plan.result }}, godot-tests=$result"
+            exit 1
+          fi
