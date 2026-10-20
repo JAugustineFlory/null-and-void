@@ -19,7 +19,7 @@ extends LevelBase
 ## window (break the glass, then the ledge). Players arrive by elevator and leave by
 ## the elevator past SEC-EXIT, whose doors have to shut before the Watcher gets in. The stairwell PIN is needed on every route.
 
-## Fired at the bottom of the stairs: the wing is done. In the World that's the
+## Fired when the exit car drops: the wing is done. In the World that's the
 ## end of the route (Field Notes); on its own, the level goes to Field Notes too.
 signal completed
 
@@ -422,9 +422,52 @@ func _build_ledge() -> void:
 	Traversal.ledge(geo, Vector3(6.1, 0, 4.55), Vector3(6.1, 0, -8.55), Vector3(1, 0, 0))
 	Traversal.ledge(geo, Vector3(6.55, 0, -8.1), Vector3(3.6, 0, -8.1), Vector3(0, 0, -1))
 	Greybox.box(geo, Vector3(3.1, -0.1, -8.85), Vector3(1.0, 0.2, 1.5), Traversal.CONCRETE, "LedgeLanding")
-	Greybox.box(geo, Vector3(5, -40, -3), Vector3(30, 1, 40), Color(0.05, 0.05, 0.05), "FarBelow")
 	var moon := add_light("outside", Vector3(9, 4, -2), 12.0, 0.35)
 	moon.light_color = Color(0.5, 0.6, 0.9)
+	# Twenty-two floors up, the wind never stops. Each machine hears it for its own player.
+	wind = AudioStreamPlayer.new()
+	wind.name = "LedgeWind"
+	wind.stream = Level2FX.wind()
+	wind.volume_db = WIND_SILENT
+	add_child(wind)
+
+
+## The ledge is 80 m up: wind that's loud out there and a faint draught by the broken
+## window, and a slow sway while you're on it.
+const WIND_SILENT := -60.0
+const WIND_ON_LEDGE := -6.0
+const WIND_BY_WINDOW := -20.0
+const SWAY_ROLL := 0.02  # radians at the strongest gust
+var wind: AudioStreamPlayer
+## What a player sees after falling from the ledge, instead of the usual death notice
+## (Augustine's wording, 2026-10-20).
+const FALL_NOTICE := "Wind, then nothing. You wake back where you started, shaking."
+var _fell := false
+var _sway_t := 0.0
+
+
+func _update_ledge(delta: float) -> void:
+	if not player or not wind:
+		return
+	var at := to_local(player.global_position)
+	# Outside the east wall (the arrival car is further south) or the office's north wall.
+	var outside := (at.x > 6.05 and at.z < 4.6) or (at.z < -8.5 and at.x > 2.5)
+	var on_ledge: bool = player.state == Player.Move.LEDGE or outside
+	var target := WIND_SILENT
+	if on_ledge:
+		target = WIND_ON_LEDGE
+	elif not is_instance_valid(ledge_glass) and at.distance_to(Vector3(6.0, 0.5, 4.0)) < 4.0:
+		target = WIND_BY_WINDOW
+	wind.volume_db = move_toward(wind.volume_db, target, delta * 30.0)
+	if wind.volume_db > WIND_SILENT and not wind.playing:
+		wind.play()
+	elif wind.volume_db <= WIND_SILENT and wind.playing:
+		wind.stop()
+	_sway_t += delta
+	var roll := 0.0
+	if player.state == Player.Move.LEDGE:
+		roll = SWAY_ROLL * (0.6 * sin(_sway_t * 0.9) + 0.4 * sin(_sway_t * 2.3 + 1.0))
+	player.head.rotation.z = lerpf(player.head.rotation.z, roll, clampf(delta * 3.0, 0.0, 1.0))
 
 
 func _glass_pane(center: Vector3, size: Vector3, can_break: bool, node_name: String) -> Level2Glass:
@@ -593,7 +636,9 @@ func _process(delta: float) -> void:
 		_cam_tick = 1.0
 		update_cameras()
 	if player and player.health > 0.0 and player.global_position.y < -6.0:
+		_fell = true
 		player.take_damage(1000.0)
+	_update_ledge(delta)
 	if not reached_vestibule and player and _in([_vestibule_box], player.global_position):
 		reached_vestibule = true  # this machine's player respawns here from now on
 	if sync.is_host():
@@ -1098,6 +1143,11 @@ func _on_caught(p: Node) -> void:
 
 func on_player_died() -> void:
 	var solo := not sync.is_online()
+	if _fell:
+		_fell = false
+		if FALL_NOTICE != "":
+			# After the usual "You came to", which the level base shows once this returns.
+			hud.notice.call_deferred(FALL_NOTICE, 4.0)
 	if lab.in_progress():
 		player.respawn(lab.respawn_point())
 		if solo:
