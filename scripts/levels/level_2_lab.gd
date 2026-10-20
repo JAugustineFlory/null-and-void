@@ -627,6 +627,11 @@ func _caught() -> void:
 	await get_tree().create_timer(1.5, false).timeout
 	await level.hud.fade(false, 1.0)
 	level.hud.notice("WARDEN (PA): SECURE LAB B CONTROLLERS RE-KEYED. OCCUPANTS HELD FOR QUESTIONING.", 5.0, ThemeUtil.RED)
+	# Everything noted on the lab door's page named the old zone (the card, SYSOP's
+	# hints and answer): only the re-key is left, so nobody skims a stale zone.
+	var page: Dictionary = _game().case_info("lab_door")
+	if not page.is_empty():
+		page.clues.clear()
 	_game().add_clue("lab_door", "WARDEN re-keyed the lab's controllers. The zone on the door card has changed.", "WARDEN")
 	phase = "escape"
 	_boot_lockdown()

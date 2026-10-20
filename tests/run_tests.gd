@@ -2112,6 +2112,8 @@ func test_level_2_lab(outcome: String) -> void:
 	if outcome == "killed":
 		# Too slow: the response arrives, and the lab's controllers are re-keyed.
 		var old_zone: String = level.data.lab_zone
+		lab._card._note_clues()
+		check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains("zone " + old_zone)), "reading the lab's door card notes its zone")
 		lab.response_left = 0.2
 		check(await _until(func(): return lab.phase == "caught", 5.0), "when the clock runs out, the crew is caught")
 		check(await _until(func(): return lab.phase == "escape" and lab.response_left > 0.0, 20.0), "and the escape starts over, with the clock reset")
@@ -2123,9 +2125,11 @@ func test_level_2_lab(outcome: String) -> void:
 		level.terminal_ui.terminal = lab.terminal
 		level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % old_zone)
 		check(not lab.door_puzzle.solved, "the old zone's answer no longer works")
+		var lab_page: Array = _game().case_info("lab_door").clues
+		check(lab_page.any(func(k): return k.text.contains("re-keyed")) and not lab_page.any(func(k): return k.text.contains("'%s'" % old_zone) or k.text.contains("zone " + old_zone)),
+			"the case page says the zone changed, and nothing on it names the old zone")
 		lab._card._note_clues()
-		check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains("re-keyed")) and _game().case_info("lab_door").clues.any(func(k): return k.text.contains("zone " + new_zone)),
-			"the case page says the zone changed, and the card read again notes the new one")
+		check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains("zone " + new_zone)), "the card read again notes the new one")
 	level.terminal_ui.terminal = lab.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
 	check(not lab.door_puzzle.solved, "the zone alone isn't enough")

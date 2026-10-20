@@ -828,7 +828,7 @@ func _on_cameras_found(which: String) -> void:
 		t.print_line("      LIKE 'Pike%'   names that start with Pike. % = any letters after")
 		hud.todo("Look up Officer Pike's PIN")
 		Game.open_case("cameras", CASES.cameras, ["cameras"])
-		Game.solve_case("cameras", "CAM-2 shows motion in the security office, and it's the only camera on that room.")
+		Game.solve_case("cameras", "CAM-2 reports motion in the security office. It's the only camera pointed at that room.")
 		Game.open_case("pin", CASES.pin, ["guards", "badge_log"])
 
 
