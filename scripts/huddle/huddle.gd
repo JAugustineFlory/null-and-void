@@ -38,6 +38,9 @@ var result := {}
 var done := {}
 ## Shorter waits in tests.
 var reveal_scale := 1.0
+## Where this machine's unlocks are recorded: the player's own profile (Net's)
+## unless set. Co-op tests give each machine its own.
+var profile: Profile
 var _ui: HuddleUI
 var _mode := ""
 var _home: Node3D
@@ -240,12 +243,45 @@ func _finish(id: String) -> void:
 		if not game.book_words.has(w):
 			game.book_words.append(w)
 	done[id] = true
+	_earn_chapter(id)
 	chapter = {}
 	question = -1
 	votes.clear()
 	result.clear()
 	changed.emit()
 	finished.emit(id)
+
+
+# --- Unlocks (plan/approvals/unlocks.md) ---------------------------------------
+
+## Record an unlock on this machine's player profile. Call it on every machine
+## (from a sync.event handler or an RPC to everyone), so everyone there earns it.
+func earn(source: String) -> Array:
+	var p := _profile()
+	return p.earn(source) if p else []
+
+
+func _profile() -> Profile:
+	if profile:
+		return profile
+	var net = get_node_or_null("/root/Net")
+	return net.profile if net else null
+
+
+## Every machine: a chapter is finished. Each one is remembered on the player's
+## profile, across runs; half the book and the whole book unlock an item each.
+func _earn_chapter(id: String) -> void:
+	var book_id: String = Books.chapter(id).get("book_id", "")
+	earn("chapter:" + id)
+	var p := _profile()
+	if p == null:
+		return
+	var ids := Books.book_chapter_ids(book_id)
+	var read := ids.filter(func(c): return p.earned.has("chapter:" + c)).size()
+	if read * 2 >= ids.size():
+		earn("achievement:%s_half" % book_id)
+	if read == ids.size():
+		earn("achievement:%s_done" % book_id)
 
 
 ## Host: a player left. Someone else reads, and the vote doesn't wait for them.
