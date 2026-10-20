@@ -1,4 +1,4 @@
-# Easy SQL: the crew's beginner's book (curriculum draft)
+# Easy SQL: the crew's beginner's book (curriculum)
 
 Status: **APPROVED by Augustine 2026-10-20 03:03Z** ("Easy SQL book is approved"),
 word for word as written here. Any change to a chapter line or question goes back to him.
