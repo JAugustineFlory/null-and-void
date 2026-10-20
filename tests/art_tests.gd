@@ -25,6 +25,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_dressed_level_1()
 	await test_dressed_level_2()
 	test_skyline_heights()
+	await test_dressed_home_base()
 	test_sticky_notes()
 	test_elevator()
 	await test_notebook()
@@ -497,6 +498,47 @@ func test_dressed_level_2() -> void:
 ## and nothing outside collides or shows through into a wing next door.
 ## The quality pass: ceiling lights cast soft shadows up close and drop them with
 ## distance, fittings glow through louvres, and the room gets AO and reflections.
+func test_dressed_home_base() -> void:
+	var level = load("res://scenes/home_base.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(10)
+	var boxes := _prop_boxes(level)
+	check(boxes.size() >= 5, "the garage is furnished (%d solid props)" % boxes.size())
+	var blocked := _blocked(level, boxes, DressHomeBase.KEEP_CLEAR)
+	check(blocked.is_empty(), "props keep the garage's walk from the door to the fax, the back corner, the bench and the van clear %s" % [blocked])
+	var walk := []
+	var m: Dictionary = HomeBase.MADDISON_MARKS
+	for leg in [[m.door[0], m.greet[0]], [m.greet[0], m.fax[0]], [m.fax[0], HomeBase.BENCH_WAY], [HomeBase.BENCH_WAY, m.bench[0]], [HomeBase.BENCH_WAY, m.van[0]]]:
+		var steps := ceili(leg[0].distance_to(leg[1]) / 0.5)
+		for i in steps + 1:
+			walk.append(leg[0].lerp(leg[1], float(i) / steps))
+	var in_her_way := _blocked(level, boxes, walk)
+	check(in_her_way.is_empty(), "props keep Maddison's walk between her marks clear %s" % [in_her_way])
+	var cover: Node = level.bench_book.get_node_or_null("EasySQL")
+	check(cover != null, "the bench copy of Easy SQL wears the real cover")
+	var reach := 0.0
+	for id in level.lights:
+		for l in level.lights[id]:
+			reach = maxf(reach, l.omni_range - l.global_position.distance_to(level.book_bag.global_position))
+	check(reach < 0.5, "dressing leaves the back corner dark under its dead bulb")
+	var banners: Array = level.find_children("Banner*", "Node3D", true, false)
+	check(banners.size() == 1, "one Byte-Right banner hangs on the wall")
+	var shadowed := true
+	for id in level.lights:
+		for l in level.lights[id]:
+			shadowed = shadowed and l.shadow_enabled and l.get_node_or_null("Hang/Bulb") != null
+	check(shadowed and level.environment.ssao_enabled, "the garage hangs bare bulbs that cast shadows, with the floors' polish")
+	var chairs: Array = level.find_children("FoldingChair*", "StaticBody3D", true, false)
+	var seated := 0
+	for chair in chairs:
+		for seat in level.find_children("*", "Seat", true, false):
+			var off: Vector3 = seat.global_position - chair.global_position
+			if Vector2(off.x, off.z).length() < 0.05 and absf(off.y - ArtKit.CHAIR_SEAT) < 0.02 and absf(angle_difference(seat.global_rotation.y, chair.global_rotation.y)) < 0.01:
+				seated += 1
+	check(chairs.size() >= 3 and seated == chairs.size(), "every garage folding chair can be sat on, facing the way it faces (%d of %d)" % [seated, chairs.size()])
+	level.free()
+
+
 func _check_polish(level: Node3D, label: String) -> void:
 	var spill := []
 	for poster in level.find_children("Poster*", "Node3D", true, false):

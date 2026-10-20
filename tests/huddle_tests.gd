@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_garage_opening()
 	await test_flashback()
 	await test_coop_huddle()
+	await test_coop_spar()
 	Engine.time_scale = 1.0
 
 
@@ -117,7 +118,10 @@ func test_garage_opening() -> void:
 	_check.call(world.wings.has("level_0") and not world.wings["level_0"].active, "the ground floor is built ahead, waiting for the van")
 	_check.call(p.global_position.distance_to(home.spawn_point().origin) < 1.0 and not p.input_locked, "the player starts on the garage floor, free to walk")
 	_check.call(not home.fax.enabled and not home.van_door.enabled, "nothing to do until dispatch calls")
+	var mad: Node3D = home.maddison
+	_check.call(mad != null and mad.get_node_or_null("Look") != null and (_at_mark(home, "door") or home.maddison_mark == "greet"), "Maddison is in the garage in person, in from the side door")
 	_check.call(await _until(func(): return home.fax.enabled), "dispatch's call puts the work order on the fax")
+	_check.call(await _until(func(): return _at_mark(home, "fax"), 300), "Maddison walks over to the fax as the work order comes through")
 	home.fax.interact(p)
 	_check.call(await _until(func(): return home.book_bag.enabled), "then the book in the back corner")
 	var bag_light := 0.0
@@ -129,6 +133,8 @@ func test_garage_opening() -> void:
 	home.book_bag.interact(p)
 	await _frames(5)
 	_check.call(home.bench_book.visible and not home.book_bag.visible, "the book ends up on the workbench")
+	_check.call(await _until(func(): return _at_mark(home, "bench"), 300), "and round to the end of the workbench while they fetch the book")
+	await _spar(home, p)
 	p.global_position = home.to_global(home.BENCH + Vector3(0, 0.2, 1.2))
 	var h = _huddle_of(home)
 	h.reveal_scale = 0.2
@@ -155,6 +161,7 @@ func test_garage_opening() -> void:
 	_check.call(_game().book_words.has("row"), "its words are learned")
 	_check.call(await _until(func(): return not p.input_locked and h.get_node_or_null("HuddleUI") == null), "the book closes and the player can move again")
 	_check.call(await _until(func(): return home.van_door.enabled), "then the van")
+	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
 	home.van_door.interact(p)
 	await _frames(3)
 	_check.call(p.seated and home.to_local(p.global_position).distance_to(home.van_seats[0]) < 0.3, "the player takes a seat in the van")
@@ -164,6 +171,35 @@ func test_garage_opening() -> void:
 	_check.call(not home.visible and is_instance_valid(home), "the garage stays loaded, out of sight, for flashbacks")
 	world.queue_free()
 	await _frames(2)
+
+
+## Maddison stands on `mark`, facing the way it says.
+func _at_mark(home, mark: String) -> bool:
+	var m: Array = home.MADDISON_MARKS[mark]
+	var mad: Node3D = home.maddison
+	var to: Vector3 = m[1] - mad.position
+	var facing := -mad.basis.z
+	return mad.position.distance_to(m[0]) < 0.1 and Vector2(facing.x, facing.z).normalized().dot(Vector2(to.x, to.z).normalized()) > 0.95
+
+
+## The punch bag drill, solo: it only swings at someone standing by it, a miss
+## costs nothing, and a block lets the crew move on to the huddle.
+func _spar(home, p) -> void:
+	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag, before the huddle")
+	var swung := await _until(func(): return home.swing_in, 200)
+	_check.call(not swung, "the bag leaves you be while you're nowhere near it")
+	p.global_position = home.to_global(home.PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
+	_check.call(await _until(func(): return home.swing_in, 400), "stand by it and it swings at you")
+	var health: float = p.health
+	await _until(func(): return not home.swing_in, 120)
+	await _frames(3)
+	_check.call(p.health == health and home.spar_blocked.is_empty(), "a missed block costs no health, and doesn't count")
+	_check.call(not _huddle_of(home).is_running(), "the crew can't huddle until it's blocked")
+	_check.call(await _until(func(): return home.swing_in, 400), "the bag swings again")
+	await _frames(2)  # partway into the swing
+	p.combat.raise_guard()
+	_check.call(await _until(func(): return home.spar_blocked.size() == 1, 120), "right-clicking as it swings in blocks it")
+	_check.call(p.health == health, "blocking it costs nothing either")
 
 
 func test_flashback() -> void:
@@ -185,6 +221,15 @@ func test_flashback() -> void:
 	var home = world.get_node_or_null("HomeBase")
 	_check.call(home != null and home.visible and home.flashback_camera.current, "it cuts to the garage through the flashback camera")
 	_check.call(home.find_children("Crew*", "", false, false).size() == 1, "solo, one crew member stands at the bench")
+	_check.call(_at_mark(home, "bench"), "Maddison is at the end of the bench, facing it")
+	var spots: Array = home.HUDDLE_SPOTS.duplicate()
+	spots.append(home.MADDISON_MARKS.bench[0])
+	var crowded := false
+	for i in spots.size():
+		for j in range(i + 1, spots.size()):
+			crowded = crowded or spots[i].distance_to(spots[j]) < 0.8
+	var bench_box := AABB(home.BENCH - Vector3(1.2, 0, 0.5), Vector3(2.4, 1, 1.0)).grow(0.25)
+	_check.call(not crowded and spots.all(func(v): return not bench_box.has_point(v + Vector3(0, 0.5, 0))), "six crew and Maddison all have room round the bench")
 	_check.call(h.get_node("HuddleUI").flashback and p.input_locked, "in sepia, with the player held still")
 	_check.call(await _finish_chapter(h, "easy_sql_1"), "the crew reads chapter 1 and answers its check")
 	_check.call(await _until(func(): return done[0]), "the flashback ends")
@@ -252,5 +297,39 @@ func test_coop_huddle() -> void:
 	if not ended:
 		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
 	_check.call(ended, "the chapter ends on both machines")
+	_tree._coop_close(worlds)
+	await _frames(2)
+
+
+func test_coop_spar() -> void:
+	print("Home base: co-op, everyone blocks the punch bag")
+	_game().new_run(24)
+	_game().open_at_home = true
+	var worlds: Array = await _tree._coop_worlds(1)
+	var machines: Array = await _tree._coop_load(worlds, "res://scenes/world.tscn")
+	var homes := machines.map(func(w): return w.home)
+	var done := [0]
+	for home in homes:
+		var drill := func():
+			await home._spar_drill()
+			done[0] += 1
+		drill.call()
+	var ph = machines[0].player
+	var pc = machines[1].player
+	var host_id: int = machines[0].multiplayer.get_unique_id()
+	var client_id: int = machines[1].multiplayer.get_unique_id()
+	ph.global_position = homes[0].to_global(homes[0].PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
+	_check.call(await _until(func(): return homes[1].spar_target == host_id, 400), "the client sees the bag swing at the host")
+	await _until(func(): return homes[0].swing_in, 120)
+	await _frames(2)
+	ph.combat.raise_guard()
+	_check.call(await _until(func(): return homes[1].spar_blocked.has(host_id), 200), "the host's block counts on both machines")
+	await _frames(60)
+	_check.call(done[0] == 0, "one block isn't enough: the drill waits for the whole crew")
+	pc.global_position = homes[1].to_global(homes[1].PUNCH_BAG + Vector3(-1.0, 0.2, 0.8))
+	_check.call(await _until(func(): return homes[1].spar_target == client_id and homes[1].swing_in, 600), "then it swings at the client")
+	await _frames(2)
+	pc.combat.raise_guard()
+	_check.call(await _until(func(): return done[0] == 2, 400), "the client blocks it, and both machines move on")
 	_tree._coop_close(worlds)
 	await _frames(2)

@@ -419,7 +419,8 @@ func walk_level_0() -> void:
 ## Case pages collect clues as they're read (papers, plates), so a clue must never
 ## carry a puzzle's answer: a value its query returns that the query itself doesn't
 ## type. Numbers are left out (extensions and temperatures are inputs, read off
-## papers). The answer reaches the page only through solve_case, after the solve.
+## papers), and so are a puzzle's `givens`, values the player knew before the query.
+## The answer reaches the page only through solve_case, after the solve.
 func check_case_clues(level: Node, where: String) -> void:
 	var clues := PackedStringArray()
 	for d in level.find_children("*", "Document", true, false):
@@ -429,12 +430,16 @@ func check_case_clues(level: Node, where: String) -> void:
 		clues.append(s.text)
 	var text := "\n".join(clues).to_lower()
 	var leaks := []
+	var world := world_text(level).to_lower()
 	for term in level.find_children("*", "Terminal", true, false):
 		for p in term.puzzles:
+			for g in p.givens:
+				check(world.contains(str(g).to_lower()), "%s: given '%s' is found in the world" % [p.id, g])
 			for row in level.db.run_silent(p.solution_sql):
 				for v in row.values():
 					var value := str(v).to_lower()
-					if value.length() < 3 or value.is_valid_float() or p.solution_sql.to_lower().contains(value):
+					if value.length() < 3 or value.is_valid_float() or p.solution_sql.to_lower().contains(value) \
+							or p.givens.any(func(g): return str(g).to_lower() == value):
 						continue
 					if RegEx.create_from_string("(?<![\\w-])" + _escape(value) + "(?![\\w-])").search(text) and not leaks.has("%s: %s" % [p.id, value]):
 						leaks.append("%s: %s" % [p.id, value])
@@ -455,8 +460,13 @@ func walk_level_1(seed_value: int) -> void:
 	check(todo != "" and not todo.contains(level.answer), "server floor: the to-do names the job, never the controller (%s)" % todo)
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
-	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone is read off the doors, not the screen")
-	var h := await solve(level, ui, level.controller_puzzle, false)
+	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone comes from the doors query, not the boot screen")
+	# First step: the stuck doors, and the zone they share (only the doors table has it).
+	var h := await solve(level, ui, level.stuck_doors_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player finds the stuck doors once a hint gives the query (hints %d)" % h)
+	var stuck := last_table(screen(ui)).filter(func(r): return ["Server Room A rear exit", "Server Room C", "Lift 1, server floor"].has(r.get("name", "")))
+	check(stuck.size() == 3 and stuck.all(func(r): return r.get("zone", "") == level.zone), "server room: the shift log's stuck doors share one zone in the result")
+	h = await solve(level, ui, level.controller_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.controller_puzzle), "server room: a lost player finds the controller once a hint gives the query (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
 	var rows := last_table(screen(ui))
@@ -486,6 +496,17 @@ func walk_level_1(seed_value: int) -> void:
 	if tray:
 		tray.interact(level.player)
 	check(await _until(func(): return not level.vault_back.locked, 6.0), "server floor: reseating the hot rack's tray releases the cable vault's back door")
+	# Optional: the dark break room, OR practised safely. The query lists the lights
+	# that are out; the circuit reset by the break room door fixes them.
+	ui.open(level.terminal, level.player)
+	h = await solve(level, ui, level.dark_room_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.dark_room_puzzle), "server floor: a lost player lists the lights that are out once a hint gives the query (hints %d)" % h)
+	ui.close()
+	var reset := find_interactable(level, "Reset the lighting circuit")
+	check(reset != null, "server floor: the break room has a circuit reset to press")
+	if reset:
+		reset.interact(level.player)
+	check(await _until(func(): return level.lights["1-BREAK"][0].visible, 6.0), "server floor: the reset lights the break room")
 	level.queue_free()
 	await t.process_frame
 

@@ -26,6 +26,17 @@ static func script_markdown() -> String:
 		md.append("")
 		md.append("> %s" % c["voice"])
 		md.append("")
+	md.append("## Crew barks")
+	md.append("")
+	md.append("Each playable crew member's own short lines, played by Co-op. Their shared commentary lines are in the scenes below, as CREW.")
+	md.append("")
+	for slug in VoiceLines.CREW:
+		var m: Dictionary = VoiceLines.CREW[slug]
+		md.append("**%s** (`%s`, %s). %s" % [m["name"], slug, m["age"], m["bio"]])
+		md.append("")
+		for bark in VoiceLines.BARKS:
+			md.append("- *%s:* %s `[%s]`" % [VoiceLines.BARKS[bark], m["barks"][bark], bark])
+		md.append("")
 	var level := -1
 	for s in VoiceLines.SCENES:
 		if s["level"] != level:
@@ -73,8 +84,11 @@ static func recording_list_markdown() -> String:
 					continue
 				var when: String = "Level %d%s" % [s["level"], "" if s["wired"] else ", later"]
 				rows.append("| [%s] | `%s` | %s | %s | %s |" % [_tick(id), id, _cell(l["text"]), _cell(l["note"]), when])
-		total += rows.size()
-		md.append("## %s (%d lines)" % [c["name"], rows.size()])
+		total += rows.size() * (VoiceLines.CREW.size() if sp == "CREW" else 1)
+		if sp == "CREW":
+			md.append("## %s (%d lines, recorded by each of the %d crew members)" % [c["name"], rows.size(), VoiceLines.CREW.size()])
+		else:
+			md.append("## %s (%d lines)" % [c["name"], rows.size()])
 		md.append("")
 		md.append("> %s" % c["voice"])
 		md.append("")
@@ -82,6 +96,21 @@ static func recording_list_markdown() -> String:
 		md.append("|---|---|---|---|---|")
 		md.append_array(rows)
 		md.append("")
+	var barks := PackedStringArray()
+	for slug in VoiceLines.CREW:
+		var m: Dictionary = VoiceLines.CREW[slug]
+		for bark in VoiceLines.BARKS:
+			var id := VoiceLines.bark_id(bark)
+			barks.append("| [%s] | `%s/%s.wav` | %s | %s |" % [_tick(id, VoiceLines.crew_dir(slug)), VoiceLines.crew_dir(slug), id, _cell(m["barks"][bark]), _cell(VoiceLines.BARKS[bark])])
+	total += barks.size()
+	md.append("## Crew barks (%d lines)" % barks.size())
+	md.append("")
+	md.append("Each crew member's own short lines, in their own folder.")
+	md.append("")
+	md.append("| Done | File | Line | When it plays |")
+	md.append("|---|---|---|---|")
+	md.append_array(barks)
+	md.append("")
 	md.insert(2, "%d lines in all." % total)
 	md.insert(3, "")
 	return "\n".join(md)
@@ -92,22 +121,44 @@ static func recording_list_markdown() -> String:
 static func character_docs() -> Dictionary:
 	var docs := {}
 	for sp in VoiceLines.CHARACTERS:
-		var slug: String = VoiceLines.CHARACTERS[sp]["slug"]
-		for later in [false, true]:
-			var md := character_markdown(sp, later)
-			if md != "":
-				docs[CHARACTERS_DIR.path_join(slug + ("-later" if later else "") + ".md")] = md
+		# Every playable crew member records the CREW lines, so each gets their own script.
+		var crew: Array = VoiceLines.CREW.keys() if sp == "CREW" else [""]
+		for member in crew:
+			var slug: String = VoiceLines.crew_dir(member) if member != "" else VoiceLines.CHARACTERS[sp]["slug"]
+			for later in [false, true]:
+				var md := character_markdown(sp, later, member)
+				if md != "":
+					docs[CHARACTERS_DIR.path_join(slug + ("-later" if later else "") + ".md")] = md
 	return docs
 
 
 ## One character's script: their card, the recording spec, and their lines grouped
 ## by moment. Never mentions other characters' lines or the scene's plot.
-## Returns "" if the character has no lines in this session.
-static func character_markdown(speaker: String, later: bool = false) -> String:
+## Returns "" if the character has no lines in this session. `member` is a
+## playable crew member's slug, for the CREW lines plus that member's barks.
+static func character_markdown(speaker: String, later: bool = false, member: String = "") -> String:
 	var c: Dictionary = VoiceLines.CHARACTERS[speaker]
+	var folder: String = VoiceLines.crew_dir(member) if member != "" else c["slug"]
 	var body := PackedStringArray()
 	var count := 0
 	var moment_no := 0
+	if member != "" and not later:
+		var m: Dictionary = VoiceLines.CREW[member]
+		body.append("### Your own lines")
+		body.append("")
+		body.append("Short lines only you say, each played in lots of different moments.")
+		body.append("")
+		for bark in VoiceLines.BARKS:
+			var id := VoiceLines.bark_id(bark)
+			count += 1
+			body.append("- [%s] `%s.wav`  " % [_tick(id, folder), id])
+			body.append("  \"%s\"  " % m["barks"][bark])
+			body.append("  *When: %s.*" % VoiceLines.BARKS[bark])
+		body.append("")
+		body.append("### Lines every crew member says")
+		body.append("")
+		body.append("The same words for everyone. Say them your way.")
+		body.append("")
 	for s in VoiceLines.SCENES:
 		if VoiceLines.held_back(s) != later:
 			continue
@@ -120,17 +171,22 @@ static func character_markdown(speaker: String, later: bool = false) -> String:
 		for id in ids:
 			var l: Dictionary = VoiceLines.LINES[id]
 			count += 1
-			body.append("- [%s] `%s.wav`  " % [_tick(id), id])
+			body.append("- [%s] `%s.wav`  " % [_tick(id, folder if member != "" else ""), id])
 			body.append("  \"%s\"  " % l["text"])
 			body.append("  *%s*" % l["note"])
 		body.append("")
 	if count == 0:
 		return ""
 	var md := PackedStringArray()
-	md.append("# %s: %s" % [c["name"], "later session" if later else "your lines"])
+	var title: String = VoiceLines.CREW[member]["name"] if member != "" else c["name"]
+	md.append("# %s: %s" % [title, "later session" if later else "your lines"])
 	md.append("")
 	md.append("%s" % c["card"])
 	md.append("")
+	if member != "":
+		var m: Dictionary = VoiceLines.CREW[member]
+		md.append("**Who you are:** %s, %s. %s Players type their own name, so nobody in the game calls you %s." % [m["name"], m["age"], m["bio"], m["name"].get_slice(" ", 0)])
+		md.append("")
 	md.append("**How they sound:** %s" % c["voice"])
 	md.append("")
 	if later:
@@ -140,7 +196,7 @@ static func character_markdown(speaker: String, later: bool = false) -> String:
 	md.append("")
 	md.append_array(_recording_spec())
 	md.append("")
-	md.append("Send the files back as they are. They go in `audio/voice/%s/` in the game." % c["slug"])
+	md.append("Send the files back as they are. They go in `audio/voice/%s/` in the game." % folder)
 	md.append("")
 	md.append("## Your lines (%d)" % count)
 	md.append("")
@@ -162,8 +218,8 @@ static func _recording_spec() -> PackedStringArray:
 
 
 ## "x" once a line has a recording, so the checklists tick themselves.
-static func _tick(id: String) -> String:
-	return "x" if Voice.path_for(id) != "" else " "
+static func _tick(id: String, own_dir: String = "") -> String:
+	return "x" if Voice.path_for(id, own_dir) != "" else " "
 
 
 static func _cell(text: String) -> String:

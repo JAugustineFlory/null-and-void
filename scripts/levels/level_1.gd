@@ -16,6 +16,13 @@ var asked := false
 var controller_puzzle: Puzzle
 ## Optional: which of Server Room B's racks is over the vault's fire interlock limit.
 var hot_rack_puzzle: Puzzle
+## The controller chain's first step: which zone the stuck doors share (WHERE, =).
+var stuck_doors_puzzle := stuck_doors_puzzle_for()
+## Optional: every light that's dead or flickering (OR), then reset their circuit.
+var dark_room_puzzle := dark_room_puzzle_for()
+## The break room's lighting circuit reset, by its door.
+var light_panel: Interactable
+var lights_fixed := false
 ## The zone the stuck doors share, and the rest of the floor's zone (Level1Data).
 var zone := ""
 var other_zone := ""
@@ -44,6 +51,8 @@ var spare_walkies: ItemDock
 ## Who carries cable up to Level 2: peer id -> true, the same on every machine.
 var cable_holders := {}
 
+## The dark break room's case page (optional), opened by facilities' card.
+const DARK_CASE := "Why is the break room dark?"
 const ROURKE_IN_LIFT := Vector3(-0.75, 0, 1.6)  # across the car from the buttons
 const RESPAWN := Vector3(0, 0.1, 11.0)
 ## Seconds after Rourke's ask before he tells a slow crew to take their time.
@@ -129,7 +138,12 @@ func build() -> void:
 	# session opens once he has asked the crew to look.
 	Greybox.box(geo, Vector3(-4.5, 0.45, 8.4), Vector3(2.2, 0.9, 0.8), Color(0.4, 0.38, 0.35), "TermDesk")
 	terminal = Terminal.spawn(geo, Vector3(-4.5, 0.9, 8.4), 180, "SERVER ROOM A", db, terminal_ui)
-	terminal.puzzles = [controller_puzzle, hot_rack_puzzle]
+	stuck_doors_puzzle.case_id = "controller"
+	# The shift log names the stuck doors and the Cold Lab; the zone is the answer.
+	stuck_doors_puzzle.givens = ["Server Room C", "Cold Lab"]
+	# The dark break room is the case itself; the north corridor is what the query finds.
+	dark_room_puzzle.givens = ["Break room"]
+	terminal.puzzles = [stuck_doors_puzzle, controller_puzzle, hot_rack_puzzle, dark_room_puzzle]
 	terminal.boot_lines = _self_test_lines()
 	terminal.locked = true
 	terminal.locked_message = "MAINTENANCE SESSION ROURKE_D: WAITING FOR ESCORT."
@@ -197,13 +211,15 @@ func _build_door_plates() -> void:
 		plate.rotation_degrees.y = p[2]
 		geo.add_child(plate)
 		Greybox.panel(plate, Vector3(0, 0, -0.005), Vector3(0.2, 0.16, 0.01), Color(0.78, 0.76, 0.7))
-		Greybox.label(plate, Vector3(0, 0.025, 0.002), "ZONE %s" % row[0]["zone"], 30, Color(0.12, 0.12, 0.15))
+		# The light says a door is stuck; only the doors table says its zone, so
+		# walking the floor can't stand in for the query.
+		Greybox.label(plate, Vector3(0, 0.025, 0.002), p[0], 30, Color(0.12, 0.12, 0.15))
 		var lamp := Greybox.panel(plate, Vector3(0, -0.045, 0.002), Vector3(0.05, 0.025, 0.01), Color.WHITE, 3.0)
 		lamp.name = "Lamp"
 		door_plates[p[0]] = lamp
 		_light_plate(p[0], int(row[0]["locked"]) == 1)
 		if int(row[0]["locked"]) == 1:
-			ClueSpot.watch(plate, Vector3.ZERO, "controller", "%s door: ZONE %s, red light (stuck)." % [p[0], row[0]["zone"]], "Door plate")
+			ClueSpot.watch(plate, Vector3.ZERO, "controller", "%s door: red light (stuck)." % p[0], "Door plate")
 
 
 func _rack_card(pos: Vector3, facing: float, flat: bool) -> void:
@@ -219,19 +235,32 @@ func _rack_card(pos: Vector3, facing: float, flat: bool) -> void:
 	]
 
 
+func _facilities_card(pos: Vector3, facing: float, flat: bool) -> void:
+	Document.place(geo, pos, facing, "FACILITIES - LIGHTING CIRCUITS", [
+		"FACILITIES - LIGHTING CIRCUITS",
+		{"before": "Before a reset, pull every light that's 'dead' OR 'flickering' from the table ", "filled": "lights", "after": "."},
+		"Columns: id, room, floor, is_on, status",
+		"One reset clears the lot.",
+		"Lights marked 'off' are off on purpose. Leave them.",
+	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15)).clues = [
+		{"case": "dark_room", "opens": DARK_CASE, "tables": ["lights"], "text": "List every light that's 'dead' OR 'flickering' in the lights table (columns: id, room, floor, is_on, status), then reset the circuit by the break room door."},
+		{"case": "dark_room", "text": "Lights marked 'off' are off on purpose. Leave them."},
+	]
+
+
 func _light_plate(id: String, stuck: bool) -> void:
 	if door_plates.has(id):
 		(door_plates[id] as MeshInstance3D).material_override = Greybox.mat(Color(1.0, 0.15, 0.1) if stuck else Color(0.2, 1.0, 0.3), 3.0)
 
 
-## The zone printed on a door's plate ("" if it has none).
-func plate_zone(id: String) -> String:
+## What's printed on a door's plate ("" if it has none).
+func plate_text(id: String) -> String:
 	var plate := geo.get_node_or_null("Plate_" + id)
 	if plate == null:
 		return ""
 	for c in plate.get_children():
 		if c is Label3D:
-			return (c as Label3D).text.trim_prefix("ZONE ")
+			return (c as Label3D).text
 	return ""
 
 
@@ -251,12 +280,47 @@ static func controller_puzzle_for(z: String) -> Puzzle:
 		"  WHERE zone = '?'       keep only the rows in that zone\n" +
 		"  AND status = 'fault'   ...that are ALSO faulted. Both must be true.\n" +
 		"? is the zone the stuck doors share.",
-		"The NOC shift log names the stuck doors. Look up their zone: " +
-		"SELECT name, zone FROM doors WHERE locked = 1; " +
-		"Or walk the floor and read the plates on the doors with a red light.",
+		"? is the zone your doors query showed for the stuck doors. " +
+		"No result yet? Run the doors query first: .hint walks you through it.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % z +
 		"Then press E on that rack's panel in Server Room A: its id is on the end facing the center aisle.",
+	])
+
+
+## The first step: the stuck doors, and the zone they share. Hints follow the ladder.
+static func stuck_doors_puzzle_for() -> Puzzle:
+	return Puzzle.new("stuck_doors", "SELECT name, zone FROM doors WHERE locked = 1", ["name", "zone"], false, [
+		"The shape of it:\n" +
+		"    [color=#ffffff]SELECT name, zone FROM doors WHERE locked = ?;[/color]\n" +
+		"  SELECT name, zone   each door's name and zone\n" +
+		"  FROM doors          from the table of doors\n" +
+		"  WHERE locked = ?    keep only the rows where locked is ?\n" +
+		"? is the number the doors table uses for a door that won't release. The self-test above says which.",
+		"The self-test says what locked holds for a door that won't release. Numbers go in without quotes. " +
+		"Then find the NOC shift log's doors in the result: they share one zone.",
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT name, zone FROM doors WHERE locked = 1;[/color]\n" +
+		"The Cold Lab is another floor's problem (the shift log says so). The other stuck doors share one zone.",
+	])
+
+
+## Optional: every light that's out, dead or flickering, for facilities' circuit reset.
+static func dark_room_puzzle_for() -> Puzzle:
+	return Puzzle.new("dark_room",
+		"SELECT room, status FROM lights WHERE status = 'dead' OR status = 'flickering'", ["room", "status"], false, [
+		"The shape of it:\n" +
+		"    [color=#ffffff]SELECT room, status FROM lights WHERE status = '?' OR status = '?';[/color]\n" +
+		"  SELECT room, status  each light's room and status\n" +
+		"  FROM lights          from the lights table\n" +
+		"  WHERE status = '?'   keep the rows with this status\n" +
+		"  OR status = '?'      ...or with this one. Either will do.\n" +
+		"The two ?s are the statuses on facilities' card by the break room door.",
+		"Facilities' card in the break room names the two statuses to list. Words go in 'single quotes'. " +
+		"With OR, a row stays if either condition is true.",
+		"Type this exactly and press Enter:\n" +
+		"    [color=#ffffff]SELECT room, status FROM lights WHERE status = 'dead' OR status = 'flickering';[/color]\n" +
+		"Then reset the lighting circuit by the break room door.",
 	])
 
 
@@ -392,6 +456,14 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	], false, "sticky")
 	# Its row in the lights table says the bulb is dead (Level1Data), so it's dark.
 	add_light("1-BREAK", Vector3(15, 3, -6), 6.0, 1.0, office)
+	# Optional: inside the door, the floor's lighting circuit reset and facilities'
+	# card on how to use it. The reset only takes once the terminal has listed the
+	# lights that are out: dead OR flickering, not the ones off on purpose.
+	light_panel = Interactable.create(geo, Vector3(13.3, 1.3, -8.86), Vector3(0.35, 0.45, 0.08), "Reset the lighting circuit", Color(0.55, 0.56, 0.5))
+	light_panel.used.connect(_on_light_panel)
+	# A copy lies on Server Room A's terminal desk, where the lights are listed.
+	_facilities_card(Vector3(14.1, 1.45, -8.89), 180.0, false)
+	_facilities_card(Vector3(-5.3, 0.902, 8.62), 5.0, true)  # behind the DOOR CONTROLLERS card, clear of it
 
 	# Server Room C: x -17..-7, z -24..-13. Its lock is on the faulting controller (seeded zone).
 	Greybox.room(geo, Vector3(-12, 0, -18.5), Vector3(10, 3.6, 11), machine, [_gap("s", 0.0, door)])
@@ -452,7 +524,7 @@ func _on_asked() -> void:
 	asked = true
 	terminal.locked = false
 	if not controller_puzzle.solved:
-		hud.todo("Find the door controller that keeps faulting, and reset it")
+		hud.todo("Find the door controller that keeps faulting, and reset it" if stuck_doors_puzzle.solved else "Find which zone the stuck doors are in (terminal)")
 		get_node("/root/Game").open_case("controller", "Which door controller keeps faulting?", ["door_controllers", "doors"])
 	if sync.is_host():
 		await get_tree().create_timer(WAITING_AFTER, false).timeout
@@ -511,6 +583,7 @@ func _self_test_lines() -> Array:
 		"",
 		"The faulting controller is one row in the controller table (see the reference card at this desk).",
 		"Which doors are stuck? Night shift logs it. Every door belongs to a zone.",
+		"The doors table (columns: id, name, zone, locked, actuator_fault) marks each door: locked = 1 means it won't release, 0 means it opens.",
 		"Filter rows with WHERE. Need two conditions? Join them with AND. Example on another table:",
 		"    [color=#ffffff]SELECT * FROM badges WHERE clearance = 'ESCORT' AND last_seen = 'Server Room A';[/color]",
 		"      SELECT *                         which columns to show (* = all)",
@@ -525,6 +598,10 @@ func _self_test_lines() -> Array:
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 	if not hot_rack_found and hot_rack_puzzle.matches(db, result):
 		sync.event("_on_hot_rack_found")
+	if not dark_room_puzzle.solved and dark_room_puzzle.matches(db, result):
+		sync.event("_on_dark_room_found")
+	if asked and not stuck_doors_puzzle.solved and not controller_puzzle.solved and stuck_doors_puzzle.matches(db, result):
+		sync.event("_on_stuck_doors_found")
 	if not asked or controller_puzzle.solved or not controller_puzzle.matches(db, result):
 		return
 	sync.event("_on_controller_found")
@@ -536,8 +613,57 @@ func _on_hot_rack_found() -> void:
 	terminal.print_line("> FAN TRAY LATCH RELEASED: RACK %s RUNNING HOT." % hot_rack)
 
 
+## The stuck doors, and their zone: the controller is the next step.
+func _on_stuck_doors_found() -> void:
+	if stuck_doors_puzzle.solved:
+		return
+	stuck_doors_puzzle.solved = true
+	terminal.print_line("")
+	terminal.print_line(TerminalUI.sysop("those are the doors that won't release. the cold lab is another floor's. the rest share one zone: the faulting controller is in it."))
+	get_node("/root/Game").add_clue("controller", "The stuck doors on this floor are all in zone %s." % zone, "Query result")
+	if not controller_puzzle.solved:
+		hud.todo("Find the door controller that keeps faulting, and reset it")
+
+
+## Optional: the list of lights that are out. The circuit reset takes now.
+func _on_dark_room_found() -> void:
+	dark_room_puzzle.solved = true
+	terminal.print_line("")
+	terminal.print_line(TerminalUI.sysop("that's every light that's out. the reset by the break room door takes now."))
+	var game := get_node("/root/Game")
+	game.open_case("dark_room", DARK_CASE, ["lights"])
+	game.add_clue("dark_room", "The lights out are the dead and flickering ones. Reset the circuit by the break room door.", "SYSOP")
+
+
+## Host: someone pressed the break room's lighting reset.
+func _on_light_panel(_p: Node) -> void:
+	if lights_fixed:
+		return
+	sync.event("_on_light_reset" if dark_room_puzzle.solved else "_on_light_refused")
+
+
+func _on_light_refused() -> void:
+	hud.notice("> LIGHTING CIRCUIT: RESET LOCKED.\n> It unlocks once the terminal lists every light that's dead or flickering.", 4.0, ThemeUtil.RED)
+
+
+## Every machine: the break room lights up and the north corridor stops flickering.
+func _on_light_reset() -> void:
+	lights_fixed = true
+	light_panel.enabled = false
+	db.run_silent("UPDATE lights SET is_on = 1, status = 'ok' WHERE floor = 1 AND (status = 'dead' OR status = 'flickering')")
+	db.sync_world()
+	for l in lights.get("corridor", []):
+		for f in l.get_children():
+			if f is FlickerLight:
+				l.light_energy = f.base_energy
+				f.queue_free()
+	hud.notice("> LIGHTING CIRCUIT RESET: BREAK ROOM AND NORTH CORRIDOR BACK ON.", 4.0, ThemeUtil.GREEN)
+	get_node("/root/Game").solve_case("dark_room", "the break room's bulb was dead and the north corridor flickering. One circuit reset fixed both.")
+
+
 func _on_controller_found() -> void:
 	controller_puzzle.solved = true
+	stuck_doors_puzzle.solved = true  # found without the doors query (say, reading every fault's note): the first step is done too
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the one. %s, zone %s, 'fault'. reset it by hand at its rack." % [answer, zone]))
 	get_node("/root/Game").add_clue("controller", "%s is the one: zone %s, 'fault'. Reset it by hand at its rack." % [answer, zone], "SYSOP")

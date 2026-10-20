@@ -12,6 +12,7 @@ extends RefCounted
 const STAIR_GREY := Color(0.5, 0.5, 0.48)  # painted concrete
 const RAIL_RED := Color(0.55, 0.12, 0.09)  # gloss-painted steel handrail
 const STENCIL := Color(0.92, 0.9, 0.84)
+const CHAIR_SEAT := 0.465  # top of a folding chair's seat, where a Seat goes
 
 
 ## A steel handrail on posts from `from` to `to` (both at the nosing line, on the
@@ -171,11 +172,12 @@ static func whiteboard(parent: Node, pos: Vector3, facing_deg: float, text: Stri
 	var l := Label3D.new()
 	l.text = text
 	l.font = NotebookArt.hand_font()
-	l.font_size = 48
+	l.font_size = 64
 	l.pixel_size = 0.0016
 	l.width = size.x / l.pixel_size * 0.9
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	l.offset = Vector2(-l.width / 2, 0)  # a left-aligned box starts at the label's origin: centre it on the board
 	l.modulate = Color(0.1, 0.2, 0.55)
 	l.outline_size = 0
 	l.position = Vector3(0, 0, -0.02)

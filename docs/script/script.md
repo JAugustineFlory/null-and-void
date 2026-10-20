@@ -29,9 +29,185 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Smooth, professional, warm, slightly bored. Calm public-radio delivery with no drama; the flatness is what makes it land.
 
+**The crew (player characters)** (CREW). Player-character commentary: whichever of the 12 playable characters fits the moment says it, in their own voice. Recordings go in audio/voice/crew_<character>/<id>.wav. The subtitle shows the player's own name. Played by Commentary (scripts/audio/commentary.gd).
+
+> Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
+
 **Harold Mercer** (MERCER). Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
+
+## Crew barks
+
+Each playable crew member's own short lines, played by Co-op. Their shared commentary lines are in the scenes below, as CREW.
+
+**Dana Okafor** (`dana`, 30s). Ex-cable installer. Blunt and practical, and has crawled through more ceilings than anyone alive. Unbothered by heights and vents. Calls everyone "chief".
+
+- *the van ready-up:* Let's get this over with. `[ready]`
+- *calling the crew over:* Chief. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* Got something. `[found_something]`
+- *starting a notes huddle:* Everyone, quick. Look at this. `[huddle]`
+- *asking for shoulders:* Give us a leg up? `[need_boost]`
+- *answering a call:* Coming. `[on_my_way]`
+- *something jumps out:* Nope. Nope. `[scared]`
+- *downed or caught:* Little help! `[help]`
+- *helped up or boosted:* Cheers, chief. `[thanks]`
+- *a locked door or a blocked route:* Not getting through that. `[no_way]`
+- *radio, something's near:* Shh. Something's here. `[quiet]`
+
+**Priya Raman** (`priya`, 20s). Ran a phone-repair kiosk at the mall. Talks fast, fixes faster, and is relentlessly optimistic. Thinks this is the best night of her life, right up until it isn't.
+
+- *the van ready-up:* Ooh, okay. Ready, ready! `[ready]`
+- *calling the crew over:* Guys! Over here, come look! `[over_here]`
+- *a clue pickup that has no written discovery line:* Oh, this is something! `[found_something]`
+- *starting a notes huddle:* Huddle! Huddle up! `[huddle]`
+- *asking for shoulders:* Can somebody lift me? I'm tiny. `[need_boost]`
+- *answering a call:* On my way, on my way! `[on_my_way]`
+- *something jumps out:* Oh my God. Oh my God. `[scared]`
+- *downed or caught:* Help! Help me! `[help]`
+- *helped up or boosted:* You're the best. `[thanks]`
+- *a locked door or a blocked route:* Okay, that's locked. Rude. `[no_way]`
+- *radio, something's near:* Guys. Whisper. Something's moving. `[quiet]`
+
+**Rosa Delgado** (`rosa`, 30s). A school office manager doing nights for extra cash. Organised, unflappable, dry as toast. Treats the crew like a class on a field trip.
+
+- *the van ready-up:* Seatbelts, everyone. `[ready]`
+- *calling the crew over:* Over here, please. Today. `[over_here]`
+- *a clue pickup that has no written discovery line:* Well, now. Look at this. `[found_something]`
+- *starting a notes huddle:* Everybody gather round. `[huddle]`
+- *asking for shoulders:* A hand up, if someone would be so kind. `[need_boost]`
+- *answering a call:* I'm coming. Don't touch anything. `[on_my_way]`
+- *something jumps out:* Mother of God. `[scared]`
+- *downed or caught:* Somebody! Now! `[help]`
+- *helped up or boosted:* Thank you. Noted. `[thanks]`
+- *a locked door or a blocked route:* That's not opening for us. `[no_way]`
+- *radio, something's near:* Quiet. All of you. `[quiet]`
+
+**Kit Larsen** (`kit`, 20s). Bike courier and rooftop free-runner. Fearless and cocky, and climbs first and thinks later. The one most likely to say "watch this".
+
+- *the van ready-up:* Let's go, let's go. `[ready]`
+- *calling the crew over:* Up here! Come on! `[over_here]`
+- *a clue pickup that has no written discovery line:* Ha. Found it. `[found_something]`
+- *starting a notes huddle:* Okay, team talk. Quick. `[huddle]`
+- *asking for shoulders:* Boost me. I've got the rest. `[need_boost]`
+- *answering a call:* Two seconds! `[on_my_way]`
+- *something jumps out:* Whoa, whoa, whoa! `[scared]`
+- *downed or caught:* I'm caught! Get it off! `[help]`
+- *helped up or boosted:* Owe you one. `[thanks]`
+- *a locked door or a blocked route:* Dead end. Find another way. `[no_way]`
+- *radio, something's near:* Stop. Don't move. `[quiet]`
+
+**June Whitaker** (`june`, 60s). Ham-radio operator for forty years, and Maddison's aunt. Calm and precise, and the only one who knows radio etiquette. Says "over" whether or not she's on the radio.
+
+- *the van ready-up:* Ready when you are. Over. `[ready]`
+- *calling the crew over:* To me, please. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* I have something. Come and see. `[found_something]`
+- *starting a notes huddle:* Let's all stop and think a moment. `[huddle]`
+- *asking for shoulders:* I'll need a lift up there, dear. `[need_boost]`
+- *answering a call:* Copy. On my way. `[on_my_way]`
+- *something jumps out:* Good heavens! `[scared]`
+- *downed or caught:* Mayday! Mayday! `[help]`
+- *helped up or boosted:* Much obliged. `[thanks]`
+- *a locked door or a blocked route:* Negative. That's sealed. `[no_way]`
+- *radio, something's near:* Radio silence. Something's close. `[quiet]`
+
+**Mei Tanaka** (`mei`, 30s). Ex-barista with a nervous laugh. Jumpy, very funny, and much braver than she thinks. Narrates her own panic.
+
+- *the van ready-up:* I'm ready. I'm not ready. I'm ready. `[ready]`
+- *calling the crew over:* Over here! Before I chicken out! `[over_here]`
+- *a clue pickup that has no written discovery line:* Is this something? I think this is something. `[found_something]`
+- *starting a notes huddle:* Can we huddle? I want to huddle. `[huddle]`
+- *asking for shoulders:* Lift me up? Don't drop me. `[need_boost]`
+- *answering a call:* Coming! Slowly! But coming! `[on_my_way]`
+- *something jumps out:* Nope! Absolutely not! `[scared]`
+- *downed or caught:* Help! Help, help, help! `[help]`
+- *helped up or boosted:* Oh, thank God. Thank you. `[thanks]`
+- *a locked door or a blocked route:* Locked. Great. Love that. `[no_way]`
+- *radio, something's near:* Shh. Do you hear that? `[quiet]`
+
+**Marcus Bell** (`marcus`, 40s). Former mall security guard. Steady, cautious and observant. Checks corners. Knows exactly how night guards think, and hates it here.
+
+- *the van ready-up:* Alright. Let's do this right. `[ready]`
+- *calling the crew over:* Over here. Stay together. `[over_here]`
+- *a clue pickup that has no written discovery line:* Hold up. Found something. `[found_something]`
+- *starting a notes huddle:* Everybody, eyes here. `[huddle]`
+- *asking for shoulders:* Need a boost up. `[need_boost]`
+- *answering a call:* Moving to you. `[on_my_way]`
+- *something jumps out:* Back up! Back up! `[scared]`
+- *downed or caught:* Man down! Need help! `[help]`
+- *helped up or boosted:* Appreciate it. `[thanks]`
+- *a locked door or a blocked route:* Locked tight. Try another way. `[no_way]`
+- *radio, something's near:* Hold. Something's moving. `[quiet]`
+
+**Theo Brandt** (`theo`, 20s). A gamer with a sarcastic streak who answered Maddison's ad. Quick, funny and convinced this is just like a video game. It isn't.
+
+- *the van ready-up:* Loading in. `[ready]`
+- *calling the crew over:* Yo. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* Ooh. Loot. `[found_something]`
+- *starting a notes huddle:* Team meeting. Strategy time. `[huddle]`
+- *asking for shoulders:* Boost me? Classic co-op move. `[need_boost]`
+- *answering a call:* Omw. `[on_my_way]`
+- *something jumps out:* What is THAT?! `[scared]`
+- *downed or caught:* I'm down! Revive me! `[help]`
+- *helped up or boosted:* GG. Thanks. `[thanks]`
+- *a locked door or a blocked route:* Locked. Obviously. `[no_way]`
+- *radio, something's near:* Stealth section. Shh. `[quiet]`
+
+**Sam Abara** (`sam`, 30s). Professional mover. Big, gentle and strong. The crew's boost and its heavy lifter, and the calmest voice in the room.
+
+- *the van ready-up:* Ready. `[ready]`
+- *calling the crew over:* Over here, folks. `[over_here]`
+- *a clue pickup that has no written discovery line:* This look important to you? `[found_something]`
+- *starting a notes huddle:* Let's slow down and look. `[huddle]`
+- *asking for shoulders:* Gonna need help with this one. `[need_boost]`
+- *answering a call:* Coming your way. `[on_my_way]`
+- *something jumps out:* Whoa. Easy. Easy. `[scared]`
+- *downed or caught:* Need a hand here! `[help]`
+- *helped up or boosted:* Thank you, friend. `[thanks]`
+- *a locked door or a blocked route:* That won't budge. And I tried. `[no_way]`
+- *radio, something's near:* Hush, now. Listen. `[quiet]`
+
+**Luis Ortega** (`luis`, 50s). Handyman, and Maddison's oldest friend. Warm, chatty, and believes everything can be fixed by turning it off and on again. Mostly, he's right.
+
+- *the van ready-up:* Vámonos. `[ready]`
+- *calling the crew over:* Hey, hey. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* Look what I found. `[found_something]`
+- *starting a notes huddle:* Okay, everybody. Think. `[huddle]`
+- *asking for shoulders:* Give an old man a lift? `[need_boost]`
+- *answering a call:* I'm coming, I'm coming. `[on_my_way]`
+- *something jumps out:* ¡Ay, Dios mío! `[scared]`
+- *downed or caught:* Help me! Quick! `[help]`
+- *helped up or boosted:* Gracias, mijo. `[thanks]`
+- *a locked door or a blocked route:* Locked. Maybe we turn it off and on? `[no_way]`
+- *radio, something's near:* Shh. Something's out there. `[quiet]`
+
+**Ike Novak** (`ike`, 20s). A startup dropout who talks in buzzwords. Overconfident, bluffs hardest of anyone, and is secretly the most scared.
+
+- *the van ready-up:* Let's disrupt this. `[ready]`
+- *calling the crew over:* Over here. Let's sync. `[over_here]`
+- *a clue pickup that has no written discovery line:* Okay, this is a key insight. `[found_something]`
+- *starting a notes huddle:* Quick stand-up, everybody. `[huddle]`
+- *asking for shoulders:* Can I get some lift? Literally. `[need_boost]`
+- *answering a call:* Pivoting to you. `[on_my_way]`
+- *something jumps out:* Oh no. Oh no no no. `[scared]`
+- *downed or caught:* This is a blocker! Help! `[help]`
+- *helped up or boosted:* Huge. Thank you. `[thanks]`
+- *a locked door or a blocked route:* Hard blocker. Locked. `[no_way]`
+- *radio, something's near:* Okay, nobody talk. `[quiet]`
+
+**Walt Henley** (`walt`, 30s). Power-company lineman between storm callouts. Grumpy, unhurried, and acts like he's seen everything twice. He came along "to keep an eye on you idiots".
+
+- *the van ready-up:* Let's get it done. `[ready]`
+- *calling the crew over:* Over here. Come on. `[over_here]`
+- *a clue pickup that has no written discovery line:* Huh. Lookit this. `[found_something]`
+- *starting a notes huddle:* Everybody stop. Think. `[huddle]`
+- *asking for shoulders:* Bad shoulder. Give me a hand up. `[need_boost]`
+- *answering a call:* Hold your horses. Coming. `[on_my_way]`
+- *something jumps out:* Jesus, Mary and Joseph! `[scared]`
+- *downed or caught:* Somebody! Get it off me! `[help]`
+- *helped up or boosted:* Mm. Thanks. `[thanks]`
+- *a locked door or a blocked route:* That's not opening. `[no_way]`
+- *radio, something's near:* Shut it. Listen. `[quiet]`
 
 ## Level 0
 
@@ -179,6 +355,52 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(Badging the door. Pleasant, like the end of a tour.)* Here we are. Server Room A. `[l0_sra]`
 
+### Crew commentary: ground floor
+
+*Commentary played by scripts/audio/commentary.gd: discovery lines when a paper is read or a result appears, nudges when the crew is stuck (the clock pauses during cut-scenes and typing), error lines on the same mistake twice, payoffs after a solve. Also holds the two shared Nudge 2 lines that point at SYSOP.* *(Written ahead: not in the game yet.)*
+
+**CREW:** *(Stuck, before SYSOP has helped. Half a joke, half serious.)* That SYSOP on the screen seems to know this building. Maybe ask. `[cc_nudge2_first]`
+
+**CREW:** *(Stuck again. A little uneasy about trusting a stranger on a screen.)* Whoever SYSOP is, they've been right so far. Maybe ask. `[cc_nudge2]`
+
+**CREW:** *(Picked up a scanner's instruction card. Noticing handwriting on it.)* Quick-start card for the scanner. Somebody's filled in the blanks. `[l0_cc_peek_card]`
+
+**CREW:** *(Stuck for a minute. A practical thought.)* Scanners always come with instructions. Check round the keyboard. `[l0_cc_peek_n1a]`
+
+**CREW:** *(Stuck. Remembering the card you all read.)* That scanner card had something written in by hand. `[l0_cc_peek_n1b]`
+
+**CREW:** *(The same name typed wrong twice. Gentle doubt.)* Is that what the card called it? `[l0_cc_peek_err]`
+
+**CREW:** *(Seeing the result. Curious.)* Scraps of a memo. All jumbled up. `[l0_cc_peek_pay]`
+
+**CREW:** *(Spotting a pattern in the jumbled scraps.)* Every scrap's got a number. That's not an accident. `[l0_cc_memo_disc]`
+
+**CREW:** *(Stuck. Thinking back.)* Didn't the scanner come with a card? It might say how the scraps are kept. `[l0_cc_memo_n1a]`
+
+**CREW:** *(Stuck. Remembering the card.)* The scanner card said something about numbering the scraps. `[l0_cc_memo_n1b]`
+
+**CREW:** *(The memo came out in reverse, twice. Amused.)* It reads backwards. We've got the ending first. `[l0_cc_memo_back]`
+
+**CREW:** *(Whispered. The memo warns about the man standing right next to you.)* ...Don't look at him. Just don't look at him. `[l0_cc_memo_pay]`
+
+**CREW:** *(Reading the work order. Noticing a detail.)* Work order's got a callback extension on it. `[l0_cc_caller_order]`
+
+**CREW:** *(Finding a staff phone list.)* A phone list. With extensions. `[l0_cc_caller_list]`
+
+**CREW:** *(Stuck. Remembering what the escort said.)* Rourke said the mailroom has the only phone list that's right. `[l0_cc_caller_n1a]`
+
+**CREW:** *(Stuck. Remembering the list.)* That phone list in the mailroom had everybody's extension. `[l0_cc_caller_n1b]`
+
+**CREW:** *(The same column name wrong twice. Gentle doubt.)* Is that what the column's actually called? `[l0_cc_caller_err]`
+
+**CREW:** *(Uneasy. That isn't who you expected.)* So that's who called us. Weird. `[l0_cc_caller_pay]`
+
+**CREW:** *(Reading a visitor book. Suspicious.)* Last page is torn out. Somebody didn't want their name in here. `[l0_cc_book_disc]`
+
+**CREW:** *(Stuck. A practical idea.)* The book's only paper. The front desk computer might keep its own copy. `[l0_cc_book_n1]`
+
+**CREW:** *(Quietly. That's not good.)* Vale signed in. And never signed out. `[l0_cc_book_pay]`
+
 ## Level 1
 
 ### Book huddles: WHERE and comparisons
@@ -230,6 +452,36 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 **ROURKE:** *(Already walking. Friendly, steering.)* Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you. `[l1_pivot_3]`
 
 **ROURKE:** *(Inside the car, across from the buttons. A little clipped now, eager to get there.)* Twenty-two. Security floor. Go on. `[l1_lift_button]`
+
+### Crew commentary: server floor
+
+*Commentary for the server floor puzzles (controller, hot_rack).* *(Written ahead: not in the game yet.)*
+
+**CREW:** *(Reading a shift log. Encouraged.)* Night shift wrote down every alarm. That has to help. `[l1_cc_log]`
+
+**CREW:** *(Finding a reference sheet. Pleased.)* There's a sheet on the controllers in here. Hang on to that. `[l1_cc_sheet]`
+
+**CREW:** *(Stuck for a minute. Remembering what the escort said.)* Rourke said the night shift logs everything. Maybe they saw this happen. `[l1_cc_nudge1_a]`
+
+**CREW:** *(Stuck. Thinking back to the log.)* What did that shift log say the alarms were about? `[l1_cc_nudge1_b]`
+
+**CREW:** *(The same table name wrong twice. Gentle doubt.)* Is that what the sheet in here called it? `[l1_cc_err_table]`
+
+**CREW:** *(A second wrong reset. Frustrated, then thinking.)* Nope. Wasn't there a note somewhere about what 'fault' actually means? `[l1_cc_err_reset]`
+
+**CREW:** *(It clicks. A bit sheepish.)* Every stuck door was in the same zone. Should've seen that sooner. `[l1_cc_payoff_1]`
+
+**CREW:** *(At the right rack. Satisfied.)* Same zone, still faulting. That was our guy. `[l1_cc_payoff_2]`
+
+**CREW:** *(Reading a warning plate on a door.)* Fire interlock. There's a temperature limit on it. `[l1_cc_hot_plate]`
+
+**CREW:** *(Stuck. Raising your voice over the fans.)* Server Room B's loud. Some of those racks are working way too hard. `[l1_cc_hot_n1a]`
+
+**CREW:** *(Stuck. Remembering a card.)* That monitoring card by the terminal said what counts as too hot. `[l1_cc_hot_n1b]`
+
+**CREW:** *(The comparison the wrong way round, twice. Checking.)* We want the hot ones, not the cool ones, right? `[l1_cc_hot_err]`
+
+**CREW:** *(Found the hot rack. Impressed.)* That one's cooking. No wonder it's loud. `[l1_cc_hot_pay]`
 
 ## Level 2
 
@@ -400,6 +652,54 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 **MADDISON:** *(Flipping the book over to check the cover.)* This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' `[l2_huddle_get_1]`
 
 **MADDISON:** *(Not convinced.)* So it's a SELECT for robots. Got it. Probably. `[l2_huddle_get_2]`
+
+### Crew commentary: security floor
+
+*Commentary for the security floor puzzles (badge_log, lab_door, cameras, pike, door, har).* *(Written ahead: not in the game yet.)*
+
+**CREW:** *(Reading a badge reader's card. Noting it.)* Every door up here logs who swipes in. `[l2_cc_reader_card]`
+
+**CREW:** *(Stuck. Remembering the card.)* That card said the readers keep a log. Of everybody. `[l2_cc_log_n1]`
+
+**CREW:** *(Something in the result is very wrong. Cold.)* Wait. Read that again. Slowly. `[l2_cc_log_pay]`
+
+**CREW:** *(Reading a door's card. Quick, under pressure.)* 'Controller zone.' That's a letter we can use. `[l2_cc_doorcard]`
+
+**CREW:** *(A second wrong switch, on a clock. Tense.)* Not that one. What do the notes on the others say? `[l2_cc_switch_err]`
+
+**CREW:** *(Urgent. Get out now.)* Door's moving. Go, go! `[l2_cc_door_pay]`
+
+**CREW:** *(Reading the camera system's card.)* Camera system. There's a way to ask it what it sees. `[l2_cc_camcard]`
+
+**CREW:** *(Stuck. Looking around the booth.)* Security booth. There's got to be something on how these cameras work. `[l2_cc_cam_n1a]`
+
+**CREW:** *(Stuck. Remembering the card.)* That camera card said how to ask the system. `[l2_cc_cam_n1b]`
+
+**CREW:** *(Quiet and scared.)* Something's moving out there. And it isn't us. `[l2_cc_cam_pay]`
+
+**CREW:** *(Reading a stained sign-in sheet.)* Coffee all over this. One name's still readable. `[l2_cc_sheet]`
+
+**CREW:** *(Stuck. Remembering the sheet.)* The sign-in sheet. One name wasn't smudged. `[l2_cc_pike_n1]`
+
+**CREW:** *(The same name misspelled twice. Gentle doubt.)* Is that how it's spelled on the sheet? `[l2_cc_pike_err]`
+
+**CREW:** *(Dry. Relieved for a stranger.)* No-show tonight. Lucky him. `[l2_cc_pike_pay]`
+
+**CREW:** *(Staring at a door that should be open. Baffled.)* It said it opened. It didn't open. `[l2_cc_lie]`
+
+**CREW:** *(Stuck. Noticing the sign above the door.)* That door's got its name painted over it in red. Maybe the server knows it by that. `[l2_cc_door_n1]`
+
+**CREW:** *(Relief, and a little laugh at yourself.)* A breaker. Of course it's a breaker. `[l2_cc_breaker_pay]`
+
+**CREW:** *(Reading a roster board. Noting it.)* Badge numbers, next to names. `[l2_cc_roster]`
+
+**CREW:** *(Stuck. Thinking it through.)* The badge readers log every swipe. Who left this floor last? `[l2_cc_pin_n1a]`
+
+**CREW:** *(Stuck. Putting two things together.)* The last guard out had a badge number. Something up here matches those to names. `[l2_cc_pin_n1b]`
+
+**CREW:** *(A second wrong PIN. Thinking.)* Wrong code. Is that the night lead, or just any guard? `[l2_cc_pin_err]`
+
+**CREW:** *(Keypad accepted it. Nervous, wants to move.)* That's the code. Let's not hang around. `[l2_cc_pin_pay]`
 
 ## Level 3
 

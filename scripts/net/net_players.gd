@@ -38,7 +38,7 @@ func _ready() -> void:
 			var who: String = net.display_name(id) if net else "Player %d" % id
 			# Stand where that player spawns until their first update arrives.
 			var at: Transform3D = level.player_spawn(i)
-			var p := PlayerPuppet.create(self, id, who, i, at)
+			var p := PlayerPuppet.create(self, id, who, look_for(self, id), at)
 			p.players = self
 			_puppets[id] = p
 
@@ -63,6 +63,22 @@ static func ids_for(mp: MultiplayerAPI) -> Array:
 ## A player's place in the player order (0 = host).
 static func index_of(id: int, mp: MultiplayerAPI) -> int:
 	return ids_for(mp).find(id)
+
+
+## How player `id` looks (a CharacterLooks dictionary): what they picked in the
+## lobby, else the crew look for their place in the player order.
+static func look_for(from: Node, id: int) -> Dictionary:
+	var fallback := index_of(id, from.multiplayer)
+	var net := from.get_node_or_null("/root/Net")
+	return crew_look(net.look_of(id, fallback) if net else {"color": fallback})
+
+
+## A lobby pick ({color, skin, crew, body}) as a CharacterLooks dictionary.
+static func crew_look(choice: Dictionary) -> Dictionary:
+	var picks := {"body": int(choice.get("body", 1))}
+	if int(choice.get("skin", -1)) >= 0:
+		picks.skin = int(choice.skin)
+	return CharacterLooks.crew(maxi(int(choice.get("color", 0)), 0), picks)
 
 
 func my_index() -> int:

@@ -42,19 +42,19 @@ var _capsule: CapsuleShape3D
 var _shape: CollisionShape3D
 
 
-## `index` is the player's number (0 = host); it picks how they look.
-static func create(parent: Node, id: int, player_name: String, index: int, at: Transform3D) -> PlayerPuppet:
+## `look` is how they look (a CharacterLooks dictionary, see NetPlayers.look_for).
+static func create(parent: Node, id: int, player_name: String, look: Dictionary, at: Transform3D) -> PlayerPuppet:
 	var p := PlayerPuppet.new()
 	p.peer_id = id
 	p.display_name = player_name
 	p.name = str(id)
-	p._build(index)
+	p._build(look)
 	p.transform = at  # before entering the world, so it never flashes at the origin
 	parent.add_child(p)
 	return p
 
 
-func _build(index: int) -> void:
+func _build(look: Dictionary) -> void:
 	add_to_group("player")
 	add_to_group("puppet")
 	sync_to_physics = false
@@ -66,7 +66,7 @@ func _build(index: int) -> void:
 	_shape.position.y = STAND_HEIGHT / 2
 	add_child(_shape)
 
-	rig = CharacterRig.build(self, CharacterLooks.crew(index))
+	rig = CharacterRig.build(self, look)
 
 	# The flashlight rides at eye level, in the direction they look.
 	_head = Node3D.new()
@@ -171,16 +171,37 @@ func _crew() -> Node:
 	return CrewVitals.of(players.level) if players else null
 
 
-## A teammate who's down can be helped up.
+## E on a teammate: help them up if they're down; otherwise huddle up to share
+## notes, or join the huddle they're in.
 func get_prompt(_by: Node) -> String:
-	var c := _crew()
-	return c.revive_prompt(peer_id) if c else ""
+	if downed:
+		var c := _crew()
+		return c.revive_prompt(peer_id) if c else ""
+	return _huddle_prompt()
 
 
 func interact(_by: Node) -> void:
-	var c := _crew()
-	if c and downed:
-		c.revive(peer_id)
+	if downed:
+		var c := _crew()
+		if c:
+			c.revive(peer_id)
+	elif _huddle_prompt() != "":
+		_huddle().huddle_with(peer_id)
+
+
+func _huddle() -> NotesHuddle:
+	var s := LevelSync.of(self)
+	return s.huddle if s else null
+
+
+func _huddle_prompt() -> String:
+	var h := _huddle()
+	if h == null:
+		return ""
+	var theirs := h.group_of(peer_id)
+	if theirs != 0 and theirs == h.group_of(multiplayer.get_unique_id()):
+		return ""
+	return "[E] Join the notes huddle" if theirs != 0 else "[E] Huddle up to share notes"
 
 
 func flashlight_on() -> bool:

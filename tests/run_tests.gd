@@ -24,6 +24,7 @@ func _run() -> void:
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
+	await test_commentary()
 	await test_pause_holds_subtitles()
 	test_facility_api()
 	test_level_2_data_every_seed()
@@ -64,6 +65,8 @@ func _run() -> void:
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_terminal_screens()
+	await test_coop_notes_huddle()
+	await test_coop_looks()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -223,7 +226,7 @@ func test_first_hints_show_working_queries() -> void:
 	var l0 = load("res://scripts/levels/level_0.gd")
 	var l0i = l0.new()
 	var l1 = load("res://scripts/levels/level_1.gd")
-	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true}
+	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true, "stuck_doors": true, "dark_room": true}
 	for seed_value in 20:
 		var d0 := FacilityDB.new()
 		var data0 := Level0Data.build(seed_value)
@@ -237,6 +240,8 @@ func test_first_hints_show_working_queries() -> void:
 		d1.load_seed(data1.sql)
 		ok.controller = ok.controller and _check_hint_ladder(l1.controller_puzzle_for(data1.zone), d1, "'%s'" % data1.zone)
 		ok.hot_rack = ok.hot_rack and _check_hint_ladder(l1.hot_rack_puzzle_for(), d1, str(Level1Data.INTERLOCK_C))
+		ok.stuck_doors = ok.stuck_doors and _check_hint_ladder(l1.stuck_doors_puzzle_for(), d1, "1")
+		ok.dark_room = ok.dark_room and _check_hint_ladder(l1.dark_room_puzzle_for(), d1, "'dead'") and not l1.dark_room_puzzle_for().hints[0].contains("flickering")
 	for id in ok:
 		check(ok[id], "%s: hint 1 is the query's shape with ?, and the last hint's query solves it, on every seed" % id)
 	check(not l0i.memo_puzzle.hints[1].contains("visitors"), "memo: hints never use an example table")
@@ -390,9 +395,31 @@ func test_voice_script() -> void:
 				hits += 1
 				if not path.get_file().begins_with(slug):
 					wrong_file.append(id)
-		if hits != 1:
+		# The shared crew lines are in every playable crew member's script.
+		if hits != (VoiceLines.CREW.size() if VoiceLines.LINES[id]["speaker"] == "CREW" else 1):
 			placed_once.append(id)
 	check(placed_once.is_empty(), "every line is in exactly one character's script %s" % [placed_once])
+	var bodies := {}
+	var missing_barks := []
+	var named := []
+	for slug in VoiceLines.CREW:
+		var m: Dictionary = VoiceLines.CREW[slug]
+		bodies[m["body"]] = bodies.get(m["body"], 0) + 1
+		if m["barks"].keys() != VoiceLines.BARKS.keys():
+			missing_barks.append(slug)
+		if not docs.has(ScriptDocs.CHARACTERS_DIR.path_join(VoiceLines.crew_dir(slug) + ".md")):
+			missing_barks.append(slug + " (no script)")
+	var crew_text: Array = VoiceLines.LINES.values().filter(func(l): return l["speaker"] == "CREW").map(func(l): return l["text"])
+	for slug in VoiceLines.CREW:
+		crew_text.append_array(VoiceLines.CREW[slug]["barks"].values())
+	for slug in VoiceLines.CREW:
+		var first: String = VoiceLines.CREW[slug]["name"].get_slice(" ", 0)
+		for t in crew_text:
+			if RegEx.create_from_string("\\b%s\\b" % first).search(t):
+				named.append(first)
+	check(bodies == {"woman": 6, "man": 6}, "six women and six men to play %s" % [bodies])
+	check(missing_barks.is_empty(), "every crew member has every bark, and a script %s" % [missing_barks])
+	check(named.is_empty(), "no crew line names a crew member: players type their own names %s" % [named])
 	check(wrong_file.is_empty(), "lines are only in their own character's script %s" % [wrong_file])
 	var leaks := []
 	for path in docs:
@@ -404,7 +431,8 @@ func test_voice_script() -> void:
 				leaks.append("%s: context %s" % [path.get_file(), sc["id"]])
 	check(leaks.is_empty(), "actors' scripts leave out the team-only character notes %s" % [leaks])
 	var sysop_voiced: bool = VoiceLines.CHARACTERS.has("SYSOP") or VoiceLines.LINES.values().any(func(l): return l["speaker"] == "SYSOP")
-	var sysop_named: Array = docs.keys().filter(func(path): return docs[path].to_upper().contains("SYSOP"))
+	# The crew can say the name on the screen; nobody voices or describes SYSOP.
+	var sysop_named: Array = docs.keys().filter(func(path): return not path.get_file().begins_with("crew") and docs[path].to_upper().contains("SYSOP"))
 	var warden_l0: Array = VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "WARDEN" and VoiceLines.scene(VoiceLines.LINES[id]["scene"])["level"] == 0)
 	var cut: String = VoiceLines.get_line("l2_contain_1")["text"].trim_suffix("--")
 	check(VoiceLines.get_line("l2_contain_2")["text"].begins_with(cut), "after its PA tape interrupts, WARDEN repeats its warning word for word")
@@ -415,6 +443,119 @@ func test_voice_script() -> void:
 	check(not sysop_voiced and sysop_named.is_empty(), "SYSOP stays text-only and out of every actor's script %s" % [sysop_named])
 	check(VoiceLines.held_back({"level": VoiceLines.REVEAL_LEVEL}) and VoiceLines.held_back({"level": 2, "reveal": true}) \
 		and not VoiceLines.held_back({"level": 2}), "reveal scenes and late levels are held back for a later session")
+
+
+class FakeHud extends Node:
+	var said: Array = []
+
+	func say(speaker: String, text: String, _seconds: float = -1.0) -> void:
+		said.append([speaker, text])
+
+
+func test_commentary() -> void:
+	print("Crew commentary")
+	var levels_src := ""
+	for f in DirAccess.get_files_at("res://scripts/levels"):
+		if f.ends_with(".gd"):
+			levels_src += FileAccess.get_file_as_string("res://scripts/levels/" + f)
+	var bad_ids := []
+	var bad_docs := []
+	var bad_puzzles := []
+	var used := {Commentary.NUDGE2_FIRST: true, Commentary.NUDGE2: true}
+	for pid in Commentary.NUDGES:
+		var d: Dictionary = Commentary.NUDGES[pid]
+		if not levels_src.contains('Puzzle.new("%s"' % pid):
+			bad_puzzles.append(pid)
+		var ids: Array = d.get("disc", {}).values() + d.get("errors", {}).values() + d.get("pay", [])
+		var n1: Dictionary = d.get("n1", {})
+		for k in ["seen", "unseen"]:
+			if n1.has(k):
+				ids.append(n1[k])
+		var titles: Array = []
+		if n1.has("doc"):
+			titles.append(n1["doc"])
+		for ev in d.get("disc", {}):
+			if ev.begins_with("read:"):
+				titles.append(ev.trim_prefix("read:"))
+		for t in titles:
+			if not levels_src.contains('"%s"' % t):
+				bad_docs.append(t)
+		for id in ids:
+			used[id] = true
+			if VoiceLines.get_line(id).get("speaker", "") != "CREW":
+				bad_ids.append(id)
+	check(bad_puzzles.is_empty(), "commentary only covers puzzles the levels have %s" % [bad_puzzles])
+	check(bad_ids.is_empty(), "every commentary line is a crew line in the script %s" % [bad_ids])
+	check(bad_docs.is_empty(), "commentary only points at papers that are in the levels %s" % [bad_docs])
+	var unused := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "CREW" and not used.has(id))
+	check(unused.is_empty(), "every crew commentary line has a moment to play %s" % [unused])
+
+	var hud := FakeHud.new()
+	var cc := Commentary.new()
+	cc.hud = hud
+	root.add_child(hud)
+	root.add_child(cc)
+	await process_frame
+	var last := func() -> String: return hud.said[-1][1] if not hud.said.is_empty() else ""
+	var text := func(id: String) -> String: return VoiceLines.get_line(id)["text"]
+
+	cc.begin("controller")
+	cc.mistake("reset")
+	cc.mistake("")
+	cc.tick(Commentary.QUIET_START_S - 1.0)
+	check(hud.said.size() == 0, "no nudge in a puzzle's first seconds, even after two fails")
+	cc.mistake("reset")
+	check(last.call() == text.call("l1_cc_err_reset"), "the same mistake twice plays its error line")
+	cc.mistake("reset")
+	check(hud.said.size() == 1, "an error line plays once")
+	cc.pause(true)
+	cc.tick(100.0)
+	cc.pause(false)
+	cc.typing(true)
+	cc.tick(100.0)
+	cc.typing(false)
+	check(hud.said.size() == 1 and cc.clock < Commentary.NUDGE1_S, "the nudge clock stops in cut-scenes and while someone types")
+
+	cc.begin("controller")
+	cc.since_line = INF
+	cc.tick(Commentary.NUDGE1_S)
+	check(last.call() == text.call("l1_cc_nudge1_a"), "Nudge 1 points at the room before the paper is found")
+	cc.tick(Commentary.COOLDOWN_S - 1.0)
+	cc.mistake()
+	cc.mistake()
+	cc.tick(0.5)
+	check(last.call() == text.call("l1_cc_nudge1_a"), "nothing plays inside the cooldown")
+	cc.tick(1.0)
+	check(last.call() == text.call(Commentary.NUDGE2_FIRST), "after two fails Nudge 2 points at SYSOP")
+	var count: int = hud.said.size()
+	cc.tick(1000.0)
+	check(hud.said.size() == count and cc.nudges == Commentary.MAX_NUDGES, "at most two nudges per puzzle")
+
+	cc.read("NOC SHIFT LOG")
+	check(last.call() == text.call("l1_cc_log"), "reading a paper plays its discovery line")
+	cc.read("NOC SHIFT LOG")
+	check(hud.said.size() == count + 1, "a discovery plays once")
+	cc.begin("controller")
+	cc.since_line = INF
+	cc.tick(Commentary.NUDGE1_S)
+	check(last.call() == text.call("l1_cc_nudge1_b"), "once the paper is found, Nudge 1 points at it")
+
+	cc.begin("lab_door", true)
+	cc.since_line = INF
+	cc.tick(Commentary.NUDGE2_TIMED_S)
+	check(last.call() == text.call(Commentary.NUDGE2), "under a timer Nudge 1 is skipped, and later Nudge 2s don't repeat the first one")
+	cc.solved()
+	check(last.call() == text.call("l2_cc_door_pay") and cc.case_id == "", "solving plays the payoff and stops the nudges")
+
+	cc.hold(true)
+	cc.read("Fire interlock")
+	check(last.call() != text.call("l1_cc_hot_plate"), "commentary waits while other dialogue plays")
+	cc.hold(false)
+	check(last.call() == text.call("l1_cc_hot_plate"), "a waiting discovery plays once the dialogue is over")
+	check(Commentary.kind_of({"ok": false, "error": "no such table: door"}) == "table" \
+		and Commentary.kind_of({"ok": false, "error": "no such column: ext"}) == "column", "failed queries are sorted into mistakes")
+	cc.queue_free()
+	hud.queue_free()
 
 
 func test_voice_playback() -> void:
@@ -750,7 +891,7 @@ func test_level_1_scene() -> void:
 		await physics_frame
 	check(level.doors["SRA-EXIT"].is_open == false and level.room_c_door.locked, "Server Room A's rear door and Server Room C start stuck")
 	var z: String = level.zone
-	check(level.plate_zone("SRA-EXIT") == z and level.plate_zone("SRC") == z and level.plate_zone("NOC") == level.other_zone, "each door's plate shows its zone")
+	check(level.plate_text("SRC") == "SRC" and not level.plate_text("SRA-EXIT").contains("ZONE"), "door plates name the door, not its zone: only the doors query gives that")
 	check((level.door_plates["SRC"].material_override as StandardMaterial3D).albedo_color.r > 0.8 and (level.door_plates["NOC"].material_override as StandardMaterial3D).albedo_color.g > 0.8, "stuck doors' plates are red, the rest green")
 	check(not _doc_has(level, "zone %s" % z) and not _doc_has(level, "zone A") and not Array(level.terminal.boot_lines).any(func(l): return l.contains("zone %s" % z) or l.contains("(zone")), "nothing printed names the faulted zone")
 	check(not level.lights["1-BREAK"][0].visible and level.lights["noc"][0].visible, "the break room's bulb is dead, by its row in the lights table")
@@ -778,8 +919,13 @@ func test_level_1_scene() -> void:
 	check(round_west.size() > 1 and Array(round_west).all(func(q): return level.to_local(q).x < -7.5), "the west side loops round through the NOC and the cable vault, not Server Room A")
 
 	level.terminal_ui.terminal = level.terminal
+	check(level.terminal.hint_case() == "controller" and level.terminal.puzzles[0] == level.stuck_doors_puzzle, "the first hints are for the stuck doors, on the controller's case page")
+	for bad in ["SELECT name, zone FROM doors", "SELECT name, zone FROM doors WHERE locked = 0", "SELECT name FROM doors WHERE locked = 1"]:
+		level.terminal_ui.run(bad)
+		check(not level.stuck_doors_puzzle.solved, "stuck doors: '%s' isn't it" % bad)
 	level.terminal_ui.run("SELECT name, zone FROM doors WHERE locked = 1")
-	check(not level.controller_puzzle.solved, "the stuck doors' zone is a step, not the answer")
+	check(level.stuck_doors_puzzle.solved and not level.controller_puzzle.solved, "WHERE locked = 1 finds the stuck doors: a step, not the answer")
+	check(_game().current_todo() == "Find the door controller that keeps faulting, and reset it" and _game().case_info("controller").clues.any(func(k): return k.text == "The stuck doors on this floor are all in zone %s." % z), "their zone goes on the case page, and the to-do moves on to the controller")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % z)
 	check(not level.controller_puzzle.solved, "zone alone isn't enough")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z)
@@ -806,6 +952,22 @@ func test_level_1_scene() -> void:
 	check(shown.contains("VALE_I") and shown.contains("SECURE LAB B"), "the controller's log points at Vale's lab")
 	check(level.find_children("*", "Document", true, false).any(func(d): return d.title == "SYSLOG PRINTOUT" and str(d.doc_lines).contains("VALE")), "and so does the syslog printout in Server Room C")
 	check(_game().rourke_fate == "unknown", "Rourke's fate is still open after the server floor")
+
+	# Optional: the dark break room. Facilities' card asks for every light that's
+	# dead or flickering; the circuit reset only takes once the terminal has the list.
+	level._on_light_panel(null)
+	check(not level.lights_fixed and level.hud._notice.text.contains("RESET LOCKED"), "the break room's circuit reset won't take before the terminal lists the lights")
+	for bad in ["SELECT room, status FROM lights WHERE status = 'dead'", "SELECT room, status FROM lights WHERE is_on = 0",
+			"SELECT room, status FROM lights WHERE status != 'ok'", "SELECT room, status FROM lights WHERE status = 'dead' AND status = 'flickering'"]:
+		level.terminal_ui.run(bad)
+		check(not level.dark_room_puzzle.solved, "dark room: '%s' isn't it" % bad)
+	level.terminal_ui.run("SELECT * FROM lights WHERE status = 'flickering' OR status = 'dead'")
+	check(level.dark_room_puzzle.solved and _game().case_info("dark_room").open, "dead OR flickering lists the lights that are out")
+	level._on_light_panel(null)
+	check(level.lights_fixed and level.lights["1-BREAK"][0].visible, "then the reset lights the break room")
+	check(level.db.run_silent("SELECT status FROM lights WHERE id = '1-VAULT-BAY'")[0]["status"] == "off" and level.db.run_silent("SELECT status FROM lights WHERE id = '1-HALL-N'")[0]["status"] == "ok", "it fixes the flicker too, and leaves the light that's off on purpose")
+	check(level.lights["corridor"].all(func(l): return l.find_children("*", "FlickerLight", false, false).filter(func(f): return not f.is_queued_for_deletion()).is_empty()), "the north corridor stops flickering")
+	check(_game().case_info("dark_room").solved, "and the case is solved")
 
 	# The cable vault's spare coil: whoever takes it carries it up.
 	level.cable_coil.interact(level.player)
@@ -1198,6 +1360,117 @@ func test_coop_terminal_screens() -> void:
 	check(screen.seated.is_empty() and screen.typing.is_empty(), "a player who drops out leaves the terminal free")
 	ui.close()
 	await _coop_close(worlds)
+
+
+func test_coop_notes_huddle() -> void:
+	print("Co-op: a notes huddle")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(2)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var ids: Array = worlds.map(func(w): return get_multiplayer(w.get_path()).get_unique_id())
+	var h_id: int = ids[0]
+	var c1_id: int = ids[1]
+	var c2_id: int = ids[2]
+	var host_seen_by_c1: PlayerPuppet = levels[1].players.puppet(h_id)
+	check(host_seen_by_c1.get_prompt(levels[1].player) == "[E] Huddle up to share notes", "E on a crewmate offers to huddle up")
+	host_seen_by_c1.downed = true
+	check(not host_seen_by_c1.get_prompt(levels[1].player).contains("huddle"), "a crewmate who's down is helped up, not huddled with")
+	host_seen_by_c1.downed = false
+	host_seen_by_c1.interact(levels[1].player)
+	await _frames(10)
+	check(levels.all(func(l): return l.sync.huddle.members(c1_id) == [h_id, c1_id] and l.sync.huddle.group_of(c2_id) == 0), "they're in a huddle, the same on every machine")
+	check(levels[1].notebook.is_open() and levels[1].notebook.pages.current_page() == NotebookPages.Page.CASES, "the one who asked opens their notebook on the case pages")
+	levels[1].notebook.close()
+	var c1_seen_by_c2: PlayerPuppet = levels[2].players.puppet(c1_id)
+	check(c1_seen_by_c2.get_prompt(levels[2].player) == "[E] Join the notes huddle", "anyone else can join by pressing E on someone in it")
+	c1_seen_by_c2.interact(levels[2].player)
+	await _frames(10)
+	check(levels.all(func(l): return l.sync.huddle.members(h_id).size() == 3), "and joins the same huddle")
+	check(levels[0].players.puppet(c1_id).get_prompt(levels[0].player) == "", "nothing to press on someone already in yours")
+	# Every machine shares one Game in tests, so what the others receive lands there.
+	var game := _game()
+	game.open_case("rack", "Which fan tray tripped?", [])
+	var case_info: Dictionary = game.case_info("rack")
+	levels[1].sync.huddle.share([NotesHuddle.clue_item(case_info, "Fan tray 3 tripped at 21:40", "Rack log")])
+	await _frames(10)
+	var got: Array = game.case_info("rack").clues.filter(func(k): return k.text == "Fan tray 3 tripped at 21:40")
+	check(got.size() == 1 and got[0].from == "Rack log (from Player %d)" % c1_id, "a shared line fills in the same case page, saying who it came from")
+	check(levels[1].sync.huddle.was_sent("Fan tray 3 tripped at 21:40"), "and the sender's chip says it's shared")
+	check(NotesHuddle.take(game, {"kind": "clue", "case": "vale", "title": "Where is Vale?", "tables": [], "text": "Lab B", "from": "Badge log"}, "Ana") and game.case_info("vale").open,
+		"a line from a case you haven't opened opens it")
+	check(NotesHuddle.take(game, NotesHuddle.sticky_item("like"), "Ana") and game.notebook_notes.has("like") and not NotesHuddle.take(game, NotesHuddle.sticky_item("like"), "Ana"),
+		"a shared sticky note goes in your notebook once")
+	game.write_note("", "Rourke checks his watch a lot", "mine", "rack")
+	var items := NotesHuddle.case_items(game, "rack")
+	check(items.size() == 2 and NotesHuddle.all_items(game).size() >= 4, "Share case notes sends the whole page; Share all cases every page and sticky")
+	check(not NotesHuddle.take(game, NotesHuddle.note_item(game, game.notebook_written[-1]), "Ana"), "your own note shared back to you isn't added twice")
+	# The notebook in a huddle.
+	var pages := NotebookPages.new()
+	pages.huddle = levels[1].sync.huddle
+	root.add_child(pages)
+	var cases := pages.section_items(NotebookPages.Page.CASES)
+	var names: Array = []
+	for item in cases:
+		names.append_array(([item] + item.find_children("*", "Button", true, false)).filter(func(n): return n is Button).map(func(b): return b.name))
+	check(names.has("ShareAll") and names.has("LeaveHuddle") and names.has("ShareCase") and names.count("Share") >= 3, "in a huddle, the case pages offer + share on each line, Share case notes and Share all cases")
+	check(NotebookPages.text_of(cases).contains("Notes huddle with Player %d, Player %d" % [h_id, c2_id]), "and say who's in it")
+	for item in cases:
+		item.free()
+	# Walking away takes you out.
+	levels[2].player.global_position += Vector3(20, 0, 0)
+	await _frames(60)
+	check(levels.all(func(l): return l.sync.huddle.members(h_id) == [h_id, c1_id]), "walking away from the huddle leaves it")
+	levels[1].sync.huddle.leave()
+	await _frames(10)
+	check(levels.all(func(l): return l.sync.huddle.groups.is_empty()), "Leave huddle ends a huddle of two")
+	check(not NotebookPages.text_of(pages.section_items(NotebookPages.Page.CASES)).contains("Notes huddle"), "and the notebook goes back to normal")
+	pages.queue_free()
+	await _coop_close(worlds)
+	_game().new_run(6)
+
+
+func test_coop_looks() -> void:
+	print("Co-op: picking a look in the lobby")
+	var net := root.get_node("Net")
+	net.roster = {1: "Host", 55: "Ana"}
+	net.looks = {55: {"color": 2, "skin": -1, "crew": "theo", "body": 1}}
+	net._assign_look(1, {"color": 2, "skin": 4, "crew": "theo"})
+	check(net.looks[1] == {"color": 2, "skin": 4, "crew": "theo", "body": 1}, "teammates can pick the same crew member and color")
+	net._assign_look(1, {"color": 99, "skin": 99, "crew": "walt"})
+	check(net.looks[1] == {"color": 2, "skin": -1, "crew": "walt", "body": 1}, "the crew member brings their body type; out-of-range picks keep what you had")
+	net.looks = {}
+	net._assign_look(55, {"crew": "nobody"})
+	check(net.looks[55].crew == "priya" and net.looks[55].color == 1, "a player who picks nothing gets a crew member and color by their place in the order")
+	net.roster = {}
+	check(PlayableCrew.CAST.size() == 12 and PlayableCrew.on_body(1).size() == 6 and PlayableCrew.on_body(2).size() == 6, "twelve crew to play, six on each body type")
+	# The lobby: swatches and a preview of your pick.
+	net.looks = {}
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	lobby.find_child("Look4", true, false).pressed.emit()
+	lobby.find_child("Skin6", true, false).pressed.emit()
+	lobby.find_child("Crew_kit", true, false).pressed.emit()
+	await process_frame
+	var shown: Dictionary = lobby._preview_rig.look
+	check(lobby.my_look() == {"color": 3, "skin": 5, "crew": "kit", "body": 2} and shown.shirt == ArtPalette.CREW_COLORS[3] and shown.skin == CharacterLooks.SKIN_TONES[5] and shown.body == 2,
+		"crew member, color and skin show on the figure turning in the preview")
+	check(lobby.find_child("CrewCaption", true, false).text.begins_with("Kit Larsen, 20s") and lobby.find_child("Crew_kit", true, false).text == "Kit", "with who they are underneath")
+	lobby.queue_free()
+	# In the building, everyone wears what they picked.
+	_game().new_run(8)
+	var worlds := await _coop_worlds(1)
+	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
+	var c_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	net.looks = {host_id: {"color": 5, "skin": 0, "crew": "june", "body": 2}, c_id: {"color": 2, "skin": -1, "crew": "sam", "body": 1}}
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var host_seen: PlayerPuppet = levels[1].players.puppet(host_id)
+	var c_seen: PlayerPuppet = levels[0].players.puppet(c_id)
+	check(host_seen.rig.look.shirt == ArtPalette.CREW_COLORS[5] and host_seen.rig.look.skin == CharacterLooks.SKIN_TONES[0] and host_seen.rig.look.body == 2
+		and c_seen.rig.look.shirt == ArtPalette.CREW_COLORS[2] and c_seen.rig.look.skin == CharacterLooks.crew(2).skin, "teammates see each other as they picked")
+	await _coop_close(worlds)
+	net.looks = {}
+	net.wanted_look = {"color": -1, "skin": -1, "crew": ""}
 
 
 func test_coop_world() -> void:
@@ -2648,7 +2921,7 @@ func test_case_pages() -> void:
 	cam.make_current()
 	for i in 5:
 		await process_frame
-	check(g.case_info("controller").clues.any(func(k): return k.text.contains("SRC door: ZONE %s" % level.zone)), "looking at a stuck door's plate notes its zone")
+	check(g.case_info("controller").clues.any(func(k): return k.text == "SRC door: red light (stuck)."), "looking at a stuck door's plate notes it's stuck, without its zone")
 	level.terminal_ui.terminal = level.terminal
 	level.terminal_ui.run(".hint")
 	check(g.case_info("controller").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the case page too")
