@@ -386,7 +386,7 @@ const LINES := {
 		"note": "The smile stays on. A hopeful pause. Once the work order's off the fax."},
 	"l0_garage_4": {"scene": "l0_garage", "speaker": "MADDISON", "text": "Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go.",
 		"note": "Proud of this.",
-		"jot": "Read chapter zero of Easy SQL together before we go", "todo": true},
+		"jot": "Read chapter zero of Easy SQL together before we go"},
 	"l0_garage_5": {"scene": "l0_garage", "speaker": "MADDISON", "text": "Look at that. You're practically engineers. Take the book with you. Everybody in the van.",
 		"note": "Genuinely thrilled. After the huddle's quiz."},
 	"l0_garage_6": {"scene": "l0_garage", "speaker": "MADDISON", "text": "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio.",
