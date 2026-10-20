@@ -56,6 +56,13 @@ const ITEMS := [
 	{"slot": "ears", "item": "studs", "name": "Stud earrings", "unlock": "default"},
 	{"slot": "belt", "item": "radio", "name": "Belt radio", "unlock": "default"},
 	{"slot": "belt", "item": "none", "name": "None", "unlock": "default"},
+	# The first unlocks (plan/approvals/unlocks.md), approved 2026-10-20.
+	{"slot": "face", "item": "reading_glasses", "name": "Reading glasses", "unlock": "achievement:easy_sql_half", "hint": "Finish half of Easy SQL."},
+	{"slot": "top", "item": "byte_right_polo", "name": "Byte-Right polo", "unlock": "achievement:easy_sql_done", "hint": "Finish every chapter of Easy SQL."},
+	{"slot": "feet", "item": "high_tops", "name": "High-tops", "unlock": "achievement:first_block", "hint": "Block a hit in a real fight."},
+	{"slot": "jacket", "item": "security", "name": "Security jacket", "unlock": "achievement:floor_22", "hint": "Finish floor 22."},
+	{"slot": "head", "item": "mercer_cap", "name": "Mercer's cap", "unlock": "secret:mercer_vent_tape"},
+	{"slot": "jacket", "item": "press", "name": "Press jacket", "unlock": "secret:ending_news"},
 	{"slot": "flashlight", "item": "standard", "name": "Standard", "unlock": "default"},
 	{"slot": "walkie", "item": "standard", "name": "Standard", "unlock": "default"},
 	{"slot": "notebook", "item": "spiral", "name": "Spiral", "unlock": "default"},
