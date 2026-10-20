@@ -514,6 +514,7 @@ func net_setup() -> void:
 func start() -> void:
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
+	_give_badge()
 	arrival_lift.open()
 	stage = "hidden"
 	_place_watcher(STAGES.hidden[0], STAGES.hidden[1])
@@ -536,6 +537,16 @@ func start() -> void:
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
 		hud.todo("Check the security booth terminal")
+
+
+## The lab reader wants the visitor badge from the front desk. Started here on its
+## own (no Level 0), each machine clips one on its player, numbered as Level 0 does.
+func _give_badge() -> void:
+	if player.inventory.has("visitor_badge"):
+		return
+	Game.visitor_badge_no = lab.badge_no(multiplayer.get_unique_id())
+	player.inventory.add("visitor_badge")
+	hud.notice("Visitor badge %s clipped on." % Game.visitor_badge_no, 4.0)
 
 
 ## Left untied, Rourke comes round soon after the crew leaves the lab. Tied, it

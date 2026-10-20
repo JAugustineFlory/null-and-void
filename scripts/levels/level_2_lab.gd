@@ -47,6 +47,7 @@ var data: Dictionary
 var rourke: Rourke
 var terminal: Terminal
 var reader: Interactable
+var reader_relay: Interactable
 var switches := {}
 var zone := ""
 ## The phase of the betrayal, the same on every machine:
@@ -119,7 +120,15 @@ func _build() -> void:
 	reader = Interactable.create(geo, Vector3(-9.86, 1.3, 1.2), Vector3(0.02, 0.07, 0.07), "Badge in", Color(0.1, 0.6, 0.2))
 	reader.name = "LabReader"
 	reader.enabled = false
+	reader.local_only = true  # the badge is on the presser's machine: check it there first
 	reader.used.connect(_on_reader)
+	# What a badged press tells the host: a reader nobody can see or aim at, which a
+	# client's press is forwarded through like any other.
+	reader_relay = Interactable.create(geo, Vector3(-9.95, 1.3, 1.2), Vector3(0.02, 0.07, 0.07), "", Color.BLACK, false)
+	reader_relay.name = "LabReaderRelay"
+	reader_relay.remove_from_group("interactable")
+	reader_relay.collision_layer = 0
+	reader_relay.used.connect(_on_badge_swiped)
 
 	# Inside: her desk and terminal on the north wall, the bench along the south.
 	Greybox.box(geo, Vector3(-13, 0.4, -3.2), Vector3(2.4, 0.8, 0.9), Color(0.4, 0.4, 0.42), "ValeDesk")
@@ -355,22 +364,43 @@ func _set_door(id: String, locked: bool) -> void:
 
 # --- Badges ------------------------------------------------------------------
 
-## Host: someone swiped their visitor badge.
+## What a card reader shows when it turns someone away: no badge on them, or a badge
+## without clearance for that door (Augustine's wording, 2026-10-19).
+const DENIED_NO_BADGE := "> ACCESS DENIED: NO BADGE READ"
+const DENIED_NOT_AUTHORIZED := "> ACCESS DENIED: NOT AUTHORIZED"
+
+
+## The presser's machine: the reader wants the visitor badge Rourke clipped on them.
 func _on_reader(p: Node) -> void:
+	if not p.inventory.has("visitor_badge"):
+		level.hud.notice(DENIED_NO_BADGE, 2.5, ThemeUtil.RED)
+		return
+	reader_relay.interact(p)
+
+
+## Host: someone swiped their visitor badge.
+func _on_badge_swiped(p: Node) -> void:
 	var id: int = level.players.id_of(p)
 	if phase != "badge" or badged.has(id):
 		return
-	level.sync.run_on(self, "_badged", [id])
+	level.sync.run_on(self, "_badged", [id, badge_no(id)])
+
+
+## A player's visitor badge number, the same on every machine: Level 0 numbers them
+## in player order (Game.visitor_badge_no is this machine's). If the order can't
+## place them, the next free number.
+func badge_no(id: int) -> String:
+	var i := NetPlayers.index_of(id, multiplayer)
+	return "VIS-%02d" % (i + 1 if i >= 0 else badged.size() + 1)
 
 
 ## Every machine: one more crew member is on the visitor log.
-func _badged(id: int) -> void:
+func _badged(id: int, badge: String) -> void:
 	if badged.has(id):
 		return
 	badged[id] = true
-	var n := badged.size()
-	_log_swipe("VIS-%02d" % n, "BYTE-RIGHT IT (VISITOR)")
-	level.hud.notice("> BADGE VIS-%02d: VISITOR LOGGED, SECLAB-B" % n, 2.5, ThemeUtil.GREEN)
+	_log_swipe(badge, "BYTE-RIGHT IT (VISITOR)")
+	level.hud.notice("> BADGE %s: VISITOR LOGGED, SECLAB-B" % badge, 2.5, ThemeUtil.GREEN)
 	if level.sync.is_host() and badged.size() >= level.players.count():
 		_mark("badged")
 
