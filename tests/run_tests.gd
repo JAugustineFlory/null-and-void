@@ -67,6 +67,7 @@ func _run() -> void:
 	await test_coop_terminal_screens()
 	await test_coop_notes_huddle()
 	await test_coop_looks()
+	await test_coop_sitting()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -1562,6 +1563,35 @@ func test_coop_looks() -> void:
 	net.looks = {}
 	net.wanted_look = {}
 	net.profile = real_profile
+
+
+func test_coop_sitting() -> void:
+	print("Co-op: teammates see you sit")
+	_game().new_run(12)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	var c_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var sitter: Player = levels[1].player
+	var seen: PlayerPuppet = levels[0].players.puppet(c_id)
+	await _frames(20)
+	# A chair right where they stand, its seat 0.45 m up.
+	var top := sitter.global_position + Vector3(0, 0.45, 0)
+	var chair := Seat.create_at(levels[1], top, sitter.rotation.y)
+	check(sitter.sit(chair), "the client sits on a chair")
+	await _frames(40)
+	var hip: Vector3 = seen.rig.joints["r_hip"].global_position
+	check(seen.sitting == PlayerPuppet.Sit.CHAIR and seen.rig.action == "sit", "the host sees them sitting on it")
+	check(absf(hip.y - (top.y + PlayerPuppet.SEAT_THIGH)) < 0.08, "with their hips on the seat, not floating above it (%.2f m off)" % (hip.y - top.y - PlayerPuppet.SEAT_THIGH))
+	sitter.stand_up(true)
+	await _frames(20)
+	check(seen.sitting == PlayerPuppet.Sit.NONE and seen.rig.action == "idle" and seen.find_child("Body", false, false).position.y == 0.0, "and back on their feet when they stand up")
+	check(sitter.sit(null), "the client sits on the floor")
+	await _frames(20)
+	check(seen.sitting == PlayerPuppet.Sit.FLOOR and seen.find_child("Body", false, false).position.y == 0.0
+		and seen.rig.action == ("sit_floor" if CharacterRig.ACTIONS.has("sit_floor") else "idle"), "the host sees them sitting on the floor where they are")
+	sitter.stand_up(true)
+	chair.queue_free()
+	await _coop_close(worlds)
 
 
 func test_coop_world() -> void:

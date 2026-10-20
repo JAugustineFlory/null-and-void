@@ -9,9 +9,13 @@ const STAND_HEIGHT := 1.8
 ## At or below this the player is on hands and knees (Player.CRAWL_HEIGHT).
 const CRAWL_HEIGHT := 0.85
 const FOLLOW_RATE := 14.0
+## The hip joint is this far above the underside of the thigh.
+const SEAT_THIGH := 0.06
 ## How far to the side of a terminal's stand point a teammate typing at it is
 ## drawn, so the people behind them can read the screen over their shoulder.
 const TERMINAL_STEP_ASIDE := 0.55
+## How a player is sitting (sent with their position): not, on a chair, on the floor.
+enum Sit { NONE, CHAIR, FLOOR }
 
 var peer_id := 0
 var display_name := ""
@@ -26,6 +30,9 @@ var downed := false
 var players: Node  # NetPlayers
 ## The teammate's body, posed from the synced position, stance and look.
 var rig: CharacterRig
+## Sitting down (Sit): on a chair the owner's position is the seat's top, so
+## the body is lowered to put the hips there; on the floor it stays put.
+var sitting := Sit.NONE
 ## The terminal they're sitting at, if any (set by TerminalMirror).
 var at_terminal: Node3D
 ## Which side of it they lean in from: 1 right, -1 left.
@@ -40,6 +47,10 @@ var _light: SpotLight3D
 var _tag: Label3D
 var _capsule: CapsuleShape3D
 var _shape: CollisionShape3D
+## Holds the rig, so it can be lowered onto a chair (the rig sets its own position).
+var _body: Node3D
+## How high the hips are above the feet in the rig's "sit" pose, for this body's height.
+var _sit_hip := 0.42
 
 
 ## `look` is how they look (a CharacterLooks dictionary, see NetPlayers.look_for).
@@ -66,7 +77,12 @@ func _build(look: Dictionary) -> void:
 	_shape.position.y = STAND_HEIGHT / 2
 	add_child(_shape)
 
-	rig = CharacterRig.build(self, look)
+	_body = Node3D.new()
+	_body.name = "Body"
+	add_child(_body)
+	rig = CharacterRig.build(_body, look)
+	# The rig's hips are 0.87 m up at height 1.0, and "sit" drops them 0.45 m.
+	_sit_hip = 0.87 * float(look.get("height", 1.0)) - 0.45
 
 	# The flashlight rides at eye level, in the direction they look.
 	_head = Node3D.new()
@@ -107,8 +123,10 @@ func _build(look: Dictionary) -> void:
 
 
 ## A state update from the owning machine.
-func apply_state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool) -> void:
+func apply_state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool, sit: int = Sit.NONE) -> void:
 	_target_pos = pos
+	if sit != sitting:
+		set_sitting(sit)
 	_target_yaw = yaw
 	_target_pitch = pitch
 	_light.visible = light_on
@@ -159,6 +177,15 @@ func set_stance(height: float) -> void:
 	_tag.position.y = stance_height + 0.3
 
 
+## They sat down (Sit.CHAIR or Sit.FLOOR) or got up (Sit.NONE).
+func set_sitting(how: int) -> void:
+	sitting = how if how in Sit.values() else Sit.NONE
+	# Hips on the seat; a little up, since the hip joint is inside the thigh.
+	_body.position.y = -(_sit_hip - SEAT_THIGH) if sitting == Sit.CHAIR else 0.0
+	if not downed:
+		rig.play(["idle", "sit", "sit_floor"][sitting])
+
+
 func take_damage(amount: float, cause: String = "") -> void:
 	if players:
 		players.hurt(peer_id, amount, cause)
@@ -166,7 +193,7 @@ func take_damage(amount: float, cause: String = "") -> void:
 
 func set_downed(on: bool) -> void:
 	downed = on
-	rig.play("down" if on else "idle")
+	rig.play("down" if on else ["idle", "sit", "sit_floor"][sitting])
 	health = 0.0 if on else 100.0
 
 
