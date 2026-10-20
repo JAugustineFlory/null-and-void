@@ -58,6 +58,7 @@ func _run() -> void:
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
+	await load("res://tests/huddle_tests.gd").new().run(self, check)
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
@@ -330,10 +331,14 @@ func test_voice_script() -> void:
 	var id_re := RegEx.create_from_string("\"(l\\d+_[a-z0-9_]+)\"")
 	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
 	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
-	for f in DirAccess.get_files_at("res://scripts/levels"):
-		if not f.ends_with(".gd"):
-			continue
-		var src := FileAccess.get_file_as_string("res://scripts/levels/" + f)
+	var sources := []
+	for dir in ["res://scripts/levels/", "res://scripts/huddle/"]:  # huddle: the book's chapter lines
+		for f in DirAccess.get_files_at(dir):
+			if f.ends_with(".gd"):
+				sources.append(dir + f)
+	for path in sources:
+		var f: String = path.get_file()
+		var src := FileAccess.get_file_as_string(path)
 		for m in scene_re.search_all(src):
 			if VoiceLines.scene(m.get_string(1)).is_empty():
 				unknown.append(m.get_string(1))
@@ -908,6 +913,36 @@ func _frames(n: int) -> void:
 		await physics_frame
 
 
+## The Huddle for a level (not named as a class here: it pulls in LevelBase).
+func _huddle_of(node: Node) -> Node:
+	while node:
+		if node.get_node_or_null("Huddle"):
+			return node.get_node("Huddle")
+		node = node.get_parent()
+	return null
+
+
+## Play through the next book huddle on every machine: the reader turns the
+## pages, then everyone votes for the right answer (scripts/huddle/).
+func _crew_reads(levels: Array) -> void:
+	var hs: Array = levels.map(func(l): return _huddle_of(l))
+	var seen := false
+	for f in 6000:
+		await physics_frame
+		for h in hs:
+			h.reveal_scale = 0.05
+			if not h.is_running():
+				continue
+			seen = true
+			if h.question < 0:
+				if h.is_reader() and f % 5 == 0:
+					h.turn_page()
+			elif h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
+				h.vote(h.current_question().answer)
+		if seen and hs.all(func(h): return not h.is_running() and h.get_node_or_null("HuddleUI") == null):
+			return
+
+
 func _table(level: Node, sql: String) -> String:
 	return JSON.stringify(level.db.run_silent(sql))
 
@@ -1284,7 +1319,8 @@ func test_coop_lobby_walk_in() -> void:
 	check(h.visitor_log.taken_by.size() == 1, "signing twice still counts once")
 	h.visitor_log.interact(m[0].player)
 	h.badges.interact(m[0].player)
-	for f in 3000:
+	_crew_reads([h, c])  # the garage flashback before the desk terminal
+	for f in 4000:
 		await physics_frame
 		if c.desk_terminal.enabled:
 			break

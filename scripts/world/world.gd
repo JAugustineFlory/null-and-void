@@ -29,11 +29,37 @@ var keep_loaded: Array[String] = []
 ## Loaded wings by key.
 var wings := {}
 var current: LevelBase
+## The crew's garage (HomeBase): where a new game opens, and where flashbacks
+## cut to. Not on the route: it sits far off and stays loaded, hidden.
+var home: HomeBase
 var _field_notes: CanvasLayer
 
 
+## A new game opens in the garage; otherwise (tests, debugging) in the van at Halcyon.
 func start() -> void:
+	if get_node("/root/Game").open_at_home:
+		enter_home()
+	else:
+		enter_wing(0)
+
+
+## Start in the crew's garage, with the ground floor built ahead for when the van arrives.
+func enter_home() -> void:
+	home = HomeBase.for_flashback(self)
+	home.visible = true
+	load_wing(0)
+	current = home
+	players.place_all(home)
+	home.activate()
+	wing_entered.emit(home)
+
+
+## The van has pulled up at Halcyon: play moves to the ground floor. The garage
+## stays, out of sight, for flashbacks.
+func leave_home() -> void:
 	enter_wing(0)
+	if home:
+		home.visible = false
 
 
 func route_index(key: String) -> int:
