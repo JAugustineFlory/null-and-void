@@ -119,6 +119,24 @@ static func glow(color: Color, energy: float = 2.0) -> StandardMaterial3D:
 	return m
 
 
+## A lit ceiling fitting's diffuser: tubes behind a grid of louvres, not a flat
+## white slab. Projected in the fitting's own space, so any panel size works.
+static func troffer_glow(color: Color, energy: float = 1.8) -> StandardMaterial3D:
+	var key := "troffer|%s|%s" % [color.to_html(), energy]
+	if _cache.has(key):
+		return _cache[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.emission_enabled = true
+	m.emission = color
+	m.emission_energy_multiplier = energy
+	m.emission_texture = texture("louvre")
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3.ONE / 0.6
+	_cache[key] = m
+	return m
+
+
 ## Dark glass for windows, screens that are off, the van's windscreen.
 static func glass(tint: Color = Color(0.1, 0.13, 0.15)) -> StandardMaterial3D:
 	var key := "glass|%s" % tint.to_html()
@@ -175,6 +193,17 @@ static func texture(kind: String) -> Texture2D:
 					v = 0.9 + 0.06 * (1.0 if (y / 3) % 2 == 0 else 0.0)
 					if mini(x, n - 1 - x) < 3:
 						v = 0.35
+				"louvre":
+					# A 2 x 2 louvre: a dark frame, a cross of blades, each cell brightest at its middle.
+					var edge := mini(mini(x, n - 1 - x), mini(y, n - 1 - y))
+					var blade := mini(absi(x - n / 2), absi(y - n / 2))
+					var cx := absf(float(x % (n / 2)) / (n / 2) - 0.5) * 2.0
+					var cy := absf(float(y % (n / 2)) / (n / 2) - 0.5) * 2.0
+					v = 1.0 - 0.35 * (cx * cx + cy * cy) / 2.0
+					if blade < 2:
+						v = 0.3
+					if edge < 4:
+						v = 0.15
 				"tiles":
 					noise.frequency = 0.45
 					v = 0.86 + 0.1 * _tile_noise(noise, x, y, n)

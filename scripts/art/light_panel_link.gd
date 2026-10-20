@@ -40,6 +40,6 @@ func refresh() -> void:
 		return
 	_shown = key
 	if lit:
-		panel.material_override = ArtPalette.glow(light.light_color, 2.5)
+		panel.material_override = ArtPalette.troffer_glow(light.light_color, 2.2)
 	else:
 		panel.material_override = ArtPalette.flat(Color(0.32, 0.33, 0.33), 0.35)
