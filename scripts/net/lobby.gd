@@ -259,7 +259,12 @@ func _slot_row(parent: Control, slot: String) -> void:
 		list.set_item_disabled(i, not owned)
 		if not owned:
 			list.set_item_tooltip(i, str(it.get("hint", "")))
-	list.item_selected.connect(func(i): _net().choose_look({slot: {"item": list.get_item_metadata(i)}}))
+	list.item_selected.connect(func(i):
+		var pick := {"item": list.get_item_metadata(i)}
+		var it := Cosmetics.info(slot, pick.item)
+		if it.get("color") is Color:
+			pick.color = it.color  # a skin like the amber terminal comes in its color
+		_net().choose_look({slot: pick}))
 	row.add_child(list)
 	_item_lists[slot] = list
 	var color := ColorPickerButton.new()

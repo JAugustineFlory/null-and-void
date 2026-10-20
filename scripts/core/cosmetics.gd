@@ -15,7 +15,10 @@ extends RefCounted
 ##
 ## `unlock` says who owns an item: "default" (everyone), "achievement:<id>",
 ## "secret:<id>" or "purchase:<sku>". Locked items show in the lobby with their
-## `hint`; secret ones stay hidden until owned (Augustine, 2026-10-20).
+## `hint`; secret ones stay hidden until owned (Augustine, 2026-10-20). Levels
+## grant them with LevelSync.unlock(source), which every player present gets.
+## An item with a `color` (a tool skin like the amber terminal) sets the slot's
+## color when picked; the player can still change it.
 
 const WORN_SLOTS := ["hair", "head", "top", "jacket", "legs", "feet", "face", "ears", "belt"]
 const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "terminal"]
@@ -38,7 +41,7 @@ const ITEMS := [
 	{"slot": "head", "item": "none", "name": "None", "unlock": "default"},
 	{"slot": "head", "item": "cap", "name": "Ball cap", "unlock": "default"},
 	{"slot": "head", "item": "beanie", "name": "Beanie", "unlock": "default"},
-	{"slot": "head", "item": "hard_hat", "name": "Hard hat", "unlock": "default"},
+	{"slot": "head", "item": "hard_hat", "name": "Hard hat", "unlock": "achievement:floor_g", "hint": "Finish the ground floor."},
 	{"slot": "top", "item": "polo", "name": "Polo", "unlock": "default"},
 	{"slot": "top", "item": "tee", "name": "T-shirt", "unlock": "default"},
 	{"slot": "top", "item": "longsleeve", "name": "Long-sleeve shirt", "unlock": "default"},
@@ -60,6 +63,18 @@ const ITEMS := [
 	{"slot": "walkie", "item": "standard", "name": "Standard", "unlock": "default"},
 	{"slot": "notebook", "item": "spiral", "name": "Spiral", "unlock": "default"},
 	{"slot": "terminal", "item": "phosphor", "name": "Phosphor", "unlock": "default"},
+	# The first unlocks (Augustine, 2026-10-20 23:24Z; plan/approvals/unlocks.md).
+	# Worn ones show once Graphics adds their ids to CharacterLooks.SLOTS.
+	{"slot": "notebook", "item": "easy_sql", "name": "Easy SQL cover", "unlock": "achievement:book_easy_sql",
+		"hint": "Pick up the crew's first book.", "color": Color(0.05, 0.55, 0.6)},
+	{"slot": "face", "item": "reading_glasses", "name": "Reading glasses", "unlock": "achievement:easy_sql_half", "hint": "Finish half of Easy SQL."},
+	{"slot": "top", "item": "byte_right_polo", "name": "Byte-Right polo", "unlock": "achievement:easy_sql_done", "hint": "Finish every chapter of Easy SQL."},
+	{"slot": "feet", "item": "high_tops", "name": "High-tops", "unlock": "achievement:first_block", "hint": "Block a hit in a real fight."},
+	{"slot": "terminal", "item": "amber", "name": "Amber", "unlock": "achievement:floor_14", "hint": "Finish floor 14.", "color": Color(1.0, 0.7, 0.2)},
+	{"slot": "jacket", "item": "security", "name": "Security jacket", "unlock": "achievement:floor_22", "hint": "Finish floor 22."},
+	{"slot": "head", "item": "mercer_cap", "name": "Mercer's cap", "unlock": "secret:mercer_vent_tape"},
+	{"slot": "walkie", "item": "gold", "name": "Gold", "unlock": "secret:roster_thu", "color": Color(0.83, 0.66, 0.22)},
+	{"slot": "jacket", "item": "press", "name": "Press jacket", "unlock": "secret:ending_news"},
 ]
 
 ## The catalogue in use: ITEMS, unless a test swaps in its own (reset() puts it back).

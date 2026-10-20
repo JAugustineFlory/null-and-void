@@ -127,6 +127,7 @@ func _group_coop() -> void:
 	await test_coop_notes_huddle()
 	await test_coop_looks()
 	await test_coop_sitting()
+	await test_coop_unlocks()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -1508,7 +1509,8 @@ func test_coop_looks() -> void:
 	for slot in CharacterLooks.SLOTS:
 		for item in CharacterLooks.SLOTS[slot]:
 			drawn = drawn and not Cosmetics.info(slot, item).is_empty()
-	check(drawn and Cosmetics.ITEMS.all(func(it): return Cosmetics.drawable(it.slot, it.item) and it.name != ""), "every outfit piece Graphics draws is in the catalogue, with a name")
+	check(drawn and Cosmetics.ITEMS.all(func(it): return it.name != "" and (Cosmetics.drawable(it.slot, it.item) or it.unlock != "default")),
+		"every outfit piece Graphics draws is in the catalogue, with a name, and every starting item can be drawn")
 	check(Cosmetics.WORN_SLOTS.all(func(s): return CharacterLooks.SLOTS.has(s)) and Cosmetics.TOOL_SLOTS == CharacterLooks.TOOL_SLOTS, "the picker's slots are Graphics' slots")
 	var defaults := range(6).map(func(i): return Cosmetics.default_loadout(i).top.color)
 	check(defaults.all(func(c): return defaults.count(c) == 1), "players who never open the picker still wear different colors")
@@ -1630,6 +1632,86 @@ func test_coop_looks() -> void:
 	net.looks = {}
 	net.wanted_look = {}
 	net.profile = real_profile
+
+
+func test_coop_unlocks() -> void:
+	print("Co-op: unlockable items")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()
+	net.wanted_look = {}
+	Cosmetics.reset()
+	# Augustine's first ten (plan/approvals/unlocks.md): key, source, name, hint ("" = secret).
+	var approved := [
+		["notebook/easy_sql", "achievement:book_easy_sql", "Easy SQL cover", "Pick up the crew's first book."],
+		["face/reading_glasses", "achievement:easy_sql_half", "Reading glasses", "Finish half of Easy SQL."],
+		["top/byte_right_polo", "achievement:easy_sql_done", "Byte-Right polo", "Finish every chapter of Easy SQL."],
+		["feet/high_tops", "achievement:first_block", "High-tops", "Block a hit in a real fight."],
+		["head/hard_hat", "achievement:floor_g", "Hard hat", "Finish the ground floor."],
+		["terminal/amber", "achievement:floor_14", "Amber", "Finish floor 14."],
+		["jacket/security", "achievement:floor_22", "Security jacket", "Finish floor 22."],
+		["head/mercer_cap", "secret:mercer_vent_tape", "Mercer's cap", ""],
+		["walkie/gold", "secret:roster_thu", "Gold", ""],
+		["jacket/press", "secret:ending_news", "Press jacket", ""],
+	]
+	var rows_ok := approved.all(func(r):
+		var it := Cosmetics.info(r[0].get_slice("/", 0), r[0].get_slice("/", 1))
+		return it.get("unlock") == r[1] and it.get("name") == r[2] and str(it.get("hint", "")) == r[3] and Cosmetics.is_secret(it) == (r[3] == ""))
+	check(rows_ok, "the ten approved items are in the catalogue with their sources, names and hints; secrets have no hint")
+	check(approved.all(func(r): return not net.profile.has_item(r[0])), "nobody starts with them, the hard hat included")
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var texts := func(on: Control, slot: String) -> Array:
+		var l: OptionButton = on.find_child("Item_" + slot, true, false)
+		return range(l.item_count).map(func(i): return l.get_item_text(i))
+	var hats: OptionButton = lobby.find_child("Item_head", true, false)
+	var hat: int = texts.call(lobby, "head").find("Hard hat (locked)")
+	check(hat >= 0 and hats.is_item_disabled(hat) and hats.get_item_tooltip(hat) == "Finish the ground floor.", "a locked item shows its hint in the lobby")
+	check(texts.call(lobby, "terminal").has("Amber (locked)") and not texts.call(lobby, "walkie").has("Gold") and not texts.call(lobby, "head").any(func(t): return t.begins_with("Mercer")),
+		"secret items don't show at all")
+	lobby.queue_free()
+
+	# In a level, the host unlocks for everyone there.
+	_game().new_run(13)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	levels[1].sync.unlock("achievement:floor_g")
+	await _frames(10)
+	check(not net.profile.has_item("head/hard_hat"), "a client can't hand out unlocks")
+	levels[0].sync.unlock("achievement:floor_g")
+	var host_profile: Profile = net.profile
+	net.profile = Profile.new()  # the test's machines share one Net, so give the client its own save
+	await _frames(10)
+	check(host_profile.has_item("head/hard_hat") and net.profile.has_item("head/hard_hat"), "finishing the ground floor unlocks the hard hat for every player")
+	check(levels[0].hud._notice.text == "Unlocked: Hard hat" and levels[1].hud._notice.text == "Unlocked: Hard hat", "and each of them is told")
+	levels[0].hud._notice.text = ""
+	levels[0].sync.unlock("achievement:floor_g")
+	await _frames(5)
+	check(levels[0].hud._notice.text == "", "earning it again says nothing")
+	var drawn := Cosmetics.drawable("face", "reading_glasses")
+	levels[0].sync.unlock("achievement:easy_sql_half")
+	await _frames(5)
+	check(net.profile.has_item("face/reading_glasses") and (levels[1].hud._notice.text == "Unlocked: Reading glasses") == drawn,
+		"an item Graphics can't draw yet is owned quietly, ready for when it can")
+	await _coop_close(worlds)
+	# Picking a skin that comes in a color uses it.
+	net.profile = Profile.new()
+	net.profile.earned = ["achievement:floor_14"]
+	lobby = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var screens: OptionButton = lobby.find_child("Item_terminal", true, false)
+	var amber: int = texts.call(lobby, "terminal").find("Amber")
+	screens.select(amber)
+	screens.item_selected.emit(amber)
+	await process_frame
+	check(lobby.my_look().terminal == {"item": "amber", "color": Color(1.0, 0.7, 0.2)}, "picking the amber terminal makes the screen amber")
+	lobby.queue_free()
+	net.looks = {}
+	net.wanted_look = {}
+	net.profile = real_profile
+	_game().new_run(6)
 
 
 func test_coop_sitting() -> void:

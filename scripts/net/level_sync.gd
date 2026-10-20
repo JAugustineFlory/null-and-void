@@ -191,6 +191,22 @@ func _team_notice(text: String, seconds: float) -> void:
 		level.hud.notice(text, seconds)
 
 
+## Host only: every player here earns `source` ("achievement:floor_g",
+## "secret:roster_thu"...), owns the items it unlocks (Cosmetics) and sees
+## "Unlocked: <item>". Safe to call from a handler that runs on every machine:
+## only the host's call goes out, and earning twice does nothing.
+func unlock(source: String) -> void:
+	if is_host():
+		_unlock.rpc(source)
+
+
+@rpc("authority", "call_local", "reliable")
+func _unlock(source: String) -> void:
+	var net := get_node_or_null("/root/Net")
+	if net:
+		net.earn(source, level.get("hud"))
+
+
 # --- Acting on shared things -------------------------------------------------
 
 ## Clients: send an interaction or hit to the host instead of acting locally.
