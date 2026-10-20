@@ -63,6 +63,8 @@ func _run() -> void:
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_terminal_screens()
+	await test_coop_notes_huddle()
+	await test_coop_looks()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -1197,6 +1199,117 @@ func test_coop_terminal_screens() -> void:
 	check(screen.seated.is_empty() and screen.typing.is_empty(), "a player who drops out leaves the terminal free")
 	ui.close()
 	await _coop_close(worlds)
+
+
+func test_coop_notes_huddle() -> void:
+	print("Co-op: a notes huddle")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(2)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var ids: Array = worlds.map(func(w): return get_multiplayer(w.get_path()).get_unique_id())
+	var h_id: int = ids[0]
+	var c1_id: int = ids[1]
+	var c2_id: int = ids[2]
+	var host_seen_by_c1: PlayerPuppet = levels[1].players.puppet(h_id)
+	check(host_seen_by_c1.get_prompt(levels[1].player) == "[E] Huddle up to share notes", "E on a crewmate offers to huddle up")
+	host_seen_by_c1.downed = true
+	check(not host_seen_by_c1.get_prompt(levels[1].player).contains("huddle"), "a crewmate who's down is helped up, not huddled with")
+	host_seen_by_c1.downed = false
+	host_seen_by_c1.interact(levels[1].player)
+	await _frames(10)
+	check(levels.all(func(l): return l.sync.huddle.members(c1_id) == [h_id, c1_id] and l.sync.huddle.group_of(c2_id) == 0), "they're in a huddle, the same on every machine")
+	check(levels[1].notebook.is_open() and levels[1].notebook.pages.current_page() == NotebookPages.Page.CASES, "the one who asked opens their notebook on the case pages")
+	levels[1].notebook.close()
+	var c1_seen_by_c2: PlayerPuppet = levels[2].players.puppet(c1_id)
+	check(c1_seen_by_c2.get_prompt(levels[2].player) == "[E] Join the notes huddle", "anyone else can join by pressing E on someone in it")
+	c1_seen_by_c2.interact(levels[2].player)
+	await _frames(10)
+	check(levels.all(func(l): return l.sync.huddle.members(h_id).size() == 3), "and joins the same huddle")
+	check(levels[0].players.puppet(c1_id).get_prompt(levels[0].player) == "", "nothing to press on someone already in yours")
+	# Every machine shares one Game in tests, so what the others receive lands there.
+	var game := _game()
+	game.open_case("rack", "Which fan tray tripped?", [])
+	var case_info: Dictionary = game.case_info("rack")
+	levels[1].sync.huddle.share([NotesHuddle.clue_item(case_info, "Fan tray 3 tripped at 21:40", "Rack log")])
+	await _frames(10)
+	var got: Array = game.case_info("rack").clues.filter(func(k): return k.text == "Fan tray 3 tripped at 21:40")
+	check(got.size() == 1 and got[0].from == "Rack log (from Player %d)" % c1_id, "a shared line fills in the same case page, saying who it came from")
+	check(levels[1].sync.huddle.was_sent("Fan tray 3 tripped at 21:40"), "and the sender's chip says it's shared")
+	check(NotesHuddle.take(game, {"kind": "clue", "case": "vale", "title": "Where is Vale?", "tables": [], "text": "Lab B", "from": "Badge log"}, "Ana") and game.case_info("vale").open,
+		"a line from a case you haven't opened opens it")
+	check(NotesHuddle.take(game, NotesHuddle.sticky_item("like"), "Ana") and game.notebook_notes.has("like") and not NotesHuddle.take(game, NotesHuddle.sticky_item("like"), "Ana"),
+		"a shared sticky note goes in your notebook once")
+	game.write_note("", "Rourke checks his watch a lot", "mine", "rack")
+	var items := NotesHuddle.case_items(game, "rack")
+	check(items.size() == 2 and NotesHuddle.all_items(game).size() >= 4, "Share case notes sends the whole page; Share all cases every page and sticky")
+	check(not NotesHuddle.take(game, NotesHuddle.note_item(game, game.notebook_written[-1]), "Ana"), "your own note shared back to you isn't added twice")
+	# The notebook in a huddle.
+	var pages := NotebookPages.new()
+	pages.huddle = levels[1].sync.huddle
+	root.add_child(pages)
+	var cases := pages.section_items(NotebookPages.Page.CASES)
+	var names: Array = []
+	for item in cases:
+		names.append_array(([item] + item.find_children("*", "Button", true, false)).filter(func(n): return n is Button).map(func(b): return b.name))
+	check(names.has("ShareAll") and names.has("LeaveHuddle") and names.has("ShareCase") and names.count("Share") >= 3, "in a huddle, the case pages offer + share on each line, Share case notes and Share all cases")
+	check(NotebookPages.text_of(cases).contains("Notes huddle with Player %d, Player %d" % [h_id, c2_id]), "and say who's in it")
+	for item in cases:
+		item.free()
+	# Walking away takes you out.
+	levels[2].player.global_position += Vector3(20, 0, 0)
+	await _frames(60)
+	check(levels.all(func(l): return l.sync.huddle.members(h_id) == [h_id, c1_id]), "walking away from the huddle leaves it")
+	levels[1].sync.huddle.leave()
+	await _frames(10)
+	check(levels.all(func(l): return l.sync.huddle.groups.is_empty()), "Leave huddle ends a huddle of two")
+	check(not NotebookPages.text_of(pages.section_items(NotebookPages.Page.CASES)).contains("Notes huddle"), "and the notebook goes back to normal")
+	pages.queue_free()
+	await _coop_close(worlds)
+	_game().new_run(6)
+
+
+func test_coop_looks() -> void:
+	print("Co-op: picking a look in the lobby")
+	var net := root.get_node("Net")
+	net.roster = {1: "Host", 55: "Ana"}
+	net.looks = {55: {"color": 2, "skin": -1, "crew": "theo", "body": 1}}
+	net._assign_look(1, {"color": 2, "skin": 4, "crew": "theo"})
+	check(net.looks[1] == {"color": 2, "skin": 4, "crew": "theo", "body": 1}, "teammates can pick the same crew member and color")
+	net._assign_look(1, {"color": 99, "skin": 99, "crew": "walt"})
+	check(net.looks[1] == {"color": 2, "skin": -1, "crew": "walt", "body": 1}, "the crew member brings their body type; out-of-range picks keep what you had")
+	net.looks = {}
+	net._assign_look(55, {"crew": "nobody"})
+	check(net.looks[55].crew == "priya" and net.looks[55].color == 1, "a player who picks nothing gets a crew member and color by their place in the order")
+	net.roster = {}
+	check(PlayableCrew.CAST.size() == 12 and PlayableCrew.on_body(1).size() == 6 and PlayableCrew.on_body(2).size() == 6, "twelve crew to play, six on each body type")
+	# The lobby: swatches and a preview of your pick.
+	net.looks = {}
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	lobby.find_child("Look4", true, false).pressed.emit()
+	lobby.find_child("Skin6", true, false).pressed.emit()
+	lobby.find_child("Crew_kit", true, false).pressed.emit()
+	await process_frame
+	var shown: Dictionary = lobby._preview_rig.look
+	check(lobby.my_look() == {"color": 3, "skin": 5, "crew": "kit", "body": 2} and shown.shirt == ArtPalette.CREW_COLORS[3] and shown.skin == CharacterLooks.SKIN_TONES[5] and shown.body == 2,
+		"crew member, color and skin show on the figure turning in the preview")
+	check(lobby.find_child("CrewCaption", true, false).text.begins_with("Kit Larsen, 20s") and lobby.find_child("Crew_kit", true, false).text == "Kit", "with who they are underneath")
+	lobby.queue_free()
+	# In the building, everyone wears what they picked.
+	_game().new_run(8)
+	var worlds := await _coop_worlds(1)
+	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
+	var c_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	net.looks = {host_id: {"color": 5, "skin": 0, "crew": "june", "body": 2}, c_id: {"color": 2, "skin": -1, "crew": "sam", "body": 1}}
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var host_seen: PlayerPuppet = levels[1].players.puppet(host_id)
+	var c_seen: PlayerPuppet = levels[0].players.puppet(c_id)
+	check(host_seen.rig.look.shirt == ArtPalette.CREW_COLORS[5] and host_seen.rig.look.skin == CharacterLooks.SKIN_TONES[0] and host_seen.rig.look.body == 2
+		and c_seen.rig.look.shirt == ArtPalette.CREW_COLORS[2] and c_seen.rig.look.skin == CharacterLooks.crew(2).skin, "teammates see each other as they picked")
+	await _coop_close(worlds)
+	net.looks = {}
+	net.wanted_look = {"color": -1, "skin": -1, "crew": ""}
 
 
 func test_coop_world() -> void:

@@ -26,6 +26,8 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 Newest first. Floors are listed by their in-game floor number.
 
 ### 2026-10-20
+- **New:** notes huddles in co-op. Press E on a teammate to huddle up, and anyone can join by pressing E on someone in it. Then share a line, a whole case page or every case, and it fills in the same case page in their notebooks.
+- **New:** in the co-op lobby, choose who you play (twelve crew members across two body types), your polo colour and your skin tone, with a turning preview.
 - **New:** sit down on a chair (E) or on the floor (Z). Running, jumping and climbing tire you; stand still to get your breath back.
 - **New:** the crew's garage home base is furnished like a 1997 startup: bare bulbs, folding tables, CRTs, a whiteboard, pizza boxes, the Byte-Right banner, and *Easy SQL* on the bench.
 - **New:** the game opens in the crew's garage, with a short controls intro. The crew huddles round *Easy SQL* to read a chapter aloud and vote on its quiz together, and flashes back to the garage when a new chapter is needed.

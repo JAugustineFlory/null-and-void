@@ -6,6 +6,8 @@ extends Control
 ## notes found, and Field Notes. The book
 ## itself is drawn by NotebookView and NotebookArt (scripts/art/).
 ## Each section fills the left page, then the right; "next" turns to the next spread.
+## In a co-op notes huddle (NotesHuddle), each line and sticky note has a "+ share"
+## chip, and each case a button to share the whole page.
 
 ## "+ write a note" on the Cases page: the player wants to write something of their own.
 signal write_requested
@@ -38,6 +40,8 @@ var _page: Page = Page.WORK_ORDER
 var _spread := 0
 var _spreads: Array = []  # [[left items], [right items]] per spread
 var _turn: Button
+## The co-op notes huddle; found from the level when left unset.
+var huddle: NotesHuddle
 
 
 func _ready() -> void:
@@ -105,6 +109,9 @@ func current_page() -> Page:
 func refresh() -> void:
 	if not book:
 		return
+	var h := _find_huddle()
+	if h and not h.changed.is_connected(refresh):
+		h.changed.connect(refresh)
 	book.clear_pages()
 	_free_spreads()
 	_spreads = _paginate(section_items(_page))
@@ -120,7 +127,7 @@ func section_items(page: int) -> Array[Control]:
 		Page.CASES:
 			return _case_items(game)
 		Page.TABLES:
-			return _table_items(game.notebook_tables) + _notes_items(game.notebook_notes)
+			return _table_items(game.notebook_tables) + _notes_items(game.notebook_notes, _huddling())
 		_:
 			return _field_notes_items(game)
 
@@ -145,6 +152,68 @@ static func text_of(items: Array) -> String:
 	return out
 
 
+func _find_huddle() -> NotesHuddle:
+	if huddle == null and is_inside_tree():
+		var s := LevelSync.of(self)
+		huddle = s.huddle if s else null
+	return huddle
+
+
+## The huddle this player is in, if any.
+func _huddling() -> NotesHuddle:
+	var h := _find_huddle()
+	return h if h and h.in_huddle() and not end_of_level else null
+
+
+## Top of the Cases page in a huddle: who's in it, and sharing everything at once.
+func _huddle_items(h: NotesHuddle, game: Node) -> Array[Control]:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var all := NotebookArt.write_button("Share all cases")
+	all.name = "ShareAll"
+	all.tooltip_text = "Share every case page and sticky note with the huddle"
+	all.pressed.connect(func():
+		h.share(NotesHuddle.all_items(game))
+		all.text = "All shared")
+	row.add_child(all)
+	var leave := NotebookArt.write_button("Leave huddle")
+	leave.name = "LeaveHuddle"
+	leave.tooltip_text = "Stop sharing notes with them"
+	leave.pressed.connect(h.leave)
+	row.add_child(leave)
+	return [NotebookArt.hand("Notes huddle with " + ", ".join(h.others().map(h.name_of)), 24, NotebookArt.RED_PEN), row]
+
+
+func _share_case_button(h: NotesHuddle, game: Node, case_id: String) -> Control:
+	var b := NotebookArt.write_button("Share case notes")
+	b.name = "ShareCase"
+	b.tooltip_text = "Share everything on this page with the huddle"
+	b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	b.pressed.connect(func():
+		h.share(NotesHuddle.case_items(game, case_id))
+		b.text = "Case shared")
+	return b
+
+
+## The "+ share" chip under a line, while in a huddle: like "+ add to notebook" on papers.
+func _share_chip(h: NotesHuddle, item: Dictionary) -> Button:
+	var chip := DocumentView.add_chip()
+	chip.name = "Share"
+	chip.visible = true
+	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	chip.tooltip_text = "Share this line with the huddle"
+	var done := func():
+		chip.text = "shared"
+		chip.disabled = true
+	chip.text = "+ share"
+	if h.was_sent(item.text):
+		done.call()
+	chip.pressed.connect(func():
+		h.share([item])
+		done.call())
+	return chip
+
+
 ## "+ write a note": it goes on the case being worked on.
 func _write_button() -> Array[Control]:
 	if end_of_level:
@@ -157,7 +226,7 @@ func _write_button() -> Array[Control]:
 	return [write]
 
 
-func _notes_items(ids: Array) -> Array[Control]:
+func _notes_items(ids: Array, h: NotesHuddle = null) -> Array[Control]:
 	var items: Array[Control] = [NotebookArt.heading("Sticky notes")]
 	if ids.is_empty():
 		items.append(NotebookArt.hand("None yet. Look on desks and terminals: the staff leave themselves reminders.", 24, NotebookArt.PENCIL))
@@ -165,14 +234,16 @@ func _notes_items(ids: Array) -> Array[Control]:
 		var n := StickyNotes.get_note(id)
 		items.append(NotebookArt.sticky(n.title, n.syntax, n.example))
 		items.append(NotebookArt.hand(n.what, 22))
+		if h:
+			items.append(_share_chip(h, NotesHuddle.sticky_item(id)))
 	return items
 
 
 ## A note the player wrote or copied, as a clue: their label, then the lines.
-func _written_item(w: Dictionary) -> Control:
+func _written_item(w: Dictionary, share: Dictionary = {}) -> Control:
 	var label: String = "My note" if w.kind == "mine" else (w.label if w.label != "" else KIND_LABELS.get(w.kind, "From the terminal"))
 	var lines: PackedStringArray = w.text.split("\n")
-	return _clue_item("\n".join(lines.slice(0, 12)), label)
+	return _clue_item("\n".join(lines.slice(0, 12)), label, share)
 
 
 ## A page per open case, unsolved ones first: the question, what this player has
@@ -184,6 +255,9 @@ func _case_items(game: Node) -> Array[Control]:
 	var open: Array = game.notebook_cases.filter(func(c): return c.open)
 	var current: String = game.current_case()
 	var shown := {}
+	var h := _huddling()
+	if h:
+		items.append_array(_huddle_items(h, game))
 	if open.is_empty():
 		items.append(NotebookArt.heading("Cases"))
 		items.append(NotebookArt.hand("No open cases. When the job turns up something to figure out, it gets a page here.", 24, NotebookArt.PENCIL))
@@ -192,14 +266,16 @@ func _case_items(game: Node) -> Array[Control]:
 		shown[c.id] = true
 		var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
 		items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
+		if h and not (c.clues.is_empty() and notes.is_empty()):
+			items.append(_share_case_button(h, game, c.id))
 		if c.solved:
 			items.append(NotebookArt.hand("Solved: " + c.how, 22))
 		if c.clues.is_empty() and notes.is_empty():
 			items.append(NotebookArt.hand("Nothing yet. Read what's around: papers, plates on the doors, the terminal.", 22, NotebookArt.PENCIL))
 		for k in c.clues:
-			items.append(_clue_item(k.text, k.from))
+			items.append(_clue_item(k.text, k.from, NotesHuddle.clue_item(c, k.text, k.from) if h else {}))
 		for w in notes:
-			items.append(_written_item(w))
+			items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
 		if c.id == current:
 			items.append_array(_write_button())
 		for t in c.tables:
@@ -211,7 +287,7 @@ func _case_items(game: Node) -> Array[Control]:
 		if other.is_empty():
 			items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 22, NotebookArt.PENCIL))
 		for w in other:
-			items.append(_written_item(w))
+			items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
 		if current == "":
 			items.append_array(_write_button())
 	return items
@@ -219,13 +295,16 @@ func _case_items(game: Node) -> Array[Control]:
 
 ## One clue: where it came from in pencil, then the clue itself, wrapped to the
 ## page. A hint keeps its lines, in typewriter text like the screen it came from.
-func _clue_item(text: String, from: String) -> Control:
+## In a huddle, `share` is what its "+ share" chip sends.
+func _clue_item(text: String, from: String, share: Dictionary = {}) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
 	box.add_child(NotebookArt.hand(from, 18, NotebookArt.PENCIL))
 	var line: Label = NotebookArt.code(text, 15) if text.contains("\n") else NotebookArt.hand(text, 22)
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(line)
+	if not share.is_empty():
+		box.add_child(_share_chip(_huddling(), share))
 	return box
 
 
