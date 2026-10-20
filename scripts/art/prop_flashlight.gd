@@ -13,6 +13,7 @@ const ANGLE := 24.0
 var on := true
 var light: SpotLight3D
 var lens: MeshInstance3D
+var _shell: Array[MeshInstance3D] = []  # body and head: what a skin colors
 ## 1 = full battery, 0 = dead. Below 0.2 the beam starts to sputter.
 var battery := 1.0
 var _sputter := 0.0
@@ -38,6 +39,7 @@ func _make(cast_shadows: bool) -> void:
 	body.rotation.x = PI / 2
 	body.position.z = 0.02
 	body.material_override = rubber
+	_shell.append(body)
 	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(body)
 	var head := MeshInstance3D.new()
@@ -50,6 +52,7 @@ func _make(cast_shadows: bool) -> void:
 	head.rotation.x = PI / 2
 	head.position.z = -0.085
 	head.material_override = rubber
+	_shell.append(head)
 	head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(head)
 	lens = MeshInstance3D.new()
@@ -75,6 +78,13 @@ func _make(cast_shadows: bool) -> void:
 	light.distance_fade_begin = 40.0
 	add_child(light)
 	set_on(on)
+
+
+## Recolors the rubber body and head (a player's flashlight skin). The lens and beam stay.
+func set_skin(color: Color) -> void:
+	var m := ArtPalette.flat(color, 0.8)
+	for mi in _shell:
+		mi.material_override = m
 
 
 func set_on(value: bool) -> void:

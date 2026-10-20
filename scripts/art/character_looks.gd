@@ -101,6 +101,15 @@ const SLOT_COLORS := {
 }
 
 
+## The color a player picked for a held tool (TOOL_SLOTS), or null when the look
+## has none. Co-op copies the loadout's tool entries onto the look as `tools`.
+static func tool_color(look: Dictionary, slot: String) -> Variant:
+	var tools = look.get("tools")
+	if tools is Dictionary and tools.get(slot) is Dictionary and tools[slot].get("color") is Color:
+		return tools[slot].color
+	return null
+
+
 ## A customised player look from a loadout (see SLOTS). Unknown items and
 ## missing slots fall back to that slot's default.
 static func outfit(slots: Dictionary) -> Dictionary:
