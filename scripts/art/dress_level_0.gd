@@ -95,7 +95,7 @@ static func apply(level: LevelBase) -> void:
 	# Behind reception: cabinets, the receptionist's chair, archive boxes.
 	for x in [3.4, 3.9, 4.4]:
 		ArtProps.filing_cabinet(geo, Vector3(x, 0, -6.6), 180)
-	ArtProps.office_chair(geo, Vector3(3.0, 0, -1.9), 180)
+	ArtProps.sittable(ArtProps.office_chair(geo, Vector3(3.0, 0, -1.9), 180), ArtProps.OFFICE_SEAT)
 	ArtProps.boxes(geo, Vector3(-4.3, 0, -6.5), 10, 2)
 
 	# Hall: one more notice.
@@ -210,8 +210,8 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	var n := 0
 	for tx in [-4.0, 0.0, 4.0]:
 		for sx in [-0.5, 0.5]:
-			ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, -11.85), (n % 3 - 1) * 6, shells[n % 3])
-			ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, -15.65), 180 + (n % 3 - 1) * 5, shells[(n + 1) % 3])
+			ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, -11.85), (n % 3 - 1) * 6, shells[n % 3]), ArtProps.CAFE_SEAT)
+			ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, -15.65), 180 + (n % 3 - 1) * 5, shells[(n + 1) % 3]), ArtProps.CAFE_SEAT)
 			n += 1
 	ArtProps.vending_front(dress, Vector3(6.945, 0.9, -12.0), 90, Vector2(0.8, 1.8), Color(0.18, 0.28, 0.5), true)
 	ArtProps.vending_front(dress, Vector3(6.945, 0.9, -13.2), 90, Vector2(0.8, 1.8), Color(0.55, 0.12, 0.1))

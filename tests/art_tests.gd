@@ -479,6 +479,7 @@ func test_dressed_level_0() -> void:
 	look._process(0.016)
 	check(look.rig.stance_height < 1.4, "Rourke's model crouches when he ducks")
 	_check_skyline(level, "level_0")
+	_check_chairs_sittable(level, "Level 0")
 	level.free()
 
 
@@ -535,6 +536,7 @@ func test_dressed_level_1() -> void:
 	check(look.pick_action() == "tied", "and shows him tied up")
 	_check_polish(level, "Level 1")
 	_check_skyline(level, "level_1")
+	_check_chairs_sittable(level, "Level 1")
 	level.free()
 
 
@@ -607,6 +609,21 @@ func test_dressed_home_base() -> void:
 				seated += 1
 	check(chairs.size() >= 3 and seated == chairs.size(), "every garage folding chair can be sat on, facing the way it faces (%d of %d)" % [seated, chairs.size()])
 	level.free()
+
+
+## Every chair Graphics dressed in can be sat on, facing the way it faces.
+func _check_chairs_sittable(level: Node3D, label: String) -> void:
+	var chairs := 0
+	var missing: Array[String] = []
+	for b in level.find_children("*", "StaticBody3D", true, false):
+		if not b.has_meta("art_prop") or not (String(b.name).begins_with("Chair") or String(b.name).begins_with("CafeChair")):
+			continue
+		chairs += 1
+		var seats: Array = b.find_children("*", "Seat", false, false)
+		var top := ArtProps.OFFICE_SEAT if String(b.name).begins_with("Chair") else ArtProps.CAFE_SEAT
+		if seats.size() != 1 or not seats[0].position.is_equal_approx(Vector3(0, top, 0)) or seats[0].rotation != Vector3.ZERO:
+			missing.append(String(b.name))
+	check(chairs > 0 and missing.is_empty(), "%s: all %d dressed chairs can be sat on, facing the way they face (not: %s)" % [label, chairs, missing])
 
 
 func _check_polish(level: Node3D, label: String) -> void:
