@@ -139,6 +139,10 @@ func build() -> void:
 	Greybox.box(geo, Vector3(-4.5, 0.45, 8.4), Vector3(2.2, 0.9, 0.8), Color(0.4, 0.38, 0.35), "TermDesk")
 	terminal = Terminal.spawn(geo, Vector3(-4.5, 0.9, 8.4), 180, "SERVER ROOM A", db, terminal_ui)
 	stuck_doors_puzzle.case_id = "controller"
+	# The shift log names the stuck doors and the Cold Lab; the zone is the answer.
+	stuck_doors_puzzle.givens = ["Server Room C", "Cold Lab"]
+	# The dark break room is the case itself; the north corridor is what the query finds.
+	dark_room_puzzle.givens = ["Break room"]
 	terminal.puzzles = [stuck_doors_puzzle, controller_puzzle, hot_rack_puzzle, dark_room_puzzle]
 	terminal.boot_lines = _self_test_lines()
 	terminal.locked = true
@@ -579,7 +583,7 @@ func _self_test_lines() -> Array:
 		"",
 		"The faulting controller is one row in the controller table (see the reference card at this desk).",
 		"Which doors are stuck? Night shift logs it. Every door belongs to a zone.",
-		"The doors table (columns: id, name, zone, locked) marks each door: locked = 1 means it won't release, 0 means it opens.",
+		"The doors table (columns: id, name, zone, locked, actuator_fault) marks each door: locked = 1 means it won't release, 0 means it opens.",
 		"Filter rows with WHERE. Need two conditions? Join them with AND. Example on another table:",
 		"    [color=#ffffff]SELECT * FROM badges WHERE clearance = 'ESCORT' AND last_seen = 'Server Room A';[/color]",
 		"      SELECT *                         which columns to show (* = all)",

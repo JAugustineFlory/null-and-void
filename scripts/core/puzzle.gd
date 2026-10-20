@@ -14,6 +14,10 @@ var hint_index := 0
 var solved := false
 ## The notebook case page this puzzle belongs to (its own id unless set).
 var case_id := ""
+## Values its result shows that the player already knew before running it (names
+## from a paper, the case's own premise), so they aren't the answer. The teaching
+## tests let case-page clues carry these.
+var givens: Array = []
 
 
 func _init(p_id: String, p_solution: String, p_columns: Array, p_ordered: bool, p_hints: Array = []) -> void:

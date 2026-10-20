@@ -419,7 +419,8 @@ func walk_level_0() -> void:
 ## Case pages collect clues as they're read (papers, plates), so a clue must never
 ## carry a puzzle's answer: a value its query returns that the query itself doesn't
 ## type. Numbers are left out (extensions and temperatures are inputs, read off
-## papers). The answer reaches the page only through solve_case, after the solve.
+## papers), and so are a puzzle's `givens`, values the player knew before the query.
+## The answer reaches the page only through solve_case, after the solve.
 func check_case_clues(level: Node, where: String) -> void:
 	var clues := PackedStringArray()
 	for d in level.find_children("*", "Document", true, false):
@@ -429,12 +430,16 @@ func check_case_clues(level: Node, where: String) -> void:
 		clues.append(s.text)
 	var text := "\n".join(clues).to_lower()
 	var leaks := []
+	var world := world_text(level).to_lower()
 	for term in level.find_children("*", "Terminal", true, false):
 		for p in term.puzzles:
+			for g in p.givens:
+				check(world.contains(str(g).to_lower()), "%s: given '%s' is found in the world" % [p.id, g])
 			for row in level.db.run_silent(p.solution_sql):
 				for v in row.values():
 					var value := str(v).to_lower()
-					if value.length() < 3 or value.is_valid_float() or p.solution_sql.to_lower().contains(value):
+					if value.length() < 3 or value.is_valid_float() or p.solution_sql.to_lower().contains(value) \
+							or p.givens.any(func(g): return str(g).to_lower() == value):
 						continue
 					if RegEx.create_from_string("(?<![\\w-])" + _escape(value) + "(?![\\w-])").search(text) and not leaks.has("%s: %s" % [p.id, value]):
 						leaks.append("%s: %s" % [p.id, value])
