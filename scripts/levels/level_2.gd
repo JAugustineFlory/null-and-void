@@ -96,6 +96,12 @@ var stair_door: Door
 ## The stair door, in the lift lobby's east wall.
 const STAIR_DOOR_AT := Vector3(2, 0, -14.5)
 var key_glass: Level2Glass
+## The floor's case pages in the notebook (Cases tab), by id.
+const CASES := {
+	"cameras": "What's moving on the security floor?",
+	"pin": "Whose PIN still works tonight?",
+	"door": "Why won't SEC-EXIT open?",
+}
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"type this, then Enter:\n" +
@@ -191,7 +197,9 @@ func build() -> void:
 		"LOCKDOWN PIN POLICY",
 		"In lockdown, doors take only the PINs of NIGHT SHIFT guards who badged in tonight.",
 		"Suspended or retired PINs: refused.",
-	], false, "laminated", Vector2(0.5, 0.36))
+	], false, "laminated", Vector2(0.5, 0.36)).clues = [
+		{"case": "pin", "text": "In lockdown, only night-shift guards who badged in tonight have working PINs."},
+	]
 	# Exit vestibule: x -2.5..2.5, z -12..-8
 	Greybox.room(geo, Vector3(0, 0, -10), Vector3(5, 3.2, 4), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.4},
@@ -267,6 +275,8 @@ func _build_booth() -> void:
 	booth = Terminal.spawn(geo, Vector3(-3, 0.9, 5.5), 180, "SECURITY BOOTH", db, terminal_ui)
 	booth.api = api
 	booth.puzzles = [cameras_puzzle, pike_puzzle, har_puzzle]
+	pike_puzzle.case_id = "pin"  # both searches are after a working PIN
+	har_puzzle.case_id = "pin"
 	booth.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SECURITY BOOTH",
 		"Session: GUEST (lockdown mode, read only)",
@@ -292,7 +302,9 @@ func _build_booth() -> void:
 		"BADGE IN AT THE START OF EVERY SHIFT",
 		"The reader logs every swipe in badge_log: the time, your badge, the door.",
 		"Reader down? Sign the paper sheet. The night lead keeps it as the backup copy.",
-	], false, "laminated", Vector2(0.42, 0.3))
+	], false, "laminated", Vector2(0.42, 0.3)).clues = [
+		{"case": "pin", "text": "Every badge swipe is kept in badge_log: the time, the badge, the door."},
+	]
 	# The backup sheet: the names are handwritten, and coffee took most of the second one.
 	Document.place(geo, Vector3(-2.3, 1.45, 5.86), 0, "NIGHT SHIFT SIGN-IN      DATE: 10/15", [
 		"(backup copy)",
@@ -304,7 +316,10 @@ func _build_booth() -> void:
 		"",
 		"Guard PINs are kept on file in the table:",
 		{"text": "guards", "hand": true},
-	], false, "paper", Vector2(0.6, 0.8))
+	], false, "paper", Vector2(0.6, 0.8)).clues = [
+		{"case": "pin", "text": "PIKE, H. is marked NO SHOW. The next name starts \"Har\", under the coffee. Badged in 22:00."},
+		{"case": "pin", "text": "Guard PINs are on file in the table guards."},
+	]
 	Document.place(geo, Vector3(-4.3, 1.5, 5.86), 0, "Camera system card", [
 		"OVERWATCH CCTV  -  REMOTE STATUS",
 		"From any security terminal:",
@@ -312,7 +327,9 @@ func _build_booth() -> void:
 		"GET /cameras/CAM-2    one camera",
 		"motion: true          movement seen",
 		"last_frame            time of the last picture",
-	], false, "laminated", Vector2(0.62, 0.5))
+	], false, "laminated", Vector2(0.62, 0.5)).clues = [
+		{"case": "cameras", "text": "GET /cameras lists every camera. \"motion\": true means it sees movement."},
+	]
 	# A page torn from the WARDEN manual, with the old security chief's pencil in the margin.
 	Document.place(geo, Vector3(-5.3, 1.6, 5.86), 0, "WARDEN manual, p.12", [
 		"WARDEN v3.1  -  p.12",
@@ -321,7 +338,9 @@ func _build_booth() -> void:
 		"WHERE name LIKE 'Ro%'",
 		"finds ROSS, ROURKE, ROWE...",
 		{"text": "% = any letters, or none.  - H.M.", "hand": true},
-	], false, "paper", Vector2(0.8, 0.9))
+	], false, "paper", Vector2(0.8, 0.9)).clues = [
+		{"case": "pin", "text": "Only know part of a name? WHERE name LIKE 'Ro%' finds every name starting Ro."},
+	]
 	# A crate under the vent, so one person can climb up alone.
 	Greybox.box(geo, Vector3(-5.4, 0.45, 4.0), Vector3(0.9, 0.9, 0.9), Color(0.45, 0.35, 0.2), "Crate")
 	# On the landing, safe from anything: a break-glass box with a screwdriver inside.
@@ -353,7 +372,9 @@ func _build_panel() -> void:
 		"sensor      what the door is actually doing",
 		"actuator    the motor. fault = it can't move",
 		"note        why",
-	], false, "laminated", Vector2(0.62, 0.46))
+	], false, "laminated", Vector2(0.62, 0.46)).clues = [
+		{"case": "door", "text": "GET /doors/SEC-EXIT shows the door's record. sensor is what it's really doing, and note says why."},
+	]
 	panel.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  VESTIBULE PANEL",
 		"Door and camera status for this vestibule.",
@@ -596,6 +617,7 @@ func start() -> void:
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
 		hud.todo("Check the security booth terminal")
+		Game.open_case("cameras", CASES.cameras, ["cameras"])
 
 
 ## The lab reader wants the visitor badge from the front desk. Started here on its
@@ -805,6 +827,9 @@ func _on_cameras_found(which: String) -> void:
 		t.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
 		t.print_line("      LIKE 'Pike%'   names that start with Pike. % = any letters after")
 		hud.todo("Look up Officer Pike's PIN")
+		Game.open_case("cameras", CASES.cameras, ["cameras"])
+		Game.solve_case("cameras", "CAM-2 shows motion in the security office, and it's the only camera on that room.")
+		Game.open_case("pin", CASES.pin, ["guards", "badge_log"])
 
 
 ## Someone worked out the frozen camera for themselves.
@@ -818,6 +843,10 @@ func _on_lie_spotted(which: String, frame: String) -> void:
 	sysop(t, "you saw it. cam-2 says 'live', motion in the office. it isn't in the office.")
 	sysop(t, "cam-2's last_frame stopped at %s. server_time didn't. hardware fault, the picture froze." % frame)
 	sysop(t, "the status says 'live'. the data says otherwise. check the data.")
+	Game.add_clue("cameras", CAM_LIE_CLUE % frame, "SYSOP")
+
+
+const CAM_LIE_CLUE := "CAM-2 froze at %s. It still says 'live', but it sees nothing. Compare last_frame with server_time."
 
 
 func _cam2_frame() -> String:
@@ -842,6 +871,7 @@ func explain_cam_lie(frame: String) -> void:
 		TerminalUI.sysop("then compare its last_frame with server_time. if last_frame stopped, it sees nothing."),
 	]
 	_broadcast(lines)
+	Game.add_clue("cameras", CAM_LIE_CLUE % frame, "SYSOP")
 	_lie_notice = NEW_MESSAGE
 	hud.notice(_lie_notice, 5.0, ThemeUtil.AMBER)
 	await get_tree().create_timer(6.0).timeout
@@ -866,6 +896,7 @@ func _on_pike_found(which: String) -> void:
 		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
 		sysop(t, "you need a night-shift guard who badged in tonight. the badge readers know who. so does the sign-in sheet, under the coffee.")
 		hud.todo("Find out who else has a working PIN")
+		Game.add_clue("pin", "Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.", "WARDEN")
 		sysop(t, "[color=#ff6655]something in the office is moving. it only moves while nothing is watching it. not you, not a working camera.[/color]")
 		hud.line("l2_smudged")
 		_set_loose()
@@ -884,6 +915,7 @@ func _on_har_found(which: String) -> void:
 		sysop(t, "that PIN opens the office door, and the SEC-EXIT keypad past it.")
 		sysop(t, "[color=#ff6655]it's on the other side of that door. open it, and keep your eyes on it.[/color]")
 		hud.todo("Open the office door. Keep eyes on it")
+		Game.solve_case("pin", "%s, night shift, badged in 22:00. That PIN opens the office and the SEC-EXIT keypad." % data.name)
 		_set_loose()
 		_set_stage("window")
 
@@ -1035,6 +1067,7 @@ func enter_pin() -> void:
 		_broadcast([TerminalUI.sysop("it didn't open. check the door's sensor at the vestibule panel:"), "    [color=#ffffff]GET /doors/SEC-EXIT[/color]"])
 		hud.notice(NEW_MESSAGE, 4.0)
 		hud.todo("Find out why SEC-EXIT is still shut")
+		Game.open_case("door", CASES.door, ["door_status"])
 
 
 func _on_door_checked(which: String) -> void:
@@ -1047,6 +1080,8 @@ func _on_door_checked(which: String) -> void:
 	sysop(t, "but sensor says 'closed' and actuator says 'fault'. the door never moved. read the note.")
 	sysop(t, "a request going through isn't the thing happening. check the sensor, not the request.")
 	hud.todo("Fix whatever jammed the door, then check it again")
+	Game.open_case("door", CASES.door, ["door_status"])
+	Game.add_clue("door", "The keypad's request went through, but the sensor says closed and the actuator says fault. The note names a breaker.", "SYSOP")
 	hud.line("l2_door_fault")
 
 
@@ -1093,6 +1128,8 @@ func _update_door() -> bool:
 	if open and not door_open:
 		door_open = true
 		hud.todo("Take the stairs down. Lock SEC-EXIT behind us if we can")
+		Game.open_case("door", CASES.door, ["door_status"])
+		Game.solve_case("door", "Breaker B-%d had tripped and jammed the door. Resetting it let the door open." % data.breaker)
 		stair_door.locked = false
 	return open
 

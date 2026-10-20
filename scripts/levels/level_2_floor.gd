@@ -78,7 +78,9 @@ static func build(level: Node3D) -> void:
 		if r[2] != "LEAD":
 			row = {"row": [r[0], r[1], ""], "over": r[2], "text": "%s  %s  %s" % r, "hand": true}
 		roster.append(row)
-	Document.place(geo, Vector3(-15.85, 1.5, -7), -90, "Night shift roster", roster, false, "paper", Vector2(1.6, 0.9))
+	Document.place(geo, Vector3(-15.85, 1.5, -7), -90, "Night shift roster", roster, false, "paper", Vector2(1.6, 0.9)).clues = [
+		{"case": "pin", "text": "The briefing room roster lists tonight's night shift, with badge numbers. The lead is marked LEAD."},
+	]
 	_room(level, "Lockers", Vector3(-13, 0, -13), Vector3(6, 3.2, 6))
 	# Two rows of lockers, with room to crouch behind the far row.
 	for z in [-14.5, -11.8]:

@@ -17,6 +17,8 @@ extends Node
 
 signal _step(key: String)
 
+## The lab door's case page in the notebook (Cases tab).
+const LAB_CASE := "What's wrong with the lab door?"
 const LINE_GAP := 1.5  # a beat for a line that isn't recorded yet
 ## Once the crew is locked in: the radio call, then his monologue through the glass (docs/script).
 const FRAME_LINES := ["l2_frame", "l2_trap_2", "l2_gloat_1", "l2_gloat_2", "l2_gloat_3", "l2_gloat_4", "l2_gloat_5", "l2_gloat_6", "l2_trap_1"]
@@ -192,6 +194,7 @@ func _place_zone() -> void:
 		"Lockdown latches the main door's controller.",
 		"It has to be reset by hand, here, in the lab.",
 	], false, "laminated", Vector2(0.42, 0.3))
+	_card.clues = [{"case": "lab_door", "text": "Lab B's main and rear doors: controller zone %s. Lockdown latches it; reset it by hand in the lab." % zone}]
 	var ids: Array = data.lab_switches
 	for i in ids.size():
 		var z := -1.85 + i * 0.25
@@ -538,6 +541,7 @@ func _lockdown() -> void:
 	for s in switches.values():
 		s.enabled = true
 	level.hud.todo("Find out what's wrong with the lab door")
+	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
 	_start_response()
 
 
@@ -623,11 +627,13 @@ func _caught() -> void:
 	await get_tree().create_timer(1.5, false).timeout
 	await level.hud.fade(false, 1.0)
 	level.hud.notice("WARDEN (PA): SECURE LAB B CONTROLLERS RE-KEYED. OCCUPANTS HELD FOR QUESTIONING.", 5.0, ThemeUtil.RED)
+	_game().add_clue("lab_door", "WARDEN re-keyed the lab's controllers. The zone on the door card has changed.", "WARDEN")
 	phase = "escape"
 	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
 	level.hud.todo("Find out what's wrong with the lab door")
+	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
 	_start_response()
 
 
@@ -646,6 +652,7 @@ func _door_found() -> void:
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the lab door's controller. zone %s, 'fault'. its switch is on the wall in there." % zone))
 	level.hud.todo("Reset the lab door's controller")
+	_game().add_clue("lab_door", "%s is the lab door's controller: zone %s, 'fault'. Its reset switch is on the lab wall." % [data.lab_answer, zone], "SYSOP")
 
 
 ## The visitor log, sorted: the crew's own badges, at the scene, minutes ago. Nobody
@@ -694,6 +701,7 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	# The alarm ends. Whatever comes next, it's quiet for a while.
 	level.set_all_lights_color(WHITE)
 	level.hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SECLAB-B: OPENED" % id, 4.0, ThemeUtil.GREEN)
+	_game().solve_case("lab_door", "%s, reset by hand at its switch. The lab door opened." % id)
 	_mark_everywhere("door_reset")
 	if level.sync.is_host():
 		_mark("door_reset")
