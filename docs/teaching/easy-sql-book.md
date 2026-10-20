@@ -17,8 +17,8 @@ Format, title pattern and rules are his choices (2026-10-20, plan/act2-story-tea
   front desk. Later quizzes can be skipped; the chapter text still plays.
 - **Votes** (Home base default): the crew's answer is the most-voted option; a tie
   re-votes; a wrong answer shows its "why" and the same question comes back.
-- **3 to 5 puzzles per floor.** Floors 0 and 2 meet it now. Floor 1 has two
-  puzzles, so this draft proposes two more (marked PROPOSED).
+- **3 to 5 puzzles per floor.** All three floors meet it: Floor 1's two extra
+  puzzles (stuck_doors, dark_room) were proposed here and built in #96.
 
 Owned by the Teaching and UX thread. The Home base and huddles thread builds the
 scenes; puzzle threads own the puzzles.
@@ -54,18 +54,17 @@ scenes; puzzle threads own the puzzles.
 | 2 | L0, after the memo prints | memo | ORDER BY, smallest first |
 | 3 | L0, Rourke's "who called?" | caller | column list, comma, `.schema` |
 | 4 | L0, visitor book (optional) | last_visitor | DESC |
-| 5 | L1, NOC shift log | stuck_doors (PROPOSED as its own step) | WHERE, `=`, `'quotes'` |
+| 5 | L1, NOC shift log | stuck_doors | WHERE, `=`, `'quotes'` |
 | 6 | L1, Server Room A self-test | controller | AND |
 | 7 | L1, Server Room B noise (optional) | hot_rack | `>`, `<`, numbers |
-| 8 | L1, dark break room (optional) | dark_room (PROPOSED) | OR |
+| 8 | L1, dark break room (optional) | dark_room | OR |
 | 9 | L2 lab lockdown (elevator flashback) | lab_door, badge_log | none: review quiz |
 | 10 | L2 camera booth | cameras | GET, path, JSON |
 | 11 | L2 booth, sign-in sheet | pike | LIKE, `%` |
 | 12 | L2, Pike's PIN suspended | har | none: "one answer feeds the next" review |
 | 13 | L2 stairwell panel | door | id in the path |
 
-Floor counts: L0 has 4 puzzles. L1 has 2 built; with stuck_doors and dark_room it
-has 4. L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
+Floor counts: L0 has 4 puzzles. L1 has 4 (stuck_doors and dark_room landed in #96). L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
 limit; badge_log is now the har chain's first step, so it can count as part of har.
 
 Notes:
@@ -171,11 +170,12 @@ at three words.
 2. Where does DESC go? A) before ORDER BY  *B) after the column name in ORDER BY  C) after the ;
 3. To see the latest times first you add... *A) DESC  B) LAST  C) nothing
 
-### Ch 5. Keeping only some rows (L1, stuck_doors, PROPOSED step)
+### Ch 5. Keeping only some rows (L1, stuck_doors)
 
-PROPOSED puzzle: make the doors lookup its own step (today it's only inside the
-controller's second hint): the NOC log says the night alarms came from doors that
-won't release; querying the locked doors gives their zone.
+The NOC log says the night alarms came from doors that won't release; querying the
+locked doors (SELECT name, zone FROM doors WHERE locked = 1) gives their zone. The
+value is a number, so the quotes questions below include one for numbers going in
+without quotes, which is what the puzzle's second hint says.
 
 **WHERE**
 - "WHERE keeps only the rows that match. It goes after the table name."
@@ -230,10 +230,10 @@ won't release; querying the locked doors gives their zone.
 2. Why no quotes on numbers? A) quotes are banned  *B) so they compare as numbers  C) to save typing
 3. Temperatures like 38 are... *A) numbers  B) words  C) dates
 
-### Ch 8. Either one will do (L1, dark_room, PROPOSED optional)
+### Ch 8. Either one will do (L1, dark_room, optional)
 
-PROPOSED puzzle: the dark break room. `lights` shows its bulb 'dead'; finding every
-light that's 'dead' OR 'flicker' on the floor picks the room to rewire.
+The dark break room. `lights` shows its bulb 'dead'; listing every light that's
+'dead' OR 'flickering' (facilities' card) unlocks the circuit reset by its door.
 
 **OR**
 - "OR keeps a row if either condition is true."
