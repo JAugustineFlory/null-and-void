@@ -820,7 +820,7 @@ func test_level_1_scene() -> void:
 	check(level.elevator.open_amount > 0.9 and level.elevator.contains(level.rourke.global_position), "with everyone there, the elevator opens and Rourke steps in")
 	level.player.global_position = level.elevator.to_global(Vector3(-0.6, 0.1, 1.2))
 	await physics_frame
-	check(level.elevator.button.get_prompt(level.player).contains("Press 2"), "inside, the button says where it goes")
+	check(level.elevator.button.get_prompt(level.player).contains("Press 22"), "inside, the button says where it goes")
 	level.player.global_position = level.to_global(Vector3(0, 0.1, -10.5))
 	await physics_frame
 	check(not level.elevator.press() and not level.elevator.is_closing and level.elevator.refusal != "", "the button does nothing while someone is still outside")
@@ -1734,6 +1734,16 @@ func test_level_2_routes() -> void:
 			break
 	p.controls.move = Vector2.ZERO
 	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
+	check(level.wind.playing and level.wind.volume_db > -12.0, "out on the ledge the wind is loud (%.0f dB)" % level.wind.volume_db)
+	check(absf(p.head.rotation.z) > 0.0005, "and the view sways a little")
+	# A step off the edge, 80 m up, is the end of that player: they come to at the floor's checkpoint.
+	p.state = Player.Move.WALK  # off the ledge, a step clear of it
+	p._ledge = null
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(9.0, 0.5, -2.0)))
+	p.velocity = Vector3.ZERO
+	check(await _until(func(): return p.health == 100.0 and [level.spawn_point().origin, level.to_global(Vector3(0, 0.1, -10.8))].any(func(c): return p.global_position.distance_to(c) < 1.5), 15.0), "falling off the ledge kills you, and you come to back inside")
+	check(await _until(func(): return level.hud._notice.text == level.FALL_NOTICE, 5.0), "and the notice says how you got there")
+	check(await _until(func(): return not level.wind.playing, 10.0) and absf(p.head.rotation.z) < 0.002, "back inside, the wind dies away and the view is level")
 	level.loose = true
 	level._process(0.0)
 	check(level.watcher.active, "going round the office another way wakes the Watcher too")
@@ -1959,10 +1969,18 @@ func test_level_2_lab(outcome: String) -> void:
 	check(level.doors["SECLAB-B"].is_open == false and lab.reader.enabled, "the lab door waits for everyone's badge")
 	var r_at: Vector3 = level.to_local(r.global_position)
 	check(r_at.z < level.to_local(lab.reader.global_position).z - 0.8 and r_at.z < -0.9, "he waits past the door, so the reader is on the crew's side of him, not behind him")
+	check(p.inventory.has("visitor_badge") and _game().visitor_badge_no == "VIS-01", "started on its own, Level 2 clips a visitor badge on the player")
+	p.inventory.remove("visitor_badge")
+	lab.reader.interact(p)
+	await _frames(3)
+	check(lab.badged.is_empty() and level.db.run_silent("SELECT * FROM badge_log WHERE badge_id LIKE 'VIS-%'").is_empty(), "with no visitor badge on, the reader logs nothing")
+	check(level.hud._notice.text == Level2Lab.DENIED_NO_BADGE, "and the reader says why: access denied, no badge read")
+	p.inventory.add("visitor_badge")
 	lab.reader.interact(p)
 	await _frames(3)
 	var swipes: Array = level.db.run_silent("SELECT * FROM badge_log WHERE door = 'SECLAB-B' AND badge_id LIKE 'VIS-%'")
 	check(swipes.size() == 1 and str(swipes[0]["time"]).begins_with("1997-10-16"), "the swipe is in badge_log: the crew's own badge, at her door, tonight")
+	check(swipes.size() == 1 and swipes[0]["badge_id"] == _game().visitor_badge_no, "the reader logs the number on the player's own badge")
 	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 10.0), "once everyone has badged, the door opens")
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
 	check(await _until(func(): return lab.phase == "locked", 40.0), "with everyone inside and Rourke out, the door locks")
@@ -2055,6 +2073,7 @@ func test_coop_level_2_lab() -> void:
 	host.lab.reader.interact(host.player)
 	check(await _until(func(): return machines.all(func(l): return l.doors["SECLAB-B"].is_open), 10.0), "with both badged in, it opens on every machine")
 	check(machines.all(func(l): return l.db.run_silent("SELECT * FROM badge_log WHERE badge_id LIKE 'VIS-%'").size() == 2), "both visitor badges are in badge_log on every machine")
+	check(machines.all(func(l): return l.db.run_silent("SELECT badge_id FROM badge_log WHERE badge_id LIKE 'VIS-%' ORDER BY badge_id").map(func(r): return r["badge_id"]) == ["VIS-01", "VIS-02"]), "each player's own badge number is logged, in player order")
 	for l in machines:
 		l.lab.cable_holders[client_id] = true  # the client carried the server floor's coil up
 	var holder: Node = host.players.puppet(client_id)
@@ -2307,7 +2326,7 @@ func test_rourke_leads_in() -> void:
 	p.global_position = lobby.elevator.to_global(Vector3(-0.6, 0.2, 1.2))
 	for i in 5:
 		await physics_frame
-	check(lobby.elevator.button.get_prompt(p).contains("Press 1"), "inside, the button says where it goes")
+	check(lobby.elevator.button.get_prompt(p).contains("Press 14"), "inside, the button says where it goes")
 	lobby.elevator.button.interact(p)
 	for i in 900:
 		if world.current == sra:
@@ -2769,7 +2788,19 @@ func test_elevator() -> void:
 	var a_local: Vector3 = lift.to_local(a.global_position)
 	var a_yaw: float = a.rotation.y
 	lift.link_to(dest)
-	await lift.ride(0.3)
+	check(Elevator.level_of("G") == 0 and Elevator.level_of("B2") == -2 and Elevator.level_of("22") == 22 and Elevator.label_of(-1) == "B1" and Elevator.label_of(14) == "14", "tower floors: G is ground, Bn below it")
+	lift.ride(0.3)
+	var seen: Array[String] = []
+	var arrow := ""
+	while lift.riding:
+		var f: String = lift.art.call("get_floor")
+		if seen.is_empty() or seen[-1] != f:
+			seen.append(f)
+		if arrow == "":
+			arrow = (lift.art.get("_arrows")[0] as Label3D).text
+		await process_frame
+	check(seen == ["1", "G", "B1", "B2"], "the indicator counts down through every floor on the way (%s)" % [seen])
+	check(arrow == "v", "and the arrow points down")
 	check(dest.to_local(a.global_position).distance_to(a_local) < 0.01 and dest.contains(b.global_position), "the ride carries everyone to the same spot in the next car")
 	check(is_equal_approx(angle_difference(a_yaw + PI / 2, a.rotation.y), 0.0), "facing the same way relative to the car")
 	await dest.opened

@@ -44,18 +44,23 @@ var hud: Node
 ## The car the crew steps out of after the ride.
 var destination: Elevator
 var floor_label := ""
+## The floor the button takes you to.
+var to_floor := ""
 var _leaves: Array[AnimatableBody3D] = []
 var _tween: Tween
 var _light: OmniLight3D
 
 
 ## Builds the car under `parent` (the level), with its shell under `geo`.
-static func create(parent: Node3D, geo: Node3D, pos: Vector3, facing_deg: float, label: String, floors: Array = ["1", "B1", "B2", "B3"]) -> Elevator:
+## `floors` is the panel, top first, in Halcyon Tower's numbering (G, 1..30, B1..);
+## `to` is the floor the button takes you to (the last on the panel if left out).
+static func create(parent: Node3D, geo: Node3D, pos: Vector3, facing_deg: float, label: String, floors: Array = ["1", "G", "B1", "B2"], to: String = "") -> Elevator:
 	var e := Elevator.new()
 	e.name = "Elevator"
 	e.position = pos
 	e.rotation_degrees.y = facing_deg
 	e.floor_label = label
+	e.to_floor = to if to != "" else str(floors[floors.size() - 1])
 	parent.add_child(e)
 	e._build(geo, floors)
 	return e
@@ -112,15 +117,15 @@ func _build(geo: Node3D, floors: Array) -> void:
 		add_child(leaf)
 		_leaves.append(leaf)
 	# The button panel inside, on the right as you walk in.
-	button = Interactable.create(self, Vector3(-(w / 2 - 0.08), 1.15, 0.45), Vector3(0.04, 0.3, 0.16), "Press %s" % floors[floors.size() - 1], Color(0.15, 0.15, 0.15), show)
+	button = Interactable.create(self, Vector3(-(w / 2 - 0.08), 1.15, 0.45), Vector3(0.04, 0.3, 0.16), "Press %s" % to_floor, Color(0.15, 0.15, 0.15), show)
 	# With art, each floor's button is pressed where it's drawn: only the floor
-	# you're going to (the last) takes you there.
+	# you're going to takes you there.
 	var panel: Node3D = art.get_node_or_null("ButtonPanel") if art else null
 	if panel:
 		var n := floors.size()
 		for i in n:
 			var at := panel.transform * Vector3(0.04, -0.04 + (n - 1 - i) * 0.09, -0.03)
-			var b := button if i == n - 1 else Interactable.create(self, at, Vector3(0.08, 0.08, 0.06), "Press %s" % floors[i], Color(0.15, 0.15, 0.15), false)
+			var b := button if str(floors[i]) == to_floor else Interactable.create(self, at, Vector3(0.08, 0.08, 0.06), "Press %s" % floors[i], Color(0.15, 0.15, 0.15), false)
 			b.basis = panel.basis
 			b.position = at
 			if b == button:
@@ -265,21 +270,44 @@ func link_to(other: Elevator) -> void:
 ## The ride, once the doors have shut. The next wing loads meanwhile; then every
 ## player in this car moves to the same spot in the destination car, still facing
 ## the same way relative to it, and its doors open.
+## The indicator counts through every floor on the way.
 func ride(seconds: float = RIDE_TIME) -> void:
 	riding = true
+	var from := level_of(floor_label)
+	var to := level_of(destination.floor_label if destination else to_floor)
 	if art:
-		art.call("set_direction", -1)
+		art.call("set_direction", signi(to - from))
 	var tw := create_tween()
 	tw.tween_method(_set_car_light, 1.0, 0.6, seconds * 0.5)
 	tw.tween_method(_set_car_light, 0.6, 1.0, seconds * 0.5)
+	if art and to != from:
+		var count := create_tween()
+		count.tween_method(func(f: float): art.call("set_floor", label_of(roundi(f))), float(from), float(to), seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tw.finished
 	if art:
+		art.call("set_floor", label_of(to))
 		art.call("set_direction", 0)
 	if destination:
 		carry_players_to(destination)
 		destination.open()
 	riding = false
 	arrived.emit()
+
+
+## Halcyon Tower's floors as numbers: G is 0, B1 is -1, "14" is 14.
+static func level_of(label: String) -> int:
+	if label == "G" or label == "":
+		return 0
+	if label.begins_with("B"):
+		return -label.substr(1).to_int()
+	return label.to_int()
+
+
+## The label a floor number shows on the indicator.
+static func label_of(level: int) -> String:
+	if level == 0:
+		return "G"
+	return "B%d" % -level if level < 0 else str(level)
 
 
 ## Move everyone in this car to the same place in `other`, keeping their facing.

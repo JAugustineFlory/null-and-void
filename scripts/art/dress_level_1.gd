@@ -72,6 +72,7 @@ static func apply(level: LevelBase) -> void:
 
 	ArtDress.link_light_panels(level)
 	ArtDress.explain_dark(level, DARK_CHECK, 4.0)
+	ArtSkyline.backdrop(level, "level_1")  # 14 floors up, for any window onto the outside
 	var rourke: Node3D = level.get("rourke")
 	if rourke:
 		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
