@@ -30,6 +30,8 @@ const WHITE := Color(0.92, 0.95, 1.0)
 const FIGHT_BARKS := ["l2_hit_1", "l2_hit_2", "l2_hit_3", "l2_hit_4", "l2_hit_prints"]
 const HURT_BARKS := ["l2_hurt_1", "l2_hurt_2", "l2_hurt_3"]
 const BARK_GAP := 3.5
+## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
+const FIGHT_NOTICE := "Click to strike. Right-click as he swings to block."
 
 ## Rourke's walk up from the arrival car (level space), and where he stands.
 ## He stops past the lab door, so the badge reader is on the crew's side of him.
@@ -438,13 +440,36 @@ func _start_fight() -> void:
 	rourke.max_hits = Rourke.MAX_HITS + 2 * (level.players.count() - 1)
 	rourke.hits_left = rourke.max_hits
 	level.hud.todo("Deal with Rourke")
-	level.hud.notice("Click to strike", 6.0)
+	level.hud.notice(FIGHT_NOTICE, 6.0)
 	if level.sync.is_host():
+		if not level.crew.hit_blocked.is_connected(_on_blocked):
+			level.crew.hit_blocked.connect(_on_blocked)
 		rourke.downed.connect(func(): level.sync.run_on(self, "_on_downed"))
 		rourke.resolved.connect(func(f): level.sync.run_on(self, "_resolve", [f]))
 		rourke.hit_player.connect(_bark.bind(FIGHT_BARKS))
 		rourke.struck.connect(_bark.bind(HURT_BARKS))
 		rourke.start_chase(level.players.nearest(rourke.global_position))
+
+
+## Host: someone blocked his swing, and he reels.
+func _on_blocked(_id: int, cause: String) -> void:
+	if cause == "rourke" and phase == "fight":
+		rourke.recoil()
+
+
+## Every machine: Rourke downed the whole crew. The frame worked: the next
+## morning's paper and the radio say so (NewsEnding), then everyone comes to in
+## the lab and the fight starts over.
+func crew_beaten() -> void:
+	var news := NewsEnding.new()
+	news.hud = level.hud
+	level.add_child(news)
+	await news.run()
+	level.crew.send_everyone_back()
+	await level.get_tree().create_timer(0.7).timeout  # under the death fade
+	news.queue_free()
+	if level.sync.is_host():
+		reset_fight()
 
 
 ## Host: a short fight line, at most one every few seconds.
