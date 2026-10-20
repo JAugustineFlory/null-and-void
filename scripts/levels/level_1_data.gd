@@ -2,12 +2,13 @@ class_name Level1Data
 extends RefCounted
 ## Builds Level 1's database from a seed, so each run has a different faulted
 ## controller in a different zone. Nothing printed names the zone: players read
-## it off the stuck doors (the doors table, or the plates on the doors themselves).
+## it off the stuck doors in the doors table (the plates on the doors only show a red light).
 ## The logic stays the same: exactly one controller is in the stuck doors' zone AND
 ## has status 'fault'. Every other controller that isn't 'ok' carries a note saying
 ## why it can be ignored, so players who read the whole table can tell the decoys apart.
 ## Also seeded: Server Room B's overheating rack (racks.temp_c > 40) and the floor's
-## lights, where the break room's row says the bulb is dead.
+## lights: the break room's is 'dead' and the north corridor's 'flickering' (the
+## optional dark room: dead OR flickering), and an unused bay is 'off' on purpose.
 
 const ROOM_RACKS := 8  # DC-1 .. DC-8 are physical racks in Server Room A
 const SRB_RACKS := 6  # RB-1 .. RB-6 in Server Room B
@@ -126,7 +127,8 @@ INSERT INTO lights VALUES
 	('srb', 'Server Room B', 1, 1, 'ok'),
 	('1-BREAK', 'Break room', 1, 0, 'dead'),
 	('src', 'Server Room C', 1, 1, 'ok'),
-	('1-HALL-N', 'North corridor', 1, 1, 'flickering');
+	('1-HALL-N', 'North corridor', 1, 1, 'flickering'),
+	('1-VAULT-BAY', 'Cable vault spare bay (unused)', 1, 0, 'off');
 
 INSERT INTO badges VALUES
 	('R-0117', 'ROURKE, D.', 'ESCORT', 'Server Room A'),
