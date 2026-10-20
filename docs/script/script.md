@@ -37,7 +37,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The garage
 
-*The game opens at Byte-Right's garage home base, earlier that night. Maddison calls the base station: the work order comes through on the fax, the book Easy SQL is on the back shelf, the crew huddles round it at the workbench, then everyone gets in the van.* *(Written ahead: not in the game yet.)*
+*The game opens at Byte-Right's garage home base, earlier that night. Maddison calls the base station: the work order comes through on the fax, the book Easy SQL is on the back shelf, the crew huddles round it at the workbench, then everyone gets in the van.*
 
 **MADDISON:** *(Bursting with it. The crew starts on the garage floor.)* Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. `[l0_garage_1]`
 

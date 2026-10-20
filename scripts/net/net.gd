@@ -95,6 +95,7 @@ func _start(seed_value: int, names: Dictionary) -> void:
 	in_game = true
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
+	game.open_at_home = true
 	game.goto("world")
 
 

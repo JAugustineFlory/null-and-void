@@ -57,6 +57,7 @@ func _ready() -> void:
 	db.door_changed.connect(_on_door_changed)
 	db.light_changed.connect(_on_light_changed)
 	sync = LevelSync.create(self)
+	Huddle.create(self)  # the crew's book huddles (scripts/huddle/)
 
 	build()
 	_bake_navigation()

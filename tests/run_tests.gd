@@ -5,6 +5,8 @@ extends SceneTree
 
 var passed := 0
 var failed := 0
+## Inside the floor 22 stairwell, past the lift lobby's stair door (Level 2 local).
+const STAIRS := Vector3(4.5, 0.1, -15.0)  # on the landing, clear of the flight
 
 
 func _initialize() -> void:
@@ -56,6 +58,7 @@ func _run() -> void:
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
+	await load("res://tests/huddle_tests.gd").new().run(self, check)
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
@@ -328,10 +331,14 @@ func test_voice_script() -> void:
 	var id_re := RegEx.create_from_string("\"(l\\d+_[a-z0-9_]+)\"")
 	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
 	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
-	for f in DirAccess.get_files_at("res://scripts/levels"):
-		if not f.ends_with(".gd"):
-			continue
-		var src := FileAccess.get_file_as_string("res://scripts/levels/" + f)
+	var sources := []
+	for dir in ["res://scripts/levels/", "res://scripts/huddle/"]:  # huddle: the book's chapter lines
+		for f in DirAccess.get_files_at(dir):
+			if f.ends_with(".gd"):
+				sources.append(dir + f)
+	for path in sources:
+		var f: String = path.get_file()
+		var src := FileAccess.get_file_as_string(path)
 		for m in scene_re.search_all(src):
 			if VoiceLines.scene(m.get_string(1)).is_empty():
 				unknown.append(m.get_string(1))
@@ -906,6 +913,36 @@ func _frames(n: int) -> void:
 		await physics_frame
 
 
+## The Huddle for a level (not named as a class here: it pulls in LevelBase).
+func _huddle_of(node: Node) -> Node:
+	while node:
+		if node.get_node_or_null("Huddle"):
+			return node.get_node("Huddle")
+		node = node.get_parent()
+	return null
+
+
+## Play through the next book huddle on every machine: the reader turns the
+## pages, then everyone votes for the right answer (scripts/huddle/).
+func _crew_reads(levels: Array) -> void:
+	var hs: Array = levels.map(func(l): return _huddle_of(l))
+	var seen := false
+	for f in 6000:
+		await physics_frame
+		for h in hs:
+			h.reveal_scale = 0.05
+			if not h.is_running():
+				continue
+			seen = true
+			if h.question < 0:
+				if h.is_reader() and f % 5 == 0:
+					h.turn_page()
+			elif h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
+				h.vote(h.current_question().answer)
+		if seen and hs.all(func(h): return not h.is_running() and h.get_node_or_null("HuddleUI") == null):
+			return
+
+
 func _table(level: Node, sql: String) -> String:
 	return JSON.stringify(level.db.run_silent(sql))
 
@@ -1282,7 +1319,8 @@ func test_coop_lobby_walk_in() -> void:
 	check(h.visitor_log.taken_by.size() == 1, "signing twice still counts once")
 	h.visitor_log.interact(m[0].player)
 	h.badges.interact(m[0].player)
-	for f in 3000:
+	_crew_reads([h, c])  # the garage flashback before the desk terminal
+	for f in 4000:
 		await physics_frame
 		if c.desk_terminal.enabled:
 			break
@@ -1343,14 +1381,19 @@ func test_coop_level_2() -> void:
 	check(machines.all(func(l): return not is_instance_valid(l.key_glass)), "a client's strike breaks the glass on every machine")
 	for l in machines:  # one process plays every machine: give each its own inventory, as on real machines
 		l.player.inventory = Inventory.new()
+	var drivers: int = host.players.count()
 	client.geo.get_node("Screwdriver").interact(client.player)
 	await _frames(10)
-	check(machines.all(func(l): return l.has_screwdriver and l.geo.get_node_or_null("Screwdriver") == null), "the screwdriver is picked up for everyone")
+	check(machines.all(func(l): return l.has_screwdriver and l.screwdrivers.models.filter(func(m): return m.visible).size() == drivers - 1), "a client takes one screwdriver, and everyone sees one gone from the row")
 	check(client.player.inventory.has("screwdriver") and not host.player.inventory.has("screwdriver"), "and it's in the taker's inventory, not everyone's")
+	host.vent_grate.interact(host.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.vent_grate.enabled), "someone without a screwdriver can't take the grate off")
 	client.vent_grate.interact(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return not l.vent_grate.enabled), "the grate comes off on every machine")
 
+	check(machines.all(func(l): return l.stair_door.locked and not l.exit_lift.button.enabled), "the stairs are locked and the lift is dead")
 	client.type_pin("exit", host.data.pin, client.player)
 	await _frames(10)
 	check(machines.all(func(l): return l.pin_entered and not l.door_open), "the stairwell PIN goes through for everyone, and the door still jams")
@@ -1360,20 +1403,17 @@ func test_coop_level_2() -> void:
 	await _frames(100)
 	for l in machines:
 		l.completed.disconnect(l._on_completed)
-	client.player.global_transform = Transform3D(Basis(), client.to_global(Vector3(0, 0.1, -18.2)))
+	check(machines.all(func(l): return not l.stair_door.locked), "with SEC-EXIT open, the stair door unlocks for everyone")
+	client.player.global_transform = Transform3D(Basis(), client.to_global(STAIRS))
 	await _frames(20)
-	client.exit_lift.button.interact(client.player)
-	await _frames(10)
-	check(machines.all(func(l): return not l.exit_lift.is_closing), "the doors won't close while someone is still outside")
+	check(not client.player.input_locked, "one player on the stairs isn't the whole team")
 	client.seal_button.interact(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return not l.doors["SEC-EXIT"].is_open), "a client can lock SEC-EXIT behind the team")
 	host.player.input_locked = false
-	host.player.global_transform = Transform3D(Basis(), host.to_global(Vector3(0.6, 0.1, -18.4)))
+	host.player.global_transform = Transform3D(Basis(), host.to_global(STAIRS + Vector3(-0.6, 0, -0.4)))
 	await _frames(20)
-	client.exit_lift.button.interact(client.player)
-	await _frames(180)
-	check(machines.all(func(l): return l.exit_lift.open_amount == 0.0), "with everyone inside, the doors shut on every machine")
+	check(machines.all(func(l): return l.player.input_locked), "with everyone on the stairs, the wing ends on every machine")
 	await _coop_close(worlds)
 
 
@@ -1642,6 +1682,7 @@ func test_level_2_scene() -> void:
 	check(level.frozen_cams.has("CAM-3") and not level.doors["SEC-EXIT"].is_open, "the wrong breaker blacks out the vestibule camera instead")
 	check((Array(level.panel.transcript) + level.panel.boot_lines).any(func(l): return str(l).contains("CAM-3: NO SIGNAL")), "and the panel reports the camera lost its signal")
 	check(level.breaker_status.text.contains("CAM-3: NO SIGNAL"), "the breaker box itself shows what the wrong breaker cut")
+	check(level.stair_door.locked, "the stair door stays locked until SEC-EXIT opens")
 	level._on_breaker(null, level.data.breaker)
 	for i in 5:
 		await physics_frame
@@ -1649,28 +1690,25 @@ func test_level_2_scene() -> void:
 	check(level.db.run_silent("SELECT sensor FROM door_status WHERE door_id = 'SEC-EXIT'")[0]["sensor"] == "open", "the sensor now agrees")
 	for i in 100:
 		await physics_frame
-	check(level.exit_lift.open_amount > 0.99, "with SEC-EXIT open, the elevator is waiting")
-	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -14.5)))
-	await physics_frame
-	check(not level.exit_lift.press(p) and level.exit_lift.refusal != "", "the button won't work until everyone is inside")
+	check(not level.stair_door.locked and not level.exit_lift.button.enabled, "with SEC-EXIT open, the stair door unlocks; the lift beside it stays dead")
+	check(level.stair_door.name.ends_with("STAIR-1-22"), "it's the floor 22 stairwell")
 	level.seal_exit()
 	for i in 5:
 		await physics_frame
 	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
-	var shut := [false]
-	level.exit_lift.closed.connect(func(): shut[0] = true)
 	level.completed.disconnect(level._on_completed)
-	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -18.2)))
-	await physics_frame
-	check(level.exit_lift.headcount() == Vector2i(1, 1) and level.exit_lift.press(p), "inside, the button closes the doors")
-	for i in 160:
+	for i in 20:  # let WARDEN's line about the jammed door finish first
+		if level.hud._subtitle.text == "":
+			break
+		await create_timer(0.5).timeout
+	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
+	for i in 10:
 		await physics_frame
-	check(shut[0] and level.exit_lift.open_amount == 0.0, "the doors shut: the wing is done")
-	for i in 120:
-		await physics_frame
+	check(p.input_locked, "on the stairs, the wing is done")
+	await create_timer(1.6).timeout
 	var taps: Array = level.geo.get_meta("sounds_played", []).filter(func(x): return x.kind == "tap")
 	check(taps.size() == 1 and taps[0].pos == level.SEC_EXIT_FRAME and level.hud._subtitle.text == "",
-		"leaving, there's one tap on the metal behind SEC-EXIT, and no narration")
+		"leaving, there's one tap on the metal behind SEC-EXIT, and no narration (%d taps, subtitle \"%s\")" % [taps.size(), level.hud._subtitle.text])
 	p.input_locked = false
 	p.global_transform = Transform3D(Basis(), Vector3(0, 0.1, 4.0))
 	# Caught: put it right behind the player, out of sight.
@@ -1739,12 +1777,13 @@ func test_level_2_routes() -> void:
 	check(is_instance_valid(level.vent_grate) and not level.has_screwdriver, "the vent grate won't come off by hand")
 	level.key_glass.take_hit(p)
 	await process_frame
-	var sd: Interactable = null
-	for n in level.geo.get_children():
-		if n is Interactable and n.prompt == "Take the screwdriver":
-			sd = n
-	check(not is_instance_valid(level.key_glass) and sd != null, "strike the box's glass and the screwdriver is there")
+	var sd: ItemDock = level.screwdrivers
+	check(not is_instance_valid(level.key_glass) and sd.get_prompt(p) == "[E] Take a screwdriver", "strike the box's glass and the screwdrivers are there")
+	check(sd.models.filter(func(m): return m.visible).size() == level.players.count(), "one each")
+	check(level.spare_walkies.models.filter(func(m): return m.visible).size() == level.players.count(), "and the night desk has spare walkies")
 	sd.interact(p)
+	await process_frame
+	check(p.inventory.has("screwdriver") and sd.get_prompt(p) == sd.already, "take one and the row won't give you a second")
 	level._on_vent_grate(p)
 	await process_frame
 	check(not level.vent_grate.enabled and level.vent_grate.get_children().filter(func(c): return c is CollisionShape3D).all(func(c): return c.disabled),
@@ -1854,15 +1893,10 @@ func test_level_2_wall_controls() -> void:
 	var done := [false]
 	level.completed.connect(func(): done[0] = true)
 	await _frames(100)
-	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, -18.2)))
-	await _frames(30)
-	check(not level.exit_lift.is_closing, "the car waits a moment once you walk in")
-	await create_timer(1.6).timeout
-	check(level.exit_lift.is_closing or level.exit_lift.open_amount < 1.0, "then, with everyone inside, its doors close by themselves")
+	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
 	await create_timer(6.0).timeout
 	var card: Node = level.get_node_or_null("EndCard")
-	check(card != null and card.find_children("*", "Label", true, false).any(func(l): return l.text == "To be continued."), "the car drops and a black card reads \"To be continued.\"")
-	check(level.geo.get_meta("sounds_played", []).any(func(x): return x.kind == "clunk"), "the drop clunks")
+	check(card != null and card.find_children("*", "Label", true, false).any(func(l): return l.text == "To be continued."), "down the stairs, a black card reads \"To be continued.\"")
 	for i in 20:
 		if done[0]:
 			break
