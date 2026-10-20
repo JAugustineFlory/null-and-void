@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_actions()
 	await test_rig_budget()
 	await test_props()
+	test_kits()
 	await test_held_items()
 	await test_gallery()
 	await test_dressed_level_0()
@@ -200,6 +201,34 @@ func test_rig_budget() -> void:
 	check(ma.mesh == mb.mesh and ma.material_override == mb.material_override, "rigs share meshes and materials")
 	a.get_parent().free()
 	b.get_parent().free()
+	stage.free()
+
+
+func test_kits() -> void:
+	var stage := _stage()
+	var rail := ArtKit.stair_rail(stage, Vector3.ZERO, Vector3(0, 1.8, 3.0))
+	var sign0 := ArtKit.landing_number(stage, Vector3(2, 1.5, 0), 0, 0)
+	var sign22 := ArtKit.landing_number(stage, Vector3(3, 1.5, 0), 0, 22)
+	var lamp := ArtKit.emergency_light(stage, Vector3(0, 2.4, 0), 0)
+	var shapes := 0
+	for n in [rail, sign0, sign22, lamp]:
+		shapes += n.find_children("*", "CollisionObject3D", true, false).size()
+	check(shapes == 0, "stairwell dressing is visual only: nothing for the Watcher's raycasts to hit")
+	var numbers := []
+	for sgn in [sign0, sign22]:
+		for l in sgn.find_children("*", "Label3D", true, false):
+			numbers.append(l.text)
+	check("G" in numbers and "22" in numbers, "landing numbers match the tower floors (G, 22)")
+	check(lamp.get_node_or_null("Lamp") is SpotLight3D and ArtKit.emergency_light(stage, Vector3.ZERO, 0, false).get_node_or_null("Lamp") == null, "a lit emergency light lights the stairs, a dead one doesn't")
+	var top_rail: MeshInstance3D = rail.get_child(0)
+	check(rail.get_child_count() >= 5 and is_equal_approx(top_rail.position.y, 0.9 + 0.9), "a handrail runs up the flight on posts, 0.9 m over the treads")
+	var table := ArtKit.folding_table(stage, Vector3(5, 0, 0))
+	var chair := ArtKit.folding_chair(stage, Vector3(5, 0, 1))
+	check(table.get_meta("art_prop", false) and chair.get_meta("art_prop", false), "garage tables and chairs are solid props the route checks know about")
+	var board := ArtKit.whiteboard(stage, Vector3(7, 1.4, 0), 0, "CLIENTS\n- Halcyon (after hours)")
+	var banner := ArtKit.banner(stage, Vector3(7, 2.4, 0), 0)
+	check(board.find_children("*", "Label3D", true, false).size() == 1 and "BYTE-RIGHT" in banner.find_children("*", "Label3D", true, false)[0].text, "the whiteboard has writing and the banner names the company")
+	check(ArtKit.pizza_box(stage, Vector3(5, 0.76, 0), 0, false, 3).get_child_count() == 3, "shut pizza boxes stack")
 	stage.free()
 
 
