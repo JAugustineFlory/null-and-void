@@ -109,10 +109,10 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "They're with me. Escort's right here."  
   *Toward the ceiling speaker when the PA's escort reminder replays while the crew is behind the counter. Covering for them like a friend.*
 - [ ] `l0_elevator.wav`  
-  "Server floor's one up. Elevator's slow, but it gets there."  
+  "Server floor's up on fourteen. Elevator's slow, but it gets there."  
   *At the elevator bank, holding the door.*
 - [ ] `l0_lift_button.wav`  
-  "Press one for me, would you? Server floor."  
+  "Press fourteen for me, would you? Server floor."  
   *Inside the car, back against the far wall from the buttons. Easy, polite.*
 
 ### 5. Strolling down a quiet office corridor with the crew, making small talk on the way to the server room.
@@ -178,7 +178,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you."  
   *Already walking. Friendly, steering.*
 - [ ] `l1_lift_button.wav`  
-  "Two. Security floor. Go on."  
+  "Twenty-two. Security floor. Go on."  
   *Inside the car, across from the buttons. A little clipped now, eager to get there.*
 
 ### 9. At a scientist's lab with the crew. You have them badge in, act shocked at what's inside, step out, lock the door and call security on them.

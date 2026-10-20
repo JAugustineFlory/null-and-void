@@ -22,6 +22,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_dressed_level_0()
 	await test_dressed_level_1()
 	await test_dressed_level_2()
+	test_skyline_heights()
 	test_sticky_notes()
 	test_elevator()
 	await test_notebook()
@@ -327,6 +328,7 @@ func test_dressed_level_0() -> void:
 		if l.get_node_or_null("PanelLink"):
 			lit += 1
 	check(lit == level.lights["lobby"].size(), "every lobby light panel follows its light")
+	_check_polish(level, "Level 0")
 	var van: Node3D = level.get_node("Dressing/Van")
 	check(van.find_children("Seat*", "Node3D", false, false).size() == 3, "the van has two front seats and a rear bench")
 	check(van.find_child("SteeringWheel", true, false) != null, "and a steering wheel")
@@ -340,6 +342,7 @@ func test_dressed_level_0() -> void:
 	level.rourke._body.position.y = -0.45  # ducking under the hall's cable tray
 	look._process(0.016)
 	check(look.rig.stance_height < 1.4, "Rourke's model crouches when he ducks")
+	_check_skyline(level, "level_0")
 	level.free()
 
 
@@ -394,6 +397,8 @@ func test_dressed_level_1() -> void:
 	check(look.pick_action() == "down", "Rourke's model falls when he goes down")
 	level.rourke.state = Rourke.State.TIED
 	check(look.pick_action() == "tied", "and shows him tied up")
+	_check_polish(level, "Level 1")
+	_check_skyline(level, "level_1")
 	level.free()
 
 
@@ -418,7 +423,83 @@ func test_dressed_level_2() -> void:
 			break
 	check(lab_wall != null and (lab_wall.material_override as StandardMaterial3D).albedo_color.b > 0.9, "Secure Lab B is clean and white")
 	check(level.lab.rourke.get_node_or_null("Look") != null, "Rourke wears his character model on the security floor too")
+	_check_polish(level, "Level 2")
+	_check_skyline(level, "level_2")
 	level.free()
+
+
+## Halcyon Tower: every wing sees the sky and the campus at its own storey's height,
+## and nothing outside collides or shows through into a wing next door.
+## The quality pass: ceiling lights cast soft shadows up close and drop them with
+## distance, fittings glow through louvres, and the room gets AO and reflections.
+func _check_polish(level: Node3D, label: String) -> void:
+	var spill := []
+	for poster in level.find_children("Poster*", "Node3D", true, false):
+		var paper := ((poster.get_child(1) as MeshInstance3D).mesh as BoxMesh).size
+		var l: Label3D = poster.find_children("*", "Label3D", false, false)[0]
+		var font: Font = l.font if l.font else ThemeDB.fallback_font
+		var flags := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+		var text := font.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, l.width, l.font_size, -1, flags) * l.pixel_size
+		if text.x > paper.x or text.y > paper.y or l.font_size < 16:
+			spill.append(l.text.get_slice("\n", 0))
+	check(spill.is_empty(), "%s: every poster's text fits on its paper %s" % [label, spill])
+	var lights := 0
+	var unshadowed := []
+	for id in level.lights:
+		for l in level.lights[id]:
+			var omni := l as OmniLight3D
+			if not omni:
+				continue
+			lights += 1
+			if not (omni.shadow_enabled and omni.distance_fade_enabled and omni.distance_fade_shadow <= ArtDress.SHADOW_NEAR):
+				unshadowed.append(str(omni.name))
+	check(lights > 0 and unshadowed.is_empty(), "%s: ceiling lights cast shadows that fade out with distance %s" % [label, unshadowed.slice(0, 6)])
+	var env: Environment = level.environment
+	check(env.ssao_enabled and env.ssr_enabled, "%s: corners get ambient occlusion and polished floors reflect" % label)
+	var panel: MeshInstance3D = null
+	for id in level.lights:
+		for l in level.lights[id]:
+			var link = l.get_node_or_null("PanelLink")
+			if link and l.visible and l.light_energy > 0.05 and is_instance_valid(link.panel):
+				panel = link.panel
+	check(panel != null and panel.material_override.emission_texture == ArtPalette.texture("louvre"), "%s: lit fittings show their louvres" % label)
+
+
+func _check_skyline(level: Node3D, wing: String) -> void:
+	var sky: Node3D = level.get_node_or_null("Dressing/Skyline")
+	check(sky != null and sky.get_meta("storey") == ArtSkyline.FLOORS[wing], "%s looks out on the campus from storey %d" % [wing, ArtSkyline.FLOORS[wing]])
+	if sky == null:
+		return
+	check(sky.find_children("*", "CollisionObject3D", true, false).is_empty() and sky.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"%s: nothing outside the windows collides, so the Watcher sees and walks as before" % wing)
+	var placed := true
+	for mat in sky.get_meta("materials"):
+		placed = placed and (mat as ShaderMaterial).get_shader_parameter("view_center") == sky.global_position
+	check(placed, "%s: every outside piece knows where its view is" % wing)
+	var radius: float = sky.get_meta("radius")
+	var inside := true
+	var clear := true
+	var at: Transform3D = World.ROUTE[World.ROUTE.map(func(r): return r.key).find(wing)].at
+	for b in level.geo.get_children():
+		if not b is StaticBody3D:
+			continue
+		var p: Vector3 = b.position
+		inside = inside and Vector2(p.x - sky.position.x, p.z - sky.position.z).length() < radius
+		for r in World.ROUTE:
+			if r.key == wing or r.key == "level_0":
+				continue
+			var v: Dictionary = ArtSkyline.VIEWS[r.key]
+			var c: Vector3 = r.at * Vector3(v.center.x, 0, v.center.y)
+			var w: Vector3 = at * p
+			clear = clear and Vector2(w.x - c.x, w.z - c.z).length() > v.radius
+	check(inside, "%s: the whole floor sits inside its own sky" % wing)
+	check(clear, "%s: no other floor's sky reaches into this one in the World" % wing)
+
+
+func test_skyline_heights() -> void:
+	check(is_equal_approx(ArtSkyline.floor_height(0), 0.0) and is_equal_approx(ArtSkyline.floor_height(14), 55.4) and is_equal_approx(ArtSkyline.floor_height(22), 85.8),
+		"the server floor is 55 m up and the security floor 86 m")
+	check(ArtSkyline.roof_height() > 110.0, "the tower's roof is over 110 m up")
 
 
 func test_sticky_notes() -> void:

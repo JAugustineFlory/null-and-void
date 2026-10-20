@@ -19,7 +19,7 @@ const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "
 ## Concepts that aren't one capitalised word: comparing a column with a value, and
 ## picking columns instead of *.
 const KEYWORD_PATTERNS := {
-	">": "\\w\\s*>=?\\s*['\\d]",
+	">": "\\w\\s*>=?\\s*['\\d?]",
 	"COLUMNS": "\\bSELECT\\s+\\w+\\s*,",
 }
 
@@ -207,8 +207,10 @@ func has_world_label(level: Node, text: String) -> bool:
 ## it's solved, everything it teaches must have been on a terminal line or sticky note.
 ## `pressure_gap` names a known gap: a pressure mismatch prints as GAP, not a failure.
 ## With `pace`, game time passes as a first-time player would take: reading what's
-## new, thinking, typing (see PACE_* below). `paced` adds up those seconds.
-func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints: int = 3, pressure_gap: String = "", pace := false) -> int:
+## new, thinking, typing (see PACE_* below). `paced` adds up those seconds. `done`
+## ends it early for a puzzle finished by a physical step: the query only finds the
+## thing to press.
+func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints: int = 3, pressure_gap: String = "", pace := false, done := Callable()) -> int:
 	var tried := {}
 	var hints := 0
 	check_ladder(ui, puzzle)
@@ -227,7 +229,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		else:
 			check(threat == spec.pressure, said)
 	var outside := []
-	while not puzzle.solved:
+	while not puzzle.solved and not (done.is_valid() and done.call()):
 		var read := remember(level, ui)
 		if pace:
 			await _spend(read / PACE_READ_CPS)
@@ -257,7 +259,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			if pace:
 				await _spend(PACE_THINK + q.length() / PACE_TYPE_CPS)
 			ui.run(q)
-			if puzzle.solved:
+			if puzzle.solved or (done.is_valid() and done.call()):
 				break
 	var read_last := remember(level, ui)
 	if pace:
@@ -269,7 +271,11 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			first_use[k] = "threat" if threat else "safe"
 		if threat:
 			used_under_threat[k] = true
-	check(outside.is_empty(), "%s: everything it needs was taught before any hint%s" % [puzzle.id, "" if outside.is_empty() else " (never shown: %s)" % ", ".join(outside)])
+	var said_taught := "%s: everything it needs was taught before any hint%s" % [puzzle.id, "" if outside.is_empty() else " (never shown: %s)" % ", ".join(outside)]
+	if spec.has("known_gap"):
+		gap(outside.is_empty(), "%s (%s)" % [said_taught, spec.known_gap])
+	else:
+		check(outside.is_empty(), said_taught)
 	var unoffered := []
 	for k in spec.get("teaches", []):
 		if not has_item(taught, k):
@@ -336,9 +342,8 @@ func _escape(text: String) -> String:
 ## Augustine's hint ladder (option A, 2026-10-18). Hint 1 is the query's shape with
 ## the value as '?', a line per keyword, and where to find the value; hint 2 says how
 ## to find it, without the query; the last hint is the exact query, and it solves the
-## puzzle. Every hint uses the real tables. Puzzles still on the old ladder (hint 1
-## exact) print as GAP until their floor's depth pass lands; a puzzle with no value
-## to find is marked "ladder": "exact" in tests/curriculum.gd.
+## puzzle. Every hint uses the real tables. A puzzle with no value to find is marked
+## "ladder": "exact" in tests/curriculum.gd: its first hint is the exact query.
 func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 	var first := _plain(p.hints[0])
 	var q := _answer_query(p)
@@ -346,7 +351,7 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 	if Curriculum.PUZZLES.get(p.id, {}).get("ladder", "") == "exact":
 		check(shape == "", "%s: no value to find, so hint 1 is the exact query" % p.id)
 	else:
-		gap(shape != "", "%s: hint 1 is the query's shape with the value as '?' (ladder A)" % p.id)
+		check(shape != "", "%s: hint 1 is the query's shape with the value as '?' (ladder A)" % p.id)
 	if FacilityAPI.is_request(q):
 		check(q.begins_with("GET /"), "%s: the exact-query hint is a request the player can type (%s)" % [p.id, q])
 	else:
@@ -396,6 +401,15 @@ func walk_level_0() -> void:
 	var shown := screen(ui)
 	check(shown.rfind(memo[0].text) < shown.rfind(memo[1].text) and shown.rfind(memo[1].text) < shown.rfind(memo[-1].text), "lobby: the sorted result on screen reads as the memo, in order")
 	check(not shown.contains("RECONSTRUCTED"), "lobby: the memo isn't printed a second time under the result")
+	# Who called: Rourke's question, answered with named columns (the depth pass).
+	level._ask_caller()
+	h = await solve(level, ui, level.caller_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.caller_puzzle), "lobby: a lost player finds the caller once a hint gives the query (hints %d)" % h)
+	check(last_table(screen(ui)).any(func(r): return r.get("extension", "") == str(level.data.extension) and r.get("name", "") == "Harold Mercer"), "lobby: the result shows the work order's extension beside Harold Mercer")
+	# Optional: the visitor log newest first. Vale signed in and never left.
+	h = await solve(level, ui, level.visitor_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.visitor_puzzle), "lobby: a lost player reads the visitor log newest first once a hint gives the query (hints %d)" % h)
+	check(screen(ui).contains("VALE, I."), "lobby: the newest visitors on screen include Vale")
 	ui.close()
 	level.queue_free()
 	await t.process_frame
@@ -431,6 +445,20 @@ func walk_level_1(seed_value: int) -> void:
 			break
 		await t.physics_frame
 	check(level.doors["SRA-EXIT"].is_open and not level.room_c_door.locked, "server room: resetting the controller read off the screen frees the floor's stuck doors")
+	# Optional: the overheating rack, comparison with > practised safely. The query
+	# only finds the rack; reseating its fan tray in Server Room B solves it.
+	ui.open(level.terminal, level.player)
+	var hot: String = level.hot_rack
+	h = await solve(level, ui, level.hot_rack_puzzle, false, 3, "", false, func():
+		var r := last_table(screen(ui))
+		return r.size() == 1 and r[0].get("id", "") == hot)
+	check(h >= 0 and h <= rescue_tier(level.hot_rack_puzzle), "server floor: a lost player finds the hot rack once a hint gives the query (hints %d)" % h)
+	ui.close()
+	var tray := find_interactable(level, "Reseat the fan tray (%s)" % hot)
+	check(tray != null, "server floor: the rack the query names has a fan tray to reseat")
+	if tray:
+		tray.interact(level.player)
+	check(await _until(func(): return not level.vault_back.locked, 6.0), "server floor: reseating the hot rack's tray releases the cable vault's back door")
 	level.queue_free()
 	await t.process_frame
 
@@ -481,7 +509,7 @@ func walk_lab(seed_value: int) -> void:
 	var near: String = world_text(level, lab.terminal)
 	check(near.contains("zone " + level.data.lab_zone) or near.contains("ZONE " + level.data.lab_zone), "lab: a card inside the lab gives its controller zone (the door plate is outside the locked door)")
 	var hunted: bool = level.watcher.active or (lab.rourke.visible and lab.rourke.state != Rourke.State.DOWN) or lab.response_left > 0.0
-	# The 3:00 clock, measured: game time passes as a first-time player reads,
+	# The response clock, measured: game time passes as a first-time player reads,
 	# thinks and types (PACE_*), so the clock and any re-key run for real.
 	paced = 0.0
 	var clock_from: float = lab.response_left

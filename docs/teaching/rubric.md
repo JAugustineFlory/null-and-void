@@ -82,8 +82,8 @@ cumulative taught set (every terminal line and sticky note seen so far) and fail
 - a puzzle breaks the hint ladder (checked every time a puzzle is walked, on every
   seed): hint 1 isn't the exact query's shape with `'?'`, gives the value away, or lacks
   a line per keyword; a middle hint holds the full query; the exact query doesn't solve
-  the puzzle; or a hint uses an example table. Puzzles still on the old ladder print
-  `GAP` until their floor's depth pass lands,
+  the puzzle; or a hint uses an example table. A puzzle with no value to find is
+  marked `"ladder": "exact"` in the curriculum and keeps an exact first hint,
 - the player can't finish once a hint gives the exact query, or can't read the
   physical step (rack, PIN, breaker) off the screen,
 - a keyword is first needed under threat.
@@ -92,7 +92,7 @@ The lost player never fills in a `'?'` itself: that's the thinking step the ladd
 leaves to real players. Keywords include `DESC`, `>` (a comparison with a value) and
 `COLUMNS` (SELECT naming columns instead of `*`).
 
-**The lab's 3:00 clock is measured, not estimated.** In the lab walk, game time passes
+**The lab's response clock is measured, not estimated.** In the lab walk, game time passes
 as a first-time player would spend it: reading new text at 15 characters a second,
 4 seconds to decide each command, typing at 2.5 characters a second, and 10 seconds
 to cross to the switch wall. The run prints the seconds used per seed and fails if

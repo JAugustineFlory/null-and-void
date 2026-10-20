@@ -11,7 +11,8 @@ extends RefCounted
 ## Items are SQL keywords (matched as capitalised words), or plain text that must
 ## appear as written: table and column names, values, and facts.
 ## Owned by the Teaching and UX thread. Add a row for every new puzzle.
-## `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
+## `"known_gap"` says why a puzzle's "taught before any hint" check prints as GAP
+## until its owner fixes it. `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
 ## its first hint stays the exact query. Every other puzzle uses hint ladder A.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
@@ -30,21 +31,22 @@ const PUZZLES := {
 		"teaches": ["ORDER BY", "piece_no"],
 		"needs": ["SELECT", "FROM", "memo_fragments", "ORDER BY", "piece_no"],
 	},
-	# Depth pass (plan/depth-pass-floors-0-2.md): ground floor. Provisional ids and
-	# names until Playtest fixes sends the built puzzle ids and chain values.
+	# Depth pass (plan/depth-pass-floors-0-2.md): ground floor.
 	# "Who called us?": the ticket's extension, matched in the staff directory.
 	"caller": {
 		"level": 0,
 		"pressure": false,
 		"teaches": ["COLUMNS", "staff_directory", "extension"],
-		"needs": ["SELECT", "FROM", "COLUMNS", "staff_directory", "extension"],
+		# The extension column's name comes from the result (SELECT * also solves it).
+		"needs": ["SELECT", "FROM", "COLUMNS", "staff_directory"],
 	},
 	# Optional: the newest visitor first.
 	"last_visitor": {
 		"level": 0,
 		"pressure": false,
 		"teaches": ["DESC", "visitors", "signed_in"],
-		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "visitors", "signed_in"],
+		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "visitors"],
+		"known_gap": "DESC appears in no paper, sticky or screen line before its first hint",
 	},
 	# Level 1: Server Room A.
 	"controller": {
@@ -53,28 +55,15 @@ const PUZZLES := {
 		"teaches": ["WHERE", "AND", "door_controllers", "single quotes", "'fault'"],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
 	},
-	# Depth pass, server floor (provisional ids). Step 1 of the controller chain:
-	# the stuck doors share one zone. The controller row then needs that zone, read
-	# off this result, instead of a zone printed on the self-test.
-	"stuck_doors": {
-		"level": 1,
-		"pressure": false,
-		"teaches": ["doors", "locked"],
-		"needs": ["SELECT", "FROM", "WHERE", "doors", "locked", "zone"],
-	},
+	# Depth pass, server floor: the zone now comes from the stuck doors (or their red
+	# plates), not the screen; the controller row above covers that query.
 	# Optional: the overheating rack, comparison taught safely.
 	"hot_rack": {
 		"level": 1,
 		"pressure": false,
 		"teaches": [">", "racks", "temp_c"],
-		"needs": ["SELECT", "FROM", "WHERE", ">", "racks", "temp_c"],
-	},
-	# Optional: why the break room is dark.
-	"dark_room": {
-		"level": 1,
-		"pressure": false,
-		"teaches": ["lights"],
-		"needs": ["SELECT", "FROM", "WHERE", "lights", "floor"],
+		"needs": ["SELECT", "FROM", "COLUMNS", "WHERE", ">", "racks", "temp_c"],
+		"known_gap": "> and the racks table appear nowhere near the terminal before the first hint",
 	},
 	# Level 2: the security floor. Rourke turns in Secure Lab B (plan/floors-expansion.md);
 	# the lab door's controller is Level 1's WHERE / AND, now under pressure, with the
@@ -109,10 +98,13 @@ const PUZZLES := {
 	"har": {
 		"level": 2,
 		"pressure": true,
-		"teaches": ["Har", "NIGHT SHIFT", "pin"],
-		# Composed from earlier lessons: LIKE (pike), AND (controller), the shift
-		# column and its 'night' value (Pike's row in the guards table).
-		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "AND", "guards", "Har", "shift", "night"],
+		"teaches": ["Har", "NIGHT SHIFT", "pin", "badge_id"],
+		# Main route (depth pass): badge_log sorted by time (ORDER BY, from the memo,
+		# now under pressure) gives the night lead's badge; guards by badge_id gives
+		# the PIN. LIKE 'Har%' AND shift = 'night' and the roster board still work.
+		# DEBT (design plan, 2026-10-19): LIKE is now practised (pike) but no longer
+		# required under threat. Level 3 or later must need it again under pressure.
+		"needs": ["SELECT", "FROM", "WHERE", "ORDER BY", "guards", "badge_log", "badge_id", "time"],
 	},
 	"door": {
 		"level": 2,

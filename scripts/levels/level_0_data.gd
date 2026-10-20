@@ -29,17 +29,17 @@ static func build(run_seed: int) -> Dictionary:
 	# name, title, dept, extension, floor, email, status
 	var staff := [
 		["Harold Mercer", "Founder", CALLER_DEPT, caller_ext, "G", "hmercer", "LEFT 03/94"],
-		["Iris Vale", "Lead Engineer", "Research", ext.call(2300, 2399), "2", "ivale", "MISSING"],
+		["Iris Vale", "Lead Engineer", "Research", ext.call(2300, 2399), "22", "ivale", "MISSING"],
 		["Dale Rourke", "Facilities Manager", "Facilities", 2210, "G", "drourke", "ON SHIFT"],
-		["Harlan Pike", "Night Security", "Security", 1102, "2", "hpike", "NO SHOW"],
-		["Office of the Director", "Director", "Executive", 1000, "3", "director", "OFFSITE"],
+		["Harlan Pike", "Night Security", "Security", 1102, "22", "hpike", "NO SHOW"],
+		["Office of the Director", "Director", "Executive", 1000, "30", "director", "OFFSITE"],
 		["Ruth Okonkwo", "Building Engineer", CALLER_DEPT, ext.call(4100, 4899), "G", "rokonkwo", "DAY SHIFT"],
-		["Glen Haskins", "Network Admin", "IT", ext.call(3100, 3999), "1", "ghaskins", "DAY SHIFT"],
-		["Tess Marlow", "NOC Operator", "IT", ext.call(3100, 3999), "1", "tmarlow", "NIGHT SHIFT"],
+		["Glen Haskins", "Network Admin", "IT", ext.call(3100, 3999), "14", "ghaskins", "DAY SHIFT"],
+		["Tess Marlow", "NOC Operator", "IT", ext.call(3100, 3999), "14", "tmarlow", "NIGHT SHIFT"],
 		["Paul Brandt", "Mailroom Clerk", "Mail Services", ext.call(1200, 1299), "G", "pbrandt", "DAY SHIFT"],
 		["Nadia Ferris", "Receptionist", "Front Desk", ext.call(1000, 1099), "G", "nferris", "DAY SHIFT"],
-		["Owen Sato", "Research Assistant", "Research", ext.call(2300, 2399), "2", "osato", "ON LEAVE"],
-		["Carla Dimas", "Payroll", "Finance", ext.call(5000, 5999), "3", "cdimas", "DAY SHIFT"],
+		["Owen Sato", "Research Assistant", "Research", ext.call(2300, 2399), "22", "osato", "ON LEAVE"],
+		["Carla Dimas", "Payroll", "Finance", ext.call(5000, 5999), "9", "cdimas", "DAY SHIFT"],
 	]
 	var vale_min := rng.randi_range(31, 55)
 	var vale_in := "1997-10-15 21:%02d" % vale_min

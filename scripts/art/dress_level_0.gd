@@ -115,6 +115,7 @@ static func apply(level: LevelBase) -> void:
 		if b is StaticBody3D and ArtDress._name_matches(b.name, ["CafTable", "SortingTable"]):
 			ArtDress.table_look(b, ArtPalette.surface("laminate"), legs)
 	_ground_floor(geo, dress)
+	_tower(level, dress)
 	DressVan.apply(level, Vector3(2, 0, 16.6))
 	# The sagging cable tray in the hall (the first crouch) sits outside geo.
 	var tray := level.get("cable_tray") as Node3D
@@ -122,10 +123,41 @@ static func apply(level: LevelBase) -> void:
 		ArtDress.reskin(tray.get_parent() as Node3D, [{"names": ["CableTray"], "mat": metal}])
 
 	ArtDress.link_light_panels(level)
+	ArtMood.polish(level.environment)
 	ArtDress.explain_dark(level, DARK_CHECK, 3.6, [Vector3(10.2, 0, -12.6)])  # the IT closet's ceiling panel stays bare
 	var rourke: Node3D = level.get("rourke")
 	if rourke:
 		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
+
+
+## Halcyon Tower over the lobby: from the car park it rises out of sight, thirty
+## storeys of concrete and ribbon windows, a red light on its mast.
+static func _tower(level: LevelBase, dress: Node3D) -> void:
+	var sky := ArtSkyline.backdrop(level, "level_0")
+	var roof := ArtSkyline.roof_height()
+	# Set back a metre behind the front facade, which is 6 m tall.
+	var w := -20.6
+	var e := 24.2
+	var front := 6.25
+	var back := -18.4
+	ArtSkyline.facade(sky, PackedVector2Array([Vector2(e, back), Vector2(e, front), Vector2(w, front), Vector2(w, back), Vector2(e, back)]),
+		ArtSkyline.LOBBY_H, roof, "Tower", true)
+	var concrete := ArtPalette.surface("concrete", Color(0.8, 0.78, 0.74))
+	ArtDress.trim(dress, Vector3((w + e) / 2.0, 6.05, 6.8), Vector3(e - w, 0.1, 1.2), concrete)  # the podium's roof, in front of the tower
+	var plant := BoxMesh.new()
+	plant.size = Vector3(12, 5, 10)
+	ArtSkyline.piece(sky, plant, Vector3(2, roof + 2.5, -7), Color(0.16, 0.16, 0.17), 0.0, "PlantRoom")
+	var mast := BoxMesh.new()
+	mast.size = Vector3(0.35, 14, 0.35)
+	ArtSkyline.piece(sky, mast, Vector3(2, roof + 12, -7), Color(0.2, 0.2, 0.21), 0.0, "Mast")
+	ArtSkyline.beacon(sky, Vector3(2, roof + 19.3, -7))
+	var corners := [Vector2(w, front), Vector2(e, front), Vector2(w, back), Vector2(e, back)]
+	for i in corners.size():
+		var c: Vector2 = corners[i]
+		var out := Vector2(signf(c.x - 2) * 0.3, signf(c.y + 6) * 0.3)
+		ArtSkyline.beacon(sky, Vector3(c.x + out.x, roof + 0.7, c.y + out.y), true, 0.2 * i)
+		if c.y == front:
+			ArtSkyline.beacon(sky, Vector3(c.x + out.x, ArtSkyline.floor_height(15), c.y + out.y), false)
 
 
 ## The rest of the ground floor: the back corridor and the rooms off it, the dark
@@ -224,7 +256,7 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	ArtProps.potted_plant(geo, Vector3(29.4, 0, -0.4))
 	ArtProps.potted_plant(geo, Vector3(29.4, 0, 6.4))
 	ArtProps.poster(dress, Vector3(29.89, 1.5, 5.0), 90,
-		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.4, 0.4))
+		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.5, 0.4), Color(0.93, 0.92, 0.86), 22)
 	ArtDress.skirting(dress, Vector3(27, 0, 3), Vector3(6, 3.2, 8), [
 		{"wall": "w", "at": 0.0, "width": 1.8}, {"wall": "e", "at": 0.0, "width": Elevator.DOORWAY},
 	])
