@@ -225,7 +225,7 @@ func test_first_hints_show_working_queries() -> void:
 	var l0 = load("res://scripts/levels/level_0.gd")
 	var l0i = l0.new()
 	var l1 = load("res://scripts/levels/level_1.gd")
-	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true}
+	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true, "stuck_doors": true, "dark_room": true}
 	for seed_value in 20:
 		var d0 := FacilityDB.new()
 		var data0 := Level0Data.build(seed_value)
@@ -239,6 +239,8 @@ func test_first_hints_show_working_queries() -> void:
 		d1.load_seed(data1.sql)
 		ok.controller = ok.controller and _check_hint_ladder(l1.controller_puzzle_for(data1.zone), d1, "'%s'" % data1.zone)
 		ok.hot_rack = ok.hot_rack and _check_hint_ladder(l1.hot_rack_puzzle_for(), d1, str(Level1Data.INTERLOCK_C))
+		ok.stuck_doors = ok.stuck_doors and _check_hint_ladder(l1.stuck_doors_puzzle_for(), d1, "1")
+		ok.dark_room = ok.dark_room and _check_hint_ladder(l1.dark_room_puzzle_for(), d1, "'dead'") and not l1.dark_room_puzzle_for().hints[0].contains("flickering")
 	for id in ok:
 		check(ok[id], "%s: hint 1 is the query's shape with ?, and the last hint's query solves it, on every seed" % id)
 	check(not l0i.memo_puzzle.hints[1].contains("visitors"), "memo: hints never use an example table")
@@ -888,7 +890,7 @@ func test_level_1_scene() -> void:
 		await physics_frame
 	check(level.doors["SRA-EXIT"].is_open == false and level.room_c_door.locked, "Server Room A's rear door and Server Room C start stuck")
 	var z: String = level.zone
-	check(level.plate_zone("SRA-EXIT") == z and level.plate_zone("SRC") == z and level.plate_zone("NOC") == level.other_zone, "each door's plate shows its zone")
+	check(level.plate_text("SRC") == "SRC" and not level.plate_text("SRA-EXIT").contains("ZONE"), "door plates name the door, not its zone: only the doors query gives that")
 	check((level.door_plates["SRC"].material_override as StandardMaterial3D).albedo_color.r > 0.8 and (level.door_plates["NOC"].material_override as StandardMaterial3D).albedo_color.g > 0.8, "stuck doors' plates are red, the rest green")
 	check(not _doc_has(level, "zone %s" % z) and not _doc_has(level, "zone A") and not Array(level.terminal.boot_lines).any(func(l): return l.contains("zone %s" % z) or l.contains("(zone")), "nothing printed names the faulted zone")
 	check(not level.lights["1-BREAK"][0].visible and level.lights["noc"][0].visible, "the break room's bulb is dead, by its row in the lights table")
@@ -916,8 +918,13 @@ func test_level_1_scene() -> void:
 	check(round_west.size() > 1 and Array(round_west).all(func(q): return level.to_local(q).x < -7.5), "the west side loops round through the NOC and the cable vault, not Server Room A")
 
 	level.terminal_ui.terminal = level.terminal
+	check(level.terminal.hint_case() == "controller" and level.terminal.puzzles[0] == level.stuck_doors_puzzle, "the first hints are for the stuck doors, on the controller's case page")
+	for bad in ["SELECT name, zone FROM doors", "SELECT name, zone FROM doors WHERE locked = 0", "SELECT name FROM doors WHERE locked = 1"]:
+		level.terminal_ui.run(bad)
+		check(not level.stuck_doors_puzzle.solved, "stuck doors: '%s' isn't it" % bad)
 	level.terminal_ui.run("SELECT name, zone FROM doors WHERE locked = 1")
-	check(not level.controller_puzzle.solved, "the stuck doors' zone is a step, not the answer")
+	check(level.stuck_doors_puzzle.solved and not level.controller_puzzle.solved, "WHERE locked = 1 finds the stuck doors: a step, not the answer")
+	check(_game().current_todo() == "Find the door controller that keeps faulting, and reset it" and _game().case_info("controller").clues.any(func(k): return k.text == "The stuck doors on this floor are all in zone %s." % z), "their zone goes on the case page, and the to-do moves on to the controller")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % z)
 	check(not level.controller_puzzle.solved, "zone alone isn't enough")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z)
@@ -944,6 +951,22 @@ func test_level_1_scene() -> void:
 	check(shown.contains("VALE_I") and shown.contains("SECURE LAB B"), "the controller's log points at Vale's lab")
 	check(level.find_children("*", "Document", true, false).any(func(d): return d.title == "SYSLOG PRINTOUT" and str(d.doc_lines).contains("VALE")), "and so does the syslog printout in Server Room C")
 	check(_game().rourke_fate == "unknown", "Rourke's fate is still open after the server floor")
+
+	# Optional: the dark break room. Facilities' card asks for every light that's
+	# dead or flickering; the circuit reset only takes once the terminal has the list.
+	level._on_light_panel(null)
+	check(not level.lights_fixed and level.hud._notice.text.contains("RESET LOCKED"), "the break room's circuit reset won't take before the terminal lists the lights")
+	for bad in ["SELECT room, status FROM lights WHERE status = 'dead'", "SELECT room, status FROM lights WHERE is_on = 0",
+			"SELECT room, status FROM lights WHERE status != 'ok'", "SELECT room, status FROM lights WHERE status = 'dead' AND status = 'flickering'"]:
+		level.terminal_ui.run(bad)
+		check(not level.dark_room_puzzle.solved, "dark room: '%s' isn't it" % bad)
+	level.terminal_ui.run("SELECT * FROM lights WHERE status = 'flickering' OR status = 'dead'")
+	check(level.dark_room_puzzle.solved and _game().case_info("dark_room").open, "dead OR flickering lists the lights that are out")
+	level._on_light_panel(null)
+	check(level.lights_fixed and level.lights["1-BREAK"][0].visible, "then the reset lights the break room")
+	check(level.db.run_silent("SELECT status FROM lights WHERE id = '1-VAULT-BAY'")[0]["status"] == "off" and level.db.run_silent("SELECT status FROM lights WHERE id = '1-HALL-N'")[0]["status"] == "ok", "it fixes the flicker too, and leaves the light that's off on purpose")
+	check(level.lights["corridor"].all(func(l): return l.find_children("*", "FlickerLight", false, false).filter(func(f): return not f.is_queued_for_deletion()).is_empty()), "the north corridor stops flickering")
+	check(_game().case_info("dark_room").solved, "and the case is solved")
 
 	# The cable vault's spare coil: whoever takes it carries it up.
 	level.cable_coil.interact(level.player)
@@ -2978,7 +3001,7 @@ func test_case_pages() -> void:
 	cam.make_current()
 	for i in 5:
 		await process_frame
-	check(g.case_info("controller").clues.any(func(k): return k.text.contains("SRC door: ZONE %s" % level.zone)), "looking at a stuck door's plate notes its zone")
+	check(g.case_info("controller").clues.any(func(k): return k.text == "SRC door: red light (stuck)."), "looking at a stuck door's plate notes it's stuck, without its zone")
 	level.terminal_ui.terminal = level.terminal
 	level.terminal_ui.run(".hint")
 	check(g.case_info("controller").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the case page too")

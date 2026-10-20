@@ -27,6 +27,7 @@ Newest first. Floors are listed by their in-game floor number.
 
 ### 2026-10-20
 - **New:** dress your character in the co-op lobby. Crew, Look and Gear tabs let you pick hair, hat, top, jacket, glasses, earrings and more, a colour for each, and the colour of your flashlight, walkie, notebook and terminal screen. A shared terminal takes the screen colour of whoever sat down first. Your name and picks are saved for next time.
+- **Added:** the garage's folding chairs can be sat on.
 - **New:** notes huddles in co-op. Press E on a teammate to huddle up, and anyone can join by pressing E on someone in it. Then share a line, a whole case page or every case, and it fills in the same case page in their notebooks.
 - **New:** in the co-op lobby, choose who you play (twelve crew members across two body types), your polo colour and your skin tone, with a turning preview.
 - **New:** sit down on a chair (E) or on the floor (Z). Running, jumping and climbing tire you; stand still to get your breath back.
@@ -40,6 +41,7 @@ Newest first. Floors are listed by their in-game floor number.
 - **New:** *Easy SQL*, the crew's beginner's book, rides along in the van, with practice kits.
 - **Added:** case pages in the notebook, a guest check-in at the front desk, and a ledge route on the security floor.
 - **Added:** dressed fire stairs (handrails, floor numbers, emergency lights), a model for Maddison, the crew's boss, and the groundwork for crew customisation: two body types, eight skin tones, and tintable hats, tops, jackets, glasses and earrings.
+- **Added:** two puzzles on floor 14: track down the stuck doors, and an optional dark break room to light back up.
 - **Changed:** Maddison, the crew's boss, is written in person into the garage opening and the book huddles of the voice script.
 - **Changed:** each paper and sticky note exists only once, so the crew has to pool what it finds.
 - **Fixed:** playtest rounds 7 and 8, plus a quality pass across all three floors.

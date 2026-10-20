@@ -12,6 +12,7 @@ extends RefCounted
 const STAIR_GREY := Color(0.5, 0.5, 0.48)  # painted concrete
 const RAIL_RED := Color(0.55, 0.12, 0.09)  # gloss-painted steel handrail
 const STENCIL := Color(0.92, 0.9, 0.84)
+const CHAIR_SEAT := 0.465  # top of a folding chair's seat, where a Seat goes
 
 
 ## A steel handrail on posts from `from` to `to` (both at the nosing line, on the

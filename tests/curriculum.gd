@@ -48,6 +48,13 @@ const PUZZLES := {
 		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "visitors"],
 	},
 	# Level 1: Server Room A.
+	# The controller chain's first step (Easy SQL ch 5): which zone the stuck doors share.
+	"stuck_doors": {
+		"level": 1,
+		"pressure": false,
+		"teaches": ["WHERE", "doors", "locked"],
+		"needs": ["SELECT", "FROM", "COLUMNS", "WHERE", "doors", "locked", "name", "zone"],
+	},
 	"controller": {
 		"level": 1,
 		"pressure": false,
@@ -62,6 +69,13 @@ const PUZZLES := {
 		"pressure": false,
 		"teaches": [">", "racks", "temp_c"],
 		"needs": ["SELECT", "FROM", "COLUMNS", "WHERE", ">", "racks", "temp_c"],
+	},
+	# Optional (Easy SQL ch 8): the dark break room, every light that's dead OR flickering.
+	"dark_room": {
+		"level": 1,
+		"pressure": false,
+		"teaches": ["OR", "lights"],
+		"needs": ["SELECT", "FROM", "COLUMNS", "WHERE", "OR", "lights", "room", "status"],
 	},
 	# Level 2: the security floor. Rourke turns in Secure Lab B (plan/floors-expansion.md);
 	# the lab door's controller is Level 1's WHERE / AND, now under pressure, with the
