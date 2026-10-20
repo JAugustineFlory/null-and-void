@@ -390,9 +390,31 @@ func test_voice_script() -> void:
 				hits += 1
 				if not path.get_file().begins_with(slug):
 					wrong_file.append(id)
-		if hits != 1:
+		# The shared crew lines are in every playable crew member's script.
+		if hits != (VoiceLines.CREW.size() if VoiceLines.LINES[id]["speaker"] == "CREW" else 1):
 			placed_once.append(id)
 	check(placed_once.is_empty(), "every line is in exactly one character's script %s" % [placed_once])
+	var bodies := {}
+	var missing_barks := []
+	var named := []
+	for slug in VoiceLines.CREW:
+		var m: Dictionary = VoiceLines.CREW[slug]
+		bodies[m["body"]] = bodies.get(m["body"], 0) + 1
+		if m["barks"].keys() != VoiceLines.BARKS.keys():
+			missing_barks.append(slug)
+		if not docs.has(ScriptDocs.CHARACTERS_DIR.path_join(VoiceLines.crew_dir(slug) + ".md")):
+			missing_barks.append(slug + " (no script)")
+	var crew_text: Array = VoiceLines.LINES.values().filter(func(l): return l["speaker"] == "CREW").map(func(l): return l["text"])
+	for slug in VoiceLines.CREW:
+		crew_text.append_array(VoiceLines.CREW[slug]["barks"].values())
+	for slug in VoiceLines.CREW:
+		var first: String = VoiceLines.CREW[slug]["name"].get_slice(" ", 0)
+		for t in crew_text:
+			if RegEx.create_from_string("\\b%s\\b" % first).search(t):
+				named.append(first)
+	check(bodies == {"woman": 6, "man": 6}, "six women and six men to play %s" % [bodies])
+	check(missing_barks.is_empty(), "every crew member has every bark, and a script %s" % [missing_barks])
+	check(named.is_empty(), "no crew line names a crew member: players type their own names %s" % [named])
 	check(wrong_file.is_empty(), "lines are only in their own character's script %s" % [wrong_file])
 	var leaks := []
 	for path in docs:

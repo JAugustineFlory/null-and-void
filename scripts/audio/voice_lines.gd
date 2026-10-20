@@ -67,6 +67,220 @@ const CHARACTERS := {
 	},
 }
 
+## The 12 playable crew. Picking one sets only the voice and body; players type
+## their own name, so `name` is just the label in the picker. Each records the
+## shared CREW lines plus their own barks, in audio/voice/crew_<slug>/ (a bark is
+## crew_<bark>.wav). Written in script/drafts/playable-crew.md.
+const CREW := {
+	"dana": {"name": "Dana Okafor", "age": "30s", "body": "woman",
+		"bio": "Ex-cable installer. Blunt and practical, and has crawled through more ceilings than anyone alive. Unbothered by heights and vents. Calls everyone \"chief\".",
+		"barks": {
+			"ready": "Let's get this over with.",
+			"over_here": "Chief. Over here.",
+			"found_something": "Got something.",
+			"huddle": "Everyone, quick. Look at this.",
+			"need_boost": "Give us a leg up?",
+			"on_my_way": "Coming.",
+			"scared": "Nope. Nope.",
+			"help": "Little help!",
+			"thanks": "Cheers, chief.",
+			"no_way": "Not getting through that.",
+			"quiet": "Shh. Something's here.",
+		},
+	},
+	"priya": {"name": "Priya Raman", "age": "20s", "body": "woman",
+		"bio": "Ran a phone-repair kiosk at the mall. Talks fast, fixes faster, and is relentlessly optimistic. Thinks this is the best night of her life, right up until it isn't.",
+		"barks": {
+			"ready": "Ooh, okay. Ready, ready!",
+			"over_here": "Guys! Over here, come look!",
+			"found_something": "Oh, this is something!",
+			"huddle": "Huddle! Huddle up!",
+			"need_boost": "Can somebody lift me? I'm tiny.",
+			"on_my_way": "On my way, on my way!",
+			"scared": "Oh my God. Oh my God.",
+			"help": "Help! Help me!",
+			"thanks": "You're the best.",
+			"no_way": "Okay, that's locked. Rude.",
+			"quiet": "Guys. Whisper. Something's moving.",
+		},
+	},
+	"rosa": {"name": "Rosa Delgado", "age": "30s", "body": "woman",
+		"bio": "A school office manager doing nights for extra cash. Organised, unflappable, dry as toast. Treats the crew like a class on a field trip.",
+		"barks": {
+			"ready": "Seatbelts, everyone.",
+			"over_here": "Over here, please. Today.",
+			"found_something": "Well, now. Look at this.",
+			"huddle": "Everybody gather round.",
+			"need_boost": "A hand up, if someone would be so kind.",
+			"on_my_way": "I'm coming. Don't touch anything.",
+			"scared": "Mother of God.",
+			"help": "Somebody! Now!",
+			"thanks": "Thank you. Noted.",
+			"no_way": "That's not opening for us.",
+			"quiet": "Quiet. All of you.",
+		},
+	},
+	"kit": {"name": "Kit Larsen", "age": "20s", "body": "woman",
+		"bio": "Bike courier and rooftop free-runner. Fearless and cocky, and climbs first and thinks later. The one most likely to say \"watch this\".",
+		"barks": {
+			"ready": "Let's go, let's go.",
+			"over_here": "Up here! Come on!",
+			"found_something": "Ha. Found it.",
+			"huddle": "Okay, team talk. Quick.",
+			"need_boost": "Boost me. I've got the rest.",
+			"on_my_way": "Two seconds!",
+			"scared": "Whoa, whoa, whoa!",
+			"help": "I'm caught! Get it off!",
+			"thanks": "Owe you one.",
+			"no_way": "Dead end. Find another way.",
+			"quiet": "Stop. Don't move.",
+		},
+	},
+	"june": {"name": "June Whitaker", "age": "60s", "body": "woman",
+		"bio": "Ham-radio operator for forty years, and Maddison's aunt. Calm and precise, and the only one who knows radio etiquette. Says \"over\" whether or not she's on the radio.",
+		"barks": {
+			"ready": "Ready when you are. Over.",
+			"over_here": "To me, please. Over here.",
+			"found_something": "I have something. Come and see.",
+			"huddle": "Let's all stop and think a moment.",
+			"need_boost": "I'll need a lift up there, dear.",
+			"on_my_way": "Copy. On my way.",
+			"scared": "Good heavens!",
+			"help": "Mayday! Mayday!",
+			"thanks": "Much obliged.",
+			"no_way": "Negative. That's sealed.",
+			"quiet": "Radio silence. Something's close.",
+		},
+	},
+	"mei": {"name": "Mei Tanaka", "age": "30s", "body": "woman",
+		"bio": "Ex-barista with a nervous laugh. Jumpy, very funny, and much braver than she thinks. Narrates her own panic.",
+		"barks": {
+			"ready": "I'm ready. I'm not ready. I'm ready.",
+			"over_here": "Over here! Before I chicken out!",
+			"found_something": "Is this something? I think this is something.",
+			"huddle": "Can we huddle? I want to huddle.",
+			"need_boost": "Lift me up? Don't drop me.",
+			"on_my_way": "Coming! Slowly! But coming!",
+			"scared": "Nope! Absolutely not!",
+			"help": "Help! Help, help, help!",
+			"thanks": "Oh, thank God. Thank you.",
+			"no_way": "Locked. Great. Love that.",
+			"quiet": "Shh. Do you hear that?",
+		},
+	},
+	"marcus": {"name": "Marcus Bell", "age": "40s", "body": "man",
+		"bio": "Former mall security guard. Steady, cautious and observant. Checks corners. Knows exactly how night guards think, and hates it here.",
+		"barks": {
+			"ready": "Alright. Let's do this right.",
+			"over_here": "Over here. Stay together.",
+			"found_something": "Hold up. Found something.",
+			"huddle": "Everybody, eyes here.",
+			"need_boost": "Need a boost up.",
+			"on_my_way": "Moving to you.",
+			"scared": "Back up! Back up!",
+			"help": "Man down! Need help!",
+			"thanks": "Appreciate it.",
+			"no_way": "Locked tight. Try another way.",
+			"quiet": "Hold. Something's moving.",
+		},
+	},
+	"theo": {"name": "Theo Brandt", "age": "20s", "body": "man",
+		"bio": "A gamer with a sarcastic streak who answered Maddison's ad. Quick, funny and convinced this is just like a video game. It isn't.",
+		"barks": {
+			"ready": "Loading in.",
+			"over_here": "Yo. Over here.",
+			"found_something": "Ooh. Loot.",
+			"huddle": "Team meeting. Strategy time.",
+			"need_boost": "Boost me? Classic co-op move.",
+			"on_my_way": "Omw.",
+			"scared": "What is THAT?!",
+			"help": "I'm down! Revive me!",
+			"thanks": "GG. Thanks.",
+			"no_way": "Locked. Obviously.",
+			"quiet": "Stealth section. Shh.",
+		},
+	},
+	"sam": {"name": "Sam Abara", "age": "30s", "body": "man",
+		"bio": "Professional mover. Big, gentle and strong. The crew's boost and its heavy lifter, and the calmest voice in the room.",
+		"barks": {
+			"ready": "Ready.",
+			"over_here": "Over here, folks.",
+			"found_something": "This look important to you?",
+			"huddle": "Let's slow down and look.",
+			"need_boost": "Gonna need help with this one.",
+			"on_my_way": "Coming your way.",
+			"scared": "Whoa. Easy. Easy.",
+			"help": "Need a hand here!",
+			"thanks": "Thank you, friend.",
+			"no_way": "That won't budge. And I tried.",
+			"quiet": "Hush, now. Listen.",
+		},
+	},
+	"luis": {"name": "Luis Ortega", "age": "50s", "body": "man",
+		"bio": "Handyman, and Maddison's oldest friend. Warm, chatty, and believes everything can be fixed by turning it off and on again. Mostly, he's right.",
+		"barks": {
+			"ready": "Vámonos.",
+			"over_here": "Hey, hey. Over here.",
+			"found_something": "Look what I found.",
+			"huddle": "Okay, everybody. Think.",
+			"need_boost": "Give an old man a lift?",
+			"on_my_way": "I'm coming, I'm coming.",
+			"scared": "¡Ay, Dios mío!",
+			"help": "Help me! Quick!",
+			"thanks": "Gracias, mijo.",
+			"no_way": "Locked. Maybe we turn it off and on?",
+			"quiet": "Shh. Something's out there.",
+		},
+	},
+	"ike": {"name": "Ike Novak", "age": "20s", "body": "man",
+		"bio": "A startup dropout who talks in buzzwords. Overconfident, bluffs hardest of anyone, and is secretly the most scared.",
+		"barks": {
+			"ready": "Let's disrupt this.",
+			"over_here": "Over here. Let's sync.",
+			"found_something": "Okay, this is a key insight.",
+			"huddle": "Quick stand-up, everybody.",
+			"need_boost": "Can I get some lift? Literally.",
+			"on_my_way": "Pivoting to you.",
+			"scared": "Oh no. Oh no no no.",
+			"help": "This is a blocker! Help!",
+			"thanks": "Huge. Thank you.",
+			"no_way": "Hard blocker. Locked.",
+			"quiet": "Okay, nobody talk.",
+		},
+	},
+	"walt": {"name": "Walt Henley", "age": "30s", "body": "man",
+		"bio": "Power-company lineman between storm callouts. Grumpy, unhurried, and acts like he's seen everything twice. He came along \"to keep an eye on you idiots\".",
+		"barks": {
+			"ready": "Let's get it done.",
+			"over_here": "Over here. Come on.",
+			"found_something": "Huh. Lookit this.",
+			"huddle": "Everybody stop. Think.",
+			"need_boost": "Bad shoulder. Give me a hand up.",
+			"on_my_way": "Hold your horses. Coming.",
+			"scared": "Jesus, Mary and Joseph!",
+			"help": "Somebody! Get it off me!",
+			"thanks": "Mm. Thanks.",
+			"no_way": "That's not opening.",
+			"quiet": "Shut it. Listen.",
+		},
+	},
+}
+
+## When each crew bark plays. Co-op triggers them.
+const BARKS := {
+	"ready": "the van ready-up",
+	"over_here": "calling the crew over",
+	"found_something": "a clue pickup that has no written discovery line",
+	"huddle": "starting a notes huddle",
+	"need_boost": "asking for shoulders",
+	"on_my_way": "answering a call",
+	"scared": "something jumps out",
+	"help": "downed or caught",
+	"thanks": "helped up or boosted",
+	"no_way": "a locked door or a blocked route",
+	"quiet": "radio, something's near",
+}
+
 ## Scenes in story order. `wired` is false for lines written ahead of their level.
 ## `context` is the plot for the team; `moment` is the spoiler-light version actors see.
 ## Set `reveal: true` on scenes that give away a twist: their lines go to a separate
@@ -624,3 +838,18 @@ static func ids_in_scene(scene_id: String) -> Array[String]:
 		if LINES[id]["scene"] == scene_id:
 			out.append(id)
 	return out
+
+
+## A crew member's recordings folder under audio/voice/, like "crew_dana".
+static func crew_dir(slug: String) -> String:
+	return "crew_" + slug
+
+
+## A bark's file name without the extension, the same in every crew folder.
+static func bark_id(bark: String) -> String:
+	return "crew_" + bark
+
+
+## What this crew member says for a bark ("" if there's no such bark).
+static func bark_text(slug: String, bark: String) -> String:
+	return CREW.get(slug, {}).get("barks", {}).get(bark, "")

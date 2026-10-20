@@ -1,6 +1,8 @@
-# The crew (player characters): your lines
+# June Whitaker: your lines
 
 You're one of a small IT crew on an overnight job in an office tower, thinking out loud as the crew works things out. Every playable crew member records these same lines in their own voice.
+
+**Who you are:** June Whitaker, 60s. Ham-radio operator for forty years, and Maddison's aunt. Calm and precise, and the only one who knows radio etiquette. Says "over" whether or not she's on the radio. Players type their own name, so nobody in the game calls you June.
 
 **How they sound:** Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
@@ -13,11 +15,53 @@ You're one of a small IT crew on an overnight job in an office tower, thinking o
 - **Effects:** none. Record dry; the game adds speakers, radio static and so on.
 - **Level:** the loudest part should sit around -3 dB, never clipping.
 
-Send the files back as they are. They go in `audio/voice/crew/` in the game.
+Send the files back as they are. They go in `audio/voice/crew_june/` in the game.
 
-## Your lines (56)
+## Your lines (67)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
+
+### Your own lines
+
+Short lines only you say, each played in lots of different moments.
+
+- [ ] `crew_ready.wav`  
+  "Ready when you are. Over."  
+  *When: the van ready-up.*
+- [ ] `crew_over_here.wav`  
+  "To me, please. Over here."  
+  *When: calling the crew over.*
+- [ ] `crew_found_something.wav`  
+  "I have something. Come and see."  
+  *When: a clue pickup that has no written discovery line.*
+- [ ] `crew_huddle.wav`  
+  "Let's all stop and think a moment."  
+  *When: starting a notes huddle.*
+- [ ] `crew_need_boost.wav`  
+  "I'll need a lift up there, dear."  
+  *When: asking for shoulders.*
+- [ ] `crew_on_my_way.wav`  
+  "Copy. On my way."  
+  *When: answering a call.*
+- [ ] `crew_scared.wav`  
+  "Good heavens!"  
+  *When: something jumps out.*
+- [ ] `crew_help.wav`  
+  "Mayday! Mayday!"  
+  *When: downed or caught.*
+- [ ] `crew_thanks.wav`  
+  "Much obliged."  
+  *When: helped up or boosted.*
+- [ ] `crew_no_way.wav`  
+  "Negative. That's sealed."  
+  *When: a locked door or a blocked route.*
+- [ ] `crew_quiet.wav`  
+  "Radio silence. Something's close."  
+  *When: radio, something's near.*
+
+### Lines every crew member says
+
+The same words for everyone. Say them your way.
 
 ### 1. Thinking out loud while the crew works through the front desk and the ground floor: noticing papers, getting stuck, getting it.
 

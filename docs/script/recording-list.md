@@ -1,6 +1,6 @@
 # Recording list
 
-195 lines in all.
+943 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -195,7 +195,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_news_7` | Halcyon declined to comment. The crew has not been seen since. | Neutral. A small pause after. | Level 2, later |
 | [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
-## The crew (player characters) (56 lines)
+## The crew (player characters) (56 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
@@ -269,3 +269,142 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_tape_3` | Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out. | The one moment of anger, still controlled. | Level 0 |
 | [ ] | `l0_tape_4` | So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter. | Quiet, almost proud, then wry on the last sentence. | Level 0 |
 | [ ] | `l0_tape_5` | If it ever comes to that, look for my plans. The building's records remember more than people do. | Slow. Then the click of the stop button. | Level 0 |
+
+## Crew barks (132 lines)
+
+Each crew member's own short lines, in their own folder.
+
+| Done | File | Line | When it plays |
+|---|---|---|---|
+| [ ] | `crew_dana/crew_ready.wav` | Let's get this over with. | the van ready-up |
+| [ ] | `crew_dana/crew_over_here.wav` | Chief. Over here. | calling the crew over |
+| [ ] | `crew_dana/crew_found_something.wav` | Got something. | a clue pickup that has no written discovery line |
+| [ ] | `crew_dana/crew_huddle.wav` | Everyone, quick. Look at this. | starting a notes huddle |
+| [ ] | `crew_dana/crew_need_boost.wav` | Give us a leg up? | asking for shoulders |
+| [ ] | `crew_dana/crew_on_my_way.wav` | Coming. | answering a call |
+| [ ] | `crew_dana/crew_scared.wav` | Nope. Nope. | something jumps out |
+| [ ] | `crew_dana/crew_help.wav` | Little help! | downed or caught |
+| [ ] | `crew_dana/crew_thanks.wav` | Cheers, chief. | helped up or boosted |
+| [ ] | `crew_dana/crew_no_way.wav` | Not getting through that. | a locked door or a blocked route |
+| [ ] | `crew_dana/crew_quiet.wav` | Shh. Something's here. | radio, something's near |
+| [ ] | `crew_priya/crew_ready.wav` | Ooh, okay. Ready, ready! | the van ready-up |
+| [ ] | `crew_priya/crew_over_here.wav` | Guys! Over here, come look! | calling the crew over |
+| [ ] | `crew_priya/crew_found_something.wav` | Oh, this is something! | a clue pickup that has no written discovery line |
+| [ ] | `crew_priya/crew_huddle.wav` | Huddle! Huddle up! | starting a notes huddle |
+| [ ] | `crew_priya/crew_need_boost.wav` | Can somebody lift me? I'm tiny. | asking for shoulders |
+| [ ] | `crew_priya/crew_on_my_way.wav` | On my way, on my way! | answering a call |
+| [ ] | `crew_priya/crew_scared.wav` | Oh my God. Oh my God. | something jumps out |
+| [ ] | `crew_priya/crew_help.wav` | Help! Help me! | downed or caught |
+| [ ] | `crew_priya/crew_thanks.wav` | You're the best. | helped up or boosted |
+| [ ] | `crew_priya/crew_no_way.wav` | Okay, that's locked. Rude. | a locked door or a blocked route |
+| [ ] | `crew_priya/crew_quiet.wav` | Guys. Whisper. Something's moving. | radio, something's near |
+| [ ] | `crew_rosa/crew_ready.wav` | Seatbelts, everyone. | the van ready-up |
+| [ ] | `crew_rosa/crew_over_here.wav` | Over here, please. Today. | calling the crew over |
+| [ ] | `crew_rosa/crew_found_something.wav` | Well, now. Look at this. | a clue pickup that has no written discovery line |
+| [ ] | `crew_rosa/crew_huddle.wav` | Everybody gather round. | starting a notes huddle |
+| [ ] | `crew_rosa/crew_need_boost.wav` | A hand up, if someone would be so kind. | asking for shoulders |
+| [ ] | `crew_rosa/crew_on_my_way.wav` | I'm coming. Don't touch anything. | answering a call |
+| [ ] | `crew_rosa/crew_scared.wav` | Mother of God. | something jumps out |
+| [ ] | `crew_rosa/crew_help.wav` | Somebody! Now! | downed or caught |
+| [ ] | `crew_rosa/crew_thanks.wav` | Thank you. Noted. | helped up or boosted |
+| [ ] | `crew_rosa/crew_no_way.wav` | That's not opening for us. | a locked door or a blocked route |
+| [ ] | `crew_rosa/crew_quiet.wav` | Quiet. All of you. | radio, something's near |
+| [ ] | `crew_kit/crew_ready.wav` | Let's go, let's go. | the van ready-up |
+| [ ] | `crew_kit/crew_over_here.wav` | Up here! Come on! | calling the crew over |
+| [ ] | `crew_kit/crew_found_something.wav` | Ha. Found it. | a clue pickup that has no written discovery line |
+| [ ] | `crew_kit/crew_huddle.wav` | Okay, team talk. Quick. | starting a notes huddle |
+| [ ] | `crew_kit/crew_need_boost.wav` | Boost me. I've got the rest. | asking for shoulders |
+| [ ] | `crew_kit/crew_on_my_way.wav` | Two seconds! | answering a call |
+| [ ] | `crew_kit/crew_scared.wav` | Whoa, whoa, whoa! | something jumps out |
+| [ ] | `crew_kit/crew_help.wav` | I'm caught! Get it off! | downed or caught |
+| [ ] | `crew_kit/crew_thanks.wav` | Owe you one. | helped up or boosted |
+| [ ] | `crew_kit/crew_no_way.wav` | Dead end. Find another way. | a locked door or a blocked route |
+| [ ] | `crew_kit/crew_quiet.wav` | Stop. Don't move. | radio, something's near |
+| [ ] | `crew_june/crew_ready.wav` | Ready when you are. Over. | the van ready-up |
+| [ ] | `crew_june/crew_over_here.wav` | To me, please. Over here. | calling the crew over |
+| [ ] | `crew_june/crew_found_something.wav` | I have something. Come and see. | a clue pickup that has no written discovery line |
+| [ ] | `crew_june/crew_huddle.wav` | Let's all stop and think a moment. | starting a notes huddle |
+| [ ] | `crew_june/crew_need_boost.wav` | I'll need a lift up there, dear. | asking for shoulders |
+| [ ] | `crew_june/crew_on_my_way.wav` | Copy. On my way. | answering a call |
+| [ ] | `crew_june/crew_scared.wav` | Good heavens! | something jumps out |
+| [ ] | `crew_june/crew_help.wav` | Mayday! Mayday! | downed or caught |
+| [ ] | `crew_june/crew_thanks.wav` | Much obliged. | helped up or boosted |
+| [ ] | `crew_june/crew_no_way.wav` | Negative. That's sealed. | a locked door or a blocked route |
+| [ ] | `crew_june/crew_quiet.wav` | Radio silence. Something's close. | radio, something's near |
+| [ ] | `crew_mei/crew_ready.wav` | I'm ready. I'm not ready. I'm ready. | the van ready-up |
+| [ ] | `crew_mei/crew_over_here.wav` | Over here! Before I chicken out! | calling the crew over |
+| [ ] | `crew_mei/crew_found_something.wav` | Is this something? I think this is something. | a clue pickup that has no written discovery line |
+| [ ] | `crew_mei/crew_huddle.wav` | Can we huddle? I want to huddle. | starting a notes huddle |
+| [ ] | `crew_mei/crew_need_boost.wav` | Lift me up? Don't drop me. | asking for shoulders |
+| [ ] | `crew_mei/crew_on_my_way.wav` | Coming! Slowly! But coming! | answering a call |
+| [ ] | `crew_mei/crew_scared.wav` | Nope! Absolutely not! | something jumps out |
+| [ ] | `crew_mei/crew_help.wav` | Help! Help, help, help! | downed or caught |
+| [ ] | `crew_mei/crew_thanks.wav` | Oh, thank God. Thank you. | helped up or boosted |
+| [ ] | `crew_mei/crew_no_way.wav` | Locked. Great. Love that. | a locked door or a blocked route |
+| [ ] | `crew_mei/crew_quiet.wav` | Shh. Do you hear that? | radio, something's near |
+| [ ] | `crew_marcus/crew_ready.wav` | Alright. Let's do this right. | the van ready-up |
+| [ ] | `crew_marcus/crew_over_here.wav` | Over here. Stay together. | calling the crew over |
+| [ ] | `crew_marcus/crew_found_something.wav` | Hold up. Found something. | a clue pickup that has no written discovery line |
+| [ ] | `crew_marcus/crew_huddle.wav` | Everybody, eyes here. | starting a notes huddle |
+| [ ] | `crew_marcus/crew_need_boost.wav` | Need a boost up. | asking for shoulders |
+| [ ] | `crew_marcus/crew_on_my_way.wav` | Moving to you. | answering a call |
+| [ ] | `crew_marcus/crew_scared.wav` | Back up! Back up! | something jumps out |
+| [ ] | `crew_marcus/crew_help.wav` | Man down! Need help! | downed or caught |
+| [ ] | `crew_marcus/crew_thanks.wav` | Appreciate it. | helped up or boosted |
+| [ ] | `crew_marcus/crew_no_way.wav` | Locked tight. Try another way. | a locked door or a blocked route |
+| [ ] | `crew_marcus/crew_quiet.wav` | Hold. Something's moving. | radio, something's near |
+| [ ] | `crew_theo/crew_ready.wav` | Loading in. | the van ready-up |
+| [ ] | `crew_theo/crew_over_here.wav` | Yo. Over here. | calling the crew over |
+| [ ] | `crew_theo/crew_found_something.wav` | Ooh. Loot. | a clue pickup that has no written discovery line |
+| [ ] | `crew_theo/crew_huddle.wav` | Team meeting. Strategy time. | starting a notes huddle |
+| [ ] | `crew_theo/crew_need_boost.wav` | Boost me? Classic co-op move. | asking for shoulders |
+| [ ] | `crew_theo/crew_on_my_way.wav` | Omw. | answering a call |
+| [ ] | `crew_theo/crew_scared.wav` | What is THAT?! | something jumps out |
+| [ ] | `crew_theo/crew_help.wav` | I'm down! Revive me! | downed or caught |
+| [ ] | `crew_theo/crew_thanks.wav` | GG. Thanks. | helped up or boosted |
+| [ ] | `crew_theo/crew_no_way.wav` | Locked. Obviously. | a locked door or a blocked route |
+| [ ] | `crew_theo/crew_quiet.wav` | Stealth section. Shh. | radio, something's near |
+| [ ] | `crew_sam/crew_ready.wav` | Ready. | the van ready-up |
+| [ ] | `crew_sam/crew_over_here.wav` | Over here, folks. | calling the crew over |
+| [ ] | `crew_sam/crew_found_something.wav` | This look important to you? | a clue pickup that has no written discovery line |
+| [ ] | `crew_sam/crew_huddle.wav` | Let's slow down and look. | starting a notes huddle |
+| [ ] | `crew_sam/crew_need_boost.wav` | Gonna need help with this one. | asking for shoulders |
+| [ ] | `crew_sam/crew_on_my_way.wav` | Coming your way. | answering a call |
+| [ ] | `crew_sam/crew_scared.wav` | Whoa. Easy. Easy. | something jumps out |
+| [ ] | `crew_sam/crew_help.wav` | Need a hand here! | downed or caught |
+| [ ] | `crew_sam/crew_thanks.wav` | Thank you, friend. | helped up or boosted |
+| [ ] | `crew_sam/crew_no_way.wav` | That won't budge. And I tried. | a locked door or a blocked route |
+| [ ] | `crew_sam/crew_quiet.wav` | Hush, now. Listen. | radio, something's near |
+| [ ] | `crew_luis/crew_ready.wav` | Vámonos. | the van ready-up |
+| [ ] | `crew_luis/crew_over_here.wav` | Hey, hey. Over here. | calling the crew over |
+| [ ] | `crew_luis/crew_found_something.wav` | Look what I found. | a clue pickup that has no written discovery line |
+| [ ] | `crew_luis/crew_huddle.wav` | Okay, everybody. Think. | starting a notes huddle |
+| [ ] | `crew_luis/crew_need_boost.wav` | Give an old man a lift? | asking for shoulders |
+| [ ] | `crew_luis/crew_on_my_way.wav` | I'm coming, I'm coming. | answering a call |
+| [ ] | `crew_luis/crew_scared.wav` | ¡Ay, Dios mío! | something jumps out |
+| [ ] | `crew_luis/crew_help.wav` | Help me! Quick! | downed or caught |
+| [ ] | `crew_luis/crew_thanks.wav` | Gracias, mijo. | helped up or boosted |
+| [ ] | `crew_luis/crew_no_way.wav` | Locked. Maybe we turn it off and on? | a locked door or a blocked route |
+| [ ] | `crew_luis/crew_quiet.wav` | Shh. Something's out there. | radio, something's near |
+| [ ] | `crew_ike/crew_ready.wav` | Let's disrupt this. | the van ready-up |
+| [ ] | `crew_ike/crew_over_here.wav` | Over here. Let's sync. | calling the crew over |
+| [ ] | `crew_ike/crew_found_something.wav` | Okay, this is a key insight. | a clue pickup that has no written discovery line |
+| [ ] | `crew_ike/crew_huddle.wav` | Quick stand-up, everybody. | starting a notes huddle |
+| [ ] | `crew_ike/crew_need_boost.wav` | Can I get some lift? Literally. | asking for shoulders |
+| [ ] | `crew_ike/crew_on_my_way.wav` | Pivoting to you. | answering a call |
+| [ ] | `crew_ike/crew_scared.wav` | Oh no. Oh no no no. | something jumps out |
+| [ ] | `crew_ike/crew_help.wav` | This is a blocker! Help! | downed or caught |
+| [ ] | `crew_ike/crew_thanks.wav` | Huge. Thank you. | helped up or boosted |
+| [ ] | `crew_ike/crew_no_way.wav` | Hard blocker. Locked. | a locked door or a blocked route |
+| [ ] | `crew_ike/crew_quiet.wav` | Okay, nobody talk. | radio, something's near |
+| [ ] | `crew_walt/crew_ready.wav` | Let's get it done. | the van ready-up |
+| [ ] | `crew_walt/crew_over_here.wav` | Over here. Come on. | calling the crew over |
+| [ ] | `crew_walt/crew_found_something.wav` | Huh. Lookit this. | a clue pickup that has no written discovery line |
+| [ ] | `crew_walt/crew_huddle.wav` | Everybody stop. Think. | starting a notes huddle |
+| [ ] | `crew_walt/crew_need_boost.wav` | Bad shoulder. Give me a hand up. | asking for shoulders |
+| [ ] | `crew_walt/crew_on_my_way.wav` | Hold your horses. Coming. | answering a call |
+| [ ] | `crew_walt/crew_scared.wav` | Jesus, Mary and Joseph! | something jumps out |
+| [ ] | `crew_walt/crew_help.wav` | Somebody! Get it off me! | downed or caught |
+| [ ] | `crew_walt/crew_thanks.wav` | Mm. Thanks. | helped up or boosted |
+| [ ] | `crew_walt/crew_no_way.wav` | That's not opening. | a locked door or a blocked route |
+| [ ] | `crew_walt/crew_quiet.wav` | Shut it. Listen. | radio, something's near |

@@ -66,6 +66,12 @@ static func stream_for(id: String, dir: String = "") -> AudioStream:
 	return null
 
 
+## Play a crew member's bark (see VoiceLines.BARKS). Returns its length, or
+## 0.0 if they haven't recorded it yet.
+func play_bark(slug: String, bark: String) -> float:
+	return play(VoiceLines.bark_id(bark), VoiceLines.crew_dir(slug))
+
+
 ## How long a subtitle stays up when there is no recording.
 static func read_time(text: String) -> float:
 	return clamp(1.2 + text.length() * 0.055, 2.0, 9.0)

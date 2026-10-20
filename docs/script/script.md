@@ -37,6 +37,178 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
 
+## Crew barks
+
+Each playable crew member's own short lines, played by Co-op. Their shared commentary lines are in the scenes below, as CREW.
+
+**Dana Okafor** (`dana`, 30s). Ex-cable installer. Blunt and practical, and has crawled through more ceilings than anyone alive. Unbothered by heights and vents. Calls everyone "chief".
+
+- *the van ready-up:* Let's get this over with. `[ready]`
+- *calling the crew over:* Chief. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* Got something. `[found_something]`
+- *starting a notes huddle:* Everyone, quick. Look at this. `[huddle]`
+- *asking for shoulders:* Give us a leg up? `[need_boost]`
+- *answering a call:* Coming. `[on_my_way]`
+- *something jumps out:* Nope. Nope. `[scared]`
+- *downed or caught:* Little help! `[help]`
+- *helped up or boosted:* Cheers, chief. `[thanks]`
+- *a locked door or a blocked route:* Not getting through that. `[no_way]`
+- *radio, something's near:* Shh. Something's here. `[quiet]`
+
+**Priya Raman** (`priya`, 20s). Ran a phone-repair kiosk at the mall. Talks fast, fixes faster, and is relentlessly optimistic. Thinks this is the best night of her life, right up until it isn't.
+
+- *the van ready-up:* Ooh, okay. Ready, ready! `[ready]`
+- *calling the crew over:* Guys! Over here, come look! `[over_here]`
+- *a clue pickup that has no written discovery line:* Oh, this is something! `[found_something]`
+- *starting a notes huddle:* Huddle! Huddle up! `[huddle]`
+- *asking for shoulders:* Can somebody lift me? I'm tiny. `[need_boost]`
+- *answering a call:* On my way, on my way! `[on_my_way]`
+- *something jumps out:* Oh my God. Oh my God. `[scared]`
+- *downed or caught:* Help! Help me! `[help]`
+- *helped up or boosted:* You're the best. `[thanks]`
+- *a locked door or a blocked route:* Okay, that's locked. Rude. `[no_way]`
+- *radio, something's near:* Guys. Whisper. Something's moving. `[quiet]`
+
+**Rosa Delgado** (`rosa`, 30s). A school office manager doing nights for extra cash. Organised, unflappable, dry as toast. Treats the crew like a class on a field trip.
+
+- *the van ready-up:* Seatbelts, everyone. `[ready]`
+- *calling the crew over:* Over here, please. Today. `[over_here]`
+- *a clue pickup that has no written discovery line:* Well, now. Look at this. `[found_something]`
+- *starting a notes huddle:* Everybody gather round. `[huddle]`
+- *asking for shoulders:* A hand up, if someone would be so kind. `[need_boost]`
+- *answering a call:* I'm coming. Don't touch anything. `[on_my_way]`
+- *something jumps out:* Mother of God. `[scared]`
+- *downed or caught:* Somebody! Now! `[help]`
+- *helped up or boosted:* Thank you. Noted. `[thanks]`
+- *a locked door or a blocked route:* That's not opening for us. `[no_way]`
+- *radio, something's near:* Quiet. All of you. `[quiet]`
+
+**Kit Larsen** (`kit`, 20s). Bike courier and rooftop free-runner. Fearless and cocky, and climbs first and thinks later. The one most likely to say "watch this".
+
+- *the van ready-up:* Let's go, let's go. `[ready]`
+- *calling the crew over:* Up here! Come on! `[over_here]`
+- *a clue pickup that has no written discovery line:* Ha. Found it. `[found_something]`
+- *starting a notes huddle:* Okay, team talk. Quick. `[huddle]`
+- *asking for shoulders:* Boost me. I've got the rest. `[need_boost]`
+- *answering a call:* Two seconds! `[on_my_way]`
+- *something jumps out:* Whoa, whoa, whoa! `[scared]`
+- *downed or caught:* I'm caught! Get it off! `[help]`
+- *helped up or boosted:* Owe you one. `[thanks]`
+- *a locked door or a blocked route:* Dead end. Find another way. `[no_way]`
+- *radio, something's near:* Stop. Don't move. `[quiet]`
+
+**June Whitaker** (`june`, 60s). Ham-radio operator for forty years, and Maddison's aunt. Calm and precise, and the only one who knows radio etiquette. Says "over" whether or not she's on the radio.
+
+- *the van ready-up:* Ready when you are. Over. `[ready]`
+- *calling the crew over:* To me, please. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* I have something. Come and see. `[found_something]`
+- *starting a notes huddle:* Let's all stop and think a moment. `[huddle]`
+- *asking for shoulders:* I'll need a lift up there, dear. `[need_boost]`
+- *answering a call:* Copy. On my way. `[on_my_way]`
+- *something jumps out:* Good heavens! `[scared]`
+- *downed or caught:* Mayday! Mayday! `[help]`
+- *helped up or boosted:* Much obliged. `[thanks]`
+- *a locked door or a blocked route:* Negative. That's sealed. `[no_way]`
+- *radio, something's near:* Radio silence. Something's close. `[quiet]`
+
+**Mei Tanaka** (`mei`, 30s). Ex-barista with a nervous laugh. Jumpy, very funny, and much braver than she thinks. Narrates her own panic.
+
+- *the van ready-up:* I'm ready. I'm not ready. I'm ready. `[ready]`
+- *calling the crew over:* Over here! Before I chicken out! `[over_here]`
+- *a clue pickup that has no written discovery line:* Is this something? I think this is something. `[found_something]`
+- *starting a notes huddle:* Can we huddle? I want to huddle. `[huddle]`
+- *asking for shoulders:* Lift me up? Don't drop me. `[need_boost]`
+- *answering a call:* Coming! Slowly! But coming! `[on_my_way]`
+- *something jumps out:* Nope! Absolutely not! `[scared]`
+- *downed or caught:* Help! Help, help, help! `[help]`
+- *helped up or boosted:* Oh, thank God. Thank you. `[thanks]`
+- *a locked door or a blocked route:* Locked. Great. Love that. `[no_way]`
+- *radio, something's near:* Shh. Do you hear that? `[quiet]`
+
+**Marcus Bell** (`marcus`, 40s). Former mall security guard. Steady, cautious and observant. Checks corners. Knows exactly how night guards think, and hates it here.
+
+- *the van ready-up:* Alright. Let's do this right. `[ready]`
+- *calling the crew over:* Over here. Stay together. `[over_here]`
+- *a clue pickup that has no written discovery line:* Hold up. Found something. `[found_something]`
+- *starting a notes huddle:* Everybody, eyes here. `[huddle]`
+- *asking for shoulders:* Need a boost up. `[need_boost]`
+- *answering a call:* Moving to you. `[on_my_way]`
+- *something jumps out:* Back up! Back up! `[scared]`
+- *downed or caught:* Man down! Need help! `[help]`
+- *helped up or boosted:* Appreciate it. `[thanks]`
+- *a locked door or a blocked route:* Locked tight. Try another way. `[no_way]`
+- *radio, something's near:* Hold. Something's moving. `[quiet]`
+
+**Theo Brandt** (`theo`, 20s). A gamer with a sarcastic streak who answered Maddison's ad. Quick, funny and convinced this is just like a video game. It isn't.
+
+- *the van ready-up:* Loading in. `[ready]`
+- *calling the crew over:* Yo. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* Ooh. Loot. `[found_something]`
+- *starting a notes huddle:* Team meeting. Strategy time. `[huddle]`
+- *asking for shoulders:* Boost me? Classic co-op move. `[need_boost]`
+- *answering a call:* Omw. `[on_my_way]`
+- *something jumps out:* What is THAT?! `[scared]`
+- *downed or caught:* I'm down! Revive me! `[help]`
+- *helped up or boosted:* GG. Thanks. `[thanks]`
+- *a locked door or a blocked route:* Locked. Obviously. `[no_way]`
+- *radio, something's near:* Stealth section. Shh. `[quiet]`
+
+**Sam Abara** (`sam`, 30s). Professional mover. Big, gentle and strong. The crew's boost and its heavy lifter, and the calmest voice in the room.
+
+- *the van ready-up:* Ready. `[ready]`
+- *calling the crew over:* Over here, folks. `[over_here]`
+- *a clue pickup that has no written discovery line:* This look important to you? `[found_something]`
+- *starting a notes huddle:* Let's slow down and look. `[huddle]`
+- *asking for shoulders:* Gonna need help with this one. `[need_boost]`
+- *answering a call:* Coming your way. `[on_my_way]`
+- *something jumps out:* Whoa. Easy. Easy. `[scared]`
+- *downed or caught:* Need a hand here! `[help]`
+- *helped up or boosted:* Thank you, friend. `[thanks]`
+- *a locked door or a blocked route:* That won't budge. And I tried. `[no_way]`
+- *radio, something's near:* Hush, now. Listen. `[quiet]`
+
+**Luis Ortega** (`luis`, 50s). Handyman, and Maddison's oldest friend. Warm, chatty, and believes everything can be fixed by turning it off and on again. Mostly, he's right.
+
+- *the van ready-up:* Vámonos. `[ready]`
+- *calling the crew over:* Hey, hey. Over here. `[over_here]`
+- *a clue pickup that has no written discovery line:* Look what I found. `[found_something]`
+- *starting a notes huddle:* Okay, everybody. Think. `[huddle]`
+- *asking for shoulders:* Give an old man a lift? `[need_boost]`
+- *answering a call:* I'm coming, I'm coming. `[on_my_way]`
+- *something jumps out:* ¡Ay, Dios mío! `[scared]`
+- *downed or caught:* Help me! Quick! `[help]`
+- *helped up or boosted:* Gracias, mijo. `[thanks]`
+- *a locked door or a blocked route:* Locked. Maybe we turn it off and on? `[no_way]`
+- *radio, something's near:* Shh. Something's out there. `[quiet]`
+
+**Ike Novak** (`ike`, 20s). A startup dropout who talks in buzzwords. Overconfident, bluffs hardest of anyone, and is secretly the most scared.
+
+- *the van ready-up:* Let's disrupt this. `[ready]`
+- *calling the crew over:* Over here. Let's sync. `[over_here]`
+- *a clue pickup that has no written discovery line:* Okay, this is a key insight. `[found_something]`
+- *starting a notes huddle:* Quick stand-up, everybody. `[huddle]`
+- *asking for shoulders:* Can I get some lift? Literally. `[need_boost]`
+- *answering a call:* Pivoting to you. `[on_my_way]`
+- *something jumps out:* Oh no. Oh no no no. `[scared]`
+- *downed or caught:* This is a blocker! Help! `[help]`
+- *helped up or boosted:* Huge. Thank you. `[thanks]`
+- *a locked door or a blocked route:* Hard blocker. Locked. `[no_way]`
+- *radio, something's near:* Okay, nobody talk. `[quiet]`
+
+**Walt Henley** (`walt`, 30s). Power-company lineman between storm callouts. Grumpy, unhurried, and acts like he's seen everything twice. He came along "to keep an eye on you idiots".
+
+- *the van ready-up:* Let's get it done. `[ready]`
+- *calling the crew over:* Over here. Come on. `[over_here]`
+- *a clue pickup that has no written discovery line:* Huh. Lookit this. `[found_something]`
+- *starting a notes huddle:* Everybody stop. Think. `[huddle]`
+- *asking for shoulders:* Bad shoulder. Give me a hand up. `[need_boost]`
+- *answering a call:* Hold your horses. Coming. `[on_my_way]`
+- *something jumps out:* Jesus, Mary and Joseph! `[scared]`
+- *downed or caught:* Somebody! Get it off me! `[help]`
+- *helped up or boosted:* Mm. Thanks. `[thanks]`
+- *a locked door or a blocked route:* That's not opening. `[no_way]`
+- *radio, something's near:* Shut it. Listen. `[quiet]`
+
 ## Level 0
 
 ### The garage
