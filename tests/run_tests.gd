@@ -24,6 +24,7 @@ func _run() -> void:
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
+	await test_commentary()
 	await test_pause_holds_subtitles()
 	test_facility_api()
 	test_level_2_data_every_seed()
@@ -403,7 +404,8 @@ func test_voice_script() -> void:
 				leaks.append("%s: context %s" % [path.get_file(), sc["id"]])
 	check(leaks.is_empty(), "actors' scripts leave out the team-only character notes %s" % [leaks])
 	var sysop_voiced: bool = VoiceLines.CHARACTERS.has("SYSOP") or VoiceLines.LINES.values().any(func(l): return l["speaker"] == "SYSOP")
-	var sysop_named: Array = docs.keys().filter(func(path): return docs[path].to_upper().contains("SYSOP"))
+	# The crew can say the name on the screen; nobody voices or describes SYSOP.
+	var sysop_named: Array = docs.keys().filter(func(path): return not path.get_file().begins_with("crew") and docs[path].to_upper().contains("SYSOP"))
 	var warden_l0: Array = VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "WARDEN" and VoiceLines.scene(VoiceLines.LINES[id]["scene"])["level"] == 0)
 	var cut: String = VoiceLines.get_line("l2_contain_1")["text"].trim_suffix("--")
 	check(VoiceLines.get_line("l2_contain_2")["text"].begins_with(cut), "after its PA tape interrupts, WARDEN repeats its warning word for word")
@@ -414,6 +416,119 @@ func test_voice_script() -> void:
 	check(not sysop_voiced and sysop_named.is_empty(), "SYSOP stays text-only and out of every actor's script %s" % [sysop_named])
 	check(VoiceLines.held_back({"level": VoiceLines.REVEAL_LEVEL}) and VoiceLines.held_back({"level": 2, "reveal": true}) \
 		and not VoiceLines.held_back({"level": 2}), "reveal scenes and late levels are held back for a later session")
+
+
+class FakeHud extends Node:
+	var said: Array = []
+
+	func say(speaker: String, text: String, _seconds: float = -1.0) -> void:
+		said.append([speaker, text])
+
+
+func test_commentary() -> void:
+	print("Crew commentary")
+	var levels_src := ""
+	for f in DirAccess.get_files_at("res://scripts/levels"):
+		if f.ends_with(".gd"):
+			levels_src += FileAccess.get_file_as_string("res://scripts/levels/" + f)
+	var bad_ids := []
+	var bad_docs := []
+	var bad_puzzles := []
+	var used := {Commentary.NUDGE2_FIRST: true, Commentary.NUDGE2: true}
+	for pid in Commentary.NUDGES:
+		var d: Dictionary = Commentary.NUDGES[pid]
+		if not levels_src.contains('Puzzle.new("%s"' % pid):
+			bad_puzzles.append(pid)
+		var ids: Array = d.get("disc", {}).values() + d.get("errors", {}).values() + d.get("pay", [])
+		var n1: Dictionary = d.get("n1", {})
+		for k in ["seen", "unseen"]:
+			if n1.has(k):
+				ids.append(n1[k])
+		var titles: Array = []
+		if n1.has("doc"):
+			titles.append(n1["doc"])
+		for ev in d.get("disc", {}):
+			if ev.begins_with("read:"):
+				titles.append(ev.trim_prefix("read:"))
+		for t in titles:
+			if not levels_src.contains('"%s"' % t):
+				bad_docs.append(t)
+		for id in ids:
+			used[id] = true
+			if VoiceLines.get_line(id).get("speaker", "") != "CREW":
+				bad_ids.append(id)
+	check(bad_puzzles.is_empty(), "commentary only covers puzzles the levels have %s" % [bad_puzzles])
+	check(bad_ids.is_empty(), "every commentary line is a crew line in the script %s" % [bad_ids])
+	check(bad_docs.is_empty(), "commentary only points at papers that are in the levels %s" % [bad_docs])
+	var unused := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "CREW" and not used.has(id))
+	check(unused.is_empty(), "every crew commentary line has a moment to play %s" % [unused])
+
+	var hud := FakeHud.new()
+	var cc := Commentary.new()
+	cc.hud = hud
+	root.add_child(hud)
+	root.add_child(cc)
+	await process_frame
+	var last := func() -> String: return hud.said[-1][1] if not hud.said.is_empty() else ""
+	var text := func(id: String) -> String: return VoiceLines.get_line(id)["text"]
+
+	cc.begin("controller")
+	cc.mistake("reset")
+	cc.mistake("")
+	cc.tick(Commentary.QUIET_START_S - 1.0)
+	check(hud.said.size() == 0, "no nudge in a puzzle's first seconds, even after two fails")
+	cc.mistake("reset")
+	check(last.call() == text.call("l1_cc_err_reset"), "the same mistake twice plays its error line")
+	cc.mistake("reset")
+	check(hud.said.size() == 1, "an error line plays once")
+	cc.pause(true)
+	cc.tick(100.0)
+	cc.pause(false)
+	cc.typing(true)
+	cc.tick(100.0)
+	cc.typing(false)
+	check(hud.said.size() == 1 and cc.clock < Commentary.NUDGE1_S, "the nudge clock stops in cut-scenes and while someone types")
+
+	cc.begin("controller")
+	cc.since_line = INF
+	cc.tick(Commentary.NUDGE1_S)
+	check(last.call() == text.call("l1_cc_nudge1_a"), "Nudge 1 points at the room before the paper is found")
+	cc.tick(Commentary.COOLDOWN_S - 1.0)
+	cc.mistake()
+	cc.mistake()
+	cc.tick(0.5)
+	check(last.call() == text.call("l1_cc_nudge1_a"), "nothing plays inside the cooldown")
+	cc.tick(1.0)
+	check(last.call() == text.call(Commentary.NUDGE2_FIRST), "after two fails Nudge 2 points at SYSOP")
+	var count: int = hud.said.size()
+	cc.tick(1000.0)
+	check(hud.said.size() == count and cc.nudges == Commentary.MAX_NUDGES, "at most two nudges per puzzle")
+
+	cc.read("NOC SHIFT LOG")
+	check(last.call() == text.call("l1_cc_log"), "reading a paper plays its discovery line")
+	cc.read("NOC SHIFT LOG")
+	check(hud.said.size() == count + 1, "a discovery plays once")
+	cc.begin("controller")
+	cc.since_line = INF
+	cc.tick(Commentary.NUDGE1_S)
+	check(last.call() == text.call("l1_cc_nudge1_b"), "once the paper is found, Nudge 1 points at it")
+
+	cc.begin("lab_door", true)
+	cc.since_line = INF
+	cc.tick(Commentary.NUDGE2_TIMED_S)
+	check(last.call() == text.call(Commentary.NUDGE2), "under a timer Nudge 1 is skipped, and later Nudge 2s don't repeat the first one")
+	cc.solved()
+	check(last.call() == text.call("l2_cc_door_pay") and cc.case_id == "", "solving plays the payoff and stops the nudges")
+
+	cc.hold(true)
+	cc.read("Fire interlock")
+	check(last.call() != text.call("l1_cc_hot_plate"), "commentary waits while other dialogue plays")
+	cc.hold(false)
+	check(last.call() == text.call("l1_cc_hot_plate"), "a waiting discovery plays once the dialogue is over")
+	check(Commentary.kind_of({"ok": false, "error": "no such table: door"}) == "table" \
+		and Commentary.kind_of({"ok": false, "error": "no such column: ext"}) == "column", "failed queries are sorted into mistakes")
+	cc.queue_free()
+	hud.queue_free()
 
 
 func test_voice_playback() -> void:

@@ -1,6 +1,6 @@
 # Recording list
 
-139 lines in all.
+195 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -194,6 +194,69 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_news_6` | Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!' | Reading the quote flat, not acting it. Then a beat. | Level 2, later |
 | [ ] | `l2_news_7` | Halcyon declined to comment. The crew has not been seen since. | Neutral. A small pause after. | Level 2, later |
 | [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
+
+## The crew (player characters) (56 lines)
+
+> Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `cc_nudge2_first` | That SYSOP on the screen seems to know this building. Maybe ask. | Stuck, before SYSOP has helped. Half a joke, half serious. | Level 0, later |
+| [ ] | `cc_nudge2` | Whoever SYSOP is, they've been right so far. Maybe ask. | Stuck again. A little uneasy about trusting a stranger on a screen. | Level 0, later |
+| [ ] | `l0_cc_peek_card` | Quick-start card for the scanner. Somebody's filled in the blanks. | Picked up a scanner's instruction card. Noticing handwriting on it. | Level 0, later |
+| [ ] | `l0_cc_peek_n1a` | Scanners always come with instructions. Check round the keyboard. | Stuck for a minute. A practical thought. | Level 0, later |
+| [ ] | `l0_cc_peek_n1b` | That scanner card had something written in by hand. | Stuck. Remembering the card you all read. | Level 0, later |
+| [ ] | `l0_cc_peek_err` | Is that what the card called it? | The same name typed wrong twice. Gentle doubt. | Level 0, later |
+| [ ] | `l0_cc_peek_pay` | Scraps of a memo. All jumbled up. | Seeing the result. Curious. | Level 0, later |
+| [ ] | `l0_cc_memo_disc` | Every scrap's got a number. That's not an accident. | Spotting a pattern in the jumbled scraps. | Level 0, later |
+| [ ] | `l0_cc_memo_n1a` | Didn't the scanner come with a card? It might say how the scraps are kept. | Stuck. Thinking back. | Level 0, later |
+| [ ] | `l0_cc_memo_n1b` | The scanner card said something about numbering the scraps. | Stuck. Remembering the card. | Level 0, later |
+| [ ] | `l0_cc_memo_back` | It reads backwards. We've got the ending first. | The memo came out in reverse, twice. Amused. | Level 0, later |
+| [ ] | `l0_cc_memo_pay` | ...Don't look at him. Just don't look at him. | Whispered. The memo warns about the man standing right next to you. | Level 0, later |
+| [ ] | `l0_cc_caller_order` | Work order's got a callback extension on it. | Reading the work order. Noticing a detail. | Level 0, later |
+| [ ] | `l0_cc_caller_list` | A phone list. With extensions. | Finding a staff phone list. | Level 0, later |
+| [ ] | `l0_cc_caller_n1a` | Rourke said the mailroom has the only phone list that's right. | Stuck. Remembering what the escort said. | Level 0, later |
+| [ ] | `l0_cc_caller_n1b` | That phone list in the mailroom had everybody's extension. | Stuck. Remembering the list. | Level 0, later |
+| [ ] | `l0_cc_caller_err` | Is that what the column's actually called? | The same column name wrong twice. Gentle doubt. | Level 0, later |
+| [ ] | `l0_cc_caller_pay` | So that's who called us. Weird. | Uneasy. That isn't who you expected. | Level 0, later |
+| [ ] | `l0_cc_book_disc` | Last page is torn out. Somebody didn't want their name in here. | Reading a visitor book. Suspicious. | Level 0, later |
+| [ ] | `l0_cc_book_n1` | The book's only paper. The front desk computer might keep its own copy. | Stuck. A practical idea. | Level 0, later |
+| [ ] | `l0_cc_book_pay` | Vale signed in. And never signed out. | Quietly. That's not good. | Level 0, later |
+| [ ] | `l1_cc_log` | Night shift wrote down every alarm. That has to help. | Reading a shift log. Encouraged. | Level 1, later |
+| [ ] | `l1_cc_sheet` | There's a sheet on the controllers in here. Hang on to that. | Finding a reference sheet. Pleased. | Level 1, later |
+| [ ] | `l1_cc_nudge1_a` | Rourke said the night shift logs everything. Maybe they saw this happen. | Stuck for a minute. Remembering what the escort said. | Level 1, later |
+| [ ] | `l1_cc_nudge1_b` | What did that shift log say the alarms were about? | Stuck. Thinking back to the log. | Level 1, later |
+| [ ] | `l1_cc_err_table` | Is that what the sheet in here called it? | The same table name wrong twice. Gentle doubt. | Level 1, later |
+| [ ] | `l1_cc_err_reset` | Nope. Wasn't there a note somewhere about what 'fault' actually means? | A second wrong reset. Frustrated, then thinking. | Level 1, later |
+| [ ] | `l1_cc_payoff_1` | Every stuck door was in the same zone. Should've seen that sooner. | It clicks. A bit sheepish. | Level 1, later |
+| [ ] | `l1_cc_payoff_2` | Same zone, still faulting. That was our guy. | At the right rack. Satisfied. | Level 1, later |
+| [ ] | `l1_cc_hot_plate` | Fire interlock. There's a temperature limit on it. | Reading a warning plate on a door. | Level 1, later |
+| [ ] | `l1_cc_hot_n1a` | Server Room B's loud. Some of those racks are working way too hard. | Stuck. Raising your voice over the fans. | Level 1, later |
+| [ ] | `l1_cc_hot_n1b` | That monitoring card by the terminal said what counts as too hot. | Stuck. Remembering a card. | Level 1, later |
+| [ ] | `l1_cc_hot_err` | We want the hot ones, not the cool ones, right? | The comparison the wrong way round, twice. Checking. | Level 1, later |
+| [ ] | `l1_cc_hot_pay` | That one's cooking. No wonder it's loud. | Found the hot rack. Impressed. | Level 1, later |
+| [ ] | `l2_cc_reader_card` | Every door up here logs who swipes in. | Reading a badge reader's card. Noting it. | Level 2, later |
+| [ ] | `l2_cc_log_n1` | That card said the readers keep a log. Of everybody. | Stuck. Remembering the card. | Level 2, later |
+| [ ] | `l2_cc_log_pay` | Wait. Read that again. Slowly. | Something in the result is very wrong. Cold. | Level 2, later |
+| [ ] | `l2_cc_doorcard` | 'Controller zone.' That's a letter we can use. | Reading a door's card. Quick, under pressure. | Level 2, later |
+| [ ] | `l2_cc_switch_err` | Not that one. What do the notes on the others say? | A second wrong switch, on a clock. Tense. | Level 2, later |
+| [ ] | `l2_cc_door_pay` | Door's moving. Go, go! | Urgent. Get out now. | Level 2, later |
+| [ ] | `l2_cc_camcard` | Camera system. There's a way to ask it what it sees. | Reading the camera system's card. | Level 2, later |
+| [ ] | `l2_cc_cam_n1a` | Security booth. There's got to be something on how these cameras work. | Stuck. Looking around the booth. | Level 2, later |
+| [ ] | `l2_cc_cam_n1b` | That camera card said how to ask the system. | Stuck. Remembering the card. | Level 2, later |
+| [ ] | `l2_cc_cam_pay` | Something's moving out there. And it isn't us. | Quiet and scared. | Level 2, later |
+| [ ] | `l2_cc_sheet` | Coffee all over this. One name's still readable. | Reading a stained sign-in sheet. | Level 2, later |
+| [ ] | `l2_cc_pike_n1` | The sign-in sheet. One name wasn't smudged. | Stuck. Remembering the sheet. | Level 2, later |
+| [ ] | `l2_cc_pike_err` | Is that how it's spelled on the sheet? | The same name misspelled twice. Gentle doubt. | Level 2, later |
+| [ ] | `l2_cc_pike_pay` | No-show tonight. Lucky him. | Dry. Relieved for a stranger. | Level 2, later |
+| [ ] | `l2_cc_lie` | It said it opened. It didn't open. | Staring at a door that should be open. Baffled. | Level 2, later |
+| [ ] | `l2_cc_door_n1` | That door's got its name painted over it in red. Maybe the server knows it by that. | Stuck. Noticing the sign above the door. | Level 2, later |
+| [ ] | `l2_cc_breaker_pay` | A breaker. Of course it's a breaker. | Relief, and a little laugh at yourself. | Level 2, later |
+| [ ] | `l2_cc_roster` | Badge numbers, next to names. | Reading a roster board. Noting it. | Level 2, later |
+| [ ] | `l2_cc_pin_n1a` | The badge readers log every swipe. Who left this floor last? | Stuck. Thinking it through. | Level 2, later |
+| [ ] | `l2_cc_pin_n1b` | The last guard out had a badge number. Something up here matches those to names. | Stuck. Putting two things together. | Level 2, later |
+| [ ] | `l2_cc_pin_err` | Wrong code. Is that the night lead, or just any guard? | A second wrong PIN. Thinking. | Level 2, later |
+| [ ] | `l2_cc_pin_pay` | That's the code. Let's not hang around. | Keypad accepted it. Nervous, wants to move. | Level 2, later |
 
 ## Harold Mercer (5 lines)
 

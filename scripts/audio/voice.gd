@@ -30,12 +30,16 @@ func _ready() -> void:
 ## Looks in the character's own folder first (audio/voice/rourke/l0_greet_1.wav,
 ## where actors' files go), then in audio/voice/ itself. Extra takes
 ## (l0_greet_1_take2.wav) are never picked up; rename the one you want.
-static func path_for(id: String) -> String:
+## `own_dir` is a folder to look in before all of those: a crew line is recorded once
+## per playable character, in audio/voice/crew_<character>/.
+static func path_for(id: String, own_dir: String = "") -> String:
 	id = VoiceLines.resolve(id)
 	var dirs: Array[String] = [folder]
 	var speaker: String = VoiceLines.get_line(id).get("speaker", "")
 	if VoiceLines.CHARACTERS.has(speaker):
 		dirs.push_front(folder.path_join(VoiceLines.CHARACTERS[speaker]["slug"]))
+	if own_dir != "":
+		dirs.push_front(folder.path_join(own_dir))
 	for dir in dirs:
 		for ext in EXTENSIONS:
 			var p: String = dir.path_join("%s.%s" % [id, ext])
@@ -45,8 +49,8 @@ static func path_for(id: String) -> String:
 
 
 ## The recording for this line, or null.
-static func stream_for(id: String) -> AudioStream:
-	var p := path_for(id)
+static func stream_for(id: String, dir: String = "") -> AudioStream:
+	var p := path_for(id, dir)
 	if p == "":
 		return null
 	if ResourceLoader.exists(p):
@@ -70,8 +74,8 @@ static func read_time(text: String) -> float:
 ## Start this line's recording, cutting off whatever was playing.
 ## Returns how long to wait before the next line: the recording's length,
 ## or 0.0 if there is no recording.
-func play(id: String) -> float:
-	var stream := stream_for(id)
+func play(id: String, dir: String = "") -> float:
+	var stream := stream_for(id, dir)
 	if stream == null:
 		return 0.0
 	_player.stream = stream
