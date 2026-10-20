@@ -1,14 +1,15 @@
 class_name PlayableCrew
 extends RefCounted
 ## The twelve crew members players choose between in the lobby, six on each body
-## type. Approved by Augustine 2026-10-20 (script/drafts/playable-crew.md).
+## type. The pick sets only their voice and body type; players name themselves.
+## Approved by Augustine 2026-10-20 (script/drafts/playable-crew.md, revised 17:04Z).
 ## Each one's barks and effort sounds are recorded under
 ## audio/voice/crew_<slug>/; Graphics builds their looks.
 
 const CAST := [
 	{"slug": "dana", "name": "Dana Okafor", "age": "30s", "body": 2, "about": "Ex-cable installer"},
 	{"slug": "priya", "name": "Priya Raman", "age": "20s", "body": 2, "about": "Ran a phone-repair kiosk at the mall"},
-	{"slug": "rosa", "name": "Rosa Delgado", "age": "50s", "body": 2, "about": "A retired school secretary"},
+	{"slug": "rosa", "name": "Rosa Delgado", "age": "30s", "body": 2, "about": "A school office manager doing nights for extra cash"},
 	{"slug": "kit", "name": "Kit Larsen", "age": "20s", "body": 2, "about": "Bike courier and rooftop free-runner"},
 	{"slug": "june", "name": "June Whitaker", "age": "60s", "body": 2, "about": "Ham-radio operator for forty years"},
 	{"slug": "mei", "name": "Mei Tanaka", "age": "30s", "body": 2, "about": "Ex-barista with a nervous laugh"},
@@ -17,7 +18,7 @@ const CAST := [
 	{"slug": "sam", "name": "Sam Abara", "age": "30s", "body": 1, "about": "Professional mover"},
 	{"slug": "luis", "name": "Luis Ortega", "age": "50s", "body": 1, "about": "Handyman"},
 	{"slug": "ike", "name": "Ike Novak", "age": "20s", "body": 1, "about": "A startup dropout who talks in buzzwords"},
-	{"slug": "walt", "name": "Walt Henley", "age": "60s", "body": 1, "about": "Retired lineman"},
+	{"slug": "walt", "name": "Walt Henley", "age": "30s", "body": 1, "about": "Power-company lineman between storm callouts"},
 ]
 
 
