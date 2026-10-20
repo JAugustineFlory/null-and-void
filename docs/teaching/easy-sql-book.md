@@ -1,8 +1,8 @@
 # Easy SQL: the crew's beginner's book (curriculum draft)
 
-Status: **DRAFT.** Every chapter line and every quiz question below needs Augustine's
-word-for-word OK before anything is built. Format, title pattern and rules are his
-choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
+Status: **APPROVED by Augustine 2026-10-20 03:03Z** ("Easy SQL book is approved"),
+word for word as written here. Any change to a chapter line or question goes back to him.
+Format, title pattern and rules are his choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
 
 - **Title:** *Easy SQL*. Later books follow the same pattern (*Hello HTML!*).
 - **Crew huddles.** The game opens in the crew's garage with the first huddle. Each
@@ -310,8 +310,12 @@ No new words. A review huddle on chaining.
 2. To ask about one door you need its... *A) id  B) colour  C) zone
 3. Where does the id go? A) before GET  *B) at the end of the path  C) in quotes after it
 
-## Questions for Augustine
+## Decisions (Augustine, 2026-10-20 03:03Z)
 
-1. Build the two PROPOSED Level 1 puzzles (stuck doors as its own step, dark room
-   with OR) to reach 3 to 5 puzzles there?
-2. Are the garage tables `jobs` and `van_kit` OK as the crew's own practice data?
+1. The two PROPOSED Level 1 puzzles are approved: the stuck doors as their own step,
+   and the optional dark room with OR. Playtest fixes builds them.
+2. The crew's `jobs` and `van_kit` tables are approved as the book's sample data
+   ("that reinforces the plug-and-play approach for sql queries").
+
+Still to write, and to approve: a one-line "why" for each answer (the huddle shows
+it after a wrong vote).
