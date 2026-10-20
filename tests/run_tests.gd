@@ -820,7 +820,7 @@ func test_level_1_scene() -> void:
 	check(level.elevator.open_amount > 0.9 and level.elevator.contains(level.rourke.global_position), "with everyone there, the elevator opens and Rourke steps in")
 	level.player.global_position = level.elevator.to_global(Vector3(-0.6, 0.1, 1.2))
 	await physics_frame
-	check(level.elevator.button.get_prompt(level.player).contains("Press 2"), "inside, the button says where it goes")
+	check(level.elevator.button.get_prompt(level.player).contains("Press 22"), "inside, the button says where it goes")
 	level.player.global_position = level.to_global(Vector3(0, 0.1, -10.5))
 	await physics_frame
 	check(not level.elevator.press() and not level.elevator.is_closing and level.elevator.refusal != "", "the button does nothing while someone is still outside")
@@ -2316,7 +2316,7 @@ func test_rourke_leads_in() -> void:
 	p.global_position = lobby.elevator.to_global(Vector3(-0.6, 0.2, 1.2))
 	for i in 5:
 		await physics_frame
-	check(lobby.elevator.button.get_prompt(p).contains("Press 1"), "inside, the button says where it goes")
+	check(lobby.elevator.button.get_prompt(p).contains("Press 14"), "inside, the button says where it goes")
 	lobby.elevator.button.interact(p)
 	for i in 900:
 		if world.current == sra:
@@ -2778,7 +2778,19 @@ func test_elevator() -> void:
 	var a_local: Vector3 = lift.to_local(a.global_position)
 	var a_yaw: float = a.rotation.y
 	lift.link_to(dest)
-	await lift.ride(0.3)
+	check(Elevator.level_of("G") == 0 and Elevator.level_of("B2") == -2 and Elevator.level_of("22") == 22 and Elevator.label_of(-1) == "B1" and Elevator.label_of(14) == "14", "tower floors: G is ground, Bn below it")
+	lift.ride(0.3)
+	var seen: Array[String] = []
+	var arrow := ""
+	while lift.riding:
+		var f: String = lift.art.call("get_floor")
+		if seen.is_empty() or seen[-1] != f:
+			seen.append(f)
+		if arrow == "":
+			arrow = (lift.art.get("_arrows")[0] as Label3D).text
+		await process_frame
+	check(seen == ["1", "G", "B1", "B2"], "the indicator counts down through every floor on the way (%s)" % [seen])
+	check(arrow == "v", "and the arrow points down")
 	check(dest.to_local(a.global_position).distance_to(a_local) < 0.01 and dest.contains(b.global_position), "the ride carries everyone to the same spot in the next car")
 	check(is_equal_approx(angle_difference(a_yaw + PI / 2, a.rotation.y), 0.0), "facing the same way relative to the car")
 	await dest.opened
