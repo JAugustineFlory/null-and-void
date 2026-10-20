@@ -179,7 +179,7 @@ func test_rig_actions() -> void:
 
 func test_rig_budget() -> void:
 	var stage := _stage()
-	var looks := [CharacterLooks.rourke(), CharacterLooks.vale(), CharacterLooks.mercer(), CharacterLooks.night_guard(), CharacterLooks.maddison()]
+	var looks := [CharacterLooks.rourke(), CharacterLooks.vale(), CharacterLooks.mercer(), CharacterLooks.night_guard(), CharacterLooks.maddison(), CharacterLooks.maddison(50)]
 	for i in 6:
 		looks.append(CharacterLooks.crew(i))
 		looks.append(CharacterLooks.crew(i, {"body": 2, "skin": i}))

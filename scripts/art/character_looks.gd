@@ -75,8 +75,10 @@ static func crew(index: int, picks: Dictionary = {}) -> Dictionary:
 ## Maddison Kowalski, Byte-Right's CEO, around 40: mature, confident and upbeat.
 ## 1997 small-business-owner style: a raspberry blazer with 90s shoulders over a
 ## cream blouse, charcoal slacks, a glossy auburn bob, red lipstick, and the
-## company pin on her lapel. (Earrings would put her over the 32-piece budget.)
-static func maddison() -> Dictionary:
+## company pin on her lapel.
+## `age` is 40 or 50 (Augustine is choosing): at 50 her auburn has gone a little
+## silver and she wears reading glasses.
+static func maddison(age: int = 40) -> Dictionary:
 	var look := base()
 	look.merge({
 		"name": "Maddison",
@@ -95,6 +97,9 @@ static func maddison() -> Dictionary:
 		"logo": ArtPalette.BYTERIGHT_BLUE,
 		"lips": Color(0.66, 0.1, 0.16),
 	}, true)
+	if age >= 50:
+		look.hair = Color(0.52, 0.34, 0.27)
+		look.glasses = true
 	return look
 
 

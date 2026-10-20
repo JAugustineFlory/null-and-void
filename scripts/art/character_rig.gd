@@ -441,9 +441,7 @@ func _make_hair(head: Node3D) -> void:
 		"bob":
 			# Chin-length, full at the sides, a side part with volume on top.
 			_part(head, "sphere", Vector3(0.124, 0.1, 0.13), Vector3(0.006, 0.152, 0.012), hair)
-			_part(head, "box", Vector3(0.24, 0.15, 0.08), Vector3(0, 0.1, 0.075), hair)
-			for sx in [-1.0, 1.0]:
-				_part(head, "box", Vector3(0.035, 0.13, 0.15), Vector3(sx * 0.112, 0.1, 0.015), hair)
+			_part(head, "box", Vector3(0.24, 0.14, 0.19), Vector3(0, 0.1, 0.035), hair)  # sides and back, open at the face
 		"cap":
 			_part(head, "sphere", Vector3(0.125, 0.09, 0.13), Vector3(0, 0.17, 0.0), hair)
 			_part(head, "box", Vector3(0.18, 0.015, 0.1), Vector3(0, 0.165, -0.15), hair)
