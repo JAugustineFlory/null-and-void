@@ -456,7 +456,12 @@ func walk_level_1(seed_value: int) -> void:
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
 	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone is read off the doors, not the screen")
-	var h := await solve(level, ui, level.controller_puzzle, false)
+	# First step: the stuck doors, and the zone they share (only the doors table has it).
+	var h := await solve(level, ui, level.stuck_doors_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player finds the stuck doors once a hint gives the query (hints %d)" % h)
+	var stuck := last_table(screen(ui)).filter(func(r): return ["Server Room A rear exit", "Server Room C", "Lift 1, server floor"].has(r.get("name", "")))
+	check(stuck.size() == 3 and stuck.all(func(r): return r.get("zone", "") == level.zone), "server room: the shift log's stuck doors share one zone in the result")
+	h = await solve(level, ui, level.controller_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.controller_puzzle), "server room: a lost player finds the controller once a hint gives the query (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
 	var rows := last_table(screen(ui))
@@ -486,6 +491,17 @@ func walk_level_1(seed_value: int) -> void:
 	if tray:
 		tray.interact(level.player)
 	check(await _until(func(): return not level.vault_back.locked, 6.0), "server floor: reseating the hot rack's tray releases the cable vault's back door")
+	# Optional: the dark break room, OR practised safely. The query lists the lights
+	# that are out; the circuit reset by the break room door fixes them.
+	ui.open(level.terminal, level.player)
+	h = await solve(level, ui, level.dark_room_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.dark_room_puzzle), "server floor: a lost player lists the lights that are out once a hint gives the query (hints %d)" % h)
+	ui.close()
+	var reset := find_interactable(level, "Reset the lighting circuit")
+	check(reset != null, "server floor: the break room has a circuit reset to press")
+	if reset:
+		reset.interact(level.player)
+	check(await _until(func(): return level.lights["1-BREAK"][0].visible, 6.0), "server floor: the reset lights the break room")
 	level.queue_free()
 	await t.process_frame
 
