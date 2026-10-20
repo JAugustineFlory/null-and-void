@@ -1,7 +1,10 @@
 class_name Rourke
 extends CharacterBody3D
 ## Dale Rourke, the friendly escort who is secretly working for the director.
-## Tour guide in Level 0, attacker in Level 1.
+## Tour guide in Levels 0 and 1, attacker in Level 2. In a fight he leans in
+## before each swing (the cue to block, right mouse), shows his injuries instead
+## of a health bar (Injuries: torn jacket, blood, a limp that slows him), and
+## reels back when a swing is blocked.
 
 signal arrived
 signal downed
@@ -18,6 +21,8 @@ const ATTACK_DAMAGE := 22.0
 const ATTACK_COOLDOWN := 1.15
 const MAX_HITS := 4
 const DOWN_TIME := 12.0
+## A blocked swing knocks him off balance this long: a free hit for whoever's close.
+const RECOIL_TIME := 0.8
 
 var state := State.IDLE
 var target: Node3D
@@ -42,6 +47,8 @@ var _walk_time := 0.0
 var _retarget := 0.0
 ## While standing (IDLE), he turns to keep facing this: the crew he's talking to.
 var watch: Node3D
+## What the fight has done to him, for everyone to see.
+var wounds: Injuries
 
 
 func _ready() -> void:
@@ -67,6 +74,7 @@ func _ready() -> void:
 	_agent.target_desired_distance = 0.6
 	_agent.radius = 0.35
 	add_child(_agent)
+	wounds = Injuries.attach(self)
 
 
 func _part(parent: Node3D, mesh: PrimitiveMesh, pos: Vector3, color: Color, scale_v: Vector3 = Vector3.ONE) -> void:
@@ -98,6 +106,7 @@ func reset_fight(at: Transform3D) -> void:
 	global_transform = at
 	remove_from_group("interactable")
 	hits_left = max_hits
+	wounds.severity = 0.0
 	_body.rotation = Vector3.ZERO
 	_body.position = Vector3.ZERO
 	state = State.CHASE if target else State.IDLE
@@ -107,6 +116,11 @@ func face(point: Vector3) -> void:
 	var flat := Vector3(point.x, global_position.y, point.z)
 	if flat.distance_to(global_position) > 0.05:
 		look_at(flat, Vector3.UP)
+
+
+## Every machine (clients don't run his physics): his injuries follow the fight.
+func _process(_delta: float) -> void:
+	_show_wounds()
 
 
 func _physics_process(delta: float) -> void:
@@ -190,12 +204,12 @@ func _move_along_path(speed: float) -> void:
 
 func _chase(delta: float) -> void:
 	_retarget -= delta
-	if _retarget <= 0.0:
+	if _retarget <= 0.0 or CrewVitals.is_down(target):
 		_retarget = 0.5
-		var near := _nearest_player()
-		if near:
-			target = near
+		target = _nearest_player()
 	if not target:
+		velocity.x = 0
+		velocity.z = 0
 		return
 	var dist := global_position.distance_to(target.global_position)
 	face(target.global_position)
@@ -206,7 +220,7 @@ func _chase(delta: float) -> void:
 		if _windup <= 0.0:
 			_body.rotation.x = 0.0
 			if global_position.distance_to(target.global_position) < ATTACK_RANGE + 0.4 and target.has_method("take_damage"):
-				target.take_damage(ATTACK_DAMAGE)
+				target.take_damage(ATTACK_DAMAGE, "rourke")
 				hit_player.emit()
 			_attack_cd = ATTACK_COOLDOWN
 		return
@@ -215,22 +229,23 @@ func _chase(delta: float) -> void:
 		_body.rotation.x = -0.25  # lean in: a readable tell before the hit
 		return
 	_agent.target_position = target.global_position
-	_move_along_path(CHASE_SPEED)
+	_move_along_path(CHASE_SPEED * wounds.speed_scale())
 
 
 ## Co-op: what other machines need to see him walk, fight and fall.
 func sync_properties() -> Array:
 	var body := str(get_path_to(_body))
 	# _windup is his attack tell: clients must see it coming too.
-	return [".:position", ".:rotation", ".:visible", ".:state", ".:_windup", body + ":position", body + ":rotation"]
+	# hits_left: how hurt he looks.
+	return [".:position", ".:rotation", ".:visible", ".:state", ".:_windup", ".:hits_left", ".:max_hits", body + ":position", body + ":rotation"]
 
 
-## In co-op he goes after whoever is closest.
+## In co-op he goes after whoever is closest and still on their feet.
 func _nearest_player() -> Node3D:
 	var best: Node3D = null
 	var best_d := INF
 	for p in get_tree().get_nodes_in_group("player"):
-		if p.get_viewport() != get_viewport():
+		if p.get_viewport() != get_viewport() or CrewVitals.is_down(p):
 			continue
 		var d := global_position.distance_to(p.global_position)
 		if d < best_d:
@@ -263,6 +278,34 @@ func take_hit(by: Node3D) -> void:
 		state = State.STAGGER
 		_stagger = 0.55
 		struck.emit()
+
+
+## Someone blocked his swing: he's thrown off balance for a moment.
+func recoil() -> void:
+	if state != State.CHASE:
+		return
+	_windup = 0.0
+	_body.rotation.x = 0.0
+	_attack_cd = maxf(_attack_cd, RECOIL_TIME)
+	state = State.STAGGER
+	_stagger = RECOIL_TIME
+	if target:
+		var push := global_position - target.global_position
+		push.y = 0
+		velocity = push.normalized() * 3.0
+
+
+## Injuries follow how many hits he has left (synced), so every machine shows the same.
+func _show_wounds() -> void:
+	var hurt := 0.0
+	if state in [State.DOWN, State.TIED, State.DEAD]:
+		hurt = 1.0
+	elif max_hits > 0 and state in [State.CHASE, State.STAGGER]:
+		hurt = 1.0 - float(hits_left) / max_hits
+	elif wounds.severity > 0.0:
+		hurt = wounds.severity  # a fight that's over stays on him
+	if not is_equal_approx(hurt, wounds.severity):
+		wounds.severity = hurt
 
 
 func _go_down() -> void:

@@ -4,8 +4,6 @@ class_name Level2FX
 ## Sounds are made in code until the audio pass brings real ones.
 
 const RATE := 22050
-## How long the exit car's drop lasts.
-const DROP_TIME := 1.6
 ## How long the end card holds, after fading in.
 const CARD_TIME := 3.5
 
@@ -128,22 +126,6 @@ static func _make(kind: String) -> AudioStreamWAV:
 	w.mix_rate = RATE
 	w.data = data
 	return w
-
-
-## The exit car drops: its light stutters and the floor jolts under the player's feet.
-static func drop_car(car: Elevator, player: Node3D) -> void:
-	if not car.is_inside_tree():
-		return
-	var t := car.create_tween()
-	for e in [0.15, 1.0, 0.05, 0.7, 0.0, 0.4, 0.0]:
-		t.tween_method(car._set_car_light, 1.0 if e == 0.15 else e, e, DROP_TIME / 7.0)
-	var head: Node3D = player.get("head") if player else null
-	if head:
-		var rest := head.position
-		var j := player.create_tween()
-		j.tween_property(head, "position", rest + Vector3(0, -0.12, 0), 0.08)
-		j.tween_property(head, "position", rest + Vector3(0, -0.04, 0), 0.25)
-		j.tween_property(head, "position", rest, DROP_TIME - 0.33)
 
 
 ## A black card over everything with one line on it. Returns when it has held.

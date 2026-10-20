@@ -35,6 +35,10 @@ var query_log: Array[String] = []
 var concepts_learned: Array[String] = []
 ## Seed for this run's randomized data (replay scenarios).
 var run_seed := 0
+## A new game opens in the crew's garage before the van (the World reads this).
+var open_at_home := false
+## Words the crew has learned from its books, in order (see Huddle).
+var book_words: Array[String] = []
 ## The notebook is held in your hands and terminals are used on their own screens.
 ## Off: both open full-screen over the view, as before (a setting in the pause menu).
 var diegetic_ui := true
@@ -80,6 +84,8 @@ func _ready() -> void:
 
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
+	open_at_home = false
+	book_words.clear()
 	rourke_fate = "unknown"
 	has_walkie = false
 	visitor_badge_no = ""
@@ -282,6 +288,11 @@ func _setup_input() -> void:
 		var click := InputEventMouseButton.new()
 		click.button_index = MOUSE_BUTTON_LEFT
 		InputMap.action_add_event("attack", click)
+	if not InputMap.has_action("block"):
+		InputMap.add_action("block")
+		var right := InputEventMouseButton.new()
+		right.button_index = MOUSE_BUTTON_RIGHT
+		InputMap.action_add_event("block", right)
 
 
 func _bind_keys(action: String, keys: Array) -> void:

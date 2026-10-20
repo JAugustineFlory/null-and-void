@@ -123,6 +123,7 @@ static func apply(level: LevelBase) -> void:
 		ArtDress.reskin(tray.get_parent() as Node3D, [{"names": ["CableTray"], "mat": metal}])
 
 	ArtDress.link_light_panels(level)
+	ArtKit.dress_stairwells(level)
 	ArtMood.polish(level.environment)
 	ArtDress.explain_dark(level, DARK_CHECK, 3.6, [Vector3(10.2, 0, -12.6)])  # the IT closet's ceiling panel stays bare
 	var rourke: Node3D = level.get("rourke")

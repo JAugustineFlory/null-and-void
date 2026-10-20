@@ -16,7 +16,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_walks_from_movement()
 	await test_rig_actions()
 	await test_rig_budget()
+	test_outfits()
 	await test_props()
+	test_kits()
 	await test_held_items()
 	await test_gallery()
 	await test_dressed_level_0()
@@ -176,11 +178,39 @@ func test_rig_actions() -> void:
 	stage.free()
 
 
+func test_outfits() -> void:
+	var most := 0
+	for body in CharacterLooks.BODY_TYPES:
+		for hair in CharacterLooks.SLOTS.hair:
+			for head in CharacterLooks.SLOTS.head:
+				for jacket in CharacterLooks.SLOTS.jacket:
+					var loadout := {"body": body, "hair": {"item": hair}, "head": {"item": head}, "jacket": {"item": jacket},
+						"top": {"item": "polo"}, "face": {"item": "glasses"}, "ears": {"item": "studs"}, "belt": {"item": "radio"}}
+					var rig := CharacterRig.build(Node3D.new(), CharacterLooks.outfit(loadout))
+					most = maxi(most, rig.part_count())
+					rig.get_parent().free()
+	check(most <= 32, "every outfit combination stays within 32 mesh pieces (most: %d)" % most)
+	var plain := CharacterLooks.outfit({})
+	check(plain.body == 1 and plain.hair_style == "short" and plain.headwear == null and plain.jacket == null and plain.belt_radio, "an empty loadout is a plain crew member with a radio")
+	check(CharacterLooks.outfit({"top": {"item": "gold_suit"}}).collar, "an unknown item falls back to the slot's default")
+	var red := Color(0.8, 0.1, 0.1)
+	var look := CharacterLooks.outfit({"name": "Sam", "body": 2, "skin": 7, "top": {"item": "tee", "color": red},
+		"jacket": {"item": "blazer", "color": red}, "head": {"item": "beanie", "color": red}, "face": {"item": "glasses", "color": red}})
+	check(look.name == "Sam" and look.body == 2 and look.skin == CharacterLooks.SKIN_TONES[7], "name, body and skin come from the loadout")
+	check(look.shirt == red and look.jacket == red and look.shoulder_pads and look.headwear == "beanie" and look.headwear_color == red and look.glasses == red, "each item takes the color the player picked")
+	var hatted := CharacterRig.build(Node3D.new(), CharacterLooks.outfit({"hair": {"item": "long"}, "head": {"item": "cap"}}))
+	var bare := CharacterRig.build(Node3D.new(), CharacterLooks.outfit({"hair": {"item": "long"}}))
+	check(hatted.part_count() == bare.part_count() + 1, "a cap covers the top of the hair, and long hair still shows below it")
+	hatted.get_parent().free()
+	bare.get_parent().free()
+
+
 func test_rig_budget() -> void:
 	var stage := _stage()
-	var looks := [CharacterLooks.rourke(), CharacterLooks.vale(), CharacterLooks.mercer(), CharacterLooks.night_guard()]
+	var looks := [CharacterLooks.rourke(), CharacterLooks.vale(), CharacterLooks.mercer(), CharacterLooks.night_guard(), CharacterLooks.maddison(), CharacterLooks.maddison(50)]
 	for i in 6:
 		looks.append(CharacterLooks.crew(i))
+		looks.append(CharacterLooks.crew(i, {"body": 2, "skin": i}))
 	var most := 0
 	var shadow_parts := 0
 	for look in looks:
@@ -193,6 +223,13 @@ func test_rig_budget() -> void:
 				shadow_parts += 1
 	check(most <= 32, "every character stays within 32 mesh pieces (most: %d)" % most)
 	check(shadow_parts <= looks.size() * 12, "only the big body parts cast shadows")
+	var one := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0, {"body": 1}))
+	var two := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0, {"body": 2}))
+	check(two.joints["r_shoulder"].position.x < one.joints["r_shoulder"].position.x and two.joints["r_hip"].position.x > one.joints["r_hip"].position.x, "body type 2 has narrower shoulders and fuller hips than type 1")
+	check(CharacterLooks.crew(3, {"skin": 0}).skin == CharacterLooks.SKIN_TONES[0] and CharacterLooks.crew(3, {"skin": 99}).skin == CharacterLooks.SKIN_TONES[-1], "players pick their skin tone, and an out-of-range pick clamps")
+	check(CharacterLooks.crew(2) == CharacterLooks.crew(2, {}), "with no picks, a crew look is unchanged")
+	one.get_parent().free()
+	two.get_parent().free()
 	var a := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
 	var b := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
 	var ma: MeshInstance3D = a.joints["head"].get_child(0)
@@ -200,6 +237,34 @@ func test_rig_budget() -> void:
 	check(ma.mesh == mb.mesh and ma.material_override == mb.material_override, "rigs share meshes and materials")
 	a.get_parent().free()
 	b.get_parent().free()
+	stage.free()
+
+
+func test_kits() -> void:
+	var stage := _stage()
+	var rail := ArtKit.stair_rail(stage, Vector3.ZERO, Vector3(0, 1.8, 3.0))
+	var sign0 := ArtKit.landing_number(stage, Vector3(2, 1.5, 0), 0, 0)
+	var sign22 := ArtKit.landing_number(stage, Vector3(3, 1.5, 0), 0, 22)
+	var lamp := ArtKit.emergency_light(stage, Vector3(0, 2.4, 0), 0)
+	var shapes := 0
+	for n in [rail, sign0, sign22, lamp]:
+		shapes += n.find_children("*", "CollisionObject3D", true, false).size()
+	check(shapes == 0, "stairwell dressing is visual only: nothing for the Watcher's raycasts to hit")
+	var numbers := []
+	for sgn in [sign0, sign22]:
+		for l in sgn.find_children("*", "Label3D", true, false):
+			numbers.append(l.text)
+	check("G" in numbers and "22" in numbers, "landing numbers match the tower floors (G, 22)")
+	check(lamp.get_node_or_null("Lamp") is SpotLight3D and ArtKit.emergency_light(stage, Vector3.ZERO, 0, false).get_node_or_null("Lamp") == null, "a lit emergency light lights the stairs, a dead one doesn't")
+	var top_rail: MeshInstance3D = rail.get_child(0)
+	check(rail.get_child_count() >= 5 and is_equal_approx(top_rail.position.y, 0.9 + 0.9), "a handrail runs up the flight on posts, 0.9 m over the treads")
+	var table := ArtKit.folding_table(stage, Vector3(5, 0, 0))
+	var chair := ArtKit.folding_chair(stage, Vector3(5, 0, 1))
+	check(table.get_meta("art_prop", false) and chair.get_meta("art_prop", false), "garage tables and chairs are solid props the route checks know about")
+	var board := ArtKit.whiteboard(stage, Vector3(7, 1.4, 0), 0, "CLIENTS\n- Halcyon (after hours)")
+	var banner := ArtKit.banner(stage, Vector3(7, 2.4, 0), 0)
+	check(board.find_children("*", "Label3D", true, false).size() == 1 and "BYTE-RIGHT" in banner.find_children("*", "Label3D", true, false)[0].text, "the whiteboard has writing and the banner names the company")
+	check(ArtKit.pizza_box(stage, Vector3(5, 0.76, 0), 0, false, 3).get_child_count() == 3, "shut pizza boxes stack")
 	stage.free()
 
 
@@ -443,6 +508,16 @@ func _check_polish(level: Node3D, label: String) -> void:
 		if text.x > paper.x or text.y > paper.y or l.font_size < 16:
 			spill.append(l.text.get_slice("\n", 0))
 	check(spill.is_empty(), "%s: every poster's text fits on its paper %s" % [label, spill])
+	for holder in level.geo.get_children():
+		if holder.name.begins_with("Stairwell"):
+			var plate: Node = holder.get_node_or_null("LandingNumber")
+			var lamp: Node = holder.get_node_or_null("EmergencyLight")
+			var colliders: Array = holder.find_children("*", "CollisionObject3D", true, false)
+			var ours := 0
+			for c in colliders:
+				if plate and plate.is_ancestor_of(c) or lamp and lamp.is_ancestor_of(c):
+					ours += 1
+			check(plate != null and lamp != null and holder.get_node_or_null("Handrail") != null and ours == 0, "%s: the fire stairs have their floor plate, emergency light and handrail, all visual only" % label)
 	var lights := 0
 	var unshadowed := []
 	for id in level.lights:
