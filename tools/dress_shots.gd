@@ -1,6 +1,6 @@
 extends SceneTree
 ## Before/after screenshots of furnished levels, for art PRs. Needs a display:
-##   xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver vulkan -s tools/dress_shots.gd -- OUT_DIR [l0|l1|l2]
+##   xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver vulkan -s tools/dress_shots.gd -- OUT_DIR [l0|l1|l2|hb]
 ## Vulkan shows the game's own renderer (Forward+: shadows, ambient occlusion); with no
 ## GPU, Mesa's software Vulkan (apt mesa-vulkan-drivers) works. opengl3 is quicker but
 ## skips both.
@@ -26,6 +26,8 @@ func _run() -> void:
 		await _level_1()
 	if only in ["", "l2"]:
 		await _level_2()
+	if only in ["", "hb"]:
+		await _home_base()
 	quit()
 
 
@@ -94,6 +96,18 @@ func _level_2() -> void:
 	await _shot(level, "l2_ledge_out", Vector3(6.33, 0.05, -2.0), -110, -12)
 	await _shot(level, "l2_ledge_along", Vector3(6.33, 0.05, 3.5), 12, -50)
 	await _shot(level, "l2_ledge_up", Vector3(6.33, 0.05, 2.5), 12, 55)
+	level.free()
+
+
+func _home_base() -> void:
+	var level = await _load("res://scenes/home_base.tscn")
+	level.bench_book.visible = true
+	await _shot(level, "hb_spawn", Vector3(-0.5, 0.1, 3.0), 20, -5)
+	await _shot(level, "hb_bench", Vector3(0.5, 0.1, 0.8), 70, -15)
+	await _shot(level, "hb_banner", Vector3(-1.5, 0.1, 0.5), 180, 5)
+	await _shot(level, "hb_tech", Vector3(1.0, 0.1, 3.0), -117, -15)
+	await _shot(level, "hb_corner", Vector3(-3.0, 0.1, -1.5), 46, -10)
+	await _shot(level, "hb_board", Vector3(-2.5, 0.1, 1.5), 50, -2)
 	level.free()
 
 

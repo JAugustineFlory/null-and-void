@@ -171,7 +171,7 @@ static func whiteboard(parent: Node, pos: Vector3, facing_deg: float, text: Stri
 	var l := Label3D.new()
 	l.text = text
 	l.font = NotebookArt.hand_font()
-	l.font_size = 48
+	l.font_size = 64
 	l.pixel_size = 0.0016
 	l.width = size.x / l.pixel_size * 0.9
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
