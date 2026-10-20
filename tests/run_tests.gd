@@ -2534,6 +2534,8 @@ func test_notebook() -> void:
 	level.terminal_ui._input.text = "SELECT * FROM memo_fragments"
 	level.terminal_ui._on_input_key(enter)
 	check(level.terminal_ui._input.text == "SELECT * FROM memo_fragments\n" and not _game().notebook_tables.has("memo_fragments"), "Enter without a ; doesn't run the query: it carries on to a new line")
+	var semi: Label = level.terminal_ui._input.get_node_or_null("MissingSemicolon")
+	check(semi != null and semi.visible and semi.text == ";" and semi.get_theme_color("font_color").r > 0.9, "and a red ; flashes where it's missing")
 	level.terminal_ui._input.text += ";"
 	level.terminal_ui._on_input_key(enter)
 	check(level.terminal_ui._input.text == "" and _game().notebook_tables.get("memo_fragments", []) == ["piece_no", "text", "scanned_at"], "with the ; it runs, and the query writes its table and columns on the Tables page")
@@ -2849,8 +2851,9 @@ func test_pick_up_papers() -> void:
 	check(printed.visible, "and back on the wall it's printed again")
 	form.queue_free()
 	# The sticky by the keyboard can be picked up and read; desk stickies are drawn big.
-	var by_keys: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Sticky note")
-	check(by_keys.size() == 1 and by_keys[0].plain_text().contains("ORDER matters."), "the sticky by the keyboard is a note you can pick up and read")
+	var stickies: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Sticky note")
+	check(stickies.filter(func(d): return d.plain_text().contains("ORDER matters.")).size() == 1, "the sticky by the keyboard is a note you can pick up and read")
+	check(stickies.any(func(d): return d.plain_text().contains("ORDER BY ... DESC") and d.position.distance_to(Vector3(-2.25, 1.102, -0.72)) < 0.5), "and the night desk's DESC reminder sits by the visitor book")
 	var desk_sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
 	check(desk_sticky.find_child("StickyNote", false, false).scale.x > 1.2, "stickies lying on the desk are drawn big enough to read standing up")
 	# The notebook: 1-4 turn to its tabs; Tab closes it.

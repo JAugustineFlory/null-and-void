@@ -187,6 +187,12 @@ func build() -> void:
 	], true, "note", Vector2(0.15, 0.2))
 	book.clues = [{"case": "last_visitor", "opens": BOOK_CASE, "tables": ["visitors"],
 		"text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
+	# The night desk's own reminder beside the book: DESC, found before it's needed.
+	Document.place(geo, Vector3(-2.62, 1.102, -0.95), 15.0, "Sticky note", [
+		{"text": "Newest first =", "hand": true},
+		{"text": "ORDER BY ... DESC", "hand": true},
+		{"text": "  - N.F.", "hand": true},
+	], true, "sticky").clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
 
 	# A side table behind the desk with the walkie-talkies' charging dock on it.
 	Greybox.box(geo, Vector3(-2.5, 0.68, -5.5), Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")

@@ -28,6 +28,9 @@ var _history_i := -1
 ## Kinds: info, echo, result, hint, error, schema, note.
 var _noteable: Array[Dictionary] = []
 var _note_label: LineEdit
+## The red ; that flashes when Enter is pressed before the statement ends.
+var _semicolon: Label
+var _semicolon_tween: Tween
 var _note_index := -1
 ## Hovering a line lights it up and offers to add it to the notebook.
 var _hover_band: ColorRect
@@ -487,6 +490,31 @@ func _on_input_key(event: InputEvent) -> void:
 		_typed()
 
 
+## A red ; at the end of what was typed, blinking for a couple of seconds.
+func _flash_semicolon() -> void:
+	if not is_instance_valid(_semicolon):
+		_semicolon = Label.new()
+		_semicolon.name = "MissingSemicolon"
+		_semicolon.text = ";"
+		_semicolon.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+		_semicolon.add_theme_font_override("font", _input.get_theme_font("font"))
+		_semicolon.add_theme_font_size_override("font_size", _input.get_theme_font_size("font_size"))
+		_semicolon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_input.add_child(_semicolon)
+	var line := _input.get_caret_line()
+	var at := _input.get_rect_at_line_column(line, _input.get_line(line).length())
+	_semicolon.position = Vector2(at.position.x + at.size.x, at.position.y) if at.position.x >= 0 else Vector2.ZERO
+	_semicolon.visible = true
+	if _semicolon_tween:
+		_semicolon_tween.kill()
+	_semicolon.modulate.a = 1.0
+	_semicolon_tween = create_tween()
+	for i in 4:
+		_semicolon_tween.tween_property(_semicolon, "modulate:a", 0.15, 0.25)
+		_semicolon_tween.tween_property(_semicolon, "modulate:a", 1.0, 0.25)
+	_semicolon_tween.tween_callback(func(): _semicolon.visible = false)
+
+
 ## Is `text` ready to run? Like a real SQL prompt, a query runs only once it ends
 ## with ; (dot-commands and API requests are one line and need none).
 static func is_complete(text: String) -> bool:
@@ -494,11 +522,14 @@ static func is_complete(text: String) -> bool:
 	return t == "" or t.begins_with(".") or FacilityAPI.is_request(t) or t.ends_with(";")
 
 
-## Enter before the ;: the statement carries on, on a new line.
+## Enter before the ;: the statement carries on, on a new line, and a red ;
+## flashes where it's missing.
 func _continue_statement() -> void:
 	var blank_line := _input.text.ends_with("\n") or _input.text.strip_edges() == ""
 	_input.set_caret_line(_input.get_line_count() - 1)
 	_input.set_caret_column(_input.get_line(_input.get_line_count() - 1).length())
+	if not blank_line:
+		_flash_semicolon()
 	_input.insert_text_at_caret("\n")
 	_typed()
 	if blank_line:
@@ -508,6 +539,8 @@ func _continue_statement() -> void:
 func _submit() -> void:
 	var sql := _input.text.strip_edges()
 	_input.text = ""
+	if is_instance_valid(_semicolon):
+		_semicolon.visible = false
 	if sql == "":
 		return
 	_history.append(sql)

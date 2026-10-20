@@ -351,6 +351,18 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 			rb += 1
 	for z in [0.0, 6.0]:
 		add_light("srb", Vector3(15, 3.6, z), 8.0, 1.0)
+	# Inside the door, the room's monitoring card: where the temperatures live and
+	# what counts as too hot (the > the hot rack's query needs, found in the world).
+	Document.place(geo, Vector3(12.6, 1.5, 8.89), 0.0, "SERVER ROOM B - RACK MONITORING", [
+		"SERVER ROOM B - RACK MONITORING",
+		{"before": "Rack temperatures are logged in the table ", "filled": "racks", "after": "."},
+		"Columns: id, room, temp_c, load_pct, note",
+		"ALERT if temp_c > %d" % Level1Data.INTERLOCK_C,
+		"Running hot? Reseat that rack's fan tray.",
+	], false, "laminated", Vector2(0.3, 0.21)).clues = [
+		{"case": "hot_rack", "text": "Rack temperatures are in the table racks. Columns: id, room, temp_c, load_pct, note."},
+		{"case": "hot_rack", "text": "ALERT if temp_c > %d. Running hot? Reseat that rack's fan tray." % Level1Data.INTERLOCK_C},
+	]
 
 	# Break room: x 8..22, z -9..-3. Coffee, a fridge, a table.
 	Greybox.room(geo, Vector3(15, 0, -6), Vector3(14, 3, 6), c, [_gap("n", -3.0, door), _gap("s", -3.0, door)])
