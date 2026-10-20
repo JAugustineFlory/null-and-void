@@ -147,6 +147,8 @@ func line(id: String, subtitle: bool = true) -> void:
 	if l.is_empty():
 		push_warning("No voice line with id '%s'" % id)
 		return
+	if get_node("/root/Game").jot(VoiceLines.resolve(id), l):
+		notice("Notebook updated (Tab)", 3.0)
 	var dur := _voice.play(id)
 	var has_audio := dur > 0.0
 	if not has_audio:

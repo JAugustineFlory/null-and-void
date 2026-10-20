@@ -28,6 +28,7 @@ Newest first. Floors are listed by their in-game floor number.
 ### 2026-10-20
 - **Fixed:** in co-op, a teammate sitting on a chair or on the floor is shown sitting, not crouching.
 - **New:** dress your character in the co-op lobby. Crew, Look and Gear tabs let you pick hair, hat, top, jacket, glasses, earrings and more, a colour for each, and the colour of your flashlight, walkie, notebook and terminal screen. A shared terminal takes the screen colour of whoever sat down first. Your name and picks are saved for next time.
+- **Added:** the crew jots down what people tell them. Spoken tasks go on the Work order, and facts go on the case page or under Other notes, so a missed line can be read back.
 - **Added:** the garage's folding chairs can be sat on.
 - **New:** notes huddles in co-op. Press E on a teammate to huddle up, and anyone can join by pressing E on someone in it. Then share a line, a whole case page or every case, and it fills in the same case page in their notebooks.
 - **New:** in the co-op lobby, choose who you play (twelve crew members across two body types), your polo colour and your skin tone, with a turning preview.

@@ -75,6 +75,7 @@ func _group_core() -> void:
 	await test_notebook()
 	await test_case_pages()
 	test_sysop_colors()
+	test_dialogue_jots()
 	await test_stairwells()
 	await test_in_world_ui()
 	await test_pick_up_papers()
@@ -3057,6 +3058,35 @@ func test_sysop_colors() -> void:
 	check(line.contains(gold + "SELECT[/color]") and line.contains(amber + "memo_fragments[/color]"), "and so are the ones in its queries")
 	check(not line.contains(gold + "or[/color]") and line.begins_with("[color=%s][lb]SYSOP[rb]: " % TerminalUI.HINT), "a lowercase 'or' in a sentence stays plain, and the SYSOP prefix is untouched")
 	check(TerminalUI._plain(line) == "[SYSOP]: Sort it with ORDER BY piece_no, or try:\n    SELECT * FROM memo_fragments;", "the colours don't change the words")
+
+
+func test_dialogue_jots() -> void:
+	print("Jots for spoken lines")
+	var g := _game()
+	g.new_run(5)
+	check(not g.jot("plain", {"speaker": "ROURKE", "text": "Lovely night for it."}), "a flavour line with no jot writes nothing")
+	g.jot("t", {"speaker": "ROURKE", "text": "...", "jot": "Check in at the front desk (Rourke)", "todo": true})
+	check(g.current_todo() == "Check in at the front desk (Rourke)", "a spoken task goes on the work order")
+	g.open_case("controller", "Which controller?")
+	g.jot("c", {"speaker": "ROURKE", "text": "...", "jot": "Rourke said something about the night shift log...", "case": "controller"})
+	check(g.case_info("controller").clues.any(func(k): return k.text.contains("night shift log") and k.from == "Rourke"), "a needed fact goes on its case page, from the speaker")
+	g.jot("p", {"speaker": "PA", "text": "...", "jot": "The PA said the building closes at seven.", "case": ""})
+	check(g.notebook_written.any(func(w): return w.label == "PA" and w.text.contains("closes at seven") and w.case == ""), "a fact with no case of its own goes under Other notes, not the open case, by the PA's name, never WARDEN's")
+	g.jot("w", {"speaker": "WARDEN", "text": "...", "jot": "WARDEN won't reset anything without a badge.", "case": "lab_door"})
+	check(g.notebook_written.any(func(w): return w.label == "WARDEN" and w.case == "") and not g.case_info("lab_door").get("clues", []).any(func(k): return k.text.contains("WARDEN")), "a fact whose case isn't open goes under Other notes, so it's never hidden")
+	check(not g.jot("s", {"speaker": "VALE", "text": "...", "jot": "Vale said...", "case": "controller", "secret": true}), "a secret line is never jotted")
+	var clues: int = g.case_info("controller").clues.size()
+	check(not g.jot("c", {"speaker": "ROURKE", "text": "...", "jot": "Rourke said something else", "case": "controller"}) and g.case_info("controller").clues.size() == clues, "a line replayed is jotted only once")
+	var saved: Dictionary = g.notebook_data()
+	g.new_run(5)
+	check(g.jot("c", {"speaker": "ROURKE", "jot": "x", "case": "controller"}), "a new run jots afresh")
+	g.load_notebook(saved)
+	check(not g.jot("t", {"speaker": "ROURKE", "jot": "y", "todo": true}), "and a loaded save remembers what was jotted")
+	for id in VoiceLines.LINES:
+		var l: Dictionary = VoiceLines.LINES[id]
+		if l.has("jot"):
+			check(not (l.get("todo", false) and str(l.get("case", "")) != ""), "%s: a jot goes on the work order or a case page, not both" % id)
+	g.new_run(5)
 
 
 func test_case_pages() -> void:

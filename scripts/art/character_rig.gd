@@ -15,7 +15,7 @@ extends Node3D
 
 ## Upper-body actions keep the legs walking; the rest take over the whole body.
 const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike"]
-const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "crouch", "crawl"]
+const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl"]
 const ACTIONS := UPPER_BODY + FULL_BODY
 
 ## Meters covered by one full walk cycle (two steps).
@@ -299,6 +299,15 @@ func _action_pose(p: Dictionary) -> void:
 			_sym(p, "knee", Vector3(-1.5, 0, 0))
 			_sym(p, "shoulder", Vector3(0.35, 0, 0.05))
 			_sym(p, "elbow", Vector3(0.9, 0, 0))
+		"sit_floor":
+			# On the floor, legs out in front and knees loose, leaning back on both hands.
+			p["_root_pos"] = Vector3(0, -0.75, 0)
+			_sym(p, "hip", Vector3(1.75, 0, 0.12))
+			_sym(p, "knee", Vector3(-0.45, 0, 0))
+			p["spine"] = Vector3(0.18, 0, 0)
+			p["neck"] = Vector3(-0.12, 0, 0)
+			_sym(p, "shoulder", Vector3(-0.55, 0, 0.18))
+			_sym(p, "elbow", Vector3(0.1, 0, 0))
 		"crawl":
 			_crawl(p)
 		"crouch":
