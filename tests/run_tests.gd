@@ -2072,6 +2072,8 @@ func test_level_2_lab(outcome: String) -> void:
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
 	check(await _until(func(): return lab.phase == "locked", 40.0), "with everyone inside and Rourke out, the door locks")
 	check(level.doors["SECLAB-B"].is_open == false and lab.terminal.locked, "locked in, and her terminal is locked too")
+	check(await _until(func(): return level.hud._subtitle.text.contains("Easy SQL"), 40.0), "after the radio call, he gloats through the glass")
+	check(await _until(func(): return level.hud._subtitle.text.contains("Nothing personal"), 40.0), "and signs off before he walks away")
 	check(await _until(func(): return lab.phase == "fight", 60.0), "he comes back in through the rear door")
 	check(not level.doors["SECLAB-B-REAR"].is_open, "and the rear door shuts behind him")
 	if outcome == "tied":

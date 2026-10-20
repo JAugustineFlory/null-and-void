@@ -26,6 +26,7 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 Newest first. Floors are listed by their in-game floor number.
 
 ### 2026-10-20
+- **New:** sit down on a chair (E) or on the floor (Z). Running, jumping and climbing tire you; stand still to get your breath back.
 - **New:** the crew's garage home base is furnished like a 1997 startup: bare bulbs, folding tables, CRTs, a whiteboard, pizza boxes, the Byte-Right banner, and *Easy SQL* on the bench.
 - **New:** the game opens in the crew's garage, with a short controls intro. The crew huddles round *Easy SQL* to read a chapter aloud and vote on its quiz together, and flashes back to the garage when a new chapter is needed.
 - **New:** health and stamina bars, and blocking (right-click just before a hit lands). In co-op, a teammate can help you up when you go down.
@@ -34,6 +35,7 @@ Newest first. Floors are listed by their in-game floor number.
 - **New:** *Easy SQL*, the crew's beginner's book, rides along in the van, with practice kits.
 - **Added:** case pages in the notebook, a guest check-in at the front desk, and a ledge route on the security floor.
 - **Added:** dressed fire stairs (handrails, floor numbers, emergency lights), a model for Maddison, the crew's boss, and the groundwork for crew customisation: two body types, eight skin tones, and tintable hats, tops, jackets, glasses and earrings.
+- **Changed:** Maddison, the crew's boss, is written in person into the garage opening and the book huddles of the voice script.
 - **Changed:** each paper and sticky note exists only once, so the crew has to pool what it finds.
 - **Fixed:** playtest rounds 7 and 8, plus a quality pass across all three floors.
 

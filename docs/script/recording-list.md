@@ -1,6 +1,6 @@
 # Recording list
 
-137 lines in all.
+139 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -153,16 +153,16 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 
 ## Maddison Kowalski (23 lines)
 
-> Fast, upbeat, salesperson's energy: the crew's friend more than their boss. Heard over a radio base station or the van radio. For the dispatch lines, Maddison puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
+> Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_garage_1` | Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. | Bursting with it. The crew starts on the garage floor. | Level 0 |
+| [ ] | `l0_garage_1` | There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours. | Coming in through the side door, waving the printout. The crew starts on the garage floor. | Level 0 |
 | [ ] | `l0_garage_2` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. | Quickly, before anyone can ask. Then the fax starts. | Level 0 |
 | [ ] | `l0_garage_3` | Small problem. It says database. And unless somebody's been holding out on me... none of us can code. | The smile stays on. A hopeful pause. Once the work order's off the fax. | Level 0 |
 | [ ] | `l0_garage_4` | Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. | Proud of this. | Level 0 |
 | [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. After the huddle's quiz. | Level 0 |
-| [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out. | Counting the rules off. As the crew boards the van. | Level 0 |
+| [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. | At the van door, counting the rules off. She stays behind. | Level 0 |
 | [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0, later |
 | [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0, later |
 | [ ] | `l0_huddle_order_1` | Chapter two. 'Putting things in order.' Now that, I can get behind. | Reading off the page. | Level 0, later |
@@ -181,7 +181,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l3_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 3, later |
 | [ ] | `l3_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 3, later |
 
-## Radio newsreader (5 lines)
+## Radio newsreader (7 lines)
 
 > Smooth, professional, warm, slightly bored. Calm public-radio delivery with no drama; the flatness is what makes it land.
 
@@ -190,7 +190,9 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_news_1` | Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems. | Steady, mid-bulletin. | Level 2, later |
 | [ ] | `l2_news_2` | Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered. | No change in tone. | Level 2, later |
 | [ ] | `l2_news_3` | A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.' | A slight shift for the quote: reading it, not acting it. | Level 2, later |
-| [ ] | `l2_news_4` | Byte-Right's only office, a rented garage, was found empty. The crew has not been seen since. | A beat before the second sentence. | Level 2, later |
+| [ ] | `l2_news_4` | Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside. | Even, a touch of interest. | Level 2, later |
+| [ ] | `l2_news_6` | Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!' | Reading the quote flat, not acting it. Then a beat. | Level 2, later |
+| [ ] | `l2_news_7` | Halcyon declined to comment. The crew has not been seen since. | Neutral. A small pause after. | Level 2, later |
 | [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
 ## Harold Mercer (5 lines)
