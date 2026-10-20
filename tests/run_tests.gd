@@ -324,10 +324,14 @@ func test_voice_script() -> void:
 	var id_re := RegEx.create_from_string("\"(l\\d+_[a-z0-9_]+)\"")
 	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
 	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
-	for f in DirAccess.get_files_at("res://scripts/levels"):
-		if not f.ends_with(".gd"):
-			continue
-		var src := FileAccess.get_file_as_string("res://scripts/levels/" + f)
+	var sources := []
+	for dir in ["res://scripts/levels/", "res://scripts/huddle/"]:  # huddle: the book's chapter lines
+		for f in DirAccess.get_files_at(dir):
+			if f.ends_with(".gd"):
+				sources.append(dir + f)
+	for path in sources:
+		var f: String = path.get_file()
+		var src := FileAccess.get_file_as_string(path)
 		for m in scene_re.search_all(src):
 			if VoiceLines.scene(m.get_string(1)).is_empty():
 				unknown.append(m.get_string(1))

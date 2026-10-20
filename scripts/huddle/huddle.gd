@@ -79,12 +79,18 @@ func is_running() -> bool:
 func run(id: String, mode: String = FLASHBACK) -> void:
 	if done.has(id) or Books.chapter(id).is_empty():
 		return
+	var lines: Array = Books.chapter(id).lines
+	var hud = level.get("hud")
 	await _present(mode)
+	if hud and lines.size() > 0:
+		hud.line(lines[0])  # over the radio as the book opens
 	if is_host() and chapter.get("id", "") != id:
 		var ids := NetPlayers.ids_for(multiplayer)
 		_begin.rpc(id, ids[Books.chapter(id).number % ids.size()])
 	while not done.has(id):
 		await finished
+	if hud and lines.size() > 1:
+		await hud.line(lines[1])
 	await _dismiss()
 
 
@@ -200,7 +206,8 @@ func _count() -> void:
 		return
 	var right: bool = leaders[0] == current_question().answer
 	_show_result.rpc({"choice": leaders[0], "right": right})
-	var wait := maxf(REVEAL_MIN, Voice.read_time(chapter.quiz[asked].why)) * reveal_scale
+	var why: String = chapter.quiz[asked].get("why", "")
+	var wait := (maxf(REVEAL_MIN, Voice.read_time(why)) if why != "" else REVEAL_MIN) * reveal_scale
 	await get_tree().create_timer(wait, false).timeout
 	if question != asked or not is_running():
 		return

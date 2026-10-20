@@ -153,7 +153,9 @@ func _draw_page(ch: Dictionary) -> void:
 func _draw_question(ch: Dictionary) -> void:
 	var q := huddle.current_question()
 	_buttons.visible = false
-	_body.text = "[b]Quick check %d of %d[/b]\n%s" % [huddle.question + 1, ch.quiz.size(), q.q]
+	var word: String = q.get("word", "")
+	_body.text = "[b]Quick check %d of %d[/b]%s\n%s" % [huddle.question + 1, ch.quiz.size(),
+		("  " + _escape(word)) if word != "" else "", _escape(q.q)]
 	_clear_options()
 	var me := multiplayer.get_unique_id()
 	for i in q.options.size():
@@ -176,7 +178,7 @@ func _draw_question(ch: Dictionary) -> void:
 		_result.add_theme_color_override("font_color", INK)
 	elif huddle.result.has("choice"):
 		var right: bool = huddle.result.right
-		_result.text = ("Right. " if right else "Not quite. ") + str(q.why)
+		_result.text = ("Right. " if right else "Not quite. ") + str(q.get("why", ""))
 		_result.add_theme_color_override("font_color", RIGHT if right else WRONG)
 	else:
 		_result.text = ""
@@ -192,6 +194,10 @@ func _clear_options() -> void:
 	for c in _options.get_children():
 		_options.remove_child(c)
 		c.queue_free()
+
+
+static func _escape(text: String) -> String:
+	return text.replace("[", "[lb]")
 
 
 ## Indented lines in a page are code: they show in the typewriter font.

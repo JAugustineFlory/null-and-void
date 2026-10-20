@@ -1,6 +1,6 @@
 # Recording list
 
-108 lines in all.
+110 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -141,21 +141,30 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
-## Byte-Right dispatch (9 lines)
+## Byte-Right dispatch (3 lines)
 
 > Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_garage_1` | Base to the garage. You lot still there? Good. Halcyon called back. We got the contract. | Over the base station speaker. Pleased, trying to sound like this happens all the time. | Level 0 |
-| [ ] | `l0_garage_2` | We came in so cheap nobody else stood a chance. Job's tonight, eleven o'clock. Work order's coming through on the fax now. | Quick, a little guilty about how cheap. | Level 0 |
-| [ ] | `l0_garage_3` | It says database problem. I know. Not one of us has ever touched a database. | A beat of honesty before "I know." | Level 0 |
-| [ ] | `l0_garage_4` | That's what the book's for. Shop bag, back shelf. Easy SQL. Read the first chapter together before you go. | Back to business. Say the title like it's slightly embarrassing. | Level 0 |
-| [ ] | `l0_garage_5` | That'll do for a start. Take the book with you. Everybody in the van. | Brisk. Clapping hands, in the voice. | Level 0 |
-| [ ] | `l0_garage_6` | And if anyone at Halcyon asks, we've done this a hundred times. Base out. | Half a joke, half an order. | Level 0 |
 | [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio. Routine. | Level 0 |
 | [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
 | [ ] | `l0_dispatch_3` | Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. | Bored, reading the form. Signing off, already onto the next call. | Level 0 |
+
+## Maddison Kowalski (8 lines)
+
+> Fast, upbeat, salesperson's energy, cheerful even when admitting something terrible. The crew's friend more than their boss. Heard over a radio base station speaker.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l0_garage_1` | Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. | Bursting with it. | Level 0 |
+| [ ] | `l0_garage_2` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. | Quickly, before anyone can ask. | Level 0 |
+| [ ] | `l0_garage_3` | Small problem. It says database. And unless somebody's been holding out on me... none of us can code. | The smile stays on. A hopeful pause. | Level 0 |
+| [ ] | `l0_garage_4` | Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. | Proud of the idea. | Level 0 |
+| [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. | Level 0 |
+| [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out. | Counting the rules off. | Level 0 |
+| [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0 |
+| [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0 |
 
 ## Harold Mercer (5 lines)
 

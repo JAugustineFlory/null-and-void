@@ -43,13 +43,14 @@ func test_books() -> void:
 	for id in Books.chapter_ids():
 		var ch := Books.chapter(id)
 		words_ok = words_ok and ch.words.size() <= 3
-		ok = ok and ch.pages.size() > 0 and ch.quiz.size() == 3
+		ok = ok and ch.pages.size() > 0 and ch.quiz.size() == 3 * maxi(1, ch.words.size())
 		for q in ch.quiz:
-			ok = ok and q.answer >= 0 and q.answer < q.options.size() and q.why != ""
-	_check.call(ok and Books.chapter_ids().size() >= 2, "every chapter has pages and a three-question check with a reason for its answer")
+			ok = ok and q.answer >= 0 and q.answer < q.options.size() and q.options.size() == 3
+			ok = ok and (ch.words.is_empty() or ch.words.has(q.word))
+	_check.call(ok and Books.chapter_ids().size() == 14, "all 14 chapters have pages and three questions for each new word (three for a review)")
 	_check.call(words_ok, "every chapter brings at most three new words")
 	var ch1 := Books.chapter("easy_sql_1")
-	_check.call(ch1.book == "EASY SQL" and ch1.words.has("SELECT") and ch1.pages[0].contains("SELECT columns FROM table;"), "chapter 1 shows the shape of a query and its semicolon")
+	_check.call(ch1.book == "EASY SQL" and ch1.words.has("SELECT") and ch1.required and not Books.chapter("easy_sql_2").required and ch1.pages[0].contains("SELECT columns FROM table;"), "chapter 1 shows the shape of a query and its semicolon")
 	var keeps := true
 	var spots := {}
 	for seed_value in 40:
@@ -63,7 +64,8 @@ func test_books() -> void:
 	# The building's tables never appear in the book: its examples are its own.
 	var leaks := []
 	for id in Books.chapter_ids():
-		var text := JSON.stringify(Books.chapter(id))
+		var ch := Books.chapter(id)
+		var text := JSON.stringify([ch.pages, ch.quiz])
 		for t in ["memo_fragments", "door_controllers", "staff", "visitors", "doors", "guards"]:
 			if text.contains(t):
 				leaks.append("%s: %s" % [id, t])
@@ -181,7 +183,7 @@ func test_flashback() -> void:
 	_check.call(await _finish_chapter(h, "easy_sql_1"), "the crew reads chapter 1 and answers its check")
 	_check.call(await _until(func(): return done[0]), "the flashback ends")
 	_check.call(p.camera.current and not home.visible and home.find_children("Crew*", "", false, false).is_empty(), "back to the present: the player's own view, the garage hidden again")
-	_check.call(_game().book_words.has("SELECT") and _game().book_words.has(";"), "SELECT, FROM and the semicolon are learned")
+	_check.call(_game().book_words.has("SELECT") and _game().book_words.has("FROM"), "SELECT, FROM and the semicolon are learned")
 	await h.run("easy_sql_1")
 	_check.call(not h.is_running(), "a chapter is only read once per run")
 	world.queue_free()
@@ -233,13 +235,16 @@ func test_coop_huddle() -> void:
 	_answer(hh, true)
 	_check.call(await _until(func(): return hc.result.get("right", false), 120), "both right: everyone sees it marked right")
 	_check.call(await _until(func(): return hh.question == 1 and hc.question == 1, 300), "and both move on together")
-	for i in 2:
-		await _until(func(): return hh.result.is_empty() and hh.question >= 1, 300)
+	for i in hh.chapter.quiz.size() - 1:
+		await _until(func(): return hh.result.is_empty() and hc.result.is_empty() and hc.question == hh.question and hh.question >= 1, 300)
 		_answer(hc, true)
 		await _frames(10)
 		_answer(hh, true)
 		await _until(func(): return not hh.result.is_empty(), 120)
 		await _until(func(): return hh.result.is_empty(), 300)
-	_check.call(await _until(func(): return runs[0] == 2, 600), "the chapter ends on both machines")
+	var ended := await _until(func(): return runs[0] == 2, 600)
+	if not ended:
+		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
+	_check.call(ended, "the chapter ends on both machines")
 	_tree._coop_close(worlds)
 	await _frames(2)

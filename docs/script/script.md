@@ -25,6 +25,10 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
 
+**Maddison Kowalski** (MADDISON). Byte-Right's founder, 40s. Landed the Halcyon job by underbidding everyone. Can't code either, but is the best talker in the company. Also tonight's dispatch on the van radio.
+
+> Fast, upbeat, salesperson's energy, cheerful even when admitting something terrible. The crew's friend more than their boss. Heard over a radio base station speaker.
+
 **Harold Mercer** (MERCER). Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
@@ -33,19 +37,27 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The garage, that evening
 
-*DRAFT for Voice and story to rewrite. The game opens in Byte-Right's garage. Dispatch, on the base station speaker, tells the crew they won the Halcyon contract by underbidding everyone, though none of them can code. The work order comes through on the fax; the beginner's book Easy SQL waits on the back shelf. The crew reads its first chapter together at the workbench, then gets in the van.*
+*The game opens in Byte-Right's garage. Maddison, on the base station speaker, tells the crew they won the Halcyon contract by underbidding everyone, though none of them can code. The work order comes through on the fax; the beginner's book Easy SQL waits on the back shelf. The crew reads chapter zero together at the workbench, then gets in the van.*
 
-**DISPATCH:** *(Over the base station speaker. Pleased, trying to sound like this happens all the time.)* Base to the garage. You lot still there? Good. Halcyon called back. We got the contract. `[l0_garage_1]`
+**MADDISON:** *(Bursting with it.)* Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. `[l0_garage_1]`
 
-**DISPATCH:** *(Quick, a little guilty about how cheap.)* We came in so cheap nobody else stood a chance. Job's tonight, eleven o'clock. Work order's coming through on the fax now. `[l0_garage_2]`
+**MADDISON:** *(Quickly, before anyone can ask.)* How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. `[l0_garage_2]`
 
-**DISPATCH:** *(A beat of honesty before "I know.")* It says database problem. I know. Not one of us has ever touched a database. `[l0_garage_3]`
+**MADDISON:** *(The smile stays on. A hopeful pause.)* Small problem. It says database. And unless somebody's been holding out on me... none of us can code. `[l0_garage_3]`
 
-**DISPATCH:** *(Back to business. Say the title like it's slightly embarrassing.)* That's what the book's for. Shop bag, back shelf. Easy SQL. Read the first chapter together before you go. `[l0_garage_4]`
+**MADDISON:** *(Proud of the idea.)* Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. `[l0_garage_4]`
 
-**DISPATCH:** *(Brisk. Clapping hands, in the voice.)* That'll do for a start. Take the book with you. Everybody in the van. `[l0_garage_5]`
+**MADDISON:** *(Genuinely thrilled.)* Look at that. You're practically engineers. Take the book with you. Everybody in the van. `[l0_garage_5]`
 
-**DISPATCH:** *(Half a joke, half an order.)* And if anyone at Halcyon asks, we've done this a hundred times. Base out. `[l0_garage_6]`
+**MADDISON:** *(Counting the rules off.)* Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out. `[l0_garage_6]`
+
+### Flashback: chapter one
+
+*The first garage flashback, at Level 0's front desk terminal. The screen goes sepia, the crew stands round the workbench with Easy SQL, and Maddison opens and closes chapter one (SELECT, FROM and the semicolon) over the radio.*
+
+**MADDISON:** *(Disbelieving, delighted.)* Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? `[l0_huddle_select_1]`
+
+**MADDISON:** *(Deadly serious about the one thing they're sure of.)* Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. `[l0_huddle_select_2]`
 
 ### The IT van
 
