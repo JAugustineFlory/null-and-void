@@ -25,9 +25,10 @@ const VAN := Vector3(2.8, 0, 0.3)
 const PUNCH_BAG := Vector3(-0.2, 0, -3.2)
 ## The bag swings at whoever stands within this of it.
 const SPAR_REACH := 2.2
-## The pull back before a swing (the tell), then the swing in: right-click during the swing in.
+## The pull back before a swing (the tell), then the swing in: right-click during the
+## swing in. It's shorter than the guard (Guard.WINDOW), so a press anywhere in it blocks.
 const SPAR_TELL := 0.7
-const SPAR_SWING := 0.35
+const SPAR_SWING := 0.3
 ## Between swings.
 const SPAR_GAP := 1.6
 ## Lines for Augustine's approval: see plan/approvals/home-base-huddles.md.
@@ -140,9 +141,9 @@ func _build_punch_bag(at: Vector3) -> void:
 	add_child(punch_bag)
 	var chain := MeshInstance3D.new()
 	var cm := BoxMesh.new()
-	cm.size = Vector3(0.03, 1.0, 0.03)
+	cm.size = Vector3(0.03, 1.4, 0.03)
 	chain.mesh = cm
-	chain.position = Vector3(0, -0.5, 0)
+	chain.position = Vector3(0, -0.7, 0)
 	chain.material_override = Greybox.mat(Color(0.3, 0.3, 0.3))
 	punch_bag.add_child(chain)
 	var bag := MeshInstance3D.new()
@@ -151,7 +152,7 @@ func _build_punch_bag(at: Vector3) -> void:
 	bm.bottom_radius = 0.22
 	bm.height = 1.1
 	bag.mesh = bm
-	bag.position = Vector3(0, -1.55, 0)
+	bag.position = Vector3(0, -1.95, 0)  # chest height: 0.85 m to 1.95 m off the floor
 	bag.material_override = Greybox.mat(Color(0.55, 0.12, 0.1))
 	punch_bag.add_child(bag)
 
@@ -278,6 +279,7 @@ func _swing_bag(id: int) -> void:
 	var tilt := func(a: float): punch_bag.basis = Basis(axis, a)
 	spar_target = id
 	var t := create_tween()
+	t.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)  # on the guard's clock
 	t.tween_method(tilt, 0.0, -0.45, SPAR_TELL).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func(): swing_in = true)
 	t.tween_method(tilt, -0.45, 0.3, SPAR_SWING).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
