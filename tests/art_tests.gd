@@ -169,6 +169,15 @@ func test_rig_actions() -> void:
 	check(fits, "at every height in between, the body fits the space it's under")
 	check(lowest > -0.12, "and never sinks into the floor (%.2f m)" % lowest)
 	rig.stance_height = -1.0
+	rig.play("sit_floor")
+	for i in 120:
+		rig.animate(1.0 / 60.0)
+	var seat_y: float = rig.joints["r_hip"].global_position.y
+	var floor_feet: float = rig.joints["r_knee"].to_global(Vector3(0, -0.44, 0)).y
+	var floor_hand: float = rig.joints["r_elbow"].to_global(Vector3(0, -0.3, 0)).y
+	check(seat_y < 0.25 and seat_y > 0.05, "sitting on the floor puts the seat on the floor (%.2f m)" % seat_y)
+	check(absf(floor_feet) < 0.12 and absf(floor_hand) < 0.12, "with the feet out in front and the hands behind, both on the floor (feet %.2f, hands %.2f)" % [floor_feet, floor_hand])
+	check(rig.joints["r_knee"].global_position.z < holder.global_position.z - 0.25, "the legs stretch out the way the body faces")
 	rig.play("not_a_thing")
 	check(rig.action == "idle", "unknown actions fall back to idle")
 	rig.play("idle")
