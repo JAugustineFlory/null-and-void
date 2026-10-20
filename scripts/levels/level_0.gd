@@ -625,6 +625,7 @@ func start() -> void:
 	visitor_log.enabled = false
 	badges.enabled = false
 	hud.todo("")
+	await Huddle.of(self).run("easy_sql_1")  # flashback: the garage, the book's first query
 	# The terminal is ready at once: nobody waits on Rourke to finish talking.
 	desk_terminal.enabled = true
 	_rourke_free = true

@@ -65,7 +65,7 @@ const CHARACTERS := {
 ## Set `reveal: true` on scenes that give away a twist: their lines go to a separate
 ## "later session" script (so do all lines from REVEAL_LEVEL on).
 const SCENES := [
-	{"id": "l0_garage", "level": 0, "title": "The garage", "wired": false,
+	{"id": "l0_garage", "level": 0, "title": "The garage", "wired": true,
 		"moment": "In your garage with your small IT crew: you just won a big contract none of you is qualified for.",
 		"context": "The game opens at Byte-Right's garage home base, earlier that night. Maddison walks in with the news and walks the crew through it: the work order comes through on the fax, the book Easy SQL is on the back shelf, the crew huddles round it at the workbench, then everyone gets in the van."},
 	{"id": "l0_huddles", "level": 0, "title": "Book huddles: SELECT and ORDER BY", "wired": false,

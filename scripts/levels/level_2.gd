@@ -17,9 +17,9 @@ extends LevelBase
 ## Two side routes have to be discovered: the vent over the crate (its grate needs
 ## the screwdriver from the break-glass box on the landing) and the corridor's outside
 ## window (break the glass, then the ledge). Players arrive by elevator and leave by
-## the elevator past SEC-EXIT, whose doors have to shut before the Watcher gets in. The stairwell PIN is needed on every route.
+## the emergency stairs past SEC-EXIT (the lifts are dead), which they can lock behind them. The stairwell PIN is needed on every route.
 
-## Fired when the exit car drops: the wing is done. In the World that's the
+## Fired once the crew is on the stairs down: the wing is done. In the World that's the
 ## end of the route (Field Notes); on its own, the level goes to Field Notes too.
 signal completed
 
@@ -64,7 +64,9 @@ var stage := "hidden"
 var _stage_pending := ""
 var loose := false  # CAM-2 has frozen: no camera holds the office any more
 var office_open := false
-var has_screwdriver := false
+var has_screwdriver := false  # anyone has taken one
+var screwdrivers: ItemDock
+var spare_walkies: ItemDock
 var vent_grate: Interactable  # screwed shut, corridor end
 var vent_hatch: Interactable  # hinged, vestibule end
 var hatch_open := false
@@ -81,7 +83,6 @@ var _lie_explained := false
 var _lie_notice := ""
 var _lie_fresh := false  # just explained: someone who died to it hears why
 var _warned := {}
-var _lift_full_for := 0.0  # how long everyone has stood in the exit car
 var _glass: Array[RID] = []
 ## Corridor and landing: leaving it another way also wakes the Watcher (level space).
 var _corridor_box := AABB(Vector3(-6, -1, 2), Vector3(12, 3, 8.5))
@@ -91,6 +92,9 @@ var arrival_lift: Elevator
 ## Secure Lab B, where Rourke turns (see Level2Lab), and the rooms round it (Level2Floor).
 var lab: Level2Lab
 var exit_lift: Elevator
+var stair_door: Door
+## The stair door, in the lift lobby's east wall.
+const STAIR_DOOR_AT := Vector3(2, 0, -14.5)
 var key_glass: Level2Glass
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
@@ -199,15 +203,21 @@ func build() -> void:
 	Greybox.room(geo, Vector3(0, 0, -14.5), Vector3(4, 3.2, 5), {"floor": floor_c, "wall": wall_c}, [
 		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
 		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
+		{"wall": "e", "at": 0.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},  # the stairs
 	])
-	Greybox.label(geo, Vector3(0, 2.75, -16.88), "ELEVATOR  -  RECORDS ARCHIVE", 48, Color(0.1, 0.8, 0.2))
-	# The button works on the host, once everyone is in; the doors shut on every machine.
-	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "22", ["26", "22"], "26")
+	# After the frame the lifts are dead (Act 2): the way out is the emergency stairs,
+	# down toward the Records Archive on 18. The stairwell PIN unlocks their door too.
+	exit_lift = Elevator.create(self, geo, Vector3(0, 0, -17), 180, "22", ["22", "18"], "18")
 	exit_lift.name = "ExitElevator"
 	exit_lift.hud = hud
-	exit_lift.closed.connect(func():
-		if sync.is_host():
-			sync.event("_on_exit", [null]))
+	exit_lift.button.enabled = false
+	stair_door = Stairwell.build(self, geo, STAIR_DOOR_AT, -90.0, "22")
+	# Everyone on the stairs, and the wing is done.
+	var down := Trigger.create(self, STAIR_DOOR_AT + Vector3(2.5, 1, 0), Vector3(2.8, 2, 3.2))
+	down.name = "StairsDown"
+	down.require_all = true
+	down.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone on the stairs (%d/%d)" % [n, total]))
+	down.entered.connect(func(_b): sync.event("_on_exit", [null]), CONNECT_ONE_SHOT)
 	# Server Room A's elevator links to this car and opens it at the end of the ride.
 	arrival_lift = Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "22", ["22", "14", "G", "B1"], "22")
 	arrival_lift.name = "ArrivalElevator"
@@ -318,9 +328,13 @@ func _build_booth() -> void:
 	# Players learn here that glass breaks with a strike, and pick up the tool the vent needs.
 	# On the landing's west wall, beside the doorway to the night desk (not in it).
 	Greybox.box(geo, Vector3(2.66, 1.4, 9.4), Vector3(0.12, 0.55, 0.45), Color(0.7, 0.12, 0.1), "KeyBox")
-	var screwdriver := Interactable.create(geo, Vector3(2.75, 1.4, 9.4), Vector3(0.03, 0.04, 0.24), "Take the screwdriver", Color(0.95, 0.75, 0.1))
-	screwdriver.name = "Screwdriver"
-	screwdriver.used.connect(func(p): sync.event("_take_screwdriver", [players.id_of(p)]))
+	# One each, hanging in a row: optional, and whoever takes one can open the vent.
+	screwdrivers = ItemDock.make(geo, Vector3(2.75, 1.4, 9.4), Vector3(0.38, 0.3, 0.04), "Take a screwdriver", "screwdriver")
+	screwdrivers.name = "Screwdriver"
+	screwdrivers.rotation_degrees.y = 90.0
+	screwdrivers.add_boxes(6, 0.06, Vector3(0.03, 0.24, 0.03), Color(0.95, 0.75, 0.1), -0.12)
+	screwdrivers.already = "You already have a screwdriver."
+	screwdrivers.taken.connect(_on_screwdriver_taken)
 	key_glass = _glass_pane(Vector3(2.79, 1.4, 9.4), Vector3(0.02, 0.45, 0.38), true, "KeyBoxGlass")
 	Greybox.label(geo, Vector3(2.62, 1.82, 9.4), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
 	# Low outside window at the east end, onto the ledge. Plain glass: it breaks.
@@ -376,6 +390,9 @@ func _build_office() -> void:
 		Greybox.panel(geo, Vector3(-5.86, 1.6, z), Vector3(0.04, 0.6, 0.8), Color(0.3, 0.45, 0.4) if live else Color(0.05, 0.05, 0.06), 1.2 if live else 0.0)
 		Greybox.label(geo, Vector3(-5.82, 2.05, z), id, 26, Color(0.8, 0.8, 0.8), 90)
 	Greybox.box(geo, Vector3(2.5, 0.4, -1.0), Vector3(2.4, 0.8, 1.0), Color(0.36, 0.3, 0.25), "Desk")
+	# Spare walkies on the night desk for anyone who left theirs downstairs.
+	spare_walkies = ItemDock.walkies(geo, Vector3(3.2, 0.9, -1.25))
+	spare_walkies.prompt = "Take a spare walkie-talkie"
 	Greybox.box(geo, Vector3(-2.0, 0.4, -6.0), Vector3(2.4, 0.8, 1.0), Color(0.36, 0.3, 0.25), "Desk")
 	# Gear lockers across the back corner: the window can't see behind them.
 	Greybox.box(geo, Vector3(4.2, 1.3, -6.2), Vector3(3.2, 2.6, 0.5), Color(0.3, 0.34, 0.3), "Lockers")
@@ -485,14 +502,11 @@ func _glass_broken(pane: String) -> void:
 		g.shatter()
 
 
-## Everyone sees it go; it's in the taker's inventory (`id`, their peer id).
-func _take_screwdriver(id: int = 0) -> void:
-	var sd := geo.get_node_or_null("Screwdriver")
-	if sd:
-		sd.queue_free()
+## Every machine: someone took their screwdriver (the dock gives it to the taker).
+func _on_screwdriver_taken(id: int) -> void:
 	has_screwdriver = true
-	if id == 0 or id == players.id_of(player):
-		player.inventory.add("screwdriver")
+	if id != players.id_of(player):
+		return
 	if is_instance_valid(vent_grate):
 		vent_grate.prompt = "Unscrew the vent grate"
 	hud.notice("Picked up a screwdriver.", 3.0)
@@ -517,8 +531,8 @@ func _slats(cover: Node3D) -> void:
 
 
 ## Host: someone tried the grate.
-func _on_vent_grate(_p: Node) -> void:
-	if not has_screwdriver:
+func _on_vent_grate(p: Node) -> void:
+	if not screwdrivers.has_taken(players.id_of(p)):
 		return  # its prompt says it needs a screwdriver
 	sync.event("open_vent_grate")
 
@@ -558,6 +572,8 @@ func start() -> void:
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
 	_give_badge()
+	screwdrivers.stock(players.count())
+	spare_walkies.stock(players.count())
 	arrival_lift.open()
 	stage = "hidden"
 	_place_watcher(STAGES.hidden[0], STAGES.hidden[1])
@@ -646,7 +662,6 @@ func _process(delta: float) -> void:
 		if loose and not _lie_explained and players.all_players().any(func(p): return _in([_vestibule_box], p.global_position)):
 			sync.event("explain_cam_lie", [_cam2_frame()])
 		_update_watcher_stage()
-		_close_lift_when_full(delta)
 	_motion_warnings()
 
 
@@ -1077,8 +1092,8 @@ func _update_door() -> bool:
 		door_puzzle.solved = true
 	if open and not door_open:
 		door_open = true
-		hud.todo("Get in the elevator. Lock SEC-EXIT behind us if we can")
-		exit_lift.open()
+		hud.todo("Take the stairs down. Lock SEC-EXIT behind us if we can")
+		stair_door.locked = false
 	return open
 
 
@@ -1092,23 +1107,7 @@ func seal_exit() -> void:
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "clunk")
 
 
-## Host: everyone has stood in the exit car for a moment, so its doors shut by themselves.
-## (The button still works, for whoever wants to be quicker.)
-func _close_lift_when_full(delta: float) -> void:
-	if exit_lift.is_closing or exit_lift.riding or exit_lift.open_amount < 1.0:
-		_lift_full_for = 0.0
-		return
-	var c := exit_lift.headcount()
-	_lift_full_for = _lift_full_for + delta if c.y > 0 and c.x == c.y else 0.0
-	if _lift_full_for >= LIFT_DWELL:
-		_lift_full_for = 0.0
-		exit_lift.press()
-
-
-const LIFT_DWELL := 1.5
-
-
-## The doors are shut. Until Level 3 is built, the car drops and the slice ends.
+## Everyone is on the stairs. Until Level 3 (floor 18) is built, the slice ends here.
 func _on_exit(_b: Node) -> void:
 	if not player or player.health <= 0.0:
 		return
@@ -1117,10 +1116,6 @@ func _on_exit(_b: Node) -> void:
 	await get_tree().create_timer(1.0).timeout
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
 	await get_tree().create_timer(1.2).timeout
-	# The car lurches down, its light stuttering, then it's dark.
-	Level2FX.sound(exit_lift, Vector3(0, 1.2, Elevator.SIZE.z / 2), "clunk")
-	Level2FX.drop_car(exit_lift, player)
-	await get_tree().create_timer(Level2FX.DROP_TIME).timeout
 	await Level2FX.end_card(self, "To be continued.")
 	Game.completed_level = "level_2"
 	Game.next_level = ""  # the end of the playable slice, for now
