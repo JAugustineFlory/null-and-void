@@ -15,6 +15,7 @@ var terminal_ui: TerminalUI
 var notebook: Notebook
 ## The hotbar and inventory (I) for this machine's player.
 var inventory_screen: InventoryScreen
+var vitals: Vitals
 ## Static level geometry lives under this node so navigation can bake from it.
 var geo: NavigationRegion3D
 var doors := {}
@@ -89,6 +90,7 @@ func _ready() -> void:
 	notebook.opened.connect(func(): hud.subtitles_on_top(true))
 	notebook.closed.connect(func(): if not terminal_ui.visible: hud.subtitles_on_top(false))
 	inventory_screen = InventoryScreen.create(self, player, hud)
+	vitals = Vitals.create(self, player)
 	active = true
 	sync.begin_when_ready(start)
 
@@ -100,6 +102,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	terminal_ui = host.terminal_ui
 	notebook = host.notebook
 	inventory_screen = host.inventory_screen
+	vitals = host.vitals
 	player = host.player
 	players = host.players
 	crew = host.crew
@@ -270,6 +273,7 @@ func _bake_navigation() -> void:
 const CONTROLS := """WASD  move          Shift  sprint
 Ctrl  crouch, slide, roll
 Space  jump     W + Space  vault, mantle, grab a ledge or pipe
+Z  sit on the floor (E at a chair sits on it)     Space or Z  stand up
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
 Tab  your notebook: work order, cases, tables, Field Notes (1-4 turn to a tab)

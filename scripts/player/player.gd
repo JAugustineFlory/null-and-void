@@ -2,7 +2,8 @@ class_name Player
 extends CharacterBody3D
 ## First-person player: walk, sprint, crouch, slide, landing roll, mantle, ledge
 ## grab and shimmy, climb, crawl through vents, shuffle along narrow ledges and
-## stand on a teammate's shoulders (up to three high). Also flashlight, interact,
+## stand on a teammate's shoulders (up to three high), sit on a chair or the
+## floor. Running, jumping and climbing cost stamina. Also flashlight, interact,
 ## strike and block (right mouse; health and fights live in `combat`).
 ##
 ## Movement reads only `controls`, never `Input`, so a copy of this player on
@@ -27,8 +28,14 @@ signal sticky_filed(prop: Node3D)
 signal terminal_focused
 ## You've stepped back from a terminal and can move again.
 signal terminal_left
+## You've sat down (on `seat`, or the floor when null), or got back up.
+signal sat_down(seat: Node3D)
+signal stood_up
+## Knocked off your feet (knock_down), and back up again.
+signal knocked_down
+signal got_up
 
-enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT }
+enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT, DOWN }
 
 const WALK_SPEED := 3.8
 const SPRINT_SPEED := 6.5
@@ -112,9 +119,42 @@ const TERMINAL_STEP_TIME := 0.35
 const TERMINAL_FOCUS_TIME := 0.5
 ## How far the camera sits from the screen's focus point, metres.
 const TERMINAL_FOCUS_DISTANCE := 0.55
+## Sitting: your body's height above what you sit on (eyes about 1.25 m up on a
+## chair, 0.8 m on the floor), and how long sitting down or getting up takes.
+const SIT_HEIGHT := 0.95
+const SIT_TIME := 0.4
+## How far (radians) you can turn from the way a chair faces.
+const SIT_LOOK := deg_to_rad(110.0)
+## Getting up off a chair, you step this far out from it the way you're facing.
+const SIT_STEP_OUT := 0.6
+## Stamina, 0..STAMINA_MAX. Sprinting and climbing drain it per second; a jump,
+## vault or mantle costs a lump. It comes back after STAMINA_REST
+## seconds without spending: fast while you're still (standing, sitting,
+## crouching), slowly on the move. Run it dry and you're winded until it's back
+## to STAMINA_WINDED_UNTIL: no sprinting, and climbing is slower.
+## Jumps and climbs never stop working, so being winded only slows you down.
+const STAMINA_MAX := 100.0
+const SPRINT_COST := 16.0
+const CLIMB_COST := 12.0
+const HANG_COST := 4.0
+const JUMP_COST := 10.0
+const MANTLE_COST := 8.0
+const STAMINA_REST := 0.6
+const STILL_REGEN := 45.0
+const MOVING_REGEN := 10.0
+const STAMINA_WINDED_UNTIL := 30.0
+## Knocked down: how low you lie.
+const DOWN_HEIGHT := 0.5
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var health := 100.0
+## 0..STAMINA_MAX; see spend_stamina(). Read-only.
+var stamina := STAMINA_MAX
+## Ran out of stamina and not yet recovered to STAMINA_WINDED_UNTIL. Read-only.
+var winded := false
+var _stamina_rest := 0.0  # seconds since stamina was last spent
+var _stamina_state := Move.WALK  # last tick's state, to charge for a move once as it starts
+var _down_time := 0.0  # seconds left lying down; INF until get_up()
 ## Health, blocking, going down and being thrown or grabbed (scripts/combat/).
 var combat: PlayerCombat
 ## Lying on the floor at 0 health, waiting for a teammate.
@@ -203,6 +243,13 @@ var _term_focus: Node3D
 var _term_leaving := false
 var _term_from := Transform3D()
 var _term_look_from := Basis()
+## The seat you're on (a Seat), or null on the floor or standing. Read-only.
+var seat: Node3D
+## 0 standing, 1 sat down; eases between them. Read-only.
+var sit_amount := 0.0
+var _sit_from := Transform3D()  # where you stood before sitting on a chair; where you'll stand up
+var _sit_to := Transform3D()
+var _sit_leaving := false
 
 var head: Node3D
 var camera: Camera3D
@@ -263,6 +310,8 @@ func _turn_view(yaw: float, pitch: float) -> void:
 	rotate_y(-yaw)
 	if state == Move.LEDGE:
 		_clamp_ledge_yaw()
+	elif state == Move.SIT and is_instance_valid(seat):
+		_clamp_seat_yaw()
 	head.rotation.x = clamp(head.rotation.x - pitch, -1.45, 1.45)
 	if _notebook_held or _prop_settled():
 		_drift_notebook(wrapf(rotation.y - yaw0, -PI, PI), head.rotation.x - pitch0)
@@ -375,6 +424,9 @@ func _physics_process(delta: float) -> void:
 func step(delta: float) -> void:
 	var jump_pressed := controls.jump
 	controls.jump = false
+	var sit_pressed := controls.sit
+	controls.sit = false
+	_tick_stamina(delta)
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
 	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB, Move.VAULT]:
@@ -394,7 +446,13 @@ func step(delta: float) -> void:
 			_step_ledge(delta)
 		Move.TERMINAL:
 			_step_terminal(delta)
+		Move.SIT:
+			_step_sit(delta, jump_pressed or sit_pressed)
+		Move.DOWN:
+			_step_down(delta)
 		_:
+			if sit_pressed and sit():
+				return
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
 
@@ -410,6 +468,10 @@ func heal_full() -> void:
 
 
 func respawn(at: Transform3D) -> void:
+	_end_sit()
+	_end_down()
+	stamina = STAMINA_MAX
+	winded = false
 	if rider:
 		rider._leave_carrier()
 	_leave_carrier()
@@ -536,7 +598,7 @@ func _mouse_looks() -> bool:
 ## you read (hold right mouse); otherwise a cursor is out (set_notebook_cursor). It doesn't collide
 ## while held. False if your hands are busy or you're not on your feet.
 func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) -> bool:
-	if prop == null or held_prop or not _filing.is_empty() or state != Move.WALK:
+	if prop == null or held_prop or not _filing.is_empty() or not state in [Move.WALK, Move.SIT]:
 		return false
 	lower_notebook()
 	held_prop = prop
@@ -877,6 +939,224 @@ func _process(delta: float) -> void:
 		notebook_lowered.emit()
 
 
+# --- Sitting -------------------------------------------------------------
+
+## Sit down: on `on_seat` (a Seat: you turn and lower onto it) or, with null, on
+## the floor where you stand. You can look around, read and use things you can
+## reach; Space or Z stands you up (stand_up). False if you can't: mid-air, busy,
+## on or under a teammate, in a vent, or the seat is taken.
+func sit(on_seat: Node3D = null) -> bool:
+	if state != Move.WALK or not is_on_floor() or rider or carrier or not _filing.is_empty():
+		return false
+	if in_volume(MovementVolume.Kind.VENT) or crawling:
+		return false
+	if on_seat:
+		if on_seat.has_method("is_free") and not on_seat.is_free(self):
+			return false
+		on_seat.set("occupant", self)
+	seat = on_seat
+	_sit_from = global_transform
+	_sit_to = global_transform
+	if on_seat:
+		var fwd := -on_seat.global_basis.z
+		_sit_to = Transform3D(Basis(Vector3.UP, atan2(-fwd.x, -fwd.z)), on_seat.global_position)
+	_sit_leaving = false
+	sit_amount = 0.0
+	state = Move.SIT
+	velocity = Vector3.ZERO
+	_height = SIT_HEIGHT
+	crouching = false
+	crawling = false
+	_capsule.height = SIT_HEIGHT
+	_collider.position.y = SIT_HEIGHT / 2
+	sat_down.emit(on_seat)
+	return true
+
+
+## Get back up, facing the way you're looking: off a chair you step out that
+## way (or back where you came from, if that's blocked); off the floor you rise
+## where you are (into a crouch if something's overhead). `instant` skips the motion.
+func stand_up(instant: bool = false) -> void:
+	if state != Move.SIT:
+		return
+	if not _sit_leaving and _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
+		var out := Vector3(_sit_to.origin.x, _sit_from.origin.y, _sit_to.origin.z) + _forward() * SIT_STEP_OUT
+		if _fits(out, STAND_HEIGHT):
+			_sit_from.origin = out
+	_sit_leaving = true
+	if instant:
+		_end_sit()
+
+
+func is_sitting() -> bool:
+	return state == Move.SIT
+
+
+func _step_sit(delta: float, stand_pressed: bool) -> void:
+	velocity = Vector3.ZERO
+	if _sit_from.origin != _sit_to.origin and not is_instance_valid(seat):
+		_sit_leaving = true  # the chair's gone
+	if stand_pressed and not _sit_leaving:
+		stand_up()
+	sit_amount = move_toward(sit_amount, 0.0 if _sit_leaving else 1.0, delta / SIT_TIME)
+	if _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
+		# Onto the chair, turning to face the way it does; or back off it, looking
+		# wherever you were looking.
+		var t := smoothstep(0.0, 1.0, sit_amount)
+		global_position = _sit_from.origin.lerp(_sit_to.origin, t)
+		if not _sit_leaving:
+			rotation.y = lerp_angle(_sit_from.basis.get_euler().y, _sit_to.basis.get_euler().y, t)
+	if _sit_leaving and sit_amount <= 0.0:
+		_end_sit()
+
+
+func _end_sit() -> void:
+	if state != Move.SIT:
+		return
+	if is_instance_valid(seat) and seat.get("occupant") == self:
+		seat.set("occupant", null)
+	if _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
+		global_position = _sit_from.origin
+	seat = null
+	sit_amount = 0.0
+	_sit_leaving = false
+	state = Move.WALK
+	if _can_stand():
+		_set_stance(STAND_HEIGHT)
+	else:
+		_set_stance(maxf(_room(global_position), CRAWL_HEIGHT))
+	stood_up.emit()
+
+
+func _clamp_seat_yaw() -> void:
+	var fwd := -seat.global_basis.z
+	var center := atan2(-fwd.x, -fwd.z)
+	var d := angle_difference(center, rotation.y)
+	if absf(d) > SIT_LOOK:
+		rotation.y = center + signf(d) * SIT_LOOK
+
+
+# --- Stamina and knocks ------------------------------------------
+
+## Use up `amount` of stamina (Combat: a block, a struggle). Running it dry leaves
+## you winded. Returns false, spending nothing, if you're winded or it's 0.
+func spend_stamina(amount: float) -> bool:
+	if amount <= 0.0:
+		return true
+	_stamina_rest = 0.0
+	if winded:
+		return false
+	stamina = maxf(0.0, stamina - amount)
+	if stamina <= 0.0:
+		winded = true
+	return true
+
+
+## Give back `amount` of stamina (a pickup, a breather).
+func restore_stamina(amount: float) -> void:
+	stamina = minf(STAMINA_MAX, stamina + amount)
+	if winded and stamina >= STAMINA_WINDED_UNTIL:
+		winded = false
+
+
+func _tick_stamina(delta: float) -> void:
+	var flat := Vector2(velocity.x, velocity.z).length()
+	var cost := 0.0
+	if state == Move.CLIMB and velocity.length() > 0.3:
+		cost = CLIMB_COST
+	elif state == Move.HANG:
+		cost = HANG_COST
+	elif state == Move.WALK and is_on_floor() and flat > WALK_SPEED + 0.3 and not crouching:
+		cost = SPRINT_COST
+	if state != _stamina_state and state in [Move.VAULT, Move.MANTLE]:
+		spend_stamina(MANTLE_COST)
+	_stamina_state = state
+	if cost > 0.0:
+		_stamina_rest = 0.0
+		stamina = maxf(0.0, stamina - cost * delta)
+		if stamina <= 0.0:
+			winded = true
+		return
+	_stamina_rest += delta
+	if _stamina_rest < STAMINA_REST:
+		return
+	var still := flat < 0.3 and state in [Move.WALK, Move.SIT, Move.DOWN, Move.TERMINAL, Move.RIDE]
+	restore_stamina((STILL_REGEN if still else MOVING_REGEN) * delta)
+
+
+## Shoved, thrown or blasted (Combat): drop whatever you were doing (sitting, a
+## terminal, a ledge, a teammate's shoulders, what's in your hands) and fly with
+## `impulse` (metres per second, added to your velocity).
+func knock_back(impulse: Vector3) -> void:
+	_let_go()
+	velocity += impulse
+	if impulse.y > 0.0:
+		_was_on_floor = false
+
+
+## Knocked off your feet (Combat): you drop to the floor and lie there for
+## `seconds`, then get up by yourself; INF lies there until get_up() (a teammate
+## reviving you). A knock_back() still moves you while you're down.
+func knock_down(seconds: float = 2.0) -> void:
+	_let_go()
+	state = Move.DOWN
+	_down_time = seconds
+	_height = DOWN_HEIGHT
+	crouching = true
+	crawling = true
+	_capsule.height = maxf(DOWN_HEIGHT, RADIUS * 2.0)
+	_collider.position.y = _capsule.height / 2
+	knocked_down.emit()
+
+
+## Back on your feet after knock_down() (as far up as there's room for).
+func get_up() -> void:
+	_end_down()
+
+
+func is_down() -> bool:
+	return state == Move.DOWN
+
+
+func _step_down(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
+	velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
+	velocity.y -= gravity * delta
+	move_and_slide()
+	_down_time -= delta
+	if _down_time <= 0.0:
+		_end_down()
+
+
+func _end_down() -> void:
+	if state != Move.DOWN:
+		return
+	state = Move.WALK
+	_down_time = 0.0
+	if _can_stand():
+		_set_stance(STAND_HEIGHT)
+	else:
+		_set_stance(maxf(_room(global_position), CRAWL_HEIGHT))
+	got_up.emit()
+
+
+## Out of anything that holds you in place, hands empty, on your feet's physics again.
+func _let_go() -> void:
+	stand_up(true)
+	if state == Move.TERMINAL:
+		_end_terminal(true)
+	if rider:
+		rider._leave_carrier()
+	_leave_carrier()
+	lower_notebook()
+	put_down()
+	_end_filing()
+	if state in [Move.HANG, Move.CLIMB, Move.LEDGE, Move.MANTLE, Move.VAULT, Move.SLIDE, Move.ROLL]:
+		state = Move.WALK
+	_climb = null
+	_ledge = null
+
+
 # --- Teammates -------------------------------------------------------------
 
 ## Where a rider's feet go.
@@ -985,7 +1265,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 	var in_vent := in_volume(MovementVolume.Kind.VENT) != null
 	var flat := Vector3(velocity.x, 0, velocity.z)
 	_sprint_grace = SPRINT_GRACE if controls.sprint else maxf(0.0, _sprint_grace - delta)
-	var sprinting := (controls.sprint or _sprint_grace > 0.0) and not _hands_full()
+	var sprinting := (controls.sprint or _sprint_grace > 0.0) and not _hands_full() and not winded
 
 	if state == Move.WALK and rider == null and on_floor:
 		if controls.crouch and not crouching and sprinting and flat.length() > WALK_SPEED and not in_vent:
@@ -1055,6 +1335,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 				return
 			if on_floor and not crouching:
 				velocity.y = JUMP_VELOCITY
+				spend_stamina(JUMP_COST)
 		elif not on_floor and _air_time > 0.1 and controls.move.y < -0.5 and velocity.y < 1.5:
 			# Reaching for a ledge mid-jump catches it.
 			if _try_ledge(true):
@@ -1348,7 +1629,8 @@ func _step_climb(delta: float, jump_pressed: bool) -> void:
 		return
 	var up := -controls.move.y
 	var right := (-v.normal).cross(Vector3.UP)
-	velocity = Vector3.UP * up * CLIMB_SPEED + right * controls.move.x * CLIMB_SPEED * 0.5
+	var climb_speed := CLIMB_SPEED * (0.5 if winded else 1.0)
+	velocity = Vector3.UP * up * climb_speed + right * controls.move.x * climb_speed * 0.5
 	# Stay snug against the surface.
 	var dist := (global_position - v.a).dot(v.normal)
 	velocity += v.normal * (RADIUS + 0.2 - dist) * 8.0
@@ -1566,4 +1848,6 @@ func _update_prompt() -> void:
 		var target := _look_target()
 		if target and target.has_method("get_prompt"):
 			text = target.get_prompt(self)
+		if text == "" and state == Move.SIT and not _sit_leaving:
+			text = "[Space] Stand up"
 	hud.set_prompt(text)
