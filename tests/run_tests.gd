@@ -1742,6 +1742,7 @@ func test_level_2_routes() -> void:
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(9.0, 0.5, -2.0)))
 	p.velocity = Vector3.ZERO
 	check(await _until(func(): return p.health == 100.0 and [level.spawn_point().origin, level.to_global(Vector3(0, 0.1, -10.8))].any(func(c): return p.global_position.distance_to(c) < 1.5), 15.0), "falling off the ledge kills you, and you come to back inside")
+	check(await _until(func(): return level.hud._notice.text == level.FALL_NOTICE, 5.0), "and the notice says how you got there")
 	check(await _until(func(): return not level.wind.playing, 10.0) and absf(p.head.rotation.z) < 0.002, "back inside, the wind dies away and the view is level")
 	level.loose = true
 	level._process(0.0)

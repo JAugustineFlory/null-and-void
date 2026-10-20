@@ -439,9 +439,9 @@ const WIND_ON_LEDGE := -6.0
 const WIND_BY_WINDOW := -20.0
 const SWAY_ROLL := 0.02  # radians at the strongest gust
 var wind: AudioStreamPlayer
-## What a player sees after falling from the ledge. Empty keeps the usual death notice.
-## Waiting on Augustine's wording (2026-10-19).
-const FALL_NOTICE := ""
+## What a player sees after falling from the ledge, instead of the usual death notice
+## (Augustine's wording, 2026-10-20).
+const FALL_NOTICE := "Wind, then nothing. You wake back where you started, shaking."
 var _fell := false
 var _sway_t := 0.0
 
