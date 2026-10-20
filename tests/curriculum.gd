@@ -46,7 +46,6 @@ const PUZZLES := {
 		"pressure": false,
 		"teaches": ["DESC", "visitors", "signed_in"],
 		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "visitors"],
-		"known_gap": "DESC appears in no paper, sticky or screen line before its first hint",
 	},
 	# Level 1: Server Room A.
 	"controller": {
@@ -63,7 +62,6 @@ const PUZZLES := {
 		"pressure": false,
 		"teaches": [">", "racks", "temp_c"],
 		"needs": ["SELECT", "FROM", "COLUMNS", "WHERE", ">", "racks", "temp_c"],
-		"known_gap": "> and the racks table appear nowhere near the terminal before the first hint",
 	},
 	# Level 2: the security floor. Rourke turns in Secure Lab B (plan/floors-expansion.md);
 	# the lab door's controller is Level 1's WHERE / AND, now under pressure, with the

@@ -53,6 +53,7 @@ func _level_0() -> void:
 	# Halcyon Tower over the car park.
 	await _shot(level, "l0_tower", Vector3(6.0, 0.05, 25.0), 10, 32)
 	await _shot(level, "l0_tower_top", Vector3(-14.0, 0.05, 26.0), -25, 62)
+	await _shot(level, "l0_stairs", Vector3(27.6, 0.1, 7.5), 160, 15)
 	level.free()
 
 

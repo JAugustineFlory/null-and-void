@@ -18,7 +18,7 @@ const STENCIL := Color(0.92, 0.9, 0.84)
 ## tread), 0.9 m above it. Works for a sloped flight or a flat landing run.
 static func stair_rail(parent: Node, from: Vector3, to: Vector3, posts := 0) -> Node3D:
 	var root := Node3D.new()
-	root.name = "StairRail"
+	root.name = "Handrail"
 	parent.add_child(root, true)
 	var rail_mat := ArtPalette.flat(RAIL_RED, 0.35, 0.4)
 	var post_mat := ArtPalette.flat(Color(0.2, 0.2, 0.21), 0.5, 0.6)
@@ -68,6 +68,70 @@ static func emergency_light(parent: Node, pos: Vector3, facing_deg: float, lit :
 		l.rotation_degrees.x = -50.0
 		root.add_child(l)
 	return root
+
+
+## Dress every Stairwell (scripts/world/stairwell.gd) under the level's geo:
+## painted concrete, a real handrail up the flight, the stencilled floor plate in
+## place of the greybox label, and a lit emergency light over the door, which is
+## the stairs' only light. The flight's colliders and the door stay as built.
+static func dress_stairwells(level: Node3D) -> int:
+	var count := 0
+	var geo: Node3D = level.get("geo")
+	if geo == null:
+		return 0
+	for holder in geo.get_children():
+		if not (holder is Node3D and holder.name.begins_with("Stairwell")):
+			continue
+		var storey := -1
+		for c in holder.get_children():
+			if c is Label3D and "FLOOR " in (c as Label3D).text:
+				var f := (c as Label3D).text.get_slice("FLOOR ", 1).strip_edges()
+				storey = 0 if f == "G" else int(f)
+				c.visible = false
+				ArtKit.landing_number(holder, Vector3(c.position.x + 0.06, 1.6, c.position.z), -90, storey)
+		ArtDress.reskin(holder, [
+			{"names": ["Stair"], "mat": ArtPalette.surface("concrete", Color(1.05, 1.05, 1.0))},
+			{"names": ["Floor"], "mat": ArtPalette.surface("concrete", Color(0.85, 0.85, 0.82))},
+			{"names": ["Wall_", "Ceiling"], "mat": ArtPalette.surface("concrete", Color(1.3, 1.3, 1.24))},
+		])
+		var first := Vector3.INF
+		var last := Vector3.INF
+		for c in holder.get_children():
+			if c is StaticBody3D and c.name.begins_with("StairRail"):
+				for mi in c.get_children():
+					if mi is MeshInstance3D:
+						mi.visible = false
+			elif c is StaticBody3D and c.name.begins_with("Stair"):
+				var top := _box_top(c)
+				if first == Vector3.INF or top.z > first.z:
+					first = top
+				if last == Vector3.INF or top.z < last.z:
+					last = top
+		if first != Vector3.INF and last != first:
+			var inner := first.x - _box_size(_first_stair(holder)).x / 2.0 + 0.05
+			stair_rail(holder, Vector3(inner, first.y, first.z), Vector3(inner, last.y, last.z))
+		emergency_light(holder, Vector3(0, 2.55, -0.21), 0)
+		count += 1
+	return count
+
+
+static func _first_stair(holder: Node) -> StaticBody3D:
+	for c in holder.get_children():
+		if c is StaticBody3D and c.name.begins_with("Stair") and not c.name.begins_with("StairRail"):
+			return c
+	return null
+
+
+static func _box_size(body: Node) -> Vector3:
+	for mi in body.get_children():
+		if mi is MeshInstance3D and (mi as MeshInstance3D).mesh is BoxMesh:
+			return ((mi as MeshInstance3D).mesh as BoxMesh).size
+	return Vector3.ZERO
+
+
+## The middle of a step's tread, in the holder's space.
+static func _box_top(body: Node3D) -> Vector3:
+	return body.position + Vector3(0, _box_size(body).y / 2.0, 0)
 
 
 # --- The garage home base (Byte-Right IT Services, 1997) ------------------------

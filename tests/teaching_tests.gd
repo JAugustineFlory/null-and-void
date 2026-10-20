@@ -391,6 +391,7 @@ func walk_level_0() -> void:
 	t.root.add_child(level)
 	for i in 20:
 		await t.physics_frame
+	check_case_clues(level, "lobby")
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.desk_terminal, level.player)
 	var h := await solve(level, ui, level.peek_puzzle, false)
@@ -415,6 +416,31 @@ func walk_level_0() -> void:
 	await t.process_frame
 
 
+## Case pages collect clues as they're read (papers, plates), so a clue must never
+## carry a puzzle's answer: a value its query returns that the query itself doesn't
+## type. Numbers are left out (extensions and temperatures are inputs, read off
+## papers). The answer reaches the page only through solve_case, after the solve.
+func check_case_clues(level: Node, where: String) -> void:
+	var clues := PackedStringArray()
+	for d in level.find_children("*", "Document", true, false):
+		for k in d.clues:
+			clues.append(str(k.get("text", "")) + "\n" + str(k.get("opens", "")))
+	for s in level.find_children("*", "ClueSpot", true, false):
+		clues.append(s.text)
+	var text := "\n".join(clues).to_lower()
+	var leaks := []
+	for term in level.find_children("*", "Terminal", true, false):
+		for p in term.puzzles:
+			for row in level.db.run_silent(p.solution_sql):
+				for v in row.values():
+					var value := str(v).to_lower()
+					if value.length() < 3 or value.is_valid_float() or p.solution_sql.to_lower().contains(value):
+						continue
+					if RegEx.create_from_string("(?<![\\w-])" + _escape(value) + "(?![\\w-])").search(text) and not leaks.has("%s: %s" % [p.id, value]):
+						leaks.append("%s: %s" % [p.id, value])
+	check(leaks.is_empty() and not clues.is_empty(), "%s: no case-page clue gives away a query's answer (%d clues; %s)" % [where, clues.size(), ", ".join(leaks) if leaks else "none"])
+
+
 # --- Level 1: the server floor -------------------------------------------------
 
 func walk_level_1(seed_value: int) -> void:
@@ -424,6 +450,7 @@ func walk_level_1(seed_value: int) -> void:
 	for i in 20:
 		await t.physics_frame
 	level._on_asked()  # Rourke has asked the crew to find the fault
+	check_case_clues(level, "server floor (seed %d)" % seed_value)
 	var todo: String = _game().current_todo()
 	check(todo != "" and not todo.contains(level.answer), "server floor: the to-do names the job, never the controller (%s)" % todo)
 	var ui: TerminalUI = level.terminal_ui

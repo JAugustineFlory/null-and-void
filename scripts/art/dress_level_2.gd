@@ -69,6 +69,7 @@ static func apply(level: LevelBase) -> void:
 	_outside(level)
 
 	ArtDress.link_light_panels(level)
+	ArtKit.dress_stairwells(level)
 	ArtMood.polish(level.environment)
 	var vent: Array = []
 	for z in range(-11, 5):
