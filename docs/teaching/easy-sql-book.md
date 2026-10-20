@@ -329,5 +329,3 @@ No new words. A review huddle on chaining.
 1. Build the two PROPOSED Level 1 puzzles (stuck doors as its own step, dark room
    with OR) to reach 3 to 5 puzzles there?
 2. Are the garage tables `jobs` and `van_kit` OK as the crew's own practice data?
-</content>
-</invoke>
