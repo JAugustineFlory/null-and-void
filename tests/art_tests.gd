@@ -433,6 +433,16 @@ func test_dressed_level_2() -> void:
 ## The quality pass: ceiling lights cast soft shadows up close and drop them with
 ## distance, fittings glow through louvres, and the room gets AO and reflections.
 func _check_polish(level: Node3D, label: String) -> void:
+	var spill := []
+	for poster in level.find_children("Poster*", "Node3D", true, false):
+		var paper := ((poster.get_child(1) as MeshInstance3D).mesh as BoxMesh).size
+		var l: Label3D = poster.find_children("*", "Label3D", false, false)[0]
+		var font: Font = l.font if l.font else ThemeDB.fallback_font
+		var flags := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+		var text := font.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, l.width, l.font_size, -1, flags) * l.pixel_size
+		if text.x > paper.x or text.y > paper.y or l.font_size < 16:
+			spill.append(l.text.get_slice("\n", 0))
+	check(spill.is_empty(), "%s: every poster's text fits on its paper %s" % [label, spill])
 	var lights := 0
 	var unshadowed := []
 	for id in level.lights:

@@ -108,7 +108,7 @@ static func _corridors(geo: Node3D, dress: Node3D) -> void:
 	ArtProps.poster(dress, Vector3(4.0, 1.6, 9.11), 180,
 		"MACHINE ROOMS\n\nNo food or drink past this point.\nKeep doors closed.\nReport alarms to the NOC.", Vector2(0.5, 0.65))
 	ArtProps.poster(dress, Vector3(2.4, 1.5, -12.89), 180,
-		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.4, 0.4))
+		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.5, 0.4), Color(0.93, 0.92, 0.86), 22)
 	ArtProps.water_cooler(geo, Vector3(-21.5, 0, 12.3), -90)
 	ArtProps.potted_plant(geo, Vector3(21.5, 0, 12.4))
 	ArtProps.potted_plant(geo, Vector3(-21.5, 0, -12.4))

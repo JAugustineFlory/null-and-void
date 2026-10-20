@@ -104,7 +104,7 @@ static func _front(geo: Node3D, dress: Node3D) -> void:
 	ArtProps.memo(board, Vector3(0.1, 0.05, -0.017), 0, "LOST BADGES\nReport them the same night.")
 	ArtProps.memo(board, Vector3(0.42, -0.05, -0.017), 0, "XMAS PARTY\nDec 19, cafeteria")
 	ArtProps.poster(dress, Vector3(-1.89, 1.5, -14.0), -90,
-		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.4, 0.4))
+		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.5, 0.4), Color(0.93, 0.92, 0.86), 22)
 	# The night desk: the guard's chair in place of its block, a plant, a bench for visitors.
 	var chair := geo.get_node_or_null("NightDeskChair")
 	if chair:
