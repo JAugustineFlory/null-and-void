@@ -75,7 +75,7 @@ func build() -> void:
 	Greybox.room(geo, Vector3(0, 0, 11), Vector3(44, 3, 4), c, south_gaps)
 	if world:
 		# The ground floor's elevator links to this car and opens it at the end of the ride.
-		arrival_lift = Elevator.create(self, geo, Vector3(0, 0, 13), 0, "1", ["G", "1", "2"])
+		arrival_lift = Elevator.create(self, geo, Vector3(0, 0, 13), 0, "14", ["22", "14", "G", "B1"], "14")
 		arrival_lift.name = "ArrivalElevator"
 		arrival_lift.button.enabled = false
 	# North corridor: x -22..22, z -13..-9. The elevator up, and Server Room C.
@@ -85,7 +85,7 @@ func build() -> void:
 		_gap("n", -12.0, door),  # Server Room C
 		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
 	])
-	elevator = Elevator.create(self, geo, Vector3(0, 0, -13), 180, "1", ["G", "1", "2"])
+	elevator = Elevator.create(self, geo, Vector3(0, 0, -13), 180, "14", ["22", "14", "G", "B1"], "22")
 	elevator.button.enabled = false
 	for x in [-16.0, -6.0, 6.0, 16.0]:
 		add_light("corridor", Vector3(x, 3, 11), 7.0, 1.0, office)
