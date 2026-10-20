@@ -22,6 +22,7 @@ func build() -> void:
 	Greybox.box(geo, Vector3(-25, 0.75, -3.77), Vector3(0.5, 0.6, 0.06), Color(0.3, 0.3, 0.34), "ChairBack")
 	Seat.create_at(geo, Vector3(-25, 0.45, -3.5), PI)
 	_sign(Vector3(-24, 1.8, -3.2), "E at a chair: sit. Z: sit on the floor.\nSpace or Z: stand up.")
+	_sign(Vector3(-24, 2.4, 3.2), "Alt + a direction: side-step.\nRunning, jumping and climbing tire you.\nStand still to get your breath back.")
 
 	# Slide under a jammed shutter.
 	Greybox.box(geo, Vector3(-22, 4, -3.25), Vector3(0.2, 8, 3.5), Color.DIM_GRAY)

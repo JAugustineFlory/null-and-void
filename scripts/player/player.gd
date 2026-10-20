@@ -3,7 +3,8 @@ extends CharacterBody3D
 ## First-person player: walk, sprint, crouch, slide, landing roll, mantle, ledge
 ## grab and shimmy, climb, crawl through vents, shuffle along narrow ledges and
 ## stand on a teammate's shoulders (up to three high), sit on a chair or the
-## floor. Also flashlight, interact and strike.
+## floor, side-step. Running, jumping and climbing cost stamina. Also flashlight,
+## interact and strike.
 ##
 ## Movement reads only `controls`, never `Input`, so a copy of this player on
 ## another machine moves the same way when fed the same controls. Only the
@@ -30,8 +31,11 @@ signal terminal_left
 ## You've sat down (on `seat`, or the floor when null), or got back up.
 signal sat_down(seat: Node3D)
 signal stood_up
+## Knocked off your feet (knock_down), and back up again.
+signal knocked_down
+signal got_up
 
-enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT }
+enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT, DODGE, DOWN }
 
 const WALK_SPEED := 3.8
 const SPRINT_SPEED := 6.5
@@ -121,9 +125,38 @@ const SIT_HEIGHT := 0.95
 const SIT_TIME := 0.4
 ## How far (radians) you can turn from the way a chair faces.
 const SIT_LOOK := deg_to_rad(110.0)
+## Stamina, 0..STAMINA_MAX. Sprinting and climbing drain it per second; a jump,
+## vault, mantle or side-step costs a lump. It comes back after STAMINA_REST
+## seconds without spending: fast while you're still (standing, sitting,
+## crouching), slowly on the move. Run it dry and you're winded until it's back
+## to STAMINA_WINDED_UNTIL: no sprinting or side-steps, and climbing is slower.
+## Jumps and climbs never stop working, so being winded only slows you down.
+const STAMINA_MAX := 100.0
+const SPRINT_COST := 16.0
+const CLIMB_COST := 12.0
+const HANG_COST := 4.0
+const JUMP_COST := 10.0
+const MANTLE_COST := 8.0
+const DODGE_COST := 20.0
+const STAMINA_REST := 0.6
+const STILL_REGEN := 45.0
+const MOVING_REGEN := 10.0
+const STAMINA_WINDED_UNTIL := 30.0
+## Side-step (Alt + a direction): a quick hop out of the way.
+const DODGE_SPEED := 7.5
+const DODGE_TIME := 0.25
+## Knocked down: how low you lie.
+const DOWN_HEIGHT := 0.5
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var health := 100.0
+## 0..STAMINA_MAX; see spend_stamina(). Read-only.
+var stamina := STAMINA_MAX
+## Ran out of stamina and not yet recovered to STAMINA_WINDED_UNTIL. Read-only.
+var winded := false
+var _stamina_rest := 0.0  # seconds since stamina was last spent
+var _stamina_state := Move.WALK  # last tick's state, to charge for a move once as it starts
+var _down_time := 0.0  # seconds left lying down; INF until get_up()
 var state := Move.WALK
 ## True when lower than standing (crouching or crawling).
 var crouching := false
@@ -386,6 +419,9 @@ func step(delta: float) -> void:
 	controls.jump = false
 	var sit_pressed := controls.sit
 	controls.sit = false
+	var dodge_pressed := controls.dodge
+	controls.dodge = false
+	_tick_stamina(delta)
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
 	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB, Move.VAULT]:
@@ -407,8 +443,14 @@ func step(delta: float) -> void:
 			_step_terminal(delta)
 		Move.SIT:
 			_step_sit(delta, jump_pressed or sit_pressed)
+		Move.DODGE:
+			_step_dodge(delta)
+		Move.DOWN:
+			_step_down(delta)
 		_:
 			if sit_pressed and sit():
+				return
+			if dodge_pressed and dodge(controls.move):
 				return
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
@@ -429,6 +471,9 @@ func heal_full() -> void:
 
 func respawn(at: Transform3D) -> void:
 	_end_sit()
+	_end_down()
+	stamina = STAMINA_MAX
+	winded = false
 	if rider:
 		rider._leave_carrier()
 	_leave_carrier()
@@ -987,6 +1032,160 @@ func _clamp_seat_yaw() -> void:
 		rotation.y = center + signf(d) * SIT_LOOK
 
 
+# --- Stamina, side-step, knocks ------------------------------------------
+
+## Use up `amount` of stamina (Combat: a block, a struggle). Running it dry leaves
+## you winded. Returns false, spending nothing, if you're winded or it's 0.
+func spend_stamina(amount: float) -> bool:
+	if amount <= 0.0:
+		return true
+	_stamina_rest = 0.0
+	if winded:
+		return false
+	stamina = maxf(0.0, stamina - amount)
+	if stamina <= 0.0:
+		winded = true
+	return true
+
+
+## Give back `amount` of stamina (a pickup, a breather).
+func restore_stamina(amount: float) -> void:
+	stamina = minf(STAMINA_MAX, stamina + amount)
+	if winded and stamina >= STAMINA_WINDED_UNTIL:
+		winded = false
+
+
+func _tick_stamina(delta: float) -> void:
+	var flat := Vector2(velocity.x, velocity.z).length()
+	var cost := 0.0
+	if state == Move.CLIMB and velocity.length() > 0.3:
+		cost = CLIMB_COST
+	elif state == Move.HANG:
+		cost = HANG_COST
+	elif state == Move.WALK and is_on_floor() and flat > WALK_SPEED + 0.3 and not crouching:
+		cost = SPRINT_COST
+	if state != _stamina_state and state in [Move.VAULT, Move.MANTLE]:
+		spend_stamina(MANTLE_COST)
+	_stamina_state = state
+	if cost > 0.0:
+		_stamina_rest = 0.0
+		stamina = maxf(0.0, stamina - cost * delta)
+		if stamina <= 0.0:
+			winded = true
+		return
+	_stamina_rest += delta
+	if _stamina_rest < STAMINA_REST:
+		return
+	var still := flat < 0.3 and state in [Move.WALK, Move.SIT, Move.DOWN, Move.TERMINAL, Move.RIDE]
+	restore_stamina((STILL_REGEN if still else MOVING_REGEN) * delta)
+
+
+## Alt + a direction: hop a couple of metres that way (`move` as in
+## PlayerControls.move; none hops back). False if you can't: winded, mid-air,
+## busy, or not on your feet.
+func dodge(move: Vector2) -> bool:
+	if state != Move.WALK or not is_on_floor() or rider or carrier or _hands_full() or crouching:
+		return false
+	if winded or stamina < DODGE_COST:
+		return false
+	if move.length() < 0.1:
+		move = Vector2(0, 1)
+	spend_stamina(DODGE_COST)
+	var dir := transform.basis * Vector3(move.x, 0, move.y)
+	dir.y = 0.0
+	_begin_dash(Move.DODGE, DODGE_TIME, dir.normalized())
+	return true
+
+
+func is_dodging() -> bool:
+	return state == Move.DODGE
+
+
+func _step_dodge(delta: float) -> void:
+	_timer -= delta
+	var spd := DODGE_SPEED * clampf(_timer / DODGE_TIME + 0.3, 0.0, 1.0)
+	velocity.x = _dir.x * spd
+	velocity.z = _dir.z * spd
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+	move_and_slide()
+	if _timer <= 0.0 or is_on_wall():
+		state = Move.WALK
+
+
+## Shoved, thrown or blasted (Combat): drop whatever you were doing (sitting, a
+## terminal, a ledge, a teammate's shoulders, what's in your hands) and fly with
+## `impulse` (metres per second, added to your velocity).
+func knock_back(impulse: Vector3) -> void:
+	_let_go()
+	velocity += impulse
+	if impulse.y > 0.0:
+		_was_on_floor = false
+
+
+## Knocked off your feet (Combat): you drop to the floor and lie there for
+## `seconds`, then get up by yourself; INF lies there until get_up() (a teammate
+## reviving you). A knock_back() still moves you while you're down.
+func knock_down(seconds: float = 2.0) -> void:
+	_let_go()
+	state = Move.DOWN
+	_down_time = seconds
+	_height = DOWN_HEIGHT
+	crouching = true
+	crawling = true
+	_capsule.height = maxf(DOWN_HEIGHT, RADIUS * 2.0)
+	_collider.position.y = _capsule.height / 2
+	knocked_down.emit()
+
+
+## Back on your feet after knock_down() (as far up as there's room for).
+func get_up() -> void:
+	_end_down()
+
+
+func is_down() -> bool:
+	return state == Move.DOWN
+
+
+func _step_down(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
+	velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
+	velocity.y -= gravity * delta
+	move_and_slide()
+	_down_time -= delta
+	if _down_time <= 0.0:
+		_end_down()
+
+
+func _end_down() -> void:
+	if state != Move.DOWN:
+		return
+	state = Move.WALK
+	_down_time = 0.0
+	if _can_stand():
+		_set_stance(STAND_HEIGHT)
+	else:
+		_set_stance(maxf(_room(global_position), CRAWL_HEIGHT))
+	got_up.emit()
+
+
+## Out of anything that holds you in place, hands empty, on your feet's physics again.
+func _let_go() -> void:
+	stand_up(true)
+	if state == Move.TERMINAL:
+		_end_terminal(true)
+	if rider:
+		rider._leave_carrier()
+	_leave_carrier()
+	lower_notebook()
+	put_down()
+	_end_filing()
+	if state in [Move.HANG, Move.CLIMB, Move.LEDGE, Move.MANTLE, Move.VAULT, Move.SLIDE, Move.ROLL, Move.DODGE]:
+		state = Move.WALK
+	_climb = null
+	_ledge = null
+
+
 # --- Teammates -------------------------------------------------------------
 
 ## Where a rider's feet go.
@@ -1095,7 +1294,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 	var in_vent := in_volume(MovementVolume.Kind.VENT) != null
 	var flat := Vector3(velocity.x, 0, velocity.z)
 	_sprint_grace = SPRINT_GRACE if controls.sprint else maxf(0.0, _sprint_grace - delta)
-	var sprinting := (controls.sprint or _sprint_grace > 0.0) and not _hands_full()
+	var sprinting := (controls.sprint or _sprint_grace > 0.0) and not _hands_full() and not winded
 
 	if state == Move.WALK and rider == null and on_floor:
 		if controls.crouch and not crouching and sprinting and flat.length() > WALK_SPEED and not in_vent:
@@ -1165,6 +1364,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 				return
 			if on_floor and not crouching:
 				velocity.y = JUMP_VELOCITY
+				spend_stamina(JUMP_COST)
 		elif not on_floor and _air_time > 0.1 and controls.move.y < -0.5 and velocity.y < 1.5:
 			# Reaching for a ledge mid-jump catches it.
 			if _try_ledge(true):
@@ -1458,7 +1658,8 @@ func _step_climb(delta: float, jump_pressed: bool) -> void:
 		return
 	var up := -controls.move.y
 	var right := (-v.normal).cross(Vector3.UP)
-	velocity = Vector3.UP * up * CLIMB_SPEED + right * controls.move.x * CLIMB_SPEED * 0.5
+	var climb_speed := CLIMB_SPEED * (0.5 if winded else 1.0)
+	velocity = Vector3.UP * up * climb_speed + right * controls.move.x * climb_speed * 0.5
 	# Stay snug against the surface.
 	var dist := (global_position - v.a).dot(v.normal)
 	velocity += v.normal * (RADIUS + 0.2 - dist) * 8.0

@@ -33,6 +33,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hotbar_keys()
 	await test_inventory_screen()
 	await test_sit()
+	await test_stamina()
+	await test_dodge_and_knocks()
 	await test_movement_gym()
 
 
@@ -1066,6 +1068,94 @@ func test_sit() -> void:
 	await frames(settle)
 	p.respawn(Transform3D(Basis(), Vector3(3, 0.05, 2)))
 	check(not p.is_sitting() and p.global_position.distance_to(Vector3(3, 0.05, 2)) < 0.01 and chair.is_free(q), "respawning gets you up and frees the chair")
+	await done(a)
+
+
+func test_stamina() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.05, 10))
+	await frames(20)
+	check(p.stamina == Player.STAMINA_MAX and not p.winded, "you start fresh")
+	forward(p, true)
+	await frames(60)
+	stop(p)
+	var after_run := p.stamina
+	check(after_run < Player.STAMINA_MAX - 10.0, "sprinting tires you (%.0f left)" % after_run)
+	await frames(90)
+	check(p.stamina >= minf(after_run + 30.0, Player.STAMINA_MAX), "standing still, you get your breath back quickly")
+	p.restore_stamina(Player.STAMINA_MAX)
+	p.controls.jump = true
+	await frames(5)
+	check(absf(p.stamina - (Player.STAMINA_MAX - Player.JUMP_COST)) < 0.5, "a jump costs a little")
+	await frames(60)
+	p.spend_stamina(Player.STAMINA_MAX * 2.0)
+	check(p.winded and p.stamina == 0.0, "run it dry and you're winded")
+	check(not p.dodge(Vector2(1, 0)), "winded, you can't side-step")
+	var z0 := p.global_position.z
+	forward(p, true)
+	await frames(30)
+	var pace := (z0 - p.global_position.z) / 0.5
+	stop(p)
+	check(pace < Player.WALK_SPEED + 0.2, "or sprint (%.1f m/s)" % pace)
+	p.controls.jump = true
+	await frames(5)
+	check(p.velocity.y > 0.0 or not p.is_on_floor(), "but you can still jump: being winded never stops you")
+	await frames(120)
+	check(not p.winded and p.stamina >= Player.STAMINA_WINDED_UNTIL, "rest a moment and you're over it")
+	p.sit()
+	var sat := p.stamina
+	await frames(60)
+	check(p.stamina > sat + 10.0 or p.stamina == Player.STAMINA_MAX, "sitting rests you too")
+	await done(a)
+
+
+func test_dodge_and_knocks() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.05, 0))
+	await frames(20)
+	var x0 := p.global_position.x
+	check(p.dodge(Vector2(1, 0)) and p.is_dodging(), "Alt + D side-steps")
+	check(absf(p.stamina - (Player.STAMINA_MAX - Player.DODGE_COST)) < 0.5, "and costs stamina")
+	await frames(30)
+	check(not p.is_dodging() and p.global_position.x - x0 > 1.2 and p.global_position.x - x0 < 3.0, "a quick hop to the right (%.1f m)" % (p.global_position.x - x0))
+	check(not p.raise_notebook() or not p.dodge(Vector2(-1, 0)), "not while reading")
+	p.lower_notebook(true)
+	await frames(30)
+	p.controls.dodge = true
+	p.controls.move = Vector2(-1, 0)
+	await frames(2)
+	stop(p)
+	check(p.is_dodging(), "the side-step control reaches the player through its controls")
+	await frames(30)
+
+	p.sit()
+	await frames(5)
+	var from := p.global_position
+	p.knock_back(Vector3(0, 3, 6))
+	check(not p.is_sitting(), "a shove gets you off your seat")
+	await frames(20)
+	check(p.global_position.z - from.z > 1.0, "and sends you flying")
+	await frames(60)
+	p.knock_down(0.5)
+	check(p.is_down() and p.stance_height == Player.DOWN_HEIGHT, "knocked down, you're on the floor")
+	forward(p)
+	await frames(10)
+	stop(p)
+	check(p.is_down(), "and can't walk")
+	await frames(40)
+	check(not p.is_down() and p.stance_height == Player.STAND_HEIGHT, "then you get up by yourself")
+	p.knock_down(INF)
+	await frames(90)
+	check(p.is_down(), "knocked out, you stay down")
+	p.get_up()
+	check(not p.is_down() and p.stance_height == Player.STAND_HEIGHT, "until a teammate gets you up")
+
+	var vit := Vitals.create(a, p)
+	p.take_damage(25.0)
+	p.spend_stamina(50.0)
+	await t.process_frame
+	await t.process_frame
+	check(absf(vit.health_fill() - 0.75) < 0.01 and absf(vit.stamina_fill() - p.stamina / Player.STAMINA_MAX) < 0.01, "the bars show your health and stamina")
 	await done(a)
 
 
