@@ -66,6 +66,7 @@ static func apply(level: LevelBase) -> void:
 	_front(geo, dress)
 	_side_rooms(geo, dress)
 	_back(dress)
+	_outside(level)
 
 	ArtDress.link_light_panels(level)
 	var vent: Array = []
@@ -147,6 +148,85 @@ static func _side_rooms(geo: Node3D, dress: Node3D) -> void:
 				ArtDress.trim(dress, Vector3(-15.4 + k * 0.4, 1.0, face), Vector3(0.012, 1.9, 0.01), line)
 			for k in 9:
 				ArtDress.trim(dress, Vector3(-15.2 + k * 0.4, 1.75, face), Vector3(0.2, 0.08, 0.008), line)  # vents
+
+
+## The tower's walls outside the floor, walked with the outside on your left: the east
+## face behind the ledge, the notch round the vestibule and the exit lobby.
+const OUTLINE := [Vector2(-18.3, -20.1), Vector2(2.1, -20.1), Vector2(2.1, -12.1), Vector2(2.6, -12.1),
+	Vector2(2.6, -8.1), Vector2(6.1, -8.1), Vector2(6.1, 10.1), Vector2(-18.3, 10.1), Vector2(-18.3, -20.1)]
+
+
+## Outside the ledge: twenty-two floors of facade dropping to the campus far below,
+## eight more up to the roof, a window-cleaning cradle parked overhead with its tarp
+## flapping, and litter blowing along the wall.
+static func _outside(level: LevelBase) -> void:
+	var sky := ArtSkyline.backdrop(level, "level_2")
+	var up := ArtSkyline.floor_height(ArtSkyline.FLOORS["level_2"])
+	var roof := ArtSkyline.roof_height() - up
+	var outline := PackedVector2Array(OUTLINE)
+	ArtSkyline.facade(sky, outline, -up, -0.2, "FacadeBelow")
+	ArtSkyline.facade(sky, outline, 3.2, roof, "FacadeAbove")
+	# Level 2's dark slab far below would hide the campus; its collision stays.
+	var far := level.geo.get_node_or_null("FarBelow")
+	if far:
+		ArtDress.hide_block(far)
+	# The moonlight on the ledge has no fitting to hang from: no glowing panel in mid-air.
+	for l in level.lights.get("outside", []):
+		var panel := ArtDress._panel_for(level.geo, l)
+		if panel:
+			panel.visible = false
+	for i in 3:
+		var corner: Vector3 = [Vector3(6.4, roof + 0.6, 10.4), Vector3(6.4, roof + 0.6, -8.4), Vector3(2.4, roof + 0.6, -20.4)][i]
+		ArtSkyline.beacon(sky, corner, true, 0.3 * i)
+	# The cradle, four floors up: too high to reach, hung from davits on the roof.
+	var cradle_y := ArtSkyline.floor_height(26) - up
+	var steel := Color(0.3, 0.31, 0.32)
+	var basket := BoxMesh.new()
+	basket.size = Vector3(0.8, 1.1, 3.2)
+	ArtSkyline.piece(sky, basket, Vector3(6.6, cradle_y + 0.55, -0.5), steel, 0.0, "Cradle")
+	for z in [-1.9, 0.9]:
+		var cable := BoxMesh.new()
+		cable.size = Vector3(0.03, roof - cradle_y - 1.1, 0.03)
+		ArtSkyline.piece(sky, cable, Vector3(6.6, (roof + cradle_y + 1.1) / 2.0, z), Color(0.4, 0.4, 0.42), 0.0, "Cable")
+		var davit := BoxMesh.new()
+		davit.size = Vector3(1.0, 0.15, 0.15)
+		ArtSkyline.piece(sky, davit, Vector3(6.55, roof + 0.3, z), steel, 0.0, "Davit")
+	var tarp := QuadMesh.new()
+	tarp.size = Vector2(2.4, 1.7)
+	tarp.subdivide_width = 8
+	tarp.subdivide_depth = 6
+	tarp.center_offset = Vector3(0, -0.85, 0)
+	var sheet := ArtSkyline.piece(sky, tarp, Vector3(7.02, cradle_y + 0.2, -0.5), Color(0.16, 0.26, 0.42), 0.12, "Tarp")
+	sheet.rotation_degrees.y = 90
+	# Litter on the wind, blowing north along the wall past the ledge.
+	var litter := CPUParticles3D.new()
+	litter.name = "Litter"
+	var scrap := QuadMesh.new()
+	scrap.size = Vector2(0.16, 0.11)
+	litter.mesh = scrap
+	litter.amount = 10
+	litter.lifetime = 4.5
+	litter.preprocess = 4.5
+	litter.position = Vector3(7.6, 0.8, -1.0) - sky.position
+	litter.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	litter.emission_box_extents = Vector3(0.7, 2.2, 6.0)
+	litter.direction = Vector3(0, 0.15, -1)
+	litter.spread = 20.0
+	litter.initial_velocity_min = 2.5
+	litter.initial_velocity_max = 5.0
+	litter.gravity = Vector3(0, -0.5, 0)
+	litter.particle_flag_rotate_y = true
+	litter.angular_velocity_min = 180.0
+	litter.angular_velocity_max = 420.0
+	var tints := Gradient.new()
+	tints.set_color(0, Color(0.85, 0.84, 0.78))
+	tints.set_color(1, Color(0.4, 0.3, 0.18))
+	litter.color_initial_ramp = tints
+	litter.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var paper := ArtSkyline.material(sky, ArtSkyline.PIECE)
+	paper.set_shader_parameter("albedo", Color(0.7, 0.7, 0.7))
+	litter.material_override = paper
+	sky.add_child(litter)
 
 
 ## The service passage and the camera room.
