@@ -1,5 +1,3 @@
-# Null & Void
-
 <p align="center">
   <img src="docs/store/header.jpg" alt="Null &amp; Void: Halcyon Tower at night" width="100%">
 </p>
