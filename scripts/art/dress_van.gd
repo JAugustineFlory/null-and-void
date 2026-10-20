@@ -99,6 +99,8 @@ static func apply(level: LevelBase, center: Vector3) -> void:
 	ArtDress.trim(root, Vector3(0, floor_y + 0.75, -2.05), Vector3(2.4, 0.22, 0.32), dash)
 	ArtDress.trim(root, Vector3(0, floor_y + 0.45, -2.1), Vector3(2.4, 0.4, 0.2), dash)
 	ArtDress.trim(root, Vector3(0.2, floor_y + 0.87, -1.95), Vector3(0.12, 0.04, 0.01), ArtPalette.glow(ArtPalette.LIGHT_SCREEN, 1.4))
+	# Somebody's "Easy SQL", price sticker still on, tossed on the passenger side.
+	ArtKit.easy_sql_book(root, Vector3(0.62, floor_y + 0.86, -2.02), 168.0)
 	var wheel_mesh := TorusMesh.new()
 	wheel_mesh.inner_radius = 0.16
 	wheel_mesh.outer_radius = 0.19

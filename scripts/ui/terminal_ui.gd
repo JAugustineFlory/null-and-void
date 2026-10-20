@@ -7,6 +7,14 @@ signal closed
 ## Cells show in full; this only stops a runaway value from flooding the screen.
 const MAX_COL_WIDTH := 240
 const MAX_ROWS_SHOWN := 60
+## Screen colors, so each kind of line reads apart: tables amber and green,
+## hints cyan, SQL keywords gold (as the input line colors them).
+const TABLE_HEAD := "#ffd27f"
+const TABLE_RULE := "#4f8a5c"
+const TABLE_ROWS := ["#e2ffe6", "#8fdca2"]
+const HINT := "#7fd4ff"
+const KEYWORD := "#ffcc59"
+const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]
 
 var terminal: Node  # the Terminal in the world that opened this
 var player: Player
@@ -20,6 +28,9 @@ var _history_i := -1
 ## Kinds: info, echo, result, hint, error, schema, note.
 var _noteable: Array[Dictionary] = []
 var _note_label: LineEdit
+## The red ; that flashes when Enter is pressed before the statement ends.
+var _semicolon: Label
+var _semicolon_tween: Tween
 var _note_index := -1
 ## Hovering a line lights it up and offers to add it to the notebook.
 var _hover_band: ColorRect
@@ -319,7 +330,7 @@ func write_note(index: int, label: String = "") -> bool:
 	if index < 0 or index >= _noteable.size():
 		return false
 	var line: Dictionary = _noteable[index]
-	get_node("/root/Game").write_note(label.strip_edges(), line.text, line.kind)
+	get_node("/root/Game").write_note(label.strip_edges(), line.text, line.kind, terminal.hint_case() if terminal else "")
 	_render("[color=#7fa88a]Written in your notebook%s.[/color]" % (": " + label.strip_edges() if label.strip_edges() != "" else ""), "none")
 	return true
 
@@ -416,8 +427,37 @@ static func _plain(bbcode: String) -> String:
 
 ## A message from SYSOP: an unknown user on the system who sends tips, nudges
 ## and .hint answers. (Players never learn who it is until much later.)
+## Its messages are cyan, in the terminal's own colours: SQL keywords gold, as on
+## the input line, and names like memo_fragments amber, as in a table's header,
+## in its queries and in the advice around them alike. Only capitals count as
+## keywords, so "or" in a sentence stays plain.
 static func sysop(text: String) -> String:
-	return "[color=#7fd4ff][lb]SYSOP[rb]: %s[/color]" % text
+	return "[color=%s][lb]SYSOP[rb]: %s[/color]" % [HINT, _words(text)]
+
+
+## Keywords gold and snake_case names amber, leaving BBCode tags alone.
+static func _words(text: String) -> String:
+	return _outside_tags(text, func(t: String) -> String:
+		return _keyword_re().sub(_names(t), "[color=%s]$1[/color]" % KEYWORD, true))
+
+
+static func _names(text: String) -> String:
+	return RegEx.create_from_string("\\b([a-z]+(?:_[a-z0-9]+)+)\\b").sub(text, "[color=%s]$1[/color]" % TABLE_HEAD, true)
+
+
+static func _keyword_re() -> RegEx:
+	var words: Array = ["ORDER BY", "GROUP BY"] + KEYWORDS
+	return RegEx.create_from_string("\\b(%s)\\b" % "|".join(words))
+
+
+## Apply `fn` to the text between BBCode tags, leaving the tags alone.
+static func _outside_tags(text: String, fn: Callable) -> String:
+	var out := ""
+	var at := 0
+	for m in RegEx.create_from_string("\\[[^\\]]*\\]").search_all(text):
+		out += fn.call(text.substr(at, m.get_start() - at)) + m.get_string()
+		at = m.get_end()
+	return out + fn.call(text.substr(at))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -450,6 +490,31 @@ func _on_input_key(event: InputEvent) -> void:
 		_typed()
 
 
+## A red ; at the end of what was typed, blinking for a couple of seconds.
+func _flash_semicolon() -> void:
+	if not is_instance_valid(_semicolon):
+		_semicolon = Label.new()
+		_semicolon.name = "MissingSemicolon"
+		_semicolon.text = ";"
+		_semicolon.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+		_semicolon.add_theme_font_override("font", _input.get_theme_font("font"))
+		_semicolon.add_theme_font_size_override("font_size", _input.get_theme_font_size("font_size"))
+		_semicolon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_input.add_child(_semicolon)
+	var line := _input.get_caret_line()
+	var at := _input.get_rect_at_line_column(line, _input.get_line(line).length())
+	_semicolon.position = Vector2(at.position.x + at.size.x, at.position.y) if at.position.x >= 0 else Vector2.ZERO
+	_semicolon.visible = true
+	if _semicolon_tween:
+		_semicolon_tween.kill()
+	_semicolon.modulate.a = 1.0
+	_semicolon_tween = create_tween()
+	for i in 4:
+		_semicolon_tween.tween_property(_semicolon, "modulate:a", 0.15, 0.25)
+		_semicolon_tween.tween_property(_semicolon, "modulate:a", 1.0, 0.25)
+	_semicolon_tween.tween_callback(func(): _semicolon.visible = false)
+
+
 ## Is `text` ready to run? Like a real SQL prompt, a query runs only once it ends
 ## with ; (dot-commands and API requests are one line and need none).
 static func is_complete(text: String) -> bool:
@@ -457,11 +522,14 @@ static func is_complete(text: String) -> bool:
 	return t == "" or t.begins_with(".") or FacilityAPI.is_request(t) or t.ends_with(";")
 
 
-## Enter before the ;: the statement carries on, on a new line.
+## Enter before the ;: the statement carries on, on a new line, and a red ;
+## flashes where it's missing.
 func _continue_statement() -> void:
 	var blank_line := _input.text.ends_with("\n") or _input.text.strip_edges() == ""
 	_input.set_caret_line(_input.get_line_count() - 1)
 	_input.set_caret_column(_input.get_line(_input.get_line_count() - 1).length())
+	if not blank_line:
+		_flash_semicolon()
 	_input.insert_text_at_caret("\n")
 	_typed()
 	if blank_line:
@@ -471,6 +539,8 @@ func _continue_statement() -> void:
 func _submit() -> void:
 	var sql := _input.text.strip_edges()
 	_input.text = ""
+	if is_instance_valid(_semicolon):
+		_semicolon.visible = false
 	if sql == "":
 		return
 	_history.append(sql)
@@ -607,10 +677,11 @@ func _command(cmd: String) -> void:
 				var desc := PackedStringArray()
 				for c in cols:
 					desc.append("%s %s" % [c["name"], c["type"]])
-				print_line("%s(%s)" % [t, ", ".join(desc)], "schema")
+				print_line("[color=%s]%s[/color](%s)" % [TABLE_HEAD, t, ", ".join(desc)], "schema")
 				_discover(t, db)
 		".hint":
-			print_line(sysop(terminal.next_hint()), "hint")
+			var case_id: String = terminal.hint_case()
+			print_line(sysop(_noted_hint(case_id, terminal.next_hint())), "hint")
 		".clear":
 			var mirror := _mirror()
 			if mirror:
@@ -637,6 +708,13 @@ func _command(cmd: String) -> void:
 				print_line("Backup tape restored. Data is back to how it started.")
 		_:
 			print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
+
+
+## Every hint asked for also goes on its puzzle's case page. Returns the hint.
+func _noted_hint(case_id: String, hint: String) -> String:
+	if case_id != "":
+		get_node("/root/Game").add_clue(case_id, _plain(hint), "SYSOP hint")
+	return hint
 
 
 ## Tables a query read from go on the notebook's Tables page.
@@ -671,17 +749,19 @@ func _format_table(columns: Array, rows: Array) -> String:
 	for i in columns.size():
 		header.append(_pad(str(columns[i]), widths[i]))
 		rule.append("-".repeat(widths[i]))
-	lines.append("[b]%s[/b]" % _esc(" | ".join(header)))
-	lines.append(" + ".join(rule).replace(" + ", "-+-"))
-	for row in shown:
+	# Results read apart from everything else: an amber header, then rows in two
+	# alternating shades so the eye can follow one across.
+	lines.append("[b][color=%s]%s[/color][/b]" % [TABLE_HEAD, _esc(" | ".join(header))])
+	lines.append("[color=%s]%s[/color]" % [TABLE_RULE, " + ".join(rule).replace(" + ", "-+-")])
+	for r in shown.size():
 		var cells := PackedStringArray()
 		for i in columns.size():
-			cells.append(_pad(_cell(row[columns[i]]), widths[i]))
-		lines.append(_esc(" | ".join(cells)))
+			cells.append(_pad(_cell(shown[r][columns[i]]), widths[i]))
+		lines.append("[color=%s]%s[/color]" % [TABLE_ROWS[r % 2], _esc(" | ".join(cells))])
 	var footer := "(%d row%s)" % [rows.size(), "" if rows.size() == 1 else "s"]
 	if rows.size() > MAX_ROWS_SHOWN:
 		footer += "  showing first %d. Try LIMIT or WHERE." % MAX_ROWS_SHOWN
-	lines.append(footer)
+	lines.append("[color=%s]%s[/color]" % [TABLE_RULE, footer])
 	return "\n".join(lines)
 
 
@@ -705,8 +785,8 @@ func _sql_highlighter() -> CodeHighlighter:
 	h.symbol_color = Color(0.8, 0.9, 0.8)
 	h.function_color = Color(0.85, 1.0, 0.85)
 	h.member_variable_color = Color(0.85, 1.0, 0.85)
-	var kw := Color(1.0, 0.8, 0.35)
-	for word in ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]:
+	var kw := Color(KEYWORD)
+	for word in KEYWORDS:
 		h.add_keyword_color(word, kw)
 		h.add_keyword_color(word.to_lower(), kw)
 	h.add_color_region("'", "'", Color(0.6, 1.0, 1.0))

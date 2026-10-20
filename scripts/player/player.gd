@@ -3,8 +3,8 @@ extends CharacterBody3D
 ## First-person player: walk, sprint, crouch, slide, landing roll, mantle, ledge
 ## grab and shimmy, climb, crawl through vents, shuffle along narrow ledges and
 ## stand on a teammate's shoulders (up to three high), sit on a chair or the
-## floor. Running, jumping and climbing cost stamina. Also flashlight, interact
-## and strike.
+## floor. Running, jumping and climbing cost stamina. Also flashlight, interact,
+## strike and block (right mouse; health and fights live in `combat`).
 ##
 ## Movement reads only `controls`, never `Input`, so a copy of this player on
 ## another machine moves the same way when fed the same controls. Only the
@@ -155,6 +155,12 @@ var winded := false
 var _stamina_rest := 0.0  # seconds since stamina was last spent
 var _stamina_state := Move.WALK  # last tick's state, to charge for a move once as it starts
 var _down_time := 0.0  # seconds left lying down; INF until get_up()
+## Health, blocking, going down and being thrown or grabbed (scripts/combat/).
+var combat: PlayerCombat
+## Lying on the floor at 0 health, waiting for a teammate.
+var downed: bool:
+	get:
+		return combat != null and combat.down
 var state := Move.WALK
 ## True when lower than standing (crouching or crawling).
 var crouching := false
@@ -293,6 +299,7 @@ func _ready() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
 		_add_body_mesh()
+	combat = PlayerCombat.create(self)
 
 
 ## Turn your view right by `yaw` and down by `pitch` (radians); a held notebook
@@ -394,6 +401,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var target := _look_target()
 		if target and target.has_method("interact_alt"):
 			target.interact_alt(self)
+	elif event.is_action_pressed("block") and not _reading() and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		combat.raise_guard()
 	elif event.is_action_pressed("attack") and not _hands_full():
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -447,12 +456,9 @@ func step(delta: float) -> void:
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
 
-func take_damage(amount: float) -> void:
-	health = max(0.0, health - amount)
-	if hud:
-		hud.damage_flash(health)
-	if health <= 0.0:
-		died.emit()
+## A hit from `cause` (see PlayerCombat.CAUSES): blocked, hurt, down or dead.
+func take_damage(amount: float, cause: String = "") -> String:
+	return combat.take_damage(amount, cause)
 
 
 func heal_full() -> void:
@@ -478,6 +484,7 @@ func respawn(at: Transform3D) -> void:
 	put_down(true)
 	_end_filing()
 	_end_terminal(false)
+	combat.reset()
 	heal_full()
 
 
@@ -1809,7 +1816,7 @@ func _look_target() -> Node:
 
 
 func _update_head(delta: float) -> void:
-	var target_y := _height - 0.12
+	var target_y := PlayerCombat.DOWN_EYE if downed else _height - 0.12
 	var flat_speed := Vector2(velocity.x, velocity.z).length()
 	if is_on_floor() and flat_speed > 0.5 and state == Move.WALK:
 		_bob_t += delta * flat_speed * 2.2
@@ -1827,6 +1834,8 @@ func _update_head(delta: float) -> void:
 			camera.global_transform = Transform3D(aim, head.global_position).interpolate_with(terminal_view(), f)
 	elif state == Move.ROLL:
 		camera.transform = Transform3D(Basis(Vector3.RIGHT, -TAU * (1.0 - clamp(_timer / ROLL_TIME, 0.0, 1.0))), Vector3.ZERO)
+	elif downed:
+		camera.transform = Transform3D(Basis(Vector3.FORWARD, 0.4), Vector3.ZERO)  # head on the floor
 	else:
 		camera.transform = Transform3D.IDENTITY
 

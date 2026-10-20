@@ -30,6 +30,9 @@ var look := "paper"
 ## local direction that face points.
 var read_size := Vector2(0.21, 0.28)
 var read_face := Vector3.BACK
+## What reading it adds to the reader's case pages: [{case, text}] (see Game.add_clue).
+## A clue with "opens" (a case title, and optional "tables") opens that case too.
+var clues: Array = []
 
 
 ## `lines` is an Array of Strings (typed lines) or Dictionaries (see doc_lines).
@@ -274,6 +277,7 @@ func pick_up(player: Node) -> DocumentReader:
 	(level if level else get_tree().root).add_child(reader)
 	if not reader.hold(self, player):
 		return null
+	_note_clues()
 	_report_read(player)
 	return reader
 
@@ -284,8 +288,25 @@ func open_reader(player: Node) -> DocumentReader:
 	var level := _level()
 	(level if level else get_tree().root).add_child(reader)
 	reader.open(self, player)
+	_note_clues()
 	_report_read(player)
 	return reader
+
+
+## Reading it puts its clues on this player's case pages.
+func _note_clues() -> void:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return
+	var noted := ""
+	for k in clues:
+		if k.has("opens"):
+			game.open_case(k.case, k.opens, k.get("tables", []))
+		if game.add_clue(k.case, k.text, title):
+			noted = game.case_info(k.case).title
+	var level := _level()
+	if noted != "" and level and level.get("hud"):
+		level.hud.notice("Noted on the case page: %s (Tab)" % noted, 3.0)
 
 
 ## Tell the host this was read (a story step may wait on a paper being found).

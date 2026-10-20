@@ -97,7 +97,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# At a terminal the screen is the whole view: the hotbar steps aside.
-	var show := player != null and is_instance_valid(player) and not player.is_using_terminal()
+	# Out of the way of anything being read: a terminal, the notebook, a held paper.
+	var show := player != null and is_instance_valid(player) and not player.is_using_terminal() and not player.is_holding_notebook() and not player.is_holding_prop()
 	_bar.visible = show
 	_hint.visible = show
 

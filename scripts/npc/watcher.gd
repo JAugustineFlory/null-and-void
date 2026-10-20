@@ -183,10 +183,13 @@ func player_sees(p: Node) -> bool:
 	return false
 
 
+## Whoever's closest and still on their feet: it leaves the ones it put down.
 func nearest_player() -> Node3D:
 	var best: Node3D = null
 	var best_d := INF
 	for p in _players():
+		if CrewVitals.is_down(p):
+			continue
 		var d := global_position.distance_to(p.global_position)
 		if d < best_d:
 			best_d = d

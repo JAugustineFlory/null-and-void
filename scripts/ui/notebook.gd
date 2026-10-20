@@ -191,7 +191,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return  # Tab is someone else's (the pause menu closes on it)
 		get_viewport().set_input_as_handled()
 	elif _open and event is InputEventKey and event.pressed and not event.echo \
-			and event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
+			and event.physical_keycode >= KEY_1 and event.physical_keycode < KEY_1 + NotebookPages.TAB_NAMES.size():
 		pages.show_page(event.physical_keycode - KEY_1)  # 1-4: the tabs, in order
 		get_viewport().set_input_as_handled()
 	elif _open and event.is_action_pressed("pause"):

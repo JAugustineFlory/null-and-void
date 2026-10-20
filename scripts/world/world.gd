@@ -103,6 +103,13 @@ func on_player_died() -> void:
 		super()
 
 
+func on_crew_down(cause: String) -> void:
+	if current:
+		current.on_crew_down(cause)
+	else:
+		super(cause)
+
+
 ## Field Notes as an overlay on the live world, instead of a separate scene.
 func show_field_notes() -> void:
 	if _field_notes:

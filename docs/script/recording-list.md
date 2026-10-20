@@ -1,6 +1,6 @@
 # Recording list
 
-102 lines in all.
+137 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -19,9 +19,9 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 Lines marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
 
-## Dale Rourke (71 lines)
+## Dale Rourke (77 lines)
 
-> Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
+> Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth. He laughs once, in the lab: the only time his warmth turns into real glee.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
@@ -78,8 +78,14 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_lab_shock_2` | That's her coat. She never leaves without her coat. | Quiet, staring at it. | Level 2, later |
 | [ ] | `l2_lab_terminal` | Her terminal's still logged in. Check it, see what she was working on. I'll call this in. | Backing toward the door, already reaching for his radio. | Level 2, later |
 | [ ] | `l2_frame` | Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale. | On his radio to WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance. | Level 2, later |
-| [ ] | `l2_trap_1` | Sorry about this. Nothing personal. | The door has just locked. The friendliness switches off. | Level 2, later |
-| [ ] | `l2_trap_2` | Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. | Tired, explaining a chore. | Level 2, later |
+| [ ] | `l2_trap_2` | Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. | Through the door's glass, straight after the radio call. Tired, explaining a chore. | Level 2, later |
+| [ ] | `l2_gloat_1` | You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language. | Through the glass, almost fond. The friendly tour voice, which is what makes it awful. | Level 2, later |
+| [ ] | `l2_gloat_2` | Then I saw the book in your van. Easy SQL. Still had the price sticker on it. | Shaking his head, smiling. | Level 2, later |
+| [ ] | `l2_gloat_3` | Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend. | Ticking it off, enjoying himself. | Level 2, later |
+| [ ] | `l2_gloat_4` | I should've reported you. Then it hit me. No... this is perfect. | Slower. Savouring it. | Level 2, later |
+| [ ] | `l2_gloat_5` | A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha! | The only time he laughs in the game: real delight, loud and sudden, then it stops dead. | Level 2, later |
+| [ ] | `l2_gloat_6` | A garage with a van, calling itself a company. Your badges on her door. It writes itself. | Flat again, tired. Back to normal. | Level 2, later |
+| [ ] | `l2_trap_1` | Sorry about this. Nothing personal. | Last line of the monologue, quiet. Walking away from the glass. | Level 2, later |
 | [ ] | `l2_return` | Should've checked the other door. | Coming back in. Calm, cracking his neck. | Level 2, later |
 | [ ] | `l2_hit_prints` | Go on, touch everything. Your prints are all over her desk now. | Taunting. Can repeat. | Level 2, later |
 | [ ] | `l2_hit_1` | Stay down! | Swinging. | Level 2, later |
@@ -97,7 +103,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
 | [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (17 lines)
+## WARDEN (21 lines)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
@@ -120,6 +126,10 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_smudged` | TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
 | [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
+| [ ] | `l3_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 3, later |
+| [ ] | `l3_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 3, later |
+| [ ] | `l3_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 3, later |
+| [ ] | `l3_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 3, later |
 
 ## WARDEN (PA tapes) (3 lines)
 
@@ -141,15 +151,47 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
-## Byte-Right dispatch (3 lines)
+## Maddison Kowalski (23 lines)
 
-> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+> Fast, upbeat, salesperson's energy: the crew's friend more than their boss. Heard over a radio base station or the van radio. For the dispatch lines, Maddison puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio. Routine. | Level 0 |
+| [ ] | `l0_garage_1` | Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. | Bursting with it. The crew starts on the garage floor. | Level 0, later |
+| [ ] | `l0_garage_2` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. | Quickly, before anyone can ask. Then the fax starts. | Level 0, later |
+| [ ] | `l0_garage_3` | Small problem. It says database. And unless somebody's been holding out on me... none of us can code. | The smile stays on. A hopeful pause. Once the work order's off the fax. | Level 0, later |
+| [ ] | `l0_garage_4` | Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. | Proud of this. | Level 0, later |
+| [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. After the huddle's quiz. | Level 0, later |
+| [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out. | Counting the rules off. As the crew boards the van. | Level 0, later |
+| [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0, later |
+| [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0, later |
+| [ ] | `l0_huddle_order_1` | Chapter two. 'Putting things in order.' Now that, I can get behind. | Reading off the page. | Level 0, later |
+| [ ] | `l0_huddle_order_2` | Smallest first, unless you say DESC. Write that down. I'm writing it down. | Scribbling. | Level 0, later |
+| [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio, in the professional dispatcher voice. 'Van three' is a bluff: they own one van. | Level 0 |
 | [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
 | [ ] | `l0_dispatch_3` | Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. | Bored, reading the form. Signing off, already onto the next call. | Level 0 |
+| [ ] | `l1_huddle_where_1` | WHERE. For finding one thing in a big pile. Like my car keys. | Patting pockets. | Level 1, later |
+| [ ] | `l1_huddle_where_2` | Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears. | Rueful. | Level 1, later |
+| [ ] | `l1_huddle_compare_1` | Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number. | Drawing one on the whiteboard, with teeth. | Level 1, later |
+| [ ] | `l1_huddle_compare_2` | Okay. That's maths I actually remember from school. | Relieved. | Level 1, later |
+| [ ] | `l2_huddle_like_1` | LIKE. For when you only know part of a word. The percent sign means 'anything goes here.' | Squinting at the page. | Level 2, later |
+| [ ] | `l2_huddle_like_2` | So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. | Pleased to have found themself. | Level 2, later |
+| [ ] | `l2_huddle_get_1` | This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' | Flipping the book over to check the cover. | Level 2, later |
+| [ ] | `l2_huddle_get_2` | So it's a SELECT for robots. Got it. Probably. | Not convinced. | Level 2, later |
+| [ ] | `l3_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 3, later |
+| [ ] | `l3_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 3, later |
+
+## Radio newsreader (5 lines)
+
+> Smooth, professional, warm, slightly bored. Calm public-radio delivery with no drama; the flatness is what makes it land.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l2_news_1` | Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems. | Steady, mid-bulletin. | Level 2, later |
+| [ ] | `l2_news_2` | Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered. | No change in tone. | Level 2, later |
+| [ ] | `l2_news_3` | A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.' | A slight shift for the quote: reading it, not acting it. | Level 2, later |
+| [ ] | `l2_news_4` | Byte-Right's only office, a rented garage, was found empty. The crew has not been seen since. | A beat before the second sentence. | Level 2, later |
+| [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
 ## Harold Mercer (5 lines)
 
