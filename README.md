@@ -11,15 +11,64 @@ The full design is in [docs/game-plan.md](docs/game-plan.md).
 
 ## Status
 
-First playable slice: **Levels 0 and 1**, solo or co-op (2 to 6 players), greybox art,
-subtitles for placeholder voices.
+Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo or co-op
+(1 to 6 players), furnished art, subtitles for placeholder voices.
 
-- **Level 0, The Lobby:** Rourke's tour, Dr. Vale's shredded memo (`SELECT`, `FROM`, `ORDER BY`),
-  walkie-talkies behind the desk (climb over it), a jammed shutter to slide under, and an optional
-  vent to a forgotten closet.
-- **Level 1, Server Room A:** Rourke locks you in and attacks. Knock him down, then tie him up or
-  finish it. Use his badge to read WARDEN's self-test, find the faulted door controller with
-  `WHERE ... AND ...`, and reset it at the right rack. The faulted rack changes every run.
+- **Ground floor, the lobby:** check in with security, get your visitor badges, and piece
+  together a shredded memo with your first queries (`SELECT`, `FROM`, `ORDER BY`).
+- **Floor 14, the server floor:** the job you were hired for. Track down the faulty door
+  controllers with `WHERE` and reset the right rack. The faulty rack changes every run.
+- **Floor 22, the security floor:** filter, sort and count your way
+  through the guards' own records.
+
+## Changelog
+
+Newest first. Floors are listed by their in-game floor number.
+
+### 2026-10-20
+- **New:** health and stamina bars, and blocking (right-click just before a hit lands). In co-op, a teammate can help you up when you go down.
+- **New:** the tower elevator now serves its real floors, and stairwells link every floor ("in case of emergency, do not use elevators").
+- **New:** the tower exterior, and a badge reader at the front gate.
+- **New:** *Easy SQL*, the crew's beginner's book, rides along in the van, with practice kits.
+- **Added:** case pages in the notebook, a guest check-in at the front desk, and a ledge route on the security floor.
+- **Changed:** each paper and sticky note exists only once, so the crew has to pool what it finds.
+- **Fixed:** playtest rounds 7 and 8, plus a quality pass across all three floors.
+
+### 2026-10-19
+- **New:** a hotbar for carried items, and visitor badges.
+- **New:** see what a teammate is typing on a terminal.
+- **Changed:** deeper puzzles and clearer in-world clues on the ground floor and floors 14 and 22.
+- **Fixed:** art and lighting issues; more automated teaching tests.
+
+### 2026-10-18
+- **New:** every level is now a whole floor of the tower.
+- **Added:** realistic papers and documents, and furniture on all three floors.
+- **Changed:** you can look around a paper's edges while reading it.
+
+### 2026-10-17
+- **New:** the notebook, sticky notes and the elevator.
+- **New:** terminal tips from SYSOP, and papers pinned to walls.
+- **Changed:** the notebook and terminal screens are held in your hands.
+- **Fixed:** co-op sync issues and playtest rounds 3 to 5.
+
+### 2026-10-16
+- **New:** the first playable slice: the lobby and the server floor, built in Godot 4.7.
+- **New:** co-op for up to 6 players, with open-mic voice and walkie-talkie radios.
+- **New:** parkour movement: slide, roll, mantle, ledge grab, climb, vents and shoulder stands.
+- **New:** the van intro and one continuous building with no loading screens.
+- **Added:** the voice script, early art and a teaching walkthrough for every puzzle.
+
+## Roadmap
+
+| Phase | What it covers | State |
+|---|---|---|
+| Foundations | Engine, co-op, movement, terminals, notebook | Done |
+| First three floors | Ground floor, floors 14 and 22 | Done |
+| Playtest and polish | Home base opening, crew characters, combat tuning, hints | Now |
+| Act 2 | More floors of the tower, and new database skills (changing data, not just reading it) | Next |
+| Act 3 | Deeper floors and new skills beyond SQL (HTTP, JavaScript, HTML/CSS) | Later |
+| Finale | The last floors and the way out | Later |
+| Ship | Steam lobbies, final art and recorded voices | Later |
 
 ## Play it
 
@@ -28,7 +77,7 @@ subtitles for placeholder voices.
 3. Press **F5** (or the Play button).
 
 Controls: WASD move, mouse look, Shift sprint, Ctrl (or C) crouch, Shift+Ctrl slide,
-Space jump/mantle, E use, X alternate action, F flashlight, left click strike, Esc pause.
+Space jump/mantle, E use, X alternate action, F flashlight, left click strike, right click block, Esc pause.
 
 Movement: hold W and jump at a high edge to grab it and hang; release W and press it
 again to pull up (A/D shimmy, S or Ctrl let go, Space kick off). Tap Ctrl in the air to roll on landing, which is quiet. Walk into a pipe or
