@@ -30,6 +30,7 @@ func _ready() -> void:
 	var start := _button("Start (solo)")
 	start.pressed.connect(func():
 		Game.new_run()
+		Game.open_at_home = true
 		Game.goto("world"))
 	box.add_child(start)
 	var skip := _button("Playtest: jump to Level 2")

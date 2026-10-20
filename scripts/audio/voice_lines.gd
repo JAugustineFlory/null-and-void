@@ -58,6 +58,9 @@ const CHARACTERS := {
 ## Set `reveal: true` on scenes that give away a twist: their lines go to a separate
 ## "later session" script (so do all lines from REVEAL_LEVEL on).
 const SCENES := [
+	{"id": "l0_garage", "level": 0, "title": "The garage, that evening", "wired": true,
+		"moment": "On the radio base station to your IT crew, who are still in the company garage, the evening of a big new job.",
+		"context": "DRAFT for Voice and story to rewrite. The game opens in Byte-Right's garage. Dispatch, on the base station speaker, tells the crew they won the Halcyon contract by underbidding everyone, though none of them can code. The work order comes through on the fax; the beginner's book Easy SQL waits on the back shelf. The crew reads its first chapter together at the workbench, then gets in the van."},
 	{"id": "l0_van", "level": 0, "title": "The IT van", "wired": true,
 		"moment": "You're on the radio to an IT crew parked outside a client's building at 11 p.m.",
 		"context": "The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up."},
@@ -120,6 +123,18 @@ const SCENES := [
 ## speaker, text (also the subtitle), and a short note for the actor.
 const LINES := {
 	# --- Level 0 -------------------------------------------------------------
+	"l0_garage_1": {"scene": "l0_garage", "speaker": "DISPATCH", "text": "Base to the garage. You lot still there? Good. Halcyon called back. We got the contract.",
+		"note": "Over the base station speaker. Pleased, trying to sound like this happens all the time."},
+	"l0_garage_2": {"scene": "l0_garage", "speaker": "DISPATCH", "text": "We came in so cheap nobody else stood a chance. Job's tonight, eleven o'clock. Work order's coming through on the fax now.",
+		"note": "Quick, a little guilty about how cheap."},
+	"l0_garage_3": {"scene": "l0_garage", "speaker": "DISPATCH", "text": "It says database problem. I know. Not one of us has ever touched a database.",
+		"note": "A beat of honesty before \"I know.\""},
+	"l0_garage_4": {"scene": "l0_garage", "speaker": "DISPATCH", "text": "That's what the book's for. Shop bag, back shelf. Easy SQL. Read the first chapter together before you go.",
+		"note": "Back to business. Say the title like it's slightly embarrassing."},
+	"l0_garage_5": {"scene": "l0_garage", "speaker": "DISPATCH", "text": "That'll do for a start. Take the book with you. Everybody in the van.",
+		"note": "Brisk. Clapping hands, in the voice."},
+	"l0_garage_6": {"scene": "l0_garage", "speaker": "DISPATCH", "text": "And if anyone at Halcyon asks, we've done this a hundred times. Base out.",
+		"note": "Half a joke, half an order."},
 	"l0_dispatch_1": {"scene": "l0_van", "speaker": "DISPATCH", "text": "Van three, you're on site at Halcyon Data Systems. After-hours callout.",
 		"note": "Over the van radio. Routine."},
 	"l0_dispatch_2": {"scene": "l0_van", "speaker": "DISPATCH", "text": "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors.",

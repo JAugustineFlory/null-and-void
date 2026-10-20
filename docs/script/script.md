@@ -31,6 +31,22 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ## Level 0
 
+### The garage, that evening
+
+*DRAFT for Voice and story to rewrite. The game opens in Byte-Right's garage. Dispatch, on the base station speaker, tells the crew they won the Halcyon contract by underbidding everyone, though none of them can code. The work order comes through on the fax; the beginner's book Easy SQL waits on the back shelf. The crew reads its first chapter together at the workbench, then gets in the van.*
+
+**DISPATCH:** *(Over the base station speaker. Pleased, trying to sound like this happens all the time.)* Base to the garage. You lot still there? Good. Halcyon called back. We got the contract. `[l0_garage_1]`
+
+**DISPATCH:** *(Quick, a little guilty about how cheap.)* We came in so cheap nobody else stood a chance. Job's tonight, eleven o'clock. Work order's coming through on the fax now. `[l0_garage_2]`
+
+**DISPATCH:** *(A beat of honesty before "I know.")* It says database problem. I know. Not one of us has ever touched a database. `[l0_garage_3]`
+
+**DISPATCH:** *(Back to business. Say the title like it's slightly embarrassing.)* That's what the book's for. Shop bag, back shelf. Easy SQL. Read the first chapter together before you go. `[l0_garage_4]`
+
+**DISPATCH:** *(Brisk. Clapping hands, in the voice.)* That'll do for a start. Take the book with you. Everybody in the van. `[l0_garage_5]`
+
+**DISPATCH:** *(Half a joke, half an order.)* And if anyone at Halcyon asks, we've done this a hundred times. Base out. `[l0_garage_6]`
+
 ### The IT van
 
 *The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up.*

@@ -592,6 +592,7 @@ func start() -> void:
 	await hud.lines(["l0_tour_1", "l0_tour_2"])
 	_watch_nearest()
 	await hud.lines(["l0_desk_1", "l0_desk_2"])
+	await Huddle.of(self).run("easy_sql_1")  # flashback: the garage, the book's first query
 	desk_terminal.enabled = true
 	_rourke_free = true
 	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")

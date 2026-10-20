@@ -52,6 +52,7 @@ func _run() -> void:
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
+	await load("res://tests/huddle_tests.gd").new().run(self, check)
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
