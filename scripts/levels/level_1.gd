@@ -206,6 +206,19 @@ func _build_door_plates() -> void:
 			ClueSpot.watch(plate, Vector3.ZERO, "controller", "%s door: ZONE %s, red light (stuck)." % [p[0], row[0]["zone"]], "Door plate")
 
 
+func _rack_card(pos: Vector3, facing: float, flat: bool) -> void:
+	Document.place(geo, pos, facing, "SERVER ROOM B - RACK MONITORING", [
+		"SERVER ROOM B - RACK MONITORING",
+		{"before": "Rack temperatures are logged in the table ", "filled": "racks", "after": "."},
+		"Columns: id, room, temp_c, load_pct, note",
+		"ALERT if temp_c > %d" % Level1Data.INTERLOCK_C,
+		"Running hot? Reseat that rack's fan tray.",
+	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15)).clues = [
+		{"case": "hot_rack", "text": "Rack temperatures are in the table racks. Columns: id, room, temp_c, load_pct, note."},
+		{"case": "hot_rack", "text": "ALERT if temp_c > %d. Running hot? Reseat that rack's fan tray." % Level1Data.INTERLOCK_C},
+	]
+
+
 func _light_plate(id: String, stuck: bool) -> void:
 	if door_plates.has(id):
 		(door_plates[id] as MeshInstance3D).material_override = Greybox.mat(Color(1.0, 0.15, 0.1) if stuck else Color(0.2, 1.0, 0.3), 3.0)
@@ -357,16 +370,9 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		add_light("srb", Vector3(15, 3.6, z), 8.0, 1.0)
 	# Inside the door, the room's monitoring card: where the temperatures live and
 	# what counts as too hot (the > the hot rack's query needs, found in the world).
-	Document.place(geo, Vector3(12.6, 1.5, 8.89), 0.0, "SERVER ROOM B - RACK MONITORING", [
-		"SERVER ROOM B - RACK MONITORING",
-		{"before": "Rack temperatures are logged in the table ", "filled": "racks", "after": "."},
-		"Columns: id, room, temp_c, load_pct, note",
-		"ALERT if temp_c > %d" % Level1Data.INTERLOCK_C,
-		"Running hot? Reseat that rack's fan tray.",
-	], false, "laminated", Vector2(0.3, 0.21)).clues = [
-		{"case": "hot_rack", "text": "Rack temperatures are in the table racks. Columns: id, room, temp_c, load_pct, note."},
-		{"case": "hot_rack", "text": "ALERT if temp_c > %d. Running hot? Reseat that rack's fan tray." % Level1Data.INTERLOCK_C},
-	]
+	# A copy lies on Server Room A's terminal desk, where the query is typed.
+	_rack_card(Vector3(12.6, 1.5, 8.89), 0.0, false)
+	_rack_card(Vector3(-3.7, 0.902, 8.35), -5.0, true)
 
 	# Break room: x 8..22, z -9..-3. Coffee, a fridge, a table.
 	Greybox.room(geo, Vector3(15, 0, -6), Vector3(14, 3, 6), c, [_gap("n", -3.0, door), _gap("s", -3.0, door)])

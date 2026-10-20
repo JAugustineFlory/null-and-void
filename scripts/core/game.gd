@@ -129,9 +129,12 @@ func discover_table(table: String, columns: Array) -> void:
 
 
 ## Write a terminal line into the notebook, under the player's own label. It goes
-## on the page of the case being worked on (current_case), or under Other notes.
-func write_note(label: String, text: String, kind: String) -> void:
-	notebook_written.append({"label": label, "text": text, "kind": kind, "case": current_case()})
+## on `case_id`'s page (at a terminal: the case its hints are for), else on the
+## case being worked on (current_case), or under Other notes.
+func write_note(label: String, text: String, kind: String, case_id: String = "") -> void:
+	if case_id == "" or not case_info(case_id).get("open", false):
+		case_id = current_case()
+	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
 	notebook_changed.emit()
 
 

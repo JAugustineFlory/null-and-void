@@ -330,7 +330,7 @@ func write_note(index: int, label: String = "") -> bool:
 	if index < 0 or index >= _noteable.size():
 		return false
 	var line: Dictionary = _noteable[index]
-	get_node("/root/Game").write_note(label.strip_edges(), line.text, line.kind)
+	get_node("/root/Game").write_note(label.strip_edges(), line.text, line.kind, terminal.hint_case() if terminal else "")
 	_render("[color=#7fa88a]Written in your notebook%s.[/color]" % (": " + label.strip_edges() if label.strip_edges() != "" else ""), "none")
 	return true
 

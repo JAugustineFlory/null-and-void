@@ -775,6 +775,7 @@ func test_level_1_scene() -> void:
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z)
 	check(level.controller_puzzle.solved, "WHERE + AND finds the controller")
 	_check_l1_documents(level)
+	check(level.find_children("*", "Document", true, false).any(func(d): return d.title.ends_with("RACK MONITORING") and d.global_position.distance_to(level.terminal.global_position) < 1.5 and d.plain_text().contains("temp_c > %d" % Level1Data.INTERLOCK_C)), "the racks table and its limit are on a card at the terminal, before any hint")
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
 	level._on_panel(null, healthy)
 	check(level.panels_locked_until == 0.0, "pressing a healthy rack explains itself without a lockout")
@@ -2681,6 +2682,10 @@ func test_notebook() -> void:
 	_game().solve_case("memo", "done")
 	_game().write_note("Query result", "a line copied after", "result")
 	check(_game().notebook_written[-1].case == "" and nb.pages.section_text(NotebookPages.Page.CASES).contains("a line copied after"), "with every case solved, new notes go under Other notes")
+	_game().open_case("caller", "Who called?")
+	_game().open_case("last_visitor", "Who signed in last?")
+	_game().write_note("Query result", "copied at the desk", "result", "caller")
+	check(_game().notebook_written[-1].case == "caller", "a line copied at a terminal goes on the case its hints are for, not just the newest one")
 	var count_before: int = _game().notebook_written.size()
 	nb.start_writing()
 	nb.finish_writing("   ")
