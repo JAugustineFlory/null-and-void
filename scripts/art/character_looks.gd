@@ -74,8 +74,8 @@ static func crew(index: int, picks: Dictionary = {}) -> Dictionary:
 
 ## Maddison Kowalski, Byte-Right's CEO, around 40: mature, confident and upbeat.
 ## 1997 small-business-owner style: a raspberry blazer with 90s shoulders over a
-## cream blouse, charcoal slacks, a glossy auburn bob, red lipstick and gold
-## studs, the company pin on her lapel.
+## cream blouse, charcoal slacks, a glossy auburn bob, red lipstick, and the
+## company pin on her lapel. (Earrings would put her over the 32-piece budget.)
 static func maddison() -> Dictionary:
 	var look := base()
 	look.merge({
@@ -94,7 +94,6 @@ static func maddison() -> Dictionary:
 		"shoulder_pads": true,
 		"logo": ArtPalette.BYTERIGHT_BLUE,
 		"lips": Color(0.66, 0.1, 0.16),
-		"earrings": ArtPalette.HALCYON_GOLD,
 	}, true)
 	return look
 
