@@ -14,6 +14,9 @@ extends LevelBase
 ## it swings back at you, and right-clicking as it comes in blocks it. A miss
 ## costs nothing. Everyone blocks it once before the crew huddles.
 ##
+## Maddison, the boss, is on her feet in here: she walks the crew round the
+## chores in the opening and stands at the bench in every flashback.
+##
 ## Graphics dresses it; DressHomeBase can hook in at the end of build().
 
 ## Where the garage sits in the World: well away from the tower and its car park.
@@ -34,13 +37,29 @@ const SPAR_GAP := 1.6
 ## Lines for Augustine's approval: see plan/approvals/home-base-huddles.md.
 const SPAR_NOTICE := "The punch bag swings back. Stand by it and right-click just as it comes at you to block"
 const SPAR_MISS := "Too early or too late. Right-click as it swings in"
-## Where the crew stand round the bench in a flashback, facing it.
-const HUDDLE_SPOTS := [Vector3(-3.2, 0, -0.1), Vector3(-1.8, 0, -0.1), Vector3(-3.2, 0, -1.9),
-	Vector3(-1.8, 0, -1.9), Vector3(-4.1, 0, -1.0), Vector3(-0.9, 0, -1.0)]
+## Where the crew stand round the bench in a flashback, facing it: three along
+## each long side, filled from the middle. Maddison has the east end.
+const HUDDLE_SPOTS := [Vector3(-2.5, 0, -0.1), Vector3(-2.5, 0, -1.9), Vector3(-1.6, 0, -0.1),
+	Vector3(-3.4, 0, -1.9), Vector3(-3.4, 0, -0.1), Vector3(-1.6, 0, -1.9)]
+## Maddison's marks: where she stands for each beat, and the point she faces there.
+## She comes in by the side door to the house.
+const MADDISON_MARKS := {
+	"door": [Vector3(-4.8, 0, 0.3), Vector3(0, 0, 0.3)],
+	"greet": [Vector3(-2.0, 0, 1.4), Vector3(-0.5, 0, 3.0)],
+	"fax": [Vector3(-3.9, 0, 1.9), Vector3(-4.85, 0, 2.3)],
+	"bench": [Vector3(-1.0, 0, -1.0), BENCH],
+	"van": [Vector3(0.6, 0, 1.5), Vector3(1.5, 0, 0.4)],
+}
+## Off the bench's east end: the way round it to and from her bench mark.
+const BENCH_WAY := Vector3(-1.0, 0, 0.4)
 
 var fax: Interactable
 var book_bag: Interactable
 var van_door: Interactable
+## Maddison (CharacterLooks.maddison), and the mark she's at or walking to.
+var maddison: Node3D
+var maddison_mark := "door"
+var _maddison_walk: Tween
 ## The punch bag's hook: it swings about this point.
 var punch_bag: Node3D
 ## Who the bag is swinging at (0: nobody), and whether it's coming in now.
@@ -95,6 +114,13 @@ func build() -> void:
 
 	_build_van(VAN)
 	_build_punch_bag(PUNCH_BAG)
+	Greybox.panel(geo, Vector3(-5.47, 1.05, 0.3), Vector3(0.05, 2.1, 0.9), Color(0.5, 0.42, 0.32))  # the side door to the house
+	maddison = Node3D.new()
+	maddison.name = "Maddison"
+	maddison.position = MADDISON_MARKS.door[0]
+	add_child(maddison)
+	_face(maddison, MADDISON_MARKS.door[1])
+	NpcLook.attach(maddison, CharacterLooks.maddison(), hud)  # she talks when her line is up
 
 	var bulb := Color(1.0, 0.88, 0.7)
 	add_light("garage", BENCH + Vector3(0, 3.4, 0), 3.6, 1.2, bulb)
@@ -130,6 +156,39 @@ func _build_van(center: Vector3) -> void:
 			Vector3(-0.33, 0, 0.7), Vector3(0.33, 0, 0.7), Vector3(0.99, 0, 0.7)]:
 		Greybox.panel(geo, cab + at + Vector3(0, 0.25, 0.1), Vector3(0.55, 0.5, 0.5), Color(0.15, 0.15, 0.18))
 		van_seats.append(cab + at + Vector3(0, 0.05, 0))
+
+
+static func _face(node: Node3D, point: Vector3) -> void:
+	var to := point - node.position
+	if Vector2(to.x, to.z).length() > 0.01:
+		node.rotation.y = atan2(-to.x, -to.z)
+
+
+## Maddison walks to `mark` (see MADDISON_MARKS), round the bench if it's in the way.
+func maddison_to(mark: String) -> void:
+	if _maddison_walk:
+		_maddison_walk.kill()
+	var route: Array[Vector3] = []
+	if mark == "bench" or maddison_mark == "bench":
+		route.append(BENCH_WAY)
+	route.append(MADDISON_MARKS[mark][0])
+	maddison_mark = mark
+	_maddison_walk = create_tween()
+	var from := maddison.position
+	for to in route:
+		_maddison_walk.tween_callback(_face.bind(maddison, to))
+		_maddison_walk.tween_property(maddison, "position", to, from.distance_to(to) / CharacterRig.WALK_SPEED)
+		from = to
+	_maddison_walk.tween_callback(_face.bind(maddison, MADDISON_MARKS[mark][1]))
+
+
+## Maddison straight onto `mark`, no walk (a cut).
+func maddison_at(mark: String) -> void:
+	if _maddison_walk:
+		_maddison_walk.kill()
+	maddison_mark = mark
+	maddison.position = MADDISON_MARKS[mark][0]
+	_face(maddison, MADDISON_MARKS[mark][1])
 
 
 ## A heavy bag on a chain from a ceiling hook, out of the way by the roll-up door.
@@ -190,11 +249,15 @@ func start() -> void:
 	player.flashlight.visible = false
 	hud.notice("WASD to walk, the mouse to look around", 6.0)
 	await get_tree().create_timer(1.5, false).timeout
-	await hud.lines(["l0_garage_1", "l0_garage_2"])
+	maddison_to("greet")  # in from the house, waving the printout
+	await hud.line("l0_garage_1")
+	maddison_to("fax")
+	await hud.line("l0_garage_2")
 	fax.enabled = true
 	hud.todo("Get the work order off the fax")
 	hud.notice("Look at the fax machine and press E", 6.0)
 	await sync.gate("fax", fax.used)
+	maddison_to("bench")  # she leans on the bench and sends them for the book
 	await hud.lines(["l0_garage_3", "l0_garage_4"])
 	book_bag.enabled = true
 	hud.todo("Find the book in the back corner")
@@ -209,6 +272,7 @@ func start() -> void:
 	hud.todo("")
 	await Huddle.of(self).run("easy_sql_0", Huddle.HERE)
 	await hud.line("l0_garage_5")
+	maddison_to("van")  # she sees them off at the van door, then stays behind
 	van_door.enabled = true
 	hud.todo("Get in the van")
 	await sync.gate("boarded", crew_boarded)
@@ -388,6 +452,7 @@ static func for_flashback(level: Node) -> HomeBase:
 func start_flashback(crew: int) -> void:
 	visible = true
 	bench_book.visible = true
+	maddison_at("bench")
 	for i in clampi(crew, 1, HUDDLE_SPOTS.size()):
 		var spot := Node3D.new()
 		spot.name = "Crew%d" % i
