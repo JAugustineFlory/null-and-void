@@ -26,6 +26,7 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 Newest first. Floors are listed by their in-game floor number.
 
 ### 2026-10-20
+- **Added:** the crew jots down what people tell them. Spoken tasks go on the Work order, and facts go on the case page or under Other notes, so a missed line can be read back.
 - **Added:** the garage's folding chairs can be sat on.
 - **New:** notes huddles in co-op. Press E on a teammate to huddle up, and anyone can join by pressing E on someone in it. Then share a line, a whole case page or every case, and it fills in the same case page in their notebooks.
 - **New:** in the co-op lobby, choose who you play (twelve crew members across two body types), your polo colour and your skin tone, with a turning preview.
