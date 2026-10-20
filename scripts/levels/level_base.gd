@@ -34,6 +34,8 @@ var exit_door: Door
 ## has its own LevelSync for its events; the World's one starts the session.
 var sync: LevelSync
 var players: NetPlayers
+## Who's down, and what entities do to players on other machines (scripts/combat/).
+var crew: CrewVitals
 var voice: VoiceChat
 var _pause: Control
 
@@ -70,6 +72,8 @@ func _ready() -> void:
 	player.transform = player_spawn(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))
 	add_child(player)
 	players = NetPlayers.create(self, player)
+	crew = CrewVitals.create(self, players)
+	player.combat.crew = crew
 	player.died.connect(_on_player_died)
 	voice = VoiceChat.create(self)
 	_build_pause_menu()
@@ -81,6 +85,9 @@ func _ready() -> void:
 	notebook.player = player
 	notebook.terminal_ui = terminal_ui
 	add_child(notebook)
+	# While it's open, subtitles go above the book instead of across its pages.
+	notebook.opened.connect(func(): hud.subtitles_on_top(true))
+	notebook.closed.connect(func(): if not terminal_ui.visible: hud.subtitles_on_top(false))
 	inventory_screen = InventoryScreen.create(self, player, hud)
 	active = true
 	sync.begin_when_ready(start)
@@ -95,6 +102,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	inventory_screen = host.inventory_screen
 	player = host.player
 	players = host.players
+	crew = host.crew
 	voice = host.voice
 	environment = host.environment
 	sync = LevelSync.create(self)
@@ -136,6 +144,13 @@ func net_setup() -> void:
 ## Override: what happens when the player dies.
 func on_player_died() -> void:
 	player.respawn(spawn_point())
+
+
+## Override: the whole crew is down (solo: the player is). `cause` is what put
+## the last one down ("rourke", "watcher"...). Runs on every machine. By default
+## everyone comes to at the checkpoint, through on_player_died.
+func on_crew_down(_cause: String) -> void:
+	crew.send_everyone_back()
 
 
 ## Override: lighting mood while players are in this level. Wings share one
@@ -257,7 +272,7 @@ Ctrl  crouch, slide, roll
 Space  jump     W + Space  vault, mantle, grab a ledge or pipe
 E  use, boost a teammate     X  other use
 F  flashlight     Click  strike
-Tab  your notebook: notes, tables, Field Notes (1-4 turn to a tab)
+Tab  your notebook: work order, cases, tables, Field Notes (1-4 turn to a tab)
      reading, push the cursor to a screen edge to look that way; Tab also closes menus
 1-4  take out a hotbar item     I  inventory: choose what's on the hotbar
 V (hold)  talk on the radio, once you have one

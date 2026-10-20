@@ -160,7 +160,7 @@ static func troffer(parent: Node, ceiling_pos: Vector3, light_range: float = 8.0
 	light.light_energy = energy
 	light.light_color = ArtPalette.LIGHT_FLUORESCENT
 	root.add_child(light)
-	var diffuser := _piece(light, Vector3(1.16, 0.01, 0.56), Vector3(0, 0.38, 0), ArtPalette.glow(ArtPalette.LIGHT_FLUORESCENT, 2.2))
+	var diffuser := _piece(light, Vector3(1.16, 0.01, 0.56), Vector3(0, 0.38, 0), ArtPalette.troffer_glow(ArtPalette.LIGHT_FLUORESCENT, 2.2))
 	diffuser.name = "Diffuser"
 	return light
 
@@ -235,17 +235,19 @@ static func boxes(parent: Node, pos: Vector3, facing_deg: float = 0.0, count: in
 	return body
 
 
-## A framed poster or notice on a wall, facing -Z. Visual only.
-static func poster(parent: Node, pos: Vector3, facing_deg: float, text: String, size := Vector2(0.6, 0.8), paper := Color(0.93, 0.92, 0.86)) -> Node3D:
+## A framed poster or notice on a wall, facing -Z. Visual only. The text shrinks
+## from `font_size` until it fits on the paper, wrapped, with a small margin.
+static func poster(parent: Node, pos: Vector3, facing_deg: float, text: String, size := Vector2(0.6, 0.8), paper := Color(0.93, 0.92, 0.86), font_size := 40) -> Node3D:
 	var root := _node(parent, pos, facing_deg, "Poster")
 	_piece(root, Vector3(size.x + 0.04, size.y + 0.04, 0.02), Vector3.ZERO, ArtPalette.flat(Color(0.15, 0.14, 0.13), 0.5))
 	_piece(root, Vector3(size.x, size.y, 0.005), Vector3(0, 0, -0.012), ArtPalette.flat(paper, 0.8))
 	var l := Label3D.new()
 	l.text = text
-	l.font_size = 40
+	l.font_size = font_size
 	l.pixel_size = 0.0016
 	l.width = size.x / l.pixel_size * 0.9
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.font_size = fit_font_size(text, ThemeDB.fallback_font, font_size, l.pixel_size, size * 0.9)
 	l.modulate = Color(0.15, 0.17, 0.25)
 	l.outline_size = 0
 	l.position = Vector3(0, 0, -0.016)
@@ -253,6 +255,19 @@ static func poster(parent: Node, pos: Vector3, facing_deg: float, text: String, 
 	l.double_sided = false
 	root.add_child(l)
 	return root
+
+
+## The largest font size up to `font_size` at which `text`, word-wrapped to
+## `box.x` metres, is no taller than `box.y` and has no word wider than `box.x`.
+static func fit_font_size(text: String, font: Font, font_size: int, pixel_size: float, box: Vector2) -> int:
+	var fs := font_size
+	var flags := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	while fs > 12:
+		var sz := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, box.x / pixel_size, fs, -1, flags) * pixel_size
+		if sz.x <= box.x + 0.001 and sz.y <= box.y:
+			break
+		fs -= 2
+	return fs
 
 
 ## A sticky note: 7.6 cm square of paper with a strip of tape, one SQL keyword

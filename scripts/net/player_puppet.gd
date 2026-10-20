@@ -21,6 +21,8 @@ var crawling := false
 ## standing, 1.25 crouching, 0.85 crawling, and anything in between.
 var stance_height := STAND_HEIGHT
 var health := 100.0
+## Lying on the floor at 0 health (CrewVitals keeps this the same everywhere).
+var downed := false
 var players: Node  # NetPlayers
 ## The teammate's body, posed from the synced position, stance and look.
 var rig: CharacterRig
@@ -154,9 +156,31 @@ func set_stance(height: float) -> void:
 	_tag.position.y = stance_height + 0.3
 
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, cause: String = "") -> void:
 	if players:
-		players.hurt(peer_id, amount)
+		players.hurt(peer_id, amount, cause)
+
+
+func set_downed(on: bool) -> void:
+	downed = on
+	rig.play("down" if on else "idle")
+	health = 0.0 if on else 100.0
+
+
+func _crew() -> Node:
+	return CrewVitals.of(players.level) if players else null
+
+
+## A teammate who's down can be helped up.
+func get_prompt(_by: Node) -> String:
+	var c := _crew()
+	return c.revive_prompt(peer_id) if c else ""
+
+
+func interact(_by: Node) -> void:
+	var c := _crew()
+	if c and downed:
+		c.revive(peer_id)
 
 
 func flashlight_on() -> bool:

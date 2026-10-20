@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_actions()
 	await test_rig_budget()
 	await test_props()
+	test_kits()
 	await test_held_items()
 	await test_gallery()
 	await test_dressed_level_0()
@@ -203,6 +204,34 @@ func test_rig_budget() -> void:
 	stage.free()
 
 
+func test_kits() -> void:
+	var stage := _stage()
+	var rail := ArtKit.stair_rail(stage, Vector3.ZERO, Vector3(0, 1.8, 3.0))
+	var sign0 := ArtKit.landing_number(stage, Vector3(2, 1.5, 0), 0, 0)
+	var sign22 := ArtKit.landing_number(stage, Vector3(3, 1.5, 0), 0, 22)
+	var lamp := ArtKit.emergency_light(stage, Vector3(0, 2.4, 0), 0)
+	var shapes := 0
+	for n in [rail, sign0, sign22, lamp]:
+		shapes += n.find_children("*", "CollisionObject3D", true, false).size()
+	check(shapes == 0, "stairwell dressing is visual only: nothing for the Watcher's raycasts to hit")
+	var numbers := []
+	for sgn in [sign0, sign22]:
+		for l in sgn.find_children("*", "Label3D", true, false):
+			numbers.append(l.text)
+	check("G" in numbers and "22" in numbers, "landing numbers match the tower floors (G, 22)")
+	check(lamp.get_node_or_null("Lamp") is SpotLight3D and ArtKit.emergency_light(stage, Vector3.ZERO, 0, false).get_node_or_null("Lamp") == null, "a lit emergency light lights the stairs, a dead one doesn't")
+	var top_rail: MeshInstance3D = rail.get_child(0)
+	check(rail.get_child_count() >= 5 and is_equal_approx(top_rail.position.y, 0.9 + 0.9), "a handrail runs up the flight on posts, 0.9 m over the treads")
+	var table := ArtKit.folding_table(stage, Vector3(5, 0, 0))
+	var chair := ArtKit.folding_chair(stage, Vector3(5, 0, 1))
+	check(table.get_meta("art_prop", false) and chair.get_meta("art_prop", false), "garage tables and chairs are solid props the route checks know about")
+	var board := ArtKit.whiteboard(stage, Vector3(7, 1.4, 0), 0, "CLIENTS\n- Halcyon (after hours)")
+	var banner := ArtKit.banner(stage, Vector3(7, 2.4, 0), 0)
+	check(board.find_children("*", "Label3D", true, false).size() == 1 and "BYTE-RIGHT" in banner.find_children("*", "Label3D", true, false)[0].text, "the whiteboard has writing and the banner names the company")
+	check(ArtKit.pizza_box(stage, Vector3(5, 0.76, 0), 0, false, 3).get_child_count() == 3, "shut pizza boxes stack")
+	stage.free()
+
+
 func test_props() -> void:
 	var stage := _stage()
 	var desk := ArtProps.desk(stage, Vector3.ZERO)
@@ -328,6 +357,7 @@ func test_dressed_level_0() -> void:
 		if l.get_node_or_null("PanelLink"):
 			lit += 1
 	check(lit == level.lights["lobby"].size(), "every lobby light panel follows its light")
+	_check_polish(level, "Level 0")
 	var van: Node3D = level.get_node("Dressing/Van")
 	check(van.find_children("Seat*", "Node3D", false, false).size() == 3, "the van has two front seats and a rear bench")
 	check(van.find_child("SteeringWheel", true, false) != null, "and a steering wheel")
@@ -396,6 +426,7 @@ func test_dressed_level_1() -> void:
 	check(look.pick_action() == "down", "Rourke's model falls when he goes down")
 	level.rourke.state = Rourke.State.TIED
 	check(look.pick_action() == "tied", "and shows him tied up")
+	_check_polish(level, "Level 1")
 	_check_skyline(level, "level_1")
 	level.free()
 
@@ -421,12 +452,48 @@ func test_dressed_level_2() -> void:
 			break
 	check(lab_wall != null and (lab_wall.material_override as StandardMaterial3D).albedo_color.b > 0.9, "Secure Lab B is clean and white")
 	check(level.lab.rourke.get_node_or_null("Look") != null, "Rourke wears his character model on the security floor too")
+	_check_polish(level, "Level 2")
 	_check_skyline(level, "level_2")
 	level.free()
 
 
 ## Halcyon Tower: every wing sees the sky and the campus at its own storey's height,
 ## and nothing outside collides or shows through into a wing next door.
+## The quality pass: ceiling lights cast soft shadows up close and drop them with
+## distance, fittings glow through louvres, and the room gets AO and reflections.
+func _check_polish(level: Node3D, label: String) -> void:
+	var spill := []
+	for poster in level.find_children("Poster*", "Node3D", true, false):
+		var paper := ((poster.get_child(1) as MeshInstance3D).mesh as BoxMesh).size
+		var l: Label3D = poster.find_children("*", "Label3D", false, false)[0]
+		var font: Font = l.font if l.font else ThemeDB.fallback_font
+		var flags := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+		var text := font.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, l.width, l.font_size, -1, flags) * l.pixel_size
+		if text.x > paper.x or text.y > paper.y or l.font_size < 16:
+			spill.append(l.text.get_slice("\n", 0))
+	check(spill.is_empty(), "%s: every poster's text fits on its paper %s" % [label, spill])
+	var lights := 0
+	var unshadowed := []
+	for id in level.lights:
+		for l in level.lights[id]:
+			var omni := l as OmniLight3D
+			if not omni:
+				continue
+			lights += 1
+			if not (omni.shadow_enabled and omni.distance_fade_enabled and omni.distance_fade_shadow <= ArtDress.SHADOW_NEAR):
+				unshadowed.append(str(omni.name))
+	check(lights > 0 and unshadowed.is_empty(), "%s: ceiling lights cast shadows that fade out with distance %s" % [label, unshadowed.slice(0, 6)])
+	var env: Environment = level.environment
+	check(env.ssao_enabled and env.ssr_enabled, "%s: corners get ambient occlusion and polished floors reflect" % label)
+	var panel: MeshInstance3D = null
+	for id in level.lights:
+		for l in level.lights[id]:
+			var link = l.get_node_or_null("PanelLink")
+			if link and l.visible and l.light_energy > 0.05 and is_instance_valid(link.panel):
+				panel = link.panel
+	check(panel != null and panel.material_override.emission_texture == ArtPalette.texture("louvre"), "%s: lit fittings show their louvres" % label)
+
+
 func _check_skyline(level: Node3D, wing: String) -> void:
 	var sky: Node3D = level.get_node_or_null("Dressing/Skyline")
 	check(sky != null and sky.get_meta("storey") == ArtSkyline.FLOORS[wing], "%s looks out on the campus from storey %d" % [wing, ArtSkyline.FLOORS[wing]])

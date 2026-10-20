@@ -123,6 +123,7 @@ static func apply(level: LevelBase) -> void:
 		ArtDress.reskin(tray.get_parent() as Node3D, [{"names": ["CableTray"], "mat": metal}])
 
 	ArtDress.link_light_panels(level)
+	ArtMood.polish(level.environment)
 	ArtDress.explain_dark(level, DARK_CHECK, 3.6, [Vector3(10.2, 0, -12.6)])  # the IT closet's ceiling panel stays bare
 	var rourke: Node3D = level.get("rourke")
 	if rourke:
@@ -255,7 +256,7 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	ArtProps.potted_plant(geo, Vector3(29.4, 0, -0.4))
 	ArtProps.potted_plant(geo, Vector3(29.4, 0, 6.4))
 	ArtProps.poster(dress, Vector3(29.89, 1.5, 5.0), 90,
-		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.4, 0.4))
+		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.5, 0.4), Color(0.93, 0.92, 0.86), 22)
 	ArtDress.skirting(dress, Vector3(27, 0, 3), Vector3(6, 3.2, 8), [
 		{"wall": "w", "at": 0.0, "width": 1.8}, {"wall": "e", "at": 0.0, "width": Elevator.DOORWAY},
 	])

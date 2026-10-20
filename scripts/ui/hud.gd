@@ -46,7 +46,6 @@ func _ready() -> void:
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle.custom_minimum_size = Vector2(1100, 0)
-	_subtitle.position = Vector2(-550, -170)
 	root.add_child(_subtitle)
 
 	_notice = ThemeUtil.label("", 26, ThemeUtil.AMBER)
@@ -61,6 +60,7 @@ func _ready() -> void:
 	_keys.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_keys.position = Vector2(28, -36)
 	root.add_child(_keys)
+	subtitles_on_top(false)  # lays out the subtitle and notice
 
 	_voice = Voice.new()
 	_voice.name = "Voice"
@@ -121,11 +121,14 @@ func play_lines(lines: Array) -> void:
 
 ## While a terminal's glass fills the view, subtitles go above it and notices
 ## below it (where the walking keys were), so neither covers its text.
+## Subtitles at the top (at a terminal) or the bottom. At the bottom a long line
+## grows upward, so it never runs under the hotbar.
 func subtitles_on_top(on: bool) -> void:
 	_subtitle.set_anchors_preset(Control.PRESET_CENTER_TOP if on else Control.PRESET_CENTER_BOTTOM)
 	_subtitle.offset_left = -550
 	_subtitle.offset_right = 550
-	_subtitle.offset_top = 8 if on else -170
+	_subtitle.grow_vertical = Control.GROW_DIRECTION_END if on else Control.GROW_DIRECTION_BEGIN
+	_subtitle.offset_top = 8 if on else -180
 	_subtitle.offset_bottom = _subtitle.offset_top
 	_notice.set_anchors_preset(Control.PRESET_CENTER_BOTTOM if on else Control.PRESET_CENTER_TOP)
 	_notice.offset_left = -600
