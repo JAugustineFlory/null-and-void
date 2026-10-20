@@ -375,6 +375,8 @@ func _make(character: Dictionary) -> void:
 		for side in [-1.0, 1.0]:
 			_part(spine, "box", Vector3(0.15 * sw, 0.5, 0.25), Vector3(side * 0.13 * sw, 0.24, 0.005), jacket, true)
 		_part(spine, "box", Vector3(shoulder * sw, 0.12, 0.25), Vector3(0, 0.44, 0.01), jacket)  # collar and shoulders
+	if look.collar and not jacket:
+		_part(spine, "box", Vector3(0.17 * sw, 0.035, 0.17), Vector3(0, 0.485, -0.005), shirt)
 	if look.logo is Color:
 		_part(spine, "box", Vector3(0.07, 0.05, 0.01), Vector3(-0.1 * sw, 0.38, -0.12 if not jacket else -0.13), ArtPalette.flat(look.logo))
 	if look.lanyard is Color:
@@ -403,7 +405,7 @@ func _make(character: Dictionary) -> void:
 		var knee := _joint(side + "_knee", hip, Vector3(0, -0.43, 0))
 		_part(knee, "capsule", Vector3(0.06, 0.42, 0), Vector3(0, -0.19, 0), pants, true)
 		_part(knee, "box", Vector3(0.1, 0.08, 0.25), Vector3(0, -0.4, -0.05), shoes)
-		if side == "r" and look.belt_radio:
+		if side == "r" and look.belt_radio and not (jacket and look.coat):  # a long coat hides the belt
 			_part(hips, "box", Vector3(0.05, 0.12, 0.07), Vector3(0.19 * hw, -0.02, 0.02), ArtPalette.flat(ArtPalette.DARK_PLASTIC, 0.5))
 	if jacket and look.coat:
 		# A long coat (lab coat) hangs from the waist to the knees.
@@ -418,17 +420,21 @@ func _make_face(head: Node3D) -> void:
 	if look.lips is Color:
 		_part(head, "box", Vector3(0.034, 0.01, 0.01), Vector3(0, 0.06, -0.112), ArtPalette.flat(look.lips, 0.35))
 	if look.earrings is Color:
-		for sx in [-1.0, 1.0]:
-			_part(head, "sphere", Vector3(0.012, 0.012, 0.012), Vector3(sx * 0.108, 0.012, -0.01), ArtPalette.flat(look.earrings, 0.25, 0.9))
+		# One bar through the head: only its two ends show, as studs at the lobes.
+		_part(head, "box", Vector3(0.222, 0.012, 0.012), Vector3(0, 0.035, -0.01), ArtPalette.flat(look.earrings, 0.25, 0.9))
 	if look.mustache is Color:
 		_part(head, "box", Vector3(0.08, 0.02, 0.02), Vector3(0, 0.055, -0.115), ArtPalette.flat(look.mustache))
 	if look.glasses:
 		# Thin frames just above the eyes, so they read as glasses, not shades.
-		_part(head, "box", Vector3(0.15, 0.012, 0.008), Vector3(0, 0.138, -0.118), ArtPalette.flat(Color(0.12, 0.1, 0.1), 0.3))
+		var frames: Color = look.glasses if look.glasses is Color else Color(0.12, 0.1, 0.1)
+		_part(head, "box", Vector3(0.15, 0.012, 0.008), Vector3(0, 0.138, -0.118), ArtPalette.flat(frames, 0.3))
 
 
 func _make_hair(head: Node3D) -> void:
 	var hair := ArtPalette.flat(look.hair, 0.95)
+	if look.headwear is String:
+		_make_headwear(head, hair)
+		return
 	match look.hair_style:
 		"short":
 			_part(head, "sphere", Vector3(0.122, 0.1, 0.127), Vector3(0, 0.15, 0.01), hair)
@@ -445,6 +451,28 @@ func _make_hair(head: Node3D) -> void:
 		"cap":
 			_part(head, "sphere", Vector3(0.125, 0.09, 0.13), Vector3(0, 0.17, 0.0), hair)
 			_part(head, "box", Vector3(0.18, 0.015, 0.1), Vector3(0, 0.165, -0.15), hair)
+
+
+## A hat replaces the top of the hair; long hair and bobs still show below it.
+func _make_headwear(head: Node3D, hair: StandardMaterial3D) -> void:
+	match look.hair_style:
+		"long":
+			_part(head, "box", Vector3(0.22, 0.28, 0.08), Vector3(0, 0.0, 0.08), hair)
+		"bob":
+			_part(head, "box", Vector3(0.24, 0.14, 0.19), Vector3(0, 0.1, 0.035), hair)
+		"short":
+			_part(head, "sphere", Vector3(0.121, 0.08, 0.125), Vector3(0, 0.12, 0.012), hair)
+	var hat := ArtPalette.flat(look.headwear_color, 0.85)
+	match look.headwear:
+		"cap":
+			_part(head, "sphere", Vector3(0.125, 0.09, 0.13), Vector3(0, 0.17, 0.0), hat)
+			_part(head, "box", Vector3(0.18, 0.015, 0.1), Vector3(0, 0.165, -0.15), hat)
+		"beanie":
+			_part(head, "sphere", Vector3(0.128, 0.11, 0.132), Vector3(0, 0.175, 0.0), hat)
+			_part(head, "cyl", Vector3(0.127, 0.035, 0), Vector3(0, 0.15, 0.0), hat)  # turned-up cuff
+		"hard_hat":
+			_part(head, "sphere", Vector3(0.13, 0.1, 0.135), Vector3(0, 0.18, 0.0), ArtPalette.flat(look.headwear_color, 0.45))
+			_part(head, "cyl", Vector3(0.15, 0.012, 0), Vector3(0, 0.155, -0.01), ArtPalette.flat(look.headwear_color, 0.45))  # brim
 
 
 func _joint(joint_name: String, parent: Node3D, pos: Vector3) -> Node3D:

@@ -16,6 +16,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_walks_from_movement()
 	await test_rig_actions()
 	await test_rig_budget()
+	test_outfits()
 	await test_props()
 	test_kits()
 	await test_held_items()
@@ -175,6 +176,33 @@ func test_rig_actions() -> void:
 		rig.animate(1.0 / 60.0)
 	check(rig.joints["head"].rotation.y < -0.5, "the head turns toward a look target")
 	stage.free()
+
+
+func test_outfits() -> void:
+	var most := 0
+	for body in CharacterLooks.BODY_TYPES:
+		for hair in CharacterLooks.SLOTS.hair:
+			for head in CharacterLooks.SLOTS.head:
+				for jacket in CharacterLooks.SLOTS.jacket:
+					var loadout := {"body": body, "hair": {"item": hair}, "head": {"item": head}, "jacket": {"item": jacket},
+						"top": {"item": "polo"}, "face": {"item": "glasses"}, "ears": {"item": "studs"}, "belt": {"item": "radio"}}
+					var rig := CharacterRig.build(Node3D.new(), CharacterLooks.outfit(loadout))
+					most = maxi(most, rig.part_count())
+					rig.get_parent().free()
+	check(most <= 32, "every outfit combination stays within 32 mesh pieces (most: %d)" % most)
+	var plain := CharacterLooks.outfit({})
+	check(plain.body == 1 and plain.hair_style == "short" and plain.headwear == null and plain.jacket == null and plain.belt_radio, "an empty loadout is a plain crew member with a radio")
+	check(CharacterLooks.outfit({"top": {"item": "gold_suit"}}).collar, "an unknown item falls back to the slot's default")
+	var red := Color(0.8, 0.1, 0.1)
+	var look := CharacterLooks.outfit({"name": "Sam", "body": 2, "skin": 7, "top": {"item": "tee", "color": red},
+		"jacket": {"item": "blazer", "color": red}, "head": {"item": "beanie", "color": red}, "face": {"item": "glasses", "color": red}})
+	check(look.name == "Sam" and look.body == 2 and look.skin == CharacterLooks.SKIN_TONES[7], "name, body and skin come from the loadout")
+	check(look.shirt == red and look.jacket == red and look.shoulder_pads and look.headwear == "beanie" and look.headwear_color == red and look.glasses == red, "each item takes the color the player picked")
+	var hatted := CharacterRig.build(Node3D.new(), CharacterLooks.outfit({"hair": {"item": "long"}, "head": {"item": "cap"}}))
+	var bare := CharacterRig.build(Node3D.new(), CharacterLooks.outfit({"hair": {"item": "long"}}))
+	check(hatted.part_count() == bare.part_count() + 1, "a cap covers the top of the hair, and long hair still shows below it")
+	hatted.get_parent().free()
+	bare.get_parent().free()
 
 
 func test_rig_budget() -> void:
