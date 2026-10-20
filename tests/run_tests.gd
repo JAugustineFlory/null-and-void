@@ -1,7 +1,9 @@
 extends SceneTree
 ## Headless test runner. Usage:
-##   godot --headless -s tests/run_tests.gd
-## Exits with code 1 if any test fails.
+##   godot --headless -s tests/run_tests.gd                     every group
+##   godot --headless -s tests/run_tests.gd -- --group=floor_22  one group (or a,b,c)
+## Exits with code 1 if any test fails. CI runs each group as its own job, side by side,
+## so add a new test to the group it belongs to and keep each group under ~3 minutes.
 
 var passed := 0
 var failed := 0
@@ -13,54 +15,110 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
+## Each group is a _group_<name>() function below. CI runs one job per entry here.
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coop", "movement", "teaching"]
+
+
 func _run() -> void:
 	# The full-screen notebook and terminal; test_in_world_ui covers the held and on-screen ones.
 	_game().diegetic_ui = false
+	var only := _groups_from_args()
+	for g in only:
+		if g not in GROUPS:
+			check(false, "unknown test group '%s' (groups: %s)" % [g, ", ".join(GROUPS)])
+	for g in GROUPS:
+		if only.is_empty() or g in only:
+			print("\n=== group: %s ===" % g)
+			await _run_group(g)
+	if passed + failed == 0:
+		check(false, "no tests ran")
+	print("\n%d passed, %d failed" % [passed, failed])
+	quit(1 if failed > 0 else 0)
+
+
+func _groups_from_args() -> Array:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--group="):
+			return Array(arg.trim_prefix("--group=").split(",", false))
+	return []
+
+
+func _run_group(g: String) -> void:
+	match g:
+		"core": await _group_core()
+		"floor_g": await _group_floor_g()
+		"floor_14": await _group_floor_14()
+		"floor_22": await _group_floor_22()
+		"floor_22_lab": await _group_floor_22_lab()
+		"coop": await _group_coop()
+		"movement": await _group_movement()
+		"teaching": await _group_teaching()
+
+
+## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
+func _group_core() -> void:
 	test_facility_db()
-	test_level_0_puzzles()
-	test_level_1_data_every_seed()
-	test_first_hints_show_working_queries()
+	test_facility_api()
 	test_voice_codec()
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
 	await test_commentary()
 	await test_pause_holds_subtitles()
-	test_facility_api()
-	test_level_2_data_every_seed()
-	test_level_2_hints()
-	test_level_2_badge_route()
 	await test_screens_fill_window()
-	await test_level_0_scene()
-	await test_ground_floor()
-	await test_level_1_scene()
-	await test_level_2_scene()
-	await test_level_2_routes()
-	await test_level_2_wall_controls()
-	await test_level_2_main_route()
-	test_level_2_lab_data_every_seed()
-	for outcome in ["killed", "tied", "untied"]:
-		await test_level_2_lab(outcome)
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
-	await test_rourke_leads_in()
 	test_sticky_notes_never_give_answers()
 	test_visitor_badge()
 	await test_elevator()
 	await test_notebook()
 	await test_case_pages()
-	await test_level_2_cases()
 	test_sysop_colors()
 	await test_stairwells()
 	await test_in_world_ui()
 	await test_pick_up_papers()
-	await load("res://tests/movement_tests.gd").new().run(self, check)
 	await load("res://tests/combat_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
-	await load("res://tests/teaching_tests.gd").new().run(self, check)
-	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
 	await load("res://tests/huddle_tests.gd").new().run(self, check)
+
+
+## Ground floor (Level 0) and Rourke's tour.
+func _group_floor_g() -> void:
+	test_level_0_puzzles()
+	test_first_hints_show_working_queries()
+	await test_level_0_scene()
+	await test_ground_floor()
+	await test_rourke_leads_in()
+
+
+## Floor 14, the server floor (Level 1).
+func _group_floor_14() -> void:
+	test_level_1_data_every_seed()
+	await test_level_1_scene()
+
+
+## Floor 22, the security floor (Level 2), outside the lab.
+func _group_floor_22() -> void:
+	test_level_2_data_every_seed()
+	test_level_2_hints()
+	test_level_2_badge_route()
+	await test_level_2_scene()
+	await test_level_2_routes()
+	await test_level_2_wall_controls()
+	await test_level_2_main_route()
+	await test_level_2_cases()
+
+
+## Floor 22's Secure Lab B, once per way the Rourke fight can end.
+func _group_floor_22_lab() -> void:
+	test_level_2_lab_data_every_seed()
+	for outcome in ["killed", "tied", "untied"]:
+		await test_level_2_lab(outcome)
+
+
+## Co-op: several machines in one process.
+func _group_coop() -> void:
 	await test_coop_level_0()
 	await test_coop_level_1()
 	await test_coop_six_players()
@@ -73,8 +131,16 @@ func _run() -> void:
 	await test_coop_level_2()
 	await test_coop_level_2_lab()
 	await test_coop_combat()
-	print("\n%d passed, %d failed" % [passed, failed])
-	quit(1 if failed > 0 else 0)
+
+
+func _group_movement() -> void:
+	await load("res://tests/movement_tests.gd").new().run(self, check)
+
+
+## Teaching walkthroughs and audits across every floor.
+func _group_teaching() -> void:
+	await load("res://tests/teaching_tests.gd").new().run(self, check)
+	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
 
 
 func check(cond: bool, name: String) -> void:

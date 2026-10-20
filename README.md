@@ -125,10 +125,13 @@ Every puzzle has an automated test proving it can be solved, and that the wrong 
 
 ```sh
 godot --headless --import   # run twice on a fresh checkout; see CLAUDE.md
-godot --headless -s tests/run_tests.gd
+godot --headless -s tests/run_tests.gd                       # everything
+godot --headless -s tests/run_tests.gd -- --group=floor_22   # one group
 ```
 
-CI runs the same tests on every push and pull request.
+The tests are split into groups (core systems, each floor, co-op, movement, teaching). CI runs
+every group side by side on each push and pull request, so a run takes about as long as the
+slowest group. Pull requests that only change docs skip the tests.
 
 Review screenshots (needs a display; on a server use `xvfb-run`):
 
