@@ -277,6 +277,7 @@ func _build_booth() -> void:
 	booth.puzzles = [cameras_puzzle, pike_puzzle, har_puzzle]
 	pike_puzzle.case_id = "pin"  # both searches are after a working PIN
 	har_puzzle.case_id = "pin"
+	pike_puzzle.givens = ["PIKE, H."]  # the sign-in sheet names him before the search
 	booth.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SECURITY BOOTH",
 		"Session: GUEST (lockdown mode, read only)",
