@@ -67,6 +67,33 @@ static func drop(node: Node3D, to_pos: Vector3, to_rot: Vector3, seconds: float 
 	t.parallel().tween_property(node, "rotation", to_rot, seconds)
 
 
+## Wind high up the side of a tower: a looping rush of low noise with slow gusts.
+static func wind() -> AudioStreamWAV:
+	const SECS := 6.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("wind")
+	var n := int(SECS * RATE)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var low := 0.0
+	var lower := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		low = lerpf(low, rng.randf_range(-1, 1), 0.05)
+		lower = lerpf(lower, low, 0.02)
+		# Whole cycles in SECS, so the loop has no seam.
+		var gust := 0.55 + 0.3 * sin(TAU * t / SECS) + 0.15 * sin(TAU * 3.0 * t / SECS + 1.3)
+		var v := (lower * 4.0 + low * 0.6) * gust
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 26000))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = RATE
+	w.data = data
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_end = n
+	return w
+
+
 static func _make(kind: String) -> AudioStreamWAV:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(kind)

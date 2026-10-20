@@ -822,7 +822,7 @@ func test_level_1_scene() -> void:
 	check(level.elevator.open_amount > 0.9 and level.elevator.contains(level.rourke.global_position), "with everyone there, the elevator opens and Rourke steps in")
 	level.player.global_position = level.elevator.to_global(Vector3(-0.6, 0.1, 1.2))
 	await physics_frame
-	check(level.elevator.button.get_prompt(level.player).contains("Press 2"), "inside, the button says where it goes")
+	check(level.elevator.button.get_prompt(level.player).contains("Press 22"), "inside, the button says where it goes")
 	level.player.global_position = level.to_global(Vector3(0, 0.1, -10.5))
 	await physics_frame
 	check(not level.elevator.press() and not level.elevator.is_closing and level.elevator.refusal != "", "the button does nothing while someone is still outside")
@@ -1736,6 +1736,16 @@ func test_level_2_routes() -> void:
 			break
 	p.controls.move = Vector2.ZERO
 	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
+	check(level.wind.playing and level.wind.volume_db > -12.0, "out on the ledge the wind is loud (%.0f dB)" % level.wind.volume_db)
+	check(absf(p.head.rotation.z) > 0.0005, "and the view sways a little")
+	# A step off the edge, 80 m up, is the end of that player: they come to at the floor's checkpoint.
+	p.state = Player.Move.WALK  # off the ledge, a step clear of it
+	p._ledge = null
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(9.0, 0.5, -2.0)))
+	p.velocity = Vector3.ZERO
+	check(await _until(func(): return p.health == 100.0 and [level.spawn_point().origin, level.to_global(Vector3(0, 0.1, -10.8))].any(func(c): return p.global_position.distance_to(c) < 1.5), 15.0), "falling off the ledge kills you, and you come to back inside")
+	check(await _until(func(): return level.hud._notice.text == level.FALL_NOTICE, 5.0), "and the notice says how you got there")
+	check(await _until(func(): return not level.wind.playing, 10.0) and absf(p.head.rotation.z) < 0.002, "back inside, the wind dies away and the view is level")
 	level.loose = true
 	level._process(0.0)
 	check(level.watcher.active, "going round the office another way wakes the Watcher too")
@@ -2394,7 +2404,7 @@ func test_rourke_leads_in() -> void:
 	p.global_position = lobby.elevator.to_global(Vector3(-0.6, 0.2, 1.2))
 	for i in 5:
 		await physics_frame
-	check(lobby.elevator.button.get_prompt(p).contains("Press 1"), "inside, the button says where it goes")
+	check(lobby.elevator.button.get_prompt(p).contains("Press 14"), "inside, the button says where it goes")
 	lobby.elevator.button.interact(p)
 	for i in 900:
 		if world.current == sra:
@@ -2856,7 +2866,19 @@ func test_elevator() -> void:
 	var a_local: Vector3 = lift.to_local(a.global_position)
 	var a_yaw: float = a.rotation.y
 	lift.link_to(dest)
-	await lift.ride(0.3)
+	check(Elevator.level_of("G") == 0 and Elevator.level_of("B2") == -2 and Elevator.level_of("22") == 22 and Elevator.label_of(-1) == "B1" and Elevator.label_of(14) == "14", "tower floors: G is ground, Bn below it")
+	lift.ride(0.3)
+	var seen: Array[String] = []
+	var arrow := ""
+	while lift.riding:
+		var f: String = lift.art.call("get_floor")
+		if seen.is_empty() or seen[-1] != f:
+			seen.append(f)
+		if arrow == "":
+			arrow = (lift.art.get("_arrows")[0] as Label3D).text
+		await process_frame
+	check(seen == ["1", "G", "B1", "B2"], "the indicator counts down through every floor on the way (%s)" % [seen])
+	check(arrow == "v", "and the arrow points down")
 	check(dest.to_local(a.global_position).distance_to(a_local) < 0.01 and dest.contains(b.global_position), "the ride carries everyone to the same spot in the next car")
 	check(is_equal_approx(angle_difference(a_yaw + PI / 2, a.rotation.y), 0.0), "facing the same way relative to the car")
 	await dest.opened
