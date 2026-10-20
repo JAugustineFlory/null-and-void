@@ -15,7 +15,7 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 
 Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
-## Your lines (17)
+## Your lines (21)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -84,3 +84,18 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l2_door_fault.wav`  
   "ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING."  
   *When the crew finds the fault themselves. Deadpan, unapologetic.*
+
+### 6. Over every speaker in the building: the building's computer announces a full lockdown. Then, every few minutes, a reminder.
+
+- [ ] `l3_epsilon_1.wav`  
+  "CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT."  
+  *Flat and slow. A short pause after.*
+- [ ] `l3_epsilon_2.wav`  
+  "ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE."  
+  *Even pauses between sentences, like reading a checklist.*
+- [ ] `l3_epsilon_3.wav`  
+  "ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL."  
+  *No change in tone for 'not a drill'. That's the frightening part.*
+- [ ] `l3_epsilon_loop.wav`  
+  "REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE."  
+  *Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.*

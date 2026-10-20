@@ -2,7 +2,7 @@
 
 Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an IT crew around after hours, and he's friendlier than he needs to be.
 
-**How they sound:** Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
+**How they sound:** Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth. He laughs once, in the lab: the only time his warmth turns into real glee.
 
 ## Recording
 
@@ -15,7 +15,7 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 
 Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
-## Your lines (71)
+## Your lines (77)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -204,12 +204,30 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l2_frame.wav`  
   "Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale."  
   *On his radio to WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance.*
-- [ ] `l2_trap_1.wav`  
-  "Sorry about this. Nothing personal."  
-  *The door has just locked. The friendliness switches off.*
 - [ ] `l2_trap_2.wav`  
   "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself."  
-  *Tired, explaining a chore.*
+  *Through the door's glass, straight after the radio call. Tired, explaining a chore.*
+- [ ] `l2_gloat_1.wav`  
+  "You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language."  
+  *Through the glass, almost fond. The friendly tour voice, which is what makes it awful.*
+- [ ] `l2_gloat_2.wav`  
+  "Then I saw the book in your van. Easy SQL. Still had the price sticker on it."  
+  *Shaking his head, smiling.*
+- [ ] `l2_gloat_3.wav`  
+  "Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend."  
+  *Ticking it off, enjoying himself.*
+- [ ] `l2_gloat_4.wav`  
+  "I should've reported you. Then it hit me. No... this is perfect."  
+  *Slower. Savouring it.*
+- [ ] `l2_gloat_5.wav`  
+  "A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha!"  
+  *The only time he laughs in the game: real delight, loud and sudden, then it stops dead.*
+- [ ] `l2_gloat_6.wav`  
+  "A garage with a van, calling itself a company. Your badges on her door. It writes itself."  
+  *Flat again, tired. Back to normal.*
+- [ ] `l2_trap_1.wav`  
+  "Sorry about this. Nothing personal."  
+  *Last line of the monologue, quiet. Walking away from the glass.*
 
 ### 10. Short lines in a scuffle. Loud and out of breath; each one can play many times.
 
