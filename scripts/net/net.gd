@@ -13,11 +13,13 @@ const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Ha
 
 ## peer id -> player name, identical on every machine.
 var roster := {}
-## peer id -> the crew look they picked (CharacterLooks.crew index), identical
-## on every machine. No two players share one.
+## peer id -> how they look, identical on every machine: {color, skin, crew, body}.
+## crew is who they play (a PlayableCrew slug: voice and body type) and color
+## their polo (CharacterLooks.crew index). skin is a
+## NetPlayers.SKIN_TONES index (-1: the default); body (1 or 2) comes with the crew member.
 var looks := {}
-## The look this player picks in the lobby; the host gives it to them if it's free.
-var wanted_look := -1
+## What this player picks in the lobby; the host gives them the color if it's free.
+var wanted_look := {"color": -1, "skin": -1, "crew": ""}
 var player_name := ""
 var in_game := false
 ## Why the last session ended, for the menu to show.
@@ -54,51 +56,61 @@ func display_name(peer_id: int) -> String:
 	return str(roster.get(peer_id, "Player %d" % peer_id))
 
 
-## Which crew look `peer_id` wears. `fallback` (their place in the player order)
-## is used when they never picked one.
-func look_of(peer_id: int, fallback: int) -> int:
+## How `peer_id` looks. `fallback` (their place in the player order) picks
+## their color and crew member when they never chose.
+func look_of(peer_id: int, fallback: int) -> Dictionary:
 	if looks.has(peer_id):
-		return int(looks[peer_id])
-	if not is_online() and wanted_look >= 0:
-		return wanted_look
-	return fallback
+		return looks[peer_id]
+	var out := clean_look(wanted_look if not is_online() else {})
+	if out.color < 0:
+		out.color = fallback
+	if out.crew == "":
+		out = clean_look(out.merged({"crew": PlayableCrew.slugs()[posmod(fallback, PlayableCrew.CAST.size())]}, true))
+	return out
 
 
-## The look `peer` gets: `wanted` if no one else has it, else the first free one.
-static func free_look(taken_looks: Dictionary, peer: int, wanted: int) -> int:
-	var taken := []
-	for id in taken_looks:
-		if id != peer:
-			taken.append(int(taken_looks[id]))
-	if wanted >= 0 and wanted < MAX_PLAYERS and not taken.has(wanted):
-		return wanted
-	for i in MAX_PLAYERS:
-		if not taken.has(i):
-			return i
-	return 0
+## A look with every field in range. The crew member fixes the body type.
+static func clean_look(choice: Dictionary) -> Dictionary:
+	var color := int(choice.get("color", -1))
+	var skin := int(choice.get("skin", -1))
+	var crew: Dictionary = PlayableCrew.info(str(choice.get("crew", "")))
+	return {
+		"color": color if color >= 0 and color < MAX_PLAYERS else -1,
+		"skin": skin if skin >= 0 and skin < NetPlayers.SKIN_TONES.size() else -1,
+		"crew": crew.get("slug", ""),
+		"body": crew.get("body", 1),
+	}
 
 
-## Pick look `index` in the lobby. Refused if a teammate already has it.
-func choose_look(index: int) -> void:
-	wanted_look = index
+## Change part of this player's look in the lobby, e.g. {"skin": 2} or
+## {"crew": "dana"}. Teammates can pick the same as each other.
+func choose_look(change: Dictionary) -> void:
+	wanted_look.merge(change, true)
 	if not is_online():
 		roster_changed.emit()
 	elif is_host():
-		_assign_look(1, index)
+		_assign_look(1, wanted_look)
 	else:
-		_request_look.rpc_id(1, index)
+		_request_look.rpc_id(1, wanted_look)
 
 
 @rpc("any_peer", "reliable")
-func _request_look(index: int) -> void:
+func _request_look(choice: Dictionary) -> void:
 	if is_host() and not in_game and roster.has(multiplayer.get_remote_sender_id()):
-		_assign_look(multiplayer.get_remote_sender_id(), index)
+		_assign_look(multiplayer.get_remote_sender_id(), choice)
 
 
-func _assign_look(peer: int, index: int) -> void:
-	if free_look(looks, peer, index) != index:
-		return
-	looks[peer] = index
+func _assign_look(peer: int, choice: Dictionary) -> void:
+	var look := clean_look(choice)
+	# Anything left unpicked keeps what they had, else follows their place in the order.
+	var had: Dictionary = looks.get(peer, {})
+	var fallback := maxi(roster.keys().find(peer), 0)
+	if look.color < 0:
+		look.color = had.get("color", fallback % MAX_PLAYERS)
+	if look.crew == "":
+		look.crew = had.get("crew", PlayableCrew.slugs()[fallback % PlayableCrew.CAST.size()])
+	look = clean_look(look)
+	looks[peer] = look
 	_set_roster.rpc(roster, looks)
 	roster_changed.emit()
 
@@ -110,7 +122,8 @@ func host(port: int = DEFAULT_PORT) -> Error:
 		return ERR_CANT_CREATE
 	multiplayer.multiplayer_peer = peer
 	roster = {1: player_name}
-	looks = {1: free_look({}, 1, wanted_look)}
+	looks = {}
+	_assign_look(1, wanted_look)
 	roster_changed.emit()
 	return OK
 
@@ -198,7 +211,7 @@ func _on_connected() -> void:
 
 
 @rpc("any_peer", "reliable")
-func _register(wanted: String, look: int) -> void:
+func _register(wanted: String, look: Dictionary) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
@@ -209,8 +222,7 @@ func _register(wanted: String, look: int) -> void:
 		_refused.rpc_id(id, "That lobby is full (%d players)." % MAX_PLAYERS)
 		return
 	roster[id] = _unique_name(wanted.strip_edges().left(16))
-	looks[id] = free_look(looks, id, look)
-	_set_roster.rpc(roster, looks)
+	_assign_look(id, look)
 	roster_changed.emit()
 
 
@@ -220,7 +232,7 @@ func _set_roster(names: Dictionary, picked: Dictionary) -> void:
 	roster = names
 	looks = picked
 	if looks.has(multiplayer.get_unique_id()):
-		wanted_look = int(looks[multiplayer.get_unique_id()])
+		wanted_look = looks[multiplayer.get_unique_id()].duplicate()
 	roster_changed.emit()
 	if first:
 		joined.emit()

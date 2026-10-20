@@ -17,7 +17,6 @@ static func create(for_level: Node, local_player: Node3D) -> NetPlayers:
 	np.name = "NetPlayers"
 	np.level = for_level
 	np.player = local_player
-	np.add_to_group("net_players")
 	for_level.add_child(np)
 	return np
 
@@ -66,12 +65,34 @@ static func index_of(id: int, mp: MultiplayerAPI) -> int:
 	return ids_for(mp).find(id)
 
 
-## Which crew look player `id` wears: the one they picked in the lobby, else
-## their place in the player order.
-static func look_for(from: Node, id: int) -> int:
+## The skin tones a player can pick in the lobby, light to dark. (Graphics'
+## CharacterLooks.crew(index, picks) takes over these and body types when it lands.)
+const SKIN_TONES: Array[Color] = [
+	Color(0.95, 0.8, 0.7), Color(0.9, 0.75, 0.62), Color(0.85, 0.68, 0.56),
+	Color(0.74, 0.56, 0.42), Color(0.55, 0.38, 0.27), Color(0.4, 0.27, 0.19),
+]
+
+
+## How player `id` looks (a CharacterLooks dictionary): what they picked in the
+## lobby, else the crew look for their place in the player order.
+static func look_for(from: Node, id: int) -> Dictionary:
 	var fallback := index_of(id, from.multiplayer)
 	var net := from.get_node_or_null("/root/Net")
-	return net.look_of(id, fallback) if net else fallback
+	return crew_look(net.look_of(id, fallback) if net else {"color": fallback})
+
+
+## A lobby pick ({color, skin, crew, body}) as a CharacterLooks dictionary.
+## Until Graphics' looks for each crew member land, body 2 is just slighter and
+## a little shorter.
+static func crew_look(choice: Dictionary) -> Dictionary:
+	var look := CharacterLooks.crew(maxi(int(choice.get("color", 0)), 0))
+	var skin := int(choice.get("skin", -1))
+	if skin >= 0 and skin < SKIN_TONES.size():
+		look.skin = SKIN_TONES[skin]
+	if int(choice.get("body", 1)) == 2:
+		look.build = 0.86
+		look.height = 0.95
+	return look
 
 
 func my_index() -> int:
@@ -163,36 +184,6 @@ func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: boo
 	var p: PlayerPuppet = _puppets.get(multiplayer.get_remote_sender_id())
 	if p:
 		p.apply_state(pos, yaw, pitch, height, light_on)
-
-
-# --- Shared notes ---------------------------------------------------------------
-
-## The NetPlayers of the game in progress, if it's co-op (for the notebook).
-static func of_session(tree: SceneTree) -> NetPlayers:
-	for np in tree.get_nodes_in_group("net_players"):
-		if np.is_inside_tree() and np.multiplayer.has_multiplayer_peer() and np.multiplayer.get_peers().size() > 0:
-			return np
-	return null
-
-
-## Copy `entry` (one of this player's notebook_written lines) into every
-## teammate's notebook. It's marked shared here so it isn't sent twice.
-func share_note(entry: Dictionary) -> void:
-	if entry.get("shared", false):
-		return
-	entry["shared"] = true
-	_note.rpc({"label": entry.get("label", ""), "text": entry.get("text", ""), "kind": entry.get("kind", "")})
-	get_node("/root/Game").notebook_changed.emit()
-
-
-@rpc("any_peer", "reliable")
-func _note(entry: Dictionary) -> void:
-	var from := multiplayer.get_remote_sender_id()
-	var p: PlayerPuppet = _puppets.get(from)
-	var who: String = p.display_name if p else "Player %d" % from
-	get_node("/root/Game").receive_shared(who, entry)
-	if level.get("hud"):
-		level.hud.notice("%s shared a note (Tab)" % who, 3.0)
 
 
 func _on_peer_left(id: int) -> void:

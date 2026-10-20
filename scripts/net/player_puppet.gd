@@ -40,8 +40,8 @@ var _capsule: CapsuleShape3D
 var _shape: CollisionShape3D
 
 
-## `look` is the crew look they picked (CharacterLooks.crew index).
-static func create(parent: Node, id: int, player_name: String, look: int, at: Transform3D) -> PlayerPuppet:
+## `look` is how they look (a CharacterLooks dictionary, see NetPlayers.look_for).
+static func create(parent: Node, id: int, player_name: String, look: Dictionary, at: Transform3D) -> PlayerPuppet:
 	var p := PlayerPuppet.new()
 	p.peer_id = id
 	p.display_name = player_name
@@ -52,7 +52,7 @@ static func create(parent: Node, id: int, player_name: String, look: int, at: Tr
 	return p
 
 
-func _build(look: int) -> void:
+func _build(look: Dictionary) -> void:
 	add_to_group("player")
 	add_to_group("puppet")
 	sync_to_physics = false
@@ -64,7 +64,7 @@ func _build(look: int) -> void:
 	_shape.position.y = STAND_HEIGHT / 2
 	add_child(_shape)
 
-	rig = CharacterRig.build(self, CharacterLooks.crew(look))
+	rig = CharacterRig.build(self, look)
 
 	# The flashlight rides at eye level, in the direction they look.
 	_head = Node3D.new()
@@ -99,6 +99,27 @@ func _build(look: int) -> void:
 	_tag.outline_size = 8
 	_tag.position.y = 2.1
 	add_child(_tag)
+
+
+## E on a teammate: huddle up to share notes, or join the huddle they're in.
+func get_prompt(_player: Node) -> String:
+	var h := _huddle()
+	if h == null:
+		return ""
+	var theirs := h.group_of(peer_id)
+	if theirs != 0 and theirs == h.group_of(multiplayer.get_unique_id()):
+		return ""
+	return "[E] Join the notes huddle" if theirs != 0 else "[E] Huddle up to share notes"
+
+
+func interact(player: Node) -> void:
+	if get_prompt(player) != "":
+		_huddle().huddle_with(peer_id)
+
+
+func _huddle() -> NotesHuddle:
+	var s := LevelSync.of(self)
+	return s.huddle if s else null
 
 
 ## A state update from the owning machine.
