@@ -3,8 +3,8 @@ extends CharacterBody3D
 ## First-person player: walk, sprint, crouch, slide, landing roll, mantle, ledge
 ## grab and shimmy, climb, crawl through vents, shuffle along narrow ledges and
 ## stand on a teammate's shoulders (up to three high), sit on a chair or the
-## floor, side-step. Running, jumping and climbing cost stamina. Also flashlight,
-## interact and strike.
+## floor. Running, jumping and climbing cost stamina. Also flashlight, interact
+## and strike.
 ##
 ## Movement reads only `controls`, never `Input`, so a copy of this player on
 ## another machine moves the same way when fed the same controls. Only the
@@ -35,7 +35,7 @@ signal stood_up
 signal knocked_down
 signal got_up
 
-enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT, DODGE, DOWN }
+enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT, DOWN }
 
 const WALK_SPEED := 3.8
 const SPRINT_SPEED := 6.5
@@ -125,11 +125,13 @@ const SIT_HEIGHT := 0.95
 const SIT_TIME := 0.4
 ## How far (radians) you can turn from the way a chair faces.
 const SIT_LOOK := deg_to_rad(110.0)
+## Getting up off a chair, you step this far out from it the way you're facing.
+const SIT_STEP_OUT := 0.6
 ## Stamina, 0..STAMINA_MAX. Sprinting and climbing drain it per second; a jump,
-## vault, mantle or side-step costs a lump. It comes back after STAMINA_REST
+## vault or mantle costs a lump. It comes back after STAMINA_REST
 ## seconds without spending: fast while you're still (standing, sitting,
 ## crouching), slowly on the move. Run it dry and you're winded until it's back
-## to STAMINA_WINDED_UNTIL: no sprinting or side-steps, and climbing is slower.
+## to STAMINA_WINDED_UNTIL: no sprinting, and climbing is slower.
 ## Jumps and climbs never stop working, so being winded only slows you down.
 const STAMINA_MAX := 100.0
 const SPRINT_COST := 16.0
@@ -137,14 +139,10 @@ const CLIMB_COST := 12.0
 const HANG_COST := 4.0
 const JUMP_COST := 10.0
 const MANTLE_COST := 8.0
-const DODGE_COST := 20.0
 const STAMINA_REST := 0.6
 const STILL_REGEN := 45.0
 const MOVING_REGEN := 10.0
 const STAMINA_WINDED_UNTIL := 30.0
-## Side-step (Alt + a direction): a quick hop out of the way.
-const DODGE_SPEED := 7.5
-const DODGE_TIME := 0.25
 ## Knocked down: how low you lie.
 const DOWN_HEIGHT := 0.5
 
@@ -243,7 +241,7 @@ var _term_look_from := Basis()
 var seat: Node3D
 ## 0 standing, 1 sat down; eases between them. Read-only.
 var sit_amount := 0.0
-var _sit_from := Transform3D()  # where you stood before sitting on a chair
+var _sit_from := Transform3D()  # where you stood before sitting on a chair; where you'll stand up
 var _sit_to := Transform3D()
 var _sit_leaving := false
 
@@ -419,8 +417,6 @@ func step(delta: float) -> void:
 	controls.jump = false
 	var sit_pressed := controls.sit
 	controls.sit = false
-	var dodge_pressed := controls.dodge
-	controls.dodge = false
 	_tick_stamina(delta)
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
@@ -443,14 +439,10 @@ func step(delta: float) -> void:
 			_step_terminal(delta)
 		Move.SIT:
 			_step_sit(delta, jump_pressed or sit_pressed)
-		Move.DODGE:
-			_step_dodge(delta)
 		Move.DOWN:
 			_step_down(delta)
 		_:
 			if sit_pressed and sit():
-				return
-			if dodge_pressed and dodge(controls.move):
 				return
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
@@ -974,11 +966,16 @@ func sit(on_seat: Node3D = null) -> bool:
 	return true
 
 
-## Get back up: off a chair to where you stood before, or up off the floor (into a
-## crouch if something's overhead). `instant` skips the motion.
+## Get back up, facing the way you're looking: off a chair you step out that
+## way (or back where you came from, if that's blocked); off the floor you rise
+## where you are (into a crouch if something's overhead). `instant` skips the motion.
 func stand_up(instant: bool = false) -> void:
 	if state != Move.SIT:
 		return
+	if not _sit_leaving and _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
+		var out := Vector3(_sit_to.origin.x, _sit_from.origin.y, _sit_to.origin.z) + _forward() * SIT_STEP_OUT
+		if _fits(out, STAND_HEIGHT):
+			_sit_from.origin = out
 	_sit_leaving = true
 	if instant:
 		_end_sit()
@@ -1032,7 +1029,7 @@ func _clamp_seat_yaw() -> void:
 		rotation.y = center + signf(d) * SIT_LOOK
 
 
-# --- Stamina, side-step, knocks ------------------------------------------
+# --- Stamina and knocks ------------------------------------------
 
 ## Use up `amount` of stamina (Combat: a block, a struggle). Running it dry leaves
 ## you winded. Returns false, spending nothing, if you're winded or it's 0.
@@ -1078,39 +1075,6 @@ func _tick_stamina(delta: float) -> void:
 		return
 	var still := flat < 0.3 and state in [Move.WALK, Move.SIT, Move.DOWN, Move.TERMINAL, Move.RIDE]
 	restore_stamina((STILL_REGEN if still else MOVING_REGEN) * delta)
-
-
-## Alt + a direction: hop a couple of metres that way (`move` as in
-## PlayerControls.move; none hops back). False if you can't: winded, mid-air,
-## busy, or not on your feet.
-func dodge(move: Vector2) -> bool:
-	if state != Move.WALK or not is_on_floor() or rider or carrier or _hands_full() or crouching:
-		return false
-	if winded or stamina < DODGE_COST:
-		return false
-	if move.length() < 0.1:
-		move = Vector2(0, 1)
-	spend_stamina(DODGE_COST)
-	var dir := transform.basis * Vector3(move.x, 0, move.y)
-	dir.y = 0.0
-	_begin_dash(Move.DODGE, DODGE_TIME, dir.normalized())
-	return true
-
-
-func is_dodging() -> bool:
-	return state == Move.DODGE
-
-
-func _step_dodge(delta: float) -> void:
-	_timer -= delta
-	var spd := DODGE_SPEED * clampf(_timer / DODGE_TIME + 0.3, 0.0, 1.0)
-	velocity.x = _dir.x * spd
-	velocity.z = _dir.z * spd
-	if not is_on_floor():
-		velocity.y -= gravity * delta
-	move_and_slide()
-	if _timer <= 0.0 or is_on_wall():
-		state = Move.WALK
 
 
 ## Shoved, thrown or blasted (Combat): drop whatever you were doing (sitting, a
@@ -1180,7 +1144,7 @@ func _let_go() -> void:
 	lower_notebook()
 	put_down()
 	_end_filing()
-	if state in [Move.HANG, Move.CLIMB, Move.LEDGE, Move.MANTLE, Move.VAULT, Move.SLIDE, Move.ROLL, Move.DODGE]:
+	if state in [Move.HANG, Move.CLIMB, Move.LEDGE, Move.MANTLE, Move.VAULT, Move.SLIDE, Move.ROLL]:
 		state = Move.WALK
 	_climb = null
 	_ledge = null

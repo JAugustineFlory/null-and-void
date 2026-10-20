@@ -34,7 +34,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_inventory_screen()
 	await test_sit()
 	await test_stamina()
-	await test_dodge_and_knocks()
+	await test_knocks()
 	await test_movement_gym()
 
 
@@ -1056,9 +1056,19 @@ func test_sit() -> void:
 	check(not chair.is_free(q) and chair.get_prompt(q) == "" and not q.sit(chair), "one to a chair")
 	p._turn_view(4.0, 0.0)
 	check(absf(angle_difference(PI, p.rotation.y)) <= Player.SIT_LOOK + 0.001, "you can look around, but not turn your back on the desk")
+	var yaw := p.rotation.y
+	var facing := Vector3(-sin(yaw), 0, -cos(yaw))
+	var out := Vector3(0, stood.y, -1.5) + facing * Player.SIT_STEP_OUT
 	p.controls.sit = true
 	await frames(settle)
-	check(not p.is_sitting() and p.global_position.distance_to(stood) < 0.05 and chair.is_free(q), "Z gets you up, back where you stood, and frees the chair")
+	check(not p.is_sitting() and chair.is_free(q), "Z gets you up and frees the chair")
+	check(p.global_position.distance_to(out) < 0.05 and absf(angle_difference(yaw, p.rotation.y)) < 0.001, "stepping off the way you're facing, still facing it")
+	chair.interact(p)
+	await frames(settle)
+	Greybox.box(a, Vector3(0, 1, -0.6), Vector3(2, 2, 0.2), Color.DIM_GRAY, "Desk")  # right in front of the chair
+	p.controls.sit = true
+	await frames(settle)
+	check(not p.is_sitting() and p.global_position.distance_to(out) < 0.05, "boxed in that way, you get up where you came from")
 
 	p.controls.jump = true
 	await frames(3)
@@ -1090,7 +1100,6 @@ func test_stamina() -> void:
 	await frames(60)
 	p.spend_stamina(Player.STAMINA_MAX * 2.0)
 	check(p.winded and p.stamina == 0.0, "run it dry and you're winded")
-	check(not p.dodge(Vector2(1, 0)), "winded, you can't side-step")
 	var z0 := p.global_position.z
 	forward(p, true)
 	await frames(30)
@@ -1109,25 +1118,10 @@ func test_stamina() -> void:
 	await done(a)
 
 
-func test_dodge_and_knocks() -> void:
+func test_knocks() -> void:
 	var a := arena()
 	var p := spawn(a, Vector3(0, 0.05, 0))
 	await frames(20)
-	var x0 := p.global_position.x
-	check(p.dodge(Vector2(1, 0)) and p.is_dodging(), "Alt + D side-steps")
-	check(absf(p.stamina - (Player.STAMINA_MAX - Player.DODGE_COST)) < 0.5, "and costs stamina")
-	await frames(30)
-	check(not p.is_dodging() and p.global_position.x - x0 > 1.2 and p.global_position.x - x0 < 3.0, "a quick hop to the right (%.1f m)" % (p.global_position.x - x0))
-	check(not p.raise_notebook() or not p.dodge(Vector2(-1, 0)), "not while reading")
-	p.lower_notebook(true)
-	await frames(30)
-	p.controls.dodge = true
-	p.controls.move = Vector2(-1, 0)
-	await frames(2)
-	stop(p)
-	check(p.is_dodging(), "the side-step control reaches the player through its controls")
-	await frames(30)
-
 	p.sit()
 	await frames(5)
 	var from := p.global_position

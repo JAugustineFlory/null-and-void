@@ -13,9 +13,6 @@ var crouch := false
 var jump := false
 ## Edge, like jump: sit down on the floor, or stand back up.
 var sit := false
-## Edge: side-step toward `move` (Alt pressed with a direction held, or a
-## direction pressed while Alt is held).
-var dodge := false
 
 
 ## Fill from the keyboard. `locked` (a terminal or menu has focus) gives no input.
@@ -30,10 +27,6 @@ func read_local(locked: bool) -> void:
 	crouch = Input.is_action_pressed("crouch")
 	jump = jump or Input.is_action_just_pressed("jump")
 	sit = sit or Input.is_action_just_pressed("sit")
-	if Input.is_action_pressed("dodge") and move != Vector2.ZERO:
-		dodge = dodge or Input.is_action_just_pressed("dodge") or Input.is_action_just_pressed("move_left") \
-				or Input.is_action_just_pressed("move_right") or Input.is_action_just_pressed("move_forward") \
-				or Input.is_action_just_pressed("move_back")
 
 
 ## Compact form for sending over the network.
