@@ -50,6 +50,7 @@ func _run() -> void:
 	await test_elevator()
 	await test_notebook()
 	await test_case_pages()
+	await test_level_2_cases()
 	test_sysop_colors()
 	test_dialogue_jots()
 	await test_stairwells()
@@ -1432,45 +1433,136 @@ func test_coop_notes_huddle() -> void:
 func test_coop_looks() -> void:
 	print("Co-op: picking a look in the lobby")
 	var net := root.get_node("Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()  # in memory, so tests never touch a real save
+	net.wanted_look = {}
+	# The catalogue covers everything Graphics can draw, and nothing it can't.
+	var drawn := true
+	for slot in CharacterLooks.SLOTS:
+		for item in CharacterLooks.SLOTS[slot]:
+			drawn = drawn and not Cosmetics.info(slot, item).is_empty()
+	check(drawn and Cosmetics.ITEMS.all(func(it): return Cosmetics.drawable(it.slot, it.item) and it.name != ""), "every outfit piece Graphics draws is in the catalogue, with a name")
+	check(Cosmetics.WORN_SLOTS.all(func(s): return CharacterLooks.SLOTS.has(s)) and Cosmetics.TOOL_SLOTS == CharacterLooks.TOOL_SLOTS, "the picker's slots are Graphics' slots")
+	var defaults := range(6).map(func(i): return Cosmetics.default_loadout(i).top.color)
+	check(defaults.all(func(c): return defaults.count(c) == 1), "players who never open the picker still wear different colors")
+	# The host checks a loadout against the catalogue, and trusts what you own.
 	net.roster = {1: "Host", 55: "Ana"}
-	net.looks = {55: {"color": 2, "skin": -1, "crew": "theo", "body": 1}}
-	net._assign_look(1, {"color": 2, "skin": 4, "crew": "theo"})
-	check(net.looks[1] == {"color": 2, "skin": 4, "crew": "theo", "body": 1}, "teammates can pick the same crew member and color")
-	net._assign_look(1, {"color": 99, "skin": 99, "crew": "walt"})
-	check(net.looks[1] == {"color": 2, "skin": -1, "crew": "walt", "body": 1}, "the crew member brings their body type; out-of-range picks keep what you had")
 	net.looks = {}
-	net._assign_look(55, {"crew": "nobody"})
-	check(net.looks[55].crew == "priya" and net.looks[55].color == 1, "a player who picks nothing gets a crew member and color by their place in the order")
+	net._assign_look(55, {"crew": "theo", "skin": 4, "head": {"item": "beanie", "color": Color(0.9, 0.1, 0.1)}, "terminal": {"color": Color(1, 0.7, 0.1)}})
+	var ana: Dictionary = net.looks[55]
+	check(ana.crew == "theo" and ana.body == 1 and ana.skin == 4 and ana.head.item == "beanie" and ana.head.color == Color(0.9, 0.1, 0.1), "a teammate's crew, skin, hat and its color reach the host")
+	check(ana.terminal == {"item": "phosphor", "color": Color(1, 0.7, 0.1)} and ana.top == Cosmetics.default_loadout(1).top, "a color with no item keeps the default item, and slots left alone follow their place in the order")
+	net._assign_look(1, {"crew": "theo", "skin": 4, "head": {"item": "beanie", "color": Color(0.9, 0.1, 0.1)}})
+	check(net.looks[1].crew == "theo" and net.looks[1].head == ana.head, "teammates can pick the same crew member and the same everything")
+	net._assign_look(1, {"crew": "nobody", "skin": 99, "head": {"item": "crown", "color": "red"}, "top": "polo", "legs": {"item": "pants", "color": Color(3, -1, 0.5, 0.2)}})
+	var h: Dictionary = net.looks[1]
+	check(h.crew == Cosmetics.default_loadout(0).crew and h.skin == Cosmetics.default_loadout(0).skin and h.head == Cosmetics.default_loadout(0).head and h.legs.color == Color(1, 0, 0.5, 1),
+		"unknown crew, items and junk fall back to the defaults; colors are kept in range")
+	net._assign_look(1, {"crew": "walt"})
+	check(net.looks[1].body == 1 and Cosmetics.clean({"crew": "kit"}, 0).body == 2, "the crew member brings their body type")
 	net.roster = {}
-	check(PlayableCrew.CAST.size() == 12 and PlayableCrew.on_body(1).size() == 6 and PlayableCrew.on_body(2).size() == 6, "twelve crew to play, six on each body type")
-	# The lobby: swatches and a preview of your pick.
 	net.looks = {}
+	check(PlayableCrew.CAST.size() == 12 and PlayableCrew.on_body(1).size() == 6 and PlayableCrew.on_body(2).size() == 6, "twelve crew to play, six on each body type")
+
+	# The profile keeps picks and unlocks between sessions.
+	var path := "user://test_profile.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	var prof := Profile.open(path)
+	check(prof.name == "" and prof.loadout.is_empty() and prof.has_item("head/cap"), "a new profile owns every default item")
+	Cosmetics.info("head", "hard_hat").merge({"unlock": "achievement:test", "hint": "Test hint"}, true)
+	Cosmetics.catalogue.append({"slot": "flashlight", "item": "secret_x", "name": "Test secret", "unlock": "secret:test"})
+	Cosmetics.catalogue.append({"slot": "walkie", "item": "shop_x", "name": "Test shop", "unlock": "purchase:test"})
+	Cosmetics.catalogue.append({"slot": "walkie", "item": "secret_y", "name": "Test hidden", "unlock": "secret:other"})
+	check(not prof.has_item("head/hard_hat") and not prof.has_item("flashlight/secret_x"), "locked and secret items start out locked")
+	check(prof.earn("secret:test") == ["flashlight/secret_x"] and prof.earn("secret:test").is_empty(), "finding a secret unlocks its items, once")
+	check(prof.grant("walkie/shop_x") and not prof.grant("walkie/shop_x") and not prof.grant("walkie/nothing"), "a purchase grants one item")
+	prof.name = "Ana"
+	prof.loadout = {"crew": "mei", "flashlight": {"item": "secret_x", "color": Color(0.2, 0.4, 0.9)}, "head": {"item": "hard_hat"}}
+	prof.save()
+	var again := Profile.open(path)
+	check(again.name == "Ana" and again.loadout.crew == "mei" and again.loadout.flashlight == {"item": "secret_x", "color": Color(0.2, 0.4, 0.9)} and again.has_item("walkie/shop_x"),
+		"name, picks and unlocks load back next time")
+	check(not again.loadout.has("head"), "an item you don't own can't be worn by editing the save")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	# The lobby: Crew, Look and Gear tabs, and a preview of your pick.
+	net.profile = Profile.new()
+	net.profile.earned = ["secret:test"]
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(lobby)
 	await process_frame
-	lobby.find_child("Look4", true, false).pressed.emit()
+	var tabs: TabContainer = lobby.find_child("Customize", true, false)
+	check(tabs != null and tabs.get_tab_count() == 3 and tabs.get_tab_title(0) == "Crew" and tabs.get_tab_title(1) == "Look" and tabs.get_tab_title(2) == "Gear", "the picker has Crew, Look and Gear tabs")
 	lobby.find_child("Skin6", true, false).pressed.emit()
 	lobby.find_child("Crew_kit", true, false).pressed.emit()
+	var hats: OptionButton = lobby.find_child("Item_head", true, false)
+	var hat_names := range(hats.item_count).map(func(i): return hats.get_item_text(i))
+	var locked := hat_names.find("Hard hat (locked)")
+	check(locked >= 0 and hats.is_item_disabled(locked) and hats.get_item_tooltip(locked) == "Test hint", "an item you haven't unlocked shows as locked, with how to get it")
+	var torches: OptionButton = lobby.find_child("Item_flashlight", true, false)
+	var walkies: OptionButton = lobby.find_child("Item_walkie", true, false)
+	check(range(torches.item_count).any(func(i): return torches.get_item_text(i) == "Test secret" and not torches.is_item_disabled(i))
+		and not range(walkies.item_count).any(func(i): return walkies.get_item_text(i).begins_with("Test hidden")), "a secret item shows once found, and stays hidden until then")
+	var beanie := hat_names.find("Beanie")
+	hats.select(beanie)
+	hats.item_selected.emit(beanie)
+	var tops: ColorPickerButton = lobby.find_child("Color_top", true, false)
+	tops.color = Color(0.9, 0.5, 0.1)
+	tops.color_changed.emit(tops.color)
+	check(lobby._preview_rig.look.shirt == Color(0.9, 0.5, 0.1) and not net.wanted_look.has("top"), "the figure follows the color picker as it moves")
+	tops.popup_closed.emit()
+	var term: ColorPickerButton = lobby.find_child("Color_terminal", true, false)
+	term.color = Color(1, 0.75, 0.2)
+	term.popup_closed.emit()
 	await process_frame
 	var shown: Dictionary = lobby._preview_rig.look
-	check(lobby.my_look() == {"color": 3, "skin": 5, "crew": "kit", "body": 2} and shown.shirt == ArtPalette.CREW_COLORS[3] and shown.skin == CharacterLooks.SKIN_TONES[5] and shown.body == 2,
-		"crew member, color and skin show on the figure turning in the preview")
+	check(lobby.my_look().crew == "kit" and shown.shirt == Color(0.9, 0.5, 0.1) and shown.skin == CharacterLooks.SKIN_TONES[5] and shown.body == 2 and shown.headwear == "beanie" and shown.tools.terminal.color == Color(1, 0.75, 0.2),
+		"crew member, skin, hat, colors and gear show on the figure turning in the preview")
+	check(net.profile.loadout == net.wanted_look and net.wanted_look.keys().size() == 5, "and are saved to your profile (only what you changed)")
 	check(lobby.find_child("CrewCaption", true, false).text.begins_with("Kit Larsen, 20s") and lobby.find_child("Crew_kit", true, false).text == "Kit", "with who they are underneath")
+	check(lobby.find_child("Color_face", true, false).disabled and not lobby.find_child("Color_head", true, false).disabled, "an empty slot has no color to pick")
 	lobby.queue_free()
+	net.profile = Profile.new()
+	check(net.earn("achievement:test") == ["head/hard_hat"], "earning an achievement unlocks its item")
+	Cosmetics.reset()
+
 	# In the building, everyone wears what they picked.
 	_game().new_run(8)
 	var worlds := await _coop_worlds(1)
 	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
 	var c_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
-	net.looks = {host_id: {"color": 5, "skin": 0, "crew": "june", "body": 2}, c_id: {"color": 2, "skin": -1, "crew": "sam", "body": 1}}
+	net.looks = {
+		host_id: Cosmetics.clean({"crew": "june", "skin": 0, "top": {"item": "blouse", "color": Color(0.5, 0.1, 0.4)}, "jacket": {"item": "blazer"},
+			"terminal": {"color": Color(1, 0.7, 0.1)}}, 0),
+		c_id: Cosmetics.clean({"crew": "sam", "head": {"item": "hard_hat", "color": Color(1, 0.8, 0)}, "flashlight": {"color": Color(0.8, 0.1, 0.1)},
+			"terminal": {"color": Color(0.9, 0.9, 0.9)}}, 1),
+	}
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
 	var host_seen: PlayerPuppet = levels[1].players.puppet(host_id)
 	var c_seen: PlayerPuppet = levels[0].players.puppet(c_id)
-	check(host_seen.rig.look.shirt == ArtPalette.CREW_COLORS[5] and host_seen.rig.look.skin == CharacterLooks.SKIN_TONES[0] and host_seen.rig.look.body == 2
-		and c_seen.rig.look.shirt == ArtPalette.CREW_COLORS[2] and c_seen.rig.look.skin == CharacterLooks.crew(2).skin, "teammates see each other as they picked")
+	check(host_seen.rig.look.shirt == Color(0.5, 0.1, 0.4) and host_seen.rig.look.sleeves == "long" and host_seen.rig.look.shoulder_pads and host_seen.rig.look.skin == CharacterLooks.SKIN_TONES[0] and host_seen.rig.look.body == 2
+		and c_seen.rig.look.headwear == "hard_hat" and c_seen.rig.look.headwear_color == Color(1, 0.8, 0) and c_seen.rig.look.shirt == Cosmetics.default_loadout(1).top.color,
+		"teammates see each other's outfits as they picked them")
+	var lamp: MeshInstance3D = c_seen.find_child("Lamp", true, false)
+	check(lamp.material_override.albedo_color == Color(0.8, 0.1, 0.1), "and the flashlight in their skin's color")
+	# A shared terminal takes the skin of whoever sat down first.
+	var screen_h: Terminal = levels[0].desk_terminal
+	var screen_c: Terminal = levels[1].desk_terminal
+	check(screen_h.skin_color == TerminalScreen.PHOSPHOR, "an unused terminal is green phosphor")
+	levels[1].terminal_ui.open(screen_c, levels[1].player)
+	await _frames(10)
+	levels[0].terminal_ui.open(screen_h, levels[0].player)
+	await _frames(10)
+	check(screen_h.seated == [c_id, host_id] and screen_h.skin_color == Color(0.9, 0.9, 0.9) and screen_c.skin_color == Color(0.9, 0.9, 0.9), "the shared screen wears the first-seated player's terminal skin on every machine")
+	check(net.terminal_color(host_id) == Color(1, 0.7, 0.1), "each player's own prompt color is there for their line")
+	levels[1].terminal_ui.close()
+	await _frames(10)
+	check(screen_h.skin_color == Color(1, 0.7, 0.1) and screen_c.skin_color == Color(1, 0.7, 0.1), "when they leave, it passes to whoever is still there")
+	levels[0].terminal_ui.close()
 	await _coop_close(worlds)
 	net.looks = {}
-	net.wanted_look = {"color": -1, "skin": -1, "crew": ""}
+	net.wanted_look = {}
+	net.profile = real_profile
 
 
 func test_coop_world() -> void:
@@ -2381,9 +2473,12 @@ func test_level_2_lab(outcome: String) -> void:
 	check(not screen_text.contains("ORDER BY") and screen_text.contains("badge_log"), "the lockdown screen names badge_log but doesn't give the query")
 	check(screen_text.contains("[lb]SYSOP[rb]: two conditions?"), "the two-conditions tip is SYSOP's, not the system's")
 	check(lab.response_left > Level2Lab.RESPONSE_TIME - 5.0 and lab.clock.text.begins_with("RESPONSE  "), "WARDEN sends a security response, and the clock over the door counts down")
+	check(_game().current_case() == "lab_door" and _game().case_info("lab_door").title == Level2Lab.LAB_CASE, "the lockdown opens the lab door's case page")
 	if outcome == "killed":
 		# Too slow: the response arrives, and the lab's controllers are re-keyed.
 		var old_zone: String = level.data.lab_zone
+		lab._card._note_clues()
+		check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains("zone " + old_zone)), "reading the lab's door card notes its zone")
 		lab.response_left = 0.2
 		check(await _until(func(): return lab.phase == "caught", 5.0), "when the clock runs out, the crew is caught")
 		check(await _until(func(): return lab.phase == "escape" and lab.response_left > 0.0, 20.0), "and the escape starts over, with the clock reset")
@@ -2395,11 +2490,17 @@ func test_level_2_lab(outcome: String) -> void:
 		level.terminal_ui.terminal = lab.terminal
 		level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % old_zone)
 		check(not lab.door_puzzle.solved, "the old zone's answer no longer works")
+		var lab_page: Array = _game().case_info("lab_door").clues
+		check(lab_page.any(func(k): return k.text.contains("re-keyed")) and not lab_page.any(func(k): return k.text.contains("'%s'" % old_zone) or k.text.contains("zone " + old_zone)),
+			"the case page says the zone changed, and nothing on it names the old zone")
+		lab._card._note_clues()
+		check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains("zone " + new_zone)), "the card read again notes the new one")
 	level.terminal_ui.terminal = lab.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
 	check(not lab.door_puzzle.solved, "the zone alone isn't enough")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % level.data.lab_zone)
 	check(lab.door_puzzle.solved, "zone AND status finds the lab door's controller")
+	check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains(level.data.lab_answer)), "SYSOP's answer goes on the lab door's page")
 	level.terminal_ui.run("SELECT * FROM badge_log ORDER BY time")
 	check(lab.log_puzzle.solved, "ORDER BY time lays out the visitor log")
 	var wrong: String = lab.switches.keys().filter(func(k): return k != level.data.lab_answer)[0]
@@ -2409,6 +2510,7 @@ func test_level_2_lab(outcome: String) -> void:
 	lab.switches_locked_until = 0.0
 	lab.switches[level.data.lab_answer].interact(p)
 	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "the right switch resets it, and the door opens")
+	check(_game().case_info("lab_door").solved and _game().case_info("lab_door").how.contains(level.data.lab_answer), "and the lab door's case is solved")
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-3, 0.1, 4.0)))
 	check(await _until(func(): return lab.phase == "done" and not level.booth.locked, 20.0), "out of the lab, it's over, and the night desk terminal works")
 	check(not level.watcher.active, "the Watcher stays still: it's quiet until Pike")
@@ -2946,6 +3048,54 @@ func test_case_pages() -> void:
 	check(g.case_info("controller").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the case page too")
 	level.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % level.zone)
 	check(g.case_info("controller").clues.any(func(k): return k.text.contains(level.answer)), "SYSOP's answer is noted once the query finds it")
+	level.queue_free()
+	await process_frame
+
+
+## Floor 22's case pages: each puzzle has one, and the wing's papers fill them in.
+func test_level_2_cases() -> void:
+	print("Floor 22 case pages")
+	_game().new_run(5)
+	_game().rourke_fate = "killed"  # just the security section
+	var g := _game()
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	level.watcher.active = false
+	check(await _until(func(): return g.current_case() == "cameras", 30.0) and g.case_info("cameras").title == level.CASES.cameras, "at the booth, the cameras case is open")
+	for d in level.find_children("*", "Document", true, false):
+		d._note_clues()
+	var cams := "\n".join(PackedStringArray(g.case_info("cameras").clues.map(func(k): return k.text)))
+	check(cams.contains("GET /cameras") and cams.contains("motion"), "the camera card notes how to ask for the cameras")
+	var pin_clues: Array = g.case_info("pin").clues.map(func(k): return k.text)
+	var pins := "\n".join(PackedStringArray(pin_clues))
+	check(not g.case_info("pin").open and pins.contains("NO SHOW") and pins.contains("guards") and pins.contains("LIKE") and pins.contains("badge_log"),
+		"the booth papers are already noted on the PIN case, ready for when it opens")
+	check(not pins.contains(level.data.name) and not pins.contains(level.data.badge) and not pins.contains("Har%"), "no paper's note gives away the night lead, their badge or the query")
+	check(g.case_info("door").clues.any(func(k): return k.text.contains("GET /doors/SEC-EXIT")), "the vestibule's door card is noted on the SEC-EXIT case")
+	level.terminal_ui.terminal = level.booth
+	level.terminal_ui.run(".hint")
+	check(g.case_info("cameras").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the open case")
+	level.terminal_ui.run("GET /cameras")
+	check(g.case_info("cameras").solved and g.case_info("cameras").how.contains("CAM-2") and g.current_case() == "pin", "GET /cameras solves it; the PIN case opens next")
+	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
+	check(g.case_info("pin").clues.any(func(k): return k.text.contains("suspended")) and not g.case_info("pin").solved, "Pike's suspended PIN is noted, and the case stays open")
+	level.watcher.active = false  # this test is about the pages, not the chase
+	level.terminal_ui.run(".hint")
+	check(g.case_info("pin").clues.any(func(k): return k.from == "SYSOP hint"), "the PIN hints are noted on the PIN case")
+	level.terminal_ui.run(_hint_query(level.har_puzzle.hints[-1]))
+	check(g.case_info("pin").solved and g.case_info("pin").how.contains(level.data.name), "the night lead's PIN solves it")
+	level.enter_pin()
+	for i in 5:
+		await physics_frame
+	level._on_door_checked("panel")
+	check(g.current_case() == "door" and g.case_info("door").clues.any(func(k): return k.text.contains("sensor says closed")), "checking the stuck door opens its case with what the sensor says")
+	level._on_breaker(null, level.data.breaker)
+	for i in 5:
+		await physics_frame
+	check(g.case_info("door").solved and g.case_info("door").how.contains("B-%d" % level.data.breaker), "resetting the breaker solves it")
+	check(g.current_case() == "", "every floor 22 case is closed once SEC-EXIT is open")
 	level.queue_free()
 	await process_frame
 

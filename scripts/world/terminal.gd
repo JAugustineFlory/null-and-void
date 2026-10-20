@@ -50,6 +50,10 @@ var transcript_kinds: Array[String] = []
 var seated: Array[int] = []
 ## What each seated player has typed but not yet entered: peer id -> text.
 var typing := {}
+## The screen's color: the terminal skin of whoever sat down first (Augustine:
+## "whoever got there first"), kept after they leave. TerminalMirror sets it;
+## the screen redraws on screen_changed.
+var skin_color: Color = TerminalScreen.PHOSPHOR
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
