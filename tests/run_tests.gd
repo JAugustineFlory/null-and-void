@@ -893,6 +893,36 @@ func _frames(n: int) -> void:
 		await physics_frame
 
 
+## The Huddle for a level (not named as a class here: it pulls in LevelBase).
+func _huddle_of(node: Node) -> Node:
+	while node:
+		if node.get_node_or_null("Huddle"):
+			return node.get_node("Huddle")
+		node = node.get_parent()
+	return null
+
+
+## Play through the next book huddle on every machine: the reader turns the
+## pages, then everyone votes for the right answer (scripts/huddle/).
+func _crew_reads(levels: Array) -> void:
+	var hs: Array = levels.map(func(l): return _huddle_of(l))
+	var seen := false
+	for f in 6000:
+		await physics_frame
+		for h in hs:
+			h.reveal_scale = 0.05
+			if not h.is_running():
+				continue
+			seen = true
+			if h.question < 0:
+				if h.is_reader() and f % 5 == 0:
+					h.turn_page()
+			elif h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
+				h.vote(h.current_question().answer)
+		if seen and hs.all(func(h): return not h.is_running() and h.get_node_or_null("HuddleUI") == null):
+			return
+
+
 func _table(level: Node, sql: String) -> String:
 	return JSON.stringify(level.db.run_silent(sql))
 
@@ -1235,7 +1265,8 @@ func test_coop_lobby_walk_in() -> void:
 	check(h.sync._gates.has("inside") and c.sync._gates.has("inside"), "a crew walking in one at a time all counts as inside")
 	check(c.visitor_log.enabled and h.to_local(h.rourke.global_position).z < 3.0, "Rourke makes it through the front doors to the desk")
 	c.visitor_log.interact(m[1].player)
-	for f in 2400:  # the tour lines, and the badge handout before them
+	_crew_reads([h, c])  # the garage flashback before the desk terminal
+	for f in 4000:  # the tour lines, the badge handout before them, then the flashback
 		await physics_frame
 		if c.desk_terminal.enabled:
 			break

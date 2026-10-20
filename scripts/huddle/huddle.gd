@@ -293,7 +293,7 @@ func _present(mode: String) -> void:
 	if mode == FLASHBACK:
 		if hud:
 			await hud.fade(true, 0.5)
-		_home = HomeBase.for_flashback(level)
+		_home = load("res://scripts/levels/home_base.gd").for_flashback(level)  # loaded late: home_base pulls in LevelBase
 		_home.start_flashback(NetPlayers.ids_for(multiplayer).size())
 	_ui = HuddleUI.create(self, mode == FLASHBACK)
 	_mouse_was = Input.mouse_mode

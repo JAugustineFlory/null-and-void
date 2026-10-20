@@ -220,7 +220,7 @@ func _leave() -> void:
 		world.call("leave_home")
 	else:
 		get_node("/root/Game").open_at_home = false
-		Game.goto("world")
+		get_node("/root/Game").goto("world")
 
 
 # --- Flashbacks -----------------------------------------------------------------

@@ -22,6 +22,12 @@ func _game() -> Node:
 	return _tree.root.get_node("Game")
 
 
+## Huddle, HomeBase and HuddleUI aren't named as classes here: they pull in
+## LevelBase, which uses the Game autoload by name.
+func _huddle_of(node: Node) -> Node:
+	return _tree._huddle_of(node)
+
+
 func _frames(n: int) -> void:
 	for i in n:
 		await _tree.physics_frame
@@ -76,13 +82,13 @@ func test_books() -> void:
 
 
 ## Answer the huddle's current question: right, or a wrong option.
-func _answer(h: Huddle, right: bool) -> void:
+func _answer(h, right: bool) -> void:
 	var q := h.current_question()
 	h.vote(q.answer if right else (q.answer + 1) % q.options.size())
 
 
 ## Read every page and answer every question right (after one wrong answer).
-func _finish_chapter(h: Huddle, id: String) -> bool:
+func _finish_chapter(h, id: String) -> bool:
 	if not await _until(func(): return h.chapter.get("id", "") == id, 600):
 		return false
 	while h.question < 0:
@@ -104,7 +110,7 @@ func test_garage_opening() -> void:
 	var world = load("res://scenes/world.tscn").instantiate()
 	_tree.root.add_child(world)
 	await _frames(30)
-	var home: HomeBase = world.home
+	var home = world.home
 	var p: Player = world.player
 	_check.call(home != null and world.current == home and home.active, "a new game opens in the crew's garage")
 	_check.call(home.global_position.distance_to(Vector3.ZERO) > 200.0, "the garage sits far from the tower")
@@ -123,12 +129,12 @@ func test_garage_opening() -> void:
 	home.book_bag.interact(p)
 	await _frames(5)
 	_check.call(home.bench_book.visible and not home.book_bag.visible, "the book ends up on the workbench")
-	p.global_position = home.to_global(HomeBase.BENCH + Vector3(0, 0.2, 1.2))
-	var h: Huddle = Huddle.of(home)
+	p.global_position = home.to_global(home.BENCH + Vector3(0, 0.2, 1.2))
+	var h = _huddle_of(home)
 	h.reveal_scale = 0.2
 	_check.call(await _until(func(): return h.is_running()), "the crew at the workbench opens the book")
 	_check.call(h.chapter.id == "easy_sql_0" and h.is_reader() and p.input_locked, "solo, you read the first chapter, standing still")
-	var ui: HuddleUI = h.get_node_or_null("HuddleUI")
+	var ui = h.get_node_or_null("HuddleUI")
 	_check.call(ui != null and not ui.flashback and ui.find_child("Next", true, false).visible, "the book opens over the garage with a page-turn for the reader")
 	h.turn_page(-1)
 	await _frames(2)
@@ -167,7 +173,7 @@ func test_flashback() -> void:
 	_tree.root.add_child(world)
 	await _frames(30)
 	var p: Player = world.player
-	var h: Huddle = Huddle.of(world.current)
+	var h = _huddle_of(world.current)
 	h.reveal_scale = 0.2
 	_check.call(world.home == null and h != null, "a game started in the van has no garage until a flashback needs one")
 	var done := [false]
@@ -176,7 +182,7 @@ func test_flashback() -> void:
 		done[0] = true
 	run_it.call()
 	_check.call(await _until(func(): return h.is_running() and h.get_node_or_null("HuddleUI") != null), "the flashback opens the book")
-	var home: HomeBase = world.get_node_or_null("HomeBase")
+	var home = world.get_node_or_null("HomeBase")
 	_check.call(home != null and home.visible and home.flashback_camera.current, "it cuts to the garage through the flashback camera")
 	_check.call(home.find_children("Crew*", "", false, false).size() == 1, "solo, one crew member stands at the bench")
 	_check.call(h.get_node("HuddleUI").flashback and p.input_locked, "in sepia, with the player held still")
@@ -198,14 +204,14 @@ func test_coop_huddle() -> void:
 	var machines: Array = await _tree._coop_load(worlds, "res://scenes/world.tscn")
 	var host = machines[0]
 	var client = machines[1]
-	_check.call(machines.all(func(w): return w.current is HomeBase), "both machines open in the garage")
-	var hh: Huddle = Huddle.of(host)
-	var hc: Huddle = Huddle.of(client)
+	_check.call(machines.all(func(w): return w.current == w.home), "both machines open in the garage")
+	var hh = _huddle_of(host)
+	var hc = _huddle_of(client)
 	hh.reveal_scale = 0.2
 	var runs := [0]
 	for h in [hh, hc]:
 		var run_it := func():
-			await h.run("easy_sql_0", Huddle.HERE)
+			await h.run("easy_sql_0", "here")
 			runs[0] += 1
 		run_it.call()
 	_check.call(await _until(func(): return hc.is_running() and hh.is_running(), 300), "the huddle opens on both machines")
