@@ -69,7 +69,7 @@ has 4. L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
 limit; badge_log is now the har chain's first step, so it can count as part of har.
 
 Notes:
-- Ch 4 fixes a known gap: DESC is currently found nowhere before its hint.
+- Ch 4 backs up the N.F. sticky by the visitor book (PR #82), the in-world place DESC is found before its hint.
 - Ch 7 fixes the other: `>` is found nowhere near the terminal before its hint.
 - Ch 8 brings in OR, which is otherwise never taught by the end of L2.
 - Curriculum debt stays: COLUMNS, DESC, `>` and LIKE are never needed under

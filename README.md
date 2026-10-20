@@ -33,6 +33,7 @@ Newest first. Floors are listed by their in-game floor number.
 - **New:** the tower exterior, and a badge reader at the front gate.
 - **New:** *Easy SQL*, the crew's beginner's book, rides along in the van, with practice kits.
 - **Added:** case pages in the notebook, a guest check-in at the front desk, and a ledge route on the security floor.
+- **Added:** dressed fire stairs (handrails, floor numbers, emergency lights), a model for Maddison, the crew's boss, and the groundwork for crew customisation: two body types, eight skin tones, and tintable hats, tops, jackets, glasses and earrings.
 - **Changed:** each paper and sticky note exists only once, so the crew has to pool what it finds.
 - **Fixed:** playtest rounds 7 and 8, plus a quality pass across all three floors.
 
