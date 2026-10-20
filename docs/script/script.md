@@ -21,9 +21,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.
 
-**Maddison Kowalski** (MADDISON). Founder of Byte-Right IT Services, run out of a garage. Landed the Halcyon job by underbidding everyone; can't code either. Stays at base on the radio, and is also tonight's dispatch.
+**Maddison Kowalski** (MADDISON). Byte-Right's CEO and founder. Mature, attractive, confident and upbeat. On screen in the garage opening and in every book huddle. She stays behind at the garage, so she's tonight's dispatch on the van radio.
 
-> Fast, upbeat, salesperson's energy: the crew's friend more than their boss. Heard over a radio base station or the van radio. For the dispatch lines, Maddison puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
+> Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 **Radio newsreader** (NEWSREADER). Local morning radio, heard in the news-story ending.
 
@@ -37,9 +37,9 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The garage
 
-*The game opens at Byte-Right's garage home base, earlier that night. Maddison calls the base station: the work order comes through on the fax, the book Easy SQL is on the back shelf, the crew huddles round it at the workbench, then everyone gets in the van.* *(Written ahead: not in the game yet.)*
+*The game opens at Byte-Right's garage home base, earlier that night. Maddison walks in with the news and walks the crew through it: the work order comes through on the fax, the book Easy SQL is on the back shelf, the crew huddles round it at the workbench, then everyone gets in the van.* *(Written ahead: not in the game yet.)*
 
-**MADDISON:** *(Bursting with it. The crew starts on the garage floor.)* Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. `[l0_garage_1]`
+**MADDISON:** *(Coming in through the side door, waving the printout. The crew starts on the garage floor.)* There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours. `[l0_garage_1]`
 
 **MADDISON:** *(Quickly, before anyone can ask. Then the fax starts.)* How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. `[l0_garage_2]`
 
@@ -49,11 +49,11 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **MADDISON:** *(Genuinely thrilled. After the huddle's quiz.)* Look at that. You're practically engineers. Take the book with you. Everybody in the van. `[l0_garage_5]`
 
-**MADDISON:** *(Counting the rules off. As the crew boards the van.)* Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out. `[l0_garage_6]`
+**MADDISON:** *(At the van door, counting the rules off. She stays behind.)* Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. `[l0_garage_6]`
 
 ### Book huddles: SELECT and ORDER BY
 
-*Flashbacks to the garage, earlier that night ('The garage, earlier that night', sepia). A player reads the chapter aloud and the crew votes on its quiz; Maddison opens and closes each chapter over the base station. Never gives the night's answers.* *(Written ahead: not in the game yet.)*
+*Flashbacks to the garage, earlier that night ('The garage, earlier that night', sepia). A player reads the chapter aloud and the crew votes on its quiz; Maddison stands at the head of the bench and opens and closes each chapter. Never gives the night's answers.* *(Written ahead: not in the game yet.)*
 
 **MADDISON:** *(Disbelieving, delighted.)* Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? `[l0_huddle_select_1]`
 
@@ -269,7 +269,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ### The news (if the crew dies)
 
-*Plays only if Rourke downs the whole crew in the Level 2 fight: a newspaper on a kitchen table the next morning ('IT CONTRACTORS SOUGHT IN DEATH OF HALCYON SCIENTIST') with this radio report. The frame worked; Rourke hid the bodies, so the world thinks the crew ran.* *(Written ahead: not in the game yet.)*
+*Plays only if Rourke downs the whole crew in the Level 2 fight: a newspaper on a kitchen table the next morning ('IT CONTRACTORS SOUGHT IN DEATH OF HALCYON SCIENTIST') with this radio report. The frame worked; Rourke hid the bodies, so the world thinks the crew ran. Maddison is arrested trying to get into the tower, insisting they were framed.* *(Written ahead: not in the game yet.)*
 
 **NEWSREADER:** *(Steady, mid-bulletin.)* Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems. `[l2_news_1]`
 
@@ -277,7 +277,11 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **NEWSREADER:** *(A slight shift for the quote: reading it, not acting it.)* A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.' `[l2_news_3]`
 
-**NEWSREADER:** *(A beat before the second sentence.)* Byte-Right's only office, a rented garage, was found empty. The crew has not been seen since. `[l2_news_4]`
+**NEWSREADER:** *(Even, a touch of interest.)* Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside. `[l2_news_4]`
+
+**NEWSREADER:** *(Reading the quote flat, not acting it. Then a beat.)* Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!' `[l2_news_6]`
+
+**NEWSREADER:** *(Neutral. A small pause after.)* Halcyon declined to comment. The crew has not been seen since. `[l2_news_7]`
 
 **NEWSREADER:** *(Brightening for the weather. The game cuts the audio on 'weather'.)* Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. `[l2_news_5]`
 

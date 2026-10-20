@@ -15,7 +15,7 @@ A local morning-radio newsreader, reading the third story of the hour.
 
 Send the files back as they are. They go in `audio/voice/newsreader/` in the game.
 
-## Your lines (5)
+## Your lines (7)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -31,8 +31,14 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'"  
   *A slight shift for the quote: reading it, not acting it.*
 - [ ] `l2_news_4.wav`  
-  "Byte-Right's only office, a rented garage, was found empty. The crew has not been seen since."  
-  *A beat before the second sentence.*
+  "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside."  
+  *Even, a touch of interest.*
+- [ ] `l2_news_6.wav`  
+  "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'"  
+  *Reading the quote flat, not acting it. Then a beat.*
+- [ ] `l2_news_7.wav`  
+  "Halcyon declined to comment. The crew has not been seen since."  
+  *Neutral. A small pause after.*
 - [ ] `l2_news_5.wav`  
   "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather."  
   *Brightening for the weather. The game cuts the audio on 'weather'.*
