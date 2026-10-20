@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_garage_opening()
 	await test_flashback()
 	await test_coop_huddle()
+	await test_coop_spar()
 	Engine.time_scale = 1.0
 
 
@@ -129,6 +130,7 @@ func test_garage_opening() -> void:
 	home.book_bag.interact(p)
 	await _frames(5)
 	_check.call(home.bench_book.visible and not home.book_bag.visible, "the book ends up on the workbench")
+	await _spar(home, p)
 	p.global_position = home.to_global(home.BENCH + Vector3(0, 0.2, 1.2))
 	var h = _huddle_of(home)
 	h.reveal_scale = 0.2
@@ -164,6 +166,25 @@ func test_garage_opening() -> void:
 	_check.call(not home.visible and is_instance_valid(home), "the garage stays loaded, out of sight, for flashbacks")
 	world.queue_free()
 	await _frames(2)
+
+
+## The punch bag drill, solo: it only swings at someone standing by it, a miss
+## costs nothing, and a block lets the crew move on to the huddle.
+func _spar(home, p) -> void:
+	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag, before the huddle")
+	var swung := await _until(func(): return home.swing_in, 200)
+	_check.call(not swung, "the bag leaves you be while you're nowhere near it")
+	p.global_position = home.to_global(home.PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
+	_check.call(await _until(func(): return home.swing_in, 400), "stand by it and it swings at you")
+	var health: float = p.health
+	await _until(func(): return not home.swing_in, 120)
+	await _frames(3)
+	_check.call(p.health == health and home.spar_blocked.is_empty(), "a missed block costs no health, and doesn't count")
+	_check.call(not _huddle_of(home).is_running(), "the crew can't huddle until it's blocked")
+	_check.call(await _until(func(): return home.swing_in, 400), "the bag swings again")
+	p.combat.raise_guard()
+	_check.call(await _until(func(): return home.spar_blocked.size() == 1, 120), "right-clicking as it swings in blocks it")
+	_check.call(p.health == health, "blocking it costs nothing either")
 
 
 func test_flashback() -> void:
@@ -252,5 +273,37 @@ func test_coop_huddle() -> void:
 	if not ended:
 		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
 	_check.call(ended, "the chapter ends on both machines")
+	_tree._coop_close(worlds)
+	await _frames(2)
+
+
+func test_coop_spar() -> void:
+	print("Home base: co-op, everyone blocks the punch bag")
+	_game().new_run(24)
+	_game().open_at_home = true
+	var worlds: Array = await _tree._coop_worlds(1)
+	var machines: Array = await _tree._coop_load(worlds, "res://scenes/world.tscn")
+	var homes := machines.map(func(w): return w.home)
+	var done := [0]
+	for home in homes:
+		var drill := func():
+			await home._spar_drill()
+			done[0] += 1
+		drill.call()
+	var ph = machines[0].player
+	var pc = machines[1].player
+	var host_id: int = machines[0].multiplayer.get_unique_id()
+	var client_id: int = machines[1].multiplayer.get_unique_id()
+	ph.global_position = homes[0].to_global(homes[0].PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
+	_check.call(await _until(func(): return homes[1].spar_target == host_id, 400), "the client sees the bag swing at the host")
+	await _until(func(): return homes[0].swing_in, 120)
+	ph.combat.raise_guard()
+	_check.call(await _until(func(): return homes[1].spar_blocked.has(host_id), 200), "the host's block counts on both machines")
+	await _frames(60)
+	_check.call(done[0] == 0, "one block isn't enough: the drill waits for the whole crew")
+	pc.global_position = homes[1].to_global(homes[1].PUNCH_BAG + Vector3(-1.0, 0.2, 0.8))
+	_check.call(await _until(func(): return homes[1].spar_target == client_id and homes[1].swing_in, 600), "then it swings at the client")
+	pc.combat.raise_guard()
+	_check.call(await _until(func(): return done[0] == 2, 400), "the client blocks it, and both machines move on")
 	_tree._coop_close(worlds)
 	await _frames(2)

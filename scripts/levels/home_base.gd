@@ -10,6 +10,10 @@ extends LevelBase
 ## same workbench, the crew round the book (see Huddle). The garage stays loaded
 ## out of sight for that, far from the tower.
 ##
+## Before the huddle, the punch bag by the roll-up door teaches blocking safely:
+## it swings back at you, and right-clicking as it comes in blocks it. A miss
+## costs nothing. Everyone blocks it once before the crew huddles.
+##
 ## Graphics dresses it; DressHomeBase can hook in at the end of build().
 
 ## Where the garage sits in the World: well away from the tower and its car park.
@@ -17,6 +21,18 @@ const AT := Transform3D(Basis(), Vector3(-300, 0, -300))
 const SCENE := "res://scenes/home_base.tscn"
 const BENCH := Vector3(-2.5, 0, -1.0)
 const VAN := Vector3(2.8, 0, 0.3)
+## Where the punch bag hangs from its ceiling hook (on the floor below it).
+const PUNCH_BAG := Vector3(-0.2, 0, -3.2)
+## The bag swings at whoever stands within this of it.
+const SPAR_REACH := 2.2
+## The pull back before a swing (the tell), then the swing in: right-click during the swing in.
+const SPAR_TELL := 0.7
+const SPAR_SWING := 0.35
+## Between swings.
+const SPAR_GAP := 1.6
+## Lines for Augustine's approval: see plan/approvals/home-base-huddles.md.
+const SPAR_NOTICE := "The punch bag swings back. Stand by it and right-click just as it comes at you to block"
+const SPAR_MISS := "Too early or too late. Right-click as it swings in"
 ## Where the crew stand round the bench in a flashback, facing it.
 const HUDDLE_SPOTS := [Vector3(-3.2, 0, -0.1), Vector3(-1.8, 0, -0.1), Vector3(-3.2, 0, -1.9),
 	Vector3(-1.8, 0, -1.9), Vector3(-4.1, 0, -1.0), Vector3(-0.9, 0, -1.0)]
@@ -24,6 +40,14 @@ const HUDDLE_SPOTS := [Vector3(-3.2, 0, -0.1), Vector3(-1.8, 0, -0.1), Vector3(-
 var fax: Interactable
 var book_bag: Interactable
 var van_door: Interactable
+## The punch bag's hook: it swings about this point.
+var punch_bag: Node3D
+## Who the bag is swinging at (0: nobody), and whether it's coming in now.
+var spar_target := 0
+var swing_in := false
+## Who has blocked it (host decides; every machine hears).
+var spar_blocked: Array = []
+signal crew_sparred
 ## The book on the workbench, once someone has brought it over.
 var bench_book: Node3D
 ## The camera a flashback looks through, and the crew it sees round the bench.
@@ -69,6 +93,7 @@ func build() -> void:
 	book_bag.used.connect(func(_p): sync.event("_on_bag"))
 
 	_build_van(VAN)
+	_build_punch_bag(PUNCH_BAG)
 
 	var bulb := Color(1.0, 0.88, 0.7)
 	add_light("garage", BENCH + Vector3(0, 3.4, 0), 3.6, 1.2, bulb)
@@ -104,6 +129,31 @@ func _build_van(center: Vector3) -> void:
 			Vector3(-0.33, 0, 0.7), Vector3(0.33, 0, 0.7), Vector3(0.99, 0, 0.7)]:
 		Greybox.panel(geo, cab + at + Vector3(0, 0.25, 0.1), Vector3(0.55, 0.5, 0.5), Color(0.15, 0.15, 0.18))
 		van_seats.append(cab + at + Vector3(0, 0.05, 0))
+
+
+## A heavy bag on a chain from a ceiling hook, out of the way by the roll-up door.
+## It isn't under geo: it moves, and nobody should bump into it.
+func _build_punch_bag(at: Vector3) -> void:
+	punch_bag = Node3D.new()
+	punch_bag.name = "PunchBag"
+	punch_bag.position = at + Vector3(0, 3.35, 0)
+	add_child(punch_bag)
+	var chain := MeshInstance3D.new()
+	var cm := BoxMesh.new()
+	cm.size = Vector3(0.03, 1.0, 0.03)
+	chain.mesh = cm
+	chain.position = Vector3(0, -0.5, 0)
+	chain.material_override = Greybox.mat(Color(0.3, 0.3, 0.3))
+	punch_bag.add_child(chain)
+	var bag := MeshInstance3D.new()
+	var bm := CylinderMesh.new()
+	bm.top_radius = 0.22
+	bm.bottom_radius = 0.22
+	bm.height = 1.1
+	bag.mesh = bm
+	bag.position = Vector3(0, -1.55, 0)
+	bag.material_override = Greybox.mat(Color(0.55, 0.12, 0.1))
+	punch_bag.add_child(bag)
 
 
 ## A paperback with the teal cover: Easy SQL. Graphics swaps in ArtKit.easy_sql_book via DressHomeBase.
@@ -149,6 +199,7 @@ func start() -> void:
 	hud.todo("Find the book in the back corner")
 	hud.notice("It's dark back there. F turns your flashlight on and off", 6.0)
 	await sync.gate("bag", book_bag.used)
+	await _spar_drill()
 	hud.todo("Huddle round the workbench")
 	var bench := Trigger.create(self, BENCH + Vector3(0, 1, 0), Vector3(5.5, 2, 4.2))
 	bench.require_all = true
@@ -168,6 +219,97 @@ func start() -> void:
 	player.input_locked = false
 	_leave()
 	await hud.fade(false, 1.0)
+
+
+## Everyone blocks the punch bag once. The host picks who it swings at; every
+## machine sees the swing, and each player's own machine decides their block.
+func _spar_drill() -> void:
+	hud.todo("Block the punch bag")
+	hud.notice(SPAR_NOTICE, 8.0)
+	if sync.is_host():
+		_run_bag()
+	await sync.gate("sparred", crew_sparred)
+	hud.todo("")
+
+
+## Host: swing at someone by the bag who hasn't blocked it yet, until everyone has.
+func _run_bag() -> void:
+	crew.hit_blocked.connect(_on_hit_blocked)
+	while spar_blocked.size() < players.count():
+		await get_tree().create_timer(SPAR_GAP, false).timeout
+		if not is_inside_tree():
+			return
+		var id := _spar_pick()
+		if id != 0:
+			sync.event("_swing_bag", [id])
+			await get_tree().create_timer(SPAR_TELL + SPAR_SWING * 2.0, false).timeout
+	crew.hit_blocked.disconnect(_on_hit_blocked)
+	crew_sparred.emit()
+
+
+func _spar_pick() -> int:
+	var best := 0
+	var best_d := SPAR_REACH
+	for id in players.all_ids():
+		var body := players.puppet(id)
+		if spar_blocked.has(id) or body == null:
+			continue
+		var d := _flat_distance(body.global_position, to_global(PUNCH_BAG))
+		if d < best_d:
+			best = id
+			best_d = d
+	return best
+
+
+static func _flat_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Every machine: the bag pulls back away from player `id`, then swings in at them.
+func _swing_bag(id: int) -> void:
+	var body := players.puppet(id)
+	if body == null:
+		return
+	var to := body.global_position - punch_bag.global_position
+	var dir := Vector3(to.x, 0, to.z).normalized()
+	if dir == Vector3.ZERO:
+		dir = Vector3.FORWARD
+	var axis := (global_basis.inverse() * dir).cross(Vector3.UP).normalized()
+	var tilt := func(a: float): punch_bag.basis = Basis(axis, a)
+	spar_target = id
+	var t := create_tween()
+	t.tween_method(tilt, 0.0, -0.45, SPAR_TELL).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	t.tween_callback(func(): swing_in = true)
+	t.tween_method(tilt, -0.45, 0.3, SPAR_SWING).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	t.tween_callback(_bag_lands.bind(id))
+	t.tween_method(tilt, 0.3, 0.0, SPAR_SWING * 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+## Every machine: the bag reaches player `id`. Only their own machine decides the block.
+func _bag_lands(id: int) -> void:
+	swing_in = false
+	spar_target = 0
+	if body_is_mine(id) and _flat_distance(player.global_position, to_global(PUNCH_BAG)) < SPAR_REACH + 0.5:
+		if player.take_damage(0.0, "spar") == "hit":
+			hud.notice(SPAR_MISS, 3.0)
+
+
+func body_is_mine(id: int) -> bool:
+	return players.puppet(id) == player
+
+
+## Host: someone blocked. The bag leaves them be from now on.
+func _on_hit_blocked(id: int, cause: String) -> void:
+	if cause == "spar" and not spar_blocked.has(id):
+		sync.event("_on_sparred", [id])
+
+
+func _on_sparred(id: int) -> void:
+	if not spar_blocked.has(id):
+		spar_blocked.append(id)
+	var total := players.count()
+	if spar_blocked.size() < total and body_is_mine(id):
+		hud.notice("Waiting for the crew at the punch bag (%d/%d)" % [spar_blocked.size(), total], 4.0)
 
 
 func _on_fax() -> void:

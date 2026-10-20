@@ -31,6 +31,7 @@ const CAUSES := {
 	"shredder": {},
 	"custodian": {},
 	"fall": {"lethal": true},
+	"spar": {"block": true},  # the garage punch bag: a practice swing, no damage
 }
 ## No hits for this long, and health starts creeping back.
 const REGEN_DELAY := 8.0
