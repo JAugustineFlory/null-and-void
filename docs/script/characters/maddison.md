@@ -1,8 +1,8 @@
 # Maddison Kowalski: your lines
 
-Maddison Kowalski, 40s, founded a tiny IT company in a garage and just landed the biggest contract it's ever had. Heard over a radio, cheerful even when admitting something terrible.
+Maddison Kowalski, 40s, CEO and founder of a tiny IT company run out of her garage. Striking, sharp-dressed and completely sure of herself. She has just landed the biggest contract the company has ever had, and nobody on her crew is qualified for it. Cheerful even when she's admitting something terrible.
 
-**How they sound:** Fast, upbeat, salesperson's energy: the crew's friend more than their boss. Heard over a radio base station or the van radio. For the dispatch lines, Maddison puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
+**How they sound:** Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 ## Recording
 
@@ -19,11 +19,11 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
-### 1. On a radio to your small IT crew back at the garage: you just won a big contract none of you is qualified for.
+### 1. In your garage with your small IT crew: you just won a big contract none of you is qualified for.
 
 - [ ] `l0_garage_1.wav`  
-  "Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours."  
-  *Bursting with it. The crew starts on the garage floor.*
+  "There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours."  
+  *Coming in through the side door, waving the printout. The crew starts on the garage floor.*
 - [ ] `l0_garage_2.wav`  
   "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now."  
   *Quickly, before anyone can ask. Then the fax starts.*
@@ -37,10 +37,10 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Look at that. You're practically engineers. Take the book with you. Everybody in the van."  
   *Genuinely thrilled. After the huddle's quiz.*
 - [ ] `l0_garage_6.wav`  
-  "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out."  
-  *Counting the rules off. As the crew boards the van.*
+  "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio."  
+  *At the van door, counting the rules off. She stays behind.*
 
-### 2. On the radio to your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
+### 2. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
 
 - [ ] `l0_huddle_select_1.wav`  
   "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?"  
@@ -67,7 +67,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out."  
   *Bored, reading the form. Signing off, already onto the next call.*
 
-### 4. On the radio to your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
+### 4. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
 
 - [ ] `l1_huddle_where_1.wav`  
   "WHERE. For finding one thing in a big pile. Like my car keys."  
@@ -82,7 +82,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Okay. That's maths I actually remember from school."  
   *Relieved.*
 
-### 5. On the radio to your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
+### 5. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
 
 - [ ] `l2_huddle_like_1.wav`  
   "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'"  
@@ -97,7 +97,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "So it's a SELECT for robots. Got it. Probably."  
   *Not convinced.*
 
-### 6. On the radio to your crew while they read a beginner's book together. One line to start the chapter, one to wrap it up.
+### 6. At the workbench with your crew while they read a beginner's book together. One line to start the chapter, one to wrap it up.
 
 - [ ] `l3_huddle_update_1.wav`  
   "UPDATE. Changing things. The book's put this one in a red box, which I don't love."  
