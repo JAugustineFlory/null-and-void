@@ -179,9 +179,10 @@ func test_rig_actions() -> void:
 
 func test_rig_budget() -> void:
 	var stage := _stage()
-	var looks := [CharacterLooks.rourke(), CharacterLooks.vale(), CharacterLooks.mercer(), CharacterLooks.night_guard()]
+	var looks := [CharacterLooks.rourke(), CharacterLooks.vale(), CharacterLooks.mercer(), CharacterLooks.night_guard(), CharacterLooks.maddison()]
 	for i in 6:
 		looks.append(CharacterLooks.crew(i))
+		looks.append(CharacterLooks.crew(i, {"body": 2, "skin": i}))
 	var most := 0
 	var shadow_parts := 0
 	for look in looks:
@@ -194,6 +195,13 @@ func test_rig_budget() -> void:
 				shadow_parts += 1
 	check(most <= 32, "every character stays within 32 mesh pieces (most: %d)" % most)
 	check(shadow_parts <= looks.size() * 12, "only the big body parts cast shadows")
+	var one := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0, {"body": 1}))
+	var two := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0, {"body": 2}))
+	check(two.joints["r_shoulder"].position.x < one.joints["r_shoulder"].position.x and two.joints["r_hip"].position.x > one.joints["r_hip"].position.x, "body type 2 has narrower shoulders and fuller hips than type 1")
+	check(CharacterLooks.crew(3, {"skin": 0}).skin == CharacterLooks.SKIN_TONES[0] and CharacterLooks.crew(3, {"skin": 99}).skin == CharacterLooks.SKIN_TONES[-1], "players pick their skin tone, and an out-of-range pick clamps")
+	check(CharacterLooks.crew(2) == CharacterLooks.crew(2, {}), "with no picks, a crew look is unchanged")
+	one.get_parent().free()
+	two.get_parent().free()
 	var a := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
 	var b := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
 	var ma: MeshInstance3D = a.joints["head"].get_child(0)

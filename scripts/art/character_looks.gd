@@ -25,12 +25,25 @@ static func base() -> Dictionary:
 		"mustache": null,  # a Color adds one
 		"logo": null,  # a Color adds a chest logo patch
 		"belt_radio": false,  # walkie on the belt
+		"body": 1,  # body type: 1 (straighter, broader shoulders) or 2 (narrower shoulders, waist and hips)
+		"lips": null,  # a Color adds lipstick
+		"earrings": null,  # a Color adds small stud earrings
+		"shoulder_pads": false,  # with a jacket: squarer 90s shoulders
 	}
 
 
+## Skin tones a player can pick, lightest to deepest.
+const SKIN_TONES: Array[Color] = [
+	Color(0.96, 0.82, 0.72), Color(0.9, 0.73, 0.6), Color(0.84, 0.66, 0.52), Color(0.74, 0.56, 0.42),
+	Color(0.62, 0.45, 0.32), Color(0.52, 0.36, 0.25), Color(0.42, 0.29, 0.2), Color(0.32, 0.22, 0.16),
+]
+const BODY_TYPES := [1, 2]
+
+
 ## One of the IT crew. `index` 0-5 picks their polo color and a few details,
-## so six players never look the same.
-static func crew(index: int) -> Dictionary:
+## so six players never look the same. `picks` overrides what the player chose
+## in the lobby: {"body": 1 or 2, "skin": an index into SKIN_TONES}.
+static func crew(index: int, picks: Dictionary = {}) -> Dictionary:
 	var skins := [Color(0.85, 0.68, 0.56), Color(0.55, 0.38, 0.27), Color(0.9, 0.75, 0.62),
 		Color(0.4, 0.27, 0.19), Color(0.74, 0.56, 0.42), Color(0.95, 0.8, 0.7)]
 	var hairs := [Color(0.18, 0.12, 0.08), Color(0.05, 0.04, 0.04), Color(0.55, 0.38, 0.2),
@@ -49,6 +62,39 @@ static func crew(index: int) -> Dictionary:
 		"logo": Color(0.95, 0.95, 0.92),
 		"glasses": i == 2 or i == 5,
 		"belt_radio": true,
+	}, true)
+	if picks.has("body") and int(picks.body) in BODY_TYPES:
+		look.body = int(picks.body)
+		if look.body == 2:
+			look.build = minf(look.build, 1.0)
+	if picks.has("skin"):
+		look.skin = SKIN_TONES[clampi(int(picks.skin), 0, SKIN_TONES.size() - 1)]
+	return look
+
+
+## Maddison Kowalski, Byte-Right's CEO, around 40: mature, confident and upbeat.
+## 1997 small-business-owner style: a raspberry blazer with 90s shoulders over a
+## cream blouse, charcoal slacks, a glossy auburn bob, red lipstick and gold
+## studs, the company pin on her lapel.
+static func maddison() -> Dictionary:
+	var look := base()
+	look.merge({
+		"name": "Maddison",
+		"body": 2,
+		"height": 0.99,
+		"build": 0.95,
+		"skin": Color(0.88, 0.71, 0.6),
+		"hair": Color(0.42, 0.17, 0.09),
+		"hair_style": "bob",
+		"shirt": Color(0.93, 0.89, 0.8),
+		"sleeves": "long",
+		"pants": Color(0.2, 0.2, 0.23),
+		"shoes": Color(0.1, 0.05, 0.06),
+		"jacket": Color(0.62, 0.12, 0.3),
+		"shoulder_pads": true,
+		"logo": ArtPalette.BYTERIGHT_BLUE,
+		"lips": Color(0.66, 0.1, 0.16),
+		"earrings": ArtPalette.HALCYON_GOLD,
 	}, true)
 	return look
 

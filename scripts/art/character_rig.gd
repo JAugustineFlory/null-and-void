@@ -358,22 +358,30 @@ func _make(character: Dictionary) -> void:
 	var sleeve := jacket if jacket else shirt
 	var forearm := sleeve if look.sleeves == "long" or jacket else skin
 
+	# Body type 2: narrower shoulders and waist, fuller hips, a shaped chest.
+	var two: bool = look.body == 2
+	var sw := b * (0.88 if two else 1.0)  # shoulder and chest width
+	var ww := b * (0.8 if two else 1.0)  # waist
+	var hw := b * (1.1 if two else 1.0)  # hips
 	var hips := _joint("hips", self, Vector3(0, 0.92, 0))
-	_part(hips, "box", Vector3(0.32 * b, 0.2, 0.2), Vector3(0, 0, 0), pants, true)
+	_part(hips, "box", Vector3(0.32 * hw, 0.2, 0.2), Vector3(0, 0, 0), pants, true)
 	var spine := _joint("spine", hips, Vector3(0, 0.06, 0))
-	_part(spine, "box", Vector3(0.4 * b, 0.28, 0.23), Vector3(0, 0.35, 0), shirt, true)  # chest
-	_part(spine, "box", Vector3(0.34 * b, 0.22, 0.21), Vector3(0, 0.1, 0), shirt, true)  # waist
+	_part(spine, "box", Vector3(0.4 * sw, 0.28, 0.23 if not two else 0.21), Vector3(0, 0.35, 0), shirt, true)  # chest
+	_part(spine, "box", Vector3(0.34 * ww, 0.22, 0.21 if not two else 0.19), Vector3(0, 0.1, 0), shirt, true)  # waist
+	if two:
+		_part(spine, "sphere", Vector3(0.13 * sw, 0.055, 0.03), Vector3(0, 0.33, -0.095), shirt)
 	if jacket:
+		var shoulder := 0.46 if look.shoulder_pads else 0.42
 		for side in [-1.0, 1.0]:
-			_part(spine, "box", Vector3(0.15 * b, 0.5, 0.25), Vector3(side * 0.13 * b, 0.24, 0.005), jacket, true)
-		_part(spine, "box", Vector3(0.42 * b, 0.12, 0.25), Vector3(0, 0.44, 0.01), jacket)  # collar and shoulders
+			_part(spine, "box", Vector3(0.15 * sw, 0.5, 0.25), Vector3(side * 0.13 * sw, 0.24, 0.005), jacket, true)
+		_part(spine, "box", Vector3(shoulder * sw, 0.12, 0.25), Vector3(0, 0.44, 0.01), jacket)  # collar and shoulders
 	if look.logo is Color:
-		_part(spine, "box", Vector3(0.07, 0.05, 0.01), Vector3(-0.1 * b, 0.38, -0.12), ArtPalette.flat(look.logo))
+		_part(spine, "box", Vector3(0.07, 0.05, 0.01), Vector3(-0.1 * sw, 0.38, -0.12 if not jacket else -0.13), ArtPalette.flat(look.logo))
 	if look.lanyard is Color:
 		_part(spine, "box", Vector3(0.025, 0.24, 0.01), Vector3(0, 0.38, -0.121), ArtPalette.flat(look.lanyard))
 	if look.badge:
 		var badge_y := 0.24 if look.lanyard is Color else 0.33
-		var badge_x := 0.0 if look.lanyard is Color else 0.1 * b
+		var badge_x := 0.0 if look.lanyard is Color else 0.1 * sw
 		_part(spine, "box", Vector3(0.06, 0.085, 0.01), Vector3(badge_x, badge_y, -0.125), ArtPalette.flat(Color(0.95, 0.95, 0.92), 0.4))
 	var neck := _joint("neck", spine, Vector3(0, 0.49, 0))
 	_part(neck, "cyl", Vector3(0.05, 0.08, 0), Vector3(0, 0.03, 0), skin)
@@ -384,22 +392,22 @@ func _make(character: Dictionary) -> void:
 
 	for side in ["r", "l"]:
 		var sx := 1.0 if side == "r" else -1.0
-		var sh := _joint(side + "_shoulder", spine, Vector3(sx * 0.215 * b, 0.43, 0))
-		_part(sh, "sphere", Vector3(0.062 * b, 0.06, 0.062), Vector3(0, -0.02, 0), sleeve)
-		_part(sh, "capsule", Vector3(0.055 * b, 0.3, 0), Vector3(0, -0.13, 0), sleeve)
+		var sh := _joint(side + "_shoulder", spine, Vector3(sx * 0.215 * sw, 0.43, 0))
+		_part(sh, "sphere", Vector3(0.062 * sw, 0.06, 0.062), Vector3(0, -0.02, 0), sleeve)
+		_part(sh, "capsule", Vector3((0.05 if two else 0.055) * b, 0.3, 0), Vector3(0, -0.13, 0), sleeve)
 		var el := _joint(side + "_elbow", sh, Vector3(0, -0.28, 0))
 		_part(el, "capsule", Vector3(0.045, 0.28, 0), Vector3(0, -0.12, 0), forearm)
 		_part(el, "box", Vector3(0.07, 0.1, 0.04), Vector3(0, -0.29, 0), skin)
-		var hip := _joint(side + "_hip", hips, Vector3(sx * 0.09 * b, -0.05, 0))
+		var hip := _joint(side + "_hip", hips, Vector3(sx * 0.09 * hw, -0.05, 0))
 		_part(hip, "capsule", Vector3(0.075 * b, 0.46, 0), Vector3(0, -0.21, 0), pants, true)
 		var knee := _joint(side + "_knee", hip, Vector3(0, -0.43, 0))
 		_part(knee, "capsule", Vector3(0.06, 0.42, 0), Vector3(0, -0.19, 0), pants, true)
 		_part(knee, "box", Vector3(0.1, 0.08, 0.25), Vector3(0, -0.4, -0.05), shoes)
 		if side == "r" and look.belt_radio:
-			_part(hips, "box", Vector3(0.05, 0.12, 0.07), Vector3(0.19 * b, -0.02, 0.02), ArtPalette.flat(ArtPalette.DARK_PLASTIC, 0.5))
+			_part(hips, "box", Vector3(0.05, 0.12, 0.07), Vector3(0.19 * hw, -0.02, 0.02), ArtPalette.flat(ArtPalette.DARK_PLASTIC, 0.5))
 	if jacket and look.coat:
 		# A long coat (lab coat) hangs from the waist to the knees.
-		_part(hips, "box", Vector3(0.4 * b, 0.5, 0.26), Vector3(0, -0.2, 0.005), jacket, true)
+		_part(hips, "box", Vector3(0.4 * hw, 0.5, 0.26), Vector3(0, -0.2, 0.005), jacket, true)
 
 
 func _make_face(head: Node3D) -> void:
@@ -407,6 +415,11 @@ func _make_face(head: Node3D) -> void:
 	for sx in [-1.0, 1.0]:
 		_part(head, "box", Vector3(0.025, 0.018, 0.01), Vector3(sx * 0.045, 0.125, -0.108), dark)
 	_part(head, "box", Vector3(0.03, 0.045, 0.03), Vector3(0, 0.09, -0.118), ArtPalette.flat(look.skin, 0.7))
+	if look.lips is Color:
+		_part(head, "box", Vector3(0.034, 0.01, 0.01), Vector3(0, 0.06, -0.112), ArtPalette.flat(look.lips, 0.35))
+	if look.earrings is Color:
+		for sx in [-1.0, 1.0]:
+			_part(head, "sphere", Vector3(0.012, 0.012, 0.012), Vector3(sx * 0.108, 0.012, -0.01), ArtPalette.flat(look.earrings, 0.25, 0.9))
 	if look.mustache is Color:
 		_part(head, "box", Vector3(0.08, 0.02, 0.02), Vector3(0, 0.055, -0.115), ArtPalette.flat(look.mustache))
 	if look.glasses:
@@ -425,6 +438,12 @@ func _make_hair(head: Node3D) -> void:
 		"bald":
 			# A fringe round the back and sides only.
 			_part(head, "sphere", Vector3(0.122, 0.055, 0.11), Vector3(0, 0.09, 0.035), hair)
+		"bob":
+			# Chin-length, full at the sides, a side part with volume on top.
+			_part(head, "sphere", Vector3(0.124, 0.1, 0.13), Vector3(0.006, 0.152, 0.012), hair)
+			_part(head, "box", Vector3(0.24, 0.15, 0.08), Vector3(0, 0.1, 0.075), hair)
+			for sx in [-1.0, 1.0]:
+				_part(head, "box", Vector3(0.035, 0.13, 0.15), Vector3(sx * 0.112, 0.1, 0.015), hair)
 		"cap":
 			_part(head, "sphere", Vector3(0.125, 0.09, 0.13), Vector3(0, 0.17, 0.0), hair)
 			_part(head, "box", Vector3(0.18, 0.015, 0.1), Vector3(0, 0.165, -0.15), hair)
