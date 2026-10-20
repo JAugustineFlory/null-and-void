@@ -83,7 +83,7 @@ func test_books() -> void:
 
 ## Answer the huddle's current question: right, or a wrong option.
 func _answer(h, right: bool) -> void:
-	var q := h.current_question()
+	var q: Dictionary = h.current_question()
 	h.vote(q.answer if right else (q.answer + 1) % q.options.size())
 
 
@@ -234,7 +234,7 @@ func test_coop_huddle() -> void:
 	await _frames(10)
 	_answer(hc, false)  # changes their mind before everyone's in
 	await _frames(10)
-	var q := hh.current_question()
+	var q: Dictionary = hh.current_question()
 	_check.call(hh.votes.get(client.multiplayer.get_unique_id(), -1) != q.answer, "a player can change their vote until everyone has voted")
 	_answer(hc, true)
 	await _frames(10)
