@@ -1,6 +1,6 @@
 # Recording list
 
-137 lines in all.
+943 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -153,16 +153,16 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 
 ## Maddison Kowalski (23 lines)
 
-> Fast, upbeat, salesperson's energy: the crew's friend more than their boss. Heard over a radio base station or the van radio. For the dispatch lines, Maddison puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
+> Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_garage_1` | Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. | Bursting with it. The crew starts on the garage floor. | Level 0 |
+| [ ] | `l0_garage_1` | There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours. | Coming in through the side door, waving the printout. The crew starts on the garage floor. | Level 0 |
 | [ ] | `l0_garage_2` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. | Quickly, before anyone can ask. Then the fax starts. | Level 0 |
 | [ ] | `l0_garage_3` | Small problem. It says database. And unless somebody's been holding out on me... none of us can code. | The smile stays on. A hopeful pause. Once the work order's off the fax. | Level 0 |
 | [ ] | `l0_garage_4` | Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. | Proud of this. | Level 0 |
 | [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. After the huddle's quiz. | Level 0 |
-| [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out. | Counting the rules off. As the crew boards the van. | Level 0 |
+| [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. | At the van door, counting the rules off. She stays behind. | Level 0 |
 | [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0, later |
 | [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0, later |
 | [ ] | `l0_huddle_order_1` | Chapter two. 'Putting things in order.' Now that, I can get behind. | Reading off the page. | Level 0, later |
@@ -181,7 +181,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l3_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 3, later |
 | [ ] | `l3_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 3, later |
 
-## Radio newsreader (5 lines)
+## Radio newsreader (7 lines)
 
 > Smooth, professional, warm, slightly bored. Calm public-radio delivery with no drama; the flatness is what makes it land.
 
@@ -190,8 +190,73 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_news_1` | Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems. | Steady, mid-bulletin. | Level 2, later |
 | [ ] | `l2_news_2` | Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered. | No change in tone. | Level 2, later |
 | [ ] | `l2_news_3` | A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.' | A slight shift for the quote: reading it, not acting it. | Level 2, later |
-| [ ] | `l2_news_4` | Byte-Right's only office, a rented garage, was found empty. The crew has not been seen since. | A beat before the second sentence. | Level 2, later |
+| [ ] | `l2_news_4` | Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside. | Even, a touch of interest. | Level 2, later |
+| [ ] | `l2_news_6` | Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!' | Reading the quote flat, not acting it. Then a beat. | Level 2, later |
+| [ ] | `l2_news_7` | Halcyon declined to comment. The crew has not been seen since. | Neutral. A small pause after. | Level 2, later |
 | [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
+
+## The crew (player characters) (56 lines, recorded by each of the 12 crew members)
+
+> Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `cc_nudge2_first` | That SYSOP on the screen seems to know this building. Maybe ask. | Stuck, before SYSOP has helped. Half a joke, half serious. | Level 0, later |
+| [ ] | `cc_nudge2` | Whoever SYSOP is, they've been right so far. Maybe ask. | Stuck again. A little uneasy about trusting a stranger on a screen. | Level 0, later |
+| [ ] | `l0_cc_peek_card` | Quick-start card for the scanner. Somebody's filled in the blanks. | Picked up a scanner's instruction card. Noticing handwriting on it. | Level 0, later |
+| [ ] | `l0_cc_peek_n1a` | Scanners always come with instructions. Check round the keyboard. | Stuck for a minute. A practical thought. | Level 0, later |
+| [ ] | `l0_cc_peek_n1b` | That scanner card had something written in by hand. | Stuck. Remembering the card you all read. | Level 0, later |
+| [ ] | `l0_cc_peek_err` | Is that what the card called it? | The same name typed wrong twice. Gentle doubt. | Level 0, later |
+| [ ] | `l0_cc_peek_pay` | Scraps of a memo. All jumbled up. | Seeing the result. Curious. | Level 0, later |
+| [ ] | `l0_cc_memo_disc` | Every scrap's got a number. That's not an accident. | Spotting a pattern in the jumbled scraps. | Level 0, later |
+| [ ] | `l0_cc_memo_n1a` | Didn't the scanner come with a card? It might say how the scraps are kept. | Stuck. Thinking back. | Level 0, later |
+| [ ] | `l0_cc_memo_n1b` | The scanner card said something about numbering the scraps. | Stuck. Remembering the card. | Level 0, later |
+| [ ] | `l0_cc_memo_back` | It reads backwards. We've got the ending first. | The memo came out in reverse, twice. Amused. | Level 0, later |
+| [ ] | `l0_cc_memo_pay` | ...Don't look at him. Just don't look at him. | Whispered. The memo warns about the man standing right next to you. | Level 0, later |
+| [ ] | `l0_cc_caller_order` | Work order's got a callback extension on it. | Reading the work order. Noticing a detail. | Level 0, later |
+| [ ] | `l0_cc_caller_list` | A phone list. With extensions. | Finding a staff phone list. | Level 0, later |
+| [ ] | `l0_cc_caller_n1a` | Rourke said the mailroom has the only phone list that's right. | Stuck. Remembering what the escort said. | Level 0, later |
+| [ ] | `l0_cc_caller_n1b` | That phone list in the mailroom had everybody's extension. | Stuck. Remembering the list. | Level 0, later |
+| [ ] | `l0_cc_caller_err` | Is that what the column's actually called? | The same column name wrong twice. Gentle doubt. | Level 0, later |
+| [ ] | `l0_cc_caller_pay` | So that's who called us. Weird. | Uneasy. That isn't who you expected. | Level 0, later |
+| [ ] | `l0_cc_book_disc` | Last page is torn out. Somebody didn't want their name in here. | Reading a visitor book. Suspicious. | Level 0, later |
+| [ ] | `l0_cc_book_n1` | The book's only paper. The front desk computer might keep its own copy. | Stuck. A practical idea. | Level 0, later |
+| [ ] | `l0_cc_book_pay` | Vale signed in. And never signed out. | Quietly. That's not good. | Level 0, later |
+| [ ] | `l1_cc_log` | Night shift wrote down every alarm. That has to help. | Reading a shift log. Encouraged. | Level 1, later |
+| [ ] | `l1_cc_sheet` | There's a sheet on the controllers in here. Hang on to that. | Finding a reference sheet. Pleased. | Level 1, later |
+| [ ] | `l1_cc_nudge1_a` | Rourke said the night shift logs everything. Maybe they saw this happen. | Stuck for a minute. Remembering what the escort said. | Level 1, later |
+| [ ] | `l1_cc_nudge1_b` | What did that shift log say the alarms were about? | Stuck. Thinking back to the log. | Level 1, later |
+| [ ] | `l1_cc_err_table` | Is that what the sheet in here called it? | The same table name wrong twice. Gentle doubt. | Level 1, later |
+| [ ] | `l1_cc_err_reset` | Nope. Wasn't there a note somewhere about what 'fault' actually means? | A second wrong reset. Frustrated, then thinking. | Level 1, later |
+| [ ] | `l1_cc_payoff_1` | Every stuck door was in the same zone. Should've seen that sooner. | It clicks. A bit sheepish. | Level 1, later |
+| [ ] | `l1_cc_payoff_2` | Same zone, still faulting. That was our guy. | At the right rack. Satisfied. | Level 1, later |
+| [ ] | `l1_cc_hot_plate` | Fire interlock. There's a temperature limit on it. | Reading a warning plate on a door. | Level 1, later |
+| [ ] | `l1_cc_hot_n1a` | Server Room B's loud. Some of those racks are working way too hard. | Stuck. Raising your voice over the fans. | Level 1, later |
+| [ ] | `l1_cc_hot_n1b` | That monitoring card by the terminal said what counts as too hot. | Stuck. Remembering a card. | Level 1, later |
+| [ ] | `l1_cc_hot_err` | We want the hot ones, not the cool ones, right? | The comparison the wrong way round, twice. Checking. | Level 1, later |
+| [ ] | `l1_cc_hot_pay` | That one's cooking. No wonder it's loud. | Found the hot rack. Impressed. | Level 1, later |
+| [ ] | `l2_cc_reader_card` | Every door up here logs who swipes in. | Reading a badge reader's card. Noting it. | Level 2, later |
+| [ ] | `l2_cc_log_n1` | That card said the readers keep a log. Of everybody. | Stuck. Remembering the card. | Level 2, later |
+| [ ] | `l2_cc_log_pay` | Wait. Read that again. Slowly. | Something in the result is very wrong. Cold. | Level 2, later |
+| [ ] | `l2_cc_doorcard` | 'Controller zone.' That's a letter we can use. | Reading a door's card. Quick, under pressure. | Level 2, later |
+| [ ] | `l2_cc_switch_err` | Not that one. What do the notes on the others say? | A second wrong switch, on a clock. Tense. | Level 2, later |
+| [ ] | `l2_cc_door_pay` | Door's moving. Go, go! | Urgent. Get out now. | Level 2, later |
+| [ ] | `l2_cc_camcard` | Camera system. There's a way to ask it what it sees. | Reading the camera system's card. | Level 2, later |
+| [ ] | `l2_cc_cam_n1a` | Security booth. There's got to be something on how these cameras work. | Stuck. Looking around the booth. | Level 2, later |
+| [ ] | `l2_cc_cam_n1b` | That camera card said how to ask the system. | Stuck. Remembering the card. | Level 2, later |
+| [ ] | `l2_cc_cam_pay` | Something's moving out there. And it isn't us. | Quiet and scared. | Level 2, later |
+| [ ] | `l2_cc_sheet` | Coffee all over this. One name's still readable. | Reading a stained sign-in sheet. | Level 2, later |
+| [ ] | `l2_cc_pike_n1` | The sign-in sheet. One name wasn't smudged. | Stuck. Remembering the sheet. | Level 2, later |
+| [ ] | `l2_cc_pike_err` | Is that how it's spelled on the sheet? | The same name misspelled twice. Gentle doubt. | Level 2, later |
+| [ ] | `l2_cc_pike_pay` | No-show tonight. Lucky him. | Dry. Relieved for a stranger. | Level 2, later |
+| [ ] | `l2_cc_lie` | It said it opened. It didn't open. | Staring at a door that should be open. Baffled. | Level 2, later |
+| [ ] | `l2_cc_door_n1` | That door's got its name painted over it in red. Maybe the server knows it by that. | Stuck. Noticing the sign above the door. | Level 2, later |
+| [ ] | `l2_cc_breaker_pay` | A breaker. Of course it's a breaker. | Relief, and a little laugh at yourself. | Level 2, later |
+| [ ] | `l2_cc_roster` | Badge numbers, next to names. | Reading a roster board. Noting it. | Level 2, later |
+| [ ] | `l2_cc_pin_n1a` | The badge readers log every swipe. Who left this floor last? | Stuck. Thinking it through. | Level 2, later |
+| [ ] | `l2_cc_pin_n1b` | The last guard out had a badge number. Something up here matches those to names. | Stuck. Putting two things together. | Level 2, later |
+| [ ] | `l2_cc_pin_err` | Wrong code. Is that the night lead, or just any guard? | A second wrong PIN. Thinking. | Level 2, later |
+| [ ] | `l2_cc_pin_pay` | That's the code. Let's not hang around. | Keypad accepted it. Nervous, wants to move. | Level 2, later |
 
 ## Harold Mercer (5 lines)
 
@@ -204,3 +269,142 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_tape_3` | Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out. | The one moment of anger, still controlled. | Level 0 |
 | [ ] | `l0_tape_4` | So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter. | Quiet, almost proud, then wry on the last sentence. | Level 0 |
 | [ ] | `l0_tape_5` | If it ever comes to that, look for my plans. The building's records remember more than people do. | Slow. Then the click of the stop button. | Level 0 |
+
+## Crew barks (132 lines)
+
+Each crew member's own short lines, in their own folder.
+
+| Done | File | Line | When it plays |
+|---|---|---|---|
+| [ ] | `crew_dana/crew_ready.wav` | Let's get this over with. | the van ready-up |
+| [ ] | `crew_dana/crew_over_here.wav` | Chief. Over here. | calling the crew over |
+| [ ] | `crew_dana/crew_found_something.wav` | Got something. | a clue pickup that has no written discovery line |
+| [ ] | `crew_dana/crew_huddle.wav` | Everyone, quick. Look at this. | starting a notes huddle |
+| [ ] | `crew_dana/crew_need_boost.wav` | Give us a leg up? | asking for shoulders |
+| [ ] | `crew_dana/crew_on_my_way.wav` | Coming. | answering a call |
+| [ ] | `crew_dana/crew_scared.wav` | Nope. Nope. | something jumps out |
+| [ ] | `crew_dana/crew_help.wav` | Little help! | downed or caught |
+| [ ] | `crew_dana/crew_thanks.wav` | Cheers, chief. | helped up or boosted |
+| [ ] | `crew_dana/crew_no_way.wav` | Not getting through that. | a locked door or a blocked route |
+| [ ] | `crew_dana/crew_quiet.wav` | Shh. Something's here. | radio, something's near |
+| [ ] | `crew_priya/crew_ready.wav` | Ooh, okay. Ready, ready! | the van ready-up |
+| [ ] | `crew_priya/crew_over_here.wav` | Guys! Over here, come look! | calling the crew over |
+| [ ] | `crew_priya/crew_found_something.wav` | Oh, this is something! | a clue pickup that has no written discovery line |
+| [ ] | `crew_priya/crew_huddle.wav` | Huddle! Huddle up! | starting a notes huddle |
+| [ ] | `crew_priya/crew_need_boost.wav` | Can somebody lift me? I'm tiny. | asking for shoulders |
+| [ ] | `crew_priya/crew_on_my_way.wav` | On my way, on my way! | answering a call |
+| [ ] | `crew_priya/crew_scared.wav` | Oh my God. Oh my God. | something jumps out |
+| [ ] | `crew_priya/crew_help.wav` | Help! Help me! | downed or caught |
+| [ ] | `crew_priya/crew_thanks.wav` | You're the best. | helped up or boosted |
+| [ ] | `crew_priya/crew_no_way.wav` | Okay, that's locked. Rude. | a locked door or a blocked route |
+| [ ] | `crew_priya/crew_quiet.wav` | Guys. Whisper. Something's moving. | radio, something's near |
+| [ ] | `crew_rosa/crew_ready.wav` | Seatbelts, everyone. | the van ready-up |
+| [ ] | `crew_rosa/crew_over_here.wav` | Over here, please. Today. | calling the crew over |
+| [ ] | `crew_rosa/crew_found_something.wav` | Well, now. Look at this. | a clue pickup that has no written discovery line |
+| [ ] | `crew_rosa/crew_huddle.wav` | Everybody gather round. | starting a notes huddle |
+| [ ] | `crew_rosa/crew_need_boost.wav` | A hand up, if someone would be so kind. | asking for shoulders |
+| [ ] | `crew_rosa/crew_on_my_way.wav` | I'm coming. Don't touch anything. | answering a call |
+| [ ] | `crew_rosa/crew_scared.wav` | Mother of God. | something jumps out |
+| [ ] | `crew_rosa/crew_help.wav` | Somebody! Now! | downed or caught |
+| [ ] | `crew_rosa/crew_thanks.wav` | Thank you. Noted. | helped up or boosted |
+| [ ] | `crew_rosa/crew_no_way.wav` | That's not opening for us. | a locked door or a blocked route |
+| [ ] | `crew_rosa/crew_quiet.wav` | Quiet. All of you. | radio, something's near |
+| [ ] | `crew_kit/crew_ready.wav` | Let's go, let's go. | the van ready-up |
+| [ ] | `crew_kit/crew_over_here.wav` | Up here! Come on! | calling the crew over |
+| [ ] | `crew_kit/crew_found_something.wav` | Ha. Found it. | a clue pickup that has no written discovery line |
+| [ ] | `crew_kit/crew_huddle.wav` | Okay, team talk. Quick. | starting a notes huddle |
+| [ ] | `crew_kit/crew_need_boost.wav` | Boost me. I've got the rest. | asking for shoulders |
+| [ ] | `crew_kit/crew_on_my_way.wav` | Two seconds! | answering a call |
+| [ ] | `crew_kit/crew_scared.wav` | Whoa, whoa, whoa! | something jumps out |
+| [ ] | `crew_kit/crew_help.wav` | I'm caught! Get it off! | downed or caught |
+| [ ] | `crew_kit/crew_thanks.wav` | Owe you one. | helped up or boosted |
+| [ ] | `crew_kit/crew_no_way.wav` | Dead end. Find another way. | a locked door or a blocked route |
+| [ ] | `crew_kit/crew_quiet.wav` | Stop. Don't move. | radio, something's near |
+| [ ] | `crew_june/crew_ready.wav` | Ready when you are. Over. | the van ready-up |
+| [ ] | `crew_june/crew_over_here.wav` | To me, please. Over here. | calling the crew over |
+| [ ] | `crew_june/crew_found_something.wav` | I have something. Come and see. | a clue pickup that has no written discovery line |
+| [ ] | `crew_june/crew_huddle.wav` | Let's all stop and think a moment. | starting a notes huddle |
+| [ ] | `crew_june/crew_need_boost.wav` | I'll need a lift up there, dear. | asking for shoulders |
+| [ ] | `crew_june/crew_on_my_way.wav` | Copy. On my way. | answering a call |
+| [ ] | `crew_june/crew_scared.wav` | Good heavens! | something jumps out |
+| [ ] | `crew_june/crew_help.wav` | Mayday! Mayday! | downed or caught |
+| [ ] | `crew_june/crew_thanks.wav` | Much obliged. | helped up or boosted |
+| [ ] | `crew_june/crew_no_way.wav` | Negative. That's sealed. | a locked door or a blocked route |
+| [ ] | `crew_june/crew_quiet.wav` | Radio silence. Something's close. | radio, something's near |
+| [ ] | `crew_mei/crew_ready.wav` | I'm ready. I'm not ready. I'm ready. | the van ready-up |
+| [ ] | `crew_mei/crew_over_here.wav` | Over here! Before I chicken out! | calling the crew over |
+| [ ] | `crew_mei/crew_found_something.wav` | Is this something? I think this is something. | a clue pickup that has no written discovery line |
+| [ ] | `crew_mei/crew_huddle.wav` | Can we huddle? I want to huddle. | starting a notes huddle |
+| [ ] | `crew_mei/crew_need_boost.wav` | Lift me up? Don't drop me. | asking for shoulders |
+| [ ] | `crew_mei/crew_on_my_way.wav` | Coming! Slowly! But coming! | answering a call |
+| [ ] | `crew_mei/crew_scared.wav` | Nope! Absolutely not! | something jumps out |
+| [ ] | `crew_mei/crew_help.wav` | Help! Help, help, help! | downed or caught |
+| [ ] | `crew_mei/crew_thanks.wav` | Oh, thank God. Thank you. | helped up or boosted |
+| [ ] | `crew_mei/crew_no_way.wav` | Locked. Great. Love that. | a locked door or a blocked route |
+| [ ] | `crew_mei/crew_quiet.wav` | Shh. Do you hear that? | radio, something's near |
+| [ ] | `crew_marcus/crew_ready.wav` | Alright. Let's do this right. | the van ready-up |
+| [ ] | `crew_marcus/crew_over_here.wav` | Over here. Stay together. | calling the crew over |
+| [ ] | `crew_marcus/crew_found_something.wav` | Hold up. Found something. | a clue pickup that has no written discovery line |
+| [ ] | `crew_marcus/crew_huddle.wav` | Everybody, eyes here. | starting a notes huddle |
+| [ ] | `crew_marcus/crew_need_boost.wav` | Need a boost up. | asking for shoulders |
+| [ ] | `crew_marcus/crew_on_my_way.wav` | Moving to you. | answering a call |
+| [ ] | `crew_marcus/crew_scared.wav` | Back up! Back up! | something jumps out |
+| [ ] | `crew_marcus/crew_help.wav` | Man down! Need help! | downed or caught |
+| [ ] | `crew_marcus/crew_thanks.wav` | Appreciate it. | helped up or boosted |
+| [ ] | `crew_marcus/crew_no_way.wav` | Locked tight. Try another way. | a locked door or a blocked route |
+| [ ] | `crew_marcus/crew_quiet.wav` | Hold. Something's moving. | radio, something's near |
+| [ ] | `crew_theo/crew_ready.wav` | Loading in. | the van ready-up |
+| [ ] | `crew_theo/crew_over_here.wav` | Yo. Over here. | calling the crew over |
+| [ ] | `crew_theo/crew_found_something.wav` | Ooh. Loot. | a clue pickup that has no written discovery line |
+| [ ] | `crew_theo/crew_huddle.wav` | Team meeting. Strategy time. | starting a notes huddle |
+| [ ] | `crew_theo/crew_need_boost.wav` | Boost me? Classic co-op move. | asking for shoulders |
+| [ ] | `crew_theo/crew_on_my_way.wav` | Omw. | answering a call |
+| [ ] | `crew_theo/crew_scared.wav` | What is THAT?! | something jumps out |
+| [ ] | `crew_theo/crew_help.wav` | I'm down! Revive me! | downed or caught |
+| [ ] | `crew_theo/crew_thanks.wav` | GG. Thanks. | helped up or boosted |
+| [ ] | `crew_theo/crew_no_way.wav` | Locked. Obviously. | a locked door or a blocked route |
+| [ ] | `crew_theo/crew_quiet.wav` | Stealth section. Shh. | radio, something's near |
+| [ ] | `crew_sam/crew_ready.wav` | Ready. | the van ready-up |
+| [ ] | `crew_sam/crew_over_here.wav` | Over here, folks. | calling the crew over |
+| [ ] | `crew_sam/crew_found_something.wav` | This look important to you? | a clue pickup that has no written discovery line |
+| [ ] | `crew_sam/crew_huddle.wav` | Let's slow down and look. | starting a notes huddle |
+| [ ] | `crew_sam/crew_need_boost.wav` | Gonna need help with this one. | asking for shoulders |
+| [ ] | `crew_sam/crew_on_my_way.wav` | Coming your way. | answering a call |
+| [ ] | `crew_sam/crew_scared.wav` | Whoa. Easy. Easy. | something jumps out |
+| [ ] | `crew_sam/crew_help.wav` | Need a hand here! | downed or caught |
+| [ ] | `crew_sam/crew_thanks.wav` | Thank you, friend. | helped up or boosted |
+| [ ] | `crew_sam/crew_no_way.wav` | That won't budge. And I tried. | a locked door or a blocked route |
+| [ ] | `crew_sam/crew_quiet.wav` | Hush, now. Listen. | radio, something's near |
+| [ ] | `crew_luis/crew_ready.wav` | Vámonos. | the van ready-up |
+| [ ] | `crew_luis/crew_over_here.wav` | Hey, hey. Over here. | calling the crew over |
+| [ ] | `crew_luis/crew_found_something.wav` | Look what I found. | a clue pickup that has no written discovery line |
+| [ ] | `crew_luis/crew_huddle.wav` | Okay, everybody. Think. | starting a notes huddle |
+| [ ] | `crew_luis/crew_need_boost.wav` | Give an old man a lift? | asking for shoulders |
+| [ ] | `crew_luis/crew_on_my_way.wav` | I'm coming, I'm coming. | answering a call |
+| [ ] | `crew_luis/crew_scared.wav` | ¡Ay, Dios mío! | something jumps out |
+| [ ] | `crew_luis/crew_help.wav` | Help me! Quick! | downed or caught |
+| [ ] | `crew_luis/crew_thanks.wav` | Gracias, mijo. | helped up or boosted |
+| [ ] | `crew_luis/crew_no_way.wav` | Locked. Maybe we turn it off and on? | a locked door or a blocked route |
+| [ ] | `crew_luis/crew_quiet.wav` | Shh. Something's out there. | radio, something's near |
+| [ ] | `crew_ike/crew_ready.wav` | Let's disrupt this. | the van ready-up |
+| [ ] | `crew_ike/crew_over_here.wav` | Over here. Let's sync. | calling the crew over |
+| [ ] | `crew_ike/crew_found_something.wav` | Okay, this is a key insight. | a clue pickup that has no written discovery line |
+| [ ] | `crew_ike/crew_huddle.wav` | Quick stand-up, everybody. | starting a notes huddle |
+| [ ] | `crew_ike/crew_need_boost.wav` | Can I get some lift? Literally. | asking for shoulders |
+| [ ] | `crew_ike/crew_on_my_way.wav` | Pivoting to you. | answering a call |
+| [ ] | `crew_ike/crew_scared.wav` | Oh no. Oh no no no. | something jumps out |
+| [ ] | `crew_ike/crew_help.wav` | This is a blocker! Help! | downed or caught |
+| [ ] | `crew_ike/crew_thanks.wav` | Huge. Thank you. | helped up or boosted |
+| [ ] | `crew_ike/crew_no_way.wav` | Hard blocker. Locked. | a locked door or a blocked route |
+| [ ] | `crew_ike/crew_quiet.wav` | Okay, nobody talk. | radio, something's near |
+| [ ] | `crew_walt/crew_ready.wav` | Let's get it done. | the van ready-up |
+| [ ] | `crew_walt/crew_over_here.wav` | Over here. Come on. | calling the crew over |
+| [ ] | `crew_walt/crew_found_something.wav` | Huh. Lookit this. | a clue pickup that has no written discovery line |
+| [ ] | `crew_walt/crew_huddle.wav` | Everybody stop. Think. | starting a notes huddle |
+| [ ] | `crew_walt/crew_need_boost.wav` | Bad shoulder. Give me a hand up. | asking for shoulders |
+| [ ] | `crew_walt/crew_on_my_way.wav` | Hold your horses. Coming. | answering a call |
+| [ ] | `crew_walt/crew_scared.wav` | Jesus, Mary and Joseph! | something jumps out |
+| [ ] | `crew_walt/crew_help.wav` | Somebody! Get it off me! | downed or caught |
+| [ ] | `crew_walt/crew_thanks.wav` | Mm. Thanks. | helped up or boosted |
+| [ ] | `crew_walt/crew_no_way.wav` | That's not opening. | a locked door or a blocked route |
+| [ ] | `crew_walt/crew_quiet.wav` | Shut it. Listen. | radio, something's near |

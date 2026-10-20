@@ -283,6 +283,7 @@ func _setup_input() -> void:
 	_bind_keys("pause", [KEY_ESCAPE])
 	_bind_keys("notebook", [KEY_TAB])
 	_bind_keys("inventory", [KEY_I])
+	_bind_keys("sit", [KEY_Z])
 	if not InputMap.has_action("attack"):
 		InputMap.add_action("attack")
 		var click := InputEventMouseButton.new()
