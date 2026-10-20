@@ -6,7 +6,8 @@ extends CanvasLayer
 
 const PAPER := Color(0.97, 0.95, 0.88)
 const INK := Color(0.13, 0.12, 0.12)
-const COVER := Color(0.95, 0.78, 0.1)  # the book's yellow cover
+const COVER := Color(0.05, 0.55, 0.6)  # the book's teal cover (matches ArtKit.easy_sql_book)
+const BAND := Color(0.98, 0.55, 0.12)  # its sunburst-orange band
 const RIGHT := Color(0.12, 0.5, 0.2)
 const WRONG := Color(0.7, 0.15, 0.1)
 ## Multiplies the flashback's picture towards an old photo's brown.

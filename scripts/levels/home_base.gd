@@ -106,7 +106,7 @@ func _build_van(center: Vector3) -> void:
 		van_seats.append(cab + at + Vector3(0, 0.05, 0))
 
 
-## A paperback with the yellow cover: EASY SQL.
+## A paperback with the teal cover: Easy SQL. Graphics swaps in ArtKit.easy_sql_book via DressHomeBase.
 static func _book(parent: Node3D, at: Vector3) -> Node3D:
 	var book := Node3D.new()
 	book.position = at
@@ -118,9 +118,9 @@ static func _book(parent: Node3D, at: Vector3) -> Node3D:
 	cover.material_override = Greybox.mat(HuddleUI.COVER)
 	book.add_child(cover)
 	var title := Label3D.new()
-	title.text = "EASY\nSQL"
+	title.text = "Easy\nSQL"
 	title.font_size = 40
-	title.modulate = Color(0.1, 0.1, 0.1)
+	title.modulate = Color.WHITE
 	title.outline_size = 0
 	title.pixel_size = 0.002
 	title.rotation.x = -PI / 2
