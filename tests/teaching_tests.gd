@@ -460,7 +460,7 @@ func walk_level_1(seed_value: int) -> void:
 	check(todo != "" and not todo.contains(level.answer), "server floor: the to-do names the job, never the controller (%s)" % todo)
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.terminal, level.player)
-	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone is read off the doors, not the screen")
+	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone comes from the doors query, not the boot screen")
 	# First step: the stuck doors, and the zone they share (only the doors table has it).
 	var h := await solve(level, ui, level.stuck_doors_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player finds the stuck doors once a hint gives the query (hints %d)" % h)

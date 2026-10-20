@@ -280,7 +280,7 @@ static func controller_puzzle_for(z: String) -> Puzzle:
 		"  WHERE zone = '?'       keep only the rows in that zone\n" +
 		"  AND status = 'fault'   ...that are ALSO faulted. Both must be true.\n" +
 		"? is the zone the stuck doors share.",
-		"? is the zone your doors query showed for the stuck doors. It's on your case page too. " +
+		"? is the zone your doors query showed for the stuck doors. " +
 		"No result yet? Run the doors query first: .hint walks you through it.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % z +
@@ -463,7 +463,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	light_panel.used.connect(_on_light_panel)
 	# A copy lies on Server Room A's terminal desk, where the lights are listed.
 	_facilities_card(Vector3(14.1, 1.45, -8.89), 180.0, false)
-	_facilities_card(Vector3(-5.3, 0.902, 8.35), 5.0, true)
+	_facilities_card(Vector3(-5.3, 0.902, 8.62), 5.0, true)  # behind the DOOR CONTROLLERS card, clear of it
 
 	# Server Room C: x -17..-7, z -24..-13. Its lock is on the faulting controller (seeded zone).
 	Greybox.room(geo, Vector3(-12, 0, -18.5), Vector3(10, 3.6, 11), machine, [_gap("s", 0.0, door)])
@@ -663,7 +663,7 @@ func _on_light_reset() -> void:
 
 func _on_controller_found() -> void:
 	controller_puzzle.solved = true
-	stuck_doors_puzzle.solved = true  # found straight from the plates: the first step is done too
+	stuck_doors_puzzle.solved = true  # found without the doors query (say, reading every fault's note): the first step is done too
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the one. %s, zone %s, 'fault'. reset it by hand at its rack." % [answer, zone]))
 	get_node("/root/Game").add_clue("controller", "%s is the one: zone %s, 'fault'. Reset it by hand at its rack." % [answer, zone], "SYSOP")
