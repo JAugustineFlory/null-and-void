@@ -142,11 +142,36 @@ static func link_light_panels(level: LevelBase) -> int:
 	var linked := 0
 	for id in level.lights:
 		for l in level.lights[id]:
+			ceiling_shadow(l)
 			var panel := _panel_for(level.geo, l)
 			if panel:
 				LightPanelLink.attach(l, panel)
 				linked += 1
 	return linked
+
+
+## Ceiling lights near the camera cast soft shadows, so furniture sits on the floor
+## instead of floating. Faced straight down, one paraboloid covers the room and the
+## other only the ceiling; past SHADOW_NEAR metres the shadow fades out, so only the
+## few lights round each player ever draw one.
+const SHADOW_NEAR := 9.0
+
+
+static func ceiling_shadow(light: Light3D) -> void:
+	var omni := light as OmniLight3D
+	if not omni:
+		return
+	omni.rotation_degrees.x = -90.0
+	omni.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
+	omni.shadow_enabled = true
+	omni.shadow_bias = 0.08
+	omni.shadow_normal_bias = 1.5
+	omni.shadow_blur = 1.5
+	omni.shadow_opacity = 0.85
+	omni.distance_fade_enabled = true
+	omni.distance_fade_begin = 40.0
+	omni.distance_fade_length = 10.0
+	omni.distance_fade_shadow = SHADOW_NEAR
 
 
 ## Greybox.ceiling_light puts the panel 0.37 m above its light.
