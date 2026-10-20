@@ -254,11 +254,14 @@ func _finish(id: String) -> void:
 
 # --- Unlocks (plan/approvals/unlocks.md) ---------------------------------------
 
-## Record an unlock on this machine's player profile. Call it on every machine
-## (from a sync.event handler or an RPC to everyone), so everyone there earns it.
+## Record an unlock for this machine's player, through Net.earn (which owns the
+## items and says "Unlocked: ..."). Call it on every machine (from a sync.event
+## handler or an RPC to everyone), so everyone there earns it.
 func earn(source: String) -> Array:
-	var p := _profile()
-	return p.earn(source) if p else []
+	if profile:
+		return profile.earn(source)
+	var net = get_node_or_null("/root/Net")
+	return net.earn(source, level.get("hud")) if net else []
 
 
 func _profile() -> Profile:
