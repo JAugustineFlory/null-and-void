@@ -10,7 +10,7 @@ choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
   moment the puzzle starts. A book that arrives later is huddled on the spot or in
   the elevator.
 - **Up to 3 new words per puzzle**, each with a 3-question multiple-choice check
-  that the crew answers together (everyone votes, majority wins, a tie re-votes).
+  (Augustine, 00:08Z: three questions for each word) that the crew answers together (everyone votes, majority wins, a tie re-votes).
   Solo players read and answer alone.
 - **The van/garage chapter is required.** It teaches the shape of a query and the
   semicolon. Other quizzes can be skipped; the chapter text still plays.
@@ -326,10 +326,8 @@ No new words. A review huddle on chaining.
 
 ## Questions for Augustine
 
-1. Each of the up to 3 words gets its own 3 questions, as written: up to 9 per
-   huddle. Keep it, or one question per word (3 per huddle) for pace?
-2. Build the two PROPOSED Level 1 puzzles (stuck doors as its own step, dark room
+1. Build the two PROPOSED Level 1 puzzles (stuck doors as its own step, dark room
    with OR) to reach 3 to 5 puzzles there?
-3. Are the garage tables `jobs` and `van_kit` OK as the crew's own practice data?
+2. Are the garage tables `jobs` and `van_kit` OK as the crew's own practice data?
 </content>
 </invoke>
