@@ -1,6 +1,7 @@
 extends LevelBase
 ## A practice hall for every move, in the order players meet them: slide,
-## mantle, grab and roll, vent crawl, climb, ledge shuffle, shoulder boost.
+## mantle, grab and roll, vent crawl, climb, ledge shuffle, shoulder boost;
+## and a chair to sit on.
 ## No puzzles and no threats; reachable from the main menu.
 
 const TEXT := Color(0.92, 0.9, 0.8)
@@ -15,6 +16,13 @@ func build() -> void:
 	for x in range(-26, 30, 8):
 		add_light("gym", Vector3(x, 7.8, 0), 12.0, 1.6)
 	_sign(Vector3(-25, 2.4, 0), "MOVEMENT GYM\nWalk east. Every station teaches one move.")
+
+	# Sit on a chair, or on the floor.
+	Greybox.box(geo, Vector3(-25, 0.225, -3.5), Vector3(0.5, 0.45, 0.5), Color(0.3, 0.3, 0.34), "Chair")
+	Greybox.box(geo, Vector3(-25, 0.75, -3.77), Vector3(0.5, 0.6, 0.06), Color(0.3, 0.3, 0.34), "ChairBack")
+	Seat.create_at(geo, Vector3(-25, 0.45, -3.5), PI)
+	_sign(Vector3(-24, 1.8, -3.2), "E at a chair: sit. Z: sit on the floor.\nSpace or Z: stand up.")
+	_sign(Vector3(-24, 2.4, 3.2), "Running, jumping and climbing tire you.\nStand still to get your breath back.")
 
 	# Slide under a jammed shutter.
 	Greybox.box(geo, Vector3(-22, 4, -3.25), Vector3(0.2, 8, 3.5), Color.DIM_GRAY)

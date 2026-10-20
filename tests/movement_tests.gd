@@ -32,6 +32,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_inventory()
 	await test_hotbar_keys()
 	await test_inventory_screen()
+	await test_sit()
+	await test_stamina()
+	await test_knocks()
 	await test_movement_gym()
 
 
@@ -1018,6 +1021,138 @@ func test_same_controls_same_moves() -> void:
 	await done(a)
 
 
+func test_sit() -> void:
+	var a := arena()
+	Greybox.box(a, Vector3(0, 0.225, -1.5), Vector3(0.5, 0.45, 0.5), Color.DIM_GRAY, "Chair")
+	var chair := Seat.create_at(a, Vector3(0, 0.45, -1.5), PI)  # faces +Z, toward the player
+	var p := spawn(a, Vector3(0, 0.05, 0))
+	var q := spawn(a, Vector3(2, 0.05, 0))
+	await frames(20)
+	var stood := p.global_position
+	var eyes := p.camera.global_position.y
+	var settle := int(Player.SIT_TIME * 60) + 10
+	p.controls.sit = true
+	await frames(2)
+	check(p.is_sitting() and p.seat == null, "Z sits you down on the floor")
+	await frames(settle)
+	check(p.camera.global_position.y < eyes - 0.8 and p.global_position.distance_to(stood) < 0.05, "down low, right where you were")
+	forward(p)
+	p.controls.sprint = true
+	await frames(20)
+	stop(p)
+	check(p.is_sitting() and p.global_position.distance_to(stood) < 0.05, "W doesn't walk you off: you're sitting")
+	check(p.raise_notebook() and p.is_sitting(), "you can read your notebook sitting down")
+	p.lower_notebook(true)
+	p.controls.jump = true
+	await frames(settle + 20)  # up, then the view eases back to standing height
+	check(not p.is_sitting() and p.stance_height == Player.STAND_HEIGHT and absf(p.camera.global_position.y - eyes) < 0.05, "Space stands you up")
+
+	check(chair.get_prompt(p) == "[E] Sit down", "a chair says E to sit")
+	chair.interact(p)
+	await frames(settle)
+	check(p.is_sitting() and p.seat == chair and p.global_position.distance_to(Vector3(0, 0.45, -1.5)) < 0.02, "E at a chair sits you on it")
+	check((-p.global_basis.z).dot(Vector3.BACK) > 0.99, "facing the way the chair faces")
+	check(absf(p.camera.global_position.y - (0.45 + Player.SIT_HEIGHT - 0.12)) < 0.05, "eyes at sitting height")
+	check(not chair.is_free(q) and chair.get_prompt(q) == "" and not q.sit(chair), "one to a chair")
+	p._turn_view(4.0, 0.0)
+	check(absf(angle_difference(PI, p.rotation.y)) <= Player.SIT_LOOK + 0.001, "you can look around, but not turn your back on the desk")
+	var yaw := p.rotation.y
+	var facing := Vector3(-sin(yaw), 0, -cos(yaw))
+	var out := Vector3(0, stood.y, -1.5) + facing * Player.SIT_STEP_OUT
+	p.controls.sit = true
+	await frames(settle)
+	check(not p.is_sitting() and chair.is_free(q), "Z gets you up and frees the chair")
+	check(p.global_position.distance_to(out) < 0.05 and absf(angle_difference(yaw, p.rotation.y)) < 0.001, "stepping off the way you're facing, still facing it")
+	chair.interact(p)
+	await frames(settle)
+	Greybox.box(a, Vector3(0, 1, -0.6), Vector3(2, 2, 0.2), Color.DIM_GRAY, "Desk")  # right in front of the chair
+	p.controls.sit = true
+	await frames(settle)
+	check(not p.is_sitting() and p.global_position.distance_to(out) < 0.05, "boxed in that way, you get up where you came from")
+
+	p.controls.jump = true
+	await frames(3)
+	check(not p.sit(), "you can't sit in mid-air")
+	await frames(40)
+	chair.interact(p)
+	await frames(settle)
+	p.respawn(Transform3D(Basis(), Vector3(3, 0.05, 2)))
+	check(not p.is_sitting() and p.global_position.distance_to(Vector3(3, 0.05, 2)) < 0.01 and chair.is_free(q), "respawning gets you up and frees the chair")
+	await done(a)
+
+
+func test_stamina() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.05, 10))
+	await frames(20)
+	check(p.stamina == Player.STAMINA_MAX and not p.winded, "you start fresh")
+	forward(p, true)
+	await frames(60)
+	stop(p)
+	var after_run := p.stamina
+	check(after_run < Player.STAMINA_MAX - 10.0, "sprinting tires you (%.0f left)" % after_run)
+	await frames(90)
+	check(p.stamina >= minf(after_run + 30.0, Player.STAMINA_MAX), "standing still, you get your breath back quickly")
+	p.restore_stamina(Player.STAMINA_MAX)
+	p.controls.jump = true
+	await frames(5)
+	check(absf(p.stamina - (Player.STAMINA_MAX - Player.JUMP_COST)) < 0.5, "a jump costs a little")
+	await frames(60)
+	p.spend_stamina(Player.STAMINA_MAX * 2.0)
+	check(p.winded and p.stamina == 0.0, "run it dry and you're winded")
+	var z0 := p.global_position.z
+	forward(p, true)
+	await frames(30)
+	var pace := (z0 - p.global_position.z) / 0.5
+	stop(p)
+	check(pace < Player.WALK_SPEED + 0.2, "or sprint (%.1f m/s)" % pace)
+	p.controls.jump = true
+	await frames(5)
+	check(p.velocity.y > 0.0 or not p.is_on_floor(), "but you can still jump: being winded never stops you")
+	await frames(120)
+	check(not p.winded and p.stamina >= Player.STAMINA_WINDED_UNTIL, "rest a moment and you're over it")
+	p.sit()
+	var sat := p.stamina
+	await frames(60)
+	check(p.stamina > sat + 10.0 or p.stamina == Player.STAMINA_MAX, "sitting rests you too")
+	await done(a)
+
+
+func test_knocks() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.05, 0))
+	await frames(20)
+	p.sit()
+	await frames(5)
+	var from := p.global_position
+	p.knock_back(Vector3(0, 3, 6))
+	check(not p.is_sitting(), "a shove gets you off your seat")
+	await frames(20)
+	check(p.global_position.z - from.z > 1.0, "and sends you flying")
+	await frames(60)
+	p.knock_down(0.5)
+	check(p.is_down() and p.stance_height == Player.DOWN_HEIGHT, "knocked down, you're on the floor")
+	forward(p)
+	await frames(10)
+	stop(p)
+	check(p.is_down(), "and can't walk")
+	await frames(40)
+	check(not p.is_down() and p.stance_height == Player.STAND_HEIGHT, "then you get up by yourself")
+	p.knock_down(INF)
+	await frames(90)
+	check(p.is_down(), "knocked out, you stay down")
+	p.get_up()
+	check(not p.is_down() and p.stance_height == Player.STAND_HEIGHT, "until a teammate gets you up")
+
+	var vit := Vitals.create(a, p)
+	p.take_damage(25.0)
+	p.spend_stamina(50.0)
+	await t.process_frame
+	await t.process_frame
+	check(absf(vit.health_fill() - 0.75) < 0.01 and absf(vit.stamina_fill() - p.stamina / Player.STAMINA_MAX) < 0.01, "the bars show your health and stamina")
+	await done(a)
+
+
 func test_movement_gym() -> void:
 	var level = load("res://scenes/movement_gym.tscn").instantiate()
 	t.root.add_child(level)
@@ -1041,5 +1176,6 @@ func test_movement_gym() -> void:
 		await t.physics_frame
 		vaulted = vaulted or p.state == Player.Move.VAULT
 	check(vaulted and p.global_position.x > -19.9, "the gym has a desk to vault")
+	check(level.find_children("*", "Seat", true, false).size() == 1, "the gym has a chair to sit on")
 	level.queue_free()
 	await t.process_frame

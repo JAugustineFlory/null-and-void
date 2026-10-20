@@ -11,6 +11,8 @@ var sprint := false
 var crouch := false
 ## Edge: set when jump is pressed, cleared by the controller once it is used.
 var jump := false
+## Edge, like jump: sit down on the floor, or stand back up.
+var sit := false
 
 
 ## Fill from the keyboard. `locked` (a terminal or menu has focus) gives no input.
@@ -24,6 +26,7 @@ func read_local(locked: bool) -> void:
 	sprint = Input.is_action_pressed("sprint")
 	crouch = Input.is_action_pressed("crouch")
 	jump = jump or Input.is_action_just_pressed("jump")
+	sit = sit or Input.is_action_just_pressed("sit")
 
 
 ## Compact form for sending over the network.
