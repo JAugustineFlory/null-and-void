@@ -18,6 +18,8 @@ extends Node
 signal _step(key: String)
 
 const LINE_GAP := 1.5  # a beat for a line that isn't recorded yet
+## Once the crew is locked in: the radio call, then his monologue through the glass (docs/script).
+const FRAME_LINES := ["l2_frame", "l2_trap_2", "l2_gloat_1", "l2_gloat_2", "l2_gloat_3", "l2_gloat_4", "l2_gloat_5", "l2_gloat_6", "l2_trap_1"]
 ## Left down without cable, Rourke stays down this long before the crew's choice counts.
 const UNTIED_AFTER := 15.0
 const LOCKOUT := 10.0
@@ -268,9 +270,9 @@ func run() -> void:
 	await _gate("outside")
 	await _gate("trapped")
 	_lock_in()
-	await _line("l2_frame")
-	await _line("l2_trap_1")
-	await _line("l2_trap_2")
+	# On the radio, then through the glass: why, how long he knew, and goodbye.
+	for id in FRAME_LINES:
+		await _line(id)
 	# Round through the service passage to the rear door.
 	if sync.is_host():
 		_walk_path(ROUND_BACK, "round_back")
