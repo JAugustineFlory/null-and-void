@@ -48,6 +48,7 @@ func _run() -> void:
 	await test_notebook()
 	await test_case_pages()
 	test_sysop_colors()
+	await test_stairwells()
 	await test_in_world_ui()
 	await test_pick_up_papers()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
@@ -2440,6 +2441,25 @@ func test_visitor_badge() -> void:
 	saved["hotbar"] = ["visitor_badge", "", "", ""]
 	inv.load_dict(saved)
 	check(inv.has("visitor_badge") and not inv.hotbar.has("visitor_badge"), "a saved run loads the badge back, still off the hotbar")
+
+
+## Every lift lobby has emergency stairs beside it, signed, and locked after hours.
+func test_stairwells() -> void:
+	print("Stairwells by the lifts")
+	_game().new_run(3)
+	for path in ["res://scenes/level_0.tscn", "res://scenes/level_1.tscn"]:
+		var level = load(path).instantiate()
+		root.add_child(level)
+		await physics_frame
+		var door: Door = level.stair_door
+		var floor_label := "G" if path.contains("level_0") else "14"
+		check(door != null and door.locked and door.get_prompt(level.player) == "Locked", "floor %s: the stair door beside the lift is locked tonight" % floor_label)
+		check(level.elevator.global_position.distance_to(door.global_position) < 8.0, "floor %s: and it's right by the lift lobby" % floor_label)
+		var papers: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.global_position.distance_to(door.global_position) < 1.5)
+		var text := "\n".join(papers.map(func(d): return d.plain_text()))
+		check(text.contains("STAIR 1 - FLOOR %s" % floor_label) and text.contains("STAIR DOORS LOCK"), "floor %s: the placard beside it says why it's locked" % floor_label)
+		level.queue_free()
+		await process_frame
 
 
 func test_sysop_colors() -> void:

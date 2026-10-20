@@ -37,6 +37,8 @@ var arrival_lift: Elevator
 var room_c_door: Door
 ## The spare coil of network cable in the cable vault.
 var cable_coil: ItemDock
+## The emergency stairs beside the lift up: locked after hours.
+var stair_door: Door
 ## Spare walkie-talkies on the NOC desk, for anyone who left theirs in the lobby.
 var spare_walkies: ItemDock
 ## Who carries cable up to Level 2: peer id -> true, the same on every machine.
@@ -88,7 +90,9 @@ func build() -> void:
 		_gap("s", -12.0, door), _gap("s", 12.0, door),  # cable vault, break room
 		_gap("n", -12.0, door),  # Server Room C
 		{"wall": "n", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
+		{"wall": "n", "at": 5.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},  # the stairs
 	])
+	stair_door = Stairwell.build(self, geo, Vector3(5, 0, -13), 0.0, "14")
 	elevator = Elevator.create(self, geo, Vector3(0, 0, -13), 180, "14", ["22", "14", "G", "B1"], "22")
 	elevator.button.enabled = false
 	for x in [-16.0, -6.0, 6.0, 16.0]:

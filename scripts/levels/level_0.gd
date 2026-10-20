@@ -55,6 +55,8 @@ var _boost_done := false
 var _errand := 0
 ## Up to the server floor, at the end of the hall.
 var elevator: Elevator
+## The emergency stairs beside the lifts: locked after hours.
+var stair_door: Door
 ## The elevator's doorway, in the elevator bank's east wall.
 const LIFT_AT := Vector3(30, 0, 3)
 ## The visitor book's case page, opened by reading the book (optional).
@@ -795,7 +797,9 @@ func _build_ground_floor(wall: Color) -> void:
 	Greybox.room(geo, Vector3(27, 0, 3), Vector3(6, 3.2, 8), {"floor": Color(0.35, 0.33, 0.3), "wall": wall}, [
 		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},
 		{"wall": "e", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
+		{"wall": "s", "at": 0.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},  # the stairs
 	])
+	stair_door = Stairwell.build(self, geo, Vector3(27, 0, 7), 180.0, "G")
 	add_light("elevators", Vector3(27, 3.2, 1), 7.0, 1.1, office)
 	add_light("elevators", Vector3(27, 3.2, 5), 7.0, 1.1, office)
 	elevator = Elevator.create(self, geo, LIFT_AT, 90, "G", ["22", "14", "G", "B1"], "14")
