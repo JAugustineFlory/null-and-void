@@ -43,6 +43,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	_check = check
 	print("Teaching: lost-player walkthroughs")
 	taught = ""
+	_jot_docs.clear()
 	first_use.clear()
 	used_under_threat.clear()
 	await walk_level_0()
@@ -53,6 +54,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	for s in [11, 42]:
 		await walk_level_2(s)
 	check_teaching_order()
+	check_jot_rules()
 	if gaps > 0:
 		print("  (%d known teaching gap%s, see docs/teaching/audit-levels-0-2.md)" % [gaps, "" if gaps == 1 else "s"])
 
@@ -392,6 +394,7 @@ func walk_level_0() -> void:
 	for i in 20:
 		await t.physics_frame
 	check_case_clues(level, "lobby")
+	check_jots(level, "lobby")
 	var ui: TerminalUI = level.terminal_ui
 	ui.open(level.desk_terminal, level.player)
 	var h := await solve(level, ui, level.peek_puzzle, false)
@@ -431,19 +434,126 @@ func check_case_clues(level: Node, where: String) -> void:
 	var text := "\n".join(clues).to_lower()
 	var leaks := []
 	var world := world_text(level).to_lower()
-	for term in level.find_children("*", "Terminal", true, false):
-		for p in term.puzzles:
-			for g in p.givens:
-				check(world.contains(str(g).to_lower()), "%s: given '%s' is found in the world" % [p.id, g])
-			for row in level.db.run_silent(p.solution_sql):
-				for v in row.values():
-					var value := str(v).to_lower()
-					if value.length() < 3 or value.is_valid_float() or p.solution_sql.to_lower().contains(value) \
-							or p.givens.any(func(g): return str(g).to_lower() == value):
-						continue
-					if RegEx.create_from_string("(?<![\\w-])" + _escape(value) + "(?![\\w-])").search(text) and not leaks.has("%s: %s" % [p.id, value]):
-						leaks.append("%s: %s" % [p.id, value])
+	for p in _puzzles(level):
+		for g in p.givens:
+			check(world.contains(str(g).to_lower()), "%s: given '%s' is found in the world" % [p.id, g])
+		for value in _answer_values(level, p):
+			if _has_word(text, value) and not leaks.has("%s: %s" % [p.id, value]):
+				leaks.append("%s: %s" % [p.id, value])
 	check(leaks.is_empty() and not clues.is_empty(), "%s: no case-page clue gives away a query's answer (%d clues; %s)" % [where, clues.size(), ", ".join(leaks) if leaks else "none"])
+
+
+## Every puzzle on the level's terminals.
+func _puzzles(level: Node) -> Array:
+	var out := []
+	for term in level.find_children("*", "Terminal", true, false):
+		out.append_array(term.puzzles)
+	return out
+
+
+## A puzzle's answer: the values its query returns that the query doesn't type and
+## the player didn't already know (givens), lower case. Numbers and values under 3
+## characters are left out: extensions, temperatures and one-letter zones are inputs.
+func _answer_values(level: Node, p: Puzzle) -> Array:
+	var out := []
+	if p.solution_sql == "":
+		return out  # an API puzzle: its answer comes back as JSON, not rows
+	for row in level.db.run_silent(p.solution_sql):
+		for v in row.values():
+			var value := str(v).to_lower()
+			if value.length() < 3 or value.is_valid_float() or p.solution_sql.to_lower().contains(value) \
+					or p.givens.any(func(g): return str(g).to_lower() == value) or out.has(value):
+				continue
+			out.append(value)
+	return out
+
+
+## The values hint 1's shape leaves as '?', read off the exact query (lower case).
+func _blanks(p: Puzzle) -> Array:
+	var shape := _shape(p)
+	var out := []
+	if shape == "":
+		return out
+	var m := RegEx.create_from_string("^" + _escape(shape).replace("\\?", "(.+?)") + "$").search(_answer_query(p))
+	if m:
+		for i in range(1, m.get_group_count() + 1):
+			out.append(m.get_string(i).strip_edges().trim_prefix("'").trim_suffix("'").to_lower())
+	return out
+
+
+func _has_word(text: String, word: String) -> bool:
+	return RegEx.create_from_string("(?i)(?<![\\w-])" + _escape(word) + "(?![\\w-])").search(text) != null
+
+
+# --- The crew's auto-jots ---------------------------------------------------------
+
+## Titles of found_in papers seen on some floor, so check_jot_rules can tell a typo.
+var _jot_docs := {}
+
+
+## Augustine's rule for the crew's auto-jots (2026-10-20): "No auto-jot will contain
+## clues players need to find. If it was in the dialogue, but can be found in the level,
+## the auto-jot will be more vague." A jot whose fact is on a paper (found_in) must not
+## name what that paper gives: a table, a snake_case column, a filled-in blank, a quoted
+## value, an id or a number. And no jot may hold any of this floor's puzzle answers or
+## hint-1 blanks.
+func check_jots(level: Node, where: String) -> void:
+	var docs := {}
+	for d in level.find_children("*", "Document", true, false):
+		docs[d.title] = d
+	var names: Array = level.db.table_names()
+	for tb in level.db.table_names():
+		for c in level.db.table_schema(tb):
+			if str(c["name"]).contains("_"):
+				names.append(str(c["name"]))
+	var bad := []
+	var jots := []
+	for id in VoiceLines.LINES:
+		var l: Dictionary = VoiceLines.LINES[id]
+		var jot := str(l.get("jot", ""))
+		if jot == "":
+			continue
+		jots.append(jot)
+		for title in l.get("found_in", []):
+			if not docs.has(title):
+				continue
+			_jot_docs[title] = true
+			var d = docs[title]
+			var text: String = d.plain_text() + "\n" + "\n".join(d.clues.map(func(k): return str(k.get("text", ""))))
+			var given := []
+			for line in d.lines():
+				if line.has("filled"):
+					given.append(str(line.filled))
+			for n in names:
+				if _has_word(text, n):
+					given.append(n)
+			for m in RegEx.create_from_string("'([^']+)'|\\b[A-Z]+-\\d+\\b|\\b\\d{2,}\\b").search_all(text):
+				given.append(m.get_string(1) if m.get_string(1) != "" else m.get_string())
+			for g in given:
+				if _has_word(jot, g):
+					bad.append("%s names '%s' from %s" % [id, g, title])
+	var all_jots := "\n".join(PackedStringArray(jots))
+	for p in _puzzles(level):
+		for v in _answer_values(level, p) + _blanks(p):
+			if v.length() >= 3 and _has_word(all_jots, v):
+				bad.append("a jot holds %s's %s" % [p.id, v])
+	check(bad.is_empty(), "%s: the crew's jots stay vague about the papers and hold no answer or hint-1 blank (%s)" % [where, "; ".join(bad) if bad else "%d jots" % jots.size()])
+
+
+## Once every floor is walked: secret lines carry no jot, and every found_in names a
+## paper that's really in the game.
+func check_jot_rules() -> void:
+	var secret := []
+	var missing := []
+	for id in VoiceLines.LINES:
+		var l: Dictionary = VoiceLines.LINES[id]
+		if l.get("secret", false) and l.has("jot"):
+			secret.append(id)
+		for title in l.get("found_in", []):
+			if not _jot_docs.has(title):
+				missing.append("%s: %s" % [id, title])
+	check(secret.is_empty(), "jots: lines that hide a secret are never jotted (%s)" % (", ".join(secret) if secret else "none"))
+	check(missing.is_empty(), "jots: every found_in names a paper that's in the level (%s)" % (", ".join(missing) if missing else "all found"))
 
 
 # --- Level 1: the server floor -------------------------------------------------
@@ -456,6 +566,7 @@ func walk_level_1(seed_value: int) -> void:
 		await t.physics_frame
 	level._on_asked()  # Rourke has asked the crew to find the fault
 	check_case_clues(level, "server floor (seed %d)" % seed_value)
+	check_jots(level, "server floor (seed %d)" % seed_value)
 	var todo: String = _game().current_todo()
 	check(todo != "" and not todo.contains(level.answer), "server floor: the to-do names the job, never the controller (%s)" % todo)
 	var ui: TerminalUI = level.terminal_ui
@@ -590,6 +701,7 @@ func walk_level_2(seed_value: int) -> void:
 	t.root.add_child(level)
 	for i in 20:
 		await t.physics_frame
+	check_jots(level, "security floor (seed %d)" % seed_value)
 	var ui: TerminalUI = level.terminal_ui
 	var p: Player = level.player
 	p.local_control = false
