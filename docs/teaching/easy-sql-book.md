@@ -12,8 +12,11 @@ choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
 - **Up to 3 new words per puzzle**, each with a 3-question multiple-choice check
   (Augustine, 00:08Z: three questions for each word) that the crew answers together (everyone votes, majority wins, a tie re-votes).
   Solo players read and answer alone.
-- **The van/garage chapter is required.** It teaches the shape of a query and the
-  semicolon. Other quizzes can be skipped; the chapter text still plays.
+- **The garage chapters are required:** Ch 0 (table, row, column) before the van,
+  and Ch 1 (the shape of a query and the semicolon) as a garage flashback at the
+  front desk. Later quizzes can be skipped; the chapter text still plays.
+- **Votes** (Home base default): the crew's answer is the most-voted option; a tie
+  re-votes; a wrong answer shows its "why" and the same question comes back.
 - **3 to 5 puzzles per floor.** Floors 0 and 2 meet it now. Floor 1 has two
   puzzles, so this draft proposes two more (marked PROPOSED).
 
@@ -25,8 +28,8 @@ scenes; puzzle threads own the puzzles.
 1. **The book teaches words, the building teaches facts.** Chapters never name a
    building table, column, zone, badge or PIN. Those are found in the world.
    Examples use the crew's own garage database only.
-2. **The garage database** (two small tables the crew keeps for its own business,
-   shown on the garage PC during huddles):
+2. **The book's sample tables** are the crew's own business records (proposed in
+   place of the draft's `customers`, so every example feels like theirs):
    - `jobs`: job_no, client, town, status ('open', 'done', 'unpaid'), fee
    - `van_kit`: item, qty, shelf
    These are the crew's own records, not an example of the building's tables, so
@@ -46,29 +49,29 @@ scenes; puzzle threads own the puzzles.
 
 | Ch | When the huddle plays | Puzzle | New words |
 |---|---|---|---|
-| 1 | Game start, garage (required) | (tutorial) | SELECT, FROM, `;` |
-| 2 | L0, front desk terminal | peek | `*`, table, row |
-| 3 | L0, after the memo prints | memo | ORDER BY, column, smallest first |
-| 4 | L0, Rourke's "who called?" | caller | column list, comma, `.schema` |
-| 5 | L0, visitor book (optional) | last_visitor | DESC |
-| 6 | L1, NOC shift log | stuck_doors (PROPOSED as its own step) | WHERE, `=`, `'quotes'` |
-| 7 | L1, Server Room A self-test | controller | AND |
-| 8 | L1, Server Room B noise (optional) | hot_rack | `>`, `<`, numbers |
-| 9 | L1, dark break room (optional) | dark_room (PROPOSED) | OR |
-| 10 | L2 lab lockdown (elevator flashback) | lab_door, badge_log | none: review quiz |
-| 11 | L2 camera booth | cameras | GET, path, JSON |
-| 12 | L2 booth, sign-in sheet | pike | LIKE, `%` |
-| 13 | L2, Pike's PIN suspended | har | none: "one answer feeds the next" review |
-| 14 | L2 stairwell panel | door | id in the path |
+| 0 | Garage, before the van (required) | (tutorial) | table, row, column |
+| 1 | L0 front desk, garage flashback (required) | peek | SELECT (with *), FROM, `;` |
+| 2 | L0, after the memo prints | memo | ORDER BY, smallest first |
+| 3 | L0, Rourke's "who called?" | caller | column list, comma, `.schema` |
+| 4 | L0, visitor book (optional) | last_visitor | DESC |
+| 5 | L1, NOC shift log | stuck_doors (PROPOSED as its own step) | WHERE, `=`, `'quotes'` |
+| 6 | L1, Server Room A self-test | controller | AND |
+| 7 | L1, Server Room B noise (optional) | hot_rack | `>`, `<`, numbers |
+| 8 | L1, dark break room (optional) | dark_room (PROPOSED) | OR |
+| 9 | L2 lab lockdown (elevator flashback) | lab_door, badge_log | none: review quiz |
+| 10 | L2 camera booth | cameras | GET, path, JSON |
+| 11 | L2 booth, sign-in sheet | pike | LIKE, `%` |
+| 12 | L2, Pike's PIN suspended | har | none: "one answer feeds the next" review |
+| 13 | L2 stairwell panel | door | id in the path |
 
 Floor counts: L0 has 4 puzzles. L1 has 2 built; with stuck_doors and dark_room it
 has 4. L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
 limit; badge_log is now the har chain's first step, so it can count as part of har.
 
 Notes:
-- Ch 5 fixes a known gap: DESC is currently found nowhere before its hint.
-- Ch 8 fixes the other: `>` is found nowhere near the terminal before its hint.
-- Ch 9 brings in OR, which is otherwise never taught by the end of L2.
+- Ch 4 fixes a known gap: DESC is currently found nowhere before its hint.
+- Ch 7 fixes the other: `>` is found nowhere near the terminal before its hint.
+- Ch 8 brings in OR, which is otherwise never taught by the end of L2.
 - Curriculum debt stays: COLUMNS, DESC, `>` and LIKE are never needed under
   pressure by the end of L2. Level 3 should use them again.
 
@@ -77,57 +80,48 @@ Notes:
 Each word: chapter lines (read aloud in the huddle), then three questions. `*` marks
 the correct option.
 
-### Ch 1. Asking the database (garage, required)
+### Ch 0. Read this first (garage, required, before the van)
 
-**SELECT**
-- "A database answers questions. You ask with a query."
-- "Every query starts with SELECT: it means 'show me'."
-
-1. What does SELECT do? A) deletes rows  *B) shows you data  C) saves your work
-2. Which word starts a query? *A) SELECT  B) SHOW  C) FIND
-3. "SELECT client" asks the database to... A) change the client  B) hide the client  *C) show the client
-
-**FROM**
-- "FROM says which table to look in."
-- "SELECT client FROM jobs; means: show me the client, from the jobs table."
-
-1. In SELECT qty FROM van_kit; which table is read? A) qty  *B) van_kit  C) SELECT
-2. Where does FROM go? *A) after what you want to see  B) at the very start  C) after the ;
-3. FROM jobs means... A) delete jobs  *B) look in the jobs table  C) make a jobs table
-
-**; (semicolon)**
-- "Always end a query with a semicolon. It's the full stop."
-- "No ; and the terminal waits for more."
-
-1. How does every query end? A) with a full stop .  *B) with a semicolon ;  C) with nothing
-2. You typed SELECT item FROM van_kit and nothing happened. What's missing? *A) the ;  B) a second SELECT  C) quotes
-3. Which is a whole query? A) SELECT town FROM jobs  B) FROM jobs SELECT town;  *C) SELECT town FROM jobs;
-
-### Ch 2. Seeing everything (L0, peek)
-
-**\* (star)**
-- "* means every column. SELECT * shows the whole row."
-
-1. SELECT * FROM jobs; shows... *A) every column  B) one column  C) nothing
-2. What does * stand for? A) multiply  *B) all the columns  C) the first row
-3. To see everything in van_kit you type... A) SELECT van_kit;  *B) SELECT * FROM van_kit;  C) SELECT FROM * van_kit;
+Structure and page text: the Home base and huddles thread's draft
+(plan/approvals/home-base-huddles.md). Questions below, three per word.
 
 **table**
-- "A table is like one sheet in a spreadsheet. Its name goes after FROM."
-- "Table names have no spaces. They use _ instead."
-
-1. Where does the table's name go? A) after SELECT  *B) after FROM  C) after the ;
+1. Where does a table's name go in a query? A) after SELECT  *B) after FROM  C) after the ;
 2. Which looks like a table name? A) van kit  *B) van_kit  C) Van Kit!
 3. Where would you find a table's name in a building? *A) on a label, card or screen nearby  B) the book tells you  C) you guess
 
 **row**
-- "Each line of the answer is a row: one job, one item."
-
 1. In jobs, one row is... *A) one job  B) one column  C) the whole table
 2. SELECT * FROM jobs; with 5 jobs shows how many rows? A) 1  B) 3  *C) 5
 3. A row goes... *A) across  B) down  C) nowhere
 
-### Ch 3. Putting things in order (L0, memo)
+**column**
+1. A column goes... A) across  *B) down  C) diagonally
+2. In jobs, which is a column? *A) town  B) job 14  C) jobs
+3. Each column is... A) one whole thing  *B) one fact about every row  C) the table's name
+
+### Ch 1. Ask for a table (flashback at the front desk, required, peek)
+
+Page text: the Home base and huddles draft. Words: SELECT, FROM, `;`. The star is
+taught as part of SELECT ("which columns: * for all of them"), so the chapter stays
+at three words.
+
+**SELECT** (with *)
+1. What does SELECT do? A) deletes rows  *B) shows you data  C) saves your work
+2. Which word starts a query? *A) SELECT  B) SHOW  C) FIND
+3. What does * mean after SELECT? *A) every column  B) every table  C) multiply
+
+**FROM**
+1. In SELECT qty FROM van_kit; which table is read? A) qty  *B) van_kit  C) SELECT
+2. Where does FROM go? *A) after the columns you want  B) at the very start  C) after the ;
+3. FROM jobs means... A) delete jobs  *B) look in the jobs table  C) make a jobs table
+
+**; (semicolon)**
+1. How does every query end? A) with a full stop .  *B) with a semicolon ;  C) with nothing
+2. You typed SELECT item FROM van_kit and nothing happened. What's missing? *A) the ;  B) a second SELECT  C) quotes
+3. Which is a whole query? A) SELECT town FROM jobs  B) FROM jobs SELECT town;  *C) SELECT town FROM jobs;
+
+### Ch 2. Putting things in order (L0, memo)
 
 **ORDER BY**
 - "Rows come out in whatever order they were saved."
@@ -137,14 +131,6 @@ the correct option.
 2. SELECT * FROM jobs ORDER BY fee; sorts by... A) client  *B) fee  C) job_no
 3. Without ORDER BY, rows come out... A) sorted A to Z  *B) in saved order  C) newest first
 
-**column**
-- "A column goes down the table: every row's fee, every row's town."
-- "You sort by a column's name, exactly as it's written at the top."
-
-1. A column goes... A) across  *B) down  C) diagonally
-2. In jobs, which is a column? *A) town  B) job 14  C) jobs
-3. ORDER BY needs... *A) a column's name  B) a row number  C) the table name
-
 **smallest first**
 - "ORDER BY puts the smallest first: 1, 2, 3, or A, B, C, or earliest time."
 
@@ -152,7 +138,7 @@ the correct option.
 2. ORDER BY town puts which town first? A) Zebulon  *B) Ashford  C) the last one saved
 3. ORDER BY job_no lists jobs... *A) 1, 2, 3...  B) 3, 2, 1...  C) mixed
 
-### Ch 4. Just the columns you need (L0, caller)
+### Ch 3. Just the columns you need (L0, caller)
 
 **column list**
 - "Instead of *, name the columns you want. The answer gets narrower and easier to read."
@@ -176,7 +162,7 @@ the correct option.
 2. Does .schema need a ; at the end? A) yes  *B) no  C) only on Fridays
 3. You need a column's exact name. You type... A) SELECT columns;  *B) .schema and the table name  C) ORDER BY
 
-### Ch 5. Newest first (L0, last_visitor, optional)
+### Ch 4. Newest first (L0, last_visitor, optional)
 
 **DESC**
 - "Add DESC after ORDER BY's column to flip it: biggest first, latest first."
@@ -185,7 +171,7 @@ the correct option.
 2. Where does DESC go? A) before ORDER BY  *B) after the column name in ORDER BY  C) after the ;
 3. To see the latest times first you add... *A) DESC  B) LAST  C) nothing
 
-### Ch 6. Keeping only some rows (L1, stuck_doors, PROPOSED step)
+### Ch 5. Keeping only some rows (L1, stuck_doors, PROPOSED step)
 
 PROPOSED puzzle: make the doors lookup its own step (today it's only inside the
 controller's second hint): the NOC log says the night alarms came from doors that
@@ -212,7 +198,7 @@ won't release; querying the locked doors gives their zone.
 2. Which needs quotes? *A) 'done'  B) 12  C) neither
 3. WHERE qty = '4' or WHERE qty = 4 for a number? A) '4'  *B) 4  C) "four"
 
-### Ch 7. Both must be true (L1, controller)
+### Ch 6. Both must be true (L1, controller)
 
 **AND**
 - "AND joins two conditions. A row stays only if both are true."
@@ -221,7 +207,7 @@ won't release; querying the locked doors gives their zone.
 2. With AND, a row stays when... *A) both are true  B) either is true  C) neither is true
 3. AND goes... A) before WHERE  *B) between two conditions  C) after the ;
 
-### Ch 8. More than, less than (L1, hot_rack, optional)
+### Ch 7. More than, less than (L1, hot_rack, optional)
 
 **> (more than)**
 - "> keeps rows where the column is more than a number."
@@ -244,7 +230,7 @@ won't release; querying the locked doors gives their zone.
 2. Why no quotes on numbers? A) quotes are banned  *B) so they compare as numbers  C) to save typing
 3. Temperatures like 38 are... *A) numbers  B) words  C) dates
 
-### Ch 9. Either one will do (L1, dark_room, PROPOSED optional)
+### Ch 8. Either one will do (L1, dark_room, PROPOSED optional)
 
 PROPOSED puzzle: the dark break room. `lights` shows its bulb 'dead'; finding every
 light that's 'dead' OR 'flicker' on the floor picks the room to rewire.
@@ -256,7 +242,7 @@ light that's 'dead' OR 'flicker' on the floor picks the room to rewire.
 2. With OR, a row stays when... A) both are true  *B) at least one is true  C) neither is true
 3. AND or OR to find jobs in Ashford or Bexley? A) AND  *B) OR  C) neither
 
-### Ch 10. Under pressure (L2 lab lockdown, review)
+### Ch 9. Under pressure (L2 lab lockdown, review)
 
 No new words. A review huddle, played as a fast elevator flashback: "Same tools as
 the server floor. Breathe."
@@ -265,7 +251,7 @@ the server floor. Breathe."
 2. To read a log in time order you add... *A) ORDER BY and the time column  B) DESC only  C) WHERE time
 3. A word value like fault goes in... A) no quotes  *B) 'single quotes'  C) brackets
 
-### Ch 11. Asking a server (L2 camera booth, cameras)
+### Ch 10. Asking a server (L2 camera booth, cameras)
 
 **GET**
 - "Some systems answer web requests, not SQL. GET asks for data."
@@ -290,7 +276,7 @@ the server floor. Breathe."
 2. "status": "open" says... *A) status is open  B) open the status  C) nothing
 3. { } holds... *A) one thing's fields  B) a list of things  C) a query
 
-### Ch 12. Half a name (L2 booth, pike)
+### Ch 11. Half a name (L2 booth, pike)
 
 **LIKE**
 - "LIKE matches a pattern instead of an exact value."
@@ -306,7 +292,7 @@ the server floor. Breathe."
 2. Where does % go to match names starting with Mac? A) '%Mac'  *B) 'Mac%'  C) 'M%ac'
 3. Does 'Ash%' match plain "Ash"? *A) yes  B) no  C) only in capitals
 
-### Ch 13. One answer feeds the next (L2, har)
+### Ch 12. One answer feeds the next (L2, har)
 
 No new words. A review huddle on chaining.
 - "Sometimes the answer isn't the answer. It's what you need for the next query."
@@ -315,7 +301,7 @@ No new words. A review huddle on chaining.
 2. A first query told you job 14 is the one. To get its client you type... A) SELECT 14;  *B) SELECT client FROM jobs WHERE job_no = 14;  C) ORDER BY 14
 3. A log sorted by time shows the last person through a door at the... A) top  *B) bottom  C) middle
 
-### Ch 14. One door's record (L2 stairwell panel, door)
+### Ch 13. One door's record (L2 stairwell panel, door)
 
 **id in the path**
 - "Add an id to the path to ask about one thing: GET /jobs/14."
