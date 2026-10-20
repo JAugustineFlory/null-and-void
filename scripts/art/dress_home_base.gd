@@ -14,7 +14,7 @@ const KEEP_CLEAR := [
 	Vector3(1.0, 0, 0.4), Vector3(-0.5, 0, 1.2), Vector3(-3.0, 0, -2.6),
 ]
 ## The whiteboard's marker writing: in-world flavor, no clues.
-const WHITEBOARD := "ON CALL: everyone\nINVOICES: overdue (again)\nY2K: 807 days\n\nBUY: floppies, coffee, a real chair"
+const WHITEBOARD := "ON CALL: everyone\nINVOICES: overdue (again)\nY2K: 808 days\n\nBUY: floppies, coffee, a real chair"
 
 
 static func apply(level: LevelBase) -> void:
