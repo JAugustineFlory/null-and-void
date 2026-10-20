@@ -210,6 +210,11 @@ func _setup_input() -> void:
 		var click := InputEventMouseButton.new()
 		click.button_index = MOUSE_BUTTON_LEFT
 		InputMap.action_add_event("attack", click)
+	if not InputMap.has_action("block"):
+		InputMap.add_action("block")
+		var right := InputEventMouseButton.new()
+		right.button_index = MOUSE_BUTTON_RIGHT
+		InputMap.action_add_event("block", right)
 
 
 func _bind_keys(action: String, keys: Array) -> void:

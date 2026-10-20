@@ -593,7 +593,7 @@ func _process(delta: float) -> void:
 		_cam_tick = 1.0
 		update_cameras()
 	if player and player.health > 0.0 and player.global_position.y < -6.0:
-		player.take_damage(1000.0)
+		player.take_damage(1000.0, "fall")
 	if not reached_vestibule and player and _in([_vestibule_box], player.global_position):
 		reached_vestibule = true  # this machine's player respawns here from now on
 	if sync.is_host():
@@ -1093,7 +1093,15 @@ func _on_caught(p: Node) -> void:
 	if loose and not _lie_explained:
 		sync.event("explain_cam_lie", [_cam2_frame()])
 	if p.has_method("take_damage") and p.health > 0.0:
-		p.take_damage(1000.0)
+		p.take_damage(1000.0, "watcher")  # out cold: teammates can help them up
+
+
+## Rourke downed the whole crew: the frame worked, and the news says so.
+func on_crew_down(cause: String) -> void:
+	if cause == "rourke" and lab.phase == "fight":
+		lab.crew_beaten()
+	else:
+		super(cause)
 
 
 func on_player_died() -> void:

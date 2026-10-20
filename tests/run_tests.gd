@@ -49,6 +49,7 @@ func _run() -> void:
 	await test_in_world_ui()
 	await test_pick_up_papers()
 	await load("res://tests/movement_tests.gd").new().run(self, check)
+	await load("res://tests/combat_tests.gd").new().run(self, check)
 	await load("res://tests/art_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
@@ -60,6 +61,7 @@ func _run() -> void:
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
 	await test_coop_level_2_lab()
+	await test_coop_combat()
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -1977,6 +1979,9 @@ func test_level_2_lab(outcome: String) -> void:
 	check(level.doors["SECLAB-B"].is_open == false and lab.terminal.locked, "locked in, and her terminal is locked too")
 	check(await _until(func(): return lab.phase == "fight", 60.0), "he comes back in through the rear door")
 	check(not level.doors["SECLAB-B-REAR"].is_open, "and the rear door shuts behind him")
+	if outcome == "tied":
+		await _check_crew_beaten(level, lab, p, r)
+	check(level.player.combat.crew == level.crew and r.wounds.shown() == 0, "he starts the fight unhurt")
 	p.health = 100000.0  # this test is about what happens to him
 	for i in 30:
 		if r.state == Rourke.State.DOWN:
@@ -1984,6 +1989,7 @@ func test_level_2_lab(outcome: String) -> void:
 		r.take_hit(p)
 		await _frames(2)
 	check(r.state == Rourke.State.DOWN, "struck enough times, he goes down")
+	check(r.wounds.shown() == Injuries.SPOTS.size(), "beaten, every wound shows on him")
 	check(r.get_prompt(p) == "[X] Finish it", "with no cable, there's no way to tie him up")
 	r.interact(p)
 	check(r.state == Rourke.State.DOWN, "and pressing E does nothing")
@@ -2043,6 +2049,78 @@ func test_level_2_lab(outcome: String) -> void:
 	Engine.time_scale = 1.0
 	level.queue_free()
 	await process_frame
+
+
+## Solo, Rourke downs the player, which is the whole crew: the news says the frame
+## worked, then the fight starts over in the lab.
+func _check_crew_beaten(level: Node, lab: Level2Lab, p: Player, r: Rourke) -> void:
+	r.hits_left -= 2
+	await _frames(2)
+	check(r.wounds.shown() > 0 and r.wounds.speed_scale() < 1.0, "hit, he shows it: torn jacket, blood, a limp")
+	p.health = 10.0
+	check(await _until(func(): return level.get_node_or_null("NewsEnding") != null, 20.0), "he downs the crew, and the morning paper comes up")
+	var news: NewsEnding = level.get_node("NewsEnding")
+	check(news.paper != null and NewsEnding.HEADLINE.contains("IT CONTRACTORS"), "the frame worked: the paper says the crew killed her")
+	check(lab.phase == "fight" and _game().rourke_fate == "unknown", "the story doesn't move on")
+	news.skip()
+	check(await _until(func(): return level.get_node_or_null("NewsEnding") == null and p.health == 100.0, 20.0), "then you come to, healed")
+	check(_in_lab_room(level, p) and r.hits_left == r.max_hits and r.wounds.shown() == 0, "back in the lab, and the fight starts over with him unhurt")
+	await _frames(30)
+
+
+## Co-op fighting: the client's own machine blocks, goes down and gets helped up.
+func test_coop_combat() -> void:
+	print("Co-op: blocking, going down and helping each other up")
+	_game().new_run(3)
+	_game().rourke_fate = "killed"
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/level_2.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
+	for l in machines:
+		l.watcher.active = false
+	var puppet = host.players.puppet(client_id)
+	puppet.take_damage(22.0, "rourke")
+	await _frames(10)
+	check(is_equal_approx(client.player.health, 78.0), "a hit from the host's Rourke lands on the client's own machine")
+	var blocks := []
+	host.crew.hit_blocked.connect(func(id, cause): blocks.append([id, cause]))
+	client.player.combat.raise_guard()
+	puppet.take_damage(22.0, "rourke")
+	await _frames(10)
+	check(is_equal_approx(client.player.health, 78.0), "the client's block, on their own machine, catches it")
+	check(blocks == [[client_id, "rourke"]], "and the host hears about it, so he can reel")
+	puppet.take_damage(1000.0, "watcher")
+	await _frames(10)
+	check(client.player.downed and client.player.input_locked and client.player.health == 0.0, "knocked out: the client is down, not dead")
+	check(machines.all(func(l): return l.crew.downed.has(client_id)), "every machine knows")
+	check(host.players.puppet(client_id).downed, "the host sees them lying there")
+	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "and can help them up")
+	puppet.interact(host.player)
+	await _frames(10)
+	check(not client.player.downed and not client.player.input_locked and client.player.health == PlayerCombat.REVIVE_HEALTH, "helped up, the client is back on their feet")
+	check(machines.all(func(l): return l.crew.downed.is_empty()), "and nobody is down anywhere")
+	var downs := []
+	for l in machines:
+		l.crew.crew_down.connect(func(cause): downs.append(cause))
+	var client_puppet_on_host = puppet
+	client_puppet_on_host.take_damage(1000.0, "watcher")
+	await _frames(10)
+	check(downs.is_empty() and not host.player.downed, "one down, one standing: the crew isn't beaten")
+	host.player.take_damage(1000.0, "watcher")
+	await _frames(10)
+	check(downs == ["watcher", "watcher"], "the last one standing goes down: every machine hears the crew is down")
+	check(await _until(func(): return not host.player.downed and not client.player.downed and host.player.health == 100.0 and client.player.health == 100.0, 10.0),
+		"and everyone comes to at the checkpoint")
+	check(machines.all(func(l): return l.crew.downed.is_empty()), "with nobody left down")
+	puppet.take_damage(1000.0, "watcher")
+	await _frames(10)
+	client.player.combat.bleed_left = 0.05
+	check(await _until(func(): return not client.player.downed and client.player.health == 100.0, 10.0), "left down too long, you come to at the checkpoint by yourself")
+	check(machines.all(func(l): return not l.crew.downed.has(client_id)), "and you're off the downed list everywhere (host is %d)" % host_id)
+	await _coop_close(worlds)
 
 
 ## Co-op in Vale's lab: everyone has to badge in, and the cable is held by whoever carried it up.

@@ -120,17 +120,19 @@ func names() -> Dictionary:
 	return out
 
 
-## Deal damage to player `id`, on whichever machine owns that player.
-func hurt(id: int, amount: float) -> void:
+## Deal damage to player `id`, on whichever machine owns that player. `cause`
+## says what hit them (see PlayerCombat.CAUSES): their own machine decides
+## whether they blocked it.
+func hurt(id: int, amount: float, cause: String = "") -> void:
 	if id == multiplayer.get_unique_id():
-		player.take_damage(amount)
+		player.take_damage(amount, cause)
 	elif multiplayer.is_server():
-		_hurt.rpc_id(id, amount)
+		_hurt.rpc_id(id, amount, cause)
 
 
 @rpc("authority", "reliable")
-func _hurt(amount: float) -> void:
-	player.take_damage(amount)
+func _hurt(amount: float, cause: String) -> void:
+	player.take_damage(amount, cause)
 
 
 func _physics_process(delta: float) -> void:

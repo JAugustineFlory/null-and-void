@@ -34,6 +34,8 @@ var exit_door: Door
 ## has its own LevelSync for its events; the World's one starts the session.
 var sync: LevelSync
 var players: NetPlayers
+## Who's down, and what entities do to players on other machines (scripts/combat/).
+var crew: CrewVitals
 var voice: VoiceChat
 var _pause: Control
 
@@ -69,6 +71,8 @@ func _ready() -> void:
 	player.transform = player_spawn(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))
 	add_child(player)
 	players = NetPlayers.create(self, player)
+	crew = CrewVitals.create(self, players)
+	player.combat.crew = crew
 	player.died.connect(_on_player_died)
 	voice = VoiceChat.create(self)
 	_build_pause_menu()
@@ -94,6 +98,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	inventory_screen = host.inventory_screen
 	player = host.player
 	players = host.players
+	crew = host.crew
 	voice = host.voice
 	environment = host.environment
 	sync = LevelSync.create(self)
@@ -135,6 +140,13 @@ func net_setup() -> void:
 ## Override: what happens when the player dies.
 func on_player_died() -> void:
 	player.respawn(spawn_point())
+
+
+## Override: the whole crew is down (solo: the player is). `cause` is what put
+## the last one down ("rourke", "watcher"...). Runs on every machine. By default
+## everyone comes to at the checkpoint, through on_player_died.
+func on_crew_down(_cause: String) -> void:
+	crew.send_everyone_back()
 
 
 ## Override: lighting mood while players are in this level. Wings share one
