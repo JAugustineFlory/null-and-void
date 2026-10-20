@@ -33,6 +33,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_document_view()
 	await test_held_notebook()
 	await test_terminal_screen()
+	test_tool_skins()
 
 
 func check(cond: bool, name: String) -> void:
@@ -1042,11 +1043,50 @@ func test_terminal_screen() -> void:
 	source.typing = {1: "SELECT * FROM do"}
 	source.screen_changed.emit()
 	check(screen.display.text.text.ends_with("> SELECT 1;") and screen.display.prompt.text.contains("SELECT * FROM do_"), "the glass follows its terminal's text and what's being typed")
+	var amber := Color(1.0, 0.7, 0.2)
+	source.transcript = ["[color=#7dff8c]3 rows[/color]", "[color=#ff6655]ERROR[/color]", "plain"]
+	source.skin_color = amber
+	source.screen_changed.emit()
+	var shown := screen.display.text.text
+	check(screen.display.skin == amber and screen.display.text.get_theme_color("default_color").is_equal_approx(amber), "a terminal skin recolors the phosphor")
+	check(not shown.contains("7dff8c") and shown.contains("ff6655") and shown.contains("3 rows"), "green highlights take the skin's color, red errors stay red")
+	source.skin_color = null
+	source.screen_changed.emit()
+	check(screen.display.text.text.contains("7dff8c") and screen.display.text.get_theme_color("default_color") == TerminalScreen.PHOSPHOR, "with nobody's skin the screen is green phosphor again")
 	var ui := CanvasLayer.new()
 	screen.host(ui)
 	check(ui.get_parent() == screen.viewport and not screen.display.visible and screen.viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "the terminal UI can be put on the glass")
 	check(screen.release() == ui and screen.display.visible and ui.get_parent() == null, "and taken off again")
 	ui.free()
+	stage.free()
+
+
+func test_tool_skins() -> void:
+	var amber := Color(1.0, 0.7, 0.2)
+	var red := Color(1.0, 0.4, 0.33)
+	check(TerminalScreen.reskin(TerminalScreen.PHOSPHOR, amber).is_equal_approx(amber), "the phosphor green becomes the skin color")
+	check(TerminalScreen.reskin(red, amber) == red and TerminalScreen.reskin(Color.WHITE, amber) == Color.WHITE, "red and white text keep their color on any skin")
+	check(TerminalScreen.TerminalDisplay.colored("> a[1]_", red).contains("a[lb]1]"), "a typed [ shows as typed, not as bbcode")
+	var pink := Color(0.9, 0.3, 0.6)
+	var teal := Color(0.1, 0.6, 0.6)
+	var navy := Color(0.1, 0.1, 0.4)
+	var look := CharacterLooks.outfit({})
+	look.tools = {"flashlight": {"item": "standard", "color": pink}, "walkie": {"item": "standard", "color": teal}, "notebook": {"item": "spiral", "color": navy}}
+	var stage := _stage()
+	var cam := Camera3D.new()
+	stage.add_child(cam)
+	var held := HeldItems.attach(cam, look)
+	var lamp: MeshInstance3D = held.flashlight._shell[0]
+	check((lamp.material_override as StandardMaterial3D).albedo_color == pink and (held.walkie.shell.material_override as StandardMaterial3D).albedo_color == teal, "the flashlight and walkie wear the player's skins")
+	var plain := HeldItems.attach(cam, CharacterLooks.outfit({}))
+	check((plain.walkie.shell.material_override as StandardMaterial3D).albedo_color == ArtPalette.SAFETY_YELLOW, "with no skin the walkie is safety yellow")
+	var book := HeldNotebook.attach(cam, look)
+	var view := NotebookView.new()
+	book.set_content(view)
+	check(book.cover_color == navy and view.cover == navy, "the notebook's cover is the player's pick, on the board and the drawn book")
+	var bare := NotebookView.new()
+	check(bare.cover == NotebookView.COVER, "a notebook with no skin keeps the navy cover")
+	bare.free()
 	stage.free()
 
 
@@ -1056,3 +1096,4 @@ class _FakeTerminal extends Node:
 	var transcript: Array[String] = []
 	var seated: Array[int] = []
 	var typing := {}
+	var skin_color: Variant = null

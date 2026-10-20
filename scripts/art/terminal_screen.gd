@@ -14,6 +14,11 @@ extends Node3D
 ##   screen.add_line("[color=#8f8]3 rows[/color]")       # as the transcript grows
 ##   camera.global_transform = screen.focus_transform(camera.fov)  # where to look from
 ##   screen.host(terminal_ui)                              # while someone types at it
+##
+## A terminal skin (Terminal.skin_color, the first seated player's pick) recolors
+## the phosphor: green text and its green variants turn that color, while red
+## errors and white highlights keep theirs. Each typer's prompt line is drawn in
+## their own Net.terminal_color(peer).
 
 const SCREEN_PX := Vector2i(1280, 960)  # 4:3, like the tube
 const SCREEN_SIZE := Vector2(0.36, 0.27)  # visible glass, metres
@@ -26,6 +31,7 @@ const TITLE_SIZE := 20
 const DISPLAY_FONT := TYPE_SIZE
 const MAX_LINES := 200
 const PHOSPHOR := Color(0.45, 1.0, 0.55)
+const GLOW := Color(0.01, 0.025, 0.015)  # the tube's faint lift where nothing is drawn
 
 var viewport: SubViewport
 var display: TerminalDisplay
@@ -87,6 +93,8 @@ func _sync_from_terminal() -> void:
 	var t := _followed
 	if t == null or not is_instance_valid(t):
 		return
+	var skin = t.get("skin_color")
+	set_skin(skin if skin is Color else PHOSPHOR)
 	var lines = t.get("transcript")
 	if lines is Array:
 		display.set_lines(lines)
@@ -100,7 +108,9 @@ func _sync_from_terminal() -> void:
 			if not typing.has(peer):
 				continue
 			var who: String = str(net.call("display_name", peer)) if net and net.has_method("display_name") else ""
-			prompts.append(("%s> " % who if who != "" else "> ") + str(typing[peer]) + "_")
+			var line := ("%s> " % who if who != "" else "> ") + str(typing[peer]) + "_"
+			var own = net.call("terminal_color", peer) if net and net.has_method("terminal_color") else null
+			prompts.append(TerminalDisplay.colored(line, own if own is Color else display.skin.lightened(0.6)))
 	display.set_prompts(prompts)
 	_redraw()
 
@@ -108,6 +118,26 @@ func _sync_from_terminal() -> void:
 func clear() -> void:
 	display.set_lines([])
 	_redraw()
+
+
+## A phosphor color as it shows on a screen of color `skin`: green-dominant
+## colors (the phosphor and its variants) move to the skin's hue, keeping how
+## bright they were next to PHOSPHOR; red, amber and white text are left alone.
+static func reskin(c: Color, skin: Color) -> Color:
+	if skin == PHOSPHOR:
+		return c
+	var green := (c.g - maxf(c.r, c.b)) / maxf(c.g, 0.001)
+	var w := clampf(green / 0.25, 0.0, 1.0)
+	var k := c.get_luminance() / PHOSPHOR.get_luminance()
+	var to := Color(minf(skin.r * k, 1.0), minf(skin.g * k, 1.0), minf(skin.b * k, 1.0), c.a)
+	return c.lerp(to, w)
+
+
+## Recolors the phosphor, text and tube glow alike, to a terminal skin.
+func set_skin(c: Color) -> void:
+	display.set_skin(c)
+	var g := reskin(GLOW, c)
+	(glass.material_override as ShaderMaterial).set_shader_parameter("glow", Vector3(g.r, g.g, g.b))
 
 
 ## Tints the phosphor (a locked terminal goes red, a dead one dark).
@@ -210,6 +240,7 @@ shader_type spatial;
 render_mode unshaded, cull_back, shadows_disabled;
 uniform sampler2D screen : source_color, filter_linear;
 uniform vec4 tint : source_color = vec4(1.0);
+uniform vec3 glow = vec3(0.01, 0.025, 0.015);
 void fragment() {
 	// Several taps across the pixel's footprint: the glass is often seen from a few
 	// steps away, and a viewport texture has no mipmaps to smooth the small text.
@@ -222,7 +253,7 @@ void fragment() {
 	vec2 e = UV * (1.0 - UV.yx);
 	float vig = clamp(pow(e.x * e.y * 18.0, 0.22), 0.0, 1.0);
 	c = c * scan * vig * tint.rgb;
-	ALBEDO = c * 1.15 + vec3(0.01, 0.025, 0.015) * vig;
+	ALBEDO = c * 1.15 + glow * vig;
 }
 """
 	return _crt_shader
@@ -276,15 +307,25 @@ func screen_point(cam: Camera3D, screen_pos: Vector2) -> Vector2:
 
 ## The terminal's text in big phosphor type, for everyone in the room.
 class TerminalDisplay extends Control:
+	const BG := Color(0.015, 0.04, 0.02)
+	const PROMPT := Color(0.85, 1.0, 0.85)
 	var title: Label
 	var text: RichTextLabel
-	var prompt: Label
+	var prompt: RichTextLabel  # bbcode: each typer's line in their own color
+	var skin := TerminalScreen.PHOSPHOR
+	var _bg: ColorRect
 	var _lines: Array = []
 	var _typing := ""
+	static var _hex := RegEx.create_from_string("\\[color=#?([0-9a-fA-F]{3,8})\\]")
+
+	## `line` as bbcode in `color`, with any [ ] the player typed shown as typed.
+	static func colored(line: String, color: Color) -> String:
+		return "[color=#%s]%s[/color]" % [color.to_html(false), line.replace("[", "[lb]")]
 
 	func _init() -> void:
 		var bg := ColorRect.new()
-		bg.color = Color(0.015, 0.04, 0.02)
+		_bg = bg
+		bg.color = BG
 		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		add_child(bg)
 		var box := VBoxContainer.new()
@@ -312,28 +353,54 @@ class TerminalDisplay extends Control:
 			text.add_theme_font_size_override(f, TerminalScreen.DISPLAY_FONT)
 		text.add_theme_color_override("default_color", TerminalScreen.PHOSPHOR)
 		box.add_child(text)
-		prompt = Label.new()
-		prompt.add_theme_font_override("font", mono)
-		prompt.add_theme_font_size_override("font_size", TerminalScreen.DISPLAY_FONT)
-		prompt.add_theme_color_override("font_color", Color(0.85, 1.0, 0.85))
-		prompt.clip_text = true
+		prompt = RichTextLabel.new()
+		prompt.bbcode_enabled = true
+		prompt.fit_content = true
+		prompt.scroll_active = false
+		prompt.autowrap_mode = TextServer.AUTOWRAP_OFF
+		prompt.clip_contents = true
+		prompt.add_theme_font_override("normal_font", mono)
+		prompt.add_theme_font_size_override("normal_font_size", TerminalScreen.DISPLAY_FONT)
+		prompt.add_theme_color_override("default_color", PROMPT)
 		box.add_child(prompt)
 		set_typing("")
 
 	func set_lines(lines: Array) -> void:
 		_lines = lines.slice(maxi(0, lines.size() - TerminalScreen.MAX_LINES))
-		text.text = "\n".join(_lines)
+		_show_lines()
 
 	func add_line(bbcode: String) -> void:
 		_lines.append(bbcode)
 		if _lines.size() > TerminalScreen.MAX_LINES:
 			_lines.pop_front()
-		text.text = "\n".join(_lines)
+		_show_lines()
 
 	func set_typing(t: String) -> void:
 		_typing = t
-		prompt.text = "> " + t + "_"
+		prompt.text = "> " + t.replace("[", "[lb]") + "_"
 
-	## One prompt line per player typing at this terminal; none shows a bare cursor.
+	## One prompt line per player typing at this terminal (bbcode, see colored());
+	## none shows a bare cursor.
 	func set_prompts(lines: Array[String]) -> void:
 		prompt.text = "\n".join(lines) if not lines.is_empty() else "> _"
+
+	## Recolors the phosphor to a terminal skin (see TerminalScreen.reskin).
+	func set_skin(c: Color) -> void:
+		if c == skin:
+			return
+		skin = c
+		_bg.color = TerminalScreen.reskin(BG, c)
+		title.add_theme_color_override("font_color", Color(TerminalScreen.reskin(TerminalScreen.PHOSPHOR, c), 0.55))
+		text.add_theme_color_override("default_color", TerminalScreen.reskin(TerminalScreen.PHOSPHOR, c))
+		prompt.add_theme_color_override("default_color", TerminalScreen.reskin(PROMPT, c))
+		_show_lines()
+
+	func _show_lines() -> void:
+		var out := "\n".join(_lines)
+		if skin != TerminalScreen.PHOSPHOR:
+			for m in _hex.search_all(out):
+				if not Color.html_is_valid(m.get_string(1)):
+					continue
+				var c := Color.html(m.get_string(1))
+				out = out.replace(m.get_string(), "[color=#%s]" % TerminalScreen.reskin(c, skin).to_html())
+		text.text = out

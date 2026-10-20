@@ -5,6 +5,7 @@ extends Node3D
 ## does). Stands upright on its base; the speaker grille faces -Z.
 
 var led: MeshInstance3D
+var shell: MeshInstance3D  # the colored body above the rubber base
 var screen: MeshInstance3D
 var transmitting := false
 var receiving := false
@@ -20,7 +21,7 @@ static func create(parent: Node) -> PropWalkie:
 
 
 func _make() -> void:
-	_box(Vector3(0.06, 0.13, 0.03), Vector3(0, 0.065, 0), ArtPalette.flat(ArtPalette.SAFETY_YELLOW, 0.55))
+	shell = _box(Vector3(0.06, 0.13, 0.03), Vector3(0, 0.065, 0), ArtPalette.flat(ArtPalette.SAFETY_YELLOW, 0.55))
 	_box(Vector3(0.064, 0.05, 0.034), Vector3(0, 0.02, 0), ArtPalette.flat(Color(0.1, 0.1, 0.1), 0.7))  # rubber base
 	_box(Vector3(0.045, 0.04, 0.004), Vector3(0, 0.05, -0.016), ArtPalette.flat(Color(0.08, 0.08, 0.08), 0.8))  # grille
 	screen = _box(Vector3(0.036, 0.018, 0.004), Vector3(0, 0.1, -0.016), ArtPalette.glow(ArtPalette.LIGHT_SCREEN, 0.8))
@@ -40,6 +41,11 @@ func _box(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	return mi
+
+
+## Recolors the body (a player's walkie skin). The base, grille, screen and LED stay.
+func set_skin(color: Color) -> void:
+	shell.material_override = ArtPalette.flat(color, 0.55)
 
 
 func set_transmitting(value: bool) -> void:

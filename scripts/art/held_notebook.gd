@@ -38,6 +38,7 @@ var _open_t := 0.0  # 0 put away, 1 open in hand
 var _tween: Tween
 var _wiggle := 0.0
 var _reach: Node3D  # the free hand that carries sticky notes in
+var cover_color := NotebookView.COVER  # the player's notebook skin, on the board and the drawn book
 var _player: Node  # whose filing to follow
 var _dip := 0.0  # the book lowers out of the way while a note comes in
 
@@ -59,6 +60,7 @@ func set_content(content: Control) -> void:
 	for nb in [content] + content.find_children("*", "NotebookView", true, false):
 		if nb is NotebookView:
 			nb.embedded = true
+			nb.cover = cover_color
 			view = nb
 
 
@@ -201,7 +203,9 @@ func _make(look_in: Dictionary) -> void:
 	var full := Vector2(NotebookView.EMBED_SIZE)
 	var size := page_size()
 	var spine_x := _px_to_m(spine_px)
-	var cover := ArtPalette.flat(NotebookView.COVER, 0.7)
+	if CharacterLooks.tool_color(look_in, "notebook") is Color:
+		cover_color = CharacterLooks.tool_color(look_in, "notebook")
+	var cover := ArtPalette.flat(cover_color, 0.7)
 	var edges := ArtPalette.flat(NotebookArt.PAPER.darkened(0.08), 0.9)
 	var book_h := _px_to_m(NotebookView.BOOK_SIZE.y)
 	var book_mid_y := size.y / 2.0 - _px_to_m(NotebookView.EMBED_MARGIN.y + NotebookView.BOOK_SIZE.y / 2.0)

@@ -46,6 +46,8 @@ func _make(look_in: Dictionary) -> void:
 	_arm(right_hand, skin, sleeve)
 	flashlight = PropFlashlight.create(right_hand, true)
 	flashlight.position = Vector3(0, 0.0, -0.03)
+	if CharacterLooks.tool_color(look, "flashlight") is Color:
+		flashlight.set_skin(CharacterLooks.tool_color(look, "flashlight"))
 
 	left_hand = Node3D.new()
 	left_hand.position = REST_LEFT_DOWN
@@ -55,6 +57,8 @@ func _make(look_in: Dictionary) -> void:
 	walkie = PropWalkie.create(left_hand)
 	walkie.position = Vector3(0, -0.02, -0.03)
 	walkie.rotation_degrees = Vector3(10, 25, 0)
+	if CharacterLooks.tool_color(look, "walkie") is Color:
+		walkie.set_skin(CharacterLooks.tool_color(look, "walkie"))
 
 
 func _arm(hand: Node3D, skin: Material, sleeve: Material) -> void:

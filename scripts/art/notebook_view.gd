@@ -22,6 +22,12 @@ const EMBED_SIZE := Vector2i(1440, 800)
 const EMBED_MARGIN := Vector2(12, 10)
 const TAB_COLORS: Array[Color] = [Color(0.95, 0.82, 0.35), Color(0.55, 0.78, 0.92), Color(0.92, 0.6, 0.62), Color(0.65, 0.85, 0.58)]
 
+## This book's cover (a player's notebook skin); COVER unless they picked one.
+var cover := COVER:
+	set(c):
+		cover = c
+		if book:
+			book.queue_redraw()
 var left: VBoxContainer
 var right: VBoxContainer
 var book: Control  # everything that moves when the book opens or a page turns
@@ -223,7 +229,8 @@ class _BookDrawing extends Control:
 	func _draw() -> void:
 		var bs := NotebookView.BOOK_SIZE
 		draw_rect(Rect2(Vector2(10, 14), bs), Color(0, 0, 0, 0.35))  # shadow on the desk
-		draw_rect(Rect2(Vector2.ZERO, bs), NotebookView.COVER)
+		var cover: Color = get_parent().cover if get_parent() is NotebookView else NotebookView.COVER
+		draw_rect(Rect2(Vector2.ZERO, bs), cover)
 		var inset := NotebookView.PAGE_INSET
 		var half := (bs.x - NotebookView.SPINE) / 2.0
 		for side in 2:
@@ -243,7 +250,7 @@ class _BookDrawing extends Control:
 			var hx := page.end.x - 16 if side == 0 else page.position.x + 16
 			var hy := page.position.y + 28
 			while hy < page.end.y - 20:
-				draw_circle(Vector2(hx, hy), 6, NotebookView.COVER.darkened(0.3))
+				draw_circle(Vector2(hx, hy), 6, cover.darkened(0.3))
 				hy += 34
 		# the wire coil
 		var cx := bs.x / 2
