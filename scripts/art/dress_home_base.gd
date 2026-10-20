@@ -48,8 +48,8 @@ static func apply(level: LevelBase) -> void:
 	ArtProps.crt_monitor(dress, Vector3(2.5, 0.76, 4.1), 0, "green")
 	ArtProps.crt_monitor(dress, Vector3(3.5, 0.76, 4.1), 0, "blue")
 	ArtKit.pizza_box(dress, Vector3(2.2, 0.76, 3.85), 15, true)
-	ArtKit.folding_chair(geo, Vector3(2.6, 0, 3.35), 200)
-	ArtKit.folding_chair(geo, Vector3(3.6, 0, 3.4), 170)
+	_seat(ArtKit.folding_chair(geo, Vector3(2.6, 0, 3.35), 200))
+	_seat(ArtKit.folding_chair(geo, Vector3(3.6, 0, 3.4), 170))
 	ArtProps.boxes(geo, Vector3(4.9, 0, 3.9), 0, 2)
 	_desk_lamp(dress, Vector3(3.75, 0.76, 4.2))
 
@@ -60,7 +60,7 @@ static func apply(level: LevelBase) -> void:
 
 	# The office corner: a CRT and a stack of manuals by the fax.
 	ArtProps.crt_monitor(dress, Vector3(-4.95, 0.8, 1.95), -90, "green")
-	ArtKit.folding_chair(geo, Vector3(-4.1, 0, 3.95), 120)  # pushed back from the desk
+	_seat(ArtKit.folding_chair(geo, Vector3(-4.1, 0, 3.95), 120))  # pushed back from the desk
 	ArtProps.binder(dress, Vector3(-4.75, 0.8, 3.05), 80, "NETWARE 4.11", false)
 
 	# Moving boxes and spare kit along the north wall, west of the roll-up door.
@@ -131,3 +131,8 @@ static func _book(level: Node) -> void:
 		if c is GeometryInstance3D:
 			c.visible = false
 	ArtKit.easy_sql_book(book, Vector3(0, -0.04, 0), 180)
+
+
+## Somewhere to sit (Seat, from Movement): E on the chair sits you facing the way it faces.
+static func _seat(chair: Node3D) -> Seat:
+	return Seat.create_at(chair.get_parent(), chair.transform * Vector3(0, ArtKit.CHAIR_SEAT, 0), chair.rotation.y, Vector2(0.42, 0.4))
