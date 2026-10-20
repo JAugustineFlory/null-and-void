@@ -7,7 +7,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **Dale Rourke** (ROURKE). Facilities manager, 50s. The director's plant.
 
-> Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth.
+> Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth. He laughs once, in the lab: the only time his warmth turns into real glee.
 
 **WARDEN** (WARDEN). The campus security system, heard over 1997 PA speakers and terminals. Not a villain: it enforces protocol, and turns hostile only once the crew breaches it and loses their escort.
 
@@ -21,9 +21,13 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.
 
-**Byte-Right dispatch** (DISPATCH). The IT company's night dispatcher, heard on the van radio.
+**Maddison Kowalski** (MADDISON). Founder of Byte-Right IT Services, run out of a garage. Landed the Halcyon job by underbidding everyone; can't code either. Stays at base on the radio, and is also tonight's dispatch.
 
-> Bored, routine, a little crackly. Reading tickets off a list at the end of a long shift. Nothing about this call is unusual to them.
+> Fast, upbeat, salesperson's energy: the crew's friend more than their boss. Heard over a radio base station or the van radio. For the dispatch lines, Maddison puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
+
+**Radio newsreader** (NEWSREADER). Local morning radio, heard in the news-story ending.
+
+> Smooth, professional, warm, slightly bored. Calm public-radio delivery with no drama; the flatness is what makes it land.
 
 **Harold Mercer** (MERCER). Halcyon's founder, 70s. Fired in 1994 for fighting WARDEN.
 
@@ -31,15 +35,43 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ## Level 0
 
+### The garage
+
+*The game opens at Byte-Right's garage home base, earlier that night. Maddison calls the base station: the work order comes through on the fax, the book Easy SQL is on the back shelf, the crew huddles round it at the workbench, then everyone gets in the van.* *(Written ahead: not in the game yet.)*
+
+**MADDISON:** *(Bursting with it. The crew starts on the garage floor.)* Base to the garage. You lot still there? Good. Sit down. We got Halcyon. The overnight database contract. Ours. `[l0_garage_1]`
+
+**MADDISON:** *(Quickly, before anyone can ask. Then the fax starts.)* How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. `[l0_garage_2]`
+
+**MADDISON:** *(The smile stays on. A hopeful pause. Once the work order's off the fax.)* Small problem. It says database. And unless somebody's been holding out on me... none of us can code. `[l0_garage_3]`
+
+**MADDISON:** *(Proud of this.)* Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. `[l0_garage_4]`
+
+**MADDISON:** *(Genuinely thrilled. After the huddle's quiz.)* Look at that. You're practically engineers. Take the book with you. Everybody in the van. `[l0_garage_5]`
+
+**MADDISON:** *(Counting the rules off. As the crew boards the van.)* Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. Base out. `[l0_garage_6]`
+
+### Book huddles: SELECT and ORDER BY
+
+*Flashbacks to the garage, earlier that night ('The garage, earlier that night', sepia). A player reads the chapter aloud and the crew votes on its quiz; Maddison opens and closes each chapter over the base station. Never gives the night's answers.* *(Written ahead: not in the game yet.)*
+
+**MADDISON:** *(Disbelieving, delighted.)* Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? `[l0_huddle_select_1]`
+
+**MADDISON:** *(Deadly serious about the one thing they're sure of.)* Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. `[l0_huddle_select_2]`
+
+**MADDISON:** *(Reading off the page.)* Chapter two. 'Putting things in order.' Now that, I can get behind. `[l0_huddle_order_1]`
+
+**MADDISON:** *(Scribbling.)* Smallest first, unless you say DESC. Write that down. I'm writing it down. `[l0_huddle_order_2]`
+
 ### The IT van
 
 *The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up.*
 
-**DISPATCH:** *(Over the van radio. Routine.)* Van three, you're on site at Halcyon Data Systems. After-hours callout. `[l0_dispatch_1]`
+**MADDISON:** *(Over the van radio, in the professional dispatcher voice. 'Van three' is a bluff: they own one van.)* Van three, you're on site at Halcyon Data Systems. After-hours callout. `[l0_dispatch_1]`
 
-**DISPATCH:** *(Reading it off the ticket.)* They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. `[l0_dispatch_2]`
+**MADDISON:** *(Reading it off the ticket.)* They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. `[l0_dispatch_2]`
 
-**DISPATCH:** *(Bored, reading the form. Signing off, already onto the next call.)* Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. `[l0_dispatch_3]`
+**MADDISON:** *(Bored, reading the form. Signing off, already onto the next call.)* Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. `[l0_dispatch_3]`
 
 ### The front doors, 11 p.m.
 
@@ -149,6 +181,18 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 ## Level 1
 
+### Book huddles: WHERE and comparisons
+
+*Garage flashback huddles for the WHERE / AND and comparison chapters.* *(Written ahead: not in the game yet.)*
+
+**MADDISON:** *(Patting pockets.)* WHERE. For finding one thing in a big pile. Like my car keys. `[l1_huddle_where_1]`
+
+**MADDISON:** *(Rueful.)* Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears. `[l1_huddle_where_2]`
+
+**MADDISON:** *(Drawing one on the whiteboard, with teeth.)* Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number. `[l1_huddle_compare_1]`
+
+**MADDISON:** *(Relieved.)* Okay. That's maths I actually remember from school. `[l1_huddle_compare_2]`
+
 ### The database problem
 
 *Rourke walks the crew into Server Room A on the server floor and gives them the real job: find and reset a faulting door controller. Level 1 is all trust; nothing hints at foul play.*
@@ -207,9 +251,35 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **ROURKE:** *(On his radio to WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance.)* Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale. `[l2_frame]`
 
-**ROURKE:** *(The door has just locked. The friendliness switches off.)* Sorry about this. Nothing personal. `[l2_trap_1]`
+**ROURKE:** *(Through the door's glass, straight after the radio call. Tired, explaining a chore.)* Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. `[l2_trap_2]`
 
-**ROURKE:** *(Tired, explaining a chore.)* Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself. `[l2_trap_2]`
+**ROURKE:** *(Through the glass, almost fond. The friendly tour voice, which is what makes it awful.)* You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language. `[l2_gloat_1]`
+
+**ROURKE:** *(Shaking his head, smiling.)* Then I saw the book in your van. Easy SQL. Still had the price sticker on it. `[l2_gloat_2]`
+
+**ROURKE:** *(Ticking it off, enjoying himself.)* Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend. `[l2_gloat_3]`
+
+**ROURKE:** *(Slower. Savouring it.)* I should've reported you. Then it hit me. No... this is perfect. `[l2_gloat_4]`
+
+**ROURKE:** *(The only time he laughs in the game: real delight, loud and sudden, then it stops dead.)* A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha! `[l2_gloat_5]`
+
+**ROURKE:** *(Flat again, tired. Back to normal.)* A garage with a van, calling itself a company. Your badges on her door. It writes itself. `[l2_gloat_6]`
+
+**ROURKE:** *(Last line of the monologue, quiet. Walking away from the glass.)* Sorry about this. Nothing personal. `[l2_trap_1]`
+
+### The news (if the crew dies)
+
+*Plays only if Rourke downs the whole crew in the Level 2 fight: a newspaper on a kitchen table the next morning ('IT CONTRACTORS SOUGHT IN DEATH OF HALCYON SCIENTIST') with this radio report. The frame worked; Rourke hid the bodies, so the world thinks the crew ran.* *(Written ahead: not in the game yet.)*
+
+**NEWSREADER:** *(Steady, mid-bulletin.)* Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems. `[l2_news_1]`
+
+**NEWSREADER:** *(No change in tone.)* Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered. `[l2_news_2]`
+
+**NEWSREADER:** *(A slight shift for the quote: reading it, not acting it.)* A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.' `[l2_news_3]`
+
+**NEWSREADER:** *(A beat before the second sentence.)* Byte-Right's only office, a rented garage, was found empty. The crew has not been seen since. `[l2_news_4]`
+
+**NEWSREADER:** *(Brightening for the weather. The game cuts the audio on 'weather'.)* Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. `[l2_news_5]`
 
 ### The fight (barks)
 
@@ -314,3 +384,37 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 **VALE:** *(Urgent. A glance over her shoulder in the voice.)* If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. `[l2_vale_2]`
 
 **VALE:** *(Softer. Then she hangs up.)* And please don't give your PIN to anyone. Not even Dale. `[l2_vale_3]`
+
+### Book huddles: LIKE and GET
+
+*Garage flashback huddles for the LIKE and GET chapters.* *(Written ahead: not in the game yet.)*
+
+**MADDISON:** *(Squinting at the page.)* LIKE. For when you only know part of a word. The percent sign means 'anything goes here.' `[l2_huddle_like_1]`
+
+**MADDISON:** *(Pleased to have found themself.)* So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. `[l2_huddle_like_2]`
+
+**MADDISON:** *(Flipping the book over to check the cover.)* This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' `[l2_huddle_get_1]`
+
+**MADDISON:** *(Not convinced.)* So it's a SELECT for robots. Got it. Probably. `[l2_huddle_get_2]`
+
+## Level 3
+
+### Book huddles: UPDATE
+
+*Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches.* *(Written ahead: not in the game yet.)*
+
+**MADDISON:** *(Holding the page at arm's length.)* UPDATE. Changing things. The book's put this one in a red box, which I don't love. `[l3_huddle_update_1]`
+
+**MADDISON:** *(Suddenly serious, for once.)* Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. `[l3_huddle_update_2]`
+
+### Containment protocol Epsilon
+
+*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level number provisional until the level table is redone.* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l3_epsilon_1]`
+
+**WARDEN:** *(Even pauses between sentences, like reading a checklist.)* ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. `[l3_epsilon_2]`
+
+**WARDEN:** *(No change in tone for 'not a drill'. That's the frightening part.)* ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. `[l3_epsilon_3]`
+
+**WARDEN:** *(Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.)* REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. `[l3_epsilon_loop]`

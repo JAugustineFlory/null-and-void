@@ -16,6 +16,26 @@ SYSOP is **text only**. It never gets a voice line, so Vale's actor can't give t
 - **Knows the building.** Room names, table names, which controller sticks, where the vents go. Vale built these systems.
 - **Goes quiet when WARDEN is watching.** While WARDEN is active nearby (a lockdown, a camera on the players, a WARDEN line playing), SYSOP waits, or cuts off mid-message with `--` and comes back later.
 
+## When SYSOP notices the crew are beginners (approved 2026-10-20)
+
+Once per run, at the first plain beginner's slip under pressure from the Level 2 lab escape onward (a query with no FROM, a typo like `FORM`, or a hint's explanation line pasted along with the query), SYSOP stops and changes gear:
+
+```
+[SYSOP]: wait.
+[SYSOP]: you've never done this before. any of you.
+[SYSOP]: ok. that's fine. we go slower.
+```
+
+From then on SYSOP is more patient: one step per line, one plain "why" per hint, and `good. that's it.` as its top praise. It never says "easy", "simple" or "just", and it still goes quiet around WARDEN. Before: `exit's controller is zone A, status 'fault'. two conditions, join them with AND.` After:
+
+```
+[SYSOP]: you need the controller that matches two things.
+[SYSOP]: first: zone A. second: status 'fault'.
+[SYSOP]: put AND between them so both have to be true.
+```
+
+It holds up after the reveal: Vale has just realised the people she's steering out are amateurs, and she has no one else.
+
 ## Hint rules (from the puzzle guidance)
 
 - The **first hint is the exact query**, with each keyword explained in a few words.
