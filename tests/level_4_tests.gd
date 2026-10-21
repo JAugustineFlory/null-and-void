@@ -51,6 +51,17 @@ func _last_hint_query(p: Puzzle) -> String:
 	return h.substr(from, h.find("[/color]") - from).strip_edges()
 
 
+## Every query a hint says to type (its white lines).
+func _hint_queries(h: String) -> Array:
+	var out := []
+	var at := h.find("[color=#ffffff]")
+	while at >= 0:
+		var from := at + "[color=#ffffff]".length()
+		out.append(h.substr(from, h.find("[/color]", from) - from).strip_edges())
+		at = h.find("[color=#ffffff]", from)
+	return out
+
+
 ## A level script with its puzzles built for `run_seed`, outside the tree.
 func _stations(run_seed: int) -> Node:
 	var lvl = load("res://scripts/levels/level_4.gd").new()
@@ -109,6 +120,12 @@ func test_data_every_seed() -> void:
 			if row[0] != data.target and row[3] != "on":
 				r = db3.execute("UPDATE breakers SET state = '%s' WHERE id = '%s'" % [row[3], row[0]])
 		ok_no_where = ok_no_where and lvl.reset_puzzle.matches(db3, r)
+		# Put back to 'off' rather than the word each had ('tripped'): as back, by the lamps.
+		var db3b := _fresh_db(data)
+		db3b.execute("UPDATE breakers SET state = 'on'")
+		for id in data.decoys:
+			r = db3b.execute("UPDATE breakers SET state = 'off' WHERE id = '%s'" % id)
+		ok_no_where = ok_no_where and lvl.reset_puzzle.matches(db3b, r)
 		# The tempting wrong rows: the bay's tripped breaker, the circuit name in the
 		# id's place (matches nothing), and the work order's own example.
 		var db4 := _fresh_db(data)
@@ -204,6 +221,9 @@ func test_scene() -> void:
 	wo.open_reader(p).close()
 	await _frames(3)
 	check(_game().case_info("power").get("open", false) and _game().current_todo() == level.TEXT.todo_power, "reading the work order opens the power case and sets the to-do")
+	ui.run("UPDATE breakers SET state = 'on' WHERE id = 'CB-03'")
+	await _frames(2)
+	check(not level.alarm and _said(level.maint, level.TEXT.tip_example), "copying the work order's CB-03 changes a row that was already on, and SYSOP says so")
 	ui.run("UPDATE breakers SET state = 'on' WHERE id = 'PLANT CONTROL'")
 	await _frames(2)
 	check(not level.power_back and Array(level.maint.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_zero)), "the circuit's name in the id's place changes nothing, and SYSOP says to look at the row first")
@@ -214,19 +234,28 @@ func test_scene() -> void:
 		"no WHERE: every breaker flips, the alarm goes, the bay stirs, and the to-do says to put them back")
 	check(level.lights["L10-BAY"].all(func(l): return l.visible) and not level.bay_door.is_open and level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-BAY'")[0]["locked"] == 1, "the bay lights up behind its door, which stays shut")
 	check(level.power_back and Array(level.maint.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_no_where)), "the control room gets its power anyway, and SYSOP explains what no WHERE did")
-	for row in data.breakers:
-		if row[0] != data.target and row[3] != "on":
-			ui.run("UPDATE breakers SET state = '%s' WHERE id = '%s'" % [row[3], row[0]])
+	# While the alarm sounds, .hint is the put-back ladder; its last tier stops it.
+	var h1: String = level.maint.next_hint()
+	level.maint.next_hint()
+	var fixes := _hint_queries(level.maint.next_hint())
+	check(h1.contains("SET state = 'off' WHERE id = '?'") and fixes.size() == data.decoys.size(), "during the alarm the hints are for putting the others back, ending on one UPDATE per breaker (%d)" % fixes.size())
+	ui.run(fixes[0])
+	await _frames(2)
+	check(level.alarm and _hint_queries(level.maint.next_hint()).size() == data.decoys.size() - 1, "one back isn't all: the alarm goes on, and the last hint lists only the rest")
+	# The rest back to 'off', not the words they had: the lamps can't tell, nor can the panel.
+	for id in data.decoys:
+		ui.run("UPDATE breakers SET state = 'off' WHERE id = '%s'" % id)
 	await _frames(5)
-	check(not level.alarm and not level.bay_powered and level.reset_puzzle.solved, "with the others put back one WHERE at a time, the alarm stops and the reset passes")
+	check(not level.alarm and not level.bay_powered and level.reset_puzzle.solved and level.put_back_puzzle.solved, "with the others put back one WHERE at a time (to 'off'), the alarm stops and the reset passes")
+	check(_game().current_todo() == level.TEXT.todo_check, "the to-do asks for the read-back")
 	await _frames(90)
 	check(level.ctrl_door.is_open and level.lights["L10-CTRL"].all(func(l): return l.visible), "the control room's lights are on and its door has opened")
 	# Read back: the sign-off.
 	ui.run("SELECT state FROM breakers WHERE id = '%s'" % data.bay_breaker)
 	check(not level.check_puzzle.solved, "reading back the wrong breaker doesn't sign it off")
-	ui.run("SELECT * FROM breakers WHERE id = '%s'" % data.target)
+	ui.run("SELECT * FROM breakers")
 	await _frames(2)
-	check(level.check_puzzle.solved and _game().case_info("power").get("solved", false) and _game().case_info("power").how.contains(data.target), "reading tonight's breaker back signs off the work order, and the power case names it")
+	check(level.check_puzzle.solved and _game().case_info("power").get("solved", false) and _game().case_info("power").how.contains(data.target), "reading the panel back, tonight's breaker on, signs off the work order, and the power case names it")
 	# The control room: the contractor log.
 	ui.terminal = level.controller
 	var board: Node = _doc(level, "Contractor log")

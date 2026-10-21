@@ -220,6 +220,14 @@ const PUZZLES := {
 		"teaches": ["UPDATE", "SET", "breakers", "state"],
 		"needs": ["UPDATE", "SET", "WHERE", "breakers", "state", "id"],
 	},
+	# Only after a forgotten WHERE, while the alarm sounds: the others back, one WHERE
+	# at a time, as their tags say (practised safely: loud, never dangerous).
+	"put_back": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["note"],
+		"needs": ["UPDATE", "SET", "WHERE", "breakers", "state", "id", "note"],
+	},
 	# The work order's sign-off: read the breaker back (verify after write, safely).
 	"check": {
 		"level": 4,

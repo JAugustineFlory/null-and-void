@@ -65,6 +65,7 @@ const TEXT := {
 	"todo_power": "Get the power back on in door and lift control",
 	"todo_login": "Log the crew in before touching the controller",
 	"todo_put_back": "Put the other breakers back the way they were",
+	"todo_check": "Read the breaker back for the work order's sign-off",
 	"case_power": "Why is door and lift control dark?",
 	"case_login": "How do contractors get onto the controller?",
 	"power_done": "Facilities' work order: the PLANT CONTROL breaker, %s, was tripped. Reset, and read back as on.",
@@ -110,12 +111,13 @@ const TEXT := {
 	"gates_fixed": "FRONT DESK: main_entrance IS A FIXED GATE. IT CAN'T BE REMOVED.",
 	# SYSOP tips (text only, never lies; each fires once per run).
 	"tip_first": "the breakers are rows. the work order names a circuit. find its row first, then change only that one.",
-	"tip_no_where": "that changed every row. UPDATE without WHERE does that. put the others back the same way, one WHERE at a time.",
+	"tip_no_where": "that changed more than one row: with no WHERE, or a WHERE that matches several, UPDATE changes them all. put them back one WHERE at a time: breakers whose tags say to leave them off go back to 'off', the rest to 'on'.",
+	"tip_example": "that's CB-03, last month's job for the riser fans. it was already on, so nothing you'd see changed. tonight's breaker is the circuit the work order names.",
 	"tip_zero": "0 rows changed: your WHERE matched nothing. look at the row first: SELECT * FROM breakers;",
 	"tip_verify": "the terminal said it changed. did it? read it back.",
 	"tip_order": "that row went in, but its values are in the wrong columns. they line up with the columns you named: company, job, time_in.",
 	"tip_count": "the log has four columns and log_no fills itself in. name the three you're filling: (company, job, time_in).",
-	"tip_quotes": "a word without 'quotes' reads as a column name. put every value in single quotes.",
+	"tip_quotes": "a word without 'quotes' reads as a column name. text goes in single quotes, like the clipboard says.",
 }
 ## Facilities' work order on the maintenance desk: where UPDATE ... SET ... WHERE is
 ## found. Its example is last month's job on another breaker, so copying it practises
@@ -295,6 +297,7 @@ var tips_sent := {}
 ## Puzzle stations. Built with the data (the breaker and the job vary per run).
 ## Ladder A for each: the shape with the value as ?, how to find it, the exact query.
 var reset_puzzle: StatePuzzle
+var put_back_puzzle: StatePuzzle
 var check_puzzle: Puzzle
 var login_puzzle: StatePuzzle
 var main_doors_puzzle: StatePuzzle
@@ -369,10 +372,12 @@ func _make_puzzles() -> void:
 	var t: String = data.target
 	var expected := PackedStringArray()
 	for r in data.breakers:
-		expected.append("('%s', '%s')" % [r[0], "on" if r[0] == t else r[3]])
+		expected.append("('%s', %d)" % [r[0], 1 if r[0] == t or r[3] == "on" else 0])
+	# Compared as the lamps show it, on or not on: a tagged breaker put back to 'off'
+	# is as back as one put back to 'tripped' (the crew can't see the word it had).
 	reset_puzzle = StatePuzzle.new("reset", "UPDATE breakers SET state = 'on' WHERE id = '%s'" % t,
-		"SELECT id, state FROM breakers",
-		"SELECT column1 AS id, column2 AS state FROM (VALUES %s)" % ", ".join(expected), ["id", "state"], [
+		"SELECT id, (state = 'on') AS lit FROM breakers",
+		"SELECT column1 AS id, column2 AS lit FROM (VALUES %s)" % ", ".join(expected), ["id", "lit"], [
 		"the shape, with the breaker left as ?:\n" +
 		"    [color=#ffffff]UPDATE breakers SET state = 'on' WHERE id = '?';[/color]\n" +
 		"  UPDATE breakers   change rows in the breakers table\n" +
@@ -386,6 +391,18 @@ func _make_puzzles() -> void:
 		"then check it took.",
 	])
 	reset_puzzle.case_id = "power"
+	# While the alarm sounds: put the others back. Listed first at the plant terminal,
+	# solved whenever no breaker but tonight's differs from the panel's (on or not on).
+	var lit_before := PackedStringArray()
+	for r in data.breakers:
+		if r[0] != t:
+			lit_before.append("('%s', %d)" % [r[0], int(r[3] == "on")])
+	put_back_puzzle = StatePuzzle.new("put_back", "",
+		"SELECT id, (state = 'on') AS lit FROM breakers WHERE id != '%s'" % t,
+		"SELECT column1 AS id, column2 AS lit FROM (VALUES %s)" % ", ".join(lit_before), ["id", "lit"], [])
+	put_back_puzzle.solved = true
+	put_back_puzzle.case_id = "power"
+	_put_back_hints()
 	# Verify after write, practised: the breaker read back, once it's been reset.
 	# The whole panel read back (its id and state shown) answers it too.
 	check_puzzle = Puzzle.new("check", "SELECT state FROM breakers WHERE id = '%s'" % t, ["state"], false, [
@@ -397,7 +414,7 @@ func _make_puzzles() -> void:
 		"the work order's sign-off wants the state you read, not the one you typed. ? is the id from your UPDATE.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT state FROM breakers WHERE id = '%s';[/color]\n" % t +
-		"it should say on. write that on the work order.",
+		"it should say on. that's the read-back the sign-off wants.",
 	])
 	check_puzzle.accept_also("SELECT id, state FROM breakers WHERE id = '%s'" % t, ["id", "state"], false)
 	check_puzzle.case_id = "power"
@@ -410,8 +427,8 @@ func _make_puzzles() -> void:
 		"  INSERT INTO contractor_log   add a new row to the contractor log\n" +
 		"  (company, job, time_in)   the columns you're filling. log_no fills itself in\n" +
 		"  VALUES (...)   the new row's values, in the same order as those columns\n" +
-		"  '...'   every value in single quotes\n" +
-		"the first ? is your work order's number. the second ? is the time on the clock over this room's door.",
+		"  '...'   each value here is text, so it goes in single quotes\n" +
+		"the first ? is your own work order's number (Byte-Right's, in your notebook). the second ? is the time on the clock over this room's door.",
 		"open your notebook (Tab): the work order's number is printed at the top, WO- and five digits. the clock over the door reads hours:minutes.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES %s;[/color]\n" % who +
@@ -555,7 +572,7 @@ func _build_hall(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(-6, 0.5, 1.6), Vector3(2.4, 1.0, 0.8), Color(0.4, 0.38, 0.34), "MaintDesk")
 	maint = Terminal.spawn(geo, Vector3(-6.5, 1.0, 1.6), 0, "PLANT MAINT", db, terminal_ui)
 	maint.name = "MaintTerminal"
-	maint.puzzles = [reset_puzzle, check_puzzle, gantry_puzzle]
+	maint.puzzles = [put_back_puzzle, reset_puzzle, check_puzzle, gantry_puzzle]
 	maint.boot_lines = [
 		"HALCYON FACILITIES  -  PLANT 10  -  MAINTENANCE",
 		"Breaker panel: breakers. One row per breaker box.",
@@ -690,7 +707,7 @@ func start() -> void:
 # --- Terminals -------------------------------------------------------------------
 
 func puzzles() -> Array:
-	return [reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle, gantry_puzzle, entrance_puzzle, verify_puzzle]
+	return [put_back_puzzle, reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle, gantry_puzzle, entrance_puzzle, verify_puzzle]
 
 
 ## The floor's rule in front of every write (GuardedDB): no door writes before a
@@ -716,7 +733,7 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 		if not reset_puzzle.solved and reset_puzzle.matches(db, result):
 			sync.event("_on_solved", ["reset"])
 		# Read back after the reset: the sign-off.
-		elif reset_puzzle.solved and not check_puzzle.solved and changed == 0 and check_puzzle.matches(db, result):
+		elif reset_puzzle.solved and not check_puzzle.solved and changed == 0 and (check_puzzle.matches(db, result) or _reads_target_on(result)):
 			sync.event("_on_solved", ["check"])
 	elif which == "controller":
 		if not login_puzzle.solved and login_puzzle.matches(db, result):
@@ -746,10 +763,23 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	_tip_if(which == "maint", "first", which)
 	var is_update := lower.strip_edges().begins_with("update")
 	var is_insert := lower.strip_edges().begins_with("insert")
-	_tip_if(is_update and changed == 0 and result.get("ok", false), "zero", which)
-	_tip_if(is_update and lower.contains("breakers") and not lower.contains("where") and changed > 1, "no_where", which)
+	var on_breakers := is_update and lower.contains("breakers")
+	_tip_if(on_breakers and changed == 0 and result.get("ok", false), "zero", which)
+	_tip_if(on_breakers and changed > 1, "no_where", which)
+	_tip_if(on_breakers and changed == 1 and lower.contains("cb-03") and data.target != "CB-03", "example", which)
 	_tip_if(which == "maint" and reset_puzzle.solved and not check_puzzle.solved and changed > 0, "verify", which)
 	_tip_if(is_insert and lower.contains("contractor_log") and changed > 0 and not login_puzzle.solved and _ticket_in_wrong_column(), "order", which)
+
+
+## A read of the panel that shows tonight's breaker on (the whole panel, say): that's
+## reading it back, as much as a one-row SELECT is.
+func _reads_target_on(result: Dictionary) -> bool:
+	if not result.get("ok", false):
+		return false
+	for row in result.get("rows", []):
+		if str(row.get("id", "")) == data.target and str(row.get("state", "")) == "on":
+			return true
+	return false
 
 
 ## A ticket number in the log's company or time column: the values went in out of order.
@@ -1243,17 +1273,22 @@ func _breakers_changed() -> void:
 	var bay_on := false
 	for row in db.run_silent("SELECT id, state FROM breakers"):
 		var id := str(row["id"])
-		if id != data.target and str(row["state"]) != str(data.start_states.get(id, "")):
+		if id != data.target and (str(row["state"]) == "on") != (str(data.start_states.get(id, "")) == "on"):
 			wrong = true
 		if id == data.bay_breaker and str(row["state"]) == "on":
 			bay_on = true
+	_put_back_hints()
 	if wrong != alarm:
 		alarm = wrong
+		put_back_puzzle.solved = not alarm
+		put_back_puzzle.hint_index = 0
 		hud.notice(TEXT.alarm if alarm else TEXT.alarm_over, 5.0, ThemeUtil.RED if alarm else ThemeUtil.AMBER)
 		if alarm:
 			hud.todo(TEXT.todo_put_back)
 		elif not power_back:
 			hud.todo(TEXT.todo_power)
+		elif not check_puzzle.solved:
+			hud.todo(TEXT.todo_check)
 		elif not logged_in:
 			hud.todo(TEXT.todo_login)
 		else:
@@ -1267,6 +1302,30 @@ func _breakers_changed() -> void:
 	# power; the station passes once the rest are back as well.
 	if not power_back and not db.run_silent("SELECT 1 FROM breakers WHERE id = '%s' AND state = 'on'" % data.target).is_empty():
 		_restore_power()
+
+
+## The put-back station's ladder, kept up to date with the panel: its last tier is the
+## exact UPDATE for each breaker that's still not as it was (on, or not on).
+func _put_back_hints() -> void:
+	var fixes := PackedStringArray()
+	if db:  # (none yet when tests build the stations outside the tree)
+		for row in db.run_silent("SELECT id, state FROM breakers"):
+			var id := str(row["id"])
+			var was_on: bool = str(data.start_states.get(id, "")) == "on"
+			if id != data.target and (str(row["state"]) == "on") != was_on:
+				fixes.append("    [color=#ffffff]UPDATE breakers SET state = '%s' WHERE id = '%s';[/color]" % ["on" if was_on else "off", id])
+	put_back_puzzle.hints = [
+		"the shape, with the breaker left as ?:\n" +
+		"    [color=#ffffff]UPDATE breakers SET state = 'off' WHERE id = '?';[/color]\n" +
+		"  UPDATE breakers   change rows in the breakers table\n" +
+		"  SET state = 'off'   the state column becomes 'off'\n" +
+		"  WHERE id = '?'   only that one breaker\n" +
+		"? is each breaker whose tag says to leave it off, one at a time.",
+		"type\n" +
+		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
+		"and read the note column: the tags say which ones stay off. tonight's breaker stays on.",
+		"type these, one at a time, then Enter after each:\n" + "\n".join(fixes),
+	]
 
 
 func _show_lamps() -> void:
@@ -1288,7 +1347,7 @@ func _restore_power() -> void:
 	db.sync_world()
 	hud.notice(TEXT.power_back, 5.0)
 	if not alarm and not check_puzzle.solved:
-		hud.todo("")
+		hud.todo(TEXT.todo_check)
 
 
 func on_player_died() -> void:
