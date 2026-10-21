@@ -991,8 +991,9 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	_tip_if(true, "first")
 	_tip_if(result.get("error", "") != "", "error")
 	# The slips listed instead of counted (review of COUNT, as 14's sign-off put it).
-	_tip_if(not fresh and not slips_puzzle.solved and lower.contains("retrieval_slips") and not lower.contains("count(")
-		and not rows.is_empty(), "count")
+	# Not once Mercer's note has asked the slips a different question: the key's box.
+	_tip_if(not fresh and not note_read and not slips_puzzle.solved and lower.contains("retrieval_slips")
+		and not lower.contains("count(") and not rows.is_empty(), "count")
 	_tip_if(RegEx.create_from_string("=\\s*null").search(lower) != null, "null")
 	_tip_if(lower.contains("access_log") and rows.size() > TerminalUI.MAX_ROWS_SHOWN, "log")
 	_tip_if(lower.contains("access_log") and lower.contains("group by") and lower.contains("desc") and not lower.contains(Level3Data.NIGHT)

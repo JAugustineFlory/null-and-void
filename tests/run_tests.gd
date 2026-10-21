@@ -4291,6 +4291,12 @@ func test_level_3_safe_room() -> void:
 	await _frames(3)
 	check(not p.inventory.has("stair_key") and not level.key_taken and level.key_dock.get_prompt(p) == level.TEXT.box_taped, "after the note but before the query, the key box is still taped")
 	level.terminal_ui.terminal = level.desk
+	# The note has asked the slips a different question, so listing them (the key
+	# ladder's own advice) gets no "you've counted before" from SYSOP.
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	check(not level.slips_puzzle.solved and not Array(level.desk.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count)),
+		"with Mercer's note read, listing the slips gets no COUNT reminder: the key's question comes first")
 	level.terminal_ui.run(level.unreturned_puzzle.solution_sql)
 	await _frames(3)
 	check(level.unreturned_puzzle.solved and level.boxes_named and not level.key_dock.tape.visible and level.key_dock.get_prompt(p) == "[E] " + level.TEXT.box_tear % level.data.key_box, "the IS NULL query names the box: its tape comes off and it can be torn open")
