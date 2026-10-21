@@ -23,7 +23,11 @@ func _init() -> void:
 ## A box centred at `center`, turned `yaw_deg` about the vertical. `skip` lists
 ## faces nobody sees ("bottom", "top", "-x", "+x", "-z", "+z").
 func box(center: Vector3, size: Vector3, color: Color, yaw_deg := 0.0, skip: Array = []) -> void:
-	var b := Basis(Vector3.UP, deg_to_rad(yaw_deg))
+	oriented_box(center, size, color, Basis(Vector3.UP, deg_to_rad(yaw_deg)), skip)
+
+
+## A box turned any way (`b`'s axes are its width, height and depth directions).
+func oriented_box(center: Vector3, size: Vector3, color: Color, b: Basis, skip: Array = []) -> void:
 	var h := size / 2.0
 	var x := b.x * h.x
 	var y := b.y * h.y

@@ -1,0 +1,2 @@
+- **Fixed:** people no longer stoop forward when they stand still; they stand up straight.
+- **Changed:** the garage has a real fax machine, and its van is the same Byte-Right van you ride to work in.

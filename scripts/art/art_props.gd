@@ -522,6 +522,64 @@ static func dot_matrix_printer(parent: Node, pos: Vector3, facing_deg: float = 0
 	return root
 
 
+## A 90s plain-paper fax with a handset: warm grey shell, a sloping keypad with
+## its LCD, the paper feeder at the back with a stack of sheets, and the end of
+## the last fax curling out of the front slot. One mesh. `pos` is on the desk top
+## under its middle; it faces -Z (about 0.4 wide, 0.44 deep).
+static func fax_machine(parent: Node, pos: Vector3, facing_deg: float = 0.0) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "FaxMachine")
+	var m := ArtMesh.new()
+	var shell := Color(0.8, 0.78, 0.72)
+	var dark := Color(0.2, 0.2, 0.22)
+	var key := Color(0.88, 0.87, 0.83)
+	var paper := Color(0.95, 0.95, 0.91)
+	# Body: the low front, the taller printer hump behind, rubber feet.
+	m.box(Vector3(0.02, 0.05, -0.06), Vector3(0.36, 0.1, 0.3), shell, 0.0, ["bottom"])
+	m.box(Vector3(0.02, 0.08, 0.13), Vector3(0.36, 0.16, 0.14), shell, 0.0, ["bottom"])
+	for x in [-0.14, 0.18]:
+		for z in [-0.18, 0.16]:
+			m.box(Vector3(x, 0.004, z), Vector3(0.03, 0.008, 0.03), dark)
+	# The control panel, sloping up to the hump: LCD, a 3 x 4 keypad, Start and Stop.
+	var slope := Basis(Vector3.RIGHT, deg_to_rad(-22.0))
+	var panel := Vector3(0.05, 0.118, -0.03)
+	m.oriented_box(panel, Vector3(0.26, 0.014, 0.12), shell.darkened(0.08), slope)
+	m.oriented_box(panel + slope * Vector3(-0.05, 0.008, 0.03), Vector3(0.11, 0.004, 0.028), Color(0.52, 0.6, 0.48), slope)  # the LCD
+	for r in 4:
+		for c in 3:
+			m.oriented_box(panel + slope * Vector3(0.035 + c * 0.024, 0.009, -0.035 + r * 0.02), Vector3(0.018, 0.006, 0.013), key, slope)
+	m.oriented_box(panel + slope * Vector3(-0.09, 0.009, -0.025), Vector3(0.03, 0.006, 0.018), Color(0.25, 0.6, 0.3), slope)  # Start
+	m.oriented_box(panel + slope * Vector3(-0.05, 0.009, -0.025), Vector3(0.03, 0.006, 0.018), Color(0.7, 0.2, 0.18), slope)  # Stop
+	# The handset in its cradle on the left, with a coiled cord into the side.
+	m.box(Vector3(-0.17, 0.1, -0.02), Vector3(0.09, 0.012, 0.3), shell.darkened(0.1))  # cradle
+	m.box(Vector3(-0.17, 0.125, -0.02), Vector3(0.05, 0.03, 0.2), dark)  # the grip
+	for end in [-1.0, 1.0]:
+		m.box(Vector3(-0.17, 0.122, -0.02 + end * 0.11), Vector3(0.065, 0.035, 0.06), dark)  # ear and mouthpiece
+	for k in 7:
+		var a := float(k) * 0.9
+		m.rod(Vector3(-0.205, 0.07 + sin(a) * 0.012, 0.06 + k * 0.012), Vector3(-0.205, 0.07 + sin(a + 0.9) * 0.012, 0.072 + k * 0.012), 0.005, dark, 4)
+	# The feeder at the back, leaning away, with sheets in it and its guides.
+	var lean := Basis(Vector3.RIGHT, deg_to_rad(-62.0))
+	var tray := Vector3(0.04, 0.2, 0.24)
+	m.oriented_box(tray, Vector3(0.3, 0.008, 0.2), dark, lean)
+	m.oriented_box(tray + lean * Vector3(0, 0.008, 0.01), Vector3(0.21, 0.006, 0.18), paper, lean)
+	for x in [-0.115, 0.115]:
+		m.oriented_box(tray + lean * Vector3(x, 0.018, 0), Vector3(0.008, 0.03, 0.18), dark, lean)
+	# The output slot and the end of the last fax, curling out over the front.
+	m.box(Vector3(0.02, 0.07, -0.211), Vector3(0.26, 0.012, 0.004), Color(0.05, 0.05, 0.05))
+	var curl := [Vector3(0, 0.07, -0.214), Vector3(0, 0.06, -0.25), Vector3(0, 0.035, -0.275), Vector3(0, 0.012, -0.28)]
+	for i in curl.size() - 1:
+		var a: Vector3 = curl[i] + Vector3(0.02, 0, 0)
+		var b: Vector3 = curl[i + 1] + Vector3(0.02, 0, 0)
+		var mid := (a + b) / 2.0
+		var along := (b - a)
+		var normal := Vector3(1, 0, 0).cross(along).normalized()
+		m.plate(mid, Vector3(0.11, 0, 0), along / 2.0, paper)
+		m.plate(mid - normal * 0.0005, Vector3(-0.11, 0, 0), along / 2.0, paper)
+	m.box(Vector3(-0.08, 0.06, -0.212), Vector3(0.05, 0.012, 0.003), Color(0.25, 0.45, 0.7))  # the maker's badge
+	m.commit(root, "Mesh", true, 0.6)
+	return root
+
+
 ## A wooden cable drum, lying on its side with blue network cable wound on it.
 ## For a Greybox spool box: `pos` is the floor under its middle; visual only.
 static func cable_drum(parent: Node, pos: Vector3, facing_deg: float, radius := 0.4, width := 0.7) -> Node3D:

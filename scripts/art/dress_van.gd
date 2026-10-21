@@ -10,13 +10,17 @@ const SEAT_FABRIC := Color(0.17, 0.18, 0.21)
 
 
 ## `center` is the van's middle at ground level, as Level 0's _build_van gets it.
-static func apply(level: LevelBase, center: Vector3) -> void:
+## The garage's van (home_base.gd) is the same van from its other side: its
+## sliding door is on the left (`slide_side` -1), and its greybox has no front
+## doors or wheels, so those are drawn on.
+static func apply(level: LevelBase, center: Vector3, slide_side := 1.0) -> void:
 	var geo := level.geo
 	var root := Node3D.new()
 	root.name = "Van"
 	root.position = center
 	ArtDress.dressing_root(level).add_child(root)
 	var zone := AABB(center + Vector3(-1.45, -0.2, -2.8), Vector3(2.9, 3.2, 5.6))
+	var floor_y := 0.5
 	var paint := ArtPalette.flat(PAINT, 0.35, 0.15)
 	var rubber := ArtPalette.flat(Color(0.06, 0.06, 0.065), 0.9)
 	var trim := ArtPalette.flat(Color(0.12, 0.12, 0.13), 0.6, 0.2)
@@ -33,18 +37,32 @@ static func apply(level: LevelBase, center: Vector3) -> void:
 			for mi in door.get_children():
 				if mi is MeshInstance3D:
 					mi.material_override = paint
-	# Round wheels with hubcaps in place of the greybox blocks.
+	# Round wheels with hubcaps in place of the greybox blocks (or where they'd be).
+	var wheel_spots: Array[Vector3] = []
 	for wheel in wheels(geo, center):
-			for mi in wheel.get_children():
-				if mi is MeshInstance3D:
-					mi.visible = false
-			var side := signf(wheel.position.x - center.x)
-			var at := wheel.position - center + Vector3(side * 0.08, 0.09, 0)  # proud of the chassis
-			var tyre := _cylinder(root, 0.34, 0.3, at, rubber)
-			tyre.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-			_cylinder(root, 0.17, 0.02, at + Vector3(side * 0.16, 0, 0), chrome)
+		for mi in wheel.get_children():
+			if mi is MeshInstance3D:
+				mi.visible = false
+		wheel_spots.append(wheel.position - center)
+	if wheel_spots.is_empty():
+		for dx in [-1.15, 1.15]:
+			for dz in [-1.7, 1.5]:
+				wheel_spots.append(Vector3(dx, 0.25, dz))
+	for spot in wheel_spots:
+		var side := signf(spot.x)
+		var at := spot + Vector3(side * 0.08, 0.09, 0)  # proud of the chassis
+		var tyre := _cylinder(root, 0.34, 0.3, at, rubber)
+		tyre.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		_cylinder(root, 0.17, 0.02, at + Vector3(side * 0.16, 0, 0), chrome)
+	# Front doors: a van with none in its greybox gets their seams and handles.
+	if level.get("van_doors") == null:
+		for sx in [-1.0, 1.0]:
+			var x: float = sx * 1.312
+			for z in [-1.95, -1.05]:
+				ArtDress.trim(root, Vector3(x, floor_y + 0.95, z), Vector3(0.012, 1.9, 0.015), trim)
+			ArtDress.trim(root, Vector3(x, floor_y + 1.9, -1.5), Vector3(0.012, 0.015, 0.9), trim)
+			ArtDress.trim(root, Vector3(sx * 1.318, floor_y + 0.95, -1.18), Vector3(0.02, 0.04, 0.12), chrome)
 	# Hide the greybox seat blocks and dashboard; real ones go in below.
-	var floor_y := 0.5
 	for mi in geo.get_children():
 		if mi is MeshInstance3D and zone.has_point(mi.position) and mi.position.y < center.y + floor_y + 1.0:
 			mi.visible = false
@@ -72,9 +90,9 @@ static func apply(level: LevelBase, center: Vector3) -> void:
 	var navy := ArtPalette.flat(ArtPalette.BYTERIGHT_BLUE, 0.5)
 	# Solid wall only: behind the driver door on the left; between the passenger
 	# door and the sliding door, and behind the sliding door, on the right.
-	ArtDress.trim(root, Vector3(-1.315, 1.3, 0.575), Vector3(0.01, 0.12, 3.25), navy)
-	ArtDress.trim(root, Vector3(1.315, 1.3, -0.8), Vector3(0.01, 0.12, 0.5), navy)
-	ArtDress.trim(root, Vector3(1.315, 1.3, 1.475), Vector3(0.01, 0.12, 1.45), navy)
+	ArtDress.trim(root, Vector3(-slide_side * 1.315, 1.3, 0.575), Vector3(0.01, 0.12, 3.25), navy)
+	ArtDress.trim(root, Vector3(slide_side * 1.315, 1.3, -0.8), Vector3(0.01, 0.12, 0.5), navy)
+	ArtDress.trim(root, Vector3(slide_side * 1.315, 1.3, 1.475), Vector3(0.01, 0.12, 1.45), navy)
 	var side_door := level.get("side_door") as Node3D
 	if side_door:
 		ArtDress.trim(side_door, Vector3(0.06, 0.8, 0), Vector3(0.01, 0.12, 1.3), navy)
