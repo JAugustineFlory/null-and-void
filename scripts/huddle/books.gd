@@ -12,7 +12,9 @@ extends RefCounted
 ##
 ## Floor 18's chapters (One of each, Counting in piles) were approved word for word
 ## on 2026-10-21: pages and questions at 11:44Z, their `why` lines
-## (plan/teaching/easy-sql-whys.md) at 11:49Z.
+## (plan/teaching/easy-sql-whys.md) at 11:49Z. Curriculum B (12:12Z): LIMIT joins
+## Newest first, and COUNT(*) moved word for word from Counting in piles into its
+## own chapter, How many?, for floor 14.
 ##
 ## Chapter ids never change once shipped: profiles keep "chapter:<id>". The number
 ## shown is the chapter's place in the list, so a chapter added in the middle
@@ -159,10 +161,11 @@ const BOOKS := {
 				"title": "Newest first",
 				"when": "L0, last_visitor, optional",
 				"required": false,
-				"words": ["DESC"],
+				"words": ["DESC", "LIMIT"],
 				"lines": [],
 				"pages": [
 					"DESC\n\nAdd DESC after ORDER BY's column to flip it: biggest first, latest first.",
+					"LIMIT\n\nLIMIT and a number, at the very end, keeps only that many rows from the top.\n\nWith ORDER BY and DESC first, LIMIT 3 gives you the newest three.",
 				],
 				"quiz": [
 					{"word": "DESC", "q": "ORDER BY fee DESC puts which first?",
@@ -171,6 +174,12 @@ const BOOKS := {
 						"options": ["before ORDER BY", "after the column name in ORDER BY", "after the ;"], "answer": 1, "why": ""},
 					{"word": "DESC", "q": "To see the latest times first you add...",
 						"options": ["DESC", "LAST", "nothing"], "answer": 0, "why": ""},
+					{"word": "LIMIT", "q": "SELECT * FROM jobs ORDER BY fee DESC LIMIT 3; shows...",
+						"options": ["every job except three", "the three smallest fees", "the three biggest fees"], "answer": 2, "why": "DESC puts the biggest fee on top, and LIMIT 3 keeps the top three."},
+					{"word": "LIMIT", "q": "Where does LIMIT go?",
+						"options": ["at the very end, just before the ;", "straight after SELECT", "before ORDER BY"], "answer": 0, "why": "LIMIT comes last, after ORDER BY, right before the ;."},
+					{"word": "LIMIT", "q": "With no ORDER BY, LIMIT 2 gives...",
+						"options": ["the two newest rows", "the first two rows, in saved order", "an error"], "answer": 1, "why": "LIMIT keeps rows from the top. With no ORDER BY, the top is whatever was saved first."},
 				],
 			},
 			{
@@ -275,6 +284,25 @@ const BOOKS := {
 						"options": ["both are true", "at least one is true", "neither is true"], "answer": 1, "why": ""},
 					{"word": "OR", "q": "AND or OR to find jobs in Ashford or Bexley?",
 						"options": ["AND", "OR", "neither"], "answer": 1, "why": ""},
+				],
+			},
+			{
+				"id": "easy_sql_count",
+				"title": "How many?",
+				"when": "L1, the reset sign-off form, count",
+				"required": false,
+				"words": ["COUNT(*)"],
+				"lines": [],
+				"pages": [
+					"COUNT(*)\n\nSELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves.\n\nAdd a WHERE and it counts only the rows that match.",
+				],
+				"quiz": [
+					{"word": "COUNT(*)", "q": "SELECT COUNT(*) FROM jobs; with 12 jobs shows...",
+						"options": ["all 12 jobs", "the last job", "one number: 12"], "answer": 2, "why": "COUNT(*) doesn't show the rows. It counts them and gives one number."},
+					{"word": "COUNT(*)", "q": "SELECT COUNT(*) FROM jobs WHERE status = 'unpaid'; counts...",
+						"options": ["only the unpaid jobs", "every job", "the unpaid fees, added up"], "answer": 0, "why": "WHERE picks the rows first, and COUNT(*) counts only those. It counts rows, not fees."},
+					{"word": "COUNT(*)", "q": "COUNT(*) goes...",
+						"options": ["after the table name", "after SELECT, where the columns go", "after WHERE"], "answer": 1, "why": "COUNT(*) sits where the columns go, right after SELECT."},
 				],
 			},
 			{
@@ -417,19 +445,12 @@ const BOOKS := {
 				"title": "Counting in piles",
 				"when": "L3, the reader tally sheet, tally",
 				"required": false,
-				"words": ["COUNT(*)", "GROUP BY"],
+				"words": ["GROUP BY"],
 				"lines": [],
 				"pages": [
-					"COUNT(*)\n\nSELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves.\n\nAdd a WHERE and it counts only the rows that match.",
 					"GROUP BY\n\nGROUP BY sorts the rows into piles, one pile for each different value in a column. It goes after the table name and any WHERE.\n\nWith COUNT(*), you get one line per pile and how many are in it. Put the column in SELECT too, so you can see which pile is which.\n\nPiles come out in any order. ORDER BY COUNT(*) DESC puts the biggest pile first.",
 				],
 				"quiz": [
-					{"word": "COUNT(*)", "q": "SELECT COUNT(*) FROM jobs; with 12 jobs shows...",
-						"options": ["all 12 jobs", "the last job", "one number: 12"], "answer": 2, "why": "COUNT(*) doesn't show the rows. It counts them and gives one number."},
-					{"word": "COUNT(*)", "q": "SELECT COUNT(*) FROM jobs WHERE status = 'unpaid'; counts...",
-						"options": ["only the unpaid jobs", "every job", "the unpaid fees, added up"], "answer": 0, "why": "WHERE picks the rows first, and COUNT(*) counts only those. It counts rows, not fees."},
-					{"word": "COUNT(*)", "q": "COUNT(*) goes...",
-						"options": ["after the table name", "after SELECT, where the columns go", "after WHERE"], "answer": 1, "why": "COUNT(*) sits where the columns go, right after SELECT."},
 					{"word": "GROUP BY", "q": "SELECT town, COUNT(*) FROM jobs GROUP BY town; shows...",
 						"options": ["one line per job", "one line per town, with how many jobs each", "one number for all the jobs"], "answer": 1, "why": "GROUP BY town makes one pile per town, and COUNT(*) counts each pile."},
 					{"word": "GROUP BY", "q": "Where does GROUP BY go?",

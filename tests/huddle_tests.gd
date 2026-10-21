@@ -59,10 +59,13 @@ func test_books() -> void:
 		for q in ch.quiz:
 			ok = ok and q.answer >= 0 and q.answer < q.options.size() and q.options.size() == 3
 			ok = ok and (ch.words.is_empty() or ch.words.has(q.word))
-	_check.call(ok and Books.chapter_ids().size() == 16, "all 16 chapters have pages and three questions for each new word (three for a review)")
-	var floor_18 := Books.book_chapter_ids("easy_sql").slice(14)
-	_check.call(floor_18 == ["easy_sql_distinct", "easy_sql_group_by"] and Books.chapter("easy_sql_distinct").number == 14 and Books.chapter("easy_sql_group_by").words == ["COUNT(*)", "GROUP BY"],
-		"floor 18's chapters follow Chapter 13, numbered by their place in the book")
+	_check.call(ok and Books.chapter_ids().size() == 17, "all 17 chapters have pages and three questions for each new word (three for a review)")
+	var ids := Books.book_chapter_ids("easy_sql")
+	_check.call(ids.slice(15) == ["easy_sql_distinct", "easy_sql_group_by"] and Books.chapter("easy_sql_distinct").number == 15 and Books.chapter("easy_sql_group_by").words == ["GROUP BY"],
+		"floor 18's chapters close the book, numbered by their place in it")
+	_check.call(ids[9] == "easy_sql_count" and Books.chapter("easy_sql_count").words == ["COUNT(*)"] and Books.chapter("easy_sql_9").number == 10,
+		"How many? (COUNT) follows Chapter 8, and the chapters after it move up one")
+	_check.call(Books.chapter("easy_sql_4").words == ["DESC", "LIMIT"], "Newest first teaches LIMIT after DESC")
 	_check.call(words_ok, "every chapter brings at most three new words")
 	var ch1 := Books.chapter("easy_sql_1")
 	_check.call(ch1.book == "EASY SQL" and ch1.words.has("SELECT") and ch1.required and not Books.chapter("easy_sql_2").required and ch1.pages[0].contains("SELECT columns FROM table;"), "chapter 1 shows the shape of a query and its semicolon")
@@ -233,7 +236,7 @@ func test_book_unlocks() -> void:
 	var ids: Array = Books.book_chapter_ids("easy_sql")
 	var n := ids.size()
 	var half := ceili(n / 2.0)
-	_check.call(n == 16, "Easy SQL has 16 chapters to count")
+	_check.call(n == 17, "Easy SQL has 17 chapters to count")
 	var me: int = h.multiplayer.get_unique_id()
 	var finish := func(id: String):
 		h._begin(id, me, [me])

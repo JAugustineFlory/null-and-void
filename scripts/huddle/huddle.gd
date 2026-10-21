@@ -352,9 +352,15 @@ func _present(mode: String) -> void:
 		await hud.fade(false, 0.6)
 
 
-## The document readers open on this machine's screen.
+## The document readers open on this machine's screen. A reader sits on the level
+## its paper is in, which in the World is a wing under this huddle's level.
 func _papers() -> Array:
-	return level.get_children().filter(func(n): return n is DocumentReader and not n.is_queued_for_deletion())
+	var found := []
+	for n in [level] + level.get_children().filter(func(c): return c.has_method("finish_level")):
+		for c in n.get_children():
+			if c is DocumentReader and not c.is_queued_for_deletion():
+				found.append(c)
+	return found
 
 
 func _dismiss() -> void:

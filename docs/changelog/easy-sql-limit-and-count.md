@@ -1,0 +1,1 @@
+- **Added:** Easy SQL teaches LIMIT in "Newest first", and has a new chapter on COUNT.
