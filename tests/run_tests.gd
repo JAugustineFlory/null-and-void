@@ -236,13 +236,17 @@ func test_level_0_puzzles() -> void:
 		visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors"))
-		for n in [2, 3, 5, 10]:
+		for n in [2, 3, 5, 10, 100]:
 			visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT %d" % n))
 		var top_one := d.execute("SELECT name, signed_in FROM visitors ORDER BY signed_in DESC LIMIT 1")
 		visitor_ok = visitor_ok and not visitor.matches(d, top_one) and l0.visitor_top_one_for().matches(d, top_one)
 		visitor_ok = visitor_ok and not l0.visitor_top_one_for().matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 2"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 5"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 2"))
+		# Stored oldest first, so these hold Vale's row too, but not at the top of the newest-first list.
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors LIMIT 5;"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in LIMIT 5;"))
+		visitor_ok = visitor_ok and d.run_silent("SELECT name FROM visitors LIMIT 5").any(func(r): return r["name"] == "VALE, I.")
 	check(caller_ok, "the caller's extension is Harold Mercer's, gone since '94; listing names beside extensions finds it, the department alone doesn't")
 	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it, the whole list or any LIMIT of 2 or more; LIMIT 1 is the near miss")
 	check(exts.size() >= 10, "the caller's extension varies between runs (%d different)" % exts.size())

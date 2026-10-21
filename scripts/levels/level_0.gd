@@ -940,7 +940,7 @@ static func visitor_puzzle_for() -> Puzzle:
 		"  DESC           biggest (newest) first\n" +
 		"  LIMIT 5        only the first 5 rows\n" +
 		"? is the column with the sign-in time.",
-		".schema visitors lists its columns. One of them holds the sign-in time. LIMIT keeps just the last few, like the sticky on the desk says.",
+		".schema visitors lists its columns. One of them holds the sign-in time. LIMIT 5 keeps the first 5 rows, and with DESC those are the newest. The sticky on the desk shows where it goes.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 5;[/color]",
 	])
