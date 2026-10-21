@@ -11,6 +11,8 @@ extends RefCounted
 ## rt.tick(delta)                    # every frame, by whoever owns the script
 ## rt.stop()                         # anyone may press Stop
 
+## The script began running (Run was pressed, on whichever machine runs it).
+signal started
 ## A line the script wrote: kind is "log", "warn" or "error".
 signal printed(text: String, kind: String)
 ## The script ended by itself (ok), failed (error is set), or was stopped (neither).
