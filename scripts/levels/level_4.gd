@@ -894,15 +894,15 @@ func _on_solved(id: String) -> void:
 			Game.open_case("power", CASES.power, ["breakers"])
 			Game.solve_case("power", TEXT.power_done % data.target)
 			if not logged_in:
-				hud.todo(TEXT.todo_login)
+				hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
 		"login":
 			Game.open_case("login", CASES.login, ["contractor_log"])
 			hud.todo(TEXT.todo_login_read)
+			_warden(["l4_signed_in"])
 		"login_read":
 			logged_in = true
 			Game.solve_case("login", TEXT.login_done % [data.company, data.ticket, data.time_in])
 			hud.todo("")
-			_warden(["l4_signed_in"])
 		"main_doors":
 			_accident()
 		"entrance":
