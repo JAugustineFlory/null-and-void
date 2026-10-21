@@ -14,13 +14,18 @@ extends Node3D
 ## The rig stands on its parent's origin and faces -Z, like CharacterBody3D.
 
 ## Upper-body actions keep the legs walking; the rest take over the whole body.
-const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike"]
-const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl"]
+const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike", "shoulder"]
+const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl", "lean", "pose"]
 const ACTIONS := UPPER_BODY + FULL_BODY
 
 ## Meters covered by one full walk cycle (two steps).
 const STRIDE := 1.5
 const WALK_SPEED := 1.9
+## Turning on the spot steps the feet round: a turn this fast (radians a
+## second) or slower doesn't move them, and above it each radian a second
+## counts as this many metres a second of walking.
+const TURN_STILL := 0.8
+const TURN_STEP := 0.3
 ## Beyond this distance from the camera the rig updates less often.
 const FAR_DISTANCE := 30.0
 ## Body heights, matching Player's collider.
@@ -55,6 +60,7 @@ var _phase := 0.0
 var _speed := 0.0
 var _t := 0.0
 var _last_pos := Vector3.ZERO
+var _last_yaw := 0.0
 var _has_last := false
 var _skip := 0
 var _skipped_delta := 0.0
@@ -133,14 +139,20 @@ func _measure_speed(delta: float) -> void:
 	if speed_override >= 0.0:
 		measured = speed_override
 	elif is_inside_tree():
-		var p := get_parent_node_3d().global_position if get_parent_node_3d() else global_position
+		var body := get_parent_node_3d() if get_parent_node_3d() else self
+		var p := body.global_position
+		var yaw := body.global_rotation.y
 		if _has_last and delta > 0.0:
 			var d := p - _last_pos
 			d.y = 0.0
 			measured = d.length() / delta
 			if measured > 20.0:  # a teleport or respawn, not a sprint
 				measured = 0.0
+			var turn := absf(wrapf(yaw - _last_yaw, -PI, PI)) / delta
+			if turn > TURN_STILL and turn < 30.0:
+				measured = maxf(measured, minf(1.2, (turn - TURN_STILL) * TURN_STEP + 0.3))
 		_last_pos = p
+		_last_yaw = yaw
 		_has_last = true
 	_speed = lerpf(_speed, measured, 1.0 - exp(-8.0 * delta))
 	_phase = fmod(_phase + delta * _speed / STRIDE * TAU, TAU)
@@ -270,6 +282,12 @@ func _action_pose(p: Dictionary) -> void:
 			p["r_elbow"] = Vector3(1.5, 0, 0)
 			p["l_shoulder"] = Vector3(0.9, 0, -0.25)
 			p["l_elbow"] = Vector3(1.2, 0, 0)
+		"shoulder":
+			# An arm around whoever stands about 0.6 m to the right, the hand
+			# resting on their far shoulder.
+			p["r_shoulder"] = Vector3(-0.45, 0, 1.45)
+			p["r_elbow"] = Vector3(0.35, 0, 0)
+			p["neck"] = Vector3(0, -0.1, 0.05)
 		"strike":
 			p["spine"] = Vector3(-0.45, -0.2, 0)
 			_sym(p, "shoulder", Vector3(1.45, 0, 0.05))
@@ -320,6 +338,25 @@ func _action_pose(p: Dictionary) -> void:
 			_sym(p, "elbow", Vector3(0.1, 0, 0))
 		"crawl":
 			_crawl(p)
+		"lean":
+			# Back against a wall or the van, arms crossed, one foot up flat behind.
+			p["_root_rot"] = Vector3(0.1, 0, 0)
+			p["_root_pos"] = Vector3(0, -0.02, 0)
+			_sym(p, "hip", Vector3(0.1, 0, 0.03))
+			p["l_hip"] = Vector3(0.3, 0, -0.03)
+			p["l_knee"] = Vector3(-1.0, 0, 0)
+			p["neck"] = Vector3(-0.08, 0.15, 0)
+			p["r_shoulder"] = Vector3(0.05, 1.4, 0.7)
+			p["l_shoulder"] = Vector3(0.0, -1.4, -0.7)
+			p["r_elbow"] = Vector3(1.7, 0, 0)
+			p["l_elbow"] = Vector3(1.55, 0, 0)
+		"pose":
+			# Feet apart, chest out, fists on the hips: ready for anything.
+			_sym(p, "hip", Vector3(0, 0, 0.14))
+			p["spine"] = Vector3(0.06, 0, 0)
+			p["neck"] = Vector3(0.08, -0.1, 0)
+			_sym(p, "shoulder", Vector3(-0.6, 1.4, 0))
+			_sym(p, "elbow", Vector3(1.6, 0, 0))
 		"crouch":
 			p["_root_pos"] = Vector3(0, -0.48, 0)
 			_sym(p, "hip", Vector3(1.4, 0, 0.1))
