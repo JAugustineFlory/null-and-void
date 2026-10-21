@@ -1866,7 +1866,7 @@ func test_coop_pregame_lobby() -> void:
 		"nobody starts ready, and neighbours stand differently")
 	net._assign_lobby(55, {"ready": true})
 	net._assign_lobby(77, {"ready": "yes", "pose": 99})
-	check(net.lobby_of(55).ready and not net.lobby_of(77).ready and net.lobby_of(77).pose == 99 % Net.LOBBY_POSES.size() and not net.all_ready(),
+	check(net.lobby_of(55).ready and not net.lobby_of(77).ready and net.lobby_of(77).pose == 99 % net.LOBBY_POSES.size() and not net.all_ready(),
 		"the host takes a ready and a pose, ignores junk, and waits for everyone")
 
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
@@ -1888,8 +1888,10 @@ func test_coop_pregame_lobby() -> void:
 	var host_fig: Node3D = stage.figures[1]
 	check(stage.figures.keys().all(func(id): return stage.figures[id].position.is_equal_approx(stage.mark(net.lobby_index(id)))),
 		"and stops on their own mark, host first")
-	check(host_fig.get_node("Rig").action == LobbyStage.POSE_ACTIONS["wave"] and stage.figures[77].get_node("Rig").action == LobbyStage.POSE_ACTIONS[Net.LOBBY_POSES[net.lobby_of(77).pose]],
+	check(host_fig.get_node("Rig").action == "wave" and stage.figures[77].get_node("Rig").action == net.lobby_action(77),
 		"then strikes their pose")
+	check(net.pose_action("sit") == "sit_floor" and net.pose_action("nonsense") == "idle" and net.LOBBY_POSES.all(func(p): return net.pose_action(p) in CharacterRig.ACTIONS),
+		"every pose plays something the rig can draw (idle until Graphics draws it)")
 	check(stage.figures[55].get_node("Tag").text == "Ana\nReady" and host_fig.get_node("Tag").text == "Host", "a name over each head, and who's ready")
 	var open_picker: Button = lobby.find_child("OpenCustomize", true, false)
 	check(not lobby.picker.visible and open_picker.text == "Customize", "the picker is folded away behind Customize, so the crew stays in view")
@@ -1898,7 +1900,7 @@ func test_coop_pregame_lobby() -> void:
 	check(lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (1/3)" and lobby.find_child("Host", true, false).is_visible_in_tree() == false,
 		"the menu counts who's ready, and hosting or joining is done")
 	lobby.find_child("ChangePose", true, false).pressed.emit()
-	check(net.lobby_of(1).pose == 1 and host_fig.get_meta("pose") == Net.LOBBY_POSES[1] and host_fig.get_node("Rig").action == LobbyStage.POSE_ACTIONS[Net.LOBBY_POSES[1]],
+	check(net.lobby_of(1).pose == 1 and host_fig.get_meta("pose") == net.LOBBY_POSES[1] and host_fig.get_node("Rig").action == net.lobby_action(1),
 		"Change pose changes how you stand, straight away")
 	var ready: Button = lobby.find_child("Ready", true, false)
 	ready.button_pressed = true

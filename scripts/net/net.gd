@@ -10,7 +10,9 @@ signal session_ended(reason: String)
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 6
 ## How a player stands on their mark in the pre-game lobby (LobbyStage draws them).
-const LOBBY_POSES := ["wave", "lean", "sit", "shoulder"]
+const LOBBY_POSES := ["wave", "lean", "sit", "shoulder", "pose"]
+## The CharacterRig action each pose plays. One the rig can't draw yet plays "idle".
+const LOBBY_POSE_ACTIONS := {"wave": "wave", "lean": "lean", "sit": "sit_floor", "shoulder": "shoulder", "pose": "pose"}
 const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Harper", "Jo", "Kit", "Lane", "Morgan"]
 
 ## peer id -> player name, identical on every machine.
@@ -133,6 +135,16 @@ func lobby_of(peer: int) -> Dictionary:
 	if lobby.has(peer):
 		return lobby[peer]
 	return {"ready": false, "pose": maxi(lobby_index(peer), 0) % LOBBY_POSES.size()}
+
+
+## The CharacterRig action `peer` shows on their mark (HomeBase opens on it).
+func lobby_action(peer: int) -> String:
+	return pose_action(LOBBY_POSES[lobby_of(peer).pose])
+
+
+static func pose_action(pose: String) -> String:
+	var action: String = LOBBY_POSE_ACTIONS.get(pose, "idle")
+	return action if action in CharacterRig.ACTIONS else "idle"
 
 
 ## `peer`'s place in the player order (host first), which is their lobby mark.

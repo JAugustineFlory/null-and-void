@@ -18,8 +18,6 @@ const SKY_TILT := PI * 25.0 / 180.0
 ## HomeBase, loaded by path: naming the class would pull LevelBase and Game into
 ## everything that names LobbyStage, the tests included.
 const HOME_BASE := "res://scripts/levels/home_base.gd"
-## What each pose plays on the rig, until Graphics draws its own (CharacterRig.ACTIONS).
-const POSE_ACTIONS := {"wave": "wave", "lean": "idle", "sit": "sit_floor", "shoulder": "idle"}
 
 signal intro_finished
 
@@ -176,7 +174,7 @@ func _strike(fig: Node3D) -> void:
 
 
 func _pose_action(fig: Node3D) -> String:
-	return POSE_ACTIONS.get(fig.get_meta("pose", "wave"), "idle")
+	return get_node("/root/Net").pose_action(fig.get_meta("pose", "wave"))
 
 
 ## A dusk sky over Home base's garage front, its roll-up door shut.
