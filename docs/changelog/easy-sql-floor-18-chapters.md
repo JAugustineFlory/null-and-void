@@ -1,0 +1,1 @@
+- **Added:** two new Easy SQL chapters, DISTINCT and GROUP BY with COUNT, read with the crew on floor 18.

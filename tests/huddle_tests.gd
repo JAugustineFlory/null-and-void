@@ -59,7 +59,10 @@ func test_books() -> void:
 		for q in ch.quiz:
 			ok = ok and q.answer >= 0 and q.answer < q.options.size() and q.options.size() == 3
 			ok = ok and (ch.words.is_empty() or ch.words.has(q.word))
-	_check.call(ok and Books.chapter_ids().size() == 14, "all 14 chapters have pages and three questions for each new word (three for a review)")
+	_check.call(ok and Books.chapter_ids().size() == 16, "all 16 chapters have pages and three questions for each new word (three for a review)")
+	var floor_18 := Books.book_chapter_ids("easy_sql").slice(14)
+	_check.call(floor_18 == ["easy_sql_distinct", "easy_sql_group_by"] and Books.chapter("easy_sql_distinct").number == 14 and Books.chapter("easy_sql_group_by").words == ["COUNT(*)", "GROUP BY"],
+		"floor 18's chapters follow Chapter 13, numbered by their place in the book")
 	_check.call(words_ok, "every chapter brings at most three new words")
 	var ch1 := Books.chapter("easy_sql_1")
 	_check.call(ch1.book == "EASY SQL" and ch1.words.has("SELECT") and ch1.required and not Books.chapter("easy_sql_2").required and ch1.pages[0].contains("SELECT columns FROM table;"), "chapter 1 shows the shape of a query and its semicolon")
@@ -228,26 +231,28 @@ func test_book_unlocks() -> void:
 	net.profile = Profile.new()
 	var prof: Profile = net.profile
 	var ids: Array = Books.book_chapter_ids("easy_sql")
-	_check.call(ids.size() == 14, "Easy SQL has 14 chapters to count")
+	var n := ids.size()
+	var half := ceili(n / 2.0)
+	_check.call(n == 16, "Easy SQL has 16 chapters to count")
 	var me: int = h.multiplayer.get_unique_id()
 	var finish := func(id: String):
 		h._begin(id, me, [me])
 		h._complete(id)
-	h._begin(ids[13], me + 1, [me + 1])  # a huddle this player wasn't in
-	h._complete(ids[13])
-	_check.call(not prof.earned.has("chapter:" + ids[13]), "a chapter read by a huddle you weren't in doesn't count for you")
+	h._begin(ids[n - 1], me + 1, [me + 1])  # a huddle this player wasn't in
+	h._complete(ids[n - 1])
+	_check.call(not prof.earned.has("chapter:" + ids[n - 1]), "a chapter read by a huddle you weren't in doesn't count for you")
 	h.done.clear()
-	for i in 6:
-		finish.call(ids[13 - i])  # any order
-	_check.call(not prof.earned.has("achievement:easy_sql_half"), "6 chapters isn't half")
-	finish.call(ids[13 - 5])
+	for i in half - 1:
+		finish.call(ids[n - 1 - i])  # any order
+	_check.call(not prof.earned.has("achievement:easy_sql_half"), "%d chapters isn't half" % (half - 1))
+	finish.call(ids[n - half + 1])
 	_check.call(not prof.earned.has("achievement:easy_sql_half"), "the same chapter twice counts once")
 	h.done.clear()  # a new run: chapters read before still count
 	finish.call(ids[0])
-	_check.call(prof.earned.has("achievement:easy_sql_half") and not prof.earned.has("achievement:easy_sql_done"), "7 of 14, across runs, is half the book")
+	_check.call(prof.earned.has("achievement:easy_sql_half") and not prof.earned.has("achievement:easy_sql_done"), "%d of %d, across runs, is half the book" % [half, n])
 	for id in ids:
 		finish.call(id)
-	_check.call(prof.earned.has("achievement:easy_sql_done"), "all 14 finishes the book")
+	_check.call(prof.earned.has("achievement:easy_sql_done"), "all %d finishes the book" % n)
 	net.profile = test_profile
 	level.free()
 
