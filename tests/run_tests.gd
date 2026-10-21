@@ -236,8 +236,15 @@ func test_level_0_puzzles() -> void:
 		visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors"))
+		for n in [2, 3, 5, 10]:
+			visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT %d" % n))
+		var top_one := d.execute("SELECT name, signed_in FROM visitors ORDER BY signed_in DESC LIMIT 1")
+		visitor_ok = visitor_ok and not visitor.matches(d, top_one) and l0.visitor_top_one_for().matches(d, top_one)
+		visitor_ok = visitor_ok and not l0.visitor_top_one_for().matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 2"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 5"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 2"))
 	check(caller_ok, "the caller's extension is Harold Mercer's, gone since '94; listing names beside extensions finds it, the department alone doesn't")
-	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it")
+	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it, the whole list or any LIMIT of 2 or more; LIMIT 1 is the near miss")
 	check(exts.size() >= 10, "the caller's extension varies between runs (%d different)" % exts.size())
 
 
@@ -806,6 +813,10 @@ func test_level_0_scene() -> void:
 	check(not level.memo_puzzle.solved and Array(level.desk_terminal.transcript).any(func(l): return l.contains("memo backwards")), "a memo sorted DESC doesn't count, and SYSOP says why")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
+	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 1")
+	check(not level.visitor_puzzle.solved and TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("one row further down"), "the visitor log cut to LIMIT 1 shows only the crew, and SYSOP says Vale is one row down")
+	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 3")
+	check(level.visitor_puzzle.solved, "LIMIT 3 reaches Vale's row and solves the visitor log")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
 	_check_l0_documents(level)
 	# Walking into the west end of the counter vaults you over it, and back again.

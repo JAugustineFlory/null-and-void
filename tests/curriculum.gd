@@ -44,8 +44,8 @@ const PUZZLES := {
 	"last_visitor": {
 		"level": 0,
 		"pressure": false,
-		"teaches": ["DESC", "visitors", "signed_in"],
-		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "visitors"],
+		"teaches": ["DESC", "LIMIT", "visitors", "signed_in"],
+		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "LIMIT", "visitors"],
 	},
 	# Level 1: Server Room A.
 	# The controller chain's first step (Easy SQL ch 5): which zone the stuck doors share.
