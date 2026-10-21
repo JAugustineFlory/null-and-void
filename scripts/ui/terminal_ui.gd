@@ -801,6 +801,7 @@ func open_script_editor() -> ScriptEditorUI:
 		"seed": game.run_seed if game else 0,
 		"code": on.get_meta("script_code", ""),
 		"player": who,
+		"skin": on.skin_color,
 	})
 	return _editor
 

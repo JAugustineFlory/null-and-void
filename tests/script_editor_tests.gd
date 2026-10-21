@@ -16,6 +16,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_stop_and_keys()
 	test_reopening()
 	test_terminal_opens_runner()
+	test_skins()
 
 
 func check(cond: bool, name: String) -> void:
@@ -213,4 +214,42 @@ func test_terminal_opens_runner() -> void:
 	check(ed.code() == "" and ed.runtime != t.get_meta("script_runtime"), "another terminal has its own runner state")
 	check((t.get_meta("script_runtime") as ScriptRuntime).is_running(), "while the first terminal's script carries on")
 	(t.get_meta("script_runtime") as ScriptRuntime).stop()
+	host.queue_free()
+
+
+## Players' unlocked terminal skins color the runner too, as they do the screen.
+func test_skins() -> void:
+	var host := Node3D.new()
+	_tree.root.add_child(host)
+	var ui := TerminalUI.new()
+	host.add_child(ui)
+	var t := Terminal.spawn(host, Vector3.ZERO, 0, "COLD STORE 2", FacilityDB.new(), ui)
+	t.set_meta("scripts", true)
+	ui.terminal = t
+	ui.run(".script")
+	var ed := ui._editor
+	var looks_default := func() -> bool:
+		return ed._top_style.bg_color == ThemeUtil.GREEN and ed._back.color == ScriptEditorUI.INK \
+			and ed._code.get_theme_color("font_color") == ScriptEditorUI.CODE_TEXT \
+			and ed._code.get_theme_color("background_color") == ScriptEditorUI.CODE_BACK \
+			and ed._status.get_theme_color("font_color") == ThemeUtil.DIM \
+			and ed._colored(["x", "log"]).contains("bfffc8") and not ed._code.has_theme_color_override("font_placeholder_color")
+	check(looks_default.call(), "on the default phosphor skin the runner looks as it always has")
+
+	var amber := CharacterLooks.terminal_skin({"item": "amber"})
+	t.skin_color = amber
+	ui.run(".script")
+	check(ed.skin == amber and ed._top_style.bg_color == TerminalScreen.reskin(ThemeUtil.GREEN, amber) and ed._top_style.bg_color != ThemeUtil.GREEN,
+		"opened from an amber terminal, the title bar takes the terminal's skin")
+	check(ed._code.get_theme_color("font_color") == TerminalScreen.reskin(ScriptEditorUI.CODE_TEXT, amber) and ed._colored(["x", "log"]).contains(TerminalScreen.reskin(ScriptEditorUI.COLORS.log, amber).to_html(false)),
+		"and so do the code text and the log")
+	var h := ed._code.syntax_highlighter as CodeHighlighter
+	check(h.get_keyword_color("let") == Color(1.0, 0.8, 0.35) and ed._colored(["x", "error"]).contains("ff6655"), "keywords and errors keep their own colors on any skin")
+	for sk in [amber, Color(0.15, 0.25, 1.0), Color(1, 1, 1)]:
+		var text := TerminalScreen.reskin(ScriptEditorUI.CODE_TEXT, sk).get_luminance()
+		var back := TerminalScreen.reskin(ScriptEditorUI.CODE_BACK, sk).get_luminance()
+		check((text + 0.05) / (back + 0.05) >= 4.5, "code text stays readable on a %s skin (contrast %.1f)" % [sk.to_html(false), (text + 0.05) / (back + 0.05)])
+	t.skin_color = TerminalScreen.PHOSPHOR
+	ui.run(".script")
+	check(looks_default.call(), "and back on a phosphor terminal it's the default again")
 	host.queue_free()

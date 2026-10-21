@@ -14,7 +14,13 @@ extends CanvasLayer
 ##     "seed": game.run_seed,              # Math.random follows the run
 ##     "code": "...",                       # the saved script it starts with
 ##     "player": player,                    # locked while the editor is open
+##     "skin": terminal.skin_color,         # the terminal skin it draws in
 ## })
+##
+## "skin" (a Color) is the terminal skin it draws in: the opening terminal's
+## skin_color, or later the deck owner's. Chrome and plain text follow it, as the
+## terminal's own screen does (TerminalScreen.reskin); code colors and errors keep
+## their hues so code reads the same on every skin.
 ##
 ## While a script runs the editor ticks it every frame, open or closed, so a
 ## watchdog loop keeps going after the player steps away. Pass "ticks": false
@@ -29,7 +35,12 @@ const KEYWORDS := ["let", "const", "function", "return", "if", "else", "while", 
 	"continue", "async", "await", "true", "false", "null", "undefined", "typeof"]
 const BUILT_INS := ["api", "db", "sleep", "assert", "console", "Math", "JSON", "Object", "Array"]
 const LOG_LIMIT := 400
-const COLORS := {"log": "#bfffc8", "warn": "#ffd27f", "error": "#ff6655", "system": "#5f8f6a"}
+## Log line colors by kind; log and system follow the skin.
+const COLORS := {"log": Color("#bfffc8"), "warn": Color("#ffd27f"), "error": Color("#ff6655"), "system": Color("#5f8f6a")}
+## The chrome, as drawn on the default PHOSPHOR skin.
+const CODE_TEXT := Color(0.85, 1.0, 0.85)
+const CODE_BACK := Color(0.0, 0.1, 0.04)
+const LOG_BACK := Color(0.0, 0.07, 0.03)
 ## The key bar, as nano writes it: ^S is Ctrl+S. Cut, copy and paste keep their
 ## usual keys, so nano's ^X (exit) and ^K (cut) aren't used.
 const KEYS := [[KEY_S, "^S", "Save"], [KEY_R, "^R", "Run"], [KEY_T, "^T", "Stop"], [KEY_Q, "^Q", "Close"]]
@@ -46,7 +57,14 @@ var _title: Label
 var _modified: Label
 var _status: Label
 var _keys := {}
-var _log_lines: Array[String] = []
+## [escaped text, kind] for each line in the log.
+var _log_lines: Array = []
+var skin := TerminalScreen.PHOSPHOR
+var _back: ColorRect
+var _top_style: StyleBoxFlat
+var _log_label: Label
+var _caps: Array = []
+var _key_names: Array = []
 var _error_line := -1
 ## A one-off message on the status line ("Saved, 4 lines."), until the next change.
 var _message := ""
@@ -55,10 +73,9 @@ var _message := ""
 func _ready() -> void:
 	layer = 21
 	visible = false
-	var back := ColorRect.new()
-	back.color = INK
-	back.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(back)
+	_back = ColorRect.new()
+	_back.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_back)
 
 	var vbox := VBoxContainer.new()
 	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -71,7 +88,8 @@ func _ready() -> void:
 
 	# Title bar in reverse video, as nano draws it.
 	var top := PanelContainer.new()
-	top.add_theme_stylebox_override("panel", _flat(ThemeUtil.GREEN, 6))
+	_top_style = _flat(ThemeUtil.GREEN, 6)
+	top.add_theme_stylebox_override("panel", _top_style)
 	vbox.add_child(top)
 	var top_row := HBoxContainer.new()
 	top.add_child(top_row)
@@ -92,14 +110,11 @@ func _ready() -> void:
 	_code.placeholder_text = "// Write JavaScript here. Ctrl+S saves it, Ctrl+R runs it.\nconsole.log(\"hello\");"
 	_code.add_theme_font_override("font", ThemeUtil.mono())
 	_code.add_theme_font_size_override("font_size", 18)
-	_code.add_theme_color_override("font_color", Color(0.85, 1.0, 0.85))
-	_code.add_theme_color_override("background_color", Color(0.0, 0.1, 0.04))
-	_code.add_theme_color_override("line_number_color", ThemeUtil.DIM)
-	_code.syntax_highlighter = _highlighter()
 	_code.text_changed.connect(_on_text_changed)
 	vbox.add_child(_code)
 
-	vbox.add_child(_text("LOG", 14, ThemeUtil.DIM))
+	_log_label = _text("LOG", 14, ThemeUtil.DIM)
+	vbox.add_child(_log_label)
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
 	_log.scroll_following = true
@@ -107,8 +122,7 @@ func _ready() -> void:
 	_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_log.add_theme_font_override("normal_font", ThemeUtil.mono())
 	_log.add_theme_font_size_override("normal_font_size", 16)
-	_log.add_theme_color_override("default_color", ThemeUtil.GREEN)
-	_log.add_theme_stylebox_override("normal", _flat(Color(0.0, 0.07, 0.03), 8))
+	_log.add_theme_stylebox_override("normal", _flat(LOG_BACK, 8))
 	vbox.add_child(_log)
 
 	# nano's message line, then its key bar.
@@ -121,6 +135,7 @@ func _ready() -> void:
 	for k in KEYS:
 		_keys[k[0]] = _key_button(k[1], k[2], _action(k[0]))
 		bar.add_child(_keys[k[0]])
+	_set_skin(TerminalScreen.PHOSPHOR)
 	_show_state()
 
 
@@ -140,7 +155,10 @@ func _key_button(key: String, what: String, action: Callable) -> Button:
 	cap.add_theme_stylebox_override("panel", _flat(ThemeUtil.GREEN, 3))
 	cap.add_child(_text(key, 16, INK))
 	row.add_child(cap)
-	row.add_child(_text(what, 16, ThemeUtil.GREEN))
+	var name_label := _text(what, 16, ThemeUtil.GREEN)
+	row.add_child(name_label)
+	_caps.append(cap)
+	_key_names.append(name_label)
 	b.custom_minimum_size = Vector2(32 + 11 * (key.length() + what.length()), 26)
 	b.pressed.connect(action)
 	return b
@@ -191,6 +209,7 @@ func open(rt: ScriptRuntime, ctx := {}) -> void:
 		_mark_error(-1)
 		_message = ""
 	context = ctx
+	_set_skin(ctx.get("skin", TerminalScreen.PHOSPHOR))
 	_title.text = " HALCYON SCRIPT RUNNER  //  %s  //  %s" % [ctx.get("title", "DECK"), runtime.language().to_upper()]
 	player = ctx.get("player")
 	if player and "input_locked" in player:
@@ -268,8 +287,7 @@ func code() -> String:
 
 ## What the log says, as plain text (for tests and the notebook).
 func log_text() -> String:
-	var tags := RegEx.create_from_string("\\[/?color[^\\]]*\\]")
-	return "\n".join(PackedStringArray(_log_lines.map(func(l): return tags.sub(l, "", true).replace("[lb]", "["))))
+	return "\n".join(PackedStringArray(_log_lines.map(func(l): return l[0].replace("[lb]", "["))))
 
 
 func _on_started() -> void:
@@ -296,14 +314,51 @@ func _on_finished(ok: bool, error: Dictionary) -> void:
 
 
 func _add_line(text: String, kind: String) -> void:
-	_log_lines.append("[color=%s]%s[/color]" % [COLORS.get(kind, COLORS.log), text])
+	_log_lines.append([text, kind])
 	if _log_lines.size() > LOG_LIMIT:
 		_log_lines = _log_lines.slice(_log_lines.size() - LOG_LIMIT)
-		_log.clear()
-		for l in _log_lines:
-			_log.append_text(l + "\n")
+		_redraw_log()
 	else:
-		_log.append_text(_log_lines.back() + "\n")
+		_log.append_text(_colored(_log_lines.back()))
+
+
+func _colored(line: Array) -> String:
+	return "[color=#%s]%s[/color]\n" % [_skinned(COLORS.get(line[1], COLORS.log)).to_html(false), line[0]]
+
+
+func _redraw_log() -> void:
+	_log.clear()
+	for l in _log_lines:
+		_log.append_text(_colored(l))
+
+
+## A chrome color on this skin.
+func _skinned(c: Color) -> Color:
+	return TerminalScreen.reskin(c, skin)
+
+
+## Draws the chrome and plain text in a terminal skin; PHOSPHOR is the default green.
+func _set_skin(c: Color) -> void:
+	skin = c
+	_back.color = _skinned(INK)
+	_top_style.bg_color = _skinned(ThemeUtil.GREEN)
+	for cap in _caps:
+		(cap.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = _skinned(ThemeUtil.GREEN)
+	for l in _key_names:
+		l.add_theme_color_override("font_color", _skinned(ThemeUtil.GREEN))
+	for l in [_status, _log_label]:
+		l.add_theme_color_override("font_color", _skinned(ThemeUtil.DIM))
+	_code.add_theme_color_override("font_color", _skinned(CODE_TEXT))
+	if c == TerminalScreen.PHOSPHOR:
+		_code.remove_theme_color_override("font_placeholder_color")
+	else:
+		_code.add_theme_color_override("font_placeholder_color", Color(_skinned(CODE_TEXT), 0.6))
+	_code.add_theme_color_override("background_color", _skinned(CODE_BACK))
+	_code.add_theme_color_override("line_number_color", _skinned(ThemeUtil.DIM))
+	(_log.get_theme_stylebox("normal") as StyleBoxFlat).bg_color = _skinned(LOG_BACK)
+	_log.add_theme_color_override("default_color", _skinned(ThemeUtil.GREEN))
+	_code.syntax_highlighter = _highlighter()
+	_redraw_log()
 
 
 func _show_state() -> void:
@@ -387,12 +442,14 @@ func _esc(s: String) -> String:
 	return s.replace("[", "[lb]")
 
 
+## Plain code (names, symbols) follows the skin; keywords, strings, numbers and
+## comments keep their hues on every skin.
 func _highlighter() -> CodeHighlighter:
 	var h := CodeHighlighter.new()
 	h.number_color = Color(0.6, 0.85, 1.0)
-	h.symbol_color = Color(0.7, 0.9, 0.75)
-	h.function_color = Color(0.85, 1.0, 0.85)
-	h.member_variable_color = Color(0.85, 1.0, 0.85)
+	h.symbol_color = _skinned(Color(0.7, 0.9, 0.75))
+	h.function_color = _skinned(CODE_TEXT)
+	h.member_variable_color = _skinned(CODE_TEXT)
 	for k in KEYWORDS:
 		h.add_keyword_color(k, Color(1.0, 0.8, 0.35))
 	for k in BUILT_INS:
