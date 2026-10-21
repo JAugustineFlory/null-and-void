@@ -39,6 +39,7 @@ var _tween: Tween
 var _wiggle := 0.0
 var _reach: Node3D  # the free hand that carries sticky notes in
 var cover_color := NotebookView.COVER  # the player's notebook skin, on the board and the drawn book
+var cover_art := ""  # printed cover art (NotebookView.cover_art), from the notebook skin's item
 var _player: Node  # whose filing to follow
 var _dip := 0.0  # the book lowers out of the way while a note comes in
 
@@ -61,6 +62,7 @@ func set_content(content: Control) -> void:
 		if nb is NotebookView:
 			nb.embedded = true
 			nb.cover = cover_color
+			nb.cover_art = cover_art
 			view = nb
 
 
@@ -205,6 +207,7 @@ func _make(look_in: Dictionary) -> void:
 	var spine_x := _px_to_m(spine_px)
 	if CharacterLooks.tool_color(look_in, "notebook") is Color:
 		cover_color = CharacterLooks.tool_color(look_in, "notebook")
+	cover_art = "easy_sql" if CharacterLooks.tool_item(look_in, "notebook") == "easy_sql" else ""
 	var cover := ArtPalette.flat(cover_color, 0.7)
 	var edges := ArtPalette.flat(NotebookArt.PAPER.darkened(0.08), 0.9)
 	var book_h := _px_to_m(NotebookView.BOOK_SIZE.y)

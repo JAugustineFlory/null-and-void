@@ -71,7 +71,7 @@ func _set_seat(path: NodePath, peer: int, on: bool) -> void:
 		terminal.typing.erase(peer)
 	if not terminal.seated.is_empty():
 		var look := NetPlayers.look_for(self, terminal.seated[0])
-		terminal.skin_color = look.tools.terminal.get("color", TerminalScreen.PHOSPHOR)
+		terminal.skin_color = CharacterLooks.terminal_skin(look.tools.terminal)
 	_place_puppets(terminal)
 	terminal.screen_changed.emit()
 

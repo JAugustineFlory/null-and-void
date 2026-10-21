@@ -71,7 +71,7 @@ func look_of(peer_id: int, fallback: int) -> Dictionary:
 ## The color `peer`'s terminal skin draws in: the whole screen when they sat
 ## down first, and their own prompt line.
 func terminal_color(peer: int) -> Color:
-	return look_of(peer, maxi(player_ids().find(peer), 0)).terminal.color
+	return CharacterLooks.terminal_skin(look_of(peer, maxi(player_ids().find(peer), 0)).terminal)
 
 
 ## Change part of this player's loadout in the lobby, e.g. {"skin": 2},

@@ -375,11 +375,17 @@ func _make(character: Dictionary) -> void:
 	var hips := _joint("hips", self, Vector3(0, 0.92, 0))
 	_part(hips, "box", Vector3(0.32 * hw, 0.2, 0.2), Vector3(0, 0, 0), pants, true)
 	var spine := _joint("spine", hips, Vector3(0, 0.06, 0))
-	_part(spine, "box", Vector3(0.4 * sw, 0.28, 0.23 if not two else 0.21), Vector3(0, 0.35, 0), shirt, true)  # chest
-	_part(spine, "box", Vector3(0.34 * ww, 0.22, 0.21 if not two else 0.19), Vector3(0, 0.1, 0), shirt, true)  # waist
+	# A zipped jacket covers the shirt: it is drawn as the torso itself.
+	var closed: bool = jacket != null and look.jacket_closed
+	var torso := jacket if closed else shirt
+	var bulk := 0.012 if closed else 0.0
+	_part(spine, "box", Vector3(0.4 * sw + bulk, 0.28, (0.23 if not two else 0.21) + bulk), Vector3(0, 0.35, 0), torso, true)  # chest
+	_part(spine, "box", Vector3(0.34 * ww + bulk, 0.22, (0.21 if not two else 0.19) + bulk), Vector3(0, 0.1, 0), torso, true)  # waist
 	if two:
-		_part(spine, "sphere", Vector3(0.13 * sw, 0.055, 0.03), Vector3(0, 0.33, -0.095), shirt)
-	if jacket:
+		_part(spine, "sphere", Vector3(0.13 * sw, 0.055, 0.03), Vector3(0, 0.33, -0.095 - bulk / 2), torso)
+	if closed:
+		_part(spine, "box", Vector3((0.42 if not look.shoulder_pads else 0.46) * sw, 0.12, 0.25), Vector3(0, 0.44, 0.01), jacket)  # collar and shoulders
+	elif jacket:
 		var shoulder := 0.46 if look.shoulder_pads else 0.42
 		for side in [-1.0, 1.0]:
 			_part(spine, "box", Vector3(0.15 * sw, 0.5, 0.25), Vector3(side * 0.13 * sw, 0.24, 0.005), jacket, true)
@@ -388,6 +394,8 @@ func _make(character: Dictionary) -> void:
 		_part(spine, "box", Vector3(0.17 * sw, 0.035, 0.17), Vector3(0, 0.485, -0.005), shirt)
 	if look.logo is Color:
 		_part(spine, "box", Vector3(0.07, 0.05, 0.01), Vector3(-0.1 * sw, 0.38, -0.12 if not jacket else -0.13), ArtPalette.flat(look.logo))
+	if jacket and look.jacket_badge is Color:
+		_part(spine, "box", Vector3(0.045, 0.055, 0.012), Vector3(-0.1 * sw, 0.37, -0.132), ArtPalette.flat(look.jacket_badge, 0.3, 0.8))
 	if look.lanyard is Color:
 		_part(spine, "box", Vector3(0.025, 0.24, 0.01), Vector3(0, 0.38, -0.121), ArtPalette.flat(look.lanyard))
 	if look.badge:
@@ -413,7 +421,10 @@ func _make(character: Dictionary) -> void:
 		_part(hip, "capsule", Vector3(0.075 * b, 0.46, 0), Vector3(0, -0.21, 0), pants, true)
 		var knee := _joint(side + "_knee", hip, Vector3(0, -0.43, 0))
 		_part(knee, "capsule", Vector3(0.06, 0.42, 0), Vector3(0, -0.19, 0), pants, true)
-		_part(knee, "box", Vector3(0.1, 0.08, 0.25), Vector3(0, -0.4, -0.05), shoes)
+		if look.high_tops:
+			_part(knee, "box", Vector3(0.11, 0.14, 0.25), Vector3(0, -0.37, -0.045), shoes)  # up over the ankle
+		else:
+			_part(knee, "box", Vector3(0.1, 0.08, 0.25), Vector3(0, -0.4, -0.05), shoes)
 		if side == "r" and look.belt_radio and not (jacket and look.coat):  # a long coat hides the belt
 			_part(hips, "box", Vector3(0.05, 0.12, 0.07), Vector3(0.19 * hw, -0.02, 0.02), ArtPalette.flat(ArtPalette.DARK_PLASTIC, 0.5))
 	if jacket and look.coat:
@@ -437,6 +448,9 @@ func _make_face(head: Node3D) -> void:
 		# Thin frames just above the eyes, so they read as glasses, not shades.
 		var frames: Color = look.glasses if look.glasses is Color else Color(0.12, 0.1, 0.1)
 		_part(head, "box", Vector3(0.15, 0.012, 0.008), Vector3(0, 0.138, -0.118), ArtPalette.flat(frames, 0.3))
+	elif look.readers is Color:
+		# Half-moon readers: thin wire perched low on the nose, under the eyes.
+		_part(head, "box", Vector3(0.13, 0.012, 0.006), Vector3(0, 0.106, -0.136), ArtPalette.flat(look.readers, 0.3, 0.6))
 
 
 func _make_hair(head: Node3D) -> void:
@@ -482,6 +496,11 @@ func _make_headwear(head: Node3D, hair: StandardMaterial3D) -> void:
 		"hard_hat":
 			_part(head, "sphere", Vector3(0.13, 0.1, 0.135), Vector3(0, 0.18, 0.0), ArtPalette.flat(look.headwear_color, 0.45))
 			_part(head, "cyl", Vector3(0.15, 0.012, 0), Vector3(0, 0.155, -0.01), ArtPalette.flat(look.headwear_color, 0.45))  # brim
+		"mercer_cap":
+			# Mercer's old cap: faded, the crown gone soft and the brim bent down from years of wear.
+			var faded := ArtPalette.flat(look.headwear_color.lerp(Color(0.75, 0.72, 0.62), 0.15), 1.0)
+			_part(head, "sphere", Vector3(0.126, 0.08, 0.13), Vector3(0.004, 0.165, 0.005), faded).rotation = Vector3(0.08, 0, -0.06)
+			_part(head, "box", Vector3(0.17, 0.014, 0.1), Vector3(0, 0.155, -0.148), faded).rotation = Vector3(-0.3, 0, 0)
 
 
 func _joint(joint_name: String, parent: Node3D, pos: Vector3) -> Node3D:
