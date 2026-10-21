@@ -171,9 +171,10 @@ func _group_teaching_lab() -> void:
 	await load("res://tests/teaching_tests.gd").new().run(self, check, "lab")
 
 
-## Scripting and services: the facility API's writes, and (later) deck scripts.
+## Scripting and services: the facility API's writes, and deck scripts.
 func _group_scripting() -> void:
 	await load("res://tests/scripting_tests.gd").new().run(self, check)
+	await load("res://tests/script_runtime_tests.gd").new().run(self, check)
 
 
 func check(cond: bool, name: String) -> void:
