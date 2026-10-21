@@ -132,6 +132,7 @@ func _group_coop() -> void:
 	await test_coop_looks()
 	await test_coop_sitting()
 	await test_coop_unlocks()
+	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -1368,6 +1369,33 @@ func test_coop_six_players() -> void:
 		spots[Vector2i(roundi(l.player.global_position.x * 10), roundi(l.player.global_position.z * 10))] = true
 	check(spots.size() == 6, "six different spawn spots")
 	await _coop_close(worlds)
+
+
+func test_coop_tape_secret() -> void:
+	print("Co-op: Mercer's tape")
+	_game().new_run(3)
+	var net: Node = root.get_node("/root/Net")
+	var saved: Profile = net.profile
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	levels[0].player.global_position = levels[0].to_global(Vector3(0, 0.1, 6))
+	levels[1].player.global_position = levels[1].to_global(Vector3(-17.5, 0.1, 4))
+	await _frames(30)  # the host sees the client reach the closet
+	var host_profile := Profile.new()
+	var client_profile := Profile.new()
+	net.profile = host_profile
+	levels[1].sync.unlock_for([client_id], "secret:mercer_vent_tape")  # a client can't hand it out
+	levels[0].sync.event("_on_tape")
+	net.profile = client_profile  # the test's machines share one Net, so give the client its own save
+	await _frames(10)
+	check(client_profile.earned.has("secret:mercer_vent_tape"),
+		"the player in the vent closet when the tape plays earns its secret")
+	check(not host_profile.earned.has("secret:mercer_vent_tape") and not levels[0].hud._notice.text.begins_with("Unlocked:"),
+		"the host, out in the lobby, doesn't")
+	check(not levels[0].tape.enabled and not levels[1].tape.enabled, "the tape is used up on every machine")
+	await _coop_close(worlds)
+	net.profile = saved
 
 
 func test_coop_terminal_screens() -> void:
@@ -3190,10 +3218,10 @@ func test_mercer_tape_secret() -> void:
 	root.add_child(level)
 	await physics_frame
 	check(not net.profile.earned.has("secret:mercer_vent_tape"), "the vent closet's secret isn't earned before the tape plays")
-	# On a teammate's machine their own player is out in the lobby when the tape plays.
+	# Someone works the tape from out in the lobby.
 	level.player.global_position = level.to_global(Vector3(0, 0.1, 6))
 	level._on_tape()
-	check(not net.profile.earned.has("secret:mercer_vent_tape") and not level.tape.enabled, "a teammate outside the vent closet hears the tape but doesn't earn its secret")
+	check(not net.profile.earned.has("secret:mercer_vent_tape") and not level.tape.enabled, "a player outside the vent closet hears the tape but doesn't earn its secret")
 	level.player.global_position = level.to_global(Vector3(-17.5, 0.1, 4))
 	level._on_tape()
 	check(net.profile.earned.has("secret:mercer_vent_tape"), "whoever is in the closet when it plays earns it")
