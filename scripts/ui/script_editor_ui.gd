@@ -179,6 +179,12 @@ func open(rt: ScriptRuntime, ctx := {}) -> void:
 		runtime.finished.connect(_on_finished)
 		_log_lines.clear()
 		_log.clear()
+		# Opened mid-run (a teammate walking up in co-op): show what's been logged so far.
+		if runtime.is_running():
+			_add_line("--- running ---", "system")
+		if runtime.has_method("log_history"):
+			for line in runtime.log_history():
+				_add_line(_esc(line[0]), line[1])
 		saved_code = ctx.get("code", "")
 		_code.text = saved_code
 		_code.clear_undo_history()

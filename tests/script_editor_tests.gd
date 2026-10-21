@@ -166,6 +166,14 @@ func test_reopening() -> void:
 	_frames(ed)
 	check(not first.printed.get_connections().any(func(c): return c.callable.get_object() == ed), "the runner lets go of a runtime it no longer shows")
 	check(ed.log_text().contains("second") and not ed.log_text().contains("first"), "and only the shown runtime's lines reach the log")
+
+	# A runtime that's already running and keeps its own log (co-op's stand-in for the host's script).
+	var gd := GDScript.new()
+	gd.source_code = "extends ScriptRuntime\nfunc language(): return \"javascript\"\nfunc is_running(): return true\nfunc log_history(): return [[\"door [1] open\", \"log\"], [\"slow\", \"warn\"]]\n"
+	gd.reload()
+	ed.open(gd.new(), {"title": "TEST"})
+	check(ed.log_text() == "--- running ---\ndoor [1] open\nslow", "opened mid-run, the runner shows the running line and what was logged so far")
+	ed.runtime = null
 	ed.queue_free()
 
 
