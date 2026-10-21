@@ -225,9 +225,14 @@ func test_book_unlocks() -> void:
 	h.profile = Profile.new()
 	var ids: Array = Books.book_chapter_ids("easy_sql")
 	_check.call(ids.size() == 14, "Easy SQL has 14 chapters to count")
+	var me: int = h.multiplayer.get_unique_id()
 	var finish := func(id: String):
-		h._begin(id, 1)
+		h._begin(id, me, [me])
 		h._finish(id)
+	h._begin(ids[13], me + 1, [me + 1])  # a huddle this player wasn't in
+	h._finish(ids[13])
+	_check.call(not h.profile.earned.has("chapter:" + ids[13]), "a chapter read by a huddle you weren't in doesn't count for you")
+	h.done.clear()
 	for i in 6:
 		finish.call(ids[13 - i])  # any order
 	_check.call(not h.profile.earned.has("achievement:easy_sql_half"), "6 chapters isn't half")
@@ -295,8 +300,9 @@ func test_coop_huddle() -> void:
 	hh.reveal_scale = 0.2
 	hh.profile = Profile.new()  # each machine's own player profile
 	hc.profile = Profile.new()
-	host.home.sync.event("_on_bag")
-	_check.call(await _until(func(): return hc.profile.earned.has("achievement:book_easy_sql"), 120) and hh.profile.earned.has("achievement:book_easy_sql"), "the book pickup earns its unlock for everyone there")
+	host.home.sync.event("_on_bag", [client.multiplayer.get_unique_id()])
+	_check.call(await _until(func(): return not client.home.book_bag.visible, 120) and hc.profile.earned.has("achievement:book_easy_sql"), "the player who picks up the book earns its cover")
+	_check.call(not hh.profile.earned.has("achievement:book_easy_sql") and not host.home.book_bag.visible, "a teammate who didn't pick it up doesn't, and the bag is gone for them too")
 	var runs := [0]
 	for h in [hh, hc]:
 		var run_it := func():
@@ -305,6 +311,8 @@ func test_coop_huddle() -> void:
 		run_it.call()
 	_check.call(await _until(func(): return hc.is_running() and hh.is_running(), 300), "the huddle opens on both machines")
 	_check.call(hh.is_reader() and not hc.is_reader(), "one player reads (the host, for chapter 0)")
+	_check.call(hh.crew.size() == 2 and hc.crew == hh.crew, "the whole crew is in the huddle")
+	_check.call(host.player.input_locked and client.player.input_locked, "nobody can walk out of it: everyone is held at the book")
 	hc.turn_page()
 	await _frames(10)
 	_check.call(hh.page == 0, "only the reader turns the page")
@@ -341,7 +349,7 @@ func test_coop_huddle() -> void:
 	if not ended:
 		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
 	_check.call(ended, "the chapter ends on both machines")
-	_check.call(hh.profile.earned.has("chapter:easy_sql_0") and hc.profile.earned.has("chapter:easy_sql_0"), "both players' profiles remember the chapter")
+	_check.call(hh.profile.earned.has("chapter:easy_sql_0") and hc.profile.earned.has("chapter:easy_sql_0"), "both players in the huddle have the chapter on their own profiles")
 	_tree._coop_close(worlds)
 	await _frames(2)
 
