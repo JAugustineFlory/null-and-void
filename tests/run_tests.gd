@@ -1636,7 +1636,8 @@ func test_coop_looks() -> void:
 			drawn = drawn and not Cosmetics.info(slot, item).is_empty()
 	check(drawn and Cosmetics.ITEMS.all(func(it): return it.name != "" and (Cosmetics.drawable(it.slot, it.item) or it.unlock != "default")),
 		"every outfit piece Graphics draws is in the catalogue, with a name, and every starting item can be drawn")
-	check(Cosmetics.WORN_SLOTS.all(func(s): return CharacterLooks.SLOTS.has(s)) and Cosmetics.TOOL_SLOTS == CharacterLooks.TOOL_SLOTS, "the picker's slots are Graphics' slots")
+	check(Cosmetics.WORN_SLOTS.all(func(s): return CharacterLooks.SLOTS.has(s)) and CharacterLooks.TOOL_SLOTS.all(func(s): return s in Cosmetics.TOOL_SLOTS)
+	and Cosmetics.TOOL_SLOTS.all(func(s): return s in CharacterLooks.TOOL_SLOTS or s in Cosmetics.NOTEBOOK_ADDONS), "the picker's slots are Graphics' slots, plus the notebook's add-ons")
 	var defaults := range(6).map(func(i): return Cosmetics.default_loadout(i).top.color)
 	check(defaults.all(func(c): return defaults.count(c) == 1), "players who never open the picker still wear different colors")
 	# The host checks a loadout against the catalogue, and trusts what you own.
@@ -1779,17 +1780,27 @@ func test_coop_unlocks() -> void:
 		["walkie/gold", "secret:roster_thu", "Gold", ""],
 		["jacket/press", "secret:ending_news", "Press jacket", ""],
 		# Floor 18's two (plan/approvals/l3-text.md, 2026-10-21 11:27Z).
-		["notebook/archive_label", "achievement:floor_18", "Archive box label", "Finish floor 18."],
-		["notebook/mercer_floppy", "secret:mercer_floppy_1", "Mercer's floppy", ""],
+		["sticker/archive_label", "achievement:floor_18", "Archive box label", "Finish floor 18."],
+		["clip/mercer_floppy", "secret:mercer_floppy_1", "Mercer's floppy", ""],
 	]
 	var rows_ok := approved.all(func(r):
 		var it := Cosmetics.info(r[0].get_slice("/", 0), r[0].get_slice("/", 1))
 		return it.get("unlock") == r[1] and it.get("name") == r[2] and str(it.get("hint", "")) == r[3] and Cosmetics.is_secret(it) == (r[3] == ""))
 	check(rows_ok, "the approved items are in the catalogue with their sources, names and hints; secrets have no hint")
 	check(approved.all(func(r): return not net.profile.has_item(r[0])), "nobody starts with them, the hard hat included")
+	# The notebook's sticker and clip go on any cover.
+	var fresh := Cosmetics.default_loadout(0)
+	check(fresh.sticker.item == "none" and fresh.clip.item == "none", "the notebook starts with no sticker and no clip")
+	var owner := Profile.new()
+	owner.earned = ["achievement:book_easy_sql", "achievement:floor_18", "secret:mercer_floppy_1"]
+	var dressed := Cosmetics.clean(Cosmetics.trim({"notebook": {"item": "easy_sql"}, "sticker": {"item": "archive_label"}, "clip": {"item": "mercer_floppy"}}, owner), 0)
+	check(dressed.notebook.item == "easy_sql" and dressed.sticker.item == "archive_label" and dressed.clip.item == "mercer_floppy",
+		"the box label and the floppy go on the Easy SQL cover together")
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(lobby)
 	await process_frame
+	var sticker_row: Control = lobby.find_child("Item_sticker", true, false).get_parent()
+	check(sticker_row.visible == ("archive_label" in CharacterLooks.TOOL_ITEMS.get("sticker", [])), "the Sticker row shows once Graphics can draw a sticker")
 	var texts := func(on: Control, slot: String) -> Array:
 		var l: OptionButton = on.find_child("Item_" + slot, true, false)
 		return range(l.item_count).map(func(i): return l.get_item_text(i))
@@ -4320,7 +4331,7 @@ func test_level_3_safe_room() -> void:
 		if done[0]:
 			break
 	check(done[0] and _game().completed_level == "level_3", "everyone on the stairs completes the floor")
-	check(root.get_node("/root/Net").profile.has_item("notebook/archive_label"), "finishing floor 18 unlocks the archive box label")
+	check(root.get_node("/root/Net").profile.has_item("sticker/archive_label"), "finishing floor 18 unlocks the archive box label")
 	level.queue_free()
 	await process_frame
 
@@ -4426,7 +4437,7 @@ func test_coop_level_3() -> void:
 	# (Every machine in a test shares one Game.inventory, so who took it is read off the dock.)
 	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
 	check(client.player.inventory.has("floppy_disk") and machines.all(func(l): return l.floppy_taken and not l.floppy.enabled and l.floppy.has_taken(client_id) and not l.floppy.has_taken(host_id)), "the one floppy goes to the player who took it")
-	check(net.profile.has_item("notebook/mercer_floppy"), "and so does Mercer's floppy notebook skin")
+	check(net.profile.has_item("clip/mercer_floppy"), "and so does Mercer's floppy, for their notebook")
 	net.profile = before_floppy
 	check(machines.all(func(l): return l.key_taken and not l.stair_out.locked), "the key unlocks the stairs on every machine")
 	check(host.players.puppet(client_id) != null, "the host knows the client")

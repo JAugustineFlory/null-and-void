@@ -1,0 +1,1 @@
+- **Changed:** notebook stickers and clips are picked on their own in the Gear tab, so they go on any notebook cover.
