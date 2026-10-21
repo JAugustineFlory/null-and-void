@@ -67,9 +67,16 @@ static func create(parent: Node, id: String, pos: Vector3, door_size: Vector3, c
 
 
 func _ready() -> void:
+	_capture_closed_pose()
+	sync_to_physics = false
+
+
+## A shut door at rest is in its closed pose. Taken again each time it starts to
+## open, so a door placed or turned after Door.create (a stairwell's) swings from
+## where it really stands.
+func _capture_closed_pose() -> void:
 	_closed_pos = position
 	_closed_rot = rotation.y
-	sync_to_physics = false
 
 
 func is_hinged() -> bool:
@@ -100,13 +107,16 @@ func _pose_swing() -> void:
 	if not is_hinged() or not is_inside_tree():
 		return
 	var turn := Basis(Vector3.UP, deg_to_rad(swing_deg * swing))
-	position = _closed_pos + hinge + turn * -hinge
+	var edge := Basis(Vector3.UP, _closed_rot) * hinge  # the hinge turns with the door
+	position = _closed_pos + edge + turn * -edge
 	rotation.y = _closed_rot + deg_to_rad(swing_deg * swing)
 
 
 func set_open(open: bool, instant: bool = false) -> void:
 	if open == is_open:
 		return
+	if open and not (_tween and _tween.is_running()) and swing == 0.0:
+		_capture_closed_pose()
 	is_open = open
 	if is_hinged():
 		if _tween:
