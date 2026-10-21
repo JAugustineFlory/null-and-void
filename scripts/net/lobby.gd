@@ -3,7 +3,7 @@ extends Control
 ## look, see who's in, start together.
 ##
 ## Three columns: a turning figure of your look, the picker (Crew, Look and
-## Gear tabs), and the session. Picks are saved to your profile.
+## Gear tabs, and what you've earned under Achievements), and the session. Picks are saved to your profile.
 
 ## How fast the look preview turns, in degrees a second.
 const PREVIEW_TURN := 30.0
@@ -214,6 +214,24 @@ func _build_tabs(parent: Control) -> void:
 	var gear := _tab(tabs, "Gear")
 	for slot in Cosmetics.TOOL_SLOTS:
 		_slot_row(gear, slot)
+	_achievements_tab(tabs)
+
+
+## What you've earned, and how to earn the rest. Secrets show once found.
+func _achievements_tab(tabs: TabContainer) -> void:
+	var page := _tab(tabs, "Achievements")
+	for a in Achievements.shown_to(_net().profile):
+		var row := VBoxContainer.new()
+		row.name = "Achievement_" + a.id.get_slice(":", 1)
+		row.add_theme_constant_override("separation", 0)
+		var title := ThemeUtil.label(a.name if a.earned else "%s (locked)" % a.name, 20, ThemeUtil.AMBER if a.earned else ThemeUtil.DIM)
+		title.name = "Name"
+		row.add_child(title)
+		if not a.earned and a.hint != "":
+			var how := ThemeUtil.label(a.hint, 16, ThemeUtil.DIM)
+			how.name = "Hint"
+			row.add_child(how)
+		page.add_child(row)
 
 
 func _tab(tabs: TabContainer, title: String) -> VBoxContainer:
@@ -267,6 +285,8 @@ func _slot_row(parent: Control, slot: String) -> void:
 		_net().choose_look({slot: pick}))
 	row.add_child(list)
 	_item_lists[slot] = list
+	# An add-on Graphics can't draw yet would offer only "None": leave the row out until it can.
+	row.visible = not (list.item_count == 1 and list.get_item_metadata(0) == "none")
 	var color := ColorPickerButton.new()
 	color.name = "Color_" + slot
 	color.custom_minimum_size = Vector2(64, 40)

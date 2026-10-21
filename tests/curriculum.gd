@@ -13,7 +13,9 @@ extends RefCounted
 ## Owned by the Teaching and UX thread. Add a row for every new puzzle.
 ## `"known_gap"` says why a puzzle's "taught before any hint" check prints as GAP
 ## until its owner fixes it. `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
-## its first hint stays the exact query. Every other puzzle uses hint ladder A.
+## its first hint stays the exact query. `"ladder": "review"` marks a puzzle whose
+## keyword was practised safely on an earlier floor: two tiers, a reminder with the
+## shape (the value as '?') and then the exact query. Every other puzzle uses hint ladder A.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 
@@ -44,8 +46,8 @@ const PUZZLES := {
 	"last_visitor": {
 		"level": 0,
 		"pressure": false,
-		"teaches": ["DESC", "visitors", "signed_in"],
-		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "visitors"],
+		"teaches": ["DESC", "LIMIT", "visitors", "signed_in"],
+		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "LIMIT", "visitors"],
 	},
 	# Level 1: Server Room A.
 	# The controller chain's first step (Easy SQL ch 5): which zone the stuck doors share.
@@ -60,6 +62,14 @@ const PUZZLES := {
 		"pressure": false,
 		"teaches": ["WHERE", "AND", "door_controllers", "single quotes", "'fault'"],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
+	},
+	# Curriculum B: before the reset, the sign-off form wants the floor's faults
+	# counted. COUNT practised safely; WARDEN's diagnostics on the desk show it first.
+	"faulted_count": {
+		"level": 1,
+		"pressure": false,
+		"teaches": ["COUNT"],
+		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "door_controllers", "status", "'fault'"],
 	},
 	# Depth pass, server floor: the zone now comes from the stuck doors (or their red
 	# plates), not the screen; the controller row above covers that query.
@@ -124,18 +134,17 @@ const PUZZLES := {
 		"teaches": ["GET /doors/SEC-EXIT", "sensor", "actuator", "B-"],
 		"needs": ["GET", "/doors/SEC-EXIT"],
 	},
-	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md). Every
-	# ladder is drafted in plan/approvals/l3-text.md and held until Augustine agrees
-	# Act 1 ends on this floor ("ladder": "held"): a lost player is stuck on any
-	# station it can't copy off a paper, and that prints as a gap, not a failure.
-	# COUNT, found again on the clerk's sticky on the desk terminal, used safely.
-	# Level 2's SYSOP showed it once; no Easy SQL chapter teaches it yet, so the
-	# sticky is the plant.
+	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md), where
+	# Act 1 ends (curriculum option B, approved 2026-10-21). The hint ladders are
+	# built from plan/approvals/l3-text.md (approved 2026-10-21 11:27Z).
+	# COUNT as review: practised on floor 14's reset sign-off (faulted_count, Easy SQL
+	# ch 9 "How many?"), found again on the clerk's sticky on the desk terminal, and
+	# used safely here before the tally and the night count build on it.
 	"slips": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
-		"teaches": ["COUNT", "retrieval_slips"],
+		"ladder": "review",
+		"teaches": ["retrieval_slips"],
 		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "retrieval_slips"],
 	},
 	# DISTINCT, found on the clerk's memo pinned to the card catalogue and practised
@@ -143,7 +152,6 @@ const PUZZLES := {
 	"depts": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
 		"teaches": ["DISTINCT", "one of each", "catalogue", "dept"],
 		"needs": ["SELECT", "FROM", "WHERE", "DISTINCT", "catalogue", "dept"],
 	},
@@ -152,7 +160,7 @@ const PUZZLES := {
 	"tally": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
+		"ladder": "exact",
 		"teaches": ["GROUP BY", "one line per room", "access_log"],
 		"needs": ["SELECT", "FROM", "COLUMNS", "COUNT", "GROUP BY", "access_log", "room"],
 	},
@@ -163,9 +171,8 @@ const PUZZLES := {
 	"visits": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": [],
-		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COUNT", "GROUP BY", "ORDER BY", "DESC", "access_log", "room", "1997-10-15"],
+		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COLUMNS", "COUNT", "GROUP BY", "ORDER BY", "DESC", "access_log", "room", "1997-10-15"],
 	},
 	# IS NULL, the word no book teaches: found on Mercer's card in the safe room, and
 	# practised there on his battery PC (the Shredder can't get in), copying the
@@ -173,7 +180,7 @@ const PUZZLES := {
 	"mercer_list": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
+		"ladder": "exact",
 		"teaches": ["IS NULL", "pulled", "back_on"],
 		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "pulled"],
 	},
@@ -182,7 +189,6 @@ const PUZZLES := {
 	"unreturned": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": ["returned_at"],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "IS NULL", "retrieval_slips", "returned_at"],
 	},
@@ -191,7 +197,6 @@ const PUZZLES := {
 	"keyholder": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "access_log", "badge_id", "room"],
 	},
@@ -200,7 +205,6 @@ const PUZZLES := {
 	"mercer_room": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "catalogue", "room"],
 	},

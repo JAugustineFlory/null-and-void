@@ -48,6 +48,10 @@ to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
   3. **The last hint** is the exact query, and typing it solves the puzzle.
   All hints use the real tables, never an example table, and say exactly what to type
   and where.
+- **Review ladder (Augustine, 2026-10-21).** A word already practised safely on an
+  earlier floor can use a two-step ladder: hint 1 is the shape with `'?'` and where the
+  value is, with no line per keyword; hint 2 is the exact query. Only for review: the
+  first puzzle that practises a word always uses ladder A.
 - **Every gate is a short investigation** (plan/depth-pass-floors-0-2.md): a step's
   result is the next step's input, and values come from data or the world, not from a
   hint paper or a SYSOP line.
@@ -71,7 +75,7 @@ A Level 0 tutorial step may skip this; nothing after it should.
 
 ## Lost-player test
 
-`tests/teaching_tests.gd` plays Levels 0-2 in order as a player who knows no SQL. It
+`tests/teaching_tests.gd` plays Levels 0-3 in order as a player who knows no SQL. It
 types only queries written out in full on screen and asks `.hint` when it runs out.
 `tests/curriculum.gd` declares what each puzzle `teaches` and `needs`; the test builds a
 cumulative taught set (every terminal line and sticky note seen so far) and fails when:
@@ -83,7 +87,8 @@ cumulative taught set (every terminal line and sticky note seen so far) and fail
   seed): hint 1 isn't the exact query's shape with `'?'`, gives the value away, or lacks
   a line per keyword; a middle hint holds the full query; the exact query doesn't solve
   the puzzle; or a hint uses an example table. A puzzle with no value to find is
-  marked `"ladder": "exact"` in the curriculum and keeps an exact first hint,
+  marked `"ladder": "exact"` in the curriculum and keeps an exact first hint. A review
+  puzzle is marked `"ladder": "review"`: exactly two hints, and no line per keyword,
 - the player can't finish once a hint gives the exact query, or can't read the
   physical step (rack, PIN, breaker) off the screen,
 - a keyword is first needed under threat.

@@ -107,6 +107,17 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 - **New:** unlockable items. Read the crew's book, block a hit in a real fight and finish floors to unlock new clothes and tool skins in the co-op lobby. Locked pieces show in the lobby with a hint on how to earn them, and a few secret ones stay hidden until you find them.
 - **Added:** finishing floor 22 unlocks the Security jacket.
 - **Changed:** each unlock goes to the player who earned it: whoever picks up *Easy SQL*, each player who reads a chapter in the huddle, and the player who makes the block. Finishing a floor unlocks its item for everyone who finished it.
+- **New:** floor 18, the Records Archive. The stairs down from 22 lead to a records floor at night, with a reading room, towering stacks you can climb and cross along the tops, rolling shelving on hand cranks, and side rooms whose doors shut.
+- **Added:** something on floor 18 hunts by sound. Sprint, land hard or turn a crank and it hears you; crouch and move slowly and it doesn't. It can't be blocked, so climb.
+- **Added:** new puzzles at the records desk teach four more SQL words, each found first on papers around the floor. Any correct form of an answer is accepted.
+- **Added:** finish floor 18 to unlock a new notebook sticker in the co-op lobby.
+- **Added:** hint ladders for every station on floor 18, and tips on its desk terminal.
+- **Added:** two new Easy SQL chapters, DISTINCT and GROUP BY, read with the crew on floor 18.
+- **Added:** Easy SQL teaches LIMIT in "Newest first", and has a new chapter on COUNT.
+- **Added:** LIMIT on the ground floor: the visitor log can be cut down to its last few rows, and a sticky on the front desk shows how.
+- **Added:** a new step on floor 14: before the door controller reset, count the faulted controllers for its sign-off form, with COUNT.
+- **Changed:** notebook stickers and clips are picked on their own in the Gear tab, so they go on any notebook cover.
+- **Changed:** the crew and everyone in the building are now smooth, clothed low-poly people instead of blocky figures, with jackets, lanyards, hair and hats that follow every pose.
 
 </details>
 

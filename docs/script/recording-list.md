@@ -1,6 +1,6 @@
 # Recording list
 
-943 lines in all.
+1404 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -103,9 +103,9 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
 | [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (21 lines)
+## WARDEN (26 lines)
 
-> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
@@ -126,10 +126,15 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_smudged` | TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
 | [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
-| [ ] | `l3_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 3, later |
-| [ ] | `l3_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 3, later |
-| [ ] | `l3_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 3, later |
-| [ ] | `l3_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 3, later |
+| [ ] | `l4_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 4, later |
+| [ ] | `l4_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 4, later |
+| [ ] | `l4_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 4, later |
+| [ ] | `l4_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 4, later |
+| [ ] | `l4_epsilon_loop_2` | REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. | Takes turns with the other reminder, once writes have been suspended. Same polite loop. | Level 4, later |
+| [ ] | `l4_epsilon_db` | DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. | The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint. | Level 4, later |
+| [ ] | `l4_write_refused` | WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. | The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal. | Level 4, later |
+| [ ] | `l4_write_refused_tease` | YOU MAY STILL LOOK. LOOKING IS FREE. | A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud. | Level 4, later |
+| [ ] | `l4_write_refused_again` | STILL READ-ONLY. | Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat. | Level 4, later |
 
 ## WARDEN (PA tapes) (3 lines)
 
@@ -178,8 +183,8 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_huddle_like_2` | So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. | Pleased to have found themself. | Level 2, later |
 | [ ] | `l2_huddle_get_1` | This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' | Flipping the book over to check the cover. | Level 2, later |
 | [ ] | `l2_huddle_get_2` | So it's a SELECT for robots. Got it. Probably. | Not convinced. | Level 2, later |
-| [ ] | `l3_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 3, later |
-| [ ] | `l3_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 3, later |
+| [ ] | `l4_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 4, later |
+| [ ] | `l4_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 4, later |
 
 ## Radio newsreader (7 lines)
 
@@ -195,7 +200,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_news_7` | Halcyon declined to comment. The crew has not been seen since. | Neutral. A small pause after. | Level 2, later |
 | [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
-## The crew (player characters) (56 lines, recorded by each of the 12 crew members)
+## The crew (player characters) (94 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
@@ -257,6 +262,44 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_cc_pin_n1b` | The last guard out had a badge number. Something up here matches those to names. | Stuck. Putting two things together. | Level 2, later |
 | [ ] | `l2_cc_pin_err` | Wrong code. Is that the night lead, or just any guard? | A second wrong PIN. Thinking. | Level 2, later |
 | [ ] | `l2_cc_pin_pay` | That's the code. Let's not hang around. | Keypad accepted it. Nervous, wants to move. | Level 2, later |
+| [ ] | `l5_book_find` | No way. It's the same series. Somebody here bought the sequel. | Picking it up off a desk. Delighted, a little thrown. | Level 5, later |
+| [ ] | `l5_book_open` | Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly. | Reading the back cover, hopeful. | Level 5, later |
+| [ ] | `l5_huddle_post_1` | Chapter one. POST. You send it something, it makes something. Like a suggestion box that answers. | Starting a chapter, reading it out. | Level 5, later |
+| [ ] | `l5_huddle_post_2` | So GET looks, POST makes. Got it. | Wrapping up, pleased it's simple. | Level 5, later |
+| [ ] | `l5_huddle_patch_1` | PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice. | Starting a chapter. Noticing how hard the book insists. | Level 5, later |
+| [ ] | `l5_huddle_patch_2` | PATCH is UPDATE wearing a tie. | Wrapping up. Proud of the joke. | Level 5, later |
+| [ ] | `l5_huddle_codes_1` | Every answer comes with a number. Book says read the number before you celebrate. | Starting a chapter. A little told off. | Level 5, later |
+| [ ] | `l5_huddle_codes_2` | Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs. | Wrapping up, counting it off. | Level 5, later |
+| [ ] | `l5_huddle_keys_1` | Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed. | Starting a chapter, working it out as you read. | Level 5, later |
+| [ ] | `l5_huddle_keys_2` | So if it says 401, we forgot the badge. | Wrapping up. Got it. | Level 5, later |
+| [ ] | `l5_huddle_check_1` | Short chapter. After you change something, ask again. Book says never trust the first answer. | Starting a short chapter. Knowing nod. | Level 5, later |
+| [ ] | `l5_huddle_check_2` | Change it, then look again. The front doors taught us that one. | Wrapping up. Wry; you've been burned before. | Level 5, later |
+| [ ] | `l6_book_find` | Easy JavaScript. Somebody's read this one to death. | Sliding it out from under a mug. The cover's stained and the pages are soft. | Level 6, later |
+| [ ] | `l6_book_open` | Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat. | Tired of typing. This sounds like rescue. | Level 6, later |
+| [ ] | `l6_huddle_if_1` | A variable's a labelled box. If is a fork in the road. That's... honestly fine. | Starting a chapter. Braced for hard; it isn't. | Level 6, later |
+| [ ] | `l6_huddle_if_2` | Box, fork. I can do box and fork. | Wrapping up, to yourself. | Level 6, later |
+| [ ] | `l6_huddle_loops_1` | Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see. | Starting a chapter. The 'million times a second' bit alarms you. | Level 6, later |
+| [ ] | `l6_huddle_loops_2` | Always put the wait in. Always log it. Writing that one down. | Wrapping up, making a note. | Level 6, later |
+| [ ] | `l6_huddle_functions_1` | Functions. Write it once, give it a name, use it anywhere. | Starting a chapter, reading it out. | Level 6, later |
+| [ ] | `l6_huddle_functions_2` | So a function's a recipe we can shout. | Wrapping up. Pleased with that. | Level 6, later |
+| [ ] | `l6_huddle_lists_1` | Lists. A whole line of things in one box. Loop over it and you've done them all. | Starting a chapter. The penny drops halfway. | Level 6, later |
+| [ ] | `l6_huddle_lists_2` | One loop, every door. That's either brilliant or terrifying. | Wrapping up. Genuinely unsure which. | Level 6, later |
+| [ ] | `l6_huddle_test_1` | Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't. | Starting the last chapter. Taking it seriously. | Level 6, later |
+| [ ] | `l6_huddle_test_2` | Test first. We've all learned that one the hard way tonight. | Wrapping up. Rueful. | Level 6, later |
+| [ ] | `l8_book_find` | Hello HTML! Same series again. Who keeps leaving these? | Pulling it from behind the handrail. Uneasy, half joking. | Level 8, later |
+| [ ] | `l8_book_open` | Book says everything on a screen is built from tags. And the building's been drawing things that aren't there. So... we fix the drawing. | Working it out as you go. The pause is the idea landing. | Level 8, later |
+| [ ] | `l8_huddle_elements_1` | Tags. Angle brackets. You open one, you close one. Like a sandwich. The inspector shows you every one on the screen. | Starting a chapter, reading it out. | Level 8, later |
+| [ ] | `l8_huddle_elements_2` | Everything's a sandwich. Okay. | Wrapping up. Accepting it. | Level 8, later |
+| [ ] | `l8_huddle_hidden_1` | Attributes. Little settings on a tag. Including one called hidden. | Starting a chapter. 'Hidden' catches your eye. | Level 8, later |
+| [ ] | `l8_huddle_hidden_2` | Hidden doesn't mean gone. Hidden means somebody hid it. | Wrapping up. Quieter; that thought sticks. | Level 8, later |
+| [ ] | `l8_huddle_css_1` | CSS. Where things go and what they look like. The book calls it the paint. | Starting a chapter, reading it out. | Level 8, later |
+| [ ] | `l8_huddle_css_2` | So if a wall's in the wrong place, it might just be the paint. | Wrapping up. Half hopeful. | Level 8, later |
+| [ ] | `l8_huddle_display_1` | Two ways to make something vanish. One leaves a gap, one doesn't. Book says that matters. | Starting a chapter. Curious. | Level 8, later |
+| [ ] | `l8_huddle_display_2` | So when something vanishes, ask which kind of vanished. | Wrapping up, filing it away. | Level 8, later |
+| [ ] | `l8_huddle_layers_1` | Things on a screen stack up, like papers on a desk. A number decides which one's on top. | Starting a chapter, picturing it. | Level 8, later |
+| [ ] | `l8_huddle_layers_2` | So the thing in our way might just be lying on top. | Wrapping up. An idea forming. | Level 8, later |
+| [ ] | `l8_huddle_forms_1` | Forms. Boxes you type in, and a button that sends it. Every login screen tonight was one of these. | Starting the last chapter. Recognising it. | Level 8, later |
+| [ ] | `l8_huddle_forms_2` | A form's just boxes and a button. Somebody built it, so we can rebuild it. | Wrapping up. Quietly determined. | Level 8, later |
 
 ## Harold Mercer (5 lines)
 

@@ -10,6 +10,16 @@ extends RefCounted
 ## and it goes back to him. The examples use the crew's own garage records, `jobs`
 ## and `van_kit`, never a table from the building.
 ##
+## Floor 18's chapters (One of each, Counting in piles) were approved word for word
+## on 2026-10-21: pages and questions at 11:44Z, their `why` lines
+## (plan/teaching/easy-sql-whys.md) at 11:49Z. Curriculum B (12:12Z): LIMIT joins
+## Newest first, and COUNT(*) moved word for word from Counting in piles into its
+## own chapter, How many?, for floor 14.
+##
+## Chapter ids never change once shipped: profiles keep "chapter:<id>". The number
+## shown is the chapter's place in the list, so a chapter added in the middle
+## renumbers the rest by itself. New chapters get a word id (easy_sql_distinct).
+##
 ## Chapter: {id, title, when, required, words, lines, pages: [text], quiz}
 ## `when` is where the huddle plays; `lines` are voice line ids heard over the
 ## garage radio, one as the book opens and one as it closes. Each quiz question:
@@ -151,10 +161,11 @@ const BOOKS := {
 				"title": "Newest first",
 				"when": "L0, last_visitor, optional",
 				"required": false,
-				"words": ["DESC"],
+				"words": ["DESC", "LIMIT"],
 				"lines": [],
 				"pages": [
 					"DESC\n\nAdd DESC after ORDER BY's column to flip it: biggest first, latest first.",
+					"LIMIT\n\nLIMIT and a number, at the very end, keeps only that many rows from the top.\n\nWith ORDER BY and DESC first, LIMIT 3 gives you the newest three.",
 				],
 				"quiz": [
 					{"word": "DESC", "q": "ORDER BY fee DESC puts which first?",
@@ -163,6 +174,12 @@ const BOOKS := {
 						"options": ["before ORDER BY", "after the column name in ORDER BY", "after the ;"], "answer": 1, "why": ""},
 					{"word": "DESC", "q": "To see the latest times first you add...",
 						"options": ["DESC", "LAST", "nothing"], "answer": 0, "why": ""},
+					{"word": "LIMIT", "q": "SELECT * FROM jobs ORDER BY fee DESC LIMIT 3; shows...",
+						"options": ["every job except three", "the three smallest fees", "the three biggest fees"], "answer": 2, "why": "DESC puts the biggest fee on top, and LIMIT 3 keeps the top three."},
+					{"word": "LIMIT", "q": "Where does LIMIT go?",
+						"options": ["at the very end, just before the ;", "straight after SELECT", "before ORDER BY"], "answer": 0, "why": "LIMIT comes last, after ORDER BY, right before the ;."},
+					{"word": "LIMIT", "q": "With no ORDER BY, LIMIT 2 gives...",
+						"options": ["the two newest rows", "the first two rows, in saved order", "an error"], "answer": 1, "why": "LIMIT keeps rows from the top. With no ORDER BY, the top is whatever was saved first."},
 				],
 			},
 			{
@@ -267,6 +284,25 @@ const BOOKS := {
 						"options": ["both are true", "at least one is true", "neither is true"], "answer": 1, "why": ""},
 					{"word": "OR", "q": "AND or OR to find jobs in Ashford or Bexley?",
 						"options": ["AND", "OR", "neither"], "answer": 1, "why": ""},
+				],
+			},
+			{
+				"id": "easy_sql_count",
+				"title": "How many?",
+				"when": "L1, the reset sign-off form, count",
+				"required": false,
+				"words": ["COUNT(*)"],
+				"lines": [],
+				"pages": [
+					"COUNT(*)\n\nSELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves.\n\nAdd a WHERE and it counts only the rows that match.",
+				],
+				"quiz": [
+					{"word": "COUNT(*)", "q": "SELECT COUNT(*) FROM jobs; with 12 jobs shows...",
+						"options": ["all 12 jobs", "the last job", "one number: 12"], "answer": 2, "why": "COUNT(*) doesn't show the rows. It counts them and gives one number."},
+					{"word": "COUNT(*)", "q": "SELECT COUNT(*) FROM jobs WHERE status = 'unpaid'; counts...",
+						"options": ["only the unpaid jobs", "every job", "the unpaid fees, added up"], "answer": 0, "why": "WHERE picks the rows first, and COUNT(*) counts only those. It counts rows, not fees."},
+					{"word": "COUNT(*)", "q": "COUNT(*) goes...",
+						"options": ["after the table name", "after SELECT, where the columns go", "after WHERE"], "answer": 1, "why": "COUNT(*) sits where the columns go, right after SELECT."},
 				],
 			},
 			{
@@ -385,6 +421,44 @@ const BOOKS := {
 						"options": ["before GET", "at the end of the path", "in quotes after it"], "answer": 1, "why": ""},
 				],
 			},
+			{
+				"id": "easy_sql_distinct",
+				"title": "One of each",
+				"when": "L3, the retention review memo, depts",
+				"required": false,
+				"words": ["DISTINCT"],
+				"lines": [],
+				"pages": [
+					"DISTINCT\n\nDISTINCT goes straight after SELECT. Each different value comes back once, however many rows share it.\n\nSELECT town FROM jobs; gives one line per job. SELECT DISTINCT town FROM jobs; gives one line per town.",
+				],
+				"quiz": [
+					{"word": "DISTINCT", "q": "Ten jobs in three towns. SELECT DISTINCT town FROM jobs; shows how many rows?",
+						"options": ["10", "3", "1"], "answer": 1, "why": "DISTINCT keeps each different town once. Three towns, three rows."},
+					{"word": "DISTINCT", "q": "Where does DISTINCT go?",
+						"options": ["after the table name", "just before the ;", "straight after SELECT"], "answer": 2, "why": "DISTINCT goes right after SELECT, before the column it works on."},
+					{"word": "DISTINCT", "q": "SELECT DISTINCT town FROM jobs WHERE status = 'open'; shows...",
+						"options": ["each town with an open job, once", "every open job", "every town, once"], "answer": 0, "why": "WHERE keeps the open jobs first. Then DISTINCT shows each of their towns once."},
+				],
+			},
+			{
+				"id": "easy_sql_group_by",
+				"title": "Counting in piles",
+				"when": "L3, the reader tally sheet, tally",
+				"required": false,
+				"words": ["GROUP BY"],
+				"lines": [],
+				"pages": [
+					"GROUP BY\n\nGROUP BY sorts the rows into piles, one pile for each different value in a column. It goes after the table name and any WHERE.\n\nWith COUNT(*), you get one line per pile and how many are in it. Put the column in SELECT too, so you can see which pile is which.\n\nPiles come out in any order. ORDER BY COUNT(*) DESC puts the biggest pile first.",
+				],
+				"quiz": [
+					{"word": "GROUP BY", "q": "SELECT town, COUNT(*) FROM jobs GROUP BY town; shows...",
+						"options": ["one line per job", "one line per town, with how many jobs each", "one number for all the jobs"], "answer": 1, "why": "GROUP BY town makes one pile per town, and COUNT(*) counts each pile."},
+					{"word": "GROUP BY", "q": "Where does GROUP BY go?",
+						"options": ["straight after SELECT", "after the ;", "after the table name and any WHERE, before ORDER BY"], "answer": 2, "why": "GROUP BY comes after FROM and any WHERE, and before ORDER BY."},
+					{"word": "GROUP BY", "q": "Which shelf holds the most kinds of kit? After GROUP BY shelf you add...",
+						"options": ["ORDER BY COUNT(*) DESC", "ORDER BY shelf DESC", "DISTINCT shelf"], "answer": 0, "why": "ORDER BY COUNT(*) DESC sorts the piles by size, biggest first. Sorting by shelf only puts the names in order."},
+				],
+			},
 		],
 	},
 }
@@ -404,7 +478,6 @@ static func chapter(id: String) -> Dictionary:
 	return {}
 
 
-## Every chapter id, in book order.
 ## The chapter ids of book `book_id`, in order.
 static func book_chapter_ids(book_id: String) -> Array[String]:
 	var ids: Array[String] = []
@@ -413,6 +486,7 @@ static func book_chapter_ids(book_id: String) -> Array[String]:
 	return ids
 
 
+## Every chapter id, in book order.
 static func chapter_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for book_id in BOOKS:

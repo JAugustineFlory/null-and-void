@@ -16,7 +16,7 @@ func _initialize() -> void:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab", "scripting"]
 
 
 func _run() -> void:
@@ -57,6 +57,7 @@ func _run_group(g: String) -> void:
 		"movement": await _group_movement()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
+		"scripting": await _group_scripting()
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -102,6 +103,7 @@ func _group_floor_g() -> void:
 func _group_floor_14() -> void:
 	test_level_1_data_every_seed()
 	await test_level_1_scene()
+	await test_level_1_book_huddle()
 
 
 ## Floor 22, the security floor (Level 2), outside the lab.
@@ -130,6 +132,7 @@ func _group_floor_18() -> void:
 	await test_level_3_scene()
 	await test_level_3_safe_room()
 	await test_level_3_shredder()
+	await test_level_3_book_huddles()
 	await test_level_3_stairs_from_22()
 	await test_coop_level_3()
 
@@ -144,6 +147,7 @@ func _group_coop() -> void:
 	await test_coop_looks()
 	await test_coop_sitting()
 	await test_coop_unlocks()
+	await test_coop_achievements()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -165,6 +169,11 @@ func _group_teaching() -> void:
 ## The second lab seed's paced walk, on its own so neither teaching group runs long.
 func _group_teaching_lab() -> void:
 	await load("res://tests/teaching_tests.gd").new().run(self, check, "lab")
+
+
+## Scripting and services: the facility API's writes, and (later) deck scripts.
+func _group_scripting() -> void:
+	await load("res://tests/scripting_tests.gd").new().run(self, check)
 
 
 func check(cond: bool, name: String) -> void:
@@ -236,8 +245,19 @@ func test_level_0_puzzles() -> void:
 		visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors"))
+		for n in [2, 3, 5, 10, 100]:
+			visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT %d" % n))
+		var top_one := d.execute("SELECT name, signed_in FROM visitors ORDER BY signed_in DESC LIMIT 1")
+		visitor_ok = visitor_ok and not visitor.matches(d, top_one) and l0.visitor_top_one_for().matches(d, top_one)
+		visitor_ok = visitor_ok and not l0.visitor_top_one_for().matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 2"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 5"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 2"))
+		# Stored oldest first, so these hold Vale's row too, but not at the top of the newest-first list.
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors LIMIT 5;"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in LIMIT 5;"))
+		visitor_ok = visitor_ok and d.run_silent("SELECT name FROM visitors LIMIT 5").any(func(r): return r["name"] == "VALE, I.")
 	check(caller_ok, "the caller's extension is Harold Mercer's, gone since '94; listing names beside extensions finds it, the department alone doesn't")
-	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it")
+	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it, the whole list or any LIMIT of 2 or more; LIMIT 1 is the near miss")
 	check(exts.size() >= 10, "the caller's extension varies between runs (%d different)" % exts.size())
 
 
@@ -250,6 +270,10 @@ func test_level_1_data_every_seed() -> void:
 	var never_guessable := true
 	var all_explained := true
 	var answers := {}
+	var count_ok := true
+	var counts := {}
+	var l1 = load("res://scripts/levels/level_1.gd")
+	var l1i = l1.new()
 	for s in 50:
 		var data := Level1Data.build(s)
 		var db := FacilityDB.new()
@@ -277,6 +301,25 @@ func test_level_1_data_every_seed() -> void:
 		if not db.run_silent("SELECT id FROM door_controllers WHERE status != 'ok' AND id != '%s' AND note = 'normal'" % data.answer).is_empty():
 			all_explained = false
 		answers[data.answer] = true
+		# The reset sign-off's count: 3, 5 or 6 faults, never a tempting wrong count.
+		var faults: int = data.faulted
+		counts[faults] = true
+		var count: Puzzle = l1.count_puzzle_for()
+		count_ok = count_ok and faults >= 2 and db.run_silent("SELECT COUNT(*) AS n FROM door_controllers WHERE status = 'fault'")[0]["n"] == faults
+		for right in ["SELECT COUNT(*) FROM door_controllers WHERE status = 'fault';", "SELECT COUNT(id) FROM door_controllers WHERE status = 'fault'",
+				"SELECT COUNT(*) AS n FROM door_controllers WHERE status = 'fault'"]:
+			count_ok = count_ok and count.matches(db, db.execute(right))
+		for wrong in ["SELECT COUNT(*) FROM door_controllers", "SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'",
+				"SELECT COUNT(*) FROM door_controllers WHERE status = 'offline'", "SELECT COUNT(*) FROM door_controllers WHERE status = 'ok'",
+				"SELECT COUNT(*) FROM door_controllers WHERE zone = '%s'" % z, "SELECT COUNT(*) FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z,
+				"SELECT COUNT(*) FROM door_controllers WHERE location LIKE 'Server Room A%'", "SELECT COUNT(*) FROM door_controllers WHERE location = 'Records Archive'",
+				"SELECT * FROM door_controllers WHERE status = 'fault'"]:
+			count_ok = count_ok and not count.matches(db, db.execute(wrong))
+		count_ok = count_ok and l1i.count_all.matches(db, db.execute("SELECT COUNT(*) FROM door_controllers"))
+		count_ok = count_ok and l1i.count_not_ok.matches(db, db.execute("SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'"))
+	l1i.free()
+	check(count_ok, "the sign-off count is the 'fault' rows, as COUNT(*), COUNT(id) or AS n; no WHERE, != 'ok', a zone or a room never gives it")
+	check(counts.size() == 3, "how many controllers are faulted varies between runs (%s)" % ", ".join(counts.keys().map(func(k): return str(k))))
 	check(all_explained, "every other faulted or offline controller has a note saying why")
 	check(all_ok, "exactly one zone-A fault on a physical rack, and AND finds it")
 	check(never_guessable, "a single condition is never enough")
@@ -317,7 +360,7 @@ func test_first_hints_show_working_queries() -> void:
 	var l0 = load("res://scripts/levels/level_0.gd")
 	var l0i = l0.new()
 	var l1 = load("res://scripts/levels/level_1.gd")
-	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true, "stuck_doors": true, "dark_room": true}
+	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true, "stuck_doors": true, "dark_room": true, "faulted_count": true}
 	for seed_value in 20:
 		var d0 := FacilityDB.new()
 		var data0 := Level0Data.build(seed_value)
@@ -332,6 +375,7 @@ func test_first_hints_show_working_queries() -> void:
 		ok.controller = ok.controller and _check_hint_ladder(l1.controller_puzzle_for(data1.zone), d1, "'%s'" % data1.zone)
 		ok.hot_rack = ok.hot_rack and _check_hint_ladder(l1.hot_rack_puzzle_for(), d1, str(Level1Data.INTERLOCK_C))
 		ok.stuck_doors = ok.stuck_doors and _check_hint_ladder(l1.stuck_doors_puzzle_for(), d1, "1")
+		ok.faulted_count = ok.faulted_count and _check_hint_ladder(l1.count_puzzle_for(), d1, "door_controllers")
 		ok.dark_room = ok.dark_room and _check_hint_ladder(l1.dark_room_puzzle_for(), d1, "'dead'") and not l1.dark_room_puzzle_for().hints[0].contains("flickering")
 	for id in ok:
 		check(ok[id], "%s: hint 1 is the query's shape with ?, and the last hint's query solves it, on every seed" % id)
@@ -578,7 +622,8 @@ func test_commentary() -> void:
 	check(bad_puzzles.is_empty(), "commentary only covers puzzles the levels have %s" % [bad_puzzles])
 	check(bad_ids.is_empty(), "every commentary line is a crew line in the script %s" % [bad_ids])
 	check(bad_docs.is_empty(), "commentary only points at papers that are in the levels %s" % [bad_docs])
-	var unused := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "CREW" and not used.has(id))
+	# Crew lines in a commentary scene ("l0_crew" and so on); the crew's book huddles are played elsewhere.
+	var unused := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["scene"].ends_with("_crew") and not used.has(id))
 	check(unused.is_empty(), "every crew commentary line has a moment to play %s" % [unused])
 
 	var hud := FakeHud.new()
@@ -806,6 +851,10 @@ func test_level_0_scene() -> void:
 	check(not level.memo_puzzle.solved and Array(level.desk_terminal.transcript).any(func(l): return l.contains("memo backwards")), "a memo sorted DESC doesn't count, and SYSOP says why")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
+	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 1")
+	check(not level.visitor_puzzle.solved and TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("one row further down"), "the visitor log cut to LIMIT 1 shows only the crew, and SYSOP says Vale is one row down")
+	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 3")
+	check(level.visitor_puzzle.solved, "LIMIT 3 reaches Vale's row and solves the visitor log")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
 	_check_l0_documents(level)
 	# Walking into the west end of the counter vaults you over it, and back again.
@@ -1037,6 +1086,23 @@ func test_level_1_scene() -> void:
 	check(not level.controller_puzzle.solved, "zone alone isn't enough")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z)
 	check(level.controller_puzzle.solved, "WHERE + AND finds the controller")
+	# The reset's sign-off wants the floor's faulted count first.
+	check(_game().current_todo() == level.COUNT_TODO and not level.count_puzzle.solved, "next, the sign-off wants the faults counted")
+	level._on_panel(null, level.answer)
+	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until == 0.0 and level.hud._notice.text.contains("NO POWER"), "the right rack still has no power until the count is logged")
+	level.terminal_ui.run("SELECT COUNT(*) FROM door_controllers")
+	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("healthy ones too"), "counting every controller isn't it, and SYSOP says why")
+	level.terminal_ui.run("SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'")
+	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("offline ones too"), "counting everything not 'ok' takes in the offline ones, and SYSOP says why")
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE status = 'fault'")
+	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("let COUNT(*) do the counting"), "listing the faulted rows isn't the count, and SYSOP points at COUNT(*)")
+	var printout: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "WARDEN DIAGNOSTICS")[0]
+	check(printout.plain_text().contains("COUNT(*): %d" % level.db.run_silent("SELECT COUNT(*) AS n FROM racks")[0]["n"])
+		and printout.plain_text().contains("COUNT(*): %d" % level.db.run_silent("SELECT COUNT(*) AS n FROM racks WHERE room = 'Server Room C'")[0]["n"]),
+		"WARDEN's printout shows the racks table's real counts")
+	level.terminal_ui.run("SELECT COUNT(id) AS n FROM door_controllers WHERE status = 'fault'")
+	check(level.count_puzzle.solved and _game().current_todo() == "Reset the faulted controller at its rack", "COUNT with WHERE status = 'fault' logs the count, and the to-do moves on to the reset")
+	check(_game().notebook_todo.any(func(t): return t.text == level.COUNT_TODO and t.filled == "units faulted: %d" % level.faulted), "the count is written on the job ticket")
 	_check_l1_documents(level)
 	check(level.find_children("*", "Document", true, false).any(func(d): return d.title.ends_with("RACK MONITORING") and d.global_position.distance_to(level.terminal.global_position) < 1.5 and d.plain_text().contains("temp_c > %d" % Level1Data.INTERLOCK_C)), "the racks table and its limit are on a card at the terminal, before any hint")
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
@@ -1334,6 +1400,9 @@ func test_coop_level_1() -> void:
 	client.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % host.zone)
 	await _frames(10)
 	check(host.controller_puzzle.solved and client.controller_puzzle.solved, "a client's query finds the controller for everyone")
+	client.terminal_ui.run("SELECT COUNT(*) FROM door_controllers WHERE status = 'fault';")
+	await _frames(10)
+	check(host.count_puzzle.solved and client.count_puzzle.solved, "a client's count logs the sign-off for everyone")
 	client.rack_panels[wrong].interact(client.player)
 	await _frames(10)
 	check(host.panels_locked_until > 0.0 and client.panels_locked_until > 0.0, "a wrong rack locks the panels for everyone")
@@ -1576,7 +1645,8 @@ func test_coop_looks() -> void:
 			drawn = drawn and not Cosmetics.info(slot, item).is_empty()
 	check(drawn and Cosmetics.ITEMS.all(func(it): return it.name != "" and (Cosmetics.drawable(it.slot, it.item) or it.unlock != "default")),
 		"every outfit piece Graphics draws is in the catalogue, with a name, and every starting item can be drawn")
-	check(Cosmetics.WORN_SLOTS.all(func(s): return CharacterLooks.SLOTS.has(s)) and Cosmetics.TOOL_SLOTS == CharacterLooks.TOOL_SLOTS, "the picker's slots are Graphics' slots")
+	check(Cosmetics.WORN_SLOTS.all(func(s): return CharacterLooks.SLOTS.has(s)) and CharacterLooks.TOOL_SLOTS.all(func(s): return s in Cosmetics.TOOL_SLOTS)
+	and Cosmetics.TOOL_SLOTS.all(func(s): return s in CharacterLooks.TOOL_SLOTS or s in Cosmetics.NOTEBOOK_ADDONS), "the picker's slots are Graphics' slots, plus the notebook's add-ons")
 	var defaults := range(6).map(func(i): return Cosmetics.default_loadout(i).top.color)
 	check(defaults.all(func(c): return defaults.count(c) == 1), "players who never open the picker still wear different colors")
 	# The host checks a loadout against the catalogue, and trusts what you own.
@@ -1626,7 +1696,7 @@ func test_coop_looks() -> void:
 	root.add_child(lobby)
 	await process_frame
 	var tabs: TabContainer = lobby.find_child("Customize", true, false)
-	check(tabs != null and tabs.get_tab_count() == 3 and tabs.get_tab_title(0) == "Crew" and tabs.get_tab_title(1) == "Look" and tabs.get_tab_title(2) == "Gear", "the picker has Crew, Look and Gear tabs")
+	check(tabs != null and tabs.get_tab_count() == 4 and tabs.get_tab_title(0) == "Crew" and tabs.get_tab_title(1) == "Look" and tabs.get_tab_title(2) == "Gear" and tabs.get_tab_title(3) == "Achievements", "the picker has Crew, Look, Gear and Achievements tabs")
 	lobby.find_child("Skin6", true, false).pressed.emit()
 	lobby.find_child("Crew_kit", true, false).pressed.emit()
 	var hats: OptionButton = lobby.find_child("Item_head", true, false)
@@ -1699,6 +1769,49 @@ func test_coop_looks() -> void:
 	net.profile = real_profile
 
 
+## Named achievements: a notice when earned, and a list in the lobby.
+func test_coop_achievements() -> void:
+	print("Co-op: achievements")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	Cosmetics.reset()
+	var ids := Achievements.LIST.map(func(a): return a.id)
+	check(ids.all(func(id): return ids.count(id) == 1 and not Cosmetics.unlocked_by(id).is_empty()),
+		"every achievement is one of the unlock ids, each listed once")
+	check(Achievements.name_of("achievement:floor_18") == "Filed under F", "floor 18's is called what Augustine approved")
+	check(ids.all(func(id): return Achievements.is_secret(id) == (Achievements.hint(id) == "")), "every achievement but a secret says how to earn it")
+	net.profile = Profile.new()
+	net.profile.earned = ["achievement:floor_18", "secret:roster_thu"]
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var tabs: TabContainer = lobby.find_child("Customize", true, false)
+	var page: Control = lobby.find_child("Achievements", true, false)
+	var title := func(id: String) -> String:
+		var row := page.find_child("Achievement_" + id, true, false)
+		return row.get_node("Name").text if row else ""
+	check(tabs.get_tab_title(3) == "Achievements" and title.call("floor_18") == "Filed under F", "the lobby lists what you've earned")
+	var g := page.find_child("Achievement_floor_g", true, false)
+	check(title.call("floor_g") == Achievements.name_of("achievement:floor_g") + " (locked)" and g.get_node("Hint").text == "Finish the ground floor.",
+		"and what you haven't, with how to earn it")
+	check(title.call("roster_thu") == Achievements.name_of("secret:roster_thu") and title.call("ending_news") == "" and title.call("mercer_vent_tape") == "",
+		"a found secret shows; the others stay hidden")
+	lobby.queue_free()
+	await process_frame
+	# Earning one says its name, then what it unlocks.
+	net.profile = Profile.new()
+	_game().new_run(21)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	levels[0].sync.unlock_for([1], "achievement:floor_18")
+	check(levels[0].hud._notice.text == Achievements.NOTICE % "Filed under F", "earning an achievement shows its name (its sticker isn't drawn yet, so nothing else)")
+	levels[0].hud._notice.text = ""
+	levels[0].sync.unlock_for([1], "achievement:floor_18")
+	check(levels[0].hud._notice.text == "", "and only the first time")
+	await _coop_close(worlds)
+	net.profile = real_profile
+
+
 func test_coop_unlocks() -> void:
 	print("Co-op: unlockable items")
 	var net := root.get_node("Net")
@@ -1718,15 +1831,28 @@ func test_coop_unlocks() -> void:
 		["head/mercer_cap", "secret:mercer_vent_tape", "Mercer's cap", ""],
 		["walkie/gold", "secret:roster_thu", "Gold", ""],
 		["jacket/press", "secret:ending_news", "Press jacket", ""],
+		# Floor 18's two (plan/approvals/l3-text.md, 2026-10-21 11:27Z).
+		["sticker/archive_label", "achievement:floor_18", "Archive box label", "Finish floor 18."],
+		["clip/mercer_floppy", "secret:mercer_floppy_1", "Mercer's floppy", ""],
 	]
 	var rows_ok := approved.all(func(r):
 		var it := Cosmetics.info(r[0].get_slice("/", 0), r[0].get_slice("/", 1))
 		return it.get("unlock") == r[1] and it.get("name") == r[2] and str(it.get("hint", "")) == r[3] and Cosmetics.is_secret(it) == (r[3] == ""))
-	check(rows_ok, "the ten approved items are in the catalogue with their sources, names and hints; secrets have no hint")
+	check(rows_ok, "the approved items are in the catalogue with their sources, names and hints; secrets have no hint")
 	check(approved.all(func(r): return not net.profile.has_item(r[0])), "nobody starts with them, the hard hat included")
+	# The notebook's sticker and clip go on any cover.
+	var fresh := Cosmetics.default_loadout(0)
+	check(fresh.sticker.item == "none" and fresh.clip.item == "none", "the notebook starts with no sticker and no clip")
+	var owner := Profile.new()
+	owner.earned = ["achievement:book_easy_sql", "achievement:floor_18", "secret:mercer_floppy_1"]
+	var dressed := Cosmetics.clean(Cosmetics.trim({"notebook": {"item": "easy_sql"}, "sticker": {"item": "archive_label"}, "clip": {"item": "mercer_floppy"}}, owner), 0)
+	check(dressed.notebook.item == "easy_sql" and dressed.sticker.item == "archive_label" and dressed.clip.item == "mercer_floppy",
+		"the box label and the floppy go on the Easy SQL cover together")
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(lobby)
 	await process_frame
+	var sticker_row: Control = lobby.find_child("Item_sticker", true, false).get_parent()
+	check(sticker_row.visible == ("archive_label" in CharacterLooks.TOOL_ITEMS.get("sticker", [])), "the Sticker row shows once Graphics can draw a sticker")
 	var texts := func(on: Control, slot: String) -> Array:
 		var l: OptionButton = on.find_child("Item_" + slot, true, false)
 		return range(l.item_count).map(func(i): return l.get_item_text(i))
@@ -1749,7 +1875,7 @@ func test_coop_unlocks() -> void:
 	net.profile = Profile.new()  # the test's machines share one Net, so give the client its own save
 	await _frames(10)
 	check(host_profile.has_item("head/hard_hat") and net.profile.has_item("head/hard_hat"), "finishing the ground floor unlocks the hard hat for every player")
-	check(levels[0].hud._notice.text == "Unlocked: Hard hat" and levels[1].hud._notice.text == "Unlocked: Hard hat", "and each of them is told")
+	check(levels[0].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat") and levels[1].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat"), "and each of them is told")
 	levels[0].hud._notice.text = ""
 	levels[0].sync.unlock("achievement:floor_g")
 	await _frames(5)
@@ -1765,7 +1891,7 @@ func test_coop_unlocks() -> void:
 	var client_profile := Profile.new()
 	net.profile = client_profile
 	await _frames(5)
-	check(client_profile.has_item("face/reading_glasses") and levels[1].hud._notice.text == "Unlocked: Reading glasses",
+	check(client_profile.has_item("face/reading_glasses") and levels[1].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:easy_sql_half") + "\nUnlocked: Reading glasses"),
 		"the client who finished half the book unlocks the reading glasses")
 	check(not host_profile.has_item("face/reading_glasses") and levels[0].hud._notice.text == "", "and the host, who didn't, doesn't")
 	net.profile = host_profile
@@ -1773,7 +1899,7 @@ func test_coop_unlocks() -> void:
 	levels[0].sync.unlock_for([1], "achievement:first_block")
 	net.profile = Profile.new()
 	await _frames(5)
-	check(host_profile.has_item("feet/high_tops") and levels[0].hud._notice.text == "Unlocked: High-tops"
+	check(host_profile.has_item("feet/high_tops") and levels[0].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:first_block") + "\nUnlocked: High-tops")
 		and not net.profile.has_item("feet/high_tops") and levels[1].hud._notice.text == "", "the host's own block unlocks the high-tops for the host alone")
 	Cosmetics.catalogue.append({"slot": "walkie", "item": "undrawn_x", "name": "Test undrawn", "unlock": "achievement:test_undrawn"})
 	levels[1].hud._notice.text = ""
@@ -2856,7 +2982,7 @@ func test_coop_combat() -> void:
 	await _frames(10)
 	check(is_equal_approx(client.player.health, 78.0), "the client's block, on their own machine, catches it")
 	check(blocks == [[client_id, "rourke"]], "and the host hears about it, so he can reel")
-	check(client.hud._notice.text == "Unlocked: High-tops" and host.hud._notice.text == "",
+	check(client.hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:first_block") + "\nUnlocked: High-tops") and host.hud._notice.text == "",
 		"the client's first real block unlocks the High-tops for the client only: the host, in the same fight, gets nothing")
 	check(net.profile.earned.has(CrewVitals.FIRST_BLOCK), "into the player's own profile")
 	client.hud._notice.text = ""
@@ -2864,7 +2990,7 @@ func test_coop_combat() -> void:
 	host.player.combat.raise_guard()
 	check(host.player.take_damage(22.0, "rourke") == "blocked", "then the host blocks a swing of their own")
 	await _frames(10)
-	check(host.hud._notice.text == "Unlocked: High-tops" and client.hud._notice.text == "" and net.profile.earned.has(CrewVitals.FIRST_BLOCK),
+	check(host.hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:first_block") + "\nUnlocked: High-tops") and client.hud._notice.text == "" and net.profile.earned.has(CrewVitals.FIRST_BLOCK),
 		"and unlocks the High-tops themselves, the client hearing nothing of it")
 	net.profile = real_profile
 	puppet.take_damage(1000.0, "watcher")
@@ -4031,9 +4157,10 @@ func test_level_3_data_every_seed() -> void:
 				route_ok = false
 		if data.mercer_boxes.size() != 3:
 			sources = false
-		# The lock's code is the night visitor's badge number, and only that badge used the host room's reader.
+		# The lock's code is the night visitor's badge number (Mercer's own, an E- badge
+		# in his name), and only that badge used the host room's reader.
 		var badges := db.run_silent("SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host)
-		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "A-" + data.code or badges.size() != 1 or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
+		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "E-" + data.code or badges.size() != 1 or db.run_silent("SELECT DISTINCT holder FROM access_log WHERE badge_id = '%s'" % data.visitor_badge) != [{"holder": "MERCER, H."}] or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
 			code_ok = false
 		codes[data.code] = true
 		hosts[data.host] = true
@@ -4117,10 +4244,11 @@ func test_level_3_scene() -> void:
 	check(space.intersect_ray(q).is_empty(), "after cranking, the aisle along the back wall is clear")
 	check(level.find_children("Door_MERCER", "", false, false).size() == 1 and level.safe_room_box.has_point(spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 + 1.0)),
 		"one hidden door, in the host room's back wall, with Mercer's room beyond it")
-	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
+	# The desk's stations and their ladders (COUNT's is the short review one).
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
-	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "seven stations on the desk, none with a hint ladder yet")
+	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.size() >= 2) and level.pc_puzzle.hints.size() >= 2, "seven stations on the desk and one on the PC, each with a hint ladder")
+	check(level.desk.puzzles[0] == level.keyholder_puzzle and level.desk.next_hint().contains("access_log WHERE room = '?'"), "with Mercer's door found, .hint starts on the lock's question")
 	level.terminal_ui.run("SELECT COUNT(*) FROM access_log")
 	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")
@@ -4143,6 +4271,12 @@ func test_level_3_scene() -> void:
 	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's top room with its count passes too; the case stays closed once")
 	level.terminal_ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
 	check(level.keyholder_puzzle.solved, "the lock's question: that room's raw rows, read by eye, pass it")
+	check(level.slips_puzzle.hints.size() == 2 and level.slips_puzzle.hints[0].contains("counted before") and level.slips_puzzle.hints[0].contains("status = '?'") and not level.slips_puzzle.hints[0].contains("'open'"),
+		"the slips ladder is review: a reminder with the shape, then the query")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips WHERE status = 'open'")
+	var counted := Array(level.desk.transcript).filter(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count))
+	check(counted.size() == 1 and not level.slips_puzzle.solved, "listing the slips instead of counting them gets SYSOP's reminder, once")
 	level.terminal_ui.run("SELECT COUNT(slip_no) FROM retrieval_slips WHERE status = 'open'")
 	level.terminal_ui.run("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")
 	check(level.slips_puzzle.solved and level.depts_puzzle.solved and _game().case_info("duties").get("solved", false), "the slips and departments stations pass, and the night clerk's list closes")
@@ -4150,7 +4284,7 @@ func test_level_3_scene() -> void:
 	check(not level.unreturned_puzzle.solved, "= NULL finds nothing, so the unreturned station doesn't pass")
 	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL")
 	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false) and _game().case_info("key").how.contains(level.data.key_box), "IS NULL finds the boxes nobody checked back in; the key case names them")
-	check(level.find_children("*", "Terminal", true, false).size() == 3 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (the web skill is on hold); Mercer's PC is the third")
+	check(level.find_children("*", "Terminal", true, false).size() == 2 and level.geo.get_node_or_null("FicheTerminal") == null, "two terminals on 18, the desk and Mercer's PC: the microfiche room has none (the HTML record moved to a later floor)")
 	# Mercer's PC: its own little database, off the building's, with the safe IS NULL practice.
 	level.terminal_ui.terminal = level.pc
 	level.terminal_ui.run("SELECT box_id FROM pulled WHERE back_on IS NULL")
@@ -4220,6 +4354,12 @@ func test_level_3_safe_room() -> void:
 	await _frames(3)
 	check(not p.inventory.has("stair_key") and not level.key_taken and level.key_dock.get_prompt(p) == level.TEXT.box_taped, "after the note but before the query, the key box is still taped")
 	level.terminal_ui.terminal = level.desk
+	# The note has asked the slips a different question, so listing them (the key
+	# ladder's own advice) gets no "you've counted before" from SYSOP.
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	check(not level.slips_puzzle.solved and not Array(level.desk.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count)),
+		"with Mercer's note read, listing the slips gets no COUNT reminder: the key's question comes first")
 	level.terminal_ui.run(level.unreturned_puzzle.solution_sql)
 	await _frames(3)
 	check(level.unreturned_puzzle.solved and level.boxes_named and not level.key_dock.tape.visible and level.key_dock.get_prompt(p) == "[E] " + level.TEXT.box_tear % level.data.key_box, "the IS NULL query names the box: its tape comes off and it can be torn open")
@@ -4257,7 +4397,7 @@ func test_level_3_safe_room() -> void:
 		if done[0]:
 			break
 	check(done[0] and _game().completed_level == "level_3", "everyone on the stairs completes the floor")
-	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_18") or true, "finishing floor 18 reports its unlock (no cosmetic bound yet)")
+	check(root.get_node("/root/Net").profile.has_item("sticker/archive_label"), "finishing floor 18 unlocks the archive box label")
 	level.queue_free()
 	await process_frame
 
@@ -4347,6 +4487,9 @@ func test_coop_level_3() -> void:
 	host.shredder.place(host.to_global(host.SHREDDER_HOME), host.to_global(Vector3(-5.5, 0, -20)))
 	host.shredder.state = "listening"
 	await _frames(5)
+	var net: Node = root.get_node("/root/Net")
+	var before_floppy: Profile = net.profile
+	net.profile = Profile.new()  # the test's machines share one Net: this save is the client's
 	client.floppy.interact(client.player)
 	client.key_dock.interact(client.player)
 	await _frames(20)
@@ -4360,6 +4503,8 @@ func test_coop_level_3() -> void:
 	# (Every machine in a test shares one Game.inventory, so who took it is read off the dock.)
 	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
 	check(client.player.inventory.has("floppy_disk") and machines.all(func(l): return l.floppy_taken and not l.floppy.enabled and l.floppy.has_taken(client_id) and not l.floppy.has_taken(host_id)), "the one floppy goes to the player who took it")
+	check(net.profile.has_item("clip/mercer_floppy"), "and so does Mercer's floppy, for their notebook")
+	net.profile = before_floppy
 	check(machines.all(func(l): return l.key_taken and not l.stair_out.locked), "the key unlocks the stairs on every machine")
 	check(host.players.puppet(client_id) != null, "the host knows the client")
 	# The exit waits for everyone.
@@ -4476,5 +4621,83 @@ func test_level_3_shredder() -> void:
 	check(p.health <= start_health - Shredder.THROW_DAMAGE + 0.01 and p.health > 0.0 and not p.combat.down, "thrown: heavy damage, but one throw doesn't put you down from full health (%.0f)" % p.health)
 	check(level.to_local(p.global_position).distance_to(Vector3(1.0, 0.1, -23.5)) > 2.0 and p.combat.grabbed_by == null, "you land well away from it, out of its hands")
 	check(s.held == null and s.state != "grabbing", "after the throw it has let go, and goes back to listening for you (%s)" % s.state)
+	level.queue_free()
+	await process_frame
+
+
+func test_level_3_book_huddles() -> void:
+	print("Level 3: the book's floor 18 chapters")
+	_game().new_run(11)
+	var net := root.get_node("Net")
+	var test_profile = net.profile
+	net.profile = Profile.new()
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h := _huddle_of(level)
+	_doc(level, "Retention review memo").open_reader(p).close()
+	for i in 300:  # the cut to the garage
+		if h.is_running():
+			break
+		await physics_frame
+	check(h.chapter.get("id", "") == "easy_sql_distinct" and p.input_locked, "reading the memo on the card catalogue brings back the DISTINCT chapter, round the garage bench")
+	check(not level.shredder.is_physics_processing(), "the Shredder stands still while the crew is in the huddle")
+	_doc(level, "Reader tally").open_reader(p).close()
+	await _frames(5)
+	check(h.chapter.get("id", "") == "easy_sql_distinct", "the tally read mid-huddle waits its turn")
+	await _crew_reads([level])
+	if not h.done.has("easy_sql_group_by"):
+		check(not level.shredder.is_physics_processing(), "between the two huddles the Shredder still stands still")
+		await _crew_reads([level])
+	check(h.done.has("easy_sql_distinct") and h.done.has("easy_sql_group_by"), "then the tally brings back the COUNT and GROUP BY chapter")
+	check(net.profile.earned.has("chapter:easy_sql_distinct") and net.profile.earned.has("chapter:easy_sql_group_by"), "both chapters are on the reader's profile")
+	for i in 120:  # the cut back to floor 18
+		if level.shredder.is_physics_processing():
+			break
+		await physics_frame
+	check(level.shredder.is_physics_processing() and not p.input_locked, "afterwards the Shredder can move again, and so can the crew")
+	_doc(level, "Retention review memo").open_reader(p).close()
+	await _frames(10)
+	check(not h.is_running(), "reading the memo again doesn't repeat the chapter")
+	net.profile = test_profile
+	level.queue_free()
+	await process_frame
+
+
+func test_level_1_book_huddle() -> void:
+	print("Level 1: the book's COUNT chapter")
+	_game().new_run(7)
+	var net := root.get_node("Net")
+	var test_profile = net.profile
+	net.profile = Profile.new()
+	var level = load("res://scenes/level_1.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h := _huddle_of(level)
+	var reader = _doc(level, "CONTROLLER RESET - SIGN-OFF").open_reader(p)
+	await _frames(20)
+	check(not h.is_running() and p.input_locked and reader.is_inside_tree(), "the cut waits while the sign-off form is still being read")
+	reader.close()
+	for i in 300:  # the cut to the garage
+		if h.is_running():
+			break
+		await physics_frame
+	check(h.chapter.get("id", "") == "easy_sql_count" and p.input_locked, "putting the sign-off form down brings back How many?, the COUNT chapter")
+	await _crew_reads([level])
+	await _frames(60)  # the cut back to floor 14
+	check(h.done.has("easy_sql_count") and net.profile.earned.has("chapter:easy_sql_count") and not p.input_locked, "the crew reads it, it's on the profile, and the crew can move again")
+	# In the World a paper's reader sits on its wing, under the World's huddle.
+	var wing_script := GDScript.new()
+	wing_script.source_code = "extends Node\nfunc finish_level() -> void:\n\tpass\n"
+	wing_script.reload()
+	var wing := Node.new()
+	wing.set_script(wing_script)
+	level.add_child(wing)
+	var wing_reader := DocumentReader.new()
+	wing.add_child(wing_reader)
+	check(h._papers().has(wing_reader), "the huddle also waits for a paper open on a wing")
+	net.profile = test_profile
 	level.queue_free()
 	await process_frame

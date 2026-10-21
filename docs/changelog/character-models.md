@@ -1,1 +1,0 @@
-- **Changed:** the crew and everyone in the building are now smooth, clothed low-poly people instead of blocky figures, with jackets, lanyards, hair and hats that follow every pose.

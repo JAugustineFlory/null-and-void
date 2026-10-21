@@ -11,7 +11,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN** (WARDEN). The campus security system, heard over 1997 PA speakers and terminals. Not a villain: it enforces protocol, and turns hostile only once the crew breaches it and loses their escort.
 
-> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 **WARDEN (PA tapes)** (PA). WARDEN's own pre-recorded PA module. Subtitled as PA so players don't connect it to WARDEN yet; they realize later it was watching all along. The live WARDEN voice says nothing in Level 0.
 
@@ -701,24 +701,136 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **CREW:** *(Keypad accepted it. Nervous, wants to move.)* That's the code. Let's not hang around. `[l2_cc_pin_pay]`
 
-## Level 3
+## Level 4
 
 ### Book huddles: UPDATE
 
 *Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches.* *(Written ahead: not in the game yet.)*
 
-**MADDISON:** *(Holding the page at arm's length.)* UPDATE. Changing things. The book's put this one in a red box, which I don't love. `[l3_huddle_update_1]`
+**MADDISON:** *(Holding the page at arm's length.)* UPDATE. Changing things. The book's put this one in a red box, which I don't love. `[l4_huddle_update_1]`
 
-**MADDISON:** *(Suddenly serious, for once.)* Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. `[l3_huddle_update_2]`
+**MADDISON:** *(Suddenly serious, for once.)* Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. `[l4_huddle_update_2]`
 
 ### Containment protocol Epsilon
 
-*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level number provisional until the level table is redone.* *(Written ahead: not in the game yet.)*
+*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. The terminal's lie at the main entrance is exposed by the crew's own SELECT, not by WARDEN. Level 4 under curriculum option B (approved 2026-10-21).* *(Written ahead: not in the game yet.)*
 
-**WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l3_epsilon_1]`
+**WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l4_epsilon_1]`
 
-**WARDEN:** *(Even pauses between sentences, like reading a checklist.)* ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. `[l3_epsilon_2]`
+**WARDEN:** *(Even pauses between sentences, like reading a checklist.)* ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. `[l4_epsilon_2]`
 
-**WARDEN:** *(No change in tone for 'not a drill'. That's the frightening part.)* ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. `[l3_epsilon_3]`
+**WARDEN:** *(No change in tone for 'not a drill'. That's the frightening part.)* ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. `[l4_epsilon_3]`
 
-**WARDEN:** *(Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.)* REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. `[l3_epsilon_loop]`
+**WARDEN:** *(Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.)* REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop]`
+
+**WARDEN:** *(Takes turns with the other reminder, once writes have been suspended. Same polite loop.)* REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop_2]`
+
+### Writes suspended
+
+*Ground floor, after the crew's main-entrance UPDATE says '1 row affected' and the latch clicks: Epsilon reverts the write and WARDEN announces that the database is now read-only, which is why the crew turns to the building's services. Placement chosen by Augustine 2026-10-21 ('After the lie').* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint.)* DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. `[l4_epsilon_db]`
+
+### Writes refused
+
+*After the read-only announcement, any change the crew types is refused; SELECT still works. By Level 4 WARDEN's fault lets his own personality leak out: the first refusal is the automatic PA announcement first, then WARDEN himself, teasing, as a separate beat. Approved by Augustine 2026-10-21 with that split.* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal.)* WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. `[l4_write_refused]`
+
+**WARDEN:** *(A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud.)* YOU MAY STILL LOOK. LOOKING IS FREE. `[l4_write_refused_tease]`
+
+**WARDEN:** *(Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat.)* STILL READ-ONLY. `[l4_write_refused_again]`
+
+## Level 5
+
+### Book huddles: Easy APIs
+
+*Found in the payroll office on floor 9, the same series as Easy SQL. The crew reads aloud themselves (no Maddison in the tower). Title is a placeholder until Augustine names it. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+
+**CREW:** *(Picking it up off a desk. Delighted, a little thrown.)* No way. It's the same series. Somebody here bought the sequel. `[l5_book_find]`
+
+**CREW:** *(Reading the back cover, hopeful.)* Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly. `[l5_book_open]`
+
+**CREW:** *(Starting a chapter, reading it out.)* Chapter one. POST. You send it something, it makes something. Like a suggestion box that answers. `[l5_huddle_post_1]`
+
+**CREW:** *(Wrapping up, pleased it's simple.)* So GET looks, POST makes. Got it. `[l5_huddle_post_2]`
+
+**CREW:** *(Starting a chapter. Noticing how hard the book insists.)* PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice. `[l5_huddle_patch_1]`
+
+**CREW:** *(Wrapping up. Proud of the joke.)* PATCH is UPDATE wearing a tie. `[l5_huddle_patch_2]`
+
+**CREW:** *(Starting a chapter. A little told off.)* Every answer comes with a number. Book says read the number before you celebrate. `[l5_huddle_codes_1]`
+
+**CREW:** *(Wrapping up, counting it off.)* Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs. `[l5_huddle_codes_2]`
+
+**CREW:** *(Starting a chapter, working it out as you read.)* Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed. `[l5_huddle_keys_1]`
+
+**CREW:** *(Wrapping up. Got it.)* So if it says 401, we forgot the badge. `[l5_huddle_keys_2]`
+
+**CREW:** *(Starting a short chapter. Knowing nod.)* Short chapter. After you change something, ask again. Book says never trust the first answer. `[l5_huddle_check_1]`
+
+**CREW:** *(Wrapping up. Wry; you've been burned before.)* Change it, then look again. The front doors taught us that one. `[l5_huddle_check_2]`
+
+## Level 6
+
+### Book huddles: Easy JavaScript
+
+*Found on B1 next to where the deck's script editor arrives. Variables and loops are used on Level 6; functions, lists and testing on Level 7. Title is a placeholder until Augustine names it. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+
+**CREW:** *(Sliding it out from under a mug. The cover's stained and the pages are soft.)* Easy JavaScript. Somebody's read this one to death. `[l6_book_find]`
+
+**CREW:** *(Tired of typing. This sounds like rescue.)* Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat. `[l6_book_open]`
+
+**CREW:** *(Starting a chapter. Braced for hard; it isn't.)* A variable's a labelled box. If is a fork in the road. That's... honestly fine. `[l6_huddle_if_1]`
+
+**CREW:** *(Wrapping up, to yourself.)* Box, fork. I can do box and fork. `[l6_huddle_if_2]`
+
+**CREW:** *(Starting a chapter. The 'million times a second' bit alarms you.)* Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see. `[l6_huddle_loops_1]`
+
+**CREW:** *(Wrapping up, making a note.)* Always put the wait in. Always log it. Writing that one down. `[l6_huddle_loops_2]`
+
+**CREW:** *(Starting a chapter, reading it out.)* Functions. Write it once, give it a name, use it anywhere. `[l6_huddle_functions_1]`
+
+**CREW:** *(Wrapping up. Pleased with that.)* So a function's a recipe we can shout. `[l6_huddle_functions_2]`
+
+**CREW:** *(Starting a chapter. The penny drops halfway.)* Lists. A whole line of things in one box. Loop over it and you've done them all. `[l6_huddle_lists_1]`
+
+**CREW:** *(Wrapping up. Genuinely unsure which.)* One loop, every door. That's either brilliant or terrifying. `[l6_huddle_lists_2]`
+
+**CREW:** *(Starting the last chapter. Taking it seriously.)* Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't. `[l6_huddle_test_1]`
+
+**CREW:** *(Wrapping up. Rueful.)* Test first. We've all learned that one the hard way tonight. `[l6_huddle_test_2]`
+
+## Level 8
+
+### Book huddles: Hello HTML!
+
+*Found in the elevator after Level 7. Elements and attributes are used on Level 8, the CSS chapters on Level 9, forms on Level 10. 'Who keeps leaving these?' answers nothing. The title is Augustine's. Lines approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+
+**CREW:** *(Pulling it from behind the handrail. Uneasy, half joking.)* Hello HTML! Same series again. Who keeps leaving these? `[l8_book_find]`
+
+**CREW:** *(Working it out as you go. The pause is the idea landing.)* Book says everything on a screen is built from tags. And the building's been drawing things that aren't there. So... we fix the drawing. `[l8_book_open]`
+
+**CREW:** *(Starting a chapter, reading it out.)* Tags. Angle brackets. You open one, you close one. Like a sandwich. The inspector shows you every one on the screen. `[l8_huddle_elements_1]`
+
+**CREW:** *(Wrapping up. Accepting it.)* Everything's a sandwich. Okay. `[l8_huddle_elements_2]`
+
+**CREW:** *(Starting a chapter. 'Hidden' catches your eye.)* Attributes. Little settings on a tag. Including one called hidden. `[l8_huddle_hidden_1]`
+
+**CREW:** *(Wrapping up. Quieter; that thought sticks.)* Hidden doesn't mean gone. Hidden means somebody hid it. `[l8_huddle_hidden_2]`
+
+**CREW:** *(Starting a chapter, reading it out.)* CSS. Where things go and what they look like. The book calls it the paint. `[l8_huddle_css_1]`
+
+**CREW:** *(Wrapping up. Half hopeful.)* So if a wall's in the wrong place, it might just be the paint. `[l8_huddle_css_2]`
+
+**CREW:** *(Starting a chapter. Curious.)* Two ways to make something vanish. One leaves a gap, one doesn't. Book says that matters. `[l8_huddle_display_1]`
+
+**CREW:** *(Wrapping up, filing it away.)* So when something vanishes, ask which kind of vanished. `[l8_huddle_display_2]`
+
+**CREW:** *(Starting a chapter, picturing it.)* Things on a screen stack up, like papers on a desk. A number decides which one's on top. `[l8_huddle_layers_1]`
+
+**CREW:** *(Wrapping up. An idea forming.)* So the thing in our way might just be lying on top. `[l8_huddle_layers_2]`
+
+**CREW:** *(Starting the last chapter. Recognising it.)* Forms. Boxes you type in, and a button that sends it. Every login screen tonight was one of these. `[l8_huddle_forms_1]`
+
+**CREW:** *(Wrapping up. Quietly determined.)* A form's just boxes and a button. Somebody built it, so we can rebuild it. `[l8_huddle_forms_2]`
