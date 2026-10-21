@@ -1174,6 +1174,7 @@ func _on_exit(_b: Node) -> void:
 		hud.fade(false, 0.8)
 		return
 	if not up:
+		player.input_locked = was_locked
 		return
 	await Level2FX.end_card(self, "To be continued.")
 	Game.completed_level = "level_2"
