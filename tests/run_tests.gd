@@ -1827,6 +1827,19 @@ func test_coop_scripts() -> void:
 	check(ed.log_text().contains("from the runner") and host_rt.history == [["from the runner", "log"]], "a client's script runner runs on the host and shows its log")
 	ed.close()
 	ed.queue_free()
+	# A teammate who opens the runner mid-run sees the log so far.
+	check(client_rt.compile("console.log('first');\nwhile (true) {\n  await sleep(100);\n}").ok, "a client checks a watchdog loop")
+	client_rt.start(null)
+	await _frames(10)
+	var late := ScriptEditorUI.new()
+	root.add_child(late)
+	late.open(host_rt, {})
+	check(late.log_text().begins_with("--- running ---") and late.log_text().contains("first"), "a runner opened mid-run shows the run so far")
+	late.stop()
+	await _frames(10)
+	check(not client_rt.is_running() and late.log_text().contains("--- stopped"), "and its Stop ends it for everyone")
+	late.close()
+	late.queue_free()
 	await _coop_close(worlds)
 
 
