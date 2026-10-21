@@ -27,15 +27,15 @@ static func over(building: FacilityDB, p_guard: Callable, p_check := Callable())
 	return g
 
 
-func execute(sql: String) -> Dictionary:
+func execute(sql: String, params := []) -> Dictionary:
 	if guard.is_valid():
 		var refused: String = guard.call(sql)
 		if refused != "":
 			return _refusal(refused)
 	if not check.is_valid() or base.read_only or not is_write(sql):
-		return base.execute(sql)
+		return base.execute(sql, params)
 	db.query("SAVEPOINT guarded")
-	var res := base.execute(sql)
+	var res := base.execute(sql, params)
 	if res.ok and int(res.changes) > 0:
 		var refused: String = check.call()
 		if refused != "":

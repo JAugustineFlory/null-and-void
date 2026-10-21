@@ -219,19 +219,31 @@ func test_stop_and_leaks() -> void:
 
 func test_building_library() -> void:
 	var lib := _building()
+	lib.db.read_only = true  # Protocol Epsilon, as Level 4 leaves the building
 	var refused := []
-	lib.write_refused.connect(func(sql): refused.append(sql))
+	lib.db.write_refused.connect(func(sql): refused.append(sql))
 	var e: Dictionary = run_js("const r = await db.query(\"SELECT id FROM doors\");\nawait db.query(\"UPDATE doors SET locked = 0\");", lib).rt.error
-	check(e.get("message") == BuildingLibrary.WRITE_REFUSED and e.line == 2 and refused.size() == 1, "a write through db.query is refused with WARDEN's line, and the level hears about it")
+	check(e.get("message") == lib.db.read_only_error and e.line == 2 and refused.size() == 1, "under Epsilon a write through db.query is refused with the building's own line, and its write_refused fires")
+	lib.db.read_only_error = "STILL READ-ONLY."
+	e = run_js("await db.query(\"UPDATE doors SET locked = ? WHERE id = ?\", [0, \"D-12\"]);", lib).rt.error
+	check(e.get("message") == "STILL READ-ONLY." and refused.size() == 2, "a write with ? values is refused the same way, in whatever words the level has WARDEN use now")
+	var hidden := lib.query("WITH x AS (SELECT 1) UPDATE doors SET locked = 0")
+	check(hidden.refused and not hidden.ok and refused.size() == 3, "a write hidden behind WITH is rolled back and refused")
 	check(int(lib.db.run_silent("SELECT COUNT(*) AS n FROM doors WHERE locked = 1")[0].n) == 2, "and nothing changed")
 	check(lib.query("SELECT 1; DELETE FROM doors").error.contains("One query"), "one statement at a time")
 	check(lib.query("SELECT id FROM doors WHERE name = 'a?b;c'").ok, "a ? or ; inside quotes is just text")
 	check(lib.query("SELECT id FROM doors WHERE zone = ?", []).error.contains("1 ? but 0 values"), "placeholders and values must match")
 	var r := lib.query("SELECT id FROM doors WHERE zone = ? ORDER BY id", ["C"])
 	check(r.ok and r.rows.map(func(x): return x.id) == ["D-12", "D-14"], "values fill the ? placeholders")
-	check(not lib.query("SELECT * FROM dors").ok and lib.query("SELECT * FROM dors").error.contains(".tables"), "a SQL error comes with the terminal's plain explanation")
-	lib.read_only = false
-	check(lib.query("UPDATE doors SET locked = 0 WHERE id = 'D-20'").ok, "before Epsilon (a test bench, say) writes go through")
+	check(lib.query("SELECT id FROM doors WHERE id = ?", ["x' OR '1'='1"]).rows.is_empty(), "a value can't change the query (no SQL injection through ?)")
+	check(not lib.query("SELECT * FROM dors").ok and lib.query("SELECT * FROM dors").error.contains(".tables") and not lib.query("SELECT * FROM dors").refused, "a SQL error comes with the terminal's plain explanation")
+	check(not lib.query("ATTACH DATABASE 'x' AS y").ok, "the terminal's blocked commands are blocked for scripts too")
+	lib.db.read_only = false
+	var changed := []
+	lib.db.door_changed.connect(func(id, locked, _f): changed.append([id, locked]))
+	check(lib.query("UPDATE doors SET locked = ? WHERE id = ?", [0, "D-14"]).ok and int(lib.db.run_silent("SELECT locked FROM doors WHERE id = 'D-14'")[0].locked) == 0,
+		"before Epsilon (a test bench, say) writes go through, with ? values too")
+	check(changed.has(["D-14", false]), "and the world follows the write, as it does from a terminal")
 	var sent := []
 	lib.requested.connect(func(m, p, _h, _b, reply): sent.append([m, p, reply.status]))
 	run_js("await api.patch('/doors/D-12', { locked: false }, { 'X-Api-Key': '7f3a-22' });", lib)

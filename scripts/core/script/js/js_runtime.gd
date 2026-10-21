@@ -161,5 +161,5 @@ func _db_query(vm: JSVM, a: Array) -> Variant:
 		return vm.fail("db.query's values go in a list: db.query(\"... WHERE id = ?\", [id])")
 	var r := _library.query(sql, params)
 	if not r.ok:
-		return vm.fail(r.error if r.error == BuildingLibrary.WRITE_REFUSED else "db.query: %s" % r.error)
+		return vm.fail(r.error if r.refused else "db.query: %s" % r.error)
 	return vm.resolved(JSStdlib.to_js(vm, r.rows))
