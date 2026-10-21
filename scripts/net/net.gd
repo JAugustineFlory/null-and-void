@@ -97,13 +97,16 @@ func set_player_name(n: String) -> void:
 
 
 ## This player earned an achievement or found a secret ("secret:<id>"): own
-## what it unlocks and say so on `hud`. Each machine calls it for its own player.
+## what it unlocks and say so on `hud`. Each machine calls it for its own player
+## (LevelSync.unlock does that for everyone in a level). Items Graphics can't
+## draw yet are owned quietly, and simply appear in the lobby once they can be.
 func earn(source: String, hud: Node = null) -> Array:
 	var got := profile.earn(source)
 	for k in got:
-		var it := Cosmetics.info(k.get_slice("/", 0), k.get_slice("/", 1))
-		if hud:
-			hud.notice("Unlocked: %s" % it.name, 4.0)
+		var slot: String = k.get_slice("/", 0)
+		var item: String = k.get_slice("/", 1)
+		if hud and Cosmetics.drawable(slot, item):
+			hud.notice("Unlocked: %s" % Cosmetics.info(slot, item).name, 4.0)
 	return got
 
 

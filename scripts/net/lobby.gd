@@ -259,7 +259,12 @@ func _slot_row(parent: Control, slot: String) -> void:
 		list.set_item_disabled(i, not owned)
 		if not owned:
 			list.set_item_tooltip(i, str(it.get("hint", "")))
-	list.item_selected.connect(func(i): _net().choose_look({slot: {"item": list.get_item_metadata(i)}}))
+	list.item_selected.connect(func(i):
+		var pick := {"item": list.get_item_metadata(i)}
+		var first = CharacterLooks.ITEM_COLORS.get(Cosmetics.key(slot, pick.item))
+		if first is Color:
+			pick.color = first  # Graphics' suggested first color, e.g. olive for Mercer's cap
+		_net().choose_look({slot: pick}))
 	row.add_child(list)
 	_item_lists[slot] = list
 	var color := ColorPickerButton.new()
@@ -296,9 +301,11 @@ func _refresh_looks() -> void:
 			if list.get_item_metadata(i) == mine[slot].item:
 				list.select(i)
 		_color_buttons[slot].color = mine[slot].color
+		# Nothing to color in an empty slot; a fixed finish (gold, amber) has no picker.
 		var empty: bool = mine[slot].item == "none"
 		_color_buttons[slot].disabled = empty
 		_color_buttons[slot].modulate.a = 0.25 if empty else 1.0
+		_color_buttons[slot].visible = not Cosmetics.fixed_color(slot, mine[slot].item)
 	var who := PlayableCrew.info(mine.crew)
 	_crew_caption.text = "%s, %s\n%s" % [who.name, who.age, who.about] if not who.is_empty() else ""
 	_show_look(mine)

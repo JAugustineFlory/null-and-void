@@ -15,7 +15,11 @@ extends RefCounted
 ##
 ## `unlock` says who owns an item: "default" (everyone), "achievement:<id>",
 ## "secret:<id>" or "purchase:<sku>". Locked items show in the lobby with their
-## `hint`; secret ones stay hidden until owned (Augustine, 2026-10-20).
+## `hint`; secret ones stay hidden until owned (Augustine, 2026-10-20). Levels
+## grant them with LevelSync.unlock(source), which every player present gets.
+## Graphics' CharacterLooks.ITEM_COLORS gives an item its first color when picked,
+## and FIXED_COLORS items (amber terminal, gold walkie, Easy SQL cover) are a
+## finish with no color to pick.
 
 const WORN_SLOTS := ["hair", "head", "top", "jacket", "legs", "feet", "face", "ears", "belt"]
 const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "terminal"]
@@ -38,7 +42,7 @@ const ITEMS := [
 	{"slot": "head", "item": "none", "name": "None", "unlock": "default"},
 	{"slot": "head", "item": "cap", "name": "Ball cap", "unlock": "default"},
 	{"slot": "head", "item": "beanie", "name": "Beanie", "unlock": "default"},
-	{"slot": "head", "item": "hard_hat", "name": "Hard hat", "unlock": "default"},
+	{"slot": "head", "item": "hard_hat", "name": "Hard hat", "unlock": "achievement:floor_g", "hint": "Finish the ground floor."},
 	{"slot": "top", "item": "polo", "name": "Polo", "unlock": "default"},
 	{"slot": "top", "item": "tee", "name": "T-shirt", "unlock": "default"},
 	{"slot": "top", "item": "longsleeve", "name": "Long-sleeve shirt", "unlock": "default"},
@@ -56,17 +60,21 @@ const ITEMS := [
 	{"slot": "ears", "item": "studs", "name": "Stud earrings", "unlock": "default"},
 	{"slot": "belt", "item": "radio", "name": "Belt radio", "unlock": "default"},
 	{"slot": "belt", "item": "none", "name": "None", "unlock": "default"},
-	# The first unlocks (plan/approvals/unlocks.md), approved 2026-10-20.
-	{"slot": "face", "item": "reading_glasses", "name": "Reading glasses", "unlock": "achievement:easy_sql_half", "hint": "Finish half of Easy SQL."},
-	{"slot": "top", "item": "byte_right_polo", "name": "Byte-Right polo", "unlock": "achievement:easy_sql_done", "hint": "Finish every chapter of Easy SQL."},
-	{"slot": "feet", "item": "high_tops", "name": "High-tops", "unlock": "achievement:first_block", "hint": "Block a hit in a real fight."},
-	{"slot": "jacket", "item": "security", "name": "Security jacket", "unlock": "achievement:floor_22", "hint": "Finish floor 22."},
-	{"slot": "head", "item": "mercer_cap", "name": "Mercer's cap", "unlock": "secret:mercer_vent_tape"},
-	{"slot": "jacket", "item": "press", "name": "Press jacket", "unlock": "secret:ending_news"},
 	{"slot": "flashlight", "item": "standard", "name": "Standard", "unlock": "default"},
 	{"slot": "walkie", "item": "standard", "name": "Standard", "unlock": "default"},
 	{"slot": "notebook", "item": "spiral", "name": "Spiral", "unlock": "default"},
 	{"slot": "terminal", "item": "phosphor", "name": "Phosphor", "unlock": "default"},
+	# The first unlocks (Augustine, 2026-10-20 23:24Z; plan/approvals/unlocks.md).
+	{"slot": "notebook", "item": "easy_sql", "name": "Easy SQL cover", "unlock": "achievement:book_easy_sql",
+		"hint": "Pick up the crew's first book."},
+	{"slot": "face", "item": "reading_glasses", "name": "Reading glasses", "unlock": "achievement:easy_sql_half", "hint": "Finish half of Easy SQL."},
+	{"slot": "top", "item": "byte_right_polo", "name": "Byte-Right polo", "unlock": "achievement:easy_sql_done", "hint": "Finish every chapter of Easy SQL."},
+	{"slot": "feet", "item": "high_tops", "name": "High-tops", "unlock": "achievement:first_block", "hint": "Block a hit in a real fight."},
+	{"slot": "terminal", "item": "amber", "name": "Amber", "unlock": "achievement:floor_14", "hint": "Finish floor 14."},
+	{"slot": "jacket", "item": "security", "name": "Security jacket", "unlock": "achievement:floor_22", "hint": "Finish floor 22."},
+	{"slot": "head", "item": "mercer_cap", "name": "Mercer's cap", "unlock": "secret:mercer_vent_tape"},
+	{"slot": "walkie", "item": "gold", "name": "Gold", "unlock": "secret:roster_thu"},
+	{"slot": "jacket", "item": "press", "name": "Press jacket", "unlock": "secret:ending_news"},
 ]
 
 ## The catalogue in use: ITEMS, unless a test swaps in its own (reset() puts it back).
@@ -101,7 +109,12 @@ static func items_in(slot: String) -> Array:
 static func drawable(slot: String, item: String) -> bool:
 	if CharacterLooks.SLOTS.has(slot):
 		return item in CharacterLooks.SLOTS[slot]
-	return slot in TOOL_SLOTS
+	return item in CharacterLooks.TOOL_ITEMS.get(slot, [])
+
+
+## A finish drawn in its own color (CharacterLooks.FIXED_COLORS): nothing to pick.
+static func fixed_color(slot: String, item: String) -> bool:
+	return CharacterLooks.FIXED_COLORS.has(key(slot, item))
 
 
 static func is_secret(it: Dictionary) -> bool:
