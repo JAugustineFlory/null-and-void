@@ -15,6 +15,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_moods()
 	await test_rig_walks_from_movement()
 	await test_rig_actions()
+	test_rig_steps_through_turns()
+	test_first_person_body()
 	await test_rig_budget()
 	await test_skinned_body()
 	test_outfits()
@@ -108,6 +110,31 @@ func test_rig_walks_from_movement() -> void:
 	stage.free()
 
 
+func test_rig_steps_through_turns() -> void:
+	# Ground floor playtest: Rourke turned on the spot with his legs still.
+	var stage := _stage()
+	var holder := Node3D.new()
+	stage.add_child(holder)
+	var rig := CharacterRig.build(holder, CharacterLooks.rourke())
+	rig.set_process(false)
+	var swing := func(rate: float) -> float:
+		var most := 0.0
+		for i in 90:
+			holder.rotation.y += rate / 60.0
+			rig.animate(1.0 / 60.0)
+			if i > 30:
+				most = maxf(most, absf(rig.joints["r_hip"].rotation.x))
+		return most
+	var drift: float = swing.call(0.3)
+	var turning: float = swing.call(3.0)
+	check(turning > 0.15 and rig.current_speed() > 0.3, "turning on the spot steps the legs round (hip swing %.2f)" % turning)
+	check(drift < 0.05, "while a slow drift of the head and shoulders leaves the feet planted (%.2f)" % drift)
+	for i in 120:
+		rig.animate(1.0 / 60.0)
+	check(rig.current_speed() < 0.05, "and once the turn ends, the feet stop")
+	stage.free()
+
+
 func test_rig_actions() -> void:
 	var stage := _stage()
 	var holder := Node3D.new()
@@ -182,6 +209,27 @@ func test_rig_actions() -> void:
 	check(seat_y < 0.25 and seat_y > 0.05, "sitting on the floor puts the seat on the floor (%.2f m)" % seat_y)
 	check(absf(floor_feet) < 0.12 and absf(floor_hand) < 0.12, "with the feet out in front and the hands behind, both on the floor (feet %.2f, hands %.2f)" % [floor_feet, floor_hand])
 	check(rig.joints["r_knee"].global_position.z < holder.global_position.z - 0.25, "the legs stretch out the way the body faces")
+	# Lobby poses (Co-op's pre-game lobby): an arm around whoever stands 0.6 m
+	# to the right, leaning back with the arms crossed, and a hero stance.
+	rig.play("shoulder")
+	for i in 120:
+		rig.animate(1.0 / 60.0)
+	var reach: Vector3 = holder.to_local(rig.joints["r_elbow"].to_global(Vector3(0, -0.3, 0)))
+	check(reach.x > 0.55 and reach.x < 0.9 and absf(reach.y - 1.42) < 0.15 and reach.z > -0.1, "an arm around the shoulder reaches over the next person's far shoulder, not in front of them (%.2f m out, %.2f m up, %.2f m back)" % [reach.x, reach.y, reach.z])
+	rig.play("lean")
+	for i in 120:
+		rig.animate(1.0 / 60.0)
+	var r_hand: Vector3 = holder.to_local(rig.joints["r_elbow"].to_global(Vector3(0, -0.3, 0)))
+	var l_hand: Vector3 = holder.to_local(rig.joints["l_elbow"].to_global(Vector3(0, -0.3, 0)))
+	var lean_feet: float = rig.joints["r_knee"].to_global(Vector3(0, -0.44, 0)).y
+	check(rig.is_full_body() and rig.rotation.x > 0.05 and absf(lean_feet) < 0.1, "leaning tips the body back with a foot on the floor (%.2f m)" % lean_feet)
+	check(r_hand.x < 0.05 and l_hand.x > -0.05 and r_hand.z < 0.0, "and crosses the arms in front of the chest")
+	rig.play("pose")
+	for i in 120:
+		rig.animate(1.0 / 60.0)
+	r_hand = holder.to_local(rig.joints["r_elbow"].to_global(Vector3(0, -0.3, 0)))
+	var r_elbow: Vector3 = holder.to_local(rig.joints["r_elbow"].global_position)
+	check(absf(r_hand.y - 1.0) < 0.2 and r_elbow.x > r_hand.x + 0.05, "the hero stance puts the hands on the hips, elbows out (hand %.2f m up)" % r_hand.y)
 	rig.play("not_a_thing")
 	check(rig.action == "idle", "unknown actions fall back to idle")
 	rig.play("idle")
@@ -191,6 +239,73 @@ func test_rig_actions() -> void:
 		rig.animate(1.0 / 60.0)
 	check(rig.joints["head"].rotation.y < -0.5, "the head turns toward a look target")
 	stage.free()
+
+
+func test_first_person_body() -> void:
+	# Garage playtest: your own arms when you swing and block; ground floor: see
+	# yourself from your own eyes.
+	var stage := _stage()
+	var you := _FakeFighter.new()
+	stage.add_child(you)
+	var fp := FirstPersonBody.attach(you, CharacterLooks.rourke())
+	fp.set_process(false)
+	fp.rig.set_process(false)
+	var step := func(seconds: float) -> void:
+		for i in int(seconds * 60):
+			fp._process(1.0 / 60.0)
+			fp.rig.animate(1.0 / 60.0)
+	step.call(0.2)
+	check(fp.rig.hide_head and fp.visible and fp.current_action() == "idle", "your own body stands under the camera with its head hidden")
+	var skin: SkinnedBody = fp.rig._skin
+	var head := skin.skeleton.find_bone("Head")
+	check(skin.skeleton.get_bone_pose_scale(head).x < 0.01, "the head is shrunk away so the camera isn't inside it")
+	you.combat.swung.emit()
+	step.call(0.1)
+	check(fp.current_action() == "jab" and skin.player.current_animation == "Punch_Jab", "a swing throws a jab from the pack's punch clip")
+	check(fp.position.z < FirstPersonBody.BACK - 0.1, "throwing a punch leans in behind the fists so they come into view")
+	you.combat.swung.emit()
+	step.call(0.1)
+	check(fp.current_action() == "cross" and skin.player.current_animation == "Punch_Cross", "a quick second swing is a cross")
+	step.call(FirstPersonBody.JAB_TIME + 0.5)
+	you.combat.swung.emit()
+	check(fp.current_action() == "jab", "after a pause the next swing starts with a jab again")
+	step.call(FirstPersonBody.JAB_TIME + 0.1)
+	you.combat.guarding = true
+	step.call(0.2)
+	check(fp.current_action() == "guard" and skin.player.speed_scale == 0.0, "holding block holds the guard up")
+	you.combat.blocked.emit("swing")
+	check(fp.current_action() == "recoil", "a blocked hit jolts the guard back")
+	you.combat.guarding = false
+	step.call(FirstPersonBody.RECOIL_TIME + 0.1)
+	you.combat.hurt.emit(10.0, "swing")
+	check(fp.current_action() == "flinch", "taking a hit flinches")
+	step.call(FirstPersonBody.FLINCH_TIME + 0.1)
+	check(fp.current_action() == "idle" and skin._action_playing == "", "then the body goes back to standing")
+	you.notebook_raised.emit()
+	you.combat.swung.emit()
+	check(fp.current_action() == "idle", "with the notebook up the arms stay down")
+	you.notebook_lowered.emit()
+	you.downed = true
+	step.call(0.1)
+	check(not fp.visible, "lying down, the camera is inside the body, so it's left out")
+	stage.queue_free()
+
+
+class _FakeFighter extends Node3D:
+	signal notebook_raised
+	signal notebook_lowered
+	var combat := _FakeCombat.new()
+	var downed := false
+
+
+class _FakeCombat extends RefCounted:
+	signal swung
+	signal blocked(cause: String)
+	signal hurt(amount: float, cause: String)
+	var guarding := false
+
+	func guard_up() -> bool:
+		return guarding
 
 
 func test_skinned_body() -> void:
@@ -211,12 +326,12 @@ func test_skinned_body() -> void:
 		var got: Vector3 = at.call(SkinnedBody.JOINT_BONES[next]) - at.call(SkinnedBody.JOINT_BONES[joint])
 		return rad_to_deg(want.angle_to(got))
 	var worst := 0.0
-	for act in ["wave", "sit", "crawl", "sit_floor", "down"]:
+	for act in ["wave", "sit", "crawl", "sit_floor", "down", "lean", "pose", "shoulder"]:
 		rig.crawling = act == "crawl"
 		rig.play("idle" if act == "crawl" else act)
 		for i in 90:
 			rig.animate(1.0 / 60.0)
-		var limbs := [["r_hip", "r_knee"], ["l_hip", "l_knee"]] if act != "wave" else []
+		var limbs := [["r_hip", "r_knee"], ["l_hip", "l_knee"]] if not act in ["wave", "shoulder"] else []
 		limbs.append(["r_shoulder", "r_elbow"])
 		for l in limbs:
 			worst = maxf(worst, limb_error.call(l[0], l[1]))

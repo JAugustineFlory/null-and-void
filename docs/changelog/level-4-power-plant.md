@@ -1,0 +1,2 @@
+- **New:** Floor 10, the Power Plant, down the stairs from the Records Archive. Change rows with UPDATE, add them with INSERT, and find out why every write needs its WHERE.
+- **Added:** a gantry arm you drive by code, for a second way into a locked room.

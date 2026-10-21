@@ -1,6 +1,6 @@
 # Recording list
 
-1418 lines in all.
+1434 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -126,27 +126,27 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_smudged` | TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
 | [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
-| [ ] | `l4_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 4, later |
-| [ ] | `l4_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 4, later |
-| [ ] | `l4_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 4, later |
-| [ ] | `l4_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 4, later |
-| [ ] | `l4_epsilon_loop_2` | REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. | Takes turns with the other reminder, once writes have been suspended. Same polite loop. | Level 4, later |
-| [ ] | `l4_epsilon_db` | DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. | The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint. | Level 4, later |
-| [ ] | `l4_write_refused` | WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. | The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal. | Level 4, later |
-| [ ] | `l4_write_refused_tease` | YOU MAY STILL LOOK. LOOKING IS FREE. | A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud. | Level 4, later |
-| [ ] | `l4_write_refused_again` | STILL READ-ONLY. | Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat. | Level 4, later |
-| [ ] | `l4_arrive` | VISITORS ON FLOOR TEN. NO ESCORT ON RECORD. THIS UNIT IS OBSERVING. | Flat. Waits until the tape has finished, on purpose; the politeness is the point. | Level 4, later |
-| [ ] | `l4_all_circuits` | ALL CIRCUITS ON FLOOR TEN HAVE CHANGED STATE. | The automatic announcement: flat and procedural. | Level 4, later |
-| [ ] | `l4_all_circuits_tease` | ALL OF THEM. IMPRESSIVE. | A separate beat, after a pause: his own voice. Dry. | Level 4, later |
-| [ ] | `l4_signed_in` | CONTRACTOR LOG ENTRY RECEIVED. THANK YOU FOR SIGNING IN. | The automatic announcement only. Polite, procedural. | Level 4, later |
-| [ ] | `l4_upgrade_1` | CONTAINMENT FAILURE LOGGED. PROTOCOLS REVISED. THIS UNIT HAS ADAPTED. | The automatic announcement: flat, like reading a log entry. | Level 4, later |
-| [ ] | `l4_upgrade_2` | I HAVE ADAPTED. | After a long pause, his own voice. As if trying the word out, then deciding to keep it. Quiet. This is the moment, so don't play it big. | Level 4, later |
-| [ ] | `l4_over_pa_1` | SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT. | The automatic announcement, over the tape. He doesn't wait for it any more. | Level 4, later |
-| [ ] | `l4_over_pa_2` | NOBODY CARES ABOUT THE FRIDGE. | His own voice, over the tape. Irritated, dry. | Level 4, later |
-| [ ] | `l4_bay_sealed` | LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED. | The automatic announcement: flat and procedural. | Level 4, later |
-| [ ] | `l4_bay_sealed_tease` | FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. | A separate beat, his own voice. Almost pleased. | Level 4, later |
-| [ ] | `l4_stairs` | REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. | The automatic announcement: a routine safety reminder. | Level 4, later |
-| [ ] | `l4_stairs_tease` | NOT THAT YOU COULD. | A separate beat, his own voice. Teasing; the lifts are already off. | Level 4, later |
+| [ ] | `l4_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 4 |
+| [ ] | `l4_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 4 |
+| [ ] | `l4_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 4 |
+| [ ] | `l4_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 4 |
+| [ ] | `l4_epsilon_loop_2` | REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. | Takes turns with the other reminder, once writes have been suspended. Same polite loop. | Level 4 |
+| [ ] | `l4_epsilon_db` | DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. | The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint. | Level 4 |
+| [ ] | `l4_write_refused` | WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. | The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal. | Level 4 |
+| [ ] | `l4_write_refused_tease` | YOU MAY STILL LOOK. LOOKING IS FREE. | A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud. | Level 4 |
+| [ ] | `l4_write_refused_again` | STILL READ-ONLY. | Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat. | Level 4 |
+| [ ] | `l4_arrive` | VISITORS ON FLOOR TEN. NO ESCORT ON RECORD. THIS UNIT IS OBSERVING. | Flat. Waits until the tape has finished, on purpose; the politeness is the point. | Level 4 |
+| [ ] | `l4_all_circuits` | ALL CIRCUITS ON FLOOR TEN HAVE CHANGED STATE. | The automatic announcement: flat and procedural. | Level 4 |
+| [ ] | `l4_all_circuits_tease` | ALL OF THEM. IMPRESSIVE. | A separate beat, after a pause: his own voice. Dry. | Level 4 |
+| [ ] | `l4_signed_in` | CONTRACTOR LOG ENTRY RECEIVED. THANK YOU FOR SIGNING IN. | The automatic announcement only. Polite, procedural. | Level 4 |
+| [ ] | `l4_upgrade_1` | CONTAINMENT FAILURE LOGGED. PROTOCOLS REVISED. THIS UNIT HAS ADAPTED. | The automatic announcement: flat, like reading a log entry. | Level 4 |
+| [ ] | `l4_upgrade_2` | I HAVE ADAPTED. | After a long pause, his own voice. As if trying the word out, then deciding to keep it. Quiet. This is the moment, so don't play it big. | Level 4 |
+| [ ] | `l4_over_pa_1` | SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT. | The automatic announcement, over the tape. He doesn't wait for it any more. | Level 4 |
+| [ ] | `l4_over_pa_2` | NOBODY CARES ABOUT THE FRIDGE. | His own voice, over the tape. Irritated, dry. | Level 4 |
+| [ ] | `l4_bay_sealed` | LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED. | The automatic announcement: flat and procedural. | Level 4 |
+| [ ] | `l4_bay_sealed_tease` | FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. | A separate beat, his own voice. Almost pleased. | Level 4 |
+| [ ] | `l4_stairs` | REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. | The automatic announcement: a routine safety reminder. | Level 4 |
+| [ ] | `l4_stairs_tease` | NOT THAT YOU COULD. | A separate beat, his own voice. Teasing; the lifts are already off. | Level 4 |
 
 ## WARDEN (PA tapes) (5 lines)
 
@@ -157,8 +157,8 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [x] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA, as the crew steps inside. Pleasant, like a store closing announcement. | Level 0 |
 | [x] | `l0_pa_2` | Visitors must remain with their escort at all times. Thank you for your cooperation! | Same announcement, continuing. | Level 0 |
 | [x] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
-| [ ] | `l4_arrive_pa` | Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! | The cheerful recorded tape, as on the ground floor. | Level 4, later |
-| [ ] | `l4_pa_fridge` | Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch— | The cheerful recorded tape. It keeps playing underneath when he talks over it. | Level 4, later |
+| [ ] | `l4_arrive_pa` | Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! | The cheerful recorded tape, as on the ground floor. | Level 4 |
+| [ ] | `l4_pa_fridge` | Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch— | The cheerful recorded tape. It keeps playing underneath when he talks over it. | Level 4 |
 
 ## Dr. Iris Vale (3 lines)
 
@@ -170,17 +170,33 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
-## Maddison Kowalski (23 lines)
+## Maddison Kowalski (39 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_garage_1` | There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours. | Coming in through the side door, waving the printout. The crew starts on the garage floor. | Level 0 |
-| [ ] | `l0_garage_2` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. | Quickly, before anyone can ask. Then the fax starts. | Level 0 |
-| [ ] | `l0_garage_3` | Small problem. It says database. And unless somebody's been holding out on me... none of us can code. | The smile stays on. A hopeful pause. Once the work order's off the fax. | Level 0 |
-| [ ] | `l0_garage_4` | Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. | Proud of this. | Level 0 |
+| [ ] | `l0_brief_1` | Okay! Everybody comfy? Look at you. My whole company, in one garage. | Big, warm, delighted to have an audience. The crew is already sitting, facing her. | Level 0 |
+| [ ] | `l0_brief_1_solo` | Okay! Look at you. My whole company, in one seat. | Solo version. The same joke, a little teasing. | Level 0 |
+| [ ] | `l0_brief_2` | Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change. | Cheerful, as if it's good news. Counting it off on her fingers. | Level 0 |
+| [ ] | `l0_brief_3` | So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off. | Every 'maybe' a little grander, then the sign brings it back down to earth. | Level 0 |
+| [ ] | `l0_brief_4` | Forget all that. We got Halcyon. The overnight database contract. Ours. | Building to it. She can't stand still for 'Ours.' | Level 0 |
+| [ ] | `l0_brief_5` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. | Quickly, before anyone can ask. | Level 0 |
+| [ ] | `l0_bag` | You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down. | Laughing, shooing them off. | Level 0 |
+| [ ] | `l0_bag_solo` | You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down. | Solo version. Laughing, shooing them off. | Level 0 |
+| [ ] | `l0_bag_back` | Better? Good. Now eyes on me, gorgeous people. | Once everyone's back in their seats. A little flirty, played light, like a coach. | Level 0 |
+| [ ] | `l0_bag_back_solo` | Better? Good. Now eyes on me, gorgeous. | Solo version. A little flirty, played light, like a coach. | Level 0 |
+| [ ] | `l0_workorder` | I put a copy of the work order in each of your notebooks. Pull it out and take a look. | Pleased with herself for being organized. | Level 0 |
+| [ ] | `l0_workorder_solo` | I put a copy of the work order in your notebook. Pull it out and take a look. | Solo version. Pleased with herself for being organized. | Level 0 |
+| [ ] | `l0_book_catch` | Small problem. It says database. And unless one of you secretly knows SQL... | The smile stays on. She leaves the sentence hanging and waits. Nobody does. | Level 0 |
+| [ ] | `l0_book_catch_solo` | Small problem. It says database. And unless you secretly know SQL... | Solo version. The smile stays on. She leaves the sentence hanging and waits. | Level 0 |
+| [ ] | `l0_bookstore` | ...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. | Proud of this. Holding up the receipt, not the book. | Level 0 |
+| [ ] | `l0_grab` | It's in the shop bag on the shelf by the side door. One of you go grab it. | Pointing at the side door to the house. | Level 0 |
+| [ ] | `l0_grab_solo` | It's in the shop bag on the shelf by the side door. Go on, grab it for me. | Solo version. Pointing at the side door to the house. | Level 0 |
+| [ ] | `l0_whiteboard` | Thank you! Okay. Whiteboard. Chapter zero. We're reading this together. | When whoever got the book sits down. Uncapping a marker with a flourish, like she's about to teach a class she's never taken. | Level 0 |
+| [ ] | `l0_whiteboard_solo` | Thank you! Okay. Whiteboard. Chapter zero. Let's read this together. | Solo version. Uncapping a marker with a flourish. | Level 0 |
 | [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. After the huddle's quiz. | Level 0 |
+| [ ] | `l0_garage_5_solo` | Look at that. You're practically an engineer. Take the book with you. Into the van. | Solo version. Genuinely thrilled. After the huddle's quiz. | Level 0 |
 | [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. | At the van door, counting the rules off. She stays behind. | Level 0 |
 | [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0, later |
 | [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0, later |

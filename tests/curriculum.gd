@@ -208,4 +208,93 @@ const PUZZLES := {
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "catalogue", "room"],
 	},
+	# Level 4: the Power Plant on 10 (plan/level-4-power-plant.md). UPDATE and INSERT,
+	# the last new SQL, and verify after write. Both writes are StatePuzzles, checked
+	# by the table's state after the write. The walkthrough doesn't type writes yet
+	# (queries_in reads SELECT and GET lines), so these rows wait on a walk_level_4.
+	# Facilities' work order: reset the tripped breaker, practised safely. Forgetting
+	# the WHERE flips the whole panel (loud, never dangerous).
+	"reset": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["UPDATE", "SET", "breakers", "state"],
+		"needs": ["UPDATE", "SET", "WHERE", "breakers", "state", "id"],
+	},
+	# Only after a forgotten WHERE, while the alarm sounds: the others back, one WHERE
+	# at a time, as their tags say (practised safely: loud, never dangerous).
+	"put_back": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["note"],
+		"needs": ["UPDATE", "SET", "WHERE", "breakers", "state", "id", "note"],
+	},
+	# The work order's sign-off: read the breaker back (verify after write, safely).
+	"check": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["Check it took"],
+		"needs": ["SELECT", "FROM", "WHERE", "breakers", "state", "id"],
+	},
+	# The clipboard by the controller: the crew logs its own job, practised safely.
+	"login": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["INSERT INTO", "VALUES", "contractor_log"],
+		"needs": ["INSERT INTO", "VALUES", "contractor_log"],
+	},
+	# The log read back: the log-in counts once the crew has seen its row (verify after
+	# write, practised safely on every route). SELECT * is long practised: a review ladder.
+	"login_read": {
+		"level": 4,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "contractor_log"],
+	},
+	# The control room's second way in: the gantry arm moved by UPDATE to the bay under
+	# the access panel (the gantry card numbers the bays). Optional, practised safely.
+	"gantry": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["gantry", "bay", "raised"],
+		"needs": ["UPDATE", "SET", "WHERE", "gantry", "bay", "id"],
+	},
+	# Facilities' notice's fire exit: an UPDATE on doors. Its row says CONTAINMENT for a
+	# crew that reads it first; opening it is the accident (UPDATE's first real use).
+	"main_doors": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["main_doors", "locked"],
+		"needs": ["UPDATE", "SET", "WHERE", "doors", "locked", "id", "main_doors"],
+	},
+	# Optional, with the Custodian loose: lock out the bay's breaker (INSERT under
+	# pressure), then read it back at the bay's own panel within 30 seconds.
+	"lockout": {
+		"level": 4,
+		"pressure": true,
+		"teaches": ["lockouts"],
+		"needs": ["INSERT INTO", "VALUES", "lockouts", "breaker", "company", "job"],
+	},
+	# The ground floor: the main entrance's row. The write is the lie ("1 row changed",
+	# then Epsilon puts it back); the read-back, under pressure, shows it.
+	"entrance": {
+		"level": 4,
+		"pressure": true,
+		"teaches": ["gates", "main_entrance", "unlocked"],
+		"needs": ["UPDATE", "SET", "WHERE", "gates", "unlocked", "name", "main_entrance"],
+	},
+	"verify": {
+		"level": 4,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "gates", "unlocked", "name", "main_entrance"],
+	},
+	"readback": {
+		"level": 4,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "lockouts"],
+	},
 }
