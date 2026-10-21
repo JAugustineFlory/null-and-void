@@ -195,6 +195,7 @@ func _group_teaching_lab() -> void:
 func _group_scripting() -> void:
 	await _run_file("res://tests/scripting_tests.gd")
 	await _run_file("res://tests/script_runtime_tests.gd")
+	await _run_file("res://tests/script_editor_tests.gd")
 
 
 ## Runs a test file's run(tree, check, ...). One that fails to parse is a failed test, not a skip.

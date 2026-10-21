@@ -1,17 +1,17 @@
-[ 5, 3, 8, 1, 7 ] 5 5 undefined 7
-[ 10, 6, 16, 2, 14 ] [ 5, 8, 7 ] 8 2
+[5, 3, 8, 1, 7] 5 5 undefined 7
+[10, 6, 16, 2, 14] [5, 8, 7] 8 2
 true true 24 24
-true 1 5 - 3 - 8 - 1 - 7 [ 3, 8 ] [5,3,8,1,7,9,10]
-[ 1, 10, 2, 3 ] [ 1, 2, 3, 10 ] [ 3, 2, 1 ]
-7 5 [ 3, 8, 1 ]
+true 1 5 - 3 - 8 - 1 - 7 [3, 8] [5,3,8,1,7,9,10]
+[1, 10, 2, 3] [1, 2, 3, 10] [3, 2, 1]
+7 5 [3, 8, 1]
 0 3
 1 8
 2 1
 {"id":"D-12","locked":false,"sensors":["door","motion"],"meta":{"floor":22},"note":"opened","by":"crew"} 22 undefined 22 undefined
-[ 'id', 'locked', 'sensors', 'meta', 'note', 'by' ] [ 1, 2 ] [ [ 'a', 1 ] ]
+["id", "locked", "sensors", "meta", "note", "by"] [1, 2] [["a", 1]]
 {"id":"D-12","locked":false,"sensors":["door","motion"],"meta":{"floor":22},"note":"opened","by":"crew"} [1,"a",null,true]
 CAM-2 false 2 true
-{ name: 'x', n: 1 } { 'with-dash': 1, two: 2 }
-[ 'a', 'c' ] 2
-{ a: { b: { c: [Object] } } } [ [ [ [Array] ] ] ]
+{ "name": "x", "n": 1 } { "with-dash": 1, "two": 2 }
+["a", "c"] 2
+{ "a": { "b": { "c": { "d": 1 } } } } [[[[1]]]]
 {"n":null} [null]

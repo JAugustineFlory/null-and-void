@@ -827,6 +827,32 @@ static func _panel_print(panel: Node3D, title: String, w: float, h: float, navy:
 		_lines(panel, Vector3(0, h / 2 - 0.1, z), w * 0.8, 6, 0.014)
 
 
+## How each pack model's surface reads: [roughness, metallic].
+const MODEL_FINISH := {
+	"generator": [0.6, 0.3], "hand_truck": [0.5, 0.6], "metal_desk": [0.55, 0.4],
+	"metal_rack": [0.6, 0.5], "utility_box": [0.6, 0.4], "wall_clock": [0.4, 0.0],
+	"wheelie_bin": [0.6, 0.0], "desk_lamp": [0.45, 0.3],
+}
+
+
+## A furniture model from the packs, by id (ArtModels "prop/<id>", built by
+## tools/art/build_props.py): one mesh, one draw, no collision. It faces -Z at
+## rotation 0 with its origin on the floor under its middle; `stretch` fits it to
+## a block it stands in for.
+static func model(parent: Node, id: String, pos: Vector3, facing_deg := 0.0, stretch := Vector3.ONE, shadow := true) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = id.to_pascal_case()
+	mi.mesh = ArtModels.load_resource("prop/" + id) as Mesh
+	var finish: Array = MODEL_FINISH.get(id, [0.8, 0.0])
+	mi.material_override = ArtMesh.material(finish[0], finish[1], false)  # the packs' colours are linear
+	mi.position = pos
+	mi.rotation_degrees.y = facing_deg
+	mi.scale = stretch
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi, true)
+	return mi
+
+
 # --- Helpers -------------------------------------------------------------------
 
 static func _node(parent: Node, pos: Vector3, facing_deg: float, node_name: String) -> Node3D:

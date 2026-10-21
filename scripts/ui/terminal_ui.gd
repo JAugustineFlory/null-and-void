@@ -45,6 +45,10 @@ var _dim: ColorRect
 var _panel: PanelContainer
 var _screen: Node
 var _home: Node
+## The script runner (.script), made the first time it's needed, and the
+## terminal whose script it's showing.
+var _editor: ScriptEditorUI
+var _script_terminal: Node
 
 
 func _ready() -> void:
@@ -710,6 +714,8 @@ func _command(cmd: String) -> void:
 			print_line("  .reset           restore this terminal's data from backup")
 			if terminal.api != null:
 				print_line("  GET /path        send a web request, e.g. GET /cameras")
+			if terminal.get_meta("scripts", false):
+				print_line("  .script          write and run a script (JavaScript)")
 			print_line("Anything else is run as SQL. End queries with ; (optional).")
 		".tables":
 			if terminal.is_locked():
@@ -753,6 +759,11 @@ func _command(cmd: String) -> void:
 				_render("Nothing on screen to write down yet.", "none")
 			else:
 				write_note(last, " ".join(parts.slice(1)))
+		".script":
+			if not terminal.get_meta("scripts", false):
+				print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
+				return
+			open_script_editor()
 		".reset":
 			var sync := LevelSync.of(terminal)
 			if sync:
@@ -762,6 +773,37 @@ func _command(cmd: String) -> void:
 				print_line("Backup tape restored. Data is back to how it started.")
 		_:
 			print_line("[color=#ff6655]Unknown command %s. Try .help[/color]" % _esc(parts[0]))
+
+
+## Steps from the terminal to its script runner. Terminals that take scripts
+## have the "scripts" meta set by their level. Each terminal keeps its own
+## runtime and saved script, so a script left running here keeps running.
+func open_script_editor() -> ScriptEditorUI:
+	if _editor == null:
+		_editor = ScriptEditorUI.new()
+		# Beside this window, not on a terminal's glass it may be showing on.
+		(_home if _screen and _home else get_parent()).add_child(_editor)
+		_editor.saved.connect(func(c: String):
+			if is_instance_valid(_script_terminal):
+				_script_terminal.set_meta("script_code", c))
+	var on: Node = terminal
+	var rt: ScriptRuntime = on.get_meta("script_runtime") if on.has_meta("script_runtime") else null
+	if rt == null:
+		rt = ScriptRuntime.for_language("javascript")
+		on.set_meta("script_runtime", rt)
+	var game := get_node_or_null("/root/Game")
+	var who := player
+	close()
+	_script_terminal = on
+	_editor.open(rt, {
+		"title": on.terminal_name,
+		"library": BuildingLibrary.new(on.api, on.db),
+		"seed": game.run_seed if game else 0,
+		"code": on.get_meta("script_code", ""),
+		"player": who,
+		"skin": on.skin_color,
+	})
+	return _editor
 
 
 ## Every hint asked for also goes on its puzzle's case page. Returns the hint.

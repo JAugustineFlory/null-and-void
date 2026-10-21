@@ -101,36 +101,60 @@ static func _print(vm: JSVM, args: Array, kind: String) -> Variant:
 	return null
 
 
-## A value written the way Node's console.log writes it: [ 1, 'two' ], { open: true }.
-static func inspect(v: Variant, depth := 0) -> String:
+## A value as console.log writes it. Text on its own prints as it is; inside
+## lists and objects everything reads the way JSON is written, with keys and
+## text in double quotes: [1, 2], { "error": "Can't reach it." }. (Node writes
+## { error: 'Can\'t reach it.' }, which beginners who just learned JSON misread.)
+## Short values stay on one line; longer ones go one entry per line.
+static func inspect(v: Variant) -> String:
+	return v if v is String else _shown(v, 0, "")
+
+
+const LINE_WIDTH := 72
+const SHOWN_DEPTH := 6
+
+
+static func _shown(v: Variant, depth: int, gap: String) -> String:
 	if v is String:
-		return "'%s'" % v.replace("'", "\\'") if depth > 0 else v
+		return _quoted(v)
+	var parts := PackedStringArray()
+	var keys: Array = []
 	if v is Arr:
 		if v.items.is_empty():
 			return "[]"
-		if depth > 2:
-			return "[Array]"
-		var parts := PackedStringArray()
+		if depth >= SHOWN_DEPTH:
+			return "[...]"
 		for x in v.items:
-			parts.append(inspect(x, depth + 1))
-		return "[ %s ]" % ", ".join(parts)
-	if v is Obj:
+			parts.append(_shown(x, depth + 1, gap + "  "))
+	elif v is Obj:
 		if v.props.is_empty():
 			return "{}"
-		if depth > 2:
-			return "[Object]"
-		var parts := PackedStringArray()
+		if depth >= SHOWN_DEPTH:
+			return "{...}"
 		for k in v.props:
-			var key: String = k if RegEx.create_from_string("^[A-Za-z_$][\\w$]*$").search(k) else "'%s'" % k
-			parts.append("%s: %s" % [key, inspect(v.props[k], depth + 1)])
-		return "{ %s }" % ", ".join(parts)
-	if v is JSVM.Fn:
+			keys.append(_quoted(k) + ": ")
+			parts.append(_shown(v.props[k], depth + 1, gap + "  "))
+	elif v is JSVM.Fn:
 		return "[Function: %s]" % v.proto.name if v.proto.name != "" else "[Function (anonymous)]"
-	if v is Native:
+	elif v is Native:
 		return "[Function: %s]" % v.name
-	if v is JSVM.Promise:
-		return "Promise { %s }" % (inspect(v.value, depth + 1) if v.state == 1 else "<pending>")
-	return JSVM.to_str(v)
+	elif v is JSVM.Promise:
+		return "Promise { %s }" % (_shown(v.value, depth + 1, gap) if v.state == 1 else "<pending>")
+	else:
+		return JSVM.to_str(v)
+	var items := PackedStringArray()
+	for i in parts.size():
+		items.append((keys[i] if keys else "") + parts[i])
+	var one := ("[%s]" if v is Arr else "{ %s }") % ", ".join(items)
+	if gap.length() + one.length() <= LINE_WIDTH and not one.contains("\n"):
+		return one
+	var inner := ",\n" + gap + "  "
+	return ("[\n%s  %s\n%s]" if v is Arr else "{\n%s  %s\n%s}") % [gap, inner.join(items), gap]
+
+
+## Text in double quotes, as JSON writes it: only " and \ and control characters are escaped.
+static func _quoted(s: String) -> String:
+	return "\"%s\"" % s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r")
 
 
 # --- JSON --------------------------------------------------------------------------

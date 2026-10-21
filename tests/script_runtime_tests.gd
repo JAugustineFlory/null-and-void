@@ -1,7 +1,9 @@
 extends RefCounted
 ## Deck scripts: the JavaScript runtime (scripts/core/script/). Programs in
-## tests/js/ print what Node 22 printed for them (their .out files); 07 uses the
-## building's api and db, which Node doesn't have, so its .out was checked by hand.
+## tests/js/ print what Node 22 printed for them (their .out files), except that
+## console.log shows lists and objects JSON-style (test_console_shows_json); 07
+## uses the building's api and db, which Node doesn't have, so its .out was
+## checked by hand.
 
 var _check: Callable
 
@@ -10,6 +12,7 @@ func run(_tree: SceneTree, check: Callable) -> void:
 	_check = check
 	print("Deck scripts (JavaScript)")
 	test_programs_match_node()
+	test_console_shows_json()
 	test_refused_javascript()
 	test_run_time_errors()
 	test_limits()
@@ -77,6 +80,19 @@ func test_programs_match_node() -> void:
 		var r := run_js(code)
 		var got := "\n".join(PackedStringArray(r.lines)).strip_edges()
 		check(r.rt.state == ScriptRuntime.State.DONE and got == want, "%s prints what Node printed%s" % [f, "" if got == want else "\n--- got:\n%s\n--- error: %s" % [got, r.rt.error]])
+
+
+func test_console_shows_json() -> void:
+	var r := run_js("console.log(await api.get('/doors/D-12'));", BuildingLibrary.new())
+	check(r.lines == ["{\n  \"status\": 503,\n  \"body\": {\n    \"error\": \"This deck can't reach the building's services from here.\"\n  }\n}"],
+		"console.log shows a reply JSON-style: keys and text in double quotes, an apostrophe left as it is")
+	r = run_js("console.log(\"can't\", ['say \"hi\"', 'a\\\\b'], [], {});")
+	check(r.lines == ["can't [\"say \\\"hi\\\"\", \"a\\\\b\"] [] {}"], "text on its own prints as it is; inside a list only \" and \\ are escaped, as JSON does")
+	r = run_js("const d = { id: 'D-12', name: 'Cold store', zone: 'C', locked: true, sensors: ['door', 'motion', 'temperature'] };\nconsole.log(d);")
+	check(r.lines == ["{\n  \"id\": \"D-12\",\n  \"name\": \"Cold store\",\n  \"zone\": \"C\",\n  \"locked\": true,\n  \"sensors\": [\"door\", \"motion\", \"temperature\"]\n}"],
+		"a long object goes one entry per line, with short parts kept on one line")
+	r = run_js("console.log([[[[[[[1]]]]]]], { u: undefined, n: null, f: Math.max });")
+	check(r.lines == ["[[[[[[[...]]]]]]] { \"u\": undefined, \"n\": null, \"f\": [Function: max] }"], "very deep values are cut short, and undefined, null and functions show by name")
 
 
 func test_refused_javascript() -> void:
