@@ -1,1 +1,1 @@
-- **Added:** finish floor 18 to unlock a new notebook skin in the co-op lobby.
+- **Added:** finish floor 18 to unlock a new notebook sticker in the co-op lobby.
