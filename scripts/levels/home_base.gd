@@ -918,12 +918,12 @@ func start_whiteboard() -> void:
 func _build_board_sheet() -> void:
 	board_sheet = Node3D.new()
 	board_sheet.name = "BoardSheet"
-	board_sheet.position = WHITEBOARD + Vector3(0.14, 0.05, -0.1)
+	board_sheet.position = WHITEBOARD + Vector3(0.14, 0, 0)  # over the whole board
 	board_sheet.rotation.y = PI / 2  # facing the room (+X)
 	add_child(board_sheet)
 	var paper := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.7, 0.95)
+	quad.size = Vector2(2.3, 1.2)
 	paper.mesh = quad
 	paper.material_override = Greybox.mat(Color(0.97, 0.96, 0.92))
 	board_sheet.add_child(paper)
@@ -933,7 +933,7 @@ func _build_board_sheet() -> void:
 	board_text.font_size = 84
 	board_text.outline_size = 0
 	board_text.modulate = Color(0.12, 0.2, 0.55)  # marker blue
-	board_text.width = 720
+	board_text.width = 960
 	board_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	board_text.position = Vector3(0, 0, 0.01)
 	board_sheet.add_child(board_text)

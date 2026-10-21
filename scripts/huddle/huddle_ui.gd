@@ -15,6 +15,7 @@ const SEPIA := Color(1.0, 0.84, 0.62)
 
 var huddle: Huddle
 var _hud: Node
+var _shown_count := 0
 var flashback := false
 var _title: Label
 var _body: RichTextLabel
@@ -141,7 +142,8 @@ func _redraw() -> void:
 
 
 func _draw_page(ch: Dictionary) -> void:
-	_body.text = _bbcode(ch.pages[huddle.page])
+	var shown := huddle.shown_page()
+	_body.text = _bbcode(ch.pages[shown])
 	_clear_options()
 	_result.text = ""
 	var reader := huddle.player_name(huddle.reader_id)
@@ -149,14 +151,32 @@ func _draw_page(ch: Dictionary) -> void:
 	var total := NetPlayers.ids_for(multiplayer).size()
 	_buttons.visible = true
 	_back.disabled = huddle.first_page_of_round()
-	_next.text = "Start the quiz >" if quiz_next else "Turn the page >"
-	_next.disabled = huddle.ready_to_turn()
-	if huddle.is_reader():
+	if shown != huddle.page:
+		_next.text = "Back to the crew's page >"
+	else:
+		_next.text = "Start the quiz >" if quiz_next else "Turn the page >"
+	_next.disabled = shown == huddle.page and huddle.ready_to_turn()
+	if shown != huddle.page:
+		_footer.text = "Page %d of %d, looking back. The crew is on page %d." % [shown + 1, ch.pages.size(), huddle.page + 1]
+	elif huddle.is_reader():
 		_footer.text = "Page %d of %d. You're reading this one out to the crew." % [huddle.page + 1, ch.pages.size()]
 	else:
 		_footer.text = "Page %d of %d. %s is reading it out." % [huddle.page + 1, ch.pages.size(), reader]
-	if total > 1:
+	if total > 1 and shown == huddle.page:
 		_footer.text += " Ready to move on: %d of %d." % [huddle.turn_votes.size(), total]
+		var waiting := huddle.not_ready()
+		if huddle.countdown > 0.0 and waiting.size() == 1:
+			if waiting[0] == multiplayer.get_unique_id():
+				_footer.text += " The crew is waiting for you: the page turns in %d s." % ceili(huddle.countdown)
+			else:
+				_footer.text += " Waiting for %s: the page turns in %d s." % [huddle.player_name(waiting[0]), ceili(huddle.countdown)]
+	_shown_count = ceili(huddle.countdown)
+
+
+## The countdown ticks on the footer once a second.
+func _process(_delta: float) -> void:
+	if huddle and huddle.question < 0 and huddle.is_running() and ceili(huddle.countdown) != _shown_count:
+		_redraw()
 
 
 func _draw_question(ch: Dictionary) -> void:

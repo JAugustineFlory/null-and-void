@@ -29,6 +29,8 @@ const HERE := "here"
 const REVEAL_MIN := 2.5
 ## How long the cut waits for a player to finish reading a paper, at most.
 const PAPER_WAIT := 30.0
+## How long the crew waits on its last player before turning the page anyway.
+const STRAGGLER_WAIT := 30.0
 
 ## The World or standalone level this belongs to.
 var level: Node
@@ -48,6 +50,10 @@ var crew: Array = []
 var votes := {}
 ## Who is ready to turn the page, by peer id (the host decides; everyone sees).
 var turn_votes := {}
+## This machine's look back at an earlier page of the round (-1: the crew's page).
+var peek := -1
+## Seconds until the page turns without the last player (0: not counting down).
+var countdown := 0.0
 ## After a vote: {choice, right} until the next question; {split: true} on a tie.
 var result := {}
 ## Chapters this run has finished.
@@ -133,6 +139,8 @@ func _begin(id: String, reader: int, in_huddle: Array) -> void:
 	page = rounds[0].pages[0] if not rounds[0].pages.is_empty() else 0
 	question = -1 if not rounds[0].pages.is_empty() else rounds[0].questions[0]
 	turn_votes.clear()
+	peek = -1
+	countdown = 0.0
 	votes.clear()
 	result.clear()
 	changed.emit()
@@ -144,36 +152,80 @@ func is_reader() -> bool:
 	return reader_id == multiplayer.get_unique_id()
 
 
-## This player is ready to turn the page (`step` 1), or turns back to the one
-## before (-1), within this round's pages. The page turns forward once the whole
-## crew is ready; past a round's last page come its questions.
+## This player is ready to turn the page (`step` 1), or looks back at the page
+## before (-1) on their own book. The crew's page turns once everyone is ready
+## (or the last one has had STRAGGLER_WAIT to catch up); past a round's last page
+## come its questions. Next from a look back returns to the crew's page and counts.
 func turn_page(step: int = 1) -> void:
 	if question >= 0 or not is_running():
 		return
+	if step < 0:
+		var pages: Array = rounds[round_index].pages
+		var at := pages.find(shown_page())
+		if at > 0:
+			peek = pages[at - 1]
+			changed.emit()
+		return
+	peek = -1
 	if is_host():
-		_turn(step, multiplayer.get_unique_id(), page)
+		_turn(multiplayer.get_unique_id(), page)
 	else:
-		_ask_turn.rpc_id(1, step, page)
+		_ask_turn.rpc_id(1, page)
+	changed.emit()
+
+
+## The page this player's book is open at: the crew's, or one they looked back to.
+func shown_page() -> int:
+	return peek if peek >= 0 else page
 
 
 @rpc("any_peer", "reliable")
-func _ask_turn(step: int, at_page: int) -> void:
+func _ask_turn(at_page: int) -> void:
 	if is_host():
-		_turn(step, multiplayer.get_remote_sender_id(), at_page)
+		_turn(multiplayer.get_remote_sender_id(), at_page)
 
 
-func _turn(step: int, by: int, at_page: int) -> void:
-	if at_page != page or question >= 0 or not is_running():
+func _turn(by: int, at_page: int) -> void:
+	if at_page != page or question >= 0 or not is_running() or turn_votes.has(by):
 		return
-	if step > 0:
-		if turn_votes.has(by):
-			return
-		var ready := turn_votes.duplicate()
-		ready[by] = true
-		_set_turn_votes.rpc(ready)
-		if NetPlayers.ids_for(multiplayer).any(func(id): return not ready.has(id)):
-			return
-	_advance(step)
+	var ready := turn_votes.duplicate()
+	ready[by] = true
+	_set_turn_votes.rpc(ready)
+	_check_turn()
+
+
+## Host: turn the page once the whole crew is ready. When one player is all
+## that's left (away, or tabbed out), it turns without them after a wait.
+func _check_turn() -> void:
+	var ids := NetPlayers.ids_for(multiplayer)
+	var missing := ids.filter(func(id): return not turn_votes.has(id))
+	if missing.is_empty():
+		_advance(1)
+	elif missing.size() == 1 and ids.size() > 1 and countdown <= 0.0:
+		_wait_for_last(page)
+
+
+func _wait_for_last(at_page: int) -> void:
+	_set_countdown.rpc(STRAGGLER_WAIT)
+	await get_tree().create_timer(STRAGGLER_WAIT * reveal_scale, false).timeout
+	if is_running() and page == at_page and question < 0:
+		_advance(1)
+
+
+@rpc("authority", "call_local", "reliable")
+func _set_countdown(seconds: float) -> void:
+	countdown = seconds * reveal_scale
+	changed.emit()
+
+
+func _process(delta: float) -> void:
+	if countdown > 0.0:
+		countdown = maxf(0.0, countdown - delta)
+
+
+## Who the crew is still waiting on to turn the page.
+func not_ready() -> Array:
+	return NetPlayers.ids_for(multiplayer).filter(func(id): return not turn_votes.has(id))
 
 
 ## Host: turn the page `step` (1 or -1) within this round, or on to its questions.
@@ -219,6 +271,8 @@ func _set_step(r: int, p: int, q: int) -> void:
 	page = p
 	question = q
 	turn_votes.clear()
+	peek = -1
+	countdown = 0.0
 	votes.clear()
 	result.clear()
 	changed.emit()
@@ -226,7 +280,7 @@ func _set_step(r: int, p: int, q: int) -> void:
 
 ## The first page of this round, and whether this is its last.
 func first_page_of_round() -> bool:
-	return rounds[round_index].pages.find(page) <= 0
+	return rounds[round_index].pages.find(shown_page()) <= 0
 
 
 func last_page_of_round() -> bool:
@@ -389,8 +443,8 @@ func _on_peer_left(id: int) -> void:
 		var t := turn_votes.duplicate()
 		t.erase(id)
 		_set_turn_votes.rpc(t)
-		if not t.is_empty() and NetPlayers.ids_for(multiplayer).all(func(p): return t.has(p)):
-			_advance(1)
+		if not t.is_empty():
+			_check_turn()
 
 
 @rpc("authority", "call_local", "reliable")

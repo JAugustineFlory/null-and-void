@@ -425,8 +425,17 @@ func test_coop_huddle() -> void:
 	hc.turn_page()
 	await _frames(10)
 	_check.call(hh.page == 0 and hh.turn_votes.size() == 1 and hc.turn_votes.size() == 1, "one player ready isn't enough: the page waits for the crew")
+	_check.call(hh.countdown > 0.0 and hc.countdown > 0.0, "with one player left to turn the page, the crew counts down for them")
+	_check.call(await _until(func(): return hc.page != 0, 900) and hc.turn_votes.is_empty(), "and the page turns without them when it runs out")
+	var crew_page: int = hh.page
+	var client_id: int = client.multiplayer.get_unique_id()
+	hc.turn_page(-1)
+	await _frames(5)
+	_check.call(hc.shown_page() != crew_page and hh.page == crew_page and hc.page == crew_page, "Back is your own: you look back, and the crew's page stays put")
+	hc.turn_page()
+	_check.call(await _until(func(): return hh.turn_votes.has(client_id), 60) and hc.peek == -1, "Next takes you back to the crew's page and counts you ready")
 	hh.turn_page()
-	_check.call(await _until(func(): return hc.page != 0 or hc.question >= 0, 60) and hc.turn_votes.is_empty(), "once everyone's ready, it turns for everyone")
+	_check.call(await _until(func(): return hc.question >= 0, 60), "once everyone's ready, it turns for everyone")
 	while hh.question < 0:
 		hh.turn_page()
 		hc.turn_page()
