@@ -17,12 +17,12 @@ extends Node
 signal crew_down(cause: String)
 ## Host: a player's block caught a hit from `cause` (the attacker can recoil).
 signal hit_blocked(peer_id: int, cause: String)
-## Every machine: the crew earned an unlock (`source` is a Profile.earn id).
+## The machine whose player earned an unlock (`source` is a Profile.earn id).
 signal unlocked(source: String)
 
 ## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
 const REVIVE_PROMPT := "[E] Help them up"
-## Anyone's first block in a real fight: the High-tops, for everyone present
+## A player's first block in a real fight: the High-tops, for that player only
 ## (plan/approvals/unlocks.md). The punch bag's practice swings never count.
 const FIRST_BLOCK := "achievement:first_block"
 
@@ -30,8 +30,8 @@ var level: Node
 var players: Node  # NetPlayers
 ## peer id -> what put them down.
 var downed := {}
-## Host: the first-block unlock has gone out from this level already.
-var _first_block_sent := false
+## Host: peer ids whose first-block unlock has gone out from this level already.
+var _first_blocks := {}
 
 
 static func create(for_level: Node, net_players: Node) -> CrewVitals:
@@ -188,14 +188,17 @@ func _ask_blocked(cause: String) -> void:
 
 func _host_blocked(id: int, cause: String) -> void:
 	hit_blocked.emit(id, cause)
-	if not PlayerCombat.practice(cause) and not _first_block_sent:
-		_first_block_sent = true
-		_run("_earn", [FIRST_BLOCK])
+	if not PlayerCombat.practice(cause) and not _first_blocks.has(id):
+		_first_blocks[id] = true
+		_run("_earn", [FIRST_BLOCK, id])
 
 
-## Every machine: everyone present earns `source` on their own profile (Net
-## says "Unlocked: ..." the first time; after that it's a no-op).
-func _earn(source: String) -> void:
+## Every machine: player `id` earns `source`, on their own machine and profile
+## only; teammates get nothing (Net says "Unlocked: ..." the first time; after
+## that it's a no-op).
+func _earn(source: String, id: int) -> void:
+	if id != my_id():
+		return
 	var net := get_node_or_null("/root/Net")
 	if net:
 		net.earn(source, level.get("hud"))
