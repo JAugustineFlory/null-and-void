@@ -48,7 +48,8 @@ const TEXT := {
 	"tip_no_where": "that changed every row. UPDATE without WHERE does that. put the others back the same way, one WHERE at a time.",
 	"tip_zero": "0 rows changed: your WHERE matched nothing. look at the row first: SELECT * FROM breakers;",
 	"tip_verify": "the terminal said it changed. did it? read it back.",
-	"tip_order": "that row went in, but its values are in the wrong columns. the clipboard's columns go company, job, time in.",
+	"tip_order": "that row went in, but its values are in the wrong columns. they line up with the columns you named: company, job, time_in.",
+	"tip_count": "the log has four columns and log_no fills itself in. name the three you're filling: (company, job, time_in).",
 	"tip_quotes": "a word without 'quotes' reads as a column name. put every value in single quotes.",
 }
 ## Facilities' work order on the maintenance desk: where UPDATE ... SET ... WHERE is
@@ -203,18 +204,19 @@ func _make_puzzles() -> void:
 	check_puzzle.accept_also("SELECT id, state FROM breakers WHERE id = '%s'" % t, ["id", "state"], false)
 	check_puzzle.case_id = "power"
 	var who := "('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in]
-	login_puzzle = StatePuzzle.new("login", "INSERT INTO contractor_log VALUES %s" % who,
+	login_puzzle = StatePuzzle.new("login", "INSERT INTO contractor_log (company, job, time_in) VALUES %s" % who,
 		"SELECT COUNT(*) > 0 AS logged FROM contractor_log WHERE lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s' AND trim(time_in) = '%s'" % [data.company, data.ticket, data.time_in],
 		"SELECT 1 AS logged", ["logged"], [
 		"the shape, with your job and the time left as ?:\n" +
-		"    [color=#ffffff]INSERT INTO contractor_log VALUES ('%s', '?', '?');[/color]\n" % data.company +
+		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '?', '?');[/color]\n" % data.company +
 		"  INSERT INTO contractor_log   add a new row to the contractor log\n" +
-		"  VALUES (...)   the new row's values, in the clipboard's column order: company, job, time in\n" +
+		"  (company, job, time_in)   the columns you're filling. log_no fills itself in\n" +
+		"  VALUES (...)   the new row's values, in the same order as those columns\n" +
 		"  '...'   every value in single quotes\n" +
 		"the first ? is your work order's number. the second ? is the time on the clock over this room's door.",
 		"open your notebook (Tab): the work order's number is printed at the top, WO- and five digits. the clock over the door reads hours:minutes.",
 		"type this, then Enter:\n" +
-		"    [color=#ffffff]INSERT INTO contractor_log VALUES %s;[/color]\n" % who +
+		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES %s;[/color]\n" % who +
 		"then read the log back: SELECT * FROM contractor_log;",
 	])
 	login_puzzle.case_id = "login"
@@ -302,7 +304,9 @@ func _build_control_room(colors: Dictionary) -> void:
 	controller.queried.connect(_on_query.bind("controller"))
 	# A value typed without its quotes reads as a column name: SYSOP says why, in
 	# place of the usual "that column isn't in the table".
-	controller.blanks = {"WO": TEXT.tip_quotes, data.ticket.replace("-", ""): TEXT.tip_quotes, "Byte": TEXT.tip_quotes}
+	# And the plain VALUES form, without the column list, is a value short.
+	controller.blanks = {"WO": TEXT.tip_quotes, data.ticket.replace("-", ""): TEXT.tip_quotes, "Byte": TEXT.tip_quotes,
+		"contractor_log": TEXT.tip_count}
 	var board := Document.place(geo, Vector3(6.6, 1.0, -16.6), 0, "Contractor log", _clipboard_lines(), true, "clipboard")
 	board.clues = [{"case": "login", "opens": TEXT.case_login, "tables": ["contractor_log"], "text": "The clipboard by the controller: all contractors log in on the controller before touching anything."}]
 	board.read_by.connect(func(_p): sync.event("_ask_login"))
@@ -320,14 +324,14 @@ func _clipboard_lines() -> Array:
 	var lines: Array = [
 		"CONTRACTOR LOG  -  PLANT 10",
 		"ALL CONTRACTORS LOG IN BEFORE TOUCHING ANYTHING.  - Facilities",
-		{"columns": ["COMPANY", "JOB", "TIME IN"], "widths": [2.6, 1.6, 1.2]},
+		{"columns": ["NO.", "COMPANY", "JOB", "TIME IN"], "widths": [0.6, 2.4, 1.5, 1.0]},
 	]
-	for row in data.log:
-		lines.append({"row": row, "hand": true})
+	for i in data.log.size():
+		lines.append({"row": [str(i + 1)] + data.log[i], "hand": true})
 	var ex: Array = data.example_log
 	lines.append({"text": "on the controller now, not on paper:", "hand": true})
-	lines.append({"text": "INSERT INTO contractor_log VALUES ('%s', '%s', '%s');" % ex, "hand": true})
-	lines.append({"text": "text goes in 'quotes'. same order as the columns.", "hand": true})
+	lines.append({"text": "INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s');" % ex, "hand": true})
+	lines.append({"text": "text goes in 'quotes'. values in the same order as the columns. the log no. fills itself in.", "hand": true})
 	return lines
 
 

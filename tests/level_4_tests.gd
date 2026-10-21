@@ -111,16 +111,19 @@ func test_data_every_seed() -> void:
 		ok_login = ok_login and lvl.login_puzzle.matches(db5, r)
 		var db6 := _fresh_db(data)
 		ok_login = ok_login and lvl.login_puzzle.matches(db6, db6.execute(_last_hint_query(lvl.login_puzzle)))
-		# Wrong order, no quotes, the wrong table, the clipboard's example copied.
+		# Wrong order, no quotes, the wrong table, the clipboard's example copied, no column list.
 		var db7 := _fresh_db(data)
-		r = db7.execute("INSERT INTO contractor_log VALUES ('%s', '%s', '%s')" % [data.ticket, data.company, data.time_in])
+		r = db7.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % [data.ticket, data.company, data.time_in])
 		ok_wrong_insert = ok_wrong_insert and r.ok and not lvl.login_puzzle.matches(db7, r)
-		r = db7.execute("INSERT INTO contractor_log VALUES ('%s', %s, '%s')" % [data.company, data.ticket.replace("-", ""), data.time_in])
+		r = db7.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', %s, '%s')" % [data.company, data.ticket.replace("-", ""), data.time_in])
 		ok_wrong_insert = ok_wrong_insert and not r.ok
 		r = db7.execute("INSERT INTO contractors VALUES ('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in])
 		ok_wrong_insert = ok_wrong_insert and not r.ok
-		r = db7.execute("INSERT INTO contractor_log VALUES ('%s', '%s', '%s')" % data.example_log)
+		r = db7.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % data.example_log)
 		ok_wrong_insert = ok_wrong_insert and r.ok and not lvl.login_puzzle.matches(db7, r)
+		# The plain VALUES form is a value short: log_no is the fourth column.
+		r = db7.execute("INSERT INTO contractor_log VALUES ('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in])
+		ok_wrong_insert = ok_wrong_insert and not r.ok
 		r = db7.execute("SELECT * FROM contractor_log")
 		ok_wrong_insert = ok_wrong_insert and not lvl.login_puzzle.matches(db7, r)
 		lvl.free()
@@ -131,7 +134,7 @@ func test_data_every_seed() -> void:
 	check(ok_no_where, "no WHERE flips all twelve and doesn't pass; putting the others back does")
 	check(ok_wrong_row, "the bay's breaker, the circuit name as the id, and the example's CB-03 don't pass")
 	check(ok_login, "the crew's own log row passes, and so does the last hint, across 60 seeds")
-	check(ok_wrong_insert, "wrong column order, an unquoted value, the wrong table, the clipboard's example and a plain read don't pass")
+	check(ok_wrong_insert, "wrong column order, an unquoted value, the wrong table, the clipboard's example, no column list and a plain read don't pass")
 
 
 func test_scene() -> void:
@@ -185,20 +188,22 @@ func test_scene() -> void:
 	# The control room: the contractor log.
 	ui.terminal = level.controller
 	var board: Node = _doc(level, "Contractor log")
-	check(board != null and board.plain_text().contains("INSERT INTO contractor_log VALUES") and not board.plain_text().contains(data.ticket), "the clipboard shows another contractor's INSERT, not the crew's")
+	check(board != null and board.plain_text().contains("INSERT INTO contractor_log (company, job, time_in) VALUES") and not board.plain_text().contains(data.ticket), "the clipboard shows another contractor's INSERT, not the crew's")
 	check(level.CTRL_ROOM.has_point(level.to_local(board.global_position)) and level.find_children("Clock", "Label3D", true, false).size() == 1, "the clipboard and the clock are in the control room")
 	board.open_reader(p).close()
 	await _frames(3)
 	check(_game().current_todo() == level.TEXT.todo_login, "reading the clipboard sets the log-in to-do")
-	ui.run("INSERT INTO contractor_log VALUES ('%s', '%s', '%s')" % [data.ticket, data.company, data.time_in])
+	ui.run("INSERT INTO contractor_log VALUES ('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in])
+	check(not level.login_puzzle.solved and Array(level.controller.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count)), "without the column list it's a value short, and SYSOP says to name the columns")
+	ui.run("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % [data.ticket, data.company, data.time_in])
 	await _frames(2)
 	check(not level.login_puzzle.solved and Array(level.controller.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_order)), "values in the wrong columns go in, don't count, and SYSOP says the column order")
-	ui.run("INSERT INTO contractor_log VALUES ('Byte-Right IT Services', %s, '%s')" % [data.ticket.replace("-", ""), data.time_in])
+	ui.run("INSERT INTO contractor_log (company, job, time_in) VALUES ('Byte-Right IT Services', %s, '%s')" % [data.ticket.replace("-", ""), data.time_in])
 	await _frames(2)
 	check(not level.login_puzzle.solved and Array(level.controller.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_quotes)), "an unquoted value is an error, and SYSOP says to quote it")
 	ui.run("INSERT INTO visitors VALUES ('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in])
 	check(not level.login_puzzle.solved, "the wrong table doesn't count")
-	ui.run("insert into contractor_log values ('byte-right it services', '%s', '%s')" % [data.ticket.to_lower(), data.time_in])
+	ui.run("insert into contractor_log (company, job, time_in) values ('byte-right it services', '%s', '%s')" % [data.ticket.to_lower(), data.time_in])
 	await _frames(2)
 	check(level.login_puzzle.solved and level.logged_in and _game().case_info("login").get("solved", false), "the crew's own row logs it in, whatever the capitals")
 	level.queue_free()

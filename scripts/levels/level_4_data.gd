@@ -90,12 +90,14 @@ INSERT INTO breakers VALUES
 	%s;
 
 -- The plant's contractor log, kept on the controller (the clipboard says log in first).
+-- log_no numbers itself: a new row left without one gets the next number.
 CREATE TABLE contractor_log (
+	log_no INTEGER PRIMARY KEY,
 	company TEXT,
 	job TEXT,
 	time_in TEXT
 );
-INSERT INTO contractor_log VALUES
+INSERT INTO contractor_log (company, job, time_in) VALUES
 	%s;
 
 -- doors and lights are building-wide (FacilityDB.SHARED_SCHEMA). This wing adds floor 10's
