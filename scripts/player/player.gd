@@ -1793,6 +1793,7 @@ func _strike() -> void:
 	_strike_cd = STRIKE_COOLDOWN
 	if hud:
 		hud.strike_swing()
+	combat.swung.emit()
 	var space := get_world_3d().direct_space_state
 	var from := camera.global_position
 	var to := from - camera.global_transform.basis.z * STRIKE_RANGE
