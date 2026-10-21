@@ -1,0 +1,1 @@
+- **Added:** a Customize button on the main menu, so you can pick who you play and how you look before a solo game.

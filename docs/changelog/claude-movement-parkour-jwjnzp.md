@@ -1,0 +1,1 @@
+- **Fixed:** sitting on a chair no longer pins your view straight ahead. Seated, you can look around as far as a seated person could: most of the way to each side, and comfortably up and down.

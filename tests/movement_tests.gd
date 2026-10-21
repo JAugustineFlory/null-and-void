@@ -1037,6 +1037,7 @@ func test_sit() -> void:
 	var q := spawn(a, Vector3(2, 0.05, 0))
 	await frames(20)
 	var stood := p.global_position
+	var stood_yaw := p.rotation.y
 	var eyes := p.camera.global_position.y
 	var settle := int(Player.SIT_TIME * 60) + 10
 	p.controls.sit = true
@@ -1049,6 +1050,9 @@ func test_sit() -> void:
 	await frames(20)
 	stop(p)
 	check(p.is_sitting() and p.global_position.distance_to(stood) < 0.05, "W doesn't walk you off: you're sitting")
+	p._turn_view(5.0, 0.0)
+	await frames(5)
+	check(absf(angle_difference(stood_yaw - 5.0, p.rotation.y)) < 0.001, "on the floor you turn your whole body")
 	check(p.raise_notebook() and p.is_sitting(), "you can read your notebook sitting down")
 	p.lower_notebook(true)
 	p.controls.jump = true
@@ -1062,8 +1066,18 @@ func test_sit() -> void:
 	check((-p.global_basis.z).dot(Vector3.BACK) > 0.99, "facing the way the chair faces")
 	check(absf(p.camera.global_position.y - (0.45 + Player.SIT_HEIGHT - 0.12)) < 0.05, "eyes at sitting height")
 	check(not chair.is_free(q) and chair.get_prompt(q) == "" and not q.sit(chair), "one to a chair")
-	p._turn_view(4.0, 0.0)
+	p._turn_view(1.0, -0.6)
+	await frames(10)
+	check(absf(angle_difference(PI - 1.0, p.rotation.y)) < 0.001 and absf(p.head.rotation.x - 0.6) < 0.001, "sitting on a chair, you can look around and up, and the view stays put")
+	p._turn_view(4.0, 3.0)
+	await frames(10)
 	check(absf(angle_difference(PI, p.rotation.y)) <= Player.SIT_LOOK + 0.001, "you can look around, but not turn your back on the desk")
+	check(absf(p.head.rotation.x + Player.SIT_LOOK_DOWN) < 0.001, "and only as far down as a seated person can")
+	p._turn_view(0.0, -10.0)
+	check(absf(p.head.rotation.x - Player.SIT_LOOK_UP) < 0.001, "or as far up")
+	p._turn_view(-8.0, 0.0)
+	check(absf(angle_difference(PI + Player.SIT_LOOK, p.rotation.y)) < 0.001, "turning hard the other way stops at the same limit")
+	p._turn_view(Player.SIT_LOOK - 0.3, 0.0)  # back round to a little left of the chair's facing
 	var yaw := p.rotation.y
 	var facing := Vector3(-sin(yaw), 0, -cos(yaw))
 	var out := Vector3(0, stood.y, -1.5) + facing * Player.SIT_STEP_OUT
@@ -1078,6 +1092,14 @@ func test_sit() -> void:
 	await frames(settle)
 	check(not p.is_sitting() and p.global_position.distance_to(out) < 0.05, "boxed in that way, you get up where you came from")
 
+	p.rotation.y = 0.5
+	p.seated = true
+	p._turn_view(4.0, 3.0)
+	check(absf(angle_difference(0.5, p.rotation.y)) <= Player.SIT_LOOK + 0.001 and absf(p.head.rotation.x + Player.SIT_LOOK_DOWN) < 0.001, "strapped into a van seat, you look around like on a chair")
+	p.seated = false
+	p._turn_view(0.0, 3.0)
+	check(p.head.rotation.x < -Player.SIT_LOOK_DOWN - 0.1, "unbuckled, the full range is back")
+	p._turn_view(0.0, -3.0)
 	p.controls.jump = true
 	await frames(3)
 	check(not p.sit(), "you can't sit in mid-air")

@@ -14,6 +14,7 @@ const LEVELS := {
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",
 	"lobby": "res://scenes/lobby.tscn",
+	"customize": "res://scenes/customize.tscn",
 }
 
 ## How the escort's story went: "unknown", "killed", "tied".
