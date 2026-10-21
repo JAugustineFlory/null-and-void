@@ -243,6 +243,8 @@ func write_note(index: int, label: String = "") -> bool:
 	var all: Array[Dictionary] = document.lines()
 	if index < 0 or index >= all.size() or str(all[index].text).strip_edges() == "":
 		return false
+	if answer(index):
+		return true
 	var name_it := label.strip_edges()
 	get_node("/root/Game").write_note(name_it if name_it != "" else document.title, str(all[index].text).strip_edges(), "document")
 	var level: Node = document._level()
@@ -259,8 +261,21 @@ func _index_of(text: String) -> int:
 	return -1
 
 
+## Line `index` answers a case's blank (Game.add_answer): it's written in there,
+## with no name to give it, and the paper goes back down while the notebook comes
+## up to show it written in (Notebook). False if it answers nothing.
+func answer(index: int) -> bool:
+	var all: Array[Dictionary] = document.lines()
+	if index < 0 or index >= all.size() or not get_node("/root/Game").add_answer(str(all[index].text)):
+		return false
+	close()
+	return true
+
+
 func _start_note(index: int) -> void:
 	if index < 0:
+		return
+	if answer(index):
 		return
 	_note_index = index
 	if _chip:

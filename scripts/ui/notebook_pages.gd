@@ -31,6 +31,11 @@ const CONCEPT_NOTES := {
 const SUBTITLES := {
 	"level_2": "Level 2  -  Security Office",
 }
+## How long the pen takes to write an answer into its blank.
+const ANSWER_WRITE_TIME := 1.4
+## An empty answer blank on a case page, and how to fill it.
+const BLANK := "______________"
+const BLANK_HOW := "Found it? Point at the line that answers it, on a screen or a paper, and click + add to notebook."
 const KIND_LABELS := {"result": "Query result", "hint": "Hint", "error": "Error", "schema": "Table shape", "echo": "I typed", "document": "From a document"}
 
 ## At the end of a level the notebook opens on Field Notes with buttons to carry on.
@@ -42,6 +47,12 @@ var _spreads: Array = []  # [[left items], [right items]] per spread
 var _turn: Button
 ## The co-op notes huddle; found from the level when left unset.
 var huddle: NotesHuddle
+## On screen (the Notebook is open): an answer just found is written in when its
+## page shows, not while the book is put away.
+var showing := false
+## The blank written in on this build of the pages, and its case.
+var _fresh_blank: Control
+var _fresh_case := ""
 
 
 func _ready() -> void:
@@ -114,6 +125,7 @@ func refresh() -> void:
 		h.changed.connect(refresh)
 	book.clear_pages()
 	_free_spreads()
+	_fresh_blank = null
 	_spreads = _paginate(section_items(_page))
 	_show_spread(0)
 
@@ -268,6 +280,8 @@ func _case_items(game: Node) -> Array[Control]:
 		items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
 		if h and not (c.clues.is_empty() and notes.is_empty()):
 			items.append(_share_case_button(h, game, c.id))
+		if c.has("blank"):
+			items.append_array(_blank_items(c))
 		if c.solved:
 			items.append(NotebookArt.hand("Solved: " + c.how, 22))
 		if c.clues.is_empty() and notes.is_empty():
@@ -291,6 +305,30 @@ func _case_items(game: Node) -> Array[Control]:
 		if current == "":
 			items.append_array(_write_button())
 	return items
+
+
+## A case's blank for its answer, under the question: empty, with how to fill it
+## in pencil, or filled in in pen. One just filled is written in as you watch.
+func _blank_items(c: Dictionary) -> Array[Control]:
+	var b: Dictionary = c.blank
+	var line := HFlowContainer.new()  # the answer drops under the question if it won't fit beside it
+	line.name = "Blank"
+	line.add_theme_constant_override("h_separation", 10)
+	var question := NotebookArt.hand(b.prompt + ":", 26)
+	var answer := NotebookArt.hand(b.filled if b.filled != "" else BLANK, 26)
+	answer.name = "Answer"
+	for l in [question, answer]:
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		line.add_child(l)
+	if b.filled == "":
+		var how: Array[Control] = [line, NotebookArt.hand(BLANK_HOW, 20, NotebookArt.PENCIL)]
+		if b.has("miss"):
+			how.append(NotebookArt.hand(b.miss, 20, NotebookArt.PENCIL))
+		return how
+	if b.get("fresh", false):
+		_fresh_blank = answer
+		_fresh_case = c.id
+	return [line]
 
 
 ## One clue: where it came from in pencil, then the clue itself, wrapped to the
@@ -406,6 +444,17 @@ func _show_spread(index: int) -> void:
 	_turn.visible = _spreads.size() > 1
 	_turn.text = "next page  >" if _spread < _spreads.size() - 1 else "back to start  >"
 	_place_turn()
+	_write_in_fresh()
+
+
+## An answer just found, on the spread now showing: the pen writes it in, once.
+func _write_in_fresh() -> void:
+	if not (showing and is_instance_valid(_fresh_blank) and _fresh_blank.is_inside_tree()):
+		return
+	var b: Dictionary = get_node("/root/Game").case_info(_fresh_case).get("blank", {})
+	b["fresh"] = false
+	book.write_in(_fresh_blank, ANSWER_WRITE_TIME)
+	_fresh_blank = null
 
 
 func _place_turn() -> void:

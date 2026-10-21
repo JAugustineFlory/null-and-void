@@ -25,7 +25,8 @@ var _history: Array[String] = []
 var _history_i := -1
 ## Every line on screen that can be written into the notebook: {kind, text,
 ## from, to}, where from/to are the paragraphs it covers in the output.
-## Kinds: info, echo, result, hint, error, schema, note.
+## Kinds: info, echo, result, row (one row of a result, with its header), hint,
+## error, schema, note.
 var _noteable: Array[Dictionary] = []
 var _note_label: LineEdit
 ## The red ; that flashes when Enter is pressed before the statement ends.
@@ -320,7 +321,16 @@ func _render(bbcode: String, kind: String = "") -> void:
 		kind = "error" if text.begins_with("ERROR") else ("hint" if text.begins_with("[SYSOP]") else "info")
 	var from := _output.get_paragraph_count() - 1
 	_output.append_text(bbcode + "\n")
-	_noteable.append({"kind": kind, "text": text, "from": from, "to": _output.get_paragraph_count() - 1})
+	if kind == "result" and bbcode.count("\n") >= 3:
+		# A table: its header line copies the whole result, and each row (under
+		# the rule, above the row count) is a line of its own, copied with the header.
+		var rows := bbcode.split("\n")
+		_noteable.append({"kind": kind, "text": text, "from": from, "to": from + 1})
+		var head := _plain(rows[0]).strip_edges()
+		for i in range(2, rows.size() - 1):
+			_noteable.append({"kind": "row", "text": head + "\n" + _plain(rows[i]).strip_edges(), "from": from + i, "to": from + i + 1})
+	else:
+		_noteable.append({"kind": kind, "text": text, "from": from, "to": _output.get_paragraph_count() - 1})
 	_hover_line(-1)  # the screen may scroll under the pointer
 
 
@@ -329,10 +339,13 @@ func noteable_lines() -> Array[Dictionary]:
 	return _noteable.duplicate(true)
 
 
-## Copy line `index` into this player's notebook, with an optional label.
+## Copy line `index` into this player's notebook, with an optional label. A line
+## that answers a case's blank goes in the blank instead (answer()).
 func write_note(index: int, label: String = "") -> bool:
 	if index < 0 or index >= _noteable.size():
 		return false
+	if answer(index):
+		return true
 	var line: Dictionary = _noteable[index]
 	get_node("/root/Game").write_note(label.strip_edges(), line.text, line.kind, terminal.hint_case() if terminal else "")
 	_render("[color=#7fa88a]Written in your notebook%s.[/color]" % (": " + label.strip_edges() if label.strip_edges() != "" else ""), "none")
@@ -345,9 +358,23 @@ func _on_meta(meta: Variant) -> void:
 		_start_note(int(m.substr(5)))
 
 
+## Line `index` answers a case's blank (Game.add_answer): it's written in there,
+## with no name to give it, and you step back from the screen while the notebook
+## comes up to show it written in (Notebook). False if it answers nothing.
+func answer(index: int) -> bool:
+	if index < 0 or index >= _noteable.size() or not get_node("/root/Game").add_answer(_noteable[index].text):
+		return false
+	_render("[color=#7fa88a]Written in your notebook.[/color]", "none")
+	if visible:
+		close()
+	return true
+
+
 ## Ask for an optional name, then write line `index` into the notebook.
 func _start_note(index: int) -> void:
 	if index < 0 or index >= _noteable.size():
+		return
+	if answer(index):
 		return
 	_note_index = index
 	_note_label.text = ""
@@ -761,7 +788,7 @@ func _command(cmd: String) -> void:
 		".note":
 			var last := -1
 			for i in range(_noteable.size() - 1, -1, -1):
-				if _noteable[i].kind != "echo":
+				if not _noteable[i].kind in ["echo", "row"]:  # a table's last line is its whole result
 					last = i
 					break
 			if last < 0:

@@ -93,8 +93,13 @@ var visitor_puzzle: Puzzle
 var visitor_top_one: Puzzle  # LIMIT 1: just the crew's own row, one short of Vale's
 ## This run's ground-floor data (Level0Data.build).
 var data := {}
-## Rourke has asked who called: the directory query or the mailroom printout counts.
+## Rourke has asked who called. The answer is Mercer's line, added to the
+## notebook from the directory on the terminal or the mailroom's printout.
 var caller_asked := false
+## The caller's row (name and extension) has been on the desk terminal's screen.
+var caller_listed := false
+## SYSOP has said why a wrong directory row didn't fill the blank (once per run).
+var caller_miss_said := false
 signal caller_found
 ## The staff directory printout in the mailroom: the walking route to the caller.
 var directory_printout: Document
@@ -112,6 +117,9 @@ func build() -> void:
 	caller_puzzle = caller_puzzle_for(data.extension)
 	visitor_puzzle = visitor_puzzle_for()
 	visitor_top_one = visitor_top_one_for()
+	var game := get_node("/root/Game")
+	game.answer_found.connect(_on_answer_found)
+	game.line_noted.connect(_on_line_noted)
 	var carpet := Color(0.22, 0.2, 0.24)
 	var wall := Color(0.62, 0.58, 0.5)
 	# Lobby: x -8..8, z -7..7
@@ -767,7 +775,6 @@ func _build_ground_floor(wall: Color) -> void:
 	listing.append({"text": "Mercer's still on here?? - mailroom", "hand": true})
 	directory_printout = Document.place(geo, Vector3(-13.12, 1.5, -13.0), 90.0, "HALCYON STAFF DIRECTORY", listing, false, "paper", Vector2(0.5, 0.66))
 	directory_printout.clues = [{"case": "caller", "text": "The mailroom's printout of the staff directory lists everyone's extension."}]
-	directory_printout.read_by.connect(_on_printout_read)
 	var in_mailroom := Trigger.create(self, Vector3(-16.5, 1, -14), Vector3(6.6, 2, 7.6))
 	in_mailroom.entered.connect(func(_b): sync.event("_on_mailroom_entered"), CONNECT_ONE_SHOT)
 
@@ -874,8 +881,8 @@ func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 		sync.event("_on_memo_solved")
 	elif not memo_puzzle.solved and memo_backwards.matches(db, result):
 		sync.event("_on_memo_backwards")
-	if caller_asked and not caller_puzzle.solved and caller_puzzle.matches(db, result):
-		sync.event("_on_caller_found")
+	if caller_asked and not caller_puzzle.solved and not caller_listed and _shows_caller(result):
+		sync.event("_on_caller_listed")
 	if not visitor_puzzle.solved and visitor_puzzle.matches(db, result):
 		sync.event("_on_last_visitor")
 	elif not visitor_puzzle.solved and visitor_top_one.matches(db, result):
@@ -958,7 +965,7 @@ static func caller_puzzle_for(ext: int) -> Puzzle:
 		"Type .schema staff_directory to list its columns. One of them holds the phone extensions.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT name, extension FROM staff_directory;[/color]\n" +
-		"Then find %d in the extension column." % ext,
+		"Then find %d in the extension column, point at that row and click + add to notebook." % ext,
 	])
 
 
@@ -995,6 +1002,7 @@ func _ask_caller() -> void:
 	var game := get_node("/root/Game")
 	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"])
 	game.add_clue("caller", "The call came from ext. %d." % data.extension, "Work order")
+	game.set_blank("caller", "Ext. %d belongs to" % data.extension, ["harold mercer", str(data.extension)], "Harold Mercer")
 	game.add_clue("caller", "Name just the columns you want, with commas between them: SELECT column, column FROM table_name;", "SYSOP")
 	desk_terminal.print_line("")
 	desk_terminal.print_line(TerminalUI.sysop("staff_directory is wide. Instead of *, name just the columns you want, with commas between them:"))
@@ -1005,9 +1013,67 @@ func _on_mailroom_entered() -> void:
 	hud.line("l0_mailroom_2")
 
 
-## Host: someone picked up the directory printout in the mailroom.
-func _on_printout_read(_p: Node) -> void:
-	if caller_asked and not caller_puzzle.solved:
+## A result row holds the caller's name beside the work order's extension.
+func _shows_caller(result: Dictionary) -> bool:
+	return result.get("ok", false) and result.rows.any(func(r: Dictionary):
+		var cells := r.values().map(func(v): return str(v).to_lower())
+		return cells.has("harold mercer") and cells.has(str(data.extension)))
+
+
+## The caller's row is on screen: the answer is in it, but it's the crew's to pick
+## out. From now on .hint gives that step.
+func _on_caller_listed() -> void:
+	caller_listed = true
+	var step := "point at the row with ext. %d and click + add to notebook: it goes in the blank on your case page." % data.extension
+	desk_terminal.print_line(TerminalUI.sysop("there it is. " + step))
+	caller_puzzle.hints = [step]
+	caller_puzzle.hint_index = 0
+
+
+## This player added a line that answers one of their cases: tell the host.
+func _on_answer_found(id: String) -> void:
+	if id == "caller":
+		sync.report_answer(id)
+
+
+## This player noted a directory line that isn't the caller's. A terminal row:
+## tell the host which extension it held, so SYSOP can say why the blank stayed
+## empty. A line of the mailroom's printout: SYSOP isn't there, so a pencil line
+## under the blank says it (this player's notebook only).
+func _on_line_noted(text: String, kind: String) -> void:
+	if not caller_asked or caller_puzzle.solved:
+		return
+	if kind == "document":
+		if directory_printout.lines().any(func(l): return l.has("row") and str(l.text).strip_edges() == text):
+			get_node("/root/Game").blank_miss("caller", "Not that one: the blank wants whoever has ext. %d." % data.extension)
+		return
+	if kind != "row" or caller_miss_said:
+		return
+	var lines := text.split("\n")
+	if lines.size() < 2:
+		return
+	var head := Array(lines[0].split("|")).map(func(c): return c.strip_edges().to_lower())
+	var cells := Array(lines[1].split("|")).map(func(c): return c.strip_edges())
+	var at := head.find("extension")
+	if at < 0 or at >= cells.size() or cells[at] == str(data.extension):
+		return
+	sync.report_answer("caller", cells[at])
+
+
+## Host: a player noted ext. `missed`'s row instead of the caller's.
+func case_missed(id: String, _peer: int, missed: String) -> void:
+	if id == "caller" and caller_asked and not caller_puzzle.solved and not caller_miss_said:
+		sync.event("_on_caller_missed", [missed])
+
+
+func _on_caller_missed(missed: String) -> void:
+	caller_miss_said = true
+	desk_terminal.print_line(TerminalUI.sysop("that's ext. %s's row. the blank wants whoever has ext. %d." % [missed, data.extension]))
+
+
+## Host: a player wrote the caller's name into their case page.
+func case_answered(id: String, _peer: int) -> void:
+	if id == "caller" and caller_asked and not caller_puzzle.solved:
 		sync.event("_on_caller_found")
 
 
@@ -1015,6 +1081,7 @@ func _on_caller_found() -> void:
 	if caller_puzzle.solved:
 		return
 	caller_puzzle.solved = true
+	get_node("/root/Game").fill_blank("caller", false)  # the rest of the crew's pages too
 	var task := "Find out who called from ext. %d" % data.extension
 	hud.todo("")
 	get_node("/root/Game").ticket_fill(task, "ext. %d: Harold Mercer, Building Services (left 03/94)" % data.extension)

@@ -1,0 +1,2 @@
+- **Changed:** cases with a single answer have a blank on their page. Point at the line that answers it, on a terminal or a paper, and click + add to notebook: the pen writes the answer in.
+- **Added:** every row of a query result can be pointed at and added to your notebook on its own.

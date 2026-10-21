@@ -17,6 +17,8 @@ var held: HeldNotebook
 ## Where you type a note of your own (from "+ write a note"); shown while writing.
 var writer: LineEdit
 var _open := false
+## How long an answer waits for your hands to be free to show the notebook.
+const ANSWER_WAIT_FRAMES := 300
 var _was_locked := false
 
 
@@ -26,6 +28,7 @@ func _ready() -> void:
 	get_node("/root/Game").notebook_changed.connect(func():
 		if _open:
 			pages.refresh())
+	get_node("/root/Game").answer_found.connect(_show_answer)
 
 
 ## Held or full-screen, as Game.diegetic_ui says. Call again after changing it.
@@ -61,6 +64,19 @@ func _build() -> void:
 		add_child(pages)
 
 
+## You added the line that answers a case: once you've stepped back from the
+## terminal or put the paper down, the notebook comes up at the case page and the
+## answer is written into its blank there (NotebookPages).
+func _show_answer(_case_id: String) -> void:
+	for i in ANSWER_WAIT_FRAMES:
+		if _open:
+			pages.show_page(NotebookPages.Page.CASES)
+			return
+		if open(NotebookPages.Page.CASES):
+			return
+		await get_tree().process_frame
+
+
 func _on_lowered() -> void:
 	if _open and held and not player.is_holding_notebook():
 		_set_closed()
@@ -84,6 +100,7 @@ func open(page: int = -1) -> bool:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_open = true
 	pages.visible = true
+	pages.showing = true
 	if page >= 0:
 		pages.show_page(page)
 	else:
@@ -108,6 +125,7 @@ func close() -> void:
 
 func _set_closed() -> void:
 	_open = false
+	pages.showing = false
 	pages.book.hide_book().finished.connect(func():
 		if not _open and not held:
 			pages.visible = false)
