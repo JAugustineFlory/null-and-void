@@ -16,7 +16,7 @@ func _initialize() -> void:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab", "scripting"]
 
 
 func _run() -> void:
@@ -57,6 +57,7 @@ func _run_group(g: String) -> void:
 		"movement": await _group_movement()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
+		"scripting": await _group_scripting()
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -166,6 +167,11 @@ func _group_teaching() -> void:
 ## The second lab seed's paced walk, on its own so neither teaching group runs long.
 func _group_teaching_lab() -> void:
 	await load("res://tests/teaching_tests.gd").new().run(self, check, "lab")
+
+
+## Scripting and services: the facility API's writes, and (later) deck scripts.
+func _group_scripting() -> void:
+	await load("res://tests/scripting_tests.gd").new().run(self, check)
 
 
 func check(cond: bool, name: String) -> void:
