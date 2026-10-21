@@ -124,4 +124,65 @@ const PUZZLES := {
 		"teaches": ["GET /doors/SEC-EXIT", "sensor", "actuator", "B-"],
 		"needs": ["GET", "/doors/SEC-EXIT"],
 	},
+	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md). Every
+	# ladder is drafted in plan/approvals/l3-text.md and held until Augustine agrees
+	# Act 1 ends on this floor ("ladder": "held"): a lost player is stuck on any
+	# station it can't copy off a paper, and that prints as a gap, not a failure.
+	# COUNT as review (Level 2's SYSOP showed it on the cameras screen), safe.
+	"slips": {
+		"level": 3,
+		"pressure": false,
+		"ladder": "held",
+		"teaches": ["retrieval_slips"],
+		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "retrieval_slips"],
+	},
+	# DISTINCT, found on the clerk's memo pinned to the card catalogue and practised
+	# at once: the memo writes the desk's question out in full.
+	"depts": {
+		"level": 3,
+		"pressure": false,
+		"ladder": "held",
+		"teaches": ["DISTINCT", "one of each", "catalogue", "dept"],
+		"needs": ["SELECT", "FROM", "WHERE", "DISTINCT", "catalogue", "dept"],
+	},
+	# GROUP BY with COUNT, found on the reader tally taped to the desk and practised
+	# on its harmless whole-log count. The reading room wins by day: the decoy.
+	"tally": {
+		"level": 3,
+		"pressure": false,
+		"ladder": "held",
+		"teaches": ["GROUP BY", "one line per room", "access_log"],
+		"needs": ["SELECT", "FROM", "COLUMNS", "COUNT", "GROUP BY", "access_log", "room"],
+	},
+	# The gate: that night's busiest reader. The tally's query plus the date (on the
+	# slips, as the readers write it) and the sort from Level 0, typed after the
+	# first crank wakes the Shredder. Nothing forces the crank first: see the walk.
+	"visits": {
+		"level": 3,
+		"pressure": true,
+		"ladder": "held",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COUNT", "GROUP BY", "ORDER BY", "DESC", "access_log", "room", "1997-10-15"],
+	},
+	# IS NULL, the word no book teaches: found on Mercer's card in the safe room, which
+	# is only reached after the Shredder wakes, so its first use is under threat. The
+	# plan calls it the "look it up yourself" word; whether that's the point or a
+	# pacing bug is the architect's call.
+	"unreturned": {
+		"level": 3,
+		"pressure": true,
+		"ladder": "held",
+		"threat_first": "Mercer's card is in the safe room, past the pressure peak, and the only terminals are outside it",
+		"teaches": ["IS NULL", "returned_at"],
+		"needs": ["SELECT", "FROM", "WHERE", "AND", "IS NULL", "retrieval_slips", "returned_at"],
+	},
+	# The second route to the room: Mercer's own boxes in the catalogue, listed with
+	# their room (LIKE on the archivist's note, or his department), under threat.
+	"mercer_room": {
+		"level": 3,
+		"pressure": true,
+		"ladder": "held",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "COLUMNS", "catalogue", "room", "box_id"],
+	},
 }

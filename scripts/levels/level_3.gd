@@ -66,6 +66,33 @@ const POLICY_LINES := [
 	"Do not write codes down. Do not share badges.",
 	"Lost badge: report to Security, ext. 2100.",
 ]
+## The clerk's memo pinned on the card catalogue: where DISTINCT is found. The desk
+## station (depts) is the same question, so the word is practised at once, safely.
+const MEMO_LINES := [
+	"RETENTION REVIEW  -  BOXES IN THE STACKS",
+	"Legal wants one line per department, not one per box.",
+	{"text": "dozens of boxes, the same few names over and over.", "hand": true},
+	{"text": "SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS';", "hand": true},
+	{"text": "DISTINCT = one of each. no repeats.", "hand": true},
+]
+## The reader tally taped to the desk: where GROUP BY is found, with the harmless
+## count that practises it (the tally station). Over the whole log the reading room
+## wins, which is the decoy the night's count has to beat.
+const TALLY_LINES := [
+	"READER TALLY  -  SEPTEMBER 1997",
+	{"columns": ["ROOM", "SWIPES"], "widths": [3.2, 1.6]},
+	{"row": ["READING ROOM", "212"], "hand": true},
+	{"row": ["STACKS", "96"], "hand": true},
+	{"row": ["MICROFICHE", "41"], "hand": true},
+	{"row": ["SHRED ROOM", "30"], "hand": true},
+	{"row": ["VAULT C", "12"], "hand": true},
+	{"row": ["MAP ROOM", "9"], "hand": true},
+	{"row": ["COLD STORE", "7"], "hand": true},
+	{"row": ["SUPPLY", "5"], "hand": true},
+	{"text": "counted off the readers by hand. never again:", "hand": true},
+	{"text": "SELECT room, COUNT(*) FROM access_log GROUP BY room;", "hand": true},
+	{"text": "GROUP BY room = one line per room. COUNT(*) = how many in each.", "hand": true},
+]
 ## Mercer's SQL pocket reference, open on his desk: the one Act 1 word no book
 ## teaches. Found here, practised on its own example, then used at the desk.
 const CARD_LINES := [
@@ -139,6 +166,9 @@ var stack_units: Array[StaticBody3D] = []
 var slips_puzzle := Puzzle.new("slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'", ["count(*)"], false)
 ## DISTINCT, new: which departments still have boxes in the stacks (one of each).
 var depts_puzzle := Puzzle.new("depts", "SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'", ["dept"], false)
+## GROUP BY + COUNT, practised safely: the tally sheet's own count over the whole log.
+## The reading room comes out on top, which is the day shift: the decoy.
+var tally_puzzle := Puzzle.new("tally", "SELECT room, COUNT(*) FROM access_log GROUP BY room", ["room", "count(*)"], false)
 ## GROUP BY + COUNT + ORDER BY DESC, the gate under the Shredder: that night's busiest
 ## reader. Over the whole log the reading room wins, so the WHERE matters.
 var visits_puzzle := Puzzle.new("visits", "SELECT room FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT, ["room"], true)
@@ -147,8 +177,9 @@ var visits_puzzle := Puzzle.new("visits", "SELECT room FROM access_log WHERE tim
 var unreturned_puzzle := Puzzle.new("unreturned", "SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL", ["box_id"], false)
 ## The second route to the same room, through the catalogue instead of the night's
 ## log: Mercer's own boxes are filed in the room that hides his door (LIKE on the
-## title or the note, or his department). Solves the "room" case like `visits`.
-var mercer_puzzle := Puzzle.new("mercer_room", "SELECT DISTINCT room FROM catalogue WHERE dept = 'EXECUTIVE'", ["room"], false)
+## note, or his department). Solves the "room" case like `visits`. The boxes are
+## listed with their room, so one lucky row with the right room isn't a solution.
+var mercer_puzzle := Puzzle.new("mercer_room", "SELECT box_id, room FROM catalogue WHERE dept = 'EXECUTIVE'", ["box_id", "room"], false)
 
 ## Typing is loud (a setting, default OFF, listed for Augustine): a burst of keys at a
 ## terminal is a sound the Shredder hears from about half a sprint's distance. It
@@ -289,19 +320,25 @@ func _build_reading_room(colors: Dictionary) -> void:
 	desk.queried.connect(_on_query.bind("desk"))
 	desk.screen_changed.connect(_on_typing.bind(desk))
 	# The spike of paper slips: the open requests, as the desk left them.
-	var slip_lines: Array = ["RETRIEVAL SLIPS  -  OPEN", {"columns": ["SLIP", "BOX", "FOR"], "widths": [1.6, 2.2, 2.4]}]
+	# The date on it is the night's, written the way the archive files things (and the
+	# readers log them): year-month-day.
+	var slip_lines: Array = ["RETRIEVAL SLIPS  -  OPEN", {"text": "%s  -  not pulled yet" % Level3Data.NIGHT, "hand": true}, {"columns": ["SLIP", "BOX", "FOR"], "widths": [1.6, 2.2, 2.4]}]
 	for row in db.run_silent("SELECT slip_no, box_id, requested_by FROM retrieval_slips WHERE status = 'open' ORDER BY slip_no"):
 		slip_lines.append({"row": [row["slip_no"], row["box_id"], row["requested_by"]], "hand": true})
 	Document.place(geo, Vector3(1.2, 1.0, 1.6), 0, "Retrieval slips", slip_lines, true, "clipboard")
 	# The laminated policy sheet taped to the desk: where door codes come from.
 	Document.place(geo, Vector3(-1.75, 1.0, 1.75), 0, "Push-button locks", POLICY_LINES, true, "paper")
 	Greybox.box(geo, Vector3(1.2, 1.1, 1.6), Vector3(0.02, 0.2, 0.02), Color(0.6, 0.6, 0.62), "SlipSpike")
+	# The reader tally taped to the desk's far end: GROUP BY, found and practised here.
+	Document.place(geo, Vector3(1.85, 1.0, 1.45), 0, "Reader tally", TALLY_LINES, true, "laminated")
 	# Reading tables: a top on four legs, so there's room to hide under them.
 	for pos in [Vector3(-4.5, 0, -3), Vector3(4.5, 0, -3)]:
 		_table(pos, Vector3(2.4, 0.75, 1.1))
 	# The card catalogue along the west wall: drawers labelled by range.
 	Greybox.box(geo, Vector3(-7.5, 0.7, 1.0), Vector3(0.9, 1.4, 3.6), Color(0.45, 0.32, 0.2), "CardCatalogue")
 	Greybox.label(geo, Vector3(-7.03, 1.5, 1.0), "CATALOGUE  A - Z", 30, Color(0.95, 0.92, 0.85), 90)
+	# The clerk's memo pinned on the drawers: DISTINCT, found here.
+	Document.place(geo, Vector3(-7.02, 1.15, 2.3), 90, "Retention review memo", MEMO_LINES, false, "memo")
 	# The stacks' lighting panel by the stacks doors: why it's dark through there.
 	Document.place(geo, Vector3(-1.6, 1.5, -5.88), 0, "Stacks lighting notice", [
 		"STACKS LIGHTING",
@@ -576,7 +613,7 @@ func start() -> void:
 # --- Terminals -------------------------------------------------------------------
 
 func puzzles() -> Array:
-	return [slips_puzzle, depts_puzzle, visits_puzzle, unreturned_puzzle, mercer_puzzle]
+	return [slips_puzzle, depts_puzzle, tally_puzzle, visits_puzzle, unreturned_puzzle, mercer_puzzle]
 
 
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:

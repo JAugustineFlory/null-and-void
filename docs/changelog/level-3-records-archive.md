@@ -3,3 +3,4 @@
 - **Added:** something on floor 18 that hunts by sound. Sprint, land hard or turn a crank and it hears you; crouch and walk slowly and it doesn't. It can't be blocked, so climb.
 - **Added:** a fourth puzzle at the records desk, a pocket reference card to find, and a second way to work out where the hidden room is.
 - **Changed:** the hidden room on 18 is behind a push-button lock as well as its shelving; the code is in the building's records, and a sheet on the records desk says where to look.
+- **Added:** the records desk's papers now teach the floor's new words where you find them: a clerk's memo on the card catalogue, a reader tally taped to the desk (with a practice station of its own), and the night's date on the slips.

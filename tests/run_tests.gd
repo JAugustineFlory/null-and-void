@@ -3939,11 +3939,12 @@ func test_level_3_data_every_seed() -> void:
 			if l3.unreturned_puzzle.matches(db, db.execute(wrong)):
 				nulls_ok = false
 		# The catalogue route: Mercer's boxes name the room without the night's log.
-		for right in ["SELECT DISTINCT room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT room FROM catalogue WHERE title LIKE 'Founder%'", "SELECT DISTINCT room FROM catalogue WHERE note LIKE '%archivist%'"]:
+		for right in ["SELECT box_id, room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT * FROM catalogue WHERE note LIKE '%archivist%'", "SELECT room, box_id FROM catalogue WHERE title LIKE 'Founder%' OR dept = 'EXECUTIVE'"]:
 			var r := db.execute(right)
-			if not l3.mercer_puzzle.matches(db, r) or r.rows[0]["room"] != data.host:
+			if not l3.mercer_puzzle.matches(db, r) or r.rows.size() != 3 or r.rows[0]["room"] != data.host:
 				route_ok = false
-		for wrong in ["SELECT DISTINCT room FROM catalogue", "SELECT DISTINCT room FROM catalogue WHERE room != 'STACKS'", "SELECT dept FROM catalogue WHERE dept = 'EXECUTIVE'"]:
+		# One lucky row with the right room (a title match, an aggregate with no GROUP BY) isn't the route.
+		for wrong in ["SELECT box_id, room FROM catalogue", "SELECT box_id, room FROM catalogue WHERE room != 'STACKS'", "SELECT dept, room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT box_id, room FROM catalogue WHERE title LIKE 'Founder%'", "SELECT room, COUNT(*) FROM access_log"]:
 			if l3.mercer_puzzle.matches(db, db.execute(wrong)):
 				route_ok = false
 		if data.mercer_boxes.size() != 3:
@@ -3963,7 +3964,7 @@ func test_level_3_data_every_seed() -> void:
 	check(slips_ok, "3 to 5 slips are open, and COUNT(*) on them passes the slips check; counting every slip or the filled ones doesn't")
 	check(depts_ok, "the stacks' departments repeat: DISTINCT collapses them, and the plain list, the wrong column and every room don't pass")
 	check(nulls_ok, "one or two pulled boxes never came back: returned_at IS NULL finds them (and the catalogue says 'out'); = NULL, = '', no status, IS NOT NULL and the filled list don't")
-	check(route_ok, "the catalogue route: Mercer's boxes (his department, 'Founder%', the archivist note) name the room with DISTINCT, and broader lists don't")
+	check(route_ok, "the catalogue route: Mercer's three boxes (his department, the archivist note) list the room; broader lists and one lucky row don't")
 	check(hosts.size() == Level3Data.CANDIDATES.size(), "the safe room hides behind a different side room on different runs (%s)" % [hosts.keys()])
 	check(code_ok and codes.size() > 40, "the lock's code is the four digits of the one badge that used the host room's reader, and it changes with the seed")
 	var building := FacilityDB.new()
@@ -4033,11 +4034,17 @@ func test_level_3_scene() -> void:
 	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
-	check(level.desk.puzzles.size() == 5 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "five stations on the desk, none with a hint ladder yet")
+	check(level.desk.puzzles.size() == 6 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "six stations on the desk, none with a hint ladder yet")
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log")
+	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")
+	check(level.tally_puzzle.solved and not level.visits_puzzle.solved, "the tally sheet's whole-log count passes the tally station only")
+	check(_doc(level, "Reader tally") != null and _doc(level, "Retention review memo") != null and _doc(level, "Retrieval slips").plain_text().contains(Level3Data.NIGHT),
+		"the tally sheet, the memo on the card catalogue and the night's date on the slips are on the floor")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room ORDER BY COUNT(*) DESC")
 	check(not level.visits_puzzle.solved and not _game().case_info("room").get("solved", false), "a count over the whole log doesn't pass: the reading room comes first")
-	level.terminal_ui.run("SELECT room FROM catalogue WHERE title LIKE 'Founder%'")
-	check(level.mercer_puzzle.solved and _game().case_info("room").solved and _game().case_info("room").how.contains(host), "the catalogue route: Mercer's box names the room, and the case page closes with it")
+	level.terminal_ui.run("SELECT box_id, room FROM catalogue WHERE note LIKE '%archivist%'")
+	check(level.mercer_puzzle.solved and _game().case_info("room").solved and _game().case_info("room").how.contains(host), "the catalogue route: Mercer's boxes name the room, and the case page closes with it")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT)
 	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's count passes too; the case stays closed once")
 	level.terminal_ui.run("SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'")
