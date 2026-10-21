@@ -116,8 +116,10 @@ static func _sql_literal(v: Variant) -> String:
 	return "'%s'" % str(v).replace("'", "''")
 
 
-## Run a player's query. Returns {ok, error, columns, rows, changes}.
-func execute(sql: String) -> Dictionary:
+## Run a player's query. Returns {ok, error, columns, rows, changes}. `params` fill
+## the query's ? placeholders in order (a deck script's db.query), so values never
+## become part of the SQL text.
+func execute(sql: String, params := []) -> Dictionary:
 	var res := {"ok": false, "error": "", "columns": [], "rows": [], "changes": 0}
 	var upper := sql.to_upper()
 	for word in BLOCKED:
@@ -129,7 +131,7 @@ func execute(sql: String) -> Dictionary:
 	var before := _total_changes()
 	if read_only:
 		db.query("SAVEPOINT read_only")
-	var ok: bool = db.query(sql)
+	var ok: bool = db.query_with_bindings(sql, params) if params else db.query(sql)
 	var raw: Array = db.query_result.duplicate() if ok else []
 	var error: String = db.error_message
 	res.changes = _total_changes() - before
