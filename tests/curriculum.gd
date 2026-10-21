@@ -208,4 +208,30 @@ const PUZZLES := {
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "catalogue", "room"],
 	},
+	# Level 4: the Power Plant on 10 (plan/level-4-power-plant.md). UPDATE and INSERT,
+	# the last new SQL, and verify after write. Both writes are StatePuzzles, checked
+	# by the table's state after the write. The walkthrough doesn't type writes yet
+	# (queries_in reads SELECT and GET lines), so these rows wait on a walk_level_4.
+	# Facilities' work order: reset the tripped breaker, practised safely. Forgetting
+	# the WHERE flips the whole panel (loud, never dangerous).
+	"reset": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["UPDATE", "SET", "breakers", "state"],
+		"needs": ["UPDATE", "SET", "WHERE", "breakers", "state", "id"],
+	},
+	# The work order's sign-off: read the breaker back (verify after write, safely).
+	"check": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["Check it took"],
+		"needs": ["SELECT", "FROM", "WHERE", "breakers", "state", "id"],
+	},
+	# The clipboard by the controller: the crew logs its own job, practised safely.
+	"login": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["INSERT INTO", "VALUES", "contractor_log"],
+		"needs": ["INSERT INTO", "VALUES", "contractor_log"],
+	},
 }
