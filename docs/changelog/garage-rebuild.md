@@ -1,0 +1,1 @@
+- **Changed:** the crew's garage is bigger and brighter, with seats for the whole crew facing Maddison's whiteboard, and Maddison takes her time.
