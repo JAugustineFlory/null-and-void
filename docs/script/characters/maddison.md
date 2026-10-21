@@ -99,9 +99,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 ### 6. At the workbench with your crew while they read a beginner's book together. One line to start the chapter, one to wrap it up.
 
-- [ ] `l3_huddle_update_1.wav`  
+- [ ] `l4_huddle_update_1.wav`  
   "UPDATE. Changing things. The book's put this one in a red box, which I don't love."  
   *Holding the page at arm's length.*
-- [ ] `l3_huddle_update_2.wav`  
+- [ ] `l4_huddle_update_2.wav`  
   "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row."  
   *Suddenly serious, for once.*
