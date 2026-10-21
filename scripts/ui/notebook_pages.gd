@@ -321,7 +321,10 @@ func _blank_items(c: Dictionary) -> Array[Control]:
 		l.autowrap_mode = TextServer.AUTOWRAP_OFF
 		line.add_child(l)
 	if b.filled == "":
-		return [line, NotebookArt.hand(BLANK_HOW, 20, NotebookArt.PENCIL)]
+		var how: Array[Control] = [line, NotebookArt.hand(BLANK_HOW, 20, NotebookArt.PENCIL)]
+		if b.has("miss"):
+			how.append(NotebookArt.hand(b.miss, 20, NotebookArt.PENCIL))
+		return how
 	if b.get("fresh", false):
 		_fresh_blank = answer
 		_fresh_case = c.id

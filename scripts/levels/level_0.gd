@@ -119,7 +119,7 @@ func build() -> void:
 	visitor_top_one = visitor_top_one_for()
 	var game := get_node("/root/Game")
 	game.answer_found.connect(_on_answer_found)
-	game.row_noted.connect(_on_row_noted)
+	game.line_noted.connect(_on_line_noted)
 	var carpet := Color(0.22, 0.2, 0.24)
 	var wall := Color(0.62, 0.58, 0.5)
 	# Lobby: x -8..8, z -7..7
@@ -1036,10 +1036,18 @@ func _on_answer_found(id: String) -> void:
 		sync.report_answer(id)
 
 
-## This player noted a directory row that isn't the caller's: tell the host which
-## extension it held, so SYSOP can say why the blank stayed empty.
-func _on_row_noted(text: String) -> void:
-	if not caller_asked or caller_puzzle.solved or caller_miss_said:
+## This player noted a directory line that isn't the caller's. A terminal row:
+## tell the host which extension it held, so SYSOP can say why the blank stayed
+## empty. A line of the mailroom's printout: SYSOP isn't there, so a pencil line
+## under the blank says it (this player's notebook only).
+func _on_line_noted(text: String, kind: String) -> void:
+	if not caller_asked or caller_puzzle.solved:
+		return
+	if kind == "document":
+		if directory_printout.lines().any(func(l): return l.has("row") and str(l.text).strip_edges() == text):
+			get_node("/root/Game").blank_miss("caller", "Not that one: the blank wants whoever has ext. %d." % data.extension)
+		return
+	if kind != "row" or caller_miss_said:
 		return
 	var lines := text.split("\n")
 	if lines.size() < 2:

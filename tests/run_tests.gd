@@ -1087,6 +1087,18 @@ func test_caller_answer() -> void:
 		else:
 			var reader: DocumentReader = level.directory_printout.open_reader(p)
 			var at: int = level.directory_printout.lines().map(func(l): return l.text).find(level.directory_printout.lines().filter(func(l): return l.text.contains("Harold Mercer"))[0].text)
+			var others: Array = []
+			for i in level.directory_printout.lines().size():
+				var l: Dictionary = level.directory_printout.lines()[i]
+				if l.has("row") and i != at:
+					others.append(i)
+			var miss := "Not that one: the blank wants whoever has ext. %s." % ext
+			reader.write_note(others[0])
+			page = level.notebook.pages.section_text(NotebookPages.Page.CASES)
+			check(page.contains(miss) and _game().case_info("caller").blank.filled == "", "printout: someone else's line leaves the blank empty, and a pencil line under it says why")
+			reader.write_note(others[1])
+			page = level.notebook.pages.section_text(NotebookPages.Page.CASES)
+			check(page.count(miss) == 1, "printout: once")
 			reader._start_note(at)
 			for i in 30:
 				if not is_instance_valid(reader):

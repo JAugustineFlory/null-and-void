@@ -5,8 +5,9 @@ extends Node
 signal notebook_changed
 ## This player added the line that answers a case's blank (add_answer).
 signal answer_found(case_id: String)
-## A terminal row went into the notebook as a plain note: it answered no blank.
-signal row_noted(text: String)
+## A line went into the notebook as a plain note (it answered no blank): a
+## terminal row (kind "row") or a paper's line ("document").
+signal line_noted(text: String, kind: String)
 
 const LEVELS := {
 	"world": "res://scenes/world.tscn",
@@ -155,8 +156,7 @@ func write_note(label: String, text: String, kind: String, case_id: String = "")
 		case_id = current_case()
 	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
 	notebook_changed.emit()
-	if kind == "row":
-		row_noted.emit(text)
+	line_noted.emit(text, kind)
 
 
 ## Keep a note under Other notes on the Cases page, whatever case is open: a fact
@@ -295,6 +295,17 @@ func fill_blank(id: String, fresh := true) -> bool:
 		return false
 	b.filled = b.value
 	b.fresh = fresh
+	notebook_changed.emit()
+	return true
+
+
+## Pencil `text` under case `id`'s empty blank: why the line just added didn't
+## fill it. Once per run; false if it was already said or the blank is filled.
+func blank_miss(id: String, text: String) -> bool:
+	var b: Dictionary = case_info(id).get("blank", {})
+	if b.is_empty() or b.filled != "" or b.has("miss"):
+		return false
+	b["miss"] = text
 	notebook_changed.emit()
 	return true
 
