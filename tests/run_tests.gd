@@ -3060,8 +3060,13 @@ func test_mercer_tape_secret() -> void:
 	root.add_child(level)
 	await physics_frame
 	check(not net.profile.earned.has("secret:mercer_vent_tape"), "the vent closet's secret isn't earned before the tape plays")
+	# On a teammate's machine their own player is out in the lobby when the tape plays.
+	level.player.global_position = level.to_global(Vector3(0, 0.1, 6))
 	level._on_tape()
-	check(net.profile.earned.has("secret:mercer_vent_tape") and not level.tape.enabled, "playing Mercer's tape in the vent closet earns its secret")
+	check(not net.profile.earned.has("secret:mercer_vent_tape") and not level.tape.enabled, "a teammate outside the vent closet hears the tape but doesn't earn its secret")
+	level.player.global_position = level.to_global(Vector3(-17.5, 0.1, 4))
+	level._on_tape()
+	check(net.profile.earned.has("secret:mercer_vent_tape"), "whoever is in the closet when it plays earns it")
 	level.queue_free()
 	await process_frame
 

@@ -37,6 +37,8 @@ var _look_base := Vector2.ZERO
 ## The air return in the lobby's west wall: its grate comes off by hand, and the
 ## duct behind it leads to a forgotten closet (an optional find and a first crawl).
 var vent_grate: Interactable
+## The forgotten closet at the end of the duct (the room around the tape's shelf).
+const VENT_CLOSET := AABB(Vector3(-20, -0.5, 1), Vector3(6, 3.1, 6))
 var _intro_started := false
 var tape: Interactable
 ## The dark east corridor's Hum.
@@ -1249,8 +1251,11 @@ func _on_vent_grate() -> void:
 	hud.notice("Hold Ctrl to crouch, and keep holding it to crawl in.", 5.0)
 
 
-## Optional: Mercer's cassette in the forgotten closet. Everyone hears it.
+## Optional: Mercer's cassette in the forgotten closet. Everyone hears it, but
+## only whoever is in the closet when it plays earns its secret (each machine
+## checks its own player).
 func _on_tape() -> void:
 	tape.enabled = false
-	get_node("/root/Net").earn("secret:mercer_vent_tape", hud)
+	if VENT_CLOSET.has_point(to_local(player.global_position)):
+		get_node("/root/Net").earn("secret:mercer_vent_tape", hud)
 	await hud.lines(VoiceLines.ids_in_scene("l0_tape"))
