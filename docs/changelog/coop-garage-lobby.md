@@ -1,1 +1,0 @@
-- **New:** a new opening in front of the crew's garage, solo or co-op: walk in, pick your look and pose, and get ready together.
