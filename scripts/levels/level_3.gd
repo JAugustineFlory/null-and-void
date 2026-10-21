@@ -51,7 +51,21 @@ const TEXT := {
 	"case_room": "Which room did someone keep going back to that night?",
 	"end_card": "To be continued.",
 	"shredder_wakes": "North of here, the machines stop. Something heavy gets up.",
+	"lock_idle": "ENTER CODE",
+	"lock_wrong": "NO",
+	"lock_open": "OPEN",
 }
+## The laminated sheet on the records desk that says where push-button codes come
+## from. The code gate on Mercer's door: every route in needs the keyholder's badge
+## number, which only the readers' log has.
+const POLICY_LINES := [
+	"HALCYON DATA SYSTEMS  -  FACILITIES",
+	"PUSH-BUTTON DOOR LOCKS  (policy 4.2)",
+	"The code of a push-button lock is the last four",
+	"digits of its keyholder's badge number.",
+	"Do not write codes down. Do not share badges.",
+	"Lost badge: report to Security, ext. 2100.",
+]
 ## Mercer's SQL pocket reference, open on his desk: the one Act 1 word no book
 ## teaches. Found here, practised on its own example, then used at the desk.
 const CARD_LINES := [
@@ -103,6 +117,9 @@ var cranks := {}  # reader room -> Interactable
 var shelving := {}  # reader room -> Array[AnimatableBody3D]
 var cranked := {}  # reader room -> bool
 var safe_door: Door
+## The push-button lock on Mercer's door, and whether its code has been entered.
+var lock: Level2Keypad
+var safe_unlocked := false
 var safe_room_box := AABB()
 var reached_safe := false
 var floppy: ItemDock
@@ -276,6 +293,8 @@ func _build_reading_room(colors: Dictionary) -> void:
 	for row in db.run_silent("SELECT slip_no, box_id, requested_by FROM retrieval_slips WHERE status = 'open' ORDER BY slip_no"):
 		slip_lines.append({"row": [row["slip_no"], row["box_id"], row["requested_by"]], "hand": true})
 	Document.place(geo, Vector3(1.2, 1.0, 1.6), 0, "Retrieval slips", slip_lines, true, "clipboard")
+	# The laminated policy sheet taped to the desk: where door codes come from.
+	Document.place(geo, Vector3(-1.75, 1.0, 1.75), 0, "Push-button locks", POLICY_LINES, true, "paper")
 	Greybox.box(geo, Vector3(1.2, 1.1, 1.6), Vector3(0.02, 0.2, 0.02), Color(0.6, 0.6, 0.62), "SlipSpike")
 	# Reading tables: a top on four legs, so there's room to hide under them.
 	for pos in [Vector3(-4.5, 0, -3), Vector3(4.5, 0, -3)]:
@@ -491,7 +510,12 @@ func _build_safe_room() -> void:
 	var wall_x: float = spec.center.x + back.x * SIDE_ROOM_SIZE.x / 2
 	safe_door = Door.create(self, "MERCER", Vector3(wall_x, 1.1, spec.center.z + 1.0), Vector3(0.08, 2.2, 1.0), Color(0.45, 0.4, 0.34))
 	safe_door.make_hinged(Vector3(0, 0, -0.5), 90.0 * back.x)
-	safe_door.locked = false
+	# Locked by a push-button lock beside it (the coded step on every route in: the
+	# code is the keyholder's badge number, from access_log). Cranks only find the door.
+	safe_door.locked = true
+	lock = Level2Keypad.mount(geo, Vector3(wall_x - back.x * 0.06, 1.3, spec.center.z + 1.9), -90.0 * back.x, "mercer", TEXT.lock_idle)
+	lock.name = "MercerLock"
+	lock.key_pressed.connect(func(key, _by): sync.event("_lock_key", [key]))
 	# Found: the host says so, everyone hears it.
 	var found := Trigger.create(self, c + Vector3(0, 1, 0), Vector3(SAFE_ROOM_SIZE.x - 0.6, 2, SAFE_ROOM_SIZE.z - 0.6))
 	found.name = "SafeRoomFound"
@@ -572,6 +596,34 @@ func _on_solved(id: String, _which: String) -> void:
 			Game.solve_case("room", "The readers logged one room far more than any other that night: %s." % data.host)
 		else:
 			Game.solve_case("room", "Mercer's own boxes are filed in one side room: %s." % data.host)
+
+
+# --- Mercer's lock ---------------------------------------------------------------
+
+## Every machine: a key went down on the push-button lock. Enter checks the code
+## against the keyholder's badge; right, and the door is unlocked for good.
+func _lock_key(key: String) -> void:
+	if safe_unlocked:
+		lock.show_text(TEXT.lock_open, ThemeUtil.GREEN)
+		return
+	if key != "E":
+		lock.press(key)
+		return
+	if lock.take_code() != data.code:
+		lock.show_text(TEXT.lock_wrong, ThemeUtil.RED)
+		return
+	safe_unlocked = true
+	safe_door.locked = false
+	lock.show_text(TEXT.lock_open, ThemeUtil.GREEN)
+
+
+## Type a code on the lock and press Enter, key by key, as a player does.
+func type_code(code: String, by: Node = null) -> void:
+	var who: Node = by if by else player
+	for k in code.split(""):
+		if lock.keys.has(k):
+			lock.keys[k].interact(who)
+	lock.keys["E"].interact(who)
 
 
 ## Host only, and only when typing is loud: the typed lines at `terminal` changed

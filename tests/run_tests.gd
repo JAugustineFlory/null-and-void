@@ -3865,6 +3865,8 @@ func test_level_3_data_every_seed() -> void:
 	var depts_ok := true
 	var nulls_ok := true
 	var route_ok := true
+	var code_ok := true
+	var codes := {}
 	var hosts := {}
 	for s in 50:
 		var data := Level3Data.build(s)
@@ -3892,8 +3894,8 @@ func test_level_3_data_every_seed() -> void:
 			if l3.visits_puzzle.matches(db, db.execute(wrong)):
 				wrongs_fail = false
 		# Reading one badge's rows and tallying by hand gets there too.
-		var mine := db.run_silent("SELECT room, COUNT(*) AS n FROM access_log WHERE badge_id = '%s' GROUP BY room ORDER BY n DESC" % Level3Data.VISITOR_BADGE)
-		if mine.is_empty() or mine[0]["room"] != data.host or db.run_silent("SELECT * FROM access_log WHERE badge_id = '%s'" % Level3Data.VISITOR_BADGE).size() > TerminalUI.MAX_ROWS_SHOWN:
+		var mine := db.run_silent("SELECT room, COUNT(*) AS n FROM access_log WHERE badge_id = '%s' GROUP BY room ORDER BY n DESC" % data.visitor_badge)
+		if mine.is_empty() or mine[0]["room"] != data.host or db.run_silent("SELECT * FROM access_log WHERE badge_id = '%s'" % data.visitor_badge).size() > TerminalUI.MAX_ROWS_SHOWN:
 			tally_route = false
 		for row in db.run_silent("SELECT DISTINCT room FROM access_log"):
 			if not Level3Data.ROOMS.has(row["room"]):
@@ -3946,6 +3948,11 @@ func test_level_3_data_every_seed() -> void:
 				route_ok = false
 		if data.mercer_boxes.size() != 3:
 			sources = false
+		# The lock's code is the night visitor's badge number, and only that badge used the host room's reader.
+		var badges := db.run_silent("SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host)
+		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "A-" + data.code or badges.size() != 1 or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
+			code_ok = false
+		codes[data.code] = true
 		hosts[data.host] = true
 	check(host_wins, "that night, the host room's reader logged the most visits, and GROUP BY + ORDER BY COUNT(*) DESC ranks it first")
 	check(decoy_wins, "over the whole log the reading room wins: the night matters")
@@ -3958,6 +3965,7 @@ func test_level_3_data_every_seed() -> void:
 	check(nulls_ok, "one or two pulled boxes never came back: returned_at IS NULL finds them (and the catalogue says 'out'); = NULL, = '', no status, IS NOT NULL and the filled list don't")
 	check(route_ok, "the catalogue route: Mercer's boxes (his department, 'Founder%', the archivist note) name the room with DISTINCT, and broader lists don't")
 	check(hosts.size() == Level3Data.CANDIDATES.size(), "the safe room hides behind a different side room on different runs (%s)" % [hosts.keys()])
+	check(code_ok and codes.size() > 40, "the lock's code is the four digits of the one badge that used the host room's reader, and it changes with the seed")
 	var building := FacilityDB.new()
 	building.load_seed(Level2Data.build(1).sql)
 	var doors_before := building.run_silent("SELECT id FROM doors").size()
@@ -4058,7 +4066,7 @@ func test_level_3_safe_room() -> void:
 	var host: String = level.data.host
 	var spec: Dictionary = level.SIDE_ROOMS[host]
 	var c: Vector3 = level.safe_room_box.get_center()
-	check(not level.safe_door.locked and level.safe_door.is_hinged(), "Mercer's door is an ordinary door: no badge, no network")
+	check(level.safe_door.is_hinged() and level.safe_door.locked and level.db.run_silent("SELECT * FROM doors WHERE id = 'MERCER'").is_empty(), "Mercer's door is a plain hinged door with a mechanical lock: no badge, nothing in the doors table")
 	check(not level.lights.keys().any(func(k): return k.contains("MERCER")) and level.db.run_silent("SELECT * FROM lights WHERE room LIKE '%Mercer%'").is_empty(), "nothing in the safe room is in the lights table: it's off the grid")
 	var card := _doc(level, "SQL pocket reference")
 	check(card != null and level.safe_room_box.has_point(level.to_local(card.global_position)) and card.plain_text().contains("IS NULL") and not card.plain_text().contains("SELECT"), "Mercer's reference card is on his desk: it explains IS NULL, and gives no query")
@@ -4066,7 +4074,18 @@ func test_level_3_safe_room() -> void:
 	level.safe_door.interact(p)
 	for i in 60:
 		await physics_frame
-	check(level.safe_door.is_open, "E opens the hidden door once you can reach it")
+	check(level.safe_door.locked and not level.safe_door.is_open and level.lock != null and level.lock.get_parent() == level.geo, "cranking only finds the door: it's locked, with a push-button lock beside it")
+	level.type_code("0000" if level.data.code != "0000" else "0001", p)
+	await _frames(3)
+	check(not level.safe_unlocked and level.safe_door.locked and level.lock.screen.text == level.TEXT.lock_wrong, "a wrong code is refused")
+	check(_doc(level, "Push-button locks") != null and _doc(level, "Push-button locks").plain_text().contains("badge") and level.db.run_silent("SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % host).size() == 1, "the desk's policy sheet says a code is its keyholder's badge number, and that room's reader logged exactly one badge")
+	level.type_code(level.data.code, p)
+	await _frames(3)
+	check(level.safe_unlocked and not level.safe_door.locked and level.lock.screen.text == level.TEXT.lock_open, "the keyholder's badge digits unlock Mercer's door: the coded step on every route in")
+	level.safe_door.interact(p)
+	for i in 60:
+		await physics_frame
+	check(level.safe_door.is_open, "E opens the hidden door once it's unlocked")
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(c.x, 0.1, c.z)))
 	for i in 10:
 		await physics_frame
@@ -4160,6 +4179,13 @@ func test_coop_level_3() -> void:
 	await _frames(180)
 	check(machines.all(func(l): return l.cranked[room]) and client.shelving[room][0].position.is_equal_approx(host.shelving[room][0].position), "a client's crank rolls the shelving on every machine, to the same place")
 	check(host.shredder.active and client.shredder.active and client.shredder.global_position.distance_to(host.shredder.global_position) < 0.5, "the crank wakes the Shredder on the host, and clients see it where the host has it")
+	# A client types the lock's code: the host checks it, and the door unlocks everywhere.
+	client.type_code("1234" if client.data.code != "1234" else "4321", client.player)
+	await _frames(3)
+	check(machines.all(func(l): return not l.safe_unlocked and l.safe_door.locked and l.lock.screen.text == l.TEXT.lock_wrong), "a wrong code on a client is refused on every machine")
+	client.type_code(client.data.code, client.player)
+	await _frames(3)
+	check(machines.all(func(l): return l.safe_unlocked and not l.safe_door.locked and l.lock.screen.text == l.TEXT.lock_open), "the right code typed by a client unlocks Mercer's door on every machine")
 	# A client sprinting: the host hears it from how fast the puppet moves.
 	host.shredder.place(host.to_global(Vector3(-8, 0, -23.5)), host.to_global(Vector3(0, 0, -23.5)))
 	host.shredder.state = "listening"

@@ -19,9 +19,10 @@ const CANDIDATES := ["VAULT C", "MAP ROOM", "COLD STORE"]
 const ROOMS := ["READING ROOM", "STACKS", "MICROFICHE", "SHRED ROOM", "SUPPLY", "VAULT C", "MAP ROOM", "COLD STORE"]
 ## The night of the job.
 const NIGHT := "1997-10-15"
-## Who kept going into that room that night. A placeholder until the architect
-## says whose visits they are (the data builder only needs a badge and a holder).
-const VISITOR_BADGE := "A-0314"
+## Who kept going into that room that night. The holder is a placeholder until
+## Augustine says whose visits they are; the badge number changes with the seed,
+## and its last four digits are the code of the push-button lock on Mercer's door
+## (facilities policy: a lock's code is its keyholder's badge number).
 const VISITOR := "RECORDS CLERK (NIGHT)"
 ## The night patrol: every room once or twice.
 const PATROL := ["G-0127", "SECURITY STAFF"]
@@ -35,6 +36,9 @@ static func build(run_seed: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed * 6007 + 3
 	var host: String = CANDIDATES[rng.randi_range(0, CANDIDATES.size() - 1)]
+	# Four digits from 1000 up, so it never reads like a day badge (A-02xx, A-03xx).
+	var code := "%04d" % rng.randi_range(1000, 9999)
+	var visitor_badge := "A-" + code
 
 	# That night: the host room gets the most visits by a clear margin; every other
 	# room a different, smaller count, so there are no ties in the order.
@@ -49,7 +53,7 @@ static func build(run_seed: int) -> Dictionary:
 	var night_rows := []
 	for room in ROOMS:
 		for n in night_counts[room]:
-			var who := [VISITOR_BADGE, VISITOR] if room == host or rng.randf() < 0.5 else PATROL
+			var who := [visitor_badge, VISITOR] if room == host or rng.randf() < 0.5 else PATROL
 			night_rows.append([who[0], who[1], room])
 	_shuffle(night_rows, rng)
 	for r in night_rows:
@@ -194,7 +198,7 @@ INSERT INTO lights VALUES
 	]
 	var open_list := slips.filter(func(s): return s[3] == "open")
 	return {"sql": sql, "host": host, "night_counts": night_counts, "open_slips": open_list.size(),
-		"unreturned": unreturned,
+		"visitor_badge": visitor_badge, "code": code, "unreturned": unreturned,
 		"mercer_boxes": boxes.filter(func(b): return b[3] == host).map(func(b): return b[0])}
 
 
