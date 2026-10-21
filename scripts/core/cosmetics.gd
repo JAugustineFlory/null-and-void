@@ -16,7 +16,9 @@ extends RefCounted
 ## `unlock` says who owns an item: "default" (everyone), "achievement:<id>",
 ## "secret:<id>" or "purchase:<sku>". Locked items show in the lobby with their
 ## `hint`; secret ones stay hidden until owned (Augustine, 2026-10-20). Levels
-## grant them with LevelSync.unlock(source), which every player present gets.
+## grant them with LevelSync.unlock_for(peer_ids, source) to the player who did
+## the task or found the secret, or LevelSync.unlock(source) to everyone present
+## for finishing a floor or an ending together.
 ## Graphics' CharacterLooks.ITEM_COLORS gives an item its first color when picked,
 ## and FIXED_COLORS items (amber terminal, gold walkie, Easy SQL cover) are a
 ## finish with no color to pick.

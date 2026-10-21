@@ -191,13 +191,28 @@ func _team_notice(text: String, seconds: float) -> void:
 		level.hud.notice(text, seconds)
 
 
-## Host only: every player here earns `source` ("achievement:floor_g",
-## "secret:roster_thu"...), owns the items it unlocks (Cosmetics) and sees
-## "Unlocked: <item>". Safe to call from a handler that runs on every machine:
-## only the host's call goes out, and earning twice does nothing.
+## Host only: every player here earns `source` ("achievement:floor_g"...), owns
+## the items it unlocks (Cosmetics) and sees "Unlocked: <item>". Only for what
+## the crew finishes together: a floor or an ending. Anything one player does
+## or finds themselves (a book, a block, a secret) goes through unlock_for, as
+## each player has to earn those on their own (Augustine, 2026-10-21). Safe to
+## call from a handler that runs on every machine: only the host's call goes
+## out, and earning twice does nothing.
 func unlock(source: String) -> void:
 	if is_host():
 		_unlock.rpc(source)
+
+
+## Host only: just the players in `peer_ids` (the one who did the task or
+## found the secret) earn `source`, each on their own machine.
+func unlock_for(peer_ids: Array, source: String) -> void:
+	if not is_host():
+		return
+	for id in peer_ids:
+		if int(id) == multiplayer.get_unique_id():
+			_unlock(source)
+		elif multiplayer.get_peers().has(int(id)):
+			_unlock.rpc_id(int(id), source)
 
 
 @rpc("authority", "call_local", "reliable")

@@ -1698,14 +1698,30 @@ func test_coop_unlocks() -> void:
 	levels[0].sync.unlock("achievement:floor_g")
 	await _frames(5)
 	check(levels[0].hud._notice.text == "", "earning it again says nothing")
-	levels[0].sync.unlock("achievement:easy_sql_half")
+	# What one player does themselves unlocks for them alone.
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	host_profile = Profile.new()
+	net.profile = host_profile
+	levels[0].hud._notice.text = ""
+	levels[1].hud._notice.text = ""
+	levels[1].sync.unlock_for([client_id], "achievement:easy_sql_half")
+	levels[0].sync.unlock_for([client_id], "achievement:easy_sql_half")
+	var client_profile := Profile.new()
+	net.profile = client_profile
+	await _frames(5)
+	check(client_profile.has_item("face/reading_glasses") and levels[1].hud._notice.text == "Unlocked: Reading glasses",
+		"the client who finished half the book unlocks the reading glasses")
+	check(not host_profile.has_item("face/reading_glasses") and levels[0].hud._notice.text == "", "and the host, who didn't, doesn't")
+	net.profile = host_profile
+	levels[1].hud._notice.text = ""
+	levels[0].sync.unlock_for([1], "achievement:first_block")
 	net.profile = Profile.new()
 	await _frames(5)
-	check(net.profile.has_item("face/reading_glasses") and levels[1].hud._notice.text == "Unlocked: Reading glasses",
-		"finishing half the book unlocks the reading glasses")
+	check(host_profile.has_item("feet/high_tops") and levels[0].hud._notice.text == "Unlocked: High-tops"
+		and not net.profile.has_item("feet/high_tops") and levels[1].hud._notice.text == "", "the host's own block unlocks the high-tops for the host alone")
 	Cosmetics.catalogue.append({"slot": "walkie", "item": "undrawn_x", "name": "Test undrawn", "unlock": "achievement:test_undrawn"})
 	levels[1].hud._notice.text = ""
-	levels[0].sync.unlock("achievement:test_undrawn")
+	levels[0].sync.unlock_for([client_id], "achievement:test_undrawn")
 	net.profile = Profile.new()
 	await _frames(5)
 	check(net.profile.has_item("walkie/undrawn_x") and levels[1].hud._notice.text == "",
