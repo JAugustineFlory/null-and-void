@@ -24,6 +24,8 @@ const MAX_HEIGHT_FRACTION := 0.62  # never more of the screen's height than this
 const TILT := 14.0  # top of the book leans away, like holding it to read
 const SPREAD_ANGLE := 7.0  # each half tilts up from the spine
 const CLOSED_ANGLE := 176.0
+const STICKER := Color(0.86, 0.8, 0.62)  # manila archive label, before a color is picked
+const DISK := Color(0.12, 0.12, 0.14)  # a black disk
 
 var viewport: SubViewport
 var view: NotebookView  # the embedded book, found in the content
@@ -237,6 +239,7 @@ func _make(look_in: Dictionary) -> void:
 			left_half = half
 		else:
 			right_half = half
+	_addons(look_in, book_mid_y, book_h)
 	_hands(look_in, size, book_mid_y, book_h)
 	_reach = HeldNotebook.make_hand(self, 1.0, look_in)
 	_reach.name = "ReachHand"
@@ -278,6 +281,76 @@ void fragment() {
 }
 """
 	return _shader
+
+
+## The cover add-ons a player picked (CharacterLooks.TOOL_SLOTS "sticker" and
+## "clip"), tucked behind the covers so they peek over the open book's top edge:
+## the archive label as an index tab on the front cover, and a 3.5" disk held to
+## the back cover by a binder clip. The front cover folds round behind the back one
+## when the book closes, so nothing stands out in front of the pages.
+## Covers' frames: the spine is x = 0, the outer edges x = -bw (front) and +bw (back),
+## and the covers' outsides face -z.
+func _addons(look_in: Dictionary, mid_y: float, book_h: float) -> void:
+	var bw := _px_to_m(NotebookView.BOOK_SIZE.x / 2.0)
+	var top := mid_y + book_h / 2.0
+	var outside := -0.0015  # the cover boards' outer face
+	if CharacterLooks.tool_item(look_in, "sticker") == "archive_label":
+		# An archive box label: manila card, the records band and a box number.
+		var card: Color = CharacterLooks.tool_color(look_in, "sticker") if CharacterLooks.tool_color(look_in, "sticker") is Color else STICKER
+		var tab := Node3D.new()
+		tab.name = "Sticker"
+		tab.position = Vector3(-0.036, top + 0.004, outside - 0.00017)
+		left_half.add_child(tab)
+		_piece(tab, Vector3(0.044, 0.03, 0.0003), Vector3.ZERO, ArtPalette.flat(card, 0.9))
+		_piece(tab, Vector3(0.044, 0.0055, 0.0001), Vector3(0, 0.0105, 0.0002), ArtPalette.flat(Color(0.55, 0.14, 0.12), 0.8))
+		_piece(tab, Vector3(0.036, 0.0005, 0.0001), Vector3(0, 0.0012, 0.0002), ArtPalette.flat(card.darkened(0.45), 0.9))
+		_text(tab, "RECORDS  •  FL 18", Vector3(0, 0.0105, 0.0004), 0.00006, Color(0.97, 0.94, 0.86), NotebookArt.type_font())
+		_text(tab, "Box 18-0417", Vector3(0, 0.0055, 0.0003), 0.00008, NotebookArt.INK, NotebookArt.hand_font())
+	if CharacterLooks.tool_item(look_in, "clip") == "mercer_floppy":
+		# The disk behind the back cover, its shutter end up over the top edge.
+		var shell: Color = CharacterLooks.tool_color(look_in, "clip") if CharacterLooks.tool_color(look_in, "clip") is Color else DISK
+		var disk := Node3D.new()
+		disk.name = "Clip"
+		disk.position = Vector3(bw - 0.047, top + 0.022 - 0.047, outside - 0.0004 - 0.00165)
+		right_half.add_child(disk)
+		_piece(disk, Vector3(0.09, 0.094, 0.0033), Vector3.ZERO, ArtPalette.flat(shell, 0.55))
+		_piece(disk, Vector3(0.05, 0.032, 0.0037), Vector3(0.004, 0.031, 0), ArtPalette.flat(Color(0.7, 0.72, 0.75), 0.55, 0.5))  # the shutter
+		_piece(disk, Vector3(0.012, 0.02, 0.0039), Vector3(0.004, 0.033, 0), ArtPalette.flat(Color(0.46, 0.48, 0.5), 0.6, 0.5))  # its window
+		_piece(disk, Vector3(0.004, 0.004, 0.0035), Vector3(-0.04, -0.042, 0), ArtPalette.flat(Color(0.03, 0.03, 0.03)))  # write-protect hole
+		# The binder clip on the back cover's outer edge, gripping cover and disk,
+		# its wire handles folded out past the edge.
+		var black := ArtPalette.flat(Color(0.06, 0.06, 0.07), 0.45, 0.3)
+		var clip := Node3D.new()
+		clip.name = "BinderClip"
+		clip.position = Vector3(bw, top - 0.03, 0)
+		right_half.add_child(clip)
+		var front := 0.0035 + 0.0012
+		var back := outside - 0.0004 - 0.0034 - 0.0006
+		_piece(clip, Vector3(0.011, 0.019, 0.0006), Vector3(-0.0055, 0, front), black)
+		_piece(clip, Vector3(0.011, 0.019, 0.0006), Vector3(-0.0055, 0, back), black)
+		_piece(clip, Vector3(0.002, 0.019, front - back + 0.0006), Vector3(0.0005, 0, (front + back) / 2.0), black)
+		var wire := ArtPalette.flat(Color(0.75, 0.76, 0.78), 0.3, 0.9)
+		for z in [front + 0.0005, back - 0.0005]:
+			for y in [0.007, -0.007]:
+				_piece(clip, Vector3(0.016, 0.0012, 0.0008), Vector3(0.008, y, z), wire)
+			_piece(clip, Vector3(0.0012, 0.0152, 0.0008), Vector3(0.0154, 0, z), wire)
+
+
+## A line of printed or written text facing the reader (+z), at `pos`.
+func _text(parent: Node3D, text: String, pos: Vector3, pixel: float, color: Color, font: Font) -> Label3D:
+	var l := Label3D.new()
+	l.text = text
+	l.font = font
+	l.font_size = 48
+	l.outline_size = 0
+	l.pixel_size = pixel
+	l.modulate = color
+	l.double_sided = false
+	l.shaded = true
+	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	l.position = pos
+	parent.add_child(l)
+	return l
 
 
 func _hands(look_in: Dictionary, size: Vector2, mid_y: float, book_h: float) -> void:

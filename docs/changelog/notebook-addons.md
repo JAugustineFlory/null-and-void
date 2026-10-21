@@ -1,0 +1,1 @@
+- **Added:** the archive box label for your notebook is drawn: it sticks up from the cover like an index tab, and goes on any cover.

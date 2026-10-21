@@ -351,6 +351,26 @@ func test_unlockable_items() -> void:
 	var plain_view := NotebookView.new()
 	spiral.set_content(plain_view)
 	check(plain_view.cover_art == "", "a standard notebook has no printed cover")
+	# The cover add-ons go on any cover, in the picked color, and only when picked.
+	check(spiral.left_half.get_node_or_null("Sticker") == null and spiral.right_half.get_node_or_null("Clip") == null,
+		"a notebook starts with no sticker and no clip")
+	look.tools["sticker"] = {"item": "archive_label", "color": red}
+	look.tools["clip"] = {"item": "mercer_floppy"}
+	var dressed := HeldNotebook.attach(cam, look)
+	var label: Node3D = dressed.left_half.get_node_or_null("Sticker")
+	var disk: Node3D = dressed.right_half.get_node_or_null("Clip")
+	check(label != null and (label.get_child(0) as MeshInstance3D).material_override.albedo_color == red,
+		"the archive box label sticks on the Easy SQL cover too, in the picked color")
+	check(disk != null and (disk.get_child(0) as MeshInstance3D).material_override.albedo_color == HeldNotebook.DISK
+		and dressed.right_half.get_node_or_null("BinderClip") != null, "Mercer's floppy is clipped on, a black disk when no color is picked")
+	var cover_top := -INF
+	for c in dressed.right_half.get_children():
+		if c is MeshInstance3D and c.mesh is BoxMesh and c.name != "Page":
+			cover_top = maxf(cover_top, c.position.y + (c.mesh as BoxMesh).size.y / 2.0)
+	check(disk != null and disk.position.y + 0.047 > cover_top + 0.01 and disk.position.y - 0.047 < cover_top,
+		"the disk's shutter end peeks over the book's top edge, the rest behind the cover")
+	check(label != null and label.position.y + 0.015 > cover_top + 0.01 and label.position.z < 0.0,
+		"the label sticks up over the top edge like an index tab, from behind the cover")
 	stage.free()
 
 
