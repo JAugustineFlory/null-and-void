@@ -97,7 +97,8 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 
 ## Changelog
 
-Newest first. Floors are listed by their in-game floor number.
+Newest first. Floors are listed by their in-game floor number. Changes that have merged but
+aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 ### 2026-10-21
 - **Added:** the first outfit pieces to earn. Reading glasses, a Byte-Right polo, high-tops and a security jacket show in the lobby as locked, each with a hint on how to earn it. A few secret pieces stay hidden until you find them.
