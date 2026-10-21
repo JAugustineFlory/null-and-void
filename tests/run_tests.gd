@@ -16,12 +16,14 @@ func _initialize() -> void:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coop", "movement", "teaching"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coop", "movement", "teaching", "teaching_lab"]
 
 
 func _run() -> void:
 	# The full-screen notebook and terminal; test_in_world_ui covers the held and on-screen ones.
 	_game().diegetic_ui = false
+	# Book huddles and pickups earn unlocks: keep them off this computer's real save.
+	root.get_node("Net").profile = Profile.new()
 	var only := _groups_from_args()
 	for g in only:
 		if g not in GROUPS:
@@ -53,6 +55,7 @@ func _run_group(g: String) -> void:
 		"coop": await _group_coop()
 		"movement": await _group_movement()
 		"teaching": await _group_teaching()
+		"teaching_lab": await _group_teaching_lab()
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -143,6 +146,11 @@ func _group_movement() -> void:
 func _group_teaching() -> void:
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
+
+
+## The second lab seed's paced walk, on its own so neither teaching group runs long.
+func _group_teaching_lab() -> void:
+	await load("res://tests/teaching_tests.gd").new().run(self, check, "lab")
 
 
 func check(cond: bool, name: String) -> void:

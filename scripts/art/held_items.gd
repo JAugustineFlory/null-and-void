@@ -58,7 +58,7 @@ func _make(look_in: Dictionary) -> void:
 	walkie.position = Vector3(0, -0.02, -0.03)
 	walkie.rotation_degrees = Vector3(10, 25, 0)
 	if CharacterLooks.tool_color(look, "walkie") is Color:
-		walkie.set_skin(CharacterLooks.tool_color(look, "walkie"))
+		walkie.set_skin(CharacterLooks.tool_color(look, "walkie"), 0.5 if CharacterLooks.tool_item(look, "walkie") == "gold" else 0.0)
 
 
 func _arm(hand: Node3D, skin: Material, sleeve: Material) -> void:

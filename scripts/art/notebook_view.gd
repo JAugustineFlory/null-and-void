@@ -28,6 +28,13 @@ var cover := COVER:
 		cover = c
 		if book:
 			book.queue_redraw()
+## Printed cover art on top of the color: "" (plain pressboard) or "easy_sql"
+## (the crew's first book: an orange band and its title).
+var cover_art := "":
+	set(a):
+		cover_art = a
+		if book:
+			book.queue_redraw()
 var left: VBoxContainer
 var right: VBoxContainer
 var book: Control  # everything that moves when the book opens or a page turns
@@ -232,6 +239,10 @@ class _BookDrawing extends Control:
 		var cover: Color = get_parent().cover if get_parent() is NotebookView else NotebookView.COVER
 		draw_rect(Rect2(Vector2.ZERO, bs), cover)
 		var inset := NotebookView.PAGE_INSET
+		if get_parent() is NotebookView and get_parent().cover_art == "easy_sql":
+			# Easy SQL's orange band shows at the edges, and its title runs along the bottom.
+			draw_rect(Rect2(Vector2(0, bs.y * 0.16), Vector2(bs.x, 46)), Color(0.98, 0.55, 0.12))
+			draw_string(ThemeDB.fallback_font, Vector2(inset.x + 10, bs.y - 5), "Easy SQL  •  Learn databases in a weekend!", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.9))
 		var half := (bs.x - NotebookView.SPINE) / 2.0
 		for side in 2:
 			var x0 := inset.x if side == 0 else bs.x / 2 + NotebookView.SPINE / 2

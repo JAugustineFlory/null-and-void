@@ -30,7 +30,11 @@ static func base() -> Dictionary:
 		"earrings": null,  # a Color adds small stud earrings
 		"shoulder_pads": false,  # with a jacket: squarer 90s shoulders
 		"collar": false,  # a shirt collar (polo, blouse); hidden under a jacket
-		"headwear": null,  # cap, beanie or hard_hat; drawn over the hair
+		"headwear": null,  # cap, beanie, hard_hat or mercer_cap; drawn over the hair
+		"readers": null,  # a Color adds half-moon reading glasses, low on the nose
+		"jacket_closed": false,  # with a jacket: zipped up over the shirt
+		"jacket_badge": null,  # with a jacket: a Color adds a metal shield on the chest (security)
+		"high_tops": false,  # basketball high-tops instead of work shoes
 		"headwear_color": Color(0.2, 0.2, 0.22),
 	}
 
@@ -82,18 +86,42 @@ static func crew(index: int, picks: Dictionary = {}) -> Dictionary:
 ## The first id in each list is the default; "none" leaves the slot empty.
 const SLOTS := {
 	"hair": ["short", "long", "bob", "bald"],
-	"head": ["none", "cap", "beanie", "hard_hat"],
-	"top": ["polo", "tee", "longsleeve", "blouse"],
-	"jacket": ["none", "jacket", "blazer", "coat"],
+	"head": ["none", "cap", "beanie", "hard_hat", "mercer_cap"],
+	"top": ["polo", "tee", "longsleeve", "blouse", "byte_right_polo"],
+	"jacket": ["none", "jacket", "blazer", "coat", "security", "press"],
 	"legs": ["pants"],
-	"feet": ["shoes"],
-	"face": ["none", "glasses", "mustache"],
+	"feet": ["shoes", "high_tops"],
+	"face": ["none", "glasses", "mustache", "reading_glasses"],
 	"ears": ["none", "studs"],
 	"belt": ["radio", "none"],
 }
 ## Skins for things the player holds rather than wears (applied by HeldItems
 ## and the terminal, not the rig).
 const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "terminal"]
+## The tool items Graphics can draw, the default first.
+const TOOL_ITEMS := {
+	"flashlight": ["standard"],
+	"walkie": ["standard", "gold"],
+	"notebook": ["spiral", "easy_sql"],
+	"terminal": ["phosphor", "amber"],
+}
+## Tool items that are a finish, not a tint: they always draw in this color,
+## whatever color the player picked.
+const FIXED_COLORS := {
+	"walkie/gold": Color(0.95, 0.76, 0.33),
+	"notebook/easy_sql": Color(0.05, 0.55, 0.6),  # the book's teal (ArtKit.easy_sql_book)
+	"terminal/amber": Color(1.0, 0.68, 0.18),
+}
+## A good first color for an item when the player picks it (the lobby may use
+## it); items not listed start in SLOT_COLORS.
+const ITEM_COLORS := {
+	"head/mercer_cap": Color(0.36, 0.38, 0.27),  # faded olive
+	"top/byte_right_polo": Color(0.93, 0.93, 0.9),
+	"jacket/security": Color(0.2, 0.24, 0.32),
+	"jacket/press": Color(0.55, 0.48, 0.34),  # khaki field jacket
+	"feet/high_tops": Color(0.92, 0.92, 0.9),
+	"face/reading_glasses": Color(0.72, 0.58, 0.3),  # thin gold wire
+}
 const SLOT_COLORS := {
 	"hair": Color(0.2, 0.15, 0.1), "head": Color(0.2, 0.25, 0.45), "top": Color(0.6, 0.6, 0.6),
 	"jacket": Color(0.17, 0.21, 0.31), "legs": Color(0.2, 0.2, 0.22), "feet": Color(0.08, 0.07, 0.07),
@@ -105,9 +133,31 @@ const SLOT_COLORS := {
 ## has none. Co-op copies the loadout's tool entries onto the look as `tools`.
 static func tool_color(look: Dictionary, slot: String) -> Variant:
 	var tools = look.get("tools")
-	if tools is Dictionary and tools.get(slot) is Dictionary and tools[slot].get("color") is Color:
-		return tools[slot].color
+	if tools is Dictionary and tools.get(slot) is Dictionary:
+		return tool_skin(slot, tools[slot])
 	return null
+
+
+## The item a player picked for a held tool, or the slot's default.
+static func tool_item(look: Dictionary, slot: String) -> String:
+	var tools = look.get("tools")
+	var item: String = str(tools[slot].get("item", "")) if tools is Dictionary and tools.get(slot) is Dictionary else ""
+	return item if item in TOOL_ITEMS.get(slot, []) else TOOL_ITEMS.get(slot, [""])[0]
+
+
+## The color a tool loadout entry ({item, color}) draws in: a fixed finish
+## (FIXED_COLORS) wins over the picked color. null when neither is set.
+static func tool_skin(slot: String, entry: Dictionary) -> Variant:
+	var fixed = FIXED_COLORS.get("%s/%s" % [slot, entry.get("item", "")])
+	if fixed is Color:
+		return fixed
+	return entry.color if entry.get("color") is Color else null
+
+
+## The phosphor color a terminal loadout entry draws in (amber, or the picked tint).
+static func terminal_skin(entry: Variant) -> Color:
+	var c = tool_skin("terminal", entry if entry is Dictionary else {})
+	return c if c is Color else TerminalScreen.PHOSPHOR
 
 
 ## A customised player look from a loadout (see SLOTS). Unknown items and
@@ -137,20 +187,31 @@ static func outfit(slots: Dictionary) -> Dictionary:
 	var top: Array = pick.call("top")
 	look.shirt = top[1]
 	look.sleeves = "long" if top[0] in ["longsleeve", "blouse"] else "short"
-	look.collar = top[0] in ["polo", "blouse"]
+	look.collar = top[0] in ["polo", "blouse", "byte_right_polo"]
+	if top[0] == "byte_right_polo":
+		look.logo = ArtPalette.BYTERIGHT_BLUE
 	var jacket: Array = pick.call("jacket")
 	if jacket[0] != "none":
 		look.jacket = jacket[1]
 		look.coat = jacket[0] == "coat"
-		look.shoulder_pads = jacket[0] == "blazer"
+		look.shoulder_pads = jacket[0] in ["blazer", "security"]
 		look.logo = null  # the polo's patch is under the jacket
+		look.jacket_closed = jacket[0] in ["security", "press"]
+		if jacket[0] == "security":
+			look.jacket_badge = ArtPalette.HALCYON_GOLD
+		elif jacket[0] == "press":
+			look.badge = true  # the press pass, clipped on
 	look.pants = pick.call("legs")[1]
-	look.shoes = pick.call("feet")[1]
+	var feet: Array = pick.call("feet")
+	look.shoes = feet[1]
+	look.high_tops = feet[0] == "high_tops"
 	var face: Array = pick.call("face")
 	if face[0] == "glasses":
 		look.glasses = face[1]
 	elif face[0] == "mustache":
 		look.mustache = face[1]
+	elif face[0] == "reading_glasses":
+		look.readers = face[1]
 	var ears: Array = pick.call("ears")
 	if ears[0] == "studs":
 		look.earrings = ears[1]
