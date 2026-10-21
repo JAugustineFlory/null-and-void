@@ -16,6 +16,8 @@ const SEAT_THIGH := 0.06
 const TERMINAL_STEP_ASIDE := 0.55
 ## How a player is sitting (sent with their position): not, on a chair, on the floor.
 enum Sit { NONE, CHAIR, FLOOR }
+## What their fists can be doing, as FirstPersonBody plays it on their own machine.
+const FIGHT_ACTIONS := ["jab", "cross", "guard", "recoil", "flinch"]
 
 var peer_id := 0
 var display_name := ""
@@ -27,6 +29,8 @@ var stance_height := STAND_HEIGHT
 var health := 100.0
 ## Lying on the floor at 0 health (CrewVitals keeps this the same everywhere).
 var downed := false
+## Their fists right now (FIGHT_ACTIONS), or "" when they aren't fighting.
+var fighting := ""
 var players: Node  # NetPlayers
 ## The teammate's body, posed from the synced position, stance and look.
 var rig: CharacterRig
@@ -175,6 +179,17 @@ func set_stance(height: float) -> void:
 	_shape.position.y = _capsule.height / 2
 	_head.position.y = stance_height - 0.18
 	_tag.position.y = stance_height + 0.3
+
+
+## Their fists, as their own machine plays them ("" when not fighting): the
+## punches, the held guard, and recoiling from a block or flinching from a hit.
+func set_fight(action: String) -> void:
+	action = action if action in FIGHT_ACTIONS else ""
+	if action == fighting:
+		return
+	fighting = action
+	if not downed and sitting == Sit.NONE:
+		rig.play(action if action != "" else "idle")
 
 
 ## They sat down (Sit.CHAIR or Sit.FLOOR) or got up (Sit.NONE).
