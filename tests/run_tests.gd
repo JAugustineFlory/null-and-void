@@ -4031,9 +4031,10 @@ func test_level_3_data_every_seed() -> void:
 				route_ok = false
 		if data.mercer_boxes.size() != 3:
 			sources = false
-		# The lock's code is the night visitor's badge number, and only that badge used the host room's reader.
+		# The lock's code is the night visitor's badge number (Mercer's own, an E- badge
+		# in his name), and only that badge used the host room's reader.
 		var badges := db.run_silent("SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host)
-		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "A-" + data.code or badges.size() != 1 or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
+		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "E-" + data.code or badges.size() != 1 or db.run_silent("SELECT DISTINCT holder FROM access_log WHERE badge_id = '%s'" % data.visitor_badge) != [{"holder": "MERCER, H."}] or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
 			code_ok = false
 		codes[data.code] = true
 		hosts[data.host] = true

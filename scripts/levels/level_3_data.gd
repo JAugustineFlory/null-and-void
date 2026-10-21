@@ -21,11 +21,13 @@ const ROOMS := ["READING ROOM", "STACKS", "MICROFICHE", "SHRED ROOM", "SUPPLY", 
 const NIGHT := "1997-10-15"
 const NIGHT_FROM := 19
 const NIGHT_TO := 23
-## Who kept going into that room that night. The holder is a placeholder until
-## Augustine says whose visits they are; the badge number changes with the seed,
-## and its last four digits are the code of the push-button lock on Mercer's door
-## (facilities policy: a lock's code is its keyholder's badge number).
-const VISITOR := "RECORDS CLERK (NIGHT)"
+## Who kept going into that room that night: Mercer's own badge (Augustine,
+## 2026-10-21, plan/approvals/curriculum-b.md). The number changes with the seed,
+## and its last four digits are the code of the push-button lock on his door
+## (facilities policy: a lock's code is its keyholder's badge number). Why his
+## badge is in use tonight is NOT decided: nothing on 18 may say he is alive, dead
+## or behind it. The log just shows the holder's name, as the readers would.
+const VISITOR := "MERCER, H."
 ## The night patrol: every room once or twice.
 const PATROL := ["G-0127", "SECURITY STAFF"]
 ## Day staff who pull boxes: lots of reading room rows, by day.
@@ -40,9 +42,10 @@ static func build(run_seed: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed * 6007 + 3
 	var host: String = CANDIDATES[rng.randi_range(0, CANDIDATES.size() - 1)]
-	# Four digits from 1000 up, so it never reads like a day badge (A-02xx, A-03xx).
+	# An executive badge (E-), four digits from 1000 up, so it never reads like a
+	# day badge (A-02xx, A-03xx).
 	var code := "%04d" % rng.randi_range(1000, 9999)
-	var visitor_badge := "A-" + code
+	var visitor_badge := "E-" + code
 
 	# That night: the host room gets the most visits by a clear margin; every other
 	# room a different, smaller count, so there are no ties in the order.
