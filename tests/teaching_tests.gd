@@ -390,8 +390,11 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 	var first := _plain(p.hints[0])
 	var q := _answer_query(p)
 	var shape := _shape(p)
-	if Curriculum.PUZZLES.get(p.id, {}).get("ladder", "") == "exact":
+	var mode: String = Curriculum.PUZZLES.get(p.id, {}).get("ladder", "")
+	if mode == "exact":
 		check(shape == "", "%s: no value to find, so hint 1 is the exact query" % p.id)
+	elif mode == "review":
+		check(shape != "" and p.hints.size() == 2, "%s: review: a reminder with the shape, then the exact query (two tiers)" % p.id)
 	else:
 		check(shape != "", "%s: hint 1 is the query's shape with the value as '?' (ladder A)" % p.id)
 	if FacilityAPI.is_request(q):
@@ -407,7 +410,8 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 				has_line = true
 		if not has_line:
 			missing.append(k)
-	check(missing.is_empty(), "%s: hint 1 has a line for each keyword%s" % [p.id, "" if missing.is_empty() else " (missing %s)" % ", ".join(missing)])
+	if mode != "review":
+		check(missing.is_empty(), "%s: hint 1 has a line for each keyword%s" % [p.id, "" if missing.is_empty() else " (missing %s)" % ", ".join(missing)])
 	if shape != "":
 		var m := RegEx.create_from_string("^" + _escape(shape).replace("\\?", "(.+?)") + "$").search(q)
 		check(m != null, "%s: hint 1's shape is the last hint's query with the value blanked (%s vs %s)" % [p.id, shape, q])
@@ -416,7 +420,8 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 				var v := m.get_string(i).strip_edges()
 				var given := RegEx.create_from_string("(?i)(?<![A-Za-z0-9_])" + _escape(v) + "(?![A-Za-z0-9_])").search(first) != null
 				check(not given, "%s: hint 1 doesn't give the value away (%s)" % [p.id, v])
-		check(p.hints.size() >= 3, "%s: three tiers: shape, how to find the value, exact query" % p.id)
+		if mode != "review":
+			check(p.hints.size() >= 3, "%s: three tiers: shape, how to find the value, exact query" % p.id)
 		for h in p.hints.slice(1, p.hints.size() - 1):
 			check(not _plain(h).contains(q), "%s: the middle hints say how to find the value, not the query" % p.id)
 	var real := true
@@ -834,9 +839,8 @@ func walk_level_2(seed_value: int) -> void:
 ## the night's count under threat names it, the keyholder's badge from the readers'
 ## log is the code on Mercer's lock; his room is the breather, where the card and his
 ## battery PC teach IS NULL safely; back at the desk under threat, the slips name the
-## box on the returns cart with the stair key in it. The ladders are drafted, not
-## built, so a lost player is stuck on every station it can't copy off a paper or a
-## screen: those print as gaps.
+## box on the returns cart with the stair key in it. Every station has its ladder
+## (COUNT's is the short review one: it was practised on 14).
 func walk_level_3(seed_value: int) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_3.tscn").instantiate()
@@ -862,18 +866,19 @@ func walk_level_3(seed_value: int) -> void:
 	check(asks.contains("OPEN AT END OF SHIFT") and asks.contains("every department") and asks.contains("never checked back in"), "%s: each practice station is asked for on a paper at the desk" % where)
 	_doc(level, "Retrieval slips").open_reader(p).close()
 	check(_game().case_info("duties").get("open", false) and not _game().case_info("duties").get("solved", false), "%s: reading the clipboard opens the night clerk's list as a case" % where)
-	# Quiet: COUNT, then the two new words, each copied off the paper that shows it
-	# (found, and practised at once). The slips count has no query written out.
+	# Quiet: COUNT as review (its short ladder), then the two new words, each copied
+	# off the paper that shows it (found, and practised at once).
 	var h := await solve(level, ui, level.slips_puzzle, level.shredder_awake)
 	check(h <= rescue_tier(level.slips_puzzle), "%s: the slips count is built from the sticky's shape; a lost player waits on its ladder (hints %d)" % [where, h])
 	# The memo's query covers every room: copying it shows DISTINCT at work (the
-	# practice) but the station wants the stacks only, so the WHERE is the player's.
-	h = await solve(level, ui, level.depts_puzzle, level.shredder_awake)
-	check(h <= rescue_tier(level.depts_puzzle) and not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;"), "%s: DISTINCT is practised by copying the memo, safely, and the stacks station still needs the player's WHERE (hints %d)" % [where, h])
+	# practice) but the station wants the stacks only, so the WHERE is the player's
+	# (or its ladder's).
 	ui.run("SELECT DISTINCT dept FROM catalogue")
+	remember(level, ui)
 	var every := last_table(screen(ui)).size()
-	ui.run(level.depts_puzzle.solution_sql)
-	check(level.depts_puzzle.solved and last_table(screen(ui)).size() < every, "%s: the memo's list has more departments than the stacks: the WHERE narrows it" % where)
+	check(not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;"), "%s: DISTINCT is practised by copying the memo, safely, and the stacks station still needs the player's WHERE" % where)
+	h = await solve(level, ui, level.depts_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.depts_puzzle) and level.depts_puzzle.solved and last_table(screen(ui)).size() < every, "%s: the memo's list has more departments than the stacks: the WHERE narrows it, from the player or the ladder (hints %d)" % [where, h])
 	h = await solve(level, ui, level.tally_puzzle, level.shredder_awake)
 	check(h == 0 and level.tally_puzzle.solved, "%s: GROUP BY is practised from the reader tally on the desk, safely (hints %d)" % [where, h])
 	ui.run(level.tally_puzzle.solution_sql)
@@ -966,11 +971,12 @@ func walk_level_3(seed_value: int) -> void:
 	ui.run("SELECT * FROM retrieval_slips")
 	remember(level, ui)
 	check(taught.contains("returned_at") and taught.contains("filled"), "%s: the slips table shows its return-time column and the 'filled' status" % where)
-	h = await solve(level, ui, level.unreturned_puzzle, level.shredder_awake)
-	check(h <= rescue_tier(level.unreturned_puzzle), "%s: the box with the key is built from the card and the PC; a lost player waits on its ladder (hints %d)" % [where, h])
+	# The tempting wrong turn first: = NULL, which the card warns off.
 	var before := screen(ui).length()
 	ui.run("SELECT box_id FROM retrieval_slips WHERE returned_at = NULL")
 	check(not level.unreturned_puzzle.solved and screen(ui).substr(before).contains("(0 rows)"), "%s: = NULL finds nothing, as the card warns" % where)
+	h = await solve(level, ui, level.unreturned_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.unreturned_puzzle), "%s: the box with the key is built from the card and the PC, or its ladder (hints %d)" % [where, h])
 	ui.run(level.unreturned_puzzle.solution_sql)
 	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false), "%s: IS NULL names the box nobody checked back in, and the key case closes" % where)
 	var named := last_table(screen(ui)).map(func(r): return r.get("box_id", ""))

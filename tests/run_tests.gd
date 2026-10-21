@@ -4113,9 +4113,10 @@ func test_level_3_data_every_seed() -> void:
 				route_ok = false
 		if data.mercer_boxes.size() != 3:
 			sources = false
-		# The lock's code is the night visitor's badge number, and only that badge used the host room's reader.
+		# The lock's code is the night visitor's badge number (Mercer's own, an E- badge
+		# in his name), and only that badge used the host room's reader.
 		var badges := db.run_silent("SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host)
-		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "A-" + data.code or badges.size() != 1 or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
+		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "E-" + data.code or badges.size() != 1 or db.run_silent("SELECT DISTINCT holder FROM access_log WHERE badge_id = '%s'" % data.visitor_badge) != [{"holder": "MERCER, H."}] or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
 			code_ok = false
 		codes[data.code] = true
 		hosts[data.host] = true
@@ -4199,10 +4200,11 @@ func test_level_3_scene() -> void:
 	check(space.intersect_ray(q).is_empty(), "after cranking, the aisle along the back wall is clear")
 	check(level.find_children("Door_MERCER", "", false, false).size() == 1 and level.safe_room_box.has_point(spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 + 1.0)),
 		"one hidden door, in the host room's back wall, with Mercer's room beyond it")
-	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
+	# The desk's stations and their ladders (COUNT's is the short review one).
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
-	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "seven stations on the desk, none with a hint ladder yet")
+	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.size() >= 2) and level.pc_puzzle.hints.size() >= 2, "seven stations on the desk and one on the PC, each with a hint ladder")
+	check(level.desk.puzzles[0] == level.keyholder_puzzle and level.desk.next_hint().contains("access_log WHERE room = '?'"), "with Mercer's door found, .hint starts on the lock's question")
 	level.terminal_ui.run("SELECT COUNT(*) FROM access_log")
 	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")
@@ -4225,6 +4227,12 @@ func test_level_3_scene() -> void:
 	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's top room with its count passes too; the case stays closed once")
 	level.terminal_ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
 	check(level.keyholder_puzzle.solved, "the lock's question: that room's raw rows, read by eye, pass it")
+	check(level.slips_puzzle.hints.size() == 2 and level.slips_puzzle.hints[0].contains("counted before") and level.slips_puzzle.hints[0].contains("status = '?'") and not level.slips_puzzle.hints[0].contains("'open'"),
+		"the slips ladder is review: a reminder with the shape, then the query")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips WHERE status = 'open'")
+	var counted := Array(level.desk.transcript).filter(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count))
+	check(counted.size() == 1 and not level.slips_puzzle.solved, "listing the slips instead of counting them gets SYSOP's reminder, once")
 	level.terminal_ui.run("SELECT COUNT(slip_no) FROM retrieval_slips WHERE status = 'open'")
 	level.terminal_ui.run("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")
 	check(level.slips_puzzle.solved and level.depts_puzzle.solved and _game().case_info("duties").get("solved", false), "the slips and departments stations pass, and the night clerk's list closes")
@@ -4232,7 +4240,7 @@ func test_level_3_scene() -> void:
 	check(not level.unreturned_puzzle.solved, "= NULL finds nothing, so the unreturned station doesn't pass")
 	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL")
 	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false) and _game().case_info("key").how.contains(level.data.key_box), "IS NULL finds the boxes nobody checked back in; the key case names them")
-	check(level.find_children("*", "Terminal", true, false).size() == 3 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (the web skill is on hold); Mercer's PC is the third")
+	check(level.find_children("*", "Terminal", true, false).size() == 2 and level.geo.get_node_or_null("FicheTerminal") == null, "two terminals on 18, the desk and Mercer's PC: the microfiche room has none (the HTML record moved to a later floor)")
 	# Mercer's PC: its own little database, off the building's, with the safe IS NULL practice.
 	level.terminal_ui.terminal = level.pc
 	level.terminal_ui.run("SELECT box_id FROM pulled WHERE back_on IS NULL")
@@ -4302,6 +4310,12 @@ func test_level_3_safe_room() -> void:
 	await _frames(3)
 	check(not p.inventory.has("stair_key") and not level.key_taken and level.key_dock.get_prompt(p) == level.TEXT.box_taped, "after the note but before the query, the key box is still taped")
 	level.terminal_ui.terminal = level.desk
+	# The note has asked the slips a different question, so listing them (the key
+	# ladder's own advice) gets no "you've counted before" from SYSOP.
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	check(not level.slips_puzzle.solved and not Array(level.desk.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count)),
+		"with Mercer's note read, listing the slips gets no COUNT reminder: the key's question comes first")
 	level.terminal_ui.run(level.unreturned_puzzle.solution_sql)
 	await _frames(3)
 	check(level.unreturned_puzzle.solved and level.boxes_named and not level.key_dock.tape.visible and level.key_dock.get_prompt(p) == "[E] " + level.TEXT.box_tear % level.data.key_box, "the IS NULL query names the box: its tape comes off and it can be torn open")
