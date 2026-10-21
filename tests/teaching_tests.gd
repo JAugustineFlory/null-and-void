@@ -454,9 +454,23 @@ func walk_level_0() -> void:
 	check(not shown.contains("RECONSTRUCTED"), "lobby: the memo isn't printed a second time under the result")
 	# Who called: Rourke's question, answered with named columns (the depth pass).
 	level._ask_caller()
-	h = await solve(level, ui, level.caller_puzzle, false)
-	check(h >= 0 and h <= rescue_tier(level.caller_puzzle), "lobby: a lost player finds the caller once a hint gives the query (hints %d)" % h)
+	var tier := rescue_tier(level.caller_puzzle)  # once the row shows, .hint moves on to adding it
+	h = await solve(level, ui, level.caller_puzzle, false, 3, "", false, func(): return level.caller_listed)
+	check(h >= 0 and h <= tier, "lobby: a lost player finds the caller once a hint gives the query (hints %d)" % h)
 	check(last_table(screen(ui)).any(func(r): return r.get("extension", "") == str(level.data.extension) and r.get("name", "") == "Harold Mercer"), "lobby: the result shows the work order's extension beside Harold Mercer")
+	# The answer is theirs to pick out: the row with the work order's extension.
+	var lines: Array = ui.noteable_lines()
+	var mercer := -1
+	for i in lines.size():
+		if lines[i].kind == "row" and lines[i].text.contains(str(level.data.extension)):
+			mercer = i
+	check(mercer >= 0 and ui.write_note(mercer), "lobby: the row with the work order's extension goes in the case page's blank")
+	for i in 30:
+		if level.caller_puzzle.solved:
+			break
+		await t.physics_frame
+	check(level.caller_puzzle.solved, "lobby: and that answers who called")
+	ui.open(level.desk_terminal, level.player)
 	# Optional: the visitor log newest first. Vale signed in and never left.
 	h = await solve(level, ui, level.visitor_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.visitor_puzzle), "lobby: a lost player reads the visitor log newest first once a hint gives the query (hints %d)" % h)

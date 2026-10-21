@@ -3,6 +3,10 @@ extends Node
 
 ## The notebook gained a sticky note or a table.
 signal notebook_changed
+## This player added the line that answers a case's blank (add_answer).
+signal answer_found(case_id: String)
+## A terminal row went into the notebook as a plain note: it answered no blank.
+signal row_noted(text: String)
 
 const LEVELS := {
 	"world": "res://scenes/world.tscn",
@@ -151,6 +155,8 @@ func write_note(label: String, text: String, kind: String, case_id: String = "")
 		case_id = current_case()
 	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
 	notebook_changed.emit()
+	if kind == "row":
+		row_noted.emit(text)
 
 
 ## Keep a note under Other notes on the Cases page, whatever case is open: a fact
@@ -258,6 +264,49 @@ func solve_case(id: String, how: String) -> void:
 	c.solved = true
 	c.how = how
 	notebook_changed.emit()
+
+
+## Give case `id` a blank for its answer, under its question: "Ext. 4815 belongs
+## to: ______". It's filled by adding the line that answers it to the notebook (a
+## terminal row, a line on a paper) with every one of `needles` in it; `value` is
+## what's written in.
+func set_blank(id: String, prompt: String, needles: Array, value: String) -> void:
+	var c := _case(id)
+	c["blank"] = {"prompt": prompt, "needles": needles.map(func(n): return str(n).to_lower()), "value": value, "filled": "", "fresh": false}
+	if c.open:
+		notebook_changed.emit()
+
+
+## The open, unsolved case whose empty blank `text` answers, or "".
+func answers(text: String) -> String:
+	var low := text.to_lower()
+	for c in notebook_cases:
+		var b: Dictionary = c.get("blank", {})
+		if c.open and not c.solved and not b.is_empty() and b.filled == "" and b.needles.all(func(n): return low.contains(n)):
+			return c.id
+	return ""
+
+
+## Write case `id`'s answer into its blank. `fresh`: the notebook writes it in
+## before your eyes the next time it shows the page. True if it was empty.
+func fill_blank(id: String, fresh := true) -> bool:
+	var b: Dictionary = case_info(id).get("blank", {})
+	if b.is_empty() or b.filled != "":
+		return false
+	b.filled = b.value
+	b.fresh = fresh
+	notebook_changed.emit()
+	return true
+
+
+## The player is adding `text` to their notebook: if it answers a case's blank,
+## it goes in that blank instead, and answer_found fires. True if it did.
+func add_answer(text: String) -> bool:
+	var id := answers(text)
+	if id == "" or not fill_blank(id):
+		return false
+	answer_found.emit(id)
+	return true
 
 
 func case_info(id: String) -> Dictionary:

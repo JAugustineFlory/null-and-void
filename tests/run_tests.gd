@@ -118,6 +118,7 @@ func _group_floor_g() -> void:
 	await test_level_0_scene()
 	await test_ground_floor()
 	await test_rourke_leads_in()
+	await test_caller_answer()
 
 
 ## Floor 14, the server floor (Level 1).
@@ -1019,6 +1020,101 @@ func test_level_0_scene() -> void:
 	await process_frame
 
 
+## Who called: the crew pick the answer out themselves. Adding Mercer's row (or
+## his line on the mailroom printout) to the notebook writes him into the blank
+## on the case page, and that's what moves the story on; listing the directory
+## alone doesn't.
+func test_caller_answer() -> void:
+	print("Who called: the answer goes in the case page's blank")
+	for route in ["terminal", "printout"]:
+		_game().new_run(8)
+		var level = load("res://scenes/level_0.tscn").instantiate()
+		root.add_child(level)
+		for i in 20:
+			await physics_frame
+		var p: Player = level.player
+		level._release_camera(p)
+		p.seated = false
+		p.global_position = Vector3(1.0, 0.1, -1.9)
+		for i in 10:
+			await physics_frame
+		level.peek_puzzle.solved = true  # the memo comes first: .hint is the caller's from here
+		level.memo_puzzle.solved = true
+		level._ask_caller()
+		var ext := str(level.data.extension)
+		var c: Dictionary = _game().case_info("caller")
+		check(c.has("blank") and c.blank.filled == "" and c.blank.prompt.contains(ext), "%s: the caller's case page has a blank for the name beside ext. %s" % [route, ext])
+		var page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
+		check(page.contains("Ext. %s belongs to:" % ext) and page.contains(NotebookPages.BLANK) and page.contains(NotebookPages.BLANK_HOW), "%s: the page shows the empty blank, and in pencil how to fill it" % route)
+		if route == "terminal":
+			var ui: TerminalUI = level.terminal_ui
+			ui.open(level.desk_terminal, p)
+			ui.run("SELECT name, extension FROM staff_directory WHERE extension != %s;" % ext)
+			await process_frame
+			check(not level.caller_listed and not screen_text(ui).contains("there it is"), "terminal: a list without the caller's row gets no \"there it is\" from SYSOP")
+			ui.run("SELECT name, extension FROM staff_directory;")
+			await process_frame
+			check(not level.caller_puzzle.solved and level.caller_listed and screen_text(ui).contains("point at the row with ext. %s" % ext), "terminal: listing the directory doesn't answer it for you: SYSOP says to pick out the row")
+			var rows: Array = ui.noteable_lines().filter(func(l): return l.kind == "row")
+			var shown: int = level.db.run_silent("SELECT name FROM staff_directory").size() + level.db.run_silent("SELECT name FROM staff_directory WHERE extension != %s" % ext).size()  # both lists
+			check(rows.size() == shown and rows.all(func(r): return r.text.begins_with("name")), "terminal: every row of a result is a line of its own, copied with its header")
+			var lines: Array = ui.noteable_lines()
+			var wrong := -1
+			var right := -1
+			for i in lines.size():
+				if lines[i].kind != "row":
+					continue
+				if lines[i].text.contains("Harold Mercer"):
+					right = i
+				elif wrong < 0:
+					wrong = i
+			var probe: float = ui._para_top(lines[right].from) + 2.0 - ui._output.get_v_scroll_bar().value
+			check(ui._line_at(probe) == right, "terminal: the pointer finds Mercer's row on its own")
+			ui.run(".hint")
+			check(TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("point at the row with ext. %s and click + add to notebook" % ext), "terminal: once the row has shown, .hint gives the add step, not the query again")
+			ui._start_note(wrong)
+			check(ui._note_label.visible and not level.caller_puzzle.solved, "terminal: someone else's row is an ordinary note, and asks for a name")
+			ui._finish_note("")
+			await process_frame
+			var wrong_ext: String = Array(lines[wrong].text.split("\n")[1].split("|"))[1].strip_edges()
+			check(screen_text(ui).contains("that's ext. %s's row. the blank wants whoever has ext. %s." % [wrong_ext, ext]), "terminal: SYSOP says why the blank stayed empty, without naming the answer")
+			ui._start_note(wrong + 1 if wrong + 1 != right else wrong + 2)
+			ui._finish_note("")
+			await process_frame
+			check(screen_text(ui).count("the blank wants whoever") == 1, "terminal: once per run")
+			ui._start_note(right)
+			check(not ui.visible and not ui._note_label.visible, "terminal: Mercer's row goes straight in, and you step back from the screen")
+		else:
+			var reader: DocumentReader = level.directory_printout.open_reader(p)
+			var at: int = level.directory_printout.lines().map(func(l): return l.text).find(level.directory_printout.lines().filter(func(l): return l.text.contains("Harold Mercer"))[0].text)
+			reader._start_note(at)
+			for i in 30:
+				if not is_instance_valid(reader):
+					break
+				await physics_frame
+			check(not is_instance_valid(reader), "printout: adding Mercer's line puts the printout down")
+		for i in 30:
+			if level.caller_puzzle.solved:
+				break
+			await physics_frame
+		c = _game().case_info("caller")
+		check(level.caller_puzzle.solved and c.solved and c.blank.filled == "Harold Mercer", "%s: Mercer is written into the blank, and that solves the case" % route)
+		for i in 60:
+			if level.notebook.is_open():
+				break
+			await physics_frame
+		check(level.notebook.is_open() and level.notebook.pages.current_page() == NotebookPages.Page.CASES, "%s: the notebook comes up at the case page" % route)
+		check(not c.blank.fresh and level.notebook.pages.book.book.get_node_or_null("Pen") != null, "%s: and the pen writes the name in as you watch" % route)
+		check(not _game().notebook_written.any(func(w): return w.text.contains("Harold Mercer")), "%s: the answer goes in the blank, not as a loose note too" % route)
+		level.queue_free()
+		await process_frame
+
+
+## All the text on a terminal's screen.
+func screen_text(ui: TerminalUI) -> String:
+	return ui._output.get_parsed_text()
+
+
 func test_ground_floor() -> void:
 	print("Ground floor")
 	_game().new_run(6)
@@ -1408,6 +1504,14 @@ func test_coop_level_0() -> void:
 	await _frames(10)
 	check(loose.all(func(n): return not is_instance_valid(n) or n.is_queued_for_deletion()), "a loose note taken by a client disappears on every machine")
 	check(_game().notebook_notes == ["order_by"], "and goes into the taker's notebook")
+
+	# Who called: a client writes Mercer into their blank, and the host moves everyone on.
+	for l in levels:
+		l._ask_caller()
+	check(_game().fill_blank("caller"), "the client's blank takes the caller's name")
+	c1.sync.report_answer("caller")
+	await _frames(10)
+	check(levels.all(func(l): return l.caller_puzzle.solved), "a client's answer settles who called for every machine")
 
 	c2.terminal_ui.terminal = c2.desk_terminal
 	c2.terminal_ui.run("INSERT INTO visitors (name) VALUES ('Intruder')")

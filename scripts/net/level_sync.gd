@@ -246,6 +246,30 @@ func _remote_call(path: NodePath, method: String) -> void:
 		node.call(method, who)
 
 
+## This player answered case `id` (Game.answer_found): the host's level hears who
+## (level.case_answered(id, peer_id)) and decides what happens next. With `missed`,
+## they added a line that doesn't answer it, and the level hears what it held
+## instead (level.case_missed(id, peer_id, missed)).
+func report_answer(id: String, missed: String = "") -> void:
+	if is_host():
+		_host_answer(id, multiplayer.get_unique_id(), missed)
+	else:
+		_request_answer.rpc_id(1, id, missed)
+
+
+@rpc("any_peer", "reliable")
+func _request_answer(id: String, missed: String) -> void:
+	if is_host():
+		_host_answer(id, multiplayer.get_remote_sender_id(), missed)
+
+
+func _host_answer(id: String, peer: int, missed: String) -> void:
+	if missed == "" and level.has_method("case_answered"):
+		level.case_answered(id, peer)
+	elif missed != "" and level.has_method("case_missed"):
+		level.case_missed(id, peer, missed)
+
+
 ## Host: mirror `node`'s properties to every client. Clients stop simulating it.
 func replicate(node: Node, properties: Array) -> void:
 	var cfg := SceneReplicationConfig.new()
