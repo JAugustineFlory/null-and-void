@@ -1,14 +1,18 @@
 class_name Huddle
 extends Node
-## The crew huddles round the book: one player reads a chapter's pages aloud, then
-## everyone votes on its quiz together. The crew's answer is the most votes; a
-## wrong answer explains why and the crew votes again, so nobody is stuck.
+## The crew huddles round the book: one player reads a chapter's pages aloud, the
+## crew turns each page when everyone's ready, and everyone votes on its quiz
+## together. The crew's answer is the most votes; a wrong answer explains why and
+## the crew votes again, so nobody is stuck.
 ##
 ## Two ways to hold one:
 ##   await Huddle.of(self).run("easy_sql_1")              # a flashback to the garage
 ##   await Huddle.of(self).run("html_1", Huddle.HERE)     # on the spot, e.g. in the elevator
-## A flashback cuts to the crew round the workbench in the garage (HomeBase), then
-## back. On the spot, the book opens over the live view and everyone stands still.
+## A flashback cuts to the crew in their seats in the garage (HomeBase), facing
+## Maddison at her whiteboard, then back. In the garage itself (the opening's
+## chapter zero) the same shot plays live, with the crew in their real seats. Either
+## way the whiteboard shows where the crew is in the chapter. Anywhere else, the
+## book opens over the live view and everyone stands still.
 ##
 ## Co-op: story code calls run() on every machine at the same beat. The host
 ## decides (which player reads, page turns, votes, the result) and every machine
@@ -42,6 +46,8 @@ var reader_id := 1
 var crew: Array = []
 ## peer id -> option index, for the current question.
 var votes := {}
+## Who is ready to turn the page, by peer id (the host decides; everyone sees).
+var turn_votes := {}
 ## After a vote: {choice, right} until the next question; {split: true} on a tie.
 var result := {}
 ## Chapters this run has finished.
@@ -126,6 +132,7 @@ func _begin(id: String, reader: int, in_huddle: Array) -> void:
 	round_index = 0
 	page = rounds[0].pages[0] if not rounds[0].pages.is_empty() else 0
 	question = -1 if not rounds[0].pages.is_empty() else rounds[0].questions[0]
+	turn_votes.clear()
 	votes.clear()
 	result.clear()
 	changed.emit()
@@ -137,26 +144,40 @@ func is_reader() -> bool:
 	return reader_id == multiplayer.get_unique_id()
 
 
-## The reader turns the page (`step` 1 forward, -1 back), within this round's
-## pages. Past its last page come its questions.
+## This player is ready to turn the page (`step` 1), or turns back to the one
+## before (-1), within this round's pages. The page turns forward once the whole
+## crew is ready; past a round's last page come its questions.
 func turn_page(step: int = 1) -> void:
-	if not is_reader() or question >= 0 or not is_running():
+	if question >= 0 or not is_running():
 		return
 	if is_host():
-		_turn(step, multiplayer.get_unique_id())
+		_turn(step, multiplayer.get_unique_id(), page)
 	else:
-		_ask_turn.rpc_id(1, step)
+		_ask_turn.rpc_id(1, step, page)
 
 
 @rpc("any_peer", "reliable")
-func _ask_turn(step: int) -> void:
+func _ask_turn(step: int, at_page: int) -> void:
 	if is_host():
-		_turn(step, multiplayer.get_remote_sender_id())
+		_turn(step, multiplayer.get_remote_sender_id(), at_page)
 
 
-func _turn(step: int, by: int) -> void:
-	if by != reader_id or question >= 0 or not is_running():
+func _turn(step: int, by: int, at_page: int) -> void:
+	if at_page != page or question >= 0 or not is_running():
 		return
+	if step > 0:
+		if turn_votes.has(by):
+			return
+		var ready := turn_votes.duplicate()
+		ready[by] = true
+		_set_turn_votes.rpc(ready)
+		if NetPlayers.ids_for(multiplayer).any(func(id): return not ready.has(id)):
+			return
+	_advance(step)
+
+
+## Host: turn the page `step` (1 or -1) within this round, or on to its questions.
+func _advance(step: int) -> void:
 	var pages: Array = rounds[round_index].pages
 	var to := clampi(pages.find(page) + step, 0, pages.size())
 	if to == pages.size():
@@ -182,10 +203,22 @@ func _next_round() -> void:
 
 
 @rpc("authority", "call_local", "reliable")
+func _set_turn_votes(v: Dictionary) -> void:
+	turn_votes = v
+	changed.emit()
+
+
+## Whether this player is ready to turn the page.
+func ready_to_turn() -> bool:
+	return turn_votes.has(multiplayer.get_unique_id())
+
+
+@rpc("authority", "call_local", "reliable")
 func _set_step(r: int, p: int, q: int) -> void:
 	round_index = r
 	page = p
 	question = q
+	turn_votes.clear()
 	votes.clear()
 	result.clear()
 	changed.emit()
@@ -352,6 +385,12 @@ func _on_peer_left(id: int) -> void:
 		_set_votes.rpc(v)
 	if question >= 0 and result.is_empty() and not votes.is_empty():
 		_count()
+	if question < 0 and not turn_votes.is_empty():
+		var t := turn_votes.duplicate()
+		t.erase(id)
+		_set_turn_votes.rpc(t)
+		if not t.is_empty() and NetPlayers.ids_for(multiplayer).all(func(p): return t.has(p)):
+			_advance(1)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -396,11 +435,27 @@ func _present(mode: String) -> void:
 			await hud.fade(true, 0.5)
 		_home = load("res://scripts/levels/home_base.gd").for_flashback(level)  # loaded late: home_base pulls in LevelBase
 		_home.start_flashback(NetPlayers.ids_for(multiplayer).size())
+	elif _garage_here():  # in the garage itself: the crew's real seats
+		_home = _garage_here()
+		_home.start_whiteboard()
+	if _home:
+		changed.connect(_write_board)
 	_ui = HuddleUI.create(self, mode == FLASHBACK)
 	_mouse_was = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if mode == FLASHBACK and hud:
 		await hud.fade(false, 0.6)
+
+
+## The garage, if the crew is in it now (the opening): the level itself, or the
+## World's home while it's the current wing.
+func _garage_here() -> Node:
+	if level.has_method("start_whiteboard"):
+		return level
+	var home = level.get("home")
+	if home and level.get("current") == home:
+		return home
+	return null
 
 
 ## The document readers open on this machine's screen. A reader sits on the level
@@ -423,6 +478,8 @@ func _dismiss() -> void:
 		_ui = null
 	var player: Player = level.get("player")
 	if _home:
+		changed.disconnect(_write_board)
+		_home.write_board("")
 		_home.end_flashback(player.camera if player else null)
 		_home = null
 	if player:
@@ -430,3 +487,14 @@ func _dismiss() -> void:
 	Input.mouse_mode = _mouse_was
 	if _mode == FLASHBACK and hud:
 		await hud.fade(false, 0.6)
+
+
+## What Maddison has up on the whiteboard: the page's heading while it's read,
+## the quick check's word during the quiz.
+func _write_board() -> void:
+	if chapter.is_empty():
+		_home.write_board("")
+	elif question < 0:
+		_home.write_board("Ch. %d: %s\n%s" % [chapter.number, chapter.title, str(chapter.pages[page]).get_slice("\n", 0)])
+	else:
+		_home.write_board("Quick check %d of %d\n%s" % [question + 1, chapter.quiz.size(), str(chapter.quiz[question].get("word", ""))])

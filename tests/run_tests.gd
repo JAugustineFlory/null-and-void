@@ -1324,8 +1324,9 @@ func _books_read(levels: Array) -> void:
 			_huddle_of(l).done[id] = true
 
 
-## Play through the next book huddle on every machine: the reader turns the
-## pages, then everyone votes for the right answer (scripts/huddle/).
+## Play through the next book huddle on every machine: everyone turns the pages
+## (a page turns once the whole crew is ready), then everyone votes for the
+## right answer (scripts/huddle/).
 func _crew_reads(levels: Array) -> void:
 	var hs: Array = levels.map(func(l): return _huddle_of(l))
 	var seen := false
@@ -1337,7 +1338,7 @@ func _crew_reads(levels: Array) -> void:
 				continue
 			seen = true
 			if h.question < 0:
-				if h.is_reader() and f % 5 == 0:
+				if f % 5 == 0 and not h.ready_to_turn():
 					h.turn_page()
 			elif h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
 				h.vote(h.current_question().answer)

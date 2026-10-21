@@ -146,13 +146,17 @@ func _draw_page(ch: Dictionary) -> void:
 	_result.text = ""
 	var reader := huddle.player_name(huddle.reader_id)
 	var quiz_next: bool = huddle.last_page_of_round() and not huddle.rounds[huddle.round_index].questions.is_empty()
-	_buttons.visible = huddle.is_reader()
+	var total := NetPlayers.ids_for(multiplayer).size()
+	_buttons.visible = true
 	_back.disabled = huddle.first_page_of_round()
 	_next.text = "Start the quiz >" if quiz_next else "Turn the page >"
+	_next.disabled = huddle.ready_to_turn()
 	if huddle.is_reader():
 		_footer.text = "Page %d of %d. You're reading this one out to the crew." % [huddle.page + 1, ch.pages.size()]
 	else:
 		_footer.text = "Page %d of %d. %s is reading it out." % [huddle.page + 1, ch.pages.size(), reader]
+	if total > 1:
+		_footer.text += " Ready to move on: %d of %d." % [huddle.turn_votes.size(), total]
 
 
 func _draw_question(ch: Dictionary) -> void:
