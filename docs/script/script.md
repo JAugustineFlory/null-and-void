@@ -713,23 +713,27 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Containment protocol Epsilon
 
-*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level 4 under curriculum option B (approved 2026-10-21). Epsilon also locks the database to read-only, which is why the crew turns to the building's services.* *(Written ahead: not in the game yet.)*
+*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. The terminal's lie at the main entrance is exposed by the crew's own SELECT, not by WARDEN. Level 4 under curriculum option B (approved 2026-10-21).* *(Written ahead: not in the game yet.)*
 
 **WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l4_epsilon_1]`
 
 **WARDEN:** *(Even pauses between sentences, like reading a checklist.)* ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. `[l4_epsilon_2]`
 
-**WARDEN:** *(Same checklist reading. 'Authorized services only' is just policy, not a hint.)* DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. `[l4_epsilon_db]`
-
 **WARDEN:** *(No change in tone for 'not a drill'. That's the frightening part.)* ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. `[l4_epsilon_3]`
 
 **WARDEN:** *(Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.)* REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop]`
 
-**WARDEN:** *(Takes turns with the other reminder. Same polite loop.)* REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop_2]`
+**WARDEN:** *(Takes turns with the other reminder, once writes have been suspended. Same polite loop.)* REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop_2]`
+
+### Writes suspended
+
+*Ground floor, after the crew's main-entrance UPDATE says '1 row affected' and the latch clicks: Epsilon reverts the write and WARDEN announces that the database is now read-only, which is why the crew turns to the building's services. Placement chosen by Augustine 2026-10-21 ('After the lie').* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint.)* DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. `[l4_epsilon_db]`
 
 ### Writes refused
 
-*After Epsilon the database is read-only; SELECT still works. By Level 4 WARDEN's fault lets his own personality leak out: the first refusal is the automatic PA announcement first, then WARDEN himself, teasing, as a separate beat. Approved by Augustine 2026-10-21 with that split.* *(Written ahead: not in the game yet.)*
+*After the read-only announcement, any change the crew types is refused; SELECT still works. By Level 4 WARDEN's fault lets his own personality leak out: the first refusal is the automatic PA announcement first, then WARDEN himself, teasing, as a separate beat. Approved by Augustine 2026-10-21 with that split.* *(Written ahead: not in the game yet.)*
 
 **WARDEN:** *(The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal.)* WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. `[l4_write_refused]`
 

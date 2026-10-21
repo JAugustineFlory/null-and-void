@@ -93,9 +93,6 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l4_epsilon_2.wav`  
   "ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE."  
   *Even pauses between sentences, like reading a checklist.*
-- [ ] `l4_epsilon_db.wav`  
-  "DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY."  
-  *Same checklist reading. 'Authorized services only' is just policy, not a hint.*
 - [ ] `l4_epsilon_3.wav`  
   "ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL."  
   *No change in tone for 'not a drill'. That's the frightening part.*
@@ -104,9 +101,15 @@ Each line has the file name to save it as, the line, and a note on how to play i
   *Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.*
 - [ ] `l4_epsilon_loop_2.wav`  
   "REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE."  
-  *Takes turns with the other reminder. Same polite loop.*
+  *Takes turns with the other reminder, once writes have been suspended. Same polite loop.*
 
-### 7. Someone types a change into a terminal during the lockdown. The building's computer answers over the speakers and on the screen.
+### 7. Over every speaker in the building, just after someone has changed something at a terminal: the building's computer makes one more announcement.
+
+- [ ] `l4_epsilon_db.wav`  
+  "DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY."  
+  *The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint.*
+
+### 8. Someone types a change into a terminal during the lockdown. The building's computer answers over the speakers and on the screen.
 
 - [ ] `l4_write_refused.wav`  
   "WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON."  
