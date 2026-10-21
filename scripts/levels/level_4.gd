@@ -295,6 +295,8 @@ var verify_puzzle: Puzzle
 var tips_sent := {}
 ## WARDEN's upgrade has played (the first time out of the control room after the accident).
 var adapted := false
+## Seconds between Epsilon's PA reminders after the accident (tests shorten it).
+var reminder_every := 75.0
 
 ## Puzzle stations. Built with the data (the breaker and the job vary per run).
 ## Ladder A for each: the shape with the value as ?, how to find it, the exact query.
@@ -1113,6 +1115,22 @@ func _epsilon() -> void:
 		hud.notice(TEXT.stairs_release, 4.0)
 		if sync.is_host():
 			_adapt_when_out()
+			_remind()
+
+
+## Host: Epsilon's PA reminder every so often until the floor ends (the approved
+## loop lines); once the database is read-only, the reminder says so instead.
+func _remind() -> void:
+	while is_inside_tree() and Game.completed_level != "level_4":
+		await get_tree().create_timer(reminder_every, false).timeout
+		if is_inside_tree() and Game.completed_level != "level_4":
+			sync.event("_reminder", ["l4_epsilon_loop_2" if db.read_only else "l4_epsilon_loop"])
+
+
+## Every machine: one of Epsilon's reminders over the PA.
+func _reminder(id: String) -> void:
+	if not VoiceLines.get_line(id).is_empty():
+		hud.line(id)
 
 
 ## Host: WARDEN's upgrade plays the first time anyone leaves the control room after
