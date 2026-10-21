@@ -1873,24 +1873,28 @@ func test_coop_pregame_lobby() -> void:
 	root.add_child(lobby)
 	await process_frame
 	var stage: LobbyStage = lobby.stage
-	check(lobby.find_child("Welcome", true, false).text == "Welcome to Byte-Right IT!" and stage.camera.position.y > 30.0
+	check(lobby.find_child("Welcome", true, false).text == "Welcome to Byte-Right IT!" and stage.camera.position.y > 20.0
 		and not lobby._side.visible, "it opens on the sky under the welcome, before any menus")
-	check(stage.figures.size() == 3 and stage.figures.values().all(func(f): return absf(f.position.x) > LobbyStage.ENTRY_X - 0.5),
+	check(stage.figures.size() == 3 and stage.figures.keys().all(func(id): return stage.figures[id].position.distance_to(stage.mark(net.lobby_index(id))) > 5.0),
 		"each player in the session walks in from the edge of the shot")
 	var key := InputEventKey.new()
 	key.keycode = KEY_SPACE
 	key.pressed = true
 	lobby._input(key)
-	check(stage.intro_done and stage.camera.transform.is_equal_approx(LobbyStage.LOBBY_SHOT) and lobby._side.visible, "a key skips to the garage front, and the menus show")
+	check(stage.intro_done and stage.camera.transform.is_equal_approx(load("res://scripts/levels/home_base.gd").LOBBY_CAMERA) and lobby._side.visible, "a key skips to the garage front, and the menus show")
 	Engine.time_scale = 5.0
 	await create_timer(7.0).timeout  # game time: walking in from the edge takes a few seconds
 	Engine.time_scale = 1.0
 	var host_fig: Node3D = stage.figures[1]
-	check(stage.figures.keys().all(func(id): return stage.figures[id].position.is_equal_approx(LobbyStage.MARKS[net.lobby_index(id)])),
+	check(stage.figures.keys().all(func(id): return stage.figures[id].position.is_equal_approx(stage.mark(net.lobby_index(id)))),
 		"and stops on their own mark, host first")
 	check(host_fig.get_node("Rig").action == LobbyStage.POSE_ACTIONS["wave"] and stage.figures[77].get_node("Rig").action == LobbyStage.POSE_ACTIONS[Net.LOBBY_POSES[net.lobby_of(77).pose]],
 		"then strikes their pose")
 	check(stage.figures[55].get_node("Tag").text == "Ana\nReady" and host_fig.get_node("Tag").text == "Host", "a name over each head, and who's ready")
+	var open_picker: Button = lobby.find_child("OpenCustomize", true, false)
+	check(not lobby.picker.visible and open_picker.text == "Customize", "the picker is folded away behind Customize, so the crew stays in view")
+	open_picker.button_pressed = true
+	check(lobby.picker.visible, "and opens on a click")
 	check(lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (1/3)" and lobby.find_child("Host", true, false).is_visible_in_tree() == false,
 		"the menu counts who's ready, and hosting or joining is done")
 	lobby.find_child("ChangePose", true, false).pressed.emit()

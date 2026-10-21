@@ -7,8 +7,9 @@ extends Control
 ## stand, and says they're ready. Once everyone is, the game starts and the
 ## garage opens on the same shot.
 ##
-## Left: the session (host or join, then pose and ready). Right: the LookPicker,
-## without its own figure, since your figure on the apron is the preview.
+## Left: the session (host or join, then pose and ready). Right: Customize opens
+## the LookPicker, without its own figure, since your figure on the driveway is
+## the preview.
 
 ## How long everyone must stay ready before the game starts.
 const START_DELAY := 2.0
@@ -59,9 +60,16 @@ func _ready() -> void:
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_side.add_child(gap)
 	var right := _panel(_side, 600)
+	# Folded away until wanted, so the crew on the driveway stays in view.
+	var customize := _button("Customize")
+	customize.name = "OpenCustomize"
+	customize.toggle_mode = true
+	right.add_child(customize)
 	picker = LookPicker.new()
 	picker.with_preview = false
+	picker.visible = false
 	right.add_child(picker)
+	customize.toggled.connect(func(on): picker.visible = on)
 	picker.previewed.connect(func(look): stage.preview_own(_net(), look))
 
 	# Solo: just you, Change pose and Ready.
@@ -212,6 +220,7 @@ func _process(delta: float) -> void:
 func _panel(parent: Control, width: float) -> VBoxContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(width, 0)
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.01, 0.015, 0.02, 0.82)
 	bg.set_content_margin_all(22)

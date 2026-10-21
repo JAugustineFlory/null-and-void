@@ -6,19 +6,18 @@ extends SubViewportContainer
 ## (Net.LOBBY_POSES), wearing what they picked, so a change shows on them as it's
 ## made. When everyone is ready the World opens the garage on the same shot.
 ##
-## The garage front here is a stand-in until Home base's bigger garage gives the
-## real one (and its camera and marks) to build from.
+## The garage front, the held shot, each player's mark and where they walk in
+## from are Home base's (HomeBase.build_front, LOBBY_CAMERA, lobby_spot,
+## lobby_entry), the same the World's garage opens on, so the cut doesn't show.
 
 ## The opening: from the sky down to the held shot, in seconds.
 const INTRO_TIME := 4.0
-## Where the opening starts: high over the street, looking at the sky.
-const SKY_SHOT := Transform3D(Basis(Vector3.RIGHT, PI * 25.0 / 180.0), Vector3(0, 45, 30))
-## The held shot of the garage front.
-const LOBBY_SHOT := Transform3D(Basis(Vector3.RIGHT, PI * -6.0 / 180.0), Vector3(0, 1.9, 10.5))
-## Marks on the apron, host first, facing the camera.
-const MARKS := [Vector3(-0.6, 0, 3.0), Vector3(0.6, 0, 3.0), Vector3(-1.8, 0, 3.4), Vector3(1.8, 0, 3.4), Vector3(-3.0, 0, 3.8), Vector3(3.0, 0, 3.8)]
-## Players walk in from just outside the shot: the left edge for even marks, the right for odd.
-const ENTRY_X := 9.0
+## Where the opening starts, from the held shot: high up and further back, looking at the sky.
+const SKY_RISE := Vector3(0, 45, 30)
+const SKY_TILT := PI * 25.0 / 180.0
+## HomeBase, loaded by path: naming the class would pull LevelBase and Game into
+## everything that names LobbyStage, the tests included.
+const HOME_BASE := "res://scripts/levels/home_base.gd"
 ## What each pose plays on the rig, until Graphics draws its own (CharacterRig.ACTIONS).
 const POSE_ACTIONS := {"wave": "wave", "lean": "idle", "sit": "sit_floor", "shoulder": "idle"}
 
@@ -28,6 +27,10 @@ var camera: Camera3D
 ## peer id -> their figure (a Node3D holding a CharacterRig and a name tag).
 var figures := {}
 var intro_done := false
+## The held shot of the garage front (HomeBase.LOBBY_CAMERA), and where the opening starts.
+var lobby_shot: Transform3D
+var sky_shot: Transform3D
+var _home: Script
 var _world: Node3D
 var _crew: Node3D
 var _intro: Tween
@@ -42,12 +45,14 @@ func _ready() -> void:
 	add_child(vp)
 	_world = Node3D.new()
 	vp.add_child(_world)
+	_home = load(HOME_BASE)
+	lobby_shot = _home.LOBBY_CAMERA
+	sky_shot = Transform3D(lobby_shot.basis * Basis(Vector3.RIGHT, SKY_TILT), lobby_shot * SKY_RISE)
 	_build_scene()
 	_crew = Node3D.new()
 	_crew.name = "Crew"
 	_world.add_child(_crew)
-	camera = Camera3D.new()
-	camera.fov = 50
+	camera = Camera3D.new()  # the default field of view, like the World's garage camera
 	_world.add_child(camera)
 	camera.make_current()
 	play_intro()
@@ -56,9 +61,9 @@ func _ready() -> void:
 ## From the sky down to the garage front.
 func play_intro() -> void:
 	intro_done = false
-	camera.transform = SKY_SHOT
+	camera.transform = sky_shot
 	_intro = create_tween()
-	_intro.tween_method(func(t: float): camera.transform = SKY_SHOT.interpolate_with(LOBBY_SHOT, t), 0.0, 1.0, INTRO_TIME) \
+	_intro.tween_method(func(t: float): camera.transform = sky_shot.interpolate_with(lobby_shot, t), 0.0, 1.0, INTRO_TIME) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_intro.finished.connect(finish_intro)
 
@@ -67,7 +72,7 @@ func play_intro() -> void:
 func finish_intro() -> void:
 	if _intro and _intro.is_valid():
 		_intro.kill()
-	camera.transform = LOBBY_SHOT
+	camera.transform = lobby_shot
 	if not intro_done:
 		intro_done = true
 		intro_finished.emit()
@@ -94,7 +99,7 @@ func sync_crew(net: Node, own_look := {}) -> void:
 		var tag: Label3D = fig.get_node("Tag")
 		tag.text = str(net.roster[id]) + ("\nReady" if state.ready else "")
 		tag.modulate = Color(0.55, 1.0, 0.6) if state.ready else Color(1, 1, 1)
-		_walk_to(fig, MARKS[i % MARKS.size()])
+		_walk_to(fig, mark(i))
 
 
 ## This player's figure dressed as `look` while they pick (LookPicker.previewed).
@@ -104,11 +109,15 @@ func preview_own(net: Node, look: Dictionary) -> void:
 		_dress(fig, look)
 
 
+## Where player `i` (host first) stands on the driveway.
+func mark(i: int) -> Vector3:
+	return _home.lobby_spot(i).at.origin
+
+
 func _add_figure(id: int, i: int) -> Node3D:
 	var fig := Node3D.new()
 	fig.name = "Player_%d" % id
-	var mark: Vector3 = MARKS[i % MARKS.size()]
-	fig.position = Vector3(-ENTRY_X if i % 2 == 0 else ENTRY_X, 0, mark.z)
+	fig.position = _home.lobby_entry(i)
 	_crew.add_child(fig)
 	var tag := Label3D.new()
 	tag.name = "Tag"
@@ -135,23 +144,23 @@ func _dress(fig: Node3D, look: Dictionary) -> void:
 	rig.play(_pose_action(fig) if fig.get_meta("arrived", false) else "idle")
 
 
-## Walk to `mark` (if not there already), then turn to the camera and strike the pose.
-func _walk_to(fig: Node3D, mark: Vector3) -> void:
-	if fig.get_meta("mark", Vector3.INF) == mark:
+## Walk to `to_mark` (if not there already), then turn to the camera and strike the pose.
+func _walk_to(fig: Node3D, to_mark: Vector3) -> void:
+	if fig.get_meta("mark", Vector3.INF) == to_mark:
 		_strike(fig)
 		return
-	fig.set_meta("mark", mark)
+	fig.set_meta("mark", to_mark)
 	fig.set_meta("arrived", false)
 	var old: Tween = fig.get_meta("walk") if fig.has_meta("walk") else null
 	if old and old.is_valid():
 		old.kill()
 	var rig: CharacterRig = fig.get_node("Rig")
 	rig.play("idle")
-	var to := mark - fig.position
+	var to := to_mark - fig.position
 	if to.length() > 0.01:
 		fig.rotation.y = atan2(-to.x, -to.z)
 	var walk := create_tween()
-	walk.tween_property(fig, "position", mark, to.length() / CharacterRig.WALK_SPEED)
+	walk.tween_property(fig, "position", to_mark, to.length() / CharacterRig.WALK_SPEED)
 	walk.finished.connect(func():
 		fig.set_meta("arrived", true)
 		_strike(fig))
@@ -161,7 +170,7 @@ func _walk_to(fig: Node3D, mark: Vector3) -> void:
 func _strike(fig: Node3D) -> void:
 	if not fig.get_meta("arrived", false):
 		return
-	fig.rotation.y = atan2(-(LOBBY_SHOT.origin.x - fig.position.x), -(LOBBY_SHOT.origin.z - fig.position.z))
+	fig.rotation.y = atan2(-(lobby_shot.origin.x - fig.position.x), -(lobby_shot.origin.z - fig.position.z))
 	var rig: CharacterRig = fig.get_node("Rig")
 	rig.play(_pose_action(fig))
 
@@ -170,7 +179,7 @@ func _pose_action(fig: Node3D) -> String:
 	return POSE_ACTIONS.get(fig.get_meta("pose", "wave"), "idle")
 
 
-## Dusk, a street, and a stand-in garage front with its roll-up door shut.
+## A dusk sky over Home base's garage front, its roll-up door shut.
 func _build_scene() -> void:
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
@@ -191,26 +200,12 @@ func _build_scene() -> void:
 	sun.light_color = Color(1.0, 0.8, 0.65)
 	sun.light_energy = 1.1
 	_world.add_child(sun)
-	var front := Node3D.new()
-	front.name = "GarageFront"
-	_world.add_child(front)
-	_box(front, Vector3(0, -0.05, 6), Vector3(60, 0.1, 40), Color(0.22, 0.22, 0.23))  # street and apron
-	_box(front, Vector3(0, 2.0, -0.6), Vector3(12, 4.0, 1.2), Color(0.55, 0.5, 0.42))  # the front wall
-	_box(front, Vector3(0, 1.6, 0.02), Vector3(6, 3.2, 0.1), Color(0.75, 0.75, 0.72))  # roll-up door
-	_box(front, Vector3(0, 4.3, -0.2), Vector3(12.6, 0.6, 2.0), Color(0.3, 0.28, 0.27))  # roof edge
-	var lamp := OmniLight3D.new()
-	lamp.position = Vector3(0, 3.6, 1.0)
-	lamp.light_color = Color(1.0, 0.85, 0.6)
-	lamp.light_energy = 1.4
-	lamp.omni_range = 9.0
-	front.add_child(lamp)
-
-
-func _box(parent: Node3D, at: Vector3, size: Vector3, color: Color) -> void:
-	var m := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	m.mesh = b
-	m.position = at
-	m.material_override = Greybox.mat(color)
-	parent.add_child(m)
+	_home.build_front(_world)
+	# The street round the driveway, out to the horizon.
+	var street := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(400, 400)
+	street.mesh = plane
+	street.position = Vector3(0, -0.21, 0)
+	street.material_override = Greybox.mat(Color(0.16, 0.16, 0.17))
+	_world.add_child(street)
