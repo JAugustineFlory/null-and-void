@@ -16,6 +16,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_walks_from_movement()
 	await test_rig_actions()
 	test_rig_steps_through_turns()
+	test_first_person_body()
 	await test_rig_budget()
 	await test_skinned_body()
 	test_outfits()
@@ -238,6 +239,73 @@ func test_rig_actions() -> void:
 		rig.animate(1.0 / 60.0)
 	check(rig.joints["head"].rotation.y < -0.5, "the head turns toward a look target")
 	stage.free()
+
+
+func test_first_person_body() -> void:
+	# Garage playtest: your own arms when you swing and block; ground floor: see
+	# yourself from your own eyes.
+	var stage := _stage()
+	var you := _FakeFighter.new()
+	stage.add_child(you)
+	var fp := FirstPersonBody.attach(you, CharacterLooks.rourke())
+	fp.set_process(false)
+	fp.rig.set_process(false)
+	var step := func(seconds: float) -> void:
+		for i in int(seconds * 60):
+			fp._process(1.0 / 60.0)
+			fp.rig.animate(1.0 / 60.0)
+	step.call(0.2)
+	check(fp.rig.hide_head and fp.visible and fp.current_action() == "idle", "your own body stands under the camera with its head hidden")
+	var skin: SkinnedBody = fp.rig._skin
+	var head := skin.skeleton.find_bone("Head")
+	check(skin.skeleton.get_bone_pose_scale(head).x < 0.01, "the head is shrunk away so the camera isn't inside it")
+	you.combat.swung.emit()
+	step.call(0.1)
+	check(fp.current_action() == "jab" and skin.player.current_animation == "Punch_Jab", "a swing throws a jab from the pack's punch clip")
+	check(fp.position.z < FirstPersonBody.BACK - 0.1, "throwing a punch leans in behind the fists so they come into view")
+	you.combat.swung.emit()
+	step.call(0.1)
+	check(fp.current_action() == "cross" and skin.player.current_animation == "Punch_Cross", "a quick second swing is a cross")
+	step.call(FirstPersonBody.JAB_TIME + 0.5)
+	you.combat.swung.emit()
+	check(fp.current_action() == "jab", "after a pause the next swing starts with a jab again")
+	step.call(FirstPersonBody.JAB_TIME + 0.1)
+	you.combat.guarding = true
+	step.call(0.2)
+	check(fp.current_action() == "guard" and skin.player.speed_scale == 0.0, "holding block holds the guard up")
+	you.combat.blocked.emit("swing")
+	check(fp.current_action() == "recoil", "a blocked hit jolts the guard back")
+	you.combat.guarding = false
+	step.call(FirstPersonBody.RECOIL_TIME + 0.1)
+	you.combat.hurt.emit(10.0, "swing")
+	check(fp.current_action() == "flinch", "taking a hit flinches")
+	step.call(FirstPersonBody.FLINCH_TIME + 0.1)
+	check(fp.current_action() == "idle" and skin._action_playing == "", "then the body goes back to standing")
+	you.notebook_raised.emit()
+	you.combat.swung.emit()
+	check(fp.current_action() == "idle", "with the notebook up the arms stay down")
+	you.notebook_lowered.emit()
+	you.downed = true
+	step.call(0.1)
+	check(not fp.visible, "lying down, the camera is inside the body, so it's left out")
+	stage.queue_free()
+
+
+class _FakeFighter extends Node3D:
+	signal notebook_raised
+	signal notebook_lowered
+	var combat := _FakeCombat.new()
+	var downed := false
+
+
+class _FakeCombat extends RefCounted:
+	signal swung
+	signal blocked(cause: String)
+	signal hurt(amount: float, cause: String)
+	var guarding := false
+
+	func guard_up() -> bool:
+		return guarding
 
 
 func test_skinned_body() -> void:

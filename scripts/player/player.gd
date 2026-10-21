@@ -309,6 +309,7 @@ func _ready() -> void:
 	else:
 		_add_body_mesh()
 	combat = PlayerCombat.create(self)
+	if local_control: FirstPersonBody.attach(self)  # your own body, seen from your eyes
 
 
 ## Turn your view right by `yaw` and down by `pitch` (radians); a held notebook
