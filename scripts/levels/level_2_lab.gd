@@ -217,6 +217,10 @@ func _game() -> Node:
 	return get_node("/root/Game")
 
 
+func _net() -> Node:
+	return get_node("/root/Net")
+
+
 ## Rourke already turned somewhere else: the lab is just a lab, open, with her terminal.
 func skip() -> void:
 	phase = "done"
@@ -473,6 +477,8 @@ func crew_beaten() -> void:
 	level.crew.send_everyone_back()
 	await level.get_tree().create_timer(0.7).timeout  # under the death fade
 	news.queue_free()
+	# A secret ending: whoever saw it keeps what it unlocks (shown once they're back up).
+	_net().earn("secret:ending_news", level.hud)
 	if level.sync.is_host():
 		reset_fight()
 

@@ -1147,6 +1147,8 @@ func seal_exit() -> void:
 
 ## Everyone is on the stairs. Until Level 3 (floor 18) is built, the slice ends here.
 func _on_exit(_b: Node) -> void:
+	# Everyone here finished the floor, downed or not.
+	get_node("/root/Net").earn("achievement:floor_22", hud)
 	if not player or player.health <= 0.0:
 		return
 	player.input_locked = true
