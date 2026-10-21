@@ -29,9 +29,8 @@ func _ready() -> void:
 
 	var start := _button("Start (solo)")
 	start.pressed.connect(func():
-		Game.new_run()
-		Game.open_at_home = true
-		Game.goto("world"))
+		get_node("/root/Net").begin_solo_lobby()  # the same opening as co-op, for one
+		Game.goto("lobby"))
 	box.add_child(start)
 	var customize := _button("Customize")
 	customize.name = "Customize"
@@ -46,7 +45,9 @@ func _ready() -> void:
 	gym.pressed.connect(func(): Game.goto("movement_gym"))
 	box.add_child(gym)
 	var coop := _button("Co-op (2 to 6 players)")
-	coop.pressed.connect(func(): Game.goto("lobby"))
+	coop.pressed.connect(func():
+		get_node("/root/Net").leave(false)  # nothing left over from a solo lobby
+		Game.goto("lobby"))
 	box.add_child(coop)
 	var quit := _button("Quit")
 	quit.pressed.connect(func(): get_tree().quit())

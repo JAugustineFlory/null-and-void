@@ -1,83 +1,128 @@
 extends Control
-## Co-op lobby: host a game or join a friend's, pick who you play and how you
-## look, see who's in, start together.
+## The pre-game lobby, in front of the crew's garage (LobbyStage). It opens on
+## "Welcome to Byte-Right IT!" from the sky down to the garage front. Then:
+## host a game or join a friend's (solo: straight on), and each player walks in
+## to their mark.
+## Everyone picks how they look (and sees it on their own figure), how they
+## stand, and says they're ready. Once everyone is, the game starts and the
+## garage opens on the same shot.
 ##
-## Two parts: the LookPicker (a turning figure of your look and the Crew, Look,
-## Gear and Achievements tabs) and the session. Picks are saved to your profile.
+## Left: the session (host or join, then pose and ready). Right: Customize opens
+## the LookPicker, without its own figure, since your figure on the driveway is
+## the preview.
 
+## How long everyone must stay ready before the game starts.
+const START_DELAY := 2.0
+## Augustine's opening line.
+const WELCOME := "Welcome to Byte-Right IT!"
+## Lobby text: drafts awaiting Augustine's OK (plan/pre-game-lobby.md).
+const READY := "Ready"
+const CHANGE_POSE := "Change pose"
+const WAITING := "Waiting for everyone to get ready (%d/%d)"
+
+var stage: LobbyStage
 var picker: LookPicker
+var _welcome: Label
+var _side: Control
 var _address: LineEdit
 var _status: Label
-var _list: VBoxContainer
-var _host_btn: Button
-var _join_btn: Button
-var _start_btn: Button
 var _connect_box: Control
+var _session_box: Control
+var _ready_btn: Button
+var _pose_btn: Button
+var _waiting: Label
+var _all_ready_for := 0.0
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Color(0.01, 0.015, 0.02)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	stage = LobbyStage.new()
+	add_child(stage)
+	stage.intro_finished.connect(_on_intro_finished)
 
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 28)
-	center.add_child(columns)
+	_welcome = ThemeUtil.label(WELCOME, 64, ThemeUtil.AMBER)
+	_welcome.name = "Welcome"
+	_welcome.add_theme_font_override("font", ThemeUtil.mono())
+	_welcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_welcome.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_welcome.offset_top = 80
+	_welcome.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	add_child(_welcome)
+
+	_side = HBoxContainer.new()
+	_side.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_side.add_theme_constant_override("separation", 0)
+	add_child(_side)
+	var left := _panel(_side, 460)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_side.add_child(gap)
+	var right := _panel(_side, 600)
+	# Folded away until wanted, so the crew on the driveway stays in view.
+	var customize := _button("Customize")
+	customize.name = "OpenCustomize"
+	customize.toggle_mode = true
+	right.add_child(customize)
 	picker = LookPicker.new()
-	columns.add_child(picker)
+	picker.with_preview = false
+	picker.visible = false
+	right.add_child(picker)
+	customize.toggled.connect(func(on): picker.visible = on)
+	picker.previewed.connect(func(look): stage.preview_own(_net(), look))
 
-	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(560, 0)
-	box.add_theme_constant_override("separation", 14)
-	columns.add_child(box)
-	var title := ThemeUtil.label("CO-OP", 64, ThemeUtil.GREEN)
+	# Solo: just you, Change pose and Ready.
+	var solo: bool = _net().solo_lobby
+	var title := ThemeUtil.label("CO-OP", 56, ThemeUtil.GREEN)
 	title.add_theme_font_override("font", ThemeUtil.mono())
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(title)
+	title.visible = not solo
+	left.add_child(title)
 	var sub := ThemeUtil.label("Up to %d players. One hosts, the others join by address." % _net().MAX_PLAYERS, 18, ThemeUtil.DIM)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(sub)
+	sub.visible = not solo
+	left.add_child(sub)
 
 	_connect_box = VBoxContainer.new()
 	_connect_box.add_theme_constant_override("separation", 10)
-	box.add_child(_connect_box)
-	_host_btn = _button("Host a game")
-	_host_btn.pressed.connect(_on_host)
-	_connect_box.add_child(_host_btn)
+	left.add_child(_connect_box)
+	var host_btn := _button("Host a game")
+	host_btn.name = "Host"
+	host_btn.pressed.connect(_on_host)
+	_connect_box.add_child(host_btn)
 	_address = _field(_connect_box, "Host address", "127.0.0.1")
-	_join_btn = _button("Join")
-	_join_btn.pressed.connect(_on_join)
-	_connect_box.add_child(_join_btn)
+	var join_btn := _button("Join")
+	join_btn.name = "Join"
+	join_btn.pressed.connect(_on_join)
+	_connect_box.add_child(join_btn)
+
+	_session_box = VBoxContainer.new()
+	_session_box.add_theme_constant_override("separation", 10)
+	left.add_child(_session_box)
+	_pose_btn = _button(CHANGE_POSE)
+	_pose_btn.name = "ChangePose"
+	_pose_btn.pressed.connect(func(): _net().next_pose())
+	_session_box.add_child(_pose_btn)
+	_ready_btn = _button(READY)
+	_ready_btn.name = "Ready"
+	_ready_btn.toggle_mode = true
+	_ready_btn.toggled.connect(func(on): _net().set_ready(on))
+	_session_box.add_child(_ready_btn)
+	_waiting = ThemeUtil.label("", 20, ThemeUtil.AMBER)
+	_waiting.name = "Waiting"
+	_session_box.add_child(_waiting)
 
 	_status = ThemeUtil.label("", 18, ThemeUtil.AMBER)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(_status)
-
-	box.add_child(ThemeUtil.label("Players", 24, ThemeUtil.AMBER))
-	_list = VBoxContainer.new()
-	box.add_child(_list)
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	box.add_child(row)
-	_start_btn = _button("Start")
-	_start_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_start_btn.pressed.connect(func(): _net().start_game())
-	row.add_child(_start_btn)
+	left.add_child(_status)
 	var back := _button("Back")
-	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	back.name = "Back"
 	back.pressed.connect(func():
 		_net().leave(false)
 		get_node("/root/Game").goto("menu"))
-	row.add_child(back)
+	left.add_child(back)
 
+	_side.visible = false
 	_net().roster_changed.connect(_refresh)
 	_net().joined.connect(_on_joined)
 	_net().session_ended.connect(_on_session_ended)
@@ -93,8 +138,23 @@ func _exit_tree() -> void:
 	_net().session_ended.disconnect(_on_session_ended)
 
 
+## A click or a key skips the opening.
+func _input(event: InputEvent) -> void:
+	if stage.intro_done:
+		return
+	if (event is InputEventMouseButton or event is InputEventKey) and event.pressed:
+		stage.finish_intro()
+		get_viewport().set_input_as_handled()
+
+
+func _on_intro_finished() -> void:
+	var fade := create_tween()
+	fade.tween_property(_welcome, "modulate:a", 0.0, 0.6)
+	_side.visible = true
+
+
 func _on_joined() -> void:
-	_status.text = "Joined. Waiting for the host to start."
+	_status.text = "Joined."
 
 
 func _on_session_ended(reason: String) -> void:
@@ -123,31 +183,17 @@ func _on_join() -> void:
 	_refresh()
 
 
+## The session changed: who's here, how they look and stand, who's ready.
 func _refresh() -> void:
-	for c in _list.get_children():
-		c.queue_free()
-	var roster: Dictionary = _net().roster
-	var ids := roster.keys()
-	ids.sort()
-	for id in ids:
-		var tag := "  (host)" if id == 1 else ""
-		var you := "  (you)" if id == multiplayer.get_unique_id() and _net().is_online() else ""
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		var swatch := ColorRect.new()
-		swatch.custom_minimum_size = Vector2(18, 18)
-		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		swatch.color = _net().look_of(id, ids.find(id)).top.color
-		row.add_child(swatch)
-		row.add_child(ThemeUtil.label("%s%s%s" % [roster[id], tag, you], 22))
-		_list.add_child(row)
-	if ids.is_empty():
-		_list.add_child(ThemeUtil.label("  Not connected.", 20, ThemeUtil.DIM))
-	var online: bool = _net().is_online()
-	_connect_box.visible = not online
-	picker.set_name_editable(not online)
-	_start_btn.visible = online and _net().is_host()
-	_start_btn.text = "Start (%d player%s)" % [ids.size(), "" if ids.size() == 1 else "s"]
+	var net := _net()
+	var in_session: bool = not net.roster.is_empty()
+	_connect_box.visible = not in_session
+	_session_box.visible = in_session
+	picker.set_name_editable(not in_session)
+	stage.sync_crew(net)
+	var ready_count: int = net.roster.keys().filter(func(id): return net.lobby_of(id).ready).size()
+	_waiting.text = WAITING % [ready_count, net.roster.size()] if in_session and not net.solo_lobby else ""
+	_ready_btn.set_pressed_no_signal(net.lobby_of(net.my_id()).ready)
 
 
 ## This player's whole loadout now (LookPicker.my_look).
@@ -155,12 +201,43 @@ func my_look() -> Dictionary:
 	return picker.my_look()
 
 
+## The host starts the game once everyone has been ready for a moment (solo:
+## once you have).
+func _process(delta: float) -> void:
+	var net := _net()
+	if not ((net.is_online() or net.solo_lobby) and net.is_host() and net.all_ready()):
+		_all_ready_for = 0.0
+		return
+	_all_ready_for += delta
+	if _all_ready_for >= START_DELAY:
+		_all_ready_for = -INF  # once
+		if net.solo_lobby:
+			net.start_solo_game()
+		else:
+			net.start_game()
+
+
+func _panel(parent: Control, width: float) -> VBoxContainer:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(width, 0)
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.01, 0.015, 0.02, 0.82)
+	bg.set_content_margin_all(22)
+	panel.add_theme_stylebox_override("panel", bg)
+	parent.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+	return box
+
+
 func _field(parent: Control, label_text: String, value: String) -> LineEdit:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	parent.add_child(row)
 	var l := ThemeUtil.label(label_text, 20)
-	l.custom_minimum_size = Vector2(170, 0)
+	l.custom_minimum_size = Vector2(150, 0)
 	row.add_child(l)
 	var e := LineEdit.new()
 	e.text = value
