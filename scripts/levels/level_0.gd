@@ -92,6 +92,7 @@ var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY 
 var caller_puzzle: Puzzle
 ## Optional: the visitor log newest first shows Vale signed in and never left.
 var visitor_puzzle: Puzzle
+var visitor_top_one: Puzzle  # LIMIT 1: just the crew's own row, one short of Vale's
 ## This run's ground-floor data (Level0Data.build).
 var data := {}
 ## Rourke has asked who called: the directory query or the mailroom printout counts.
@@ -106,6 +107,7 @@ func build() -> void:
 	load_level_seed(data.sql)
 	caller_puzzle = caller_puzzle_for(data.extension)
 	visitor_puzzle = visitor_puzzle_for()
+	visitor_top_one = visitor_top_one_for()
 	var carpet := Color(0.22, 0.2, 0.24)
 	var wall := Color(0.62, 0.58, 0.5)
 	# Lobby: x -8..8, z -7..7
@@ -197,6 +199,11 @@ func build() -> void:
 		{"text": "ORDER BY ... DESC", "hand": true},
 		{"text": "  - N.F.", "hand": true},
 	], true, "sticky").clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
+	Document.place(geo, Vector3(-2.95, 1.102, -1.15), -8.0, "Sticky note", [
+		{"text": "Just the last few?", "hand": true},
+		{"text": "...DESC LIMIT 5", "hand": true},
+		{"text": "  - N.F.", "hand": true},
+	], true, "sticky").clues = [{"case": "last_visitor", "text": "Just the last few? End the query with LIMIT 5: only the first 5 rows."}]
 
 	# A side table behind the desk with the walkie-talkies' charging dock on it.
 	Greybox.box(geo, Vector3(-2.5, 0.68, -5.5), Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
@@ -851,6 +858,13 @@ func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 		sync.event("_on_caller_found")
 	if not visitor_puzzle.solved and visitor_puzzle.matches(db, result):
 		sync.event("_on_last_visitor")
+	elif not visitor_puzzle.solved and visitor_top_one.matches(db, result):
+		sync.event("_on_visitor_top_one")
+
+
+## LIMIT 1 shows only the crew's own sign-in; Vale is the row below it.
+func _on_visitor_top_one() -> void:
+	desk_terminal.print_line(TerminalUI.sysop("that's your own crew, signed in at 23:04. whoever came before you is one row further down: LIMIT 2 or more."))
 
 
 func _on_memo_backwards() -> void:
@@ -914,20 +928,29 @@ static func caller_puzzle_for(ext: int) -> Puzzle:
 	])
 
 
-## Optional: the visitor log, newest first.
+## Optional: the visitor log, newest first. The whole list passes, and so does
+## any LIMIT that still reaches Vale's row (the crew's own is above it).
 static func visitor_puzzle_for() -> Puzzle:
-	return Puzzle.new("last_visitor", "SELECT name, signed_in FROM visitors ORDER BY signed_in DESC", ["name", "signed_in"], true, [
+	var p := Puzzle.new("last_visitor", "SELECT name, signed_in FROM visitors ORDER BY signed_in DESC", ["name", "signed_in"], true, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT * FROM visitors ORDER BY ? DESC;[/color]\n" +
+		"    [color=#ffffff]SELECT * FROM visitors ORDER BY ? DESC LIMIT 5;[/color]\n" +
 		"  SELECT *       every column\n" +
 		"  FROM visitors  from the visitor log\n" +
 		"  ORDER BY ?     sorted by a column\n" +
 		"  DESC           biggest (newest) first\n" +
+		"  LIMIT 5        only the first 5 rows\n" +
 		"? is the column with the sign-in time.",
-		".schema visitors lists its columns. One of them holds the sign-in time.",
+		".schema visitors lists its columns. One of them holds the sign-in time. LIMIT 5 keeps the first 5 rows, and with DESC those are the newest. The sticky on the desk shows where it goes.",
 		"Type this exactly and press Enter:\n" +
-		"    [color=#ffffff]SELECT * FROM visitors ORDER BY signed_in DESC;[/color]",
+		"    [color=#ffffff]SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 5;[/color]",
 	])
+	p.top_rows = 2
+	return p
+
+
+## LIMIT 1 on the visitor log: just the crew's own row, one short of Vale's.
+static func visitor_top_one_for() -> Puzzle:
+	return Puzzle.new("visitor_top_one", "SELECT name, signed_in FROM visitors ORDER BY signed_in DESC LIMIT 1", ["name", "signed_in"], true)
 
 
 ## Rourke didn't place the call: who did? The work order has the extension; the
