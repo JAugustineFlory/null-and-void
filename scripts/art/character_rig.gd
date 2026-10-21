@@ -14,8 +14,8 @@ extends Node3D
 ## The rig stands on its parent's origin and faces -Z, like CharacterBody3D.
 
 ## Upper-body actions keep the legs walking; the rest take over the whole body.
-const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike"]
-const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl"]
+const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike", "shoulder"]
+const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl", "lean", "pose"]
 const ACTIONS := UPPER_BODY + FULL_BODY
 
 ## Meters covered by one full walk cycle (two steps).
@@ -270,6 +270,12 @@ func _action_pose(p: Dictionary) -> void:
 			p["r_elbow"] = Vector3(1.5, 0, 0)
 			p["l_shoulder"] = Vector3(0.9, 0, -0.25)
 			p["l_elbow"] = Vector3(1.2, 0, 0)
+		"shoulder":
+			# An arm around whoever stands about 0.6 m to the right, the hand
+			# resting on their far shoulder.
+			p["r_shoulder"] = Vector3(-0.45, 0, 1.45)
+			p["r_elbow"] = Vector3(0.35, 0, 0)
+			p["neck"] = Vector3(0, -0.1, 0.05)
 		"strike":
 			p["spine"] = Vector3(-0.45, -0.2, 0)
 			_sym(p, "shoulder", Vector3(1.45, 0, 0.05))
@@ -320,6 +326,25 @@ func _action_pose(p: Dictionary) -> void:
 			_sym(p, "elbow", Vector3(0.1, 0, 0))
 		"crawl":
 			_crawl(p)
+		"lean":
+			# Back against a wall or the van, arms crossed, one foot up flat behind.
+			p["_root_rot"] = Vector3(0.1, 0, 0)
+			p["_root_pos"] = Vector3(0, -0.02, 0)
+			_sym(p, "hip", Vector3(0.1, 0, 0.03))
+			p["l_hip"] = Vector3(0.3, 0, -0.03)
+			p["l_knee"] = Vector3(-1.0, 0, 0)
+			p["neck"] = Vector3(-0.08, 0.15, 0)
+			p["r_shoulder"] = Vector3(0.05, 1.4, 0.7)
+			p["l_shoulder"] = Vector3(0.0, -1.4, -0.7)
+			p["r_elbow"] = Vector3(1.7, 0, 0)
+			p["l_elbow"] = Vector3(1.55, 0, 0)
+		"pose":
+			# Feet apart, chest out, fists on the hips: ready for anything.
+			_sym(p, "hip", Vector3(0, 0, 0.14))
+			p["spine"] = Vector3(0.06, 0, 0)
+			p["neck"] = Vector3(0.08, -0.1, 0)
+			_sym(p, "shoulder", Vector3(-0.6, 1.4, 0))
+			_sym(p, "elbow", Vector3(1.6, 0, 0))
 		"crouch":
 			p["_root_pos"] = Vector3(0, -0.48, 0)
 			_sym(p, "hip", Vector3(1.4, 0, 0.1))
