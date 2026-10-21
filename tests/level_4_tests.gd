@@ -227,6 +227,7 @@ func test_scene() -> void:
 	ui.run("UPDATE breakers SET state = 'on' WHERE id = 'PLANT CONTROL'")
 	await _frames(2)
 	check(not level.power_back and Array(level.maint.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_zero)), "the circuit's name in the id's place changes nothing, and SYSOP says to look at the row first")
+	check(_said(level.maint, "0 rows changed.") and not _said(level.maint, "(0 rows)"), "a write that matches nothing says 0 rows changed, not an empty read's (0 rows)")
 	# No WHERE: loud and costly, never dangerous.
 	ui.run("UPDATE breakers SET state = 'on'")
 	await _frames(5)
@@ -345,8 +346,10 @@ func test_accident() -> void:
 	ui.run("UPDATE doors SET locked = 0 WHERE id = 'PLANT-BAY'")
 	await _frames(2)
 	check(level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-BAY'")[0]["locked"] == 1 and not level.bay_door.is_open, "so does the plant terminal: the bay stays shut")
-	var card: Node = _doc(level, "Night mode card")
-	check(card != null and card.plain_text().contains("open main_doors") and level.CTRL_ROOM.has_point(level.to_local(card.global_position)), "the night-mode card in the control room names main_doors as the way out")
+	var card: Node = _doc(level, "Facilities notice")
+	check(card != null and card.plain_text().contains("main_doors") and card.plain_text().contains("decommissioned") and level.CTRL_ROOM.has_point(level.to_local(card.global_position)), "Facilities' notice in the control room names main_doors as the fire exit (option A)")
+	var sticky: Node = level.find_child("EarlyWarning", true, false)
+	check(sticky.global_position.distance_to(card.global_position) < 1.0, "the never-open sticky is pinned right beside the notice, for the careful crew")
 	# The observant crew's find: the earlier copy of the warning, read before.
 	level.find_child("EarlyWarning", true, false).open_reader(p).close()
 	await _frames(3)
@@ -396,6 +399,7 @@ func test_accident() -> void:
 	check(await _until(func(): return docked[0], 900), "left alone, it drags them all the way to its bay (state %s)" % cust.state)
 	await _frames(120)
 	check(p.combat.grabbed_by == null and p.health > 0.0 and LANDING_BOX.has_point(level.to_local(p.global_position)), "they go down, and come to on the landing")
+	check(await _until(func(): return level.adapted, 900), "out of the control room after the accident, WARDEN's upgrade plays (his lines once Voice adds them)")
 	# The lockout: logged on the controller, read back at the bay's panel in time.
 	level.lockout_window = 0.5
 	ui.terminal = level.controller

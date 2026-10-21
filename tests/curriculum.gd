@@ -250,7 +250,7 @@ const PUZZLES := {
 		"teaches": ["gantry", "bay", "raised"],
 		"needs": ["UPDATE", "SET", "WHERE", "gantry", "bay", "id"],
 	},
-	# The night-mode card's way out: an UPDATE on doors. Its row says CONTAINMENT for a
+	# Facilities' notice's fire exit: an UPDATE on doors. Its row says CONTAINMENT for a
 	# crew that reads it first; opening it is the accident (UPDATE's first real use).
 	"main_doors": {
 		"level": 4,

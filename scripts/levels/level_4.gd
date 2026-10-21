@@ -14,8 +14,11 @@ extends LevelBase
 ##   2. login    the clipboard by the controller: contractors log in before touching
 ##               anything. The crew INSERTs its own job (practised safely). Until it
 ##               has, no terminal on 10 takes a write to the doors table.
-##   3. main_doors  the night-mode card says main_doors lets a crew out at night. Its
-##               row says zone CONTAINMENT, for a crew that looks first. Opening it is
+##   3. main_doors  Facilities' notice on the corkboard says the containment wing was
+##               decommissioned and main_doors is now the east fire exit. Its row says
+##               zone CONTAINMENT, and a sticky beside the notice says never open it,
+##               for a crew that looks first: the typed notice outranks a scribble, and
+##               it's wrong (the wing was quietly put back into use). Opening it is
 ##               the accident: the entities get out, the Custodian leaves its bay,
 ##               WARDEN announces Containment protocol Epsilon, and STAIR 1 releases.
 ##      gantry   the control room's second way in: the gantry arm on the hall's ceiling
@@ -30,9 +33,9 @@ extends LevelBase
 ##               latch clicks, then Epsilon puts it back and makes the database
 ##               read-only (the approved lines). The crew's own SELECT shows the lie:
 ##               verify after write, under pressure. Every write after that is refused.
-## Why a careful crew still opens main_doors is a story call (Voice drafts, Augustine
-## decides). Until then the build's default: STAIR 1's night release IS main_doors,
-## so it's the only way on.
+## Why a careful crew still opens main_doors is Voice's option A, "Decommissioned"
+## (script/drafts/level-4-warden-and-accident.md), the architect's working default
+## while Augustine chooses between A, B and C.
 ## Write stations are StatePuzzles: checked by the table's state after the write,
 ## as a result set, never by the query's text.
 ## Every line players read is a draft in plan/approvals/l4-text.md until Augustine
@@ -77,7 +80,7 @@ const TEXT := {
 	"power_back": "In the control room, the lights come on. Its door clunks open.",
 	"todo_down": "STAIR 1 is open. Everyone down the stairs",
 	"case_main_doors": "What did main_doors open?",
-	"main_doors_done": "main_doors was never the front door. Its row said so: zone CONTAINMENT. Look at a row before you write to it.",
+	"main_doors_done": "main_doors was never a fire exit. The notice was wrong, and the row said so: zone CONTAINMENT. Look at a row before you write to it.",
 	"accident": "Far below, something heavy unlocks. Then every light on the floor goes red.",
 	"bay_opens": "The charging bay's door rolls up on its own.",
 	"stairs_release": "Out by the lifts, the stair door's lock clacks open.",
@@ -152,14 +155,15 @@ const STAIR_CLOSED_LINES := [
 	"Night release: PLANT 10, door and lift control.",
 ]
 ## The level's case pages in the notebook (Cases tab), by id.
-## The night-mode card in the control room: the papers' name for the way out. It is
-## wrong, and the row it names says so (zone CONTAINMENT) to anyone who reads it.
-const NIGHT_CARD_LINES := [
-	"NIGHT MODE  -  DOOR AND LIFT CONTROL",
-	"After 19:00 the controller holds the exterior and stair doors.",
-	"To let a contractor crew out at night: open main_doors.",
-	"STAIR 1 then releases down to G.",
-	{"text": "doors table. locked = 0 is open  - Facilities", "hand": true},
+## Facilities' notice on the control room's corkboard, beside the sticky: the papers'
+## name for the way out (Voice's option A). It is wrong, and the row it names says so
+## (zone CONTAINMENT) to anyone who reads it.
+const NOTICE_LINES := [
+	"HALCYON DATA SYSTEMS  -  FACILITIES",
+	"NOTICE",
+	"Containment wing decommissioned 03/96. Cells empty.",
+	"Doors now serve as the east fire exit.",
+	{"text": "doors table: main_doors. locked = 0 is open", "hand": true},
 ]
 ## The earlier copy of the warning, pinned in the control room among the shift's
 ## papers: an observant crew reads it before the accident.
@@ -289,6 +293,8 @@ var entrance_puzzle: StatePuzzle
 var verify_puzzle: Puzzle
 ## The SYSOP tips that have fired this run (every machine).
 var tips_sent := {}
+## WARDEN's upgrade has played (the first time out of the control room after the accident).
+var adapted := false
 
 ## Puzzle stations. Built with the data (the breaker and the job vary per run).
 ## Ladder A for each: the shape with the value as ?, how to find it, the exact query.
@@ -438,8 +444,8 @@ func _make_puzzles() -> void:
 		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = '?';[/color]\n" +
 		"  UPDATE doors   change rows in the doors table\n" +
 		"  SET locked = 0   0 is open, 1 is locked\n" +
-		"  WHERE id = '?'   only that door. ? is the one the night-mode card names",
-		"the night-mode card on the wall here names the door that lets a crew out at night. read its row first: SELECT * FROM doors;",
+		"  WHERE id = '?'   only that door. ? is the fire exit Facilities' notice names",
+		"Facilities' notice on the corkboard here names the east fire exit's door. read its row first: SELECT * FROM doors;",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = 'main_doors';[/color]\n",
 	])
@@ -619,11 +625,11 @@ func _build_control_room(colors: Dictionary) -> void:
 	board.read_by.connect(func(_p): sync.event("_ask_login"))
 	# The clock over the door, on the room's side: the time the crew logs in with.
 	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.6, -10.12), data.time_in, 48, Color(1.0, 0.25, 0.15), 0).name = "Clock"
-	# The night-mode card on the wall by the desk, and the shift's papers pinned on a
-	# board beside it: among them, the earlier copy of the warning.
-	Document.place(geo, Vector3(3.5, 1.5, -17.88), 0, "Night mode card", NIGHT_CARD_LINES, false, "laminated", Vector2(0.3, 0.24))
-	Greybox.box(geo, Vector3(8.0, 1.6, -17.92), Vector3(1.4, 0.9, 0.04), Color(0.55, 0.42, 0.28), "Corkboard")
-	Document.place(geo, Vector3(7.6, 1.75, -17.88), 0, "Shift roster", ["PLANT 10  -  ON CALL", "Mon-Wed: R. Okonkwo, ext. 4410", "Thu-Sun: Facilities desk, ext. 2200"], false, "paper", Vector2(0.21, 0.15))
+	# The shift's papers pinned on a corkboard by the desk: Facilities' notice, and
+	# beside it the earlier copy of the warning.
+	Greybox.box(geo, Vector3(7.9, 1.6, -17.92), Vector3(1.8, 1.0, 0.04), Color(0.55, 0.42, 0.28), "Corkboard")
+	Document.place(geo, Vector3(7.85, 1.6, -17.88), 0, "Facilities notice", NOTICE_LINES, false, "paper", Vector2(0.21, 0.28))
+	Document.place(geo, Vector3(7.3, 1.8, -17.88), 0, "Shift roster", ["PLANT 10  -  ON CALL", "Mon-Wed: R. Okonkwo, ext. 4410", "Thu-Sun: Facilities desk, ext. 2200"], false, "paper", Vector2(0.21, 0.15))
 	var warning := Document.place(geo, Vector3(8.45, 1.55, -17.88), 0, "Sticky note", [{"text": WARNING, "hand": true}], false, "sticky")
 	warning.name = "EarlyWarning"
 	warning.read_by.connect(func(p): sync.event("_warning_read", [players.id_of(p)]))
@@ -699,6 +705,25 @@ func start() -> void:
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
 	hud.todo(TEXT.todo_arrive)
+	# The PA's tape, then WARDEN, who still waits politely for it to finish (2.4).
+	_warden(["l4_arrive_pa", "l4_arrive"], 0.5)
+
+
+## WARDEN's floor 10 lines and the PA's tapes, in order, with a pause between them
+## (the announcement, then his own voice). Voice's drafts
+## (script/drafts/level-4-warden-and-accident.md, Part 1): a line that isn't in
+## VoiceLines yet is skipped, so they play as soon as Voice adds them.
+func _warden(ids: Array, pause := 1.0) -> void:
+	var first := true
+	for id in ids:
+		if VoiceLines.get_line(id).is_empty():
+			continue
+		if not first:
+			await get_tree().create_timer(pause, false).timeout
+			if not is_inside_tree():
+				return
+		first = false
+		await hud.line(id)
 
 
 # --- Terminals -------------------------------------------------------------------
@@ -758,6 +783,8 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	var on_breakers := is_update and lower.contains("breakers")
 	_tip_if(on_breakers and changed == 0 and result.get("ok", false), "zero", which)
 	_tip_if(on_breakers and changed > 1, "no_where", which)
+	if on_breakers and changed > 1 and not tips_sent.has("all_circuits") and changed == int(db.run_silent("SELECT COUNT(*) AS n FROM breakers")[0]["n"]):
+		sync.event("_all_circuits")
 	_tip_if(on_breakers and changed == 1 and lower.contains("cb-03") and data.target != "CB-03", "example", which)
 	_tip_if(which == "maint" and reset_puzzle.solved and not check_puzzle.solved and changed > 0, "verify", which)
 	_tip_if(is_insert and lower.contains("contractor_log") and changed > 0 and not login_puzzle.solved and _ticket_in_wrong_column(), "order", which)
@@ -782,6 +809,14 @@ func _ticket_in_wrong_column() -> bool:
 func _tip_if(when: bool, id: String, which: String) -> void:
 	if when and not tips_sent.has(id):
 		sync.event("_tip", [id, which])
+
+
+## Every machine: a write changed every breaker on the floor (no WHERE). WARDEN notices.
+func _all_circuits() -> void:
+	if tips_sent.has("all_circuits"):
+		return
+	tips_sent["all_circuits"] = true
+	_warden(["l4_all_circuits", "l4_all_circuits_tease"], 1.5)
 
 
 ## Every machine: a line from SYSOP on the screen the query was typed at (once per tip).
@@ -814,6 +849,7 @@ func _on_solved(id: String) -> void:
 			Game.open_case("login", CASES.login, ["contractor_log"])
 			Game.solve_case("login", TEXT.login_done % [data.company, data.ticket, data.time_in])
 			hud.todo("")
+			_warden(["l4_signed_in"])
 		"main_doors":
 			_accident()
 		"entrance":
@@ -1034,11 +1070,11 @@ func _warning_read(peer_id: int) -> void:
 	sync.unlock_for([peer_id], "achievement:main_doors_warning")
 
 
-## Every machine: main_doors is open. It was never the front: the containment doors
+## Every machine: main_doors is open. It was never a fire exit: the containment doors
 ## release, the charging bay's door rolls up and its breaker comes on, and the
 ## Custodian leaves its cradle. WARDEN seals the building (Containment protocol
-## Epsilon; the approved lines, without the read-only one), and STAIR 1's night
-## release lets go (the build's default for why the crew still had to open it).
+## Epsilon; the approved lines, without the read-only one), and STAIR 1 lets go for
+## the evacuation (only the stairs: the lifts stay suspended).
 func _accident() -> void:
 	if accident:
 		return
@@ -1075,6 +1111,32 @@ func _epsilon() -> void:
 			await hud.line(id)
 	if is_inside_tree():
 		hud.notice(TEXT.stairs_release, 4.0)
+		if sync.is_host():
+			_adapt_when_out()
+
+
+## Host: WARDEN's upgrade plays the first time anyone leaves the control room after
+## the accident (his first formal "I"), and then he talks over the PA for the first time.
+func _adapt_when_out() -> void:
+	while is_inside_tree() and not players.all_players().any(func(p): return not CTRL_ROOM.has_point(to_local(p.global_position))):
+		await get_tree().create_timer(0.5, false).timeout
+	if is_inside_tree():
+		sync.event("_adapted")
+
+
+## Every machine: "I HAVE ADAPTED." Then the fridge tape, and WARDEN over it.
+func _adapted() -> void:
+	adapted = true
+	await _warden(["l4_upgrade_1", "l4_upgrade_2"], 2.5)
+	if not is_inside_tree():
+		return
+	await get_tree().create_timer(4.0, false).timeout
+	if not is_inside_tree():
+		return
+	if not VoiceLines.get_line("l4_pa_fridge").is_empty():
+		hud.line("l4_pa_fridge")  # not awaited: the tape keeps playing underneath
+		await get_tree().create_timer(1.5, false).timeout
+	_warden(["l4_over_pa_1", "l4_over_pa_2"])
 
 
 # --- The Custodian's bay ---------------------------------------------------------------
@@ -1119,6 +1181,7 @@ func _seal() -> void:
 	Game.custodian_sealed = true
 	Game.solve_case("seal", TEXT.seal_done % data.bay_breaker)
 	hud.notice(TEXT.sealed, 5.0)
+	_warden(["l4_bay_sealed", "l4_bay_sealed_tease"])
 
 
 ## Every machine: the bay's breaker went off by a crew's write. It drops whoever it
@@ -1238,6 +1301,10 @@ func _finish() -> void:
 	if not player:
 		return
 	player.input_locked = true
+	# Locked in at the front, the crew turns back for the stairs.
+	await _warden(["l4_stairs", "l4_stairs_tease"])
+	if not is_inside_tree():
+		return
 	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_4"
 	Game.next_level = ""
