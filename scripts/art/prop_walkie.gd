@@ -44,8 +44,9 @@ func _box(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
 
 
 ## Recolors the body (a player's walkie skin). The base, grille, screen and LED stay.
-func set_skin(color: Color) -> void:
-	shell.material_override = ArtPalette.flat(color, 0.55)
+## `metal` > 0 gives it a polished finish (the gold walkie).
+func set_skin(color: Color, metal: float = 0.0) -> void:
+	shell.material_override = ArtPalette.flat(color, 0.55 if metal <= 0.0 else 0.3, metal)
 
 
 func set_transmitting(value: bool) -> void:

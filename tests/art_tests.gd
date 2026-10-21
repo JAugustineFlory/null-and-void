@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_actions()
 	await test_rig_budget()
 	test_outfits()
+	test_unlockable_items()
 	await test_props()
 	test_kits()
 	await test_held_items()
@@ -195,11 +196,13 @@ func test_outfits() -> void:
 		for hair in CharacterLooks.SLOTS.hair:
 			for head in CharacterLooks.SLOTS.head:
 				for jacket in CharacterLooks.SLOTS.jacket:
-					var loadout := {"body": body, "hair": {"item": hair}, "head": {"item": head}, "jacket": {"item": jacket},
-						"top": {"item": "polo"}, "face": {"item": "glasses"}, "ears": {"item": "studs"}, "belt": {"item": "radio"}}
-					var rig := CharacterRig.build(Node3D.new(), CharacterLooks.outfit(loadout))
-					most = maxi(most, rig.part_count())
-					rig.get_parent().free()
+					for face in CharacterLooks.SLOTS.face:
+						for feet in CharacterLooks.SLOTS.feet:
+							var loadout := {"body": body, "hair": {"item": hair}, "head": {"item": head}, "jacket": {"item": jacket},
+								"top": {"item": "polo"}, "face": {"item": face}, "feet": {"item": feet}, "ears": {"item": "studs"}, "belt": {"item": "radio"}}
+							var rig := CharacterRig.build(Node3D.new(), CharacterLooks.outfit(loadout))
+							most = maxi(most, rig.part_count())
+							rig.get_parent().free()
 	check(most <= 32, "every outfit combination stays within 32 mesh pieces (most: %d)" % most)
 	var plain := CharacterLooks.outfit({})
 	check(plain.body == 1 and plain.hair_style == "short" and plain.headwear == null and plain.jacket == null and plain.belt_radio, "an empty loadout is a plain crew member with a radio")
@@ -214,6 +217,63 @@ func test_outfits() -> void:
 	check(hatted.part_count() == bare.part_count() + 1, "a cap covers the top of the hair, and long hair still shows below it")
 	hatted.get_parent().free()
 	bare.get_parent().free()
+	# Every item looks different from its slot's default, so an unlock is worth wearing.
+	var same: Array[String] = []
+	for slot in CharacterLooks.SLOTS:
+		var plain_look := CharacterLooks.outfit({slot: {"item": CharacterLooks.SLOTS[slot][0]}})
+		for item in CharacterLooks.SLOTS[slot].slice(1):
+			if CharacterLooks.outfit({slot: {"item": item}}) == plain_look:
+				same.append("%s/%s" % [slot, item])
+	check(same.is_empty(), "every item changes how the player looks (same as the default: %s)" % [same])
+
+
+func test_unlockable_items() -> void:
+	# The first ten unlocks (plan/approvals/unlocks.md): Graphics can draw every one.
+	for key in ["notebook/easy_sql", "face/reading_glasses", "top/byte_right_polo", "feet/high_tops", "head/hard_hat",
+			"terminal/amber", "jacket/security", "head/mercer_cap", "walkie/gold", "jacket/press"]:
+		var parts: PackedStringArray = key.split("/")
+		var drawn: Array = CharacterLooks.SLOTS.get(parts[0], CharacterLooks.TOOL_ITEMS.get(parts[0], []))
+		check(parts[1] in drawn, "%s can be drawn" % key)
+	var red := Color(0.8, 0.1, 0.1)
+	var readers := CharacterLooks.outfit({"face": {"item": "reading_glasses", "color": red}})
+	check(readers.readers == red and not readers.glasses, "reading glasses are their own half-moon pair, in the picked color")
+	var polo := CharacterLooks.outfit({"top": {"item": "byte_right_polo"}})
+	check(polo.collar and polo.logo == ArtPalette.BYTERIGHT_BLUE, "the Byte-Right polo has a collar and the company's blue logo")
+	check(CharacterLooks.outfit({"feet": {"item": "high_tops"}}).high_tops, "high-tops come up over the ankle")
+	var guard := CharacterLooks.outfit({"jacket": {"item": "security", "color": red}})
+	check(guard.jacket == red and guard.jacket_closed and guard.jacket_badge is Color, "the security jacket is zipped, takes the picked color, and wears a metal badge")
+	var press := CharacterLooks.outfit({"jacket": {"item": "press"}})
+	check(press.jacket_closed and press.badge and press.logo == null, "the press jacket is zipped with a press pass clipped on")
+	check(CharacterLooks.outfit({"head": {"item": "mercer_cap"}}).headwear == "mercer_cap", "Mercer's cap is a hat of its own")
+	var zipped := CharacterRig.build(Node3D.new(), guard)
+	var open_jacket := CharacterRig.build(Node3D.new(), CharacterLooks.outfit({"jacket": {"item": "jacket", "color": red}}))
+	check(zipped.part_count() <= open_jacket.part_count(), "a zipped jacket and its badge cost no more pieces than an open jacket")
+	zipped.get_parent().free()
+	open_jacket.get_parent().free()
+	# Tool finishes: gold, Easy SQL and amber draw in their own color, whatever was picked.
+	var look := CharacterLooks.outfit({})
+	look.tools = {"walkie": {"item": "gold", "color": red}, "notebook": {"item": "easy_sql", "color": red},
+		"terminal": {"item": "amber", "color": red}, "flashlight": {"item": "standard", "color": red}}
+	check(CharacterLooks.tool_color(look, "walkie") == CharacterLooks.FIXED_COLORS["walkie/gold"], "a gold walkie is gold, not the picked color")
+	check(CharacterLooks.tool_color(look, "flashlight") == red, "tintable tools still take the picked color")
+	check(CharacterLooks.terminal_skin(look.tools.terminal) == CharacterLooks.FIXED_COLORS["terminal/amber"], "an amber terminal draws in amber")
+	check(CharacterLooks.terminal_skin({"item": "phosphor"}) == TerminalScreen.PHOSPHOR and CharacterLooks.terminal_skin(null) == TerminalScreen.PHOSPHOR, "with no pick the terminal stays green")
+	check(CharacterLooks.tool_item(look, "notebook") == "easy_sql" and CharacterLooks.tool_item({"tools": {"walkie": {"item": "diamond"}}}, "walkie") == "standard", "an unknown tool item falls back to the standard one")
+	var stage := _stage()
+	var cam := Camera3D.new()
+	stage.add_child(cam)
+	var held := HeldItems.attach(cam, look)
+	var shell := held.walkie.shell.material_override as StandardMaterial3D
+	check(shell.albedo_color == CharacterLooks.FIXED_COLORS["walkie/gold"] and shell.metallic > 0.0, "the held gold walkie has a polished finish")
+	var book := HeldNotebook.attach(cam, look)
+	var view := NotebookView.new()
+	book.set_content(view)
+	check(view.cover_art == "easy_sql" and view.cover == CharacterLooks.FIXED_COLORS["notebook/easy_sql"], "the Easy SQL notebook wears the book's teal cover and its art")
+	var spiral := HeldNotebook.attach(cam, CharacterLooks.outfit({}))
+	var plain_view := NotebookView.new()
+	spiral.set_content(plain_view)
+	check(plain_view.cover_art == "", "a standard notebook has no printed cover")
+	stage.free()
 
 
 func test_rig_budget() -> void:
