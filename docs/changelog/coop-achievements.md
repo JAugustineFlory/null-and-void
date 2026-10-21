@@ -1,1 +1,0 @@
-- **Added:** an Achievements tab in the co-op lobby, and a notice when you earn one. Secret ones stay hidden until you find them.
