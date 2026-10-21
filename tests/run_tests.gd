@@ -168,6 +168,7 @@ func _group_coop() -> void:
 	await test_coop_sitting()
 	await test_coop_unlocks()
 	await test_coop_achievements()
+	await test_coop_scripts()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -1802,6 +1803,79 @@ func test_coop_looks() -> void:
 	net.looks = {}
 	net.wanted_look = {}
 	net.profile = real_profile
+
+
+## Deck scripts in co-op (S4): the host runs them, everyone sees the same run,
+## anyone can stop one, and what a script changes reaches every copy.
+func test_coop_scripts() -> void:
+	print("Co-op: deck scripts")
+	_game().new_run(31)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	var terms: Array = levels.map(func(l): return l.find_children("*", "", true, false).filter(func(n): return n is Terminal)[0])
+	await _frames(2)
+	var rts: Array = terms.map(func(t): return t.get_meta("script_runtime") if t.has_meta("script_runtime") else null)
+	check(rts.all(func(r): return r is NetScript), "in co-op every terminal's script is shared")
+	var js := ScriptRuntime.for_language("javascript")
+	check(rts[1].language() == "javascript" and (not js.has_method("placeholder") or rts[1].placeholder() == js.placeholder()), "and the runner still knows its language")
+	# A route that counts what reaches each machine's copy of the building.
+	var tallies := [0, 0]
+	for i in 2:
+		var api := FacilityAPI.new()
+		api.route("POST", "/tally", func(_params, _req):
+			tallies[i] += 1
+			return {"status": 200, "body": {"ok": true}})
+		terms[i].api = api
+	var code := "console.log('hi');\nawait sleep(500);\nawait api.post('/tally', { n: 1 });\nconsole.log('done');"
+	var host_rt: NetScript = rts[0]
+	var client_rt: NetScript = rts[1]
+	check(client_rt.compile(code).ok, "a client's runner checks the script itself")
+	client_rt.start(null)
+	await _frames(10)
+	check(levels[0].sync.scripts.is_running(terms[0]) and host_rt.is_running() and client_rt.is_running(), "Run on a client runs the script on the host, and both runners show it running")
+	check(host_rt.history == [["hi", "log"]] and client_rt.history == [["hi", "log"]], "what it prints shows on every machine")
+	check(terms.all(func(t): return t.get_meta("script_code", "") == code), "and the running script is the terminal's saved script everywhere")
+	for f in 300:
+		await physics_frame
+		if not client_rt.is_running():
+			break
+	await _frames(5)
+	check(host_rt.state == ScriptRuntime.State.DONE and client_rt.state == ScriptRuntime.State.DONE and client_rt.history.back() == ["done", "log"],
+		"both see it finish")
+	check(tallies == [1, 1], "its POST changed the host's building and was replayed on the client's copy (%s)" % [tallies])
+	check(client_rt.clock() >= 0.5, "with the host's run time (%.2f s)" % client_rt.clock())
+	# Anyone can stop it.
+	check(host_rt.compile("while (true) {\n  await sleep(100);\n}").ok, "the host's runner checks a loop")
+	host_rt.start(null)
+	await _frames(10)
+	check(client_rt.is_running(), "a loop the host started runs on the client's screen too")
+	client_rt.stop()
+	await _frames(10)
+	check(not levels[0].sync.scripts.is_running(terms[0]) and host_rt.state == ScriptRuntime.State.STOPPED and client_rt.state == ScriptRuntime.State.STOPPED and client_rt.error.is_empty(),
+		"and the client's Stop stops it for everyone")
+	# The runner on a client drives the host's run.
+	var ed := ScriptEditorUI.new()
+	root.add_child(ed)
+	ed.open(client_rt, {"code": "console.log('from the runner');"})
+	ed.run()
+	await _frames(10)
+	check(ed.log_text().contains("from the runner") and host_rt.history == [["from the runner", "log"]], "a client's script runner runs on the host and shows its log")
+	ed.close()
+	ed.queue_free()
+	# A teammate who opens the runner mid-run sees the log so far.
+	check(client_rt.compile("console.log('first');\nwhile (true) {\n  await sleep(100);\n}").ok, "a client checks a watchdog loop")
+	client_rt.start(null)
+	await _frames(10)
+	var late := ScriptEditorUI.new()
+	root.add_child(late)
+	late.open(host_rt, {})
+	check(late.log_text().begins_with("--- running ---") and late.log_text().contains("first"), "a runner opened mid-run shows the run so far")
+	late.stop()
+	await _frames(10)
+	check(not client_rt.is_running() and late.log_text().contains("--- stopped"), "and its Stop ends it for everyone")
+	late.close()
+	late.queue_free()
+	await _coop_close(worlds)
 
 
 ## Named achievements: a notice when earned, and a list in the lobby.
