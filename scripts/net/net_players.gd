@@ -167,14 +167,17 @@ func _physics_process(delta: float) -> void:
 	var light_on: bool = player.flashlight.visible if player.get("flashlight") else false
 	# Stance height covers standing, crouching and crawling in vents alike.
 	var height: float = player.get("stance_height") if player.get("stance_height") != null else PlayerPuppet.STAND_HEIGHT
-	_state.rpc(player.global_position, player.rotation.y, pitch, height, light_on)
+	var sit := PlayerPuppet.Sit.NONE
+	if player.has_method("is_sitting") and player.is_sitting():
+		sit = PlayerPuppet.Sit.CHAIR if player.get("seat") != null else PlayerPuppet.Sit.FLOOR
+	_state.rpc(player.global_position, player.rotation.y, pitch, height, light_on, sit)
 
 
 @rpc("any_peer", "unreliable_ordered", "call_remote", 1)
-func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool) -> void:
+func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool, sit: int) -> void:
 	var p: PlayerPuppet = _puppets.get(multiplayer.get_remote_sender_id())
 	if p:
-		p.apply_state(pos, yaw, pitch, height, light_on)
+		p.apply_state(pos, yaw, pitch, height, light_on, sit)
 
 
 func _on_peer_left(id: int) -> void:

@@ -16,13 +16,14 @@ func _initialize() -> void:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coop", "movement", "teaching"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coop", "movement", "teaching", "teaching_lab"]
 
 
 func _run() -> void:
 	# The full-screen notebook and terminal; test_in_world_ui covers the held and on-screen ones.
 	_game().diegetic_ui = false
-	root.get_node("/root/Net").profile = Profile.new()  # in memory: unlocks earned in tests never reach a real save
+	# Book huddles and pickups earn unlocks: keep them off this computer's real save.
+	root.get_node("Net").profile = Profile.new()
 	var only := _groups_from_args()
 	for g in only:
 		if g not in GROUPS:
@@ -54,6 +55,7 @@ func _run_group(g: String) -> void:
 		"coop": await _group_coop()
 		"movement": await _group_movement()
 		"teaching": await _group_teaching()
+		"teaching_lab": await _group_teaching_lab()
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -128,6 +130,7 @@ func _group_coop() -> void:
 	await test_coop_terminal_screens()
 	await test_coop_notes_huddle()
 	await test_coop_looks()
+	await test_coop_sitting()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
@@ -143,6 +146,11 @@ func _group_movement() -> void:
 func _group_teaching() -> void:
 	await load("res://tests/teaching_tests.gd").new().run(self, check)
 	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
+
+
+## The second lab seed's paced walk, on its own so neither teaching group runs long.
+func _group_teaching_lab() -> void:
+	await load("res://tests/teaching_tests.gd").new().run(self, check, "lab")
 
 
 func check(cond: bool, name: String) -> void:
@@ -1631,6 +1639,35 @@ func test_coop_looks() -> void:
 	net.looks = {}
 	net.wanted_look = {}
 	net.profile = real_profile
+
+
+func test_coop_sitting() -> void:
+	print("Co-op: teammates see you sit")
+	_game().new_run(12)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	var c_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var sitter: Player = levels[1].player
+	var seen: PlayerPuppet = levels[0].players.puppet(c_id)
+	await _frames(20)
+	# A chair right where they stand, its seat 0.45 m up.
+	var top := sitter.global_position + Vector3(0, 0.45, 0)
+	var chair := Seat.create_at(levels[1], top, sitter.rotation.y)
+	check(sitter.sit(chair), "the client sits on a chair")
+	await _frames(40)
+	var hip: Vector3 = seen.rig.joints["r_hip"].global_position
+	check(seen.sitting == PlayerPuppet.Sit.CHAIR and seen.rig.action == "sit", "the host sees them sitting on it")
+	check(absf(hip.y - (top.y + PlayerPuppet.SEAT_THIGH)) < 0.08, "with their hips on the seat, not floating above it (%.2f m off)" % (hip.y - top.y - PlayerPuppet.SEAT_THIGH))
+	sitter.stand_up(true)
+	await _frames(20)
+	check(seen.sitting == PlayerPuppet.Sit.NONE and seen.rig.action == "idle" and seen.find_child("Body", false, false).position.y == 0.0, "and back on their feet when they stand up")
+	check(sitter.sit(null), "the client sits on the floor")
+	await _frames(20)
+	check(seen.sitting == PlayerPuppet.Sit.FLOOR and seen.find_child("Body", false, false).position.y == 0.0
+		and seen.rig.action == "sit_floor", "the host sees them sitting on the floor where they are")
+	sitter.stand_up(true)
+	chair.queue_free()
+	await _coop_close(worlds)
 
 
 func test_coop_world() -> void:
