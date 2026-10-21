@@ -73,6 +73,11 @@ func _ready() -> void:
 	root.add_child(_fade)
 
 
+## The dot in the middle of the view; hidden while a mouse pointer is out instead.
+func set_crosshair(on: bool) -> void:
+	_crosshair.visible = on
+
+
 func set_prompt(text: String) -> void:
 	_prompt.text = text
 

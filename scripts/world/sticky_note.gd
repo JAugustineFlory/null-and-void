@@ -142,6 +142,23 @@ static func write_down(game: Node, hud: Node, id: String) -> void:
 		hud.notice("Added to your notebook (Tab): %s" % title, 4.0)
 
 
+## A handwritten sticky (a Document) lands in this machine's notebook: its
+## `clues` go on their case pages (under Other notes until the case opens), or
+## with none it's kept under Other notes.
+static func write_sticky(game: Node, hud: Node, clues: Array, title: String, text: String) -> void:
+	for k in clues:
+		if k.has("opens"):
+			game.open_case(k.case, k.opens, k.get("tables", []))
+		if game.case_info(k.case).get("open", false):
+			game.add_clue(k.case, k.text, title)
+		else:
+			game.note_aside(title, k.text, "document", k.case)
+	if clues.is_empty():
+		game.note_aside(title, text, "document")
+	if hud:
+		hud.notice("Added to your notebook (Tab): %s" % title, 4.0)
+
+
 ## Only the local player's pickups go in this machine's notebook.
 func _is_local(player: Node) -> bool:
 	var level := _level()

@@ -16,8 +16,6 @@ var badges: ItemDock
 ## Players ready up by pressing E on their seat-belt buckle. Co-op raises this to the
 ## number of connected players; solo play starts as soon as one is ready.
 var players_needed := 1
-## Which seat each player starts in, by player number (0 = host): front seats first.
-const SEAT_ORDER := [1, 0, 2, 3, 4, 5]
 ## player -> the van seat they climb out of
 var ready_players := {}
 ## Each seat: spawn transform, seat-belt buckle, which door it exits by, its handle, and the
@@ -283,7 +281,7 @@ func build() -> void:
 	# Already waiting outside the front doors when the van pulls up.
 	rourke.position = ROURKE_OUTSIDE
 	rourke.rotation.y = PI  # looking out at the lot
-	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
+	spawn = global_transform.affine_inverse() * van_seats[seat_for(0)].spawn  # the host's own van seat
 	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
 
 
@@ -575,14 +573,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		_aim(_look_base, _look_player)
 
 
-## Where a player sits at the start. Solo play uses the passenger seat.
+## Where a player sits at the start.
 func seat_spawn(index: int) -> Transform3D:
 	return van_seats[index].spawn
 
 
 ## Player number `index` (0 = host) starts in their own van seat.
 func player_spawn(index: int) -> Transform3D:
-	return seat_spawn(SEAT_ORDER[index % SEAT_ORDER.size()])
+	return seat_spawn(seat_for(index))
+
+
+## The seat player number `index` took in the van at home base (Game.van_seating),
+## so nobody changes seats on the way. Without one (a game started here), seats
+## go in order: the driver's first.
+func seat_for(index: int) -> int:
+	var ids := NetPlayers.ids_for(multiplayer)
+	var seating: Array = get_node("/root/Game").van_seating
+	var at := seating.find(ids[index]) if index < ids.size() else -1
+	return at if at >= 0 and at < van_seats.size() else index % van_seats.size()
 
 
 func start() -> void:

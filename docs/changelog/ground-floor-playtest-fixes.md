@@ -1,0 +1,4 @@
+- **Fixed:** every sticky note goes into your notebook, as a clue on its case page or under Other notes. None of them opens up as a paper any more.
+- **Fixed:** long case titles and notes wrap on their own page instead of running over the binding.
+- **Changed:** while reading the notebook or a paper, the pointer reaches every part of it, and pushing it past the edge turns your view. Right-click no longer looks around, and the pages' buttons always respond.
+- **Fixed:** you arrive at the building in the same van seat you took in the garage.

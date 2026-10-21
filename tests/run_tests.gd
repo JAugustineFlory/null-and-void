@@ -839,7 +839,11 @@ func test_level_0_scene() -> void:
 	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
 	check(not level.front_doors.is_open, "front doors start closed")
 	check(level.van_seats.size() == 6, "the van seats six")
-	check(level.seat_spawn(1).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the passenger seat")
+	check(level.seat_spawn(0).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the driver's seat, where you got in at home base")
+	_game().van_seating.assign([7, level.multiplayer.get_unique_id()])
+	check(level.seat_for(0) == 1, "each player arrives in the seat they took at home base")
+	_game().van_seating.clear()
+	level.player.global_transform = level.seat_spawn(1)  # the rest climbs out of the passenger side
 	check(level.player.seated and level.find_children("Windscreen", "", true, false).size() == 1, "players start belted in, behind a solid windscreen")
 	check(level.rourke.global_position.distance_to(level.ROURKE_OUTSIDE) < 0.3 and level.rourke.visible, "Rourke is already waiting outside the front doors")
 	var exits: Array = level.van_seats.map(func(s): return s.exit)
@@ -3790,6 +3794,16 @@ func test_notebook() -> void:
 	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
 	var written_text := nb.pages.section_text(NotebookPages.Page.CASES)
 	check(written_text.contains("Other notes") and written_text.contains("memo scraps") and written_text.contains("piece_no") and not written_text.contains("Sticky notes"), "lines copied with no case open go under Other notes on the Cases page, with their labels")
+	# A long case title wraps on its own page: nothing pushes the pages out over the spine.
+	_game().open_case("long_title", "Who signed in last? The book's last page is gone, and nobody owns up to it.")
+	_game().add_clue("long_title", "Rourke: the front desk scanner \"ate\" one of Vale's memos. The scanner's card might say where it went.", "Rourke")
+	nb.pages.show_page(NotebookPages.Page.CASES)
+	await process_frame
+	var page_w := (NotebookView.BOOK_SIZE.x - NotebookView.SPINE) / 2.0 - NotebookView.PAGE_INSET.x - 100
+	var within := func(page: VBoxContainer) -> bool:
+		return page.size.x <= page_w + 0.5 and page.get_children().all(func(c): return c.get_combined_minimum_size().x <= page_w)
+	check(within.call(nb.pages.book.left) and within.call(nb.pages.book.right), "a long case title and clue wrap within their page")
+	_game().notebook_cases.assign(_game().notebook_cases.filter(func(c): return c.id != "long_title"))
 	nb.close()
 	var saved: Dictionary = _game().notebook_data()
 	_game().new_run(4)
@@ -4008,7 +4022,7 @@ func test_pick_up_papers() -> void:
 	form.queue_free()
 	# The sticky by the keyboard can be picked up and read; desk stickies are drawn big.
 	var stickies: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Sticky note")
-	check(stickies.filter(func(d): return d.plain_text().contains("ORDER matters.")).size() == 1, "the sticky by the keyboard is a note you can pick up and read")
+	check(stickies.filter(func(d): return d.plain_text().contains("ORDER matters.") and d.is_sticky() and d.prompt == "Take the sticky note").size() == 1, "the sticky by the keyboard is a sticky note you take, not a paper you read")
 	check(stickies.any(func(d): return d.plain_text().contains("ORDER BY ... DESC") and d.position.distance_to(Vector3(-2.25, 1.102, -0.72)) < 0.5), "and the night desk's DESC reminder sits by the visitor book")
 	var desk_sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
 	check(desk_sticky.find_child("StickyNote", false, false).scale.x > 1.2, "stickies lying on the desk are drawn big enough to read standing up")
@@ -4034,6 +4048,34 @@ func test_pick_up_papers() -> void:
 			break
 		await physics_frame
 	check(_game().notebook_notes.has(id) and not is_instance_valid(sticky), "once it lands it's in the notebook, and gone from the desk")
+	# A handwritten sticky goes the same way, never up in your hands as a paper:
+	# its clue waits under Other notes until its case opens.
+	var order: Document = stickies.filter(func(d): return d.plain_text().contains("ORDER matters."))[0]
+	for i in 60:
+		if not p.is_filing() and level.notebook.is_open():
+			break
+		await physics_frame
+	level.notebook.close()
+	for i in 60:
+		await physics_frame
+	order._on_used(p)
+	check(p.held_prop == null and p.is_filing() and level.notebook.is_open() and level.notebook.pages.current_page() == NotebookPages.Page.CASES, "a handwritten sticky goes onto the Cases page, not up in your hands")
+	for i in 240:
+		if not p.is_filing():
+			break
+		await physics_frame
+	var noted: Array = _game().notebook_written.filter(func(w): return w.text.contains("ORDER matters."))
+	check(noted.size() == 1 and noted[0].case == "memo" and not is_instance_valid(order), "once it lands its clue is in the notebook for the memo case, and it's gone from the desk")
+	check(level.notebook.pages.section_text(NotebookPages.Page.CASES).contains("ORDER matters."), "kept under Other notes until the memo case opens")
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?")
+	var memo_page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
+	check(memo_page.contains("ORDER matters.") and memo_page.find("ORDER matters.") > memo_page.find("shredded memo"), "and on the memo's page once it opens")
+	# One stuck on a wall stays there; each player copies it.
+	var wall := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Sticky note", [{"text": "Bulb's dead.", "hand": true}], false, "sticky")
+	check(wall.prompt == "Copy the sticky note into your notebook", "a sticky on a wall is copied")
+	wall.take_sticky(null)
+	await physics_frame
+	check(is_instance_valid(wall) and wall.visible and wall.get_prompt(p) == "" and _game().notebook_written.any(func(w): return w.text == "Bulb's dead." and w.case == ""), "it stays on the wall, and with no case it goes under Other notes")
 	_game().diegetic_ui = false
 	level.queue_free()
 	await process_frame

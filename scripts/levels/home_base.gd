@@ -407,6 +407,7 @@ func _on_boarded(id: int) -> void:
 	if boarded.has(id):
 		return
 	boarded.append(id)
+	get_node("/root/Game").van_seating.append(id)  # Level 0 seats them the same way
 	var body := players.puppet(id)
 	var seat := to_global(van_seats[(boarded.size() - 1) % van_seats.size()])
 	if body == player:

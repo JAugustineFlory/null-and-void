@@ -36,6 +36,9 @@ var query_log: Array[String] = []
 var concepts_learned: Array[String] = []
 ## Seed for this run's randomized data (replay scenarios).
 var run_seed := 0
+## Who got into the van at home base, in the order they climbed in (peer ids):
+## the n-th one took seat n, and arrives at Halcyon in that same seat.
+var van_seating: Array[int] = []
 ## A new game opens in the crew's garage before the van (the World reads this).
 var open_at_home := false
 ## Words the crew has learned from its books, in order (see Huddle).
@@ -105,6 +108,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_cases.clear()
 	notebook_jotted.clear()
 	inventory.clear()
+	van_seating.clear()
 
 
 func goto(level_key: String) -> void:
@@ -144,6 +148,14 @@ func discover_table(table: String, columns: Array) -> void:
 func write_note(label: String, text: String, kind: String, case_id: String = "") -> void:
 	if case_id == "" or not case_info(case_id).get("open", false):
 		case_id = current_case()
+	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
+	notebook_changed.emit()
+
+
+## Keep a note under Other notes on the Cases page, whatever case is open: a fact
+## with no case of its own, or (with `case_id`) for a case that isn't open yet,
+## whose page it moves to once it opens.
+func note_aside(label: String, text: String, kind: String, case_id: String = "") -> void:
 	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
 	notebook_changed.emit()
 
@@ -274,8 +286,7 @@ func jot(id: String, line: Dictionary) -> bool:
 	else:
 		# A fact with no case of its own, or whose case isn't open (yet, or on a floor
 		# that opens none), goes under Other notes, whatever case is open.
-		notebook_written.append({"label": who, "text": text, "kind": "jot", "case": ""})
-		notebook_changed.emit()
+		note_aside(who, text, "jot")
 	return true
 
 

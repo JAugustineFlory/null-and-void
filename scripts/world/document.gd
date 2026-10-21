@@ -33,6 +33,10 @@ var read_face := Vector3.BACK
 ## What reading it adds to the reader's case pages: [{case, text}] (see Game.add_clue).
 ## A clue with "opens" (a case title, and optional "tables") opens that case too.
 var clues: Array = []
+## Lying on a desk rather than up on a wall or a monitor.
+var flat := false
+## A sticky this player has already copied into their notebook.
+var _copied := false
 
 
 ## `lines` is an Array of Strings (typed lines) or Dictionaries (see doc_lines).
@@ -45,7 +49,12 @@ static func place(parent: Node, pos: Vector3, facing_deg: float, doc_title: Stri
 	d.look = doc_look
 	for l in lines:
 		d.doc_lines.append(_line(l))
-	d.prompt = "Read: %s" % doc_title
+	d.flat = flat
+	# A sticky goes into the notebook like StickyNote's: taken off a desk, copied off a wall.
+	if doc_look == "sticky":
+		d.prompt = "Take the sticky note" if flat else "Copy the sticky note into your notebook"
+	else:
+		d.prompt = "Read: %s" % doc_title
 	d.local_only = true
 	d.position = pos
 	d.rotation_degrees.y = facing_deg
@@ -259,9 +268,23 @@ static func _lines_height(lines: Array, font_size: int, width_px: float) -> floa
 	return h
 
 
+func get_prompt(player: Node) -> String:
+	if is_sticky() and _copied:
+		return ""
+	return super(player)
+
+
+## A handwritten sticky note: it goes into the notebook, never up in your hands.
+func is_sticky() -> bool:
+	return look == "sticky"
+
+
 func _on_used(player: Node) -> void:
 	var level := _level()
 	if level and level.get("player") != null and player != level.player:
+		return
+	if is_sticky():
+		take_sticky(player)
 		return
 	if get_node("/root/Game").diegetic_ui and player.has_method("pick_up"):
 		pick_up(player)
@@ -280,6 +303,47 @@ func pick_up(player: Node) -> DocumentReader:
 	_note_clues()
 	_report_read(player)
 	return reader
+
+
+## A sticky note goes into this player's notebook, as StickyNote's do: held in
+## your hands (Game.diegetic_ui) you watch it go onto the Cases page first, and
+## it's written down when it lands. Its clues go on their case pages; one with
+## no case is kept under Other notes. A loose one is taken off the desk for
+## everyone; one stuck to a wall or a monitor stays, and each player copies it.
+func take_sticky(player: Node) -> void:
+	if _copied:
+		return
+	_copied = true
+	var game := get_node("/root/Game")
+	var level := _level()
+	var hud = level.hud if level and level.get("hud") else null
+	var write := StickyNote.write_sticky.bind(game, hud, clues.duplicate(true), title, plain_text())
+	var filed := false
+	if game.diegetic_ui and player and player.has_method("file_into_notebook"):
+		if level and level.get("notebook") and not level.notebook.is_open():
+			level.notebook.open(NotebookPages.Page.CASES)  # where it's written down
+		filed = player.file_into_notebook(self, not flat)
+	if filed:
+		player.sticky_filed.connect(func(_p): write.call(), CONNECT_ONE_SHOT)
+	else:
+		write.call()  # hands busy: it still goes in
+	_report_read(player)
+
+
+## Every machine: a loose sticky has been taken. While it's still flying onto
+## the taker's page it's only hidden, and freed once it lands.
+func _take_away() -> void:
+	remove_from_group("interactable")
+	visible = false
+	for c in get_children():
+		if c is CollisionShape3D:
+			c.set_deferred("disabled", true)
+	var level := _level()
+	var p: Node = level.player if level else null
+	if p and p.has_method("is_filing") and p.is_filing() and p.has_signal("sticky_filed"):
+		p.sticky_filed.connect(func(_n): queue_free(), CONNECT_ONE_SHOT)
+	else:
+		queue_free()
 
 
 ## Open this document on this machine's screen. Returns the reader.
@@ -313,12 +377,18 @@ func _note_clues() -> void:
 func _report_read(player: Node) -> void:
 	var sync := LevelSync.of(self)
 	if sync == null or not sync.forward(self, "report_open"):
-		read_by.emit(player)
+		report_open(player)
 
 
-## Host: a client read it.
+## Host: someone read it (or took it, if it's a loose sticky).
 func report_open(player: Node) -> void:
 	read_by.emit(player)
+	if is_sticky() and flat and is_in_group("interactable"):
+		var sync := LevelSync.of(self)
+		if sync:
+			sync.run_on(self, "_take_away")
+		else:
+			_take_away()
 
 
 ## The level this document is in. Duck-typed, like StickyNote, so the test
