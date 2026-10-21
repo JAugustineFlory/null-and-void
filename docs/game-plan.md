@@ -1,6 +1,6 @@
 # NULL & VOID: Game Plan (v3)
 
-*Repo copy of the project's living plan, synced on 2026-10-21. Paths starting `plan/` are planning files kept in the project's shared files, not in this repo.*
+*Repo copy of the project's living plan, synced on 2026-10-21 (floors for Levels 4 to 14 added). Paths starting `plan/` are planning files kept in the project's shared files, not in this repo.*
 
 *Working title. Alternatives: **SELECT * FROM Shadows**, **Dead Lock**, **Root Access**.*
 
@@ -8,7 +8,7 @@ A first-person co-op survival-horror detective escape game for 1 to 6 players. Y
 
 **Feel references:** The Backrooms (a new entity per level), Lethal Company and R.E.P.O. (radio co-op horror), Destiny (fluid first-person movement), Mirror's Edge (traversal), Keep Talking and Nobody Explodes (split information).
 
-**What changed in v3:** code is now required on every critical path; locking doors behind you is a running mechanic; the story opens with a traitor escort and ends with an evidence escape and a hidden rescue; the safe room has a real backstory; all-terminal events scale with player count; the portable deck gains upgrades and player-built UI; a lights-out level was added; the curriculum is spread and interleaved over 12 levels; testing (TDD) is a core thread; the cap is now 6 players.
+**What changed in v3:** code is now required on every critical path; locking doors behind you is a running mechanic; the story opens with a traitor escort and ends with an evidence escape and a hidden rescue; the safe room has a real backstory; all-terminal events scale with player count; the portable deck gains upgrades and player-built UI; a lights-out level was added; the curriculum is spread and interleaved over 15 levels (0 to 14, three acts and a finale; see section 11); testing (TDD) is a core thread; the cap is now 6 players.
 
 ---
 
@@ -20,7 +20,7 @@ A first-person co-op survival-horror detective escape game for 1 to 6 players. Y
 4. **Trust, then verify (then test).** Terminals can lie. Checking your work, and later writing tests, is how you survive.
 5. **Code is always the key; skill picks the route.** *(Revised.)* No critical path can be completed without writing code. Movement, teamwork and nerve change *which* path you take, how fast, and what you avoid, but never replace the code. See section 5.
 6. **Seal what's behind you.** Entities follow. Locking, quarantining and shutting things down behind you is part of every level.
-7. **Completable.** About 12 levels, 30 to 45 minutes each, roughly 7 to 8 hours. Each level ends with a "Field Notes" card.
+7. **Completable.** 15 levels (12 if the schedule needs it), 30 to 45 minutes each, roughly 8 to 10 hours. Each level ends with a "Field Notes" card.
 
 ---
 
@@ -177,10 +177,10 @@ Found in Level 4. A ruggedized 1997 laptop that plugs into any network jack.
 | Battery pack | Level 4 | Longer use away from jacks |
 | Wireless card | Level 6 | Query near access points, no jack needed |
 | Camera feed | Level 7 | View CCTV on the deck |
-| Script runner | Level 8 | Save and rerun your own scripts |
+| Script runner | Level 6 | Save and rerun your own scripts (the deck's script editor arrives here) |
 | **Custom UI** | Level 10 | Build your own deck apps in HTML/CSS/JS: a cork-board replacement, an entity tracker, a dashboard |
 
-Custom UI is a real reward for strong players: an endless sandbox where what you learned in Act III becomes your own tool.
+Custom UI is a real reward for strong players: an endless sandbox where what you learned in Act 3 becomes your own tool.
 
 ---
 
@@ -197,7 +197,7 @@ Before an event, players secure their rooms (lock doors, kill lights, check came
 
 **Solo version:** write a script on the deck that sends the commands to the other terminals for you, and trigger it from the one you're at. Doing it by hand is possible but frantic.
 
-Appears in Levels 8 and 11, with a smaller 2-terminal teaser in Level 4.
+Appears in Levels 11 and 14, with a smaller 2-terminal teaser in Level 4.
 
 ---
 
@@ -238,11 +238,11 @@ Testing grows through the whole game, tied to "trust, then verify":
 | Stage | Level | What players do |
 |---|---|---|
 | **Read tests** | 1 | WARDEN's diagnostics print pass/fail checks. Players read them to find what's broken and where to go. |
-| **Verify after writing** | 2 to 4 | Run a `SELECT` after every `UPDATE`. A check query that should return 0 rows is a test. |
-| **Write checks** | 5 to 6 | Save check queries on the deck; rerun them to see whether a door, zone or record is in the right state. |
-| **Write assertions** | 7 to 8 | `assert(lights.on === true)` in a watchdog script; API response checks (`expect(status).toBe(200)`). |
-| **Test first (TDD)** | 9 | Write tests that describe what the Custodian should do, watch them fail, fix the code, watch them pass. |
-| **Regression test** | 11 | Prove the SQL-injection fix works and stays fixed. |
+| **Verify after writing** | 2 to 4 | Check by reading on 22, then run a `SELECT` after the `UPDATE` in Level 4. A check query that should return 0 rows is a test. |
+| **Write checks** | 5 to 6 | Check each service response; save check queries and requests on the deck and rerun them to see whether a door, zone or record is in the right state. |
+| **Write assertions** | 7, 10 and 12 | `assert(lights.on === true)` in a watchdog script on a test bench (7); UI checks on the admin portal (10); API response checks from a page (`expect(status).toBe(200)`, 12). |
+| **Test first (TDD)** | 13 | Write tests that describe what the Custodian should do, watch them fail, fix the code, watch them pass. |
+| **Regression test** | 14 | Prove the SQL-injection fix works and stays fixed. |
 
 ---
 
@@ -315,10 +315,7 @@ Hostile levels alternate with creepy-but-not-hunting ones, and completion styles
 
 The game has 15 floors under curriculum B. If the schedule needs 12, merge Level 9 into 10 and Level 12 into 13, and fold the finale into 3b; Act 3 is still the biggest act. Act 3 can ship as two free updates (3a, then 3b and the finale).
 
-**Not yet decided:**
-- Building floor numbers for Levels 4 to 13. Act 2 goes down to G and the basements; Act 3 climbs back up to the director on 30.
-- The setting and threat of the two new floors (9 and 12).
-- These are the architect's to set, with Augustine.
+**Floors (approved by Augustine 2026-10-21, `plan/approvals/floors-4-14.md`):** Act 2 goes down (10 then the G lobby, 9, B1, B2); Act 3 climbs back up (18, 24, 26, 27, 28, 29) to the director on 30.
 
 | Act | Lvl | Was | Location | Threat | Hunts you? | Completion style |
 |---|---|---|---|---|---|---|
@@ -326,21 +323,19 @@ The game has 15 floors under curriculum B. If the schedule needs 12, merge Level
 | 1 | 1 | 1 | Server floor (14) | The Hum | No | Earn Rourke's trust |
 | 1 | 2 | 2 | Security floor (22) | Rourke, then the Watcher | Yes | Survive the betrayal, then escape |
 | 1 | 3 | 3 | Records Archive (18) | The Shredder | Partly (by sound) | Find the safe room |
-| 2 | 4 | 4 | Power Plant | The Custodian | Yes | Escape and seal it in |
-| 2 | 5 | 5 | Personnel Wing | The Mimics | Yes (deceive) | Find the real people |
-| 2 | 6 | 6 | Cold Storage | The Ones Who Never Left | No | Free them |
-| 2 | 7 | 7 | The Dark Floor | WARDEN (lights out) | Yes, with others | Beat WARDEN; the lifts run again |
+| 2 | 4 | 4 | Power Plant (10, then the G lobby) | The Custodian | Yes | Escape and seal it in |
+| 2 | 5 | 5 | Personnel Wing (9, payroll and HR) | The Mimics | Yes (deceive) | Find the real people |
+| 2 | 6 | 6 | Cold Storage (B1) | The Ones Who Never Left | No | Free them |
+| 2 | 7 | 7 | The Dark Floor (B2, WARDEN's core) | WARDEN (lights out) | Yes, with others | Beat WARDEN; the lifts run again |
 | 3a | 8 | (new) | Back through 18, then up | The Glitch | No (unsettling) | Recover Mercer's floor plan |
-| 3a | 9 | (new) | To decide | To decide | | |
-| 3a | 10 | 10 | Admin Portal | The Glitch | No (unsettling) | Uncover; Vale reveal |
-| 3b | 11 | 8 | Robotics Bay | The Swarm | Yes | All-terminal event |
-| 3b | 12 | (new) | To decide | To decide | | |
-| 3b | 13 | 9 | Maintenance Tunnels | The Custodian (in vents) | Yes | Fix it with TDD |
+| 3a | 9 | (new) | Visitor Showroom (24) | The Unrendered | Yes | Survive; restore the showroom |
+| 3a | 10 | 10 | Admin Portal (26) | The Glitch | No (unsettling) | Uncover; Vale reveal |
+| 3b | 11 | 8 | Robotics Bay (27) | The Swarm | Yes | All-terminal event |
+| 3b | 12 | (new) | Communications (28) | The Mimics, on the lines | No (deceive) | Restore the line |
+| 3b | 13 | 9 | Maintenance Tunnels (29 and the duct risers) | The Custodian (in vents) | Yes | Fix it with TDD |
 | Finale | 14 | 11 | The Vault (30) | The Director and collapse | Yes | Escape with evidence and Vale |
 
-**Old level numbers elsewhere in this plan.** Sections 2, 6, 7, 9 and 10 still use the 12-level numbers until they are renumbered.
-- Levels 0 to 7 and 10 keep their numbers.
-- Old 8 (Robotics Bay) is now 11, old 9 (Maintenance Tunnels) is now 13, and old 11 (the Vault) is now 14.
+**Old level numbers.** Sections 2, 6, 7, 9 and 10 were renumbered to this table on 2026-10-21 (old 8 Robotics Bay is now 11, old 9 Maintenance Tunnels is now 13, old 11 the Vault is now 14). Older plan files may still use the 12-level numbers.
 
 ### Level 0: Ground floor — "The Tour"
 - Rourke's tour: the job, Mercer's story, the safe-room rumor. It introduces the voices, the facility and the terminals.
@@ -374,14 +369,15 @@ The game has 15 floors under curriculum B. If the schedule needs 12, merge Level
 - **Moved to Level 8 (curriculum B):** the archive intranet's `hidden` record (Mercer's old floor plan).
 - **Traversal:** climbing towering shelves while the Shredder passes below.
 
-### Level 4: Power Plant — "Don't Forget the WHERE" (Act 2 opens)
+### Level 4: Power Plant (10) — "Don't Forget the WHERE" (Act 2 opens)
+- **Where:** floor 10, the tower's mid-height mechanical floor, then the ground-floor lobby for the main entrance. Brief: `plan/level-4-power-plant.md`.
 - **Story (approved Act 2 plan):**
   - The crew tries to leave the way it came in and opens the `main_doors` row, which is really the containment doors. The entities get out.
   - The "Never open main_doors" sticky turns up, and WARDEN announces Containment protocol Epsilon.
   - At the main entrance, `UPDATE gates SET unlocked = TRUE WHERE name = 'main_entrance';` says 1 row affected, then Epsilon re-locks it: a terminal lie that teaches verify after write.
 - **Entity: The Custodian**, released in the accident. **Seal it:** lock the charging bay behind you, or it follows you to later levels.
 - **Words:** `UPDATE ... WHERE`, `INSERT`, and verify after write. This is the last new SQL.
-  - Epsilon then locks the database to read-only. Its wording goes to Augustine; the idea is "direct writes suspended, services only".
+  - Epsilon then locks the database to read-only, the moment it undoes the crew's main-entrance write (Augustine, 2026-10-21; lines approved in `plan/approvals/epsilon-read-only.md`). Every Level 4 write comes before it.
   - Reads still work, so Act 1's skills keep finding things.
 - **Find:** the portable deck. A 2-terminal teaser event. The robot-arm route to the ceiling panel (section 5) stays as the physical shortcut.
 
@@ -420,7 +416,7 @@ The game has 15 floors under curriculum B. If the schedule needs 12, merge Level
 - Reality's display layer is failing. **Entity: The Glitch** (moved up from Level 10): unsettling, never attacks, and hides things, including parts of the world.
 - **Words:** inspecting a page, elements, attributes, `hidden`.
 - **Code gate:** Mercer's old floor plan, a record marked `hidden` on the archive intranet (planted on floor 18 in Level 3, reached through the safe-room hub).
-- **Setting:** to decide.
+- **Setting:** floor 18 again, reached from Mercer's safe room once the lifts run, then the lift up.
 
 ### Level 9: (new floor) — CSS
 - **Words:** CSS selectors, `display`, `visibility`, `position`, `z-index`, colour and contrast.
@@ -428,7 +424,9 @@ The game has 15 floors under curriculum B. If the schedule needs 12, merge Level
   - A wall drawn across a corridor.
   - A doorway set to `display: none`.
   - A room too dark to read.
-- **Setting and threat:** to decide.
+- **Setting:** floor 24, the Visitor Showroom, where Halcyon showed investors its "display technology": glass walls, a scale model of the campus, demo rooms, mirrors. The display layer fails here first.
+- **Entity: The Unrendered**, a hunter the broken display layer draws invisible. You hear it and see what it knocks over; fixing its element's CSS (`visibility`, `opacity`, an outline) makes it visible so you can avoid it.
+- **Completion:** survive, and restore the showroom so the stairs up appear.
 
 ### Level 10: Admin Portal — "The Hidden Button" (Act 3a ends)
 - **Entity: The Glitch.**
@@ -447,7 +445,9 @@ The game has 15 floors under curriculum B. If the schedule needs 12, merge Level
 ### Level 12: (new floor) — fetch
 - **Words:** `fetch` and the network tab. Panels call Act 2's services, so the full stack comes together. API checks.
 - **Glitch to fix:** a panel that loads forever.
-- **Setting and threat:** to decide.
+- **Setting:** floor 28, Communications: the switchboard, the mail room's pneumatic tubes and the roof uplink. Every panel fetches Act 2's services and hangs on "loading".
+- **Threat: The Mimics return,** on the phone lines and intercoms only (they got out in Level 4). They deceive; they don't hunt.
+- **Completion:** restore the line, so the floor's door and lift panels talk to the services again and the way up to 29 opens. No outside call.
 
 ### Level 13: Maintenance Tunnels — "Fix the Loop"
 - **Entity: The Custodian, now hunting in the vents.**
@@ -645,4 +645,4 @@ Augustine will ask for every level to become longer and larger once Levels 0-2 l
 | Players | 1 to 6 |
 | Audience | Teens and adults with no coding background |
 | Art style | Lo-fi realistic, VHS grain, Backrooms liminal |
-| Base game length | 12 levels, about 7 to 8 hours |
+| Base game length | 15 levels, about 8 to 10 hours (12-level fallback, about 7 to 8 hours; section 12) |
