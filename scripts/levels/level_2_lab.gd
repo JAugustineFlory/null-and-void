@@ -548,6 +548,8 @@ func _lockdown() -> void:
 		s.enabled = true
 	level.hud.todo("Find out what's wrong with the lab door")
 	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
+	# The book's review, before the clock starts: same tools as the server floor.
+	await level._book_huddle("easy_sql_9")
 	_start_response()
 
 
