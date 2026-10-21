@@ -14,7 +14,7 @@ extends RefCounted
 ## its wing's backdrop, so a wing next door never shows another wing's sky.
 
 ## Which storey each wing is on (G is 0). The architect's defaults, pending Augustine.
-const FLOORS := {"level_0": 0, "level_1": 14, "level_2": 22}
+const FLOORS := {"level_0": 0, "level_1": 14, "level_2": 22, "level_3": 18}
 const STOREYS := 30
 ## The ground floor's lobby is double height; each storey above it is 3.8 m.
 const LOBBY_H := 6.0
@@ -29,6 +29,7 @@ const VIEWS := {
 	"level_0": {"center": Vector2(2, 0), "radius": 220.0, "tower": Vector2(1.8, -6.1), "half": Vector2(22.4, 12.3)},
 	"level_1": {"center": Vector2(0, -5.5), "radius": 34.0, "tower": Vector2(0, -5.5), "half": Vector2(22.2, 18.7)},
 	"level_2": {"center": Vector2(-6, -5), "radius": 30.0, "tower": Vector2(-6.1, -5), "half": Vector2(12.2, 15.1)},
+	"level_3": {"center": Vector2(0, -12.5), "radius": 32.0, "tower": Vector2(0, -12.5), "half": Vector2(21.0, 20.5)},
 }
 
 static var _shaders := {}
