@@ -110,7 +110,7 @@ func build() -> void:
 	book_bag = Interactable.create(self, Vector3(-4.9, 1.15, -3.3), Vector3(0.4, 0.3, 0.15), "Take the shop bag", Color(0.85, 0.85, 0.8))
 	book_bag.name = "BookBag"
 	book_bag.enabled = false
-	book_bag.used.connect(func(_p): sync.event("_on_bag"))
+	book_bag.used.connect(func(p): sync.event("_on_bag", [players.id_of(p)]))
 
 	_build_van(VAN)
 	_build_punch_bag(PUNCH_BAG)
@@ -386,12 +386,14 @@ func _on_fax() -> void:
 	hud.notice("Your notebook holds the work order. Tab opens it, and Tab puts it away", 6.0)
 
 
-func _on_bag() -> void:
+## Every machine: player `id` took the shop bag with the book in it.
+func _on_bag(id: int) -> void:
 	book_bag.visible = false
 	book_bag.enabled = false
 	bench_book.visible = true
 	hud.todo("")
-	Huddle.of(self).earn("achievement:book_easy_sql")  # its notebook cover (every player here)
+	if body_is_mine(id):
+		Huddle.of(self).earn("achievement:book_easy_sql")  # its notebook cover, for whoever picked it up
 
 
 ## Host: a player climbs into the van. Everyone sees them take the next seat.

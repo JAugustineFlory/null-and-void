@@ -30,6 +30,9 @@ var page := 0
 ## -1 while reading the pages, then the quiz question being voted on.
 var question := -1
 var reader_id := 1
+## Who is in this huddle (peer ids, set as it opens): the players who can vote,
+## and the only ones whose profiles count the chapter.
+var crew: Array = []
 ## peer id -> option index, for the current question.
 var votes := {}
 ## After a vote: {choice, right} until the next question; {split: true} on a tie.
@@ -89,7 +92,7 @@ func run(id: String, mode: String = FLASHBACK) -> void:
 		hud.line(lines[0])  # over the radio as the book opens
 	if is_host() and chapter.get("id", "") != id:
 		var ids := NetPlayers.ids_for(multiplayer)
-		_begin.rpc(id, ids[Books.chapter(id).number % ids.size()])
+		_begin.rpc(id, ids[Books.chapter(id).number % ids.size()], ids)
 	while not done.has(id):
 		await finished
 	if hud and lines.size() > 1:
@@ -99,9 +102,10 @@ func run(id: String, mode: String = FLASHBACK) -> void:
 
 ## Every machine: the host has opened a chapter.
 @rpc("authority", "call_local", "reliable")
-func _begin(id: String, reader: int) -> void:
+func _begin(id: String, reader: int, in_huddle: Array) -> void:
 	chapter = Books.chapter(id)
 	reader_id = reader
+	crew = in_huddle
 	page = 0
 	question = -1
 	votes.clear()
@@ -255,8 +259,8 @@ func _finish(id: String) -> void:
 # --- Unlocks (plan/approvals/unlocks.md) ---------------------------------------
 
 ## Record an unlock for this machine's player, through Net.earn (which owns the
-## items and says "Unlocked: ..."). Call it on every machine (from a sync.event
-## handler or an RPC to everyone), so everyone there earns it.
+## items and says "Unlocked: ..."). Unlocks go only to the player who earned
+## them: call it from an every-machine handler, on the machines whose player did it.
 func earn(source: String) -> Array:
 	if profile:
 		return profile.earn(source)
@@ -271,9 +275,12 @@ func _profile() -> Profile:
 	return net.profile if net else null
 
 
-## Every machine: a chapter is finished. Each one is remembered on the player's
-## profile, across runs; half the book and the whole book unlock an item each.
+## Every machine: a chapter is finished. Each player who was in the huddle has it
+## remembered on their own profile, across runs; half the book and the whole
+## book unlock an item each. Anyone who wasn't there doesn't get the chapter.
 func _earn_chapter(id: String) -> void:
+	if not crew.has(multiplayer.get_unique_id()):
+		return
 	var book_id: String = Books.chapter(id).get("book_id", "")
 	earn("chapter:" + id)
 	var p := _profile()
