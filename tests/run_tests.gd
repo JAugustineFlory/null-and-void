@@ -4972,6 +4972,7 @@ func test_level_1_book_huddles() -> void:
 	dead.report_open(p)
 	check(await _huddle_opens(level, "easy_sql_8"), "the break room's sticky brings back Either one will do")
 	await _crew_reads([level])
+	await _until(func(): return not h.is_busy(), 10.0)  # the cut back to floor 14
 	_doc(level, "Fire interlock").report_open(p)
 	_doc(level, "LIGHTING CIRCUITS").report_open(p)
 	await _frames(20)

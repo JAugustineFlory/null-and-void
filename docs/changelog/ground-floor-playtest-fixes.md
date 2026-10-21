@@ -2,3 +2,4 @@
 - **Fixed:** long case titles and notes wrap on their own page instead of running over the binding.
 - **Changed:** while reading the notebook or a paper, the pointer reaches every part of it, and pushing it past the edge turns your view. Right-click no longer looks around, and the pages' buttons always respond.
 - **Fixed:** you arrive at the building in the same van seat you took in the garage.
+- **Fixed:** on the first two floors, each chapter of the crew's book comes up just before the puzzle that uses it, so you've read every new word before you need it.
