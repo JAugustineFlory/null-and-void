@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
 	test_book_unlocks()
+	test_garage_front()
 	Engine.time_scale = 4.0
 	await test_garage_opening()
 	await test_flashback()
@@ -115,6 +116,40 @@ func _finish_chapter(h, id: String) -> bool:
 	return true
 
 
+## Co-op's pre-game lobby builds the garage front on its own and holds a shot on
+## it; the World's garage opens on the same shot.
+func test_garage_front() -> void:
+	print("Home base: the garage front for the lobby")
+	var hb = load("res://scripts/levels/home_base.gd")
+	var stage := Node3D.new()
+	_tree.root.add_child(stage)
+	var front: Node3D = hb.build_front(stage)
+	_check.call(front.get_node_or_null("RollUpDoor") != null and front.get_node_or_null("Driveway") != null, "the garage front builds on its own: walls, driveway and the shut roll-up door")
+	_check.call(front.find_children("Maddison", "", true, false).is_empty() and not front.has_method("start"), "with no story in it: no Maddison, no level")
+	var cam: Transform3D = hb.LOBBY_CAMERA
+	var half_v := deg_to_rad(75.0) / 2.0  # Camera3D's default fov, vertical
+	var half_h := atan(tan(half_v) * 16.0 / 9.0)
+	var all_in_shot := true
+	var all_face := true
+	var on_apron := true
+	var apron := AABB(hb.APRON_CENTER - hb.APRON_SIZE / 2, hb.APRON_SIZE)
+	for i in 6:
+		var spot: Dictionary = hb.lobby_spot(i)
+		var at: Transform3D = spot.at
+		var local := cam.affine_inverse() * (at.origin + Vector3(0, 1.0, 0))
+		all_in_shot = all_in_shot and local.z < 0 and absf(atan2(local.x, -local.z)) < half_h * 0.85 and absf(atan2(local.y, -local.z)) < half_v * 0.85
+		var to_cam := (cam.origin - at.origin) * Vector3(1, 0, 1)
+		all_face = all_face and (-at.basis.z).dot(to_cam.normalized()) > 0.95 and CharacterRig.ACTIONS.has(spot.pose)
+		var entry: Vector3 = hb.lobby_entry(i)
+		var from_cam := cam.affine_inverse() * (entry + Vector3(0, 1.0, 0))
+		on_apron = on_apron and apron.grow(0.01).has_point(Vector3(at.origin.x, 0, at.origin.z)) and apron.grow(0.01).has_point(Vector3(entry.x, 0, entry.z)) and absf(atan2(from_cam.x, -from_cam.z)) > half_h
+	_check.call(all_in_shot, "all six lobby spots are in the lobby camera's shot")
+	_check.call(all_face, "each lobby spot faces the camera with a pose the rig can play")
+	_check.call(on_apron, "players walk in from just off screen, on the driveway, to their spots")
+	_check.call(hb.FRONT_DOOR.distance_to(Vector3(hb.DOOR_AT, 0, -hb.SIZE.z / 2)) < 0.01, "the front-door marker is at the foot of the roll-up door")
+	stage.queue_free()
+
+
 func test_garage_opening() -> void:
 	print("Home base: the garage opening")
 	_game().new_run(21)
@@ -129,18 +164,21 @@ func test_garage_opening() -> void:
 	_check.call(world.wings.has("level_0") and not world.wings["level_0"].active, "the ground floor is built ahead, waiting for the van")
 	_check.call(p.global_position.distance_to(home.spawn_point().origin) < 1.0 and not p.input_locked, "the player starts on the garage floor, free to walk")
 	_check.call(not home.fax.enabled and not home.van_door.enabled, "nothing to do until dispatch calls")
+	_check.call(home.lobby_camera != null and home.lobby_camera.transform.is_equal_approx(home.LOBBY_CAMERA) and home.roll_up_door.get_parent() == home, "the World's garage has the lobby's shot, and its door is kept out of the floor's navigation")
 	var mad: Node3D = home.maddison
 	_check.call(mad != null and mad.get_node_or_null("Look") != null and (_at_mark(home, "door") or home.maddison_mark == "greet"), "Maddison is in the garage in person, in from the side door")
 	_check.call(await _until(func(): return home.fax.enabled), "dispatch's call puts the work order on the fax")
 	_check.call(await _until(func(): return _at_mark(home, "fax"), 300), "Maddison walks over to the fax as the work order comes through")
 	home.fax.interact(p)
 	_check.call(await _until(func(): return home.book_bag.enabled), "then the book in the back corner")
-	var bag_light := 0.0
-	for id in home.lights:
-		for l in home.lights[id]:
-			var d: float = l.global_position.distance_to(home.book_bag.global_position)
-			bag_light = maxf(bag_light, l.omni_range - d)
-	_check.call(bag_light < 0.5, "the back corner is out of the lights' reach, under its dead bulb (%.1f m)" % bag_light)
+	var lit := true
+	for spot in [home.book_bag.global_position, home.fax.global_position, home.to_global(home.WHITEBOARD), home.to_global(home.VAN)]:
+		var reach := 0.0
+		for id in home.lights:
+			for l in home.lights[id]:
+				reach = maxf(reach, l.omni_range - l.global_position.distance_to(spot))
+		lit = lit and reach > 1.5
+	_check.call(lit and home.environment.ambient_light_energy >= 0.4, "the garage is well lit, the back corner included")
 	var prof: Profile = _tree.root.get_node("Net").profile
 	_check.call(not prof.earned.has("achievement:book_easy_sql"), "the book's unlock waits until it's picked up")
 	home.book_bag.interact(p)
@@ -278,16 +316,12 @@ func test_flashback() -> void:
 	_check.call(await _until(func(): return h.is_running() and h.get_node_or_null("HuddleUI") != null), "the flashback opens the book")
 	var home = world.get_node_or_null("HomeBase")
 	_check.call(home != null and home.visible and home.flashback_camera.current, "it cuts to the garage through the flashback camera")
-	_check.call(home.find_children("Crew*", "", false, false).size() == 1, "solo, one crew member stands at the bench")
-	_check.call(_at_mark(home, "bench"), "Maddison is at the end of the bench, facing it")
-	var spots: Array = home.HUDDLE_SPOTS.duplicate()
-	spots.append(home.MADDISON_MARKS.bench[0])
-	var crowded := false
-	for i in spots.size():
-		for j in range(i + 1, spots.size()):
-			crowded = crowded or spots[i].distance_to(spots[j]) < 0.8
-	var bench_box := AABB(home.BENCH - Vector3(1.2, 0, 0.5), Vector3(2.4, 1, 1.0)).grow(0.25)
-	_check.call(not crowded and spots.all(func(v): return not bench_box.has_point(v + Vector3(0, 0.5, 0))), "six crew and Maddison all have room round the bench")
+	var cam: Camera3D = home.flashback_camera
+	_check.call(not cam.is_position_behind(home.to_global(home.WHITEBOARD)) and not cam.is_position_behind(home.maddison.global_position), "the camera looks over the crew at Maddison and her whiteboard")
+	var figures: Array = home.find_children("Crew*", "", false, false)
+	_check.call(figures.size() == 1 and figures[0].get_children().any(func(c): return c.get("action") == "sit"), "solo, one crew member sits facing the whiteboard")
+	_check.call(_at_mark(home, "board"), "Maddison is at her whiteboard, facing the crew")
+	_check.call(home.crew_seats.size() == 6 and home.CREW_SEATS.all(func(v): return v.x > home.WHITEBOARD.x + 2.5 and absf(v.z - home.WHITEBOARD.z) < 1.5), "six seats, all in front of the whiteboard")
 	_check.call(h.get_node("HuddleUI").flashback and p.input_locked, "in sepia, with the player held still")
 	_check.call(await _finish_chapter(h, "easy_sql_1"), "the crew reads chapter 1 and answers its check")
 	_check.call(await _until(func(): return done[0]), "the flashback ends")

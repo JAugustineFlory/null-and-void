@@ -1,17 +1,16 @@
 class_name DressHomeBase
 extends RefCounted
 ## Furnishing for the crew's garage, Byte-Right IT Services' home base in the fall
-## of 1997: a two-car garage run as a startup. Painted block walls, an oil-stained
-## slab, bare bulbs on cords, the workbench the crew huddles round, folding tables
-## of CRTs, pizza boxes, the whiteboard and the company banner. The back corner
-## stays dark under its dead bulb: the game sends you there to find the book.
+## of 1997: a converted RV garage run as a startup. Painted block walls, an
+## oil-stained slab, bright bulbs on cords, the workbench, folding tables of CRTs,
+## pizza boxes, the whiteboard the crew sits facing and the company banner.
 ## Called at the end of HomeBase.build(), before navigation bakes.
 
-## Where the crew walks: spawn > fax > back corner > bench > van side door. Props
-## stay out of these (tests check).
+## Where the crew walks: spawn > fax > back corner > bench > van side door, and the
+## briefing corner. Props stay out of these (tests check).
 const KEEP_CLEAR := [
-	Vector3(-0.5, 0, 3.0), Vector3(-3.6, 0, 2.3), Vector3(-4.2, 0, -3.3), Vector3(-2.5, 0, 0.3),
-	Vector3(1.0, 0, 0.4), Vector3(-0.5, 0, 1.2), Vector3(-3.0, 0, -2.6),
+	Vector3(0.5, 0, 0.5), Vector3(-6.4, 0, -4.6), Vector3(-6.0, 0, 4.8), Vector3(-0.6, 0, 2.4),
+	Vector3(2.4, 0, 0.8), Vector3(-6.4, 0, 2.2), Vector3(-3.4, 0, 0.0), Vector3(0.8, 0, -2.4),
 ]
 ## The whiteboard's marker writing: in-world flavor, no clues.
 const WHITEBOARD := "ON CALL: everyone\nINVOICES: overdue (again)\nY2K: 808 days\n\nBUY: floppies, coffee, a real chair"
@@ -41,32 +40,33 @@ static func apply(level: LevelBase) -> void:
 	var oil := ArtPalette.flat(Color(0.05, 0.05, 0.05, 0.55), 0.25)
 	oil.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ArtDress.trim(dress, HomeBase.VAN + Vector3(0.1, 0.004, -1.2), Vector3(1.1, 0.002, 0.8), oil)
-	ArtDress.trim(dress, Vector3(1.2, 0.004, -3.2), Vector3(0.5, 0.002, 0.35), oil)
+	ArtDress.trim(dress, Vector3(HomeBase.DOOR_AT - 1.2, 0.004, -4.8), Vector3(0.5, 0.002, 0.35), oil)
 
 	# The tech table on the south wall behind the van: two CRTs, a keyboard, dinner.
-	ArtKit.folding_table(geo, Vector3(3.0, 0, 4.0), 180)
-	ArtProps.crt_monitor(dress, Vector3(2.5, 0.76, 4.1), 0, "green")
-	ArtProps.crt_monitor(dress, Vector3(3.5, 0.76, 4.1), 0, "blue")
-	ArtKit.pizza_box(dress, Vector3(2.2, 0.76, 3.85), 15, true)
-	_seat(ArtKit.folding_chair(geo, Vector3(2.6, 0, 3.35), 200))
-	_seat(ArtKit.folding_chair(geo, Vector3(3.6, 0, 3.4), 170))
-	ArtProps.boxes(geo, Vector3(4.9, 0, 3.9), 0, 2)
-	_desk_lamp(dress, Vector3(3.75, 0.76, 4.2))
+	var tech := Vector3(4.6, 0, 5.3)
+	ArtKit.folding_table(geo, tech, 180)
+	ArtProps.crt_monitor(dress, tech + Vector3(-0.5, 0.76, 0.1), 0, "green")
+	ArtProps.crt_monitor(dress, tech + Vector3(0.5, 0.76, 0.1), 0, "blue")
+	ArtKit.pizza_box(dress, tech + Vector3(-0.8, 0.76, -0.15), 15, true)
+	_seat(ArtKit.folding_chair(geo, tech + Vector3(-0.4, 0, -0.65), 200))
+	_seat(ArtKit.folding_chair(geo, tech + Vector3(0.6, 0, -0.6), 170))
+	ArtProps.boxes(geo, tech + Vector3(2.3, 0, -0.1), 0, 2)
+	_desk_lamp(dress, tech + Vector3(0.75, 0.76, 0.2))
 
-	# Round the workbench: the whiteboard on the west wall, empty boxes stacked on the end.
-	ArtKit.whiteboard(dress, Vector3(-5.37, 1.55, -1.0), -90, WHITEBOARD, Vector2(1.6, 1.0))
+	# The whiteboard the crew sits facing, on the west wall; empty boxes on the bench's end.
+	ArtKit.whiteboard(dress, HomeBase.WHITEBOARD + Vector3(0.08, 0, 0), -90, WHITEBOARD, Vector2(2.4, 1.3))
 	ArtKit.pizza_box(dress, HomeBase.BENCH + Vector3(-0.9, 0.95, -0.25), 0, false, 3)
 	ArtProps.keyboard(dress, HomeBase.BENCH + Vector3(0.75, 0.95, -0.25), 180)
 
 	# The office corner: a CRT and a stack of manuals by the fax.
-	ArtProps.crt_monitor(dress, Vector3(-4.95, 0.8, 1.95), -90, "green")
-	_seat(ArtKit.folding_chair(geo, Vector3(-4.1, 0, 3.95), 120))  # pushed back from the desk
-	ArtProps.binder(dress, Vector3(-4.75, 0.8, 3.05), 80, "NETWARE 4.11", false)
+	ArtProps.crt_monitor(dress, HomeBase.DESK + Vector3(-0.05, 0.8, 0.15), -90, "green")
+	_seat(ArtKit.folding_chair(geo, HomeBase.DESK + Vector3(1.0, 0, -1.2), 60))  # pushed back into the corner
+	ArtProps.binder(dress, HomeBase.DESK + Vector3(0.15, 0.8, 0.85), 80, "NETWARE 4.11", false)
 
 	# Moving boxes and spare kit along the north wall, west of the roll-up door.
-	ArtProps.boxes(geo, Vector3(-2.6, 0, -3.9), 8, 3)
-	ArtProps.cable_coil(dress, Vector3(-1.9, 1.6, -4.36), 0)
-	ArtProps.server_rack(geo, Vector3(5.05, 0, -3.8), -90, true)
+	ArtProps.boxes(geo, Vector3(-3.0, 0, -5.4), 8, 3)
+	ArtProps.cable_coil(dress, Vector3(-2.0, 1.6, -5.86), 0)
+	ArtProps.server_rack(geo, Vector3(7.55, 0, 3.0), -90, true)
 
 
 ## Bare bulbs on cords in place of the greybox light panels. The bulb is the
@@ -96,7 +96,7 @@ static func _bulbs(level: LevelBase) -> void:
 	ArtMood.polish(level.environment)
 
 
-## A clip-on work lamp on the tech table: the only light back there.
+## A clip-on work lamp on the tech table.
 static func _desk_lamp(dress: Node3D, at: Vector3) -> void:
 	var lamp := ArtProps._node(dress, at, 200, "DeskLamp")
 	var black := ArtPalette.flat(Color(0.1, 0.1, 0.11), 0.4, 0.5)

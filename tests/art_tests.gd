@@ -740,7 +740,15 @@ func test_dressed_home_base() -> void:
 	check(blocked.is_empty(), "props keep the garage's walk from the door to the fax, the back corner, the bench and the van clear %s" % [blocked])
 	var walk := []
 	var m: Dictionary = HomeBase.MADDISON_MARKS
-	for leg in [[m.door[0], m.greet[0]], [m.greet[0], m.fax[0]], [m.fax[0], HomeBase.BENCH_WAY], [HomeBase.BENCH_WAY, m.bench[0]], [HomeBase.BENCH_WAY, m.van[0]]]:
+	var legs := []
+	for pair in [["door", "greet"], ["greet", "fax"], ["fax", "bench"], ["bench", "van"], ["van", "board"]]:
+		var a: Vector3 = m[pair[0]][0]
+		var b: Vector3 = m[pair[1]][0]
+		if HomeBase._crosses_bench(a, b):
+			legs.append_array([[a, HomeBase.BENCH_WAY], [HomeBase.BENCH_WAY, b]])
+		else:
+			legs.append([a, b])
+	for leg in legs:
 		var steps := ceili(leg[0].distance_to(leg[1]) / 0.5)
 		for i in steps + 1:
 			walk.append(leg[0].lerp(leg[1], float(i) / steps))
@@ -752,7 +760,7 @@ func test_dressed_home_base() -> void:
 	for id in level.lights:
 		for l in level.lights[id]:
 			reach = maxf(reach, l.omni_range - l.global_position.distance_to(level.book_bag.global_position))
-	check(reach < 0.5, "dressing leaves the back corner dark under its dead bulb")
+	check(reach > 1.5, "the back corner is well lit too")
 	var banners: Array = level.find_children("Banner*", "Node3D", true, false)
 	check(banners.size() == 1, "one Byte-Right banner hangs on the wall")
 	var shadowed := true
