@@ -24,16 +24,20 @@ extends RefCounted
 ## finish with no color to pick.
 
 const WORN_SLOTS := ["hair", "head", "top", "jacket", "legs", "feet", "face", "ears", "belt"]
-const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "terminal"]
+const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "sticker", "clip", "terminal"]
+## Add-ons on the notebook's cover, shown with any cover; "none" is the default.
+const NOTEBOOK_ADDONS := ["sticker", "clip"]
 const SLOT_NAMES := {
 	"hair": "Hair", "head": "Hat", "top": "Top", "jacket": "Jacket", "legs": "Legs",
 	"feet": "Shoes", "face": "Face", "ears": "Ears", "belt": "Belt",
-	"flashlight": "Flashlight", "walkie": "Walkie", "notebook": "Notebook", "terminal": "Terminal",
+	"flashlight": "Flashlight", "walkie": "Walkie", "notebook": "Notebook",
+	"sticker": "Sticker", "clip": "Clip", "terminal": "Terminal",
 }
 ## What the tools look like before anyone changes them.
 const TOOL_COLORS := {
 	"flashlight": Color(0.12, 0.12, 0.13), "walkie": Color(0.1, 0.1, 0.1),
 	"notebook": NotebookView.COVER, "terminal": TerminalScreen.PHOSPHOR,
+	"sticker": Color(0.86, 0.8, 0.62), "clip": Color(0.12, 0.12, 0.14),
 }
 
 const ITEMS := [
@@ -77,10 +81,12 @@ const ITEMS := [
 	{"slot": "head", "item": "mercer_cap", "name": "Mercer's cap", "unlock": "secret:mercer_vent_tape"},
 	{"slot": "walkie", "item": "gold", "name": "Gold", "unlock": "secret:roster_thu"},
 	{"slot": "jacket", "item": "press", "name": "Press jacket", "unlock": "secret:ending_news"},
-	# Floor 18 (Augustine, 2026-10-21 11:27Z; plan/approvals/l3-text.md). Both are notebook skins:
-	# the spiral cover with an archive box label stuck on it, or a 3.5" disk clipped to it.
-	{"slot": "notebook", "item": "archive_label", "name": "Archive box label", "unlock": "achievement:floor_18", "hint": "Finish floor 18."},
-	{"slot": "notebook", "item": "mercer_floppy", "name": "Mercer's floppy", "unlock": "secret:mercer_floppy_1"},
+	{"slot": "sticker", "item": "none", "name": "None", "unlock": "default"},
+	{"slot": "clip", "item": "none", "name": "None", "unlock": "default"},
+	# Floor 18 (Augustine, 2026-10-21 11:27Z; plan/approvals/l3-text.md): an archive box label
+	# stuck on the notebook, and a 3.5" disk clipped to it, on any cover (11:44Z).
+	{"slot": "sticker", "item": "archive_label", "name": "Archive box label", "unlock": "achievement:floor_18", "hint": "Finish floor 18."},
+	{"slot": "clip", "item": "mercer_floppy", "name": "Mercer's floppy", "unlock": "secret:mercer_floppy_1"},
 ]
 
 ## The catalogue in use: ITEMS, unless a test swaps in its own (reset() puts it back).
@@ -113,6 +119,8 @@ static func items_in(slot: String) -> Array:
 
 
 static func drawable(slot: String, item: String) -> bool:
+	if slot in NOTEBOOK_ADDONS and item == "none":
+		return true  # nothing to draw
 	if CharacterLooks.SLOTS.has(slot):
 		return item in CharacterLooks.SLOTS[slot]
 	return item in CharacterLooks.TOOL_ITEMS.get(slot, [])

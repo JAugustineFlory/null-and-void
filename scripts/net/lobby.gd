@@ -267,6 +267,8 @@ func _slot_row(parent: Control, slot: String) -> void:
 		_net().choose_look({slot: pick}))
 	row.add_child(list)
 	_item_lists[slot] = list
+	# An add-on Graphics can't draw yet would offer only "None": leave the row out until it can.
+	row.visible = not (list.item_count == 1 and list.get_item_metadata(0) == "none")
 	var color := ColorPickerButton.new()
 	color.name = "Color_" + slot
 	color.custom_minimum_size = Vector2(64, 40)
