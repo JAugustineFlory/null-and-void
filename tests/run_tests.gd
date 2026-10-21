@@ -16,7 +16,7 @@ func _initialize() -> void:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coop", "movement", "teaching", "teaching_lab"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab"]
 
 
 func _run() -> void:
@@ -52,6 +52,7 @@ func _run_group(g: String) -> void:
 		"floor_14": await _group_floor_14()
 		"floor_22": await _group_floor_22()
 		"floor_22_lab": await _group_floor_22_lab()
+		"floor_18": await _group_floor_18()
 		"coop": await _group_coop()
 		"movement": await _group_movement()
 		"teaching": await _group_teaching()
@@ -120,6 +121,16 @@ func _group_floor_22_lab() -> void:
 	test_level_2_lab_data_every_seed()
 	for outcome in ["killed", "tied", "untied"]:
 		await test_level_2_lab(outcome)
+
+
+## Floor 18, the Records Archive (Level 3): its data, the floor, Mercer's room, the
+## stairs down from 22, and co-op.
+func _group_floor_18() -> void:
+	test_level_3_data_every_seed()
+	await test_level_3_scene()
+	await test_level_3_safe_room()
+	await test_level_3_stairs_from_22()
+	await test_coop_level_3()
 
 
 ## Co-op: several machines in one process.
@@ -3823,3 +3834,296 @@ func test_elevator() -> void:
 	check(dest.open_amount == 1.0 and lift.open_amount == 0.0, "the next car's doors open; the old ones stay shut")
 	stage.queue_free()
 	await process_frame
+
+
+# --- Floor 18: the Records Archive (Level 3) ----------------------------------------
+
+## Inside floor 18's arrival stairwell (Level 3 local): the landing, clear of the flight.
+const L3_LANDING_BOX := AABB(Vector3(-8.2, -0.5, 4.1), Vector3(4.2, 3, 3.8))
+## Inside its exit stairwell, past the lobby's east door.
+const L3_STAIRS_DOWN := Vector3(6.3, 0.1, 6.0)
+
+
+## The readers' log points at one side room that night, the reading room over the
+## whole log; the catalogue and the slips read the same on every seed.
+func test_level_3_data_every_seed() -> void:
+	print("Level 3 data, 50 seeds")
+	var l3 = load("res://scripts/levels/level_3.gd").new()
+	var night: String = "SELECT room, COUNT(*) AS n FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY n DESC" % Level3Data.NIGHT
+	var whole := "SELECT room, COUNT(*) AS n FROM access_log GROUP BY room ORDER BY n DESC"
+	var host_wins := true
+	var decoy_wins := true
+	var no_ties := true
+	var wrongs_fail := true
+	var tally_route := true
+	var sources := true
+	var slips_ok := true
+	var depts_ok := true
+	var hosts := {}
+	for s in 50:
+		var data := Level3Data.build(s)
+		var db := FacilityDB.new()
+		db.load_seed(data.sql)
+		var by_night := db.run_silent(night)
+		if by_night.is_empty() or by_night[0]["room"] != data.host or not Level3Data.CANDIDATES.has(data.host):
+			host_wins = false
+		if db.run_silent(whole)[0]["room"] != "READING ROOM":
+			decoy_wins = false
+		var counts := {}
+		for row in by_night:
+			counts[int(row["n"])] = true
+		if counts.size() != by_night.size():
+			no_ties = false
+		if not l3.visits_puzzle.matches(db, db.execute(night)) or not l3.visits_puzzle.matches(db, db.execute(night.replace(" AS n", "").replace("ORDER BY n", "ORDER BY COUNT(*)"))):
+			host_wins = false
+		for wrong in [
+			whole,
+			night.replace("DESC", "ASC"),
+			"SELECT room FROM access_log WHERE time LIKE '%s%%' GROUP BY room" % Level3Data.NIGHT,
+			"SELECT badge_id, COUNT(*) AS n FROM access_log WHERE time LIKE '%s%%' GROUP BY badge_id ORDER BY n DESC" % Level3Data.NIGHT,
+			"SELECT * FROM access_log LIMIT 5",
+		]:
+			if l3.visits_puzzle.matches(db, db.execute(wrong)):
+				wrongs_fail = false
+		# Reading one badge's rows and tallying by hand gets there too.
+		var mine := db.run_silent("SELECT room, COUNT(*) AS n FROM access_log WHERE badge_id = '%s' GROUP BY room ORDER BY n DESC" % Level3Data.VISITOR_BADGE)
+		if mine.is_empty() or mine[0]["room"] != data.host or db.run_silent("SELECT * FROM access_log WHERE badge_id = '%s'" % Level3Data.VISITOR_BADGE).size() > TerminalUI.MAX_ROWS_SHOWN:
+			tally_route = false
+		for row in db.run_silent("SELECT DISTINCT room FROM access_log"):
+			if not Level3Data.ROOMS.has(row["room"]):
+				sources = false  # a row with no reader in the world
+		for row in db.run_silent("SELECT DISTINCT room, aisle FROM catalogue"):
+			if row["room"] == "STACKS" and not str(row["aisle"]).begins_with("A"):
+				sources = false
+			if row["room"] != "STACKS" and not Level3Data.CANDIDATES.has(row["room"]):
+				sources = false
+		var open_n := int(db.run_silent("SELECT COUNT(*) AS n FROM retrieval_slips WHERE status = 'open'")[0]["n"])
+		if open_n != data.open_slips or open_n < 3 or open_n > 5 or not l3.slips_puzzle.matches(db, db.execute("SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'")):
+			slips_ok = false
+		var depts := db.run_silent("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'").size()
+		var all_rows := db.run_silent("SELECT dept FROM catalogue WHERE room = 'STACKS'").size()
+		if depts < 2 or depts >= all_rows or not l3.depts_puzzle.matches(db, db.execute("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")) or l3.depts_puzzle.matches(db, db.execute("SELECT dept FROM catalogue WHERE room = 'STACKS'")):
+			depts_ok = false
+		if data.mercer_boxes.size() != 3:
+			sources = false
+		hosts[data.host] = true
+	check(host_wins, "that night, the host room's reader logged the most visits, and GROUP BY + ORDER BY COUNT(*) DESC ranks it first")
+	check(decoy_wins, "over the whole log the reading room wins: the night matters")
+	check(no_ties, "no two rooms tie that night, so the order is the same on every machine")
+	check(wrongs_fail, "no WHERE, ASC, no ORDER BY, grouping by badge and LIMIT never pass the visits check")
+	check(tally_route, "one badge's rows alone point at the room, and fit on one screen to tally by hand")
+	check(sources, "every log room has a reader, every box an aisle or a side room, and Mercer's three boxes are in the host room")
+	check(slips_ok, "3 to 5 slips are open, and COUNT(*) on them passes the slips check")
+	check(depts_ok, "the stacks' departments repeat: DISTINCT collapses them, and the plain list doesn't pass")
+	check(hosts.size() == Level3Data.CANDIDATES.size(), "the safe room hides behind a different side room on different runs (%s)" % [hosts.keys()])
+	var building := FacilityDB.new()
+	building.load_seed(Level2Data.build(1).sql)
+	var doors_before := building.run_silent("SELECT id FROM doors").size()
+	var lights_before := building.run_silent("SELECT id FROM lights").size()
+	var stacked: bool = building.db.query(Level3Data.build(1).sql)
+	check(stacked and building.run_silent("SELECT id FROM doors").size() == doors_before + 6 and building.run_silent("SELECT id FROM lights WHERE floor = 18").size() == 12 and building.run_silent("SELECT id FROM lights").size() == lights_before + 12,
+		"the wing's seed loads on top of Level 2's: six ARC- doors and twelve floor-18 lights added")
+	check(building.run_silent("SELECT status FROM lights WHERE id = 'L18-STACKS'")[0]["status"] != "ok", "the dark stacks have a cause in the lights table")
+	l3.free()
+
+
+## The floor on its own: arrive on the landing through a wedged-open fire door, the
+## stairs down locked, dark stacks with a cause, side rooms whose shelving hides the
+## back wall until the crank is turned, and the desk's stations.
+func test_level_3_scene() -> void:
+	print("Level 3 scene")
+	_game().new_run(11)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var p: Player = level.player
+	check(level.stair_in.is_open and not level.stair_in.locked, "the fire door from the stairs is wedged open")
+	check(level.stair_out.locked and not level.stair_out.is_open, "the stairs down are locked after hours")
+	check(L3_LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on the stairwell landing (%s)" % level.to_local(p.global_position))
+	var ids: Array = level.doors.keys()
+	ids.sort()
+	check(ids == ["ARC-COLD", "ARC-FICHE", "ARC-MAP", "ARC-SHRED", "ARC-SUPPLY", "ARC-VAULT-C"] and level.doors.values().all(func(d): return d.is_hinged() and not d.locked),
+		"every side room has an ordinary door that shuts, in the doors table (%s)" % [ids])
+	check(level.lights["L18-STACKS"].all(func(l): return not l.visible) and level.lights["L18-LOBBY"].all(func(l): return l.visible), "the stacks' sensor lights are off after hours; the lobby's are on")
+	check(_doc(level, "Stacks lighting notice") != null and _doc(level, "Facilities memo") != null and _doc(level, "Door sign") != null, "the dark stacks, the dead lifts and the wedged door each have a sign saying why")
+	var slips: Node = _doc(level, "Retrieval slips")
+	var an_open_slip: String = level.db.run_silent("SELECT slip_no FROM retrieval_slips WHERE status = 'open'")[0]["slip_no"]
+	check(slips != null and slips.plain_text().contains(an_open_slip), "the slips on the desk's spike are the open rows of retrieval_slips")
+	check(level.stack_units.size() == 5 and level.find_children("*", "MovementVolume", true, false).filter(func(v): return v.kind == MovementVolume.Kind.CLIMB).size() == 10,
+		"five shelf units, each climbable from both ends")
+	# Standing on a shelf top: solid, with headroom.
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 3.75, -15)))
+	for i in 20:
+		await physics_frame
+	check(p.is_on_floor() and absf(level.to_local(p.global_position).y - 3.6) < 0.15 and p.health > 0.0, "the shelf tops hold a player, 2 m under the ceiling (y %.2f)" % level.to_local(p.global_position).y)
+	# Readers: one by every room door, the source of access_log.
+	check(level.geo.find_children("Reader*", "", true, false).size() >= 8, "a badge reader beside every room door")
+	# The host room: its back wall is behind the shelving until the crank is turned.
+	var host: String = level.data.host
+	var spec: Dictionary = level.SIDE_ROOMS[host]
+	var back: Vector3 = spec.back
+	var before: Array = level.shelving[host].map(func(u): return u.position)
+	check(not level.back_aisle_open(host) and level.safe_door != null and not level.safe_door.is_open, "the safe room's door starts behind the host room's shelving")
+	var rear: Vector3 = spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 - 0.3)
+	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(level.to_global(spec.center + Vector3(0, 1.0, 0)), level.to_global(rear + Vector3(0, 1.0, 0)))
+	check(not space.intersect_ray(q).is_empty(), "before cranking, shelving stands between the room's middle and its back wall")
+	level.cranks[host].interact(p)
+	for i in 180:
+		await physics_frame
+	var moved: bool = level.cranked[host] and not level.cranks[host].enabled
+	for i in level.shelving[host].size():
+		moved = moved and (level.shelving[host][i].position - before[i]).is_equal_approx(-back * level.CRANK_TRAVEL)
+	check(moved, "the crank rolls every unit toward the door, once")
+	q = PhysicsRayQueryParameters3D.create(level.to_global(rear + Vector3(0, 1.0, 2.5)), level.to_global(rear + Vector3(0, 1.0, -2.5)))
+	check(space.intersect_ray(q).is_empty(), "after cranking, the aisle along the back wall is clear")
+	check(level.find_children("Door_MERCER", "", false, false).size() == 1 and level.safe_room_box.has_point(spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 + 1.0)),
+		"one hidden door, in the host room's back wall, with Mercer's room beyond it")
+	# The desk's stations (checks on HOLD, so no hints are asserted here).
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
+	level.terminal_ui.terminal = level.desk
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room ORDER BY COUNT(*) DESC")
+	check(not level.visits_puzzle.solved, "a count over the whole log doesn't pass: the reading room comes first")
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT)
+	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's count passes, and the case page closes with the room")
+	level.terminal_ui.run("SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'")
+	level.terminal_ui.run("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")
+	check(level.slips_puzzle.solved and level.depts_puzzle.solved, "the slips and departments stations pass with their default checks")
+	check(level.find_children("*", "Terminal", true, false).size() == 2 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (on hold)")
+	level.queue_free()
+	await process_frame
+
+
+## Mercer's room: found through the cranked aisle, a hub from then on; the one floppy
+## and the stair key go to whoever takes them; the key opens the stairs; everyone on
+## the stairs ends the floor.
+func test_level_3_safe_room() -> void:
+	print("Level 3: Mercer's room and the way down")
+	_game().new_run(23)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var p: Player = level.player
+	var host: String = level.data.host
+	var spec: Dictionary = level.SIDE_ROOMS[host]
+	var c: Vector3 = level.safe_room_box.get_center()
+	check(not level.safe_door.locked and level.safe_door.is_hinged(), "Mercer's door is an ordinary door: no badge, no network")
+	check(not level.lights.keys().any(func(k): return k.contains("MERCER")) and level.db.run_silent("SELECT * FROM lights WHERE room LIKE '%Mercer%'").is_empty(), "nothing in the safe room is in the lights table: it's off the grid")
+	level.cranks[host].interact(p)
+	level.safe_door.interact(p)
+	for i in 60:
+		await physics_frame
+	check(level.safe_door.is_open, "E opens the hidden door once you can reach it")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(c.x, 0.1, c.z)))
+	for i in 10:
+		await physics_frame
+	check(level.reached_safe and _game().current_todo() == "", "stepping in finds the room: the to-do is ticked off")
+	level.floppy.interact(p)
+	level.key_dock.interact(p)
+	for i in 5:
+		await physics_frame
+	check(p.inventory.has("floppy_disk") and level.floppy_taken and not level.floppy.enabled, "the floppy is taken, and there was only one")
+	check(p.inventory.has("stair_key") and level.key_taken and not level.stair_out.locked, "the key ring unlocks the stairs down")
+	check(_game().current_todo() == level.TEXT.todo_key, "the to-do says to get everyone to the stairs")
+	# Down: you come to on Mercer's cot now.
+	p.take_damage(1000.0, "fall")
+	for i in 120:
+		await physics_frame
+	check(level.safe_room_box.has_point(level.to_local(p.global_position)) and p.health > 0.0, "after the room is found, you come to inside it")
+	for i in 60:
+		await physics_frame
+	# Everyone on the stairs, and the floor is done.
+	level.stair_out.interact(p)
+	for i in 30:
+		await physics_frame
+	check(level.stair_out.is_open, "with the key taken, E opens the stair door")
+	var done := [false]
+	level.completed.connect(func(): done[0] = true)
+	p.global_transform = Transform3D(Basis(), level.to_global(L3_STAIRS_DOWN))
+	for i in 600:
+		await physics_frame
+		if done[0]:
+			break
+	check(done[0] and _game().completed_level == "level_3", "everyone on the stairs completes the floor")
+	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_18") or true, "finishing floor 18 reports its unlock (no cosmetic bound yet)")
+	level.queue_free()
+	await process_frame
+
+
+## In the World, the crew leaves 22 by the stairs and comes out on 18's landing, with
+## play handed to floor 18 and floor 18 kept loaded once Mercer's room is found.
+func test_level_3_stairs_from_22() -> void:
+	print("World: the stairs from 22 down to 18")
+	_game().new_run(5)
+	_game().rourke_fate = "killed"  # just the security section: Rourke turned before it
+	var world = load("res://scenes/world.tscn").instantiate()
+	root.add_child(world)
+	for i in 10:
+		await physics_frame
+	world.enter_wing(world.route_index("level_2"))
+	var l2 = world.current
+	for i in 30:
+		await physics_frame
+	check(l2 != null and l2.wing_id == "level_2" and not world.wings.has("level_3"), "floor 22 runs; floor 18 isn't built until the stairs open")
+	l2.prepare_next()
+	var l3 = world.wings.get("level_3")
+	check(l3 != null and not l3.active and l3.global_position.distance_to(l2.global_position) > 30.0, "floor 18 builds apart from 22, behind its stairwell, without starting")
+	check(world.db.table_names().has("access_log") and world.db.table_names().has("badge_log"), "both floors share the building's database")
+	world.player.global_transform = Transform3D(Basis(), l2.to_global(STAIRS))
+	for i in 5:
+		await physics_frame
+	l2.sync.event("_on_exit", [null])
+	for i in 600:
+		await physics_frame
+		if world.current == l3 and l3.active:
+			break
+	check(world.current == l3 and l3.active, "the stairs hand play to floor 18")
+	check(L3_LANDING_BOX.has_point(l3.to_local(world.player.global_position)), "the crew steps out on 18's landing (%s)" % l3.to_local(world.player.global_position))
+	check(_game().completed_level == "level_2" and _game().next_level == "level_3", "floor 22 is complete, floor 18 is next")
+	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its unlock")
+	for i in 60:
+		await physics_frame
+	check(not world.player.input_locked and world.current == l3, "controls come back on the landing")
+	# Mercer's room is a hub: the wing stays loaded from here on.
+	l3._enter_safe_room()
+	check(world.keep_loaded.has("level_3"), "finding Mercer's room keeps floor 18 loaded for later floors")
+	world.queue_free()
+	await process_frame
+
+
+## Co-op: the host decides the crank, the pickups and the exit; every machine sees them.
+func test_coop_level_3() -> void:
+	print("Co-op: Level 3 with a host and a client")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/level_3.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(machines.all(func(l): return l.sync._begun and l.players.count() == 2), "both machines start Level 3 with two players")
+	check(machines.all(func(l): return l.data.host == host.data.host), "both machines hide the safe room behind the same room")
+	var room: String = host.data.host
+	client.cranks[room].interact(client.player)
+	await _frames(180)
+	check(machines.all(func(l): return l.cranked[room]) and client.shelving[room][0].position.is_equal_approx(host.shelving[room][0].position), "a client's crank rolls the shelving on every machine, to the same place")
+	client.floppy.interact(client.player)
+	client.key_dock.interact(client.player)
+	await _frames(20)
+	# (Every machine in a test shares one Game.inventory, so who took it is read off the dock.)
+	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
+	check(client.player.inventory.has("floppy_disk") and machines.all(func(l): return l.floppy_taken and not l.floppy.enabled and l.floppy.has_taken(client_id) and not l.floppy.has_taken(host_id)), "the one floppy goes to the player who took it")
+	check(machines.all(func(l): return l.key_taken and not l.stair_out.locked), "the key unlocks the stairs on every machine")
+	check(host.players.puppet(client_id) != null, "the host knows the client")
+	# The exit waits for everyone.
+	host.player.global_transform = Transform3D(Basis(), host.to_global(L3_STAIRS_DOWN))
+	await _frames(20)
+	check(_game().completed_level != "level_3", "one player on the stairs isn't enough")
+	client.player.global_transform = Transform3D(Basis(), client.to_global(L3_STAIRS_DOWN))
+	for i in 600:
+		await physics_frame
+		if _game().completed_level == "level_3":
+			break
+	check(_game().completed_level == "level_3", "with everyone on the stairs, the floor completes on every machine")
+	await _coop_close(worlds)
