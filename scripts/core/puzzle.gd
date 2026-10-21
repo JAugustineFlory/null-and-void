@@ -36,6 +36,9 @@ func _init(p_id: String, p_solution: String, p_columns: Array, p_ordered: bool, 
 ## adds another shape of right answer (the top row with its count, say).
 var distinct := false
 var alternatives: Array = []
+## For an ordered answer: a result cut short (LIMIT n) still passes if it is the
+## answer's first n rows and n is at least this. 0 means the whole answer.
+var top_rows := 0
 
 
 ## Another right answer with its own shape: `cols` are the columns it must show.
@@ -96,6 +99,8 @@ func _same(got: Array, expected: Array, is_ordered: bool) -> bool:
 	if not is_ordered or distinct:
 		got.sort()
 		expected.sort()
+	elif top_rows > 0 and got.size() >= top_rows and got.size() < expected.size():
+		return got == expected.slice(0, got.size())
 	return got == expected
 
 

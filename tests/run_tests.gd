@@ -237,8 +237,19 @@ func test_level_0_puzzles() -> void:
 		visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors"))
+		for n in [2, 3, 5, 10, 100]:
+			visitor_ok = visitor_ok and visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT %d" % n))
+		var top_one := d.execute("SELECT name, signed_in FROM visitors ORDER BY signed_in DESC LIMIT 1")
+		visitor_ok = visitor_ok and not visitor.matches(d, top_one) and l0.visitor_top_one_for().matches(d, top_one)
+		visitor_ok = visitor_ok and not l0.visitor_top_one_for().matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 2"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 5"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in ASC LIMIT 2"))
+		# Stored oldest first, so these hold Vale's row too, but not at the top of the newest-first list.
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors LIMIT 5;"))
+		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in LIMIT 5;"))
+		visitor_ok = visitor_ok and d.run_silent("SELECT name FROM visitors LIMIT 5").any(func(r): return r["name"] == "VALE, I.")
 	check(caller_ok, "the caller's extension is Harold Mercer's, gone since '94; listing names beside extensions finds it, the department alone doesn't")
-	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it")
+	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it, the whole list or any LIMIT of 2 or more; LIMIT 1 is the near miss")
 	check(exts.size() >= 10, "the caller's extension varies between runs (%d different)" % exts.size())
 
 
@@ -251,6 +262,10 @@ func test_level_1_data_every_seed() -> void:
 	var never_guessable := true
 	var all_explained := true
 	var answers := {}
+	var count_ok := true
+	var counts := {}
+	var l1 = load("res://scripts/levels/level_1.gd")
+	var l1i = l1.new()
 	for s in 50:
 		var data := Level1Data.build(s)
 		var db := FacilityDB.new()
@@ -278,6 +293,25 @@ func test_level_1_data_every_seed() -> void:
 		if not db.run_silent("SELECT id FROM door_controllers WHERE status != 'ok' AND id != '%s' AND note = 'normal'" % data.answer).is_empty():
 			all_explained = false
 		answers[data.answer] = true
+		# The reset sign-off's count: 3, 5 or 6 faults, never a tempting wrong count.
+		var faults: int = data.faulted
+		counts[faults] = true
+		var count: Puzzle = l1.count_puzzle_for()
+		count_ok = count_ok and faults >= 2 and db.run_silent("SELECT COUNT(*) AS n FROM door_controllers WHERE status = 'fault'")[0]["n"] == faults
+		for right in ["SELECT COUNT(*) FROM door_controllers WHERE status = 'fault';", "SELECT COUNT(id) FROM door_controllers WHERE status = 'fault'",
+				"SELECT COUNT(*) AS n FROM door_controllers WHERE status = 'fault'"]:
+			count_ok = count_ok and count.matches(db, db.execute(right))
+		for wrong in ["SELECT COUNT(*) FROM door_controllers", "SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'",
+				"SELECT COUNT(*) FROM door_controllers WHERE status = 'offline'", "SELECT COUNT(*) FROM door_controllers WHERE status = 'ok'",
+				"SELECT COUNT(*) FROM door_controllers WHERE zone = '%s'" % z, "SELECT COUNT(*) FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z,
+				"SELECT COUNT(*) FROM door_controllers WHERE location LIKE 'Server Room A%'", "SELECT COUNT(*) FROM door_controllers WHERE location = 'Records Archive'",
+				"SELECT * FROM door_controllers WHERE status = 'fault'"]:
+			count_ok = count_ok and not count.matches(db, db.execute(wrong))
+		count_ok = count_ok and l1i.count_all.matches(db, db.execute("SELECT COUNT(*) FROM door_controllers"))
+		count_ok = count_ok and l1i.count_not_ok.matches(db, db.execute("SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'"))
+	l1i.free()
+	check(count_ok, "the sign-off count is the 'fault' rows, as COUNT(*), COUNT(id) or AS n; no WHERE, != 'ok', a zone or a room never gives it")
+	check(counts.size() == 3, "how many controllers are faulted varies between runs (%s)" % ", ".join(counts.keys().map(func(k): return str(k))))
 	check(all_explained, "every other faulted or offline controller has a note saying why")
 	check(all_ok, "exactly one zone-A fault on a physical rack, and AND finds it")
 	check(never_guessable, "a single condition is never enough")
@@ -318,7 +352,7 @@ func test_first_hints_show_working_queries() -> void:
 	var l0 = load("res://scripts/levels/level_0.gd")
 	var l0i = l0.new()
 	var l1 = load("res://scripts/levels/level_1.gd")
-	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true, "stuck_doors": true, "dark_room": true}
+	var ok := {"peek": true, "memo": true, "caller": true, "last_visitor": true, "controller": true, "hot_rack": true, "stuck_doors": true, "dark_room": true, "faulted_count": true}
 	for seed_value in 20:
 		var d0 := FacilityDB.new()
 		var data0 := Level0Data.build(seed_value)
@@ -333,6 +367,7 @@ func test_first_hints_show_working_queries() -> void:
 		ok.controller = ok.controller and _check_hint_ladder(l1.controller_puzzle_for(data1.zone), d1, "'%s'" % data1.zone)
 		ok.hot_rack = ok.hot_rack and _check_hint_ladder(l1.hot_rack_puzzle_for(), d1, str(Level1Data.INTERLOCK_C))
 		ok.stuck_doors = ok.stuck_doors and _check_hint_ladder(l1.stuck_doors_puzzle_for(), d1, "1")
+		ok.faulted_count = ok.faulted_count and _check_hint_ladder(l1.count_puzzle_for(), d1, "door_controllers")
 		ok.dark_room = ok.dark_room and _check_hint_ladder(l1.dark_room_puzzle_for(), d1, "'dead'") and not l1.dark_room_puzzle_for().hints[0].contains("flickering")
 	for id in ok:
 		check(ok[id], "%s: hint 1 is the query's shape with ?, and the last hint's query solves it, on every seed" % id)
@@ -807,6 +842,10 @@ func test_level_0_scene() -> void:
 	check(not level.memo_puzzle.solved and Array(level.desk_terminal.transcript).any(func(l): return l.contains("memo backwards")), "a memo sorted DESC doesn't count, and SYSOP says why")
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no")
 	check(level.memo_puzzle.solved, "terminal run solves the memo")
+	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 1")
+	check(not level.visitor_puzzle.solved and TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("one row further down"), "the visitor log cut to LIMIT 1 shows only the crew, and SYSOP says Vale is one row down")
+	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 3")
+	check(level.visitor_puzzle.solved, "LIMIT 3 reaches Vale's row and solves the visitor log")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
 	_check_l0_documents(level)
 	# Walking into the west end of the counter vaults you over it, and back again.
@@ -1038,6 +1077,23 @@ func test_level_1_scene() -> void:
 	check(not level.controller_puzzle.solved, "zone alone isn't enough")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z)
 	check(level.controller_puzzle.solved, "WHERE + AND finds the controller")
+	# The reset's sign-off wants the floor's faulted count first.
+	check(_game().current_todo() == level.COUNT_TODO and not level.count_puzzle.solved, "next, the sign-off wants the faults counted")
+	level._on_panel(null, level.answer)
+	check(level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until == 0.0 and level.hud._notice.text.contains("NO POWER"), "the right rack still has no power until the count is logged")
+	level.terminal_ui.run("SELECT COUNT(*) FROM door_controllers")
+	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("healthy ones too"), "counting every controller isn't it, and SYSOP says why")
+	level.terminal_ui.run("SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'")
+	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("offline ones too"), "counting everything not 'ok' takes in the offline ones, and SYSOP says why")
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE status = 'fault'")
+	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("let COUNT(*) do the counting"), "listing the faulted rows isn't the count, and SYSOP points at COUNT(*)")
+	var printout: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "WARDEN DIAGNOSTICS")[0]
+	check(printout.plain_text().contains("COUNT(*): %d" % level.db.run_silent("SELECT COUNT(*) AS n FROM racks")[0]["n"])
+		and printout.plain_text().contains("COUNT(*): %d" % level.db.run_silent("SELECT COUNT(*) AS n FROM racks WHERE room = 'Server Room C'")[0]["n"]),
+		"WARDEN's printout shows the racks table's real counts")
+	level.terminal_ui.run("SELECT COUNT(id) AS n FROM door_controllers WHERE status = 'fault'")
+	check(level.count_puzzle.solved and _game().current_todo() == "Reset the faulted controller at its rack", "COUNT with WHERE status = 'fault' logs the count, and the to-do moves on to the reset")
+	check(_game().notebook_todo.any(func(t): return t.text == level.COUNT_TODO and t.filled == "units faulted: %d" % level.faulted), "the count is written on the job ticket")
 	_check_l1_documents(level)
 	check(level.find_children("*", "Document", true, false).any(func(d): return d.title.ends_with("RACK MONITORING") and d.global_position.distance_to(level.terminal.global_position) < 1.5 and d.plain_text().contains("temp_c > %d" % Level1Data.INTERLOCK_C)), "the racks table and its limit are on a card at the terminal, before any hint")
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
@@ -1335,6 +1391,9 @@ func test_coop_level_1() -> void:
 	client.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % host.zone)
 	await _frames(10)
 	check(host.controller_puzzle.solved and client.controller_puzzle.solved, "a client's query finds the controller for everyone")
+	client.terminal_ui.run("SELECT COUNT(*) FROM door_controllers WHERE status = 'fault';")
+	await _frames(10)
+	check(host.count_puzzle.solved and client.count_puzzle.solved, "a client's count logs the sign-off for everyone")
 	client.rack_panels[wrong].interact(client.player)
 	await _frames(10)
 	check(host.panels_locked_until > 0.0 and client.panels_locked_until > 0.0, "a wrong rack locks the panels for everyone")
