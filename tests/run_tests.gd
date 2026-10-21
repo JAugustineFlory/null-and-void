@@ -102,6 +102,7 @@ func _group_floor_g() -> void:
 func _group_floor_14() -> void:
 	test_level_1_data_every_seed()
 	await test_level_1_scene()
+	await test_level_1_book_huddle()
 
 
 ## Floor 22, the security floor (Level 2), outside the lab.
@@ -4583,6 +4584,44 @@ func test_level_3_book_huddles() -> void:
 	_doc(level, "Retention review memo").open_reader(p).close()
 	await _frames(10)
 	check(not h.is_running(), "reading the memo again doesn't repeat the chapter")
+	net.profile = test_profile
+	level.queue_free()
+	await process_frame
+
+
+func test_level_1_book_huddle() -> void:
+	print("Level 1: the book's COUNT chapter")
+	_game().new_run(7)
+	var net := root.get_node("Net")
+	var test_profile = net.profile
+	net.profile = Profile.new()
+	var level = load("res://scenes/level_1.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h := _huddle_of(level)
+	var reader = _doc(level, "CONTROLLER RESET - SIGN-OFF").open_reader(p)
+	await _frames(20)
+	check(not h.is_running() and p.input_locked and reader.is_inside_tree(), "the cut waits while the sign-off form is still being read")
+	reader.close()
+	for i in 300:  # the cut to the garage
+		if h.is_running():
+			break
+		await physics_frame
+	check(h.chapter.get("id", "") == "easy_sql_count" and p.input_locked, "putting the sign-off form down brings back How many?, the COUNT chapter")
+	await _crew_reads([level])
+	await _frames(60)  # the cut back to floor 14
+	check(h.done.has("easy_sql_count") and net.profile.earned.has("chapter:easy_sql_count") and not p.input_locked, "the crew reads it, it's on the profile, and the crew can move again")
+	# In the World a paper's reader sits on its wing, under the World's huddle.
+	var wing_script := GDScript.new()
+	wing_script.source_code = "extends Node\nfunc finish_level() -> void:\n\tpass\n"
+	wing_script.reload()
+	var wing := Node.new()
+	wing.set_script(wing_script)
+	level.add_child(wing)
+	var wing_reader := DocumentReader.new()
+	wing.add_child(wing_reader)
+	check(h._papers().has(wing_reader), "the huddle also waits for a paper open on a wing")
 	net.profile = test_profile
 	level.queue_free()
 	await process_frame

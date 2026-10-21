@@ -200,17 +200,20 @@ func build() -> void:
 		{"case": "controller", "text": "COUNT(*) counts the rows instead of listing them: SELECT COUNT(*) FROM racks WHERE room = 'Server Room C'; gives %d." % racks_c},
 	]
 	# The reset's paperwork: the count it wants comes from the terminal.
-	Document.place(geo, Vector3(-3.9, 0.902, 8.6), 4.0, "CONTROLLER RESET - SIGN-OFF", [
+	var signoff := Document.place(geo, Vector3(-3.9, 0.902, 8.6), 4.0, "CONTROLLER RESET - SIGN-OFF", [
 		"CONTROLLER RESET - SIGN-OFF",
 		"Floor 14. No manual reset without this form.",
 		"Units faulted (all doors this bank runs): ______",
 		"Count every controller with status 'fault', whichever door it runs. Units marked 'offline' are switched off on purpose: they don't count.",
 		"The rack reset circuits stay unpowered until the count is logged at the terminal.",
 		"Badge: ______  (facilities)",
-	], true, "paper", Vector2(0.15, 0.2)).clues = [
+	], true, "paper", Vector2(0.15, 0.2))
+	signoff.clues = [
 		{"case": "controller", "text": "The reset sign-off wants the number of controllers with status 'fault', whichever door they run. 'offline' units don't count."},
 		{"case": "controller", "text": "The rack reset circuits stay unpowered until the count is logged at the terminal."},
 	]
+	# Reading it brings back the book's COUNT chapter, round the garage bench.
+	signoff.read_by.connect(func(_p): sync.event("_book_huddle", ["easy_sql_count"]))
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
 		add_light("room", p, 9.0, 1.2)
@@ -712,6 +715,12 @@ func _on_light_panel(_p: Node) -> void:
 
 func _on_light_refused() -> void:
 	hud.notice("> LIGHTING CIRCUIT: RESET LOCKED.\n> It unlocks once the terminal lists every light that's dead or flickering.", 4.0, ThemeUtil.RED)
+
+
+## Every machine: a paper brings back its chapter of Easy SQL, read round the garage
+## bench (a flashback, once per run).
+func _book_huddle(id: String) -> void:
+	await Huddle.of(self).run(id)
 
 
 ## Every machine: the break room lights up and the north corridor stops flickering.
