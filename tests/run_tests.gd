@@ -2664,11 +2664,21 @@ func test_coop_combat() -> void:
 	check(is_equal_approx(client.player.health, 78.0), "a hit from the host's Rourke lands on the client's own machine")
 	var blocks := []
 	host.crew.hit_blocked.connect(func(id, cause): blocks.append([id, cause]))
+	var net: Node = root.get_node("/root/Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()  # in memory, so tests never touch a real save
+	var unlocks := []
+	for l in machines:
+		l.crew.unlocked.connect(func(s): unlocks.append([l, s]))
 	client.player.combat.raise_guard()
 	puppet.take_damage(22.0, "rourke")
 	await _frames(10)
 	check(is_equal_approx(client.player.health, 78.0), "the client's block, on their own machine, catches it")
 	check(blocks == [[client_id, "rourke"]], "and the host hears about it, so he can reel")
+	check(unlocks.size() == 2 and machines.all(func(l): return unlocks.any(func(u): return u[0] == l and u[1] == CrewVitals.FIRST_BLOCK)),
+		"the client's first real block earns the High-tops on every machine: everyone present gets them")
+	check(net.profile.earned.has(CrewVitals.FIRST_BLOCK), "into the player's own profile")
+	net.profile = real_profile
 	puppet.take_damage(1000.0, "watcher")
 	await _frames(10)
 	check(client.player.downed and client.player.input_locked and client.player.health == 0.0, "knocked out: the client is down, not dead")

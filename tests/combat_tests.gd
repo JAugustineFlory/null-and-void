@@ -20,6 +20,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_grab()
 	await test_injuries()
 	await test_rourke_fight_feel()
+	await test_first_block_unlock()
 
 
 func check(cond: bool, name: String) -> void:
@@ -225,4 +226,33 @@ func test_rourke_fight_feel() -> void:
 	await frames(5)
 	check(r.target == null, "he leaves someone who's down alone")
 	p.combat.down = false
+	await done(a)
+
+
+## The High-tops: the first block in a real fight unlocks them; the punch bag's
+## practice swings never do. (Co-op, where everyone present gets them: run_tests.gd.)
+func test_first_block_unlock() -> void:
+	var net: Node = t.root.get_node("/root/Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()  # in memory, so tests never touch a real save
+	var a := arena()
+	var crew := CrewVitals.create(a, null)  # a bare world: no LevelSync, so it's its own host
+	var p := spawn(a, Vector3(0, 0.1, 0))
+	await frames(20)
+	p.combat.crew = crew
+	var got := []
+	crew.unlocked.connect(func(s): got.append(s))
+	p.combat.raise_guard()
+	check(p.take_damage(0.0, "spar") == "blocked", "the punch bag's swing can be blocked")
+	check(got.is_empty() and not net.profile.earned.has(CrewVitals.FIRST_BLOCK), "but blocking the punch bag earns nothing")
+	await frames(int((Guard.WINDOW + Guard.RECOVER) * 60) + 2)
+	check(p.take_damage(10.0, "rourke") == "hit" and got.is_empty(), "taking a real hit earns nothing either")
+	p.combat.raise_guard()
+	check(p.take_damage(22.0, "rourke") == "blocked", "a real swing, blocked")
+	check(got == [CrewVitals.FIRST_BLOCK] and net.profile.earned.has(CrewVitals.FIRST_BLOCK), "the first block in a real fight earns the High-tops")
+	await frames(2)
+	p.combat.raise_guard()
+	p.take_damage(22.0, "rourke")
+	check(got.size() == 1, "only once")
+	net.profile = real_profile
 	await done(a)
