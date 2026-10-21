@@ -311,6 +311,8 @@ func test_coop_huddle() -> void:
 		run_it.call()
 	_check.call(await _until(func(): return hc.is_running() and hh.is_running(), 300), "the huddle opens on both machines")
 	_check.call(hh.is_reader() and not hc.is_reader(), "one player reads (the host, for chapter 0)")
+	_check.call(hh.crew.size() == 2 and hc.crew == hh.crew, "the whole crew is in the huddle")
+	_check.call(host.player.input_locked and client.player.input_locked, "nobody can walk out of it: everyone is held at the book")
 	hc.turn_page()
 	await _frames(10)
 	_check.call(hh.page == 0, "only the reader turns the page")
