@@ -1,6 +1,6 @@
 # Recording list
 
-943 lines in all.
+948 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -103,9 +103,9 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
 | [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (21 lines)
+## WARDEN (26 lines)
 
-> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
@@ -128,8 +128,13 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
 | [ ] | `l4_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 4, later |
 | [ ] | `l4_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 4, later |
+| [ ] | `l4_epsilon_db` | DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. | Same checklist reading. 'Authorized services only' is just policy, not a hint. | Level 4, later |
 | [ ] | `l4_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 4, later |
 | [ ] | `l4_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 4, later |
+| [ ] | `l4_epsilon_loop_2` | REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. | Takes turns with the other reminder. Same polite loop. | Level 4, later |
+| [ ] | `l4_write_refused` | WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. | The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal. | Level 4, later |
+| [ ] | `l4_write_refused_tease` | YOU MAY STILL LOOK. LOOKING IS FREE. | A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud. | Level 4, later |
+| [ ] | `l4_write_refused_again` | STILL READ-ONLY. | Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat. | Level 4, later |
 
 ## WARDEN (PA tapes) (3 lines)
 

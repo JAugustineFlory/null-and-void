@@ -21,7 +21,7 @@ const CHARACTERS := {
 		"card": "The building's computer system. It runs the doors, the lights and the speakers, and it talks over the PA and through terminals.",
 		"name": "WARDEN",
 		"who": "The campus security system, heard over 1997 PA speakers and terminals. Not a villain: it enforces protocol, and turns hostile only once the crew breaches it and loses their escort.",
-		"voice": "Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.",
+		"voice": "Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.",
 	},
 	"PA": {
 		"slug": "pa",
@@ -372,7 +372,10 @@ const SCENES := [
 		"context": "Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches."},
 	{"id": "l4_epsilon", "level": 4, "title": "Containment protocol Epsilon", "wired": false,
 		"moment": "Over every speaker in the building: the building's computer announces a full lockdown. Then, every few minutes, a reminder.",
-		"context": "Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level 4 under curriculum option B (approved 2026-10-21)."},
+		"context": "Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level 4 under curriculum option B (approved 2026-10-21). Epsilon also locks the database to read-only, which is why the crew turns to the building's services."},
+	{"id": "l4_read_only", "level": 4, "title": "Writes refused", "wired": false,
+		"moment": "Someone types a change into a terminal during the lockdown. The building's computer answers over the speakers and on the screen.",
+		"context": "After Epsilon the database is read-only; SELECT still works. By Level 4 WARDEN's fault lets his own personality leak out: the first refusal is the automatic PA announcement first, then WARDEN himself, teasing, as a separate beat. Approved by Augustine 2026-10-21 with that split."},
 ]
 
 ## speaker, text (also the subtitle), and a short note for the actor.
@@ -780,10 +783,20 @@ const LINES := {
 		"note": "Flat and slow. A short pause after."},
 	"l4_epsilon_2": {"scene": "l4_epsilon", "speaker": "WARDEN", "text": "ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE.",
 		"note": "Even pauses between sentences, like reading a checklist."},
+	"l4_epsilon_db": {"scene": "l4_epsilon", "speaker": "WARDEN", "text": "DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY.",
+		"note": "Same checklist reading. 'Authorized services only' is just policy, not a hint."},
 	"l4_epsilon_3": {"scene": "l4_epsilon", "speaker": "WARDEN", "text": "ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL.",
 		"note": "No change in tone for 'not a drill'. That's the frightening part."},
 	"l4_epsilon_loop": {"scene": "l4_epsilon", "speaker": "WARDEN", "text": "REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE.",
 		"note": "Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only."},
+	"l4_epsilon_loop_2": {"scene": "l4_epsilon", "speaker": "WARDEN", "text": "REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE.",
+		"note": "Takes turns with the other reminder. Same polite loop."},
+	"l4_write_refused": {"scene": "l4_read_only", "speaker": "WARDEN", "text": "WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON.",
+		"note": "The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal."},
+	"l4_write_refused_tease": {"scene": "l4_read_only", "speaker": "WARDEN", "text": "YOU MAY STILL LOOK. LOOKING IS FREE.",
+		"note": "A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud."},
+	"l4_write_refused_again": {"scene": "l4_read_only", "speaker": "WARDEN", "text": "STILL READ-ONLY.",
+		"note": "Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat."},
 }
 
 
