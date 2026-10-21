@@ -135,12 +135,14 @@ func test_garage_opening() -> void:
 	_check.call(await _until(func(): return _at_mark(home, "fax"), 300), "Maddison walks over to the fax as the work order comes through")
 	home.fax.interact(p)
 	_check.call(await _until(func(): return home.book_bag.enabled), "then the book in the back corner")
-	var bag_light := 0.0
-	for id in home.lights:
-		for l in home.lights[id]:
-			var d: float = l.global_position.distance_to(home.book_bag.global_position)
-			bag_light = maxf(bag_light, l.omni_range - d)
-	_check.call(bag_light < 0.5, "the back corner is out of the lights' reach, under its dead bulb (%.1f m)" % bag_light)
+	var lit := true
+	for spot in [home.book_bag.global_position, home.fax.global_position, home.to_global(home.WHITEBOARD), home.to_global(home.VAN)]:
+		var reach := 0.0
+		for id in home.lights:
+			for l in home.lights[id]:
+				reach = maxf(reach, l.omni_range - l.global_position.distance_to(spot))
+		lit = lit and reach > 1.5
+	_check.call(lit and home.environment.ambient_light_energy >= 0.4, "the garage is well lit, the back corner included")
 	var prof: Profile = _tree.root.get_node("Net").profile
 	_check.call(not prof.earned.has("achievement:book_easy_sql"), "the book's unlock waits until it's picked up")
 	home.book_bag.interact(p)
@@ -278,16 +280,12 @@ func test_flashback() -> void:
 	_check.call(await _until(func(): return h.is_running() and h.get_node_or_null("HuddleUI") != null), "the flashback opens the book")
 	var home = world.get_node_or_null("HomeBase")
 	_check.call(home != null and home.visible and home.flashback_camera.current, "it cuts to the garage through the flashback camera")
-	_check.call(home.find_children("Crew*", "", false, false).size() == 1, "solo, one crew member stands at the bench")
-	_check.call(_at_mark(home, "bench"), "Maddison is at the end of the bench, facing it")
-	var spots: Array = home.HUDDLE_SPOTS.duplicate()
-	spots.append(home.MADDISON_MARKS.bench[0])
-	var crowded := false
-	for i in spots.size():
-		for j in range(i + 1, spots.size()):
-			crowded = crowded or spots[i].distance_to(spots[j]) < 0.8
-	var bench_box := AABB(home.BENCH - Vector3(1.2, 0, 0.5), Vector3(2.4, 1, 1.0)).grow(0.25)
-	_check.call(not crowded and spots.all(func(v): return not bench_box.has_point(v + Vector3(0, 0.5, 0))), "six crew and Maddison all have room round the bench")
+	var cam: Camera3D = home.flashback_camera
+	_check.call(not cam.is_position_behind(home.to_global(home.WHITEBOARD)) and not cam.is_position_behind(home.maddison.global_position), "the camera looks over the crew at Maddison and her whiteboard")
+	var figures: Array = home.find_children("Crew*", "", false, false)
+	_check.call(figures.size() == 1 and figures[0].get_children().any(func(c): return c.get("action") == "sit"), "solo, one crew member sits facing the whiteboard")
+	_check.call(_at_mark(home, "board"), "Maddison is at her whiteboard, facing the crew")
+	_check.call(home.crew_seats.size() == 6 and home.CREW_SEATS.all(func(v): return v.x > home.WHITEBOARD.x + 2.5 and absf(v.z - home.WHITEBOARD.z) < 1.5), "six seats, all in front of the whiteboard")
 	_check.call(h.get_node("HuddleUI").flashback and p.input_locked, "in sepia, with the player held still")
 	_check.call(await _finish_chapter(h, "easy_sql_1"), "the crew reads chapter 1 and answers its check")
 	_check.call(await _until(func(): return done[0]), "the flashback ends")
