@@ -2793,22 +2793,23 @@ func test_coop_combat() -> void:
 	var net: Node = root.get_node("/root/Net")
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
-	var unlocks := []
 	for l in machines:
-		l.crew.unlocked.connect(func(s): unlocks.append([l, s]))
+		l.hud._notice.text = ""
 	client.player.combat.raise_guard()
 	puppet.take_damage(22.0, "rourke")
 	await _frames(10)
 	check(is_equal_approx(client.player.health, 78.0), "the client's block, on their own machine, catches it")
 	check(blocks == [[client_id, "rourke"]], "and the host hears about it, so he can reel")
-	check(unlocks == [[client, CrewVitals.FIRST_BLOCK]],
-		"the client's first real block earns the High-tops on their own machine only: the host, in the same fight, gets nothing")
+	check(client.hud._notice.text == "Unlocked: High-tops" and host.hud._notice.text == "",
+		"the client's first real block unlocks the High-tops for the client only: the host, in the same fight, gets nothing")
 	check(net.profile.earned.has(CrewVitals.FIRST_BLOCK), "into the player's own profile")
+	client.hud._notice.text = ""
+	net.profile = Profile.new()  # the test's machines share one Net, so give the host its own save
 	host.player.combat.raise_guard()
 	check(host.player.take_damage(22.0, "rourke") == "blocked", "then the host blocks a swing of their own")
 	await _frames(10)
-	check(unlocks == [[client, CrewVitals.FIRST_BLOCK], [host, CrewVitals.FIRST_BLOCK]],
-		"and earns the High-tops themselves, on their machine only")
+	check(host.hud._notice.text == "Unlocked: High-tops" and client.hud._notice.text == "" and net.profile.earned.has(CrewVitals.FIRST_BLOCK),
+		"and unlocks the High-tops themselves, the client hearing nothing of it")
 	net.profile = real_profile
 	puppet.take_damage(1000.0, "watcher")
 	await _frames(10)
