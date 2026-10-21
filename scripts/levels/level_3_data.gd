@@ -91,11 +91,7 @@ static func build(run_seed: int) -> Dictionary:
 		var shelf := rng.randi_range(1, 6)
 		var status := "on shelf"
 		var note := ""
-		var roll := rng.randf()
-		if roll < 0.12:
-			status = "out"
-			note = "pulled to the reading room"
-		elif roll < 0.2:
+		if rng.randf() < 0.08:
 			status = "destroyed"
 			note = "shredded per retention schedule"
 		boxes.append([_box_id(rng, used_ids, 1990 + rng.randi_range(0, 7)), "%s %d" % [TITLES[rng.randi_range(0, TITLES.size() - 1)], 1990 + rng.randi_range(0, 7)], dept, "STACKS", "A%d" % aisle, str(shelf), status, note])
@@ -108,16 +104,29 @@ static func build(run_seed: int) -> Dictionary:
 			boxes.append([_box_id(rng, used_ids, 1991 + i), "%s %d" % [TITLES[rng.randi_range(0, TITLES.size() - 1)], 1991 + i], DEPARTMENTS[rng.randi_range(0, DEPARTMENTS.size() - 1)], c, "R1", str(i + 1), "on shelf", ""])
 	_shuffle(boxes, rng)
 
-	# Retrieval slips: paper requests the desk works through. A few are still open.
-	var slips := []  # [slip_no, box_id, requested_by, status, note]
+	# Retrieval slips: paper requests the desk works through. A few are still open
+	# (nothing pulled yet). Of the filled ones, most boxes came back and the clerk
+	# wrote the time; one or two never did, so returned_at is NULL: an empty cell,
+	# not '' and not 0. Those boxes are 'out' in the catalogue.
+	var slips := []  # [slip_no, box_id, requested_by, status, returned_at, note]
 	var open_slips := rng.randi_range(3, 5)
-	var slip_boxes := boxes.filter(func(b): return b[3] == "STACKS").duplicate()
+	var unreturned_n := rng.randi_range(1, 2)
+	var unreturned := []
+	var slip_boxes := boxes.filter(func(b): return b[3] == "STACKS" and b[6] != "destroyed").duplicate()
 	_shuffle(slip_boxes, rng)
 	for i in 9:
 		var b: Array = slip_boxes[i]
 		var status := "open" if i < open_slips else "filled"
 		var note := "" if status == "filled" else "waiting on the night clerk"
-		slips.append(["S-%04d" % (2200 + i * 3 + rng.randi_range(0, 2)), b[0], DAY_BADGES[rng.randi_range(0, DAY_BADGES.size() - 1)][1], status, note])
+		var returned_at = null
+		if status == "filled":
+			if i < open_slips + unreturned_n:
+				b[6] = "out"
+				b[7] = "pulled to the reading room"
+				unreturned.append(b[0])
+			else:
+				returned_at = "1997-10-%02d %02d:%02d" % [rng.randi_range(13, 14), rng.randi_range(9, 16), rng.randi_range(0, 59)]
+		slips.append(["S-%04d" % (2200 + i * 3 + rng.randi_range(0, 2)), b[0], DAY_BADGES[rng.randi_range(0, DAY_BADGES.size() - 1)][1], status, returned_at, note])
 	_shuffle(slips, rng)
 
 	var sql := """
@@ -151,6 +160,7 @@ CREATE TABLE retrieval_slips (
 	box_id TEXT,
 	requested_by TEXT,
 	status TEXT,
+	returned_at TEXT,
 	note TEXT
 );
 INSERT INTO retrieval_slips VALUES
@@ -184,12 +194,14 @@ INSERT INTO lights VALUES
 	]
 	var open_list := slips.filter(func(s): return s[3] == "open")
 	return {"sql": sql, "host": host, "night_counts": night_counts, "open_slips": open_list.size(),
+		"unreturned": unreturned,
 		"mercer_boxes": boxes.filter(func(b): return b[3] == host).map(func(b): return b[0])}
 
 
 ## One row's values, quoted for SQL ("Founder's papers" needs its quote doubled).
+## A null stays a real NULL, so IS NULL finds it and = '' doesn't.
 static func _values(row: Array) -> String:
-	return "(%s)" % ", ".join(row.map(func(v): return "'%s'" % str(v).replace("'", "''")))
+	return "(%s)" % ", ".join(row.map(func(v): return "NULL" if v == null else "'%s'" % str(v).replace("'", "''")))
 
 
 static func _box_id(rng: RandomNumberGenerator, used: Dictionary, year: int) -> String:

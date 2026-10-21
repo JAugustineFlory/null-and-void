@@ -8,10 +8,13 @@ extends LevelBase
 ## analog lock. The first floppy disk of evidence is in there, and so is the key to
 ## the stairs down.
 ##
-## Puzzles: ON HOLD (plan/level-3-records-archive.md). Each station has a Puzzle
-## whose check can be swapped once the curriculum is settled; the defaults below are
-## the old plan's and have no hints or SYSOP text yet. The data they read is built
-## (Level3Data) with a visible source for every row.
+## Puzzles: SQL stations on the records desk terminal (plan/teaching/curriculum-
+## acts-options.md keeps floor 18 in SQL under every option): COUNT as review, DISTINCT,
+## GROUP BY with COUNT under the Shredder, and IS NULL as the word the crew looks up on
+## Mercer's card. Each station is a Puzzle checked on its result set. Their hints,
+## chapters and SYSOP text are drafts in plan/approvals/l3-text.md until Augustine
+## agrees Act 1 ends here; the HTML `hidden` record stays on hold. The data they read
+## is built (Level3Data) with a visible source for every row.
 ## The Shredder (scripts/npc/shredder.gd) sleeps among the machines until the first
 ## crank is turned, then hunts by sound; the level feeds it every loud thing (`noise`).
 ##
@@ -49,6 +52,17 @@ const TEXT := {
 	"end_card": "To be continued.",
 	"shredder_wakes": "North of here, the machines stop. Something heavy gets up.",
 }
+## Mercer's SQL pocket reference, open on his desk: the one Act 1 word no book
+## teaches. Found here, practised on its own example, then used at the desk.
+const CARD_LINES := [
+	"SQL POCKET REFERENCE  -  p.2",
+	"NULL     an empty cell. Not 0, not ''. Nothing was written.",
+	"IS NULL  keeps rows where that cell is empty.",
+	"         WHERE returned_at IS NULL",
+	"IS NOT NULL   the opposite.",
+	"= NULL   never matches anything. Don't.",
+	{"text": "the ones that never came back  - H.M.", "hand": true},
+]
 ## The level's case pages in the notebook (Cases tab), by id.
 const CASES := {"room": TEXT.case_room}
 
@@ -102,20 +116,38 @@ var shredder_awake := false
 ## The stacks' shelf units, for the climb tests and the dressing pass.
 var stack_units: Array[StaticBody3D] = []
 
-## Puzzle stations. HOLD: the checks below are the old plan's defaults (COUNT review,
-## DISTINCT, GROUP BY), kept so the stations and gates work and tests run. No hints
-## until the architect confirms which skill each station teaches.
+## Puzzle stations on the desk terminal. Any query with the same result passes.
+## No hints yet: the ladders are drafted for approval (plan/approvals/l3-text.md).
+## COUNT, as review, safe: how many slips are still open.
 var slips_puzzle := Puzzle.new("slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'", ["count(*)"], false)
+## DISTINCT, new: which departments still have boxes in the stacks (one of each).
 var depts_puzzle := Puzzle.new("depts", "SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'", ["dept"], false)
+## GROUP BY + COUNT + ORDER BY DESC, the gate under the Shredder: that night's busiest
+## reader. Over the whole log the reading room wins, so the WHERE matters.
 var visits_puzzle := Puzzle.new("visits", "SELECT room FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT, ["room"], true)
+## IS NULL, looked up on Mercer's card: the boxes that were pulled and never came back.
+## `= NULL` and `= ''` find nothing; without the status the open slips sneak in.
+var unreturned_puzzle := Puzzle.new("unreturned", "SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL", ["box_id"], false)
+## The second route to the same room, through the catalogue instead of the night's
+## log: Mercer's own boxes are filed in the room that hides his door (LIKE on the
+## title or the note, or his department). Solves the "room" case like `visits`.
+var mercer_puzzle := Puzzle.new("mercer_room", "SELECT DISTINCT room FROM catalogue WHERE dept = 'EXECUTIVE'", ["room"], false)
+
+## Typing is loud (a setting, default OFF, listed for Augustine): a burst of keys at a
+## terminal is a sound the Shredder hears from about half a sprint's distance. It
+## teaches planning the query before you type. Only the host listens.
+var typing_is_loud := false
+const TYPING_LOUDNESS := 0.5
+const TYPING_BURST := 6  # keys within TYPING_WINDOW before a sound is made
+const TYPING_WINDOW := 1.5  # seconds
+var _typed := {}  # terminal -> {"len": chars seen, "count": keys this burst, "since": msec}
 
 
 func build() -> void:
 	data = Level3Data.build(Game.run_seed)
 	load_level_seed(data.sql)
-	slips_puzzle.case_id = "room"
-	depts_puzzle.case_id = "room"
-	visits_puzzle.case_id = "room"
+	for p in puzzles():
+		p.case_id = "room"
 
 	var floor_c := Color(0.26, 0.25, 0.23)
 	var wall_c := Color(0.56, 0.54, 0.48)
@@ -232,12 +264,13 @@ func _build_reading_room(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(0, 0.5, 1.6), Vector3(4.0, 1.0, 0.8), Color(0.4, 0.34, 0.28), "RecordsDesk")
 	desk = Terminal.spawn(geo, Vector3(-0.8, 1.0, 1.6), 0, "RECORDS DESK", db, terminal_ui)
 	desk.name = "DeskTerminal"
-	desk.puzzles = [slips_puzzle, depts_puzzle, visits_puzzle]
+	desk.puzzles = puzzles()
 	desk.boot_lines = [
 		"HALCYON RECORDS  -  ARCHIVE DESK  -  FLOOR 18",
 		"Box requests: see retrieval_slips. Holdings: catalogue. Reader events: access_log.",
 	]
 	desk.queried.connect(_on_query.bind("desk"))
+	desk.screen_changed.connect(_on_typing.bind(desk))
 	# The spike of paper slips: the open requests, as the desk left them.
 	var slip_lines: Array = ["RETRIEVAL SLIPS  -  OPEN", {"columns": ["SLIP", "BOX", "FOR"], "widths": [1.6, 2.2, 2.4]}]
 	for row in db.run_silent("SELECT slip_no, box_id, requested_by FROM retrieval_slips WHERE status = 'open' ORDER BY slip_no"):
@@ -439,6 +472,7 @@ func _build_north(colors: Dictionary) -> void:
 	fiche.name = "FicheTerminal"
 	fiche.boot_lines = ["HALCYON RECORDS  -  ARCHIVE INTRANET  -  FLOOR 18"]
 	fiche.queried.connect(_on_query.bind("fiche"))
+	fiche.screen_changed.connect(_on_typing.bind(fiche))
 
 
 ## Mercer's room, beyond the host room's back wall. Off-grid: a generator and a
@@ -476,6 +510,8 @@ func _build_safe_room() -> void:
 	lantern.light_color = Color(1.0, 0.85, 0.6)
 	geo.add_child(lantern)
 	Greybox.panel(geo, lantern.position, Vector3(0.12, 0.2, 0.12), Color(1.0, 0.9, 0.7), 2.0)
+	# Mercer's SQL reference card, open at the page he dog-eared.
+	Document.place(geo, Vector3(c.x + back.x * 0.1, 0.77, c.z - 1.0), 0, "SQL pocket reference", CARD_LINES, true, "paper")
 	# The floppy, one copy: whoever takes it carries it.
 	floppy = ItemDock.make(geo, Vector3(c.x - back.x * 0.9, 0.8, c.z - 1.0), Vector3(0.3, 0.1, 0.3), "Take the floppy disk", "floppy_disk")
 	floppy.name = "FloppyDock"
@@ -514,21 +550,52 @@ func start() -> void:
 
 # --- Terminals -------------------------------------------------------------------
 
+func puzzles() -> Array:
+	return [slips_puzzle, depts_puzzle, visits_puzzle, unreturned_puzzle, mercer_puzzle]
+
+
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
-	for p in [slips_puzzle, depts_puzzle, visits_puzzle]:
+	for p in puzzles():
 		if not p.solved and p.matches(db, result):
 			sync.event("_on_solved", [p.id, which])
 
 
 ## Every machine: a station's check passed.
 func _on_solved(id: String, _which: String) -> void:
-	for p in [slips_puzzle, depts_puzzle, visits_puzzle]:
+	for p in puzzles():
 		if p.id == id:
 			p.solved = true
-	if id == "visits":
+	if id in ["visits", "mercer_room"] and not Game.case_info("room").get("solved", false):
 		hud.todo(TEXT.todo_room)
-		Game.open_case("room", CASES.room, ["access_log"])
-		Game.solve_case("room", "The readers logged one room far more than any other that night: %s." % data.host)
+		Game.open_case("room", CASES.room, ["access_log" if id == "visits" else "catalogue"])
+		if id == "visits":
+			Game.solve_case("room", "The readers logged one room far more than any other that night: %s." % data.host)
+		else:
+			Game.solve_case("room", "Mercer's own boxes are filed in one side room: %s." % data.host)
+
+
+## Host only, and only when typing is loud: the typed lines at `terminal` changed
+## (local keys at once, teammates' at the mirror's rate). Count the new characters
+## and make a sound at the terminal after a burst of them.
+func _on_typing(terminal: Terminal) -> void:
+	var total := 0
+	for text in terminal.typing.values():
+		total += str(text).length()
+	# Always keep up with the typed length, so turning the setting on mid-game
+	# doesn't make a line already on screen into a burst.
+	var t: Dictionary = _typed.get(terminal, {"len": 0, "count": 0, "since": 0})
+	var now := Time.get_ticks_msec()
+	if now - int(t.since) > TYPING_WINDOW * 1000.0:
+		t.count = 0
+	var added: int = total - int(t.len)
+	t.len = total
+	if added > 0 and typing_is_loud and sync.is_host():
+		t.count = int(t.count) + added
+		t.since = now
+		if int(t.count) >= TYPING_BURST:
+			t.count = 0
+			noise.emit(terminal.global_position, TYPING_LOUDNESS)
+	_typed[terminal] = t
 
 
 # --- The side rooms' shelving ------------------------------------------------------

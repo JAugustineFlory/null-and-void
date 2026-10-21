@@ -3863,6 +3863,8 @@ func test_level_3_data_every_seed() -> void:
 	var sources := true
 	var slips_ok := true
 	var depts_ok := true
+	var nulls_ok := true
+	var route_ok := true
 	var hosts := {}
 	for s in 50:
 		var data := Level3Data.build(s)
@@ -3908,6 +3910,40 @@ func test_level_3_data_every_seed() -> void:
 		var all_rows := db.run_silent("SELECT dept FROM catalogue WHERE room = 'STACKS'").size()
 		if depts < 2 or depts >= all_rows or not l3.depts_puzzle.matches(db, db.execute("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")) or l3.depts_puzzle.matches(db, db.execute("SELECT dept FROM catalogue WHERE room = 'STACKS'")):
 			depts_ok = false
+		for wrong in ["SELECT COUNT(*) FROM retrieval_slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'filled'"]:
+			if l3.slips_puzzle.matches(db, db.execute(wrong)):
+				slips_ok = false
+		for wrong in ["SELECT DISTINCT title FROM catalogue WHERE room = 'STACKS'", "SELECT DISTINCT dept FROM catalogue"]:
+			if l3.depts_puzzle.matches(db, db.execute(wrong)):
+				depts_ok = false
+		# IS NULL: the boxes pulled and never brought back. The cell is a real NULL.
+		var out_boxes := db.run_silent("SELECT box_id FROM catalogue WHERE status = 'out' ORDER BY box_id").map(func(r): return r["box_id"])
+		var unreturned: Array = data.unreturned.duplicate()
+		unreturned.sort()
+		if unreturned.is_empty() or unreturned.size() > 2 or out_boxes != unreturned:
+			nulls_ok = false
+		if int(db.run_silent("SELECT COUNT(*) AS n FROM retrieval_slips WHERE returned_at = '' OR returned_at = 0")[0]["n"]) != 0:
+			nulls_ok = false
+		for right in ["SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL", "SELECT * FROM retrieval_slips WHERE returned_at IS NULL AND status = 'filled'"]:
+			if not l3.unreturned_puzzle.matches(db, db.execute(right)):
+				nulls_ok = false
+		for wrong in [
+			"SELECT box_id FROM retrieval_slips WHERE returned_at = NULL",
+			"SELECT box_id FROM retrieval_slips WHERE returned_at = ''",
+			"SELECT box_id FROM retrieval_slips WHERE returned_at IS NULL",
+			"SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NOT NULL",
+			"SELECT box_id FROM retrieval_slips WHERE status = 'filled'",
+		]:
+			if l3.unreturned_puzzle.matches(db, db.execute(wrong)):
+				nulls_ok = false
+		# The catalogue route: Mercer's boxes name the room without the night's log.
+		for right in ["SELECT DISTINCT room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT room FROM catalogue WHERE title LIKE 'Founder%'", "SELECT DISTINCT room FROM catalogue WHERE note LIKE '%archivist%'"]:
+			var r := db.execute(right)
+			if not l3.mercer_puzzle.matches(db, r) or r.rows[0]["room"] != data.host:
+				route_ok = false
+		for wrong in ["SELECT DISTINCT room FROM catalogue", "SELECT DISTINCT room FROM catalogue WHERE room != 'STACKS'", "SELECT dept FROM catalogue WHERE dept = 'EXECUTIVE'"]:
+			if l3.mercer_puzzle.matches(db, db.execute(wrong)):
+				route_ok = false
 		if data.mercer_boxes.size() != 3:
 			sources = false
 		hosts[data.host] = true
@@ -3917,8 +3953,10 @@ func test_level_3_data_every_seed() -> void:
 	check(wrongs_fail, "no WHERE, ASC, no ORDER BY, grouping by badge and LIMIT never pass the visits check")
 	check(tally_route, "one badge's rows alone point at the room, and fit on one screen to tally by hand")
 	check(sources, "every log room has a reader, every box an aisle or a side room, and Mercer's three boxes are in the host room")
-	check(slips_ok, "3 to 5 slips are open, and COUNT(*) on them passes the slips check")
-	check(depts_ok, "the stacks' departments repeat: DISTINCT collapses them, and the plain list doesn't pass")
+	check(slips_ok, "3 to 5 slips are open, and COUNT(*) on them passes the slips check; counting every slip or the filled ones doesn't")
+	check(depts_ok, "the stacks' departments repeat: DISTINCT collapses them, and the plain list, the wrong column and every room don't pass")
+	check(nulls_ok, "one or two pulled boxes never came back: returned_at IS NULL finds them (and the catalogue says 'out'); = NULL, = '', no status, IS NOT NULL and the filled list don't")
+	check(route_ok, "the catalogue route: Mercer's boxes (his department, 'Founder%', the archivist note) name the room with DISTINCT, and broader lists don't")
 	check(hosts.size() == Level3Data.CANDIDATES.size(), "the safe room hides behind a different side room on different runs (%s)" % [hosts.keys()])
 	var building := FacilityDB.new()
 	building.load_seed(Level2Data.build(1).sql)
@@ -3984,17 +4022,24 @@ func test_level_3_scene() -> void:
 	check(space.intersect_ray(q).is_empty(), "after cranking, the aisle along the back wall is clear")
 	check(level.find_children("Door_MERCER", "", false, false).size() == 1 and level.safe_room_box.has_point(spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 + 1.0)),
 		"one hidden door, in the host room's back wall, with Mercer's room beyond it")
-	# The desk's stations (checks on HOLD, so no hints are asserted here).
+	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
+	check(level.desk.puzzles.size() == 5 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "five stations on the desk, none with a hint ladder yet")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room ORDER BY COUNT(*) DESC")
-	check(not level.visits_puzzle.solved, "a count over the whole log doesn't pass: the reading room comes first")
+	check(not level.visits_puzzle.solved and not _game().case_info("room").get("solved", false), "a count over the whole log doesn't pass: the reading room comes first")
+	level.terminal_ui.run("SELECT room FROM catalogue WHERE title LIKE 'Founder%'")
+	check(level.mercer_puzzle.solved and _game().case_info("room").solved and _game().case_info("room").how.contains(host), "the catalogue route: Mercer's box names the room, and the case page closes with it")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT)
-	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's count passes, and the case page closes with the room")
+	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's count passes too; the case stays closed once")
 	level.terminal_ui.run("SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'")
 	level.terminal_ui.run("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")
-	check(level.slips_puzzle.solved and level.depts_puzzle.solved, "the slips and departments stations pass with their default checks")
-	check(level.find_children("*", "Terminal", true, false).size() == 2 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (on hold)")
+	check(level.slips_puzzle.solved and level.depts_puzzle.solved, "the slips and departments stations pass")
+	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE returned_at = NULL")
+	check(not level.unreturned_puzzle.solved, "= NULL finds nothing, so the unreturned station doesn't pass")
+	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL")
+	check(level.unreturned_puzzle.solved, "IS NULL finds the boxes that never came back, and the station passes")
+	check(level.find_children("*", "Terminal", true, false).size() == 2 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (the web skill is on hold)")
 	level.queue_free()
 	await process_frame
 
@@ -4015,6 +4060,8 @@ func test_level_3_safe_room() -> void:
 	var c: Vector3 = level.safe_room_box.get_center()
 	check(not level.safe_door.locked and level.safe_door.is_hinged(), "Mercer's door is an ordinary door: no badge, no network")
 	check(not level.lights.keys().any(func(k): return k.contains("MERCER")) and level.db.run_silent("SELECT * FROM lights WHERE room LIKE '%Mercer%'").is_empty(), "nothing in the safe room is in the lights table: it's off the grid")
+	var card := _doc(level, "SQL pocket reference")
+	check(card != null and level.safe_room_box.has_point(level.to_local(card.global_position)) and card.plain_text().contains("IS NULL") and not card.plain_text().contains("SELECT"), "Mercer's reference card is on his desk: it explains IS NULL, and gives no query")
 	level.cranks[host].interact(p)
 	level.safe_door.interact(p)
 	for i in 60:
@@ -4210,6 +4257,22 @@ func test_level_3_shredder() -> void:
 	check(not s.hear(far, 0.15) and s.hear(far, Shredder.SPRINT_LOUDNESS), "seven metres off, footsteps are too quiet to hear and a sprint carries")
 	s.state = "listening"
 	check(not s.hear(level.to_global(Vector3(-9, 0, -20.5)), Shredder.SPRINT_LOUDNESS) and s.hear(level.to_global(Vector3(-9, 0, -20.5)), level.CRANK_LOUDNESS), "eleven metres off a sprint is lost, but a crank still carries")
+	# Typing is loud: a setting, off by default. On, a burst of keys at a terminal is a sound.
+	var sounds := []
+	level.noise.connect(func(at, loud): sounds.append([at, loud]))
+	level.desk.typing[1] = "SELECT room"
+	level.desk.screen_changed.emit()
+	check(sounds.is_empty() and not level.typing_is_loud, "by default, typing makes no sound")
+	level.typing_is_loud = true
+	level.desk.typing[1] = "SELECT room, C"
+	level.desk.screen_changed.emit()
+	check(sounds.is_empty(), "with the setting on, a few keys are still quiet")
+	level.desk.typing[1] = "SELECT room, COUNT(*)"
+	level.desk.screen_changed.emit()
+	check(sounds.size() == 1 and sounds[0][1] == level.TYPING_LOUDNESS and sounds[0][0].distance_to(level.desk.global_position) < 0.5, "a burst of keys is one sound at the terminal")
+	s.place(level.to_global(Vector3(-5.5, 0, -22.0)), level.to_global(Vector3(-5.5, 0, -10.0)))  # out in the corridor, clear of its machines
+	check(not s.hear(level.desk.global_position, level.TYPING_LOUDNESS) and not s.hear(level.to_global(Vector3(-5.5, 0, -12.0)), level.TYPING_LOUDNESS) and s.hear(level.to_global(Vector3(-5.5, 0, -14.5)), level.TYPING_LOUDNESS), "it carries about half a sprint: not from the desk across the floor or from 10 m, but from a terminal 7.5 m off")
+	level.typing_is_loud = false
 	# Caught: it holds you, then throws you.
 	s.place(level.to_global(Vector3(0, 0, -23.5)), level.to_global(Vector3(5, 0, -23.5)))
 	s.state = "listening"

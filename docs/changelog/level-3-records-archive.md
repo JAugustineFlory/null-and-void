@@ -1,3 +1,4 @@
 - **New:** Floor 18, the Records Archive: the stairs down from 22 lead into a records floor at night, with a reading room, towering stacks you can climb and cross along the tops, side rooms whose doors shut, and a hidden room to find.
 - **Added:** rolling compact shelving with hand cranks, the archive's own tables (badge reader log, catalogue, retrieval slips), and the first floppy disk to carry out.
 - **Added:** something on floor 18 that hunts by sound. Sprint, land hard or turn a crank and it hears you; crouch and walk slowly and it doesn't. It can't be blocked, so climb.
+- **Added:** a fourth puzzle at the records desk, a pocket reference card to find, and a second way to work out where the hidden room is.
