@@ -18,6 +18,8 @@ func run(_tree: SceneTree, check: Callable) -> void:
 	test_created_and_conflict()
 	test_wrong_method()
 	test_old_routes_unchanged()
+	print("Typing requests at a terminal")
+	test_terminal_request_entry()
 
 
 func check(cond: bool, name: String) -> void:
@@ -174,3 +176,22 @@ func test_old_routes_unchanged() -> void:
 	var r := api.request("PATCH /cameras {\"x\": 1}")
 	check(r.status == 405 and r.body.error.contains("read-only"), "a read-only API keeps Level 2's read-only message")
 	check(api.request("get /Cameras/;").status == 200, "one-argument handlers still work")
+
+
+## When Enter sends a request (TerminalUI.is_complete): Level 2's one-line GETs at
+## once; writes once their JSON body closes; headers end with a blank line.
+func test_terminal_request_entry() -> void:
+	var done := func(text: String) -> bool: return TerminalUI.is_complete(text)
+	check(done.call("GET /cameras") and done.call("get /doors/D-12;") and done.call("DELETE /badges/B-2"), "a GET or DELETE on one line is sent at once, as on Level 2")
+	check(done.call("PATCH /doors/D-12 {\"locked\": false}"), "a one-line write is sent once its body closes")
+	check(not done.call("PATCH /doors/D-12"), "a write with no body yet carries on to the next line")
+	check(not done.call("PATCH /doors/D-12\nX-Api-Key: 7f3a-22"), "header lines carry on")
+	check(not done.call("PATCH /doors/D-12\nX-Api-Key: 7f3a-22\n"), "the blank line before the body carries on")
+	check(not done.call("PATCH /doors/D-12\nX-Api-Key: 7f3a-22\n\n{\n  \"locked\": false,"), "a body that hasn't closed carries on")
+	check(done.call("PATCH /doors/D-12\nX-Api-Key: 7f3a-22\n\n{\n  \"locked\": false\n}"), "the body's closing } sends it")
+	check(not done.call("POST /notes {\"text\": \"a } in quotes\""), "brackets inside quotes don't count")
+	check(done.call("POST /notes {\"text\": \"a } in quotes\"}"), "and the real } still closes it")
+	check(done.call("PATCH /doors/D-12 {\"locked\": false\n"), "a blank line after an unfinished body sends it, so the service can explain")
+	check(done.call("POST /badges\nX-Api-Key: hr-0091\n\n"), "two blank lines send a write with no body, for the same reason")
+	check(not done.call("GET /hr/staff\nX-Api-Key: hr-0091") and done.call("GET /hr/staff\nX-Api-Key: hr-0091\n"), "a GET with header lines (Shift+Enter) is sent by a blank line")
+	check(not done.call("SELECT * FROM doors") and done.call("SELECT * FROM doors;") and done.call(".tables"), "SQL's ; rule and dot-commands are unchanged")

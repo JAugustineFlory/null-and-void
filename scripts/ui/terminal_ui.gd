@@ -516,23 +516,77 @@ func _flash_semicolon() -> void:
 
 
 ## Is `text` ready to run? Like a real SQL prompt, a query runs only once it ends
-## with ; (dot-commands and API requests are one line and need none).
+## with ; (dot-commands need none, and requests follow request_complete).
 static func is_complete(text: String) -> bool:
 	var t := text.strip_edges()
-	return t == "" or t.begins_with(".") or FacilityAPI.is_request(t) or t.ends_with(";")
+	if t == "" or t.begins_with("."):
+		return true
+	if FacilityAPI.is_request(t):
+		return request_complete(text)
+	return t.ends_with(";")
 
 
-## Enter before the ;: the statement carries on, on a new line, and a red ;
-## flashes where it's missing.
+## Is a web request whole? A GET or DELETE is one line, as on Level 2. A POST,
+## PUT or PATCH carries on (header lines, a blank line, then the body) until its
+## JSON body closes. Header lines after a GET (started with Shift+Enter) end with
+## a blank line. A blank line after an unfinished body, or two blank lines, sends
+## it anyway, so the service can say what's wrong.
+static func request_complete(text: String) -> bool:
+	var raw := text.replace("\r", "").strip_edges(true, false)
+	var lines := raw.strip_edges().split("\n")
+	var first := lines[0].strip_edges().split(" ", false, 2)
+	var on_blank_line := raw.ends_with("\n")
+	if raw.ends_with("\n\n"):
+		return true
+	var body := first[2] if first.size() > 2 else ""
+	for i in range(1, lines.size()):
+		var line := lines[i].strip_edges()
+		if body == "" and (line.begins_with("{") or line.begins_with("[")):
+			body = "\n".join(lines.slice(i))
+			break
+	if body != "":
+		return on_blank_line or _json_closed(body)
+	if first[0].to_upper() in ["POST", "PUT", "PATCH"]:
+		return false
+	return lines.size() == 1 or on_blank_line
+
+
+## Do a JSON body's brackets all close? (Text inside quotes doesn't count.)
+static func _json_closed(body: String) -> bool:
+	var depth := 0
+	var in_text := false
+	var escaped := false
+	for c in body:
+		if in_text:
+			if escaped:
+				escaped = false
+			elif c == "\\":
+				escaped = true
+			elif c == "\"":
+				in_text = false
+		elif c == "\"":
+			in_text = true
+		elif c == "{" or c == "[":
+			depth += 1
+		elif c == "}" or c == "]":
+			depth -= 1
+	return depth <= 0
+
+
+## Enter before the statement is finished: it carries on, on a new line. For SQL
+## a red ; flashes where it's missing.
 func _continue_statement() -> void:
+	var request := FacilityAPI.is_request(_input.text.strip_edges())
 	var blank_line := _input.text.ends_with("\n") or _input.text.strip_edges() == ""
 	_input.set_caret_line(_input.get_line_count() - 1)
 	_input.set_caret_column(_input.get_line(_input.get_line_count() - 1).length())
-	if not blank_line:
+	if not blank_line and not request:
 		_flash_semicolon()
 	_input.insert_text_at_caret("\n")
 	_typed()
-	if blank_line:
+	if blank_line and request:
+		print_line("[color=#6f8f6f]... now the JSON body. The request is sent once its { } close.[/color]")
+	elif blank_line:
 		print_line("[color=#6f8f6f]... the statement isn't finished until it ends with ;[/color]")
 
 
