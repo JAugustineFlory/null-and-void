@@ -1,3 +1,0 @@
-- **Fixed:** Rourke's mustache is a real mustache now, and open jackets no longer show ragged bits of shirt over the shoulders.
-- **Changed:** ID badges on lanyards and shirts are printed cards with a photo, not blank white tiles.
-- **Fixed:** people step round when they turn on the spot instead of sliding on still feet.

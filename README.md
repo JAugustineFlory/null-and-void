@@ -103,6 +103,26 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 <details open>
 <summary><b>v0.6.0 - 2026-10-21</b></summary>
 
+- **New:** Floor 10, the Power Plant, down the stairs from the Records Archive. Change rows with UPDATE, add them with INSERT, and find out why every write needs its WHERE.
+- **Added:** a gantry arm you drive by code, for a second way into a locked room.
+- **New:** a new opening in front of the crew's garage, solo or co-op: walk in, pick your look and pose, and get ready together.
+- **Changed:** the game now opens with the crew walking into the garage and taking a seat facing Maddison. She briefs you, sends you to the punch bag, has you check the work order in your notebook, and sends one of you for the book. Playing solo, she talks to just you.
+- **Added:** whoever fetches Easy SQL carries it in their hands until they sit down with it.
+- **Fixed:** blocking the punch bag now tells you it worked.
+- **Added:** look down and you see your own body. Swing, block or take a hit and your own arms throw the punch, hold the guard or jolt back in front of you.
+- **Changed:** Easy SQL huddles now quiz each word right after it's taught, and keep the table or page you need on show beside questions that aren't testing your memory.
+- **Fixed:** chapter zero's quick checks only ask about what chapter zero teaches.
+- **Fixed:** subtitles no longer hide behind the open Easy SQL book.
+- **Fixed:** every sticky note goes into your notebook, as a clue on its case page or under Other notes. None of them opens up as a paper any more.
+- **Fixed:** long case titles and notes wrap on their own page instead of running over the binding.
+- **Changed:** while reading the notebook or a paper, the pointer reaches every part of it, and pushing it past the edge turns your view. Right-click no longer looks around, and the pages' buttons always respond.
+- **Fixed:** you arrive at the building in the same van seat you took in the garage.
+- **Fixed:** on every floor, each chapter of the crew's book comes up just before the puzzle that uses it, so you've read every new word before you need it.
+- **Fixed:** Rourke's mustache is a real mustache now, and open jackets no longer show ragged bits of shirt over the shoulders.
+- **Changed:** ID badges on lanyards and shirts are printed cards with a photo, not blank white tiles.
+- **Fixed:** people step round when they turn on the spot instead of sliding on still feet.
+- **Fixed:** people no longer stoop forward when they stand still; they stand up straight.
+- **Changed:** the garage has a real fax machine, and its van is the same Byte-Right van you ride to work in.
 - **Changed:** the crew's garage is bigger and brighter, with seats for the whole crew facing Maddison's whiteboard, and Maddison takes her time.
 - **Added:** a Customize button on the main menu, so you can pick who you play and how you look before a solo game.
 - **Changed:** you feel a hit land: the view shakes and you stagger back a step. A block jolts you too, more softly.
