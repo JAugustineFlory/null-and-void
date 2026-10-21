@@ -692,6 +692,8 @@ func walk_lab(seed_value: int) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	t.root.add_child(level)
+	for id in ["easy_sql_9", "easy_sql_10", "easy_sql_11", "easy_sql_12", "easy_sql_13"]:
+		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
 	Engine.time_scale = 4.0
 	for i in 20:
 		await t.physics_frame
@@ -748,6 +750,8 @@ func walk_level_2(seed_value: int) -> void:
 	_game().rourke_fate = "killed"  # the security section; the lab has its own walk
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	t.root.add_child(level)
+	for id in ["easy_sql_9", "easy_sql_10", "easy_sql_11", "easy_sql_12", "easy_sql_13"]:
+		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
 	for i in 20:
 		await t.physics_frame
 	check_case_clues(level, "security floor (seed %d)" % seed_value)
