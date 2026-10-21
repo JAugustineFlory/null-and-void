@@ -16,11 +16,15 @@ extends Node
 
 signal changed
 signal finished(chapter_id: String)
+## A huddle has closed and the next one can open.
+signal idle
 
 const FLASHBACK := "flashback"
 const HERE := "here"
 ## How long a result stays up before the next question, at least.
 const REVEAL_MIN := 2.5
+## How long the cut waits for a player to finish reading a paper, at most.
+const PAPER_WAIT := 30.0
 
 ## The World or standalone level this belongs to.
 var level: Node
@@ -45,6 +49,7 @@ var _ui: HuddleUI
 var _mode := ""
 var _home: Node3D
 var _mouse_was := Input.MOUSE_MODE_VISIBLE
+var _busy := false
 
 
 static func create(for_level: Node) -> Huddle:
@@ -78,10 +83,14 @@ func is_running() -> bool:
 	return not chapter.is_empty()
 
 
-## Hold a huddle for chapter `id` and wait until the crew has finished it.
+## Hold a huddle for chapter `id` and wait until the crew has finished it. If one
+## is already open (two papers read close together), this one waits its turn.
 func run(id: String, mode: String = FLASHBACK) -> void:
+	while _busy:
+		await idle
 	if done.has(id) or Books.chapter(id).is_empty():
 		return
+	_busy = true
 	var lines: Array = Books.chapter(id).lines
 	var hud = level.get("hud")
 	await _present(mode)
@@ -95,6 +104,8 @@ func run(id: String, mode: String = FLASHBACK) -> void:
 	if hud and lines.size() > 1:
 		await hud.line(lines[1])
 	await _dismiss()
+	_busy = false
+	idle.emit()
 
 
 ## Every machine: the host has opened a chapter.
@@ -312,6 +323,15 @@ func player_name(id: int) -> String:
 
 func _present(mode: String) -> void:
 	_mode = mode
+	# A paper still open here (often the one that brought the chapter back) is read
+	# to the end first; after a while it's put away. Closing it frees the player, so
+	# the lock comes after.
+	var waited := 0.0
+	while waited < PAPER_WAIT and not _papers().is_empty():
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	for r in _papers():
+		r.close()
 	var player: Player = level.get("player")
 	if player:
 		player.input_locked = true
@@ -330,6 +350,11 @@ func _present(mode: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if mode == FLASHBACK and hud:
 		await hud.fade(false, 0.6)
+
+
+## The document readers open on this machine's screen.
+func _papers() -> Array:
+	return level.get_children().filter(func(n): return n is DocumentReader and not n.is_queued_for_deletion())
 
 
 func _dismiss() -> void:
