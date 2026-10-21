@@ -147,6 +147,7 @@ func _group_coop() -> void:
 	await test_coop_looks()
 	await test_coop_sitting()
 	await test_coop_unlocks()
+	await test_coop_achievements()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -1695,7 +1696,7 @@ func test_coop_looks() -> void:
 	root.add_child(lobby)
 	await process_frame
 	var tabs: TabContainer = lobby.find_child("Customize", true, false)
-	check(tabs != null and tabs.get_tab_count() == 3 and tabs.get_tab_title(0) == "Crew" and tabs.get_tab_title(1) == "Look" and tabs.get_tab_title(2) == "Gear", "the picker has Crew, Look and Gear tabs")
+	check(tabs != null and tabs.get_tab_count() == 4 and tabs.get_tab_title(0) == "Crew" and tabs.get_tab_title(1) == "Look" and tabs.get_tab_title(2) == "Gear" and tabs.get_tab_title(3) == "Achievements", "the picker has Crew, Look, Gear and Achievements tabs")
 	lobby.find_child("Skin6", true, false).pressed.emit()
 	lobby.find_child("Crew_kit", true, false).pressed.emit()
 	var hats: OptionButton = lobby.find_child("Item_head", true, false)
@@ -1768,6 +1769,49 @@ func test_coop_looks() -> void:
 	net.profile = real_profile
 
 
+## Named achievements: a notice when earned, and a list in the lobby.
+func test_coop_achievements() -> void:
+	print("Co-op: achievements")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	Cosmetics.reset()
+	var ids := Achievements.LIST.map(func(a): return a.id)
+	check(ids.all(func(id): return ids.count(id) == 1 and not Cosmetics.unlocked_by(id).is_empty()),
+		"every achievement is one of the unlock ids, each listed once")
+	check(Achievements.name_of("achievement:floor_18") == "Filed under F", "floor 18's is called what Augustine approved")
+	check(ids.all(func(id): return Achievements.is_secret(id) == (Achievements.hint(id) == "")), "every achievement but a secret says how to earn it")
+	net.profile = Profile.new()
+	net.profile.earned = ["achievement:floor_18", "secret:roster_thu"]
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var tabs: TabContainer = lobby.find_child("Customize", true, false)
+	var page: Control = lobby.find_child("Achievements", true, false)
+	var title := func(id: String) -> String:
+		var row := page.find_child("Achievement_" + id, true, false)
+		return row.get_node("Name").text if row else ""
+	check(tabs.get_tab_title(3) == "Achievements" and title.call("floor_18") == "Filed under F", "the lobby lists what you've earned")
+	var g := page.find_child("Achievement_floor_g", true, false)
+	check(title.call("floor_g") == Achievements.name_of("achievement:floor_g") + " (locked)" and g.get_node("Hint").text == "Finish the ground floor.",
+		"and what you haven't, with how to earn it")
+	check(title.call("roster_thu") == Achievements.name_of("secret:roster_thu") and title.call("ending_news") == "" and title.call("mercer_vent_tape") == "",
+		"a found secret shows; the others stay hidden")
+	lobby.queue_free()
+	await process_frame
+	# Earning one says its name, then what it unlocks.
+	net.profile = Profile.new()
+	_game().new_run(21)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	levels[0].sync.unlock_for([1], "achievement:floor_18")
+	check(levels[0].hud._notice.text == Achievements.NOTICE % "Filed under F", "earning an achievement shows its name (its sticker isn't drawn yet, so nothing else)")
+	levels[0].hud._notice.text = ""
+	levels[0].sync.unlock_for([1], "achievement:floor_18")
+	check(levels[0].hud._notice.text == "", "and only the first time")
+	await _coop_close(worlds)
+	net.profile = real_profile
+
+
 func test_coop_unlocks() -> void:
 	print("Co-op: unlockable items")
 	var net := root.get_node("Net")
@@ -1831,7 +1875,7 @@ func test_coop_unlocks() -> void:
 	net.profile = Profile.new()  # the test's machines share one Net, so give the client its own save
 	await _frames(10)
 	check(host_profile.has_item("head/hard_hat") and net.profile.has_item("head/hard_hat"), "finishing the ground floor unlocks the hard hat for every player")
-	check(levels[0].hud._notice.text == "Unlocked: Hard hat" and levels[1].hud._notice.text == "Unlocked: Hard hat", "and each of them is told")
+	check(levels[0].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat") and levels[1].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat"), "and each of them is told")
 	levels[0].hud._notice.text = ""
 	levels[0].sync.unlock("achievement:floor_g")
 	await _frames(5)
@@ -1847,7 +1891,7 @@ func test_coop_unlocks() -> void:
 	var client_profile := Profile.new()
 	net.profile = client_profile
 	await _frames(5)
-	check(client_profile.has_item("face/reading_glasses") and levels[1].hud._notice.text == "Unlocked: Reading glasses",
+	check(client_profile.has_item("face/reading_glasses") and levels[1].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:easy_sql_half") + "\nUnlocked: Reading glasses"),
 		"the client who finished half the book unlocks the reading glasses")
 	check(not host_profile.has_item("face/reading_glasses") and levels[0].hud._notice.text == "", "and the host, who didn't, doesn't")
 	net.profile = host_profile
@@ -1855,7 +1899,7 @@ func test_coop_unlocks() -> void:
 	levels[0].sync.unlock_for([1], "achievement:first_block")
 	net.profile = Profile.new()
 	await _frames(5)
-	check(host_profile.has_item("feet/high_tops") and levels[0].hud._notice.text == "Unlocked: High-tops"
+	check(host_profile.has_item("feet/high_tops") and levels[0].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:first_block") + "\nUnlocked: High-tops")
 		and not net.profile.has_item("feet/high_tops") and levels[1].hud._notice.text == "", "the host's own block unlocks the high-tops for the host alone")
 	Cosmetics.catalogue.append({"slot": "walkie", "item": "undrawn_x", "name": "Test undrawn", "unlock": "achievement:test_undrawn"})
 	levels[1].hud._notice.text = ""
@@ -2938,7 +2982,7 @@ func test_coop_combat() -> void:
 	await _frames(10)
 	check(is_equal_approx(client.player.health, 78.0), "the client's block, on their own machine, catches it")
 	check(blocks == [[client_id, "rourke"]], "and the host hears about it, so he can reel")
-	check(client.hud._notice.text == "Unlocked: High-tops" and host.hud._notice.text == "",
+	check(client.hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:first_block") + "\nUnlocked: High-tops") and host.hud._notice.text == "",
 		"the client's first real block unlocks the High-tops for the client only: the host, in the same fight, gets nothing")
 	check(net.profile.earned.has(CrewVitals.FIRST_BLOCK), "into the player's own profile")
 	client.hud._notice.text = ""
@@ -2946,7 +2990,7 @@ func test_coop_combat() -> void:
 	host.player.combat.raise_guard()
 	check(host.player.take_damage(22.0, "rourke") == "blocked", "then the host blocks a swing of their own")
 	await _frames(10)
-	check(host.hud._notice.text == "Unlocked: High-tops" and client.hud._notice.text == "" and net.profile.earned.has(CrewVitals.FIRST_BLOCK),
+	check(host.hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:first_block") + "\nUnlocked: High-tops") and client.hud._notice.text == "" and net.profile.earned.has(CrewVitals.FIRST_BLOCK),
 		"and unlocks the High-tops themselves, the client hearing nothing of it")
 	net.profile = real_profile
 	puppet.take_damage(1000.0, "watcher")
