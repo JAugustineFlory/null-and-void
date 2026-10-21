@@ -132,6 +132,9 @@ var bench_book: Node3D
 var flashback_camera: Camera3D
 ## The pre-game lobby's shot of the garage front (LOBBY_CAMERA): the opening starts on it.
 var lobby_camera: Camera3D
+## The sheet on the whiteboard during a huddle, and what's written on it.
+var board_sheet: Node3D
+var board_text: Label3D
 var _figures: Array[Node3D] = []
 ## Van seats in boarding order (level-local), and who has climbed in.
 var van_seats: Array[Vector3] = []
@@ -195,11 +198,13 @@ func build() -> void:
 		for z in [-3.0, 2.5]:
 			add_light("garage", Vector3(x, SIZE.y, z), 8.0, 1.5, bulb)
 
+	_build_board_sheet()
+
 	flashback_camera = Camera3D.new()
 	flashback_camera.name = "FlashbackCamera"
 	add_child(flashback_camera)
-	flashback_camera.position = Vector3(-0.8, 2.4, 2.6)
-	flashback_camera.look_at_from_position(flashback_camera.position, Vector3(-6.0, 1.0, 0.0), Vector3.UP)
+	flashback_camera.position = Vector3(-2.0, 2.2, 2.4)
+	flashback_camera.look_at_from_position(flashback_camera.position, Vector3(-7.0, 1.3, 0.2), Vector3.UP)
 	lobby_camera = Camera3D.new()
 	lobby_camera.name = "LobbyCamera"
 	lobby_camera.transform = LOBBY_CAMERA
@@ -899,6 +904,46 @@ func start_flashback(crew: int) -> void:
 		rig.play("sit")
 		_figures.append(spot)
 	flashback_camera.make_current()
+
+
+## In the garage itself (the opening's chapter zero): the same shot as a
+## flashback, Maddison at her whiteboard, with the crew in their own seats.
+func start_whiteboard() -> void:
+	maddison_at("board")
+	flashback_camera.make_current()
+
+
+## A big sheet stuck on the whiteboard, where Maddison writes up where the crew
+## is in the chapter during a huddle. Hidden the rest of the time.
+func _build_board_sheet() -> void:
+	board_sheet = Node3D.new()
+	board_sheet.name = "BoardSheet"
+	board_sheet.position = WHITEBOARD + Vector3(0.14, 0, 0)  # over the whole board
+	board_sheet.rotation.y = PI / 2  # facing the room (+X)
+	add_child(board_sheet)
+	var paper := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(2.3, 1.2)
+	paper.mesh = quad
+	paper.material_override = Greybox.mat(Color(0.97, 0.96, 0.92))
+	board_sheet.add_child(paper)
+	board_text = Label3D.new()
+	board_text.name = "BoardText"
+	board_text.pixel_size = 0.0022
+	board_text.font_size = 84
+	board_text.outline_size = 0
+	board_text.modulate = Color(0.12, 0.2, 0.55)  # marker blue
+	board_text.width = 960
+	board_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	board_text.position = Vector3(0, 0, 0.01)
+	board_sheet.add_child(board_text)
+	board_sheet.visible = false
+
+
+## Write `text` up on the board sheet ("" takes it down).
+func write_board(text: String) -> void:
+	board_text.text = text
+	board_sheet.visible = text != ""
 
 
 ## Back to the present: the figures go and `camera` takes over again.
