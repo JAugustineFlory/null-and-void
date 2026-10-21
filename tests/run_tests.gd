@@ -85,6 +85,7 @@ func _run_group(g: String) -> void:
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
 func _group_core() -> void:
 	test_facility_db()
+	test_facility_db_read_only()
 	test_facility_api()
 	test_voice_codec()
 	test_radio_rules()
@@ -254,6 +255,34 @@ func test_facility_db() -> void:
 	check(not r.ok, "ATTACH is blocked")
 	db.reset()
 	check(int(db.run_silent("SELECT locked FROM doors WHERE id = 'A'")[0]["locked"]) == 1, "reset restores seed data")
+
+
+## Protocol Epsilon's read-only building: direct writes refused, reads and game logic
+## untouched, and it outlasts a checkpoint reload.
+func test_facility_db_read_only() -> void:
+	print("FacilityDB: read-only")
+	var db := FacilityDB.new()
+	db.load_seed("INSERT INTO doors (id, locked, actuator_fault) VALUES ('A', 1, 0), ('B', 1, 0);")
+	var refused := []
+	db.write_refused.connect(func(sql): refused.append(sql))
+	db.read_only = true
+	var r := db.execute("UPDATE doors SET locked = 0 WHERE id = 'A'")
+	check(not r.ok and r.error == db.read_only_error and r.changes == 0 and refused.size() == 1, "an UPDATE is refused with the read-only error, and write_refused fires")
+	check(db.run_silent("SELECT locked FROM doors WHERE id = 'A'")[0]["locked"] == 1, "and nothing changed")
+	for sql in ["insert into doors (id) values ('C')", "DELETE FROM doors", "  DROP TABLE doors", "CREATE TABLE x (a)", "\nUPDATE doors SET locked = 0"]:
+		check(not db.execute(sql).ok, "refused: %s" % sql.strip_edges())
+	r = db.execute("WITH t AS (SELECT 1) UPDATE doors SET locked = 0")
+	check(not r.ok and db.run_silent("SELECT COUNT(*) AS n FROM doors WHERE locked = 1")[0]["n"] == 2, "a write behind a WITH is rolled back and refused")
+	r = db.execute("WITH t AS (SELECT id FROM doors) SELECT id FROM t")
+	check(r.ok and r.rows.size() == 2, "a read behind a WITH still works")
+	r = db.execute("SELECT id, locked FROM doors ORDER BY id")
+	check(r.ok and r.rows.size() == 2 and r.columns == ["id", "locked"], "reads still work")
+	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'B'")
+	check(db.run_silent("SELECT locked FROM doors WHERE id = 'B'")[0]["locked"] == 0, "game logic (run_silent) still writes")
+	db.reset()
+	check(db.read_only and not db.execute("UPDATE doors SET locked = 0").ok, "a checkpoint reload keeps it read-only")
+	db.read_only = false
+	check(db.execute("UPDATE doors SET locked = 0 WHERE id = 'A'").changes == 1, "off again, writes work")
 
 
 func test_level_0_puzzles() -> void:

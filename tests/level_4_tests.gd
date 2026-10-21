@@ -360,7 +360,7 @@ func test_accident() -> void:
 	await _frames(5)
 	check(level.accident and level.main_doors_puzzle.solved and _game().case_info("main_doors").get("solved", false), "opening main_doors is the accident, and its case page names what it was")
 	check(not level.stair_out.locked and _game().current_todo() == level.TEXT.todo_down, "the stairs down release, and the to-do says everyone down")
-	check(level.custodian.active and level.custodian.powered and _bay_state(level) == "on" and level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-BAY'")[0]["locked"] == 0,
+	check(level.custodian.is_active() and level.custodian.powered and _bay_state(level) == "on" and level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-BAY'")[0]["locked"] == 0,
 		"the bay's breaker comes on, its door unlocks, and the Custodian wakes")
 	check(level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-CTRL'")[0]["locked"] == 0, "Epsilon leaves the plant's own doors as they were")
 	net.profile.earned.erase("achievement:main_doors_warning")
@@ -370,26 +370,32 @@ func test_accident() -> void:
 	check(await _until(func(): return level.bay_door.is_open, 120), "the bay's door rolls up")
 	# Seen, chased, caught.
 	var cust: Custodian = level.custodian
-	cust.place(level.to_global(Vector3(-5, 0, -15)), level.to_global(Vector3(-5, 0, -10)))
+	cust.global_position = level.to_global(Vector3(-5, 0, -15))
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-5, 0.1, -11.5)))
 	check(await _until(func(): return p.combat.grabbed_by == cust, 300), "the Custodian sees a player in the open, follows, and grabs them (state %s)" % cust.state)
 	check(cust.state == "dragging" and p.input_locked, "and drags them, helpless")
-	cust.take_hit(p)
+	var mate := Node3D.new()  # a teammate's strikes (Combat's rule: three while it drags)
+	level.add_child(mate)
+	for i in cust.STRIKES_TO_FREE:
+		cust.take_hit(mate)
+	mate.queue_free()
 	await _frames(2)
-	check(cust.state == "stunned" and p.combat.grabbed_by == null and not p.input_locked, "a hit makes it let go")
+	check(cust.state == "stunned" and p.combat.grabbed_by == null and not p.input_locked, "a teammate's strikes make it let go")
 	# Cut its power by code: it drops; WARDEN puts it back.
 	level.power_cut_time = 0.5
 	check(await _until(func(): return p.combat.grabbed_by == cust, 400), "on its feet again, it grabs them again")
 	ui.terminal = level.maint
 	ui.run("UPDATE breakers SET state = 'off' WHERE id = '%s'" % data.bay_breaker)
 	await _frames(3)
-	check(not cust.powered and cust.state == "off" and p.combat.grabbed_by == null, "the CHARGING BAY breaker off: it lets go and stands dead")
+	check(not cust.powered and p.combat.grabbed_by == null, "the CHARGING BAY breaker off: it lets go and stands dead")
 	check(await _until(func(): return cust.powered, 120) and _bay_state(level) == "on", "WARDEN puts the bay's power back after a while")
 	level.power_cut_time = level.POWER_CUT_TIME
-	# Dragged all the way back, it shoves them away: it hurts.
-	check(await _until(func(): return cust.state == "recovering", 900), "left alone, it drags them to its bay and lets go (state %s)" % cust.state)
-	await _frames(3)
-	check(p.combat.grabbed_by == null and p.health < PlayerCombat.MAX_HEALTH, "with a shove that hurts (health %.0f)" % p.health)
+	# Dragged all the way back to its bay: down (solo, back to the landing).
+	var docked := [false]
+	cust.docked.connect(func(_p): docked[0] = true)
+	check(await _until(func(): return docked[0], 900), "left alone, it drags them all the way to its bay (state %s)" % cust.state)
+	await _frames(120)
+	check(p.combat.grabbed_by == null and p.health > 0.0 and LANDING_BOX.has_point(level.to_local(p.global_position)), "they go down, and come to on the landing")
 	# The lockout: logged on the controller, read back at the bay's panel in time.
 	level.lockout_window = 0.5
 	ui.terminal = level.controller
@@ -405,12 +411,12 @@ func test_accident() -> void:
 	ui.terminal = level.bay_terminal
 	ui.run(_last_hint_query(level.readback_puzzle))
 	await _frames(3)
-	check(level.sealed and cust.sealed and not cust.powered and _bay_state(level) == "off" and _game().case_info("seal").get("solved", false), "read back at the bay's panel in time: the breaker's held off and the Custodian is dark for good")
+	check(level.sealed and _game().custodian_sealed and not cust.powered and _bay_state(level) == "off" and _game().case_info("seal").get("solved", false), "read back at the bay's panel in time: the breaker's held off and the Custodian is dark for good")
 	check(not level.db.run_silent("SELECT 1 FROM lockouts WHERE breaker = '%s' AND read_back IS NOT NULL" % data.bay_breaker).is_empty(), "the lockout row is marked read back")
 	ui.terminal = level.maint
 	ui.run("UPDATE breakers SET state = 'on' WHERE id = '%s'" % data.bay_breaker)
 	await _frames(30)
-	check(not cust.powered and cust.state == "off", "sealed, power on its breaker doesn't wake it")
+	check(not cust.powered, "sealed, power on its breaker doesn't wake it")
 	# The way down: STAIR 1 to the ground floor, where the crew came in.
 	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
 	check(await _until(func(): return level.on_ground and not p.input_locked, 300), "everyone on the stairs down: behind a fade, down to G")
@@ -425,15 +431,15 @@ func test_accident() -> void:
 	ui.terminal = level.front_desk
 	ui.run("UPDATE gates SET unlocked = 1 WHERE name = 'loading_dock'")
 	await _frames(3)
-	check(not level.read_only and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'loading_dock'")[0]["unlocked"] == 1 and not level.entrance_puzzle.solved, "the dock's gate changes (its motor's seized): not the way out, and nothing else happens")
+	check(not level.db.read_only and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'loading_dock'")[0]["unlocked"] == 1 and not level.entrance_puzzle.solved, "the dock's gate changes (its motor's seized): not the way out, and nothing else happens")
 	ui.run("DELETE FROM gates WHERE name = 'main_entrance'")
 	await _frames(2)
 	check(_said(level.front_desk, level.TEXT.gates_fixed) and level.db.run_silent("SELECT 1 FROM gates WHERE name = 'main_entrance'").size() == 1, "the front doors' row can't be deleted")
 	ui.run(_last_hint_query(level.entrance_puzzle))
 	await _frames(2)
-	check(level.entrance_puzzle.solved and not level.read_only and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 1,
+	check(level.entrance_puzzle.solved and not level.db.read_only and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 1,
 		"main_entrance: 1 row changed and the latch clicks")
-	check(await _until(func(): return level.read_only, 120), "then Epsilon steps in")
+	check(await _until(func(): return level.db.read_only, 120), "then Epsilon steps in")
 	check(level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 0 and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'loading_dock'")[0]["unlocked"] == 0 and not level.front_doors.is_open,
 		"it puts every gate back as it was; the front doors never moved")
 	check(_game().current_todo() == level.TEXT.todo_check_front, "the to-do says to check the row")
@@ -479,10 +485,10 @@ func test_coop() -> void:
 	cui.run(_last_hint_query(client.main_doors_puzzle))
 	await _frames(10)
 	check(machines.all(func(l): return l.accident and not l.stair_out.locked), "a client opening main_doors is the accident on every machine")
-	check(host.custodian.active and host.custodian.powered, "the host's Custodian wakes")
-	host.custodian.place(host.to_global(Vector3(0, 0, -1)), host.to_global(Vector3(0, 0, 4)))
+	check(host.custodian.is_active() and host.custodian.powered, "the host's Custodian wakes")
+	host.custodian.global_position = host.to_global(Vector3(0, 0, -1))
 	await _frames(20)
-	check(client.custodian.active and client.custodian.global_position.distance_to(host.custodian.global_position) < 0.6, "clients see the Custodian where the host has it")
+	check(client.custodian.is_active() and client.custodian.global_position.distance_to(host.custodian.global_position) < 0.6, "clients see the Custodian where the host has it")
 	cui.terminal = client.maint
 	cui.run("UPDATE breakers SET state = 'off' WHERE id = '%s'" % client.data.bay_breaker)
 	await _frames(10)
@@ -493,7 +499,7 @@ func test_coop() -> void:
 	cui.terminal = client.bay_terminal
 	cui.run(_last_hint_query(client.readback_puzzle))
 	await _frames(10)
-	check(machines.all(func(l): return l.sealed and l.custodian.sealed), "a client's lockout, read back at the bay, seals the Custodian everywhere")
+	check(machines.all(func(l): return l.sealed and not l.custodian.powered), "a client's lockout, read back at the bay, seals the Custodian everywhere")
 	var dump := "SELECT * FROM lockouts ORDER BY breaker"
 	check(host.db.run_silent(dump) == client.db.run_silent(dump), "the lockouts table matches on both machines")
 	# Down to G together; a client's main-entrance write is the lie for everyone.
@@ -504,7 +510,7 @@ func test_coop() -> void:
 	check(await _until(func(): return machines.all(func(l): return l.on_ground and not l.player.input_locked), 300), "both machines go down to G")
 	cui.terminal = client.front_desk
 	cui.run(_last_hint_query(client.entrance_puzzle))
-	check(await _until(func(): return machines.all(func(l): return l.read_only), 300), "a client's main-entrance write clicks the latch and Epsilon goes read-only on every machine")
+	check(await _until(func(): return machines.all(func(l): return l.db.read_only), 300), "a client's main-entrance write clicks the latch and Epsilon goes read-only on every machine")
 	check(machines.all(func(l): return l.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 0), "and the row is put back everywhere")
 	cui.run("UPDATE gates SET unlocked = 1 WHERE name = 'main_entrance'")
 	await _frames(10)
@@ -599,7 +605,7 @@ func test_custodian_follows() -> void:
 	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
 	check(await _until(func(): return level.on_ground, 300), "down to G")
 	var at: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
-	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.space == level.g_geo, 120), "it comes out of STAIR 1 on G and hunts there")
+	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0, 120), "it comes out of STAIR 1 on G and hunts there")
 	level.queue_free()
 	await t.process_frame
 

@@ -5,8 +5,13 @@ extends RefCounted
 
 signal door_changed(door_id: String, locked: bool, fault: bool)
 signal light_changed(light_id: String, is_on: bool)
+## A direct write was refused because the database is read-only (on the machine
+## that ran it: in co-op, the host).
+signal write_refused(sql: String)
 
 const BLOCKED := ["ATTACH", "DETACH", "LOAD_EXTENSION", "VACUUM"]
+## The statements that change something, by their first word.
+const WRITE_WORDS := ["INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER", "PRAGMA", "UPSERT"]
 ## Building-wide tables. They exist before any wing loads; wings only INSERT their
 ## own rows, with ids prefixed by the wing (LOBBY-, SRA-, SEC-). The primary keys
 ## make a clash between two wings fail loudly instead of duplicating a door.
@@ -38,6 +43,13 @@ var db: SQLite
 var _checkpoint_sql := ""
 ## Wings whose seed data has been added, in load order.
 var wings: Array[String] = []
+## Containment protocol Epsilon (from Level 4 on): direct SQL writes (a terminal, a
+## deck script's db.query) are refused with `read_only_error`. Reads still work, and
+## so does game logic (run_silent) and the building's services (FacilityAPI routes),
+## which don't go through execute. Shared state: set it from a sync.event handler.
+## It belongs to the building, not its tables, so a checkpoint reload keeps it.
+var read_only := false
+var read_only_error := "WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON."
 
 
 func _init() -> void:
@@ -112,19 +124,46 @@ func execute(sql: String) -> Dictionary:
 		if upper.contains(word):
 			res.error = "%s is disabled on this terminal." % word
 			return res
+	if read_only and is_write(sql):
+		return _refuse(res, sql)
 	var before := _total_changes()
+	if read_only:
+		db.query("SAVEPOINT read_only")
 	var ok: bool = db.query(sql)
+	var raw: Array = db.query_result.duplicate() if ok else []
+	var error: String = db.error_message
+	res.changes = _total_changes() - before
+	if read_only:
+		if res.changes > 0:
+			db.query("ROLLBACK TO read_only")
+		db.query("RELEASE read_only")
+		if res.changes > 0:
+			res.changes = 0
+			return _refuse(res, sql)
 	if not ok:
-		res.error = db.error_message
+		res.error = error
+		res.changes = 0
 		return res
-	var rows := _normalize(db.query_result)
+	var rows := _normalize(raw)
 	res.ok = true
 	res.rows = rows
 	if not rows.is_empty():
 		res.columns = rows[0].keys()
-	res.changes = _total_changes() - before
 	if res.changes > 0:
 		sync_world()
+	return res
+
+
+## The statement changes something, by its first word. (A write hidden behind a WITH
+## is caught by execute under read-only: it's rolled back when it changed rows.)
+static func is_write(sql: String) -> bool:
+	var words := sql.strip_edges().replace("\n", " ").replace("\t", " ").split(" ", false, 1)
+	return not words.is_empty() and WRITE_WORDS.has(words[0].to_upper())
+
+
+func _refuse(res: Dictionary, sql: String) -> Dictionary:
+	res.error = read_only_error
+	write_refused.emit(sql)
 	return res
 
 

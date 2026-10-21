@@ -206,8 +206,6 @@ const G_DESK_AT := Vector3(0, 0, -1.5)
 const G_LOBBY := AABB(Vector3(-8, -0.5, -7), Vector3(16, 4.5, 14))
 ## Run on its own, the ground floor sits this far under floor 10 (level space).
 const G_OFFSET := Vector3(0, -40, 0)
-## Where the Custodian comes out on G, and its rounds there (Level 0's coordinates).
-const G_ROAM := [Vector3(27, 0, 3), Vector3(16, 0, 3), Vector3(4, 0, 3), Vector3(-4, 0, 0), Vector3(3, 0, -4)]
 ## The night lockup card at the front desk: where the gates table is found.
 const GATES_CARD := [
 	"NIGHT LOCKUP  -  GROUND FLOOR",
@@ -234,9 +232,8 @@ const BAY_DOOR_AT := Vector3(-5, 1.4, -10)
 ## The control room and the bay, for tests and the art pass.
 const CTRL_ROOM := AABB(Vector3(2, -0.5, -18), Vector3(8, 3.5, 8))
 const BAY_ROOM := AABB(Vector3(-10, -0.5, -18), Vector3(10, 4, 8))
-## The Custodian's cradle in the bay, and its rounds once it's loose (level space).
+## The Custodian's cradle in the bay (level space): where it drags people.
 const CUSTODIAN_HOME := Vector3(-5, 0, -15.8)
-const ROAM_POINTS := [Vector3(-5, 0, -7), Vector3(5, 0, -7), Vector3(0, 0, -1), Vector3(-6, 0, 2.5), Vector3(4, 0, -4), Vector3(0, 0, 6)]
 
 var data: Dictionary
 var maint: Terminal
@@ -283,8 +280,7 @@ var on_ground := false
 var g_stair: Door
 var front_doors: Door
 var front_desk: Terminal
-## Epsilon has made the database read-only: every write from a terminal is refused.
-var read_only := false
+## Writes refused since Epsilon made the building read-only (FacilityDB.read_only).
 var refusals := 0
 var lie_time := LIE_TIME
 ## How long after the crew the Custodian comes down, if it isn't locked out.
@@ -356,16 +352,17 @@ func build() -> void:
 
 	custodian = Custodian.new()
 	custodian.name = "Custodian"
-	custodian.space = self
-	custodian.home = CUSTODIAN_HOME
-	custodian.roam_points.assign(ROAM_POINTS)
 	custodian.position = CUSTODIAN_HOME  # before add_child: a body at the origin for a step can set off triggers
 	add_child(custodian)
 	custodian.rotation_degrees.y = 0.0
+	custodian.set_bay(to_global(CUSTODIAN_HOME))
 	# Every terminal on 10 sees the building's database through the floor's rules.
 	var guarded := GuardedDB.over(db, _guard, _write_check)
 	for term in [maint, controller, bay_terminal, front_desk]:
 		term.db = guarded
+	# Read-only (from the lie on): the host's database refuses, and WARDEN answers on
+	# every machine.
+	db.write_refused.connect(func(_sql): if sync.is_host(): sync.event("_write_refused"))
 
 
 func _make_puzzles() -> void:
@@ -711,16 +708,11 @@ func puzzles() -> Array:
 
 
 ## The floor's rule in front of every write (GuardedDB): no door writes before a
-## contractor has logged in.
+## contractor has logged in. (Read-only, after the lie, is the building's own:
+## FacilityDB.read_only.)
 func _guard(sql: String) -> String:
-	if not GuardedDB.is_write(sql):
+	if not FacilityDB.is_write(sql):
 		return ""
-	if read_only:
-		var refusal: String = TEXT.write_refused if refusals == 0 else TEXT.write_refused_again
-		# Host: WARDEN answers over the speakers on every machine.
-		if sync.is_host():
-			sync.event("_write_refused")
-		return refusal
 	if not logged_in and sql.to_lower().contains("doors"):
 		return TEXT.refused_login
 	return ""
@@ -741,7 +733,7 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	elif which == "desk":
 		if not entrance_puzzle.solved and changed > 0 and entrance_puzzle.state_ok(db):
 			sync.event("_on_solved", ["entrance"])
-		elif entrance_puzzle.solved and read_only and not verify_puzzle.solved and changed == 0 and verify_puzzle.matches(db, result):
+		elif entrance_puzzle.solved and db.read_only and not verify_puzzle.solved and changed == 0 and verify_puzzle.matches(db, result):
 			sync.event("_on_solved", ["verify"])
 	elif which == "bay":
 		if lockout_until > 0 and not sealed and readback_puzzle.matches(db, result) and _has_lockout():
@@ -1067,8 +1059,7 @@ func _accident() -> void:
 	Game.open_case("main_doors", CASES.main_doors, ["doors"])
 	Game.solve_case("main_doors", TEXT.main_doors_done)
 	hud.notice(TEXT.accident, 6.0, ThemeUtil.RED)
-	if sync.is_host():
-		custodian.wake()
+	custodian.activate()
 	hud.todo(TEXT.todo_down)
 	_epsilon()
 
@@ -1124,7 +1115,8 @@ func _seal() -> void:
 	db.run_silent("UPDATE lockouts SET read_back = '%s' WHERE upper(trim(breaker)) = '%s' AND read_back IS NULL" % [data.time_in, data.bay_breaker])
 	db.run_silent("UPDATE breakers SET state = 'off' WHERE id = '%s'" % data.bay_breaker)
 	_show_lamps()
-	custodian.seal()
+	custodian.set_powered(false)  # and never again: _bay_power ignores the breaker now
+	Game.custodian_sealed = true
 	Game.solve_case("seal", TEXT.seal_done % data.bay_breaker)
 	hud.notice(TEXT.sealed, 5.0)
 
@@ -1134,7 +1126,7 @@ func _seal() -> void:
 func _bay_power(on: bool) -> void:
 	if sealed:
 		return
-	custodian.set_power(on)
+	custodian.set_powered(on)
 	if on:
 		hud.notice(TEXT.power_returns, 3.0)
 		return
@@ -1180,7 +1172,7 @@ func _on_exit() -> void:
 		player.input_locked = not up
 	hud.todo(TEXT.todo_front)
 	hud.fade(false, 0.8)
-	if sync.is_host() and not sealed and custodian.active:
+	if sync.is_host() and not sealed and custodian.is_active():
 		_custodian_follows()
 
 
@@ -1196,10 +1188,8 @@ func _custodian_on_ground() -> void:
 	hud.notice(TEXT.custodian_follows, 4.0)
 	if not sync.is_host():
 		return
-	custodian.space = g_geo
-	custodian.roam_points.assign(G_ROAM)
-	custodian.home = G_STAIR_AT + Vector3(0, 0, -3)
-	custodian.place(g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -1.5)), g_geo.global_transform * Vector3(27, 0, 0))
+	custodian.set_bay(g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -3)))
+	custodian.global_position = g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -1.5))
 
 
 ## Every machine: the main entrance's row says open. The latch clicks; a moment later
@@ -1215,7 +1205,7 @@ func _lie() -> void:
 		db.run_silent("UPDATE gates SET unlocked = %d WHERE name = '%s'" % [row[3], row[0]])
 	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'LOBBY-FRONT'")
 	db.sync_world()
-	read_only = true
+	db.read_only = true  # for the rest of the game: the building's flag, not the floor's
 	hud.notice(TEXT.latch_again, 4.0)
 	hud.todo(TEXT.todo_check_front)
 	if not VoiceLines.get_line("l4_epsilon_db").is_empty():
@@ -1226,6 +1216,7 @@ func _lie() -> void:
 ## WARDEN himself; later, clipped short.
 func _write_refused() -> void:
 	refusals += 1
+	db.read_only_error = TEXT.write_refused_again
 	if refusals == 1:
 		await hud.line("l4_write_refused")
 		await get_tree().create_timer(1.0, false).timeout
