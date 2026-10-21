@@ -513,7 +513,8 @@ func _build_safe_room() -> void:
 	# Locked by a push-button lock beside it (the coded step on every route in: the
 	# code is the keyholder's badge number, from access_log). Cranks only find the door.
 	safe_door.locked = true
-	lock = Level2Keypad.mount(geo, Vector3(wall_x - back.x * 0.06, 1.3, spec.center.z + 1.9), -90.0 * back.x, "mercer", TEXT.lock_idle)
+	# Proud of the wall (walls are 0.2 thick), its face toward the room.
+	lock = Level2Keypad.mount(geo, Vector3(wall_x - back.x * 0.13, 1.3, spec.center.z + 1.9), -90.0 * back.x, "mercer", TEXT.lock_idle)
 	lock.name = "MercerLock"
 	lock.key_pressed.connect(func(key, _by): sync.event("_lock_key", [key]))
 	# Found: the host says so, everyone hears it.
