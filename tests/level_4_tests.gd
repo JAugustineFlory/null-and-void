@@ -21,6 +21,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_gantry()
 	await test_custodian_follows()
 	await test_world()
+	await test_book_huddles()
 	await test_coop()
 
 
@@ -323,8 +324,7 @@ func _said(term: Terminal, line: String) -> bool:
 
 
 ## Floor 10's chapters count as read on these levels: the tests here are about the
-## stations, and the chapters have their own tests (the hooks do nothing until Home
-## base adds the two chapters to books.gd).
+## stations. The chapters opening at their papers is test_book_huddles.
 func _chapters_read(levels: Array) -> void:
 	for l in levels:
 		for id in ["easy_sql_update", "easy_sql_insert"]:
@@ -502,6 +502,35 @@ func test_accident() -> void:
 
 ## Host and client: a client's writes go through the floor's rules on the host, and
 ## the accident, the Custodian and the seal play out on every machine.
+## Easy SQL's Ch 17 and 18 come up at their papers: Changing a row on the work order
+## or the gantry card (whichever is read first, once), Adding a row on the clipboard.
+## The Custodian stands still while the crew is away at the garage bench.
+func test_book_huddles() -> void:
+	print("Floor 10: the book's chapters")
+	_game().new_run(7)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h: Node = t._huddle_of(level)
+	_doc(level, "Gantry card").report_open(p)
+	check(await t._huddle_opens(level, "easy_sql_update"), "the gantry card, read first, brings back Changing a row")
+	check(not level.custodian.is_physics_processing(), "the Custodian stands still while the crew is at the bench")
+	await t._crew_reads([level])
+	await t._until(func(): return not h.is_busy(), 10.0)
+	check(h.done.has("easy_sql_update") and level.custodian.is_physics_processing(), "the chapter ends, and the Custodian ticks again")
+	_doc(level, "Facilities work order").report_open(p)
+	await _frames(20)
+	check(not h.is_busy() and _game().case_info("power").get("open", false), "the work order read after doesn't bring the chapter back, and still opens the power case")
+	_doc(level, "Contractor log").report_open(p)
+	check(await t._huddle_opens(level, "easy_sql_insert"), "the contractor clipboard brings back Adding a row")
+	await t._crew_reads([level])
+	await t._until(func(): return not h.is_busy(), 10.0)
+	check(h.done.has("easy_sql_insert") and _game().case_info("login").get("open", false), "the chapter ends, and the clipboard's case is open")
+	level.queue_free()
+	await t.process_frame
+
+
 func test_coop() -> void:
 	print("Co-op: floor 10 with a host and a client")
 	_game().new_run(5)
