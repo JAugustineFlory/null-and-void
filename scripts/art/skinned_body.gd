@@ -45,6 +45,11 @@ const ARM_SPREAD := 0.12
 const BLEND_RATE := 5.0
 ## How far the clips' fists curl the fingers; less looks relaxed, not ready to fight.
 const FINGER_CURL := 0.4
+## Actions the pack has a clip for play it on the whole body, fists and all:
+## a punch, the guard it starts from (held at its first frame), a hit taken.
+const ACTION_CLIPS := {"jab": "Punch_Jab", "cross": "Punch_Cross", "guard": "Punch_Jab",
+	"recoil": "Hit_Chest", "flinch": "Hit_Head"}
+const HELD := ["guard"]
 const FINGERS := ["thumb", "index", "middle", "ring", "pinky"]
 ## The chest bones between the rig's spine and neck joints. The pack's idle bends
 ## them forward to stand over its own tilted pelvis; under the rig's upright hips
@@ -72,6 +77,8 @@ var _fingers := {}
 var _chest := {}
 var _pelvis := -1
 var _foot_height := 0.0
+var _head_bone := -1
+var _action_playing := ""  # the ACTION_CLIPS action the clips are playing, if any
 var _upper := 1.0
 var _lower := 1.0
 var _clip := ""
@@ -114,15 +121,20 @@ static func attach(rig: CharacterRig, look: Dictionary) -> SkinnedBody:
 ## CharacterRig calls this after each animate().
 func update(delta: float) -> void:
 	var full := _rig.is_full_body() or _rig.crouch_amount() > 0.02
-	var upper_target := 1.0 if full or _rig.action != "idle" or player == null else 0.0
-	var lower_target := 1.0 if full or player == null or _clip == "Idle_Loop" else 0.0
+	var acted: bool = player != null and ACTION_CLIPS.has(_rig.action) and not full
+	var upper_target := 1.0 if (full or _rig.action != "idle" or player == null) and not acted else 0.0
+	var lower_target := 1.0 if (full or player == null or _clip == "Idle_Loop") and not acted else 0.0
 	var k := clampf(delta * BLEND_RATE, 0.0, 1.0) if delta > 0.0 else 1.0
 	_upper = lerpf(_upper, upper_target, k)
 	_lower = lerpf(_lower, lower_target, k)
 	if player:
-		_play_clip(_rig.current_speed())
+		if acted:
+			_play_action(_rig.action)
+		else:
+			_play_clip(_rig.current_speed())
 		player.advance(delta)
 	var cache := {}
+	var curl := 1.0 if acted else FINGER_CURL
 	var clip_chest := {}  # chest bone -> where the clip alone would put it
 	var inv := _skel.affine_inverse()
 	var g: Array[Transform3D] = []
@@ -132,7 +144,7 @@ func update(delta: float) -> void:
 		var parent_g: Transform3D = g[parent] if parent >= 0 else Transform3D.IDENTITY
 		var base: Transform3D = skeleton.get_bone_pose(i) if player else _rest_local[i]
 		if player and _fingers.has(i):
-			base.basis = Basis(_rest_local[i].basis.get_rotation_quaternion().slerp(base.basis.get_rotation_quaternion(), FINGER_CURL))
+			base.basis = Basis(_rest_local[i].basis.get_rotation_quaternion().slerp(base.basis.get_rotation_quaternion(), curl))
 		elif player and _chest.has(i):
 			# Straighten the chest, and remember where the clip had it, so the
 			# shoulders it carries can stay where the clip put them (arms hanging).
@@ -156,6 +168,9 @@ func update(delta: float) -> void:
 		skeleton.set_bone_pose(i, pose)
 	if _lower > 0.0:
 		_plant_feet(g, cache)
+	if _rig.hide_head:
+		# Shrink the head to a point: the hair, hat and glasses ride on it too.
+		skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.001)
 
 
 ## Mesh name -> what it wears: a Color for a tinted part, or a Dictionary of
@@ -302,6 +317,7 @@ func _bind() -> void:
 		if joint == "hips":
 			_hips_offset = j.affine_inverse() * _skel * g[i]
 	_pelvis = skeleton.find_bone("pelvis")
+	_head_bone = skeleton.find_bone("Head")
 	for i in n:
 		if skeleton.get_bone_name(i).get_slice("_", 0) in FINGERS:
 			_fingers[i] = true
@@ -350,7 +366,20 @@ func _add_clips() -> void:
 	player.seek(offset * player.current_animation_length, true)
 
 
+func _play_action(action: String) -> void:
+	if action == _action_playing:
+		return
+	_action_playing = action
+	_clip = ACTION_CLIPS[action]
+	# A held pose can't cross-fade (the fade runs on clip time, which is stopped):
+	# the rig's own upper/lower blend eases into it instead.
+	player.play(_clip, 0.0 if action in HELD else 0.08)
+	player.seek(0.0, true)
+	player.speed_scale = 0.0 if action in HELD else 1.0
+
+
 func _play_clip(speed: float) -> void:
+	_action_playing = ""
 	var clip := "Idle_Loop"
 	if speed > 5.6:
 		clip = "Sprint_Loop"

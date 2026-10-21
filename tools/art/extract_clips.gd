@@ -1,5 +1,6 @@
 extends SceneTree
-## Copies the few animation clips the characters use out of the Quaternius
+## Copies the few animation clips the characters use (walking and running, and
+## punches and hits for fighting) out of the Quaternius
 ## Universal Animation Library (CC0), so the repo carries a small library
 ## instead of the whole pack:
 ##   godot --headless -s tools/art/extract_clips.gd -- PACK_DIR
@@ -7,7 +8,7 @@ extends SceneTree
 ## assets/art/characters/locomotion.res and prints how fast each clip walks
 ## (from the pack's root-motion copy), for SkinnedBody.CLIP_SPEEDS.
 
-const CLIPS := ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop"]
+const CLIPS := ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Punch_Jab", "Punch_Cross", "Hit_Chest", "Hit_Head"]
 const OUT := "res://assets/art/characters/locomotion.res"
 
 
@@ -19,7 +20,7 @@ func _initialize() -> void:
 	var lib := AnimationLibrary.new()
 	for clip in CLIPS:
 		var anim: Animation = plain.get_animation(clip).duplicate(true)
-		anim.loop_mode = Animation.LOOP_LINEAR
+		anim.loop_mode = Animation.LOOP_LINEAR if clip.ends_with("_Loop") else Animation.LOOP_NONE
 		lib.add_animation(clip, anim)
 		print("%s: %.2f s, %.2f m/s" % [clip, anim.length, _speed(moving.get_animation(clip))])
 	var err := ResourceSaver.save(lib, OUT, ResourceSaver.FLAG_COMPRESS)

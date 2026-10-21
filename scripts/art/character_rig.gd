@@ -14,7 +14,8 @@ extends Node3D
 ## The rig stands on its parent's origin and faces -Z, like CharacterBody3D.
 
 ## Upper-body actions keep the legs walking; the rest take over the whole body.
-const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike", "shoulder"]
+const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike", "shoulder",
+	"jab", "cross", "guard", "recoil", "flinch"]
 const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl", "lean", "pose"]
 const ACTIONS := UPPER_BODY + FULL_BODY
 
@@ -49,6 +50,9 @@ var head_pitch := 0.0
 var look_target: Variant = null
 ## Set >= 0 to drive the walk cycle directly instead of measuring movement.
 var speed_override := -1.0
+## Leave the head (and its hair, hat and glasses) out: your own body in first
+## person, where the camera is the head.
+var hide_head := false
 
 var look: Dictionary
 var joints := {}  # name -> Node3D
@@ -132,6 +136,8 @@ func animate(delta: float) -> void:
 	rotation = _root_rot
 	if _skin:
 		_skin.update(delta)
+	elif hide_head:
+		joints["head"].scale = Vector3.ONE * 0.001
 
 
 func _measure_speed(delta: float) -> void:
@@ -288,6 +294,31 @@ func _action_pose(p: Dictionary) -> void:
 			p["r_shoulder"] = Vector3(-0.45, 0, 1.45)
 			p["r_elbow"] = Vector3(0.35, 0, 0)
 			p["neck"] = Vector3(0, -0.1, 0.05)
+		"jab", "cross":
+			# (The body models play the pack's punches; this is the primitives'.)
+			# A straight right from a guard: the fist out at chin height, the left up.
+			p["spine"] = Vector3(-0.12, -0.3, 0)
+			p["r_shoulder"] = Vector3(1.6, 0.25, 0.0)
+			p["r_elbow"] = Vector3(0.1, 0, 0)
+			p["l_shoulder"] = Vector3(0.55, -0.5, -0.1)
+			p["l_elbow"] = Vector3(1.6, 0, 0)
+		"guard":
+			# Fists up in front of the face, forearms covering it.
+			p["spine"] = Vector3(-0.08, 0, 0)
+			_sym(p, "shoulder", Vector3(0.75, 0.5, 0.1))
+			_sym(p, "elbow", Vector3(1.6, 0, 0))
+		"recoil":
+			# A blow caught on the guard knocks it back into the chest.
+			p["spine"] = Vector3(0.12, 0, 0)
+			p["neck"] = Vector3(0.1, 0, 0)
+			_sym(p, "shoulder", Vector3(0.55, 0.55, 0.12))
+			_sym(p, "elbow", Vector3(2.0, 0, 0))
+		"flinch":
+			# Hit: hunched over the blow, arms half up, head turned away.
+			p["spine"] = Vector3(-0.3, 0.2, 0.05)
+			p["neck"] = Vector3(-0.2, 0.35, 0)
+			_sym(p, "shoulder", Vector3(0.6, 0.3, 0.35))
+			_sym(p, "elbow", Vector3(1.5, 0, 0))
 		"strike":
 			p["spine"] = Vector3(-0.45, -0.2, 0)
 			_sym(p, "shoulder", Vector3(1.45, 0, 0.05))
