@@ -1256,6 +1256,9 @@ func _on_vent_grate() -> void:
 ## checks its own player).
 func _on_tape() -> void:
 	tape.enabled = false
-	if VENT_CLOSET.has_point(to_local(player.global_position)):
-		get_node("/root/Net").earn("secret:mercer_vent_tape", hud)
+	# The secret goes only to whoever is in the closet when it plays; the host decides.
+	if sync.is_host():
+		sync.unlock_for(players.all_ids().filter(func(id):
+			var body: Node3D = players.puppet(id)
+			return body and VENT_CLOSET.has_point(to_local(body.global_position))), "secret:mercer_vent_tape")
 	await hud.lines(VoiceLines.ids_in_scene("l0_tape"))
