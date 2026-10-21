@@ -877,6 +877,11 @@ func test_inventory() -> void:
 	check(not inv.add_for_peer("crowbar", 2, 1) and inv.add_for_peer("crowbar", 1, 1), "a pickup played out on every machine only lands in the taker's inventory")
 	inv.clear()
 	check(inv.items.size() == 2 and inv.hotbar.all(func(i): return i == ""), "a new run starts empty-handed")
+	for id in ["floppy_disk", "stair_key"]:
+		check(Inventory.ITEMS.has(id) and Inventory.ITEMS[id].get("about", "") != "", "floor 18's %s has a name and a line about it" % id)
+	check(Inventory.item_name("floppy_disk") == "Floppy disk" and Inventory.item_name("stair_key") == "Key ring", "floor 18's pickups show their own names")
+	check(inv.add("floppy_disk") and inv.add("stair_key") and inv.hotbar[0] == "floppy_disk" and inv.hotbar[1] == "stair_key", "the floppy and the key ring go on the hotbar")
+	inv.clear()
 
 
 func test_hotbar_keys() -> void:
