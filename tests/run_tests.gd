@@ -3869,6 +3869,7 @@ func test_level_3_data_every_seed() -> void:
 	var forms_ok := true
 	var window_ok := true
 	var cart_ok := true
+	var taped_ok := true
 	var codes := {}
 	var hosts := {}
 	for s in 50:
@@ -3914,6 +3915,22 @@ func test_level_3_data_every_seed() -> void:
 			cart_ok = false
 		if db.run_silent("SELECT COUNT(*) AS n FROM catalogue WHERE status = 'returned'")[0]["n"] != cart.size() - data.unreturned.size():
 			cart_ok = false
+		# No route to the stairs skips the lock, the safe room and the IS NULL query:
+		# no box on the cart opens until the note (behind the lock) is read and the
+		# query has named it, and then only the unreturned one or two.
+		l3.data = data
+		for gates in [[false, false], [true, false], [false, true]]:
+			l3.note_read = gates[0]
+			l3.boxes_named = gates[1]
+			if data.cart.any(func(b): return l3._box_openable(b)):
+				taped_ok = false
+		l3.note_read = true
+		l3.boxes_named = true
+		for b in data.cart:
+			if l3._box_openable(b) != data.unreturned.has(b):
+				taped_ok = false
+		if not l3._box_openable(data.key_box):
+			taped_ok = false
 		# The lock's question accepts the raw rows, DISTINCT and a GROUP BY alike.
 		for right in ["SELECT * FROM access_log WHERE room = '%s'" % data.host, "SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host, "SELECT badge_id, COUNT(*) FROM access_log WHERE room = '%s' GROUP BY badge_id" % data.host]:
 			var kp := Puzzle.new("keyholder", "SELECT badge_id FROM access_log WHERE room = '%s'" % data.host, ["badge_id"], false)
@@ -4017,6 +4034,7 @@ func test_level_3_data_every_seed() -> void:
 	check(forms_ok, "every correct form passes: the top room with its count, COUNT on a column, aliases, the raw rows for the lock; a lone raw row and the whole log's top room don't")
 	check(window_ok, "the night's swipes all fall between 19:00 and 23:00 on the 15th, before the crew signs in; none cross midnight")
 	check(cart_ok, "the returns cart holds every filled slip's box (7 or more); the key box is one nobody checked back in, 'out' in the catalogue; the rest are 'returned'")
+	check(taped_ok, "every seed: no box on the cart opens before Mercer's note is read and the IS NULL query has named it; then only the unreturned box or two, the key's among them")
 	check(hosts.size() == Level3Data.CANDIDATES.size(), "the safe room hides behind a different side room on different runs (%s)" % [hosts.keys()])
 	check(code_ok and codes.size() > 40, "the lock's code is the four digits of the one badge that used the host room's reader, and it changes with the seed")
 	var building := FacilityDB.new()
@@ -4174,13 +4192,30 @@ func test_level_3_safe_room() -> void:
 	# No key on the hook: Mercer's note says it's in the box nobody checked back in.
 	var note: Node = _doc(level, "Mercer's note")
 	check(note != null and level.safe_room_box.has_point(level.to_local(note.global_position)) and note.plain_text().contains("checked back in"), "Mercer's note on the cot says where the key went")
+	check(level.key_dock != null and level.cart_boxes.size() >= 7 and level.cart_boxes.has(level.data.key_box) and level.cart_boxes[level.data.key_box] == level.key_dock and level.to_local(level.key_dock.global_position).x > 5.0, "the key is in the box on the returns cart that nobody checked back in, among the other returned boxes")
+	# Every box is taped until the note is read AND the slips table names the box.
+	level.key_dock.interact(p)
+	await _frames(3)
+	check(not p.inventory.has("stair_key") and not level.key_taken and level.stair_out.locked and level.key_dock.get_prompt(p) == level.TEXT.box_taped and level.key_dock.tape.visible, "before Mercer's note, the key box is taped shut: pressing it does nothing")
 	note.open_reader(p).close()
 	await _frames(3)
 	check(_game().current_todo() == level.TEXT.todo_key_box and _game().case_info("key").get("open", false), "reading it sets the to-do and opens the key case")
-	check(level.key_dock != null and level.cart_boxes.size() >= 7 and level.cart_boxes.has(level.data.key_box) and level.cart_boxes[level.data.key_box] == level.key_dock and level.to_local(level.key_dock.global_position).x > 5.0, "the key is in the box on the returns cart that nobody checked back in, among the other returned boxes")
-	var decoy_id: String = level.cart_boxes.keys().filter(func(k): return k != level.data.key_box)[0]
+	level.key_dock.interact(p)
+	await _frames(3)
+	check(not p.inventory.has("stair_key") and not level.key_taken and level.key_dock.get_prompt(p) == level.TEXT.box_taped, "after the note but before the query, the key box is still taped")
+	level.terminal_ui.terminal = level.desk
+	level.terminal_ui.run(level.unreturned_puzzle.solution_sql)
+	await _frames(3)
+	check(level.unreturned_puzzle.solved and level.boxes_named and not level.key_dock.tape.visible and level.key_dock.get_prompt(p) == "[E] " + level.TEXT.box_tear % level.data.key_box, "the IS NULL query names the box: its tape comes off and it can be torn open")
+	var decoy_id: String = level.cart_boxes.keys().filter(func(k): return not level.data.unreturned.has(k))[0]
 	level.cart_boxes[decoy_id].interact(p)
-	check(not p.inventory.has("stair_key") and level.stair_out.locked, "opening another box on the cart gives no key")
+	await _frames(3)
+	check(not p.inventory.has("stair_key") and level.stair_out.locked and level.cart_boxes[decoy_id].tape.visible and level.cart_boxes[decoy_id].get_prompt(p) == level.TEXT.box_taped, "a box the query didn't name stays taped and gives no key")
+	for other in level.data.unreturned:
+		if other != level.data.key_box:
+			level.cart_boxes[other].interact(p)
+			await _frames(3)
+			check(not p.inventory.has("stair_key") and level.stair_out.locked and level.cart_boxes[other].has_taken(level.players.id_of(p)), "a second unreturned box opens but holds only papers")
 	level.key_dock.interact(p)
 	for i in 5:
 		await physics_frame
@@ -4297,6 +4332,13 @@ func test_coop_level_3() -> void:
 	host.shredder.state = "listening"
 	await _frames(5)
 	client.floppy.interact(client.player)
+	client.key_dock.interact(client.player)
+	await _frames(20)
+	check(machines.all(func(l): return not l.key_taken and l.stair_out.locked), "the key box is taped on every machine until the desk names it")
+	host.sync.event("_note_read")
+	host.sync.event("_on_solved", ["unreturned", "desk"])
+	await _frames(10)
+	check(machines.all(func(l): return l.note_read and l.boxes_named and l.key_dock.openable() and not l.key_dock.tape.visible), "the note and the query untape the key box on every machine")
 	client.key_dock.interact(client.player)
 	await _frames(20)
 	# (Every machine in a test shares one Game.inventory, so who took it is read off the dock.)

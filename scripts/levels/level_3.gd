@@ -57,6 +57,8 @@ const TEXT := {
 	"case_key": "Which box on the returns cart is the stair key in?",
 	"duties_done": "Counted, listed and tallied: the night clerk's list is done.",
 	"box_empty": "Papers. No key.",
+	"box_taped": "Returns. Taped for reshelving.",
+	"box_tear": "Tear the tape on box %s",
 	"lock_idle": "ENTER CODE",
 	"lock_wrong": "NO",
 	"lock_open": "OPEN",
@@ -84,8 +86,8 @@ const MEMO_LINES := [
 	{"text": "SELECT DISTINCT dept FROM catalogue;   <- that's every room. narrow it.", "hand": true},
 	{"text": "DISTINCT = one of each. no repeats.", "hand": true},
 ]
-## The clerk's sticky on the desk terminal: where COUNT is found (new on 18: no Easy
-## SQL chapter teaches it yet).
+## The clerk's sticky on the desk terminal: where COUNT is found again. Level 2's
+## SYSOP showed it once; no Easy SQL chapter teaches it yet, so this is the plant.
 const COUNT_STICKY := "how many? SELECT COUNT(*) FROM ...   not one by one!"
 ## The note by the slip spike: the ask for the unreturned boxes.
 const SPIKE_NOTE := "Pulled and never checked back in: chase Monday."
@@ -197,7 +199,11 @@ var reached_safe := false
 var floppy: ItemDock
 ## The stair key, inside the box on the returns cart that nobody checked back in.
 var key_dock: ItemDock
-var cart_boxes := {}  # box_id -> Interactable (the key box is the ItemDock)
+var cart_boxes := {}  # box_id -> CartBox (the key box is key_dock)
+## The boxes stay taped until Mercer's note has been read (the safe room, behind the
+## lock) and the IS NULL query has named the ones nobody checked back in.
+var note_read := false
+var boxes_named := false
 var key_taken := false
 ## Mercer's battery PC and its own little database.
 var pc: Terminal
@@ -426,10 +432,56 @@ func _build_reading_room(colors: Dictionary) -> void:
 	], false, "laminated", Vector2(0.3, 0.3))
 
 
+## A box on the returns cart: taped shut for reshelving, and it stays so until the
+## desk names it (Mercer's note read, the IS NULL query run). Then the tape tears
+## and it opens. One of them has the key; the rest of the named ones hold papers.
+class CartBox extends ItemDock:
+	var box_id := ""
+	var tape: MeshInstance3D
+
+	static func place(parent: Node, pos: Vector3, size: Vector3, p_box_id: String, item_id: String, tear_prompt: String) -> CartBox:
+		var b := CartBox.new()
+		b.box_id = p_box_id
+		b.position = pos
+		b.item = item_id
+		b.prompt = tear_prompt
+		var shape := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = size
+		shape.shape = bs
+		b.add_child(shape)
+		b.tape = MeshInstance3D.new()
+		var tm := BoxMesh.new()
+		tm.size = Vector3(size.x + 0.01, 0.012, 0.09)
+		b.tape.mesh = tm
+		b.tape.material_override = Greybox.mat(Color(0.86, 0.82, 0.62))
+		b.tape.position = Vector3(0, size.y / 2.0 + 0.006, 0)
+		b.add_child(b.tape)
+		parent.add_child(b)
+		b.add_to_group("interactable")
+		b.used.connect(b._on_used)
+		return b
+
+	func openable() -> bool:
+		var lvl: Variant = _level()
+		return lvl != null and lvl._box_openable(box_id)
+
+	func get_prompt(player: Node) -> String:
+		if not openable():
+			var lvl: Variant = _level()
+			return lvl.TEXT.box_taped if enabled and lvl != null else ""
+		return super.get_prompt(player)
+
+	func interact(player: Node) -> void:
+		if openable():
+			super.interact(player)
+
+
 ## The returns cart by the reading room's east wall: the filled slips' boxes, back
-## from the readers and waiting to be reshelved, each with its label. One of them
-## was never checked back in, and Mercer's stair key is inside it. Opening the
-## wrong boxes is slow and loud; the slips table says which one in one query.
+## from the readers and waiting to be reshelved, each with its label and taped shut.
+## One of them was never checked back in, and Mercer's stair key is inside it. No
+## box opens until his note has been read and the slips table has named the one or
+## two nobody checked in: every way down goes through the lock, the room and IS NULL.
 func _build_cart() -> void:
 	var cz := 1.3
 	Greybox.box(geo, Vector3(7.1, 0.12, cz), Vector3(0.7, 0.04, 2.6), Color(0.3, 0.3, 0.32), "ReturnsCart")
@@ -444,17 +496,17 @@ func _build_cart() -> void:
 		var size := Vector3(0.5, 0.28, 0.4)
 		var box_id: String = ids[i]
 		if box_id == data.key_box:
-			key_dock = ItemDock.make(geo, pos, size, "Open box %s" % box_id, "stair_key")
+			key_dock = CartBox.place(geo, pos, size, box_id, "stair_key", TEXT.box_tear % box_id)
 			key_dock.name = "KeyBox"
 			key_dock.add_boxes(1, 0.1, Vector3(0.03, 0.12, 0.01), Color(0.75, 0.6, 0.2))
 			key_dock.already = "You have the key."
 			key_dock.taken.connect(_on_key_taken)
 			cart_boxes[box_id] = key_dock
 		else:
-			var it := Interactable.create(self, pos, size, "Open box %s" % box_id, Color(0.76, 0.66, 0.5))
+			var it := CartBox.place(geo, pos, size, box_id, "", TEXT.box_tear % box_id)
 			it.name = "CartBox"
-			it.local_only = true
-			it.used.connect(func(_p): hud.notice(TEXT.box_empty, 2.0))
+			it.already = TEXT.box_empty
+			it.taken.connect(func(peer_id): if peer_id == players.id_of(player): hud.notice(TEXT.box_empty, 2.0))
 			cart_boxes[box_id] = it
 		Greybox.panel(geo, pos, size, Color(0.76, 0.66, 0.5))
 		Greybox.label(geo, pos + Vector3(-0.26, 0.0, 0), box_id, 14, Color(0.15, 0.12, 0.1), -90)
@@ -833,8 +885,10 @@ func _on_solved(id: String, _which: String) -> void:
 		Game.open_case("duties", CASES.duties, ["retrieval_slips", "catalogue", "access_log"])
 		Game.solve_case("duties", TEXT.duties_done)
 	if id == "unreturned":
+		boxes_named = true
 		Game.open_case("key", CASES.key, ["retrieval_slips"])
 		Game.solve_case("key", "The slips say which box nobody checked back in: %s." % ", ".join(data.unreturned))
+		_update_cart()
 
 
 ## Every machine: Security's sheet has been read. The room's question is open.
@@ -847,8 +901,25 @@ func _ask_room() -> void:
 
 ## Every machine: Mercer's note has been read. The key is on the cart, in one box.
 func _note_read() -> void:
+	note_read = true
 	if not key_taken:
 		hud.todo(TEXT.todo_key_box)
+	_update_cart()
+
+
+## Whether a box on the returns cart can be opened: only once Mercer's note has been
+## read and the slips table has named it as never checked back in. Every other box
+## stays taped: no key without the lock, the safe room and the IS NULL query.
+func _box_openable(box_id: String) -> bool:
+	return note_read and boxes_named and box_id in data.unreturned
+
+
+## Every machine: the tape comes off the boxes the desk named.
+func _update_cart() -> void:
+	for box_id in cart_boxes:
+		var b: CartBox = cart_boxes[box_id]
+		if b.tape:
+			b.tape.visible = not b.openable()
 
 
 # --- Mercer's lock ---------------------------------------------------------------

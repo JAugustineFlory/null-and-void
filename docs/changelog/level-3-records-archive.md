@@ -7,3 +7,4 @@
 - **Changed:** on floor 18 every desk question is now asked somewhere in the world and tracked on a case page; the hidden room's question hangs in the north corridor, and the thing that hunts by sound wakes when you walk in there.
 - **Changed:** the stair key on 18 is no longer on a hook: it is inside one box on the returns cart, and one query says which. Mercer's room has an offline PC to practise on.
 - **Fixed:** floor 18's desk accepts every correct form of an answer (a count on a column, an alias, the top row with its count, repeated rows), and the night's badge swipes no longer run past midnight.
+- **Changed:** the boxes on floor 18's returns cart are taped shut, and only the one the desk names can be torn open.

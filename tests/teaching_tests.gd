@@ -949,6 +949,11 @@ func walk_level_3(seed_value: int) -> void:
 	for i in 3:
 		await t.physics_frame
 	check(_game().case_info("key").get("open", false) and _game().current_todo() == level.TEXT.todo_key_box, "%s: Mercer's note says where the key is and opens the key case" % where)
+	# The cart's boxes are taped: the note alone opens nothing.
+	level.cart_boxes[level.data.key_box].interact(p)
+	for i in 3:
+		await t.physics_frame
+	check(not level.key_taken and level.stair_out.locked and level.cart_boxes[level.data.key_box].get_prompt(p) == level.TEXT.box_taped, "%s: with the note read but no query, the key box is still taped: the desk has to name it" % where)
 	# Back at the desk, under threat: the box nobody checked back in. The note by the
 	# spike sends the player to the slips, so it looks at them first (the column
 	# names are on that screen).

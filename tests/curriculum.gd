@@ -128,8 +128,9 @@ const PUZZLES := {
 	# ladder is drafted in plan/approvals/l3-text.md and held until Augustine agrees
 	# Act 1 ends on this floor ("ladder": "held"): a lost player is stuck on any
 	# station it can't copy off a paper, and that prints as a gap, not a failure.
-	# COUNT, new here (no Easy SQL chapter teaches it yet; Level 2's SYSOP only showed
-	# it once): found on the clerk's sticky on the desk terminal, used safely.
+	# COUNT, found again on the clerk's sticky on the desk terminal, used safely.
+	# Level 2's SYSOP showed it once; no Easy SQL chapter teaches it yet, so the
+	# sticky is the plant.
 	"slips": {
 		"level": 3,
 		"pressure": false,
