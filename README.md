@@ -97,15 +97,23 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 
 ## Changelog
 
-Newest first. Floors are listed by their in-game floor number. Changes that have merged but
-aren't listed here yet are in [docs/changelog/](docs/changelog/).
+Newest first, one version per day. Click a version to open it. Floors are listed by their in-game
+floor number. Changes that have merged but aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
-### 2026-10-21
+<details open>
+<summary><b>v0.6.0 - 2026-10-21</b></summary>
+
 - **Added:** the chairs on the ground floor and floor 14 can be sat on: reception, the cafeteria, the network room and the break room.
-- **Added:** the first outfit pieces to earn. Reading glasses, a Byte-Right polo, high-tops and a security jacket show in the lobby as locked, each with a hint on how to earn it. A few secret pieces stay hidden until you find them.
+- **New:** unlockable items. Read the crew's book, block a hit in a real fight and finish floors to unlock new clothes and tool skins in the co-op lobby. Locked pieces show in the lobby with a hint on how to earn them, and a few secret ones stay hidden until you find them.
+- **Added:** finishing floor 22 unlocks the Security jacket.
+- **Changed:** each unlock goes to the player who earned it: whoever picks up *Easy SQL*, each player who reads a chapter in the huddle, and the player who makes the block. Finishing a floor unlocks its item for everyone who finished it.
 
-### 2026-10-20
-- **Added:** block a hit in a real fight to unlock the High-tops for everyone in the crew. The garage punch bag doesn't count.
+</details>
+
+<details>
+<summary><b>v0.5.0 - 2026-10-20</b></summary>
+
+- **Added:** block a hit in a real fight to unlock the High-tops. The garage punch bag doesn't count.
 - **Fixed:** in co-op, a teammate sitting on a chair or on the floor is shown sitting, not crouching.
 - **Added:** the lobby's waiting chairs can be sat on, and finishing the ground floor and floor 14 each unlock an item.
 - **New:** dress your character in the co-op lobby. Crew, Look and Gear tabs let you pick hair, hat, top, jacket, glasses, earrings and more, a colour for each, and the colour of your flashlight, walkie, notebook and terminal screen. A shared terminal takes the screen colour of whoever sat down first. Your name and picks are saved for next time.
@@ -129,29 +137,47 @@ aren't listed here yet are in [docs/changelog/](docs/changelog/).
 - **Changed:** each paper and sticky note exists only once, so the crew has to pool what it finds.
 - **Fixed:** playtest rounds 7 and 8, plus a quality pass across all three floors.
 
-### 2026-10-19
+</details>
+
+<details>
+<summary><b>v0.4.0 - 2026-10-19</b></summary>
+
 - **New:** a hotbar for carried items, and visitor badges.
 - **New:** see what a teammate is typing on a terminal.
 - **Changed:** deeper puzzles and clearer in-world clues on the ground floor and floors 14 and 22.
 - **Fixed:** art and lighting issues; more automated teaching tests.
 
-### 2026-10-18
+</details>
+
+<details>
+<summary><b>v0.3.0 - 2026-10-18</b></summary>
+
 - **New:** every level is now a whole floor of the tower.
 - **Added:** realistic papers and documents, and furniture on all three floors.
 - **Changed:** you can look around a paper's edges while reading it.
 
-### 2026-10-17
+</details>
+
+<details>
+<summary><b>v0.2.0 - 2026-10-17</b></summary>
+
 - **New:** the notebook, sticky notes and the elevator.
 - **New:** terminal tips from SYSOP, and papers pinned to walls.
 - **Changed:** the notebook and terminal screens are held in your hands.
 - **Fixed:** co-op sync issues and playtest rounds 3 to 5.
 
-### 2026-10-16
+</details>
+
+<details>
+<summary><b>v0.1.0 - 2026-10-16</b></summary>
+
 - **New:** the first playable slice: the lobby and the server floor, built in Godot 4.7.
 - **New:** co-op for up to 6 players, with open-mic voice and walkie-talkie radios.
 - **New:** parkour movement: slide, roll, mantle, ledge grab, climb, vents and shoulder stands.
 - **New:** the van intro and one continuous building with no loading screens.
 - **Added:** the voice script, early art and a teaching walkthrough for every puzzle.
+
+</details>
 
 ## Roadmap
 

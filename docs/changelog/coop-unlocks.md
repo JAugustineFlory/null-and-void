@@ -1,1 +1,0 @@
-- **New:** unlockable items. Read the crew's book, block a hit in a real fight and finish floors to unlock new clothes and tool skins in the co-op lobby. Some are secret, and only show once you find them.

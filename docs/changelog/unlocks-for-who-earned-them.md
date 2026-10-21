@@ -1,1 +1,0 @@
-- **Changed:** the *Easy SQL* unlocks go to the player who earned them: whoever picks the book up, and each player who reads a chapter in the huddle.
