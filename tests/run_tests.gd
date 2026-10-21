@@ -22,6 +22,8 @@ const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coo
 func _run() -> void:
 	# The full-screen notebook and terminal; test_in_world_ui covers the held and on-screen ones.
 	_game().diegetic_ui = false
+	# Book huddles and pickups earn unlocks: keep them off this computer's real save.
+	root.get_node("Net").profile = Profile.new()
 	var only := _groups_from_args()
 	for g in only:
 		if g not in GROUPS:

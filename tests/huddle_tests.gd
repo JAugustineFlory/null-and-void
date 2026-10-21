@@ -11,12 +11,17 @@ func run(tree: SceneTree, check: Callable) -> void:
 	_tree = tree
 	_check = check
 	test_books()
+	var net := _tree.root.get_node("Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()  # in memory, so tests never touch a real save
+	test_book_unlocks()
 	Engine.time_scale = 4.0
 	await test_garage_opening()
 	await test_flashback()
 	await test_coop_huddle()
 	await test_coop_spar()
 	Engine.time_scale = 1.0
+	net.profile = real_profile
 
 
 func _game() -> Node:
@@ -130,8 +135,11 @@ func test_garage_opening() -> void:
 			var d: float = l.global_position.distance_to(home.book_bag.global_position)
 			bag_light = maxf(bag_light, l.omni_range - d)
 	_check.call(bag_light < 0.5, "the back corner is out of the lights' reach, under its dead bulb (%.1f m)" % bag_light)
+	var prof: Profile = _tree.root.get_node("Net").profile
+	_check.call(not prof.earned.has("achievement:book_easy_sql"), "the book's unlock waits until it's picked up")
 	home.book_bag.interact(p)
 	await _frames(5)
+	_check.call(prof.earned.has("achievement:book_easy_sql"), "picking up Easy SQL earns its notebook cover")
 	_check.call(home.bench_book.visible and not home.book_bag.visible, "the book ends up on the workbench")
 	_check.call(await _until(func(): return _at_mark(home, "bench"), 300), "and round to the end of the workbench while they fetch the book")
 	await _spar(home, p)
@@ -159,6 +167,7 @@ func test_garage_opening() -> void:
 	_check.call(await _until(func(): return h.question == 1), "then the next question")
 	_check.call(await _finish_chapter(h, "easy_sql_0"), "the crew finishes the chapter")
 	_check.call(_game().book_words.has("row"), "its words are learned")
+	_check.call(prof.earned.has("chapter:easy_sql_0") and not prof.earned.has("achievement:easy_sql_half"), "the chapter is remembered on the profile; one chapter isn't half the book")
 	_check.call(await _until(func(): return not p.input_locked and h.get_node_or_null("HuddleUI") == null), "the book closes and the player can move again")
 	_check.call(await _until(func(): return home.van_door.enabled), "then the van")
 	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
@@ -200,6 +209,32 @@ func _spar(home, p) -> void:
 	p.combat.raise_guard()
 	_check.call(await _until(func(): return home.spar_blocked.size() == 1, 120), "right-clicking as it swings in blocks it")
 	_check.call(p.health == health, "blocking it costs nothing either")
+
+
+## Half the book and the whole book unlock an item each, counted across runs.
+func test_book_unlocks() -> void:
+	print("Huddle: Easy SQL unlocks")
+	var level := Node.new()
+	_tree.root.add_child(level)
+	var h = load("res://scripts/huddle/huddle.gd").create(level)
+	h.profile = Profile.new()
+	var ids: Array = Books.book_chapter_ids("easy_sql")
+	_check.call(ids.size() == 14, "Easy SQL has 14 chapters to count")
+	var finish := func(id: String):
+		h._begin(id, 1)
+		h._finish(id)
+	for i in 6:
+		finish.call(ids[13 - i])  # any order
+	_check.call(not h.profile.earned.has("achievement:easy_sql_half"), "6 chapters isn't half")
+	finish.call(ids[13 - 5])
+	_check.call(not h.profile.earned.has("achievement:easy_sql_half"), "the same chapter twice counts once")
+	h.done.clear()  # a new run: chapters read before still count
+	finish.call(ids[0])
+	_check.call(h.profile.earned.has("achievement:easy_sql_half") and not h.profile.earned.has("achievement:easy_sql_done"), "7 of 14, across runs, is half the book")
+	for id in ids:
+		finish.call(id)
+	_check.call(h.profile.earned.has("achievement:easy_sql_done"), "all 14 finishes the book")
+	level.free()
 
 
 func test_flashback() -> void:
@@ -253,6 +288,10 @@ func test_coop_huddle() -> void:
 	var hh = _huddle_of(host)
 	var hc = _huddle_of(client)
 	hh.reveal_scale = 0.2
+	hh.profile = Profile.new()  # each machine's own player profile
+	hc.profile = Profile.new()
+	host.home.sync.event("_on_bag")
+	_check.call(await _until(func(): return hc.profile.earned.has("achievement:book_easy_sql"), 120) and hh.profile.earned.has("achievement:book_easy_sql"), "the book pickup earns its unlock for everyone there")
 	var runs := [0]
 	for h in [hh, hc]:
 		var run_it := func():
@@ -297,6 +336,7 @@ func test_coop_huddle() -> void:
 	if not ended:
 		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
 	_check.call(ended, "the chapter ends on both machines")
+	_check.call(hh.profile.earned.has("chapter:easy_sql_0") and hc.profile.earned.has("chapter:easy_sql_0"), "both players' profiles remember the chapter")
 	_tree._coop_close(worlds)
 	await _frames(2)
 

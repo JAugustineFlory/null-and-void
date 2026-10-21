@@ -391,6 +391,7 @@ func _on_bag() -> void:
 	book_bag.enabled = false
 	bench_book.visible = true
 	hud.todo("")
+	Huddle.of(self).earn("achievement:book_easy_sql")  # its notebook cover (every player here)
 
 
 ## Host: a player climbs into the van. Everyone sees them take the next seat.
