@@ -636,7 +636,7 @@ def drop_faces(bm, test):
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
 
 
-def body_shell(body, name, low, sleeve, off, gap=None):
+def body_shell(body, name, low, sleeve, off, gap=None, top=1.44):
     """A copy of the body's surface from rig height `low` up to the neckline and
     down the arms to `sleeve` (the arm paint field), pushed `off` out. Being the
     body's own surface, it bends exactly as the body does, so nothing pokes
@@ -648,7 +648,7 @@ def body_shell(body, name, low, sleeve, off, gap=None):
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.verts.ensure_lookup_table()
-    keep = lambda h, a: (a == 0.0 and low - 0.08 <= h <= 1.44) or 0.0 < a < sleeve + 0.06
+    keep = lambda h, a: (a == 0.0 and low - 0.08 <= h <= top) or 0.0 < a < sleeve + 0.06
     drop = [f for f in bm.faces if not all(keep(*fields[v.index]) for v in f.verts)]
     bmesh.ops.delete(bm, geom=drop, context="FACES_ONLY")
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
@@ -660,11 +660,23 @@ def body_shell(body, name, low, sleeve, off, gap=None):
         cut(bm, (s * wrist, 0, 0), (1, 0, 0), lambda c: c.x * s > wrist - 0.1)
     drop_faces(bm, lambda c: c.z < low_z or abs(c.x) > wrist)
     if gap:
+        # The lapels open out from the chest up to a notch, then close back in to
+        # the collar, so the jacket covers the tops of the shoulders.
         width, chest = gap
+        nz = body.bone["neck_01"].z
+        notch_w, collar_w = 0.085, 0.05
+        notch = chest + (notch_w - width) / 0.32
+
+        def opening(z):
+            if z < notch:
+                return width + max(0.0, z - chest) * 0.32
+            return notch_w - (z - notch) * (notch_w - collar_w) / (nz - notch)
+
         for s in (1, -1):
             cut(bm, (s * width, 0, 0), (1, 0, 0), lambda c: c.y > 0.0 and c.z < chest + 0.04)
-            cut(bm, (s * width, 0, chest), (s, 0, -0.32), lambda c: c.y > 0.0 and c.z > chest - 0.04)
-        drop_faces(bm, lambda c: c.y > 0.0 and abs(c.x) < width + max(0.0, c.z - chest) * 0.32)
+            cut(bm, (s * width, 0, chest), (s, 0, -0.32), lambda c: c.y > 0.0 and chest - 0.04 < c.z < notch + 0.04)
+            cut(bm, (s * notch_w, 0, notch), (s * (nz - notch), 0, notch_w - collar_w), lambda c: c.y > 0.0 and c.z > notch - 0.04)
+        drop_faces(bm, lambda c: c.y > 0.0 and abs(c.x) < opening(c.z))
     bm.normal_update()
     for v in bm.verts:
         v.co += v.normal * off
@@ -679,7 +691,9 @@ def make_jacket(body, skin, name, hem, flare, open_front, off=0.018):
     split = crotch_height(body) + 0.03
     chest = body.pack_height(1.18)
     gap = (0.022, chest) if open_front else None
-    pieces = [body_shell(body, name, max(hem, split), 0.8, off, gap)]
+    # Up the base of the neck: lower, the shell's ragged top edge left gaps over
+    # the shoulders where the shirt showed through.
+    pieces = [body_shell(body, name, max(hem, split), 0.8, off, gap, top=1.465)]
     if hem < split:  # a coat: a skirt from where the shell stops down to the hem
         mw = body.mesh.matrix_world
         top_z = body.pack_height(split)
@@ -702,7 +716,10 @@ def make_jacket(body, skin, name, hem, flare, open_front, off=0.018):
         pieces.append(skirt)
     nz = body.bone["neck_01"].z
     collar_gap = (lambda m: m.y > 0.0 and abs(m.x) < 0.05) if open_front else None
-    collar = loft("Collar", [torso_ring(body, nz - 0.015, off * 0.8, 16), torso_ring(body, nz + 0.015, off * 0.7, 16)], gap=collar_gap)
+    # The collar rolls from over the shoulders up round the neck, so it covers
+    # the shell's top edge (which follows the body's faces and is ragged).
+    collar = loft("Collar", [torso_ring(body, nz - 0.045, off * 1.1, 16), torso_ring(body, nz - 0.015, off * 0.8, 16),
+                             torso_ring(body, nz + 0.015, off * 0.7, 16)], gap=collar_gap)
     face_outward(collar, lambda c: Vector((0, 0, c.z)))
     pieces.append(collar)
     jacket = join(name, pieces)
@@ -742,8 +759,22 @@ def make_accessories(body, skin):
         return shade(box(name, p + n * (size[1] / 2 + lift), size, frame=surface_frame(n)), 1.0)
 
     out["Logo"] = patch("Logo", -0.085, 1.31, (0.06, 0.006, 0.045))
-    out["Badge"] = patch("Badge", 0.085, 1.25, (0.05, 0.006, 0.07))
-    out["Lanyard_badge"] = patch("Lanyard_badge", 0.0, 1.22, (0.05, 0.006, 0.07))
+    def card(name, x, h):
+        """An ID card: a white card with a dark band across the top, a photo and
+        two lines of print, so it reads as a badge and not a blank white tile."""
+        p, n = surf.front(x, body.pack_height(h))
+        f = surface_frame(n)
+        at = lambda dx, dz, out: p + n * (0.007 + out) + f @ Vector((dx, 0, dz))
+        bits = [shade(box(name, at(0, 0, 0), (0.05, 0.006, 0.07), frame=f), 1.0),
+                shade(box("Band", at(0, 0.027, 0.0012), (0.05, 0.006, 0.014), frame=f), 0.3),
+                shade(box("Photo", at(-0.011, 0.003, 0.0012), (0.018, 0.006, 0.022), frame=f), 0.55)]
+        for dz in (0.008, -0.002):
+            bits.append(shade(box("Print", at(0.011, dz, 0.0012), (0.016, 0.006, 0.003), frame=f), 0.5))
+        bits.append(shade(box("Print", at(0, -0.022, 0.0012), (0.036, 0.006, 0.004), frame=f), 0.5))
+        return join(name, bits)
+
+    out["Badge"] = card("Badge", 0.085, 1.25)
+    out["Lanyard_badge"] = card("Lanyard_badge", 0.0, 1.22)
     # The lanyard: two straps from the sides of the neck down to the badge clip.
     straps = []
     nz = body.bone["neck_01"].z - 0.02
@@ -889,17 +920,60 @@ def make_hair(body, skin):
     bald = hairstyle(body, buzz, 0.35)
     delete_faces(bald, lambda c: c.y > hc.y + 0.03 or c.z > hc.z + 0.03 - max(0.0, c.y - hc.y + 0.06) * 0.25)
     out["Hair_bald"] = with_brows("Hair_bald", bald)
-    # A mustache: the beard's upper lip.
-    beard = hairstyle(body, "Hair_Beard")
-    mz = body.mouth_z
-    delete_faces(beard, lambda c: not (mz + 0.004 < c.z < mz + 0.03 and abs(c.x) < 0.034 and c.y > hc.y + 0.05))
-    out["Face_mustache"] = beard
+    out["Face_mustache"] = mustache(body)
     bpy.data.objects.remove(brows)
     for name, ob in out.items():
         ob.name = name
         ob.data.name = name
         skin.skin(ob, rigid="Head")
     return out
+
+
+def mustache(body):
+    """A solid mustache over the upper lip: a sheet laid on the face from under
+    the nose to just over the lip, thickest in the middle of each side and
+    drooping past the corners of the mouth. (A slice of the pack's beard was only
+    a few strand cards, which showed as thin floating lines.)"""
+    surf = Surface(body)
+    mz = body.mouth_z
+    half = 0.033
+    cols, rows = 13, 5
+    bm = bmesh.new()
+    grid = []
+    shades = []
+    for i in range(cols):
+        u = -1 + 2 * i / (cols - 1)
+        x = u * half
+        base, _ = surf.front(x, mz)
+        # A chevron: tucked under the nose with a parting in the middle, curving
+        # down over the lip and tapering to the corners of the mouth.
+        mid = mz + 0.0055 - 0.004 * u * u
+        tall = 0.0045 * (1 - 0.65 * u * u) + 0.0004
+        top = mid + tall - 0.0015 * math.exp(-(u / 0.15) ** 2)
+        bottom = mid - tall
+        col = []
+        for j in range(rows):
+            v = j / (rows - 1)
+            z = bottom + (top - bottom) * v
+            p, n = surf.front(x, z)
+            p = p.copy()
+            p.y = min(p.y, base.y + 0.002 + 0.004 * v)  # don't climb onto the nose
+            # Thick through the middle of each side, thin at the edges and the
+            # parting under the nose, so the edges sink into the skin.
+            puff = math.sin(math.pi * v) * (1 - 0.55 * u * u) * (0.55 + 0.45 * min(1.0, abs(u) * 3))
+            out = (n + Vector((0, 1.2, 0))).normalized()
+            col.append(bm.verts.new(p + out * (0.0006 + 0.0048 * puff)))
+            # Combed strands: darker grooves running down and out from the parting.
+            shades.append(0.72 + 0.28 * (0.5 + 0.5 * math.sin(abs(u) * 26 + v * 2.5)) * (0.7 + 0.3 * puff))
+        grid.append(col)
+    for i in range(cols - 1):
+        for j in range(rows - 1):
+            bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    ob = mesh_object("Face_mustache", bm)
+    face_outward(ob, lambda c: Vector((0, body.head_c.y, c.z)))
+    set_colors(ob, [(c, c, c, 1.0) for c in shades])
+    smooth_shading(ob)
+    return ob
 
 
 # The head the hats were first designed round; they're stretched onto each body's head.
