@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
 	test_book_unlocks()
+	test_garage_front()
 	Engine.time_scale = 4.0
 	await test_garage_opening()
 	await test_flashback()
@@ -115,6 +116,40 @@ func _finish_chapter(h, id: String) -> bool:
 	return true
 
 
+## Co-op's pre-game lobby builds the garage front on its own and holds a shot on
+## it; the World's garage opens on the same shot.
+func test_garage_front() -> void:
+	print("Home base: the garage front for the lobby")
+	var hb = load("res://scripts/levels/home_base.gd")
+	var stage := Node3D.new()
+	_tree.root.add_child(stage)
+	var front: Node3D = hb.build_front(stage)
+	_check.call(front.get_node_or_null("RollUpDoor") != null and front.get_node_or_null("Driveway") != null, "the garage front builds on its own: walls, driveway and the shut roll-up door")
+	_check.call(front.find_children("Maddison", "", true, false).is_empty() and not front.has_method("start"), "with no story in it: no Maddison, no level")
+	var cam: Transform3D = hb.LOBBY_CAMERA
+	var half_v := deg_to_rad(75.0) / 2.0  # Camera3D's default fov, vertical
+	var half_h := atan(tan(half_v) * 16.0 / 9.0)
+	var all_in_shot := true
+	var all_face := true
+	var on_apron := true
+	var apron := AABB(hb.APRON_CENTER - hb.APRON_SIZE / 2, hb.APRON_SIZE)
+	for i in 6:
+		var spot: Dictionary = hb.lobby_spot(i)
+		var at: Transform3D = spot.at
+		var local := cam.affine_inverse() * (at.origin + Vector3(0, 1.0, 0))
+		all_in_shot = all_in_shot and local.z < 0 and absf(atan2(local.x, -local.z)) < half_h * 0.85 and absf(atan2(local.y, -local.z)) < half_v * 0.85
+		var to_cam := (cam.origin - at.origin) * Vector3(1, 0, 1)
+		all_face = all_face and (-at.basis.z).dot(to_cam.normalized()) > 0.95 and CharacterRig.ACTIONS.has(spot.pose)
+		var entry: Vector3 = hb.lobby_entry(i)
+		var from_cam := cam.affine_inverse() * (entry + Vector3(0, 1.0, 0))
+		on_apron = on_apron and apron.grow(0.01).has_point(Vector3(at.origin.x, 0, at.origin.z)) and apron.grow(0.01).has_point(Vector3(entry.x, 0, entry.z)) and absf(atan2(from_cam.x, -from_cam.z)) > half_h
+	_check.call(all_in_shot, "all six lobby spots are in the lobby camera's shot")
+	_check.call(all_face, "each lobby spot faces the camera with a pose the rig can play")
+	_check.call(on_apron, "players walk in from just off screen, on the driveway, to their spots")
+	_check.call(hb.FRONT_DOOR.distance_to(Vector3(hb.DOOR_AT, 0, -hb.SIZE.z / 2)) < 0.01, "the front-door marker is at the foot of the roll-up door")
+	stage.queue_free()
+
+
 func test_garage_opening() -> void:
 	print("Home base: the garage opening")
 	_game().new_run(21)
@@ -129,6 +164,7 @@ func test_garage_opening() -> void:
 	_check.call(world.wings.has("level_0") and not world.wings["level_0"].active, "the ground floor is built ahead, waiting for the van")
 	_check.call(p.global_position.distance_to(home.spawn_point().origin) < 1.0 and not p.input_locked, "the player starts on the garage floor, free to walk")
 	_check.call(not home.fax.enabled and not home.van_door.enabled, "nothing to do until dispatch calls")
+	_check.call(home.lobby_camera != null and home.lobby_camera.transform.is_equal_approx(home.LOBBY_CAMERA) and home.roll_up_door.get_parent() == home, "the World's garage has the lobby's shot, and its door is kept out of the floor's navigation")
 	var mad: Node3D = home.maddison
 	_check.call(mad != null and mad.get_node_or_null("Look") != null and (_at_mark(home, "door") or home.maddison_mark == "greet"), "Maddison is in the garage in person, in from the side door")
 	_check.call(await _until(func(): return home.fax.enabled), "dispatch's call puts the work order on the fax")

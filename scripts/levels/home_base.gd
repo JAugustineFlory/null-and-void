@@ -36,6 +36,25 @@ const COUNTER := Vector3(-1.9, 0, 0.0)
 ## the middle), facing the whiteboard. Level-local seat tops.
 const CREW_SEATS := [Vector3(-4.4, 0.45, 0.0), Vector3(-4.4, 0.45, -1.0), Vector3(-4.4, 0.45, 1.0),
 	Vector3(-2.6, 0.75, 0.0), Vector3(-2.6, 0.75, -1.0), Vector3(-2.6, 0.75, 1.0)]
+## Outside: the foot of the roll-up door, and the driveway apron in front of it.
+const FRONT_DOOR := Vector3(DOOR_AT, 0, -SIZE.z / 2)
+const APRON_CENTER := Vector3(3.6, 0, -11.0)
+const APRON_SIZE := Vector3(24, 0.2, 10)
+## Co-op's pre-game lobby holds this shot of the garage front (garage-local), and
+## the World's garage opens on it, so the cut between them doesn't show.
+const LOBBY_CAMERA := Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -0.05), Vector3(3.6, 1.7, -12.2))
+## Where each player stands in the lobby (in join order), with a pose that suits
+## the spot. Co-op sends each player's own pick.
+const LOBBY_SPOTS := [
+	{"at": Vector3(3.6, 0, -8.6), "pose": "idle"},
+	{"at": Vector3(2.2, 0, -8.3), "pose": "wave"},
+	{"at": Vector3(5.0, 0, -8.3), "pose": "idle"},
+	{"at": Vector3(0.8, 0, -7.7), "pose": "crouch"},
+	{"at": Vector3(6.4, 0, -7.7), "pose": "point"},
+	{"at": Vector3(-0.6, 0, -7.2), "pose": "sit_floor"},
+]
+## How far either side of the shot's centre a walk-in starts: just out of frame.
+const LOBBY_ENTRY_SIDE := 9.5
 const BENCH := Vector3(0.5, 0, 3.6)
 const VAN := Vector3(4.6, 0, -0.6)
 ## The office desk with the fax and the radio, in the north-west corner.
@@ -95,6 +114,8 @@ signal crew_sparred
 var bench_book: Node3D
 ## The camera a flashback looks through, and the crew it sees in the seats.
 var flashback_camera: Camera3D
+## The pre-game lobby's shot of the garage front (LOBBY_CAMERA): the opening starts on it.
+var lobby_camera: Camera3D
 var _figures: Array[Node3D] = []
 ## Van seats in boarding order (level-local), and who has climbed in.
 var van_seats: Array[Vector3] = []
@@ -105,15 +126,7 @@ var roll_up_door: AnimatableBody3D
 
 
 func build() -> void:
-	var concrete := Color(0.55, 0.55, 0.52)
-	var block := Color(0.82, 0.8, 0.74)
-	Greybox.room(geo, Vector3.ZERO, SIZE, {"floor": concrete, "wall": block, "ceiling": Color(0.85, 0.84, 0.8)}, [
-		{"wall": "n", "at": DOOR_AT, "width": DOOR_SIZE.x, "height": DOOR_SIZE.y},
-		{"wall": "w", "at": SIDE_DOOR.z, "width": 0.9, "height": 2.1},
-	])
-	_build_roll_up_door()
-	# The driveway out front, where the crew gathers before the job.
-	Greybox.box(geo, Vector3(DOOR_AT - 1.0, -0.1, -SIZE.z / 2 - 4.0), Vector3(10, 0.2, 8), Color(0.4, 0.4, 0.4), "Driveway")
+	roll_up_door = _build_shell(geo, self)
 	Greybox.label(geo, Vector3(-2.5, 3.6, SIZE.z / 2 - 0.12), "BYTE-RIGHT IT SERVICES", 72, Color(0.1, 0.3, 0.6), 180)
 
 	# The briefing corner: the couch and the counter with its stools, facing the
@@ -171,28 +184,66 @@ func build() -> void:
 	add_child(flashback_camera)
 	flashback_camera.position = Vector3(-0.8, 2.4, 2.6)
 	flashback_camera.look_at_from_position(flashback_camera.position, Vector3(-6.0, 1.0, 0.0), Vector3.UP)
+	lobby_camera = Camera3D.new()
+	lobby_camera.name = "LobbyCamera"
+	lobby_camera.transform = LOBBY_CAMERA
+	add_child(lobby_camera)
 	spawn = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(0.5, 0.1, 0.5))  # facing the briefing corner
 	DressHomeBase.apply(self)  # furniture and materials (Graphics thread)
 
 
-## The roll-up door, shut: a panel filling the doorway, slats and all. It isn't
-## under geo, so the floor's navigation runs out through the doorway.
-func _build_roll_up_door() -> void:
-	roll_up_door = AnimatableBody3D.new()
-	roll_up_door.name = "RollUpDoor"
-	roll_up_door.position = Vector3(DOOR_AT, DOOR_SIZE.y / 2, -SIZE.z / 2)
-	add_child(roll_up_door)
+## The garage from outside, with no story in it: Co-op's pre-game lobby builds
+## this in its own scene and holds LOBBY_CAMERA on it, then the World's garage
+## (built from the same code) opens on the same shot.
+static func build_front(parent: Node3D) -> Node3D:
+	var front := Node3D.new()
+	front.name = "GarageFront"
+	parent.add_child(front)
+	_build_shell(front, front)
+	return front
+
+
+## The walls, the driveway out front, the outside sign and lamps under `solid`,
+## and the shut roll-up door under `door_parent` (kept out of geo, so the floor's
+## navigation runs out through the doorway). Returns the door.
+static func _build_shell(solid: Node3D, door_parent: Node3D) -> AnimatableBody3D:
+	var concrete := Color(0.55, 0.55, 0.52)
+	var block := Color(0.82, 0.8, 0.74)
+	Greybox.room(solid, Vector3.ZERO, SIZE, {"floor": concrete, "wall": block, "ceiling": Color(0.85, 0.84, 0.8)}, [
+		{"wall": "n", "at": DOOR_AT, "width": DOOR_SIZE.x, "height": DOOR_SIZE.y},
+		{"wall": "w", "at": SIDE_DOOR.z, "width": 0.9, "height": 2.1},
+	])
+	# The driveway out front, wide enough for the crew to walk in from either side.
+	Greybox.box(solid, APRON_CENTER + Vector3(0, -0.1, 0), APRON_SIZE, Color(0.4, 0.4, 0.4), "Driveway")
+	Greybox.label(solid, Vector3(DOOR_AT, 4.6, -SIZE.z / 2 - 0.12), "BYTE-RIGHT IT", 140, Color(0.1, 0.3, 0.6), 180)  # over the roll-up door
+	for x in [DOOR_AT - 2.8, DOOR_AT + 2.8]:
+		var lamp := OmniLight3D.new()
+		lamp.name = "FrontLamp"
+		lamp.position = Vector3(x, 3.8, -SIZE.z / 2 - 0.6)
+		lamp.light_color = Color(1.0, 0.9, 0.75)
+		lamp.light_energy = 1.4
+		lamp.omni_range = 7.0
+		solid.add_child(lamp)
+	return _build_roll_up_door(door_parent)
+
+
+## The roll-up door, shut: a panel filling the doorway, slats and all.
+static func _build_roll_up_door(parent: Node3D) -> AnimatableBody3D:
+	var door := AnimatableBody3D.new()
+	door.name = "RollUpDoor"
+	door.position = Vector3(DOOR_AT, DOOR_SIZE.y / 2, -SIZE.z / 2)
+	parent.add_child(door)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(DOOR_SIZE.x, DOOR_SIZE.y, 0.08)
 	shape.shape = box
-	roll_up_door.add_child(shape)
+	door.add_child(shape)
 	var panel := MeshInstance3D.new()
 	var pm := BoxMesh.new()
 	pm.size = box.size
 	panel.mesh = pm
 	panel.material_override = Greybox.mat(Color(0.78, 0.78, 0.75))
-	roll_up_door.add_child(panel)
+	door.add_child(panel)
 	for i in 8:
 		var slat := MeshInstance3D.new()
 		var sm := BoxMesh.new()
@@ -200,7 +251,8 @@ func _build_roll_up_door() -> void:
 		slat.mesh = sm
 		slat.position = Vector3(0, -DOOR_SIZE.y / 2 + 0.25 + i * 0.5, 0)
 		slat.material_override = Greybox.mat(Color(0.6, 0.6, 0.58))
-		roll_up_door.add_child(slat)
+		door.add_child(slat)
+	return door
 
 
 ## Roll the door up into the rafters (or down again), over `seconds`.
@@ -242,6 +294,23 @@ static func _face(node: Node3D, point: Vector3) -> void:
 
 ## Maddison walks to `mark` (see MADDISON_MARKS), round the bench if it's in the
 ## way, at her unhurried pace. Await it to wait until she's there.
+## Lobby spot `i` (garage-local): {"at": Transform3D facing the camera, "pose": a CharacterRig action}.
+static func lobby_spot(i: int) -> Dictionary:
+	var spot: Dictionary = LOBBY_SPOTS[clampi(i, 0, LOBBY_SPOTS.size() - 1)]
+	var at: Vector3 = spot.at
+	var to_camera := LOBBY_CAMERA.origin - at
+	var yaw := atan2(-to_camera.x, -to_camera.z)  # a rig faces -Z at yaw 0
+	return {"at": Transform3D(Basis(Vector3.UP, yaw), at), "pose": spot.pose}
+
+
+## Where the player for lobby spot `i` walks in from: off the edge of the shot on
+## the spot's side, level with it.
+static func lobby_entry(i: int) -> Vector3:
+	var at: Vector3 = LOBBY_SPOTS[clampi(i, 0, LOBBY_SPOTS.size() - 1)].at
+	var side := -1.0 if at.x <= LOBBY_CAMERA.origin.x else 1.0
+	return Vector3(LOBBY_CAMERA.origin.x + side * LOBBY_ENTRY_SIDE, 0, at.z)
+
+
 func maddison_to(mark: String) -> void:
 	if _maddison_walk:
 		_maddison_walk.kill()
