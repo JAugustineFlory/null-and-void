@@ -1,15 +1,89 @@
-# Null & Void
+<p align="center">
+  <img src="docs/store/header.jpg" alt="Null &amp; Void: Halcyon Tower at night" width="100%">
+</p>
 
-A first-person co-op survival-horror escape game where the only way out is to write real code.
-You're a contract IT crew trapped inside Halcyon Data Systems in 1997. The doors, lights and
-robots are rows in a real SQLite database, and you learn SQL (then HTTP, JavaScript, HTML/CSS
-and testing) by using it to survive.
+<p align="center">
+  <b>A first-person co-op survival-horror escape game where the only way out is to write real code.</b>
+</p>
+
+<p align="center">
+  <code>Co-op</code> <code>Horror</code> <code>Puzzle</code> <code>Programming</code> <code>Educational</code> <code>First-Person</code> <code>Escape</code> <code>1990s</code>
+</p>
+
+<table align="center">
+  <tr><td><b>Genre</b></td><td>Co-op survival horror, puzzle, learn-to-code</td></tr>
+  <tr><td><b>Players</b></td><td>1 to 6, online co-op</td></tr>
+  <tr><td><b>Setting</b></td><td>Halcyon Tower, a downtown office tower, one night in October 1997</td></tr>
+  <tr><td><b>Skills you learn</b></td><td>SQL now; HTTP, JavaScript, HTML/CSS and testing later</td></tr>
+  <tr><td><b>Engine</b></td><td>Godot 4.7</td></tr>
+  <tr><td><b>Status</b></td><td>In development: the ground floor and floors 14 and 22 are playable</td></tr>
+  <tr><td><b>Release</b></td><td>To be announced</td></tr>
+</table>
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/store/van.jpg" alt="The crew's van in the car park at night"><br><sub>The after-hours callout.</sub></td>
+    <td width="50%"><img src="docs/store/lobby.jpg" alt="The front desk in the lobby"><br><sub>Check in at the front desk.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/store/terminal.jpg" alt="A terminal showing a SQL query and its results"><br><sub>Every terminal runs real SQL.</sub></td>
+    <td><img src="docs/store/notebook.jpg" alt="The crew's notebook, held open"><br><sub>Copy what you find into your notebook.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/store/noc.jpg" alt="The network operations room on floor 14"><br><sub>The server floor, the job you were hired for.</sub></td>
+    <td><img src="docs/store/servers.jpg" alt="Server racks lit by a flashlight"><br><sub>Find the faulty rack. It changes every run.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/store/service.jpg" alt="A long dark service corridor"><br><sub>Some corridors are better crossed quickly.</sub></td>
+    <td><img src="docs/store/garage.jpg" alt="The crew's garage home base"><br><sub>Home base: a garage, a whiteboard and <i>Easy SQL</i>.</sub></td>
+  </tr>
+</table>
+
+## About this game
+
+It's October 1997. Byte-Right IT Services is a small crew who learned most of what they know
+from a paperback called *Easy SQL*. They take an after-hours call from Halcyon Data Systems about
+"a database problem". It should be an easy job. Then the doors lock.
+
+Halcyon Tower runs on a real SQLite database. Every door, light and camera is a row in a table,
+and the only way through is to query it. Search the paper trail the staff left behind, piece
+together sticky notes and shredded memos, copy what matters into your notebook, and type real
+SQL into the building's terminals to get the next door open.
+
+### Features
+
+- **Real SQL, not a mini-game.** You type genuine queries (`SELECT`, `WHERE`, `ORDER BY`,
+  `COUNT` and more) into a real database. Puzzles check your results, not your wording, so any
+  query that gets the right rows works.
+- **No coding experience needed.** The crew's book teaches one idea at a time. Each idea is
+  found in the world first and practised once safely before it counts, and help is on hand at
+  every terminal when you're stuck.
+- **Co-op for 1 to 6 players.** Split up across a floor, talk up close or over walkie-talkies
+  with real range and static, and pool your notes in huddles. A query typed by anyone changes
+  the building for everyone.
+- **Every run is different.** Codes, faults and clues are shuffled each run, so a walkthrough
+  can't carry you.
+- **One continuous tower.** Each floor is part of the same building, with no loading screens.
+- **Move like you mean it.** Slide, mantle, climb, crawl through vents, shuffle along a ledge 22
+  floors up, or climb onto a teammate's shoulders.
+- **Make the crew yours.** Pick from 12 crew members, set your own name and colours, and unlock
+  outfits and tool skins by reading, fighting well, finishing floors and finding secrets.
+
+### System requirements
+
+The game runs from source for now (see [Play it](#play-it)).
+
+- **OS:** Windows, macOS or Linux
+- **Software:** [Godot 4.7](https://godotengine.org/download), the standard version (free)
+- **Graphics:** a graphics card with Vulkan support
+- **Online co-op:** a home network, or a free VPN such as Tailscale
+
+## Status
 
 The full design is in [docs/game-plan.md](docs/game-plan.md).
 
-![The front desk](docs/screenshots/l0_spawn.png)
-
-## Status
 
 Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo or co-op
 (1 to 6 players), furnished art, subtitles for placeholder voices.
@@ -23,7 +97,8 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 
 ## Changelog
 
-Newest first. Floors are listed by their in-game floor number.
+Newest first. Floors are listed by their in-game floor number. Changes that have merged but
+aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 ### 2026-10-21
 - **Added:** the first outfit pieces to earn. Reading glasses, a Byte-Right polo, high-tops and a security jacket show in the lobby as locked, each with a hint on how to earn it. A few secret pieces stay hidden until you find them.
@@ -144,6 +219,9 @@ Review screenshots (needs a display; on a server use `xvfb-run`):
 xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 -s tools/screenshots.gd -- /tmp/shots
 ```
 
+The cover and store screenshots in `docs/store/` come from `tools/store_shots.gd` (clean shots with
+no HUD) and `tools/make_cover.py`; see the top of each file.
+
 ## Layout
 
 | Path | What's there |
@@ -161,4 +239,4 @@ xvfb-run -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 -s tools/sc
 | `data/` | Seed SQL for levels |
 | `addons/godot-sqlite/` | [godot-sqlite](https://github.com/2shady4u/godot-sqlite) (MIT), desktop binaries |
 | `tests/` | Headless test runner |
-| `docs/` | Design plan and screenshots |
+| `docs/` | Design plan and screenshots; `docs/store/` holds the cover and the screenshots above |
