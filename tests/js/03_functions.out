@@ -3,5 +3,5 @@
 3 1
 3628800
 8 12
-[Function: add] [Function: sq] { double: [Function: double], triple: [Function: triple] }
+[Function: add] [Function: sq] { "double": [Function: double], "triple": [Function: triple] }
 undefined

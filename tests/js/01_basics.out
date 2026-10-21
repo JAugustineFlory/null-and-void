@@ -4,7 +4,7 @@ true false true false true true false
 true true true false false
 true true true number string boolean object object object undefined function
 0.30000000000000004 0.3333333333333333 1e+21 1e-7 0.000001 123.456 9007199254740992 Infinity -Infinity NaN
-Hello, world 12 HELLO, WORLD true 4 ell world H [ 'Hello', 'world' ]
+Hello, world 12 HELLO, WORLD true 4 ell world H ["Hello", "world"]
 pad 007 ababab a+b+c a+b-c
 3.14 5.0 9 Infinity -2 3 -2 4
 42 3.5 12 NaN 12 true
