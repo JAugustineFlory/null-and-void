@@ -480,6 +480,7 @@ func _build_stacks(colors: Dictionary) -> void:
 		var x := -6.0 + i * 3.0
 		var unit := Greybox.box(geo, Vector3(x, 1.8, -15), Vector3(1.2, 3.6, 10), shelf_c, "ShelfUnit")
 		stack_units.append(unit)
+		_dress_shelf_unit(unit, i)
 		var aisle := "A%d" % (i + 1)
 		Greybox.label(geo, Vector3(x, 3.2, -9.88), aisle, 64, Color(0.95, 0.9, 0.8))
 		Greybox.label(geo, Vector3(x, 3.2, -20.12), aisle, 64, Color(0.95, 0.9, 0.8), 180)
@@ -493,6 +494,49 @@ func _build_stacks(colors: Dictionary) -> void:
 		Traversal.climbable(geo, Vector3(x, 0, -20), Vector3(x, 3.6, -20), Vector3(0, 0, -1), 1.0)
 	# A records cart left in an aisle: cover, and something to climb from.
 	Greybox.box(geo, Vector3(1.5, 0.45, -12), Vector3(0.7, 0.9, 1.1), Color(0.5, 0.5, 0.52), "RecordsCart")
+
+
+## Make a shelf unit read as shelving, not a slab: the solid box keeps the collision
+## (you stand on its top and climb its ends), its own mesh is hidden, and uprights,
+## shelf levels and runs of boxes are drawn over it. Cosmetic only, so the boxes'
+## layout comes from the unit's index, not the run seed. Graphics polishes later.
+func _dress_shelf_unit(unit: StaticBody3D, index: int) -> void:
+	var c: Vector3 = unit.position
+	var length := 10.0
+	var height := 3.6
+	for child in unit.get_children():
+		if child is MeshInstance3D:
+			child.visible = false
+	var steel := Color(0.3, 0.32, 0.34)
+	var shelf := Color(0.55, 0.56, 0.52)
+	# A central back panel the boxes stand against, uprights every 2 m, a slab per level.
+	Greybox.panel(geo, c, Vector3(0.12, height, length), Color(0.26, 0.27, 0.28))
+	for k in 6:
+		var z := c.z - length / 2 + k * 2.0
+		for sx in [-0.56, 0.56]:
+			Greybox.panel(geo, Vector3(c.x + sx, height / 2, z), Vector3(0.08, height, 0.08), steel)
+	for lvl in 8:
+		var y := 0.05 + lvl * 0.5
+		Greybox.panel(geo, Vector3(c.x, y, c.z), Vector3(1.2, 0.05, length), shelf if lvl < 7 else Color(0.48, 0.5, 0.46))
+	# Runs of boxes on each level, each face, each bay: cardboard in a few tones, with
+	# gaps so you can see where the shelves are empty.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7700 + index
+	var tones := [Color(0.72, 0.62, 0.46), Color(0.66, 0.56, 0.42), Color(0.76, 0.68, 0.52), Color(0.5, 0.5, 0.56)]
+	for lvl in 7:
+		var y := 0.08 + lvl * 0.5 + 0.15
+		for face in [-1.0, 1.0]:
+			for bay in 5:
+				var z0 := c.z - length / 2 + bay * 2.0 + 0.1
+				var cursor := 0.0
+				while cursor < 1.7:
+					var run := rng.randf_range(0.3, 0.9)
+					if rng.randf() < 0.25:
+						cursor += run  # an empty stretch
+						continue
+					run = minf(run, 1.8 - cursor)
+					Greybox.panel(geo, Vector3(c.x + face * 0.35, y, z0 + cursor + run / 2), Vector3(0.42, 0.3, run - 0.04), tones[rng.randi_range(0, tones.size() - 1)])
+					cursor += run + 0.05
 
 
 func _build_halls(colors: Dictionary) -> void:

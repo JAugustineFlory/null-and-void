@@ -2,7 +2,8 @@ extends SceneTree
 ## A screenshot tour of floor 18 (Level 3) for a morning look: no HUD, lights on.
 ## Needs a display. With no Vulkan driver on the machine, the Compatibility renderer
 ## lights the scene well enough:
-##   xvfb-run -a -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 --resolution 1600x900 -s tools/level_3_shots.gd -- OUT_DIR
+##   xvfb-run -a -s "-screen 0 1920x1080x24" godot --rendering-driver vulkan --resolution 1920x1080 -s tools/level_3_shots.gd -- OUT_DIR
+## (with Mesa's software Vulkan, mesa-vulkan-drivers, installed; opengl3 works too)
 ## The shots go to OUT_DIR as l3_*.png, in tour order; captions are in the tour's
 ## folder under /mnt/project-files/level3/shots/.
 
@@ -41,8 +42,9 @@ func _run() -> void:
 	await _shot("02_lifts", Vector3(0.5, 0.05, 4.6), Vector3(-0.5, 1.4, 8.0))
 	# 3. The records desk: terminal, slips on the spike, the policy sheet.
 	await _shot("03_records_desk", Vector3(0, 0.05, 3.3), Vector3(0, 1.1, 1.0))
-	# 4. The reading room from its west side: tables to hide under, the card drawers.
-	await _shot("04_reading_room", Vector3(-7.0, 0.05, 3.2), Vector3(2.0, 1.2, -3.0))
+	# 4. The reading room from its west side: tables to hide under, the card drawers, the
+	#    returns cart against the far wall.
+	await _shot("04_reading_room", Vector3(-7.0, 0.05, 3.2), Vector3(3.0, 1.0, -1.5))
 	# 5. The stacks as the crew finds them: dark after 19:00, by flashlight.
 	await _shot("05_stacks_dark", Vector3(-4.0, 0.05, -5.6), Vector3(-4.0, 1.4, -14.0), true)
 	# 6. From a shelf top, with the stacks' sensor lights forced on for the picture.
@@ -75,7 +77,9 @@ func _run() -> void:
 	level.safe_door.set_open(true, true)
 	await _frames(30)
 	var sc: Vector3 = level.safe_room_box.get_center()
-	await _shot("12_safe_room", Vector3(wall_x + back.x * 0.7, 0.05, c.z + 1.0), Vector3(sc.x - back.x * 0.4, 0.9, sc.z - 1.0))
+	# From the corner by the door (clear of its open leaf), across the desk: the PC,
+	# the card, the floppy, the generator behind.
+	await _shot("12_safe_room", Vector3(sc.x - back.x * 1.6, 0.05, sc.z + 2.0), Vector3(sc.x + back.x * 0.6, 0.9, sc.z - 1.4))
 	# 13. The way out: STAIR 1 down, locked until the key ring.
 	await _shot("13_exit_stairs", Vector3(0.8, 0.05, 6.0), level.STAIR_OUT_AT + Vector3(0, 1.3, 0))
 	level.free()
