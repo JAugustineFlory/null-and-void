@@ -405,6 +405,14 @@ static func chapter(id: String) -> Dictionary:
 
 
 ## Every chapter id, in book order.
+## The chapter ids of book `book_id`, in order.
+static func book_chapter_ids(book_id: String) -> Array[String]:
+	var ids: Array[String] = []
+	for ch in BOOKS.get(book_id, {}).get("chapters", []):
+		ids.append(ch.id)
+	return ids
+
+
 static func chapter_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for book_id in BOOKS:
