@@ -21,6 +21,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_flashback()
 	await test_coop_huddle()
 	await test_coop_spar()
+	await test_coop_walk_in()
 	Engine.time_scale = 1.0
 	net.profile = real_profile
 
@@ -167,6 +168,12 @@ func test_garage_front() -> void:
 	_check.call(all_face, "each lobby spot faces the camera with a pose the rig can play")
 	_check.call(on_apron, "players walk in from just off screen, on the driveway, to their spots")
 	_check.call(hb.FRONT_DOOR.distance_to(Vector3(hb.DOOR_AT, 0, -hb.SIZE.z / 2)) < 0.01, "the front-door marker is at the foot of the roll-up door")
+	var env := Environment.new()
+	var mode := env.background_mode
+	var dusk: Dictionary = hb.dusk_outside(env, stage)
+	_check.call(env.background_mode == Environment.BG_SKY and env.sky != null and stage.get_node_or_null("DuskSun") != null, "dusk out front: the lobby's sky and a low sun, shared by the lobby and the World's garage")
+	hb.restore_outside(env, dusk)
+	_check.call(env.background_mode == mode and env.sky == null, "and the sky goes back as it was")
 	stage.queue_free()
 
 
@@ -182,15 +189,32 @@ func test_garage_opening() -> void:
 	_check.call(home != null and world.current == home and home.active, "a new game opens in the crew's garage")
 	_check.call(home.global_position.distance_to(Vector3.ZERO) > 200.0, "the garage sits far from the tower")
 	_check.call(world.wings.has("level_0") and not world.wings["level_0"].active, "the ground floor is built ahead, waiting for the van")
-	_check.call(p.global_position.distance_to(home.spawn_point().origin) < 1.0 and not p.input_locked, "the player starts on the garage floor, free to walk")
-	_check.call(not home.fax.enabled and not home.van_door.enabled, "nothing to do until dispatch calls")
-	_check.call(home.lobby_camera != null and home.lobby_camera.transform.is_equal_approx(home.LOBBY_CAMERA) and home.roll_up_door.get_parent() == home, "the World's garage has the lobby's shot, and its door is kept out of the floor's navigation")
+	_check.call(home.lobby_camera.current and p.input_locked and not home.find_children("WalkIn*", "", false, false).is_empty(), "it opens on the lobby's shot of the garage, the crew out front")
+	_check.call(not home.fax.enabled and not home.van_door.enabled and not home.book_bag.enabled, "nothing to do while the crew walks in")
+	_check.call(home.lobby_camera.transform.is_equal_approx(home.LOBBY_CAMERA) and home.roll_up_door.get_parent() == home, "the World's garage has the lobby's shot, and its door is kept out of the floor's navigation")
+	_check.call(await _until(func(): return home.roll_up_door.position.y > home.DOOR_SIZE.y), "the roll-up door goes up")
+	_check.call(await _until(func(): return home.flashback_camera.current, 600), "and the shot goes inside once they're through it")
+	_check.call(home.environment.background_mode != Environment.BG_SKY and home.get_node_or_null("DuskSun") == null, "the dusk sky out front goes with the outside shot")
+	_check.call(await _until(func(): return p.camera.current and p.is_sitting() and home._in_a_seat(p) and not p.input_locked, 1200), "then you're in your own seat facing the whiteboard, in first person")
+	_check.call(await _until(func(): return home.find_children("WalkIn*", "", false, false).is_empty(), 60), "the walk-in stand-ins are gone")
 	var mad: Node3D = home.maddison
-	_check.call(mad != null and mad.get_node_or_null("Look") != null and (_at_mark(home, "door") or home.maddison_mark == "greet"), "Maddison is in the garage in person, in from the side door")
-	_check.call(await _until(func(): return home.fax.enabled), "dispatch's call puts the work order on the fax")
-	_check.call(await _until(func(): return _at_mark(home, "fax"), 300), "Maddison walks over to the fax as the work order comes through")
-	home.fax.interact(p)
-	_check.call(await _until(func(): return home.book_bag.enabled), "then the book in the back corner")
+	_check.call(mad != null and mad.get_node_or_null("Look") != null, "Maddison is in the garage in person")
+	_check.call(await _until(func(): return _at_mark(home, "board"), 600), "she comes in from the house to her whiteboard")
+	_check.call(await _until(func(): return home.hud.current_todo() == "Block the punch bag", 2400), "after the brief she sends the crew to the punch bag")
+	p.stand_up(true)
+	await _frames(2)
+	await _spar(home, p)
+	_check.call(await _until(func(): return home.hud.current_todo() == "Sit back down facing Maddison", 300), "then back to their seats")
+	await _frames(60)
+	_check.call(home.read_order.is_empty() and not home.book_bag.enabled, "she waits for everyone to sit down")
+	await home._seat_me(home.crew_seats[2])
+	_check.call(await _until(func(): return home.hud.current_todo() == "Look at the work order in your notebook", 1200), "seated again, she points them at the work order in their notebooks")
+	await _frames(60)
+	_check.call(not home.book_bag.enabled, "and waits for everyone to look")
+	home.notebook.open()
+	_check.call(await _until(func(): return home.read_order.size() == 1, 60), "pulling out the notebook counts as looking")
+	home.notebook.close()
+	_check.call(await _until(func(): return home.book_bag.enabled, 2400), "then the book on the shelf by the side door")
 	var lit := true
 	for spot in [home.book_bag.global_position, home.fax.global_position, home.to_global(home.WHITEBOARD), home.to_global(home.VAN)]:
 		var reach := 0.0
@@ -201,17 +225,23 @@ func test_garage_opening() -> void:
 	_check.call(lit and home.environment.ambient_light_energy >= 0.4, "the garage is well lit, the back corner included")
 	var prof: Profile = _tree.root.get_node("Net").profile
 	_check.call(not prof.earned.has("achievement:book_easy_sql"), "the book's unlock waits until it's picked up")
+	p.stand_up(true)
+	p.global_position = home.to_global(home.SHELF + Vector3(0, 0.1, -1.2))
+	await _frames(2)
 	home.book_bag.interact(p)
 	await _frames(5)
 	_check.call(prof.earned.has("achievement:book_easy_sql"), "picking up Easy SQL earns its notebook cover")
-	_check.call(home.bench_book.visible and not home.book_bag.visible, "the book ends up on the workbench")
-	_check.call(await _until(func(): return _at_mark(home, "bench"), 300), "and round to the end of the workbench while they fetch the book")
-	await _spar(home, p)
-	p.global_position = home.to_global(home.BENCH + Vector3(0, 0.2, 1.2))
+	_check.call(not home.book_bag.visible and home.held_book != null and home.held_book.get_parent() == p.camera, "the book is in your hands, like the notebook")
+	await _frames(60)
+	_check.call(not _huddle_of(home).is_running(), "the chapter waits for whoever has the book to sit down with it")
+	await home._seat_me(home.crew_seats[0])
 	var h = _huddle_of(home)
 	h.reveal_scale = 0.2
-	_check.call(await _until(func(): return h.is_running()), "the crew at the workbench opens the book")
-	_check.call(h.chapter.id == "easy_sql_0" and h.is_reader() and p.input_locked, "solo, you read the first chapter, standing still")
+	var opened := await _until(func(): return h.is_running(), 1200)
+	if not opened:
+		print("    sitting=%s in_seat=%s holder=%s todo=%s gates=%s" % [p.is_sitting(), home._in_a_seat(p), home.book_holder, home.hud.current_todo(), home.sync._gates.keys()])
+	_check.call(opened, "sitting down with the book opens chapter zero")
+	_check.call(h.chapter.id == "easy_sql_0" and h.is_reader() and p.input_locked and home.held_book == null, "solo, you read the first chapter from your seat")
 	var ui = h.get_node_or_null("HuddleUI")
 	_check.call(ui != null and not ui.flashback and ui.find_child("Next", true, false).visible, "the book opens over the garage with a page-turn for the reader")
 	var book_rect: Rect2 = ui.find_child("Book", true, false).get_global_rect()
@@ -225,8 +255,7 @@ func test_garage_opening() -> void:
 	_check.call(h.question == 0 and ui.find_children("Option*", "", true, false).size() == 3, "after the first word's pages, its questions: three answers to pick from")
 	_check.call(h.reference().size() == 1 and ui.find_child("*", true, false) != null and ui._body.get_parsed_text().contains("job_no"), "the jobs table is on show beside the question")
 	_answer(h, false)
-	await _frames(3)
-	_check.call(h.result.has("choice") and not h.result.right, "a wrong answer says why")
+	_check.call(await _until(func(): return h.result.has("choice"), 60) and not h.result.right, "a wrong answer says why")
 	_check.call(await _until(func(): return h.result.is_empty()) and h.question == 0, "and the same question comes back")
 	_answer(h, true)
 	await _frames(3)
@@ -469,5 +498,27 @@ func test_coop_spar() -> void:
 	await _frames(2)
 	pc.combat.raise_guard()
 	_check.call(await _until(func(): return done[0] == 2, 400), "the client blocks it, and both machines move on")
+	_tree._coop_close(worlds)
+	await _frames(2)
+
+
+func test_coop_walk_in() -> void:
+	print("Home base: co-op, the crew walks in and reads the work order")
+	_game().new_run(25)
+	_game().open_at_home = true
+	var worlds: Array = await _tree._coop_worlds(1)
+	var machines: Array = await _tree._coop_load(worlds, "res://scenes/world.tscn")
+	var homes := machines.map(func(w): return w.home)
+	var ph = machines[0].player
+	var pc = machines[1].player
+	_check.call(homes[1].find_children("WalkIn*", "", false, false).size() == 2, "every machine sees the whole crew out front")
+	_check.call(await _until(func(): return ph.is_sitting() and pc.is_sitting(), 1500), "everyone walks in and ends up seated")
+	_check.call(ph.seat == homes[0].crew_seats[0] and pc.seat == homes[1].crew_seats[1], "each player in a seat of their own")
+	var client_id: int = machines[1].multiplayer.get_unique_id()
+	homes[1]._on_notebook_opened()  # as at the work-order beat, when the notebook comes out
+	_check.call(await _until(func(): return homes[0].read_order.has(client_id) and homes[1].read_order.has(client_id), 120), "a client pulling out their notebook counts on every machine")
+	_check.call(homes[0].read_order.size() == 1, "one look isn't the whole crew")
+	homes[0]._on_notebook_opened()
+	_check.call(await _until(func(): return homes[1].read_order.size() == 2, 120), "then the host's look completes it")
 	_tree._coop_close(worlds)
 	await _frames(2)

@@ -213,17 +213,49 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### The garage
 
-*The game opens at Byte-Right's garage home base, earlier that night. Maddison walks in with the news and walks the crew through it: the work order comes through on the fax, the book Easy SQL is on the back shelf, the crew huddles round it at the workbench, then everyone gets in the van.*
+*The game opens at Byte-Right's garage home base, earlier that night. The crew walks in and sits facing Maddison at the whiteboard. She briefs them (money, goals, the Halcyon job), sends them to the punching bag, points them at the work order in their notebooks, then at Easy SQL on the shelf by the side door, and reads chapter zero with them. Then everyone gets in the van. Lines ending _solo are the one-player versions.*
 
-**MADDISON:** *(Coming in through the side door, waving the printout. The crew starts on the garage floor.)* There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours. `[l0_garage_1]`
+**MADDISON:** *(Big, warm, delighted to have an audience. The crew is already sitting, facing her.)* Okay! Everybody comfy? Look at you. My whole company, in one garage. `[l0_brief_1]`
 
-**MADDISON:** *(Quickly, before anyone can ask. Then the fax starts.)* How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. `[l0_garage_2]`
+**MADDISON:** *(Solo version. The same joke, a little teasing.)* Okay! Look at you. My whole company, in one seat. `[l0_brief_1_solo]`
 
-**MADDISON:** *(The smile stays on. A hopeful pause. Once the work order's off the fax.)* Small problem. It says database. And unless somebody's been holding out on me... none of us can code. `[l0_garage_3]`
+**MADDISON:** *(Cheerful, as if it's good news. Counting it off on her fingers.)* Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change. `[l0_brief_2]`
 
-**MADDISON:** *(Proud of this.)* Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. `[l0_garage_4]`
+**MADDISON:** *(Every 'maybe' a little grander, then the sign brings it back down to earth.)* So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off. `[l0_brief_3]`
+
+**MADDISON:** *(Building to it. She can't stand still for 'Ours.')* Forget all that. We got Halcyon. The overnight database contract. Ours. `[l0_brief_4]`
+
+**MADDISON:** *(Quickly, before anyone can ask.)* How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. `[l0_brief_5]`
+
+**MADDISON:** *(Laughing, shooing them off.)* You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down. `[l0_bag]`
+
+**MADDISON:** *(Solo version. Laughing, shooing them off.)* You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down. `[l0_bag_solo]`
+
+**MADDISON:** *(Once everyone's back in their seats. A little flirty, played light, like a coach.)* Better? Good. Now eyes on me, gorgeous people. `[l0_bag_back]`
+
+**MADDISON:** *(Solo version. A little flirty, played light, like a coach.)* Better? Good. Now eyes on me, gorgeous. `[l0_bag_back_solo]`
+
+**MADDISON:** *(Pleased with herself for being organized.)* I put a copy of the work order in each of your notebooks. Pull it out and take a look. `[l0_workorder]`
+
+**MADDISON:** *(Solo version. Pleased with herself for being organized.)* I put a copy of the work order in your notebook. Pull it out and take a look. `[l0_workorder_solo]`
+
+**MADDISON:** *(The smile stays on. She leaves the sentence hanging and waits. Nobody does.)* Small problem. It says database. And unless one of you secretly knows SQL... `[l0_book_catch]`
+
+**MADDISON:** *(Solo version. The smile stays on. She leaves the sentence hanging and waits.)* Small problem. It says database. And unless you secretly know SQL... `[l0_book_catch_solo]`
+
+**MADDISON:** *(Proud of this. Holding up the receipt, not the book.)* ...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. `[l0_bookstore]`
+
+**MADDISON:** *(Pointing at the side door to the house.)* It's in the shop bag on the shelf by the side door. One of you go grab it. `[l0_grab]`
+
+**MADDISON:** *(Solo version. Pointing at the side door to the house.)* It's in the shop bag on the shelf by the side door. Go on, grab it for me. `[l0_grab_solo]`
+
+**MADDISON:** *(When whoever got the book sits down. Uncapping a marker with a flourish, like she's about to teach a class she's never taken.)* Thank you! Okay. Whiteboard. Chapter zero. We're reading this together. `[l0_whiteboard]`
+
+**MADDISON:** *(Solo version. Uncapping a marker with a flourish.)* Thank you! Okay. Whiteboard. Chapter zero. Let's read this together. `[l0_whiteboard_solo]`
 
 **MADDISON:** *(Genuinely thrilled. After the huddle's quiz.)* Look at that. You're practically engineers. Take the book with you. Everybody in the van. `[l0_garage_5]`
+
+**MADDISON:** *(Solo version. Genuinely thrilled. After the huddle's quiz.)* Look at that. You're practically an engineer. Take the book with you. Into the van. `[l0_garage_5_solo]`
 
 **MADDISON:** *(At the van door, counting the rules off. She stays behind.)* Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. `[l0_garage_6]`
 
