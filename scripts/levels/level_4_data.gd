@@ -71,6 +71,10 @@ static func build(run_seed: int, ticket: String) -> Dictionary:
 	# clipboard's column order. The lift contractor's is the one that locked out the
 	# lift motors, so its tag and its row agree.
 	var minute := rng.randi_range(12, 58)
+	# The gantry's bays are numbered from one end of the rail or the other: the
+	# access panel is over bay 4 or bay 1, and the arm parks at the far end.
+	var hatch_bay := 4 if rng.randi() % 2 == 0 else 1
+	var park_bay := 5 - hatch_bay
 	var time_in := "%02d:%02d" % [CLOCK_HOUR, minute]
 	var log := [
 		["Delmont Courier", "WO-%05d" % rng.randi_range(10000, 99999), "14:20"],
@@ -111,6 +115,18 @@ CREATE TABLE lockouts (
 INSERT INTO lockouts VALUES
 	('%s', 'Coastline Elevator Co.', '%s', '10:22');
 
+-- The gantry arm on the hall's ceiling rail: a service platform that travels
+-- along the north wall between bays and lifts to the rail. Its controller won't
+-- let it travel while it's raised.
+CREATE TABLE gantry (
+	id TEXT PRIMARY KEY,
+	bay INTEGER,
+	raised INTEGER,
+	note TEXT
+);
+INSERT INTO gantry VALUES
+	('GA-1', %d, 0, 'Parks at bay %d. raised = 1 lifts the platform to the rail. Lower it before it travels.');
+
 -- doors and lights are building-wide (FacilityDB.SHARED_SCHEMA). This wing adds floor 10's
 -- rows. The control room's door is unlocked but has no power until its breaker is reset:
 -- the database says open, the door stays shut (actuator_fault).
@@ -127,12 +143,13 @@ INSERT INTO lights VALUES
 		",\n\t".join(rows.map(_values)),
 		",\n\t".join(log.map(_values)),
 		rows.filter(func(r): return r[1] == "LIFT MOTORS")[0][0], log[2][1],
+		park_bay, park_bay,
 	]
 	return {"sql": sql, "target": target_id, "breakers": rows, "start_states": start_states,
 		"decoys": rows.filter(func(r): return r[0] != target_id and r[3] != "on").map(func(r): return r[0]),
 		"bay_breaker": rows.filter(func(r): return r[1] == DECOYS[0][0])[0][0],
 		"time_in": time_in, "ticket": ticket, "company": COMPANY, "log": log,
-		"example_log": log[2]}
+		"example_log": log[2], "hatch_bay": hatch_bay, "park_bay": park_bay}
 
 
 ## One row's values, quoted for SQL. A null stays a real NULL.

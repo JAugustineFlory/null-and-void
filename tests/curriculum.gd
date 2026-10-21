@@ -234,6 +234,14 @@ const PUZZLES := {
 		"teaches": ["INSERT INTO", "VALUES", "contractor_log"],
 		"needs": ["INSERT INTO", "VALUES", "contractor_log"],
 	},
+	# The control room's second way in: the gantry arm moved by UPDATE to the bay under
+	# the access panel (the gantry card numbers the bays). Optional, practised safely.
+	"gantry": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["gantry", "bay", "raised"],
+		"needs": ["UPDATE", "SET", "WHERE", "gantry", "bay", "id"],
+	},
 	# The night-mode card's way out: an UPDATE on doors. Its row says CONTAINMENT for a
 	# crew that reads it first; opening it is the accident (UPDATE's first real use).
 	"main_doors": {

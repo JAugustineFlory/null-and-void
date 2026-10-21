@@ -18,6 +18,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_scene()
 	await test_right_first_time()
 	await test_accident()
+	await test_gantry()
 	await test_coop()
 
 
@@ -74,6 +75,8 @@ func test_data_every_seed() -> void:
 	var ok_hints := true
 	var ok_doors := true
 	var ok_lockout := true
+	var ok_gantry := true
+	var hatch_bays := {}
 	var targets := {}
 	for s in range(1, 61):
 		var lvl = _stations(s)
@@ -149,6 +152,16 @@ func test_data_every_seed() -> void:
 		ok_lockout = ok_lockout and lvl.readback_puzzle.matches(db9, db9.execute(_last_hint_query(lvl.readback_puzzle))) \
 			and lvl.readback_puzzle.matches(db9, db9.execute("SELECT * FROM lockouts WHERE breaker = '%s'" % data.bay_breaker)) \
 			and not lvl.readback_puzzle.matches(db9, db9.execute("SELECT * FROM breakers WHERE id = '%s'" % data.bay_breaker))
+		# The gantry: parked at one end, the panel's bay at the other. The parking bay,
+		# the card's example bay, a quoted number and a read don't pass; the last hint does.
+		hatch_bays[data.hatch_bay] = true
+		var db10 := _fresh_db(data)
+		ok_gantry = ok_gantry and data.hatch_bay + data.park_bay == 5 and db10.run_silent("SELECT bay, raised FROM gantry WHERE id = 'GA-1'") == [{"bay": data.park_bay, "raised": 0}]
+		ok_gantry = ok_gantry and not lvl.gantry_puzzle.matches(db10, db10.execute("UPDATE gantry SET bay = 3 WHERE id = 'GA-1'"))
+		ok_gantry = ok_gantry and not lvl.gantry_puzzle.matches(db10, db10.execute("UPDATE gantry SET bay = %d WHERE id = 'GA-1'" % data.park_bay))
+		ok_gantry = ok_gantry and not lvl.gantry_puzzle.matches(db10, db10.execute("SELECT * FROM gantry"))
+		ok_gantry = ok_gantry and db10.execute("UPDATE gantry SET bay = %d WHERE id = 'GA1'" % data.hatch_bay).changes == 0
+		ok_gantry = ok_gantry and lvl.gantry_puzzle.matches(db10, db10.execute(_last_hint_query(lvl.gantry_puzzle)))
 		lvl.free()
 	check(ok_shape, "twelve breakers every run, one PLANT CONTROL tripped, the work order's example CB-03 always the riser fans")
 	check(ok_reasons, "every breaker left off or tripped has a tag saying why (the bay, the lift contractor, floor 11)")
@@ -159,6 +172,7 @@ func test_data_every_seed() -> void:
 	check(ok_login, "the crew's own log row passes, and so does the last hint, across 60 seeds")
 	check(ok_wrong_insert, "wrong column order, an unquoted value, the wrong table, the clipboard's example, no column list and a plain read don't pass")
 	check(ok_doors, "main_doors's row says CONTAINMENT; another door or a read doesn't open it, the last hint does")
+	check(ok_gantry and hatch_bays.size() == 2, "the gantry parks at one end and the panel's bay is the other (both ways round over 60 runs); only moving it there passes")
 	check(ok_lockout, "the bay's lockout row and its last hint pass, and the read-back reads it; the wrong breaker, swapped columns and a read don't")
 
 
@@ -415,3 +429,72 @@ func test_coop() -> void:
 	var dump := "SELECT * FROM lockouts ORDER BY breaker"
 	check(host.db.run_silent(dump) == client.db.run_silent(dump), "the lockouts table matches on both machines")
 	await t._coop_close(worlds)
+
+
+## The gantry: moved by UPDATE, refused by its own controller when it can't, docked
+## under the access panel; climbed solo when raised; and the control room's manual
+## release lets the crew out from inside.
+func test_gantry() -> void:
+	print("Floor 10: the gantry arm and the access panel")
+	_game().new_run(21)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(20)
+	var p: Player = level.player
+	var data: Dictionary = level.data
+	var ui: TerminalUI = level.terminal_ui
+	var g: AnimatableBody3D = level.gantry
+	var card: Node = _doc(level, "Gantry card")
+	check(card != null and card.plain_text().contains("Bay %d: the access panel" % data.hatch_bay) and card.plain_text().contains("UPDATE gantry SET bay = 3 WHERE id = 'GA-1';"),
+		"the gantry card names the panel's bay and shows another bay's UPDATE")
+	check(is_equal_approx(g.position.x, level._bay_x(data.park_bay)) and not level.hatch.is_open, "the arm is parked at its end of the rail; the access panel is shut")
+	ui.terminal = level.maint
+	ui.run("UPDATE gantry SET bay = 7 WHERE id = 'GA-1'")
+	await _frames(2)
+	check(_said(level.maint, level.TEXT.gantry_no_bay) and level.db.run_silent("SELECT bay FROM gantry")[0]["bay"] == data.park_bay, "a bay that isn't there: the controller refuses it and the row stays as it was")
+	ui.run("DELETE FROM gantry")
+	await _frames(2)
+	check(_said(level.maint, level.TEXT.gantry_bolted) and level.db.run_silent("SELECT COUNT(*) AS n FROM gantry")[0]["n"] == 1, "deleting the arm's row is refused")
+	# Raised where it parks, it won't travel: lower it first.
+	ui.run("UPDATE gantry SET raised = 1 WHERE id = 'GA-1'")
+	check(await _until(func(): return g.position.y > level.GANTRY_HIGH - 0.05, 300), "raised = 1 lifts the platform to the rail")
+	ui.run(_last_hint_query(level.gantry_puzzle))
+	await _frames(2)
+	check(_said(level.maint, level.TEXT.gantry_interlock) and level.db.run_silent("SELECT bay FROM gantry")[0]["bay"] == data.park_bay and not level.gantry_puzzle.solved,
+		"raised, it won't travel: the interlock refuses and the row stays put")
+	# The advanced coder: lower and travel back is refused, so: down, then across and up in one row change.
+	ui.run("UPDATE gantry SET raised = 0 WHERE id = 'GA-1'")
+	check(await _until(func(): return g.position.y < level.GANTRY_LOW + 0.05, 300), "lowered, it comes back down")
+	ui.run("UPDATE gantry SET bay = %d, raised = 1 WHERE id = 'GA-1'" % data.hatch_bay)
+	check(await _until(func(): return level.hatch.is_open, 900), "moved and raised in one row change, it travels, lifts, and docks: the panel opens")
+	check(level.gantry_puzzle.solved and is_equal_approx(g.position.x, level._bay_x(data.hatch_bay)) and g.position.y > level.GANTRY_HIGH - 0.05, "the arm is under the panel, at the top")
+	# Solo: climb the mast, step off on the platform, through the panel and down into the control room.
+	p.local_control = false
+	p.global_transform = Transform3D(Basis(), g.global_transform * Vector3(0, -level.GANTRY_HIGH + 0.05, 1.4))
+	await _frames(5)
+	p.controls.move = Vector2(0, -1)
+	var climbed := false
+	for i in 900:
+		p.controls.jump = not climbed and p.global_position.distance_to(level.to_global(Vector3(g.position.x, 0, level.GANTRY_Z + 0.6))) < 1.2
+		await t.physics_frame
+		climbed = climbed or p.state == Player.Move.CLIMB
+		p.controls.crouch = climbed and p.is_on_floor() and p.global_position.y > level.GANTRY_HIGH - 0.2  # duck through the panel
+		if level.CTRL_ROOM.has_point(level.to_local(p.global_position)) and p.is_on_floor():
+			break
+	p.controls.move = Vector2.ZERO
+	p.controls.jump = false
+	p.controls.crouch = false
+	await _frames(10)
+	check(climbed and level.CTRL_ROOM.has_point(level.to_local(p.global_position)), "climb the mast, cross the platform, through the panel and down into the control room (at %s)" % level.to_local(p.global_position))
+	check(not level.ctrl_door.is_open and not level.power_back, "in without the power: the room's still dark and its door shut")
+	level.release.used.emit(p)
+	await _frames(90)
+	check(level.ctrl_door.is_open, "the door's manual release lets the crew out from inside")
+	# Moving away again shuts the panel.
+	ui.run("UPDATE gantry SET raised = 0 WHERE id = 'GA-1'")
+	await _frames(5)
+	ui.run("UPDATE gantry SET bay = %d WHERE id = 'GA-1'" % data.park_bay)
+	check(await _until(func(): return not level.hatch.is_open, 300), "the arm leaving its bay drops the panel shut")
+	p.local_control = true
+	level.queue_free()
+	await t.process_frame

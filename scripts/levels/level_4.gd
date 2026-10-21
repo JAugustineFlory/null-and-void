@@ -18,6 +18,10 @@ extends LevelBase
 ##               row says zone CONTAINMENT, for a crew that looks first. Opening it is
 ##               the accident: the entities get out, the Custodian leaves its bay,
 ##               WARDEN announces Containment protocol Epsilon, and STAIR 1 releases.
+##      gantry   the control room's second way in: the gantry arm on the hall's ceiling
+##               rail, moved by UPDATE to the bay under the high access panel. Then a
+##               teammate's shoulders from its platform (fast), or raise it and climb
+##               its mast (solo), or move and raise in one row change (advanced).
 ##   4. lockout  optional, under pressure: lock out the charging bay's breaker
 ##               (INSERT) and read it back at the bay's own panel within 30 seconds
 ##               (the two-terminal teaser). The Custodian goes dark for good.
@@ -32,8 +36,10 @@ extends LevelBase
 ## Layout (level space, north is -z):
 ##   lift lobby       x -4..4,   z 4..8     stairs in (west wall), stairs down (east wall)
 ##   switchgear hall  x -10..10, z -10..4   breaker panel on the west wall, the plant
-##                                          maintenance terminal, a 4.5 m ceiling
-##   control room     x 2..10,   z -18..-10 the door and lift controller, its clipboard
+##                                          maintenance terminal, a 6 m ceiling, the
+##                                          gantry's rail along the north wall
+##   control room     x 2..10,   z -18..-10 the door and lift controller, its clipboard;
+##                                          the access panel high in its south wall
 ##   charging bay     x -10..0,  z -18..-10 the Custodian's, behind a sealed roll-up door;
 ##                                          its own panel terminal, and the night guard
 ##                                          it took on Tuesday
@@ -74,6 +80,14 @@ const TEXT := {
 	"power_returns": "The bay breaker snaps back on. Its light comes back.",
 	"refused_login": "DOOR AND LIFT CONTROL: NO CONTRACTOR LOGGED IN. LOG IN FIRST (contractor_log).",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
+	"gantry_moves": "Overhead, the gantry hums along its rail.",
+	"gantry_docks": "The gantry docks under the access panel. Its latch lets go and the panel slides up.",
+	"gantry_undocks": "The access panel drops shut behind the gantry.",
+	"gantry_interlock": "GANTRY 10: INTERLOCK. LOWER THE ARM (raised = 0) BEFORE IT TRAVELS.",
+	"gantry_no_bay": "GANTRY 10: NO SUCH POSITION. bay IS 1 TO 4. raised IS 0 (DOWN) OR 1 (UP).",
+	"gantry_bolted": "GANTRY 10: GA-1 IS BOLTED TO THE RAIL. IT CAN'T BE REMOVED.",
+	"manual_release": "Pull the manual release",
+	"released": "The door's manual release gives. It shoves open.",
 	"end_card": "To be continued.",
 	# SYSOP tips (text only, never lies; each fires once per run).
 	"tip_first": "the breakers are rows. the work order names a circuit. find its row first, then change only that one.",
@@ -137,6 +151,27 @@ const LOCKOUT_LINES := [
 	"2. A second person reads it back at the panel it covers within 30 seconds, or it lapses.",
 	"A locked-out breaker stays off until Facilities clears it.",
 ]
+## The gantry arm: its rail runs along the hall's north wall. Bay positions west to
+## east (level space x); the bays are numbered from one end or the other (seeded),
+## so the access panel over the east end is bay 4 or bay 1.
+const GANTRY_X := [-8.5, -1.5, 3.0, 8.5]
+const GANTRY_Z := -9.3
+## The platform's top, lowered (a step up) and raised (level with the panel's sill).
+const GANTRY_LOW := 0.3
+const GANTRY_HIGH := 3.65
+## The high access panel, through the wall into the control room (its centre).
+## Crouch-high: you duck through it.
+const HATCH_AT := Vector3(8.5, 4.35, -10)
+const HATCH_SIZE := Vector3(1.0, 1.4, 0.12)
+## The gantry card, on the wall by where it parks: where the second route is found.
+const GANTRY_CARD := [
+	"GANTRY ARM GA-1  -  PLANT 10",
+	"Service platform on the ceiling rail. Controlled from the plant terminal: gantry.",
+	"Bay %d: parking.   Bay %d: the access panel to door and lift control.",
+	{"text": "to the riser fans' bay: UPDATE gantry SET bay = 3 WHERE id = 'GA-1';", "hand": true},
+	{"text": "raised = 1 takes the platform up to the panel. numbers, no quotes!", "hand": true},
+	"Do not ride the platform while it travels.",
+]
 ## How long a lockout waits to be read back at the bay's panel.
 const LOCKOUT_WINDOW := 30.0
 ## How long the bay's breaker stays off before WARDEN puts it back (unless locked out).
@@ -190,6 +225,13 @@ var lockout_window := LOCKOUT_WINDOW
 var power_cut_time := POWER_CUT_TIME
 ## Bumped each time the bay's power is cut, so a stale restore does nothing.
 var _cut := 0
+var gantry: AnimatableBody3D
+var gantry_mast: MovementVolume
+var hatch: Door
+var release: Interactable
+## Where the gantry is, as the world has it (every machine): what its interlock goes by.
+var gantry_at := {"bay": 0, "raised": 0}
+var _gantry_tween: Tween
 ## The SYSOP tips that have fired this run (every machine).
 var tips_sent := {}
 
@@ -201,6 +243,7 @@ var login_puzzle: StatePuzzle
 var main_doors_puzzle: StatePuzzle
 var lockout_puzzle: StatePuzzle
 var readback_puzzle: Puzzle
+var gantry_puzzle: StatePuzzle
 
 
 func build() -> void:
@@ -233,13 +276,14 @@ func build() -> void:
 	_build_hall(colors)
 	_build_control_room(colors)
 	_build_bay(colors)
+	_build_gantry()
 
 	# Lights follow the `lights` table (sync_world): control room and bay are dark.
 	add_light("L10-LOBBY", Vector3(0, 3.2, 6), 6.0, 0.9)
 	for z in [-7.0, 0.0]:
 		for x in [-5.0, 5.0]:
-			add_light("L10-HALL", Vector3(x, 4.5, z), 8.0, 0.9, Color(0.95, 0.95, 0.85))
-	add_light("L10-CTRL", Vector3(6, 3.0, -14), 6.0, 0.9)
+			add_light("L10-HALL", Vector3(x, 6.0, z), 9.0, 0.9, Color(0.95, 0.95, 0.85))
+	add_light("L10-CTRL", Vector3(6, 5.4, -14), 7.0, 0.9)
 	add_light("L10-BAY", Vector3(-5, 3.5, -14), 7.0, 0.6, Color(0.6, 0.8, 1.0))
 
 	spawn = _stair_landing(STAIR_IN_AT, 90.0)
@@ -258,7 +302,7 @@ func build() -> void:
 	add_child(custodian)
 	custodian.rotation_degrees.y = 0.0
 	# Every terminal on 10 sees the building's database through the floor's rules.
-	var guarded := GuardedDB.over(db, _guard)
+	var guarded := GuardedDB.over(db, _guard, _gantry_check)
 	for term in [maint, controller, bay_terminal]:
 		term.db = guarded
 
@@ -357,6 +401,22 @@ func _make_puzzles() -> void:
 	])
 	readback_puzzle.accept_also("SELECT breaker, company, job FROM lockouts WHERE breaker = '%s'" % data.bay_breaker, ["breaker", "company", "job"], false)
 	readback_puzzle.case_id = "seal"
+	var hb: int = data.hatch_bay
+	gantry_puzzle = StatePuzzle.new("gantry", "UPDATE gantry SET bay = %d WHERE id = 'GA-1'" % hb,
+		"SELECT bay FROM gantry WHERE id = 'GA-1'", "SELECT %d AS bay" % hb, ["bay"], [
+		"the shape, with the bay left as ?:\n" +
+		"    [color=#ffffff]UPDATE gantry SET bay = ? WHERE id = 'GA-1';[/color]\n" +
+		"  UPDATE gantry   change the gantry arm's row\n" +
+		"  SET bay = ?   move it to that bay. ? is a number: no quotes\n" +
+		"  WHERE id = 'GA-1'   only the arm GA-1\n" +
+		"? is the bay under the access panel: the gantry card on the north wall says which.",
+		"read the gantry card by where the arm parks: it numbers the bays and names the one under the access panel. or type\n" +
+		"    [color=#ffffff]SELECT * FROM gantry;[/color]\n" +
+		"to see where the arm is now.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]UPDATE gantry SET bay = %d WHERE id = 'GA-1';[/color]\n" % hb +
+		"then get a teammate onto your shoulders from its platform, or raise it and climb: UPDATE gantry SET raised = 1 WHERE id = 'GA-1';",
+	])
 
 
 ## A spot on a stairwell's landing, clear of the flight, facing its door.
@@ -380,10 +440,11 @@ func arrive_by_stairs() -> void:
 
 func _build_hall(colors: Dictionary) -> void:
 	# A tall plant room: ducts and cable trays above, the panel along the west wall.
-	Greybox.room(geo, Vector3(0, 0, -3), Vector3(20, 4.5, 14), {"floor": colors.floor, "wall": colors.wall, "ceiling": Color(0.32, 0.33, 0.33)}, [
+	Greybox.room(geo, Vector3(0, 0, -3), Vector3(20, 6.0, 14), {"floor": colors.floor, "wall": colors.wall, "ceiling": Color(0.32, 0.33, 0.33)}, [
 		{"wall": "s", "at": 0.0, "width": 2.4, "height": 2.4},
 		{"wall": "n", "at": CTRL_DOOR_AT.x, "width": 1.6, "height": 2.4},
 		{"wall": "n", "at": BAY_DOOR_AT.x, "width": 3.0, "height": 2.8},
+		{"wall": "n", "at": HATCH_AT.x, "width": HATCH_SIZE.x, "height": HATCH_AT.y + HATCH_SIZE.y / 2, "bottom": HATCH_AT.y - HATCH_SIZE.y / 2},
 	])
 	Greybox.label(geo, Vector3(0, 3.6, 3.88), "PLANT 10  -  SWITCHGEAR", 48, Color(0.8, 0.8, 0.72), 180)
 	# The breaker panel: one box per row of `breakers`, its label and a lamp on the
@@ -407,7 +468,7 @@ func _build_hall(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(-6, 0.5, 1.6), Vector3(2.4, 1.0, 0.8), Color(0.4, 0.38, 0.34), "MaintDesk")
 	maint = Terminal.spawn(geo, Vector3(-6.5, 1.0, 1.6), 0, "PLANT MAINT", db, terminal_ui)
 	maint.name = "MaintTerminal"
-	maint.puzzles = [reset_puzzle, check_puzzle]
+	maint.puzzles = [reset_puzzle, check_puzzle, gantry_puzzle]
 	maint.boot_lines = [
 		"HALCYON FACILITIES  -  PLANT 10  -  MAINTENANCE",
 		"Breaker panel: breakers. One row per breaker box.",
@@ -417,20 +478,26 @@ func _build_hall(colors: Dictionary) -> void:
 	wo.clues = [{"case": "power", "opens": TEXT.case_power, "tables": ["breakers"], "text": "Facilities' work order: Tuesday's power event tripped the PLANT CONTROL breaker. Reset it, then check it took."}]
 	wo.read_by.connect(func(_p): sync.event("_ask_power"))
 	# Cable trays and ducts overhead, a transformer cage in the south-east corner.
-	for z in [-8.0, -2.0]:
-		Greybox.box(geo, Vector3(0, 4.0, z), Vector3(18, 0.15, 0.6), Color(0.45, 0.45, 0.42), "CableTray")
+	# (Clear of the gantry's rail and anyone on its mast, along the north wall.)
+	for z in [-6.5, -1.0]:
+		Greybox.box(geo, Vector3(0, 4.6, z), Vector3(18, 0.15, 0.6), Color(0.45, 0.45, 0.42), "CableTray")
 	Greybox.box(geo, Vector3(7.5, 1.2, 1.5), Vector3(3.0, 2.4, 3.0), Color(0.3, 0.34, 0.32), "Transformer")
 	Greybox.label(geo, Vector3(7.5, 2.0, -0.02), "DANGER  480V", 36, Color(0.9, 0.75, 0.1), 180)
 
 
 func _build_control_room(colors: Dictionary) -> void:
-	Greybox.room(geo, Vector3(6, 0, -14), Vector3(8, 3.0, 8), {"floor": Color(0.25, 0.26, 0.28), "wall": colors.wall}, [
+	Greybox.room(geo, Vector3(6, 0, -14), Vector3(8, 5.4, 8), {"floor": Color(0.25, 0.26, 0.28), "wall": colors.wall}, [
 		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.4},
+		{"wall": "s", "at": HATCH_AT.x - 6.0, "width": HATCH_SIZE.x, "height": HATCH_AT.y + HATCH_SIZE.y / 2, "bottom": HATCH_AT.y - HATCH_SIZE.y / 2},
 	])
 	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.75, -9.88), "DOOR AND LIFT CONTROL", 32, Color(0.8, 0.8, 0.72), 180)
 	Document.place(geo, Vector3(CTRL_DOOR_AT.x + 1.3, 1.5, -9.88), 180, "Control room sign", CTRL_SIGN_LINES, false, "laminated", Vector2(0.3, 0.2))
 	# A powered sliding door: unlocked in the doors table, but no power to its actuator.
 	ctrl_door = add_door("PLANT-CTRL", CTRL_DOOR_AT, Vector3(1.6, 2.4, 0.12))
+	# Inside, by the door: its manual release. A powered door always lets you out.
+	release = Interactable.create(self, Vector3(CTRL_DOOR_AT.x - 1.1, 1.2, -10.2), Vector3(0.12, 0.3, 0.1), TEXT.manual_release, Color(0.75, 0.15, 0.1))
+	release.name = "ManualRelease"
+	release.used.connect(func(_p): sync.event("_manual_release"))
 	# The controller on its desk, with the contractor clipboard beside it.
 	Greybox.box(geo, Vector3(6, 0.5, -16.6), Vector3(3.0, 1.0, 0.8), Color(0.38, 0.38, 0.4), "ControlDesk")
 	controller = Terminal.spawn(geo, Vector3(5.4, 1.0, -16.6), 0, "DOOR & LIFT CONTROL", db, terminal_ui)
@@ -535,7 +602,7 @@ func start() -> void:
 # --- Terminals -------------------------------------------------------------------
 
 func puzzles() -> Array:
-	return [reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle]
+	return [reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle, gantry_puzzle]
 
 
 ## The floor's rule in front of every write (GuardedDB): no door writes before a
@@ -566,6 +633,10 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	# bay's lockout starts its read-back clock.
 	if changed > 0 and lower.contains("breakers"):
 		sync.event("_breakers_changed")
+	if changed > 0 and lower.contains("gantry"):
+		if not gantry_puzzle.solved and gantry_puzzle.matches(db, result):
+			sync.event("_on_solved", ["gantry"])
+		sync.event("_gantry_changed")
 	if changed > 0 and not accident and main_doors_puzzle.state_ok(db):
 		sync.event("_on_solved", ["main_doors"])
 	if changed > 0 and lower.contains("lockouts") and not sealed and lockout_until == 0 and _has_lockout():
@@ -636,6 +707,123 @@ func _ask_login() -> void:
 	Game.open_case("login", CASES.login, ["contractor_log"])
 	if not logged_in and not alarm:
 		hud.todo(TEXT.todo_login)
+
+
+# --- The gantry arm -------------------------------------------------------------------
+
+func _build_gantry() -> void:
+	# The rail along the hall's ceiling, the bays' plates on the north wall under it.
+	Greybox.box(geo, Vector3(0, 5.85, GANTRY_Z), Vector3(19.5, 0.2, 0.35), Color(0.5, 0.45, 0.2), "GantryRail")
+	for bay in range(1, 5):
+		Greybox.label(geo, Vector3(_bay_x(bay), 3.0, -9.88), "BAY %d" % bay, 40, Color(0.9, 0.75, 0.1), 180)
+	var park_x := _bay_x(data.park_bay)
+	var lines := GANTRY_CARD.duplicate()
+	lines[2] = GANTRY_CARD[2] % [data.park_bay, data.hatch_bay]
+	Document.place(geo, Vector3(park_x + (1.2 if park_x < 0 else -1.2), 1.6, -9.88), 180, "Gantry card", lines, false, "laminated", Vector2(0.3, 0.24))
+	# The carriage: a platform hung from the rail, with a mast to climb on its open side.
+	gantry = AnimatableBody3D.new()
+	gantry.name = "Gantry"
+	gantry.sync_to_physics = true
+	gantry.position = Vector3(park_x, GANTRY_LOW, GANTRY_Z)
+	add_child(gantry)
+	var deck := Vector3(1.2, 0.2, 1.2)
+	var mesh := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = deck
+	mesh.mesh = bm
+	mesh.position.y = -deck.y / 2
+	mesh.material_override = Greybox.mat(Color(0.75, 0.6, 0.15), 0.0, 0.6)
+	gantry.add_child(mesh)
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = deck
+	shape.shape = bs
+	shape.position.y = -deck.y / 2
+	gantry.add_child(shape)
+	var hanger := MeshInstance3D.new()
+	var hm := BoxMesh.new()
+	hm.size = Vector3(0.12, 6.0, 0.12)
+	hanger.mesh = hm
+	hanger.position = Vector3(-0.5, 3.0, -0.5)
+	hanger.material_override = Greybox.mat(Color(0.3, 0.3, 0.32))
+	gantry.add_child(hanger)
+	gantry_mast = Traversal.climbable(gantry, Vector3(0, -GANTRY_HIGH, deck.z / 2), Vector3(0, 0, deck.z / 2), Vector3(0, 0, 1), 0.6)
+	gantry_mast.name = "GantryMast"
+	# The panel, latched shut until the carriage docks under it (not a doors row: it's
+	# the gantry's own service hatch).
+	hatch = Door.create(self, "PLANT-HATCH", HATCH_AT, HATCH_SIZE, Color(0.4, 0.42, 0.45))
+	Greybox.label(geo, HATCH_AT + Vector3(0, HATCH_SIZE.y / 2 + 0.2, 0.12), "ACCESS PANEL", 24, Color(0.85, 0.85, 0.8), 180)
+	gantry_at = {"bay": data.park_bay, "raised": 0}
+	_place_gantry(gantry.position)
+
+
+## Level-space x of a bay: numbered from the west end or the east, as the card says.
+func _bay_x(bay: int) -> float:
+	return GANTRY_X[bay - 1] if data.park_bay == 1 else GANTRY_X[4 - bay]
+
+
+func _place_gantry(at: Vector3) -> void:
+	gantry.position = at
+	# The mast's line, in world space, for whoever climbs it.
+	gantry_mast.a = gantry.global_transform * Vector3(0, -at.y, 0.6)
+	gantry_mast.b = gantry.global_transform * Vector3(0, 0, 0.6)
+
+
+## GuardedDB's check after a write: the gantry's own controller refuses what it can't
+## do, and the write is rolled back. It goes by where the arm really is.
+func _gantry_check() -> String:
+	var rows := db.run_silent("SELECT bay, raised FROM gantry WHERE id = 'GA-1'")
+	if rows.size() != 1:
+		return TEXT.gantry_bolted
+	var bay = rows[0]["bay"]
+	var raised = rows[0]["raised"]
+	if typeof(bay) != TYPE_INT or typeof(raised) != TYPE_INT or bay < 1 or bay > 4 or raised < 0 or raised > 1:
+		return TEXT.gantry_no_bay
+	if int(gantry_at.raised) == 1 and bay != int(gantry_at.bay):
+		return TEXT.gantry_interlock
+	return ""
+
+
+## Every machine: the gantry's row changed. It travels first, then lifts (or lowers
+## first, then stays: it can't travel raised). Docked at the panel's bay, it unlatches.
+func _gantry_changed() -> void:
+	var rows := db.run_silent("SELECT bay, raised FROM gantry WHERE id = 'GA-1'")
+	if rows.is_empty():
+		return
+	var bay := int(rows[0]["bay"])
+	var raised := int(rows[0]["raised"])
+	if bay == int(gantry_at.bay) and raised == int(gantry_at.raised):
+		return
+	gantry_at = {"bay": bay, "raised": raised}
+	if _gantry_tween:
+		_gantry_tween.kill()
+	_gantry_tween = create_tween()
+	_gantry_tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	var from := gantry.position
+	var over := Vector3(_bay_x(bay), from.y, GANTRY_Z)
+	var to := Vector3(over.x, GANTRY_HIGH if raised == 1 else GANTRY_LOW, GANTRY_Z)
+	if hatch.is_open and bay != data.hatch_bay:
+		hatch.set_open(false)
+		hud.notice(TEXT.gantry_undocks, 3.0)
+	hud.notice(TEXT.gantry_moves, 3.0)
+	if not over.is_equal_approx(from):
+		_gantry_tween.tween_method(_place_gantry, from, over, maxf(0.5, from.distance_to(over) / 1.5))
+	if not to.is_equal_approx(over):
+		_gantry_tween.tween_method(_place_gantry, over, to, maxf(0.5, over.distance_to(to) / 1.0))
+	_gantry_tween.tween_callback(_gantry_arrived.bind(bay))
+
+
+func _gantry_arrived(bay: int) -> void:
+	if bay == data.hatch_bay and not hatch.is_open:
+		hatch.set_open(true)
+		hud.notice(TEXT.gantry_docks, 4.0)
+
+
+## Every machine: someone inside the control room pulled its door's manual release.
+func _manual_release() -> void:
+	if not ctrl_door.is_open:
+		ctrl_door.set_open(true)
+		hud.notice(TEXT.released, 3.0)
 
 
 # --- The breaker panel -------------------------------------------------------------
