@@ -4121,7 +4121,8 @@ func test_level_3_scene() -> void:
 	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
-	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "seven stations on the desk, none with a hint ladder yet")
+	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.size() >= 2) and level.pc_puzzle.hints.size() >= 2, "seven stations on the desk and one on the PC, each with a hint ladder")
+	check(level.desk.puzzles[0] == level.keyholder_puzzle and level.desk.next_hint().contains("access_log WHERE room = '?'"), "with Mercer's door found, .hint starts on the lock's question")
 	level.terminal_ui.run("SELECT COUNT(*) FROM access_log")
 	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")

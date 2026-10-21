@@ -863,13 +863,14 @@ func walk_level_3(seed_value: int) -> void:
 	var h := await solve(level, ui, level.slips_puzzle, level.shredder_awake)
 	check(h <= rescue_tier(level.slips_puzzle), "%s: the slips count is built from the sticky's shape; a lost player waits on its ladder (hints %d)" % [where, h])
 	# The memo's query covers every room: copying it shows DISTINCT at work (the
-	# practice) but the station wants the stacks only, so the WHERE is the player's.
-	h = await solve(level, ui, level.depts_puzzle, level.shredder_awake)
-	check(h <= rescue_tier(level.depts_puzzle) and not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;"), "%s: DISTINCT is practised by copying the memo, safely, and the stacks station still needs the player's WHERE (hints %d)" % [where, h])
+	# practice) but the station wants the stacks only, so the WHERE is the player's
+	# (or its ladder's).
 	ui.run("SELECT DISTINCT dept FROM catalogue")
+	remember(level, ui)
 	var every := last_table(screen(ui)).size()
-	ui.run(level.depts_puzzle.solution_sql)
-	check(level.depts_puzzle.solved and last_table(screen(ui)).size() < every, "%s: the memo's list has more departments than the stacks: the WHERE narrows it" % where)
+	check(not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;"), "%s: DISTINCT is practised by copying the memo, safely, and the stacks station still needs the player's WHERE" % where)
+	h = await solve(level, ui, level.depts_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.depts_puzzle) and level.depts_puzzle.solved and last_table(screen(ui)).size() < every, "%s: the memo's list has more departments than the stacks: the WHERE narrows it, from the player or the ladder (hints %d)" % [where, h])
 	h = await solve(level, ui, level.tally_puzzle, level.shredder_awake)
 	check(h == 0 and level.tally_puzzle.solved, "%s: GROUP BY is practised from the reader tally on the desk, safely (hints %d)" % [where, h])
 	ui.run(level.tally_puzzle.solution_sql)
@@ -962,11 +963,12 @@ func walk_level_3(seed_value: int) -> void:
 	ui.run("SELECT * FROM retrieval_slips")
 	remember(level, ui)
 	check(taught.contains("returned_at") and taught.contains("filled"), "%s: the slips table shows its return-time column and the 'filled' status" % where)
-	h = await solve(level, ui, level.unreturned_puzzle, level.shredder_awake)
-	check(h <= rescue_tier(level.unreturned_puzzle), "%s: the box with the key is built from the card and the PC; a lost player waits on its ladder (hints %d)" % [where, h])
+	# The tempting wrong turn first: = NULL, which the card warns off.
 	var before := screen(ui).length()
 	ui.run("SELECT box_id FROM retrieval_slips WHERE returned_at = NULL")
 	check(not level.unreturned_puzzle.solved and screen(ui).substr(before).contains("(0 rows)"), "%s: = NULL finds nothing, as the card warns" % where)
+	h = await solve(level, ui, level.unreturned_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.unreturned_puzzle), "%s: the box with the key is built from the card and the PC, or its ladder (hints %d)" % [where, h])
 	ui.run(level.unreturned_puzzle.solution_sql)
 	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false), "%s: IS NULL names the box nobody checked back in, and the key case closes" % where)
 	var named := last_table(screen(ui)).map(func(r): return r.get("box_id", ""))

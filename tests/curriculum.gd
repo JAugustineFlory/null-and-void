@@ -124,17 +124,15 @@ const PUZZLES := {
 		"teaches": ["GET /doors/SEC-EXIT", "sensor", "actuator", "B-"],
 		"needs": ["GET", "/doors/SEC-EXIT"],
 	},
-	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md). Every
-	# ladder is drafted in plan/approvals/l3-text.md and held until Augustine agrees
-	# Act 1 ends on this floor ("ladder": "held"): a lost player is stuck on any
-	# station it can't copy off a paper, and that prints as a gap, not a failure.
+	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md), where
+	# Act 1 ends (curriculum option B, approved 2026-10-21). The hint ladders are
+	# built from plan/approvals/l3-text.md (approved 2026-10-21 11:27Z).
 	# COUNT, found again on the clerk's sticky on the desk terminal, used safely.
 	# Level 2's SYSOP showed it once; no Easy SQL chapter teaches it yet, so the
 	# sticky is the plant.
 	"slips": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
 		"teaches": ["COUNT", "retrieval_slips"],
 		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "retrieval_slips"],
 	},
@@ -143,7 +141,6 @@ const PUZZLES := {
 	"depts": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
 		"teaches": ["DISTINCT", "one of each", "catalogue", "dept"],
 		"needs": ["SELECT", "FROM", "WHERE", "DISTINCT", "catalogue", "dept"],
 	},
@@ -152,7 +149,7 @@ const PUZZLES := {
 	"tally": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
+		"ladder": "exact",
 		"teaches": ["GROUP BY", "one line per room", "access_log"],
 		"needs": ["SELECT", "FROM", "COLUMNS", "COUNT", "GROUP BY", "access_log", "room"],
 	},
@@ -163,9 +160,8 @@ const PUZZLES := {
 	"visits": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": [],
-		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COUNT", "GROUP BY", "ORDER BY", "DESC", "access_log", "room", "1997-10-15"],
+		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COLUMNS", "COUNT", "GROUP BY", "ORDER BY", "DESC", "access_log", "room", "1997-10-15"],
 	},
 	# IS NULL, the word no book teaches: found on Mercer's card in the safe room, and
 	# practised there on his battery PC (the Shredder can't get in), copying the
@@ -173,7 +169,7 @@ const PUZZLES := {
 	"mercer_list": {
 		"level": 3,
 		"pressure": false,
-		"ladder": "held",
+		"ladder": "exact",
 		"teaches": ["IS NULL", "pulled", "back_on"],
 		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "pulled"],
 	},
@@ -182,7 +178,6 @@ const PUZZLES := {
 	"unreturned": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": ["returned_at"],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "IS NULL", "retrieval_slips", "returned_at"],
 	},
@@ -191,7 +186,6 @@ const PUZZLES := {
 	"keyholder": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "access_log", "badge_id", "room"],
 	},
@@ -200,7 +194,6 @@ const PUZZLES := {
 	"mercer_room": {
 		"level": 3,
 		"pressure": true,
-		"ladder": "held",
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "catalogue", "room"],
 	},

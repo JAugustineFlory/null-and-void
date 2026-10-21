@@ -44,12 +44,12 @@ signal noise(at: Vector3, loudness: float)
 const TEXT := {
 	"todo_arrive": "Find a way down from 18",
 	"todo_key": "Mercer's key opens the stairs. Everyone to the lobby",
-	"todo_room": "One room on 18 kept its reader busy that night. Find it",
+	"todo_room": "One room on 18 kept its reader busy tonight. Find it",
 	"found_room": "A hidden room. No network jack, no grid power. The building can't see in here.",
 	"floppy": "A 3.5\" floppy, hand-labelled. The first thing in this building that isn't on its network.",
 	"key": "A brass key ring: STAIR 1 / 18.",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
-	"case_room": "Which room did someone keep going back to that night?",
+	"case_room": "Which room did someone keep going back to tonight?",
 	"end_card": "To be continued.",
 	"shredder_wakes": "North of here, the machines stop. Something heavy gets up.",
 	"shredder_wakes_near": "The machines stop. Something heavy gets up.",
@@ -61,6 +61,12 @@ const TEXT := {
 	"box_taped": "Returns. Taped for reshelving.",
 	"box_tear": "Tear the tape on box %s",
 	"lock_idle": "ENTER CODE",
+	# SYSOP tips at the desk (text only, never lies; each fires once per run).
+	"tip_first": "the readers log every swipe. the spike's slips are in retrieval_slips. start with what's on paper.",
+	"tip_log": "that's every swipe. you don't need to read them. count them: GROUP BY room.",
+	"tip_week": "that's the week. the day shift lives in the reading room. you want one night. the readers write the date first.",
+	"tip_null": "nothing equals NULL, not even NULL. the word is IS NULL.",
+	"tip_error": "read the error. it names the word it tripped on. the fix is one character away.",
 	"lock_wrong": "NO",
 	"lock_open": "OPEN",
 }
@@ -116,9 +122,9 @@ CREATE TABLE pulled (
 	back_on TEXT
 );
 INSERT INTO pulled VALUES
-	('HD-1994-011', 'Founder''s papers', '1997-09-30', '1997-10-02'),
-	('HD-1988-004', 'Site drawings 1988', '1997-10-03', NULL),
-	('HD-1994-019', 'Correspondence 1994', '1997-10-06', '1997-10-07'),
+	('HD-1989-011', 'Patent files 1989', '1997-09-30', '1997-10-02'),
+	('HD-1990-004', 'Shareholder letters 1990', '1997-10-03', NULL),
+	('HD-1987-019', 'Lease agreements 1987', '1997-10-06', '1997-10-07'),
 	('HD-1996-002', 'Board minutes 1996', '1997-10-09', '1997-10-09'),
 	('HD-1992-015', 'Vendor files 1992', '1997-10-13', NULL),
 	('HD-1995-008', 'Incident reports 1995', '1997-10-14', '1997-10-14');
@@ -220,37 +226,115 @@ var shredder_awake := false
 var stack_units: Array[StaticBody3D] = []
 
 ## Puzzle stations on the desk terminal. Any query with the same result passes.
-## No hints yet: the ladders are drafted for approval (plan/approvals/l3-text.md).
+## Hint ladders (ladder A: the shape with the value as ?, how to find it, the exact
+## query; a station with no value to find starts on the exact query), approved by
+## Augustine 2026-10-21 (plan/approvals/l3-text.md, with Teaching's suggestions).
 ## COUNT, as review, safe: how many slips are still open.
-var slips_puzzle := Puzzle.new("slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'", ["count(*)"], false)
+var slips_puzzle := Puzzle.new("slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'", ["count(*)"], false, [
+	"the shape, with the word left as ?:\n" +
+	"    [color=#ffffff]SELECT COUNT(*) FROM retrieval_slips WHERE status = '?';[/color]\n" +
+	"  SELECT COUNT(*)   how many rows, instead of the rows themselves\n" +
+	"  FROM retrieval_slips   the slips on the spike\n" +
+	"  WHERE status = '?'   only the ones nobody has filled yet",
+	"type\n" +
+	"    [color=#ffffff]SELECT * FROM retrieval_slips;[/color]\n" +
+	"and look at the status column. the word for \"not filled yet\" is the one on the clipboard's header, in small letters.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open';[/color]\n" +
+	"the number is the answer; the clipboard on the spike agrees.",
+])
 ## DISTINCT, new: which departments still have boxes in the stacks (one of each).
-var depts_puzzle := Puzzle.new("depts", "SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'", ["dept"], false)
+var depts_puzzle := Puzzle.new("depts", "SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'", ["dept"], false, [
+	"the shape, with the room left as ?:\n" +
+	"    [color=#ffffff]SELECT DISTINCT dept FROM catalogue WHERE room = '?';[/color]\n" +
+	"  SELECT DISTINCT dept   each department once, no repeats\n" +
+	"  FROM catalogue   the box records\n" +
+	"  WHERE room = '?'   only the boxes out on the shelves. ? is what the catalogue calls the shelves.",
+	"type\n" +
+	"    [color=#ffffff]SELECT * FROM catalogue;[/color]\n" +
+	"the room column says where each box sits. the tall shelves are the stacks.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS';[/color]\n",
+])
 ## GROUP BY + COUNT, practised safely: the tally sheet's own count over the whole log.
-## The reading room comes out on top, which is the day shift: the decoy.
-var tally_puzzle := Puzzle.new("tally", "SELECT room, COUNT(*) FROM access_log GROUP BY room", ["room", "count(*)"], false)
+## The reading room comes out on top, which is the day shift: the decoy. Nothing to
+## find, so the ladder starts on the exact query (it's on the sheet anyway).
+var tally_puzzle := Puzzle.new("tally", "SELECT room, COUNT(*) FROM access_log GROUP BY room", ["room", "count(*)"], false, [
+	"the whole log, a line per room:\n" +
+	"    [color=#ffffff]SELECT room, COUNT(*) FROM access_log GROUP BY room;[/color]\n" +
+	"  SELECT room, COUNT(*)   each room and how many times\n" +
+	"  FROM access_log   the readers' log, every swipe\n" +
+	"  GROUP BY room   one line per room, counted",
+	"type it exactly as above, then Enter. the tally sheet on the desk did September by hand; this is every month at once.",
+])
 ## GROUP BY + COUNT + ORDER BY DESC, the gate under the Shredder: that night's busiest
 ## reader. Over the whole log the reading room wins, so the WHERE matters.
 ## The busiest room with its count, as one row, is the same answer as the whole
 ## ranking. A lone row without the count isn't: it could be any swipe.
-var visits_puzzle := _also(Puzzle.new("visits", "SELECT room FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT, ["room"], true),
+var visits_puzzle := _also(Puzzle.new("visits", "SELECT room FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT, ["room"], true, [
+	"the shape, with the night left as ?:\n" +
+	"    [color=#ffffff]SELECT room, COUNT(*) FROM access_log WHERE time LIKE '?%' GROUP BY room ORDER BY COUNT(*) DESC;[/color]\n" +
+	"  SELECT room, COUNT(*)   each room and how many times\n" +
+	"  FROM access_log   the readers' log, every swipe\n" +
+	"  WHERE time LIKE '?%'   only that night's swipes. ? is the date, as the readers write it\n" +
+	"  GROUP BY room   one line per room\n" +
+	"  ORDER BY COUNT(*) DESC   busiest first",
+	"the night is tonight: the date on every sign-in sheet you've signed. the readers write it year-month-day. without the WHERE, the reading room wins: that's the day shift.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC;[/color]\n" % Level3Data.NIGHT +
+	"the top line is the room. its shelving is on a crank.",
+]),
 	"SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC LIMIT 1" % Level3Data.NIGHT, ["room", "count(*)"], false)
 ## IS NULL, looked up on Mercer's card and practised on his PC: the boxes on the
 ## returns cart that nobody checked back in. The stair key is in the first. `= NULL`
 ## and `= ''` find nothing; without the status the open slips sneak in.
-var unreturned_puzzle := Puzzle.new("unreturned", "SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL", ["box_id"], false)
+var unreturned_puzzle := Puzzle.new("unreturned", "SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL", ["box_id"], false, [
+	"the shape, with the word left as ?:\n" +
+	"    [color=#ffffff]SELECT box_id FROM retrieval_slips WHERE status = '?' AND returned_at IS NULL;[/color]\n" +
+	"  SELECT box_id   just the box labels\n" +
+	"  FROM retrieval_slips   the slips on the spike\n" +
+	"  WHERE status = '?'   slips whose box was pulled. ? is the other word in the status column\n" +
+	"  AND returned_at IS NULL   and nobody ever wrote a return time",
+	"type\n" +
+	"    [color=#ffffff]SELECT * FROM retrieval_slips;[/color]\n" +
+	"the status column has two words: the one that isn't on the clipboard. IS NULL is on Mercer's card.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL;[/color]\n",
+])
 ## The second route to the same room, through the catalogue instead of the night's
 ## log: Mercer's own boxes are filed in the room that hides his door (LIKE on the
 ## note, or his department). His three rows pass, with or without DISTINCT, and so
 ## does SELECT *. Not the twenty rows of that room's reader: that's the other table.
 ## Solves the "room" case like `visits`.
-var mercer_puzzle := _also(Puzzle.new("mercer_room", "SELECT room FROM catalogue WHERE dept = 'EXECUTIVE'", ["room"], false),
+var mercer_puzzle := _also(Puzzle.new("mercer_room", "SELECT room FROM catalogue WHERE dept = 'EXECUTIVE'", ["room"], false, [
+	"the shape, with the department left as ?:\n" +
+	"    [color=#ffffff]SELECT room FROM catalogue WHERE dept = '?';[/color]\n" +
+	"  SELECT room   where each box is filed\n" +
+	"  FROM catalogue   the box records\n" +
+	"  WHERE dept = '?'   only one department's boxes. ? is the department of the man who founded the company",
+	"type\n" +
+	"    [color=#ffffff]SELECT DISTINCT dept FROM catalogue;[/color]\n" +
+	"one of those departments is the top of the company. its boxes are all in one side room: his.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT room FROM catalogue WHERE dept = 'EXECUTIVE';[/color]\n" +
+	"the room they're filed in hides his door.",
+]),
 	"SELECT DISTINCT room FROM catalogue WHERE dept = 'EXECUTIVE'", ["room"], false)
 ## The lock's question, so `.hint` can help at Mercer's door: whose badge kept using
 ## that room's reader. Built with the data (the room varies). Distinct, so the raw
 ## rows read by eye pass too.
 var keyholder_puzzle: Puzzle
 ## The safe practice for IS NULL, on Mercer's PC: what he never put back.
-var pc_puzzle := Puzzle.new("mercer_list", "SELECT box_id FROM pulled WHERE back_on IS NULL", ["box_id"], false)
+var pc_puzzle := Puzzle.new("mercer_list", "SELECT box_id FROM pulled WHERE back_on IS NULL", ["box_id"], false, [
+	"what he never put back (it's on the screen above):\n" +
+	"    [color=#ffffff]SELECT box_id FROM pulled WHERE back_on IS NULL;[/color]\n" +
+	"  SELECT box_id   just the box labels\n" +
+	"  FROM pulled   what Mercer took upstairs\n" +
+	"  WHERE back_on IS NULL   the ones with no date written back in",
+	"type it exactly as above, then Enter. two of his boxes never went back.",
+])
+## The SYSOP tips that have fired this run (every machine).
+var tips_sent := {}
 
 ## Typing is loud (a setting, default OFF, listed for Augustine): a burst of keys at a
 ## terminal is a sound the Shredder hears from about half a sprint's distance. It
@@ -267,7 +351,17 @@ func build() -> void:
 	load_level_seed(data.sql)
 	pc_db = FacilityDB.new()
 	pc_db.load_seed(PC_SQL)
-	keyholder_puzzle = _distinct(Puzzle.new("keyholder", "SELECT badge_id FROM access_log WHERE room = '%s'" % data.host, ["badge_id"], false))
+	keyholder_puzzle = _distinct(Puzzle.new("keyholder", "SELECT badge_id FROM access_log WHERE room = '%s'" % data.host, ["badge_id"], false, [
+		"the shape, with the room left as ?:\n" +
+		"    [color=#ffffff]SELECT badge_id FROM access_log WHERE room = '?';[/color]\n" +
+		"  SELECT badge_id   the badge numbers\n" +
+		"  FROM access_log   the readers' log\n" +
+		"  WHERE room = '?'   only this room's reader. ? is the name over this room's door",
+		"the policy sheet on the records desk: a lock's code is the last four digits of its keyholder's badge. the badge that keeps coming up is the keyholder.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]SELECT badge_id FROM access_log WHERE room = '%s';[/color]\n" % data.host +
+		"then key its last four digits into the lock.",
+	]))
 	for p in [slips_puzzle, depts_puzzle, tally_puzzle]:
 		p.case_id = "duties"
 	for p in [visits_puzzle, mercer_puzzle, keyholder_puzzle]:
@@ -291,9 +385,9 @@ func build() -> void:
 	# Facilities memo by the lifts: day staff use the stairs until the lifts are fixed.
 	Document.place(geo, Vector3(0, 1.5, 7.87), 180, "Facilities memo", [
 		"HALCYON DATA SYSTEMS  -  FACILITIES",
-		"MEMO  10/13",
-		"Lifts 1-4 are out of service pending inspection.",
-		"Until further notice, use STAIR 1 between floors.",
+		"MEMO  10/15",
+		"Lifts 1-4 keep faulting after Tuesday night's power event.",
+		"Until they are fixed, use STAIR 1 between floors.",
 		"Stair doors lock at 19:00. Do not prop them.",
 		"- Facilities, ext. 2200",
 	], false, "paper").clues = []
@@ -386,11 +480,14 @@ func _build_reading_room(colors: Dictionary) -> void:
 		{"wall": "e", "at": -3.0, "width": 1.0, "height": 2.3},
 	])
 	Greybox.label(geo, Vector3(0, 2.75, 3.88), "RECORDS", 56, Color(0.75, 0.75, 0.7), 180)
+	# The reading room's hours, beside its door: why the day shift fills it (the decoy).
+	Greybox.label(geo, Vector3(0, 2.3, 3.88), "READING ROOM  08:30 - 17:30", 22, Color(0.75, 0.75, 0.7), 180)
 	# The records desk faces the lobby door, with its terminal and the slip spike.
 	Greybox.box(geo, Vector3(0, 0.5, 1.6), Vector3(4.0, 1.0, 0.8), Color(0.4, 0.34, 0.28), "RecordsDesk")
 	desk = Terminal.spawn(geo, Vector3(-0.8, 1.0, 1.6), 0, "RECORDS DESK", db, terminal_ui)
 	desk.name = "DeskTerminal"
 	desk.puzzles = desk_puzzles()
+	_order_hints()
 	desk.boot_lines = [
 		"HALCYON RECORDS  -  ARCHIVE DESK  -  FLOOR 18",
 		"Box requests: see retrieval_slips. Holdings: catalogue. Reader events: access_log.",
@@ -728,7 +825,7 @@ func _build_north(colors: Dictionary) -> void:
 	for x in [-2.0, -0.9]:
 		Greybox.box(geo, Vector3(x, 0.55, -32.0), Vector3(0.8, 1.1, 0.8), Color(0.15, 0.3, 0.5), "Bin")
 	Greybox.box(geo, Vector3(-9.5, 0.6, -27.0), Vector3(1.2, 1.2, 1.2), Color(0.75, 0.72, 0.6), "PaperBale")
-	# The microfiche room: readers along the wall and the archive intranet terminal.
+	# The microfiche room: readers along the wall, and a dead monitor on the end desk.
 	Greybox.room(geo, Vector3(6.5, 0, -28), Vector3(9, 3.2, 6), colors, [
 		{"wall": "s", "at": 0.0, "width": 1.0, "height": 2.3},
 	])
@@ -855,7 +952,28 @@ func desk_puzzles() -> Array:
 	return [slips_puzzle, depts_puzzle, tally_puzzle, visits_puzzle, unreturned_puzzle, mercer_puzzle, keyholder_puzzle]
 
 
-func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
+## `.hint` helps with the first unsolved station on the desk, so the order follows
+## the floor's questions as they come up: the key's box once Mercer's note is read,
+## the lock once the room is known (named by a query, or its door found), the room
+## once Security's sheet asks, and the clerk's three practice stations before any
+## of them. Every station stays listed.
+func _order_hints() -> void:
+	var order := []
+	if note_read:
+		order.append(unreturned_puzzle)
+	var room_known: bool = Game.case_info("room").get("solved", false) or cranked.get(data.host, false)
+	if room_known:
+		order.append(keyholder_puzzle)
+	if room_asked and not room_known:
+		order.append_array([visits_puzzle, mercer_puzzle])
+	order.append_array([slips_puzzle, depts_puzzle, tally_puzzle])
+	for p in desk_puzzles():
+		if not order.has(p):
+			order.append(p)
+	desk.puzzles = order
+
+
+func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
 	var on: FacilityDB = pc_db if which == "pc" else db
 	var stations: Array = [pc_puzzle] if which == "pc" else desk_puzzles()
 	for p in stations:
@@ -864,6 +982,30 @@ func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI, which: String)
 			continue
 		if not p.solved and p.matches(on, result):
 			sync.event("_on_solved", [p.id, which])
+	if which == "pc":
+		return
+	# SYSOP's tips at the desk, each once: text only, and never the answer.
+	var lower := sql.to_lower()
+	var rows: Array = result.get("rows", [])
+	_tip_if(true, "first")
+	_tip_if(result.get("error", "") != "", "error")
+	_tip_if(RegEx.create_from_string("=\\s*null").search(lower) != null, "null")
+	_tip_if(lower.contains("access_log") and rows.size() > TerminalUI.MAX_ROWS_SHOWN, "log")
+	_tip_if(lower.contains("access_log") and lower.contains("group by") and lower.contains("desc") and not lower.contains(Level3Data.NIGHT)
+		and not rows.is_empty() and str(rows[0].get("room", "")) == "READING ROOM", "week")
+
+
+func _tip_if(when: bool, id: String) -> void:
+	if when and not tips_sent.has(id):
+		sync.event("_tip", [id])
+
+
+## Every machine: a line from SYSOP on the desk's screen (once per tip).
+func _tip(id: String) -> void:
+	if tips_sent.has(id):
+		return
+	tips_sent[id] = true
+	desk.print_line(TerminalUI.sysop(TEXT["tip_" + id]))
 
 
 ## Every machine: a station's check passed.
@@ -885,6 +1027,7 @@ func _on_solved(id: String, _which: String) -> void:
 		Game.open_case("key", CASES.key, ["retrieval_slips"])
 		Game.solve_case("key", "The slips say which box nobody checked back in: %s." % ", ".join(data.unreturned))
 		_update_cart()
+	_order_hints()
 
 
 ## Every machine: Security's sheet has been read. The room's question is open.
@@ -893,6 +1036,7 @@ func _ask_room() -> void:
 		return
 	room_asked = true
 	hud.todo(TEXT.todo_room)
+	_order_hints()
 
 
 ## Every machine: Mercer's note has been read. The key is on the cart, in one box.
@@ -901,6 +1045,7 @@ func _note_read() -> void:
 	if not key_taken:
 		hud.todo(TEXT.todo_key_box)
 	_update_cart()
+	_order_hints()
 
 
 ## Whether a box on the returns cart can be opened: only once Mercer's note has been
@@ -980,6 +1125,7 @@ func _crank(room: String) -> void:
 	cranked[room] = true
 	cranks[room].enabled = false
 	_wake(false)
+	_order_hints()
 	var back: Vector3 = SIDE_ROOMS[room].back
 	for unit in shelving[room]:
 		var tw := create_tween()

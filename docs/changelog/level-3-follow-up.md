@@ -1,0 +1,4 @@
+- **Changed:** the readers' log on floor 18 now names its night visitor.
+- **Changed:** the microfiche room on 18 has no terminal any more; its puzzle moves to a later floor.
+- **Added:** hint ladders for every station on floor 18, and SYSOP's first words on its desk terminal.
+- **Changed:** small text fixes on 18 from the teaching review: the facilities memo, the reading room's hours, the case wording, and Mercer's own list.
