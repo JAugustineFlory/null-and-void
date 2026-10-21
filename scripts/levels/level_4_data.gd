@@ -100,12 +100,24 @@ CREATE TABLE contractor_log (
 INSERT INTO contractor_log (company, job, time_in) VALUES
 	%s;
 
+-- Lockout/tagout: a breaker with a row here is held off until Facilities clears it.
+-- A lockout counts once a second person has read it back at the panel it covers.
+CREATE TABLE lockouts (
+	breaker TEXT,
+	company TEXT,
+	job TEXT,
+	read_back TEXT
+);
+INSERT INTO lockouts VALUES
+	('%s', 'Coastline Elevator Co.', '%s', '10:22');
+
 -- doors and lights are building-wide (FacilityDB.SHARED_SCHEMA). This wing adds floor 10's
 -- rows. The control room's door is unlocked but has no power until its breaker is reset:
 -- the database says open, the door stays shut (actuator_fault).
 INSERT INTO doors VALUES
 	('PLANT-CTRL', 'Plant 10, door and lift control', 'P', 0, 1),
-	('PLANT-BAY', 'Plant 10, charging bay', 'P', 1, 0);
+	('PLANT-BAY', 'Plant 10, charging bay', 'P', 1, 0),
+	('main_doors', 'MAIN DOORS', 'CONTAINMENT', 1, 0);
 INSERT INTO lights VALUES
 	('L10-LOBBY', 'Lift lobby', 10, 1, 'ok'),
 	('L10-HALL', 'Switchgear hall', 10, 1, 'ok'),
@@ -114,6 +126,7 @@ INSERT INTO lights VALUES
 """ % [
 		",\n\t".join(rows.map(_values)),
 		",\n\t".join(log.map(_values)),
+		rows.filter(func(r): return r[1] == "LIFT MOTORS")[0][0], log[2][1],
 	]
 	return {"sql": sql, "target": target_id, "breakers": rows, "start_states": start_states,
 		"decoys": rows.filter(func(r): return r[0] != target_id and r[3] != "on").map(func(r): return r[0]),

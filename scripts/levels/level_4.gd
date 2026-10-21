@@ -12,7 +12,18 @@ extends LevelBase
 ##      check    the work order's sign-off: read the breaker back with a SELECT
 ##               (verify after write, practised safely).
 ##   2. login    the clipboard by the controller: contractors log in before touching
-##               anything. The crew INSERTs its own job (practised safely).
+##               anything. The crew INSERTs its own job (practised safely). Until it
+##               has, no terminal on 10 takes a write to the doors table.
+##   3. main_doors  the night-mode card says main_doors lets a crew out at night. Its
+##               row says zone CONTAINMENT, for a crew that looks first. Opening it is
+##               the accident: the entities get out, the Custodian leaves its bay,
+##               WARDEN announces Containment protocol Epsilon, and STAIR 1 releases.
+##   4. lockout  optional, under pressure: lock out the charging bay's breaker
+##               (INSERT) and read it back at the bay's own panel within 30 seconds
+##               (the two-terminal teaser). The Custodian goes dark for good.
+## Why a careful crew still opens main_doors is a story call (Voice drafts, Augustine
+## decides). Until then the build's default: STAIR 1's night release IS main_doors,
+## so it's the only way on.
 ## Write stations are StatePuzzles: checked by the table's state after the write,
 ## as a result set, never by the query's text.
 ## Every line players read is a draft in plan/approvals/l4-text.md until Augustine
@@ -23,10 +34,15 @@ extends LevelBase
 ##   switchgear hall  x -10..10, z -10..4   breaker panel on the west wall, the plant
 ##                                          maintenance terminal, a 4.5 m ceiling
 ##   control room     x 2..10,   z -18..-10 the door and lift controller, its clipboard
-##   charging bay     x -10..0,  z -18..-10 the Custodian's, behind a sealed roll-up door
+##   charging bay     x -10..0,  z -18..-10 the Custodian's, behind a sealed roll-up door;
+##                                          its own panel terminal, and the night guard
+##                                          it took on Tuesday
 ##
 ## Co-op: the host decides (puzzle checks, what a write sets off) and every machine
 ## plays it out through sync.event.
+
+## Fired once the crew is on the stairs down: the floor is done.
+signal completed
 
 ## Player-facing lines, drafted for Augustine's approval: plan/approvals/l4-text.md.
 const TEXT := {
@@ -43,6 +59,22 @@ const TEXT := {
 	"bay_stirs": "Behind the charging bay's door, something powers up.",
 	"bay_quiet": "Behind the bay door, the hum winds down.",
 	"power_back": "In the control room, the lights come on. Its door clunks open.",
+	"todo_down": "STAIR 1 is open. Everyone down the stairs",
+	"case_main_doors": "What did main_doors open?",
+	"main_doors_done": "main_doors was never the front door. Its row said so: zone CONTAINMENT. Look at a row before you write to it.",
+	"accident": "Far below, something heavy unlocks. Then every light on the floor goes red.",
+	"bay_opens": "The charging bay's door rolls up on its own.",
+	"stairs_release": "Out by the lifts, the stair door's lock clacks open.",
+	"case_seal": "Can the Custodian be shut in its bay?",
+	"seal_done": "The CHARGING BAY breaker, %s, is locked out and read back. The Custodian is dark for good.",
+	"lockout_logged": "Lockout logged. Read it back at the bay's panel within %d seconds.",
+	"lockout_lapsed": "The lockout lapsed: nobody read it back in time.",
+	"sealed": "The Custodian's light goes out. It doesn't move again.",
+	"power_cut": "The Custodian's light dies. It sags where it stands.",
+	"power_returns": "The bay breaker snaps back on. Its light comes back.",
+	"refused_login": "DOOR AND LIFT CONTROL: NO CONTRACTOR LOGGED IN. LOG IN FIRST (contractor_log).",
+	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
+	"end_card": "To be continued.",
 	# SYSOP tips (text only, never lies; each fires once per run).
 	"tip_first": "the breakers are rows. the work order names a circuit. find its row first, then change only that one.",
 	"tip_no_where": "that changed every row. UPDATE without WHERE does that. put the others back the same way, one WHERE at a time.",
@@ -85,7 +117,31 @@ const STAIR_CLOSED_LINES := [
 	"Night release: PLANT 10, door and lift control.",
 ]
 ## The level's case pages in the notebook (Cases tab), by id.
-const CASES := {"power": TEXT.case_power, "login": TEXT.case_login}
+## The night-mode card in the control room: the papers' name for the way out. It is
+## wrong, and the row it names says so (zone CONTAINMENT) to anyone who reads it.
+const NIGHT_CARD_LINES := [
+	"NIGHT MODE  -  DOOR AND LIFT CONTROL",
+	"After 19:00 the controller holds the exterior and stair doors.",
+	"To let a contractor crew out at night: open main_doors.",
+	"STAIR 1 then releases down to G.",
+	{"text": "doors table. locked = 0 is open  - Facilities", "hand": true},
+]
+## The earlier copy of the warning, pinned in the control room among the shift's
+## papers: an observant crew reads it before the accident.
+const WARNING := "Note for security: Never open main_doors."
+## The lockout/tagout card by the breaker panel: where the bay's seal is found.
+const LOCKOUT_LINES := [
+	"LOCKOUT / TAGOUT  -  PLANT 10",
+	"Working on anything a breaker feeds? Lock it out first.",
+	"1. Log it on the controller: lockouts (breaker, company, job).",
+	"2. A second person reads it back at the panel it covers within 30 seconds, or it lapses.",
+	"A locked-out breaker stays off until Facilities clears it.",
+]
+## How long a lockout waits to be read back at the bay's panel.
+const LOCKOUT_WINDOW := 30.0
+## How long the bay's breaker stays off before WARDEN puts it back (unless locked out).
+const POWER_CUT_TIME := 10.0
+const CASES := {"power": TEXT.case_power, "login": TEXT.case_login, "main_doors": TEXT.case_main_doors, "seal": TEXT.case_seal}
 
 ## Where the stairs meet the lobby's walls.
 const STAIR_IN_AT := Vector3(-4, 0, 6)
@@ -97,8 +153,12 @@ const PANEL_PITCH := 1.1
 ## The control room's and the bay's doors, in the hall's north wall.
 const CTRL_DOOR_AT := Vector3(6, 1.2, -10)
 const BAY_DOOR_AT := Vector3(-5, 1.4, -10)
-## The control room, for tests and the art pass.
+## The control room and the bay, for tests and the art pass.
 const CTRL_ROOM := AABB(Vector3(2, -0.5, -18), Vector3(8, 3.5, 8))
+const BAY_ROOM := AABB(Vector3(-10, -0.5, -18), Vector3(10, 4, 8))
+## The Custodian's cradle in the bay, and its rounds once it's loose (level space).
+const CUSTODIAN_HOME := Vector3(-5, 0, -15.8)
+const ROAM_POINTS := [Vector3(-5, 0, -7), Vector3(5, 0, -7), Vector3(0, 0, -1), Vector3(-6, 0, 2.5), Vector3(4, 0, -4), Vector3(0, 0, 6)]
 
 var data: Dictionary
 var maint: Terminal
@@ -115,6 +175,21 @@ var alarm := false
 var bay_powered := false
 var power_back := false
 var logged_in := false
+var bay_terminal: Terminal
+var custodian: Custodian
+var exit_trigger: Trigger
+## main_doors is open: the accident has happened.
+var accident := false
+## Someone read the earlier warning before the accident (peer ids).
+var warned_early := {}
+## A lockout row for the bay is waiting to be read back, until this (msec, host).
+var lockout_until := 0
+var sealed := false
+## LOCKOUT_WINDOW and POWER_CUT_TIME, here so tests can shorten the wait.
+var lockout_window := LOCKOUT_WINDOW
+var power_cut_time := POWER_CUT_TIME
+## Bumped each time the bay's power is cut, so a stale restore does nothing.
+var _cut := 0
 ## The SYSOP tips that have fired this run (every machine).
 var tips_sent := {}
 
@@ -123,6 +198,9 @@ var tips_sent := {}
 var reset_puzzle: StatePuzzle
 var check_puzzle: Puzzle
 var login_puzzle: StatePuzzle
+var main_doors_puzzle: StatePuzzle
+var lockout_puzzle: StatePuzzle
+var readback_puzzle: Puzzle
 
 
 func build() -> void:
@@ -165,6 +243,24 @@ func build() -> void:
 	add_light("L10-BAY", Vector3(-5, 3.5, -14), 7.0, 0.6, Color(0.6, 0.8, 1.0))
 
 	spawn = _stair_landing(STAIR_IN_AT, 90.0)
+	exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
+	exit_trigger.name = "StairsDown"
+	exit_trigger.require_all = true
+	exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
+	exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
+
+	custodian = Custodian.new()
+	custodian.name = "Custodian"
+	custodian.space = self
+	custodian.home = CUSTODIAN_HOME
+	custodian.roam_points.assign(ROAM_POINTS)
+	custodian.position = CUSTODIAN_HOME  # before add_child: a body at the origin for a step can set off triggers
+	add_child(custodian)
+	custodian.rotation_degrees.y = 0.0
+	# Every terminal on 10 sees the building's database through the floor's rules.
+	var guarded := GuardedDB.over(db, _guard)
+	for term in [maint, controller, bay_terminal]:
+		term.db = guarded
 
 
 func _make_puzzles() -> void:
@@ -220,6 +316,47 @@ func _make_puzzles() -> void:
 		"then read the log back: SELECT * FROM contractor_log;",
 	])
 	login_puzzle.case_id = "login"
+	main_doors_puzzle = StatePuzzle.new("main_doors", "UPDATE doors SET locked = 0 WHERE id = 'main_doors'",
+		"SELECT locked FROM doors WHERE id = 'main_doors'", "SELECT 0 AS locked", ["locked"], [
+		"the shape, with the door left as ?:\n" +
+		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = '?';[/color]\n" +
+		"  UPDATE doors   change rows in the doors table\n" +
+		"  SET locked = 0   0 is open, 1 is locked\n" +
+		"  WHERE id = '?'   only that door. ? is the one the night-mode card names",
+		"the night-mode card on the wall here names the door that lets a crew out at night. read its row first: SELECT * FROM doors;",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = 'main_doors';[/color]\n",
+	])
+	main_doors_puzzle.case_id = "main_doors"
+	var lock_row := "('%s', '%s', '%s')" % [data.bay_breaker, data.company, data.ticket]
+	lockout_puzzle = StatePuzzle.new("lockout", "INSERT INTO lockouts (breaker, company, job) VALUES %s" % lock_row,
+		"SELECT COUNT(*) > 0 AS locked_out FROM lockouts WHERE upper(trim(breaker)) = '%s' AND lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s'" % [data.bay_breaker, data.company, data.ticket],
+		"SELECT 1 AS locked_out", ["locked_out"], [
+		"the shape, with the breaker and your job left as ?:\n" +
+		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES ('?', '%s', '?');[/color]\n" % data.company +
+		"  INSERT INTO lockouts   add a lockout\n" +
+		"  (breaker, company, job)   the columns you're filling\n" +
+		"  VALUES (...)   the values, in the same order\n" +
+		"the first ? is the charging bay's breaker id. the second ? is your work order's number.",
+		"type\n" +
+		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
+		"the CHARGING BAY row's id is the first ?. then someone reads the lockout back at the bay's own panel, fast.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES %s;[/color]\n" % lock_row +
+		"then, at the panel in the bay, within 30 seconds: SELECT * FROM lockouts;",
+	])
+	lockout_puzzle.case_id = "seal"
+	# The read-back at the bay's panel: the lockouts table, or the bay's own row.
+	# SELECT * is long practised: the review ladder (the shape with ?, then the query).
+	readback_puzzle = Puzzle.new("readback", "SELECT breaker, company, job FROM lockouts", ["breaker", "company", "job"], false, [
+		"the shape, with the table left as ?:\n" +
+		"    [color=#ffffff]SELECT * FROM ?;[/color]\n" +
+		"? is the lockout log's table: its name is on the lockout card by the breaker panel.",
+		"type this, then Enter, within 30 seconds of logging the lockout:\n" +
+		"    [color=#ffffff]SELECT * FROM lockouts;[/color]",
+	])
+	readback_puzzle.accept_also("SELECT breaker, company, job FROM lockouts WHERE breaker = '%s'" % data.bay_breaker, ["breaker", "company", "job"], false)
+	readback_puzzle.case_id = "seal"
 
 
 ## A spot on a stairwell's landing, clear of the flight, facing its door.
@@ -264,6 +401,8 @@ func _build_hall(colors: Dictionary) -> void:
 		lamps[r[0]] = lamp
 		if str(r[4]) != "":
 			Document.place(geo, at + Vector3(0.14, -0.3, 0.2), 90.0, "Breaker tag", [r[0], {"text": r[4], "hand": true}], false, "note", Vector2(0.12, 0.09))
+	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), 90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
+	card.clues = [{"case": "seal", "opens": TEXT.case_seal, "tables": ["lockouts", "breakers"], "text": "The lockout card: a locked-out breaker stays off. Log it on the controller, then read it back at the panel it covers within 30 seconds."}]
 	# The plant maintenance desk, facing the panel's end: its terminal and the work order.
 	Greybox.box(geo, Vector3(-6, 0.5, 1.6), Vector3(2.4, 1.0, 0.8), Color(0.4, 0.38, 0.34), "MaintDesk")
 	maint = Terminal.spawn(geo, Vector3(-6.5, 1.0, 1.6), 0, "PLANT MAINT", db, terminal_ui)
@@ -296,7 +435,7 @@ func _build_control_room(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(6, 0.5, -16.6), Vector3(3.0, 1.0, 0.8), Color(0.38, 0.38, 0.4), "ControlDesk")
 	controller = Terminal.spawn(geo, Vector3(5.4, 1.0, -16.6), 0, "DOOR & LIFT CONTROL", db, terminal_ui)
 	controller.name = "ControlTerminal"
-	controller.puzzles = [login_puzzle]
+	controller.puzzles = [login_puzzle, main_doors_puzzle, lockout_puzzle]
 	controller.boot_lines = [
 		"HALCYON DOOR AND LIFT CONTROL  -  PLANT 10",
 		"Contractors: log in first. contractor_log. Doors: doors.",
@@ -312,6 +451,14 @@ func _build_control_room(colors: Dictionary) -> void:
 	board.read_by.connect(func(_p): sync.event("_ask_login"))
 	# The clock over the door, on the room's side: the time the crew logs in with.
 	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.6, -10.12), data.time_in, 48, Color(1.0, 0.25, 0.15), 0).name = "Clock"
+	# The night-mode card on the wall by the desk, and the shift's papers pinned on a
+	# board beside it: among them, the earlier copy of the warning.
+	Document.place(geo, Vector3(3.5, 1.5, -17.88), 0, "Night mode card", NIGHT_CARD_LINES, false, "laminated", Vector2(0.3, 0.24))
+	Greybox.box(geo, Vector3(8.0, 1.6, -17.92), Vector3(1.4, 0.9, 0.04), Color(0.55, 0.42, 0.28), "Corkboard")
+	Document.place(geo, Vector3(7.6, 1.75, -17.88), 0, "Shift roster", ["PLANT 10  -  ON CALL", "Mon-Wed: R. Okonkwo, ext. 4410", "Thu-Sun: Facilities desk, ext. 2200"], false, "paper", Vector2(0.21, 0.15))
+	var warning := Document.place(geo, Vector3(8.45, 1.55, -17.88), 0, "Sticky note", [{"text": WARNING, "hand": true}], false, "sticky")
+	warning.name = "EarlyWarning"
+	warning.read_by.connect(func(p): sync.event("_warning_read", [players.id_of(p)]))
 	# Lift controller cabinets along the east wall.
 	for z in [-16.5, -14.5, -12.5]:
 		Greybox.box(geo, Vector3(9.5, 1.1, z), Vector3(0.8, 2.2, 1.6), Color(0.32, 0.34, 0.38), "LiftController")
@@ -345,6 +492,28 @@ func _build_bay(colors: Dictionary) -> void:
 	# The charging cradle against the back wall.
 	Greybox.box(geo, Vector3(-5, 0.2, -17.2), Vector3(2.4, 0.4, 1.2), Color(0.2, 0.2, 0.22), "Cradle")
 	Greybox.box(geo, Vector3(-5, 1.6, -17.8), Vector3(1.6, 2.4, 0.3), Color(0.25, 0.25, 0.28), "Charger")
+	# The bay's own panel, by the door: where a lockout is read back.
+	Greybox.box(geo, Vector3(-1.2, 0.5, -11.2), Vector3(1.2, 1.0, 0.7), Color(0.38, 0.38, 0.4), "BayDesk")
+	bay_terminal = Terminal.spawn(geo, Vector3(-1.2, 1.0, -11.2), 0, "BAY 10 PANEL", db, terminal_ui)
+	bay_terminal.name = "BayTerminal"
+	bay_terminal.puzzles = [readback_puzzle]
+	bay_terminal.boot_lines = [
+		"HALCYON FACILITIES  -  CHARGING BAY 10",
+		"Lockouts: lockouts. Read a new lockout back here to make it count.",
+	]
+	bay_terminal.queried.connect(_on_query.bind("bay"))
+	# The night guard it took on Tuesday, in the corner behind the cradle. His copy of
+	# the note is still in his hand.
+	Greybox.box(geo, Vector3(-8.6, 0.15, -16.6), Vector3(0.5, 0.3, 1.7), Color(0.12, 0.15, 0.25), "NightGuard")
+	Greybox.box(geo, Vector3(-8.6, 0.2, -15.6), Vector3(0.3, 0.25, 0.3), Color(0.55, 0.45, 0.4), "NightGuardHead")
+	var his := Document.place(geo, Vector3(-8.2, 0.31, -16.4), 0, "Sticky note", [{"text": WARNING, "hand": true}], true, "sticky")
+	his.name = "GuardsWarning"
+	his.clues = [{"case": "main_doors", "text": "On the dead guard in the bay: \"%s\"" % WARNING}]
+
+
+func net_setup() -> void:
+	custodian.crew = crew
+	sync.replicate(custodian, custodian.sync_properties())
 
 
 func apply_environment(env: Environment) -> void:
@@ -356,14 +525,25 @@ func start() -> void:
 	stair_in.set_open(true, true)  # wedged open for the plant work
 	maint.ensure_booted()
 	controller.ensure_booted()
+	bay_terminal.ensure_booted()
 	_show_lamps()
+	if completed.get_connections().is_empty():
+		completed.connect(_on_completed)
 	hud.todo(TEXT.todo_arrive)
 
 
 # --- Terminals -------------------------------------------------------------------
 
 func puzzles() -> Array:
-	return [reset_puzzle, check_puzzle, login_puzzle]
+	return [reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle]
+
+
+## The floor's rule in front of every write (GuardedDB): no door writes before a
+## contractor has logged in.
+func _guard(sql: String) -> String:
+	if GuardedDB.is_write(sql) and not logged_in and sql.to_lower().contains("doors"):
+		return TEXT.refused_login
+	return ""
 
 
 func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
@@ -375,11 +555,21 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 		# Read back after the reset: the sign-off.
 		elif reset_puzzle.solved and not check_puzzle.solved and changed == 0 and check_puzzle.matches(db, result):
 			sync.event("_on_solved", ["check"])
-		if changed > 0 and lower.contains("breakers"):
-			sync.event("_breakers_changed")
-	else:
+	elif which == "controller":
 		if not login_puzzle.solved and login_puzzle.matches(db, result):
 			sync.event("_on_solved", ["login"])
+	elif which == "bay":
+		if lockout_until > 0 and not sealed and readback_puzzle.matches(db, result) and _has_lockout():
+			sync.event("_seal")
+	# Any terminal: a breaker write lights the lamps (and, loose, cuts the Custodian's
+	# power); a write that leaves main_doors open is the accident; one that logs the
+	# bay's lockout starts its read-back clock.
+	if changed > 0 and lower.contains("breakers"):
+		sync.event("_breakers_changed")
+	if changed > 0 and not accident and main_doors_puzzle.state_ok(db):
+		sync.event("_on_solved", ["main_doors"])
+	if changed > 0 and lower.contains("lockouts") and not sealed and lockout_until == 0 and _has_lockout():
+		sync.event("_lockout_logged")
 	# SYSOP's tips, each once: text only, and never the answer.
 	_tip_if(which == "maint", "first", which)
 	var is_update := lower.strip_edges().begins_with("update")
@@ -405,7 +595,11 @@ func _tip(id: String, which: String) -> void:
 	if tips_sent.has(id):
 		return
 	tips_sent[id] = true
-	(maint if which == "maint" else controller).print_line(TerminalUI.sysop(TEXT["tip_" + id]))
+	_terminal(which).print_line(TerminalUI.sysop(TEXT["tip_" + id]))
+
+
+func _terminal(which: String) -> Terminal:
+	return {"maint": maint, "controller": controller, "bay": bay_terminal}.get(which, controller)
 
 
 ## Every machine: a station's check passed.
@@ -426,6 +620,8 @@ func _on_solved(id: String) -> void:
 			Game.open_case("login", CASES.login, ["contractor_log"])
 			Game.solve_case("login", TEXT.login_done % [data.company, data.ticket, data.time_in])
 			hud.todo("")
+		"main_doors":
+			_accident()
 
 
 ## Every machine: the work order has been read. The power case is open.
@@ -444,11 +640,168 @@ func _ask_login() -> void:
 
 # --- The breaker panel -------------------------------------------------------------
 
+## The crew's lockout row for the bay is in the table.
+func _has_lockout() -> bool:
+	return lockout_puzzle.state_ok(db)
+
+
+# --- The accident --------------------------------------------------------------------
+
+## Every machine: someone read the earlier warning. Before the accident, only that
+## reader earns the observant crew's find (draft unlock, held for Augustine).
+func _warning_read(peer_id: int) -> void:
+	if accident or warned_early.has(peer_id):
+		return
+	warned_early[peer_id] = true
+	sync.unlock_for([peer_id], "achievement:main_doors_warning")
+
+
+## Every machine: main_doors is open. It was never the front: the containment doors
+## release, the charging bay's door rolls up and its breaker comes on, and the
+## Custodian leaves its cradle. WARDEN seals the building (Containment protocol
+## Epsilon; the approved lines, without the read-only one), and STAIR 1's night
+## release lets go (the build's default for why the crew still had to open it).
+func _accident() -> void:
+	if accident:
+		return
+	accident = true
+	main_doors_puzzle.solved = true
+	alarm = false
+	db.run_silent("UPDATE doors SET locked = 0 WHERE id = 'PLANT-BAY'")
+	db.run_silent("UPDATE breakers SET state = 'on' WHERE id = '%s'" % data.bay_breaker)
+	# Epsilon: every door outside the plant locks; containment and the plant stay as they are.
+	db.run_silent("UPDATE doors SET locked = 1 WHERE zone NOT IN ('CONTAINMENT', 'P')")
+	db.run_silent("UPDATE lights SET is_on = 1, status = 'ok' WHERE id = 'L10-BAY'")
+	db.sync_world()
+	db.checkpoint()  # a backup tape can't undo it
+	_show_lamps()
+	bay_powered = true
+	set_all_lights_color(Color(1.0, 0.35, 0.3))
+	stair_out.locked = false
+	Game.open_case("main_doors", CASES.main_doors, ["doors"])
+	Game.solve_case("main_doors", TEXT.main_doors_done)
+	hud.notice(TEXT.accident, 6.0, ThemeUtil.RED)
+	if sync.is_host():
+		custodian.wake()
+	hud.todo(TEXT.todo_down)
+	_epsilon()
+
+
+## The lockdown announcement over every speaker, then the stair door.
+func _epsilon() -> void:
+	await get_tree().create_timer(1.5, false).timeout
+	hud.notice(TEXT.bay_opens, 4.0)
+	for id in ["l4_epsilon_1", "l4_epsilon_2", "l4_epsilon_3"]:
+		if VoiceLines.get_line(id).is_empty():
+			await get_tree().create_timer(2.0, false).timeout
+		else:
+			await hud.line(id)
+	if is_inside_tree():
+		hud.notice(TEXT.stairs_release, 4.0)
+
+
+# --- The Custodian's bay ---------------------------------------------------------------
+
+## Every machine: the crew's lockout for the bay is logged. It counts once someone
+## reads it back at the bay's panel (the two-terminal teaser); it lapses otherwise.
+func _lockout_logged() -> void:
+	lockout_until = Time.get_ticks_msec() + int(lockout_window * 1000.0)
+	Game.open_case("seal", CASES.seal, ["lockouts", "breakers"])
+	lockout_puzzle.solved = true
+	hud.notice(TEXT.lockout_logged % int(lockout_window), 5.0)
+	if sync.is_host():
+		_lapse_after(lockout_until)
+
+
+func _lapse_after(until: int) -> void:
+	await get_tree().create_timer(lockout_window, false).timeout
+	if is_inside_tree() and not sealed and lockout_until == until:
+		sync.event("_lockout_lapsed")
+
+
+## Every machine: nobody read it back in time. The row comes out; try again.
+func _lockout_lapsed() -> void:
+	lockout_until = 0
+	lockout_puzzle.solved = false
+	db.run_silent("DELETE FROM lockouts WHERE upper(trim(breaker)) = '%s' AND read_back IS NULL" % data.bay_breaker)
+	hud.notice(TEXT.lockout_lapsed, 4.0)
+
+
+## Every machine: read back in time. The bay's breaker is held off and the
+## Custodian goes dark for good, wherever it is.
+func _seal() -> void:
+	if sealed:
+		return
+	sealed = true
+	readback_puzzle.solved = true
+	lockout_until = 0
+	db.run_silent("UPDATE lockouts SET read_back = '%s' WHERE upper(trim(breaker)) = '%s' AND read_back IS NULL" % [data.time_in, data.bay_breaker])
+	db.run_silent("UPDATE breakers SET state = 'off' WHERE id = '%s'" % data.bay_breaker)
+	_show_lamps()
+	custodian.seal()
+	Game.solve_case("seal", TEXT.seal_done % data.bay_breaker)
+	hud.notice(TEXT.sealed, 5.0)
+
+
+## Every machine: the bay's breaker went off by a crew's write. It drops whoever it
+## holds; WARDEN puts the power back after a while, unless the bay is locked out.
+func _bay_power(on: bool) -> void:
+	if sealed:
+		return
+	custodian.set_power(on)
+	if on:
+		hud.notice(TEXT.power_returns, 3.0)
+		return
+	_cut += 1
+	hud.notice(TEXT.power_cut, 3.0)
+	if sync.is_host():
+		_restore_after(_cut)
+
+
+func _restore_after(cut: int) -> void:
+	await get_tree().create_timer(power_cut_time, false).timeout
+	if is_inside_tree() and not sealed and cut == _cut and not custodian.powered:
+		sync.event("_restore_bay")
+
+
+func _restore_bay() -> void:
+	if sealed:
+		return
+	db.run_silent("UPDATE breakers SET state = 'on' WHERE id = '%s'" % data.bay_breaker)
+	_show_lamps()
+	_bay_power(true)
+
+
+# --- The way down ----------------------------------------------------------------------
+
+## Everyone is on the stairs. Until the ground floor is built, the slice ends here.
+func _on_exit() -> void:
+	if not player or player.health <= 0.0:
+		return
+	player.input_locked = true
+	await get_tree().create_timer(1.0).timeout
+	await Level2FX.end_card(self, TEXT.end_card)
+	Game.completed_level = "level_4"
+	Game.next_level = ""
+	completed.emit()
+
+
+func _on_completed() -> void:
+	await hud.fade(true, 1.2)
+	finish_level("field_notes")
+
+
 ## Every machine: the breakers table changed. Each lamp follows its row; anything
 ## other than tonight's breaker that isn't as the panel had it sets the alarm off
 ## (no WHERE flips the lot), and the charging bay's breaker wakes what's in the bay.
 func _breakers_changed() -> void:
 	_show_lamps()
+	if accident:
+		# Loose, the Custodian runs on the bay's circuit: cutting it drops it.
+		var on := not db.run_silent("SELECT 1 FROM breakers WHERE id = '%s' AND state = 'on'" % data.bay_breaker).is_empty()
+		if on != custodian.powered and not sealed:
+			_bay_power(on)
+		return
 	var wrong := false
 	var bay_on := false
 	for row in db.run_silent("SELECT id, state FROM breakers"):

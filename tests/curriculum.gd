@@ -234,4 +234,27 @@ const PUZZLES := {
 		"teaches": ["INSERT INTO", "VALUES", "contractor_log"],
 		"needs": ["INSERT INTO", "VALUES", "contractor_log"],
 	},
+	# The night-mode card's way out: an UPDATE on doors. Its row says CONTAINMENT for a
+	# crew that reads it first; opening it is the accident (UPDATE's first real use).
+	"main_doors": {
+		"level": 4,
+		"pressure": false,
+		"teaches": ["main_doors", "locked"],
+		"needs": ["UPDATE", "SET", "WHERE", "doors", "locked", "id", "main_doors"],
+	},
+	# Optional, with the Custodian loose: lock out the bay's breaker (INSERT under
+	# pressure), then read it back at the bay's own panel within 30 seconds.
+	"lockout": {
+		"level": 4,
+		"pressure": true,
+		"teaches": ["lockouts"],
+		"needs": ["INSERT INTO", "VALUES", "lockouts", "breaker", "company", "job"],
+	},
+	"readback": {
+		"level": 4,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "lockouts"],
+	},
 }
