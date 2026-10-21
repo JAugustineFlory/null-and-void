@@ -356,6 +356,7 @@ func build() -> void:
 	shredder.position = SHREDDER_HOME  # before add_child: a body at the origin for a step can set off triggers
 	add_child(shredder)
 	noise.connect(func(at, loudness): if sync.is_host(): shredder.hear(at, loudness))
+	DressLevel3.apply(self)
 
 
 ## A spot on a stairwell's landing, clear of the flight, facing its door.

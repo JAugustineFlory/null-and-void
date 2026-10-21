@@ -26,6 +26,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_dressed_level_0()
 	await test_dressed_level_1()
 	await test_dressed_level_2()
+	await test_dressed_level_3()
+	test_prop_models()
 	test_skyline_heights()
 	await test_dressed_home_base()
 	test_sticky_notes()
@@ -640,6 +642,68 @@ func test_dressed_level_2() -> void:
 	_check_polish(level, "Level 2")
 	_check_skyline(level, "level_2")
 	level.free()
+
+
+## Floor 18, the Records Archive: dressed without moving anything the Shredder,
+## the climbs or the puzzles depend on.
+func test_dressed_level_3() -> void:
+	t.root.get_node("Game").new_run(5)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(10)
+	var unexplained := ArtDress.unexplained_dark(level, DressLevel3.DARK_CHECK)
+	check(unexplained.is_empty(), "Level 3: every dark patch has a cause you can see, a dead fitting (%s)" % str(unexplained.slice(0, 6)))
+	var dressing: Node = level.get_node("Dressing")
+	check(dressing.get_child_count() > 40, "the records archive is furnished")
+	var shapes: Array = dressing.find_children("*", "CollisionShape3D", true, false)
+	for unit in level.shelving.values().reduce(func(a, b): return a + b, []):
+		for look in unit.find_children("Look", "MeshInstance3D", false, false):
+			shapes.append_array(look.find_children("*", "CollisionShape3D", true, false))
+	check(_prop_boxes(level).is_empty() and shapes.is_empty(),
+		"nothing the archive's dressing adds collides: the Shredder's paths and reach are unchanged")
+	var kept := []
+	for block in ["Shredder", "Conveyor", "Bin", "PaperBale", "FicheDesk", "FicheReader", "Generator", "Battery", "Cot", "MercerDesk", "RecordsCart", "SupplyShelf", "Climbable"]:
+		for b in level.geo.get_children():
+			if b is StaticBody3D and String(b.name).begins_with(block):
+				var shown: Array = b.get_children().filter(func(c): return c is MeshInstance3D and c.visible)
+				if shown.is_empty() and b.find_children("*", "CollisionShape3D", false, false).size() == 1:
+					kept.append(block)
+				break
+	check(kept.size() == 13, "every block the dressing draws over still collides as before (%s)" % [kept])
+	# The stacks: one mesh per unit, the placeholder pieces gone, still climbable at both ends.
+	var units: Array = dressing.find_children("StackUnit*", "MeshInstance3D", false, false)
+	var leftovers: Array = level.geo.get_children().filter(func(c): return c is MeshInstance3D and DressLevel3.STACKS.has_point(c.position) and c.position.y < 3.7)
+	check(units.size() == 5 and leftovers.is_empty(), "the five stack units are five meshes, boxes and all (%d left over)" % leftovers.size())
+	var climbs: Array = level.find_children("*", "MovementVolume", true, false).filter(func(v): return v.kind == MovementVolume.Kind.CLIMB)
+	check(climbs.size() == 10 and level.stack_units.all(func(u): return u.find_children("*", "CollisionShape3D", false, false).size() == 1),
+		"the shelf units still stand solid and climbable at both ends")
+	# The rolling shelving carries its look with it when cranked.
+	var looks := 0
+	for room in level.shelving:
+		for unit in level.shelving[room]:
+			if unit.get_node_or_null("Look"):
+				looks += 1
+	check(looks == 12, "every rolling unit wears its shelving and rolls with it (%d of 12)" % looks)
+	_check_polish(level, "Level 3")
+	level.free()
+
+
+## The furniture taken from the packs: small, one surface each, coloured in the vertex.
+func test_prop_models() -> void:
+	var bad := []
+	for id in ArtModels.FREE:
+		if not String(id).begins_with("prop/"):
+			continue
+		var mesh := ArtModels.load_resource(id) as Mesh
+		if mesh == null or mesh.get_surface_count() != 1:
+			bad.append(id)
+			continue
+		var arrays := mesh.surface_get_arrays(0)
+		var tris: int = (arrays[Mesh.ARRAY_INDEX].size() if arrays[Mesh.ARRAY_INDEX] else arrays[Mesh.ARRAY_VERTEX].size()) / 3
+		var top := mesh.get_aabb()
+		if arrays[Mesh.ARRAY_COLOR] == null or tris > 1500 or absf(top.position.y) > 0.01 or FileAccess.get_file_as_bytes(ArtModels.path(id)).size() > 64 * 1024:
+			bad.append(id)
+	check(bad.is_empty(), "every pack prop is one small vertex-coloured mesh standing on the floor (not: %s)" % [bad])
 
 
 ## Halcyon Tower: every wing sees the sky and the campus at its own storey's height,
