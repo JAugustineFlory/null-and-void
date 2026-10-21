@@ -6,7 +6,8 @@ extends CanvasLayer
 ##
 ## It doesn't care what opened it (a terminal's .script command now, the
 ## portable deck later) or which language the runtime speaks: callers hand it a
-## ScriptRuntime and a context, and it only talks to that runtime.
+## ScriptRuntime and a context, and it only talks to that runtime. The language
+## pack supplies its name, its colors and the placeholder.
 ##
 ## editor.open(ScriptRuntime.for_language("javascript"), {
 ##     "title": "COLD STORE 2",            # shown in the title bar
@@ -31,9 +32,6 @@ signal closed
 ## now, the deck later).
 signal saved(code: String)
 
-const KEYWORDS := ["let", "const", "function", "return", "if", "else", "while", "for", "of", "break",
-	"continue", "async", "await", "true", "false", "null", "undefined", "typeof"]
-const BUILT_INS := ["api", "db", "sleep", "assert", "console", "Math", "JSON", "Object", "Array"]
 const LOG_LIMIT := 400
 ## Log line colors by kind; log and system follow the skin.
 const COLORS := {"log": Color("#bfffc8"), "warn": Color("#ffd27f"), "error": Color("#ff6655"), "system": Color("#5f8f6a")}
@@ -107,7 +105,6 @@ func _ready() -> void:
 	_code.indent_size = 2
 	_code.indent_use_spaces = true
 	_code.auto_brace_completion_enabled = true
-	_code.placeholder_text = "// Write JavaScript here. Ctrl+S saves it, Ctrl+R runs it.\nconsole.log(\"hello\");"
 	_code.add_theme_font_override("font", ThemeUtil.mono())
 	_code.add_theme_font_size_override("font_size", 18)
 	_code.text_changed.connect(_on_text_changed)
@@ -195,6 +192,7 @@ func open(rt: ScriptRuntime, ctx := {}) -> void:
 		runtime.started.connect(_on_started)
 		runtime.printed.connect(_on_printed)
 		runtime.finished.connect(_on_finished)
+		_code.placeholder_text = runtime.placeholder()
 		_log_lines.clear()
 		_log.clear()
 		# Opened mid-run (a teammate walking up in co-op): show what's been logged so far.
@@ -210,7 +208,7 @@ func open(rt: ScriptRuntime, ctx := {}) -> void:
 		_message = ""
 	context = ctx
 	_set_skin(ctx.get("skin", TerminalScreen.PHOSPHOR))
-	_title.text = " HALCYON SCRIPT RUNNER  //  %s  //  %s" % [ctx.get("title", "DECK"), runtime.language().to_upper()]
+	_title.text = " HALCYON SCRIPT RUNNER  //  %s  //  %s" % [ctx.get("title", "DECK"), runtime.display_name().to_upper()]
 	player = ctx.get("player")
 	if player and "input_locked" in player:
 		player.input_locked = true
@@ -300,7 +298,7 @@ func _on_printed(text: String, kind: String) -> void:
 
 
 func _on_finished(ok: bool, error: Dictionary) -> void:
-	var secs := "%.1f s" % runtime.clock() if runtime.has_method("clock") else ""
+	var secs := "%.1f s" % runtime.clock()
 	if ok:
 		_add_line("--- finished after %s ---" % secs, "system")
 	elif error.is_empty():
@@ -357,7 +355,8 @@ func _set_skin(c: Color) -> void:
 	_code.add_theme_color_override("line_number_color", _skinned(ThemeUtil.DIM))
 	(_log.get_theme_stylebox("normal") as StyleBoxFlat).bg_color = _skinned(LOG_BACK)
 	_log.add_theme_color_override("default_color", _skinned(ThemeUtil.GREEN))
-	_code.syntax_highlighter = _highlighter()
+	if runtime:
+		_code.syntax_highlighter = _highlighter(runtime.editor_words())
 	_redraw_log()
 
 
@@ -384,7 +383,7 @@ func _show_state() -> void:
 		ScriptRuntime.State.STOPPED: "stopped",
 	}
 	_status.text = words.get(runtime.state, "")
-	if running and runtime.has_method("clock"):
+	if running:
 		_status.text += "  %.1f s" % runtime.clock()
 
 
@@ -442,21 +441,26 @@ func _esc(s: String) -> String:
 	return s.replace("[", "[lb]")
 
 
-## Plain code (names, symbols) follows the skin; keywords, strings, numbers and
+## Colors from the language pack's words (ScriptRuntime.editor_words). Plain
+## code (names, symbols) follows the skin; keywords, strings, numbers and
 ## comments keep their hues on every skin.
-func _highlighter() -> CodeHighlighter:
+func _highlighter(words: Dictionary) -> CodeHighlighter:
 	var h := CodeHighlighter.new()
 	h.number_color = Color(0.6, 0.85, 1.0)
 	h.symbol_color = _skinned(Color(0.7, 0.9, 0.75))
 	h.function_color = _skinned(CODE_TEXT)
 	h.member_variable_color = _skinned(CODE_TEXT)
-	for k in KEYWORDS:
+	for k in words.get("keywords", []):
 		h.add_keyword_color(k, Color(1.0, 0.8, 0.35))
-	for k in BUILT_INS:
+	for k in words.get("built_ins", []):
 		h.add_keyword_color(k, Color(0.5, 0.85, 1.0))
-	h.add_color_region("\"", "\"", Color(1.0, 0.65, 0.5), true)
-	h.add_color_region("'", "'", Color(1.0, 0.65, 0.5), true)
-	h.add_color_region("`", "`", Color(1.0, 0.65, 0.5))
-	h.add_color_region("//", "", Color(0.45, 0.6, 0.5), true)
-	h.add_color_region("/*", "*/", Color(0.45, 0.6, 0.5))
+	for q in words.get("strings", []):
+		h.add_color_region(q, q, Color(1.0, 0.65, 0.5), true)
+	for q in words.get("multiline_strings", []):
+		h.add_color_region(q, q, Color(1.0, 0.65, 0.5))
+	if words.get("line_comment", "") != "":
+		h.add_color_region(words.line_comment, "", Color(0.45, 0.6, 0.5), true)
+	var block: Array = words.get("block_comment", [])
+	if block.size() == 2:
+		h.add_color_region(block[0], block[1], Color(0.45, 0.6, 0.5))
 	return h
