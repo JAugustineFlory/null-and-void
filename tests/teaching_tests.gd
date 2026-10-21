@@ -38,19 +38,25 @@ var first_use := {}
 var used_under_threat := {}
 
 
-func run(tree: SceneTree, check: Callable) -> void:
+## `part` splits the walks across two CI groups, since the paced lab walk is slow:
+## "main" walks every floor with lab seed 11 and runs the whole-game checks; "lab"
+## walks Levels 0-1 again (the lab needs what they taught) and then lab seed 42.
+func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	t = tree
 	_check = check
-	print("Teaching: lost-player walkthroughs")
+	print("Teaching: lost-player walkthroughs (%s)" % part)
 	taught = ""
 	_jot_docs.clear()
 	first_use.clear()
 	used_under_threat.clear()
 	await walk_level_0()
+	if part == "lab":
+		await walk_level_1(7)
+		await walk_lab(42)
+		return
 	for s in [7, 23]:
 		await walk_level_1(s)
-	for s in [11, 42]:
-		await walk_lab(s)
+	await walk_lab(11)
 	for s in [11, 42]:
 		await walk_level_2(s)
 	check_teaching_order()
@@ -701,6 +707,7 @@ func walk_level_2(seed_value: int) -> void:
 	t.root.add_child(level)
 	for i in 20:
 		await t.physics_frame
+	check_case_clues(level, "security floor (seed %d)" % seed_value)
 	check_jots(level, "security floor (seed %d)" % seed_value)
 	var ui: TerminalUI = level.terminal_ui
 	var p: Player = level.player
