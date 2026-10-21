@@ -1718,11 +1718,14 @@ func test_coop_unlocks() -> void:
 		["head/mercer_cap", "secret:mercer_vent_tape", "Mercer's cap", ""],
 		["walkie/gold", "secret:roster_thu", "Gold", ""],
 		["jacket/press", "secret:ending_news", "Press jacket", ""],
+		# Floor 18's two (plan/approvals/l3-text.md, 2026-10-21 11:27Z).
+		["notebook/archive_label", "achievement:floor_18", "Archive box label", "Finish floor 18."],
+		["notebook/mercer_floppy", "secret:mercer_floppy_1", "Mercer's floppy", ""],
 	]
 	var rows_ok := approved.all(func(r):
 		var it := Cosmetics.info(r[0].get_slice("/", 0), r[0].get_slice("/", 1))
 		return it.get("unlock") == r[1] and it.get("name") == r[2] and str(it.get("hint", "")) == r[3] and Cosmetics.is_secret(it) == (r[3] == ""))
-	check(rows_ok, "the ten approved items are in the catalogue with their sources, names and hints; secrets have no hint")
+	check(rows_ok, "the approved items are in the catalogue with their sources, names and hints; secrets have no hint")
 	check(approved.all(func(r): return not net.profile.has_item(r[0])), "nobody starts with them, the hard hat included")
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(lobby)
@@ -4257,7 +4260,7 @@ func test_level_3_safe_room() -> void:
 		if done[0]:
 			break
 	check(done[0] and _game().completed_level == "level_3", "everyone on the stairs completes the floor")
-	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_18") or true, "finishing floor 18 reports its unlock (no cosmetic bound yet)")
+	check(root.get_node("/root/Net").profile.has_item("notebook/archive_label"), "finishing floor 18 unlocks the archive box label")
 	level.queue_free()
 	await process_frame
 
@@ -4347,6 +4350,9 @@ func test_coop_level_3() -> void:
 	host.shredder.place(host.to_global(host.SHREDDER_HOME), host.to_global(Vector3(-5.5, 0, -20)))
 	host.shredder.state = "listening"
 	await _frames(5)
+	var net: Node = root.get_node("/root/Net")
+	var before_floppy: Profile = net.profile
+	net.profile = Profile.new()  # the test's machines share one Net: this save is the client's
 	client.floppy.interact(client.player)
 	client.key_dock.interact(client.player)
 	await _frames(20)
@@ -4360,6 +4366,8 @@ func test_coop_level_3() -> void:
 	# (Every machine in a test shares one Game.inventory, so who took it is read off the dock.)
 	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
 	check(client.player.inventory.has("floppy_disk") and machines.all(func(l): return l.floppy_taken and not l.floppy.enabled and l.floppy.has_taken(client_id) and not l.floppy.has_taken(host_id)), "the one floppy goes to the player who took it")
+	check(net.profile.has_item("notebook/mercer_floppy"), "and so does Mercer's floppy notebook skin")
+	net.profile = before_floppy
 	check(machines.all(func(l): return l.key_taken and not l.stair_out.locked), "the key unlocks the stairs on every machine")
 	check(host.players.puppet(client_id) != null, "the host knows the client")
 	# The exit waits for everyone.
