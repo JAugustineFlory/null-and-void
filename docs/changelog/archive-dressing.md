@@ -1,1 +1,1 @@
-- **Changed:** the Records Archive is furnished: steel stacks full of archive boxes with ladders up their ends, a panelled reading room with its card catalogue, rolling shelving in the side rooms, shredders and a conveyor in the shredding room, and the microfiche room.
+- **Added:** the Records Archive is furnished: steel stacks full of archive boxes with ladders up their ends, a panelled reading room with its card catalogue, rolling shelving in the side rooms, shredders and a conveyor in the shredding room, and the microfiche room.
