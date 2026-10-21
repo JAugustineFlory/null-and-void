@@ -14,6 +14,7 @@ const WRONG := Color(0.7, 0.15, 0.1)
 const SEPIA := Color(1.0, 0.84, 0.62)
 
 var huddle: Huddle
+var _hud: Node
 var flashback := false
 var _title: Label
 var _body: RichTextLabel
@@ -67,6 +68,9 @@ func _ready() -> void:
 	sb.content_margin_bottom = 24
 	panel.add_theme_stylebox_override("panel", sb)
 	add_child(panel)
+	_hud = huddle.level.get("hud") if huddle.level else null
+	if _hud:
+		_hud.subtitles_clear_of_right(-panel.offset_left)  # lines read over the book stay readable
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
@@ -141,10 +145,10 @@ func _draw_page(ch: Dictionary) -> void:
 	_clear_options()
 	_result.text = ""
 	var reader := huddle.player_name(huddle.reader_id)
-	var last: bool = huddle.page == ch.pages.size() - 1
+	var quiz_next: bool = huddle.last_page_of_round() and not huddle.rounds[huddle.round_index].questions.is_empty()
 	_buttons.visible = huddle.is_reader()
-	_back.disabled = huddle.page == 0
-	_next.text = "Start the quiz >" if last else "Turn the page >"
+	_back.disabled = huddle.first_page_of_round()
+	_next.text = "Start the quiz >" if quiz_next else "Turn the page >"
 	if huddle.is_reader():
 		_footer.text = "Page %d of %d. You're reading this one out to the crew." % [huddle.page + 1, ch.pages.size()]
 	else:
@@ -155,7 +159,10 @@ func _draw_question(ch: Dictionary) -> void:
 	var q := huddle.current_question()
 	_buttons.visible = false
 	var word: String = q.get("word", "")
-	_body.text = "[b]Quick check %d of %d[/b]%s\n%s" % [huddle.question + 1, ch.quiz.size(),
+	var refs := ""
+	for text in huddle.reference():
+		refs += "[color=#57534c][font_size=17]%s[/font_size][/color]\n\n" % _bbcode(text)
+	_body.text = "%s[b]Quick check %d of %d[/b]%s\n%s" % [refs, huddle.question + 1, ch.quiz.size(),
 		("  " + _escape(word)) if word != "" else "", _escape(q.q)]
 	_clear_options()
 	var me := multiplayer.get_unique_id()
@@ -208,3 +215,8 @@ static func _bbcode(text: String) -> String:
 		var safe := line.replace("[", "[lb]")
 		out.append("[code]%s[/code]" % safe if line.begins_with("    ") else safe)
 	return "\n".join(out)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_hud):
+		_hud.subtitles_clear_of_right(0)

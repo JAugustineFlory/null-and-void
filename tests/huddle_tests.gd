@@ -68,6 +68,24 @@ func test_books() -> void:
 		"How many? (COUNT) follows Chapter 8, and the chapters after it move up one")
 	_check.call(Books.chapter("easy_sql_4").words == ["DESC", "LIMIT"], "Newest first teaches LIMIT after DESC")
 	_check.call(words_ok, "every chapter brings at most three new words")
+	var covered := true
+	for id in Books.chapter_ids():
+		var ch := Books.chapter(id)
+		var pages := []
+		var qs := []
+		for r in Books.rounds(ch):
+			pages.append_array(r.pages)
+			qs.append_array(r.questions)
+		pages.sort()
+		qs.sort()
+		covered = covered and pages == range(ch.pages.size()) and qs == range(ch.quiz.size())
+	_check.call(covered, "every chapter's rounds read each page and ask each question once")
+	var r2 := Books.rounds(Books.chapter("easy_sql_2"))
+	_check.call(r2.size() == 2 and r2[0].pages == [0] and r2[0].questions == [0, 1, 2] and r2[0].ref == [0] and r2[1].pages == [1] and r2[1].questions == [3, 4, 5],
+		"a word's page, then its three questions with the page on show, then the next word")
+	var r0 := Books.rounds(Books.chapter("easy_sql_0"))
+	_check.call(r0.slice(0, 3).all(func(r): return r.ref == [1] and r.questions.size() == 3) and r0[3].questions.is_empty(),
+		"in chapter 0 the jobs table stays on show for every question, and the last page closes the book")
 	var ch1 := Books.chapter("easy_sql_1")
 	_check.call(ch1.book == "EASY SQL" and ch1.words.has("SELECT") and ch1.required and not Books.chapter("easy_sql_2").required and ch1.pages[0].contains("SELECT columns FROM table;"), "chapter 1 shows the shape of a query and its semicolon")
 	var keeps := true
@@ -109,7 +127,9 @@ func _finish_chapter(h, id: String) -> bool:
 		await _frames(2)
 	var first_wrong := true
 	while not h.done.has(id):
-		if h.question >= 0 and h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
+		if h.question < 0 and h.is_running():
+			h.turn_page()  # the next round's page
+		elif h.question >= 0 and h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
 			_answer(h, not first_wrong)
 			first_wrong = false
 		await _frames(2)
@@ -194,13 +214,16 @@ func test_garage_opening() -> void:
 	_check.call(h.chapter.id == "easy_sql_0" and h.is_reader() and p.input_locked, "solo, you read the first chapter, standing still")
 	var ui = h.get_node_or_null("HuddleUI")
 	_check.call(ui != null and not ui.flashback and ui.find_child("Next", true, false).visible, "the book opens over the garage with a page-turn for the reader")
+	var book_rect: Rect2 = ui.find_child("Book", true, false).get_global_rect()
+	_check.call(not home.hud._subtitle.get_global_rect().intersects(book_rect), "subtitles sit clear of the open book")
 	h.turn_page(-1)
 	await _frames(2)
 	_check.call(h.page == 0, "the reader can't turn back from the first page")
 	while h.question < 0:
 		h.turn_page()
 		await _frames(2)
-	_check.call(h.question == 0 and ui.find_children("Option*", "", true, false).size() == 3, "after the last page, the quiz: three answers to pick from")
+	_check.call(h.question == 0 and ui.find_children("Option*", "", true, false).size() == 3, "after the first word's pages, its questions: three answers to pick from")
+	_check.call(h.reference().size() == 1 and ui.find_child("*", true, false) != null and ui._body.get_parsed_text().contains("job_no"), "the jobs table is on show beside the question")
 	_answer(h, false)
 	await _frames(3)
 	_check.call(h.result.has("choice") and not h.result.right, "a wrong answer says why")
@@ -213,6 +236,7 @@ func test_garage_opening() -> void:
 	_check.call(_game().book_words.has("row"), "its words are learned")
 	_check.call(prof.earned.has("chapter:easy_sql_0") and not prof.earned.has("achievement:easy_sql_half"), "the chapter is remembered on the profile; one chapter isn't half the book")
 	_check.call(await _until(func(): return not p.input_locked and h.get_node_or_null("HuddleUI") == null), "the book closes and the player can move again")
+	_check.call(home.hud._subtitle.offset_left < -100, "and the subtitles go back to the middle")
 	_check.call(await _until(func(): return home.van_door.enabled), "then the van")
 	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
 	home.van_door.interact(p)
@@ -399,6 +423,12 @@ func test_coop_huddle() -> void:
 		_answer(hh, true)
 		await _until(func(): return not hh.result.is_empty(), 120)
 		await _until(func(): return hh.result.is_empty(), 300)
+	# The chapter's closing page, turned by whoever is reading.
+	for i in 20:
+		for h in [hh, hc]:
+			if h.is_running() and h.question < 0:
+				h.turn_page()
+		await _frames(5)
 	var ended := await _until(func(): return runs[0] == 2, 600)
 	if not ended:
 		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
