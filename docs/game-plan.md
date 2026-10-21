@@ -138,7 +138,7 @@ Every level's critical path has at least one **code gate**. Routes differ in *ho
 |---|---|
 | **Fast** | `UPDATE arm SET ...` to move the robot arm under the panel **and** one player on another's shoulders to reach it |
 | **Solo / careful** | A longer query sequence to move the arm in steps, then climb the arm itself |
-| **Advanced coder** | A transaction that moves the arm, cuts the fan and unlocks the panel in one go, with a verify query, so even one player can climb straight up |
+| **Advanced coder** | One `UPDATE` that sets the arm's position, cuts the fan and unlocks the panel in a single row change, with a verify query, so even one player can climb straight up (no transactions: `BEGIN`/`COMMIT` are never taught) |
 
 ### Entity encounters: bypass or brave
 Code can also **avoid** an entity, or skill can get you **past** it:
@@ -147,7 +147,7 @@ Code can also **avoid** an entity, or skill can get you **past** it:
 
 ### Seal what's behind you
 Entities follow you between areas. Each level ends with a **lockdown checklist** you can complete or skip:
-- `UPDATE doors SET locked = 1 WHERE zone = 'C'` and verify it actually locked.
+- Lock what you opened and verify it actually locked: `UPDATE doors SET locked = 1 WHERE zone = 'C'` up to Level 4; from Level 5 on the database is read-only, so the same step goes through the services (for example `PATCH /doors/<id>`).
 - Quarantine an entity: cut power to its zone, shut down the Custodian's charging bay, flood a vent with halon.
 - Rewards for doing it well: the next level starts calmer; skipping it means that entity can appear again later.
 - Lessons: cleaning up after yourself, closing what you open, least privilege.
@@ -155,7 +155,7 @@ Entities follow you between areas. Each level ends with a **lockdown checklist**
 ### Replay rewards
 - **Route medals** for each route per level.
 - **Scenarios:** seeded data, different faulty doors, remixed entity behavior.
-- **Challenge modifiers:** no hints, no map, lights-out, no `ROLLBACK`, hardcore (evidence lost on death).
+- **Challenge modifiers:** no hints, no map, lights-out, hardcore (evidence lost on death).
 - **Language unlocks:** replay scripting levels in **Python** instead of JavaScript, or SQL levels in **PostgreSQL** dialect.
 - **Ranks:** time, hints used, data integrity, verified-before-trusting, doors sealed.
 
