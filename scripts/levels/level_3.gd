@@ -12,7 +12,8 @@ extends LevelBase
 ## whose check can be swapped once the curriculum is settled; the defaults below are
 ## the old plan's and have no hints or SYSOP text yet. The data they read is built
 ## (Level3Data) with a visible source for every row.
-## The Shredder (the floor's entity) comes in the next PR: see `noise`.
+## The Shredder (scripts/npc/shredder.gd) sleeps among the machines until the first
+## crank is turned, then hunts by sound; the level feeds it every loud thing (`noise`).
 ##
 ## Layout (level space, north is -z):
 ##   lobby           x -4..4,    z 4..8     stairs in (west wall), stairs out (east wall)
@@ -46,6 +47,7 @@ const TEXT := {
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
 	"case_room": "Which room did someone keep going back to that night?",
 	"end_card": "To be continued.",
+	"shredder_wakes": "North of here, the machines stop. Something heavy gets up.",
 }
 ## The level's case pages in the notebook (Cases tab), by id.
 const CASES := {"room": TEXT.case_room}
@@ -64,12 +66,18 @@ const UNITS := 4
 const UNIT_PITCH := 0.8
 const UNIT_SIZE := Vector3(0.6, 2.4, 5.4)
 const CRANK_TRAVEL := 1.3
+## A crank is heard across the floor (Shredder.HEAR_RANGE units).
+const CRANK_LOUDNESS := 2.0
 const SIDE_DOOR := Vector3(0.08, 2.3, 1.0)  # thin along x: a door in a wall that runs along z
 ## Where the stairs meet the lobby's walls.
 const STAIR_IN_AT := Vector3(-4, 0, 6)
 const STAIR_OUT_AT := Vector3(4, 0, 6)
-## Where the Shredder starts (level space), for the next PR.
-const SHREDDER_HOME := Vector3(-5.5, 0, -29)
+## Where the Shredder starts (level space): among the machines, clear of the conveyor.
+const SHREDDER_HOME := Vector3(-5.5, 0, -27)
+## The shredding room: its machines drown out any sound in it (level space).
+const SHRED_ROOM := AABB(Vector3(-11, -1, -33), Vector3(11, 5, 8))
+## Where it wanders between sounds once awake (level space).
+const ROAM_POINTS := [Vector3(0, 0, -23.5), Vector3(-4.5, 0, -14), Vector3(4.5, 0, -14), Vector3(-9.5, 0, -8), Vector3(9.5, 0, -8), Vector3(0, 0, -1)]
 
 var data: Dictionary
 var desk: Terminal
@@ -88,6 +96,9 @@ var key_dock: ItemDock
 var key_taken := false
 var floppy_taken := false
 var exit_trigger: Trigger
+var shredder: Shredder
+## The first crank has been turned: the floor knows what's hunting it now.
+var shredder_awake := false
 ## The stacks' shelf units, for the climb tests and the dressing pass.
 var stack_units: Array[StaticBody3D] = []
 
@@ -178,6 +189,15 @@ func build() -> void:
 	add_light("L18-COLD", Vector3(13.5, 3.2, -19), 6.0, 0.8, Color(0.85, 0.92, 1.0))
 
 	spawn = _stair_landing(STAIR_IN_AT, 90.0)
+
+	shredder = Shredder.new()
+	shredder.name = "Shredder"
+	shredder.space = self
+	shredder.mask_zones = [SHRED_ROOM]
+	shredder.roam_points.assign(ROAM_POINTS)
+	shredder.position = SHREDDER_HOME  # before add_child: a body at the origin for a step can set off triggers
+	add_child(shredder)
+	noise.connect(func(at, loudness): if sync.is_host(): shredder.hear(at, loudness))
 
 
 ## A spot on a stairwell's landing, clear of the flight, facing its door.
@@ -383,17 +403,17 @@ func _build_north(colors: Dictionary) -> void:
 		{"wall": "s", "at": 9.5, "width": 1.6, "height": 2.4},
 		{"wall": "s", "at": -4.0, "width": 2.0, "height": 2.6},
 		{"wall": "s", "at": 4.0, "width": 2.0, "height": 2.6},
-		{"wall": "n", "at": -5.5, "width": 1.8, "height": 2.4},
+		{"wall": "n", "at": -5.5, "width": 2.4, "height": 2.4},
 		{"wall": "n", "at": 6.5, "width": 1.0, "height": 2.3},
 	])
 	# The shredding room: industrial shredders, bins and a conveyor. Loud when running.
 	Greybox.room(geo, Vector3(-5.5, 0, -29), Vector3(11, 3.6, 8), {"floor": Color(0.3, 0.3, 0.3), "wall": Color(0.5, 0.5, 0.48)}, [
-		{"wall": "s", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "s", "at": 0.0, "width": 2.4, "height": 2.4},
 	])
 	Greybox.label(geo, Vector3(-5.5, 2.7, -24.88), "SHREDDING", 44, Color(0.75, 0.2, 0.15), 180)
-	var sd := add_door("ARC-SHRED", Vector3(-5.5, 1.2, -25), Vector3(1.8, 2.4, 0.08))
-	sd.make_hinged(Vector3(-0.9, 0, 0), 90.0)
-	room_doors["SHRED ROOM"] = sd
+	# A wide roll-up door for the bins, up while the machines run (its row is unlocked):
+	# the Shredder's way out, and the way its noise spills into the corridor.
+	room_doors["SHRED ROOM"] = add_door("ARC-SHRED", Vector3(-5.5, 1.2, -25), Vector3(2.4, 2.4, 0.08))
 	_reader(Vector3(-4.3, 1.3, -24.88), 180.0)
 	for x in [-9.0, -6.5]:
 		Greybox.box(geo, Vector3(x, 0.9, -31.5), Vector3(1.6, 1.8, 1.2), Color(0.25, 0.27, 0.3), "Shredder")
@@ -476,7 +496,11 @@ func apply_environment(env: Environment) -> void:
 
 
 func net_setup() -> void:
-	pass  # the Shredder is replicated here in the next PR
+	shredder.crew = crew
+	sync.replicate(shredder, shredder.sync_properties())
+	# This machine's player's own sounds (landings, vents, a dropped box); other
+	# players' sprints it hears from how fast their bodies move.
+	player.noise_made.connect(func(at, loudness): if sync.is_host(): shredder.hear(at, loudness))
 
 
 func start() -> void:
@@ -516,11 +540,17 @@ func _crank(room: String) -> void:
 		return
 	cranked[room] = true
 	cranks[room].enabled = false
+	if not shredder_awake:
+		# The pressure peak: the first crank wakes it. Everyone hears the machines stop.
+		shredder_awake = true
+		hud.notice(TEXT.shredder_wakes, 6.0)
+		if sync.is_host():
+			shredder.wake()
 	var back: Vector3 = SIDE_ROOMS[room].back
 	for unit in shelving[room]:
 		var tw := create_tween()
 		tw.tween_property(unit, "position", unit.position - back * CRANK_TRAVEL, 2.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	noise.emit(to_global(cranks[room].position), 1.0)
+	noise.emit(to_global(cranks[room].position), CRANK_LOUDNESS)
 
 
 ## Is the aisle along `room`'s back wall open (wide enough to walk)?

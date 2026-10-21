@@ -129,6 +129,7 @@ func _group_floor_18() -> void:
 	test_level_3_data_every_seed()
 	await test_level_3_scene()
 	await test_level_3_safe_room()
+	await test_level_3_shredder()
 	await test_level_3_stairs_from_22()
 	await test_coop_level_3()
 
@@ -3103,6 +3104,9 @@ func test_world() -> void:
 	var path := NavigationServer3D.map_get_path(map, sec.to_global(sec.watcher_home), sec.to_global(Vector3(-3, 0, 4)), true)
 	check(path.size() > 1 and path[path.size() - 1].distance_to(sec.to_global(Vector3(-3, 0, 4))) < 1.0, "the Watcher can path from the office to the corridor in the World")
 	world.wing_finished(sec)
+	var archive = world.current
+	check(archive != null and archive.wing_id == "level_3" and archive.active and world._field_notes == null, "after the security floor the route goes on to the Records Archive on 18")
+	world.wing_finished(archive)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
@@ -3943,8 +3947,8 @@ func test_level_3_scene() -> void:
 	check(L3_LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on the stairwell landing (%s)" % level.to_local(p.global_position))
 	var ids: Array = level.doors.keys()
 	ids.sort()
-	check(ids == ["ARC-COLD", "ARC-FICHE", "ARC-MAP", "ARC-SHRED", "ARC-SUPPLY", "ARC-VAULT-C"] and level.doors.values().all(func(d): return d.is_hinged() and not d.locked),
-		"every side room has an ordinary door that shuts, in the doors table (%s)" % [ids])
+	check(ids == ["ARC-COLD", "ARC-FICHE", "ARC-MAP", "ARC-SHRED", "ARC-SUPPLY", "ARC-VAULT-C"] and level.doors.values().all(func(d): return (d.is_hinged() or d.door_id == "ARC-SHRED") and not d.locked),
+		"every side room has an ordinary door that shuts, in the doors table; the shredding room a roll-up (%s)" % [ids])
 	check(level.lights["L18-STACKS"].all(func(l): return not l.visible) and level.lights["L18-LOBBY"].all(func(l): return l.visible), "the stacks' sensor lights are off after hours; the lobby's are on")
 	check(_doc(level, "Stacks lighting notice") != null and _doc(level, "Facilities memo") != null and _doc(level, "Door sign") != null, "the dark stacks, the dead lifts and the wedged door each have a sign saying why")
 	var slips: Node = _doc(level, "Retrieval slips")
@@ -4108,6 +4112,21 @@ func test_coop_level_3() -> void:
 	client.cranks[room].interact(client.player)
 	await _frames(180)
 	check(machines.all(func(l): return l.cranked[room]) and client.shelving[room][0].position.is_equal_approx(host.shelving[room][0].position), "a client's crank rolls the shelving on every machine, to the same place")
+	check(host.shredder.active and client.shredder.active and client.shredder.global_position.distance_to(host.shredder.global_position) < 0.5, "the crank wakes the Shredder on the host, and clients see it where the host has it")
+	# A client sprinting: the host hears it from how fast the puppet moves.
+	host.shredder.place(host.to_global(Vector3(-8, 0, -23.5)), host.to_global(Vector3(0, 0, -23.5)))
+	host.shredder.state = "listening"
+	client.player.global_transform = Transform3D(Basis(), client.to_global(Vector3(-1, 0.1, -23.5)))
+	await _frames(15)
+	for i in 30:
+		client.player.global_position += client.global_basis * Vector3(0.1, 0, 0)  # 6 m/s
+		await physics_frame
+	await _frames(5)
+	var puppet_pos: Vector3 = host.players.puppet(client_id).global_position
+	check(host.shredder.state != "listening" and host.shredder.target_point.distance_to(puppet_pos) < 4.0, "the host's Shredder hears a client sprint and turns to where they are (state %s)" % host.shredder.state)
+	host.shredder.place(host.to_global(host.SHREDDER_HOME), host.to_global(Vector3(-5.5, 0, -20)))
+	host.shredder.state = "listening"
+	await _frames(5)
 	client.floppy.interact(client.player)
 	client.key_dock.interact(client.player)
 	await _frames(20)
@@ -4127,3 +4146,82 @@ func test_coop_level_3() -> void:
 			break
 	check(_game().completed_level == "level_3", "with everyone on the stairs, the floor completes on every machine")
 	await _coop_close(worlds)
+
+
+## The Shredder: asleep among the machines until the first crank, then hunting by
+## sound alone; the machines mask their own room; it grabs, holds, and throws.
+func test_level_3_shredder() -> void:
+	print("Level 3: the Shredder")
+	_game().new_run(11)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var s: Shredder = level.shredder
+	var p: Player = level.player
+	check(not s.active and s.state == "dormant" and s.is_on_floor() and level.SHRED_ROOM.has_point(level.to_local(s.global_position)), "it sleeps in the shredding room")
+	check(not PlayerCombat.blockable("shredder"), "its throw can't be blocked")
+	# Sprinting about before anything loud happens: nothing.
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, 7)))
+	await _frames(5)
+	p.local_control = false  # scripted controls, not the keyboard
+	p.controls.move = Vector2(0, -1)
+	p.controls.sprint = true
+	await _frames(45)
+	p.controls.move = Vector2.ZERO
+	p.controls.sprint = false
+	p.local_control = true
+	check(level.to_local(p.global_position).z < 4.0 and not s.active and s.state == "dormant", "a sprint through the lobby doesn't wake it: it's asleep (z %.1f, %s)" % [level.to_local(p.global_position).z, s.state])
+	# The first crank wakes it, and it heads for the sound.
+	var host: String = level.data.host
+	level.cranks[host].interact(p)
+	await _frames(5)
+	check(s.active and level.shredder_awake and s.state in ["turning", "investigating"], "the crank wakes it, and it turns toward the sound (%s)" % s.state)
+	var crank_at: Vector3 = level.to_global(level.cranks[host].position)
+	var d0: float = s.global_position.distance_to(crank_at)
+	await _frames(360)
+	var d1: float = s.global_position.distance_to(crank_at)
+	check(d1 < d0 - 4.0 and level.room_doors["SHRED ROOM"].is_open and not level.room_doors["SHRED ROOM"].is_hinged(), "out through its room's open roll-up door, it walks toward where the crank was turned (%.1f m, then %.1f m)" % [d0, d1])
+	# Doors: it pushes a shut door open if it swings away from it, and can't pull one.
+	# (A west room whose shelving hasn't been cranked, so there's an aisle by the door.)
+	var side: String = "MAP ROOM" if host != "MAP ROOM" else "VAULT C"
+	var side_z: float = level.SIDE_ROOMS[side].center.z
+	var side_door: Door = level.room_doors[side]
+	s.place(level.to_global(Vector3(-9.8, 0, side_z)), level.to_global(Vector3(-13, 0, side_z)))
+	s.state = "investigating"
+	s.target_point = level.to_global(Vector3(-13, 0, side_z))
+	s._timer = 10.0
+	await _frames(60)
+	check(not side_door.is_open and level.to_local(s.global_position).x > -11.0, "from the hall, a side room's door swings toward it: it can't pull it open, and stays out")
+	s.place(level.to_global(Vector3(-12.0, 0, side_z)), level.to_global(Vector3(-9.5, 0, side_z)))
+	s.state = "investigating"
+	s.target_point = level.to_global(Vector3(-9.5, 0, side_z))
+	s._timer = 10.0
+	await _frames(60)
+	check(side_door.is_open, "from inside, the same door swings away from it: it shoves it open on its way out")
+	side_door.set_open(false, true)
+	# Hearing: masked by its own machines, fading with distance.
+	s.place(level.to_global(Vector3(-9, 0, -31.5)), level.to_global(Vector3(0, 0, -31.5)))
+	s.state = "listening"
+	check(not s.hear(level.to_global(Vector3(-1.5, 0, -32)), 1.0), "inside the shredding room, the machines drown out a sound 7 m away")
+	check(s.hear(level.to_global(Vector3(-1.5, 0, -23.5)), 1.0), "the same sound out in the corridor is heard")
+	s.state = "listening"
+	var far: Vector3 = level.to_global(Vector3(-9, 0, -24.5))  # 7 m north, out in the corridor
+	check(not s.hear(far, 0.15) and s.hear(far, Shredder.SPRINT_LOUDNESS), "seven metres off, footsteps are too quiet to hear and a sprint carries")
+	s.state = "listening"
+	check(not s.hear(level.to_global(Vector3(-9, 0, -20.5)), Shredder.SPRINT_LOUDNESS) and s.hear(level.to_global(Vector3(-9, 0, -20.5)), level.CRANK_LOUDNESS), "eleven metres off a sprint is lost, but a crank still carries")
+	# Caught: it holds you, then throws you.
+	s.place(level.to_global(Vector3(0, 0, -23.5)), level.to_global(Vector3(5, 0, -23.5)))
+	s.state = "listening"
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(1.0, 0.1, -23.5)))
+	await _frames(3)
+	var start_health: float = p.health
+	s.hear(p.global_position, 1.0)
+	await _frames(70)
+	check(s.state == "grabbing" and p.combat.grabbed_by == s and p.input_locked, "it picks you up and holds you: the tell before the throw (%s)" % s.state)
+	await _frames(120)
+	check(p.health <= start_health - Shredder.THROW_DAMAGE + 0.01 and p.health > 0.0 and not p.combat.down, "thrown: heavy damage, but one throw doesn't put you down from full health (%.0f)" % p.health)
+	check(level.to_local(p.global_position).distance_to(Vector3(1.0, 0.1, -23.5)) > 2.0 and p.combat.grabbed_by == null, "you land well away from it, out of its hands")
+	check(s.held == null and s.state != "grabbing", "after the throw it has let go, and goes back to listening for you (%s)" % s.state)
+	level.queue_free()
+	await process_frame
