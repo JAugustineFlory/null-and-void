@@ -95,16 +95,22 @@ the correct option.
 ### Ch 0. Read this first (garage, required, before the van)
 
 Structure and page text: the Home base and huddles thread's draft
-(plan/approvals/home-base-huddles.md). Questions below, three per word.
+(plan/approvals/home-base-huddles.md). Questions below, three per word. Table Q1 and row Q2 were
+replaced on 2026-10-21 (18:54Z, approved word for word with their why lines) so the garage quiz no longer uses SELECT
+and FROM before Ch 1 teaches them.
+
+Why lines for the two replaced questions (approved 2026-10-21 18:54Z):
+- table Q1: Each is a whole table: jobs holds the jobs, and van_kit holds the kit.
+- row Q2: One job is one row, so five jobs make five rows.
 
 **table**
-1. Where does a table's name go in a query? A) after SELECT  *B) after FROM  C) after the ;
+1. What are jobs and van_kit? A) two rows  *B) two tables  C) two columns
 2. Which looks like a table name? A) van kit  *B) van_kit  C) Van Kit!
 3. Where would you find a table's name in a building? *A) on a label, card or screen nearby  B) the book tells you  C) you guess
 
 **row**
 1. In jobs, one row is... *A) one job  B) one column  C) the whole table
-2. SELECT * FROM jobs; with 5 jobs shows how many rows? A) 1  B) 3  *C) 5
+2. jobs has 5 jobs in it. How many rows is that? A) 1  B) 3  *C) 5
 3. A row goes... *A) across  B) down  C) nowhere
 
 **column**
