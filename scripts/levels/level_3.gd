@@ -63,6 +63,7 @@ const TEXT := {
 	"lock_idle": "ENTER CODE",
 	# SYSOP tips at the desk (text only, never lies; each fires once per run).
 	"tip_first": "the readers log every swipe. the spike's slips are in retrieval_slips. start with what's on paper.",
+	"tip_count": "that's the slips, listed. you've counted before: COUNT(*) does the counting.",
 	"tip_log": "that's every swipe. you don't need to read them. count them: GROUP BY room.",
 	"tip_week": "that's the week. the day shift lives in the reading room. you want one night. the readers write the date first.",
 	"tip_null": "nothing equals NULL, not even NULL. the word is IS NULL.",
@@ -93,8 +94,8 @@ const MEMO_LINES := [
 	{"text": "SELECT DISTINCT dept FROM catalogue;   <- that's every room. narrow it.", "hand": true},
 	{"text": "DISTINCT = one of each. no repeats.", "hand": true},
 ]
-## The clerk's sticky on the desk terminal: where COUNT is found again. Level 2's
-## SYSOP showed it once; no Easy SQL chapter teaches it yet, so this is the plant.
+## The clerk's sticky on the desk terminal: COUNT again, as a reminder. It is practised
+## on 14 (the reset's sign-off) and shown on 22's camera screen, so the slips are review.
 const COUNT_STICKY := "how many? SELECT COUNT(*) FROM ...   not one by one!"
 ## The note by the slip spike: the ask for the unreturned boxes.
 const SPIKE_NOTE := "Pulled and never checked back in: chase Monday."
@@ -230,16 +231,12 @@ var stack_units: Array[StaticBody3D] = []
 ## Hint ladders (ladder A: the shape with the value as ?, how to find it, the exact
 ## query; a station with no value to find starts on the exact query), approved by
 ## Augustine 2026-10-21 (plan/approvals/l3-text.md, with Teaching's suggestions).
-## COUNT, as review, safe: how many slips are still open.
+## COUNT, as review, safe: how many slips are still open. The player counted on 14
+## already, so the ladder is two tiers: a reminder with the shape, then the query.
 var slips_puzzle := Puzzle.new("slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'", ["count(*)"], false, [
-	"the shape, with the word left as ?:\n" +
+	"you've counted before: the reset's sign-off on 14. same shape, with the word left as ?:\n" +
 	"    [color=#ffffff]SELECT COUNT(*) FROM retrieval_slips WHERE status = '?';[/color]\n" +
-	"  SELECT COUNT(*)   how many rows, instead of the rows themselves\n" +
-	"  FROM retrieval_slips   the slips on the spike\n" +
-	"  WHERE status = '?'   only the ones nobody has filled yet",
-	"type\n" +
-	"    [color=#ffffff]SELECT * FROM retrieval_slips;[/color]\n" +
-	"and look at the status column. the word for \"not filled yet\" is the one on the clipboard's header, in small letters.",
+	"the word for \"not filled yet\" is the one on the clipboard's header, in small letters.",
 	"type this, then Enter:\n" +
 	"    [color=#ffffff]SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open';[/color]\n" +
 	"the number is the answer; the clipboard on the spike agrees.",
@@ -990,8 +987,12 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	# SYSOP's tips at the desk, each once: text only, and never the answer.
 	var lower := sql.to_lower()
 	var rows: Array = result.get("rows", [])
+	var fresh := not tips_sent.has("first")
 	_tip_if(true, "first")
 	_tip_if(result.get("error", "") != "", "error")
+	# The slips listed instead of counted (review of COUNT, as 14's sign-off put it).
+	_tip_if(not fresh and not slips_puzzle.solved and lower.contains("retrieval_slips") and not lower.contains("count(")
+		and not rows.is_empty(), "count")
 	_tip_if(RegEx.create_from_string("=\\s*null").search(lower) != null, "null")
 	_tip_if(lower.contains("access_log") and rows.size() > TerminalUI.MAX_ROWS_SHOWN, "log")
 	_tip_if(lower.contains("access_log") and lower.contains("group by") and lower.contains("desc") and not lower.contains(Level3Data.NIGHT)

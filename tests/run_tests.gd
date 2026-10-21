@@ -4181,7 +4181,7 @@ func test_level_3_scene() -> void:
 	check(space.intersect_ray(q).is_empty(), "after cranking, the aisle along the back wall is clear")
 	check(level.find_children("Door_MERCER", "", false, false).size() == 1 and level.safe_room_box.has_point(spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 + 1.0)),
 		"one hidden door, in the host room's back wall, with Mercer's room beyond it")
-	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
+	# The desk's stations and their ladders (COUNT's is the short review one).
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
 	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.size() >= 2) and level.pc_puzzle.hints.size() >= 2, "seven stations on the desk and one on the PC, each with a hint ladder")
@@ -4208,6 +4208,12 @@ func test_level_3_scene() -> void:
 	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's top room with its count passes too; the case stays closed once")
 	level.terminal_ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
 	check(level.keyholder_puzzle.solved, "the lock's question: that room's raw rows, read by eye, pass it")
+	check(level.slips_puzzle.hints.size() == 2 and level.slips_puzzle.hints[0].contains("counted before") and level.slips_puzzle.hints[0].contains("status = '?'") and not level.slips_puzzle.hints[0].contains("'open'"),
+		"the slips ladder is review: a reminder with the shape, then the query")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips")
+	level.terminal_ui.run("SELECT * FROM retrieval_slips WHERE status = 'open'")
+	var counted := Array(level.desk.transcript).filter(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count))
+	check(counted.size() == 1 and not level.slips_puzzle.solved, "listing the slips instead of counting them gets SYSOP's reminder, once")
 	level.terminal_ui.run("SELECT COUNT(slip_no) FROM retrieval_slips WHERE status = 'open'")
 	level.terminal_ui.run("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")
 	check(level.slips_puzzle.solved and level.depts_puzzle.solved and _game().case_info("duties").get("solved", false), "the slips and departments stations pass, and the night clerk's list closes")

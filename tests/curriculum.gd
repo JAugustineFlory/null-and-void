@@ -13,7 +13,9 @@ extends RefCounted
 ## Owned by the Teaching and UX thread. Add a row for every new puzzle.
 ## `"known_gap"` says why a puzzle's "taught before any hint" check prints as GAP
 ## until its owner fixes it. `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
-## its first hint stays the exact query. Every other puzzle uses hint ladder A.
+## its first hint stays the exact query. `"ladder": "review"` marks a puzzle whose
+## keyword was practised safely on an earlier floor: two tiers, a reminder with the
+## shape (the value as '?') and then the exact query. Every other puzzle uses hint ladder A.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 
@@ -135,13 +137,13 @@ const PUZZLES := {
 	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md), where
 	# Act 1 ends (curriculum option B, approved 2026-10-21). The hint ladders are
 	# built from plan/approvals/l3-text.md (approved 2026-10-21 11:27Z).
-	# COUNT, found again on the clerk's sticky on the desk terminal, used safely.
-	# Level 2's SYSOP showed it once; no Easy SQL chapter teaches it yet, so the
-	# sticky is the plant.
+	# COUNT as review (practised on 14, the reset's sign-off; shown again by 22's
+	# SYSOP): the clerk's sticky on the desk terminal reminds, the ladder is short.
 	"slips": {
 		"level": 3,
 		"pressure": false,
-		"teaches": ["COUNT", "retrieval_slips"],
+		"ladder": "review",
+		"teaches": ["retrieval_slips"],
 		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "retrieval_slips"],
 	},
 	# DISTINCT, found on the clerk's memo pinned to the card catalogue and practised
