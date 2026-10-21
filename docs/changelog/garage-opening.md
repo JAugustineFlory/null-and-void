@@ -1,4 +1,3 @@
 - **Changed:** the game now opens with the crew walking into the garage and taking a seat facing Maddison. She briefs you, sends you to the punch bag, has you check the work order in your notebook, and sends one of you for the book. Playing solo, she talks to just you.
 - **Added:** whoever fetches Easy SQL carries it in their hands until they sit down with it.
 - **Fixed:** blocking the punch bag now tells you it worked.
-- **Changed:** Maddison now takes the crew through Easy SQL on her whiteboard, and a page turns once everyone is ready to move on.

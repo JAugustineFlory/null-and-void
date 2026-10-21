@@ -1,0 +1,1 @@
+- **Changed:** Maddison now takes the crew through Easy SQL on her whiteboard, and a page turns once everyone is ready to move on.
