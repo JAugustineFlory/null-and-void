@@ -22,6 +22,18 @@ static func desk(parent: Node, pos: Vector3, facing_deg: float = 0.0, width: flo
 	return body
 
 
+## Where a sitter's seat is on each chair, above its feet.
+const OFFICE_SEAT := 0.52
+const CAFE_SEAT := 0.465
+
+
+## Makes `chair` sittable (a Seat on its seat at height `top`, facing the way
+## the chair faces) and returns the chair.
+static func sittable(chair: Node3D, top: float, size := Vector2(0.42, 0.4)) -> Node3D:
+	Seat.create_at(chair, Vector3(0, top, 0), 0.0, size)
+	return chair
+
+
 ## Swivel office chair.
 static func office_chair(parent: Node, pos: Vector3, facing_deg: float = 0.0) -> StaticBody3D:
 	var body := _body(parent, pos, facing_deg, "Chair", Vector3(0.5, 1.0, 0.5), Vector3(0, 0.5, 0))

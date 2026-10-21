@@ -123,7 +123,7 @@ static func _noc(geo: Node3D, dress: Node3D) -> void:
 		for x in [-18.0, -15.0, -12.0]:
 			if row == 4.5 and x == -15.0:
 				continue  # the shift log lies here: room to stand and read it
-			ArtProps.office_chair(geo, Vector3(x, 0, row + 0.8), (x + row) * 7.0)
+			ArtProps.sittable(ArtProps.office_chair(geo, Vector3(x, 0, row + 0.8), (x + row) * 7.0), ArtProps.OFFICE_SEAT)
 			ArtProps.keyboard(dress, Vector3(x, 0.76, row + 0.15), 0)
 	ArtProps.binder(dress, Vector3(-17.0, 0.76, 1.2), 15, "NOC RUNBOOK", false)
 	ArtProps.poster(dress, Vector3(-11.0, 1.6, 8.89), 0,
@@ -167,10 +167,10 @@ static func _break_room(geo: Node3D, dress: Node3D) -> void:
 	var shells := [Color(0.72, 0.45, 0.2), Color(0.28, 0.42, 0.55)]
 	# Tucked in to the table (0 faces -Z, towards it from the south side), except
 	# one someone pushed back and left turned away.
-	ArtProps.cafe_chair(geo, Vector3(16.8, 0, -4.45), -4, shells[0])
-	ArtProps.cafe_chair(geo, Vector3(18.2, 0, -4.45), 7, shells[1])
-	ArtProps.cafe_chair(geo, Vector3(16.8, 0, -6.55), 176, shells[1])
-	ArtProps.cafe_chair(geo, Vector3(18.35, 0, -6.85), 35, shells[0])
+	ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(16.8, 0, -4.45), -4, shells[0]), ArtProps.CAFE_SEAT)
+	ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(18.2, 0, -4.45), 7, shells[1]), ArtProps.CAFE_SEAT)
+	ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(16.8, 0, -6.55), 176, shells[1]), ArtProps.CAFE_SEAT)
+	ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(18.35, 0, -6.85), 35, shells[0]), ArtProps.CAFE_SEAT)
 	var line := ArtPalette.flat(Color(0.45, 0.43, 0.4), 0.6)
 	for z in [-7.0, -6.0, -5.0]:
 		ArtDress.trim(dress, Vector3(20.99, 0.45, z), Vector3(0.01, 0.8, 0.01), line)  # cupboard door gaps
