@@ -20,8 +20,11 @@ extends Node
 ## you, so going down is the same as the whole crew going down.
 
 signal blocked(cause: String)
-## The guard went up (right mouse): for the first-person arms to raise.
+## The guard went up (right mouse): for the first-person arms to raise. It stays
+## up for Guard.WINDOW (see guard_up()); a block is a timed tap, not a hold.
 signal guard_raised
+## The player swung (left mouse), whether or not it hit anything.
+signal swung
 signal hurt(amount: float, cause: String)
 signal went_down(cause: String)
 signal got_up
@@ -114,6 +117,11 @@ func raise_guard() -> bool:
 		return false
 	guard_raised.emit()
 	return true
+
+
+## Is the guard up right now (the arms' raised pose)?
+func guard_up() -> bool:
+	return guard.is_up(_clock)
 
 
 static func blockable(cause: String) -> bool:

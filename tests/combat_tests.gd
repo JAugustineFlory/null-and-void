@@ -123,7 +123,11 @@ func test_hit_feedback() -> void:
 	p.combat.guard_raised.connect(func(): raised[0] = true)
 	await frames(int(Guard.RECOVER * 60) + 2)
 	p.combat.raise_guard()
-	check(raised[0], "raising your guard tells the arms to come up")
+	check(raised[0] and p.combat.guard_up(), "raising your guard tells the arms to come up")
+	var swings := [0]
+	p.combat.swung.connect(func(): swings[0] += 1)
+	p._strike()
+	check(swings[0] == 1, "and a swing tells them to punch")
 	z0 = p.global_position.z
 	check(p.take_damage(22.0, "rourke") == "blocked", "a block")
 	var block_shake := p.combat.shake
