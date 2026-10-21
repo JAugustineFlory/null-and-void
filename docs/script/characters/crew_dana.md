@@ -17,7 +17,7 @@ You're one of a small IT crew on an overnight job in an office tower, thinking o
 
 Send the files back as they are. They go in `audio/voice/crew_dana/` in the game.
 
-## Your lines (67)
+## Your lines (105)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -239,3 +239,126 @@ The same words for everyone. Say them your way.
 - [ ] `l2_cc_pin_pay.wav`  
   "That's the code. Let's not hang around."  
   *Keypad accepted it. Nervous, wants to move.*
+
+### 4. Your crew finds a beginner's book on a desk and reads it together on the spot. One line to start each chapter, one to wrap it up.
+
+- [ ] `l5_book_find.wav`  
+  "No way. It's the same series. Somebody here bought the sequel."  
+  *Picking it up off a desk. Delighted, a little thrown.*
+- [ ] `l5_book_open.wav`  
+  "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly."  
+  *Reading the back cover, hopeful.*
+- [ ] `l5_huddle_post_1.wav`  
+  "Chapter one. POST. You send it something, it makes something. Like a suggestion box that answers."  
+  *Starting a chapter, reading it out.*
+- [ ] `l5_huddle_post_2.wav`  
+  "So GET looks, POST makes. Got it."  
+  *Wrapping up, pleased it's simple.*
+- [ ] `l5_huddle_patch_1.wav`  
+  "PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice."  
+  *Starting a chapter. Noticing how hard the book insists.*
+- [ ] `l5_huddle_patch_2.wav`  
+  "PATCH is UPDATE wearing a tie."  
+  *Wrapping up. Proud of the joke.*
+- [ ] `l5_huddle_codes_1.wav`  
+  "Every answer comes with a number. Book says read the number before you celebrate."  
+  *Starting a chapter. A little told off.*
+- [ ] `l5_huddle_codes_2.wav`  
+  "Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs."  
+  *Wrapping up, counting it off.*
+- [ ] `l5_huddle_keys_1.wav`  
+  "Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed."  
+  *Starting a chapter, working it out as you read.*
+- [ ] `l5_huddle_keys_2.wav`  
+  "So if it says 401, we forgot the badge."  
+  *Wrapping up. Got it.*
+- [ ] `l5_huddle_check_1.wav`  
+  "Short chapter. After you change something, ask again. Book says never trust the first answer."  
+  *Starting a short chapter. Knowing nod.*
+- [ ] `l5_huddle_check_2.wav`  
+  "Change it, then look again. The front doors taught us that one."  
+  *Wrapping up. Wry; you've been burned before.*
+
+### 5. Your crew finds another beginner's book, under a coffee mug, and reads it together on the spot. One line to start each chapter, one to wrap it up.
+
+- [ ] `l6_book_find.wav`  
+  "Easy JavaScript. Somebody's read this one to death."  
+  *Sliding it out from under a mug. The cover's stained and the pages are soft.*
+- [ ] `l6_book_open.wav`  
+  "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat."  
+  *Tired of typing. This sounds like rescue.*
+- [ ] `l6_huddle_if_1.wav`  
+  "A variable's a labelled box. If is a fork in the road. That's... honestly fine."  
+  *Starting a chapter. Braced for hard; it isn't.*
+- [ ] `l6_huddle_if_2.wav`  
+  "Box, fork. I can do box and fork."  
+  *Wrapping up, to yourself.*
+- [ ] `l6_huddle_loops_1.wav`  
+  "Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see."  
+  *Starting a chapter. The 'million times a second' bit alarms you.*
+- [ ] `l6_huddle_loops_2.wav`  
+  "Always put the wait in. Always log it. Writing that one down."  
+  *Wrapping up, making a note.*
+- [ ] `l6_huddle_functions_1.wav`  
+  "Functions. Write it once, give it a name, use it anywhere."  
+  *Starting a chapter, reading it out.*
+- [ ] `l6_huddle_functions_2.wav`  
+  "So a function's a recipe we can shout."  
+  *Wrapping up. Pleased with that.*
+- [ ] `l6_huddle_lists_1.wav`  
+  "Lists. A whole line of things in one box. Loop over it and you've done them all."  
+  *Starting a chapter. The penny drops halfway.*
+- [ ] `l6_huddle_lists_2.wav`  
+  "One loop, every door. That's either brilliant or terrifying."  
+  *Wrapping up. Genuinely unsure which.*
+- [ ] `l6_huddle_test_1.wav`  
+  "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't."  
+  *Starting the last chapter. Taking it seriously.*
+- [ ] `l6_huddle_test_2.wav`  
+  "Test first. We've all learned that one the hard way tonight."  
+  *Wrapping up. Rueful.*
+
+### 6. In a lift, your crew finds another beginner's book tucked behind the handrail and reads it together on the ride. One line to start each chapter, one to wrap it up.
+
+- [ ] `l8_book_find.wav`  
+  "Hello HTML! Same series again. Who keeps leaving these?"  
+  *Pulling it from behind the handrail. Uneasy, half joking.*
+- [ ] `l8_book_open.wav`  
+  "Book says everything on a screen is built from tags. And the building's been drawing things that aren't there. So... we fix the drawing."  
+  *Working it out as you go. The pause is the idea landing.*
+- [ ] `l8_huddle_elements_1.wav`  
+  "Tags. Angle brackets. You open one, you close one. Like a sandwich. The inspector shows you every one on the screen."  
+  *Starting a chapter, reading it out.*
+- [ ] `l8_huddle_elements_2.wav`  
+  "Everything's a sandwich. Okay."  
+  *Wrapping up. Accepting it.*
+- [ ] `l8_huddle_hidden_1.wav`  
+  "Attributes. Little settings on a tag. Including one called hidden."  
+  *Starting a chapter. 'Hidden' catches your eye.*
+- [ ] `l8_huddle_hidden_2.wav`  
+  "Hidden doesn't mean gone. Hidden means somebody hid it."  
+  *Wrapping up. Quieter; that thought sticks.*
+- [ ] `l8_huddle_css_1.wav`  
+  "CSS. Where things go and what they look like. The book calls it the paint."  
+  *Starting a chapter, reading it out.*
+- [ ] `l8_huddle_css_2.wav`  
+  "So if a wall's in the wrong place, it might just be the paint."  
+  *Wrapping up. Half hopeful.*
+- [ ] `l8_huddle_display_1.wav`  
+  "Two ways to make something vanish. One leaves a gap, one doesn't. Book says that matters."  
+  *Starting a chapter. Curious.*
+- [ ] `l8_huddle_display_2.wav`  
+  "So when something vanishes, ask which kind of vanished."  
+  *Wrapping up, filing it away.*
+- [ ] `l8_huddle_layers_1.wav`  
+  "Things on a screen stack up, like papers on a desk. A number decides which one's on top."  
+  *Starting a chapter, picturing it.*
+- [ ] `l8_huddle_layers_2.wav`  
+  "So the thing in our way might just be lying on top."  
+  *Wrapping up. An idea forming.*
+- [ ] `l8_huddle_forms_1.wav`  
+  "Forms. Boxes you type in, and a button that sends it. Every login screen tonight was one of these."  
+  *Starting the last chapter. Recognising it.*
+- [ ] `l8_huddle_forms_2.wav`  
+  "A form's just boxes and a button. Somebody built it, so we can rebuild it."  
+  *Wrapping up. Quietly determined.*

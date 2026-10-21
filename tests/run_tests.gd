@@ -614,7 +614,8 @@ func test_commentary() -> void:
 	check(bad_puzzles.is_empty(), "commentary only covers puzzles the levels have %s" % [bad_puzzles])
 	check(bad_ids.is_empty(), "every commentary line is a crew line in the script %s" % [bad_ids])
 	check(bad_docs.is_empty(), "commentary only points at papers that are in the levels %s" % [bad_docs])
-	var unused := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["speaker"] == "CREW" and not used.has(id))
+	# Crew lines in a commentary scene ("l0_crew" and so on); the crew's book huddles are played elsewhere.
+	var unused := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["scene"].ends_with("_crew") and not used.has(id))
 	check(unused.is_empty(), "every crew commentary line has a moment to play %s" % [unused])
 
 	var hud := FakeHud.new()
