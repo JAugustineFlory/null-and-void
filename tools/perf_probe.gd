@@ -29,6 +29,12 @@ const LEVEL_VIEWS := {
 		["l2_lab", Vector3(-10.6, 0.1, 2.8), 50, -12],
 		["l2_office", Vector3(0, 0.1, 1.0), 0, -5],
 	],
+	"res://scenes/level_3.tscn": [
+		["l3_reading", Vector3(0, 0.1, 3.3), 0, -8],
+		["l3_stacks", Vector3(1.5, 0.1, -7.5), 0, -5],
+		["l3_shelf_top", Vector3(0, 3.7, -10.5), 0, -12],
+		["l3_shredding", Vector3(-5.5, 0.1, -24.4), 0, -8],
+	],
 }
 
 var rows: Array[String] = []
