@@ -27,6 +27,8 @@ var count_puzzle := count_puzzle_for()
 ## that isn't 'ok' (the offline ones are switched off on purpose).
 var count_all := Puzzle.new("count_all", "SELECT COUNT(*) FROM door_controllers", ["count(*)"], false)
 var count_not_ok := Puzzle.new("count_not_ok", "SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'", ["count(*)"], false)
+## The faulted rows listed, not counted: SYSOP points at COUNT(*).
+var count_listed := Puzzle.new("count_listed", "SELECT id FROM door_controllers WHERE status = 'fault'", ["id"], false)
 ## How many controllers are faulted this run (Level1Data).
 var faulted := 0
 ## The break room's lighting circuit reset, by its door.
@@ -183,27 +185,30 @@ func build() -> void:
 		{"case": "controller", "text": "status 'fault' means the lock relay is stuck. 'offline' means switched off on purpose: leave it alone."},
 		{"case": "controller", "text": "Zone first, then status. Plenty of faults in this building aren't yours. - H.M."},
 	]
-	# COUNT, seen first on another table: WARDEN's diagnostics left on the desk.
+	# COUNT, seen first on another table: WARDEN's diagnostics left on the desk. Its
+	# numbers come from the racks table, so the paper never goes out of date.
+	var racks_all: int = db.run_silent("SELECT COUNT(*) AS n FROM racks")[0]["n"]
+	var racks_c: int = db.run_silent("SELECT COUNT(*) AS n FROM racks WHERE room = 'Server Room C'")[0]["n"]
 	Document.place(geo, Vector3(-3.55, 0.902, 8.62), -6.0, "WARDEN DIAGNOSTICS", [
 		"WARDEN DIAGNOSTICS - FLOOR 14 - 23:40",
 		"> SELECT COUNT(*) FROM racks;",
-		"  COUNT(*): 8",
+		"  COUNT(*): %d" % racks_all,
 		"> SELECT COUNT(*) FROM racks WHERE room = 'Server Room C';",
-		"  COUNT(*): 2",
+		"  COUNT(*): %d" % racks_c,
 		{"text": "How many? COUNT(*). Don't count rows by hand.", "hand": true},
 	], true, "paper", Vector2(0.12, 0.16)).clues = [
-		{"case": "controller", "text": "COUNT(*) counts the rows instead of listing them: SELECT COUNT(*) FROM racks WHERE room = 'Server Room C'; gives 2."},
+		{"case": "controller", "text": "COUNT(*) counts the rows instead of listing them: SELECT COUNT(*) FROM racks WHERE room = 'Server Room C'; gives %d." % racks_c},
 	]
 	# The reset's paperwork: the count it wants comes from the terminal.
 	Document.place(geo, Vector3(-3.9, 0.902, 8.6), 4.0, "CONTROLLER RESET - SIGN-OFF", [
 		"CONTROLLER RESET - SIGN-OFF",
 		"Floor 14. No manual reset without this form.",
-		"Units faulted on this floor: ______",
-		"Count every controller with status 'fault'. Units marked 'offline' are switched off on purpose: they don't count.",
+		"Units faulted (all doors this bank runs): ______",
+		"Count every controller with status 'fault', whichever door it runs. Units marked 'offline' are switched off on purpose: they don't count.",
 		"The rack reset circuits stay unpowered until the count is logged at the terminal.",
 		"Badge: ______  (facilities)",
 	], true, "paper", Vector2(0.15, 0.2)).clues = [
-		{"case": "controller", "text": "The reset sign-off wants the number of controllers with status 'fault' on this floor. 'offline' units don't count."},
+		{"case": "controller", "text": "The reset sign-off wants the number of controllers with status 'fault', whichever door they run. 'offline' units don't count."},
 		{"case": "controller", "text": "The rack reset circuits stay unpowered until the count is logged at the terminal."},
 	]
 
@@ -663,6 +668,8 @@ func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
 			sync.event("_on_count_wrong", ["all"])
 		elif count_not_ok.matches(db, result):
 			sync.event("_on_count_wrong", ["not_ok"])
+		elif controller_puzzle.solved and count_listed.matches(db, result):
+			sync.event("_on_count_wrong", ["listed"])
 	if not asked or controller_puzzle.solved or not controller_puzzle.matches(db, result):
 		return
 	sync.event("_on_controller_found")
@@ -731,7 +738,7 @@ func _on_controller_found() -> void:
 	if count_puzzle.solved:
 		hud.todo("Reset the faulted controller at its rack")
 		return
-	terminal.print_line(TerminalUI.sysop("the reset wants its sign-off first: how many controllers are faulted on this floor. count them here, not by walking the racks."))
+	terminal.print_line(TerminalUI.sysop("the reset wants its sign-off first: how many controllers are faulted, whichever door they run. count them here, not by walking the racks."))
 	hud.todo(COUNT_TODO)
 
 
@@ -741,7 +748,7 @@ func _on_count_found() -> void:
 		return
 	count_puzzle.solved = true
 	terminal.print_line("")
-	terminal.print_line(TerminalUI.sysop("%d faulted, floor-wide. that's the number for the sign-off. the rack reset circuits are powered now." % faulted))
+	terminal.print_line(TerminalUI.sysop("%d faulted, whichever door they run. that's the number for the sign-off. the rack reset circuits are powered now." % faulted))
 	var game := get_node("/root/Game")
 	game.ticket_fill(COUNT_TODO, "units faulted: %d" % faulted)
 	if controller_puzzle.solved:
@@ -751,6 +758,8 @@ func _on_count_found() -> void:
 func _on_count_wrong(why: String) -> void:
 	if why == "all":
 		terminal.print_line(TerminalUI.sysop("that counts every controller on the floor, healthy ones too. the sign-off wants only the faulted ones."))
+	elif why == "listed":
+		terminal.print_line(TerminalUI.sysop("that's them. the form wants how many: let COUNT(*) do the counting."))
 	else:
 		terminal.print_line(TerminalUI.sysop("that counts the offline ones too. they're switched off on purpose, not faulted."))
 

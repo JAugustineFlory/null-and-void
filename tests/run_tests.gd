@@ -1084,6 +1084,12 @@ func test_level_1_scene() -> void:
 	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("healthy ones too"), "counting every controller isn't it, and SYSOP says why")
 	level.terminal_ui.run("SELECT COUNT(*) FROM door_controllers WHERE status != 'ok'")
 	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("offline ones too"), "counting everything not 'ok' takes in the offline ones, and SYSOP says why")
+	level.terminal_ui.run("SELECT * FROM door_controllers WHERE status = 'fault'")
+	check(not level.count_puzzle.solved and TerminalUI._plain(level.terminal.transcript[-1]).contains("let COUNT(*) do the counting"), "listing the faulted rows isn't the count, and SYSOP points at COUNT(*)")
+	var printout: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "WARDEN DIAGNOSTICS")[0]
+	check(printout.plain_text().contains("COUNT(*): %d" % level.db.run_silent("SELECT COUNT(*) AS n FROM racks")[0]["n"])
+		and printout.plain_text().contains("COUNT(*): %d" % level.db.run_silent("SELECT COUNT(*) AS n FROM racks WHERE room = 'Server Room C'")[0]["n"]),
+		"WARDEN's printout shows the racks table's real counts")
 	level.terminal_ui.run("SELECT COUNT(id) AS n FROM door_controllers WHERE status = 'fault'")
 	check(level.count_puzzle.solved and _game().current_todo() == "Reset the faulted controller at its rack", "COUNT with WHERE status = 'fault' logs the count, and the to-do moves on to the reset")
 	check(_game().notebook_todo.any(func(t): return t.text == level.COUNT_TODO and t.filled == "units faulted: %d" % level.faulted), "the count is written on the job ticket")
