@@ -909,6 +909,28 @@ func test_dressed_home_base() -> void:
 	var van: Node3D = ArtDress.dressing_root(level).get_node_or_null("Van")
 	check(van != null and van.find_children("*", "MeshInstance3D", false, false).filter(func(mi): return mi.mesh is CylinderMesh).size() == 8,
 		"the garage's van is dressed like the van at Halcyon, wheels and all")
+	# Home base's ask: the briefing corner and the garage front, dressed.
+	var dressing := ArtDress.dressing_root(level)
+	var plain := ["Couch", "CouchBack", "Counter", "Stool3", "Stool4", "Stool5"].filter(func(n):
+		return level.geo.get_node(n).get_children().any(func(c): return c is MeshInstance3D and c.visible))
+	check(plain.is_empty() and dressing.get_node_or_null("Sofa") != null and dressing.get_node_or_null("KitchenCounter") != null,
+		"the briefing corner is a real couch and a counter run, not blocks %s" % [plain])
+	var stools: Array = dressing.find_children("BarStool*", "Node3D", false, false)
+	var under := 0
+	for i in range(3, 6):
+		var seat: Node3D = level.crew_seats[i]
+		for stool in stools:
+			var off: Vector3 = seat.global_position - stool.global_position
+			if Vector2(off.x, off.z).length() < 0.05 and absf(off.y - HomeBase.CREW_SEATS[i].y) < 0.02:
+				under += 1
+	check(stools.size() == 3 and under == 3, "a diner stool stands under each counter seat, its top where you sit (%d of 3)" % under)
+	var stage := _stage()
+	var front := HomeBase.build_front(stage)
+	var door: Node3D = front.get_node("RollUpDoor")
+	var bulbs := front.find_children("LampBulb*", "MeshInstance3D", true, false)
+	check(front.get_node_or_null("Dressing/Front") != null and door.get_node_or_null("DoorSkin") != null and bulbs.size() == 2,
+		"the garage front is dressed for the lobby too: the door's steel rolls with it, and both lamps have fixtures")
+	stage.free()
 	level.free()
 
 

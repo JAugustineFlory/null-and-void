@@ -216,6 +216,7 @@ static func build_front(parent: Node3D) -> Node3D:
 	front.name = "GarageFront"
 	parent.add_child(front)
 	_build_shell(front, front)
+	DressHomeBase.front(front, front)  # the outside dressed (Graphics)
 	return front
 
 

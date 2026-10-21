@@ -949,3 +949,117 @@ static func _piece(parent: Node, size: Vector3, pos: Vector3, mat: Material, sha
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	return mi
+
+
+## A hand-me-down three-seat couch: a low frame on stubby legs, rolled arms,
+## three seat cushions (the middle one sat flatter) and three back cushions
+## leaning back. For a Greybox couch: `pos` is the floor under its middle, its
+## front faces -Z at facing 0, seat tops at 0.45; visual only.
+static func sofa(parent: Node, pos: Vector3, facing_deg: float, length := 3.2, depth := 0.9, cloth := Color(0.42, 0.43, 0.28)) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "Sofa")
+	var m := ArtMesh.new()
+	var frame := cloth.darkened(0.15)
+	var arm := 0.2
+	var inner := length - arm * 2.0
+	var hz := depth / 2.0
+	for x in [-length / 2 + 0.08, length / 2 - 0.08]:
+		for z in [-hz + 0.08, hz - 0.08]:
+			m.box(Vector3(x, 0.04, z), Vector3(0.05, 0.08, 0.05), Color(0.25, 0.17, 0.1))
+	m.box(Vector3(0, 0.19, 0), Vector3(inner, 0.22, depth - 0.02), frame, 0.0, ["bottom"])  # the deck under the cushions
+	for side in [-1.0, 1.0]:
+		var x: float = side * (length / 2 - arm / 2)
+		m.box(Vector3(x, 0.33, 0), Vector3(arm, 0.5, depth), frame, 0.0, ["bottom"])
+		m.rod(Vector3(x, 0.6, -hz - 0.01), Vector3(x, 0.6, hz), arm * 0.58, cloth, 10, true)  # the roll
+	m.box(Vector3(0, 0.55, hz - 0.08), Vector3(inner, 0.6, 0.16), frame, 0.0, ["bottom"])
+	var seat_w := inner / 3.0
+	var lean := Basis(Vector3.RIGHT, deg_to_rad(12.0))
+	for i in 3:
+		var x := -inner / 2 + seat_w * (i + 0.5)
+		var sag := 0.02 if i == 1 else 0.0
+		var tone := cloth.lightened(0.04) if i == 1 else cloth
+		m.box(Vector3(x, 0.375 - sag / 2, -0.06), Vector3(seat_w - 0.015, 0.15 - sag, depth - 0.18), tone)
+		m.oriented_box(Vector3(x, 0.66, hz - 0.22), Vector3(seat_w - 0.02, 0.4, 0.16), tone, lean)
+	# A mustard throw pillow tucked in the far corner.
+	m.oriented_box(Vector3(inner / 2 - 0.16, 0.6, 0.05), Vector3(0.36, 0.34, 0.12), Color(0.72, 0.55, 0.18),
+		Basis(Vector3.UP, deg_to_rad(-60.0)) * Basis(Vector3.RIGHT, deg_to_rad(15.0)))
+	m.commit(root, "Mesh", true, 0.95)
+	return root
+
+
+## A diner counter stool: a chrome base, post and foot ring, a padded vinyl seat
+## with a chrome band and its top at `height`. `taped` patches a split in the
+## vinyl with duct tape. `pos` is the floor under it; visual only.
+static func bar_stool(parent: Node, pos: Vector3, height := 0.75, vinyl := Color(0.55, 0.12, 0.1), taped := false) -> Node3D:
+	var root := _node(parent, pos, 0.0, "BarStool")
+	var chrome := ArtMesh.new()
+	var steel := Color(0.8, 0.81, 0.82)
+	chrome.rod(Vector3.ZERO, Vector3(0, 0.025, 0), 0.2, steel, 16, true)
+	chrome.rod(Vector3(0, 0.025, 0), Vector3(0, height - 0.08, 0), 0.025, steel, 8)
+	chrome.rod(Vector3(0, height - 0.09, 0), Vector3(0, height - 0.065, 0), 0.12, steel, 12, true)
+	chrome.rod(Vector3(0, height - 0.06, 0), Vector3(0, height - 0.035, 0), 0.193, steel, 16)  # the band round the seat
+	var ring := 0.17
+	var y := 0.3
+	for i in 12:
+		var a := TAU * i / 12.0
+		var b := TAU * (i + 1) / 12.0
+		chrome.rod(Vector3(cos(a) * ring, y, sin(a) * ring), Vector3(cos(b) * ring, y, sin(b) * ring), 0.01, steel, 4)
+	for i in 3:
+		var a := TAU * i / 3.0 + 0.5
+		chrome.rod(Vector3(0, y, 0), Vector3(cos(a) * ring, y, sin(a) * ring), 0.008, steel, 4)
+	chrome.commit(root, "Chrome", true, 0.25, 0.9)
+	var seat := ArtMesh.new()
+	seat.rod(Vector3(0, height - 0.065, 0), Vector3(0, height - 0.008, 0), 0.19, vinyl, 16, true)
+	seat.rod(Vector3(0, height - 0.008, 0), Vector3(0, height, 0), 0.165, vinyl.lightened(0.05), 16, true)
+	if taped:
+		var tape := Color(0.62, 0.63, 0.64)
+		seat.box(Vector3(0.03, height + 0.0008, 0.02), Vector3(0.2, 0.0015, 0.045), tape, 35.0)
+		seat.box(Vector3(0.02, height + 0.0012, 0.03), Vector3(0.16, 0.0015, 0.045), tape, -40.0)
+	seat.commit(root, "Seat", true, 0.4)
+	return root
+
+
+## A run of kitchen base cabinets under a laminate top: a drawer over a door in
+## each bay, handles, a dark kick plate set back. For a Greybox counter: `pos` is
+## the floor under its middle, the doors face -Z at facing 0; visual only.
+static func kitchen_counter(parent: Node, pos: Vector3, facing_deg: float, length: float, depth: float, height: float,
+		wood := Color(0.58, 0.42, 0.27), top := Color(0.86, 0.83, 0.75)) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "KitchenCounter")
+	var m := ArtMesh.new()
+	var top_t := 0.04
+	var body_h := height - top_t
+	var front := -depth / 2 + 0.004
+	var metal := Color(0.7, 0.68, 0.62)
+	m.box(Vector3(0, 0.05, 0.03), Vector3(length - 0.02, 0.1, depth - 0.08), Color(0.12, 0.11, 0.1), 0.0, ["bottom"])
+	m.box(Vector3(0, 0.1 + (body_h - 0.1) / 2, 0), Vector3(length - 0.02, body_h - 0.1, depth - 0.02), wood.darkened(0.12), 0.0, ["bottom"])
+	m.box(Vector3(0, height - top_t / 2, -0.02), Vector3(length + 0.04, top_t, depth + 0.04), top)
+	m.box(Vector3(0, height - top_t - 0.004, -depth / 2 - 0.01), Vector3(length + 0.04, 0.008, 0.02), top.darkened(0.3))  # the edge band
+	var bays := maxi(1, roundi(length / 0.6))
+	var w := (length - 0.04) / bays
+	for i in bays:
+		var x := -length / 2 + 0.02 + w * (i + 0.5)
+		m.box(Vector3(x, body_h - 0.1, front), Vector3(w - 0.025, 0.15, 0.012), wood)
+		m.box(Vector3(x, body_h - 0.1, front - 0.012), Vector3(0.1, 0.012, 0.012), metal)
+		var door_h := body_h - 0.34
+		m.box(Vector3(x, 0.12 + door_h / 2, front), Vector3(w - 0.025, door_h, 0.012), wood)
+		var hinge := -1.0 if i % 2 == 0 else 1.0
+		m.box(Vector3(x - hinge * (w / 2 - 0.06), 0.12 + door_h - 0.1, front - 0.012), Vector3(0.012, 0.09, 0.012), metal)
+	m.commit(root, "Mesh", true, 0.6)
+	return root
+
+
+## A drip coffee maker with the jug half full. `pos` is the counter top under it,
+## the jug faces -Z at facing 0.
+static func coffee_maker(parent: Node, pos: Vector3, facing_deg: float = 0.0) -> Node3D:
+	var root := _node(parent, pos, facing_deg, "CoffeeMaker")
+	var m := ArtMesh.new()
+	var black := Color(0.08, 0.08, 0.09)
+	m.box(Vector3(0, 0.015, -0.02), Vector3(0.2, 0.03, 0.24), black, 0.0, ["bottom"])  # the hot plate
+	m.box(Vector3(0, 0.17, 0.07), Vector3(0.2, 0.34, 0.1), black, 0.0, ["bottom"])  # the water tower
+	m.box(Vector3(0, 0.3, -0.03), Vector3(0.2, 0.08, 0.2), black)  # the filter basket
+	m.box(Vector3(0.07, 0.02, -0.141), Vector3(0.012, 0.008, 0.004), Color(0.9, 0.15, 0.1))  # on
+	m.rod(Vector3(0, 0.03, -0.06), Vector3(0, 0.11, -0.06), 0.065, Color(0.2, 0.11, 0.05), 10, true)
+	m.rod(Vector3(0, 0.11, -0.06), Vector3(0, 0.2, -0.06), 0.063, Color(0.55, 0.58, 0.6), 10, true)  # the glass above it
+	m.rod(Vector3(0, 0.2, -0.06), Vector3(0, 0.235, -0.06), 0.05, black, 10, true)
+	m.box(Vector3(0, 0.13, -0.14), Vector3(0.02, 0.12, 0.03), black)  # the jug's handle
+	m.commit(root, "Mesh", true, 0.35)
+	return root
