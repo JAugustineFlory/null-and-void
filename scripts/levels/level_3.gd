@@ -94,8 +94,8 @@ const MEMO_LINES := [
 	{"text": "SELECT DISTINCT dept FROM catalogue;   <- that's every room. narrow it.", "hand": true},
 	{"text": "DISTINCT = one of each. no repeats.", "hand": true},
 ]
-## The clerk's sticky on the desk terminal: COUNT again, as a reminder. It is practised
-## on 14 (the reset's sign-off) and shown on 22's camera screen, so the slips are review.
+## The clerk's sticky on the desk terminal: the reminder of COUNT, which floor 14
+## teaches (the reset's sign-off, Easy SQL ch 9), so the slips count is review.
 const COUNT_STICKY := "how many? SELECT COUNT(*) FROM ...   not one by one!"
 ## The note by the slip spike: the ask for the unreturned boxes.
 const SPIKE_NOTE := "Pulled and never checked back in: chase Monday."

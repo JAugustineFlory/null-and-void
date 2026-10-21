@@ -137,8 +137,9 @@ const PUZZLES := {
 	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md), where
 	# Act 1 ends (curriculum option B, approved 2026-10-21). The hint ladders are
 	# built from plan/approvals/l3-text.md (approved 2026-10-21 11:27Z).
-	# COUNT as review (practised on 14, the reset's sign-off; shown again by 22's
-	# SYSOP): the clerk's sticky on the desk terminal reminds, the ladder is short.
+	# COUNT as review: practised on floor 14's reset sign-off (faulted_count, Easy SQL
+	# ch 9 "How many?"), found again on the clerk's sticky on the desk terminal, and
+	# used safely here before the tally and the night count build on it.
 	"slips": {
 		"level": 3,
 		"pressure": false,
