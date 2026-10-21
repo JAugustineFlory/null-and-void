@@ -153,13 +153,17 @@ func is_reader() -> bool:
 
 
 ## This player is ready to turn the page (`step` 1), or looks back at the page
-## before (-1) on their own book. The crew's page turns once everyone is ready
-## (or the last one has had STRAGGLER_WAIT to catch up); past a round's last page
-## come its questions. Next from a look back returns to the crew's page and counts.
+## before (-1) on their own book (solo, Back just turns the page back). The crew's
+## page turns once everyone is ready (or the last one has had STRAGGLER_WAIT to
+## catch up); past a round's last page come its questions. Next from a look back returns to the crew's page and counts.
 func turn_page(step: int = 1) -> void:
 	if question >= 0 or not is_running():
 		return
 	if step < 0:
+		if NetPlayers.ids_for(multiplayer).size() <= 1:
+			if is_host():  # solo there's no crew to look back from: Back turns the page
+				_advance(-1)
+			return
 		var pages: Array = rounds[round_index].pages
 		var at := pages.find(shown_page())
 		if at > 0:

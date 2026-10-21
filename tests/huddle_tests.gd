@@ -250,6 +250,12 @@ func test_garage_opening() -> void:
 	h.turn_page(-1)
 	await _frames(2)
 	_check.call(h.page == 0, "the reader can't turn back from the first page")
+	h.turn_page()
+	await _frames(2)
+	var turned: int = h.page
+	h.turn_page(-1)
+	await _frames(2)
+	_check.call(turned != 0 and h.page == 0 and h.peek == -1 and ui.find_child("Next", true, false).text == "Turn the page >" and not ui._footer.text.contains("crew is on"), "solo, Back turns the page back")
 	while h.question < 0:
 		h.turn_page()
 		await _frames(2)
