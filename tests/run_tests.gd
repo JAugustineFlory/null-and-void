@@ -130,6 +130,7 @@ func _group_floor_18() -> void:
 	await test_level_3_scene()
 	await test_level_3_safe_room()
 	await test_level_3_shredder()
+	await test_level_3_book_huddles()
 	await test_level_3_stairs_from_22()
 	await test_coop_level_3()
 
@@ -1718,11 +1719,14 @@ func test_coop_unlocks() -> void:
 		["head/mercer_cap", "secret:mercer_vent_tape", "Mercer's cap", ""],
 		["walkie/gold", "secret:roster_thu", "Gold", ""],
 		["jacket/press", "secret:ending_news", "Press jacket", ""],
+		# Floor 18's two (plan/approvals/l3-text.md, 2026-10-21 11:27Z).
+		["notebook/archive_label", "achievement:floor_18", "Archive box label", "Finish floor 18."],
+		["notebook/mercer_floppy", "secret:mercer_floppy_1", "Mercer's floppy", ""],
 	]
 	var rows_ok := approved.all(func(r):
 		var it := Cosmetics.info(r[0].get_slice("/", 0), r[0].get_slice("/", 1))
 		return it.get("unlock") == r[1] and it.get("name") == r[2] and str(it.get("hint", "")) == r[3] and Cosmetics.is_secret(it) == (r[3] == ""))
-	check(rows_ok, "the ten approved items are in the catalogue with their sources, names and hints; secrets have no hint")
+	check(rows_ok, "the approved items are in the catalogue with their sources, names and hints; secrets have no hint")
 	check(approved.all(func(r): return not net.profile.has_item(r[0])), "nobody starts with them, the hard hat included")
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(lobby)
@@ -4259,7 +4263,7 @@ func test_level_3_safe_room() -> void:
 		if done[0]:
 			break
 	check(done[0] and _game().completed_level == "level_3", "everyone on the stairs completes the floor")
-	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_18") or true, "finishing floor 18 reports its unlock (no cosmetic bound yet)")
+	check(root.get_node("/root/Net").profile.has_item("notebook/archive_label"), "finishing floor 18 unlocks the archive box label")
 	level.queue_free()
 	await process_frame
 
@@ -4349,6 +4353,9 @@ func test_coop_level_3() -> void:
 	host.shredder.place(host.to_global(host.SHREDDER_HOME), host.to_global(Vector3(-5.5, 0, -20)))
 	host.shredder.state = "listening"
 	await _frames(5)
+	var net: Node = root.get_node("/root/Net")
+	var before_floppy: Profile = net.profile
+	net.profile = Profile.new()  # the test's machines share one Net: this save is the client's
 	client.floppy.interact(client.player)
 	client.key_dock.interact(client.player)
 	await _frames(20)
@@ -4362,6 +4369,8 @@ func test_coop_level_3() -> void:
 	# (Every machine in a test shares one Game.inventory, so who took it is read off the dock.)
 	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
 	check(client.player.inventory.has("floppy_disk") and machines.all(func(l): return l.floppy_taken and not l.floppy.enabled and l.floppy.has_taken(client_id) and not l.floppy.has_taken(host_id)), "the one floppy goes to the player who took it")
+	check(net.profile.has_item("notebook/mercer_floppy"), "and so does Mercer's floppy notebook skin")
+	net.profile = before_floppy
 	check(machines.all(func(l): return l.key_taken and not l.stair_out.locked), "the key unlocks the stairs on every machine")
 	check(host.players.puppet(client_id) != null, "the host knows the client")
 	# The exit waits for everyone.
@@ -4478,5 +4487,45 @@ func test_level_3_shredder() -> void:
 	check(p.health <= start_health - Shredder.THROW_DAMAGE + 0.01 and p.health > 0.0 and not p.combat.down, "thrown: heavy damage, but one throw doesn't put you down from full health (%.0f)" % p.health)
 	check(level.to_local(p.global_position).distance_to(Vector3(1.0, 0.1, -23.5)) > 2.0 and p.combat.grabbed_by == null, "you land well away from it, out of its hands")
 	check(s.held == null and s.state != "grabbing", "after the throw it has let go, and goes back to listening for you (%s)" % s.state)
+	level.queue_free()
+	await process_frame
+
+
+func test_level_3_book_huddles() -> void:
+	print("Level 3: the book's floor 18 chapters")
+	_game().new_run(11)
+	var net := root.get_node("Net")
+	var test_profile = net.profile
+	net.profile = Profile.new()
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h := _huddle_of(level)
+	_doc(level, "Retention review memo").open_reader(p).close()
+	for i in 300:  # the cut to the garage
+		if h.is_running():
+			break
+		await physics_frame
+	check(h.chapter.get("id", "") == "easy_sql_distinct" and p.input_locked, "reading the memo on the card catalogue brings back the DISTINCT chapter, round the garage bench")
+	check(not level.shredder.is_physics_processing(), "the Shredder stands still while the crew is in the huddle")
+	_doc(level, "Reader tally").open_reader(p).close()
+	await _frames(5)
+	check(h.chapter.get("id", "") == "easy_sql_distinct", "the tally read mid-huddle waits its turn")
+	await _crew_reads([level])
+	if not h.done.has("easy_sql_group_by"):
+		check(not level.shredder.is_physics_processing(), "between the two huddles the Shredder still stands still")
+		await _crew_reads([level])
+	check(h.done.has("easy_sql_distinct") and h.done.has("easy_sql_group_by"), "then the tally brings back the COUNT and GROUP BY chapter")
+	check(net.profile.earned.has("chapter:easy_sql_distinct") and net.profile.earned.has("chapter:easy_sql_group_by"), "both chapters are on the reader's profile")
+	for i in 120:  # the cut back to floor 18
+		if level.shredder.is_physics_processing():
+			break
+		await physics_frame
+	check(level.shredder.is_physics_processing() and not p.input_locked, "afterwards the Shredder can move again, and so can the crew")
+	_doc(level, "Retention review memo").open_reader(p).close()
+	await _frames(10)
+	check(not h.is_running(), "reading the memo again doesn't repeat the chapter")
+	net.profile = test_profile
 	level.queue_free()
 	await process_frame

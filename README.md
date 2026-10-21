@@ -110,6 +110,7 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 - **New:** floor 18, the Records Archive. The stairs down from 22 lead to a records floor at night, with a reading room, towering stacks you can climb and cross along the tops, rolling shelving on hand cranks, and side rooms whose doors shut.
 - **Added:** something on floor 18 hunts by sound. Sprint, land hard or turn a crank and it hears you; crouch and move slowly and it doesn't. It can't be blocked, so climb.
 - **Added:** new puzzles at the records desk teach four more SQL words, each found first on papers around the floor. Any correct form of an answer is accepted.
+- **Added:** finish floor 18 to unlock a new notebook skin in the co-op lobby.
 - **Changed:** the crew and everyone in the building are now smooth, clothed low-poly people instead of blocky figures, with jackets, lanyards, hair and hats that follow every pose.
 
 </details>

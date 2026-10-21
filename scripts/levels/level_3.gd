@@ -222,6 +222,7 @@ var exit_trigger: Trigger
 var shredder: Shredder
 ## The first crank has been turned: the floor knows what's hunting it now.
 var shredder_awake := false
+var _huddles := 0  # book huddles open or waiting their turn
 ## The stacks' shelf units, for the climb tests and the dressing pass.
 var stack_units: Array[StaticBody3D] = []
 
@@ -511,7 +512,8 @@ func _build_reading_room(colors: Dictionary) -> void:
 	Document.place(geo, Vector3(-1.75, 1.0, 1.75), 0, "Push-button locks", POLICY_LINES, true, "paper")
 	Greybox.box(geo, Vector3(1.2, 1.1, 1.6), Vector3(0.02, 0.2, 0.02), Color(0.6, 0.6, 0.62), "SlipSpike")
 	# The reader tally taped to the desk's far end: GROUP BY, found and practised here.
-	Document.place(geo, Vector3(1.85, 1.0, 1.45), 0, "Reader tally", TALLY_LINES, true, "laminated")
+	var tally := Document.place(geo, Vector3(1.85, 1.0, 1.45), 0, "Reader tally", TALLY_LINES, true, "laminated")
+	tally.read_by.connect(func(_p): sync.event("_book_huddle", ["easy_sql_group_by"]))
 	_build_cart()
 	# Reading tables: a top on four legs, so there's room to hide under them.
 	for pos in [Vector3(-4.5, 0, -3), Vector3(4.5, 0, -3)]:
@@ -520,7 +522,8 @@ func _build_reading_room(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(-7.5, 0.7, 1.0), Vector3(0.9, 1.4, 3.6), Color(0.45, 0.32, 0.2), "CardCatalogue")
 	Greybox.label(geo, Vector3(-7.03, 1.5, 1.0), "CATALOGUE  A - Z", 30, Color(0.95, 0.92, 0.85), 90)
 	# The clerk's memo pinned on the drawers: DISTINCT, found here.
-	Document.place(geo, Vector3(-7.02, 1.15, 2.3), 90, "Retention review memo", MEMO_LINES, false, "memo")
+	var memo := Document.place(geo, Vector3(-7.02, 1.15, 2.3), 90, "Retention review memo", MEMO_LINES, false, "memo")
+	memo.read_by.connect(func(_p): sync.event("_book_huddle", ["easy_sql_distinct"]))
 	# The stacks' lighting panel by the stacks doors: why it's dark through there.
 	Document.place(geo, Vector3(-1.6, 1.5, -5.88), 0, "Stacks lighting notice", [
 		"STACKS LIGHTING",
@@ -1028,6 +1031,19 @@ func _on_solved(id: String, _which: String) -> void:
 		Game.solve_case("key", "The slips say which box nobody checked back in: %s." % ", ".join(data.unreturned))
 		_update_cart()
 	_order_hints()
+
+
+## Every machine: the memo or the tally brings back its chapter of Easy SQL, read
+## round the garage bench (a flashback, once per run). The Shredder stands still
+## while the crew is away, so nobody is grabbed mid-quiz.
+func _book_huddle(id: String) -> void:
+	_huddles += 1
+	if sync.is_host():
+		shredder.set_physics_process(false)
+	await Huddle.of(self).run(id)
+	_huddles -= 1
+	if sync.is_host() and _huddles == 0:
+		shredder.set_physics_process(true)
 
 
 ## Every machine: Security's sheet has been read. The room's question is open.

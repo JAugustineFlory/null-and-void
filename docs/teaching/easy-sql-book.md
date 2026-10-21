@@ -63,6 +63,8 @@ scenes; puzzle threads own the puzzles.
 | 11 | L2 booth, sign-in sheet | pike | LIKE, `%` |
 | 12 | L2, Pike's PIN suspended | har | none: "one answer feeds the next" review |
 | 13 | L2 stairwell panel | door | id in the path |
+| 14 | L3, the retention review memo by the card drawers | depts | DISTINCT |
+| 15 | L3, the reader tally sheet on the records desk | tally (then visits, under threat) | COUNT(*), GROUP BY |
 
 Floor counts: L0 has 4 puzzles. L1 has 4 (stuck_doors and dark_room landed in #96). L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
 limit; badge_log is now the har chain's first step, so it can count as part of har.
@@ -309,6 +311,70 @@ No new words. A review huddle on chaining.
 1. GET /jobs/14 asks for... A) all jobs  *B) job 14 only  C) 14 jobs
 2. To ask about one door you need its... *A) id  B) colour  C) zone
 3. Where does the id go? A) before GET  *B) at the end of the path  C) in quotes after it
+
+### Floor 18 chapters: APPROVED by Augustine word for word (2026-10-21 11:44Z, "Approve all")
+
+Recorded in `plan/approvals/floor-18-chapters-and-unlocks.md`. Chapter ids: `easy_sql_distinct` (Ch 14) and
+`easy_sql_group_by` (Ch 15); the old chapters keep their ids. Their "why" lines were approved at 11:49Z and sit under each word.
+
+Chapters 14 and 15 are for floor 18, the end of Act 1 (curriculum option B). Level 3's draft titles are kept. The
+book's rules apply, so each word gets three questions, not the two in Level 3's draft. Nothing here names a building
+table, room or value; the examples are the crew's `jobs` and `van_kit`.
+
+- **The slips station has no huddle.** It counts without groups, and Level 3 marks it as review. COUNT is found on
+  floor 22 (SYSOP's camera screen) and on 18's clerk's sticky. Chapter 15 is where the book first explains it.
+- **When the floor 14 COUNT chapter lands** (curriculum B), the COUNT(*) lines and questions below move there word
+  for word. Chapter 15 then keeps GROUP BY only.
+- **IS NULL deliberately has no chapter.** The crew looks it up on Mercer's reference card.
+- **Ordering by a count.** Chapter 15's third GROUP BY line covers `ORDER BY COUNT(*) DESC`. No paper on 18 shows
+  it, and the night's count under threat needs it. Approved with the rest.
+
+### Ch 14. One of each (L3, the retention review memo, depts)
+
+**DISTINCT**
+- "DISTINCT goes straight after SELECT. Each different value comes back once, however many rows share it."
+- "SELECT town FROM jobs; gives one line per job. SELECT DISTINCT town FROM jobs; gives one line per town."
+
+1. Ten jobs in three towns. SELECT DISTINCT town FROM jobs; shows how many rows? A) 10  *B) 3  C) 1
+2. Where does DISTINCT go? A) after the table name  B) just before the ;  *C) straight after SELECT
+3. SELECT DISTINCT town FROM jobs WHERE status = 'open'; shows... *A) each town with an open job, once  B) every open job  C) every town, once
+
+Why lines (approved 2026-10-21 11:49Z; the huddle shows one after each vote):
+1. DISTINCT keeps each different town once. Three towns, three rows.
+2. DISTINCT goes right after SELECT, before the column it works on.
+3. WHERE keeps the open jobs first. Then DISTINCT shows each of their towns once.
+
+### Ch 15. Counting in piles (L3, the reader tally sheet, tally)
+
+**COUNT(*)**
+- "SELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves."
+- "Add a WHERE and it counts only the rows that match."
+
+1. SELECT COUNT(*) FROM jobs; with 12 jobs shows... A) all 12 jobs  B) the last job  *C) one number: 12
+2. SELECT COUNT(*) FROM jobs WHERE status = 'unpaid'; counts... *A) only the unpaid jobs  B) every job  C) the unpaid fees, added up
+3. COUNT(*) goes... A) after the table name  *B) after SELECT, where the columns go  C) after WHERE
+
+Why lines (approved 2026-10-21 11:49Z):
+1. COUNT(*) doesn't show the rows. It counts them and gives one number.
+2. WHERE picks the rows first, and COUNT(*) counts only those. It counts rows, not fees.
+3. COUNT(*) sits where the columns go, right after SELECT.
+
+**GROUP BY**
+- "GROUP BY sorts the rows into piles, one pile for each different value in a column. It goes after the table name and any WHERE."
+- "With COUNT(*), you get one line per pile and how many are in it. Put the column in SELECT too, so you can see which pile is which."
+- "Piles come out in any order. ORDER BY COUNT(*) DESC puts the biggest pile first."
+
+1. SELECT town, COUNT(*) FROM jobs GROUP BY town; shows... A) one line per job  *B) one line per town, with how many jobs each  C) one number for all the jobs
+2. Where does GROUP BY go? A) straight after SELECT  B) after the ;  *C) after the table name and any WHERE, before ORDER BY
+3. Which shelf holds the most kinds of kit? After GROUP BY shelf you add... *A) ORDER BY COUNT(*) DESC  B) ORDER BY shelf DESC  C) DISTINCT shelf
+
+Why lines (approved 2026-10-21 11:49Z):
+1. GROUP BY town makes one pile per town, and COUNT(*) counts each pile.
+2. GROUP BY comes after FROM and any WHERE, and before ORDER BY.
+3. ORDER BY COUNT(*) DESC sorts the piles by size, biggest first. Sorting by shelf only puts the names in order.
+
+**Curriculum debt (update):** the night's count under threat uses a column list, DESC and LIKE again. `>` is
+still never needed under pressure in Act 1.
 
 ## Decisions (Augustine, 2026-10-20 03:03Z)
 

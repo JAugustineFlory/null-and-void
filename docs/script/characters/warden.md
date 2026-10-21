@@ -2,7 +2,7 @@
 
 The building's computer system. It runs the doors, the lights and the speakers, and it talks over the PA and through terminals.
 
-**How they sound:** Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+**How they sound:** Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 ## Recording
 
@@ -15,7 +15,7 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 
 Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
-## Your lines (21)
+## Your lines (26)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -87,15 +87,36 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 ### 6. Over every speaker in the building: the building's computer announces a full lockdown. Then, every few minutes, a reminder.
 
-- [ ] `l3_epsilon_1.wav`  
+- [ ] `l4_epsilon_1.wav`  
   "CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT."  
   *Flat and slow. A short pause after.*
-- [ ] `l3_epsilon_2.wav`  
+- [ ] `l4_epsilon_2.wav`  
   "ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE."  
   *Even pauses between sentences, like reading a checklist.*
-- [ ] `l3_epsilon_3.wav`  
+- [ ] `l4_epsilon_3.wav`  
   "ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL."  
   *No change in tone for 'not a drill'. That's the frightening part.*
-- [ ] `l3_epsilon_loop.wav`  
+- [ ] `l4_epsilon_loop.wav`  
   "REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE."  
   *Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.*
+- [ ] `l4_epsilon_loop_2.wav`  
+  "REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE."  
+  *Takes turns with the other reminder, once writes have been suspended. Same polite loop.*
+
+### 7. Over every speaker in the building, just after someone has changed something at a terminal: the building's computer makes one more announcement.
+
+- [ ] `l4_epsilon_db.wav`  
+  "DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY."  
+  *The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint.*
+
+### 8. Someone types a change into a terminal during the lockdown. The building's computer answers over the speakers and on the screen.
+
+- [ ] `l4_write_refused.wav`  
+  "WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON."  
+  *The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal.*
+- [ ] `l4_write_refused_tease.wav`  
+  "YOU MAY STILL LOOK. LOOKING IS FREE."  
+  *A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud.*
+- [ ] `l4_write_refused_again.wav`  
+  "STILL READ-ONLY."  
+  *Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat.*
