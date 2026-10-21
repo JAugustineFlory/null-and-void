@@ -4151,7 +4151,7 @@ func test_level_3_scene() -> void:
 	check(not level.unreturned_puzzle.solved, "= NULL finds nothing, so the unreturned station doesn't pass")
 	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL")
 	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false) and _game().case_info("key").how.contains(level.data.key_box), "IS NULL finds the boxes nobody checked back in; the key case names them")
-	check(level.find_children("*", "Terminal", true, false).size() == 3 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (the web skill is on hold); Mercer's PC is the third")
+	check(level.find_children("*", "Terminal", true, false).size() == 2 and level.geo.get_node_or_null("FicheTerminal") == null, "two terminals on 18, the desk and Mercer's PC: the microfiche room has none (the HTML record moved to a later floor)")
 	# Mercer's PC: its own little database, off the building's, with the safe IS NULL practice.
 	level.terminal_ui.terminal = level.pc
 	level.terminal_ui.run("SELECT box_id FROM pulled WHERE back_on IS NULL")

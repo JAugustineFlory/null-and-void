@@ -8,13 +8,14 @@ extends LevelBase
 ## analog lock. The first floppy disk of evidence is in there, and so is the key to
 ## the stairs down.
 ##
-## Puzzles: SQL stations on the records desk terminal (plan/teaching/curriculum-
-## acts-options.md keeps floor 18 in SQL under every option): COUNT as review, DISTINCT,
-## GROUP BY with COUNT under the Shredder, and IS NULL as the word the crew looks up on
+## Puzzles: SQL stations on the records desk terminal (curriculum option B, approved
+## 2026-10-21: Act 1 ends here, in Mercer's room): COUNT as review, DISTINCT, GROUP BY
+## with COUNT under the Shredder, and IS NULL as the word the crew looks up on
 ## Mercer's card. Each station is a Puzzle checked on its result set. Their hints,
 ## chapters and SYSOP text are drafts in plan/approvals/l3-text.md until Augustine
-## agrees Act 1 ends here; the HTML `hidden` record stays on hold. The data they read
-## is built (Level3Data) with a visible source for every row.
+## approves them word for word. The HTML `hidden` record moved to Level 8: the
+## microfiche room has no terminal. The data the stations read is built (Level3Data)
+## with a visible source for every row.
 ## The Shredder (scripts/npc/shredder.gd) sleeps among the machines until the first
 ## crank is turned, then hunts by sound; the level feeds it every loud thing (`noise`).
 ##
@@ -28,7 +29,7 @@ extends LevelBase
 ##                   the safe room behind its rolling shelves (Level3Data.host)
 ##   north corridor  x -11..11,  z -25..-22
 ##   shredding room  x -11..0,   z -33..-25 (the Shredder's lair)
-##   microfiche room x 2..11,    z -31..-25 (the archive intranet terminal)
+##   microfiche room x 2..11,    z -31..-25 (readers; its tube is out)
 ##
 ## Co-op: the host decides (cranks, pickups, the exit) and every machine plays it out
 ## through sync.event; the shelving tweens are driven from those events.
@@ -183,7 +184,6 @@ const ROAM_POINTS := [Vector3(0, 0, -23.5), Vector3(-4.5, 0, -14), Vector3(4.5, 
 
 var data: Dictionary
 var desk: Terminal
-var fiche: Terminal
 var stair_in: Door
 var stair_out: Door
 var room_doors := {}  # reader room -> Door
@@ -741,11 +741,7 @@ func _build_north(colors: Dictionary) -> void:
 		Greybox.box(geo, Vector3(x, 0.4, -30.3), Vector3(1.4, 0.8, 0.8), Color(0.36, 0.3, 0.25), "FicheDesk")
 		Greybox.box(geo, Vector3(x, 1.1, -30.5), Vector3(0.6, 0.6, 0.5), Color(0.75, 0.72, 0.62), "FicheReader")
 	Greybox.box(geo, Vector3(9.8, 0.4, -27.5), Vector3(1.4, 0.8, 0.8), Color(0.36, 0.3, 0.25), "FicheDesk")
-	fiche = Terminal.spawn(geo, Vector3(9.8, 0.8, -27.5), -90, "ARCHIVE INTRANET", db, terminal_ui)
-	fiche.name = "FicheTerminal"
-	fiche.boot_lines = ["HALCYON RECORDS  -  ARCHIVE INTRANET  -  FLOOR 18"]
-	fiche.queried.connect(_on_query.bind("fiche"))
-	fiche.screen_changed.connect(_on_typing.bind(fiche))
+	Greybox.box(geo, Vector3(9.8, 1.05, -27.5), Vector3(0.12, 0.5, 0.6), Color(0.08, 0.08, 0.09), "DeadMonitor")
 
 
 ## Mercer's room, beyond the host room's back wall. Off-grid: a generator and a

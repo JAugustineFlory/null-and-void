@@ -5,8 +5,8 @@ extends RefCounted
 ##   access_log      the badge readers beside every room door (time, badge, holder, room)
 ##   catalogue       the archive's box records: the labels on the shelves, the card drawers
 ##   retrieval_slips the paper slips on the records desk's spike
-## The puzzles that read them are on HOLD (plan/level-3-records-archive.md): the
-## checks can change, so this builds the data any skill could read.
+## The stations that read them are floor 18's SQL (curriculum option B, approved
+## 2026-10-21); every row has a visible source, so any later check can read it.
 ##
 ## What stays the same every run: one side room on 18 was visited far more than any
 ## other that night (10/15), and Mercer's safe room is behind it. By day the reading

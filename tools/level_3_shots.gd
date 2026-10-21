@@ -29,7 +29,6 @@ func _run() -> void:
 	for layer in root.find_children("*", "CanvasLayer", true, false):
 		layer.visible = false
 	level.desk.ensure_booted()
-	level.fiche.ensure_booted()
 	var host: String = level.data.host
 	var spec: Dictionary = level.SIDE_ROOMS[host]
 	var c: Vector3 = spec.center
@@ -66,8 +65,8 @@ func _run() -> void:
 	level.room_doors[other].set_open(false, true)
 	# 9. The shredding room from its roll-up door: the machines, the bale, the Shredder asleep.
 	await _shot("09_shredding_room", Vector3(-5.5, 0.05, -24.5), level.SHREDDER_HOME + Vector3(-1.2, 1.1, -1.8))
-	# 10. The microfiche room and the intranet terminal (its tube is out: dark).
-	await _shot("10_microfiche", Vector3(6.5, 0.05, -25.4), level.fiche.global_position + Vector3(0, 0.2, 0), true)
+	# 10. The microfiche room and its readers (its tube is out: dark).
+	await _shot("10_microfiche", Vector3(6.5, 0.05, -25.4), Vector3(5.5, 1.1, -30.5), true)
 	# 11. The host room cranked: the aisle along the back wall, Mercer's door and its lock.
 	level._crank(host)
 	await _frames(120)
