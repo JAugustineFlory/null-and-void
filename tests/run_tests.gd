@@ -1564,7 +1564,7 @@ func test_coop_looks() -> void:
 
 	# The lobby: Crew, Look and Gear tabs, and a preview of your pick.
 	net.profile = Profile.new()
-	net.profile.earned = ["secret:test"]
+	net.profile.earned = ["secret:roster_thu"]
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(lobby)
 	await process_frame
@@ -1576,10 +1576,10 @@ func test_coop_looks() -> void:
 	var hat_names := range(hats.item_count).map(func(i): return hats.get_item_text(i))
 	var locked := hat_names.find("Hard hat (locked)")
 	check(locked >= 0 and hats.is_item_disabled(locked) and hats.get_item_tooltip(locked) == "Test hint", "an item you haven't unlocked shows as locked, with how to get it")
-	var torches: OptionButton = lobby.find_child("Item_flashlight", true, false)
 	var walkies: OptionButton = lobby.find_child("Item_walkie", true, false)
-	check(range(torches.item_count).any(func(i): return torches.get_item_text(i) == "Test secret" and not torches.is_item_disabled(i))
-		and not range(walkies.item_count).any(func(i): return walkies.get_item_text(i).begins_with("Test hidden")), "a secret item shows once found, and stays hidden until then")
+	var jackets: OptionButton = lobby.find_child("Item_jacket", true, false)
+	check(range(walkies.item_count).any(func(i): return walkies.get_item_text(i) == "Gold" and not walkies.is_item_disabled(i))
+		and not range(jackets.item_count).any(func(i): return jackets.get_item_text(i).begins_with("Press jacket")), "a secret item shows once found, and stays hidden until then")
 	var beanie := hat_names.find("Beanie")
 	hats.select(beanie)
 	hats.item_selected.emit(beanie)
@@ -1697,11 +1697,19 @@ func test_coop_unlocks() -> void:
 	levels[0].sync.unlock("achievement:floor_g")
 	await _frames(5)
 	check(levels[0].hud._notice.text == "", "earning it again says nothing")
-	var drawn := Cosmetics.drawable("face", "reading_glasses")
 	levels[0].sync.unlock("achievement:easy_sql_half")
+	net.profile = Profile.new()
 	await _frames(5)
-	check(net.profile.has_item("face/reading_glasses") and (levels[1].hud._notice.text == "Unlocked: Reading glasses") == drawn,
+	check(net.profile.has_item("face/reading_glasses") and levels[1].hud._notice.text == "Unlocked: Reading glasses",
+		"finishing half the book unlocks the reading glasses")
+	Cosmetics.catalogue.append({"slot": "walkie", "item": "undrawn_x", "name": "Test undrawn", "unlock": "achievement:test_undrawn"})
+	levels[1].hud._notice.text = ""
+	levels[0].sync.unlock("achievement:test_undrawn")
+	net.profile = Profile.new()
+	await _frames(5)
+	check(net.profile.has_item("walkie/undrawn_x") and levels[1].hud._notice.text == "",
 		"an item Graphics can't draw yet is owned quietly, ready for when it can")
+	Cosmetics.reset()
 	await _coop_close(worlds)
 	# Picking a skin that comes in a color uses it.
 	net.profile = Profile.new()
@@ -1714,7 +1722,21 @@ func test_coop_unlocks() -> void:
 	screens.select(amber)
 	screens.item_selected.emit(amber)
 	await process_frame
-	check(lobby.my_look().terminal == {"item": "amber", "color": Color(1.0, 0.7, 0.2)}, "picking the amber terminal makes the screen amber")
+	check(lobby.my_look().terminal.item == "amber" and net.terminal_color(1) == CharacterLooks.FIXED_COLORS["terminal/amber"]
+		and not lobby.find_child("Color_terminal", true, false).visible, "picking the amber terminal makes the screen amber, a finish with no color to pick")
+	var caps: OptionButton = lobby.find_child("Item_head", true, false)
+	net.profile.earned.append("secret:mercer_vent_tape")
+	lobby.queue_free()
+	lobby = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	caps = lobby.find_child("Item_head", true, false)
+	var cap: int = texts.call(lobby, "head").find("Mercer's cap")
+	caps.select(cap)
+	caps.item_selected.emit(cap)
+	await process_frame
+	check(lobby.my_look().head == {"item": "mercer_cap", "color": CharacterLooks.ITEM_COLORS["head/mercer_cap"]} and lobby.find_child("Color_head", true, false).visible,
+		"a found secret shows up in the lobby, starting in its own color")
 	lobby.queue_free()
 	net.looks = {}
 	net.wanted_look = {}
