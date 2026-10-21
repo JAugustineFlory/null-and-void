@@ -392,8 +392,7 @@ func _on_bag(id: int) -> void:
 	book_bag.enabled = false
 	bench_book.visible = true
 	hud.todo("")
-	if body_is_mine(id):
-		Huddle.of(self).earn("achievement:book_easy_sql")  # its notebook cover, for whoever picked it up
+	sync.unlock_for([id], "achievement:book_easy_sql")  # its notebook cover, for whoever picked it up (host)
 
 
 ## Host: a player climbs into the van. Everyone sees them take the next seat.

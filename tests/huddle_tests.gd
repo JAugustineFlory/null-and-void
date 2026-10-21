@@ -221,29 +221,34 @@ func test_book_unlocks() -> void:
 	print("Huddle: Easy SQL unlocks")
 	var level := Node.new()
 	_tree.root.add_child(level)
+	load("res://scripts/net/level_sync.gd").create(level)
 	var h = load("res://scripts/huddle/huddle.gd").create(level)
-	h.profile = Profile.new()
+	var net := _tree.root.get_node("Net")
+	var test_profile = net.profile
+	net.profile = Profile.new()
+	var prof: Profile = net.profile
 	var ids: Array = Books.book_chapter_ids("easy_sql")
 	_check.call(ids.size() == 14, "Easy SQL has 14 chapters to count")
 	var me: int = h.multiplayer.get_unique_id()
 	var finish := func(id: String):
 		h._begin(id, me, [me])
-		h._finish(id)
+		h._complete(id)
 	h._begin(ids[13], me + 1, [me + 1])  # a huddle this player wasn't in
-	h._finish(ids[13])
-	_check.call(not h.profile.earned.has("chapter:" + ids[13]), "a chapter read by a huddle you weren't in doesn't count for you")
+	h._complete(ids[13])
+	_check.call(not prof.earned.has("chapter:" + ids[13]), "a chapter read by a huddle you weren't in doesn't count for you")
 	h.done.clear()
 	for i in 6:
 		finish.call(ids[13 - i])  # any order
-	_check.call(not h.profile.earned.has("achievement:easy_sql_half"), "6 chapters isn't half")
+	_check.call(not prof.earned.has("achievement:easy_sql_half"), "6 chapters isn't half")
 	finish.call(ids[13 - 5])
-	_check.call(not h.profile.earned.has("achievement:easy_sql_half"), "the same chapter twice counts once")
+	_check.call(not prof.earned.has("achievement:easy_sql_half"), "the same chapter twice counts once")
 	h.done.clear()  # a new run: chapters read before still count
 	finish.call(ids[0])
-	_check.call(h.profile.earned.has("achievement:easy_sql_half") and not h.profile.earned.has("achievement:easy_sql_done"), "7 of 14, across runs, is half the book")
+	_check.call(prof.earned.has("achievement:easy_sql_half") and not prof.earned.has("achievement:easy_sql_done"), "7 of 14, across runs, is half the book")
 	for id in ids:
 		finish.call(id)
-	_check.call(h.profile.earned.has("achievement:easy_sql_done"), "all 14 finishes the book")
+	_check.call(prof.earned.has("achievement:easy_sql_done"), "all 14 finishes the book")
+	net.profile = test_profile
 	level.free()
 
 
@@ -298,11 +303,18 @@ func test_coop_huddle() -> void:
 	var hh = _huddle_of(host)
 	var hc = _huddle_of(client)
 	hh.reveal_scale = 0.2
-	hh.profile = Profile.new()  # each machine's own player profile
-	hc.profile = Profile.new()
+	# One Net autoload serves both machines here: whatever the host grants itself lands
+	# straight away, so swap in the client's profile before its grant arrives.
+	var net := _tree.root.get_node("Net")
+	var test_profile = net.profile
+	var host_prof := Profile.new()
+	var client_prof := Profile.new()
+	net.profile = host_prof
 	host.home.sync.event("_on_bag", [client.multiplayer.get_unique_id()])
-	_check.call(await _until(func(): return not client.home.book_bag.visible, 120) and hc.profile.earned.has("achievement:book_easy_sql"), "the player who picks up the book earns its cover")
-	_check.call(not hh.profile.earned.has("achievement:book_easy_sql") and not host.home.book_bag.visible, "a teammate who didn't pick it up doesn't, and the bag is gone for them too")
+	net.profile = client_prof
+	_check.call(await _until(func(): return not client.home.book_bag.visible, 120) and client_prof.earned.has("achievement:book_easy_sql"), "the player who picks up the book earns its cover")
+	_check.call(not host_prof.earned.has("achievement:book_easy_sql") and not host.home.book_bag.visible, "a teammate who didn't pick it up doesn't, and the bag is gone for them too")
+	net.profile = Profile.new()
 	var runs := [0]
 	for h in [hh, hc]:
 		var run_it := func():
@@ -349,7 +361,8 @@ func test_coop_huddle() -> void:
 	if not ended:
 		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
 	_check.call(ended, "the chapter ends on both machines")
-	_check.call(hh.profile.earned.has("chapter:easy_sql_0") and hc.profile.earned.has("chapter:easy_sql_0"), "both players in the huddle have the chapter on their own profiles")
+	_check.call(net.profile.earned.has("chapter:easy_sql_0"), "the players in the huddle have the chapter on their profiles")
+	net.profile = test_profile
 	_tree._coop_close(worlds)
 	await _frames(2)
 

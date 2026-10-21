@@ -41,9 +41,6 @@ var result := {}
 var done := {}
 ## Shorter waits in tests.
 var reveal_scale := 1.0
-## Where this machine's unlocks are recorded: the player's own profile (Net's)
-## unless set. Co-op tests give each machine its own.
-var profile: Profile
 var _ui: HuddleUI
 var _mode := ""
 var _home: Node3D
@@ -223,7 +220,7 @@ func _count() -> void:
 	elif asked + 1 < chapter.quiz.size():
 		_set_question.rpc(asked + 1)
 	else:
-		_finish.rpc(chapter.id)
+		_complete(chapter.id)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -240,6 +237,13 @@ func _set_question(q: int) -> void:
 	changed.emit()
 
 
+## Host: the crew has finished chapter `id`. Only the players in the huddle get
+## it, each on their own profile; then every machine closes the book.
+func _complete(id: String) -> void:
+	LevelSync.of(self).unlock_for(crew, "chapter:" + id)
+	_finish.rpc(id)
+
+
 @rpc("authority", "call_local", "reliable")
 func _finish(id: String) -> void:
 	var game := get_node("/root/Game")
@@ -247,7 +251,7 @@ func _finish(id: String) -> void:
 		if not game.book_words.has(w):
 			game.book_words.append(w)
 	done[id] = true
-	_earn_chapter(id)
+	_earn_book(Books.chapter(id).get("book_id", ""))
 	chapter = {}
 	question = -1
 	votes.clear()
@@ -258,40 +262,20 @@ func _finish(id: String) -> void:
 
 # --- Unlocks (plan/approvals/unlocks.md) ---------------------------------------
 
-## Record an unlock for this machine's player, through Net.earn (which owns the
-## items and says "Unlocked: ..."). Unlocks go only to the player who earned
-## them: call it from an every-machine handler, on the machines whose player did it.
-func earn(source: String) -> Array:
-	if profile:
-		return profile.earn(source)
+## Every machine, once a chapter is finished: a player in the huddle who has now
+## read half of `book_id`, or all of it, unlocks its item. Chapters stay on each
+## player's own profile across runs (the host grants them with unlock_for), so
+## only their own machine can count them.
+func _earn_book(book_id: String) -> void:
 	var net = get_node_or_null("/root/Net")
-	return net.earn(source, level.get("hud")) if net else []
-
-
-func _profile() -> Profile:
-	if profile:
-		return profile
-	var net = get_node_or_null("/root/Net")
-	return net.profile if net else null
-
-
-## Every machine: a chapter is finished. Each player who was in the huddle has it
-## remembered on their own profile, across runs; half the book and the whole
-## book unlock an item each. Anyone who wasn't there doesn't get the chapter.
-func _earn_chapter(id: String) -> void:
-	if not crew.has(multiplayer.get_unique_id()):
-		return
-	var book_id: String = Books.chapter(id).get("book_id", "")
-	earn("chapter:" + id)
-	var p := _profile()
-	if p == null:
+	if net == null or not crew.has(multiplayer.get_unique_id()):
 		return
 	var ids := Books.book_chapter_ids(book_id)
-	var read := ids.filter(func(c): return p.earned.has("chapter:" + c)).size()
+	var read := ids.filter(func(c): return net.profile.earned.has("chapter:" + c)).size()
 	if read * 2 >= ids.size():
-		earn("achievement:%s_half" % book_id)
+		net.earn("achievement:%s_half" % book_id, level.get("hud"))
 	if read == ids.size():
-		earn("achievement:%s_done" % book_id)
+		net.earn("achievement:%s_done" % book_id, level.get("hud"))
 
 
 ## Host: a player left. Someone else reads, and the vote doesn't wait for them.
