@@ -1656,6 +1656,19 @@ func test_coop_level_1() -> void:
 	await _frames(10)
 	check(not mate.crouching and is_equal_approx(mate.stance_height, Player.STAND_HEIGHT) and mate.rig.crouch_amount() == 0.0, "and stands back up with them")
 	client.player.set_physics_process(true)
+	# Fists: a teammate's punch and guard show on their body for the others.
+	check(client.player.get_node_or_null("FirstPersonBody") != null and client.player.get("combat") != null, "each player has their own first-person body and fists")
+	client.player.leave_terminal()  # still at the desk from the queries above
+	await create_timer(0.8).timeout
+	client.player.combat.swung.emit()
+	await _frames(8)
+	check(mate.fighting == "jab" and mate.rig.action == "jab", "a teammate's punch shows on their body for the others")
+	await create_timer(1.0).timeout
+	check(mate.fighting == "" and mate.rig.action == "idle", "and they drop their fists after it")
+	client.player.combat.hurt.emit(5.0, "test")
+	await _frames(8)
+	check(mate.rig.action == "flinch", "a hit they take shows as a flinch")
+	await create_timer(0.6).timeout
 
 	client.player.global_position = Vector3(-17.5, 0.1, -7.2)
 	await _frames(5)

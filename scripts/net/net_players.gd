@@ -170,14 +170,23 @@ func _physics_process(delta: float) -> void:
 	var sit := PlayerPuppet.Sit.NONE
 	if player.has_method("is_sitting") and player.is_sitting():
 		sit = PlayerPuppet.Sit.CHAIR if player.get("seat") != null else PlayerPuppet.Sit.FLOOR
-	_state.rpc(player.global_position, player.rotation.y, pitch, height, light_on, sit)
+	_state.rpc(player.global_position, player.rotation.y, pitch, height, light_on, sit, fight_action())
+
+
+## What this player's fists are doing (FirstPersonBody: "jab", "cross", "guard",
+## "recoil", "flinch"), or "" when they aren't fighting.
+func fight_action() -> String:
+	var fp := player.get_node_or_null("FirstPersonBody")
+	var action: String = fp.current_action() if fp and fp.has_method("current_action") else ""
+	return action if action in PlayerPuppet.FIGHT_ACTIONS else ""
 
 
 @rpc("any_peer", "unreliable_ordered", "call_remote", 1)
-func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool, sit: int) -> void:
+func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool, sit: int, fight := "") -> void:
 	var p: PlayerPuppet = _puppets.get(multiplayer.get_remote_sender_id())
 	if p:
 		p.apply_state(pos, yaw, pitch, height, light_on, sit)
+		p.set_fight(fight)
 
 
 func _on_peer_left(id: int) -> void:
