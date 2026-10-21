@@ -21,7 +21,7 @@ extends RefCounted
 const METHODS := ["GET", "POST", "PUT", "PATCH", "DELETE"]
 const KEY_HEADER := "x-api-key"
 const STATUS_TEXT := {200: "OK", 201: "Created", 204: "No Content", 400: "Bad Request",
-	401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 409: "Conflict"}
+	401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 409: "Conflict", 503: "Service Unavailable"}
 
 ## "METHOD /path" -> {handler, scope}. A path segment written as ":name" matches
 ## anything and is passed in params. The handler is either
@@ -170,7 +170,7 @@ func _call(r: Dictionary, params: Array, method: String, path: String, headers: 
 	var key_record = null
 	if r.scope != "":
 		if not headers.has(KEY_HEADER) or headers[KEY_HEADER] == "":
-			return {"status": 401, "body": {"error": "This service needs an API key. Send it as a header on the line after the request: X-Api-Key: <key>"}}
+			return {"status": 401, "body": {"error": "This service needs an API key, sent in a header: X-Api-Key: <key>"}}
 		key_record = _keys.get(headers[KEY_HEADER])
 		if key_record == null:
 			return {"status": 401, "body": {"error": "That API key isn't valid. Check it character by character."}}

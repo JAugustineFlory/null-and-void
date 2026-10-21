@@ -1,0 +1,9 @@
+3 D-12 1
+D-12,D-14
+200 true
+401 This service needs an API key, sent in a header: X-Api-Key: <key>
+200 false
+400 This service doesn't take "lockd". It takes: locked
+404 string
+undefined
+checked
