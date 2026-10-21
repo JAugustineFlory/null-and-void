@@ -108,7 +108,7 @@ func _host_run(path: NodePath, code: String) -> void:
 	var terminal := _level().get_node_or_null(path)
 	if terminal == null or _running.has(path):
 		return
-	var rt := ScriptRuntime.for_language("javascript")
+	var rt := ScriptRuntime.for_language(_runtime(path).language_name)
 	var checked := rt.compile(code)
 	if not checked.ok:
 		_finished.rpc(path, false, checked.error, 0.0)

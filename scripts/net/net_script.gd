@@ -19,10 +19,33 @@ func language() -> String:
 	return language_name
 
 
+# How the runner shows the language, from the language's own runtime.
+
+func display_name() -> String:
+	return _language().call("display_name") if _language().has_method("display_name") else language_name.capitalize()
+
+
+func editor_words() -> Dictionary:
+	return _language().call("editor_words") if _language().has_method("editor_words") else {}
+
+
+func placeholder() -> String:
+	return _language().call("placeholder") if _language().has_method("placeholder") else ""
+
+
+var _lang: ScriptRuntime
+
+
+func _language() -> ScriptRuntime:
+	if _lang == null:
+		_lang = ScriptRuntime.for_language(language_name)
+	return _lang
+
+
 ## Each machine checks the script itself, so its runner can mark a mistake
 ## without asking the host. The host checks it again before running it.
 func compile(code: String) -> Dictionary:
-	var res: Dictionary = ScriptRuntime.for_language(language_name).compile(code)
+	var res: Dictionary = ScriptRuntime.for_language(language_name).compile(code)  # a fresh one: compiling sets its state
 	if res.ok:
 		source = code
 		if not is_running():

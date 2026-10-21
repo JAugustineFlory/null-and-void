@@ -1783,6 +1783,8 @@ func test_coop_scripts() -> void:
 	await _frames(2)
 	var rts: Array = terms.map(func(t): return t.get_meta("script_runtime") if t.has_meta("script_runtime") else null)
 	check(rts.all(func(r): return r is NetScript), "in co-op every terminal's script is shared")
+	var js := ScriptRuntime.for_language("javascript")
+	check(rts[1].language() == "javascript" and (not js.has_method("placeholder") or rts[1].placeholder() == js.placeholder()), "and the runner still knows its language")
 	# A route that counts what reaches each machine's copy of the building.
 	var tallies := [0, 0]
 	for i in 2:
