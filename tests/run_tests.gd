@@ -4144,18 +4144,25 @@ func test_level_3_stairs_from_22() -> void:
 	world.player.global_transform = Transform3D(Basis(), l2.to_global(STAIRS))
 	for i in 5:
 		await physics_frame
+	# This player was downed on the stairs (the trigger counts downed players too). They
+	# must still be carried down to 18, or their machine's World stays on 22.
+	world.player.health = 0.0
+	world.player.combat.down = true
+	world.player.combat._lock(true)
 	l2.sync.event("_on_exit", [null])
 	for i in 600:
 		await physics_frame
 		if world.current == l3 and l3.active:
 			break
-	check(world.current == l3 and l3.active, "the stairs hand play to floor 18")
+	check(world.current == l3 and l3.active, "the stairs hand play to floor 18, even for a player who is down")
 	check(L3_LANDING_BOX.has_point(l3.to_local(world.player.global_position)), "the crew steps out on 18's landing (%s)" % l3.to_local(world.player.global_position))
 	check(_game().completed_level == "level_2" and _game().next_level == "level_3", "floor 22 is complete, floor 18 is next")
 	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its unlock")
 	for i in 60:
 		await physics_frame
-	check(not world.player.input_locked and world.current == l3, "controls come back on the landing")
+	check(world.player.input_locked and world.player.combat.down and world.current == l3, "a downed player stays down on the landing until revived")
+	world.player.combat.revive()
+	check(not world.player.input_locked and world.player.health > 0.0, "revived, controls come back on the landing")
 	# Mercer's room is a hub: the wing stays loaded from here on.
 	l3._enter_safe_room()
 	check(world.keep_loaded.has("level_3"), "finding Mercer's room keeps floor 18 loaded for later floors")

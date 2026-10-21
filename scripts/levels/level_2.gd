@@ -1151,8 +1151,12 @@ func seal_exit() -> void:
 func _on_exit(_b: Node) -> void:
 	# Everyone here finished the floor, downed or not.
 	get_node("/root/Net").earn("achievement:floor_22", hud)
-	if not player or player.health <= 0.0:
+	if not player:
 		return
+	# A downed player on the stairs goes down to 18 with everyone else (the trigger
+	# counted them), and stays down there until revived: only the card is for the living.
+	var up := player.health > 0.0
+	var was_locked := player.input_locked
 	player.input_locked = true
 	# No words: one tap on the metal, from behind SEC-EXIT.
 	await get_tree().create_timer(1.0).timeout
@@ -1166,8 +1170,10 @@ func _on_exit(_b: Node) -> void:
 		Game.next_level = "level_3"
 		next.arrive_by_stairs()
 		finish_level("level_3")
-		player.input_locked = false
+		player.input_locked = was_locked if not up else false
 		hud.fade(false, 0.8)
+		return
+	if not up:
 		return
 	await Level2FX.end_card(self, "To be continued.")
 	Game.completed_level = "level_2"
