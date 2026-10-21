@@ -141,10 +141,10 @@ func _draw_page(ch: Dictionary) -> void:
 	_clear_options()
 	_result.text = ""
 	var reader := huddle.player_name(huddle.reader_id)
-	var last: bool = huddle.page == ch.pages.size() - 1
+	var quiz_next: bool = huddle.last_page_of_round() and not huddle.rounds[huddle.round_index].questions.is_empty()
 	_buttons.visible = huddle.is_reader()
-	_back.disabled = huddle.page == 0
-	_next.text = "Start the quiz >" if last else "Turn the page >"
+	_back.disabled = huddle.first_page_of_round()
+	_next.text = "Start the quiz >" if quiz_next else "Turn the page >"
 	if huddle.is_reader():
 		_footer.text = "Page %d of %d. You're reading this one out to the crew." % [huddle.page + 1, ch.pages.size()]
 	else:
@@ -155,7 +155,10 @@ func _draw_question(ch: Dictionary) -> void:
 	var q := huddle.current_question()
 	_buttons.visible = false
 	var word: String = q.get("word", "")
-	_body.text = "[b]Quick check %d of %d[/b]%s\n%s" % [huddle.question + 1, ch.quiz.size(),
+	var refs := ""
+	for text in huddle.reference():
+		refs += "[color=#57534c][font_size=17]%s[/font_size][/color]\n\n" % _bbcode(text)
+	_body.text = "%s[b]Quick check %d of %d[/b]%s\n%s" % [refs, huddle.question + 1, ch.quiz.size(),
 		("  " + _escape(word)) if word != "" else "", _escape(q.q)]
 	_clear_options()
 	var me := multiplayer.get_unique_id()

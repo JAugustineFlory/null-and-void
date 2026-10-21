@@ -1,0 +1,1 @@
+- **Changed:** Easy SQL huddles now quiz each word right after it's taught, and keep the table or page you need on show beside questions that aren't testing your memory.
