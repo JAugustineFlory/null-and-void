@@ -315,7 +315,7 @@ No new words. A review huddle on chaining.
 ### Floor 18 chapters: APPROVED by Augustine word for word (2026-10-21 11:44Z, "Approve all")
 
 Recorded in `plan/approvals/floor-18-chapters-and-unlocks.md`. Chapter ids: `easy_sql_distinct` (Ch 14) and
-`easy_sql_group_by` (Ch 15); the old chapters keep their ids. Their "why" lines (easy-sql-whys.md) still need his word.
+`easy_sql_group_by` (Ch 15); the old chapters keep their ids. Their "why" lines were approved at 11:49Z and sit under each word.
 
 Chapters 14 and 15 are for floor 18, the end of Act 1 (curriculum option B). Level 3's draft titles are kept. The
 book's rules apply, so each word gets three questions, not the two in Level 3's draft. Nothing here names a building
@@ -339,6 +339,11 @@ table, room or value; the examples are the crew's `jobs` and `van_kit`.
 2. Where does DISTINCT go? A) after the table name  B) just before the ;  *C) straight after SELECT
 3. SELECT DISTINCT town FROM jobs WHERE status = 'open'; shows... *A) each town with an open job, once  B) every open job  C) every town, once
 
+Why lines (approved 2026-10-21 11:49Z; the huddle shows one after each vote):
+1. DISTINCT keeps each different town once. Three towns, three rows.
+2. DISTINCT goes right after SELECT, before the column it works on.
+3. WHERE keeps the open jobs first. Then DISTINCT shows each of their towns once.
+
 ### Ch 15. Counting in piles (L3, the reader tally sheet, tally)
 
 **COUNT(*)**
@@ -349,6 +354,11 @@ table, room or value; the examples are the crew's `jobs` and `van_kit`.
 2. SELECT COUNT(*) FROM jobs WHERE status = 'unpaid'; counts... *A) only the unpaid jobs  B) every job  C) the unpaid fees, added up
 3. COUNT(*) goes... A) after the table name  *B) after SELECT, where the columns go  C) after WHERE
 
+Why lines (approved 2026-10-21 11:49Z):
+1. COUNT(*) doesn't show the rows. It counts them and gives one number.
+2. WHERE picks the rows first, and COUNT(*) counts only those. It counts rows, not fees.
+3. COUNT(*) sits where the columns go, right after SELECT.
+
 **GROUP BY**
 - "GROUP BY sorts the rows into piles, one pile for each different value in a column. It goes after the table name and any WHERE."
 - "With COUNT(*), you get one line per pile and how many are in it. Put the column in SELECT too, so you can see which pile is which."
@@ -357,6 +367,11 @@ table, room or value; the examples are the crew's `jobs` and `van_kit`.
 1. SELECT town, COUNT(*) FROM jobs GROUP BY town; shows... A) one line per job  *B) one line per town, with how many jobs each  C) one number for all the jobs
 2. Where does GROUP BY go? A) straight after SELECT  B) after the ;  *C) after the table name and any WHERE, before ORDER BY
 3. Which shelf holds the most kinds of kit? After GROUP BY shelf you add... *A) ORDER BY COUNT(*) DESC  B) ORDER BY shelf DESC  C) DISTINCT shelf
+
+Why lines (approved 2026-10-21 11:49Z):
+1. GROUP BY town makes one pile per town, and COUNT(*) counts each pile.
+2. GROUP BY comes after FROM and any WHERE, and before ORDER BY.
+3. ORDER BY COUNT(*) DESC sorts the piles by size, biggest first. Sorting by shelf only puts the names in order.
 
 **Curriculum debt (update):** the night's count under threat uses a column list, DESC and LIKE again. `>` is
 still never needed under pressure in Act 1.
