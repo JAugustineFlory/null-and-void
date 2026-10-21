@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab", "scripting"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab", "scripting", "chapters"]
 
 
 func _run() -> void:
@@ -78,6 +78,7 @@ func _run_group(g: String) -> void:
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
 		"scripting": await _group_scripting()
+		"chapters": await _group_chapters()
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -117,7 +118,6 @@ func _group_floor_g() -> void:
 	await test_level_0_scene()
 	await test_ground_floor()
 	await test_rourke_leads_in()
-	await test_level_0_book_huddles()
 
 
 ## Floor 14, the server floor (Level 1).
@@ -125,6 +125,11 @@ func _group_floor_14() -> void:
 	test_level_1_data_every_seed()
 	await test_level_1_scene()
 	await test_level_1_book_huddle()
+
+
+## Easy SQL's chapters at their moments on the ground floor and floor 14.
+func _group_chapters() -> void:
+	await test_level_0_book_huddles()
 	await test_level_1_book_huddles()
 
 
@@ -4910,7 +4915,7 @@ func test_level_0_book_huddles() -> void:
 	level.desk_terminal.enabled = true
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments;")
-	var nudged := func(): return Array(level.desk_terminal.transcript).any(func(l): return l.contains("add ORDER BY"))
+	var nudged := func(): return Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY"))
 	check(await _huddle_opens(level, "easy_sql_2") and not nudged.call(), "the scraps printing out of order bring back Putting things in order, before SYSOP's nudge")
 	await _crew_reads([level])
 	check(h.done.has("easy_sql_2") and net.profile.earned.has("chapter:easy_sql_2"), "the crew reads it, and it's on the profile")
@@ -4936,7 +4941,7 @@ func test_level_0_book_huddles() -> void:
 	await _crew_reads([level])
 	await _frames(30)
 	h = _huddle_of(level)
-	check(h.chapter.get("id", "") != "easy_sql_2" and not Array(level.desk_terminal.transcript).any(func(l): return l.contains("add ORDER BY")), "once, with no nudge after it")
+	check(h.chapter.get("id", "") != "easy_sql_2" and not Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY")), "once, with no nudge after it")
 	level.queue_free()
 	await process_frame
 	net.profile = test_profile
