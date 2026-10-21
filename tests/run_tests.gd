@@ -881,6 +881,22 @@ func test_level_0_scene() -> void:
 	check(plain.is_open and plain.get_prompt(crawler).contains("Close"), "E opens it, and then offers to close it")
 	plain.interact(crawler)
 	check(not plain.is_open, "E again shuts it")
+	# A door moved and turned after Door.create (a stairwell's) still swings on its own hinge.
+	var rotated_door := Door.create(level, "TEST-TURNED", Vector3(30, 1.2, 34), Vector3(0.9, 2.4, 0.1))
+	rotated_door.position = Vector3(32, 1.2, 36)
+	rotated_door.rotation_degrees.y = 90.0
+	rotated_door.make_hinged(Vector3(-0.45, 0, 0), 90.0)
+	var hinge_at := rotated_door.to_global(rotated_door.hinge)
+	rotated_door.set_open(true, true)
+	check(rotated_door.to_global(rotated_door.hinge).distance_to(hinge_at) < 0.01 and is_equal_approx(rotated_door.rotation_degrees.y, 180.0),
+		"a door turned after it's built swings round its own hinge")
+	rotated_door.set_open(false, true)
+	check(rotated_door.position.distance_to(Vector3(32, 1.2, 36)) < 0.01 and is_equal_approx(rotated_door.rotation_degrees.y, 90.0), "and shuts back where it was put")
+	var slid := Door.create(level, "TEST-SLID", Vector3(30, 1.2, 38), Vector3(1.6, 2.4, 0.2))
+	slid.position = Vector3(34, 1.2, 38)
+	slid.set_open(true, true)
+	slid.set_open(false, true)
+	check(slid.position.distance_to(Vector3(34, 1.2, 38)) < 0.01, "a sliding door moved after it's built shuts where it was put")
 	level.queue_free()
 	await process_frame
 
