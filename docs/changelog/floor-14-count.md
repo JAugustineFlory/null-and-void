@@ -1,0 +1,1 @@
+- **Added:** a new step on floor 14: before the door controller reset, count the faulted controllers for its sign-off form, with COUNT.

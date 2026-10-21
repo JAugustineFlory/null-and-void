@@ -61,6 +61,14 @@ const PUZZLES := {
 		"teaches": ["WHERE", "AND", "door_controllers", "single quotes", "'fault'"],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
 	},
+	# Curriculum B: before the reset, the sign-off form wants the floor's faults
+	# counted. COUNT practised safely; WARDEN's diagnostics on the desk show it first.
+	"faulted_count": {
+		"level": 1,
+		"pressure": false,
+		"teaches": ["COUNT"],
+		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "door_controllers", "status", "'fault'"],
+	},
 	# Depth pass, server floor: the zone now comes from the stuck doors (or their red
 	# plates), not the screen; the controller row above covers that query.
 	# Optional: the overheating rack, comparison taught safely.
