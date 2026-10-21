@@ -1,3 +1,0 @@
-- **Changed:** Easy SQL huddles now quiz each word right after it's taught, and keep the table or page you need on show beside questions that aren't testing your memory.
-- **Fixed:** chapter zero's quick checks only ask about what chapter zero teaches.
-- **Fixed:** subtitles no longer hide behind the open Easy SQL book.
