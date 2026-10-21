@@ -1,0 +1,1 @@
+- **New:** finishing floor 22 unlocks the Security jacket.

@@ -31,7 +31,7 @@ const CAUSES := {
 	"shredder": {},
 	"custodian": {},
 	"fall": {"lethal": true},
-	"spar": {"block": true},  # the garage punch bag: a practice swing, no damage
+	"spar": {"block": true, "practice": true},  # the garage punch bag: a practice swing, no damage
 }
 ## No hits for this long, and health starts creeping back.
 const REGEN_DELAY := 8.0
@@ -100,6 +100,11 @@ func raise_guard() -> bool:
 
 static func blockable(cause: String) -> bool:
 	return CAUSES.get(cause, {}).get("block", false)
+
+
+## A practice swing (the garage punch bag): blocking it earns nothing.
+static func practice(cause: String) -> bool:
+	return CAUSES.get(cause, {}).get("practice", false)
 
 
 static func lethal(cause: String) -> bool:

@@ -17,14 +17,21 @@ extends Node
 signal crew_down(cause: String)
 ## Host: a player's block caught a hit from `cause` (the attacker can recoil).
 signal hit_blocked(peer_id: int, cause: String)
+## Every machine: the crew earned an unlock (`source` is a Profile.earn id).
+signal unlocked(source: String)
 
 ## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
 const REVIVE_PROMPT := "[E] Help them up"
+## Anyone's first block in a real fight: the High-tops, for everyone present
+## (plan/approvals/unlocks.md). The punch bag's practice swings never count.
+const FIRST_BLOCK := "achievement:first_block"
 
 var level: Node
 var players: Node  # NetPlayers
 ## peer id -> what put them down.
 var downed := {}
+## Host: the first-block unlock has gone out from this level already.
+var _first_block_sent := false
 
 
 static func create(for_level: Node, net_players: Node) -> CrewVitals:
@@ -168,7 +175,7 @@ func _run(method: StringName, args: Array) -> void:
 ## The local player blocked a hit from `cause`: tell the host, which runs the attacker.
 func report_blocked(cause: String) -> void:
 	if _is_host():
-		hit_blocked.emit(my_id(), cause)
+		_host_blocked(my_id(), cause)
 	else:
 		_ask_blocked.rpc_id(1, cause)
 
@@ -176,7 +183,23 @@ func report_blocked(cause: String) -> void:
 @rpc("any_peer", "reliable")
 func _ask_blocked(cause: String) -> void:
 	if _is_host():
-		hit_blocked.emit(multiplayer.get_remote_sender_id(), cause)
+		_host_blocked(multiplayer.get_remote_sender_id(), cause)
+
+
+func _host_blocked(id: int, cause: String) -> void:
+	hit_blocked.emit(id, cause)
+	if not PlayerCombat.practice(cause) and not _first_block_sent:
+		_first_block_sent = true
+		_run("_earn", [FIRST_BLOCK])
+
+
+## Every machine: everyone present earns `source` on their own profile (Net
+## says "Unlocked: ..." the first time; after that it's a no-op).
+func _earn(source: String) -> void:
+	var net := get_node_or_null("/root/Net")
+	if net:
+		net.earn(source, level.get("hud"))
+	unlocked.emit(source)
 
 
 # --- What entities do to players (host) ---------------------------------------
