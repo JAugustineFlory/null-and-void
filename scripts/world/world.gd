@@ -21,6 +21,9 @@ const ROUTE := [
 	{"key": "level_0", "scene": "res://scenes/level_0.tscn", "at": Transform3D.IDENTITY},
 	{"key": "level_1", "scene": "res://scenes/level_1.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(38, 0, 63))},
 	{"key": "level_2", "scene": "res://scenes/level_2.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -1))},
+	# Floor 18 is reached by the stairs down from 22: the crew is carried into its
+	# stairwell behind a fade, so it sits apart like the other floors.
+	{"key": "level_3", "scene": "res://scenes/level_3.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -70))},
 ]
 const FIELD_NOTES := "res://scenes/field_notes.tscn"
 

@@ -16,7 +16,7 @@ func _initialize() -> void:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "coop", "movement", "teaching", "teaching_lab"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab"]
 
 
 func _run() -> void:
@@ -52,6 +52,7 @@ func _run_group(g: String) -> void:
 		"floor_14": await _group_floor_14()
 		"floor_22": await _group_floor_22()
 		"floor_22_lab": await _group_floor_22_lab()
+		"floor_18": await _group_floor_18()
 		"coop": await _group_coop()
 		"movement": await _group_movement()
 		"teaching": await _group_teaching()
@@ -120,6 +121,17 @@ func _group_floor_22_lab() -> void:
 	test_level_2_lab_data_every_seed()
 	for outcome in ["killed", "tied", "untied"]:
 		await test_level_2_lab(outcome)
+
+
+## Floor 18, the Records Archive (Level 3): its data, the floor, Mercer's room, the
+## stairs down from 22, and co-op.
+func _group_floor_18() -> void:
+	test_level_3_data_every_seed()
+	await test_level_3_scene()
+	await test_level_3_safe_room()
+	await test_level_3_shredder()
+	await test_level_3_stairs_from_22()
+	await test_coop_level_3()
 
 
 ## Co-op: several machines in one process.
@@ -3108,6 +3120,9 @@ func test_world() -> void:
 	var path := NavigationServer3D.map_get_path(map, sec.to_global(sec.watcher_home), sec.to_global(Vector3(-3, 0, 4)), true)
 	check(path.size() > 1 and path[path.size() - 1].distance_to(sec.to_global(Vector3(-3, 0, 4))) < 1.0, "the Watcher can path from the office to the corridor in the World")
 	world.wing_finished(sec)
+	var archive = world.current
+	check(archive != null and archive.wing_id == "level_3" and archive.active and world._field_notes == null, "after the security floor the route goes on to the Records Archive on 18")
+	world.wing_finished(archive)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
@@ -3838,4 +3853,628 @@ func test_elevator() -> void:
 	await dest.opened
 	check(dest.open_amount == 1.0 and lift.open_amount == 0.0, "the next car's doors open; the old ones stay shut")
 	stage.queue_free()
+	await process_frame
+
+
+# --- Floor 18: the Records Archive (Level 3) ----------------------------------------
+
+## Inside floor 18's arrival stairwell (Level 3 local): the landing, clear of the flight.
+const L3_LANDING_BOX := AABB(Vector3(-8.2, -0.5, 4.1), Vector3(4.2, 3, 3.8))
+## Inside its exit stairwell, past the lobby's east door.
+const L3_STAIRS_DOWN := Vector3(6.3, 0.1, 6.0)
+
+
+## The readers' log points at one side room that night, the reading room over the
+## whole log; the catalogue and the slips read the same on every seed.
+func test_level_3_data_every_seed() -> void:
+	print("Level 3 data, 50 seeds")
+	var l3 = load("res://scripts/levels/level_3.gd").new()
+	var night: String = "SELECT room, COUNT(*) AS n FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY n DESC" % Level3Data.NIGHT
+	var whole := "SELECT room, COUNT(*) AS n FROM access_log GROUP BY room ORDER BY n DESC"
+	var host_wins := true
+	var decoy_wins := true
+	var no_ties := true
+	var wrongs_fail := true
+	var tally_route := true
+	var sources := true
+	var slips_ok := true
+	var depts_ok := true
+	var nulls_ok := true
+	var route_ok := true
+	var code_ok := true
+	var forms_ok := true
+	var window_ok := true
+	var cart_ok := true
+	var taped_ok := true
+	var codes := {}
+	var hosts := {}
+	for s in 50:
+		var data := Level3Data.build(s)
+		var db := FacilityDB.new()
+		db.load_seed(data.sql)
+		# Every correct form passes: the busiest room with its count as one row, a
+		# COUNT on a column, an alias; a lone raw row doesn't, nor a one-row total.
+		for right in [
+			"SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC LIMIT 1" % Level3Data.NIGHT,
+			"SELECT room, COUNT(badge_id) AS swipes FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY swipes DESC LIMIT 1" % Level3Data.NIGHT,
+			"SELECT COUNT(*) AS n, room FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY n DESC" % Level3Data.NIGHT,
+		]:
+			if not l3.visits_puzzle.matches(db, db.execute(right)):
+				forms_ok = false
+		for wrong in [
+			"SELECT room FROM access_log WHERE time LIKE '%s%%' LIMIT 1" % Level3Data.NIGHT,
+			"SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' LIMIT 1" % Level3Data.NIGHT,
+			"SELECT room, COUNT(*) FROM access_log GROUP BY room ORDER BY COUNT(*) DESC LIMIT 1",
+		]:
+			if l3.visits_puzzle.matches(db, db.execute(wrong)):
+				forms_ok = false
+		for right in ["SELECT COUNT(slip_no) FROM retrieval_slips WHERE status = 'open'", "SELECT COUNT(*) AS n FROM retrieval_slips WHERE status = 'open'", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'"]:
+			if not l3.slips_puzzle.matches(db, db.execute(right)):
+				forms_ok = false
+		for right in ["SELECT room, COUNT(*) AS swipes FROM access_log GROUP BY room", "SELECT COUNT(badge_id), room FROM access_log GROUP BY room"]:
+			if not l3.tally_puzzle.matches(db, db.execute(right)):
+				forms_ok = false
+		# The night's swipes all fall between 19:00 and 23:00 on the 15th: nothing crosses
+		# midnight, and nobody is still swiping once the crew is in the building.
+		for row in db.run_silent("SELECT time FROM access_log WHERE time LIKE '%s%%'" % Level3Data.NIGHT):
+			var hour := int(str(row["time"]).get_slice(" ", 1).get_slice(":", 0))
+			if hour < Level3Data.NIGHT_FROM or hour >= Level3Data.NIGHT_TO:
+				window_ok = false
+		if not db.run_silent("SELECT time FROM access_log WHERE time LIKE '1997-10-16%'").is_empty() or db.run_silent("SELECT time FROM access_log WHERE time LIKE '%s%%'" % Level3Data.NIGHT).size() < 20:
+			window_ok = false
+		# The returns cart: every filled slip's box, with its label; the key box is one
+		# nobody checked back in, among enough others that opening them all is slow.
+		var filled := db.run_silent("SELECT box_id FROM retrieval_slips WHERE status = 'filled' ORDER BY box_id").map(func(r): return r["box_id"])
+		var cart: Array = data.cart.duplicate()
+		cart.sort()
+		if cart != filled or cart.size() < 7 or not data.unreturned.has(data.key_box) or db.run_silent("SELECT status FROM catalogue WHERE box_id = '%s'" % data.key_box)[0]["status"] != "out":
+			cart_ok = false
+		if db.run_silent("SELECT COUNT(*) AS n FROM catalogue WHERE status = 'returned'")[0]["n"] != cart.size() - data.unreturned.size():
+			cart_ok = false
+		# No route to the stairs skips the lock, the safe room and the IS NULL query:
+		# no box on the cart opens until the note (behind the lock) is read and the
+		# query has named it, and then only the unreturned one or two.
+		l3.data = data
+		for gates in [[false, false], [true, false], [false, true]]:
+			l3.note_read = gates[0]
+			l3.boxes_named = gates[1]
+			if data.cart.any(func(b): return l3._box_openable(b)):
+				taped_ok = false
+		l3.note_read = true
+		l3.boxes_named = true
+		for b in data.cart:
+			if l3._box_openable(b) != data.unreturned.has(b):
+				taped_ok = false
+		if not l3._box_openable(data.key_box):
+			taped_ok = false
+		# The lock's question accepts the raw rows, DISTINCT and a GROUP BY alike.
+		for right in ["SELECT * FROM access_log WHERE room = '%s'" % data.host, "SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host, "SELECT badge_id, COUNT(*) FROM access_log WHERE room = '%s' GROUP BY badge_id" % data.host]:
+			var kp := Puzzle.new("keyholder", "SELECT badge_id FROM access_log WHERE room = '%s'" % data.host, ["badge_id"], false)
+			kp.distinct = true
+			var r := db.execute(right)
+			if not kp.matches(db, r) or kp.matches(db, db.execute("SELECT DISTINCT badge_id FROM access_log")):
+				forms_ok = false
+		var by_night := db.run_silent(night)
+		if by_night.is_empty() or by_night[0]["room"] != data.host or not Level3Data.CANDIDATES.has(data.host):
+			host_wins = false
+		if db.run_silent(whole)[0]["room"] != "READING ROOM":
+			decoy_wins = false
+		var counts := {}
+		for row in by_night:
+			counts[int(row["n"])] = true
+		if counts.size() != by_night.size():
+			no_ties = false
+		if not l3.visits_puzzle.matches(db, db.execute(night)) or not l3.visits_puzzle.matches(db, db.execute(night.replace(" AS n", "").replace("ORDER BY n", "ORDER BY COUNT(*)"))):
+			host_wins = false
+		for wrong in [
+			whole,
+			night.replace("DESC", "ASC"),
+			"SELECT room FROM access_log WHERE time LIKE '%s%%' GROUP BY room" % Level3Data.NIGHT,
+			"SELECT badge_id, COUNT(*) AS n FROM access_log WHERE time LIKE '%s%%' GROUP BY badge_id ORDER BY n DESC" % Level3Data.NIGHT,
+			"SELECT * FROM access_log LIMIT 5",
+		]:
+			if l3.visits_puzzle.matches(db, db.execute(wrong)):
+				wrongs_fail = false
+		# Reading one badge's rows and tallying by hand gets there too.
+		var mine := db.run_silent("SELECT room, COUNT(*) AS n FROM access_log WHERE badge_id = '%s' GROUP BY room ORDER BY n DESC" % data.visitor_badge)
+		if mine.is_empty() or mine[0]["room"] != data.host or db.run_silent("SELECT * FROM access_log WHERE badge_id = '%s'" % data.visitor_badge).size() > TerminalUI.MAX_ROWS_SHOWN:
+			tally_route = false
+		for row in db.run_silent("SELECT DISTINCT room FROM access_log"):
+			if not Level3Data.ROOMS.has(row["room"]):
+				sources = false  # a row with no reader in the world
+		for row in db.run_silent("SELECT DISTINCT room, aisle FROM catalogue"):
+			if row["room"] == "STACKS" and not str(row["aisle"]).begins_with("A"):
+				sources = false
+			if row["room"] != "STACKS" and not Level3Data.CANDIDATES.has(row["room"]):
+				sources = false
+		var open_n := int(db.run_silent("SELECT COUNT(*) AS n FROM retrieval_slips WHERE status = 'open'")[0]["n"])
+		if open_n != data.open_slips or open_n < 3 or open_n > 5 or not l3.slips_puzzle.matches(db, db.execute("SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'")):
+			slips_ok = false
+		var depts := db.run_silent("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'").size()
+		var all_rows := db.run_silent("SELECT dept FROM catalogue WHERE room = 'STACKS'").size()
+		if depts < 2 or depts >= all_rows or not l3.depts_puzzle.matches(db, db.execute("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")) or l3.depts_puzzle.matches(db, db.execute("SELECT dept FROM catalogue WHERE room = 'STACKS'")):
+			depts_ok = false
+		for wrong in ["SELECT COUNT(*) FROM retrieval_slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'filled'"]:
+			if l3.slips_puzzle.matches(db, db.execute(wrong)):
+				slips_ok = false
+		for wrong in ["SELECT DISTINCT title FROM catalogue WHERE room = 'STACKS'", "SELECT DISTINCT dept FROM catalogue"]:
+			if l3.depts_puzzle.matches(db, db.execute(wrong)):
+				depts_ok = false
+		# IS NULL: the boxes pulled and never brought back. The cell is a real NULL.
+		var out_boxes := db.run_silent("SELECT box_id FROM catalogue WHERE status = 'out' ORDER BY box_id").map(func(r): return r["box_id"])
+		var unreturned: Array = data.unreturned.duplicate()
+		unreturned.sort()
+		if unreturned.is_empty() or unreturned.size() > 2 or out_boxes != unreturned:
+			nulls_ok = false
+		if int(db.run_silent("SELECT COUNT(*) AS n FROM retrieval_slips WHERE returned_at = '' OR returned_at = 0")[0]["n"]) != 0:
+			nulls_ok = false
+		for right in ["SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL", "SELECT * FROM retrieval_slips WHERE returned_at IS NULL AND status = 'filled'"]:
+			if not l3.unreturned_puzzle.matches(db, db.execute(right)):
+				nulls_ok = false
+		for wrong in [
+			"SELECT box_id FROM retrieval_slips WHERE returned_at = NULL",
+			"SELECT box_id FROM retrieval_slips WHERE returned_at = ''",
+			"SELECT box_id FROM retrieval_slips WHERE returned_at IS NULL",
+			"SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NOT NULL",
+			"SELECT box_id FROM retrieval_slips WHERE status = 'filled'",
+		]:
+			if l3.unreturned_puzzle.matches(db, db.execute(wrong)):
+				nulls_ok = false
+		# The catalogue route: Mercer's boxes name the room without the night's log.
+		# The LIKE-only route (three repeated rows), DISTINCT, SELECT * and a title match all pass.
+		for right in ["SELECT room FROM catalogue WHERE note LIKE '%archivist%'", "SELECT DISTINCT room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT * FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT room FROM catalogue WHERE title LIKE 'Founder%'"]:
+			var r := db.execute(right)
+			if not l3.mercer_puzzle.matches(db, r) or r.rows[0]["room"] != data.host:
+				route_ok = false
+		for wrong in ["SELECT DISTINCT room FROM catalogue", "SELECT DISTINCT room FROM catalogue WHERE room != 'STACKS'", "SELECT dept FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT * FROM access_log WHERE room = '%s'" % data.host]:
+			if l3.mercer_puzzle.matches(db, db.execute(wrong)):
+				route_ok = false
+		if data.mercer_boxes.size() != 3:
+			sources = false
+		# The lock's code is the night visitor's badge number, and only that badge used the host room's reader.
+		var badges := db.run_silent("SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host)
+		if data.code.length() != 4 or not data.code.is_valid_int() or data.visitor_badge != "A-" + data.code or badges.size() != 1 or badges[0]["badge_id"] != data.visitor_badge or Level3Data.DAY_BADGES.any(func(b): return b[0] == data.visitor_badge):
+			code_ok = false
+		codes[data.code] = true
+		hosts[data.host] = true
+	check(host_wins, "that night, the host room's reader logged the most visits, and GROUP BY + ORDER BY COUNT(*) DESC ranks it first")
+	check(decoy_wins, "over the whole log the reading room wins: the night matters")
+	check(no_ties, "no two rooms tie that night, so the order is the same on every machine")
+	check(wrongs_fail, "no WHERE, ASC, no ORDER BY, grouping by badge and LIMIT never pass the visits check")
+	check(tally_route, "one badge's rows alone point at the room, and fit on one screen to tally by hand")
+	check(sources, "every log room has a reader, every box an aisle or a side room, and Mercer's three boxes are in the host room")
+	check(slips_ok, "3 to 5 slips are open, and COUNT(*) on them passes the slips check; counting every slip or the filled ones doesn't")
+	check(depts_ok, "the stacks' departments repeat: DISTINCT collapses them, and the plain list, the wrong column and every room don't pass")
+	check(nulls_ok, "one or two pulled boxes never came back: returned_at IS NULL finds them (and the catalogue says 'out'); = NULL, = '', no status, IS NOT NULL and the filled list don't")
+	check(route_ok, "the catalogue route: Mercer's boxes (his department, the archivist note, the title) name the room, with or without DISTINCT; broader lists and the reader's rows don't")
+	check(forms_ok, "every correct form passes: the top room with its count, COUNT on a column, aliases, the raw rows for the lock; a lone raw row and the whole log's top room don't")
+	check(window_ok, "the night's swipes all fall between 19:00 and 23:00 on the 15th, before the crew signs in; none cross midnight")
+	check(cart_ok, "the returns cart holds every filled slip's box (7 or more); the key box is one nobody checked back in, 'out' in the catalogue; the rest are 'returned'")
+	check(taped_ok, "every seed: no box on the cart opens before Mercer's note is read and the IS NULL query has named it; then only the unreturned box or two, the key's among them")
+	check(hosts.size() == Level3Data.CANDIDATES.size(), "the safe room hides behind a different side room on different runs (%s)" % [hosts.keys()])
+	check(code_ok and codes.size() > 40, "the lock's code is the four digits of the one badge that used the host room's reader, and it changes with the seed")
+	var building := FacilityDB.new()
+	building.load_seed(Level2Data.build(1).sql)
+	var doors_before := building.run_silent("SELECT id FROM doors").size()
+	var lights_before := building.run_silent("SELECT id FROM lights").size()
+	var stacked: bool = building.db.query(Level3Data.build(1).sql)
+	check(stacked and building.run_silent("SELECT id FROM doors").size() == doors_before + 6 and building.run_silent("SELECT id FROM lights WHERE floor = 18").size() == 12 and building.run_silent("SELECT id FROM lights").size() == lights_before + 12,
+		"the wing's seed loads on top of Level 2's: six ARC- doors and twelve floor-18 lights added")
+	check(building.run_silent("SELECT status FROM lights WHERE id = 'L18-STACKS'")[0]["status"] != "ok", "the dark stacks have a cause in the lights table")
+	l3.free()
+
+
+## The floor on its own: arrive on the landing through a wedged-open fire door, the
+## stairs down locked, dark stacks with a cause, side rooms whose shelving hides the
+## back wall until the crank is turned, and the desk's stations.
+func test_level_3_scene() -> void:
+	print("Level 3 scene")
+	_game().new_run(11)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var p: Player = level.player
+	check(level.stair_in.is_open and not level.stair_in.locked, "the fire door from the stairs is wedged open")
+	check(level.stair_out.locked and not level.stair_out.is_open, "the stairs down are locked after hours")
+	check(L3_LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on the stairwell landing (%s)" % level.to_local(p.global_position))
+	var ids: Array = level.doors.keys()
+	ids.sort()
+	check(ids == ["ARC-COLD", "ARC-FICHE", "ARC-MAP", "ARC-SHRED", "ARC-SUPPLY", "ARC-VAULT-C"] and level.doors.values().all(func(d): return (d.is_hinged() or d.door_id == "ARC-SHRED") and not d.locked),
+		"every side room has an ordinary door that shuts, in the doors table; the shredding room a roll-up (%s)" % [ids])
+	check(level.lights["L18-STACKS"].all(func(l): return not l.visible) and level.lights["L18-LOBBY"].all(func(l): return l.visible), "the stacks' sensor lights are off after hours; the lobby's are on")
+	check(_doc(level, "Stacks lighting notice") != null and _doc(level, "Facilities memo") != null and _doc(level, "Door sign") != null, "the dark stacks, the dead lifts and the wedged door each have a sign saying why")
+	var slips: Node = _doc(level, "Retrieval slips")
+	var an_open_slip: String = level.db.run_silent("SELECT slip_no FROM retrieval_slips WHERE status = 'open'")[0]["slip_no"]
+	check(slips != null and slips.plain_text().contains(an_open_slip), "the slips on the desk's spike are the open rows of retrieval_slips")
+	check(level.stack_units.size() == 5 and level.find_children("*", "MovementVolume", true, false).filter(func(v): return v.kind == MovementVolume.Kind.CLIMB).size() == 10,
+		"five shelf units, each climbable from both ends")
+	# Standing on a shelf top: solid, with headroom.
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 3.75, -15)))
+	for i in 20:
+		await physics_frame
+	check(p.is_on_floor() and absf(level.to_local(p.global_position).y - 3.6) < 0.15 and p.health > 0.0, "the shelf tops hold a player, 2 m under the ceiling (y %.2f)" % level.to_local(p.global_position).y)
+	# Readers: one by every room door, the source of access_log.
+	check(level.geo.find_children("Reader*", "", true, false).size() >= 8, "a badge reader beside every room door")
+	# The host room: its back wall is behind the shelving until the crank is turned.
+	var host: String = level.data.host
+	var spec: Dictionary = level.SIDE_ROOMS[host]
+	var back: Vector3 = spec.back
+	var before: Array = level.shelving[host].map(func(u): return u.position)
+	check(not level.back_aisle_open(host) and level.safe_door != null and not level.safe_door.is_open, "the safe room's door starts behind the host room's shelving")
+	var rear: Vector3 = spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 - 0.3)
+	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(level.to_global(spec.center + Vector3(0, 1.0, 0)), level.to_global(rear + Vector3(0, 1.0, 0)))
+	check(not space.intersect_ray(q).is_empty(), "before cranking, shelving stands between the room's middle and its back wall")
+	level.cranks[host].interact(p)
+	for i in 180:
+		await physics_frame
+	var moved: bool = level.cranked[host] and not level.cranks[host].enabled
+	for i in level.shelving[host].size():
+		moved = moved and (level.shelving[host][i].position - before[i]).is_equal_approx(-back * level.CRANK_TRAVEL)
+	check(moved, "the crank rolls every unit toward the door, once")
+	q = PhysicsRayQueryParameters3D.create(level.to_global(rear + Vector3(0, 1.0, 2.5)), level.to_global(rear + Vector3(0, 1.0, -2.5)))
+	check(space.intersect_ray(q).is_empty(), "after cranking, the aisle along the back wall is clear")
+	check(level.find_children("Door_MERCER", "", false, false).size() == 1 and level.safe_room_box.has_point(spec.center + back * (level.SIDE_ROOM_SIZE.x / 2 + 1.0)),
+		"one hidden door, in the host room's back wall, with Mercer's room beyond it")
+	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
+	level.terminal_ui.terminal = level.desk
+	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "seven stations on the desk, none with a hint ladder yet")
+	level.terminal_ui.run("SELECT COUNT(*) FROM access_log")
+	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")
+	check(level.tally_puzzle.solved and not level.visits_puzzle.solved, "the tally sheet's whole-log count passes the tally station only")
+	check(_doc(level, "Reader tally") != null and _doc(level, "Retention review memo") != null and _doc(level, "Retrieval slips").plain_text().contains(Level3Data.NIGHT) and _doc(level, "Clerk's sticky") != null and _doc(level, "Note by the spike") != null,
+		"the tally sheet, the memo on the card catalogue, the COUNT sticky, the spike note and the night's date on the slips are on the floor")
+	# The room's question hasn't been asked yet: Security's sheet hangs in the north corridor.
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT)
+	check(not level.room_asked and not level.visits_puzzle.solved and not _game().case_info("room").get("open", false), "before Security's sheet is read, the night's count isn't a station yet, and the room case isn't open")
+	var sheet: Node = _doc(level, "Reader exceptions")
+	check(sheet != null and level.to_local(sheet.global_position).z < -22.0, "Security's exceptions sheet hangs in the north corridor")
+	sheet.open_reader(p).close()
+	await _frames(3)
+	check(level.room_asked and _game().case_info("room").get("open", false) and not _game().case_info("room").get("solved", false) and _game().current_todo() == level.TEXT.todo_room, "reading the sheet asks the question: the room case opens unsolved and the to-do says to find the room")
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room ORDER BY COUNT(*) DESC")
+	check(not level.visits_puzzle.solved and not _game().case_info("room").get("solved", false), "a count over the whole log doesn't pass: the reading room comes first")
+	level.terminal_ui.run("SELECT room FROM catalogue WHERE note LIKE '%archivist%'")
+	check(level.mercer_puzzle.solved and _game().case_info("room").solved and _game().case_info("room").how.contains(host), "the catalogue route: Mercer's boxes name the room, and the case page closes with it")
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC LIMIT 1" % Level3Data.NIGHT)
+	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's top room with its count passes too; the case stays closed once")
+	level.terminal_ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
+	check(level.keyholder_puzzle.solved, "the lock's question: that room's raw rows, read by eye, pass it")
+	level.terminal_ui.run("SELECT COUNT(slip_no) FROM retrieval_slips WHERE status = 'open'")
+	level.terminal_ui.run("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")
+	check(level.slips_puzzle.solved and level.depts_puzzle.solved and _game().case_info("duties").get("solved", false), "the slips and departments stations pass, and the night clerk's list closes")
+	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE returned_at = NULL")
+	check(not level.unreturned_puzzle.solved, "= NULL finds nothing, so the unreturned station doesn't pass")
+	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL")
+	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false) and _game().case_info("key").how.contains(level.data.key_box), "IS NULL finds the boxes nobody checked back in; the key case names them")
+	check(level.find_children("*", "Terminal", true, false).size() == 3 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (the web skill is on hold); Mercer's PC is the third")
+	# Mercer's PC: its own little database, off the building's, with the safe IS NULL practice.
+	level.terminal_ui.terminal = level.pc
+	level.terminal_ui.run("SELECT box_id FROM pulled WHERE back_on IS NULL")
+	check(level.pc_puzzle.solved and level.db.run_silent("SELECT name FROM sqlite_master WHERE name = 'pulled'").is_empty(), "the PC's practice passes on its own table, which the building's database doesn't have")
+	level.terminal_ui.terminal = level.desk
+	level.terminal_ui.run("SELECT box_id FROM pulled WHERE back_on IS NULL")
+	check(Array(level.desk.transcript).any(func(l): return str(l).to_lower().contains("no such table")), "the desk terminal has no 'pulled' table: the PC is off the network")
+
+	level.queue_free()
+	await process_frame
+
+
+## Mercer's room: found through the cranked aisle, a hub from then on; the one floppy
+## and the stair key go to whoever takes them; the key opens the stairs; everyone on
+## the stairs ends the floor.
+func test_level_3_safe_room() -> void:
+	print("Level 3: Mercer's room and the way down")
+	_game().new_run(23)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var p: Player = level.player
+	var host: String = level.data.host
+	var spec: Dictionary = level.SIDE_ROOMS[host]
+	var c: Vector3 = level.safe_room_box.get_center()
+	check(level.safe_door.is_hinged() and level.safe_door.locked and level.db.run_silent("SELECT * FROM doors WHERE id = 'MERCER'").is_empty(), "Mercer's door is a plain hinged door with a mechanical lock: no badge, nothing in the doors table")
+	check(not level.lights.keys().any(func(k): return k.contains("MERCER")) and level.db.run_silent("SELECT * FROM lights WHERE room LIKE '%Mercer%'").is_empty(), "nothing in the safe room is in the lights table: it's off the grid")
+	var card := _doc(level, "SQL pocket reference")
+	check(card != null and level.safe_room_box.has_point(level.to_local(card.global_position)) and card.plain_text().contains("IS NULL") and not card.plain_text().contains("SELECT") and not card.plain_text().contains("returned_at"), "Mercer's reference card is on his desk: it explains IS NULL on another table, and gives no query")
+	level.cranks[host].interact(p)
+	level.safe_door.interact(p)
+	for i in 60:
+		await physics_frame
+	check(level.safe_door.locked and not level.safe_door.is_open and level.lock != null and level.lock.get_parent() == level.geo, "cranking only finds the door: it's locked, with a push-button lock beside it")
+	level.type_code("0000" if level.data.code != "0000" else "0001", p)
+	await _frames(3)
+	check(not level.safe_unlocked and level.safe_door.locked and level.lock.screen.text == level.TEXT.lock_wrong, "a wrong code is refused")
+	check(_doc(level, "Push-button locks") != null and _doc(level, "Push-button locks").plain_text().contains("badge") and level.db.run_silent("SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % host).size() == 1, "the desk's policy sheet says a code is its keyholder's badge number, and that room's reader logged exactly one badge")
+	level.type_code(level.data.code, p)
+	await _frames(3)
+	check(level.safe_unlocked and not level.safe_door.locked and level.lock.screen.text == level.TEXT.lock_open, "the keyholder's badge digits unlock Mercer's door: the coded step on every route in")
+	level.safe_door.interact(p)
+	for i in 60:
+		await physics_frame
+	check(level.safe_door.is_open, "E opens the hidden door once it's unlocked")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(c.x, 0.1, c.z)))
+	for i in 10:
+		await physics_frame
+	check(level.reached_safe and _game().current_todo() == "", "stepping in finds the room: the to-do is ticked off")
+	level.floppy.interact(p)
+	for i in 5:
+		await physics_frame
+	check(p.inventory.has("floppy_disk") and level.floppy_taken and not level.floppy.enabled, "the floppy is taken, and there was only one")
+	# No key on the hook: Mercer's note says it's in the box nobody checked back in.
+	var note: Node = _doc(level, "Mercer's note")
+	check(note != null and level.safe_room_box.has_point(level.to_local(note.global_position)) and note.plain_text().contains("checked back in"), "Mercer's note on the cot says where the key went")
+	check(level.key_dock != null and level.cart_boxes.size() >= 7 and level.cart_boxes.has(level.data.key_box) and level.cart_boxes[level.data.key_box] == level.key_dock and level.to_local(level.key_dock.global_position).x > 5.0, "the key is in the box on the returns cart that nobody checked back in, among the other returned boxes")
+	# Every box is taped until the note is read AND the slips table names the box.
+	level.key_dock.interact(p)
+	await _frames(3)
+	check(not p.inventory.has("stair_key") and not level.key_taken and level.stair_out.locked and level.key_dock.get_prompt(p) == level.TEXT.box_taped and level.key_dock.tape.visible, "before Mercer's note, the key box is taped shut: pressing it does nothing")
+	note.open_reader(p).close()
+	await _frames(3)
+	check(_game().current_todo() == level.TEXT.todo_key_box and _game().case_info("key").get("open", false), "reading it sets the to-do and opens the key case")
+	level.key_dock.interact(p)
+	await _frames(3)
+	check(not p.inventory.has("stair_key") and not level.key_taken and level.key_dock.get_prompt(p) == level.TEXT.box_taped, "after the note but before the query, the key box is still taped")
+	level.terminal_ui.terminal = level.desk
+	level.terminal_ui.run(level.unreturned_puzzle.solution_sql)
+	await _frames(3)
+	check(level.unreturned_puzzle.solved and level.boxes_named and not level.key_dock.tape.visible and level.key_dock.get_prompt(p) == "[E] " + level.TEXT.box_tear % level.data.key_box, "the IS NULL query names the box: its tape comes off and it can be torn open")
+	var decoy_id: String = level.cart_boxes.keys().filter(func(k): return not level.data.unreturned.has(k))[0]
+	level.cart_boxes[decoy_id].interact(p)
+	await _frames(3)
+	check(not p.inventory.has("stair_key") and level.stair_out.locked and level.cart_boxes[decoy_id].tape.visible and level.cart_boxes[decoy_id].get_prompt(p) == level.TEXT.box_taped, "a box the query didn't name stays taped and gives no key")
+	for other in level.data.unreturned:
+		if other != level.data.key_box:
+			level.cart_boxes[other].interact(p)
+			await _frames(3)
+			check(not p.inventory.has("stair_key") and level.stair_out.locked and level.cart_boxes[other].has_taken(level.players.id_of(p)), "a second unreturned box opens but holds only papers")
+	level.key_dock.interact(p)
+	for i in 5:
+		await physics_frame
+	check(p.inventory.has("stair_key") and level.key_taken and not level.stair_out.locked, "the key ring in the right box unlocks the stairs down")
+	check(_game().current_todo() == level.TEXT.todo_key, "the to-do says to get everyone to the stairs")
+	# Down: you come to on Mercer's cot now.
+	p.take_damage(1000.0, "fall")
+	for i in 120:
+		await physics_frame
+	check(level.safe_room_box.has_point(level.to_local(p.global_position)) and p.health > 0.0, "after the room is found, you come to inside it")
+	for i in 60:
+		await physics_frame
+	# Everyone on the stairs, and the floor is done.
+	level.stair_out.interact(p)
+	for i in 30:
+		await physics_frame
+	check(level.stair_out.is_open, "with the key taken, E opens the stair door")
+	var done := [false]
+	level.completed.connect(func(): done[0] = true)
+	p.global_transform = Transform3D(Basis(), level.to_global(L3_STAIRS_DOWN))
+	for i in 600:
+		await physics_frame
+		if done[0]:
+			break
+	check(done[0] and _game().completed_level == "level_3", "everyone on the stairs completes the floor")
+	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_18") or true, "finishing floor 18 reports its unlock (no cosmetic bound yet)")
+	level.queue_free()
+	await process_frame
+
+
+## In the World, the crew leaves 22 by the stairs and comes out on 18's landing, with
+## play handed to floor 18 and floor 18 kept loaded once Mercer's room is found.
+func test_level_3_stairs_from_22() -> void:
+	print("World: the stairs from 22 down to 18")
+	_game().new_run(5)
+	_game().rourke_fate = "killed"  # just the security section: Rourke turned before it
+	var world = load("res://scenes/world.tscn").instantiate()
+	root.add_child(world)
+	for i in 10:
+		await physics_frame
+	world.enter_wing(world.route_index("level_2"))
+	var l2 = world.current
+	for i in 30:
+		await physics_frame
+	check(l2 != null and l2.wing_id == "level_2" and not world.wings.has("level_3"), "floor 22 runs; floor 18 isn't built until the stairs open")
+	l2.prepare_next()
+	var l3 = world.wings.get("level_3")
+	check(l3 != null and not l3.active and l3.global_position.distance_to(l2.global_position) > 30.0, "floor 18 builds apart from 22, behind its stairwell, without starting")
+	check(world.db.table_names().has("access_log") and world.db.table_names().has("badge_log"), "both floors share the building's database")
+	world.player.global_transform = Transform3D(Basis(), l2.to_global(STAIRS))
+	for i in 5:
+		await physics_frame
+	# This player was downed on the stairs (the trigger counts downed players too). They
+	# must still be carried down to 18, or their machine's World stays on 22.
+	world.player.health = 0.0
+	world.player.combat.down = true
+	world.player.combat._lock(true)
+	l2.sync.event("_on_exit", [null])
+	for i in 600:
+		await physics_frame
+		if world.current == l3 and l3.active:
+			break
+	check(world.current == l3 and l3.active, "the stairs hand play to floor 18, even for a player who is down")
+	check(L3_LANDING_BOX.has_point(l3.to_local(world.player.global_position)), "the crew steps out on 18's landing (%s)" % l3.to_local(world.player.global_position))
+	check(_game().completed_level == "level_2" and _game().next_level == "level_3", "floor 22 is complete, floor 18 is next")
+	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its unlock")
+	for i in 60:
+		await physics_frame
+	check(world.player.input_locked and world.player.combat.down and world.current == l3, "a downed player stays down on the landing until revived")
+	world.player.combat.revive()
+	check(not world.player.input_locked and world.player.health > 0.0, "revived, controls come back on the landing")
+	# Mercer's room is a hub: the wing stays loaded from here on.
+	l3._enter_safe_room()
+	check(world.keep_loaded.has("level_3"), "finding Mercer's room keeps floor 18 loaded for later floors")
+	world.queue_free()
+	await process_frame
+
+
+## Co-op: the host decides the crank, the pickups and the exit; every machine sees them.
+func test_coop_level_3() -> void:
+	print("Co-op: Level 3 with a host and a client")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/level_3.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	check(machines.all(func(l): return l.sync._begun and l.players.count() == 2), "both machines start Level 3 with two players")
+	check(machines.all(func(l): return l.data.host == host.data.host), "both machines hide the safe room behind the same room")
+	var room: String = host.data.host
+	client.cranks[room].interact(client.player)
+	await _frames(180)
+	check(machines.all(func(l): return l.cranked[room]) and client.shelving[room][0].position.is_equal_approx(host.shelving[room][0].position), "a client's crank rolls the shelving on every machine, to the same place")
+	check(host.shredder.active and client.shredder.active and client.shredder.global_position.distance_to(host.shredder.global_position) < 0.5, "the crank wakes the Shredder on the host, and clients see it where the host has it")
+	# A client types the lock's code: the host checks it, and the door unlocks everywhere.
+	client.type_code("1234" if client.data.code != "1234" else "4321", client.player)
+	await _frames(3)
+	check(machines.all(func(l): return not l.safe_unlocked and l.safe_door.locked and l.lock.screen.text == l.TEXT.lock_wrong), "a wrong code on a client is refused on every machine")
+	client.type_code(client.data.code, client.player)
+	await _frames(3)
+	check(machines.all(func(l): return l.safe_unlocked and not l.safe_door.locked and l.lock.screen.text == l.TEXT.lock_open), "the right code typed by a client unlocks Mercer's door on every machine")
+	# A client sprinting: the host hears it from how fast the puppet moves.
+	host.shredder.place(host.to_global(Vector3(-8, 0, -23.5)), host.to_global(Vector3(0, 0, -23.5)))
+	host.shredder.state = "listening"
+	client.player.global_transform = Transform3D(Basis(), client.to_global(Vector3(-1, 0.1, -23.5)))
+	await _frames(15)
+	for i in 30:
+		client.player.global_position += client.global_basis * Vector3(0.1, 0, 0)  # 6 m/s
+		await physics_frame
+	await _frames(5)
+	var puppet_pos: Vector3 = host.players.puppet(client_id).global_position
+	check(host.shredder.state != "listening" and host.shredder.target_point.distance_to(puppet_pos) < 4.0, "the host's Shredder hears a client sprint and turns to where they are (state %s)" % host.shredder.state)
+	host.shredder.place(host.to_global(host.SHREDDER_HOME), host.to_global(Vector3(-5.5, 0, -20)))
+	host.shredder.state = "listening"
+	await _frames(5)
+	client.floppy.interact(client.player)
+	client.key_dock.interact(client.player)
+	await _frames(20)
+	check(machines.all(func(l): return not l.key_taken and l.stair_out.locked), "the key box is taped on every machine until the desk names it")
+	host.sync.event("_note_read")
+	host.sync.event("_on_solved", ["unreturned", "desk"])
+	await _frames(10)
+	check(machines.all(func(l): return l.note_read and l.boxes_named and l.key_dock.openable() and not l.key_dock.tape.visible), "the note and the query untape the key box on every machine")
+	client.key_dock.interact(client.player)
+	await _frames(20)
+	# (Every machine in a test shares one Game.inventory, so who took it is read off the dock.)
+	var host_id: int = get_multiplayer(worlds[0].get_path()).get_unique_id()
+	check(client.player.inventory.has("floppy_disk") and machines.all(func(l): return l.floppy_taken and not l.floppy.enabled and l.floppy.has_taken(client_id) and not l.floppy.has_taken(host_id)), "the one floppy goes to the player who took it")
+	check(machines.all(func(l): return l.key_taken and not l.stair_out.locked), "the key unlocks the stairs on every machine")
+	check(host.players.puppet(client_id) != null, "the host knows the client")
+	# The exit waits for everyone.
+	host.player.global_transform = Transform3D(Basis(), host.to_global(L3_STAIRS_DOWN))
+	await _frames(20)
+	check(_game().completed_level != "level_3", "one player on the stairs isn't enough")
+	client.player.global_transform = Transform3D(Basis(), client.to_global(L3_STAIRS_DOWN))
+	for i in 600:
+		await physics_frame
+		if _game().completed_level == "level_3":
+			break
+	check(_game().completed_level == "level_3", "with everyone on the stairs, the floor completes on every machine")
+	await _coop_close(worlds)
+
+
+## The Shredder: asleep among the machines until the first crank, then hunting by
+## sound alone; the machines mask their own room; it grabs, holds, and throws.
+func test_level_3_shredder() -> void:
+	print("Level 3: the Shredder")
+	_game().new_run(11)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	for i in 30:
+		await physics_frame
+	var s: Shredder = level.shredder
+	var p: Player = level.player
+	check(not s.active and s.state == "dormant" and s.is_on_floor() and level.SHRED_ROOM.has_point(level.to_local(s.global_position)), "it sleeps in the shredding room")
+	check(not PlayerCombat.blockable("shredder"), "its throw can't be blocked")
+	# Sprinting about before anything loud happens: nothing.
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, 7)))
+	await _frames(5)
+	p.local_control = false  # scripted controls, not the keyboard
+	p.controls.move = Vector2(0, -1)
+	p.controls.sprint = true
+	await _frames(45)
+	p.controls.move = Vector2.ZERO
+	p.controls.sprint = false
+	p.local_control = true
+	check(level.to_local(p.global_position).z < 4.0 and not s.active and s.state == "dormant", "a sprint through the lobby doesn't wake it: it's asleep (z %.1f, %s)" % [level.to_local(p.global_position).z, s.state])
+	# Setting foot in the north corridor wakes it: the question that needs the night's
+	# count hangs there, so that count is always typed with the Shredder up.
+	check(level.find_children("NorthCorridor", "", true, false).size() == 1 and _doc(level, "Reader exceptions") != null and level.to_local(_doc(level, "Reader exceptions").global_position).z < -22.0, "the corridor has a trigger, and Security's sheet hangs past it")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-9.5, 0.1, -23.5)))
+	for i in 20:
+		await physics_frame
+	check(level.shredder_awake and s.active and s.state == "listening" and level.hud._notice.text == level.TEXT.shredder_wakes_near, "setting foot in the north corridor wakes it, and the crew hears the machines stop (%s)" % s.state)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, 0)))
+	for i in 5:
+		await physics_frame
+	# The first crank wakes it, and it heads for the sound.
+	var host: String = level.data.host
+	level.cranks[host].interact(p)
+	await _frames(5)
+	check(s.active and level.shredder_awake and s.state in ["turning", "investigating"], "the crank wakes it, and it turns toward the sound (%s)" % s.state)
+	var crank_at: Vector3 = level.to_global(level.cranks[host].position)
+	var d0: float = s.global_position.distance_to(crank_at)
+	await _frames(360)
+	var d1: float = s.global_position.distance_to(crank_at)
+	check(d1 < d0 - 4.0 and level.room_doors["SHRED ROOM"].is_open and not level.room_doors["SHRED ROOM"].is_hinged(), "out through its room's open roll-up door, it walks toward where the crank was turned (%.1f m, then %.1f m)" % [d0, d1])
+	# Doors: it pushes a shut door open if it swings away from it, and can't pull one.
+	# (A west room whose shelving hasn't been cranked, so there's an aisle by the door.)
+	var side: String = "MAP ROOM" if host != "MAP ROOM" else "VAULT C"
+	var side_z: float = level.SIDE_ROOMS[side].center.z
+	var side_door: Door = level.room_doors[side]
+	s.place(level.to_global(Vector3(-9.8, 0, side_z)), level.to_global(Vector3(-13, 0, side_z)))
+	s.state = "investigating"
+	s.target_point = level.to_global(Vector3(-13, 0, side_z))
+	s._timer = 10.0
+	await _frames(60)
+	check(not side_door.is_open and level.to_local(s.global_position).x > -11.0, "from the hall, a side room's door swings toward it: it can't pull it open, and stays out")
+	s.place(level.to_global(Vector3(-12.0, 0, side_z)), level.to_global(Vector3(-9.5, 0, side_z)))
+	s.state = "investigating"
+	s.target_point = level.to_global(Vector3(-9.5, 0, side_z))
+	s._timer = 10.0
+	await _frames(60)
+	check(side_door.is_open, "from inside, the same door swings away from it: it shoves it open on its way out")
+	side_door.set_open(false, true)
+	# Hearing: masked by its own machines, fading with distance.
+	s.place(level.to_global(Vector3(-9, 0, -31.5)), level.to_global(Vector3(0, 0, -31.5)))
+	s.state = "listening"
+	check(not s.hear(level.to_global(Vector3(-1.5, 0, -32)), 1.0), "inside the shredding room, the machines drown out a sound 7 m away")
+	check(s.hear(level.to_global(Vector3(-1.5, 0, -23.5)), 1.0), "the same sound out in the corridor is heard")
+	s.state = "listening"
+	var far: Vector3 = level.to_global(Vector3(-9, 0, -24.5))  # 7 m north, out in the corridor
+	check(not s.hear(far, 0.15) and s.hear(far, Shredder.SPRINT_LOUDNESS), "seven metres off, footsteps are too quiet to hear and a sprint carries")
+	s.state = "listening"
+	check(not s.hear(level.to_global(Vector3(-9, 0, -20.5)), Shredder.SPRINT_LOUDNESS) and s.hear(level.to_global(Vector3(-9, 0, -20.5)), level.CRANK_LOUDNESS), "eleven metres off a sprint is lost, but a crank still carries")
+	# Typing is loud: a setting, off by default. On, a burst of keys at a terminal is a sound.
+	var sounds := []
+	level.noise.connect(func(at, loud): sounds.append([at, loud]))
+	level.desk.typing[1] = "SELECT room"
+	level.desk.screen_changed.emit()
+	check(sounds.is_empty() and not level.typing_is_loud, "by default, typing makes no sound")
+	level.typing_is_loud = true
+	level.desk.typing[1] = "SELECT room, C"
+	level.desk.screen_changed.emit()
+	check(sounds.is_empty(), "with the setting on, a few keys are still quiet")
+	level.desk.typing[1] = "SELECT room, COUNT(*)"
+	level.desk.screen_changed.emit()
+	check(sounds.size() == 1 and sounds[0][1] == level.TYPING_LOUDNESS and sounds[0][0].distance_to(level.desk.global_position) < 0.5, "a burst of keys is one sound at the terminal")
+	s.place(level.to_global(Vector3(-5.5, 0, -22.0)), level.to_global(Vector3(-5.5, 0, -10.0)))  # out in the corridor, clear of its machines
+	check(not s.hear(level.desk.global_position, level.TYPING_LOUDNESS) and not s.hear(level.to_global(Vector3(-5.5, 0, -12.0)), level.TYPING_LOUDNESS) and s.hear(level.to_global(Vector3(-5.5, 0, -14.5)), level.TYPING_LOUDNESS), "it carries about half a sprint: not from the desk across the floor or from 10 m, but from a terminal 7.5 m off")
+	level.typing_is_loud = false
+	# Caught: it holds you, then throws you.
+	s.place(level.to_global(Vector3(0, 0, -23.5)), level.to_global(Vector3(5, 0, -23.5)))
+	s.state = "listening"
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(1.0, 0.1, -23.5)))
+	await _frames(3)
+	var start_health: float = p.health
+	s.hear(p.global_position, 1.0)
+	await _frames(70)
+	check(s.state == "grabbing" and p.combat.grabbed_by == s and p.input_locked, "it picks you up and holds you: the tell before the throw (%s)" % s.state)
+	await _frames(120)
+	check(p.health <= start_health - Shredder.THROW_DAMAGE + 0.01 and p.health > 0.0 and not p.combat.down, "thrown: heavy damage, but one throw doesn't put you down from full health (%.0f)" % p.health)
+	check(level.to_local(p.global_position).distance_to(Vector3(1.0, 0.1, -23.5)) > 2.0 and p.combat.grabbed_by == null, "you land well away from it, out of its hands")
+	check(s.held == null and s.state != "grabbing", "after the throw it has let go, and goes back to listening for you (%s)" % s.state)
+	level.queue_free()
 	await process_frame

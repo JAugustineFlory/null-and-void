@@ -124,4 +124,84 @@ const PUZZLES := {
 		"teaches": ["GET /doors/SEC-EXIT", "sensor", "actuator", "B-"],
 		"needs": ["GET", "/doors/SEC-EXIT"],
 	},
+	# Level 3: the Records Archive on 18 (plan/level-3-records-archive.md). Every
+	# ladder is drafted in plan/approvals/l3-text.md and held until Augustine agrees
+	# Act 1 ends on this floor ("ladder": "held"): a lost player is stuck on any
+	# station it can't copy off a paper, and that prints as a gap, not a failure.
+	# COUNT, found again on the clerk's sticky on the desk terminal, used safely.
+	# Level 2's SYSOP showed it once; no Easy SQL chapter teaches it yet, so the
+	# sticky is the plant.
+	"slips": {
+		"level": 3,
+		"pressure": false,
+		"ladder": "held",
+		"teaches": ["COUNT", "retrieval_slips"],
+		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "retrieval_slips"],
+	},
+	# DISTINCT, found on the clerk's memo pinned to the card catalogue and practised
+	# at once: the memo writes the desk's question out in full.
+	"depts": {
+		"level": 3,
+		"pressure": false,
+		"ladder": "held",
+		"teaches": ["DISTINCT", "one of each", "catalogue", "dept"],
+		"needs": ["SELECT", "FROM", "WHERE", "DISTINCT", "catalogue", "dept"],
+	},
+	# GROUP BY with COUNT, found on the reader tally taped to the desk and practised
+	# on its harmless whole-log count. The reading room wins by day: the decoy.
+	"tally": {
+		"level": 3,
+		"pressure": false,
+		"ladder": "held",
+		"teaches": ["GROUP BY", "one line per room", "access_log"],
+		"needs": ["SELECT", "FROM", "COLUMNS", "COUNT", "GROUP BY", "access_log", "room"],
+	},
+	# The gate: that night's busiest reader. The tally's query plus the date (on the
+	# slips, as the readers write it) and the sort from Level 0. The question is on
+	# Security's sheet in the north corridor, and setting foot there wakes the
+	# Shredder, so this is always typed with it up.
+	"visits": {
+		"level": 3,
+		"pressure": true,
+		"ladder": "held",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COUNT", "GROUP BY", "ORDER BY", "DESC", "access_log", "room", "1997-10-15"],
+	},
+	# IS NULL, the word no book teaches: found on Mercer's card in the safe room, and
+	# practised there on his battery PC (the Shredder can't get in), copying the
+	# query his screen shows.
+	"mercer_list": {
+		"level": 3,
+		"pressure": false,
+		"ladder": "held",
+		"teaches": ["IS NULL", "pulled", "back_on"],
+		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "pulled"],
+	},
+	# Then under threat, back at the desk: the box on the returns cart that nobody
+	# checked back in, which holds the stair key. The exit gate.
+	"unreturned": {
+		"level": 3,
+		"pressure": true,
+		"ladder": "held",
+		"teaches": ["returned_at"],
+		"needs": ["SELECT", "FROM", "WHERE", "AND", "IS NULL", "retrieval_slips", "returned_at"],
+	},
+	# The lock's question: whose badge kept using that room's reader. The raw rows
+	# read by eye pass too; the digits go on the push-button lock.
+	"keyholder": {
+		"level": 3,
+		"pressure": true,
+		"ladder": "held",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "access_log", "badge_id", "room"],
+	},
+	# The second route to the room: Mercer's own boxes in the catalogue, listed with
+	# their room (LIKE on the archivist's note, or his department), under threat.
+	"mercer_room": {
+		"level": 3,
+		"pressure": true,
+		"ladder": "held",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "catalogue", "room"],
+	},
 }

@@ -15,7 +15,7 @@ extends RefCounted
 ## stays green while the owning thread fixes them. When a gap is fixed, its check
 ## prints FIXED: move it to a normal check() then.
 
-const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS"]
+const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS", "DISTINCT", "GROUP BY", "IS NULL"]
 ## Concepts that aren't one capitalised word: comparing a column with a value, and
 ## picking columns instead of *.
 const KEYWORD_PATTERNS := {
@@ -35,6 +35,8 @@ const ROOM_REACH := 8.0
 var taught := ""
 ## keyword -> "safe" or "threat": how the player was placed when it first had to use it.
 var first_use := {}
+## keyword -> the puzzle that first needed it.
+var first_use_by := {}
 var used_under_threat := {}
 
 
@@ -59,6 +61,8 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	await walk_lab(11)
 	for s in [11, 42]:
 		await walk_level_2(s)
+	for s in [3, 23]:
+		await walk_level_3(s)
 	check_teaching_order()
 	check_jot_rules()
 	if gaps > 0:
@@ -103,9 +107,9 @@ func world_text(level: Node, at: Node3D = null) -> String:
 	return "\n".join(parts)
 
 
-## Full queries written out on screen, in order: a SELECT line up to its ;, or a
-## GET line's verb and path. Lines that explain a keyword ("SELECT *   every column")
-## have no ; and aren't typed.
+## Full queries written out on screen (or on a paper in the room), in order: a SELECT
+## line up to its ;, or a GET line's verb and path. Lines that explain a keyword
+## ("SELECT *   every column") have no ; and aren't typed.
 func queries_in(text: String) -> Array[String]:
 	var out: Array[String] = []
 	for raw in text.split("\n"):
@@ -237,6 +241,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		else:
 			check(threat == spec.pressure, said)
 	var outside := []
+	var stuck := false
 	while not puzzle.solved and not (done.is_valid() and done.call()):
 		var read := remember(level, ui)
 		if pace:
@@ -244,8 +249,9 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		var text := screen(ui)
 		var fresh: Array[String] = []
 		# The notebook is reference, not a script: old queries name other levels'
-		# tables, so the player only types what this screen shows.
-		for shown in queries_in(text):
+		# tables, so the player only types what this screen shows, or what's written
+		# in full on a paper in this room (a clerk's crib by the terminal).
+		for shown in queries_in(text + "\n" + world_text(level, ui.terminal)):
 			for q in fill_blanks(level, shown, ui.terminal):
 				if not tried.has(q) and not fresh.has(q):
 					fresh.append(q)
@@ -254,6 +260,11 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 				for k in needed:
 					if not has_item(taught, k):
 						outside.append(k)
+			if puzzle.hints.is_empty() and spec.get("ladder", "") == "held":
+				# No ladder to climb yet: stuck at once, as a known gap (check_ladder said why).
+				gap(false, "%s: a lost player is stuck until its hint ladder is built" % puzzle.id)
+				stuck = true
+				break
 			if hints >= max_hints:
 				check(false, "%s: a lost player gets stuck even after %d hints" % [puzzle.id, hints])
 				return -1
@@ -277,6 +288,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			continue
 		if not first_use.has(k):
 			first_use[k] = "threat" if threat else "safe"
+			first_use_by[k] = puzzle.id
 		if threat:
 			used_under_threat[k] = true
 	var said_taught := "%s: everything it needs was taught before any hint%s" % [puzzle.id, "" if outside.is_empty() else " (never shown: %s)" % ", ".join(outside)]
@@ -289,7 +301,19 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		if not has_item(taught, k):
 			unoffered.append(k)
 	check(unoffered.is_empty(), "%s: everything it teaches is on a terminal line or sticky note, ready to write down%s" % [puzzle.id, "" if unoffered.is_empty() else " (missing %s)" % ", ".join(unoffered)])
-	return hints
+	return -1 if stuck else hints
+
+
+## The player read a paper where it lies (a card in another room, say): its lines
+## join the taught set, as lines it could have written down.
+func read_paper(level: Node, title: String) -> void:
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == title:
+			for line in d.plain_text().split("\n"):
+				if line.strip_edges() != "" and not taught.contains(line):
+					taught += line + "\n"
+			return
+	check(false, "the paper '%s' is in the level" % title)
 
 
 # --- Pacing: how long a first-time player takes ----------------------------
@@ -320,6 +344,8 @@ func _plain(hint: String) -> String:
 
 ## Hint 1's query with the value left as '?', or "" (the old ladder: hint 1 is exact).
 func _shape(p: Puzzle) -> String:
+	if p.hints.is_empty():
+		return ""
 	for q in queries_in(_plain(p.hints[0])):
 		if q.contains("?"):
 			return q
@@ -328,6 +354,8 @@ func _shape(p: Puzzle) -> String:
 
 ## The exact query the hints end on: the last hint under ladder A, else the first.
 func _answer_query(p: Puzzle) -> String:
+	if p.hints.is_empty():
+		return p.solution_sql
 	var from: String = p.hints[-1] if _shape(p) != "" else p.hints[0]
 	for q in queries_in(_plain(from)):
 		if not q.contains("?"):
@@ -337,6 +365,8 @@ func _answer_query(p: Puzzle) -> String:
 
 ## How many hints a player who only copies needs at most: the tier with the exact query.
 func rescue_tier(p: Puzzle) -> int:
+	if p.hints.is_empty():
+		return 0
 	return p.hints.size() if _shape(p) != "" else 1
 
 
@@ -353,6 +383,10 @@ func _escape(text: String) -> String:
 ## puzzle. Every hint uses the real tables. A puzzle with no value to find is marked
 ## "ladder": "exact" in tests/curriculum.gd: its first hint is the exact query.
 func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
+	if Curriculum.PUZZLES.get(p.id, {}).get("ladder", "") == "held":
+		# Drafted, not built: the floor's ladders wait on an approval (see the row).
+		gap(not p.hints.is_empty(), "%s: a hint ladder is built (drafted in plan/approvals/l3-text.md, held for approval)" % p.id)
+		return
 	var first := _plain(p.hints[0])
 	var q := _answer_query(p)
 	var shape := _shape(p)
@@ -788,14 +822,212 @@ func walk_level_2(seed_value: int) -> void:
 	await t.process_frame
 
 
+# --- Level 3: the Records Archive on 18 ---------------------------------------
+
+## The floor's pacing (plan/level-3-records-archive.md): arrive quiet and practise at
+## the desk (COUNT from the sticky, DISTINCT from the memo, GROUP BY from the tally);
+## the north corridor wakes the Shredder, and Security's sheet there asks which room;
+## the night's count under threat names it, the keyholder's badge from the readers'
+## log is the code on Mercer's lock; his room is the breather, where the card and his
+## battery PC teach IS NULL safely; back at the desk under threat, the slips name the
+## box on the returns cart with the stair key in it. The ladders are drafted, not
+## built, so a lost player is stuck on every station it can't copy off a paper or a
+## screen: those print as gaps.
+func walk_level_3(seed_value: int) -> void:
+	_game().new_run(seed_value)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	t.root.add_child(level)
+	for i in 20:
+		await t.physics_frame
+	var where := "records archive (seed %d)" % seed_value
+	check_case_clues(level, where)
+	check_jots(level, where)
+	check_no_copy_under_pressure(level, where)
+	var ui: TerminalUI = level.terminal_ui
+	var p: Player = level.player
+	p.local_control = false
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
+	ui.open(level.desk, p)
+	var seen := screen(ui) + "\n" + world_text(level, level.desk)
+	check(seen.contains("retrieval_slips") and seen.contains("access_log") and seen.contains("catalogue"), "%s: the desk's papers and boot screen name the three tables" % where)
+	check(seen.contains(Level3Data.NIGHT), "%s: the night's date is written on the desk the way the readers log it" % where)
+	check(seen.contains("COUNT") and seen.contains("DISTINCT") and seen.contains("GROUP BY"), "%s: COUNT, DISTINCT and GROUP BY are found on papers within reach of the desk" % where)
+	check(not seen.contains("IS NULL"), "%s: IS NULL is not on the desk: it's the word the crew looks up in Mercer's room" % where)
+	# The desk's chores, asked by the clipboard, the memo and the note by the spike.
+	var asks := world_text(level, level.desk)
+	check(asks.contains("OPEN AT END OF SHIFT") and asks.contains("every department") and asks.contains("never checked back in"), "%s: each practice station is asked for on a paper at the desk" % where)
+	_doc(level, "Retrieval slips").open_reader(p).close()
+	check(_game().case_info("duties").get("open", false) and not _game().case_info("duties").get("solved", false), "%s: reading the clipboard opens the night clerk's list as a case" % where)
+	# Quiet: COUNT, then the two new words, each copied off the paper that shows it
+	# (found, and practised at once). The slips count has no query written out.
+	var h := await solve(level, ui, level.slips_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.slips_puzzle), "%s: the slips count is built from the sticky's shape; a lost player waits on its ladder (hints %d)" % [where, h])
+	# The memo's query covers every room: copying it shows DISTINCT at work (the
+	# practice) but the station wants the stacks only, so the WHERE is the player's.
+	h = await solve(level, ui, level.depts_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.depts_puzzle) and not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;"), "%s: DISTINCT is practised by copying the memo, safely, and the stacks station still needs the player's WHERE (hints %d)" % [where, h])
+	ui.run("SELECT DISTINCT dept FROM catalogue")
+	var every := last_table(screen(ui)).size()
+	ui.run(level.depts_puzzle.solution_sql)
+	check(level.depts_puzzle.solved and last_table(screen(ui)).size() < every, "%s: the memo's list has more departments than the stacks: the WHERE narrows it" % where)
+	h = await solve(level, ui, level.tally_puzzle, level.shredder_awake)
+	check(h == 0 and level.tally_puzzle.solved, "%s: GROUP BY is practised from the reader tally on the desk, safely (hints %d)" % [where, h])
+	ui.run(level.tally_puzzle.solution_sql)
+	var top := ""
+	var most := -1
+	for r in last_table(screen(ui)):
+		for k in r:
+			if str(k).to_lower() == "count(*)" and int(r[k]) > most:
+				most = int(r[k])
+				top = r.get("room", "")
+	check(top == "READING ROOM", "%s: the whole log puts the reading room first (the decoy)" % where)
+	# The night's question hasn't been asked: its answer doesn't count yet.
+	ui.run(level.visits_puzzle.solution_sql)
+	check(not level.visits_puzzle.solved and not level.shredder_awake, "%s: before Security's sheet is read, the night's count is no station, and nothing has woken the Shredder" % where)
+	ui.close()
+
+	# North: setting foot in the corridor is the pressure peak, and the sheet by the
+	# shredding room's reader asks which room.
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-9.5, 0.1, -23.5)))
+	for i in 10:
+		await t.physics_frame
+	check(level.shredder_awake and level.shredder.active, "%s: the north corridor wakes the Shredder before the question can be read" % where)
+	level.shredder.active = false  # keep the walkthrough deterministic from here; the threat is still on
+	var sheet = _doc(level, "Reader exceptions")
+	check(sheet != null and in_room(sheet, level.find_child("NorthCorridor", true, false)), "%s: Security's sheet hangs in the corridor" % where)
+	sheet.open_reader(p).close()
+	for i in 3:
+		await t.physics_frame
+	check(level.room_asked and _game().case_info("room").get("open", false) and not _game().case_info("room").get("solved", false), "%s: reading it opens the room case, unsolved" % where)
+	var host: String = level.data.host
+	check(level.safe_door.locked, "%s: Mercer's door is locked whichever room it's behind: a crank alone opens nothing" % where)
+
+	# Under threat: the night's count names the room. Not a copy job: the player adds
+	# the date (from the slips) and the sort (from Level 0) to the tally's query.
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
+	ui.open(level.desk, p)
+	h = await solve(level, ui, level.visits_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.visits_puzzle), "%s: the night's count is built, not copied; a lost player waits on its ladder (hints %d)" % [where, h])
+	if not level.visits_puzzle.solved:
+		ui.run(level.visits_puzzle.solution_sql)  # the player who built it from the papers
+	check(level.visits_puzzle.solved and _game().case_info("room").get("solved", false) and _game().case_info("room").how.contains(host), "%s: the night's count ranks the host room first and closes the room case" % where)
+	var ranked := last_table(screen(ui))
+	check(ranked.size() > 0 and ranked[0].get("room", "") == host, "%s: the top row of the result is the room to look in" % where)
+	# The code on the lock: the policy sheet says whose badge; the readers' log says which.
+	check(world_text(level, level.desk).contains("badge number"), "%s: the lock policy on the desk says the code is the keyholder's badge number" % where)
+	h = await solve(level, ui, level.keyholder_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.keyholder_puzzle), "%s: the keyholder's badge is built, not copied; a lost player waits on its ladder (hints %d)" % [where, h])
+	ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
+	remember(level, ui)
+	check(level.keyholder_puzzle.solved and not level.mercer_puzzle.solved, "%s: that room's raw rows, read by eye, answer the lock's question, and aren't the catalogue route" % where)
+	var badges := {}
+	for r in last_table(screen(ui)):
+		badges[r.get("badge_id", "")] = true
+	check(badges.size() == 1 and badges.has(level.data.visitor_badge), "%s: one badge used that room's reader, and its digits are the code" % where)
+	ui.close()
+	var code: String = level.data.visitor_badge.get_slice("-", 1)
+	level.cranks[host].interact(p)
+	for i in 5:
+		await t.physics_frame
+	level.type_code(code, p)
+	check(level.safe_unlocked and not level.safe_door.locked, "%s: the badge number read off the screen opens Mercer's lock" % where)
+
+	# The breather: Mercer's room. The card shows IS NULL on another table; his PC
+	# practises it on his own list, safely: the Shredder doesn't fit through side doors.
+	var c: Vector3 = level.safe_room_box.get_center()
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(c.x, 0.1, c.z)))
+	for i in 5:
+		await t.physics_frame
+	read_paper(level, "SQL pocket reference")
+	var card: String = _doc(level, "SQL pocket reference").plain_text()
+	check(has_item(card, "IS NULL") and card.contains("= NULL") and not card.contains("returned_at"), "%s: Mercer's card shows IS NULL on a table that isn't the puzzle's, and warns off = NULL" % where)
+	ui.open(level.pc, p)
+	h = await solve(level, ui, level.pc_puzzle, false)
+	check(h == 0 and level.pc_puzzle.solved, "%s: IS NULL is practised on Mercer's PC, in the safe room, from the query on its screen (hints %d)" % [where, h])
+	ui.close()
+	_doc(level, "Mercer's note").open_reader(p).close()
+	for i in 3:
+		await t.physics_frame
+	check(_game().case_info("key").get("open", false) and _game().current_todo() == level.TEXT.todo_key_box, "%s: Mercer's note says where the key is and opens the key case" % where)
+	# The cart's boxes are taped: the note alone opens nothing.
+	level.cart_boxes[level.data.key_box].interact(p)
+	for i in 3:
+		await t.physics_frame
+	check(not level.key_taken and level.stair_out.locked and level.cart_boxes[level.data.key_box].get_prompt(p) == level.TEXT.box_taped, "%s: with the note read but no query, the key box is still taped: the desk has to name it" % where)
+	# Back at the desk, under threat: the box nobody checked back in. The note by the
+	# spike sends the player to the slips, so it looks at them first (the column
+	# names are on that screen).
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
+	ui.open(level.desk, p)
+	ui.run("SELECT * FROM retrieval_slips")
+	remember(level, ui)
+	check(taught.contains("returned_at") and taught.contains("filled"), "%s: the slips table shows its return-time column and the 'filled' status" % where)
+	h = await solve(level, ui, level.unreturned_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.unreturned_puzzle), "%s: the box with the key is built from the card and the PC; a lost player waits on its ladder (hints %d)" % [where, h])
+	var before := screen(ui).length()
+	ui.run("SELECT box_id FROM retrieval_slips WHERE returned_at = NULL")
+	check(not level.unreturned_puzzle.solved and screen(ui).substr(before).contains("(0 rows)"), "%s: = NULL finds nothing, as the card warns" % where)
+	ui.run(level.unreturned_puzzle.solution_sql)
+	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false), "%s: IS NULL names the box nobody checked back in, and the key case closes" % where)
+	var named := last_table(screen(ui)).map(func(r): return r.get("box_id", ""))
+	check(named.has(level.data.key_box) and named.size() <= 2, "%s: the result names the key's box (one or two to open, not the whole cart)" % where)
+	# The second route to the room, DISTINCT under threat: Mercer's own boxes in the catalogue.
+	h = await solve(level, ui, level.mercer_puzzle, level.shredder_awake)
+	check(h <= rescue_tier(level.mercer_puzzle), "%s: the catalogue route is built, not copied; a lost player waits on its ladder (hints %d)" % [where, h])
+	ui.close()
+	# The box on the cart the result named has the key; the stairs open.
+	level.cart_boxes[level.data.key_box].interact(p)
+	for i in 3:
+		await t.physics_frame
+	check(level.key_taken and not level.stair_out.locked, "%s: the key is in the box the query named, and it unlocks the stairs down" % where)
+	level.queue_free()
+	await t.process_frame
+
+
+## A pressure puzzle is built, not copied: no full query written on a paper within
+## reach of a terminal (or on its boot screen) may pass a `pressure: true` puzzle.
+func check_no_copy_under_pressure(level: Node, where: String) -> void:
+	var copied := []
+	for term in level.find_children("*", "Terminal", true, false):
+		var on: FacilityDB = term.db
+		var text := world_text(level, term) + "\n" + "\n".join(term.boot_lines)
+		for q in queries_in(text):
+			for shown in fill_blanks(level, q, term):
+				var result: Dictionary = on.execute(shown)
+				for p in _puzzles(level):
+					if Curriculum.PUZZLES.get(p.id, {}).get("pressure", false) and p.matches(on, result):
+						copied.append("%s solves %s" % [shown, p.id])
+	check(copied.is_empty(), "%s: no query written on a paper or boot screen passes a pressure puzzle (%s)" % [where, "; ".join(copied) if copied else "built, not copied"])
+
+
+func _doc(level: Node, title: String) -> Node:
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == title:
+			return d
+	return null
+
+
 # --- Found, practised safely, then used under pressure -----------------------
 
 func check_teaching_order() -> void:
 	var threat_first := []
+	var owned_up := {}
 	for k in first_use:
-		if first_use[k] == "threat":
+		if first_use[k] != "threat":
+			continue
+		# A puzzle row may own up to this ("threat_first": why); it prints as a gap.
+		var spec: Dictionary = Curriculum.PUZZLES.get(first_use_by.get(k, ""), {})
+		if spec.has("threat_first"):
+			owned_up[first_use_by[k]] = true
+			gap(false, "%s is first needed under threat, in %s (%s)" % [k, first_use_by[k], spec.threat_first])
+		else:
 			threat_first.append(k)
 	check(threat_first.is_empty(), "every keyword is first needed somewhere safe, never first under threat%s" % ("" if threat_first.is_empty() else " (%s)" % ", ".join(threat_first)))
+	# A row still owning up to a threat-first keyword that is now first used safely:
+	# the marker is stale, so it prints FIXED until the row drops it.
+	for id in Curriculum.PUZZLES:
+		if Curriculum.PUZZLES[id].has("threat_first") and not owned_up.has(id):
+			gap(true, "%s: its threat_first marker is stale (nothing it needs is first used under threat any more)" % id)
 	var never := []
 	for k in first_use:
 		if not used_under_threat.has(k):
