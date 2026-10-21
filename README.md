@@ -23,7 +23,8 @@ Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo o
 
 ## Changelog
 
-Newest first. Floors are listed by their in-game floor number.
+Newest first. Floors are listed by their in-game floor number. Changes that have merged but
+aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 ### 2026-10-20
 - **New:** dress your character in the co-op lobby. Crew, Look and Gear tabs let you pick hair, hat, top, jacket, glasses, earrings and more, a colour for each, and the colour of your flashlight, walkie, notebook and terminal screen. A shared terminal takes the screen colour of whoever sat down first. Your name and picks are saved for next time.
