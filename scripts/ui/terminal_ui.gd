@@ -435,6 +435,12 @@ static func _plain(bbcode: String) -> String:
 ## the input line, and names like memo_fragments amber, as in a table's header,
 ## in its queries and in the advice around them alike. Only capitals count as
 ## keywords, so "or" in a sentence stays plain.
+## An UPDATE, INSERT, DELETE or REPLACE: a statement whose answer is how many rows it changed.
+static func _changes_rows(sql: String) -> bool:
+	var head := sql.strip_edges().to_upper()
+	return ["UPDATE", "INSERT", "DELETE", "REPLACE"].any(func(w): return head.begins_with(w))
+
+
 static func sysop(text: String) -> String:
 	return "[color=%s][lb]SYSOP[rb]: %s[/color]" % [HINT, _words(text)]
 
@@ -663,6 +669,9 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 		if result.rows.is_empty():
 			if result.changes > 0:
 				out.append(["OK. %d row(s) changed." % result.changes, "info"])
+			elif _changes_rows(sql):
+				# A write that matched nothing (a typo in its WHERE, say) reads as one.
+				out.append(["0 rows changed.", "info"])
 			else:
 				out.append(["(0 rows)", "info"])
 		else:

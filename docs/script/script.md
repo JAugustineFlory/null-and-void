@@ -745,7 +745,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Containment protocol Epsilon
 
-*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. The terminal's lie at the main entrance is exposed by the crew's own SELECT, not by WARDEN. Level 4 under curriculum option B (approved 2026-10-21).* *(Written ahead: not in the game yet.)*
+*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. The terminal's lie at the main entrance is exposed by the crew's own SELECT, not by WARDEN. Level 4 under curriculum option B (approved 2026-10-21).*
 
 **WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l4_epsilon_1]`
 
@@ -759,13 +759,13 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Writes suspended
 
-*Ground floor, after the crew's main-entrance UPDATE says '1 row affected' and the latch clicks: Epsilon reverts the write and WARDEN announces that the database is now read-only, which is why the crew turns to the building's services. Placement chosen by Augustine 2026-10-21 ('After the lie').* *(Written ahead: not in the game yet.)*
+*Ground floor, after the crew's main-entrance UPDATE says '1 row affected' and the latch clicks: Epsilon reverts the write and WARDEN announces that the database is now read-only, which is why the crew turns to the building's services. Placement chosen by Augustine 2026-10-21 ('After the lie').*
 
 **WARDEN:** *(The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint.)* DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. `[l4_epsilon_db]`
 
 ### Writes refused
 
-*After the read-only announcement, any change the crew types is refused; SELECT still works. By Level 4 WARDEN's fault lets his own personality leak out: the first refusal is the automatic PA announcement first, then WARDEN himself, teasing, as a separate beat. Approved by Augustine 2026-10-21 with that split.* *(Written ahead: not in the game yet.)*
+*After the read-only announcement, any change the crew types is refused; SELECT still works. By Level 4 WARDEN's fault lets his own personality leak out: the first refusal is the automatic PA announcement first, then WARDEN himself, teasing, as a separate beat. Approved by Augustine 2026-10-21 with that split.*
 
 **WARDEN:** *(The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal.)* WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. `[l4_write_refused]`
 
@@ -775,7 +775,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Floor 10: Plant and Power
 
-*WARDEN becomes version 3.0 here. Before the main_doors accident he still waits politely for a PA tape to finish and says THIS UNIT. The accident is his first big failure: he revises his protocols and says I in an announcement for the first time (l4_upgrade_2). After it he talks over the PA tapes. Mixed lines are the automatic announcement first, then his own voice as a separate beat. The floor 22 I and my lines stay as the fault's first slips. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+*WARDEN becomes version 3.0 here. Before the main_doors accident he still waits politely for a PA tape to finish and says THIS UNIT. The accident is his first big failure: he revises his protocols and says I in an announcement for the first time (l4_upgrade_2). After it he talks over the PA tapes. Mixed lines are the automatic announcement first, then his own voice as a separate beat. The floor 22 I and my lines stay as the fault's first slips. Approved by Augustine 2026-10-21.*
 
 **PA:** *(The cheerful recorded tape, as on the ground floor.)* Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! `[l4_arrive_pa]`
 
@@ -803,7 +803,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### The lobby, locked in
 
-*After the main-entrance lie and the read-only announcement, when the crew heads for the stairs up to floor 9. Lift service is already suspended. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+*After the main-entrance lie and the read-only announcement, when the crew heads for the stairs up to floor 9. Lift service is already suspended. Approved by Augustine 2026-10-21.*
 
 **WARDEN:** *(The automatic announcement: a routine safety reminder.)* REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. `[l4_stairs]`
 

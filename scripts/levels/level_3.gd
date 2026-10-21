@@ -1193,6 +1193,7 @@ func _on_key_taken(peer_id: int) -> void:
 	key_taken = true
 	key_dock.enabled = false
 	stair_out.locked = false
+	prepare_next()  # floor 10 builds now, below the stairwell
 	if peer_id == players.id_of(player):
 		hud.notice(TEXT.key, 5.0)
 	hud.todo(TEXT.todo_key)
@@ -1200,10 +1201,28 @@ func _on_key_taken(peer_id: int) -> void:
 
 # --- The way down -------------------------------------------------------------------
 
-## Everyone is on the stairs. Until Level 4 is built, the slice ends here.
+## Everyone is on the stairs. In the World, eight flights down behind a fade to
+## floor 10; on its own, the slice ends here.
 func _on_exit() -> void:
 	get_node("/root/Net").earn("achievement:floor_18", hud)
-	if not player or player.health <= 0.0:
+	if not player:
+		return
+	var next: Node = world.wings.get("level_4") if world else null
+	if next and next.has_method("arrive_by_stairs"):
+		# A downed player goes down with everyone (the trigger counted them) and stays
+		# down there until revived.
+		var up := player.health > 0.0
+		var was_locked := player.input_locked
+		player.input_locked = true
+		await hud.fade(true, 1.2)
+		Game.completed_level = "level_3"
+		Game.next_level = "level_4"
+		next.arrive_by_stairs()
+		finish_level("level_4")
+		player.input_locked = was_locked if not up else false
+		hud.fade(false, 0.8)
+		return
+	if player.health <= 0.0:
 		return
 	player.input_locked = true
 	await get_tree().create_timer(1.0).timeout

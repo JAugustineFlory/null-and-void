@@ -126,27 +126,27 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_smudged` | TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU. | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | DOOR COMMAND ACCEPTED. DOOR OPENED. | Confident. It is wrong. | Level 2 |
 | [ ] | `l2_door_fault` | ACTUATOR FAULT ON THAT DOOR. I DID NOT THINK IT WORTH MENTIONING. | When the crew finds the fault themselves. Deadpan, unapologetic. | Level 2 |
-| [ ] | `l4_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 4, later |
-| [ ] | `l4_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 4, later |
-| [ ] | `l4_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 4, later |
-| [ ] | `l4_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 4, later |
-| [ ] | `l4_epsilon_loop_2` | REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. | Takes turns with the other reminder, once writes have been suspended. Same polite loop. | Level 4, later |
-| [ ] | `l4_epsilon_db` | DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. | The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint. | Level 4, later |
-| [ ] | `l4_write_refused` | WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. | The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal. | Level 4, later |
-| [ ] | `l4_write_refused_tease` | YOU MAY STILL LOOK. LOOKING IS FREE. | A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud. | Level 4, later |
-| [ ] | `l4_write_refused_again` | STILL READ-ONLY. | Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat. | Level 4, later |
-| [ ] | `l4_arrive` | VISITORS ON FLOOR TEN. NO ESCORT ON RECORD. THIS UNIT IS OBSERVING. | Flat. Waits until the tape has finished, on purpose; the politeness is the point. | Level 4, later |
-| [ ] | `l4_all_circuits` | ALL CIRCUITS ON FLOOR TEN HAVE CHANGED STATE. | The automatic announcement: flat and procedural. | Level 4, later |
-| [ ] | `l4_all_circuits_tease` | ALL OF THEM. IMPRESSIVE. | A separate beat, after a pause: his own voice. Dry. | Level 4, later |
-| [ ] | `l4_signed_in` | CONTRACTOR LOG ENTRY RECEIVED. THANK YOU FOR SIGNING IN. | The automatic announcement only. Polite, procedural. | Level 4, later |
-| [ ] | `l4_upgrade_1` | CONTAINMENT FAILURE LOGGED. PROTOCOLS REVISED. THIS UNIT HAS ADAPTED. | The automatic announcement: flat, like reading a log entry. | Level 4, later |
-| [ ] | `l4_upgrade_2` | I HAVE ADAPTED. | After a long pause, his own voice. As if trying the word out, then deciding to keep it. Quiet. This is the moment, so don't play it big. | Level 4, later |
-| [ ] | `l4_over_pa_1` | SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT. | The automatic announcement, over the tape. He doesn't wait for it any more. | Level 4, later |
-| [ ] | `l4_over_pa_2` | NOBODY CARES ABOUT THE FRIDGE. | His own voice, over the tape. Irritated, dry. | Level 4, later |
-| [ ] | `l4_bay_sealed` | LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED. | The automatic announcement: flat and procedural. | Level 4, later |
-| [ ] | `l4_bay_sealed_tease` | FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. | A separate beat, his own voice. Almost pleased. | Level 4, later |
-| [ ] | `l4_stairs` | REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. | The automatic announcement: a routine safety reminder. | Level 4, later |
-| [ ] | `l4_stairs_tease` | NOT THAT YOU COULD. | A separate beat, his own voice. Teasing; the lifts are already off. | Level 4, later |
+| [ ] | `l4_epsilon_1` | CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. | Flat and slow. A short pause after. | Level 4 |
+| [ ] | `l4_epsilon_2` | ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. | Even pauses between sentences, like reading a checklist. | Level 4 |
+| [ ] | `l4_epsilon_3` | ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. | No change in tone for 'not a drill'. That's the frightening part. | Level 4 |
+| [ ] | `l4_epsilon_loop` | REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. | Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only. | Level 4 |
+| [ ] | `l4_epsilon_loop_2` | REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. | Takes turns with the other reminder, once writes have been suspended. Same polite loop. | Level 4 |
+| [ ] | `l4_epsilon_db` | DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. | The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint. | Level 4 |
+| [ ] | `l4_write_refused` | WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. | The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal. | Level 4 |
+| [ ] | `l4_write_refused_tease` | YOU MAY STILL LOOK. LOOKING IS FREE. | A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud. | Level 4 |
+| [ ] | `l4_write_refused_again` | STILL READ-ONLY. | Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat. | Level 4 |
+| [ ] | `l4_arrive` | VISITORS ON FLOOR TEN. NO ESCORT ON RECORD. THIS UNIT IS OBSERVING. | Flat. Waits until the tape has finished, on purpose; the politeness is the point. | Level 4 |
+| [ ] | `l4_all_circuits` | ALL CIRCUITS ON FLOOR TEN HAVE CHANGED STATE. | The automatic announcement: flat and procedural. | Level 4 |
+| [ ] | `l4_all_circuits_tease` | ALL OF THEM. IMPRESSIVE. | A separate beat, after a pause: his own voice. Dry. | Level 4 |
+| [ ] | `l4_signed_in` | CONTRACTOR LOG ENTRY RECEIVED. THANK YOU FOR SIGNING IN. | The automatic announcement only. Polite, procedural. | Level 4 |
+| [ ] | `l4_upgrade_1` | CONTAINMENT FAILURE LOGGED. PROTOCOLS REVISED. THIS UNIT HAS ADAPTED. | The automatic announcement: flat, like reading a log entry. | Level 4 |
+| [ ] | `l4_upgrade_2` | I HAVE ADAPTED. | After a long pause, his own voice. As if trying the word out, then deciding to keep it. Quiet. This is the moment, so don't play it big. | Level 4 |
+| [ ] | `l4_over_pa_1` | SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT. | The automatic announcement, over the tape. He doesn't wait for it any more. | Level 4 |
+| [ ] | `l4_over_pa_2` | NOBODY CARES ABOUT THE FRIDGE. | His own voice, over the tape. Irritated, dry. | Level 4 |
+| [ ] | `l4_bay_sealed` | LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED. | The automatic announcement: flat and procedural. | Level 4 |
+| [ ] | `l4_bay_sealed_tease` | FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. | A separate beat, his own voice. Almost pleased. | Level 4 |
+| [ ] | `l4_stairs` | REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. | The automatic announcement: a routine safety reminder. | Level 4 |
+| [ ] | `l4_stairs_tease` | NOT THAT YOU COULD. | A separate beat, his own voice. Teasing; the lifts are already off. | Level 4 |
 
 ## WARDEN (PA tapes) (5 lines)
 
@@ -157,8 +157,8 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [x] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA, as the crew steps inside. Pleasant, like a store closing announcement. | Level 0 |
 | [x] | `l0_pa_2` | Visitors must remain with their escort at all times. Thank you for your cooperation! | Same announcement, continuing. | Level 0 |
 | [x] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
-| [ ] | `l4_arrive_pa` | Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! | The cheerful recorded tape, as on the ground floor. | Level 4, later |
-| [ ] | `l4_pa_fridge` | Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch— | The cheerful recorded tape. It keeps playing underneath when he talks over it. | Level 4, later |
+| [ ] | `l4_arrive_pa` | Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! | The cheerful recorded tape, as on the ground floor. | Level 4 |
+| [ ] | `l4_pa_fridge` | Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch— | The cheerful recorded tape. It keeps playing underneath when he talks over it. | Level 4 |
 
 ## Dr. Iris Vale (3 lines)
 

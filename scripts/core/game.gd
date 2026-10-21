@@ -10,6 +10,7 @@ const LEVELS := {
 	"level_1": "res://scenes/level_1.tscn",
 	"level_2": "res://scenes/level_2.tscn",
 	"level_3": "res://scenes/level_3.tscn",
+	"level_4": "res://scenes/level_4.tscn",
 	"movement_gym": "res://scenes/movement_gym.tscn",
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",
@@ -26,6 +27,9 @@ var visitor_badge_no := ""
 var inventory := Inventory.new()
 ## Did the players lock the Watcher in behind them in Level 2?
 var watcher_sealed := false
+## Did the players lock the Custodian out in its bay on floor 10 (Level 4)? If not,
+## it can come back on later floors.
+var custodian_sealed := false
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
 var cam_lie_learned := false
 ## The level the Field Notes screen is summarizing, and where "Continue" goes.
@@ -97,6 +101,7 @@ func new_run(seed_value: int = -1) -> void:
 	has_walkie = false
 	visitor_badge_no = ""
 	watcher_sealed = false
+	custodian_sealed = false
 	cam_lie_learned = false
 	completed_level = ""
 	next_level = ""
