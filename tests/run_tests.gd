@@ -7,12 +7,31 @@ extends SceneTree
 
 var passed := 0
 var failed := 0
+## Counts SCRIPT ERRORs (parse errors, bad calls): Godot prints them and carries on, so a
+## test script that fails to parse, or a test that dies halfway, would otherwise go green.
+var _errors := ScriptErrors.new()
 ## Inside the floor 22 stairwell, past the lift lobby's stair door (Level 2 local).
 const STAIRS := Vector3(4.5, 0.1, -15.0)  # on the landing, clear of the flight
 
 
 func _initialize() -> void:
+	OS.add_logger(_errors)
 	_run.call_deferred()
+
+
+class ScriptErrors extends Logger:
+	var count := 0
+	var _lock := Mutex.new()
+
+	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String,
+			_editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		if error_type == ERROR_TYPE_SCRIPT:
+			_lock.lock()
+			count += 1
+			_lock.unlock()
+
+	func _log_message(_message: String, _error: bool) -> void:
+		pass
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
@@ -34,6 +53,7 @@ func _run() -> void:
 			await _run_group(g)
 	if passed + failed == 0:
 		check(false, "no tests ran")
+	check(_errors.count == 0, "no SCRIPT ERRORs while testing (found %d; search the log for SCRIPT ERROR)" % _errors.count)
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
 
@@ -84,9 +104,9 @@ func _group_core() -> void:
 	await test_stairwells()
 	await test_in_world_ui()
 	await test_pick_up_papers()
-	await load("res://tests/combat_tests.gd").new().run(self, check)
-	await load("res://tests/art_tests.gd").new().run(self, check)
-	await load("res://tests/huddle_tests.gd").new().run(self, check)
+	await _run_file("res://tests/combat_tests.gd")
+	await _run_file("res://tests/art_tests.gd")
+	await _run_file("res://tests/huddle_tests.gd")
 
 
 ## Ground floor (Level 0) and Rourke's tour.
@@ -157,25 +177,38 @@ func _group_coop() -> void:
 
 
 func _group_movement() -> void:
-	await load("res://tests/movement_tests.gd").new().run(self, check)
+	await _run_file("res://tests/movement_tests.gd")
 
 
 ## Teaching walkthroughs and audits across every floor.
 func _group_teaching() -> void:
-	await load("res://tests/teaching_tests.gd").new().run(self, check)
-	await load("res://tests/teaching_voice_tests.gd").new().run(self, check)
+	await _run_file("res://tests/teaching_tests.gd")
+	await _run_file("res://tests/teaching_voice_tests.gd")
 
 
 ## The second lab seed's paced walk, on its own so neither teaching group runs long.
 func _group_teaching_lab() -> void:
-	await load("res://tests/teaching_tests.gd").new().run(self, check, "lab")
+	await _run_file("res://tests/teaching_tests.gd", "lab")
 
 
 ## Scripting and services: the facility API's writes, and deck scripts.
 func _group_scripting() -> void:
-	await load("res://tests/scripting_tests.gd").new().run(self, check)
-	await load("res://tests/script_runtime_tests.gd").new().run(self, check)
-	await load("res://tests/script_editor_tests.gd").new().run(self, check)
+	await _run_file("res://tests/scripting_tests.gd")
+	await _run_file("res://tests/script_runtime_tests.gd")
+	await _run_file("res://tests/script_editor_tests.gd")
+
+
+## Runs a test file's run(tree, check, ...). One that fails to parse is a failed test, not a skip.
+func _run_file(path: String, part := "") -> void:
+	var script: GDScript = load(path)
+	if script == null or not script.can_instantiate():
+		check(false, "%s loads (it has a parse error: see SCRIPT ERROR above)" % path)
+		return
+	var tests = script.new()
+	if part.is_empty():
+		await tests.run(self, check)
+	else:
+		await tests.run(self, check, part)
 
 
 func check(cond: bool, name: String) -> void:
