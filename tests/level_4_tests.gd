@@ -201,6 +201,7 @@ func test_scene() -> void:
 	var level = load("res://scenes/level_4.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(30)
+	_chapters_read([level])
 	var p: Player = level.player
 	var data: Dictionary = level.data
 	check(LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on 10's stair landing (%s)" % level.to_local(p.global_position))
@@ -304,6 +305,7 @@ func test_right_first_time() -> void:
 	var level = load("res://scenes/level_4.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(20)
+	_chapters_read([level])
 	var ui: TerminalUI = level.terminal_ui
 	ui.terminal = level.maint
 	ui.run(_last_hint_query(level.reset_puzzle))
@@ -318,6 +320,15 @@ func test_right_first_time() -> void:
 
 func _said(term: Terminal, line: String) -> bool:
 	return Array(term.transcript).any(func(l): return TerminalUI._plain(l).contains(line))
+
+
+## Floor 10's chapters count as read on these levels: the tests here are about the
+## stations, and the chapters have their own tests (the hooks do nothing until Home
+## base adds the two chapters to books.gd).
+func _chapters_read(levels: Array) -> void:
+	for l in levels:
+		for id in ["easy_sql_update", "easy_sql_insert"]:
+			l.get_node("Huddle").done[id] = true
 
 
 func _until(cond: Callable, frames: int) -> bool:
@@ -341,6 +352,7 @@ func test_accident() -> void:
 	var level = load("res://scenes/level_4.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(20)
+	_chapters_read([level])
 	level.completed.disconnect(level._on_completed)
 	var p: Player = level.player
 	var data: Dictionary = level.data
@@ -495,6 +507,7 @@ func test_coop() -> void:
 	_game().new_run(5)
 	var worlds: Array = await t._coop_worlds(1)
 	var machines: Array = await t._coop_load(worlds, "res://scenes/level_4.tscn")
+	_chapters_read(machines)
 	var host = machines[0]
 	var client = machines[1]
 	check(machines.all(func(l): return l.sync._begun and l.players.count() == 2 and l.data.target == host.data.target), "both machines start floor 10 with the same breaker tripped")
@@ -556,6 +569,7 @@ func test_gantry() -> void:
 	var level = load("res://scenes/level_4.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(20)
+	_chapters_read([level])
 	var p: Player = level.player
 	var data: Dictionary = level.data
 	var ui: TerminalUI = level.terminal_ui
@@ -623,6 +637,7 @@ func test_custodian_follows() -> void:
 	var level = load("res://scenes/level_4.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(20)
+	_chapters_read([level])
 	level.completed.disconnect(level._on_completed)
 	level.follow_time = 0.3
 	level.sync.event("_on_solved", ["main_doors"])
