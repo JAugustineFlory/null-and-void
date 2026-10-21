@@ -1,0 +1,1 @@
+- **Changed:** the High-tops unlock only for the player who makes the block.

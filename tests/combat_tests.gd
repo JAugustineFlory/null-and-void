@@ -230,7 +230,7 @@ func test_rourke_fight_feel() -> void:
 
 
 ## The High-tops: the first block in a real fight unlocks them; the punch bag's
-## practice swings never do. (Co-op, where everyone present gets them: run_tests.gd.)
+## practice swings never do. (Co-op, where only the blocker gets them: run_tests.gd.)
 func test_first_block_unlock() -> void:
 	var net: Node = t.root.get_node("/root/Net")
 	var real_profile = net.profile
