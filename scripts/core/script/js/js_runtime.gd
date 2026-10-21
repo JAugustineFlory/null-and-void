@@ -52,6 +52,7 @@ func start(library: BuildingLibrary, seed_value := 0) -> void:
 	_vm.printed.connect(func(text: String, kind: String): printed.emit(text, kind))
 	_vm.start(_main, seed_value)
 	state = State.RUNNING
+	started.emit()
 
 
 func tick(delta: float, usec := FRAME_USEC) -> void:

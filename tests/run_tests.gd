@@ -175,6 +175,7 @@ func _group_teaching_lab() -> void:
 func _group_scripting() -> void:
 	await load("res://tests/scripting_tests.gd").new().run(self, check)
 	await load("res://tests/script_runtime_tests.gd").new().run(self, check)
+	await load("res://tests/script_editor_tests.gd").new().run(self, check)
 
 
 func check(cond: bool, name: String) -> void:
