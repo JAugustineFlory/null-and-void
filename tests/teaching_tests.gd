@@ -842,6 +842,7 @@ func walk_level_3(seed_value: int) -> void:
 	var where := "records archive (seed %d)" % seed_value
 	check_case_clues(level, where)
 	check_jots(level, where)
+	check_no_copy_under_pressure(level, where)
 	var ui: TerminalUI = level.terminal_ui
 	var p: Player = level.player
 	p.local_control = false
@@ -861,8 +862,14 @@ func walk_level_3(seed_value: int) -> void:
 	# (found, and practised at once). The slips count has no query written out.
 	var h := await solve(level, ui, level.slips_puzzle, level.shredder_awake)
 	check(h <= rescue_tier(level.slips_puzzle), "%s: the slips count is built from the sticky's shape; a lost player waits on its ladder (hints %d)" % [where, h])
+	# The memo's query covers every room: copying it shows DISTINCT at work (the
+	# practice) but the station wants the stacks only, so the WHERE is the player's.
 	h = await solve(level, ui, level.depts_puzzle, level.shredder_awake)
-	check(h == 0 and level.depts_puzzle.solved, "%s: DISTINCT is practised from the memo on the card catalogue, safely (hints %d)" % [where, h])
+	check(h <= rescue_tier(level.depts_puzzle) and not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;"), "%s: DISTINCT is practised by copying the memo, safely, and the stacks station still needs the player's WHERE (hints %d)" % [where, h])
+	ui.run("SELECT DISTINCT dept FROM catalogue")
+	var every := last_table(screen(ui)).size()
+	ui.run(level.depts_puzzle.solution_sql)
+	check(level.depts_puzzle.solved and last_table(screen(ui)).size() < every, "%s: the memo's list has more departments than the stacks: the WHERE narrows it" % where)
 	h = await solve(level, ui, level.tally_puzzle, level.shredder_awake)
 	check(h == 0 and level.tally_puzzle.solved, "%s: GROUP BY is practised from the reader tally on the desk, safely (hints %d)" % [where, h])
 	ui.run(level.tally_puzzle.solution_sql)
@@ -972,6 +979,22 @@ func walk_level_3(seed_value: int) -> void:
 	await t.process_frame
 
 
+## A pressure puzzle is built, not copied: no full query written on a paper within
+## reach of a terminal (or on its boot screen) may pass a `pressure: true` puzzle.
+func check_no_copy_under_pressure(level: Node, where: String) -> void:
+	var copied := []
+	for term in level.find_children("*", "Terminal", true, false):
+		var on: FacilityDB = term.db
+		var text := world_text(level, term) + "\n" + "\n".join(term.boot_lines)
+		for q in queries_in(text):
+			for shown in fill_blanks(level, q, term):
+				var result: Dictionary = on.execute(shown)
+				for p in _puzzles(level):
+					if Curriculum.PUZZLES.get(p.id, {}).get("pressure", false) and p.matches(on, result):
+						copied.append("%s solves %s" % [shown, p.id])
+	check(copied.is_empty(), "%s: no query written on a paper or boot screen passes a pressure puzzle (%s)" % [where, "; ".join(copied) if copied else "built, not copied"])
+
+
 func _doc(level: Node, title: String) -> Node:
 	for d in level.find_children("*", "Document", true, false):
 		if d.title == title:
@@ -983,16 +1006,23 @@ func _doc(level: Node, title: String) -> Node:
 
 func check_teaching_order() -> void:
 	var threat_first := []
+	var owned_up := {}
 	for k in first_use:
 		if first_use[k] != "threat":
 			continue
 		# A puzzle row may own up to this ("threat_first": why); it prints as a gap.
 		var spec: Dictionary = Curriculum.PUZZLES.get(first_use_by.get(k, ""), {})
 		if spec.has("threat_first"):
+			owned_up[first_use_by[k]] = true
 			gap(false, "%s is first needed under threat, in %s (%s)" % [k, first_use_by[k], spec.threat_first])
 		else:
 			threat_first.append(k)
 	check(threat_first.is_empty(), "every keyword is first needed somewhere safe, never first under threat%s" % ("" if threat_first.is_empty() else " (%s)" % ", ".join(threat_first)))
+	# A row still owning up to a threat-first keyword that is now first used safely:
+	# the marker is stale, so it prints FIXED until the row drops it.
+	for id in Curriculum.PUZZLES:
+		if Curriculum.PUZZLES[id].has("threat_first") and not owned_up.has(id):
+			gap(true, "%s: its threat_first marker is stale (nothing it needs is first used under threat any more)" % id)
 	var never := []
 	for k in first_use:
 		if not used_under_threat.has(k):

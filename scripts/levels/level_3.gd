@@ -74,11 +74,14 @@ const POLICY_LINES := [
 ]
 ## The clerk's memo pinned on the card catalogue: where DISTINCT is found. The desk
 ## station (depts) is the same question, so the word is practised at once, safely.
+## The query on it covers every room, so copying it shows DISTINCT at work but
+## doesn't answer the ask: the station wants the stacks only (the WHERE is the
+## player's own step, and leaving it off is the tempting wrong answer).
 const MEMO_LINES := [
 	"RETENTION REVIEW",
 	"List every department that still has boxes in the stacks.",
 	"ONCE each, please. Legal sent me forty lines last time.",
-	{"text": "SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS';", "hand": true},
+	{"text": "SELECT DISTINCT dept FROM catalogue;   <- that's every room. narrow it.", "hand": true},
 	{"text": "DISTINCT = one of each. no repeats.", "hand": true},
 ]
 ## The clerk's sticky on the desk terminal: where COUNT is found (new on 18: no Easy
