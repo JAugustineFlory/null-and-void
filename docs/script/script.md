@@ -741,6 +741,42 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **WARDEN:** *(Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat.)* STILL READ-ONLY. `[l4_write_refused_again]`
 
+### Floor 10: Plant and Power
+
+*WARDEN becomes version 3.0 here. Before the main_doors accident he still waits politely for a PA tape to finish and says THIS UNIT. The accident is his first big failure: he revises his protocols and says I in an announcement for the first time (l4_upgrade_2). After it he talks over the PA tapes. Mixed lines are the automatic announcement first, then his own voice as a separate beat. The floor 22 I and my lines stay as the fault's first slips. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+
+**PA:** *(The cheerful recorded tape, as on the ground floor.)* Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! `[l4_arrive_pa]`
+
+**WARDEN:** *(Flat. Waits until the tape has finished, on purpose; the politeness is the point.)* VISITORS ON FLOOR TEN. NO ESCORT ON RECORD. THIS UNIT IS OBSERVING. `[l4_arrive]`
+
+**WARDEN:** *(The automatic announcement: flat and procedural.)* ALL CIRCUITS ON FLOOR TEN HAVE CHANGED STATE. `[l4_all_circuits]`
+
+**WARDEN:** *(A separate beat, after a pause: his own voice. Dry.)* ALL OF THEM. IMPRESSIVE. `[l4_all_circuits_tease]`
+
+**WARDEN:** *(The automatic announcement only. Polite, procedural.)* CONTRACTOR LOG ENTRY RECEIVED. THANK YOU FOR SIGNING IN. `[l4_signed_in]`
+
+**WARDEN:** *(The automatic announcement: flat, like reading a log entry.)* CONTAINMENT FAILURE LOGGED. PROTOCOLS REVISED. THIS UNIT HAS ADAPTED. `[l4_upgrade_1]`
+
+**WARDEN:** *(After a long pause, his own voice. As if trying the word out, then deciding to keep it. Quiet. This is the moment, so don't play it big.)* I HAVE ADAPTED. `[l4_upgrade_2]`
+
+**PA:** *(The cheerful recorded tape. It keeps playing underneath when he talks over it.)* Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch— `[l4_pa_fridge]`
+
+**WARDEN:** *(The automatic announcement, over the tape. He doesn't wait for it any more.)* SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT. `[l4_over_pa_1]`
+
+**WARDEN:** *(His own voice, over the tape. Irritated, dry.)* NOBODY CARES ABOUT THE FRIDGE. `[l4_over_pa_2]`
+
+**WARDEN:** *(The automatic announcement: flat and procedural.)* LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED. `[l4_bay_sealed]`
+
+**WARDEN:** *(A separate beat, his own voice. Almost pleased.)* FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. `[l4_bay_sealed_tease]`
+
+### The lobby, locked in
+
+*After the main-entrance lie and the read-only announcement, when the crew heads for the stairs up to floor 9. Lift service is already suspended. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(The automatic announcement: a routine safety reminder.)* REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. `[l4_stairs]`
+
+**WARDEN:** *(A separate beat, his own voice. Teasing; the lifts are already off.)* NOT THAT YOU COULD. `[l4_stairs_tease]`
+
 ## Level 5
 
 ### Book huddles: Easy APIs
