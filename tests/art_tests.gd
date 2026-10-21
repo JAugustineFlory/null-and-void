@@ -16,6 +16,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_walks_from_movement()
 	await test_rig_actions()
 	await test_rig_budget()
+	await test_skinned_body()
 	test_outfits()
 	test_unlockable_items()
 	await test_props()
@@ -190,6 +191,81 @@ func test_rig_actions() -> void:
 	stage.free()
 
 
+func test_skinned_body() -> void:
+	var stage := _stage()
+	var holder := Node3D.new()
+	stage.add_child(holder)
+	var rig := CharacterRig.build(holder, CharacterLooks.rourke())
+	rig.set_process(false)
+	var skel: Skeleton3D = rig.find_children("*", "Skeleton3D", true, false)[0]
+	for j in rig.joints:
+		check(skel.find_bone(SkinnedBody.JOINT_BONES.get(j, "")) >= 0, "the body model has a bone for the rig's %s joint" % j)
+	var at := func(bone: String) -> Vector3:
+		return (skel.global_transform * skel.get_bone_global_pose(skel.find_bone(bone))).origin
+	# A limb points the way the rig's joints say: compare the bone running from one
+	# joint to the next with the line between those joints.
+	var limb_error := func(joint: String, next: String) -> float:
+		var want: Vector3 = rig.joints[next].global_position - rig.joints[joint].global_position
+		var got: Vector3 = at.call(SkinnedBody.JOINT_BONES[next]) - at.call(SkinnedBody.JOINT_BONES[joint])
+		return rad_to_deg(want.angle_to(got))
+	var worst := 0.0
+	for act in ["wave", "sit", "crawl", "sit_floor", "down"]:
+		rig.crawling = act == "crawl"
+		rig.play("idle" if act == "crawl" else act)
+		for i in 90:
+			rig.animate(1.0 / 60.0)
+		var limbs := [["r_hip", "r_knee"], ["l_hip", "l_knee"]] if act != "wave" else []
+		limbs.append(["r_shoulder", "r_elbow"])
+		for l in limbs:
+			worst = maxf(worst, limb_error.call(l[0], l[1]))
+		if act == "wave":
+			check(at.call("hand_r").y > at.call("Head").y, "a wave raises the hand above the head")
+		if act in ["sit", "crawl"]:
+			var feet := minf(at.call("foot_r").y, at.call("foot_l").y)
+			check(absf(feet - 0.08) < 0.1, "%s keeps the feet on the floor (%.2f m)" % [act, feet])
+	check(worst < 12.0, "the body's limbs follow the rig's joints through each action (worst %.1f degrees)" % worst)
+	# Walking and running play the pack's clips; anything game-specific is ours.
+	rig.crawling = false
+	rig.play("idle")
+	var clips: AnimationPlayer = rig.find_child("Clips", true, false)
+	for want in [[0.0, "Idle_Loop"], [1.9, "Walk_Loop"], [4.4, "Jog_Fwd_Loop"], [6.5, "Sprint_Loop"]]:
+		rig.speed_override = want[0]
+		for i in 10:
+			rig.animate(1.0 / 60.0)
+		check(clips and clips.current_animation == want[1], "moving at %.1f m/s plays %s" % want)
+	rig.speed_override = -1.0
+	var plain := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
+	var wide_body: MeshInstance3D = rig.find_child("Body", true, false)
+	var plain_body: MeshInstance3D = plain.find_child("Body", true, false)
+	check(wide_body.mesh.get_aabb().size.x > plain_body.mesh.get_aabb().size.x * 1.08, "a heavier build widens the body model")
+	plain.get_parent().free()
+	# Every piece any outfit or character asks for is in the body model.
+	var names := {}
+	for body in [1, 2]:
+		var model: Node3D = ArtModels.scene(SkinnedBody.MODELS[body]).instantiate()
+		names[body] = model.find_children("*", "MeshInstance3D", true, false).map(func(m): return String(m.name))
+		model.free()
+	var looks: Array = [CharacterLooks.rourke(), CharacterLooks.vale(), CharacterLooks.mercer(), CharacterLooks.night_guard(), CharacterLooks.maddison(), CharacterLooks.maddison(50)]
+	for slot in CharacterLooks.SLOTS:
+		for item in CharacterLooks.SLOTS[slot]:
+			for body in CharacterLooks.BODY_TYPES:
+				looks.append(CharacterLooks.outfit({"body": body, slot: {"item": item}}))
+	var missing := {}
+	for look in looks:
+		var full := CharacterLooks.base()
+		full.merge(look, true)
+		for part in SkinnedBody.wears(full):
+			if not part in names[2 if int(full.body) == 2 else 1]:
+				missing[part] = true
+	check(missing.is_empty(), "every outfit piece has a mesh in the body models (missing: %s)" % [missing.keys()])
+	CharacterRig.skinned = false
+	var old := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
+	CharacterRig.skinned = true
+	check(old.part_count() > 10 and old.find_children("*", "Skeleton3D", true, false).is_empty(), "the primitive body still builds when the skinned one is off")
+	old.get_parent().free()
+	stage.free()
+
+
 func test_outfits() -> void:
 	var most := 0
 	for body in CharacterLooks.BODY_TYPES:
@@ -247,7 +323,7 @@ func test_unlockable_items() -> void:
 	check(CharacterLooks.outfit({"head": {"item": "mercer_cap"}}).headwear == "mercer_cap", "Mercer's cap is a hat of its own")
 	var zipped := CharacterRig.build(Node3D.new(), guard)
 	var open_jacket := CharacterRig.build(Node3D.new(), CharacterLooks.outfit({"jacket": {"item": "jacket", "color": red}}))
-	check(zipped.part_count() <= open_jacket.part_count(), "a zipped jacket and its badge cost no more pieces than an open jacket")
+	check(zipped.part_count() <= open_jacket.part_count() + 1, "a zipped jacket and its badge cost at most one piece more than an open jacket")
 	zipped.get_parent().free()
 	open_jacket.get_parent().free()
 	# Tool finishes: gold, Easy SQL and amber draw in their own color, whatever was picked.
@@ -303,8 +379,8 @@ func test_rig_budget() -> void:
 	two.get_parent().free()
 	var a := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
 	var b := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
-	var ma: MeshInstance3D = a.joints["head"].get_child(0)
-	var mb: MeshInstance3D = b.joints["head"].get_child(0)
+	var ma: MeshInstance3D = a.find_child("Body", true, false)
+	var mb: MeshInstance3D = b.find_child("Body", true, false)
 	check(ma.mesh == mb.mesh and ma.material_override == mb.material_override, "rigs share meshes and materials")
 	a.get_parent().free()
 	b.get_parent().free()

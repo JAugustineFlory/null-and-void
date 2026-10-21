@@ -60,6 +60,9 @@ var _skip := 0
 var _skipped_delta := 0.0
 
 static var _meshes := {}
+## Draw the skinned body models (SkinnedBody); false draws the old primitives.
+static var skinned := true
+var _skin: SkinnedBody
 
 
 static func build(parent: Node3D, character: Dictionary) -> CharacterRig:
@@ -82,6 +85,11 @@ func is_full_body() -> bool:
 ## How many mesh pieces the rig draws (performance tests keep this small).
 func part_count() -> int:
 	return find_children("*", "MeshInstance3D", true, false).size()
+
+
+func _ready() -> void:
+	if _skin:
+		_skin.update(0.0)  # the skeleton drops poses set before it entered the tree
 
 
 func _process(delta: float) -> void:
@@ -116,6 +124,8 @@ func animate(delta: float) -> void:
 	_root_rot = _root_rot.lerp(target.get("_root_rot", Vector3.ZERO), k_root)
 	position = _root_pos
 	rotation = _root_rot
+	if _skin:
+		_skin.update(delta)
 
 
 func _measure_speed(delta: float) -> void:
@@ -359,6 +369,10 @@ func _make(character: Dictionary) -> void:
 	var hs: float = look.height
 	var b: float = look.build
 	scale = Vector3.ONE * hs
+	if skinned:
+		_make_joints(b)
+		_skin = SkinnedBody.attach(self, look)
+		return
 	var skin := ArtPalette.flat(look.skin, 0.7)
 	var shirt := ArtPalette.flat(look.shirt, 0.9)
 	var pants := ArtPalette.flat(look.pants, 0.9)
@@ -430,6 +444,20 @@ func _make(character: Dictionary) -> void:
 	if jacket and look.coat:
 		# A long coat (lab coat) hangs from the waist to the knees.
 		_part(hips, "box", Vector3(0.4 * hw, 0.5, 0.26), Vector3(0, -0.2, 0.005), jacket, true)
+
+
+## The joints alone, where the primitive body puts them; the skinned body follows them.
+func _make_joints(b: float) -> void:
+	var two: bool = look.body == 2
+	var sw := b * (0.88 if two else 1.0)
+	var hw := b * (1.1 if two else 1.0)
+	var hips := _joint("hips", self, Vector3(0, 0.92, 0))
+	var spine := _joint("spine", hips, Vector3(0, 0.06, 0))
+	_joint("head", _joint("neck", spine, Vector3(0, 0.49, 0)), Vector3(0, 0.07, 0))
+	for side in ["r", "l"]:
+		var sx := 1.0 if side == "r" else -1.0
+		_joint(side + "_elbow", _joint(side + "_shoulder", spine, Vector3(sx * 0.215 * sw, 0.43, 0)), Vector3(0, -0.28, 0))
+		_joint(side + "_knee", _joint(side + "_hip", hips, Vector3(sx * 0.09 * hw, -0.05, 0)), Vector3(0, -0.43, 0))
 
 
 func _make_face(head: Node3D) -> void:
