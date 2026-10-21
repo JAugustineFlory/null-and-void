@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "movement", "teaching", "teaching_lab", "scripting"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "combat", "movement", "teaching", "teaching_lab", "scripting"]
 
 
 func _run() -> void:
@@ -74,6 +74,7 @@ func _run_group(g: String) -> void:
 		"floor_22_lab": await _group_floor_22_lab()
 		"floor_18": await _group_floor_18()
 		"coop": await _group_coop()
+		"combat": await _group_combat()
 		"movement": await _group_movement()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
@@ -104,7 +105,6 @@ func _group_core() -> void:
 	await test_stairwells()
 	await test_in_world_ui()
 	await test_pick_up_papers()
-	await _run_file("res://tests/combat_tests.gd")
 	await _run_file("res://tests/art_tests.gd")
 	await _run_file("res://tests/huddle_tests.gd")
 
@@ -174,7 +174,14 @@ func _group_coop() -> void:
 	await test_coop_lobby_walk_in()
 	await test_coop_level_2()
 	await test_coop_level_2_lab()
+
+
+## Fights: health, blocking, the entities' grabs and throws, solo and co-op.
+func _group_combat() -> void:
+	await _run_file("res://tests/combat_tests.gd")
+	await _run_file("res://tests/custodian_tests.gd")
 	await test_coop_combat()
+	await test_coop_custodian()
 
 
 func _group_movement() -> void:
@@ -3063,6 +3070,57 @@ func _check_crew_beaten(level: Node, lab: Level2Lab, p: Player, r: Rourke) -> vo
 
 
 ## Co-op fighting: the client's own machine blocks, goes down and gets helped up.
+## The Custodian in co-op: the host runs it, its grab lands on the client's own
+## machine, a teammate's strike or a power cut (run on every machine) frees them,
+## and a client's strike reaches the host.
+func test_coop_custodian() -> void:
+	print("Co-op: the Custodian")
+	_game().new_run(4)
+	var worlds := await _coop_worlds(1)
+	var machines := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var puppet: Node3D = host.players.puppet(client_id)
+	# On the far side of the client from the host, so the client is the nearest.
+	var away: Vector3 = puppet.global_position - host.player.global_position
+	away.y = 0.0
+	var at: Vector3 = puppet.global_position + (away.normalized() if away.length() > 0.1 else Vector3.RIGHT) * 1.2
+	var bots := []
+	for l in machines:
+		var c := Custodian.new()
+		c.name = "Custodian"
+		c.position = l.to_local(at)
+		l.add_child(c)
+		c.set_bay(at + Vector3(0, 0, -40))  # far off: this test is about the grab, not the bay
+		l.sync.replicate(c, c.sync_properties())
+		bots.append(c)
+	host.sync._synchronizers.back().set_visibility_for(client_id, true)  # a level's net_setup does this at the start
+	var hc: Custodian = bots[0]
+	var cc: Custodian = bots[1]
+	host.sync.run_on(hc, "activate", [])
+	check(await _until(func(): return client.player.combat.grabbed_by == cc, 4.0), "the host's Custodian grabs the client, on the client's own machine")
+	check(hc.held == puppet and client.player.input_locked, "held, the client can't move")
+	await _frames(30)
+	check(client.player.global_position.distance_to(cc.grab_point()) < 0.6, "and is carried where it goes")
+	for i in Custodian.STRIKES_TO_FREE:
+		hc.take_hit(host.player)
+	await _frames(10)
+	check(hc.held == null and client.player.combat.grabbed_by == null and not client.player.input_locked, "the host strikes it enough, and the client is free")
+	check(await _until(func(): return hc.held == puppet, 6.0), "it shudders, then grabs the client again")
+	await _frames(10)
+	host.sync.run_on(hc, "set_powered", [false])
+	await _frames(10)
+	check(not hc.powered and not cc.powered and cc.state == "off", "its power cut by code, it's dead on every machine")
+	check(hc.held == null and not client.player.input_locked, "and the client is dropped")
+	var before := hc.strikes
+	cc.take_hit(client.player)
+	await _frames(10)
+	check(hc.strikes == before + 1, "a client's strike reaches the host, which runs it")
+	check(cc.strikes == hc.strikes and cc.wounds.shown() == hc.wounds.shown(), "and every machine shows the same wounds")
+	await _coop_close(worlds)
+
+
 func test_coop_combat() -> void:
 	print("Co-op: blocking, going down and helping each other up")
 	_game().new_run(3)
