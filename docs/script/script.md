@@ -701,24 +701,24 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **CREW:** *(Keypad accepted it. Nervous, wants to move.)* That's the code. Let's not hang around. `[l2_cc_pin_pay]`
 
-## Level 3
+## Level 4
 
 ### Book huddles: UPDATE
 
 *Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches.* *(Written ahead: not in the game yet.)*
 
-**MADDISON:** *(Holding the page at arm's length.)* UPDATE. Changing things. The book's put this one in a red box, which I don't love. `[l3_huddle_update_1]`
+**MADDISON:** *(Holding the page at arm's length.)* UPDATE. Changing things. The book's put this one in a red box, which I don't love. `[l4_huddle_update_1]`
 
-**MADDISON:** *(Suddenly serious, for once.)* Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. `[l3_huddle_update_2]`
+**MADDISON:** *(Suddenly serious, for once.)* Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. `[l4_huddle_update_2]`
 
 ### Containment protocol Epsilon
 
-*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level number provisional until the level table is redone.* *(Written ahead: not in the game yet.)*
+*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level 4 under curriculum option B (approved 2026-10-21).* *(Written ahead: not in the game yet.)*
 
-**WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l3_epsilon_1]`
+**WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l4_epsilon_1]`
 
-**WARDEN:** *(Even pauses between sentences, like reading a checklist.)* ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. `[l3_epsilon_2]`
+**WARDEN:** *(Even pauses between sentences, like reading a checklist.)* ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE. `[l4_epsilon_2]`
 
-**WARDEN:** *(No change in tone for 'not a drill'. That's the frightening part.)* ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. `[l3_epsilon_3]`
+**WARDEN:** *(No change in tone for 'not a drill'. That's the frightening part.)* ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. `[l4_epsilon_3]`
 
-**WARDEN:** *(Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.)* REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. `[l3_epsilon_loop]`
+**WARDEN:** *(Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.)* REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop]`
