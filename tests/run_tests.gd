@@ -813,7 +813,7 @@ func test_pause_holds_subtitles() -> void:
 func test_screens_fill_window() -> void:
 	print("Menu screens")
 	var win := root.get_visible_rect().size
-	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn"]:
+	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn", "res://scenes/customize.tscn"]:
 		var screen: Control = load(path).instantiate()
 		root.add_child(screen)
 		await process_frame
@@ -1756,13 +1756,13 @@ func test_coop_looks() -> void:
 	var tops: ColorPickerButton = lobby.find_child("Color_top", true, false)
 	tops.color = Color(0.9, 0.5, 0.1)
 	tops.color_changed.emit(tops.color)
-	check(lobby._preview_rig.look.shirt == Color(0.9, 0.5, 0.1) and not net.wanted_look.has("top"), "the figure follows the color picker as it moves")
+	check(lobby.picker._preview_rig.look.shirt == Color(0.9, 0.5, 0.1) and not net.wanted_look.has("top"), "the figure follows the color picker as it moves")
 	tops.popup_closed.emit()
 	var term: ColorPickerButton = lobby.find_child("Color_terminal", true, false)
 	term.color = Color(1, 0.75, 0.2)
 	term.popup_closed.emit()
 	await process_frame
-	var shown: Dictionary = lobby._preview_rig.look
+	var shown: Dictionary = lobby.picker._preview_rig.look
 	check(lobby.my_look().crew == "kit" and shown.shirt == Color(0.9, 0.5, 0.1) and shown.skin == CharacterLooks.SKIN_TONES[5] and shown.body == 2 and shown.headwear == "beanie" and shown.tools.terminal.color == Color(1, 0.75, 0.2),
 		"crew member, skin, hat, colors and gear show on the figure turning in the preview")
 	check(net.profile.loadout == net.wanted_look and net.wanted_look.keys().size() == 5, "and are saved to your profile (only what you changed)")
@@ -1772,6 +1772,44 @@ func test_coop_looks() -> void:
 	net.profile = Profile.new()
 	check(net.earn("achievement:test") == ["head/hard_hat"], "earning an achievement unlocks its item")
 	Cosmetics.reset()
+
+	# Solo: the main menu's Customize screen has the same picker, and solo play wears it.
+	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
+	root.add_child(menu)
+	await process_frame
+	var to_customize: Button = menu.find_child("Customize", true, false)
+	check(to_customize != null and to_customize.text == "Customize", "the main menu has a Customize button")
+	menu.queue_free()
+	net.profile = Profile.new()
+	net.wanted_look = {}
+	var custom: Control = load("res://scenes/customize.tscn").instantiate()
+	root.add_child(custom)
+	await process_frame
+	var solo_picker: LookPicker = custom.find_child("LookPicker", true, false)
+	check(solo_picker != null and custom.find_child("Customize", true, false) is TabContainer and custom.find_child("Back", true, false) is Button,
+		"it shows the Crew, Look, Gear and Achievements tabs, with a way back")
+	custom.find_child("Crew_mei", true, false).pressed.emit()
+	custom.find_child("Skin3", true, false).pressed.emit()
+	var solo_term: ColorPickerButton = custom.find_child("Color_terminal", true, false)
+	solo_term.color = Color(0.3, 0.8, 1.0)
+	solo_term.popup_closed.emit()
+	await process_frame
+	check(net.profile.loadout.crew == "mei" and net.profile.loadout.skin == 2 and solo_picker._preview_rig.look.skin == CharacterLooks.SKIN_TONES[2],
+		"picks show on the figure and are saved to the profile, with nobody connected")
+	custom.queue_free()
+	await process_frame
+	_game().new_run(8)
+	var solo = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(solo)
+	await _frames(5)
+	check(NetPlayers.look_for(solo, solo.multiplayer.get_unique_id()).tools.terminal.color == Color(0.3, 0.8, 1.0), "solo play uses the picks")
+	solo.terminal_ui.open(solo.desk_terminal, solo.player)
+	await _frames(5)
+	check(solo.desk_terminal.skin_color == Color(0.3, 0.8, 1.0), "a terminal you sit at alone wears your terminal skin")
+	solo.terminal_ui.close()
+	solo.queue_free()
+	await process_frame
+	net.wanted_look = {}
 
 	# In the building, everyone wears what they picked.
 	_game().new_run(8)

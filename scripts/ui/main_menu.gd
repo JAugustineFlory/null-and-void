@@ -33,6 +33,10 @@ func _ready() -> void:
 		Game.open_at_home = true
 		Game.goto("world"))
 	box.add_child(start)
+	var customize := _button("Customize")
+	customize.name = "Customize"
+	customize.pressed.connect(func(): Game.goto("customize"))
+	box.add_child(customize)
 	var skip := _button("Playtest: jump to Level 2")
 	skip.pressed.connect(func():
 		Game.new_run()
