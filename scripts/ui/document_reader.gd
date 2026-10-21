@@ -308,6 +308,8 @@ func _input(event: InputEvent) -> void:
 func _forward_mouse(event: InputEventMouse) -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE or _note_label.visible:
 		return
+	if event is InputEventMouseButton and event.button_index != MOUSE_BUTTON_LEFT:
+		return  # only the left button clicks the page (see HeldNotebook._input)
 	if _chip:
 		_hover(event.position)  # the chip is a button on this layer; the click reaches it
 		return

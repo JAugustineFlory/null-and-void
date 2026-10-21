@@ -605,7 +605,10 @@ func test_notebook_hold() -> void:
 	check(p.edge_turn(Vector2(1490, 300), screen, on_screen) == Vector2.ZERO and p.edge_turn(Vector2(1508, 300), screen, on_screen) == Vector2.ZERO, "over the notebook, its tabs included, the view holds still")
 	check(p.edge_turn(Vector2(1600, 300), screen, on_screen).x > 0.0 and p.edge_turn(Vector2(1910, 300), screen, on_screen).x > 1.0, "off the notebook it starts turning, fastest at the screen's edge")
 	check(p.edge_turn(Vector2(300, 540), screen, on_screen).x < 0.0, "and off its left side, the other way")
-	p.set_notebook_cursor(false)  # right mouse held: look around
+	p.local_control = true
+	check(p._wants_cursor(), "reading, the cursor is always out: no button puts it away to look around")
+	p.local_control = false
+	p.set_notebook_cursor(false)  # the cursor away (a remote copy, or a scripted look)
 	var yaw0 := p.rotation.y
 	var book_at := book.global_basis
 	var cam_at := p.camera.global_basis
@@ -635,7 +638,7 @@ func test_notebook_hold() -> void:
 	check(p.notebook_cursor and p.rotation.y == yaw0 and book.is_processing_input(), "with the cursor out the pages take the mouse and the view holds still")
 	p.set_notebook_cursor(false)
 	_mouse_move(p, Vector2(100, 0))
-	check(p.rotation.y < yaw0 and not book.is_processing_input(), "holding right mouse looks around again")
+	check(p.rotation.y < yaw0 and not book.is_processing_input(), "with the cursor away the mouse looks around again")
 	p.set_notebook_cursor(true)
 	p.toggle_notebook()
 	check(not p.notebook_cursor, "putting the notebook away drops the cursor")
@@ -1034,6 +1037,7 @@ func test_sit() -> void:
 	var q := spawn(a, Vector3(2, 0.05, 0))
 	await frames(20)
 	var stood := p.global_position
+	var stood_yaw := p.rotation.y
 	var eyes := p.camera.global_position.y
 	var settle := int(Player.SIT_TIME * 60) + 10
 	p.controls.sit = true
@@ -1046,6 +1050,9 @@ func test_sit() -> void:
 	await frames(20)
 	stop(p)
 	check(p.is_sitting() and p.global_position.distance_to(stood) < 0.05, "W doesn't walk you off: you're sitting")
+	p._turn_view(5.0, 0.0)
+	await frames(5)
+	check(absf(angle_difference(stood_yaw - 5.0, p.rotation.y)) < 0.001, "on the floor you turn your whole body")
 	check(p.raise_notebook() and p.is_sitting(), "you can read your notebook sitting down")
 	p.lower_notebook(true)
 	p.controls.jump = true
@@ -1059,8 +1066,18 @@ func test_sit() -> void:
 	check((-p.global_basis.z).dot(Vector3.BACK) > 0.99, "facing the way the chair faces")
 	check(absf(p.camera.global_position.y - (0.45 + Player.SIT_HEIGHT - 0.12)) < 0.05, "eyes at sitting height")
 	check(not chair.is_free(q) and chair.get_prompt(q) == "" and not q.sit(chair), "one to a chair")
-	p._turn_view(4.0, 0.0)
+	p._turn_view(1.0, -0.6)
+	await frames(10)
+	check(absf(angle_difference(PI - 1.0, p.rotation.y)) < 0.001 and absf(p.head.rotation.x - 0.6) < 0.001, "sitting on a chair, you can look around and up, and the view stays put")
+	p._turn_view(4.0, 3.0)
+	await frames(10)
 	check(absf(angle_difference(PI, p.rotation.y)) <= Player.SIT_LOOK + 0.001, "you can look around, but not turn your back on the desk")
+	check(absf(p.head.rotation.x + Player.SIT_LOOK_DOWN) < 0.001, "and only as far down as a seated person can")
+	p._turn_view(0.0, -10.0)
+	check(absf(p.head.rotation.x - Player.SIT_LOOK_UP) < 0.001, "or as far up")
+	p._turn_view(-8.0, 0.0)
+	check(absf(angle_difference(PI + Player.SIT_LOOK, p.rotation.y)) < 0.001, "turning hard the other way stops at the same limit")
+	p._turn_view(Player.SIT_LOOK - 0.3, 0.0)  # back round to a little left of the chair's facing
 	var yaw := p.rotation.y
 	var facing := Vector3(-sin(yaw), 0, -cos(yaw))
 	var out := Vector3(0, stood.y, -1.5) + facing * Player.SIT_STEP_OUT
@@ -1075,6 +1092,14 @@ func test_sit() -> void:
 	await frames(settle)
 	check(not p.is_sitting() and p.global_position.distance_to(out) < 0.05, "boxed in that way, you get up where you came from")
 
+	p.rotation.y = 0.5
+	p.seated = true
+	p._turn_view(4.0, 3.0)
+	check(absf(angle_difference(0.5, p.rotation.y)) <= Player.SIT_LOOK + 0.001 and absf(p.head.rotation.x + Player.SIT_LOOK_DOWN) < 0.001, "strapped into a van seat, you look around like on a chair")
+	p.seated = false
+	p._turn_view(0.0, 3.0)
+	check(p.head.rotation.x < -Player.SIT_LOOK_DOWN - 0.1, "unbuckled, the full range is back")
+	p._turn_view(0.0, -3.0)
 	p.controls.jump = true
 	await frames(3)
 	check(not p.sit(), "you can't sit in mid-air")

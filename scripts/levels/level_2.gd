@@ -77,6 +77,12 @@ var reached_vestibule := false
 var pin_entered := false
 var door_open := false  # physically open
 var door_checked := false
+var door_asked := false  # the crew has been told SEC-EXIT is still shut
+## Host: Easy SQL chapters whose paper or terminal has been found: "found" waits for
+## its puzzle to open, "played" has been held.
+var _books := {}
+## Book huddles open right now (the Watcher holds still while the crew is away).
+var _huddles := 0
 var _clock := 0.0
 var _cam_tick := 0.0
 var _lie_explained := false
@@ -263,6 +269,7 @@ func build() -> void:
 	add_child(watcher)
 	watcher.position = watcher_home
 	watcher.holders.append(_camera_holds)
+	watcher.holders.append(func(_w): return _huddles > 0)
 	watcher.see_through = _glass
 	watcher.caught.connect(_on_caught)
 	watcher.started_moving.connect(_on_watcher_moving)
@@ -291,6 +298,7 @@ func _build_booth() -> void:
 	]
 	booth.queried.connect(_on_query.bind("booth"))
 	booth.requested.connect(_on_request.bind("booth"))
+	booth.opened.connect(func(_p): _book_found("easy_sql_10"))
 	# The clues are on the booth's own paperwork: found in the world first.
 	StickyNote.on_monitor(booth, "like")
 	# Guards badge in at the reader by the booth; it logs them in the guards table.
@@ -307,7 +315,7 @@ func _build_booth() -> void:
 		{"case": "pin", "text": "Every badge swipe is kept in badge_log: the time, the badge, the door."},
 	]
 	# The backup sheet: the names are handwritten, and coffee took most of the second one.
-	Document.place(geo, Vector3(-2.3, 1.45, 5.86), 0, "NIGHT SHIFT SIGN-IN      DATE: 10/15", [
+	var sheet := Document.place(geo, Vector3(-2.3, 1.45, 5.86), 0, "NIGHT SHIFT SIGN-IN      DATE: 10/15", [
 		"(backup copy)",
 		{"columns": ["NAME", "BADGE #", "IN", "OUT", "INIT."], "widths": [3.4, 1.8, 1.3, 1.3, 1.2], "text": "NAME  BADGE #  IN  OUT  INIT."},
 		{"row": ["PIKE, H.", "", "", "", ""], "over": "NO SHOW", "text": "PIKE, H.  no show", "hand": true},
@@ -317,29 +325,35 @@ func _build_booth() -> void:
 		"",
 		"Guard PINs are kept on file in the table:",
 		{"text": "guards", "hand": true},
-	], false, "paper", Vector2(0.6, 0.8)).clues = [
+	], false, "paper", Vector2(0.6, 0.8))
+	sheet.read_by.connect(func(_p): _book_found("easy_sql_11"))
+	sheet.clues = [
 		{"case": "pin", "text": "PIKE, H. is marked NO SHOW. The next name starts \"Har\", under the coffee. Badged in 22:00."},
 		{"case": "pin", "text": "Guard PINs are on file in the table guards."},
 	]
-	Document.place(geo, Vector3(-4.3, 1.5, 5.86), 0, "Camera system card", [
+	var cam_card := Document.place(geo, Vector3(-4.3, 1.5, 5.86), 0, "Camera system card", [
 		"OVERWATCH CCTV  -  REMOTE STATUS",
 		"From any security terminal:",
 		"GET /cameras          every camera",
 		"GET /cameras/CAM-2    one camera",
 		"motion: true          movement seen",
 		"last_frame            time of the last picture",
-	], false, "laminated", Vector2(0.62, 0.5)).clues = [
+	], false, "laminated", Vector2(0.62, 0.5))
+	cam_card.read_by.connect(func(_p): _book_found("easy_sql_10"))
+	cam_card.clues = [
 		{"case": "cameras", "text": "GET /cameras lists every camera. \"motion\": true means it sees movement."},
 	]
 	# A page torn from the WARDEN manual, with the old security chief's pencil in the margin.
-	Document.place(geo, Vector3(-5.3, 1.6, 5.86), 0, "WARDEN manual, p.12", [
+	var manual := Document.place(geo, Vector3(-5.3, 1.6, 5.86), 0, "WARDEN manual, p.12", [
 		"WARDEN v3.1  -  p.12",
 		"GUARD ROSTER: QUICK SEARCH",
 		"Only know part of a name? Search a pattern:",
 		"WHERE name LIKE 'Ro%'",
 		"finds ROSS, ROURKE, ROWE...",
 		{"text": "% = any letters, or none.  - H.M.", "hand": true},
-	], false, "paper", Vector2(0.8, 0.9)).clues = [
+	], false, "paper", Vector2(0.8, 0.9))
+	manual.read_by.connect(func(_p): _book_found("easy_sql_11"))
+	manual.clues = [
 		{"case": "pin", "text": "Only know part of a name? WHERE name LIKE 'Ro%' finds every name starting Ro."},
 	]
 	# A crate under the vent, so one person can climb up alone.
@@ -367,13 +381,15 @@ func _build_panel() -> void:
 	panel = Terminal.spawn(geo, Vector3(-1.4, 0.9, -11.4), 0, "VESTIBULE PANEL", db, terminal_ui)
 	panel.api = api
 	panel.puzzles = [door_puzzle]
-	Document.place(geo, Vector3(-2.05, 1.7, -11.86), 180, "Door controller card", [
+	var door_card := Document.place(geo, Vector3(-2.05, 1.7, -11.86), 180, "Door controller card", [
 		"DOOR CONTROLLER  -  QUICK REF",
 		"GET /doors/SEC-EXIT    one door's record",
 		"sensor      what the door is actually doing",
 		"actuator    the motor. fault = it can't move",
 		"note        why",
-	], false, "laminated", Vector2(0.62, 0.46)).clues = [
+	], false, "laminated", Vector2(0.62, 0.46))
+	door_card.read_by.connect(func(_p): _book_found("easy_sql_13"))
+	door_card.clues = [
 		{"case": "door", "text": "GET /doors/SEC-EXIT shows the door's record. sensor is what it's really doing, and note says why."},
 	]
 	panel.boot_lines = [
@@ -387,6 +403,7 @@ func _build_panel() -> void:
 	]
 	panel.queried.connect(_on_query.bind("panel"))
 	panel.requested.connect(_on_request.bind("panel"))
+	panel.opened.connect(func(_p): _book_found("easy_sql_13"))
 	# Breaker box on the west wall, under the vent. Only one breaker runs the door.
 	# The ledge's way back in: a low window onto the vestibule.
 	vestibule_glass = _glass_pane(Vector3(2.5, 0.5, -8.75), Vector3(0.05, 1.0, 1.2), true, "VestibuleGlass")
@@ -614,6 +631,7 @@ func start() -> void:
 		lab.skip()
 		if Game.rourke_fate == "tied":
 			await _escape_radio(0.0)
+	_book_check("easy_sql_10")  # the camera card, read on the way to the lab
 	hud.todo("Find a way out of the security wing")
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
@@ -831,6 +849,7 @@ func _on_cameras_found(which: String) -> void:
 		Game.open_case("cameras", CASES.cameras, ["cameras"])
 		Game.solve_case("cameras", "CAM-2 reports motion in the security office. It's the only camera pointed at that room.")
 		Game.open_case("pin", CASES.pin, ["guards", "badge_log"])
+		_book_check("easy_sql_11")
 
 
 ## Someone worked out the frozen camera for themselves.
@@ -879,6 +898,40 @@ func explain_cam_lie(frame: String) -> void:
 	_lie_fresh = false
 
 
+## Host: a paper or terminal brings back chapter `id` of Easy SQL. Found before its
+## puzzle is open, it waits for that (_book_check).
+func _book_found(id: String) -> void:
+	if sync.is_host() and not _books.has(id):
+		_books[id] = "found"
+		_book_check(id)
+
+
+## Host: play chapter `id` if it has been found and its puzzle is open.
+func _book_check(id: String) -> void:
+	if sync.is_host() and _books.get(id, "") == "found" and _book_ready(id):
+		_books[id] = "played"
+		sync.event("_book_huddle", [id])
+
+
+func _book_ready(id: String) -> bool:
+	match id:
+		"easy_sql_10":
+			return lab.phase == "done"  # the cameras come after the lab
+		"easy_sql_11":
+			return cameras_puzzle.solved  # the Pike search
+		"easy_sql_13":
+			return (door_asked or door_checked) and not door_open
+	return true
+
+
+## Every machine: a chapter of Easy SQL, read round the garage bench (a flashback,
+## once per run). The Watcher holds still while the crew is away.
+func _book_huddle(id: String) -> void:
+	_huddles += 1
+	await Huddle.of(self).run(id)
+	_huddles -= 1
+
+
 ## Host: a query ran at `which` terminal. Puzzle results play out on every machine.
 func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
 	if not pike_puzzle.solved and pike_puzzle.matches(db, result):
@@ -898,6 +951,8 @@ func _on_pike_found(which: String) -> void:
 		sysop(t, "you need a night-shift guard who badged in tonight. the badge readers know who. so does the sign-in sheet, under the coffee.")
 		hud.todo("Find out who else has a working PIN")
 		Game.add_clue("pin", "Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.", "WARDEN")
+		# The answer only leads to the next search: the book's review of that, before it hunts.
+		await _book_huddle("easy_sql_12")
 		sysop(t, "[color=#ff6655]something in the office is moving. it only moves while nothing is watching it. not you, not a working camera.[/color]")
 		hud.line("l2_smudged")
 		_set_loose()
@@ -1069,6 +1124,8 @@ func enter_pin() -> void:
 		hud.notice(NEW_MESSAGE, 4.0)
 		hud.todo("Find out why SEC-EXIT is still shut")
 		Game.open_case("door", CASES.door, ["door_status"])
+		door_asked = true
+		_book_check("easy_sql_13")
 
 
 func _on_door_checked(which: String) -> void:
@@ -1076,6 +1133,8 @@ func _on_door_checked(which: String) -> void:
 	if not pin_entered or door_checked or door_open:
 		return
 	door_checked = true
+	door_asked = true
+	_book_check("easy_sql_13")
 	t.print_line("")
 	sysop(t, "keypad said OPENED. locked is false, so the request went through.")
 	sysop(t, "but sensor says 'closed' and actuator says 'fault'. the door never moved. read the note.")

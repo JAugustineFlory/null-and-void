@@ -103,6 +103,10 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 <details open>
 <summary><b>v0.6.0 - 2026-10-21</b></summary>
 
+- **Changed:** the crew's garage is bigger and brighter, with seats for the whole crew facing Maddison's whiteboard, and Maddison takes her time.
+- **Added:** a Customize button on the main menu, so you can pick who you play and how you look before a solo game.
+- **Changed:** you feel a hit land: the view shakes and you stagger back a step. A block jolts you too, more softly.
+- **Fixed:** sitting on a chair no longer pins your view straight ahead. Seated, you can look around as far as a seated person could: most of the way to each side, and comfortably up and down.
 - **Added:** the chairs on the ground floor and floor 14 can be sat on: reception, the cafeteria, the network room and the break room.
 - **New:** unlockable items. Read the crew's book, block a hit in a real fight and finish floors to unlock new clothes and tool skins in the co-op lobby. Locked pieces show in the lobby with a hint on how to earn them, and a few secret ones stay hidden until you find them.
 - **Added:** finishing floor 22 unlocks the Security jacket.

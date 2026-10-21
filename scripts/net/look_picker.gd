@@ -6,8 +6,15 @@ extends HBoxContainer
 ## co-op session, sent to the host. The co-op lobby and the main menu's
 ## Customize screen both show one.
 
+## The look on show changed: a pick, or a color picker as it moves. Without
+## its own figure (with_preview off), the pre-game lobby dresses yours with it.
+signal previewed(look: Dictionary)
+
 ## How fast the look preview turns, in degrees a second.
 const PREVIEW_TURN := 30.0
+
+## Show the turning figure. Set before adding the picker.
+var with_preview := true
 
 var _name: LineEdit
 ## One per CharacterLooks.SKIN_TONES.
@@ -27,7 +34,8 @@ var _preview_look := {}
 func _ready() -> void:
 	name = "LookPicker"
 	add_theme_constant_override("separation", 28)
-	add_child(_build_preview())
+	if with_preview:
+		add_child(_build_preview())
 	var picker := VBoxContainer.new()
 	picker.custom_minimum_size = Vector2(540, 0)
 	picker.add_theme_constant_override("separation", 14)
@@ -203,7 +211,8 @@ func refresh() -> void:
 		_color_buttons[slot].modulate.a = 0.25 if empty else 1.0
 		_color_buttons[slot].visible = not Cosmetics.fixed_color(slot, mine[slot].item)
 	var who := PlayableCrew.info(mine.crew)
-	_crew_caption.text = "%s, %s\n%s" % [who.name, who.age, who.about] if not who.is_empty() else ""
+	if _crew_caption:
+		_crew_caption.text = "%s, %s\n%s" % [who.name, who.age, who.about] if not who.is_empty() else ""
 	_show_look(mine)
 
 
@@ -269,6 +278,9 @@ func _show_look(look: Dictionary) -> void:
 	if look == _preview_look:
 		return
 	_preview_look = look
+	previewed.emit(look)
+	if _preview_pivot == null:
+		return
 	if _preview_rig:
 		_preview_rig.queue_free()
 	_preview_rig = CharacterRig.build(_preview_pivot, NetPlayers.loadout_look(look))

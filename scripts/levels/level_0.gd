@@ -16,8 +16,6 @@ var badges: ItemDock
 ## Players ready up by pressing E on their seat-belt buckle. Co-op raises this to the
 ## number of connected players; solo play starts as soon as one is ready.
 var players_needed := 1
-## Which seat each player starts in, by player number (0 = host): front seats first.
-const SEAT_ORDER := [1, 0, 2, 3, 4, 5]
 ## player -> the van seat they climb out of
 var ready_players := {}
 ## Each seat: spawn transform, seat-belt buckle, which door it exits by, its handle, and the
@@ -100,6 +98,12 @@ var caller_asked := false
 signal caller_found
 ## The staff directory printout in the mailroom: the walking route to the caller.
 var directory_printout: Document
+## Host: Easy SQL chapters whose paper has been read: "found" waits for the puzzle
+## before it, "played" has been held (_book_found).
+var _books := {}
+## Every machine: Rourke is talking the crew through the memo and the call, so a
+## chapter found now waits until he's done.
+var _rourke_briefing := false
 
 
 func build() -> void:
@@ -194,16 +198,22 @@ func build() -> void:
 	book.clues = [{"case": "last_visitor", "opens": BOOK_CASE, "tables": ["visitors"],
 		"text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
 	# The night desk's own reminder beside the book: DESC, found before it's needed.
-	Document.place(geo, Vector3(-2.62, 1.102, -0.95), 15.0, "Sticky note", [
+	var newest := Document.place(geo, Vector3(-2.62, 1.102, -0.95), 15.0, "Sticky note", [
 		{"text": "Newest first =", "hand": true},
 		{"text": "ORDER BY ... DESC", "hand": true},
 		{"text": "  - N.F.", "hand": true},
-	], true, "sticky").clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
-	Document.place(geo, Vector3(-2.95, 1.102, -1.15), -8.0, "Sticky note", [
+	], true, "sticky")
+	newest.clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
+	var last_few := Document.place(geo, Vector3(-2.95, 1.102, -1.15), -8.0, "Sticky note", [
 		{"text": "Just the last few?", "hand": true},
 		{"text": "...DESC LIMIT 5", "hand": true},
 		{"text": "  - N.F.", "hand": true},
-	], true, "sticky").clues = [{"case": "last_visitor", "text": "Just the last few? End the query with LIMIT 5: only the first 5 rows."}]
+	], true, "sticky")
+	last_few.clues = [{"case": "last_visitor", "text": "Just the last few? End the query with LIMIT 5: only the first 5 rows."}]
+	# The book or N.F.'s stickies bring back Newest first (DESC, LIMIT), once the memo
+	# has put ORDER BY to use.
+	for d in [book, newest, last_few]:
+		d.read_by.connect(func(_p): _book_found("easy_sql_4"))
 
 	# A side table behind the desk with the walkie-talkies' charging dock on it.
 	Greybox.box(geo, Vector3(-2.5, 0.68, -5.5), Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
@@ -283,7 +293,7 @@ func build() -> void:
 	# Already waiting outside the front doors when the van pulls up.
 	rourke.position = ROURKE_OUTSIDE
 	rourke.rotation.y = PI  # looking out at the lot
-	spawn = Transform3D(Basis(), Vector3(2.55, 0.55, 15.3))  # passenger seat of the van
+	spawn = global_transform.affine_inverse() * van_seats[seat_for(0)].spawn  # the host's own van seat
 	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
 
 
@@ -575,14 +585,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		_aim(_look_base, _look_player)
 
 
-## Where a player sits at the start. Solo play uses the passenger seat.
+## Where a player sits at the start.
 func seat_spawn(index: int) -> Transform3D:
 	return van_seats[index].spawn
 
 
 ## Player number `index` (0 = host) starts in their own van seat.
 func player_spawn(index: int) -> Transform3D:
-	return seat_spawn(SEAT_ORDER[index % SEAT_ORDER.size()])
+	return seat_spawn(seat_for(index))
+
+
+## The seat player number `index` took in the van at home base (Game.van_seating),
+## so nobody changes seats on the way. Without one (a game started here), seats
+## go in order: the driver's first.
+func seat_for(index: int) -> int:
+	var ids := NetPlayers.ids_for(multiplayer)
+	var seating: Array = get_node("/root/Game").van_seating
+	var at := seating.find(ids[index]) if index < ids.size() else -1
+	return at if at >= 0 and at < van_seats.size() else index % van_seats.size()
 
 
 func start() -> void:
@@ -873,6 +893,10 @@ func _on_memo_backwards() -> void:
 
 func _on_peek_solved() -> void:
 	peek_puzzle.solved = true
+	# The scraps came out of order: the book's ORDER BY chapter, round the garage bench.
+	await _book_huddle("easy_sql_2")
+	if memo_puzzle.solved:
+		return  # sorted in the same breath: nothing left to nudge
 	desk_terminal.print_line("")
 	desk_terminal.print_line(TerminalUI.sysop("the scraps are out of order. one of the columns numbers them."))
 	desk_terminal.print_line(TerminalUI.sysop("add ORDER BY to the end of your query, then that column's name."))
@@ -895,13 +919,23 @@ func _after_memo() -> void:
 	# Written on the job ticket: what the crew touched, for later levels to read back.
 	get_node("/root/Game").ticket_fill("Put the memo back in order", "rebuilt from memo_fragments. Copy to the director, says Rourke")
 	get_node("/root/Game").solve_case("memo", "the scraps sorted by piece_no read as the memo.")
+	# Sorted without the peek first: ORDER BY's chapter still comes before Rourke
+	# moves on, and Newest first too if its paper was read on the way.
+	await _book_huddle("easy_sql_2")
+	_book_check("easy_sql_4")
 	# Rourke waits for the crew to step back from the screen before he says anything,
 	# and the building's PA only cuts in once he's done.
 	await sync.gate("memo_left_terminal", _crew_off_desk_terminal)
+	await _huddles_over()
+	_rourke_briefing = true
 	await get_tree().create_timer(0.6, false).timeout
 	_watch_nearest()
 	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_caller_1", "l0_caller_2", "l0_mailroom_1"])
+	# He's asked who called: the book's chapter on naming columns, then the case opens.
+	await _book_huddle("easy_sql_3")
+	_rourke_briefing = false
 	_ask_caller()
+	_book_check("easy_sql_4")
 	await sync.gate("caller_found", func():
 		if not caller_puzzle.solved:
 			await caller_found)
@@ -986,6 +1020,41 @@ func _on_caller_found() -> void:
 	get_node("/root/Game").ticket_fill(task, "ext. %d: Harold Mercer, Building Services (left 03/94)" % data.extension)
 	get_node("/root/Game").solve_case("caller", "ext. %d is Harold Mercer, Building Services. He left in 03/94." % data.extension)
 	caller_found.emit()
+
+
+## Host: a paper brings back chapter `id` of Easy SQL. Read before its puzzle is
+## ready, it waits for that (_book_check).
+func _book_found(id: String) -> void:
+	if sync.is_host() and not _books.has(id):
+		_books[id] = "found"
+		_book_check(id)
+
+
+## Host: play chapter `id` if its paper has been read and its puzzle is ready.
+func _book_check(id: String) -> void:
+	if sync.is_host() and _books.get(id, "") == "found" and _book_ready(id):
+		_books[id] = "played"
+		sync.event("_book_huddle", [id])
+
+
+func _book_ready(id: String) -> bool:
+	match id:
+		"easy_sql_4":
+			return memo_puzzle.solved and not _rourke_briefing  # DESC flips the memo's ORDER BY
+	return true
+
+
+## Every machine: a chapter of Easy SQL, read round the garage bench (a flashback,
+## once per run).
+func _book_huddle(id: String) -> void:
+	await Huddle.of(self).run(id)
+
+
+## Every machine: until no huddle is open or waiting here.
+func _huddles_over() -> void:
+	var h := Huddle.of(self)
+	while h and h.is_busy():
+		await h.idle
 
 
 ## Optional: the visitor log, newest first. Vale signed in tonight and never left.

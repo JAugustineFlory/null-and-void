@@ -4,7 +4,7 @@ Status: **APPROVED by Augustine 2026-10-20 03:03Z** ("Easy SQL book is approved"
 word for word as written here. Any change to a chapter line or question goes back to him.
 Later chapters are approved the same way, word for word with their why lines, as recorded in
 `plan/approvals/floor-18-chapters-and-unlocks.md`: Ch 15 and 16 for floor 18 (2026-10-21 11:44Z, whys 11:49Z),
-and Ch 4's LIMIT and Ch 9 "How many?" (2026-10-21 12:12Z).
+Ch 4's LIMIT and Ch 9 "How many?" (2026-10-21 12:12Z), and Ch 17 and 18 for floor 10 (2026-10-21 18:49Z, whys included).
 Format, title pattern and rules are his choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
 
 - **Title:** *Easy SQL*. Later books follow the same pattern (*Hello HTML!*).
@@ -69,10 +69,12 @@ scenes; puzzle threads own the puzzles.
 | 14 | L2 stairwell panel | door | id in the path |
 | 15 | L3, the retention review memo by the card drawers | depts | DISTINCT |
 | 16 | L3, the reader tally sheet on the records desk | tally (then visits, under threat) | GROUP BY |
+| 17 | L4, the facilities work order on floor 10 | the tripped breaker (then the main entrance, under threat) | UPDATE, SET, check it took |
+| 18 | L4, the contractor log clipboard on floor 10 | the work log (then the Custodian's bay lockout, under threat) | INSERT INTO, VALUES, same order |
 
 Chapter ids: the first fourteen keep theirs (`easy_sql_0` to `easy_sql_13`, so `easy_sql_9` is now Ch 10, and so on).
 The newer ones are named for their word: `easy_sql_count` (Ch 9), `easy_sql_distinct` (Ch 15), `easy_sql_group_by`
-(Ch 16). The huddle shows a chapter's position, not its id.
+(Ch 16), `easy_sql_update` (Ch 17) and `easy_sql_insert` (Ch 18). The huddle shows a chapter's position, not its id.
 
 Floor counts: L0 has 4 puzzles. L1 has 5 (stuck_doors and dark_room landed in #96, the faulted count with curriculum B). L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
 limit; badge_log is now the har chain's first step, so it can count as part of har.
@@ -93,16 +95,22 @@ the correct option.
 ### Ch 0. Read this first (garage, required, before the van)
 
 Structure and page text: the Home base and huddles thread's draft
-(plan/approvals/home-base-huddles.md). Questions below, three per word.
+(plan/approvals/home-base-huddles.md). Questions below, three per word. Table Q1 and row Q2 were
+replaced on 2026-10-21 (18:54Z, approved word for word with their why lines) so the garage quiz no longer uses SELECT
+and FROM before Ch 1 teaches them.
+
+Why lines for the two replaced questions (approved 2026-10-21 18:54Z):
+- table Q1: Each is a whole table: jobs holds the jobs, and van_kit holds the kit.
+- row Q2: One job is one row, so five jobs make five rows.
 
 **table**
-1. Where does a table's name go in a query? A) after SELECT  *B) after FROM  C) after the ;
+1. What are jobs and van_kit? A) two rows  *B) two tables  C) two columns
 2. Which looks like a table name? A) van kit  *B) van_kit  C) Van Kit!
 3. Where would you find a table's name in a building? *A) on a label, card or screen nearby  B) the book tells you  C) you guess
 
 **row**
 1. In jobs, one row is... *A) one job  B) one column  C) the whole table
-2. SELECT * FROM jobs; with 5 jobs shows how many rows? A) 1  B) 3  *C) 5
+2. jobs has 5 jobs in it. How many rows is that? A) 1  B) 3  *C) 5
 3. A row goes... *A) across  B) down  C) nowhere
 
 **column**
@@ -398,6 +406,102 @@ Why lines (approved 2026-10-21 11:49Z):
 
 **Curriculum debt (update):** the night's count under threat uses a column list, DESC and LIKE again. `>` is
 still never needed under pressure in Act 1.
+
+### Level 4 chapters: Ch 17 and Ch 18 APPROVED by Augustine word for word, 2026-10-21 18:49Z ("All approved", on the waiting-on-augustine.md list)
+
+Chapters 17 and 18 are for floor 10, where Act 2 opens (plan/level-4-power-plant.md). UPDATE and INSERT are the last new
+SQL in the game: after the main entrance lies, the database goes read-only. Each chapter has three words, three questions
+per word, and a why line per question, approved with them and shown under each word. The examples are the crew's `jobs` and `van_kit` only.
+
+- **The forgotten WHERE** is a line under UPDATE and a question, so the work order's safe, loud mistake has been warned about first.
+- **"Check it took"** teaches verify after write before the main entrance needs it. It doesn't quote the terminal's
+  message, so the Level 4 thread can word that message as it likes.
+- **INSERT uses the column-list form**: `INSERT INTO table (columns) VALUES (values);`. The table fills in any column the
+  crew leaves out (an id, a time). The contractor log's clipboard should show the same form, on another table.
+- **"Look at a row before you write to it" is left out on purpose.** The spec has the `main_doors` case page name that
+  lesson afterwards.
+
+### Ch 17. Changing a row (L4, the facilities work order, the tripped breaker)
+
+**UPDATE**
+- "UPDATE changes rows that are already in a table. UPDATE, the table's name, then SET."
+- "Always add a WHERE to pick the rows. Without one, UPDATE changes every row in the table."
+
+1. UPDATE jobs SET status = 'done' WHERE job_no = 14; changes... A) every job  *B) only job 14  C) nothing until you SELECT
+2. UPDATE jobs SET status = 'done'; has no WHERE. It changes... A) only the first job  B) nothing: it needs a WHERE  *C) every job in the table
+3. What comes straight after UPDATE? *A) the table's name  B) a column's name  C) SET
+
+Why lines (approved 2026-10-21 18:49Z):
+1. The WHERE picks job 14, so only that row changes.
+2. With no WHERE, UPDATE changes every row in the table. That's why you always add one.
+3. The table's name comes straight after UPDATE. SET and the column come next.
+
+**SET**
+- "SET names the column to change and its new value: SET status = 'done'."
+- "Words still go in 'single quotes'. Numbers don't."
+
+1. UPDATE van_kit SET qty = 0 WHERE item = 'ladder'; Which column changes? *A) qty  B) item  C) van_kit
+2. Which is right? A) UPDATE jobs SET 'done' WHERE job_no = 14;  B) UPDATE jobs status = 'done' WHERE job_no = 14;  *C) UPDATE jobs SET status = 'done' WHERE job_no = 14;
+3. Where does SET go? A) after the WHERE  *B) after the table's name, before the WHERE  C) before UPDATE
+
+Why lines (approved 2026-10-21 18:49Z):
+1. SET names the column that changes: qty. The WHERE only picks which row.
+2. SET says which column gets the new value. Without it, the database doesn't know where 'done' goes.
+3. SET comes after the table's name and before the WHERE.
+
+**check it took**
+- "After a change, the terminal tells you how many rows changed. If it's 0, your WHERE matched nothing."
+- "Then SELECT the row again and read it. That's how you know it took."
+
+1. You changed a row, and the terminal says 1 row changed. What next? A) nothing: it's done  *B) SELECT the row and read it  C) send the UPDATE again
+2. An UPDATE changes 0 rows. Why? *A) the WHERE matched no rows: maybe a typo in the value  B) it changed every row  C) it worked fine
+3. Which checks job 14's status after the change? A) UPDATE jobs SET status = 'done' WHERE job_no = 14;  B) SELECT COUNT(*) FROM jobs;  *C) SELECT status FROM jobs WHERE job_no = 14;
+
+Why lines (approved 2026-10-21 18:49Z):
+1. The terminal counts the rows it changed. It can't tell you it was the right row, or that it stayed that way. Reading it back can.
+2. 0 rows changed means nothing matched the WHERE, so nothing changed. Check the value for a typo.
+3. Picking job 14 and reading its status shows whether the change took. Counting jobs says nothing about status.
+
+### Ch 18. Adding a row (L4, the contractor log clipboard, the work log)
+
+**INSERT INTO**
+- "INSERT INTO adds a brand-new row. INSERT INTO, the table's name, then the columns you're filling, in brackets."
+- "UPDATE changes a row that's already there. INSERT INTO makes a new one."
+
+1. INSERT INTO jobs (client, town, fee) ... does what? A) changes a job  *B) adds a new job  C) shows the jobs
+2. Which starts an insert into van_kit? *A) INSERT INTO van_kit (item, qty, shelf)  B) INSERT van_kit INTO (item, qty, shelf)  C) SELECT INTO van_kit (item, qty, shelf)
+3. To log a job you've never had before, you use... A) UPDATE  B) SELECT  *C) INSERT INTO
+
+Why lines (approved 2026-10-21 18:49Z):
+1. INSERT INTO adds a brand-new row. UPDATE is the one that changes a row already there.
+2. It's INSERT INTO, then the table's name, then the columns in brackets.
+3. UPDATE can only change rows that exist. A new job needs INSERT INTO.
+
+**VALUES**
+- "VALUES comes after the columns, with the new row's values in brackets: VALUES ('Nash', 'Ashford', 80);"
+- "Words in 'single quotes', numbers without, and a comma between each."
+
+1. Which is right? A) VALUES 'rope', 2, 'C';  B) VALUES (rope, 2, C);  *C) VALUES ('rope', 2, 'C');
+2. VALUES (Nash, 'Ashford', 80) gives an error. What's wrong? A) 80 needs quotes  *B) Nash needs quotes  C) there's one comma too many
+3. Where does VALUES go? *A) after the column list, before the ;  B) before INSERT INTO  C) after the ;
+
+Why lines (approved 2026-10-21 18:49Z):
+1. The values go in brackets, with words in quotes and commas between.
+2. Nash is a word, so it needs 'single quotes'. 80 is a number, so it doesn't.
+3. VALUES comes after the column list and before the ;.
+
+**same order**
+- "The values line up with the columns you named: first value, first column; second value, second column."
+- "Swap two and the values land in the wrong columns, often with no error to warn you."
+
+1. INSERT INTO van_kit (item, qty) VALUES (3, 'rope'); puts... *A) 3 in item and 'rope' in qty  B) 'rope' in item and 3 in qty  C) nothing: it won't run
+2. INSERT INTO jobs (client, town, fee) VALUES ('Nash', 'Ashford', 80); The town is... A) Nash  *B) Ashford  C) 80
+3. You named three columns. How many values do you give? A) one  B) as many as you like  *C) three
+
+Why lines (approved 2026-10-21 18:49Z):
+1. Values go in the order the columns are named, so 3 lands in item and 'rope' in qty. Swap them to fix it.
+2. town is the second column named, so it gets the second value: Ashford.
+3. One value for each column you named: three columns, three values.
 
 ## Decisions (Augustine, 2026-10-20 03:03Z)
 

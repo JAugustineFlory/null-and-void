@@ -172,7 +172,7 @@ func stop_writing() -> void:
 	if player:
 		player.input_locked = _was_locked
 		if held:
-			player.set_notebook_cursor(not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT))
+			player.set_notebook_cursor(true)
 
 
 func _on_writer_key(event: InputEvent) -> void:

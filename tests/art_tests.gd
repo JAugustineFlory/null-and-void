@@ -236,6 +236,17 @@ func test_skinned_body() -> void:
 			rig.animate(1.0 / 60.0)
 		check(clips and clips.current_animation == want[1], "moving at %.1f m/s plays %s" % want)
 	rig.speed_override = -1.0
+	# Standing still, the chest is upright over the hips (Augustine's garage
+	# playtest: everyone stooped forward), and the arms still hang at the sides.
+	rig.play("idle")
+	for i in 60:
+		rig.animate(1.0 / 60.0)
+	var chest: Vector3 = at.call("neck_01") - at.call("spine_02")
+	var facing: Vector3 = -rig.global_basis.z
+	var stoop := rad_to_deg(atan2(chest.dot(facing), chest.y))
+	var arm: Vector3 = at.call("hand_r") - at.call("upperarm_r")
+	check(stoop < 5.0 and absf(rad_to_deg(atan2(arm.dot(facing), -arm.y))) < 25.0,
+		"standing, the chest is upright (%.1f degrees forward) and the arms hang at the sides" % stoop)
 	var plain := CharacterRig.build(Node3D.new(), CharacterLooks.crew(0))
 	var wide_body: MeshInstance3D = rig.find_child("Body", true, false)
 	var plain_body: MeshInstance3D = plain.find_child("Body", true, false)
@@ -776,6 +787,13 @@ func test_dressed_home_base() -> void:
 			if Vector2(off.x, off.z).length() < 0.05 and absf(off.y - ArtKit.CHAIR_SEAT) < 0.02 and absf(angle_difference(seat.global_rotation.y, chair.global_rotation.y)) < 0.01:
 				seated += 1
 	check(chairs.size() >= 3 and seated == chairs.size(), "every garage folding chair can be sat on, facing the way it faces (%d of %d)" % [seated, chairs.size()])
+	# Augustine's garage playtest: a real fax machine, and the same van as at Halcyon.
+	var fax: Node3D = level.fax
+	check(fax.find_child("FaxMachine", false, false) != null and fax.get_children().all(func(c): return not (c is MeshInstance3D) or not c.visible)
+		and fax.find_children("*", "CollisionShape3D", false, false).size() == 1, "the fax is a fax machine, not a box, and still takes the press")
+	var van: Node3D = ArtDress.dressing_root(level).get_node_or_null("Van")
+	check(van != null and van.find_children("*", "MeshInstance3D", false, false).filter(func(mi): return mi.mesh is CylinderMesh).size() == 8,
+		"the garage's van is dressed like the van at Halcyon, wheels and all")
 	level.free()
 
 

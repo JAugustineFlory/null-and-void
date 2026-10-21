@@ -15,17 +15,26 @@ extends RefCounted
 ## (plan/teaching/easy-sql-whys.md) at 11:49Z. Curriculum B (12:12Z): LIMIT joins
 ## Newest first, and COUNT(*) moved word for word from Counting in piles into its
 ## own chapter, How many?, for floor 14.
+## Chapter zero's table and row questions that leaned on SELECT and FROM before
+## Ch 1 teaches them were replaced, with their why lines, word for word at 18:54Z
+## (plan/teaching/ground-floor-playtest-teaching.md, item 10).
 ##
 ## Chapter ids never change once shipped: profiles keep "chapter:<id>". The number
 ## shown is the chapter's place in the list, so a chapter added in the middle
 ## renumbers the rest by itself. New chapters get a word id (easy_sql_distinct).
 ##
-## Chapter: {id, title, when, required, words, lines, pages: [text], quiz}
+## Chapter: {id, title, when, required, words, lines, pages: [text], quiz, rounds?}
 ## `when` is where the huddle plays; `lines` are voice line ids heard over the
 ## garage radio, one as the book opens and one as it closes. Each quiz question:
 ## {word, q, options, answer, why}, three per word. `answer` indexes `options` as
 ## written here; the huddle shuffles them per run. `why` ("" until written) shows
 ## after the crew votes.
+##
+## A chapter is read in rounds (Books.rounds): each word's page, then straight away
+## its three questions, with that page still on show beside them. Chapters whose
+## pages aren't one per word say how in `rounds`: [{pages: [index], word, ref:
+## [page index]}], where a round with no word is pages only. A question with
+## "closed": true tests memory, so it hides the page.
 
 const BOOKS := {
 	"easy_sql": {
@@ -38,22 +47,25 @@ const BOOKS := {
 				"required": true,
 				"words": ["table", "row", "column"],
 				"lines": [],
+				# The jobs table stays on show for every question.
+				"rounds": [{"pages": [0, 1], "word": "table", "ref": [1]}, {"word": "row", "ref": [1]},
+					{"word": "column", "ref": [1]}, {"pages": [2]}],
 				"pages": [
 					"A database is a stack of tables.\n\nA table is a grid, like a spreadsheet. It has a name, and it holds facts about one kind of thing.",
 					"Each ROW is one thing: one job, one van.\nEach COLUMN is one fact about it: a name, a number, a date.\n\n    jobs\n    job_no | client         | town    | status | fee\n    -------+----------------+---------+--------+----\n    1      | Kemp Dental    | Ashford | done   | 80\n    2      | Bexley Library | Bexley  | open   | 120\n\nThis table is called jobs. It has 2 rows and 5 columns.",
 					"To get anything out of a database, you ask it a question. The questions are written in SQL.\n\nChapter 1 is your first question.",
 				],
 				"quiz": [
-					{"word": "table", "q": "Where does a table's name go in a query?",
-						"options": ["after SELECT", "after FROM", "after the ;"], "answer": 1, "why": ""},
+					{"word": "table", "q": "What are jobs and van_kit?",
+						"options": ["two rows", "two tables", "two columns"], "answer": 1, "why": "Each is a whole table: jobs holds the jobs, and van_kit holds the kit."},
 					{"word": "table", "q": "Which looks like a table name?",
 						"options": ["van kit", "van_kit", "Van Kit!"], "answer": 1, "why": ""},
 					{"word": "table", "q": "Where would you find a table's name in a building?",
 						"options": ["on a label, card or screen nearby", "the book tells you", "you guess"], "answer": 0, "why": ""},
 					{"word": "row", "q": "In jobs, one row is...",
 						"options": ["one job", "one column", "the whole table"], "answer": 0, "why": ""},
-					{"word": "row", "q": "SELECT * FROM jobs; with 5 jobs shows how many rows?",
-						"options": ["1", "3", "5"], "answer": 2, "why": ""},
+					{"word": "row", "q": "jobs has 5 jobs in it. How many rows is that?",
+						"options": ["1", "3", "5"], "answer": 2, "why": "One job is one row, so five jobs make five rows."},
 					{"word": "row", "q": "A row goes...",
 						"options": ["across", "down", "nowhere"], "answer": 0, "why": ""},
 					{"word": "column", "q": "A column goes...",
@@ -70,6 +82,8 @@ const BOOKS := {
 				"when": "flashback at the front desk, required, peek",
 				"required": true,
 				"words": ["SELECT", "FROM", "; (semicolon)"],
+				"rounds": [{"pages": [0, 1], "word": "SELECT", "ref": [0, 1]}, {"word": "FROM", "ref": [0]},
+					{"pages": [2], "word": "; (semicolon)", "ref": [2]}],
 				"lines": ["l0_huddle_select_1", "l0_huddle_select_2"],
 				"pages": [
 					"Every question starts the same way:\n\n    SELECT columns FROM table;\n\nSELECT says which columns you want to see.\nFROM says which table to read them from.",
@@ -476,6 +490,38 @@ static func chapter(id: String) -> Dictionary:
 				out["number"] = book.chapters.find(ch)
 				return out
 	return {}
+
+
+## How chapter `ch` is read: rounds of {pages, questions, ref}, each a list of
+## indexes into its pages or quiz. One round per word when each page is a word's
+## (it starts with the word's name); otherwise the chapter's own `rounds`, or for a
+## review, every page and then every question.
+static func rounds(ch: Dictionary) -> Array:
+	var quiz: Array = ch.get("quiz", [])
+	var pages: Array = ch.get("pages", [])
+	var words: Array = ch.get("words", [])
+	var out := []
+	if ch.has("rounds"):
+		for r in ch.rounds:
+			var qs := []
+			if r.has("word"):
+				for i in quiz.size():
+					if quiz[i].word == r.word:
+						qs.append(i)
+			out.append({"pages": r.get("pages", []), "questions": qs, "ref": r.get("ref", [])})
+		return out
+	var one_per_word := not words.is_empty() and words.size() == pages.size()
+	for i in pages.size():
+		one_per_word = one_per_word and String(pages[i]).begins_with(words[i] + "\n")
+	if one_per_word:
+		for i in words.size():
+			var qs := []
+			for j in quiz.size():
+				if quiz[j].word == words[i]:
+					qs.append(j)
+			out.append({"pages": [i], "questions": qs, "ref": [i]})
+		return out
+	return [{"pages": range(pages.size()), "questions": range(quiz.size()), "ref": range(pages.size())}]
 
 
 ## The chapter ids of book `book_id`, in order.

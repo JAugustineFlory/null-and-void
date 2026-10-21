@@ -30,6 +30,9 @@ const PAPER_WAIT := 30.0
 var level: Node
 ## The chapter being read ("" between huddles) and where the crew is in it.
 var chapter := {}
+## The chapter is read in rounds (Books.rounds): a word's page, then its questions.
+var rounds: Array = []
+var round_index := 0
 var page := 0
 ## -1 while reading the pages, then the quiz question being voted on.
 var question := -1
@@ -83,6 +86,11 @@ func is_running() -> bool:
 	return not chapter.is_empty()
 
 
+## A huddle is open here, or still closing.
+func is_busy() -> bool:
+	return _busy
+
+
 ## Hold a huddle for chapter `id` and wait until the crew has finished it. If one
 ## is already open (two papers read close together), this one waits its turn.
 func run(id: String, mode: String = FLASHBACK) -> void:
@@ -112,10 +120,12 @@ func run(id: String, mode: String = FLASHBACK) -> void:
 @rpc("authority", "call_local", "reliable")
 func _begin(id: String, reader: int, in_huddle: Array) -> void:
 	chapter = Books.chapter(id)
+	rounds = Books.rounds(chapter)
 	reader_id = reader
 	crew = in_huddle
-	page = 0
-	question = -1
+	round_index = 0
+	page = rounds[0].pages[0] if not rounds[0].pages.is_empty() else 0
+	question = -1 if not rounds[0].pages.is_empty() else rounds[0].questions[0]
 	votes.clear()
 	result.clear()
 	changed.emit()
@@ -127,7 +137,8 @@ func is_reader() -> bool:
 	return reader_id == multiplayer.get_unique_id()
 
 
-## The reader turns the page (`step` 1 forward, -1 back). Past the last page, the quiz starts.
+## The reader turns the page (`step` 1 forward, -1 back), within this round's
+## pages. Past its last page come its questions.
 func turn_page(step: int = 1) -> void:
 	if not is_reader() or question >= 0 or not is_running():
 		return
@@ -146,17 +157,55 @@ func _ask_turn(step: int) -> void:
 func _turn(step: int, by: int) -> void:
 	if by != reader_id or question >= 0 or not is_running():
 		return
-	var to := clampi(page + step, 0, chapter.pages.size())
-	if to == chapter.pages.size():
-		_set_question.rpc(0)
-	elif to != page:
-		_set_page.rpc(to)
+	var pages: Array = rounds[round_index].pages
+	var to := clampi(pages.find(page) + step, 0, pages.size())
+	if to == pages.size():
+		if rounds[round_index].questions.is_empty():
+			_next_round()
+		else:
+			_set_step.rpc(round_index, page, rounds[round_index].questions[0])
+	elif pages[to] != page:
+		_set_step.rpc(round_index, pages[to], -1)
+
+
+## Host: on to the next round's pages (or straight to its questions), or the end.
+func _next_round() -> void:
+	var r := round_index + 1
+	while r < rounds.size() and rounds[r].pages.is_empty() and rounds[r].questions.is_empty():
+		r += 1
+	if r >= rounds.size():
+		_complete(chapter.id)
+	elif rounds[r].pages.is_empty():
+		_set_step.rpc(r, page, rounds[r].questions[0])
+	else:
+		_set_step.rpc(r, rounds[r].pages[0], -1)
 
 
 @rpc("authority", "call_local", "reliable")
-func _set_page(p: int) -> void:
+func _set_step(r: int, p: int, q: int) -> void:
+	round_index = r
 	page = p
+	question = q
+	votes.clear()
+	result.clear()
 	changed.emit()
+
+
+## The first page of this round, and whether this is its last.
+func first_page_of_round() -> bool:
+	return rounds[round_index].pages.find(page) <= 0
+
+
+func last_page_of_round() -> bool:
+	var pages: Array = rounds[round_index].pages
+	return pages.find(page) == pages.size() - 1
+
+
+## The pages on show beside the current question (none for a memory question).
+func reference() -> Array:
+	if question < 0 or chapter.quiz[question].get("closed", false):
+		return []
+	return rounds[round_index].ref.map(func(i): return chapter.pages[i])
 
 
 # --- The quiz ------------------------------------------------------------------
@@ -226,12 +275,13 @@ func _count() -> void:
 	await get_tree().create_timer(wait, false).timeout
 	if question != asked or not is_running():
 		return
+	var qs: Array = rounds[round_index].questions
 	if not right:
 		_set_question.rpc(asked)
-	elif asked + 1 < chapter.quiz.size():
-		_set_question.rpc(asked + 1)
+	elif qs.find(asked) + 1 < qs.size():
+		_set_question.rpc(qs[qs.find(asked) + 1])
 	else:
-		_complete(chapter.id)
+		_next_round()
 
 
 @rpc("authority", "call_local", "reliable")
@@ -264,6 +314,7 @@ func _finish(id: String) -> void:
 	done[id] = true
 	_earn_book(Books.chapter(id).get("book_id", ""))
 	chapter = {}
+	rounds = []
 	question = -1
 	votes.clear()
 	result.clear()

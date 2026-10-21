@@ -461,6 +461,10 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _open or not (event is InputEventMouse) or _camera == null:
 		return
+	# Only the left button clicks the pages: a right press the pages kept with no
+	# release would hold their mouse focus, and no button would answer after it.
+	if event is InputEventMouseButton and event.button_index != MOUSE_BUTTON_LEFT:
+		return
 	var at := page_point(event.position)
 	if at.x < 0.0:
 		return

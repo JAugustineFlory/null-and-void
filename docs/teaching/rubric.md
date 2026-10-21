@@ -11,6 +11,15 @@ the owning thread through the Game design plan thread.
 2. **Practised once safely.** The first puzzle that needs it has no threat running.
 3. **Used under pressure.** A later puzzle needs it again while something is after you.
 
+**Every piece is introduced before players use it** (Augustine, 2026-10-21). A word with an Easy SQL
+chapter has its huddle play once, at its map moment, before the puzzle that first needs it (for example,
+Ch 2's ORDER BY plays when the memo's scraps print out of order). Only these words are deliberately
+learned without a chapter, from a reference found in the world:
+- **IS NULL** (floor 18), from Mercer's reference card.
+- **Auth tokens** (Act 2), from an IT admin's runbook page.
+
+Any other word a puzzle needs without its chapter having played is a bug.
+
 ## Who teaches (Augustine, 2026-10-17)
 
 Every tip and hint comes from inside the world. Nothing reads as a game UI talking

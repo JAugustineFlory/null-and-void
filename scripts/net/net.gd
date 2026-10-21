@@ -9,6 +9,10 @@ signal session_ended(reason: String)
 
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 6
+## How a player stands on their mark in the pre-game lobby (LobbyStage draws them).
+const LOBBY_POSES := ["wave", "lean", "sit", "shoulder", "pose"]
+## The CharacterRig action each pose plays. One the rig can't draw yet plays "idle".
+const LOBBY_POSE_ACTIONS := {"wave": "wave", "lean": "lean", "sit": "sit_floor", "shoulder": "shoulder", "pose": "pose"}
 const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Harper", "Jo", "Kit", "Lane", "Morgan"]
 
 ## peer id -> player name, identical on every machine.
@@ -16,6 +20,10 @@ var roster := {}
 ## peer id -> their whole loadout (Cosmetics.clean), identical on every machine:
 ## crew member (voice and body type), skin, and an item and color per worn slot and tool.
 var looks := {}
+## peer id -> where they are in the pre-game lobby, identical on every machine:
+## {"ready": bool, "pose": index into LOBBY_POSES}. Kept into the game, so the
+## garage opens on everyone where the lobby left them (HomeBase).
+var lobby := {}
 ## What this player picked in the lobby: a partial loadout (Cosmetics.trim).
 ## Anything left out follows their place in the player order, so teammates who
 ## never open the picker still look different.
@@ -24,6 +32,8 @@ var wanted_look := {}
 var profile: Profile
 var player_name := ""
 var in_game := false
+## The pre-game lobby is for one player: no session, Ready starts a solo game.
+var solo_lobby := false
 ## Why the last session ended, for the menu to show.
 var last_message := ""
 var transport: NetTransport = NetTransport.Enet.new()
@@ -89,6 +99,91 @@ func choose_look(change: Dictionary) -> void:
 		_request_look.rpc_id(1, wanted_look)
 
 
+# --- The pre-game lobby -------------------------------------------------------
+
+## Solo: the pre-game lobby with just this player in it (no connection).
+func begin_solo_lobby() -> void:
+	leave(false)
+	solo_lobby = true
+	roster = {my_id(): player_name}
+	roster_changed.emit()
+
+
+## Solo: everyone (that's you) is ready, so the game starts. The lobby's state
+## stays for the garage to open on.
+func start_solo_game() -> void:
+	solo_lobby = false
+	var game := get_node("/root/Game")
+	game.new_run()
+	game.open_at_home = true
+	game.goto("world")
+
+
+## This player is ready to start (or not any more).
+func set_ready(on: bool) -> void:
+	_lobby_change({"ready": on})
+
+
+## This player stands on their mark the next way (LOBBY_POSES).
+func next_pose() -> void:
+	_lobby_change({"pose": lobby_of(my_id()).pose + 1})
+
+
+## `peer`'s place in the lobby. Until they change it: not ready, and a pose
+## by their place in the player order, so a full crew doesn't all stand alike.
+func lobby_of(peer: int) -> Dictionary:
+	if lobby.has(peer):
+		return lobby[peer]
+	return {"ready": false, "pose": maxi(lobby_index(peer), 0) % LOBBY_POSES.size()}
+
+
+## The CharacterRig action `peer` shows on their mark (HomeBase opens on it).
+func lobby_action(peer: int) -> String:
+	return pose_action(LOBBY_POSES[lobby_of(peer).pose])
+
+
+static func pose_action(pose: String) -> String:
+	var action: String = LOBBY_POSE_ACTIONS.get(pose, "idle")
+	return action if action in CharacterRig.ACTIONS else "idle"
+
+
+## `peer`'s place in the player order (host first), which is their lobby mark.
+func lobby_index(peer: int) -> int:
+	var ids := roster.keys()
+	ids.sort()
+	return ids.find(peer)
+
+
+## Everyone in the session is ready.
+func all_ready() -> bool:
+	return not roster.is_empty() and roster.keys().all(func(id): return lobby_of(id).ready)
+
+
+func _lobby_change(change: Dictionary) -> void:
+	if is_host():
+		_assign_lobby(my_id(), change)
+	else:
+		_request_lobby.rpc_id(1, change)
+
+
+@rpc("any_peer", "reliable")
+func _request_lobby(change: Dictionary) -> void:
+	if is_host() and not in_game and roster.has(multiplayer.get_remote_sender_id()):
+		_assign_lobby(multiplayer.get_remote_sender_id(), change)
+
+
+## The host takes the change (junk is ignored) and tells everyone.
+func _assign_lobby(peer: int, change: Dictionary) -> void:
+	var state := lobby_of(peer).duplicate()
+	if change.get("ready") is bool:
+		state.ready = change.ready
+	if change.get("pose") is int:
+		state.pose = posmod(change.pose, LOBBY_POSES.size())
+	lobby[peer] = state
+	_set_roster.rpc(roster, looks, lobby)
+	roster_changed.emit()
+
+
 ## The name teammates see, saved to the profile.
 func set_player_name(n: String) -> void:
 	player_name = n.strip_edges().left(16) if n.strip_edges() != "" else "Player"
@@ -127,7 +222,7 @@ func _request_look(choice: Dictionary) -> void:
 ## and tells everyone.
 func _assign_look(peer: int, choice: Dictionary) -> void:
 	looks[peer] = Cosmetics.clean(choice, maxi(roster.keys().find(peer), 0))
-	_set_roster.rpc(roster, looks)
+	_set_roster.rpc(roster, looks, lobby)
 	roster_changed.emit()
 
 
@@ -139,6 +234,7 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	multiplayer.multiplayer_peer = peer
 	roster = {1: player_name}
 	looks = {}
+	lobby = {}
 	_assign_look(1, wanted_look)
 	roster_changed.emit()
 	return OK
@@ -161,7 +257,9 @@ func leave(notify: bool = true, reason: String = "") -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	roster = {}
 	looks = {}
+	lobby = {}
 	in_game = false
+	solo_lobby = false
 	if was_online and notify:
 		last_message = reason
 		session_ended.emit(reason)
@@ -244,10 +342,11 @@ func _register(wanted: String, look: Dictionary) -> void:
 
 
 @rpc("authority", "reliable")
-func _set_roster(names: Dictionary, picked: Dictionary) -> void:
+func _set_roster(names: Dictionary, picked: Dictionary, waiting := {}) -> void:
 	var first := roster.is_empty()
 	roster = names
 	looks = picked
+	lobby = waiting
 	roster_changed.emit()
 	if first:
 		joined.emit()
@@ -273,9 +372,10 @@ func _on_peer_disconnected(id: int) -> void:
 		return
 	roster.erase(id)
 	looks.erase(id)
+	lobby.erase(id)
 	roster_changed.emit()
 	if is_host():
-		_set_roster.rpc(roster, looks)
+		_set_roster.rpc(roster, looks, lobby)
 
 
 func _on_connection_failed() -> void:

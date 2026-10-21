@@ -123,8 +123,13 @@ const TERMINAL_FOCUS_DISTANCE := 0.55
 ## chair, 0.8 m on the floor), and how long sitting down or getting up takes.
 const SIT_HEIGHT := 0.95
 const SIT_TIME := 0.4
-## How far (radians) you can turn from the way a chair faces.
+## Looking around sitting down (on a chair, the floor or a van seat): how far
+## (radians) you can turn your head from the way a seat faces, and how far up
+## and down you can look. A chair or van seat doesn't turn with you; on the floor
+## you turn your whole body, so only the up-and-down range applies.
 const SIT_LOOK := deg_to_rad(110.0)
+const SIT_LOOK_UP := deg_to_rad(65.0)
+const SIT_LOOK_DOWN := deg_to_rad(75.0)
 ## Getting up off a chair, you step this far out from it the way you're facing.
 const SIT_STEP_OUT := 0.6
 ## Stamina, 0..STAMINA_MAX. Sprinting and climbing drain it per second; a jump,
@@ -171,8 +176,13 @@ var input_locked := false
 ## run's inventory; a bare Player gets its own.
 var inventory := Inventory.new()
 ## Strapped into a seat (the van): look around and press E, but no walking,
-## crouching or jumping.
-var seated := false
+## crouching or jumping. You look around from the way you face when strapped in,
+## as far as on a chair (SIT_LOOK).
+var seated := false:
+	set(value):
+		seated = value
+		_seated_yaw = rotation.y
+var _seated_yaw := 0.0
 var hud: Node
 ## This tick's intent. Filled from the keyboard when `local_control` is set.
 var controls := PlayerControls.new()
@@ -217,10 +227,9 @@ var held_notebook: Node3D:
 		held_notebook = n
 		if n:
 			n.set_process_input(notebook_cursor)
-## While the notebook is held a cursor is out for clicking the pages; holding right
-## mouse looks around instead. Read-only (set_notebook_cursor()).
+## While the notebook is held a cursor is out for clicking the pages; pushed off
+## the page, the view turns that way (edge_turn). Read-only (set_notebook_cursor()).
 var notebook_cursor := false
-var _rmb_was := false
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
 var notebook_amount := 0.0
 var _notebook_held := false
@@ -311,8 +320,13 @@ func _turn_view(yaw: float, pitch: float) -> void:
 	if state == Move.LEDGE:
 		_clamp_ledge_yaw()
 	elif state == Move.SIT and is_instance_valid(seat):
-		_clamp_seat_yaw()
-	head.rotation.x = clamp(head.rotation.x - pitch, -1.45, 1.45)
+		rotation.y = _turned_within(_seat_yaw(), yaw0, yaw)
+	elif seated:
+		rotation.y = _turned_within(_seated_yaw, yaw0, yaw)
+	if _sitting_look():
+		head.rotation.x = clampf(head.rotation.x - pitch, -SIT_LOOK_DOWN, SIT_LOOK_UP)
+	else:
+		head.rotation.x = clamp(head.rotation.x - pitch, -1.45, 1.45)
 	if _notebook_held or _prop_settled():
 		_drift_notebook(wrapf(rotation.y - yaw0, -PI, PI), head.rotation.x - pitch0)
 
@@ -476,6 +490,7 @@ func respawn(at: Transform3D) -> void:
 		rider._leave_carrier()
 	_leave_carrier()
 	global_transform = at
+	_seated_yaw = rotation.y
 	velocity = Vector3.ZERO
 	head.rotation = Vector3.ZERO
 	state = Move.WALK
@@ -537,9 +552,7 @@ func is_holding_notebook() -> bool:
 
 ## While reading (the notebook, or a paper you picked up) the cursor is out to click
 ## the pages (tabs, next page, "+ add"), so a trackpad can click them; pushing it to
-## an edge of the screen looks that way (edge_turn). Holding right mouse also puts
-## it away and the mouse looks around instead.
-## The local player follows the right mouse button by itself.
+## the edge of what you read looks that way (edge_turn).
 func set_notebook_cursor(on: bool) -> void:
 	on = on and _reading()
 	notebook_cursor = on
@@ -576,9 +589,9 @@ func _drift_basis() -> Basis:
 	return Basis(Vector3.RIGHT, -pitch) * Basis(Vector3.UP, -notebook_drift.x) * Basis(Vector3.RIGHT, pitch - notebook_drift.y)
 
 
-## The cursor is out while reading unless right mouse is held to look around.
+## The cursor is out whenever this player reads.
 func _wants_cursor() -> bool:
-	return local_control and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	return local_control
 
 
 ## Does moving the mouse turn your head right now?
@@ -595,7 +608,7 @@ func _mouse_looks() -> bool:
 ## height; `prop_raised` fires then. `size` is its readable face in metres and
 ## `face` the local direction that face points (+Z for a poster on a wall,
 ## Vector3.UP for one lying on a desk). You can walk slowly and look around while
-## you read (hold right mouse); otherwise a cursor is out (set_notebook_cursor). It doesn't collide
+## you read: a cursor is out (set_notebook_cursor), and pushing it off the page turns the view. It doesn't collide
 ## while held. False if your hands are busy or you're not on your feet.
 func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) -> bool:
 	if prop == null or held_prop or not _filing.is_empty() or not state in [Move.WALK, Move.SIT]:
@@ -917,14 +930,6 @@ func _end_terminal(announce: bool) -> void:
 
 
 func _process(delta: float) -> void:
-	if local_control:
-		# Polled, not an input event: the pages take clicks under the cursor, the
-		# release included, so an event could be swallowed and leave the cursor stuck.
-		var rmb := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
-		if rmb != _rmb_was:
-			_rmb_was = rmb
-			if _reading() and not input_locked:
-				set_notebook_cursor(_wants_cursor())
 	_edge_look(delta)
 	_animate_prop(delta)
 	_animate_filing(delta)
@@ -998,14 +1003,18 @@ func _step_sit(delta: float, stand_pressed: bool) -> void:
 		_sit_leaving = true  # the chair's gone
 	if stand_pressed and not _sit_leaving:
 		stand_up()
+	var settling := sit_amount < 1.0
 	sit_amount = move_toward(sit_amount, 0.0 if _sit_leaving else 1.0, delta / SIT_TIME)
 	if _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
 		# Onto the chair, turning to face the way it does; or back off it, looking
-		# wherever you were looking.
+		# wherever you were looking. Once you're down, the view is yours again.
 		var t := smoothstep(0.0, 1.0, sit_amount)
 		global_position = _sit_from.origin.lerp(_sit_to.origin, t)
-		if not _sit_leaving:
+		if settling and not _sit_leaving:
 			rotation.y = lerp_angle(_sit_from.basis.get_euler().y, _sit_to.basis.get_euler().y, t)
+	if not _sit_leaving:
+		# Looking further up or down than you can sitting: the head eases back into range.
+		head.rotation.x = move_toward(head.rotation.x, clampf(head.rotation.x, -SIT_LOOK_DOWN, SIT_LOOK_UP), delta * 3.0)
 	if _sit_leaving and sit_amount <= 0.0:
 		_end_sit()
 
@@ -1028,12 +1037,21 @@ func _end_sit() -> void:
 	stood_up.emit()
 
 
-func _clamp_seat_yaw() -> void:
+## Sitting down or strapped in: the view keeps to a seated person's range.
+func _sitting_look() -> bool:
+	return seated or (state == Move.SIT and not _sit_leaving)
+
+
+## The way the chair you're on faces (yaw).
+func _seat_yaw() -> float:
 	var fwd := -seat.global_basis.z
-	var center := atan2(-fwd.x, -fwd.z)
-	var d := angle_difference(center, rotation.y)
-	if absf(d) > SIT_LOOK:
-		rotation.y = center + signf(d) * SIT_LOOK
+	return atan2(-fwd.x, -fwd.z)
+
+
+## `from` turned right by `yaw`, kept within SIT_LOOK of `center`. The turn isn't
+## wrapped first, so one big flick of the mouse can't swing you round the back.
+func _turned_within(center: float, from: float, yaw: float) -> float:
+	return center + clampf(angle_difference(center, from) - yaw, -SIT_LOOK, SIT_LOOK)
 
 
 # --- Stamina and knocks ------------------------------------------
@@ -1852,3 +1870,5 @@ func _update_prompt() -> void:
 		if text == "" and state == Move.SIT and not _sit_leaving:
 			text = "[Space] Stand up"
 	hud.set_prompt(text)
+	if hud.has_method("set_crosshair"):
+		hud.set_crosshair(not notebook_cursor)  # reading, the mouse pointer is the one to aim with

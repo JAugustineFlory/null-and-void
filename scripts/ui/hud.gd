@@ -73,6 +73,11 @@ func _ready() -> void:
 	root.add_child(_fade)
 
 
+## The dot in the middle of the view; hidden while a mouse pointer is out instead.
+func set_crosshair(on: bool) -> void:
+	_crosshair.visible = on
+
+
 func set_prompt(text: String) -> void:
 	_prompt.text = text
 
@@ -136,6 +141,22 @@ func subtitles_on_top(on: bool) -> void:
 	_notice.offset_top = -46 if on else 70
 	_notice.offset_bottom = _notice.offset_top
 	_keys.visible = not on
+
+
+## Keep subtitles clear of a panel `width` px wide down the right of the screen
+## (the open Easy SQL book), low on the left instead of in the middle. 0 puts
+## them back.
+func subtitles_clear_of_right(width: float) -> void:
+	_subtitle.custom_minimum_size.x = 1100 if width <= 0.0 else 0
+	if width <= 0.0:
+		subtitles_on_top(false)
+		return
+	_subtitle.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_subtitle.offset_left = 40
+	_subtitle.offset_right = -width - 20
+	_subtitle.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_subtitle.offset_top = -180
+	_subtitle.offset_bottom = -180
 
 
 ## Speak a line from VoiceLines by id. Plays its recording if there is one
