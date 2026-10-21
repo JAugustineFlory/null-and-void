@@ -46,6 +46,14 @@ const BLEND_RATE := 5.0
 ## How far the clips' fists curl the fingers; less looks relaxed, not ready to fight.
 const FINGER_CURL := 0.4
 const FINGERS := ["thumb", "index", "middle", "ring", "pinky"]
+## The chest bones between the rig's spine and neck joints. The pack's idle bends
+## them forward to stand over its own tilted pelvis; under the rig's upright hips
+## that bend made everyone stoop, so while the rig holds the hips they keep their
+## rest shape, upright.
+const CHEST := ["spine_02", "spine_03"]
+## How much of the clip's shoulder angle survives straightening the chest: all
+## of it swings the arms back behind the hips, none leaves them reaching forward.
+const SHOULDER_KEEP := 0.6
 
 var model: Node3D
 var skeleton: Skeleton3D
@@ -61,6 +69,7 @@ var _hips_offset := Transform3D.IDENTITY  # the pelvis relative to the hips join
 var _skel := Transform3D.IDENTITY  # the skeleton in rig space
 var _feet: Array[int] = []
 var _fingers := {}
+var _chest := {}
 var _pelvis := -1
 var _foot_height := 0.0
 var _upper := 1.0
@@ -114,6 +123,7 @@ func update(delta: float) -> void:
 		_play_clip(_rig.current_speed())
 		player.advance(delta)
 	var cache := {}
+	var clip_chest := {}  # chest bone -> where the clip alone would put it
 	var inv := _skel.affine_inverse()
 	var g: Array[Transform3D] = []
 	g.resize(_parent.size())
@@ -123,6 +133,15 @@ func update(delta: float) -> void:
 		var base: Transform3D = skeleton.get_bone_pose(i) if player else _rest_local[i]
 		if player and _fingers.has(i):
 			base.basis = Basis(_rest_local[i].basis.get_rotation_quaternion().slerp(base.basis.get_rotation_quaternion(), FINGER_CURL))
+		elif player and _chest.has(i):
+			# Straighten the chest, and remember where the clip had it, so the
+			# shoulders it carries can stay where the clip put them (arms hanging).
+			var clip_parent: Transform3D = clip_chest.get(parent, parent_g)
+			clip_chest[i] = clip_parent * base
+			base.basis = Basis(base.basis.get_rotation_quaternion().slerp(_rest_local[i].basis.get_rotation_quaternion(), _lower))
+		elif player and clip_chest.has(parent) and not _driven.has(i):
+			var keep := Basis(Quaternion.IDENTITY.slerp((parent_g.basis.inverse() * clip_chest[parent].basis).get_rotation_quaternion(), SHOULDER_KEEP))
+			base.basis = keep * base.basis
 		var pose := base
 		if _driven.has(i):
 			var joint: String = _driven[i][0]
@@ -286,6 +305,8 @@ func _bind() -> void:
 	for i in n:
 		if skeleton.get_bone_name(i).get_slice("_", 0) in FINGERS:
 			_fingers[i] = true
+	for bone in CHEST:
+		_chest[skeleton.find_bone(bone)] = true
 	for side in ["r", "l"]:
 		_feet.append(skeleton.find_bone("foot_" + side))
 	_foot_height = (_skel * g[_feet[0]]).origin.y

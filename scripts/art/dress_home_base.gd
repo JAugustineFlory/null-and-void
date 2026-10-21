@@ -62,11 +62,29 @@ static func apply(level: LevelBase) -> void:
 	ArtProps.crt_monitor(dress, Vector3(-4.95, 0.8, 1.95), -90, "green")
 	_seat(ArtKit.folding_chair(geo, Vector3(-4.1, 0, 3.95), 120))  # pushed back from the desk
 	ArtProps.binder(dress, Vector3(-4.75, 0.8, 3.05), 80, "NETWARE 4.11", false)
+	_fax(level)
 
 	# Moving boxes and spare kit along the north wall, west of the roll-up door.
 	ArtProps.boxes(geo, Vector3(-2.6, 0, -3.9), 8, 3)
 	ArtProps.cable_coil(dress, Vector3(-1.9, 1.6, -4.36), 0)
 	ArtProps.server_rack(geo, Vector3(5.05, 0, -3.8), -90, true)
+	# The van the crew drives to Halcyon, seen from its sliding-door side.
+	DressVan.apply(level, HomeBase.VAN, -1.0)
+
+
+## A real fax machine on the fax Interactable, in place of its box, facing the
+## room (+X). It's the Interactable's child, so it goes wherever the fax does.
+static func _fax(level: LevelBase) -> void:
+	var fax := level.get("fax") as Node3D
+	if fax == null:
+		return
+	var height := 0.26
+	for c in fax.get_children():
+		if c is MeshInstance3D:
+			c.visible = false
+		elif c is CollisionShape3D and c.shape is BoxShape3D:
+			height = (c.shape as BoxShape3D).size.y
+	ArtProps.fax_machine(fax, Vector3(0, -height / 2.0, 0), -90)
 
 
 ## Bare bulbs on cords in place of the greybox light panels. The bulb is the
