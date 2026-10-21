@@ -1,6 +1,6 @@
 # Recording list
 
-1418 lines in all.
+1434 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -170,17 +170,33 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
-## Maddison Kowalski (23 lines)
+## Maddison Kowalski (39 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_garage_1` | There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours. | Coming in through the side door, waving the printout. The crew starts on the garage floor. | Level 0 |
-| [ ] | `l0_garage_2` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now. | Quickly, before anyone can ask. Then the fax starts. | Level 0 |
-| [ ] | `l0_garage_3` | Small problem. It says database. And unless somebody's been holding out on me... none of us can code. | The smile stays on. A hopeful pause. Once the work order's off the fax. | Level 0 |
-| [ ] | `l0_garage_4` | Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go. | Proud of this. | Level 0 |
+| [ ] | `l0_brief_1` | Okay! Everybody comfy? Look at you. My whole company, in one garage. | Big, warm, delighted to have an audience. The crew is already sitting, facing her. | Level 0 |
+| [ ] | `l0_brief_1_solo` | Okay! Look at you. My whole company, in one seat. | Solo version. The same joke, a little teasing. | Level 0 |
+| [ ] | `l0_brief_2` | Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change. | Cheerful, as if it's good news. Counting it off on her fingers. | Level 0 |
+| [ ] | `l0_brief_3` | So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off. | Every 'maybe' a little grander, then the sign brings it back down to earth. | Level 0 |
+| [ ] | `l0_brief_4` | Forget all that. We got Halcyon. The overnight database contract. Ours. | Building to it. She can't stand still for 'Ours.' | Level 0 |
+| [ ] | `l0_brief_5` | How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. | Quickly, before anyone can ask. | Level 0 |
+| [ ] | `l0_bag` | You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down. | Laughing, shooing them off. | Level 0 |
+| [ ] | `l0_bag_solo` | You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down. | Solo version. Laughing, shooing them off. | Level 0 |
+| [ ] | `l0_bag_back` | Better? Good. Now eyes on me, gorgeous people. | Once everyone's back in their seats. A little flirty, played light, like a coach. | Level 0 |
+| [ ] | `l0_bag_back_solo` | Better? Good. Now eyes on me, gorgeous. | Solo version. A little flirty, played light, like a coach. | Level 0 |
+| [ ] | `l0_workorder` | I put a copy of the work order in each of your notebooks. Pull it out and take a look. | Pleased with herself for being organized. | Level 0 |
+| [ ] | `l0_workorder_solo` | I put a copy of the work order in your notebook. Pull it out and take a look. | Solo version. Pleased with herself for being organized. | Level 0 |
+| [ ] | `l0_book_catch` | Small problem. It says database. And unless one of you secretly knows SQL... | The smile stays on. She leaves the sentence hanging and waits. Nobody does. | Level 0 |
+| [ ] | `l0_book_catch_solo` | Small problem. It says database. And unless you secretly know SQL... | Solo version. The smile stays on. She leaves the sentence hanging and waits. | Level 0 |
+| [ ] | `l0_bookstore` | ...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. | Proud of this. Holding up the receipt, not the book. | Level 0 |
+| [ ] | `l0_grab` | It's in the shop bag on the shelf by the side door. One of you go grab it. | Pointing at the side door to the house. | Level 0 |
+| [ ] | `l0_grab_solo` | It's in the shop bag on the shelf by the side door. Go on, grab it for me. | Solo version. Pointing at the side door to the house. | Level 0 |
+| [ ] | `l0_whiteboard` | Thank you! Okay. Whiteboard. Chapter zero. We're reading this together. | When whoever got the book sits down. Uncapping a marker with a flourish, like she's about to teach a class she's never taken. | Level 0 |
+| [ ] | `l0_whiteboard_solo` | Thank you! Okay. Whiteboard. Chapter zero. Let's read this together. | Solo version. Uncapping a marker with a flourish. | Level 0 |
 | [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. After the huddle's quiz. | Level 0 |
+| [ ] | `l0_garage_5_solo` | Look at that. You're practically an engineer. Take the book with you. Into the van. | Solo version. Genuinely thrilled. After the huddle's quiz. | Level 0 |
 | [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. | At the van door, counting the rules off. She stays behind. | Level 0 |
 | [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0, later |
 | [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0, later |

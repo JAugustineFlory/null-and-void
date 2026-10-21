@@ -1,21 +1,22 @@
 class_name HomeBase
 extends LevelBase
 ## The crew's garage: Byte-Right IT Services' home base, the evening of the job.
-## The game opens here. It teaches the controls on ordinary chores (pull the work
-## order off the fax, find the book in the dark back corner), then the crew
-## huddles round the workbench for the book's first chapter and gets in the van.
+## The game opens here: the crew walks in from the pre-game lobby out front and
+## sits facing Maddison's whiteboard. She briefs them, sends them to the punch bag
+## and back, points them at the work order in their notebooks, then sends one of
+## them for the book, and they read its first chapter together before the van.
 ## The drive cuts to the van in Halcyon's car park (Level 0).
 ##
 ## Later, when the building needs a new SQL word, the game flashes back here: the
-## same workbench, the crew round the book (see Huddle). The garage stays loaded
+## same seats, Maddison at the whiteboard (see Huddle). The garage stays loaded
 ## out of sight for that, far from the tower.
 ##
-## Before the huddle, the punch bag by the roll-up door teaches blocking safely:
-## it swings back at you, and right-clicking as it comes in blocks it. A miss
-## costs nothing. Everyone blocks it once before the crew huddles.
+## The punch bag by the roll-up door teaches blocking safely: it swings back at
+## you, and right-clicking as it comes in blocks it. A miss costs nothing.
+## Everyone blocks it once before they sit back down.
 ##
-## Maddison, the boss, is on her feet in here: she walks the crew round the
-## chores in the opening and stands at the bench in every flashback.
+## Maddison, the boss, is on her feet in here: she walks the room in the opening
+## and stands at the whiteboard in every flashback.
 ##
 ## Graphics dresses it; DressHomeBase can hook in at the end of build().
 
@@ -83,9 +84,15 @@ const MADDISON_MARKS := {
 	"greet": [Vector3(-6.4, 0, 2.2), Vector3(-3.0, 0, 0.0)],
 	"fax": [Vector3(-6.4, 0, -4.6), Vector3(-7.35, 0, -4.6)],
 	"board": [Vector3(-7.1, 0, 1.6), Vector3(-3.0, 0, 0.0)],
+	"side": [Vector3(-6.6, 0, 3.4), Vector3(-6.2, 0, 5.6)],  # by the shelf, showing the crew the shop bag
 	"bench": [Vector3(2.1, 0, 3.6), BENCH],
 	"van": [Vector3(2.4, 0, 0.8), Vector3(3.3, 0, -0.5)],
 }
+## The walk in from the lobby (garage-local): through the roll-up door, past the
+## punch bag, then down to the north end of the couch and the stools.
+const WALK_IN := [Vector3(DOOR_AT, 0, -5.0), Vector3(-1.0, 0, -5.0), Vector3(-3.3, 0, -2.4)]
+## The book in first person, on the camera: low and to the right, cover up.
+const HELD_BOOK := Transform3D(Basis(Vector3.RIGHT, 1.2) * Basis(Vector3.UP, -0.25), Vector3(0.16, -0.2, -0.42))
 ## Round the bench's west end: the way past it when it's in her way.
 const BENCH_WAY := Vector3(-1.4, 0, 2.6)
 ## Maddison takes her time: she walks at this share of a crew member's pace, and
@@ -110,6 +117,15 @@ var swing_in := false
 ## Who has blocked it (host decides; every machine hears).
 var spar_blocked: Array = []
 signal crew_sparred
+## Everyone back in a seat after the punch bag; the book's carrier sat down with it.
+signal crew_seated
+signal book_seated
+## Who has pulled out the work order (host decides; every machine hears).
+var read_order: Array = []
+signal crew_read_order
+## Who took the book from the shelf, and the book in their hands.
+var book_holder := 0
+var held_book: Node3D
 ## The book on the workbench, once someone has brought it over.
 var bench_book: Node3D
 ## The camera a flashback looks through, and the crew it sees in the seats.
@@ -151,10 +167,10 @@ func build() -> void:
 	# The office corner: a desk with the fax machine and the radio base station.
 	Greybox.box(geo, DESK + Vector3(0, 0.4, 0), Vector3(0.9, 0.8, 1.8), Color(0.35, 0.3, 0.25), "Desk")
 	Greybox.box(geo, DESK + Vector3(-0.05, 0.95, 0.6), Vector3(0.45, 0.3, 0.35), Color(0.15, 0.15, 0.16), "Radio")
-	fax = Interactable.create(self, DESK + Vector3(0.05, 0.93, -0.4), Vector3(0.45, 0.26, 0.4), "Tear off the work order", Color(0.82, 0.8, 0.74))
+	# The fax is set dressing now: the work order is already in everyone's notebook.
+	fax = Interactable.create(self, DESK + Vector3(0.05, 0.93, -0.4), Vector3(0.45, 0.26, 0.4), "", Color(0.82, 0.8, 0.74))
 	fax.name = "Fax"
 	fax.enabled = false
-	fax.used.connect(func(_p): sync.event("_on_fax"))
 
 	# The back corner by the side door: the shelf where the shop bag was left.
 	Greybox.box(geo, SHELF + Vector3(0, 0.5, 0), Vector3(1.6, 1.0, 0.7), Color(0.3, 0.3, 0.32), "Shelf")
@@ -203,6 +219,43 @@ static func build_front(parent: Node3D) -> Node3D:
 	return front
 
 
+## Dusk out front, as the pre-game lobby shows it (Co-op's colours): a sky and
+## ambient light on `env`, and a low warm sun added under `parent`. Returns what
+## it changed, for restore_outside().
+static func dusk_outside(env: Environment, parent: Node) -> Dictionary:
+	var before := {}
+	for k in ["background_mode", "sky", "ambient_light_source", "ambient_light_energy", "fog_enabled"]:
+		before[k] = env.get(k)
+	var mat := ProceduralSkyMaterial.new()
+	mat.sky_top_color = Color(0.12, 0.16, 0.32)
+	mat.sky_horizon_color = Color(0.85, 0.5, 0.35)
+	mat.ground_horizon_color = Color(0.3, 0.25, 0.25)
+	mat.ground_bottom_color = Color(0.08, 0.08, 0.1)
+	var sky := Sky.new()
+	sky.sky_material = mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.8
+	env.fog_enabled = false
+	var sun := DirectionalLight3D.new()
+	sun.name = "DuskSun"
+	sun.rotation_degrees = Vector3(-20, 35, 0)
+	sun.light_color = Color(1.0, 0.82, 0.62)
+	sun.light_energy = 1.1
+	parent.add_child(sun)
+	before["sun"] = sun
+	return before
+
+
+## Put `env` back as it was before dusk_outside(), and the sun away.
+static func restore_outside(env: Environment, before: Dictionary) -> void:
+	for k in before:
+		if k != "sun":
+			env.set(k, before[k])
+	(before.sun as Node).queue_free()
+
+
 ## The walls, the driveway out front, the outside sign and lamps under `solid`,
 ## and the shut roll-up door under `door_parent` (kept out of geo, so the floor's
 ## navigation runs out through the doorway). Returns the door.
@@ -215,6 +268,14 @@ static func _build_shell(solid: Node3D, door_parent: Node3D) -> AnimatableBody3D
 	])
 	# The driveway out front, wide enough for the crew to walk in from either side.
 	Greybox.box(solid, APRON_CENTER + Vector3(0, -0.1, 0), APRON_SIZE, Color(0.4, 0.4, 0.4), "Driveway")
+	var street := MeshInstance3D.new()  # the dark street the driveway meets
+	street.name = "Street"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(60, 60)
+	street.mesh = plane
+	street.material_override = Greybox.mat(Color(0.12, 0.12, 0.13))
+	street.position = APRON_CENTER + Vector3(0, -0.21, 0)
+	solid.add_child(street)
 	Greybox.label(solid, Vector3(DOOR_AT, 4.6, -SIZE.z / 2 - 0.12), "BYTE-RIGHT IT", 140, Color(0.1, 0.3, 0.6), 180)  # over the roll-up door
 	for x in [DOOR_AT - 2.8, DOOR_AT + 2.8]:
 		var lamp := OmniLight3D.new()
@@ -407,40 +468,67 @@ func apply_environment(env: Environment) -> void:
 	env.fog_density = 0.0
 
 
-## The garage's own story: the controls on small chores, the first huddle, the van.
+## The garage's own story (Augustine's order, playtest 2026-10-21): the crew
+## walks in from the lobby and sits facing Maddison; she briefs them, sends them
+## to the punch bag to blow off steam, then back to their seats; the work order
+## in every notebook; the book; chapter zero together; the van.
 func start() -> void:
 	player.flashlight.visible = false
-	hud.notice("WASD to walk, the mouse to look around", 6.0)
+	await open_for_crew()
+	await _beat()
+	maddison_to("board")  # in from the house, all smiles
 	await _beat(1.5)
-	await maddison_to("greet")  # in from the house, waving the printout
-	await hud.line("l0_garage_1")
-	await _beat()
-	maddison_to("fax")
-	await hud.line("l0_garage_2")
+	await _say("l0_brief_1", "l0_brief_1_solo")
 	await _beat(0.5)
-	fax.enabled = true
-	hud.todo("Get the work order off the fax")
-	hud.notice("Look at the fax machine and press E", 6.0)
-	await sync.gate("fax", fax.used)
-	await _beat()
-	maddison_to("bench")
-	await hud.lines(["l0_garage_3", "l0_garage_4"])
+	await hud.lines(["l0_brief_2", "l0_brief_3"])
 	await _beat(0.5)
-	book_bag.enabled = true
-	hud.todo("Find the book in the back corner")
-	await sync.gate("bag", book_bag.used)
+	await hud.lines(["l0_brief_4", "l0_brief_5"])
 	await _beat()
+
+	# Blow off some steam: everyone blocks the punch bag once, then sits back down.
+	await _say("l0_bag", "l0_bag_solo")
+	hud.notice("Space stands you up. WASD to walk, the mouse to look around", 7.0)
 	await _spar_drill()
-	await _beat()
-	hud.todo("Huddle round the workbench")
-	var bench := Trigger.create(self, BENCH + Vector3(0, 1, 0), Vector3(5.5, 2, 4.2))
-	bench.require_all = true
-	bench.waiting.connect(func(n, total): sync.team_notice("Waiting for the crew at the workbench (%d/%d)" % [n, total]))
-	await sync.gate("huddle", bench.entered)
+	hud.todo("Sit back down facing Maddison")
+	hud.notice("Look at a seat and press E to sit", 6.0)
+	if sync.is_host():
+		_watch_seated(players.all_ids(), crew_seated)
+	await sync.gate("seated", crew_seated)
 	hud.todo("")
+	await _beat()
+	await _say("l0_bag_back", "l0_bag_back_solo")
+	await _beat(0.5)
+
+	# The work order is already in everyone's notebook: each player pulls theirs out.
+	await _say("l0_workorder", "l0_workorder_solo")
+	hud.todo("Look at the work order in your notebook")
+	hud.notice("Press Tab to pull out your notebook", 8.0)
+	notebook.opened.connect(_on_notebook_opened, CONNECT_ONE_SHOT)
+	await sync.gate("work_order", crew_read_order)
+	hud.todo("")
+	await _beat(1.5)
+
+	await _say("l0_book_catch", "l0_book_catch_solo")
+	await _beat()  # she leaves it hanging; nobody does
+	await hud.line("l0_bookstore")
+	await _beat(0.5)
+	maddison_to("side")  # pointing the way to the shelf
+	await _say("l0_grab", "l0_grab_solo")
+	book_bag.enabled = true
+	hud.todo("Get the book from the shelf by the side door")
+	await sync.gate("bag", book_bag.used)
+	maddison_to("board")
+	if sync.is_host():
+		while book_holder == 0 and is_inside_tree():  # _on_bag can land just after the gate
+			await get_tree().process_frame
+		_watch_seated([book_holder], book_seated)
+	await sync.gate("book_seated", book_seated)
+	hud.todo("")
+	await _say("l0_whiteboard", "l0_whiteboard_solo")
+	_put_book_down()
 	await Huddle.of(self).run("easy_sql_0", Huddle.HERE)
 	await _beat()
-	await hud.line("l0_garage_5")
+	await _say("l0_garage_5", "l0_garage_5_solo")
 	maddison_to("van")  # she sees them off at the van door, then stays behind
 	van_door.enabled = true
 	hud.todo("Get in the van")
@@ -453,6 +541,167 @@ func start() -> void:
 	player.input_locked = false
 	_leave()
 	await hud.fade(false, 1.0)
+
+
+## Maddison's line for a crew, or its version for one player.
+func _say(crew_id: String, solo_id: String = "") -> void:
+	await hud.line(solo_id if solo_id != "" and players.count() == 1 else crew_id)
+
+
+# --- The walk in -----------------------------------------------------------------
+
+## Every machine: the opening shot. The crew stands where the pre-game lobby left
+## them (lobby_spot), the roll-up door goes up, and they walk in and take the
+## seats facing the whiteboard; then each player is in their own seat, in first
+## person. The figures are stand-ins for the players' own bodies, which wait
+## out of sight in their seats.
+func open_for_crew() -> void:
+	player.input_locked = true
+	var ids := players.all_ids()
+	for id in ids:
+		var body := players.puppet(id)
+		if body and body != player:
+			body.visible = false
+	var walkers: Array[Node3D] = []
+	for id in ids:
+		var i := NetPlayers.index_of(id, multiplayer)
+		var spot := lobby_spot(i)
+		var fig := Node3D.new()
+		fig.name = "WalkIn%d" % i
+		fig.transform = spot.at
+		add_child(fig)
+		var rig := CharacterRig.build(fig, NetPlayers.look_for(self, id))
+		rig.play(_lobby_action(id, spot.pose))
+		fig.set_meta("seat", mini(i, crew_seats.size() - 1))
+		walkers.append(fig)
+	var outside := dusk_outside(environment, self)  # the lobby's sky, so the cut from it doesn't show
+	lobby_camera.make_current()
+	await _beat()
+	await roll_door(true)
+	var walks: Array[Tween] = []
+	for k in walkers.size():
+		var fig := walkers[k]
+		(fig.get_child(0) as CharacterRig).play("idle")
+		walks.append(_walk_in(fig, fig.get_meta("seat"), k * 0.7))
+	# Inside once the first of them is through the door.
+	await get_tree().create_timer((walkers[0].position.distance_to(WALK_IN[0]) + 1.0) / CharacterRig.WALK_SPEED, false).timeout
+	flashback_camera.make_current()
+	restore_outside(environment, outside)
+	for t in walks:
+		if t.is_running():
+			await t.finished
+	await _beat()
+	await hud.fade(true, 0.6)
+	for fig in walkers:
+		fig.queue_free()
+	for id in ids:
+		var body := players.puppet(id)
+		if body:
+			body.visible = true
+	await _seat_me(crew_seats[mini(players.my_index(), crew_seats.size() - 1)])
+	player.camera.make_current()
+	player.input_locked = false
+	await hud.fade(false, 0.6)
+
+
+## The rig action a player picked in the lobby (Co-op's Net.lobby_action), or `fallback`.
+func _lobby_action(id: int, fallback: String) -> String:
+	var net := get_node_or_null("/root/Net")
+	if net and net.has_method("lobby_action"):
+		return net.lobby_action(id)
+	return fallback
+
+
+## Walk figure `fig` from its lobby spot in through the door to briefing seat
+## `seat_i`, starting after `delay` seconds, and sit it down.
+func _walk_in(fig: Node3D, seat_i: int, delay: float) -> Tween:
+	var top: Vector3 = CREW_SEATS[seat_i]
+	var route: Array = WALK_IN.duplicate()
+	if top.y < 0.6:  # the couch: round its north end to the front
+		route.append(Vector3(COUCH.x - 0.9, 0, WALK_IN[-1].z))
+		route.append(Vector3(COUCH.x - 0.9, 0, top.z))
+	else:  # a stool: between the stools and the couch's back
+		route.append(Vector3(top.x - 0.6, 0, top.z))
+	var t := create_tween()
+	t.tween_interval(delay)
+	var from := fig.position
+	for to in route:
+		t.tween_callback(_face.bind(fig, to))
+		t.tween_property(fig, "position", to, from.distance_to(to) / CharacterRig.WALK_SPEED)
+		from = to
+	var sat := Vector3(top.x, top.y - 0.45, top.z)  # the rig sits 0.45 m up
+	t.tween_callback(func():
+		fig.rotation.y = PI / 2  # facing the whiteboard
+		(fig.get_child(0) as CharacterRig).play("sit"))
+	t.tween_property(fig, "position", sat, 0.4)
+	return t
+
+
+## Sit this machine's player in `seat`, facing the whiteboard.
+func _seat_me(seat: Seat) -> void:
+	if player.is_sitting():
+		player.stand_up(true)
+	player.velocity = Vector3.ZERO
+	var front := seat.global_position - seat.global_basis.z * 0.55  # just in front of it, where you'd stand to sit
+	player.global_transform = Transform3D(seat.global_basis, Vector3(front.x, seat.global_position.y - CREW_SEATS[0].y + 0.05, front.z))
+	for i in 30:
+		await get_tree().physics_frame
+		if player.sit(seat):
+			return
+
+
+# --- Back in their seats ------------------------------------------------------------
+
+## Host: emit `done` once every player in `ids` is sitting in a briefing seat.
+func _watch_seated(ids: Array, done: Signal) -> void:
+	await get_tree().process_frame  # the story's gate is listening by then
+	var shown := -1
+	while is_inside_tree():
+		var n := 0
+		for id in ids:
+			if _in_a_seat(players.puppet(id)):
+				n += 1
+		if n >= ids.size():
+			done.emit()
+			return
+		if n != shown and ids.size() > 1:
+			shown = n
+			sync.team_notice("Waiting for the crew to sit down (%d/%d)" % [n, ids.size()], 4.0)
+		await get_tree().create_timer(0.25, false).timeout
+
+
+func _in_a_seat(body: Node3D) -> bool:
+	if body == null:
+		return false
+	for seat in crew_seats:
+		var off := body.global_position - seat.global_position
+		if Vector2(off.x, off.z).length() < 0.3 and absf(off.y) < 0.3:
+			return true
+	return false
+
+
+## This machine's player pulled out their notebook: tell the host.
+func _on_notebook_opened() -> void:
+	if not sync.forward(self, "report_open"):
+		report_open(player)
+
+
+## Host: `who` has looked at the work order.
+func report_open(who: Node) -> void:
+	var id := players.id_of(who)
+	if id != 0 and not read_order.has(id):
+		sync.event("_on_read_order", [id])
+
+
+func _on_read_order(id: int) -> void:
+	if read_order.has(id):
+		return
+	read_order.append(id)
+	var total := players.count()
+	if read_order.size() < total and body_is_mine(id):
+		hud.notice("Waiting for the crew to read it (%d/%d)" % [read_order.size(), total], 4.0)
+	if read_order.size() >= total and sync.is_host():
+		crew_read_order.emit()
 
 
 ## Everyone blocks the punch bag once. The host picks who it swings at; every
@@ -543,24 +792,38 @@ func _on_sparred(id: int) -> void:
 	if not spar_blocked.has(id):
 		spar_blocked.append(id)
 	var total := players.count()
-	if spar_blocked.size() < total and body_is_mine(id):
-		hud.notice("Waiting for the crew at the punch bag (%d/%d)" % [spar_blocked.size(), total], 4.0)
-
-
-func _on_fax() -> void:
-	fax.enabled = false
-	fax.prompt = ""
-	hud.todo("")
-	hud.notice("Your notebook holds the work order. Tab opens it, and Tab puts it away", 6.0)
+	if body_is_mine(id):  # so you know it landed (playtest: blocks went unnoticed)
+		if spar_blocked.size() < total:
+			hud.notice("Blocked! Waiting for the crew at the punch bag (%d/%d)" % [spar_blocked.size(), total], 4.0)
+		else:
+			hud.notice("Blocked!", 2.5)
 
 
 ## Every machine: player `id` took the shop bag with the book in it.
 func _on_bag(id: int) -> void:
 	book_bag.visible = false
 	book_bag.enabled = false
-	bench_book.visible = true
-	hud.todo("")
+	book_holder = id
 	sync.unlock_for([id], "achievement:book_easy_sql")  # its notebook cover, for whoever picked it up (host)
+	# The book in their hands, as the notebook is: in first person for them, at
+	# chest height for everyone else.
+	if body_is_mine(id):
+		held_book = _book(player.camera, HELD_BOOK.origin)
+		held_book.basis = HELD_BOOK.basis
+		hud.todo("Sit down with the book")
+	else:
+		var body := players.puppet(id)
+		if body:
+			held_book = _book(body, Vector3(0, 1.1, -0.32))
+			held_book.rotation.x = 1.1
+		hud.todo("Wait for the book")
+
+
+## Every machine: the book's on Maddison's whiteboard now, out of their hands.
+func _put_book_down() -> void:
+	if held_book:
+		held_book.queue_free()
+		held_book = null
 
 
 ## Host: a player climbs into the van. Everyone sees them take the next seat.
@@ -578,6 +841,7 @@ func _on_boarded(id: int) -> void:
 	var body := players.puppet(id)
 	var seat := to_global(van_seats[(boarded.size() - 1) % van_seats.size()])
 	if body == player:
+		player.stand_up(true)  # off a briefing seat, if they climbed in from one
 		player.global_position = seat
 		player.velocity = Vector3.ZERO
 		player.rotation.y = global_rotation.y  # facing the windscreen

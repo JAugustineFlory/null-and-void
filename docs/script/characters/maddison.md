@@ -15,27 +15,75 @@ Maddison Kowalski, 40s, CEO and founder of a tiny IT company run out of her gara
 
 Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
-## Your lines (23)
+## Your lines (39)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
 ### 1. In your garage with your small IT crew: you just won a big contract none of you is qualified for.
 
-- [ ] `l0_garage_1.wav`  
-  "There you are. Sit down, all of you. We got Halcyon. The overnight database contract. Ours."  
-  *Coming in through the side door, waving the printout. The crew starts on the garage floor.*
-- [ ] `l0_garage_2.wav`  
-  "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock. Work order's coming through on the fax now."  
-  *Quickly, before anyone can ask. Then the fax starts.*
-- [ ] `l0_garage_3.wav`  
-  "Small problem. It says database. And unless somebody's been holding out on me... none of us can code."  
-  *The smile stays on. A hopeful pause. Once the work order's off the fax.*
-- [ ] `l0_garage_4.wav`  
-  "Which is why I went to the bookshop. Shop bag, back shelf. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. Read chapter zero together before you go."  
-  *Proud of this.*
+- [ ] `l0_brief_1.wav`  
+  "Okay! Everybody comfy? Look at you. My whole company, in one garage."  
+  *Big, warm, delighted to have an audience. The crew is already sitting, facing her.*
+- [ ] `l0_brief_1_solo.wav`  
+  "Okay! Look at you. My whole company, in one seat."  
+  *Solo version. The same joke, a little teasing.*
+- [ ] `l0_brief_2.wav`  
+  "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change."  
+  *Cheerful, as if it's good news. Counting it off on her fingers.*
+- [ ] `l0_brief_3.wav`  
+  "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off."  
+  *Every 'maybe' a little grander, then the sign brings it back down to earth.*
+- [ ] `l0_brief_4.wav`  
+  "Forget all that. We got Halcyon. The overnight database contract. Ours."  
+  *Building to it. She can't stand still for 'Ours.'*
+- [ ] `l0_brief_5.wav`  
+  "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock."  
+  *Quickly, before anyone can ask.*
+- [ ] `l0_bag.wav`  
+  "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."  
+  *Laughing, shooing them off.*
+- [ ] `l0_bag_solo.wav`  
+  "You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."  
+  *Solo version. Laughing, shooing them off.*
+- [ ] `l0_bag_back.wav`  
+  "Better? Good. Now eyes on me, gorgeous people."  
+  *Once everyone's back in their seats. A little flirty, played light, like a coach.*
+- [ ] `l0_bag_back_solo.wav`  
+  "Better? Good. Now eyes on me, gorgeous."  
+  *Solo version. A little flirty, played light, like a coach.*
+- [ ] `l0_workorder.wav`  
+  "I put a copy of the work order in each of your notebooks. Pull it out and take a look."  
+  *Pleased with herself for being organized.*
+- [ ] `l0_workorder_solo.wav`  
+  "I put a copy of the work order in your notebook. Pull it out and take a look."  
+  *Solo version. Pleased with herself for being organized.*
+- [ ] `l0_book_catch.wav`  
+  "Small problem. It says database. And unless one of you secretly knows SQL..."  
+  *The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
+- [ ] `l0_book_catch_solo.wav`  
+  "Small problem. It says database. And unless you secretly know SQL..."  
+  *Solo version. The smile stays on. She leaves the sentence hanging and waits.*
+- [ ] `l0_bookstore.wav`  
+  "...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven."  
+  *Proud of this. Holding up the receipt, not the book.*
+- [ ] `l0_grab.wav`  
+  "It's in the shop bag on the shelf by the side door. One of you go grab it."  
+  *Pointing at the side door to the house.*
+- [ ] `l0_grab_solo.wav`  
+  "It's in the shop bag on the shelf by the side door. Go on, grab it for me."  
+  *Solo version. Pointing at the side door to the house.*
+- [ ] `l0_whiteboard.wav`  
+  "Thank you! Okay. Whiteboard. Chapter zero. We're reading this together."  
+  *When whoever got the book sits down. Uncapping a marker with a flourish, like she's about to teach a class she's never taken.*
+- [ ] `l0_whiteboard_solo.wav`  
+  "Thank you! Okay. Whiteboard. Chapter zero. Let's read this together."  
+  *Solo version. Uncapping a marker with a flourish.*
 - [ ] `l0_garage_5.wav`  
   "Look at that. You're practically engineers. Take the book with you. Everybody in the van."  
   *Genuinely thrilled. After the huddle's quiz.*
+- [ ] `l0_garage_5_solo.wav`  
+  "Look at that. You're practically an engineer. Take the book with you. Into the van."  
+  *Solo version. Genuinely thrilled. After the huddle's quiz.*
 - [ ] `l0_garage_6.wav`  
   "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio."  
   *At the van door, counting the rules off. She stays behind.*
