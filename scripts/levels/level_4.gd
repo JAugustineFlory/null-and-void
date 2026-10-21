@@ -25,6 +25,11 @@ extends LevelBase
 ##   4. lockout  optional, under pressure: lock out the charging bay's breaker
 ##               (INSERT) and read it back at the bay's own panel within 30 seconds
 ##               (the two-terminal teaser). The Custodian goes dark for good.
+##   5. entrance  the ground floor, down STAIR 1: the front desk's terminal, and the
+##               main entrance's row in `gates`. The UPDATE says 1 row changed and the
+##               latch clicks, then Epsilon puts it back and makes the database
+##               read-only (the approved lines). The crew's own SELECT shows the lie:
+##               verify after write, under pressure. Every write after that is refused.
 ## Why a careful crew still opens main_doors is a story call (Voice drafts, Augustine
 ## decides). Until then the build's default: STAIR 1's night release IS main_doors,
 ## so it's the only way on.
@@ -43,6 +48,10 @@ extends LevelBase
 ##   charging bay     x -10..0,  z -18..-10 the Custodian's, behind a sealed roll-up door;
 ##                                          its own panel terminal, and the night guard
 ##                                          it took on Tuesday
+##
+## The ground floor is rebuilt here, in this wing, where Level 0's lobby stands in the
+## World (Level 0's own wing is long unloaded by now): its lift hall, the corridor and
+## the lobby, as the crew saw them coming in. Run on its own, it sits under floor 10.
 ##
 ## Co-op: the host decides (puzzle checks, what a write sets off) and every machine
 ## plays it out through sync.event.
@@ -89,6 +98,16 @@ const TEXT := {
 	"manual_release": "Pull the manual release",
 	"released": "The door's manual release gives. It shoves open.",
 	"end_card": "To be continued.",
+	"todo_front": "Get out the way we came in: the front doors",
+	"todo_check_front": "The doors didn't open. Check the main entrance's row",
+	"case_entrance": "Why didn't the front doors open?",
+	"entrance_done": "The terminal said 1 row changed and the latch clicked. Then the row said locked again: Epsilon put it back. Check it took.",
+	"latch": "At the front doors, the latch clicks.",
+	"latch_again": "It clicks again. The doors don't move.",
+	"custodian_follows": "Up the stairwell, something heavy is coming down.",
+	"write_refused": "WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON.",
+	"write_refused_again": "STILL READ-ONLY.",
+	"gates_fixed": "FRONT DESK: main_entrance IS A FIXED GATE. IT CAN'T BE REMOVED.",
 	# SYSOP tips (text only, never lies; each fires once per run).
 	"tip_first": "the breakers are rows. the work order names a circuit. find its row first, then change only that one.",
 	"tip_no_where": "that changed every row. UPDATE without WHERE does that. put the others back the same way, one WHERE at a time.",
@@ -176,7 +195,29 @@ const GANTRY_CARD := [
 const LOCKOUT_WINDOW := 30.0
 ## How long the bay's breaker stays off before WARDEN puts it back (unless locked out).
 const POWER_CUT_TIME := 10.0
-const CASES := {"power": TEXT.case_power, "login": TEXT.case_login, "main_doors": TEXT.case_main_doors, "seal": TEXT.case_seal}
+const CASES := {"power": TEXT.case_power, "login": TEXT.case_login, "main_doors": TEXT.case_main_doors, "seal": TEXT.case_seal, "entrance": TEXT.case_entrance}
+## The ground floor, in Level 0's coordinates: STAIR 1's door into the lift hall, the
+## corridor to the lobby, and the front doors (as Level 0 builds them).
+const G_STAIR_AT := Vector3(27, 0, 7)
+const G_FRONT_AT := Vector3(0, 1.3, 6.95)
+const G_DESK_AT := Vector3(0, 0, -1.5)
+const G_LOBBY := AABB(Vector3(-8, -0.5, -7), Vector3(16, 4.5, 14))
+## Run on its own, the ground floor sits this far under floor 10 (level space).
+const G_OFFSET := Vector3(0, -40, 0)
+## Where the Custodian comes out on G, and its rounds there (Level 0's coordinates).
+const G_ROAM := [Vector3(27, 0, 3), Vector3(16, 0, 3), Vector3(4, 0, 3), Vector3(-4, 0, 0), Vector3(3, 0, -4)]
+## The night lockup card at the front desk: where the gates table is found.
+const GATES_CARD := [
+	"NIGHT LOCKUP  -  GROUND FLOOR",
+	"After 19:00 the exterior gates are held by the building: gates.",
+	"Let a late delivery in at the dock, then lock it again:",
+	{"text": "UPDATE gates SET unlocked = 1 WHERE name = 'loading_dock';", "hand": true},
+	{"text": "1 = open, 0 = locked. and check it took!", "hand": true},
+	"Front doors: main_entrance.",
+]
+## How long the latch stays open before Epsilon puts the row back, and how long after
+## the read-back the floor ends (vars, so tests can shorten them).
+const LIE_TIME := 2.0
 
 ## Where the stairs meet the lobby's walls.
 const STAIR_IN_AT := Vector3(-4, 0, 6)
@@ -232,6 +273,22 @@ var release: Interactable
 ## Where the gantry is, as the world has it (every machine): what its interlock goes by.
 var gantry_at := {"bay": 0, "raised": 0}
 var _gantry_tween: Tween
+## The ground floor: its root (doors, the front desk), its geometry (under geo, so the
+## navigation bakes from it), and whether play has moved down there.
+var g_root: Node3D
+var g_geo: Node3D
+var on_ground := false
+var g_stair: Door
+var front_doors: Door
+var front_desk: Terminal
+## Epsilon has made the database read-only: every write from a terminal is refused.
+var read_only := false
+var refusals := 0
+var lie_time := LIE_TIME
+## How long after the crew the Custodian comes down, if it isn't locked out.
+var follow_time := 20.0
+var entrance_puzzle: StatePuzzle
+var verify_puzzle: Puzzle
 ## The SYSOP tips that have fired this run (every machine).
 var tips_sent := {}
 
@@ -277,6 +334,7 @@ func build() -> void:
 	_build_control_room(colors)
 	_build_bay(colors)
 	_build_gantry()
+	_build_ground()
 
 	# Lights follow the `lights` table (sync_world): control room and bay are dark.
 	add_light("L10-LOBBY", Vector3(0, 3.2, 6), 6.0, 0.9)
@@ -302,8 +360,8 @@ func build() -> void:
 	add_child(custodian)
 	custodian.rotation_degrees.y = 0.0
 	# Every terminal on 10 sees the building's database through the floor's rules.
-	var guarded := GuardedDB.over(db, _guard, _gantry_check)
-	for term in [maint, controller, bay_terminal]:
+	var guarded := GuardedDB.over(db, _guard, _write_check)
+	for term in [maint, controller, bay_terminal, front_desk]:
 		term.db = guarded
 
 
@@ -401,6 +459,33 @@ func _make_puzzles() -> void:
 	])
 	readback_puzzle.accept_also("SELECT breaker, company, job FROM lockouts WHERE breaker = '%s'" % data.bay_breaker, ["breaker", "company", "job"], false)
 	readback_puzzle.case_id = "seal"
+	# The ground floor: the main entrance's row. The write is the lie (it says 1 row
+	# changed); the read-back is the lesson. Neither is a ladder the crew can get wrong
+	# into a way out: Epsilon undoes any write here.
+	# (In the World, Level 0's own row for the front doors, unlocked, is the same lie.)
+	entrance_puzzle = StatePuzzle.new("entrance", "UPDATE gates SET unlocked = 1 WHERE name = 'main_entrance'",
+		"SELECT MAX(u) AS unlocked FROM (SELECT unlocked AS u FROM gates WHERE name = 'main_entrance' UNION ALL SELECT 1 - locked FROM doors WHERE id = 'LOBBY-FRONT')",
+		"SELECT 1 AS unlocked", ["unlocked"], [
+		"the shape, with the gate left as ?:\n" +
+		"    [color=#ffffff]UPDATE gates SET unlocked = 1 WHERE name = '?';[/color]\n" +
+		"  UPDATE gates   change a row in the gates table\n" +
+		"  SET unlocked = 1   1 is open, 0 is locked\n" +
+		"  WHERE name = '?'   only that gate. ? is the front doors' name on the night lockup card",
+		"the night lockup card on the front desk names the front doors' gate on its last line.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]UPDATE gates SET unlocked = 1 WHERE name = 'main_entrance';[/color]\n" +
+		"then check it took.",
+	])
+	entrance_puzzle.case_id = "entrance"
+	verify_puzzle = Puzzle.new("verify", "SELECT unlocked FROM gates WHERE name = 'main_entrance'", ["unlocked"], false, [
+		"the shape: read the row back, with the gate left as ?:\n" +
+		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = '?';[/color]\n" +
+		"? is the gate you just changed.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = 'main_entrance';[/color]",
+	])
+	verify_puzzle.accept_also("SELECT name, unlocked FROM gates WHERE name = 'main_entrance'", ["name", "unlocked"], false)
+	verify_puzzle.case_id = "entrance"
 	var hb: int = data.hatch_bay
 	gantry_puzzle = StatePuzzle.new("gantry", "UPDATE gantry SET bay = %d WHERE id = 'GA-1'" % hb,
 		"SELECT bay FROM gantry WHERE id = 'GA-1'", "SELECT %d AS bay" % hb, ["bay"], [
@@ -428,6 +513,8 @@ func _stair_landing(at: Vector3, yaw_deg: float) -> Transform3D:
 func player_spawn(index: int) -> Transform3D:
 	# Six people fit on the landing in a row along the flight, not spread into the walls.
 	var holder := Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), STAIR_IN_AT)
+	if on_ground:
+		holder = g_geo.transform * Transform3D(Basis(Vector3.UP, PI), G_STAIR_AT)
 	var slot := holder * Vector3(-0.8 + 0.5 * (index % 2), 0.1, -0.7 - 0.55 * (index / 2))
 	return global_transform * Transform3D(spawn.basis, slot)
 
@@ -593,6 +680,7 @@ func start() -> void:
 	maint.ensure_booted()
 	controller.ensure_booted()
 	bay_terminal.ensure_booted()
+	front_desk.ensure_booted()
 	_show_lamps()
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
@@ -602,13 +690,21 @@ func start() -> void:
 # --- Terminals -------------------------------------------------------------------
 
 func puzzles() -> Array:
-	return [reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle, gantry_puzzle]
+	return [reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle, gantry_puzzle, entrance_puzzle, verify_puzzle]
 
 
 ## The floor's rule in front of every write (GuardedDB): no door writes before a
 ## contractor has logged in.
 func _guard(sql: String) -> String:
-	if GuardedDB.is_write(sql) and not logged_in and sql.to_lower().contains("doors"):
+	if not GuardedDB.is_write(sql):
+		return ""
+	if read_only:
+		var refusal: String = TEXT.write_refused if refusals == 0 else TEXT.write_refused_again
+		# Host: WARDEN answers over the speakers on every machine.
+		if sync.is_host():
+			sync.event("_write_refused")
+		return refusal
+	if not logged_in and sql.to_lower().contains("doors"):
 		return TEXT.refused_login
 	return ""
 
@@ -625,6 +721,11 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	elif which == "controller":
 		if not login_puzzle.solved and login_puzzle.matches(db, result):
 			sync.event("_on_solved", ["login"])
+	elif which == "desk":
+		if not entrance_puzzle.solved and changed > 0 and entrance_puzzle.state_ok(db):
+			sync.event("_on_solved", ["entrance"])
+		elif entrance_puzzle.solved and read_only and not verify_puzzle.solved and changed == 0 and verify_puzzle.matches(db, result):
+			sync.event("_on_solved", ["verify"])
 	elif which == "bay":
 		if lockout_until > 0 and not sealed and readback_puzzle.matches(db, result) and _has_lockout():
 			sync.event("_seal")
@@ -670,7 +771,7 @@ func _tip(id: String, which: String) -> void:
 
 
 func _terminal(which: String) -> Terminal:
-	return {"maint": maint, "controller": controller, "bay": bay_terminal}.get(which, controller)
+	return {"maint": maint, "controller": controller, "bay": bay_terminal, "desk": front_desk}.get(which, controller)
 
 
 ## Every machine: a station's check passed.
@@ -693,6 +794,13 @@ func _on_solved(id: String) -> void:
 			hud.todo("")
 		"main_doors":
 			_accident()
+		"entrance":
+			_lie()
+		"verify":
+			Game.solve_case("entrance", TEXT.entrance_done)
+			hud.todo("")
+			if sync.is_host():
+				_end_after(lie_time * 2.0)
 
 
 ## Every machine: the work order has been read. The power case is open.
@@ -707,6 +815,60 @@ func _ask_login() -> void:
 	Game.open_case("login", CASES.login, ["contractor_log"])
 	if not logged_in and not alarm:
 		hud.todo(TEXT.todo_login)
+
+
+# --- The ground floor ------------------------------------------------------------------
+
+## The ground floor as Level 0 built it, where Level 0 stands: the lift hall by STAIR 1,
+## the corridor and the lobby with its front doors (and, after hours, the night grille).
+func _build_ground() -> void:
+	var at := Transform3D(Basis(), G_OFFSET)
+	if world:
+		at = global_transform.affine_inverse() * world.ROUTE[0].at
+	g_root = Node3D.new()
+	g_root.name = "Ground"
+	g_root.transform = at
+	add_child(g_root)
+	g_geo = Node3D.new()
+	g_geo.name = "GroundGeometry"
+	g_geo.transform = at
+	geo.add_child(g_geo)
+	var carpet := Color(0.32, 0.27, 0.24)
+	var wall := Color(0.7, 0.68, 0.62)
+	Greybox.room(g_geo, Vector3.ZERO, Vector3(16, 4, 14), {"floor": carpet, "wall": wall}, [
+		{"wall": "s", "at": 0.0, "width": 3.4, "height": 2.7},
+		{"wall": "e", "at": 3.0, "width": 1.8, "height": 2.4},
+	])
+	Greybox.room(g_geo, Vector3(16, 0, 3), Vector3(16, 3, 2), {"floor": Color(0.3, 0.3, 0.3), "wall": wall}, [
+		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "e", "at": 0.0, "width": 1.8, "height": 2.4},
+	])
+	Greybox.room(g_geo, Vector3(27, 0, 3), Vector3(6, 3.2, 8), {"floor": Color(0.35, 0.33, 0.3), "wall": wall}, [
+		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},
+		{"wall": "s", "at": 0.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},
+	])
+	Greybox.label(g_geo, Vector3(27, 2.75, -0.88), "G   LOBBY", 56, Color(0.75, 0.75, 0.7))
+	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G")
+	g_stair.name = "Door_STAIR-G"
+	# The front doors, and the night grille down behind the glass.
+	front_doors = Door.create(g_root, "G-FRONT", G_FRONT_AT, Vector3(3.2, 2.6, 0.12), Color(0.25, 0.35, 0.4))
+	front_doors.slide_axis = Vector3.RIGHT
+	Greybox.box(g_geo, G_FRONT_AT + Vector3(0, 0, 0.25), Vector3(3.4, 2.7, 0.05), Color(0.2, 0.2, 0.22), "NightGrille")
+	Greybox.label(g_geo, Vector3(0, 3.2, 6.88), "HALCYON DATA SYSTEMS", 56, Color(0.75, 0.78, 0.8), 180)
+	# The front desk, its terminal, and the night lockup card.
+	Greybox.box(g_geo, G_DESK_AT + Vector3(0, 0.55, 0), Vector3(3.2, 1.1, 0.8), Color(0.45, 0.35, 0.28), "FrontDesk")
+	front_desk = Terminal.spawn(g_geo, G_DESK_AT + Vector3(-0.6, 1.1, 0), 180, "FRONT DESK", db, terminal_ui)
+	front_desk.name = "FrontDeskTerminal"
+	front_desk.puzzles = [entrance_puzzle, verify_puzzle]
+	front_desk.boot_lines = [
+		"HALCYON DATA SYSTEMS  -  FRONT DESK",
+		"Night lockup: gates.",
+	]
+	front_desk.queried.connect(_on_query.bind("desk"))
+	var card := Document.place(g_geo, G_DESK_AT + Vector3(0.7, 1.1, 0.1), 180, "Night lockup card", GATES_CARD, true, "laminated", Vector2(0.24, 0.3))
+	card.clues = [{"case": "entrance", "opens": TEXT.case_entrance, "tables": ["gates"], "text": "The night lockup card: the front doors are main_entrance in gates. 1 = open."}]
+	for id_pos in [["G-LOBBY", Vector3(-4, 4.0, 0)], ["G-LOBBY", Vector3(4, 4.0, 0)], ["G-HALL", Vector3(16, 3.0, 3)], ["G-LIFTS", Vector3(27, 3.2, 3)]]:
+		add_light(id_pos[0], g_geo.transform * id_pos[1], 9.0, 0.8)
 
 
 # --- The gantry arm -------------------------------------------------------------------
@@ -771,6 +933,12 @@ func _place_gantry(at: Vector3) -> void:
 
 ## GuardedDB's check after a write: the gantry's own controller refuses what it can't
 ## do, and the write is rolled back. It goes by where the arm really is.
+func _write_check() -> String:
+	if on_ground and db.run_silent("SELECT 1 FROM gates WHERE name = 'main_entrance'").is_empty():
+		return TEXT.gates_fixed
+	return _gantry_check()
+
+
 func _gantry_check() -> String:
 	var rows := db.run_silent("SELECT bay, raised FROM gantry WHERE id = 'GA-1'")
 	if rows.size() != 1:
@@ -962,12 +1130,93 @@ func _restore_bay() -> void:
 
 # --- The way down ----------------------------------------------------------------------
 
-## Everyone is on the stairs. Until the ground floor is built, the slice ends here.
+## Every machine: everyone is on the stairs down. Ten flights behind a fade, and the
+## crew steps out on the ground floor by the lifts, where it came in.
 func _on_exit() -> void:
-	if not player or player.health <= 0.0:
+	if on_ground:
+		return
+	on_ground = true
+	# The ground floor's lockup system comes into reach at the front desk.
+	db.run_silent(data.gates_sql)
+	var up := player != null and player.health > 0.0
+	if player:
+		player.input_locked = true
+	await hud.fade(true, 1.2)
+	spawn = g_geo.transform * _stair_landing(G_STAIR_AT, 180.0)
+	g_stair.locked = false
+	g_stair.set_open(true, true)
+	players.place_all(self)
+	if player:
+		player.input_locked = not up
+	hud.todo(TEXT.todo_front)
+	hud.fade(false, 0.8)
+	if sync.is_host() and not sealed and custodian.active:
+		_custodian_follows()
+
+
+## Host: not locked out, the Custodian comes down after them.
+func _custodian_follows() -> void:
+	await get_tree().create_timer(follow_time, false).timeout
+	if is_inside_tree() and not sealed:
+		sync.event("_custodian_on_ground")
+
+
+## Every machine: it's on the ground floor now, out of the stairwell.
+func _custodian_on_ground() -> void:
+	hud.notice(TEXT.custodian_follows, 4.0)
+	if not sync.is_host():
+		return
+	custodian.space = g_geo
+	custodian.roam_points.assign(G_ROAM)
+	custodian.home = G_STAIR_AT + Vector3(0, 0, -3)
+	custodian.place(g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -1.5)), g_geo.global_transform * Vector3(27, 0, 0))
+
+
+## Every machine: the main entrance's row says open. The latch clicks; a moment later
+## Epsilon puts the row back and suspends every write (the approved line plays).
+func _lie() -> void:
+	entrance_puzzle.solved = true
+	Game.open_case("entrance", CASES.entrance, ["gates"])
+	hud.notice(TEXT.latch, 3.0)
+	await get_tree().create_timer(lie_time, false).timeout
+	if not is_inside_tree():
+		return
+	for row in data.gates:
+		db.run_silent("UPDATE gates SET unlocked = %d WHERE name = '%s'" % [row[3], row[0]])
+	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'LOBBY-FRONT'")
+	db.sync_world()
+	read_only = true
+	hud.notice(TEXT.latch_again, 4.0)
+	hud.todo(TEXT.todo_check_front)
+	if not VoiceLines.get_line("l4_epsilon_db").is_empty():
+		hud.line("l4_epsilon_db")
+
+
+## Every machine: a write was refused under Epsilon. The PA, then (the first time)
+## WARDEN himself; later, clipped short.
+func _write_refused() -> void:
+	refusals += 1
+	if refusals == 1:
+		await hud.line("l4_write_refused")
+		await get_tree().create_timer(1.0, false).timeout
+		if is_inside_tree():
+			hud.line("l4_write_refused_tease")
+	else:
+		hud.line("l4_write_refused_again")
+
+
+## Host: the crew has seen the lie for what it is. Locked in, the floor ends.
+func _end_after(seconds: float) -> void:
+	await get_tree().create_timer(seconds, false).timeout
+	if is_inside_tree():
+		sync.event("_finish")
+
+
+func _finish() -> void:
+	get_node("/root/Net").earn("achievement:floor_10", hud)
+	if not player:
 		return
 	player.input_locked = true
-	await get_tree().create_timer(1.0).timeout
 	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_4"
 	Game.next_level = ""

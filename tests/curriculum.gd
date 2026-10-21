@@ -258,6 +258,21 @@ const PUZZLES := {
 		"teaches": ["lockouts"],
 		"needs": ["INSERT INTO", "VALUES", "lockouts", "breaker", "company", "job"],
 	},
+	# The ground floor: the main entrance's row. The write is the lie ("1 row changed",
+	# then Epsilon puts it back); the read-back, under pressure, shows it.
+	"entrance": {
+		"level": 4,
+		"pressure": true,
+		"teaches": ["gates", "main_entrance", "unlocked"],
+		"needs": ["UPDATE", "SET", "WHERE", "gates", "unlocked", "name", "main_entrance"],
+	},
+	"verify": {
+		"level": 4,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "gates", "unlocked", "name", "main_entrance"],
+	},
 	"readback": {
 		"level": 4,
 		"pressure": true,

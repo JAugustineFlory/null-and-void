@@ -145,7 +145,27 @@ INSERT INTO lights VALUES
 		rows.filter(func(r): return r[1] == "LIFT MOTORS")[0][0], log[2][1],
 		park_bay, park_bay,
 	]
-	return {"sql": sql, "target": target_id, "breakers": rows, "start_states": start_states,
+	# The ground floor's night lockup (created when the crew reaches G): every gate that
+	# isn't the front doors says why it's no way out.
+	var gates: Array = [
+		["main_entrance", "Front doors and night grille", "LOBBY", 0, "Night lockup 19:00-07:00."],
+		["loading_dock", "Loading dock roller door", "DOCK", 0, "Motor seized 10/13. Deliveries to the front desk."],
+		["car_park_barrier", "Car park exit barrier", "CAR PARK", 1, "Arm snapped 10/09, left up. Ticket open."],
+		["staff_turnstile", "Staff turnstile", "LOBBY", 0, "Staff badge only. Visitors sign out at the desk."],
+	]
+	_shuffle(gates, rng)
+	var gates_sql := """
+CREATE TABLE IF NOT EXISTS gates (
+	name TEXT PRIMARY KEY,
+	place TEXT,
+	zone TEXT,
+	unlocked INTEGER,
+	note TEXT
+);
+INSERT OR IGNORE INTO gates VALUES
+	%s;
+""" % ",\n\t".join(gates.map(_values))
+	return {"sql": sql, "gates": gates, "gates_sql": gates_sql, "target": target_id, "breakers": rows, "start_states": start_states,
 		"decoys": rows.filter(func(r): return r[0] != target_id and r[3] != "on").map(func(r): return r[0]),
 		"bay_breaker": rows.filter(func(r): return r[1] == DECOYS[0][0])[0][0],
 		"time_in": time_in, "ticket": ticket, "company": COMPANY, "log": log,

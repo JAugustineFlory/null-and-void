@@ -19,6 +19,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_right_first_time()
 	await test_accident()
 	await test_gantry()
+	await test_custodian_follows()
+	await test_world()
 	await test_coop()
 
 
@@ -380,11 +382,48 @@ func test_accident() -> void:
 	ui.run("UPDATE breakers SET state = 'on' WHERE id = '%s'" % data.bay_breaker)
 	await _frames(30)
 	check(not cust.powered and cust.state == "off", "sealed, power on its breaker doesn't wake it")
-	# The way down.
+	# The way down: STAIR 1 to the ground floor, where the crew came in.
+	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
+	check(await _until(func(): return level.on_ground and not p.input_locked, 300), "everyone on the stairs down: behind a fade, down to G")
+	await _frames(10)
+	var g_stair: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
+	check(p.global_position.distance_to(g_stair) < 3.0 and p.is_on_floor() and level.g_stair.is_open, "the crew steps out of STAIR 1 by the lifts on G (%.1f m from its door)" % p.global_position.distance_to(g_stair))
+	check(_game().current_todo() == level.TEXT.todo_front and level.db.run_silent("SELECT COUNT(*) AS n FROM gates")[0]["n"] == 4, "the to-do says the front doors, and the lockup's gates are in reach")
+	var lockup: Node = _doc(level, "Night lockup card")
+	check(lockup != null and lockup.plain_text().contains("main_entrance") and lockup.plain_text().contains("WHERE name = 'loading_dock'"), "the night lockup card names main_entrance and shows the dock's UPDATE")
+	# The front desk: writes still work, until the lie.
+	level.lie_time = 0.3
+	ui.terminal = level.front_desk
+	ui.run("UPDATE gates SET unlocked = 1 WHERE name = 'loading_dock'")
+	await _frames(3)
+	check(not level.read_only and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'loading_dock'")[0]["unlocked"] == 1 and not level.entrance_puzzle.solved, "the dock's gate changes (its motor's seized): not the way out, and nothing else happens")
+	ui.run("DELETE FROM gates WHERE name = 'main_entrance'")
+	await _frames(2)
+	check(_said(level.front_desk, level.TEXT.gates_fixed) and level.db.run_silent("SELECT 1 FROM gates WHERE name = 'main_entrance'").size() == 1, "the front doors' row can't be deleted")
+	ui.run(_last_hint_query(level.entrance_puzzle))
+	await _frames(2)
+	check(level.entrance_puzzle.solved and not level.read_only and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 1,
+		"main_entrance: 1 row changed and the latch clicks")
+	check(await _until(func(): return level.read_only, 120), "then Epsilon steps in")
+	check(level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 0 and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'loading_dock'")[0]["unlocked"] == 0 and not level.front_doors.is_open,
+		"it puts every gate back as it was; the front doors never moved")
+	check(_game().current_todo() == level.TEXT.todo_check_front, "the to-do says to check the row")
+	ui.run(_last_hint_query(level.entrance_puzzle))
+	await _frames(2)
+	check(_said(level.front_desk, level.TEXT.write_refused) and level.refusals == 1, "a write now: WRITE REFUSED, read-only under Epsilon")
+	ui.terminal = level.controller
+	ui.run("UPDATE doors SET locked = 0 WHERE id = 'PLANT-BAY'")
+	await _frames(2)
+	check(_said(level.controller, level.TEXT.write_refused_again) and level.refusals == 2, "at any terminal, and again: STILL READ-ONLY")
+	ui.terminal = level.front_desk
+	ui.run("SELECT * FROM gates")
+	check(level.front_desk.transcript.size() > 0 and not level.verify_puzzle.solved, "reads still work; the whole table isn't the read-back")
 	var done := [false]
 	level.completed.connect(func(): done[0] = true)
-	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
-	check(await _until(func(): return done[0], 600) and _game().completed_level == "level_4", "everyone on the stairs down completes the floor")
+	ui.run(_last_hint_query(level.verify_puzzle))
+	await _frames(2)
+	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own SELECT shows the lie: main_entrance is locked again")
+	check(await _until(func(): return done[0], 600) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends")
 	net.profile.earned = had
 	level.queue_free()
 	await t.process_frame
@@ -428,6 +467,22 @@ func test_coop() -> void:
 	check(machines.all(func(l): return l.sealed and l.custodian.sealed), "a client's lockout, read back at the bay, seals the Custodian everywhere")
 	var dump := "SELECT * FROM lockouts ORDER BY breaker"
 	check(host.db.run_silent(dump) == client.db.run_silent(dump), "the lockouts table matches on both machines")
+	# Down to G together; a client's main-entrance write is the lie for everyone.
+	for l in machines:
+		l.lie_time = 0.3
+		l.completed.disconnect(l._on_completed)
+	host.sync.event("_on_exit")
+	check(await _until(func(): return machines.all(func(l): return l.on_ground and not l.player.input_locked), 300), "both machines go down to G")
+	cui.terminal = client.front_desk
+	cui.run(_last_hint_query(client.entrance_puzzle))
+	check(await _until(func(): return machines.all(func(l): return l.read_only), 300), "a client's main-entrance write clicks the latch and Epsilon goes read-only on every machine")
+	check(machines.all(func(l): return l.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 0), "and the row is put back everywhere")
+	cui.run("UPDATE gates SET unlocked = 1 WHERE name = 'main_entrance'")
+	await _frames(10)
+	check(machines.all(func(l): return l.refusals == 1 and l.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 0), "a client's write after that is refused, and WARDEN answers on every machine")
+	cui.run(_last_hint_query(client.verify_puzzle))
+	await _frames(10)
+	check(machines.all(func(l): return l.verify_puzzle.solved), "a client's read-back shows the lie for everyone")
 	await t._coop_close(worlds)
 
 
@@ -497,4 +552,51 @@ func test_gantry() -> void:
 	check(await _until(func(): return not level.hatch.is_open, 300), "the arm leaving its bay drops the panel shut")
 	p.local_control = true
 	level.queue_free()
+	await t.process_frame
+
+
+## Not locked out, the Custodian comes down to G after the crew.
+func test_custodian_follows() -> void:
+	print("Floor 10: the Custodian follows the crew down")
+	_game().new_run(40)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(20)
+	level.completed.disconnect(level._on_completed)
+	level.follow_time = 0.3
+	level.sync.event("_on_solved", ["main_doors"])
+	await _frames(5)
+	var p: Player = level.player
+	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
+	check(await _until(func(): return level.on_ground, 300), "down to G")
+	var at: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
+	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.space == level.g_geo, 120), "it comes out of STAIR 1 on G and hunts there")
+	level.queue_free()
+	await t.process_frame
+
+
+## In the World: down the stairs from 18, out on 10's landing; G where Level 0 stands.
+func test_world() -> void:
+	print("Floor 10 in the World")
+	_game().new_run(9)
+	var world = load("res://scenes/world.tscn").instantiate()
+	t.root.add_child(world)
+	await _frames(10)
+	world.enter_wing(world.route_index("level_3"))
+	var l3 = world.current
+	await _frames(20)
+	check(not world.wings.has("level_4"), "floor 10 isn't built until 18's stairs open")
+	l3.prepare_next()
+	var l4 = world.wings.get("level_4")
+	check(l4 != null and not l4.active and l4.global_position.distance_to(l3.global_position) > 40.0, "floor 10 builds apart from 18, without starting")
+	check(l4.g_geo.global_transform.origin.distance_to(world.ROUTE[0].at.origin) < 0.01, "its ground floor stands where Level 0's lobby does")
+	l3.sync.event("_on_exit")
+	for i in 600:
+		await t.physics_frame
+		if world.current == l4 and l4.active:
+			break
+	await _frames(10)
+	check(world.current == l4 and l4.active and LANDING_BOX.has_point(l4.to_local(world.player.global_position)), "the stairs hand play to floor 10, on its landing (%s)" % l4.to_local(world.player.global_position))
+	check(_game().completed_level == "level_3" and _game().next_level == "level_4", "floor 18 is complete, floor 10 is next")
+	world.queue_free()
 	await t.process_frame

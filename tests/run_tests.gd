@@ -3364,6 +3364,9 @@ func test_world() -> void:
 	var archive = world.current
 	check(archive != null and archive.wing_id == "level_3" and archive.active and world._field_notes == null, "after the security floor the route goes on to the Records Archive on 18")
 	world.wing_finished(archive)
+	var plant = world.current
+	check(plant != null and plant.wing_id == "level_4" and plant.active and world._field_notes == null, "after the archive the route goes on to the Power Plant on 10")
+	world.wing_finished(plant)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
