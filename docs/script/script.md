@@ -11,7 +11,7 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 **WARDEN** (WARDEN). The campus security system, heard over 1997 PA speakers and terminals. Not a villain: it enforces protocol, and turns hostile only once the crew breaches it and loses their escort.
 
-> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
+> Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
 **WARDEN (PA tapes)** (PA). WARDEN's own pre-recorded PA module. Subtitled as PA so players don't connect it to WARDEN yet; they realize later it was watching all along. The live WARDEN voice says nothing in Level 0.
 
@@ -713,7 +713,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Containment protocol Epsilon
 
-*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. No WARDEN line at the main-entrance re-lock: the crew's own SELECT exposes the terminal lie. Level 4 under curriculum option B (approved 2026-10-21).* *(Written ahead: not in the game yet.)*
+*Act 2: the crew opens main_doors thinking it's the front entrance; it's the entity containment doors. WARDEN (cold phase) seals the building. The terminal's lie at the main entrance is exposed by the crew's own SELECT, not by WARDEN. Level 4 under curriculum option B (approved 2026-10-21).* *(Written ahead: not in the game yet.)*
 
 **WARDEN:** *(Flat and slow. A short pause after.)* CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT. `[l4_epsilon_1]`
 
@@ -722,3 +722,21 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 **WARDEN:** *(No change in tone for 'not a drill'. That's the frightening part.)* ALL PERSONNEL REMAIN WHERE YOU ARE. THIS IS NOT A DRILL. `[l4_epsilon_3]`
 
 **WARDEN:** *(Repeats every few minutes. Customer-service politeness; the sarcasm is in the words only.)* REMINDER: CONTAINMENT PROTOCOL EPSILON REMAINS IN EFFECT. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop]`
+
+**WARDEN:** *(Takes turns with the other reminder, once writes have been suspended. Same polite loop.)* REMINDER: DATABASE WRITES REMAIN SUSPENDED. THANK YOU FOR YOUR PATIENCE. `[l4_epsilon_loop_2]`
+
+### Writes suspended
+
+*Ground floor, after the crew's main-entrance UPDATE says '1 row affected' and the latch clicks: Epsilon reverts the write and WARDEN announces that the database is now read-only, which is why the crew turns to the building's services. Placement chosen by Augustine 2026-10-21 ('After the lie').* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(The automatic announcement: flat checklist reading, even pauses. 'Authorized services only' is just policy, not a hint.)* DATABASE ACCESS IS NOW READ-ONLY. DIRECT WRITES ARE SUSPENDED. AUTHORIZED SERVICES ONLY. `[l4_epsilon_db]`
+
+### Writes refused
+
+*After the read-only announcement, any change the crew types is refused; SELECT still works. By Level 4 WARDEN's fault lets his own personality leak out: the first refusal is the automatic PA announcement first, then WARDEN himself, teasing, as a separate beat. Approved by Augustine 2026-10-21 with that split.* *(Written ahead: not in the game yet.)*
+
+**WARDEN:** *(The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal.)* WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. `[l4_write_refused]`
+
+**WARDEN:** *(A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud.)* YOU MAY STILL LOOK. LOOKING IS FREE. `[l4_write_refused_tease]`
+
+**WARDEN:** *(Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat.)* STILL READ-ONLY. `[l4_write_refused_again]`
