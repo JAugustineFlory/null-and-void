@@ -20,10 +20,8 @@ static func apply(level: LevelBase) -> void:
 	var geo := level.geo
 	var dress := ArtDress.dressing_root(level)
 	var bench_mat := ArtPalette.surface("laminate", Color(0.8, 0.7, 0.6))
+	front(geo, level)
 	ArtDress.reskin(geo, [
-		{"names": ["Floor"], "mat": ArtPalette.surface("concrete", Color(0.95, 0.95, 0.92))},
-		{"names": ["Wall_"], "mat": ArtPalette.surface("concrete", Color(1.45, 1.42, 1.32))},  # painted block
-		{"names": ["Ceiling"], "mat": ArtPalette.surface("concrete", Color(1.2, 1.18, 1.1))},
 		{"names": ["Shelf"], "mat": ArtPalette.surface("metal", Color(0.7, 0.72, 0.75))},
 		{"names": ["Desk"], "mat": ArtPalette.surface("laminate", Color(0.75, 0.68, 0.6))},
 		{"names": ["Radio"], "mat": ArtPalette.surface("dark_plastic")},
@@ -34,6 +32,7 @@ static func apply(level: LevelBase) -> void:
 			ArtDress.table_look(b, bench_mat, legs, 0.06)
 	_bulbs(level)
 	_banner(level, dress)
+	_briefing_corner(level, dress)
 	_book(level)
 
 	# Oil on the slab where the van stands, and an old stain by the door.
@@ -85,6 +84,166 @@ static func _fax(level: LevelBase) -> void:
 		elif c is CollisionShape3D and c.shape is BoxShape3D:
 			height = (c.shape as BoxShape3D).size.y
 	ArtProps.fax_machine(fax, Vector3(0, -height / 2.0, 0), -90)
+
+
+## The garage from outside, for the lobby's shot and the World's garage alike
+## (HomeBase.build_front, and apply): painted block, a concrete driveway with its
+## joints, a ribbed roll-up door with windows and a lift handle, trim round the
+## doorway, gooseneck lamps, a fascia and gutter along the roof, a downspout, the
+## bins, a hose reel and the power meter. `solid` holds the walls, driveway and
+## lamps; `door_parent` holds the roll-up door and takes the dressing.
+static func front(solid: Node3D, door_parent: Node3D) -> void:
+	ArtDress.reskin(solid, [
+		{"names": ["Floor"], "mat": ArtPalette.surface("concrete", Color(0.95, 0.95, 0.92))},
+		{"names": ["Wall_"], "mat": ArtPalette.surface("concrete", Color(1.45, 1.42, 1.32))},  # painted block
+		{"names": ["Ceiling"], "mat": ArtPalette.surface("concrete", Color(1.2, 1.18, 1.1))},
+		{"names": ["Driveway"], "mat": ArtPalette.surface("concrete", Color(0.78, 0.78, 0.76))},
+	])
+	var dress := ArtDress.dressing_root(door_parent)
+	var m := ArtMesh.new()
+	var face := -HomeBase.SIZE.z / 2 - 0.1  # the outside of the north wall
+	var trim := Color(0.92, 0.91, 0.87)
+	var dark := Color(0.12, 0.13, 0.13)
+	var door := HomeBase.DOOR_AT
+	var half := HomeBase.DOOR_SIZE.x / 2
+	var top := HomeBase.DOOR_SIZE.y
+	for side in [-1.0, 1.0]:
+		m.box(Vector3(door + side * (half + 0.06), top / 2, face - 0.015), Vector3(0.12, top, 0.03), trim)
+	m.box(Vector3(door, top + 0.06, face - 0.015), Vector3(half * 2 + 0.24, 0.12, 0.03), trim)
+	# The roof edge: soffit, fascia and gutter, the full width, and a downspout.
+	var w := HomeBase.SIZE.x / 2 + 0.2
+	var roof := HomeBase.SIZE.y
+	m.box(Vector3(0, roof - 0.01, face - 0.2), Vector3(w * 2, 0.02, 0.4), trim)
+	m.box(Vector3(0, roof + 0.1, face - 0.41), Vector3(w * 2, 0.24, 0.025), trim)
+	m.box(Vector3(0, roof + 0.03, face - 0.49), Vector3(w * 2, 0.1, 0.12), Color(0.82, 0.82, 0.8), 0.0, ["top"])
+	var spout := Vector3(HomeBase.SIZE.x / 2 - 0.35, 0, face - 0.06)
+	m.rod(Vector3(spout.x, roof, face - 0.45), Vector3(spout.x, roof - 0.35, spout.z), 0.035, Color(0.8, 0.8, 0.78), 6)
+	m.rod(Vector3(spout.x, roof - 0.35, spout.z), Vector3(spout.x, 0.25, spout.z), 0.035, Color(0.8, 0.8, 0.78), 6)
+	m.rod(Vector3(spout.x, 0.25, spout.z), Vector3(spout.x, 0.05, spout.z - 0.3), 0.035, Color(0.8, 0.8, 0.78), 6)
+	m.box(Vector3(spout.x, 0.02, spout.z - 0.5), Vector3(0.2, 0.04, 0.4), Color(0.5, 0.5, 0.48))  # the splash block
+	# The driveway's control joints, and where the van drips.
+	var apron := HomeBase.APRON_CENTER
+	for i in 7:
+		var x := apron.x - HomeBase.APRON_SIZE.x / 2 + 3.0 * (i + 1)
+		m.box(Vector3(x, 0.002, apron.z), Vector3(0.025, 0.004, HomeBase.APRON_SIZE.z), dark)
+	m.box(Vector3(apron.x, 0.002, apron.z), Vector3(HomeBase.APRON_SIZE.x, 0.004, 0.025), dark)
+	for blot in [[Vector3(0, 0, 0), 0.32], [Vector3(0.28, 0, 0.12), 0.2], [Vector3(-0.22, 0, -0.1), 0.16]]:
+		var at: Vector3 = Vector3(door + 0.2, 0.002, -8.2) + blot[0]
+		m.rod(at, at + Vector3(0, 0.002, 0), blot[1], Color(0.3, 0.29, 0.27), 12, true)
+	# The bins against the wall west of the door, the hose reel and meter east of it.
+	_bin(m, Vector3(0.7, 0, face - 0.4), Color(0.18, 0.32, 0.2))
+	_bin(m, Vector3(1.45, 0, face - 0.4), Color(0.17, 0.3, 0.55))
+	var reel := Vector3(door + half + 0.55, 0.7, face - 0.12)
+	m.box(reel + Vector3(0, 0, 0.1), Vector3(0.32, 0.12, 0.02), Color(0.3, 0.3, 0.3))  # the wall bracket
+	for x in [-0.13, 0.13]:
+		m.rod(reel + Vector3(x, 0, 0), reel + Vector3(x + signf(x) * 0.015, 0, 0), 0.21, Color(0.3, 0.3, 0.3), 12, true)
+	m.rod(reel + Vector3(-0.13, 0, 0), reel + Vector3(0.13, 0, 0), 0.17, Color(0.2, 0.42, 0.18), 12, true)  # the hose, wound on
+	for k in 4:
+		m.rod(reel + Vector3(-0.1 + k * 0.066, 0, 0), reel + Vector3(-0.1 + k * 0.066 + 0.01, 0, 0), 0.172, Color(0.15, 0.33, 0.14), 12, true)
+	m.rod(Vector3(reel.x - 0.3, 0.45, face), Vector3(reel.x - 0.3, 0.45, face - 0.1), 0.02, Color(0.6, 0.5, 0.25), 6, true)  # the tap
+	var meter := Vector3(-1.2, 1.5, face)
+	m.box(meter + Vector3(0, 0, -0.06), Vector3(0.3, 0.42, 0.12), Color(0.58, 0.6, 0.58))
+	m.rod(meter + Vector3(0, 0.05, -0.12), meter + Vector3(0, 0.05, -0.2), 0.09, Color(0.75, 0.8, 0.82), 10, true)
+	m.rod(meter + Vector3(0, -0.21, -0.06), Vector3(meter.x, 0.0, face - 0.06), 0.025, Color(0.4, 0.42, 0.4), 6)  # conduit
+	# Gooseneck barn lamps on the FrontLamp lights.
+	for l in solid.get_children():
+		if l is OmniLight3D and l.position.z < face:  # the lamps out front
+			var at: Vector3 = l.position
+			var shade := Color(0.13, 0.26, 0.19)
+			m.rod(Vector3(at.x, at.y + 0.18, face), Vector3(at.x, at.y + 0.18, face - 0.03), 0.07, shade, 10, true)
+			m.rod(Vector3(at.x, at.y + 0.18, face - 0.03), Vector3(at.x, at.y + 0.3, at.z + 0.2), 0.015, shade, 6)
+			m.rod(Vector3(at.x, at.y + 0.3, at.z + 0.2), Vector3(at.x, at.y + 0.2, at.z), 0.015, shade, 6)
+			m.rod(Vector3(at.x, at.y + 0.16, at.z), Vector3(at.x, at.y + 0.22, at.z), 0.06, shade, 10, true)
+			m.rod(Vector3(at.x, at.y + 0.1, at.z), Vector3(at.x, at.y + 0.16, at.z), 0.17, shade, 12, true)
+			var bulb := ArtDress.trim(dress, at + Vector3(0, 0.08, 0), Vector3(0.12, 0.02, 0.12), ArtPalette.glow(l.light_color, 4.0))
+			bulb.name = "LampBulb"
+	# The sign board behind the lettering over the door.
+	var sign_y := (top + 0.12 + roof) / 2
+	m.box(Vector3(door, sign_y, face - 0.01), Vector3(3.6, 0.56, 0.02), Color(0.12, 0.25, 0.5))
+	m.box(Vector3(door, sign_y, face - 0.022), Vector3(3.5, 0.46, 0.006), trim)
+	for c in solid.get_children():
+		if c is Label3D and (c as Label3D).text == "BYTE-RIGHT IT":
+			c.position = Vector3(door, sign_y, face - 0.03)
+	m.commit(dress, "Front", true, 0.7)
+	_roll_up_door(door_parent.get_node_or_null("RollUpDoor"))
+
+
+## A wheelie bin, lid shut, handle to the wall.
+static func _bin(m: ArtMesh, at: Vector3, color: Color) -> void:
+	m.box(at + Vector3(0, 0.5, 0), Vector3(0.58, 0.9, 0.68), color, 0.0, ["bottom"])
+	m.box(at + Vector3(0, 0.97, -0.02), Vector3(0.62, 0.05, 0.74), color.darkened(0.15))
+	m.rod(at + Vector3(-0.27, 1.0, 0.33), at + Vector3(0.27, 1.0, 0.33), 0.02, color.darkened(0.25), 6, true)
+	for x in [-0.25, 0.25]:
+		m.rod(at + Vector3(x, 0.1, 0.3), at + Vector3(x * 1.15, 0.1, 0.3), 0.1, Color(0.08, 0.08, 0.08), 10, true)
+
+
+## The roll-up door's sheet steel: fine ribs instead of the greybox slats, a row
+## of windows, a bottom seal, and a lift handle and lock on the outside. All on
+## the door itself, so it rolls up with it.
+static func _roll_up_door(door: Node3D) -> void:
+	if door == null:
+		return
+	var size := Vector3(HomeBase.DOOR_SIZE.x, HomeBase.DOOR_SIZE.y, 0.08)
+	for c in door.get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is BoxMesh:
+			if ((c as MeshInstance3D).mesh as BoxMesh).size.y < 0.1:
+				c.visible = false  # the greybox slats
+			else:
+				c.material_override = ArtPalette.flat(Color(0.86, 0.86, 0.83), 0.45, 0.3)
+	var m := ArtMesh.new()
+	var rib := Color(0.72, 0.72, 0.7)
+	var sections := 8
+	var high := size.y / sections
+	for i in sections:
+		var y := -size.y / 2 + high * (i + 1)
+		for z in [-size.z / 2 - 0.004, size.z / 2 + 0.004]:
+			if i < sections - 1:
+				m.box(Vector3(0, y, z), Vector3(size.x, 0.025, 0.008), rib)
+			m.box(Vector3(0, y - high / 2, z), Vector3(size.x, 0.008, 0.006), rib.lightened(0.1))
+	var glass := Color(0.16, 0.2, 0.24)
+	var row := -size.y / 2 + high * 5.5
+	for k in 5:
+		var x := -size.x / 2 + size.x * (k + 0.5) / 5
+		for z in [-size.z / 2 - 0.005, size.z / 2 + 0.005]:
+			m.box(Vector3(x, row, z), Vector3(0.6, 0.28, 0.006), glass)
+	m.box(Vector3(0, -size.y / 2 + 0.02, 0), Vector3(size.x, 0.04, size.z + 0.03), Color(0.08, 0.08, 0.08))  # the seal
+	var out := -size.z / 2 - 0.02
+	m.box(Vector3(0, -size.y / 2 + 0.55, out), Vector3(0.3, 0.03, 0.03), Color(0.3, 0.3, 0.32))  # the lift handle
+	m.rod(Vector3(0, -size.y / 2 + 1.1, out + 0.01), Vector3(0, -size.y / 2 + 1.1, out - 0.02), 0.035, Color(0.7, 0.66, 0.5), 10, true)  # the T-lock
+	m.box(Vector3(0, -size.y / 2 + 1.1, out - 0.025), Vector3(0.12, 0.02, 0.015), Color(0.7, 0.66, 0.5))
+	m.commit(door, "DoorSkin", true, 0.45, 0.3)
+
+
+## The briefing corner: a hand-me-down couch and a counter run with red diner
+## stools, all facing Maddison's whiteboard. Their greybox blocks keep the
+## collision; the Seats are HomeBase's.
+static func _briefing_corner(level: LevelBase, dress: Node3D) -> void:
+	for n in ["Couch", "CouchBack", "Counter"]:
+		var block := level.geo.get_node_or_null(n)
+		if block:
+			ArtDress.hide_block(block)
+	ArtProps.sofa(dress, HomeBase.COUCH, 90)
+	ArtProps.kitchen_counter(dress, HomeBase.COUNTER, -90, 3.4, 0.6, 1.04)
+	for i in HomeBase.CREW_SEATS.size():
+		var stool := level.geo.get_node_or_null("Stool%d" % i)
+		if stool:
+			ArtDress.hide_block(stool)
+			var top: Vector3 = HomeBase.CREW_SEATS[i]
+			ArtProps.bar_stool(dress, Vector3(top.x, 0, top.z), top.y, Color(0.55, 0.12, 0.1), i == 4)
+	# On the counter: the coffee, everyone's mugs, a stack of floppies.
+	var on := HomeBase.COUNTER + Vector3(0, 1.04, 0)
+	ArtProps.coffee_maker(dress, on + Vector3(0.05, 0, -1.2), -90)
+	var m := ArtMesh.new()
+	for mug in [[Vector3(0.12, 0, -0.75), Color(0.85, 0.83, 0.78)], [Vector3(-0.1, 0, -0.55), Color(0.2, 0.35, 0.6)],
+			[Vector3(0.05, 0, 0.35), Color(0.7, 0.25, 0.15)]]:
+		var at: Vector3 = on + mug[0]
+		m.rod(at, at + Vector3(0, 0.095, 0), 0.04, mug[1], 10, true)
+		m.rod(at + Vector3(0, 0.095, 0), at + Vector3(0, 0.096, 0), 0.034, Color(0.2, 0.11, 0.05), 10, true)
+		m.box(at + Vector3(0.045, 0.05, 0), Vector3(0.015, 0.06, 0.012), mug[1])
+	for k in 5:
+		var tint: Color = [Color(0.1, 0.1, 0.11), Color(0.15, 0.25, 0.5), Color(0.1, 0.1, 0.11), Color(0.6, 0.15, 0.12), Color(0.85, 0.85, 0.82)][k]
+		m.box(on + Vector3(-0.05, 0.002 + k * 0.0034, 0.95), Vector3(0.09, 0.0033, 0.094), tint, float(k * 7 - 10))
+	m.commit(dress, "CounterClutter", true, 0.5)
 
 
 ## Bare bulbs on cords in place of the greybox light panels. The bulb is the

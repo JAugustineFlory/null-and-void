@@ -111,8 +111,13 @@ func _home_base() -> void:
 	await _shot(level, "hb_fax", Vector3(-3.95, 0.1, 2.3), 90, -30)
 	await _shot(level, "hb_van", Vector3(-1.2, 0.1, 0.0), -80, -2)
 	await _shot(level, "hb_van_front", Vector3(0.2, 0.1, -3.4), -125, -5)
+	await _shot(level, "hb_briefing", Vector3(0.2, 0.1, -2.0), 105, -15)
+	await _shot(level, "hb_couch", Vector3(-7.0, 0.1, 2.4), -55, -12)
 	level.maddison_at("fax")
 	await _shot(level, "hb_maddison", Vector3(-2.2, 0.1, 1.2), 105, -5)
+	level.lobby_camera.make_current()
+	await _frames(12)
+	root.get_viewport().get_texture().get_image().save_png(out_dir.path_join("hb_front.png"))
 	level.free()
 
 
