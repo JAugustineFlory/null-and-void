@@ -77,6 +77,10 @@ const ITEMS := [
 	{"slot": "head", "item": "mercer_cap", "name": "Mercer's cap", "unlock": "secret:mercer_vent_tape"},
 	{"slot": "walkie", "item": "gold", "name": "Gold", "unlock": "secret:roster_thu"},
 	{"slot": "jacket", "item": "press", "name": "Press jacket", "unlock": "secret:ending_news"},
+	# Floor 18 (Augustine, 2026-10-21 11:27Z; plan/approvals/l3-text.md). Both are notebook skins:
+	# the spiral cover with an archive box label stuck on it, or a 3.5" disk clipped to it.
+	{"slot": "notebook", "item": "archive_label", "name": "Archive box label", "unlock": "achievement:floor_18", "hint": "Finish floor 18."},
+	{"slot": "notebook", "item": "mercer_floppy", "name": "Mercer's floppy", "unlock": "secret:mercer_floppy_1"},
 ]
 
 ## The catalogue in use: ITEMS, unless a test swaps in its own (reset() puts it back).
