@@ -38,7 +38,7 @@ All colors live in `ArtPalette` (`scripts/art/art_palette.gd`). Use the constant
 
 ## Characters
 
-`CharacterRig.build(parent, look)` builds a low-poly person (about 25 pieces) from primitives. Looks are in `CharacterLooks`: `crew(0..5)`, `rourke()`, `vale()`, `mercer()`, `night_guard()`.
+`CharacterRig.build(parent, look)` builds a low-poly person. Looks are in `CharacterLooks`: `crew(0..5)`, `rourke()`, `vale()`, `mercer()`, `night_guard()`.
 
 - **Rourke:** big, friendly, navy facilities jacket over a pale shirt, khakis, grey hair and mustache, badge on a Halcyon lanyard, radio on his belt. He should look like the nicest guy in the building.
 - **Vale:** lab coat, dark clothes, glasses, long dark hair.
@@ -46,14 +46,25 @@ All colors live in `ArtPalette` (`scripts/art/art_palette.gd`). Use the constant
 - **Night guard:** grey-blue uniform, cap, gold patch.
 - **Crew:** Byte-Right polo with a white logo patch, belt radio, varied builds, skin tones and hair.
 
+### The body model
+
+The rig's joints and poses are procedural, and a skinned body follows them (`SkinnedBody`, `scripts/art/skinned_body.gd`). The bodies are the Quaternius Universal Base Characters (CC0, see `docs/art/CREDITS.md`), dressed by us.
+
+- **Two models.** `assets/art/characters/body1.glb` and `body2.glb` are the two body types, rebuilt from the pack in Blender from code by `tools/art/build_characters.py`. Load them through `ArtModels` (`scripts/art/art_models.gd`) by id, never by path, so a private or paid model can replace them later.
+- **One mesh per garment.** Each model holds every garment as its own mesh (`Jacket_open`, `Hair_long`, `Head_cap`, ...). `SkinnedBody.wears(look)` picks the meshes a look needs and tints them. Jackets are a copy of the body's own surface pushed out, so they bend exactly as the body does; the body draws in a little under them (`tuck`).
+- **Painted body.** Skin, shirt, trousers and shoes are painted on the body by `body.gdshader`, from where each vertex sits on the body (height in the rig's units, and how far down the arm). Sleeve length, shoe height and colours are shader settings. Face detail and the lips are baked into the vertex colour; the eyes are part of the body. A dressed character is about 4 draws.
+- **Bones follow joints.** Each rig joint turns one bone (`SkinnedBody.JOINT_BONES`: hips to `pelvis`, knees to `calf_*`, and so on); the rest of the 65-bone skeleton follows. The pack's legs are longer than the rig's, so the feet are planted where the rig's soles are.
+- **Builds.** A build other than 1 widens a copy of each mesh and its skin, so joints still turn in the right place.
+- **Old bodies.** `CharacterRig.skinned = false` brings back the old primitive bodies.
+
 ### Animation
 
-Procedural, no imported clips, so it is tiny and needs no animation sync:
+Our own poses, plus four small clips from the Quaternius Universal Animation Library (`assets/art/characters/locomotion.res`, 130 KB):
 
-- **Walking and running are automatic.** The rig measures its own speed from its position each frame (teleports ignored) and drives the walk cycle. Anything that already syncs position animates correctly on every machine.
-- **Actions** via `rig.play(name)`. Upper-body actions keep the legs walking: idle, talk, wave, point, radio, flashlight, type, hands_up, windup, strike. Full-body actions take over: stagger, down, dead, tied, sit, crouch, crawl. `rig.crouching` (1.25 m bent-knee stance) and `rig.crawling` (vents and low gaps; wins over crouching) follow the player's stance while they move.
-- `rig.head_pitch` follows a teammate's camera pitch; `rig.look_target` turns the head toward a point (Rourke watching the crew on the tour).
-- Poses blend smoothly; the body falls and gets up at a slower, weightier rate.
+- **Walking and running are automatic.** The rig measures its own speed from its position each frame (teleports ignored). The body plays the pack's walk, jog or sprint clip to match, sped up or slowed to the real speed. Standing still, the legs hold our stance and the upper body breathes with the pack's idle. Anything that already syncs position animates correctly on every machine.
+- **Actions** via `rig.play(name)`, all ours. Upper-body actions take the arms from the clip and keep the legs walking: idle, talk, wave, point, radio, flashlight, type, hands_up, windup, strike. Full-body actions take everything: stagger, down, dead, tied, sit, crouch, crawl. `rig.crouching` (1.25 m bent-knee stance) and `rig.crawling` (vents and low gaps; wins over crouching) follow the player's stance while they move.
+- `rig.head_pitch` follows a teammate's camera pitch; `rig.look_target` turns the head toward a point (Rourke watching the crew on the tour). The head and neck always follow the rig, even while a clip plays.
+- Poses and clips blend smoothly; the body falls and gets up at a slower, weightier rate.
 
 ### Hooking it up (for the owning threads)
 
@@ -106,7 +117,8 @@ Halcyon Tower is 30 storeys over dark woods and car parks (game plan §2). The W
 
 ## Performance budget (six players)
 
-- A character is at most 32 mesh pieces; props at most ~10. Meshes and materials are cached and shared.
+- A character is at most 32 mesh pieces (the skinned body uses about 4) and about 10k triangles; props at most ~10 pieces. Meshes and materials are cached and shared.
+- About 1,500 draw calls per view. `tools/perf_probe.gd` measures fixed views of each level and the cast; put its before and after numbers in every art PR.
 - Only big pieces cast shadows. Only the local player's flashlight has shadows; teammates' flashlights light the room without them. Shadows from lamps and flashlights use a 32-bit shadow atlas (`rendering/lights_and_shadows/positional_shadow/atlas_16_bits=false`); at 16 bits a flashlight striped walls more than about 4 m away.
 - Rigs more than 30 m from the camera animate at a quarter rate; hidden rigs don't animate.
 - Ceiling lights cast soft shadows only near the camera: `ArtDress.ceiling_shadow` points each one down with a dual-paraboloid shadow that fades out past `SHADOW_NEAR` (9 m), so only the few lights round each player draw one. Props still choose whether they cast.
