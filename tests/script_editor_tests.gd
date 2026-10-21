@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_reopening()
 	test_terminal_opens_runner()
 	test_skins()
+	test_language_packs()
 
 
 func check(cond: bool, name: String) -> void:
@@ -253,3 +254,33 @@ func test_skins() -> void:
 	ui.run(".script")
 	check(looks_default.call(), "and back on a phosphor terminal it's the default again")
 	host.queue_free()
+
+
+## The S6 boundary: a language that isn't JavaScript plugs in and the runner,
+## the log and the building all work with it, without knowing which it is.
+func test_language_packs() -> void:
+	check(ScriptRuntime.for_language("javascript") is JSRuntime and ScriptRuntime.for_language("cobol") == null, "JavaScript is built in; a language with no pack gives no runtime")
+	ScriptRuntime.register("lines", load("res://tests/script_pack_stub.gd"))
+	var rt := ScriptRuntime.for_language("lines")
+	check(rt != null and rt.language() == "lines" and ScriptRuntime.languages() == ["javascript", "lines"], "a pack registers under its name and is listed after JavaScript")
+
+	var api := FacilityAPI.new()
+	api.route("GET", "/doors", func(_p): return {"status": 200, "body": [{"id": "D-12"}]})
+	var ed := ScriptEditorUI.new()
+	_tree.root.add_child(ed)
+	ed.open(rt, {"title": "TEST", "library": BuildingLibrary.new(api), "code": "say checking\nwalk 3"})
+	check(ed._title.text.contains("//  LINES") and ed._code.placeholder_text == "say hello", "the runner's title and placeholder come from the pack")
+	var h := ed._code.syntax_highlighter as CodeHighlighter
+	check(h.has_keyword_color("say") and not h.has_keyword_color("let") and h.has_color_region("#"), "and so do its colors: no JavaScript words in another language")
+	ed.run()
+	check(ed.error_line() == 2 and ed.log_text().begins_with("Line 2: No command walk."), "the pack's mistakes are marked and logged like JavaScript's")
+	_type(ed, "say checking\nwait 1500\nget /doors")
+	ed.run()
+	_frames(ed, 10, 0.1)
+	check(ed.runtime.is_running() and ed._status.text.begins_with("waiting"), "its waits run on game time through the runner")
+	_frames(ed)
+	check(ed.log_text().ends_with("--- running ---\nchecking\n200 [{\"id\":\"D-12\"}]\n--- finished after 1.6 s ---"), "and it reaches the building through the same library")
+	ed.queue_free()
+
+	var plain := ScriptRuntime.new()
+	check(plain.display_name() == "" and plain.editor_words().is_empty() and plain.clock() == 0.0, "the base runtime has safe defaults for packs that leave things out")

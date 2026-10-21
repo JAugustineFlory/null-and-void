@@ -16,8 +16,26 @@ var _vm: JSVM
 var _library: BuildingLibrary
 
 
+const KEYWORDS := ["let", "const", "function", "return", "if", "else", "while", "for", "of", "break",
+	"continue", "async", "await", "true", "false", "null", "undefined", "typeof"]
+const BUILT_INS := ["api", "db", "sleep", "assert", "console", "Math", "JSON", "Object", "Array"]
+
+
 func language() -> String:
 	return "javascript"
+
+
+func display_name() -> String:
+	return "JavaScript"
+
+
+func editor_words() -> Dictionary:
+	return {"keywords": KEYWORDS, "built_ins": BUILT_INS, "strings": ["\"", "'"], "multiline_strings": ["`"],
+		"line_comment": "//", "block_comment": ["/*", "*/"]}
+
+
+func placeholder() -> String:
+	return "// Write JavaScript here. Ctrl+S saves it, Ctrl+R runs it.\nconsole.log(\"hello\");"
 
 
 func compile(code: String) -> Dictionary:
