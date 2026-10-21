@@ -9,6 +9,11 @@ extends RefCounted
 ## Also seeded: Server Room B's overheating rack (racks.temp_c > 40) and the floor's
 ## lights: the break room's is 'dead' and the north corridor's 'flickering' (the
 ## optional dark room: dead OR flickering), and an unused bay is 'off' on purpose.
+## How many controllers are faulted floor-wide (the reset sign-off's COUNT) varies
+## (3, 5 or 6): the answer, the Records Archive and Cold Lab ones, and 0, 2 or 3 more
+## Records Archive controllers (DC-13 on), outside the stuck doors' zone. Those counts
+## never equal a tempting wrong count: a zone's controllers (4), the healthy ones (7),
+## Server Room A's racks (8), every controller, or every one that isn't 'ok'.
 
 const ROOM_RACKS := 8  # DC-1 .. DC-8 are physical racks in Server Room A
 const SRB_RACKS := 6  # RB-1 .. RB-6 in Server Room B
@@ -35,6 +40,10 @@ static func build(run_seed: int) -> Dictionary:
 	var answer: int = zone_a[0]
 	var offline_a: int = zone_a[1]
 	var fault_b: int = zone_b_room[0]
+	# Its own generator, so the rest of a seed's data stays as it was.
+	var extra_rng := RandomNumberGenerator.new()
+	extra_rng.seed = hash([run_seed, "extra_faults"])
+	var extra_faults: int = [0, 2, 3][extra_rng.randi_range(0, 2)]
 
 	var rows := []
 	for i in range(1, 13):
@@ -62,6 +71,9 @@ static func build(run_seed: int) -> Dictionary:
 			note = "decommissioned 1996"
 		var reset_at := "1997-10-%02d %02d:%02d" % [rng.randi_range(1, 12), rng.randi_range(0, 23), rng.randi_range(0, 59)]
 		rows.append("('DC-%d', '%s', '%s', '%s', '%s', '%s')" % [i, z, status, where, reset_at, note])
+	for i in range(13, 13 + extra_faults):
+		var reset_at := "1997-10-%02d %02d:%02d" % [extra_rng.randi_range(1, 12), extra_rng.randi_range(0, 23), extra_rng.randi_range(0, 59)]
+		rows.append("('DC-%d', '%s', 'fault', 'Records Archive', '%s', 'runs Records Archive door. Ticket open')" % [i, other, reset_at])
 
 	# Server Room B: one rack runs hot. Another sits right on the limit, so > and >=
 	# give different answers, and a rack in the locked Server Room C runs warm too.
@@ -137,7 +149,7 @@ INSERT INTO badges VALUES
 	('D-0001', 'DIRECTOR', 'ALL', 'Offsite');
 """ % [",\n\t".join(rows), ",\n\t".join(racks)]
 	sql = sql.format({"zone": zone, "other": other, "cold": cold})
-	return {"sql": sql, "answer": "DC-%d" % answer, "zone": zone, "other_zone": other, "hot_rack": "RB-%d" % hot}
+	return {"sql": sql, "answer": "DC-%d" % answer, "zone": zone, "other_zone": other, "hot_rack": "RB-%d" % hot, "faulted": 3 + extra_faults}
 
 
 static func _shuffle(arr: Array, rng: RandomNumberGenerator) -> void:

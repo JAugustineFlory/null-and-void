@@ -1,0 +1,1 @@
+- **Added:** LIMIT on the ground floor: the visitor log can be cut down to its last few rows, and a sticky on the front desk shows how.

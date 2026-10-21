@@ -623,6 +623,10 @@ func walk_level_1(seed_value: int) -> void:
 	var rows := last_table(screen(ui))
 	var id: String = rows[0].get("id", "") if rows.size() == 1 else ""
 	check(id != "" and has_world_label(level, id), "server room: the result names one controller, and a rack is labelled %s" % id)
+	# Then the reset's sign-off: how many controllers are faulted, floor-wide.
+	check(_game().current_todo() == level.COUNT_TODO, "server room: once the controller is found, the to-do asks for the sign-off's count")
+	h = await solve(level, ui, level.count_puzzle, false)
+	check(h >= 0 and h <= rescue_tier(level.count_puzzle), "server room: a lost player counts the faulted controllers once a hint gives the query (hints %d)" % h)
 	ui.close()
 	var panel := find_interactable(level, "Reset controller " + id)
 	check(panel != null, "server room: that rack has a reset panel the player can press")
