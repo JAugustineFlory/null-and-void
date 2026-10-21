@@ -10,5 +10,7 @@ on the same README lines.
   Use **New**, **Added**, **Changed** or **Fixed**.
 - No spoilers: describe features, never plot beats, twists or secrets.
 
-The Game design plan thread moves these lines into the README's Changelog under the date they
-merged, newest first, and deletes the files.
+The Game design plan thread moves these lines into the README's Changelog and deletes the files.
+Each day that changes gets its own version, newest first, as a drop-down titled with the version
+and the date it merged (`v0.7.0 - 2026-10-22`). The newest version starts open; the rest start
+closed. Version numbers go up by one minor step per day (`v0.6.0`, `v0.7.0`, ...).
