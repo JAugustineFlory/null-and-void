@@ -1132,6 +1132,7 @@ func _update_door() -> bool:
 		Game.open_case("door", CASES.door, ["door_status"])
 		Game.solve_case("door", "Breaker B-%d had tripped and jammed the door. Resetting it let the door open." % data.breaker)
 		stair_door.locked = false
+		prepare_next()  # floor 18 builds now, behind the stairwell
 	return open
 
 
@@ -1145,7 +1146,8 @@ func seal_exit() -> void:
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "clunk")
 
 
-## Everyone is on the stairs. Until Level 3 (floor 18) is built, the slice ends here.
+## Everyone is on the stairs. In the World the crew heads down to floor 18 (Level 3);
+## on its own, the slice ends here.
 func _on_exit(_b: Node) -> void:
 	# Everyone here finished the floor, downed or not.
 	get_node("/root/Net").earn("achievement:floor_22", hud)
@@ -1156,6 +1158,17 @@ func _on_exit(_b: Node) -> void:
 	await get_tree().create_timer(1.0).timeout
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
 	await get_tree().create_timer(1.2).timeout
+	var next: Node = world.wings.get("level_3") if world else null
+	if next and next.has_method("arrive_by_stairs"):
+		# Four flights down behind a fade: everyone steps onto 18's landing.
+		await hud.fade(true, 1.2)
+		Game.completed_level = "level_2"
+		Game.next_level = "level_3"
+		next.arrive_by_stairs()
+		finish_level("level_3")
+		player.input_locked = false
+		hud.fade(false, 0.8)
+		return
 	await Level2FX.end_card(self, "To be continued.")
 	Game.completed_level = "level_2"
 	Game.next_level = ""  # the end of the playable slice, for now
