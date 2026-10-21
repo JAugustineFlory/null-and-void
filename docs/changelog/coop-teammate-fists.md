@@ -1,1 +1,0 @@
-- **Added:** in co-op you see your teammates punch, guard and flinch.
