@@ -436,6 +436,8 @@ func walk_level_0() -> void:
 	_game().new_run(5)
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	t.root.add_child(level)
+	for id in ["easy_sql_2", "easy_sql_3", "easy_sql_4"]:
+		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
 	for i in 20:
 		await t.physics_frame
 	check_case_clues(level, "lobby")
@@ -607,6 +609,8 @@ func walk_level_1(seed_value: int) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_1.tscn").instantiate()
 	t.root.add_child(level)
+	for id in ["easy_sql_5", "easy_sql_6", "easy_sql_7", "easy_sql_8"]:
+		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
 	for i in 20:
 		await t.physics_frame
 	level._on_asked()  # Rourke has asked the crew to find the fault

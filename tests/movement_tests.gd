@@ -605,7 +605,10 @@ func test_notebook_hold() -> void:
 	check(p.edge_turn(Vector2(1490, 300), screen, on_screen) == Vector2.ZERO and p.edge_turn(Vector2(1508, 300), screen, on_screen) == Vector2.ZERO, "over the notebook, its tabs included, the view holds still")
 	check(p.edge_turn(Vector2(1600, 300), screen, on_screen).x > 0.0 and p.edge_turn(Vector2(1910, 300), screen, on_screen).x > 1.0, "off the notebook it starts turning, fastest at the screen's edge")
 	check(p.edge_turn(Vector2(300, 540), screen, on_screen).x < 0.0, "and off its left side, the other way")
-	p.set_notebook_cursor(false)  # right mouse held: look around
+	p.local_control = true
+	check(p._wants_cursor(), "reading, the cursor is always out: no button puts it away to look around")
+	p.local_control = false
+	p.set_notebook_cursor(false)  # the cursor away (a remote copy, or a scripted look)
 	var yaw0 := p.rotation.y
 	var book_at := book.global_basis
 	var cam_at := p.camera.global_basis
@@ -635,7 +638,7 @@ func test_notebook_hold() -> void:
 	check(p.notebook_cursor and p.rotation.y == yaw0 and book.is_processing_input(), "with the cursor out the pages take the mouse and the view holds still")
 	p.set_notebook_cursor(false)
 	_mouse_move(p, Vector2(100, 0))
-	check(p.rotation.y < yaw0 and not book.is_processing_input(), "holding right mouse looks around again")
+	check(p.rotation.y < yaw0 and not book.is_processing_input(), "with the cursor away the mouse looks around again")
 	p.set_notebook_cursor(true)
 	p.toggle_notebook()
 	check(not p.notebook_cursor, "putting the notebook away drops the cursor")

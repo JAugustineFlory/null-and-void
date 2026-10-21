@@ -72,6 +72,11 @@ static func hand(text: String, size: int = 26, color: Color = INK) -> Label:
 	return l
 
 
+## The longest a heading's underline runs: a little short of a page's width
+## (NotebookView's pages are 466 px wide).
+const HEADING_RULE_MAX := 420.0
+
+
 ## A page heading: bigger handwriting, underlined twice like you meant it.
 static func heading(text: String, color: Color = INK) -> Control:
 	var box := VBoxContainer.new()
@@ -82,7 +87,9 @@ static func heading(text: String, color: Color = INK) -> Control:
 		line.color = Color(color, 0.8)
 		line.custom_minimum_size = Vector2(0, 2)
 		line.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		line.custom_minimum_size.x = 40 + text.length() * 14 - i * 30
+		# As long as the words, but never wider than a page: a long title wraps,
+		# and its underline mustn't push the page out over the spine.
+		line.custom_minimum_size.x = minf(40 + text.length() * 14, HEADING_RULE_MAX) - i * 30
 		box.add_child(line)
 		if i == 0:
 			var gap := Control.new()

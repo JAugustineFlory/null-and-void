@@ -227,10 +227,9 @@ var held_notebook: Node3D:
 		held_notebook = n
 		if n:
 			n.set_process_input(notebook_cursor)
-## While the notebook is held a cursor is out for clicking the pages; holding right
-## mouse looks around instead. Read-only (set_notebook_cursor()).
+## While the notebook is held a cursor is out for clicking the pages; pushed off
+## the page, the view turns that way (edge_turn). Read-only (set_notebook_cursor()).
 var notebook_cursor := false
-var _rmb_was := false
 ## 0 stowed in the pocket, 1 fully held up; eases between them. Read-only.
 var notebook_amount := 0.0
 var _notebook_held := false
@@ -553,9 +552,7 @@ func is_holding_notebook() -> bool:
 
 ## While reading (the notebook, or a paper you picked up) the cursor is out to click
 ## the pages (tabs, next page, "+ add"), so a trackpad can click them; pushing it to
-## an edge of the screen looks that way (edge_turn). Holding right mouse also puts
-## it away and the mouse looks around instead.
-## The local player follows the right mouse button by itself.
+## the edge of what you read looks that way (edge_turn).
 func set_notebook_cursor(on: bool) -> void:
 	on = on and _reading()
 	notebook_cursor = on
@@ -592,9 +589,9 @@ func _drift_basis() -> Basis:
 	return Basis(Vector3.RIGHT, -pitch) * Basis(Vector3.UP, -notebook_drift.x) * Basis(Vector3.RIGHT, pitch - notebook_drift.y)
 
 
-## The cursor is out while reading unless right mouse is held to look around.
+## The cursor is out whenever this player reads.
 func _wants_cursor() -> bool:
-	return local_control and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	return local_control
 
 
 ## Does moving the mouse turn your head right now?
@@ -611,7 +608,7 @@ func _mouse_looks() -> bool:
 ## height; `prop_raised` fires then. `size` is its readable face in metres and
 ## `face` the local direction that face points (+Z for a poster on a wall,
 ## Vector3.UP for one lying on a desk). You can walk slowly and look around while
-## you read (hold right mouse); otherwise a cursor is out (set_notebook_cursor). It doesn't collide
+## you read: a cursor is out (set_notebook_cursor), and pushing it off the page turns the view. It doesn't collide
 ## while held. False if your hands are busy or you're not on your feet.
 func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) -> bool:
 	if prop == null or held_prop or not _filing.is_empty() or not state in [Move.WALK, Move.SIT]:
@@ -933,14 +930,6 @@ func _end_terminal(announce: bool) -> void:
 
 
 func _process(delta: float) -> void:
-	if local_control:
-		# Polled, not an input event: the pages take clicks under the cursor, the
-		# release included, so an event could be swallowed and leave the cursor stuck.
-		var rmb := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
-		if rmb != _rmb_was:
-			_rmb_was = rmb
-			if _reading() and not input_locked:
-				set_notebook_cursor(_wants_cursor())
 	_edge_look(delta)
 	_animate_prop(delta)
 	_animate_filing(delta)
@@ -1881,3 +1870,5 @@ func _update_prompt() -> void:
 		if text == "" and state == Move.SIT and not _sit_leaving:
 			text = "[Space] Stand up"
 	hud.set_prompt(text)
+	if hud.has_method("set_crosshair"):
+		hud.set_crosshair(not notebook_cursor)  # reading, the mouse pointer is the one to aim with

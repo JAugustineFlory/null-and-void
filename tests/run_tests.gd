@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "combat", "movement", "teaching", "teaching_lab", "scripting"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "coop", "combat", "movement", "teaching", "teaching_lab", "scripting", "chapters"]
 
 
 func _run() -> void:
@@ -79,6 +79,7 @@ func _run_group(g: String) -> void:
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
 		"scripting": await _group_scripting()
+		"chapters": await _group_chapters()
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -124,6 +125,12 @@ func _group_floor_14() -> void:
 	test_level_1_data_every_seed()
 	await test_level_1_scene()
 	await test_level_1_book_huddle()
+
+
+## Easy SQL's chapters at their moments on the ground floor and floor 14.
+func _group_chapters() -> void:
+	await test_level_0_book_huddles()
+	await test_level_1_book_huddles()
 
 
 ## Floor 22, the security floor (Level 2), outside the lab.
@@ -835,6 +842,7 @@ func test_level_0_scene() -> void:
 	print("Level 0 scene")
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	for i in 30:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
@@ -848,7 +856,11 @@ func test_level_0_scene() -> void:
 	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
 	check(not level.front_doors.is_open, "front doors start closed")
 	check(level.van_seats.size() == 6, "the van seats six")
-	check(level.seat_spawn(1).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the passenger seat")
+	check(level.seat_spawn(0).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the driver's seat, where you got in at home base")
+	_game().van_seating.assign([7, level.multiplayer.get_unique_id()])
+	check(level.seat_for(0) == 1, "each player arrives in the seat they took at home base")
+	_game().van_seating.clear()
+	level.player.global_transform = level.seat_spawn(1)  # the rest climbs out of the passenger side
 	check(level.player.seated and level.find_children("Windscreen", "", true, false).size() == 1, "players start belted in, behind a solid windscreen")
 	check(level.rourke.global_position.distance_to(level.ROURKE_OUTSIDE) < 0.3 and level.rourke.visible, "Rourke is already waiting outside the front doors")
 	var exits: Array = level.van_seats.map(func(s): return s.exit)
@@ -1012,6 +1024,7 @@ func test_ground_floor() -> void:
 	_game().new_run(6)
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	for i in 30:
 		await physics_frame
 	var p: Player = level.player
@@ -1088,6 +1101,7 @@ func test_level_1_scene() -> void:
 	_game().new_run(7)
 	var level = load("res://scenes/level_1.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	for i in 30:
 		await physics_frame
 	check(level.doors["SRA-EXIT"].is_open == false and level.room_c_door.locked, "Server Room A's rear door and Server Room C start stuck")
@@ -1331,6 +1345,20 @@ func _crew_reads(levels: Array) -> void:
 			return
 
 
+## The ground floor's and floor 14's chapters (Ch 2 to 8) count as read on these
+## levels, for tests about something else.
+func _lower_chapters_read(levels: Array) -> void:
+	for l in levels:
+		for id in ["easy_sql_2", "easy_sql_3", "easy_sql_4", "easy_sql_5", "easy_sql_6", "easy_sql_7", "easy_sql_8"]:
+			_huddle_of(l).done[id] = true
+
+
+## Until a huddle for chapter `id` is open here (at most `seconds`).
+func _huddle_opens(level: Node, id: String, seconds: float = 30.0) -> bool:
+	var h := _huddle_of(level)
+	return await _until(func(): return h.chapter.get("id", "") == id, seconds)
+
+
 func _table(level: Node, sql: String) -> String:
 	return JSON.stringify(level.db.run_silent(sql))
 
@@ -1341,6 +1369,7 @@ func test_coop_level_0() -> void:
 	var worlds := await _coop_worlds(2)
 	check(get_multiplayer(worlds[0].get_path()).get_peers().size() == 2, "two clients connect to the host")
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var host = levels[0]
 	var c1 = levels[1]
 	var c2 = levels[2]
@@ -1429,6 +1458,7 @@ func test_coop_level_1() -> void:
 	_game().new_run(5)
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var host = levels[0]
 	var client = levels[1]
 	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
@@ -1512,6 +1542,7 @@ func test_coop_six_players() -> void:
 	var worlds := await _coop_worlds(5)
 	check(get_multiplayer(worlds[0].get_path()).get_peers().size() == 5, "five clients connect")
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	check(levels.all(func(l): return l.sync._begun and l.players.count() == 6), "all six start together and see each other")
 	var spots := {}
 	for l in levels:
@@ -1527,6 +1558,7 @@ func test_coop_tape_secret() -> void:
 	var saved: Profile = net.profile
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
 	levels[0].player.global_position = levels[0].to_global(Vector3(0, 0.1, 6))
 	levels[1].player.global_position = levels[1].to_global(Vector3(-17.5, 0.1, 4))
@@ -1552,6 +1584,7 @@ func test_coop_terminal_screens() -> void:
 	_game().new_run(5)
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var host = levels[0]
 	var c1 = levels[1]
 	var c1_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
@@ -1622,6 +1655,7 @@ func test_coop_notes_huddle() -> void:
 	_game().new_run(6)
 	var worlds := await _coop_worlds(2)
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var ids: Array = worlds.map(func(w): return get_multiplayer(w.get_path()).get_unique_id())
 	var h_id: int = ids[0]
 	var c1_id: int = ids[1]
@@ -1837,6 +1871,7 @@ func test_coop_looks() -> void:
 			"terminal": {"color": Color(0.9, 0.9, 0.9)}}, 1),
 	}
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var host_seen: PlayerPuppet = levels[1].players.puppet(host_id)
 	var c_seen: PlayerPuppet = levels[0].players.puppet(c_id)
 	check(host_seen.rig.look.shirt == Color(0.5, 0.1, 0.4) and host_seen.rig.look.sleeves == "long" and host_seen.rig.look.shoulder_pads and host_seen.rig.look.skin == CharacterLooks.SKIN_TONES[0] and host_seen.rig.look.body == 2
@@ -1957,6 +1992,7 @@ func test_coop_scripts() -> void:
 	_game().new_run(31)
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var terms: Array = levels.map(func(l): return l.find_children("*", "", true, false).filter(func(n): return n is Terminal)[0])
 	await _frames(2)
 	var rts: Array = terms.map(func(t): return t.get_meta("script_runtime") if t.has_meta("script_runtime") else null)
@@ -2057,6 +2093,7 @@ func test_coop_achievements() -> void:
 	_game().new_run(21)
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	levels[0].sync.unlock_for([1], "achievement:floor_18")
 	check(levels[0].hud._notice.text == Achievements.NOTICE % "Filed under F" + "\nUnlocked: Archive box label", "earning an achievement shows its name, then the sticker it unlocks")
 	levels[0].hud._notice.text = ""
@@ -2121,6 +2158,7 @@ func test_coop_unlocks() -> void:
 	_game().new_run(13)
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	levels[1].sync.unlock("achievement:floor_g")
 	await _frames(10)
 	check(not net.profile.has_item("head/hard_hat"), "a client can't hand out unlocks")
@@ -2202,6 +2240,7 @@ func test_coop_sitting() -> void:
 	_game().new_run(12)
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	var c_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
 	var sitter: Player = levels[1].player
 	var seen: PlayerPuppet = levels[0].players.puppet(c_id)
@@ -2231,6 +2270,7 @@ func test_coop_world() -> void:
 	_game().new_run(9)
 	var worlds := await _coop_worlds(1)
 	var machines := await _coop_load(worlds, "res://scenes/world.tscn")
+	_lower_chapters_read(machines)  # about something else: no huddle cuts in
 	var host = machines[0]
 	var client = machines[1]
 	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
@@ -2305,6 +2345,7 @@ func test_coop_lobby_walk_in() -> void:
 	_game().new_run(9)
 	var worlds := await _coop_worlds(1)
 	var m := await _coop_load(worlds, "res://scenes/world.tscn")
+	_lower_chapters_read(m)  # about something else: no huddle cuts in
 	var h = m[0].current
 	var c = m[1].current
 	h.van_seats[0].buckle.interact(m[0].player)
@@ -3476,6 +3517,7 @@ func test_world() -> void:
 	_game().new_run(5)
 	var world = load("res://scenes/world.tscn").instantiate()
 	root.add_child(world)
+	_lower_chapters_read([world])  # about something else: no huddle cuts in
 	for i in 30:
 		await physics_frame
 	var lobby = world.current
@@ -3576,6 +3618,7 @@ func test_rourke_leads_in() -> void:
 	_game().new_run(8)
 	var world = load("res://scenes/world.tscn").instantiate()
 	root.add_child(world)
+	_lower_chapters_read([world])  # about something else: no huddle cuts in
 	for i in 30:
 		await physics_frame
 	var lobby = world.current
@@ -3690,6 +3733,7 @@ func test_mercer_tape_secret() -> void:
 	var net: Node = root.get_node("/root/Net")
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	await physics_frame
 	check(not net.profile.earned.has("secret:mercer_vent_tape"), "the vent closet's secret isn't earned before the tape plays")
 	# Someone works the tape from out in the lobby.
@@ -3795,6 +3839,7 @@ func test_case_pages() -> void:
 	# In the server room: papers and plates fill the controller's page.
 	var level = load("res://scenes/level_1.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	for i in 10:
 		await physics_frame
 	level._on_asked()
@@ -3933,6 +3978,7 @@ func test_notebook() -> void:
 	_game().new_run(3)
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	for i in 10:
 		await physics_frame
 	var nb: Notebook = level.notebook
@@ -4054,6 +4100,16 @@ func test_notebook() -> void:
 	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
 	var written_text := nb.pages.section_text(NotebookPages.Page.CASES)
 	check(written_text.contains("Other notes") and written_text.contains("memo scraps") and written_text.contains("piece_no") and not written_text.contains("Sticky notes"), "lines copied with no case open go under Other notes on the Cases page, with their labels")
+	# A long case title wraps on its own page: nothing pushes the pages out over the spine.
+	_game().open_case("long_title", "Who signed in last? The book's last page is gone, and nobody owns up to it.")
+	_game().add_clue("long_title", "Rourke: the front desk scanner \"ate\" one of Vale's memos. The scanner's card might say where it went.", "Rourke")
+	nb.pages.show_page(NotebookPages.Page.CASES)
+	await process_frame
+	var page_w := (NotebookView.BOOK_SIZE.x - NotebookView.SPINE) / 2.0 - NotebookView.PAGE_INSET.x - 100
+	var within := func(page: VBoxContainer) -> bool:
+		return page.size.x <= page_w + 0.5 and page.get_children().all(func(c): return c.get_combined_minimum_size().x <= page_w)
+	check(within.call(nb.pages.book.left) and within.call(nb.pages.book.right), "a long case title and clue wrap within their page")
+	_game().notebook_cases.assign(_game().notebook_cases.filter(func(c): return c.id != "long_title"))
 	nb.close()
 	var saved: Dictionary = _game().notebook_data()
 	_game().new_run(4)
@@ -4098,6 +4154,7 @@ func test_in_world_ui() -> void:
 	_game().diegetic_ui = true
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	for i in 10:
 		await physics_frame
 	var nb: Notebook = level.notebook
@@ -4162,6 +4219,7 @@ func test_pick_up_papers() -> void:
 	_game().diegetic_ui = true
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	for i in 10:
 		await physics_frame
 	var p: Player = level.player
@@ -4272,7 +4330,7 @@ func test_pick_up_papers() -> void:
 	form.queue_free()
 	# The sticky by the keyboard can be picked up and read; desk stickies are drawn big.
 	var stickies: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Sticky note")
-	check(stickies.filter(func(d): return d.plain_text().contains("ORDER matters.")).size() == 1, "the sticky by the keyboard is a note you can pick up and read")
+	check(stickies.filter(func(d): return d.plain_text().contains("ORDER matters.") and d.is_sticky() and d.prompt == "Take the sticky note").size() == 1, "the sticky by the keyboard is a sticky note you take, not a paper you read")
 	check(stickies.any(func(d): return d.plain_text().contains("ORDER BY ... DESC") and d.position.distance_to(Vector3(-2.25, 1.102, -0.72)) < 0.5), "and the night desk's DESC reminder sits by the visitor book")
 	var desk_sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
 	check(desk_sticky.find_child("StickyNote", false, false).scale.x > 1.2, "stickies lying on the desk are drawn big enough to read standing up")
@@ -4298,6 +4356,34 @@ func test_pick_up_papers() -> void:
 			break
 		await physics_frame
 	check(_game().notebook_notes.has(id) and not is_instance_valid(sticky), "once it lands it's in the notebook, and gone from the desk")
+	# A handwritten sticky goes the same way, never up in your hands as a paper:
+	# its clue waits under Other notes until its case opens.
+	var order: Document = stickies.filter(func(d): return d.plain_text().contains("ORDER matters."))[0]
+	for i in 60:
+		if not p.is_filing() and level.notebook.is_open():
+			break
+		await physics_frame
+	level.notebook.close()
+	for i in 60:
+		await physics_frame
+	order._on_used(p)
+	check(p.held_prop == null and p.is_filing() and level.notebook.is_open() and level.notebook.pages.current_page() == NotebookPages.Page.CASES, "a handwritten sticky goes onto the Cases page, not up in your hands")
+	for i in 240:
+		if not p.is_filing():
+			break
+		await physics_frame
+	var noted: Array = _game().notebook_written.filter(func(w): return w.text.contains("ORDER matters."))
+	check(noted.size() == 1 and noted[0].case == "memo" and not is_instance_valid(order), "once it lands its clue is in the notebook for the memo case, and it's gone from the desk")
+	check(level.notebook.pages.section_text(NotebookPages.Page.CASES).contains("ORDER matters."), "kept under Other notes until the memo case opens")
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?")
+	var memo_page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
+	check(memo_page.contains("ORDER matters.") and memo_page.find("ORDER matters.") > memo_page.find("shredded memo"), "and on the memo's page once it opens")
+	# One stuck on a wall stays there; each player copies it.
+	var wall := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Sticky note", [{"text": "Bulb's dead.", "hand": true}], false, "sticky")
+	check(wall.prompt == "Copy the sticky note into your notebook", "a sticky on a wall is copied")
+	wall.take_sticky(null)
+	await physics_frame
+	check(is_instance_valid(wall) and wall.visible and wall.get_prompt(p) == "" and _game().notebook_written.any(func(w): return w.text == "Bulb's dead." and w.case == ""), "it stays on the wall, and with no case it goes under Other notes")
 	_game().diegetic_ui = false
 	level.queue_free()
 	await process_frame
@@ -5072,5 +5158,88 @@ func test_level_1_book_huddle() -> void:
 	wing.add_child(wing_reader)
 	check(h._papers().has(wing_reader), "the huddle also waits for a paper open on a wing")
 	net.profile = test_profile
+	level.queue_free()
+	await process_frame
+
+
+func test_level_0_book_huddles() -> void:
+	print("Ground floor: the book's chapters")
+	_game().new_run(6)
+	var net := root.get_node("Net")
+	var test_profile = net.profile
+	net.profile = Profile.new()
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h := _huddle_of(level)
+	_doc(level, "Visitor book").report_open(p)
+	await _frames(10)
+	check(level._books.get("easy_sql_4", "") == "found" and not h.is_busy(), "the visitor book read before the memo keeps Newest first for later")
+	level.desk_terminal.enabled = true
+	level.terminal_ui.terminal = level.desk_terminal
+	level.terminal_ui.run("SELECT * FROM memo_fragments;")
+	var nudged := func(): return Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY"))
+	check(await _huddle_opens(level, "easy_sql_2") and not nudged.call(), "the scraps printing out of order bring back Putting things in order, before SYSOP's nudge")
+	await _crew_reads([level])
+	check(h.done.has("easy_sql_2") and net.profile.earned.has("chapter:easy_sql_2"), "the crew reads it, and it's on the profile")
+	check(await _until(nudged, 5.0), "then SYSOP nudges toward ORDER BY")
+	level.terminal_ui.terminal = level.desk_terminal
+	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no;")
+	check(await _huddle_opens(level, "easy_sql_4"), "with the memo sorted, the visitor book's Newest first comes back")
+	await _crew_reads([level])
+	check(await _huddle_opens(level, "easy_sql_3", 90.0) and not level.caller_asked, "Rourke asks who called, and Just the columns you need comes back before the case opens")
+	await _crew_reads([level])
+	check(await _until(func(): return level.caller_asked, 10.0) and h.done.has("easy_sql_3") and h.done.has("easy_sql_4"), "then the caller case opens")
+	level.queue_free()
+	await process_frame
+	# Sorted straight off, without the peek: ORDER BY's chapter still comes, once,
+	# and there's nothing left for SYSOP to nudge.
+	level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	level.desk_terminal.enabled = true
+	level.terminal_ui.terminal = level.desk_terminal
+	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no;")
+	check(level.memo_puzzle.solved and await _huddle_opens(level, "easy_sql_2"), "the memo sorted without peeking still brings back the ORDER BY chapter")
+	await _crew_reads([level])
+	await _frames(30)
+	h = _huddle_of(level)
+	check(h.chapter.get("id", "") != "easy_sql_2" and not Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY")), "once, with no nudge after it")
+	level.queue_free()
+	await process_frame
+	net.profile = test_profile
+
+
+func test_level_1_book_huddles() -> void:
+	print("Floor 14: the book's chapters")
+	_game().new_run(7)
+	var level = load("res://scenes/level_1.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h := _huddle_of(level)
+	_doc(level, "RACK MONITORING").report_open(p)
+	await _frames(10)
+	check(not h.is_busy() and level._books.get("easy_sql_7", "") == "found", "the rack card read before the self-test waits")
+	_doc(level, "NOC SHIFT LOG").report_open(p)
+	check(await _huddle_opens(level, "easy_sql_5"), "the NOC shift log brings back Keeping only some rows")
+	await _crew_reads([level])
+	level._on_asked()
+	check(await _huddle_opens(level, "easy_sql_6") and level.terminal.locked, "the self-test brings back Both must be true, before the terminal opens")
+	await _crew_reads([level])
+	check(await _until(func(): return not level.terminal.locked, 5.0) and h.done.has("easy_sql_5") and h.done.has("easy_sql_6"), "then the terminal opens, the shift log's chapter not read twice")
+	_doc(level, "RACK MONITORING").report_open(p)
+	check(await _huddle_opens(level, "easy_sql_7"), "the rack card read again brings back More than, less than")
+	await _crew_reads([level])
+	var dead: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.plain_text().contains("Bulb's dead AGAIN"))[0]
+	dead.report_open(p)
+	check(await _huddle_opens(level, "easy_sql_8"), "the break room's sticky brings back Either one will do")
+	await _crew_reads([level])
+	await _until(func(): return not h.is_busy(), 10.0)  # the cut back to floor 14
+	_doc(level, "Fire interlock").report_open(p)
+	_doc(level, "LIGHTING CIRCUITS").report_open(p)
+	await _frames(20)
+	check(not h.is_busy() and ["easy_sql_7", "easy_sql_8"].all(func(id): return h.done.has(id)), "each plays once")
 	level.queue_free()
 	await process_frame
