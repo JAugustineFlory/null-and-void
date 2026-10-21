@@ -90,6 +90,7 @@ func _group_core() -> void:
 ## Ground floor (Level 0) and Rourke's tour.
 func _group_floor_g() -> void:
 	test_level_0_puzzles()
+	await test_mercer_tape_secret()
 	test_first_hints_show_working_queries()
 	await test_level_0_scene()
 	await test_ground_floor()
@@ -2882,6 +2883,7 @@ func test_world() -> void:
 			break
 		await physics_frame
 	check(world.current == sra and sra.active, "the ride up hands play to Server Room A")
+	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_g"), "finishing the ground floor earns its unlock")
 	check(sra.arrival_lift.contains(world.player.global_position), "the crew steps out of the server floor's arrival car")
 	check(sra.rourke.global_position.distance_to(sra.arrival_lift.to_global(guide_local)) < 0.2 and (not is_instance_valid(lobby.rourke) or lobby.rourke.is_queued_for_deletion()), "Server Room A's Rourke takes over where the ground floor's stood in the car")
 	for i in 10:
@@ -2917,6 +2919,7 @@ func test_world() -> void:
 	await process_frame
 	check(sra.elevator.destination == sec.arrival_lift and sec.arrival_lift.contains(world.player.global_position), "the ride carries the crew into the security wing's arrival car")
 	check(world.current == sec and sec.active, "the ride hands play to the security wing")
+	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_14"), "and finishing floor 14 earns its own")
 	await physics_frame
 	check(_game().rourke_fate == "unknown" and sec.lab.phase == "lead" and sec.lab.rourke.visible, "Rourke is still their escort, so he walks them to Vale's lab")
 	check(sec.lab.rourke.global_position.distance_to(sec.arrival_lift.to_global(rourke_up)) < 1.0 and not is_instance_valid(sra.rourke), "the Rourke who rode up from the server floor is the one who leads them on")
@@ -3054,6 +3057,25 @@ func test_visitor_badge() -> void:
 
 
 ## Every lift lobby has emergency stairs beside it, signed, and locked after hours.
+func test_mercer_tape_secret() -> void:
+	print("Mercer's tape")
+	_game().new_run(3)
+	var net: Node = root.get_node("/root/Net")
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	await physics_frame
+	check(not net.profile.earned.has("secret:mercer_vent_tape"), "the vent closet's secret isn't earned before the tape plays")
+	# On a teammate's machine their own player is out in the lobby when the tape plays.
+	level.player.global_position = level.to_global(Vector3(0, 0.1, 6))
+	level._on_tape()
+	check(not net.profile.earned.has("secret:mercer_vent_tape") and not level.tape.enabled, "a teammate outside the vent closet hears the tape but doesn't earn its secret")
+	level.player.global_position = level.to_global(Vector3(-17.5, 0.1, 4))
+	level._on_tape()
+	check(net.profile.earned.has("secret:mercer_vent_tape"), "whoever is in the closet when it plays earns it")
+	level.queue_free()
+	await process_frame
+
+
 func test_stairwells() -> void:
 	print("Stairwells by the lifts")
 	_game().new_run(3)
@@ -3068,6 +3090,9 @@ func test_stairwells() -> void:
 		var papers: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.global_position.distance_to(door.global_position) < 1.5)
 		var text := "\n".join(papers.map(func(d): return d.plain_text()))
 		check(text.contains("STAIR 1 - FLOOR %s" % floor_label) and text.contains("STAIR DOORS LOCK"), "floor %s: the placard beside it says why it's locked" % floor_label)
+		if floor_label == "G":
+			var seats: Array = level.find_children("*", "Seat", true, false).filter(func(st): return absf(st.global_position.z - 4.5) < 0.1 and absf(st.global_position.y - 0.5) < 0.05)
+			check(seats.size() == 4 and seats.all(func(st): return st.get_prompt(level.player) == "[E] Sit down"), "floor G: the lobby's four waiting chairs can be sat on")
 		level.queue_free()
 		await process_frame
 

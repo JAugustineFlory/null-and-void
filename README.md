@@ -106,6 +106,7 @@ aren't listed here yet are in [docs/changelog/](docs/changelog/).
 ### 2026-10-20
 - **Added:** block a hit in a real fight to unlock the High-tops for everyone in the crew. The garage punch bag doesn't count.
 - **Fixed:** in co-op, a teammate sitting on a chair or on the floor is shown sitting, not crouching.
+- **Added:** the lobby's waiting chairs can be sat on, and finishing the ground floor and floor 14 each unlock an item.
 - **New:** dress your character in the co-op lobby. Crew, Look and Gear tabs let you pick hair, hat, top, jacket, glasses, earrings and more, a colour for each, and the colour of your flashlight, walkie, notebook and terminal screen. A shared terminal takes the screen colour of whoever sat down first. Your name and picks are saved for next time.
 - **Added:** the crew jots down what people tell them. Spoken tasks go on the Work order, and facts go on the case page or under Other notes, so a missed line can be read back.
 - **Added:** the garage's folding chairs can be sat on.

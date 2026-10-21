@@ -37,6 +37,8 @@ var _look_base := Vector2.ZERO
 ## The air return in the lobby's west wall: its grate comes off by hand, and the
 ## duct behind it leads to a forgotten closet (an optional find and a first crawl).
 var vent_grate: Interactable
+## The forgotten closet at the end of the duct (the room around the tape's shelf).
+const VENT_CLOSET := AABB(Vector3(-20, -0.5, 1), Vector3(6, 3.1, 6))
 var _intro_started := false
 var tape: Interactable
 ## The dark east corridor's Hum.
@@ -214,6 +216,7 @@ func build() -> void:
 	# Waiting area chairs (cover, atmosphere)
 	for x in [-6.0, -4.8, 4.8, 6.0]:
 		Greybox.box(geo, Vector3(x, 0.25, 4.5), Vector3(0.9, 0.5, 0.9), Color(0.3, 0.12, 0.12), "Chair")
+		Seat.create_at(geo, Vector3(x, 0.5, 4.5), 0.0, Vector2(0.8, 0.8))  # facing the coffee table
 	Greybox.box(geo, Vector3(-5.4, 0.2, 2.8), Vector3(2.0, 0.4, 0.8), Color(0.35, 0.28, 0.2), "Table")
 
 	# East hall to the elevator bank: x 8..24, z 2..4. Halfway along, an unlit
@@ -1105,6 +1108,7 @@ func _on_crew_at_elevators() -> void:
 ## The doors are shut: the checkpoint. The server floor loads during the ride, and
 ## everyone (Rourke too) steps out of its arrival car.
 func _on_elevator_closed() -> void:
+	get_node("/root/Net").earn("achievement:floor_g", hud)  # the ground floor is done: everyone aboard earns it
 	hud.todo("")
 	if world:
 		db.checkpoint()
@@ -1247,7 +1251,11 @@ func _on_vent_grate() -> void:
 	hud.notice("Hold Ctrl to crouch, and keep holding it to crawl in.", 5.0)
 
 
-## Optional: Mercer's cassette in the forgotten closet. Everyone hears it.
+## Optional: Mercer's cassette in the forgotten closet. Everyone hears it, but
+## only whoever is in the closet when it plays earns its secret (each machine
+## checks its own player).
 func _on_tape() -> void:
 	tape.enabled = false
+	if VENT_CLOSET.has_point(to_local(player.global_position)):
+		get_node("/root/Net").earn("secret:mercer_vent_tape", hud)
 	await hud.lines(VoiceLines.ids_in_scene("l0_tape"))

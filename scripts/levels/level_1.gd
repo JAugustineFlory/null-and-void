@@ -845,6 +845,7 @@ func _on_cable_taken(id: int) -> void:
 ## The doors are shut: this is the checkpoint. The next floor loads during the ride,
 ## and the crew (Rourke too) steps out of its arrival car.
 func _on_elevator_closed() -> void:
+	get_node("/root/Net").earn("achievement:floor_14", hud)  # floor 14 is done: everyone aboard earns it
 	hud.todo("")
 	if world:
 		db.checkpoint()
