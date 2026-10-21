@@ -1805,7 +1805,7 @@ func test_coop_achievements() -> void:
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
 	levels[0].sync.unlock_for([1], "achievement:floor_18")
-	check(levels[0].hud._notice.text == Achievements.NOTICE % "Filed under F", "earning an achievement shows its name (its sticker isn't drawn yet, so nothing else)")
+	check(levels[0].hud._notice.text == Achievements.NOTICE % "Filed under F" + "\nUnlocked: Archive box label", "earning an achievement shows its name, then the sticker it unlocks")
 	levels[0].hud._notice.text = ""
 	levels[0].sync.unlock_for([1], "achievement:floor_18")
 	check(levels[0].hud._notice.text == "", "and only the first time")

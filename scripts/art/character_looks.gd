@@ -97,12 +97,15 @@ const SLOTS := {
 }
 ## Skins for things the player holds rather than wears (applied by HeldItems
 ## and the terminal, not the rig).
-const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "terminal"]
+## "sticker" and "clip" are add-ons on the notebook's cover, shown with any cover.
+const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "sticker", "clip", "terminal"]
 ## The tool items Graphics can draw, the default first.
 const TOOL_ITEMS := {
 	"flashlight": ["standard"],
 	"walkie": ["standard", "gold"],
 	"notebook": ["spiral", "easy_sql"],
+	"sticker": ["none", "archive_label"],
+	"clip": ["none", "mercer_floppy"],
 	"terminal": ["phosphor", "amber"],
 }
 ## Tool items that are a finish, not a tint: they always draw in this color,
