@@ -2,6 +2,9 @@
 
 Status: **APPROVED by Augustine 2026-10-20 03:03Z** ("Easy SQL book is approved"),
 word for word as written here. Any change to a chapter line or question goes back to him.
+Later chapters are approved the same way, word for word with their why lines, as recorded in
+`plan/approvals/floor-18-chapters-and-unlocks.md`: Ch 15 and 16 for floor 18 (2026-10-21 11:44Z, whys 11:49Z),
+and Ch 4's LIMIT and Ch 9 "How many?" (2026-10-21 12:12Z).
 Format, title pattern and rules are his choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
 
 - **Title:** *Easy SQL*. Later books follow the same pattern (*Hello HTML!*).
@@ -53,26 +56,32 @@ scenes; puzzle threads own the puzzles.
 | 1 | L0 front desk, garage flashback (required) | peek | SELECT (with *), FROM, `;` |
 | 2 | L0, after the memo prints | memo | ORDER BY, smallest first |
 | 3 | L0, Rourke's "who called?" | caller | column list, comma, `.schema` |
-| 4 | L0, visitor book (optional) | last_visitor | DESC |
+| 4 | L0, visitor book (optional) | last_visitor | DESC, LIMIT |
 | 5 | L1, NOC shift log | stuck_doors | WHERE, `=`, `'quotes'` |
 | 6 | L1, Server Room A self-test | controller | AND |
 | 7 | L1, Server Room B noise (optional) | hot_rack | `>`, `<`, numbers |
 | 8 | L1, dark break room (optional) | dark_room | OR |
-| 9 | L2 lab lockdown (elevator flashback) | lab_door, badge_log | none: review quiz |
-| 10 | L2 camera booth | cameras | GET, path, JSON |
-| 11 | L2 booth, sign-in sheet | pike | LIKE, `%` |
-| 12 | L2, Pike's PIN suspended | har | none: "one answer feeds the next" review |
-| 13 | L2 stairwell panel | door | id in the path |
-| 14 | L3, the retention review memo by the card drawers | depts | DISTINCT |
-| 15 | L3, the reader tally sheet on the records desk | tally (then visits, under threat) | COUNT(*), GROUP BY |
+| 9 | L1, the reset sign-off form | faulted_count | COUNT(*) |
+| 10 | L2 lab lockdown (elevator flashback) | lab_door, badge_log | none: review quiz |
+| 11 | L2 camera booth | cameras | GET, path, JSON |
+| 12 | L2 booth, sign-in sheet | pike | LIKE, `%` |
+| 13 | L2, Pike's PIN suspended | har | none: "one answer feeds the next" review |
+| 14 | L2 stairwell panel | door | id in the path |
+| 15 | L3, the retention review memo by the card drawers | depts | DISTINCT |
+| 16 | L3, the reader tally sheet on the records desk | tally (then visits, under threat) | GROUP BY |
 
-Floor counts: L0 has 4 puzzles. L1 has 4 (stuck_doors and dark_room landed in #96). L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
+Chapter ids: the first fourteen keep theirs (`easy_sql_0` to `easy_sql_13`, so `easy_sql_9` is now Ch 10, and so on).
+The newer ones are named for their word: `easy_sql_count` (Ch 9), `easy_sql_distinct` (Ch 15), `easy_sql_group_by`
+(Ch 16). The huddle shows a chapter's position, not its id.
+
+Floor counts: L0 has 4 puzzles. L1 has 5 (stuck_doors and dark_room landed in #96, the faulted count with curriculum B). L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
 limit; badge_log is now the har chain's first step, so it can count as part of har.
 
 Notes:
 - Ch 4 backs up the N.F. sticky by the visitor book (PR #82), the in-world place DESC is found before its hint.
 - Ch 7 fixes the other: `>` is found nowhere near the terminal before its hint.
 - Ch 8 brings in OR, which is otherwise never taught by the end of L2.
+- Ch 9 brings COUNT onto floor 14 (curriculum B). Floor 22's SYSOP and floor 18's slips station reuse it.
 - Curriculum debt stays: COLUMNS, DESC, `>` and LIKE are never needed under
   pressure by the end of L2. Level 3 should use them again.
 
@@ -172,6 +181,19 @@ at three words.
 2. Where does DESC go? A) before ORDER BY  *B) after the column name in ORDER BY  C) after the ;
 3. To see the latest times first you add... *A) DESC  B) LAST  C) nothing
 
+**LIMIT**
+- "LIMIT and a number, at the very end, keeps only that many rows from the top."
+- "With ORDER BY and DESC first, LIMIT 3 gives you the newest three."
+
+1. SELECT * FROM jobs ORDER BY fee DESC LIMIT 3; shows... A) every job except three  B) the three smallest fees  *C) the three biggest fees
+2. Where does LIMIT go? *A) at the very end, just before the ;  B) straight after SELECT  C) before ORDER BY
+3. With no ORDER BY, LIMIT 2 gives... A) the two newest rows  *B) the first two rows, in saved order  C) an error
+
+Why lines (approved 2026-10-21 12:12Z):
+1. DESC puts the biggest fee on top, and LIMIT 3 keeps the top three.
+2. LIMIT comes last, after ORDER BY, right before the ;.
+3. LIMIT keeps rows from the top. With no ORDER BY, the top is whatever was saved first.
+
 ### Ch 5. Keeping only some rows (L1, stuck_doors)
 
 The NOC log says the night alarms came from doors that won't release; querying the
@@ -244,7 +266,22 @@ The dark break room. `lights` shows its bulb 'dead'; listing every light that's
 2. With OR, a row stays when... A) both are true  *B) at least one is true  C) neither is true
 3. AND or OR to find jobs in Ashford or Bexley? A) AND  *B) OR  C) neither
 
-### Ch 9. Under pressure (L2 lab lockdown, review)
+### Ch 9. How many? (L1, the reset sign-off form, faulted_count)
+
+**COUNT(*)**
+- "SELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves."
+- "Add a WHERE and it counts only the rows that match."
+
+1. SELECT COUNT(*) FROM jobs; with 12 jobs shows... A) all 12 jobs  B) the last job  *C) one number: 12
+2. SELECT COUNT(*) FROM jobs WHERE status = 'unpaid'; counts... *A) only the unpaid jobs  B) every job  C) the unpaid fees, added up
+3. COUNT(*) goes... A) after the table name  *B) after SELECT, where the columns go  C) after WHERE
+
+Why lines (approved 2026-10-21 11:49Z, with the move here approved 12:12Z):
+1. COUNT(*) doesn't show the rows. It counts them and gives one number.
+2. WHERE picks the rows first, and COUNT(*) counts only those. It counts rows, not fees.
+3. COUNT(*) sits where the columns go, right after SELECT.
+
+### Ch 10. Under pressure (L2 lab lockdown, review)
 
 No new words. A review huddle, played as a fast elevator flashback: "Same tools as
 the server floor. Breathe."
@@ -253,7 +290,7 @@ the server floor. Breathe."
 2. To read a log in time order you add... *A) ORDER BY and the time column  B) DESC only  C) WHERE time
 3. A word value like fault goes in... A) no quotes  *B) 'single quotes'  C) brackets
 
-### Ch 10. Asking a server (L2 camera booth, cameras)
+### Ch 11. Asking a server (L2 camera booth, cameras)
 
 **GET**
 - "Some systems answer web requests, not SQL. GET asks for data."
@@ -278,7 +315,7 @@ the server floor. Breathe."
 2. "status": "open" says... *A) status is open  B) open the status  C) nothing
 3. { } holds... *A) one thing's fields  B) a list of things  C) a query
 
-### Ch 11. Half a name (L2 booth, pike)
+### Ch 12. Half a name (L2 booth, pike)
 
 **LIKE**
 - "LIKE matches a pattern instead of an exact value."
@@ -294,7 +331,7 @@ the server floor. Breathe."
 2. Where does % go to match names starting with Mac? A) '%Mac'  *B) 'Mac%'  C) 'M%ac'
 3. Does 'Ash%' match plain "Ash"? *A) yes  B) no  C) only in capitals
 
-### Ch 12. One answer feeds the next (L2, har)
+### Ch 13. One answer feeds the next (L2, har)
 
 No new words. A review huddle on chaining.
 - "Sometimes the answer isn't the answer. It's what you need for the next query."
@@ -303,7 +340,7 @@ No new words. A review huddle on chaining.
 2. A first query told you job 14 is the one. To get its client you type... A) SELECT 14;  *B) SELECT client FROM jobs WHERE job_no = 14;  C) ORDER BY 14
 3. A log sorted by time shows the last person through a door at the... A) top  *B) bottom  C) middle
 
-### Ch 13. One door's record (L2 stairwell panel, door)
+### Ch 14. One door's record (L2 stairwell panel, door)
 
 **id in the path**
 - "Add an id to the path to ask about one thing: GET /jobs/14."
@@ -314,22 +351,21 @@ No new words. A review huddle on chaining.
 
 ### Floor 18 chapters: APPROVED by Augustine word for word (2026-10-21 11:44Z, "Approve all")
 
-Recorded in `plan/approvals/floor-18-chapters-and-unlocks.md`. Chapter ids: `easy_sql_distinct` (Ch 14) and
-`easy_sql_group_by` (Ch 15); the old chapters keep their ids. Their "why" lines were approved at 11:49Z and sit under each word.
+Recorded in `plan/approvals/floor-18-chapters-and-unlocks.md`. Chapter ids: `easy_sql_distinct` (Ch 15) and
+`easy_sql_group_by` (Ch 16); the old chapters keep their ids. Their "why" lines were approved at 11:49Z and sit under each word.
 
-Chapters 14 and 15 are for floor 18, the end of Act 1 (curriculum option B). Level 3's draft titles are kept. The
+Chapters 15 and 16 are for floor 18, the end of Act 1 (curriculum option B). Level 3's draft titles are kept. The
 book's rules apply, so each word gets three questions, not the two in Level 3's draft. Nothing here names a building
 table, room or value; the examples are the crew's `jobs` and `van_kit`.
 
-- **The slips station has no huddle.** It counts without groups, and Level 3 marks it as review. COUNT is found on
-  floor 22 (SYSOP's camera screen) and on 18's clerk's sticky. Chapter 15 is where the book first explains it.
-- **When the floor 14 COUNT chapter lands** (curriculum B), the COUNT(*) lines and questions below move there word
-  for word. Chapter 15 then keeps GROUP BY only.
+- **The slips station has no huddle.** It counts without groups, and it's review: Ch 9 teaches COUNT on floor 14.
+- **COUNT(*) moved to Ch 9** word for word, with its whys (approved 2026-10-21 12:12Z). Ch 16 keeps GROUP BY; its
+  lines still say "With COUNT(*)", which is now review.
 - **IS NULL deliberately has no chapter.** The crew looks it up on Mercer's reference card.
-- **Ordering by a count.** Chapter 15's third GROUP BY line covers `ORDER BY COUNT(*) DESC`. No paper on 18 shows
+- **Ordering by a count.** Chapter 16's third GROUP BY line covers `ORDER BY COUNT(*) DESC`. No paper on 18 shows
   it, and the night's count under threat needs it. Approved with the rest.
 
-### Ch 14. One of each (L3, the retention review memo, depts)
+### Ch 15. One of each (L3, the retention review memo, depts)
 
 **DISTINCT**
 - "DISTINCT goes straight after SELECT. Each different value comes back once, however many rows share it."
@@ -344,20 +380,7 @@ Why lines (approved 2026-10-21 11:49Z; the huddle shows one after each vote):
 2. DISTINCT goes right after SELECT, before the column it works on.
 3. WHERE keeps the open jobs first. Then DISTINCT shows each of their towns once.
 
-### Ch 15. Counting in piles (L3, the reader tally sheet, tally)
-
-**COUNT(*)**
-- "SELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves."
-- "Add a WHERE and it counts only the rows that match."
-
-1. SELECT COUNT(*) FROM jobs; with 12 jobs shows... A) all 12 jobs  B) the last job  *C) one number: 12
-2. SELECT COUNT(*) FROM jobs WHERE status = 'unpaid'; counts... *A) only the unpaid jobs  B) every job  C) the unpaid fees, added up
-3. COUNT(*) goes... A) after the table name  *B) after SELECT, where the columns go  C) after WHERE
-
-Why lines (approved 2026-10-21 11:49Z):
-1. COUNT(*) doesn't show the rows. It counts them and gives one number.
-2. WHERE picks the rows first, and COUNT(*) counts only those. It counts rows, not fees.
-3. COUNT(*) sits where the columns go, right after SELECT.
+### Ch 16. Counting in piles (L3, the reader tally sheet, tally)
 
 **GROUP BY**
 - "GROUP BY sorts the rows into piles, one pile for each different value in a column. It goes after the table name and any WHERE."
