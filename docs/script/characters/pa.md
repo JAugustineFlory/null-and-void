@@ -15,7 +15,7 @@ WARDEN's pre-recorded PA tapes: the building computer's canned announcements, pl
 
 Send the files back as they are. They go in `audio/voice/pa/` in the game.
 
-## Your lines (3)
+## Your lines (5)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -33,3 +33,12 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [x] `l0_sort_hint.wav`  
   "Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon!"  
   *From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening.*
+
+### 3. A mechanical floor full of breakers and door controllers. The building's computer watches you work, over the ceiling speakers, between its own cheerful pre-recorded announcements.
+
+- [ ] `l4_arrive_pa.wav`  
+  "Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job!"  
+  *The cheerful recorded tape, as on the ground floor.*
+- [ ] `l4_pa_fridge.wav`  
+  "Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch—"  
+  *The cheerful recorded tape. It keeps playing underneath when he talks over it.*
