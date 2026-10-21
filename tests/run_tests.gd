@@ -169,6 +169,7 @@ func _group_coop() -> void:
 	await test_coop_unlocks()
 	await test_coop_achievements()
 	await test_coop_scripts()
+	await test_coop_pregame_lobby()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -1725,12 +1726,15 @@ func test_coop_looks() -> void:
 	check(not again.loadout.has("head"), "an item you don't own can't be worn by editing the save")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
-	# The lobby: Crew, Look and Gear tabs, and a preview of your pick.
+	# The lobby: Crew, Look and Gear tabs, and your own figure in front of the garage wears your pick.
 	net.profile = Profile.new()
 	net.profile.earned = ["secret:roster_thu"]
+	net.roster = {1: "Host"}
 	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(lobby)
 	await process_frame
+	lobby.stage.finish_intro()
+	var own_rig := func() -> CharacterRig: return lobby.stage.figures[1].get_node("Rig")
 	var tabs: TabContainer = lobby.find_child("Customize", true, false)
 	check(tabs != null and tabs.get_tab_count() == 4 and tabs.get_tab_title(0) == "Crew" and tabs.get_tab_title(1) == "Look" and tabs.get_tab_title(2) == "Gear" and tabs.get_tab_title(3) == "Achievements", "the picker has Crew, Look, Gear and Achievements tabs")
 	lobby.find_child("Skin6", true, false).pressed.emit()
@@ -1749,19 +1753,20 @@ func test_coop_looks() -> void:
 	var tops: ColorPickerButton = lobby.find_child("Color_top", true, false)
 	tops.color = Color(0.9, 0.5, 0.1)
 	tops.color_changed.emit(tops.color)
-	check(lobby.picker._preview_rig.look.shirt == Color(0.9, 0.5, 0.1) and not net.wanted_look.has("top"), "the figure follows the color picker as it moves")
+	check(own_rig.call().look.shirt == Color(0.9, 0.5, 0.1) and not net.wanted_look.has("top"), "your figure follows the color picker as it moves")
 	tops.popup_closed.emit()
 	var term: ColorPickerButton = lobby.find_child("Color_terminal", true, false)
 	term.color = Color(1, 0.75, 0.2)
 	term.popup_closed.emit()
 	await process_frame
-	var shown: Dictionary = lobby.picker._preview_rig.look
+	var shown: Dictionary = own_rig.call().look
 	check(lobby.my_look().crew == "kit" and shown.shirt == Color(0.9, 0.5, 0.1) and shown.skin == CharacterLooks.SKIN_TONES[5] and shown.body == 2 and shown.headwear == "beanie" and shown.tools.terminal.color == Color(1, 0.75, 0.2),
-		"crew member, skin, hat, colors and gear show on the figure turning in the preview")
+		"crew member, skin, hat, colors and gear show on your figure")
 	check(net.profile.loadout == net.wanted_look and net.wanted_look.keys().size() == 5, "and are saved to your profile (only what you changed)")
-	check(lobby.find_child("CrewCaption", true, false).text.begins_with("Kit Larsen, 20s") and lobby.find_child("Crew_kit", true, false).text == "Kit", "with who they are underneath")
+	check(lobby.find_child("Crew_kit", true, false).text == "Kit", "with who they are on the crew buttons")
 	check(lobby.find_child("Color_face", true, false).disabled and not lobby.find_child("Color_head", true, false).disabled, "an empty slot has no color to pick")
 	lobby.queue_free()
+	net.roster = {}
 	net.profile = Profile.new()
 	check(net.earn("achievement:test") == ["head/hard_hat"], "earning an achievement unlocks its item")
 	Cosmetics.reset()
@@ -1789,6 +1794,7 @@ func test_coop_looks() -> void:
 	await process_frame
 	check(net.profile.loadout.crew == "mei" and net.profile.loadout.skin == 2 and solo_picker._preview_rig.look.skin == CharacterLooks.SKIN_TONES[2],
 		"picks show on the figure and are saved to the profile, with nobody connected")
+	check(custom.find_child("CrewCaption", true, false).text.begins_with(PlayableCrew.info("mei").name), "with who they are underneath")
 	custom.queue_free()
 	await process_frame
 	_game().new_run(8)
@@ -1845,6 +1851,69 @@ func test_coop_looks() -> void:
 
 ## Deck scripts in co-op (S4): the host runs them, everyone sees the same run,
 ## anyone can stop one, and what a script changes reaches every copy.
+## The pre-game lobby in front of the garage: walk in, pose, customize, ready up.
+func test_coop_pregame_lobby() -> void:
+	print("Co-op: the pre-game lobby")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()
+	net.wanted_look = {}
+	# The host keeps who's ready and how each player stands.
+	net.roster = {1: "Host", 55: "Ana", 77: "Bo"}
+	net.looks = {}
+	net.lobby = {}
+	check(net.lobby_of(1) == {"ready": false, "pose": 0} and net.lobby_of(55).pose == 1 and net.lobby_of(77).pose == 2,
+		"nobody starts ready, and neighbours stand differently")
+	net._assign_lobby(55, {"ready": true})
+	net._assign_lobby(77, {"ready": "yes", "pose": 99})
+	check(net.lobby_of(55).ready and not net.lobby_of(77).ready and net.lobby_of(77).pose == 99 % Net.LOBBY_POSES.size() and not net.all_ready(),
+		"the host takes a ready and a pose, ignores junk, and waits for everyone")
+
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var stage: LobbyStage = lobby.stage
+	check(lobby.find_child("Welcome", true, false).text == "Welcome to Byte-Right IT!" and stage.camera.position.y > 30.0
+		and not lobby._side.visible, "it opens on the sky under the welcome, before any menus")
+	check(stage.figures.size() == 3 and stage.figures.values().all(func(f): return absf(f.position.x) > LobbyStage.ENTRY_X - 0.5),
+		"each player in the session walks in from the edge of the shot")
+	var key := InputEventKey.new()
+	key.keycode = KEY_SPACE
+	key.pressed = true
+	lobby._input(key)
+	check(stage.intro_done and stage.camera.transform.is_equal_approx(LobbyStage.LOBBY_SHOT) and lobby._side.visible, "a key skips to the garage front, and the menus show")
+	Engine.time_scale = 5.0
+	await create_timer(7.0).timeout  # game time: walking in from the edge takes a few seconds
+	Engine.time_scale = 1.0
+	var host_fig: Node3D = stage.figures[1]
+	check(stage.figures.keys().all(func(id): return stage.figures[id].position.is_equal_approx(LobbyStage.MARKS[net.lobby_index(id)])),
+		"and stops on their own mark, host first")
+	check(host_fig.get_node("Rig").action == LobbyStage.POSE_ACTIONS["wave"] and stage.figures[77].get_node("Rig").action == LobbyStage.POSE_ACTIONS[Net.LOBBY_POSES[net.lobby_of(77).pose]],
+		"then strikes their pose")
+	check(stage.figures[55].get_node("Tag").text == "Ana\nReady" and host_fig.get_node("Tag").text == "Host", "a name over each head, and who's ready")
+	check(lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (1/3)" and lobby.find_child("Host", true, false).is_visible_in_tree() == false,
+		"the menu counts who's ready, and hosting or joining is done")
+	lobby.find_child("ChangePose", true, false).pressed.emit()
+	check(net.lobby_of(1).pose == 1 and host_fig.get_meta("pose") == Net.LOBBY_POSES[1] and host_fig.get_node("Rig").action == LobbyStage.POSE_ACTIONS[Net.LOBBY_POSES[1]],
+		"Change pose changes how you stand, straight away")
+	var ready: Button = lobby.find_child("Ready", true, false)
+	ready.button_pressed = true
+	check(net.lobby_of(1).ready and host_fig.get_node("Tag").text == "Host\nReady", "Ready marks you ready for everyone")
+	net._assign_lobby(77, {"ready": true})
+	check(net.all_ready() and lobby._all_ready_for == 0.0, "once everyone is, the game can start (the host starts it when online)")
+	net._on_peer_disconnected(55)
+	await process_frame
+	check(not stage.figures.has(55) and not net.lobby.has(55) and stage.figures.size() == 2, "a player who leaves goes from the apron")
+	ready.button_pressed = false
+	check(not net.lobby_of(1).ready and not net.all_ready(), "and you can take your ready back")
+	lobby.queue_free()
+	await process_frame
+	net.roster = {}
+	net.looks = {}
+	net.lobby = {}
+	net.profile = real_profile
+
+
 func test_coop_scripts() -> void:
 	print("Co-op: deck scripts")
 	_game().new_run(31)
