@@ -1,1 +1,1 @@
-- **Added:** two notebook add-ons to earn: an archive box label that sticks up from the cover like an index tab, and a floppy disk clipped to the back cover. They go on any cover.
+- **Added:** the archive box label for your notebook is drawn: it sticks up from the cover like an index tab, and goes on any cover.
