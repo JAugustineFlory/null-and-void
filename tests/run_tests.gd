@@ -130,6 +130,7 @@ func _group_floor_18() -> void:
 	await test_level_3_scene()
 	await test_level_3_safe_room()
 	await test_level_3_shredder()
+	await test_level_3_book_huddles()
 	await test_level_3_stairs_from_22()
 	await test_coop_level_3()
 
@@ -4476,5 +4477,45 @@ func test_level_3_shredder() -> void:
 	check(p.health <= start_health - Shredder.THROW_DAMAGE + 0.01 and p.health > 0.0 and not p.combat.down, "thrown: heavy damage, but one throw doesn't put you down from full health (%.0f)" % p.health)
 	check(level.to_local(p.global_position).distance_to(Vector3(1.0, 0.1, -23.5)) > 2.0 and p.combat.grabbed_by == null, "you land well away from it, out of its hands")
 	check(s.held == null and s.state != "grabbing", "after the throw it has let go, and goes back to listening for you (%s)" % s.state)
+	level.queue_free()
+	await process_frame
+
+
+func test_level_3_book_huddles() -> void:
+	print("Level 3: the book's floor 18 chapters")
+	_game().new_run(11)
+	var net := root.get_node("Net")
+	var test_profile = net.profile
+	net.profile = Profile.new()
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	var h := _huddle_of(level)
+	_doc(level, "Retention review memo").open_reader(p).close()
+	for i in 300:  # the cut to the garage
+		if h.is_running():
+			break
+		await physics_frame
+	check(h.chapter.get("id", "") == "easy_sql_distinct" and p.input_locked, "reading the memo on the card catalogue brings back the DISTINCT chapter, round the garage bench")
+	check(not level.shredder.is_physics_processing(), "the Shredder stands still while the crew is in the huddle")
+	_doc(level, "Reader tally").open_reader(p).close()
+	await _frames(5)
+	check(h.chapter.get("id", "") == "easy_sql_distinct", "the tally read mid-huddle waits its turn")
+	await _crew_reads([level])
+	if not h.done.has("easy_sql_group_by"):
+		check(not level.shredder.is_physics_processing(), "between the two huddles the Shredder still stands still")
+		await _crew_reads([level])
+	check(h.done.has("easy_sql_distinct") and h.done.has("easy_sql_group_by"), "then the tally brings back the COUNT and GROUP BY chapter")
+	check(net.profile.earned.has("chapter:easy_sql_distinct") and net.profile.earned.has("chapter:easy_sql_group_by"), "both chapters are on the reader's profile")
+	for i in 120:  # the cut back to floor 18
+		if level.shredder.is_physics_processing():
+			break
+		await physics_frame
+	check(level.shredder.is_physics_processing() and not p.input_locked, "afterwards the Shredder can move again, and so can the crew")
+	_doc(level, "Retention review memo").open_reader(p).close()
+	await _frames(10)
+	check(not h.is_running(), "reading the memo again doesn't repeat the chapter")
+	net.profile = test_profile
 	level.queue_free()
 	await process_frame
