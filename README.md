@@ -113,6 +113,7 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 - **Added:** something on floor 18 hunts by sound. Sprint, land hard or turn a crank and it hears you; crouch and move slowly and it doesn't. It can't be blocked, so climb.
 - **Added:** new puzzles at the records desk teach four more SQL words, each found first on papers around the floor. Any correct form of an answer is accepted.
 - **Added:** finish floor 18 to unlock a new notebook sticker in the co-op lobby.
+- **Added:** the archive box label for your notebook is drawn: it sticks up from the cover like an index tab, and goes on any cover.
 - **Added:** hint ladders for every station on floor 18, and tips on its desk terminal.
 - **Added:** two new Easy SQL chapters, DISTINCT and GROUP BY, read with the crew on floor 18.
 - **Added:** Easy SQL teaches LIMIT in "Newest first", and has a new chapter on COUNT.
