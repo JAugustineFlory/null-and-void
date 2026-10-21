@@ -25,6 +25,8 @@ var _gates := {}
 ## Shares what's on each terminal's screen: seats, typed lines, commands.
 var mirror: TerminalMirror
 var huddle: NotesHuddle
+## Deck scripts: run on the host, seen by everyone.
+var scripts: ScriptHost
 
 
 static func create(for_level: Node) -> LevelSync:
@@ -34,6 +36,7 @@ static func create(for_level: Node) -> LevelSync:
 	for_level.add_child(s)
 	s.mirror = TerminalMirror.create(s)
 	s.huddle = NotesHuddle.create(s)
+	s.scripts = ScriptHost.create(s)
 	return s
 
 
