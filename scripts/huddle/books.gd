@@ -15,6 +15,9 @@ extends RefCounted
 ## (plan/teaching/easy-sql-whys.md) at 11:49Z. Curriculum B (12:12Z): LIMIT joins
 ## Newest first, and COUNT(*) moved word for word from Counting in piles into its
 ## own chapter, How many?, for floor 14.
+## Chapter zero's table and row questions that leaned on SELECT and FROM before
+## Ch 1 teaches them were replaced, with their why lines, word for word at 18:54Z
+## (plan/teaching/ground-floor-playtest-teaching.md, item 10).
 ##
 ## Chapter ids never change once shipped: profiles keep "chapter:<id>". The number
 ## shown is the chapter's place in the list, so a chapter added in the middle
@@ -53,16 +56,16 @@ const BOOKS := {
 					"To get anything out of a database, you ask it a question. The questions are written in SQL.\n\nChapter 1 is your first question.",
 				],
 				"quiz": [
-					{"word": "table", "q": "Where does a table's name go in a query?",
-						"options": ["after SELECT", "after FROM", "after the ;"], "answer": 1, "why": ""},
+					{"word": "table", "q": "What are jobs and van_kit?",
+						"options": ["two rows", "two tables", "two columns"], "answer": 1, "why": "Each is a whole table: jobs holds the jobs, and van_kit holds the kit."},
 					{"word": "table", "q": "Which looks like a table name?",
 						"options": ["van kit", "van_kit", "Van Kit!"], "answer": 1, "why": ""},
 					{"word": "table", "q": "Where would you find a table's name in a building?",
 						"options": ["on a label, card or screen nearby", "the book tells you", "you guess"], "answer": 0, "why": ""},
 					{"word": "row", "q": "In jobs, one row is...",
 						"options": ["one job", "one column", "the whole table"], "answer": 0, "why": ""},
-					{"word": "row", "q": "SELECT * FROM jobs; with 5 jobs shows how many rows?",
-						"options": ["1", "3", "5"], "answer": 2, "why": ""},
+					{"word": "row", "q": "jobs has 5 jobs in it. How many rows is that?",
+						"options": ["1", "3", "5"], "answer": 2, "why": "One job is one row, so five jobs make five rows."},
 					{"word": "row", "q": "A row goes...",
 						"options": ["across", "down", "nowhere"], "answer": 0, "why": ""},
 					{"word": "column", "q": "A column goes...",

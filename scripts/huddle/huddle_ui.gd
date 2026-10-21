@@ -14,6 +14,7 @@ const WRONG := Color(0.7, 0.15, 0.1)
 const SEPIA := Color(1.0, 0.84, 0.62)
 
 var huddle: Huddle
+var _hud: Node
 var flashback := false
 var _title: Label
 var _body: RichTextLabel
@@ -67,6 +68,9 @@ func _ready() -> void:
 	sb.content_margin_bottom = 24
 	panel.add_theme_stylebox_override("panel", sb)
 	add_child(panel)
+	_hud = huddle.level.get("hud") if huddle.level else null
+	if _hud:
+		_hud.subtitles_clear_of_right(-panel.offset_left)  # lines read over the book stay readable
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
@@ -211,3 +215,8 @@ static func _bbcode(text: String) -> String:
 		var safe := line.replace("[", "[lb]")
 		out.append("[code]%s[/code]" % safe if line.begins_with("    ") else safe)
 	return "\n".join(out)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_hud):
+		_hud.subtitles_clear_of_right(0)
