@@ -1,6 +1,6 @@
 # Recording list
 
-1404 lines in all.
+1418 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -103,7 +103,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
 | [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (26 lines)
+## WARDEN (38 lines)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
@@ -135,8 +135,20 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l4_write_refused` | WRITE REFUSED. THE DATABASE IS READ-ONLY UNDER PROTOCOL EPSILON. | The automatic announcement: flat and procedural, the system reading its own error. Also printed on the terminal. | Level 4, later |
 | [ ] | `l4_write_refused_tease` | YOU MAY STILL LOOK. LOOKING IS FREE. | A separate beat, after a pause: WARDEN himself slipping through the announcement. Dry and teasing, a little pleased with himself. Still never loud. | Level 4, later |
 | [ ] | `l4_write_refused_again` | STILL READ-ONLY. | Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat. | Level 4, later |
+| [ ] | `l4_arrive` | VISITORS ON FLOOR TEN. NO ESCORT ON RECORD. THIS UNIT IS OBSERVING. | Flat. Waits until the tape has finished, on purpose; the politeness is the point. | Level 4, later |
+| [ ] | `l4_all_circuits` | ALL CIRCUITS ON FLOOR TEN HAVE CHANGED STATE. | The automatic announcement: flat and procedural. | Level 4, later |
+| [ ] | `l4_all_circuits_tease` | ALL OF THEM. IMPRESSIVE. | A separate beat, after a pause: his own voice. Dry. | Level 4, later |
+| [ ] | `l4_signed_in` | CONTRACTOR LOG ENTRY RECEIVED. THANK YOU FOR SIGNING IN. | The automatic announcement only. Polite, procedural. | Level 4, later |
+| [ ] | `l4_upgrade_1` | CONTAINMENT FAILURE LOGGED. PROTOCOLS REVISED. THIS UNIT HAS ADAPTED. | The automatic announcement: flat, like reading a log entry. | Level 4, later |
+| [ ] | `l4_upgrade_2` | I HAVE ADAPTED. | After a long pause, his own voice. As if trying the word out, then deciding to keep it. Quiet. This is the moment, so don't play it big. | Level 4, later |
+| [ ] | `l4_over_pa_1` | SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT. | The automatic announcement, over the tape. He doesn't wait for it any more. | Level 4, later |
+| [ ] | `l4_over_pa_2` | NOBODY CARES ABOUT THE FRIDGE. | His own voice, over the tape. Irritated, dry. | Level 4, later |
+| [ ] | `l4_bay_sealed` | LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED. | The automatic announcement: flat and procedural. | Level 4, later |
+| [ ] | `l4_bay_sealed_tease` | FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. | A separate beat, his own voice. Almost pleased. | Level 4, later |
+| [ ] | `l4_stairs` | REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. | The automatic announcement: a routine safety reminder. | Level 4, later |
+| [ ] | `l4_stairs_tease` | NOT THAT YOU COULD. | A separate beat, his own voice. Teasing; the lifts are already off. | Level 4, later |
 
-## WARDEN (PA tapes) (3 lines)
+## WARDEN (PA tapes) (5 lines)
 
 > A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.
 
@@ -145,6 +157,8 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [x] | `l0_pa_1` | Good evening! Halcyon Data Systems is now closed. | Over the lobby PA, as the crew steps inside. Pleasant, like a store closing announcement. | Level 0 |
 | [x] | `l0_pa_2` | Visitors must remain with their escort at all times. Thank you for your cooperation! | Same announcement, continuing. | Level 0 |
 | [x] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
+| [ ] | `l4_arrive_pa` | Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! | The cheerful recorded tape, as on the ground floor. | Level 4, later |
+| [ ] | `l4_pa_fridge` | Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch— | The cheerful recorded tape. It keeps playing underneath when he talks over it. | Level 4, later |
 
 ## Dr. Iris Vale (3 lines)
 

@@ -15,7 +15,7 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 
 Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
-## Your lines (26)
+## Your lines (38)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -120,3 +120,45 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l4_write_refused_again.wav`  
   "STILL READ-ONLY."  
   *Any later attempt: the automatic announcement again, clipped short so it doesn't get in the way. Flat.*
+
+### 9. A mechanical floor full of breakers and door controllers. The building's computer watches you work, over the ceiling speakers, between its own cheerful pre-recorded announcements.
+
+- [ ] `l4_arrive.wav`  
+  "VISITORS ON FLOOR TEN. NO ESCORT ON RECORD. THIS UNIT IS OBSERVING."  
+  *Flat. Waits until the tape has finished, on purpose; the politeness is the point.*
+- [ ] `l4_all_circuits.wav`  
+  "ALL CIRCUITS ON FLOOR TEN HAVE CHANGED STATE."  
+  *The automatic announcement: flat and procedural.*
+- [ ] `l4_all_circuits_tease.wav`  
+  "ALL OF THEM. IMPRESSIVE."  
+  *A separate beat, after a pause: his own voice. Dry.*
+- [ ] `l4_signed_in.wav`  
+  "CONTRACTOR LOG ENTRY RECEIVED. THANK YOU FOR SIGNING IN."  
+  *The automatic announcement only. Polite, procedural.*
+- [ ] `l4_upgrade_1.wav`  
+  "CONTAINMENT FAILURE LOGGED. PROTOCOLS REVISED. THIS UNIT HAS ADAPTED."  
+  *The automatic announcement: flat, like reading a log entry.*
+- [ ] `l4_upgrade_2.wav`  
+  "I HAVE ADAPTED."  
+  *After a long pause, his own voice. As if trying the word out, then deciding to keep it. Quiet. This is the moment, so don't play it big.*
+- [ ] `l4_over_pa_1.wav`  
+  "SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT."  
+  *The automatic announcement, over the tape. He doesn't wait for it any more.*
+- [ ] `l4_over_pa_2.wav`  
+  "NOBODY CARES ABOUT THE FRIDGE."  
+  *His own voice, over the tape. Irritated, dry.*
+- [ ] `l4_bay_sealed.wav`  
+  "LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED."  
+  *The automatic announcement: flat and procedural.*
+- [ ] `l4_bay_sealed_tease.wav`  
+  "FINALLY. SOMETHING PUT BACK WHERE IT BELONGS."  
+  *A separate beat, his own voice. Almost pleased.*
+
+### 10. Back on the ground floor, the building locked tight. As you give up on the front doors and head for the stairs, the building's computer has a reminder for you.
+
+- [ ] `l4_stairs.wav`  
+  "REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS."  
+  *The automatic announcement: a routine safety reminder.*
+- [ ] `l4_stairs_tease.wav`  
+  "NOT THAT YOU COULD."  
+  *A separate beat, his own voice. Teasing; the lifts are already off.*
