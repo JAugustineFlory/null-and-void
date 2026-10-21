@@ -26,6 +26,8 @@ const ITEMS := {
 	"screwdriver": {"name": "Screwdriver", "about": "Flat-head. Undoes screws: grates, panels, covers."},
 	"cable": {"name": "Network cable", "about": "A coil of Cat5. Strong enough to tie someone up."},
 	"visitor_badge": {"name": "Visitor badge", "about": "Clipped on. Card readers upstairs want to see it."},
+	"floppy_disk": {"name": "Floppy disk", "about": "3.5\", hand-labelled. The first thing in this building that isn't on its network."},
+	"stair_key": {"name": "Key ring", "about": "Brass. STAIR 1 / 18. Opens the stairwell door on floor 18."},
 }
 
 ## Every item carried, in the order picked up (the fixed ones first).
