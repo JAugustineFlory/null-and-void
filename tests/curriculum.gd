@@ -242,6 +242,15 @@ const PUZZLES := {
 		"teaches": ["INSERT INTO", "VALUES", "contractor_log"],
 		"needs": ["INSERT INTO", "VALUES", "contractor_log"],
 	},
+	# The log read back: the log-in counts once the crew has seen its row (verify after
+	# write, practised safely on every route). SELECT * is long practised: a review ladder.
+	"login_read": {
+		"level": 4,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "contractor_log"],
+	},
 	# The control room's second way in: the gantry arm moved by UPDATE to the bay under
 	# the access panel (the gantry card numbers the bays). Optional, practised safely.
 	"gantry": {

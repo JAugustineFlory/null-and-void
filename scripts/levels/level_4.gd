@@ -74,6 +74,8 @@ const TEXT := {
 	"power_done": "Facilities' work order: the PLANT CONTROL breaker, %s, was tripped. Reset, and read back as on.",
 	"login_done": "Logged in on the controller as %s, %s, at %s.",
 	"alarm": "Every breaker on the panel slams over at once. An alarm starts somewhere in the walls.",
+	"alarm_few": "Breakers clunk over. An alarm starts somewhere in the walls.",
+	"alarm_one": "A breaker clunks over. An alarm starts somewhere in the walls.",
 	"alarm_over": "The alarm stops.",
 	"bay_stirs": "Behind the charging bay's door, something powers up.",
 	"bay_quiet": "Behind the bay door, the hum winds down.",
@@ -87,11 +89,13 @@ const TEXT := {
 	"case_seal": "Can the Custodian be shut in its bay?",
 	"seal_done": "The CHARGING BAY breaker, %s, is locked out and read back. The Custodian is dark for good.",
 	"lockout_logged": "Lockout logged. Read it back at the bay's panel within %d seconds.",
-	"lockout_lapsed": "The lockout lapsed: nobody read it back in time.",
+	"lockout_lapsed": "The lockout lapsed: nobody read it back at the bay's panel in time.",
 	"sealed": "The Custodian's light goes out. It doesn't move again.",
 	"power_cut": "The Custodian's light dies. It sags where it stands.",
 	"power_returns": "The bay breaker snaps back on. Its light comes back.",
 	"refused_login": "DOOR AND LIFT CONTROL: NO CONTRACTOR LOGGED IN. LOG IN FIRST (contractor_log).",
+	"refused_readback": "DOOR AND LIFT CONTROL: LOG-IN NOT READ BACK. READ IT BACK FIRST (contractor_log).",
+	"todo_login_read": "Read the log back, or the log-in doesn't count",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
 	"gantry_moves": "Overhead, the gantry hums along its rail.",
 	"gantry_docks": "The gantry docks under the access panel. Its latch lets go and the panel slides up.",
@@ -121,6 +125,7 @@ const TEXT := {
 	"tip_order": "that row went in, but its values are in the wrong columns. they line up with the columns you named: company, job, time_in.",
 	"tip_count": "the log has four columns and log_no fills itself in. name the three you're filling: (company, job, time_in).",
 	"tip_quotes": "a word without 'quotes' reads as a column name. text goes in single quotes, like the clipboard says.",
+	"tip_dock": "that's not the front doors, and its note says why it can't let you out: SELECT * FROM gates; the front doors are the card's last line.",
 }
 ## Facilities' work order on the maintenance desk: where UPDATE ... SET ... WHERE is
 ## found. Its example is last month's job on another breaker, so copying it practises
@@ -254,6 +259,9 @@ var alarm := false
 var bay_powered := false
 var power_back := false
 var logged_in := false
+var _huddles := 0  # book huddles open or waiting their turn
+## What the alarm said when it last started (the lot, several, or one breaker).
+var alarm_line := ""
 var bay_terminal: Terminal
 var custodian: Custodian
 var exit_trigger: Trigger
@@ -304,6 +312,7 @@ var reset_puzzle: StatePuzzle
 var put_back_puzzle: StatePuzzle
 var check_puzzle: Puzzle
 var login_puzzle: StatePuzzle
+var login_read_puzzle: Puzzle
 var main_doors_puzzle: StatePuzzle
 var lockout_puzzle: StatePuzzle
 var readback_puzzle: Puzzle
@@ -440,6 +449,16 @@ func _make_puzzles() -> void:
 		"then read the log back: SELECT * FROM contractor_log;",
 	])
 	login_puzzle.case_id = "login"
+	# The log-in counts once it's read back (verify after write, practised safely on
+	# every route). Any read of the log that shows the crew's row answers it.
+	login_read_puzzle = Puzzle.new("login_read", "SELECT company, job, time_in FROM contractor_log", ["company", "job", "time_in"], false, [
+		"the shape: read the log back, with the table left as ?:\n" +
+		"    [color=#ffffff]SELECT * FROM ?;[/color]\n" +
+		"? is the table you just added your row to.",
+		"type this, then Enter:\n" +
+		"    [color=#ffffff]SELECT * FROM contractor_log;[/color]",
+	])
+	login_read_puzzle.case_id = "login"
 	main_doors_puzzle = StatePuzzle.new("main_doors", "UPDATE doors SET locked = 0 WHERE id = 'main_doors'",
 		"SELECT locked FROM doors WHERE id = 'main_doors'", "SELECT 0 AS locked", ["locked"], [
 		"the shape, with the door left as ?:\n" +
@@ -461,7 +480,7 @@ func _make_puzzles() -> void:
 		"  INSERT INTO lockouts   add a lockout\n" +
 		"  (breaker, company, job)   the columns you're filling\n" +
 		"  VALUES (...)   the values, in the same order\n" +
-		"the first ? is the charging bay's breaker id. the second ? is your work order's number.",
+		"the first ? is the charging bay's breaker id. the second ? is your own work order's number (Byte-Right's, in your notebook).",
 		"type\n" +
 		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
 		"the CHARGING BAY row's id is the first ?. then someone reads the lockout back at the bay's own panel, fast.",
@@ -585,7 +604,9 @@ func _build_hall(colors: Dictionary) -> void:
 	maint.queried.connect(_on_query.bind("maint"))
 	var wo := Document.place(geo, Vector3(-5.3, 1.0, 1.6), 0, "Facilities work order", WORK_ORDER_LINES, true, "clipboard")
 	wo.clues = [{"case": "power", "opens": TEXT.case_power, "tables": ["breakers"], "text": "Facilities' work order: Tuesday's power event tripped the PLANT CONTROL breaker. Reset it, then check it took."}]
-	wo.read_by.connect(func(_p): sync.event("_ask_power"))
+	wo.read_by.connect(func(_p):
+		sync.event("_ask_power")
+		sync.event("_book_huddle", ["easy_sql_update"]))
 	# Cable trays and ducts overhead, a transformer cage in the south-east corner.
 	# (Clear of the gantry's rail and anyone on its mast, along the north wall.)
 	for z in [-6.5, -1.0]:
@@ -611,7 +632,7 @@ func _build_control_room(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(6, 0.5, -16.6), Vector3(3.0, 1.0, 0.8), Color(0.38, 0.38, 0.4), "ControlDesk")
 	controller = Terminal.spawn(geo, Vector3(5.4, 1.0, -16.6), 0, "DOOR & LIFT CONTROL", db, terminal_ui)
 	controller.name = "ControlTerminal"
-	controller.puzzles = [login_puzzle, main_doors_puzzle, lockout_puzzle]
+	controller.puzzles = [login_puzzle, login_read_puzzle, main_doors_puzzle, lockout_puzzle]
 	controller.boot_lines = [
 		"HALCYON DOOR AND LIFT CONTROL  -  PLANT 10",
 		"Contractors: log in first. contractor_log. Doors: doors.",
@@ -624,7 +645,9 @@ func _build_control_room(colors: Dictionary) -> void:
 		"contractor_log": TEXT.tip_count}
 	var board := Document.place(geo, Vector3(6.6, 1.0, -16.6), 0, "Contractor log", _clipboard_lines(), true, "clipboard")
 	board.clues = [{"case": "login", "opens": TEXT.case_login, "tables": ["contractor_log"], "text": "The clipboard by the controller: all contractors log in on the controller before touching anything."}]
-	board.read_by.connect(func(_p): sync.event("_ask_login"))
+	board.read_by.connect(func(_p):
+		sync.event("_ask_login")
+		sync.event("_book_huddle", ["easy_sql_insert"]))
 	# The clock over the door, on the room's side: the time the crew logs in with.
 	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.6, -10.12), data.time_in, 48, Color(1.0, 0.25, 0.15), 0).name = "Clock"
 	# The shift's papers pinned on a corkboard by the desk: Facilities' notice, and
@@ -655,6 +678,7 @@ func _clipboard_lines() -> Array:
 	lines.append({"text": "on the controller now, not on paper:", "hand": true})
 	lines.append({"text": "INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s');" % ex, "hand": true})
 	lines.append({"text": "text goes in 'quotes'. values in the same order as the columns. the log no. fills itself in.", "hand": true})
+	lines.append({"text": "then read it back, or it doesn't count.", "hand": true})
 	return lines
 
 
@@ -731,7 +755,7 @@ func _warden(ids: Array, pause := 1.0) -> void:
 # --- Terminals -------------------------------------------------------------------
 
 func puzzles() -> Array:
-	return [put_back_puzzle, reset_puzzle, check_puzzle, login_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle, gantry_puzzle, entrance_puzzle, verify_puzzle]
+	return [put_back_puzzle, reset_puzzle, check_puzzle, login_puzzle, login_read_puzzle, main_doors_puzzle, lockout_puzzle, readback_puzzle, gantry_puzzle, entrance_puzzle, verify_puzzle]
 
 
 ## The floor's rule in front of every write (GuardedDB): no door writes before a
@@ -741,7 +765,7 @@ func _guard(sql: String) -> String:
 	if not FacilityDB.is_write(sql):
 		return ""
 	if not logged_in and sql.to_lower().contains("doors"):
-		return TEXT.refused_login
+		return TEXT.refused_readback if login_puzzle.solved else TEXT.refused_login
 	return ""
 
 
@@ -757,10 +781,12 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	elif which == "controller":
 		if not login_puzzle.solved and login_puzzle.matches(db, result):
 			sync.event("_on_solved", ["login"])
+		elif login_puzzle.solved and not login_read_puzzle.solved and changed == 0 and (login_read_puzzle.matches(db, result) or _reads_login(result)):
+			sync.event("_on_solved", ["login_read"])
 	elif which == "desk":
 		if not entrance_puzzle.solved and changed > 0 and entrance_puzzle.state_ok(db):
 			sync.event("_on_solved", ["entrance"])
-		elif entrance_puzzle.solved and db.read_only and not verify_puzzle.solved and changed == 0 and verify_puzzle.matches(db, result):
+		elif entrance_puzzle.solved and db.read_only and not verify_puzzle.solved and changed == 0 and (verify_puzzle.matches(db, result) or _reads_entrance(result)):
 			sync.event("_on_solved", ["verify"])
 	elif which == "bay":
 		if lockout_until > 0 and not sealed and readback_puzzle.matches(db, result) and _has_lockout():
@@ -790,6 +816,8 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	_tip_if(on_breakers and changed == 1 and lower.contains("cb-03") and data.target != "CB-03", "example", which)
 	_tip_if(which == "maint" and reset_puzzle.solved and not check_puzzle.solved and changed > 0, "verify", which)
 	_tip_if(is_insert and lower.contains("contractor_log") and changed > 0 and not login_puzzle.solved and _ticket_in_wrong_column(), "order", which)
+	# The lockup card's own example copied at the desk: another gate changed, not the front.
+	_tip_if(which == "desk" and is_update and lower.contains("gates") and changed > 0 and not entrance_puzzle.state_ok(db), "dock", which)
 
 
 ## A read of the panel that shows tonight's breaker on (the whole panel, say): that's
@@ -799,6 +827,27 @@ func _reads_target_on(result: Dictionary) -> bool:
 		return false
 	for row in result.get("rows", []):
 		if str(row.get("id", "")) == data.target and str(row.get("state", "")) == "on":
+			return true
+	return false
+
+
+## A read of the log that shows the crew's own row: the log-in read back.
+func _reads_login(result: Dictionary) -> bool:
+	if not result.get("ok", false):
+		return false
+	for row in result.get("rows", []):
+		if str(row.get("job", "")).strip_edges().to_upper() == data.ticket and str(row.get("company", "")).strip_edges().to_lower() == data.company.to_lower():
+			return true
+	return false
+
+
+## A read of the gates that shows the front doors' row with its unlocked column (the
+## whole table, say): that's reading it back, as the whole panel was upstairs.
+func _reads_entrance(result: Dictionary) -> bool:
+	if not result.get("ok", false):
+		return false
+	for row in result.get("rows", []):
+		if str(row.get("name", "")) == "main_entrance" and row.has("unlocked"):
 			return true
 	return false
 
@@ -847,8 +896,10 @@ func _on_solved(id: String) -> void:
 			if not logged_in:
 				hud.todo(TEXT.todo_login)
 		"login":
-			logged_in = true
 			Game.open_case("login", CASES.login, ["contractor_log"])
+			hud.todo(TEXT.todo_login_read)
+		"login_read":
+			logged_in = true
 			Game.solve_case("login", TEXT.login_done % [data.company, data.ticket, data.time_in])
 			hud.todo("")
 			_warden(["l4_signed_in"])
@@ -874,7 +925,20 @@ func _ask_power() -> void:
 func _ask_login() -> void:
 	Game.open_case("login", CASES.login, ["contractor_log"])
 	if not logged_in and not alarm:
-		hud.todo(TEXT.todo_login)
+		hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
+
+
+## Every machine: a paper brings back its chapter of Easy SQL, read round the garage
+## bench (a flashback, once per run; nothing until Home base adds the chapter). The
+## Custodian stands still while the crew is away, so nobody is grabbed mid-quiz.
+func _book_huddle(id: String) -> void:
+	_huddles += 1
+	if sync.is_host():
+		custodian.set_physics_process(false)
+	await Huddle.of(self).run(id)
+	_huddles -= 1
+	if sync.is_host() and _huddles == 0:
+		custodian.set_physics_process(true)
 
 
 # --- The ground floor ------------------------------------------------------------------
@@ -941,7 +1005,8 @@ func _build_gantry() -> void:
 	var park_x := _bay_x(data.park_bay)
 	var lines := GANTRY_CARD.duplicate()
 	lines[2] = GANTRY_CARD[2] % [data.park_bay, data.hatch_bay]
-	Document.place(geo, Vector3(park_x + (1.2 if park_x < 0 else -1.2), 1.6, -9.88), 180, "Gantry card", lines, false, "laminated", Vector2(0.3, 0.24))
+	var card := Document.place(geo, Vector3(park_x + (1.2 if park_x < 0 else -1.2), 1.6, -9.88), 180, "Gantry card", lines, false, "laminated", Vector2(0.3, 0.24))
+	card.read_by.connect(func(_p): sync.event("_book_huddle", ["easy_sql_update"]))  # its UPDATE may be the first one read
 	# The carriage: a platform hung from the rail, with a mast to climb on its open side.
 	gantry = AnimatableBody3D.new()
 	gantry.name = "Gantry"
@@ -1051,6 +1116,7 @@ func _gantry_arrived(bay: int) -> void:
 func _manual_release() -> void:
 	if not ctrl_door.is_open:
 		ctrl_door.set_open(true)
+		gantry_puzzle.solved = true
 		hud.notice(TEXT.released, 3.0)
 
 
@@ -1345,28 +1411,36 @@ func _breakers_changed() -> void:
 		if on != custodian.powered and not sealed:
 			_bay_power(on)
 		return
-	var wrong := false
+	var wrong := 0
+	var all_on := true
 	var bay_on := false
 	for row in db.run_silent("SELECT id, state FROM breakers"):
 		var id := str(row["id"])
 		if id != data.target and (str(row["state"]) == "on") != (str(data.start_states.get(id, "")) == "on"):
-			wrong = true
+			wrong += 1
+		if str(row["state"]) != "on":
+			all_on = false
 		if id == data.bay_breaker and str(row["state"]) == "on":
 			bay_on = true
 	_put_back_hints()
-	if wrong != alarm:
-		alarm = wrong
+	if (wrong > 0) != alarm:
+		alarm = wrong > 0
 		put_back_puzzle.solved = not alarm
 		put_back_puzzle.hint_index = 0
-		hud.notice(TEXT.alarm if alarm else TEXT.alarm_over, 5.0, ThemeUtil.RED if alarm else ThemeUtil.AMBER)
+		# The line says how much flipped: the lot (no WHERE), several, or one decoy.
+		var line: String = TEXT.alarm_over
+		if alarm:
+			line = TEXT.alarm if all_on else (TEXT.alarm_few if wrong > 1 else TEXT.alarm_one)
+			alarm_line = line
+		hud.notice(line, 5.0, ThemeUtil.RED if alarm else ThemeUtil.AMBER)
 		if alarm:
 			hud.todo(TEXT.todo_put_back)
-		elif not power_back:
+		elif not reset_puzzle.solved:
 			hud.todo(TEXT.todo_power)
 		elif not check_puzzle.solved:
 			hud.todo(TEXT.todo_check)
 		elif not logged_in:
-			hud.todo(TEXT.todo_login)
+			hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
 		else:
 			hud.todo("")
 	if bay_on != bay_powered:
@@ -1422,6 +1496,7 @@ func _restore_power() -> void:
 	db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'PLANT-CTRL'")
 	db.sync_world()
 	hud.notice(TEXT.power_back, 5.0)
+	gantry_puzzle.solved = true  # the door's open: the second way in isn't needed
 	if not alarm and not check_puzzle.solved:
 		hud.todo(TEXT.todo_check)
 

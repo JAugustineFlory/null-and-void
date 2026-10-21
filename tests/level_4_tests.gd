@@ -211,8 +211,8 @@ func test_scene() -> void:
 		"the doors table says the control room is unlocked, with its actuator faulted: no power")
 	check(level.lamps.size() == 12 and level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Breaker tag").size() == 5,
 		"a box with a lamp for every breaker, and a tag on each one with a note")
-	check(level.maint.puzzles.all(func(pz): return pz.hints.size() == 3) and level.controller.puzzles.all(func(pz): return pz.hints.size() == 3) \
-		and level.bay_terminal.puzzles.all(func(pz): return pz.hints.size() == 2), "every new write has a three-step hint ladder; the bay's read-back, a two-step review")
+	check(level.maint.puzzles.all(func(pz): return pz.hints.size() == 3) and level.controller.puzzles.all(func(pz): return pz.hints.size() == (2 if pz.id == "login_read" else 3)) \
+		and level.bay_terminal.puzzles.all(func(pz): return pz.hints.size() == 2), "every new write has a three-step hint ladder; the log's and the bay's read-backs, two-step reviews")
 	var ui: TerminalUI = level.terminal_ui
 	ui.terminal = level.maint
 	check(level.maint.next_hint().contains("UPDATE breakers SET state = 'on' WHERE id = '?'"), "the first hint is the UPDATE's shape with the breaker as ?")
@@ -228,10 +228,17 @@ func test_scene() -> void:
 	await _frames(2)
 	check(not level.power_back and Array(level.maint.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_zero)), "the circuit's name in the id's place changes nothing, and SYSOP says to look at the row first")
 	check(_said(level.maint, "0 rows changed.") and not _said(level.maint, "(0 rows)"), "a write that matches nothing says 0 rows changed, not an empty read's (0 rows)")
+	# One decoy reset on its own (the bay, the likeliest wrong pick): the alarm, said as one.
+	ui.run("UPDATE breakers SET state = 'on' WHERE id = '%s'" % data.bay_breaker)
+	await _frames(2)
+	check(level.alarm and level.alarm_line == level.TEXT.alarm_one and _game().current_todo() == level.TEXT.todo_put_back, "one decoy reset: the alarm says a breaker clunked over, not the whole panel")
+	ui.run("UPDATE breakers SET state = 'off' WHERE id = '%s'" % data.bay_breaker)
+	await _frames(2)
+	check(not level.alarm and _game().current_todo() == level.TEXT.todo_power, "put back, the alarm stops and the to-do is the reset again")
 	# No WHERE: loud and costly, never dangerous.
 	ui.run("UPDATE breakers SET state = 'on'")
 	await _frames(5)
-	check(level.alarm and level.bay_powered and not level.reset_puzzle.solved and _game().current_todo() == level.TEXT.todo_put_back,
+	check(level.alarm and level.bay_powered and not level.reset_puzzle.solved and level.alarm_line == level.TEXT.alarm and _game().current_todo() == level.TEXT.todo_put_back,
 		"no WHERE: every breaker flips, the alarm goes, the bay stirs, and the to-do says to put them back")
 	check(level.lights["L10-BAY"].all(func(l): return l.visible) and not level.bay_door.is_open and level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-BAY'")[0]["locked"] == 1, "the bay lights up behind its door, which stays shut")
 	check(level.power_back and Array(level.maint.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_no_where)), "the control room gets its power anyway, and SYSOP explains what no WHERE did")
@@ -277,7 +284,15 @@ func test_scene() -> void:
 	check(not level.login_puzzle.solved, "the wrong table doesn't count")
 	ui.run("insert into contractor_log (company, job, time_in) values ('byte-right it services', '%s', '%s')" % [data.ticket.to_lower(), data.time_in])
 	await _frames(2)
-	check(level.login_puzzle.solved and level.logged_in and _game().case_info("login").get("solved", false), "the crew's own row logs it in, whatever the capitals")
+	check(level.login_puzzle.solved and not level.logged_in and _game().current_todo() == level.TEXT.todo_login_read, "the crew's own row goes in, whatever the capitals; it counts once it's read back")
+	ui.run("UPDATE doors SET locked = 0 WHERE id = 'PLANT-BAY'")
+	await _frames(2)
+	check(_said(level.controller, level.TEXT.refused_readback) and level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-BAY'")[0]["locked"] == 1, "a door write before the read-back is refused, and says to read it back")
+	ui.run("SELECT * FROM contractor_log")
+	await _frames(2)
+	check(level.logged_in and level.login_read_puzzle.solved and _game().case_info("login").get("solved", false) and _game().current_todo() == "", "the whole log read back logs the crew in")
+	check(_doc(level, "Contractor log").plain_text().contains("read it back, or it doesn't count"), "the clipboard says the log-in counts once it's read back")
+	check(level.gantry_puzzle.solved, "with the control room's door open, the gantry station is done (.hint doesn't send the crew up the mast)")
 	level.queue_free()
 	await t.process_frame
 
@@ -356,8 +371,9 @@ func test_accident() -> void:
 	check(net.profile.earned.has("achievement:main_doors_warning"), "reading the warning before the accident earns the observant crew's find")
 	ui.terminal = level.controller
 	ui.run(_last_hint_query(level.login_puzzle))
+	ui.run(_last_hint_query(level.login_read_puzzle))
 	await _frames(3)
-	check(level.logged_in, "the crew logs in")
+	check(level.logged_in, "the crew logs in and reads the log back")
 	# The accident.
 	ui.run(_last_hint_query(level.main_doors_puzzle))
 	await _frames(5)
@@ -440,6 +456,8 @@ func test_accident() -> void:
 	ui.run("UPDATE gates SET unlocked = 1 WHERE name = 'loading_dock'")
 	await _frames(3)
 	check(not level.db.read_only and level.db.run_silent("SELECT unlocked FROM gates WHERE name = 'loading_dock'")[0]["unlocked"] == 1 and not level.entrance_puzzle.solved, "the dock's gate changes (its motor's seized): not the way out, and nothing else happens")
+	check(_said(level.front_desk, level.TEXT.tip_dock), "and SYSOP says it's not the front doors, and where the front doors are")
+	check(str(level.db.run_silent("SELECT note FROM gates WHERE name = 'car_park_barrier'")[0]["note"]).contains("through the dock"), "the open car park barrier's note says why it's no way out")
 	ui.run("DELETE FROM gates WHERE name = 'main_entrance'")
 	await _frames(2)
 	check(_said(level.front_desk, level.TEXT.gates_fixed) and level.db.run_silent("SELECT 1 FROM gates WHERE name = 'main_entrance'").size() == 1, "the front doors' row can't be deleted")
@@ -459,13 +477,11 @@ func test_accident() -> void:
 	await _frames(2)
 	check(_said(level.controller, level.TEXT.write_refused_again) and level.refusals == 2, "at any terminal, and again: STILL READ-ONLY")
 	ui.terminal = level.front_desk
-	ui.run("SELECT * FROM gates")
-	check(level.front_desk.transcript.size() > 0 and not level.verify_puzzle.solved, "reads still work; the whole table isn't the read-back")
 	var done := [false]
 	level.completed.connect(func(): done[0] = true)
-	ui.run(_last_hint_query(level.verify_puzzle))
+	ui.run("SELECT * FROM gates")
 	await _frames(2)
-	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own SELECT shows the lie: main_entrance is locked again")
+	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own SELECT shows the lie: main_entrance locked again (the whole table counts, as the panel did upstairs)")
 	check(await _until(func(): return done[0], 1500) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
 	net.profile.earned = had
 	level.queue_free()
@@ -489,7 +505,9 @@ func test_coop() -> void:
 	check(machines.all(func(l): return not l.accident and l.db.run_silent("SELECT locked FROM doors WHERE id = 'main_doors'")[0]["locked"] == 1), "a client's door write before the log-in is refused on every machine")
 	cui.run(_last_hint_query(client.login_puzzle))
 	await _frames(10)
-	check(machines.all(func(l): return l.logged_in), "a client's log-in counts for everyone")
+	cui.run(_last_hint_query(client.login_read_puzzle))
+	await _frames(10)
+	check(machines.all(func(l): return l.logged_in), "a client's log-in, read back, counts for everyone")
 	cui.run(_last_hint_query(client.main_doors_puzzle))
 	await _frames(10)
 	check(machines.all(func(l): return l.accident and not l.stair_out.locked), "a client opening main_doors is the accident on every machine")

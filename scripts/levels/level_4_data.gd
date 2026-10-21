@@ -150,7 +150,7 @@ INSERT INTO lights VALUES
 	var gates: Array = [
 		["main_entrance", "Front doors and night grille", "LOBBY", 0, "Night lockup 19:00-07:00."],
 		["loading_dock", "Loading dock roller door", "DOCK", 0, "Motor seized 10/13. Deliveries to the front desk."],
-		["car_park_barrier", "Car park exit barrier", "CAR PARK", 1, "Arm snapped 10/09, left up. Ticket open."],
+		["car_park_barrier", "Car park exit barrier", "CAR PARK", 1, "Arm snapped 10/09, left up. The car park is through the dock."],
 		["staff_turnstile", "Staff turnstile", "LOBBY", 0, "Staff badge only. Visitors sign out at the desk."],
 	]
 	_shuffle(gates, rng)
