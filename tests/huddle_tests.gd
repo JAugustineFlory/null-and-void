@@ -61,10 +61,13 @@ func test_books() -> void:
 		for q in ch.quiz:
 			ok = ok and q.answer >= 0 and q.answer < q.options.size() and q.options.size() == 3
 			ok = ok and (ch.words.is_empty() or ch.words.has(q.word))
-	_check.call(ok and Books.chapter_ids().size() == 17, "all 17 chapters have pages and three questions for each new word (three for a review)")
+	_check.call(ok and Books.chapter_ids().size() == 19, "all 19 chapters have pages and three questions for each new word (three for a review)")
 	var ids := Books.book_chapter_ids("easy_sql")
-	_check.call(ids.slice(15) == ["easy_sql_distinct", "easy_sql_group_by"] and Books.chapter("easy_sql_distinct").number == 15 and Books.chapter("easy_sql_group_by").words == ["GROUP BY"],
-		"floor 18's chapters close the book, numbered by their place in it")
+	_check.call(ids.slice(15, 17) == ["easy_sql_distinct", "easy_sql_group_by"] and Books.chapter("easy_sql_distinct").number == 15 and Books.chapter("easy_sql_group_by").words == ["GROUP BY"],
+		"floor 18's chapters come next, numbered by their place in it")
+	_check.call(ids.slice(17) == ["easy_sql_update", "easy_sql_insert"] and Books.chapter("easy_sql_update").number == 17 and Books.chapter("easy_sql_insert").number == 18
+		and Books.rounds(Books.chapter("easy_sql_update")).size() == 3 and Books.rounds(Books.chapter("easy_sql_insert")).size() == 3,
+		"floor 10's UPDATE and INSERT chapters close the book, read a word at a time")
 	_check.call(ids[9] == "easy_sql_count" and Books.chapter("easy_sql_count").words == ["COUNT(*)"] and Books.chapter("easy_sql_9").number == 10,
 		"How many? (COUNT) follows Chapter 8, and the chapters after it move up one")
 	_check.call(Books.chapter("easy_sql_4").words == ["DESC", "LIMIT"], "Newest first teaches LIMIT after DESC")
@@ -334,7 +337,7 @@ func test_book_unlocks() -> void:
 	var ids: Array = Books.book_chapter_ids("easy_sql")
 	var n := ids.size()
 	var half := ceili(n / 2.0)
-	_check.call(n == 17, "Easy SQL has 17 chapters to count")
+	_check.call(n == 19, "Easy SQL has 19 chapters to count")
 	var me: int = h.multiplayer.get_unique_id()
 	var finish := func(id: String):
 		h._begin(id, me, [me])
