@@ -14,6 +14,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	print("Combat")
 	test_guard_timing()
 	await test_block()
+	await test_hit_feedback()
 	await test_regen()
 	await test_throw()
 	await test_thrown_off_a_shelf()
@@ -96,6 +97,46 @@ func test_block() -> void:
 	var died := [false]
 	p.died.connect(func(): died[0] = true)
 	check(p.take_damage(30.0) == "dead" and died[0], "with no crew around (no level), 0 health is straight back to the checkpoint")
+	await done(a)
+
+
+## You feel a hit land, and a block catch one (Augustine's garage playtest): the
+## view shakes and you're pushed back a step; a block is softer.
+func test_hit_feedback() -> void:
+	var a := arena()
+	var p := spawn(a, Vector3(0, 0.1, 0))
+	await frames(20)
+	var cam := p.camera
+	check(p.combat.shake == 0.0 and cam.h_offset == 0.0 and cam.v_offset == 0.0, "standing still, the view is steady")
+	var z0 := p.global_position.z
+	p.take_damage(10.0, "rourke")
+	var hit_shake := p.combat.shake
+	await t.process_frame
+	await t.process_frame
+	check(hit_shake > 0.0 and (cam.h_offset != 0.0 or cam.v_offset != 0.0), "a hit shakes the view")
+	await frames(10)
+	var hit_push := p.global_position.z - z0
+	check(hit_push > 0.05, "and pushes you back a step (%.2f m)" % hit_push)
+	await frames(60)
+	check(p.combat.shake == 0.0 and cam.h_offset == 0.0 and cam.v_offset == 0.0, "then it settles")
+	var raised := [false]
+	p.combat.guard_raised.connect(func(): raised[0] = true)
+	await frames(int(Guard.RECOVER * 60) + 2)
+	p.combat.raise_guard()
+	check(raised[0], "raising your guard tells the arms to come up")
+	z0 = p.global_position.z
+	check(p.take_damage(22.0, "rourke") == "blocked", "a block")
+	var block_shake := p.combat.shake
+	await frames(10)
+	var block_push := p.global_position.z - z0
+	check(block_shake > 0.0 and block_shake < hit_shake, "jolts the view too, but less than a hit")
+	check(block_push > 0.0 and block_push < hit_push, "and rocks you back a little (%.2f m)" % block_push)
+	await frames(60)
+	z0 = p.global_position.z
+	p.combat.raise_guard()
+	p.take_damage(0.0, "spar")
+	await frames(10)
+	check(p.combat.shake > 0.0 or p.global_position.z > z0, "the punch bag's swing, blocked, is felt the same way")
 	await done(a)
 
 

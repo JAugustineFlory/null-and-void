@@ -20,6 +20,8 @@ extends Node
 ## you, so going down is the same as the whole crew going down.
 
 signal blocked(cause: String)
+## The guard went up (right mouse): for the first-person arms to raise.
+signal guard_raised
 signal hurt(amount: float, cause: String)
 signal went_down(cause: String)
 signal got_up
@@ -47,6 +49,16 @@ const THROW_LIFT := 3.5
 ## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
 const DOWN_NOTICE := "You're down. Hang on for your crew."
 const BLOCK_NOTICE := "Blocked"
+## Feeling a hit land (Augustine's garage playtest): the view shakes and you're
+## pushed back a step. A block is the same, softer. Shake is 0..1 trauma; the
+## view's offset goes with its square, so it settles quickly.
+const HIT_SHAKE := 0.6
+const BLOCK_SHAKE := 0.35
+const HIT_PUSH := 5.0
+const BLOCK_PUSH := 3.0
+const SHAKE_DECAY := 2.5
+## The view's offset at full trauma (m).
+const SHAKE_REACH := 0.06
 
 var player: Node  # the Player (untyped: tests load this script)
 ## The level's CrewVitals; null in a world with no level (the movement gym, tests).
@@ -69,6 +81,9 @@ var _left_floor := false
 var _locked := false
 ## Held by something (grabbed_by can be freed under us, so it can't say).
 var _held := false
+## How hard the view is shaking now (0..1).
+var shake := 0.0
+var _rng := RandomNumberGenerator.new()
 
 
 static func create(for_player: Node) -> PlayerCombat:
@@ -95,7 +110,10 @@ func now() -> float:
 func raise_guard() -> bool:
 	if down or thrown or _held:
 		return false
-	return guard.raise(_clock)
+	if not guard.raise(_clock):
+		return false
+	guard_raised.emit()
+	return true
 
 
 static func blockable(cause: String) -> bool:
@@ -120,6 +138,7 @@ func take_damage(amount: float, cause: String = "") -> String:
 		blocked.emit(cause)
 		if bar:
 			bar.flash_block()
+		_jolt(BLOCK_SHAKE, BLOCK_PUSH)
 		if crew:
 			crew.report_blocked(cause)
 		return "blocked"
@@ -129,6 +148,7 @@ func take_damage(amount: float, cause: String = "") -> String:
 		player.hud.damage_flash(player.health)
 	hurt.emit(amount, cause)
 	if player.health > 0.0:
+		_jolt(HIT_SHAKE, HIT_PUSH)
 		return "hit"
 	if lethal(cause) or crew == null:
 		die()
@@ -199,6 +219,7 @@ func reset() -> void:
 	down = false
 	down_cause = ""
 	_since_hurt = 100.0
+	shake = 0.0
 	_lock(false)
 	guard = Guard.new()
 
@@ -255,6 +276,35 @@ func release() -> void:
 	grabbed_by = null
 	if not down and not thrown:
 		_lock(false)
+
+
+## You feel it: the view shakes and you're pushed back a step (away from where
+## you're facing, which is where a swing you see coming comes from).
+func _jolt(amount: float, push: float) -> void:
+	shake = minf(1.0, shake + amount)
+	# Only on your feet: seated, climbing or at a terminal, you just feel it.
+	if thrown or _held or player.state != Player.Move.WALK:
+		return
+	var back: Vector3 = player.global_basis.z
+	back.y = 0.0
+	if back.length() > 0.01:
+		player.velocity += back.normalized() * push
+
+
+## The shake, on the camera's offsets (Movement's camera never uses them).
+func _process(delta: float) -> void:
+	var cam: Camera3D = player.get("camera")
+	if cam == null:
+		return
+	if shake <= 0.0:
+		if cam.h_offset != 0.0 or cam.v_offset != 0.0:
+			cam.h_offset = 0.0
+			cam.v_offset = 0.0
+		return
+	var r := shake * shake * SHAKE_REACH
+	cam.h_offset = _rng.randf_range(-r, r)
+	cam.v_offset = _rng.randf_range(-r, r)
+	shake = maxf(0.0, shake - SHAKE_DECAY * delta)
 
 
 func _lock(on: bool) -> void:
