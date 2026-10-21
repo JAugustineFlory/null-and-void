@@ -30,6 +30,8 @@ var wanted_look := {}
 var profile: Profile
 var player_name := ""
 var in_game := false
+## The pre-game lobby is for one player: no session, Ready starts a solo game.
+var solo_lobby := false
 ## Why the last session ended, for the menu to show.
 var last_message := ""
 var transport: NetTransport = NetTransport.Enet.new()
@@ -96,6 +98,24 @@ func choose_look(change: Dictionary) -> void:
 
 
 # --- The pre-game lobby -------------------------------------------------------
+
+## Solo: the pre-game lobby with just this player in it (no connection).
+func begin_solo_lobby() -> void:
+	leave(false)
+	solo_lobby = true
+	roster = {my_id(): player_name}
+	roster_changed.emit()
+
+
+## Solo: everyone (that's you) is ready, so the game starts. The lobby's state
+## stays for the garage to open on.
+func start_solo_game() -> void:
+	solo_lobby = false
+	var game := get_node("/root/Game")
+	game.new_run()
+	game.open_at_home = true
+	game.goto("world")
+
 
 ## This player is ready to start (or not any more).
 func set_ready(on: bool) -> void:
@@ -227,6 +247,7 @@ func leave(notify: bool = true, reason: String = "") -> void:
 	looks = {}
 	lobby = {}
 	in_game = false
+	solo_lobby = false
 	if was_online and notify:
 		last_message = reason
 		session_ended.emit(reason)

@@ -1911,6 +1911,23 @@ func test_coop_pregame_lobby() -> void:
 	net.roster = {}
 	net.looks = {}
 	net.lobby = {}
+
+	# Solo gets the same opening: just you, no hosting or joining.
+	net.begin_solo_lobby()
+	lobby = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	lobby.stage.finish_intro()
+	check(lobby.stage.figures.keys() == [1] and not lobby.find_child("Host", true, false).is_visible_in_tree() and lobby.find_child("Ready", true, false).is_visible_in_tree()
+		and lobby.find_child("Waiting", true, false).text == "", "solo opens on the garage too, with just you walking in and a Ready button")
+	lobby.find_child("Ready", true, false).button_pressed = true
+	lobby._process(1.0)
+	check(net.all_ready() and lobby._all_ready_for == 1.0, "and Ready starts the game a moment later")
+	lobby.find_child("Ready", true, false).button_pressed = false
+	lobby.queue_free()
+	await process_frame
+	net.leave(false)
+	check(not net.solo_lobby and net.roster.is_empty() and net.lobby.is_empty(), "leaving clears it")
 	net.profile = real_profile
 
 

@@ -1,7 +1,8 @@
 extends Control
 ## The pre-game lobby, in front of the crew's garage (LobbyStage). It opens on
 ## "Welcome to Byte-Right IT!" from the sky down to the garage front. Then:
-## host a game or join a friend's, and each player walks in to their mark.
+## host a game or join a friend's (solo: straight on), and each player walks in
+## to their mark.
 ## Everyone picks how they look (and sees it on their own figure), how they
 ## stand, and says they're ready. Once everyone is, the game starts and the
 ## garage opens on the same shot.
@@ -63,11 +64,15 @@ func _ready() -> void:
 	right.add_child(picker)
 	picker.previewed.connect(func(look): stage.preview_own(_net(), look))
 
+	# Solo: just you, Change pose and Ready.
+	var solo: bool = _net().solo_lobby
 	var title := ThemeUtil.label("CO-OP", 56, ThemeUtil.GREEN)
 	title.add_theme_font_override("font", ThemeUtil.mono())
+	title.visible = not solo
 	left.add_child(title)
 	var sub := ThemeUtil.label("Up to %d players. One hosts, the others join by address." % _net().MAX_PLAYERS, 18, ThemeUtil.DIM)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.visible = not solo
 	left.add_child(sub)
 
 	_connect_box = VBoxContainer.new()
@@ -179,7 +184,7 @@ func _refresh() -> void:
 	picker.set_name_editable(not in_session)
 	stage.sync_crew(net)
 	var ready_count: int = net.roster.keys().filter(func(id): return net.lobby_of(id).ready).size()
-	_waiting.text = WAITING % [ready_count, net.roster.size()] if in_session else ""
+	_waiting.text = WAITING % [ready_count, net.roster.size()] if in_session and not net.solo_lobby else ""
 	_ready_btn.set_pressed_no_signal(net.lobby_of(net.my_id()).ready)
 
 
@@ -188,16 +193,20 @@ func my_look() -> Dictionary:
 	return picker.my_look()
 
 
-## The host starts the game once everyone has been ready for a moment.
+## The host starts the game once everyone has been ready for a moment (solo:
+## once you have).
 func _process(delta: float) -> void:
 	var net := _net()
-	if not (net.is_online() and net.is_host() and net.all_ready()):
+	if not ((net.is_online() or net.solo_lobby) and net.is_host() and net.all_ready()):
 		_all_ready_for = 0.0
 		return
 	_all_ready_for += delta
 	if _all_ready_for >= START_DELAY:
 		_all_ready_for = -INF  # once
-		net.start_game()
+		if net.solo_lobby:
+			net.start_solo_game()
+		else:
+			net.start_game()
 
 
 func _panel(parent: Control, width: float) -> VBoxContainer:
