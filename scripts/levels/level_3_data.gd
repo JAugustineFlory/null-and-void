@@ -17,8 +17,10 @@ extends RefCounted
 const CANDIDATES := ["VAULT C", "MAP ROOM", "COLD STORE"]
 ## Every reader on the floor.
 const ROOMS := ["READING ROOM", "STACKS", "MICROFICHE", "SHRED ROOM", "SUPPLY", "VAULT C", "MAP ROOM", "COLD STORE"]
-## The night of the job.
+## The night of the job, and the hours the readers were busy (the crew signs in at 23:04).
 const NIGHT := "1997-10-15"
+const NIGHT_FROM := 19
+const NIGHT_TO := 23
 ## Who kept going into that room that night. The holder is a placeholder until
 ## Augustine says whose visits they are; the badge number changes with the seed,
 ## and its last four digits are the code of the push-button lock on Mercer's door
@@ -29,6 +31,8 @@ const PATROL := ["G-0127", "SECURITY STAFF"]
 ## Day staff who pull boxes: lots of reading room rows, by day.
 const DAY_BADGES := [["A-0291", "ARCHIVIST"], ["A-0302", "RECORDS CLERK"], ["A-0288", "RECORDS CLERK"], ["L-0044", "LEGAL"], ["F-0107", "FINANCE"]]
 const DEPARTMENTS := ["LEGAL", "FINANCE", "FACILITIES", "RESEARCH", "PERSONNEL", "SECURITY"]
+## Slips on the spike and in the tray: open ones plus the filled ones on the cart.
+const SLIPS := 12
 const TITLES := ["Correspondence", "Invoices", "Contracts", "Lab notebooks", "Site drawings", "Personnel files", "Vendor files", "Minutes", "Incident reports", "Payroll"]
 
 
@@ -49,16 +53,16 @@ static func build(run_seed: int) -> Dictionary:
 		night_counts[others[i]] = 1 + i  # 1..7
 	night_counts[host] = 8 + others.size() + rng.randi_range(2, 5)  # 17..20
 	var log := []  # [time, badge, holder, room]
-	var minute := 19 * 60 + 30
 	var night_rows := []
 	for room in ROOMS:
 		for n in night_counts[room]:
 			var who := [visitor_badge, VISITOR] if room == host or rng.randf() < 0.5 else PATROL
 			night_rows.append([who[0], who[1], room])
-	_shuffle(night_rows, rng)
+	# All between 19:00 and 23:00: after the stair doors lock, before the crew signs
+	# in downstairs at 23:04. Nothing crosses midnight, so the date picks the night.
 	for r in night_rows:
-		minute += rng.randi_range(3, 12)
-		log.append(["%s %02d:%02d" % [NIGHT, (minute / 60) % 24, minute % 60], r[0], r[1], r[2]])
+		var minute := NIGHT_FROM * 60 + rng.randi_range(0, (NIGHT_TO - NIGHT_FROM) * 60 - 1)
+		log.append(["%s %02d:%02d" % [NIGHT, minute / 60, minute % 60], r[0], r[1], r[2]])
 	# Earlier that week, by day: the reading room is where everyone goes, so over the
 	# whole log it beats the host room. Other rooms get a few day visits too. Nothing
 	# by day on the 15th: the date alone picks out that night's rows.
@@ -109,29 +113,36 @@ static func build(run_seed: int) -> Dictionary:
 	_shuffle(boxes, rng)
 
 	# Retrieval slips: paper requests the desk works through. A few are still open
-	# (nothing pulled yet). Of the filled ones, most boxes came back and the clerk
-	# wrote the time; one or two never did, so returned_at is NULL: an empty cell,
-	# not '' and not 0. Those boxes are 'out' in the catalogue.
+	# (nothing pulled yet). The filled ones' boxes are back on the returns cart in the
+	# reading room, waiting to be reshelved; for most, the clerk wrote the time they
+	# were checked back in. One or two were dropped on the cart and never checked in,
+	# so returned_at is NULL: an empty cell, not '' and not 0. The stair key is in the
+	# first of those (Mercer's note says so): the IS NULL question gates the exit.
 	var slips := []  # [slip_no, box_id, requested_by, status, returned_at, note]
 	var open_slips := rng.randi_range(3, 5)
 	var unreturned_n := rng.randi_range(1, 2)
 	var unreturned := []
+	var cart := []
 	var slip_boxes := boxes.filter(func(b): return b[3] == "STACKS" and b[6] != "destroyed").duplicate()
 	_shuffle(slip_boxes, rng)
-	for i in 9:
+	for i in SLIPS:
 		var b: Array = slip_boxes[i]
 		var status := "open" if i < open_slips else "filled"
 		var note := "" if status == "filled" else "waiting on the night clerk"
 		var returned_at = null
 		if status == "filled":
+			cart.append(b[0])
 			if i < open_slips + unreturned_n:
 				b[6] = "out"
-				b[7] = "pulled to the reading room"
+				b[7] = "not checked back in"
 				unreturned.append(b[0])
 			else:
+				b[6] = "returned"
+				b[7] = "returns cart. Reshelve Friday"
 				returned_at = "1997-10-%02d %02d:%02d" % [rng.randi_range(13, 14), rng.randi_range(9, 16), rng.randi_range(0, 59)]
 		slips.append(["S-%04d" % (2200 + i * 3 + rng.randi_range(0, 2)), b[0], DAY_BADGES[rng.randi_range(0, DAY_BADGES.size() - 1)][1], status, returned_at, note])
 	_shuffle(slips, rng)
+	_shuffle(cart, rng)
 
 	var sql := """
 -- The badge readers beside every room door on 18, as they reported in.
@@ -198,7 +209,7 @@ INSERT INTO lights VALUES
 	]
 	var open_list := slips.filter(func(s): return s[3] == "open")
 	return {"sql": sql, "host": host, "night_counts": night_counts, "open_slips": open_list.size(),
-		"visitor_badge": visitor_badge, "code": code, "unreturned": unreturned,
+		"visitor_badge": visitor_badge, "code": code, "unreturned": unreturned, "cart": cart, "key_box": unreturned[0],
 		"mercer_boxes": boxes.filter(func(b): return b[3] == host).map(func(b): return b[0])}
 
 

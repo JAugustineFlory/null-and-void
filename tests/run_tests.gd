@@ -3866,12 +3866,61 @@ func test_level_3_data_every_seed() -> void:
 	var nulls_ok := true
 	var route_ok := true
 	var code_ok := true
+	var forms_ok := true
+	var window_ok := true
+	var cart_ok := true
 	var codes := {}
 	var hosts := {}
 	for s in 50:
 		var data := Level3Data.build(s)
 		var db := FacilityDB.new()
 		db.load_seed(data.sql)
+		# Every correct form passes: the busiest room with its count as one row, a
+		# COUNT on a column, an alias; a lone raw row doesn't, nor a one-row total.
+		for right in [
+			"SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC LIMIT 1" % Level3Data.NIGHT,
+			"SELECT room, COUNT(badge_id) AS swipes FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY swipes DESC LIMIT 1" % Level3Data.NIGHT,
+			"SELECT COUNT(*) AS n, room FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY n DESC" % Level3Data.NIGHT,
+		]:
+			if not l3.visits_puzzle.matches(db, db.execute(right)):
+				forms_ok = false
+		for wrong in [
+			"SELECT room FROM access_log WHERE time LIKE '%s%%' LIMIT 1" % Level3Data.NIGHT,
+			"SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' LIMIT 1" % Level3Data.NIGHT,
+			"SELECT room, COUNT(*) FROM access_log GROUP BY room ORDER BY COUNT(*) DESC LIMIT 1",
+		]:
+			if l3.visits_puzzle.matches(db, db.execute(wrong)):
+				forms_ok = false
+		for right in ["SELECT COUNT(slip_no) FROM retrieval_slips WHERE status = 'open'", "SELECT COUNT(*) AS n FROM retrieval_slips WHERE status = 'open'", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'"]:
+			if not l3.slips_puzzle.matches(db, db.execute(right)):
+				forms_ok = false
+		for right in ["SELECT room, COUNT(*) AS swipes FROM access_log GROUP BY room", "SELECT COUNT(badge_id), room FROM access_log GROUP BY room"]:
+			if not l3.tally_puzzle.matches(db, db.execute(right)):
+				forms_ok = false
+		# The night's swipes all fall between 19:00 and 23:00 on the 15th: nothing crosses
+		# midnight, and nobody is still swiping once the crew is in the building.
+		for row in db.run_silent("SELECT time FROM access_log WHERE time LIKE '%s%%'" % Level3Data.NIGHT):
+			var hour := int(str(row["time"]).get_slice(" ", 1).get_slice(":", 0))
+			if hour < Level3Data.NIGHT_FROM or hour >= Level3Data.NIGHT_TO:
+				window_ok = false
+		if not db.run_silent("SELECT time FROM access_log WHERE time LIKE '1997-10-16%'").is_empty() or db.run_silent("SELECT time FROM access_log WHERE time LIKE '%s%%'" % Level3Data.NIGHT).size() < 20:
+			window_ok = false
+		# The returns cart: every filled slip's box, with its label; the key box is one
+		# nobody checked back in, among enough others that opening them all is slow.
+		var filled := db.run_silent("SELECT box_id FROM retrieval_slips WHERE status = 'filled' ORDER BY box_id").map(func(r): return r["box_id"])
+		var cart: Array = data.cart.duplicate()
+		cart.sort()
+		if cart != filled or cart.size() < 7 or not data.unreturned.has(data.key_box) or db.run_silent("SELECT status FROM catalogue WHERE box_id = '%s'" % data.key_box)[0]["status"] != "out":
+			cart_ok = false
+		if db.run_silent("SELECT COUNT(*) AS n FROM catalogue WHERE status = 'returned'")[0]["n"] != cart.size() - data.unreturned.size():
+			cart_ok = false
+		# The lock's question accepts the raw rows, DISTINCT and a GROUP BY alike.
+		for right in ["SELECT * FROM access_log WHERE room = '%s'" % data.host, "SELECT DISTINCT badge_id FROM access_log WHERE room = '%s'" % data.host, "SELECT badge_id, COUNT(*) FROM access_log WHERE room = '%s' GROUP BY badge_id" % data.host]:
+			var kp := Puzzle.new("keyholder", "SELECT badge_id FROM access_log WHERE room = '%s'" % data.host, ["badge_id"], false)
+			kp.distinct = true
+			var r := db.execute(right)
+			if not kp.matches(db, r) or kp.matches(db, db.execute("SELECT DISTINCT badge_id FROM access_log")):
+				forms_ok = false
 		var by_night := db.run_silent(night)
 		if by_night.is_empty() or by_night[0]["room"] != data.host or not Level3Data.CANDIDATES.has(data.host):
 			host_wins = false
@@ -3939,12 +3988,12 @@ func test_level_3_data_every_seed() -> void:
 			if l3.unreturned_puzzle.matches(db, db.execute(wrong)):
 				nulls_ok = false
 		# The catalogue route: Mercer's boxes name the room without the night's log.
-		for right in ["SELECT box_id, room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT * FROM catalogue WHERE note LIKE '%archivist%'", "SELECT room, box_id FROM catalogue WHERE title LIKE 'Founder%' OR dept = 'EXECUTIVE'"]:
+		# The LIKE-only route (three repeated rows), DISTINCT, SELECT * and a title match all pass.
+		for right in ["SELECT room FROM catalogue WHERE note LIKE '%archivist%'", "SELECT DISTINCT room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT * FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT room FROM catalogue WHERE title LIKE 'Founder%'"]:
 			var r := db.execute(right)
-			if not l3.mercer_puzzle.matches(db, r) or r.rows.size() != 3 or r.rows[0]["room"] != data.host:
+			if not l3.mercer_puzzle.matches(db, r) or r.rows[0]["room"] != data.host:
 				route_ok = false
-		# One lucky row with the right room (a title match, an aggregate with no GROUP BY) isn't the route.
-		for wrong in ["SELECT box_id, room FROM catalogue", "SELECT box_id, room FROM catalogue WHERE room != 'STACKS'", "SELECT dept, room FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT box_id, room FROM catalogue WHERE title LIKE 'Founder%'", "SELECT room, COUNT(*) FROM access_log"]:
+		for wrong in ["SELECT DISTINCT room FROM catalogue", "SELECT DISTINCT room FROM catalogue WHERE room != 'STACKS'", "SELECT dept FROM catalogue WHERE dept = 'EXECUTIVE'", "SELECT * FROM access_log WHERE room = '%s'" % data.host]:
 			if l3.mercer_puzzle.matches(db, db.execute(wrong)):
 				route_ok = false
 		if data.mercer_boxes.size() != 3:
@@ -3964,7 +4013,10 @@ func test_level_3_data_every_seed() -> void:
 	check(slips_ok, "3 to 5 slips are open, and COUNT(*) on them passes the slips check; counting every slip or the filled ones doesn't")
 	check(depts_ok, "the stacks' departments repeat: DISTINCT collapses them, and the plain list, the wrong column and every room don't pass")
 	check(nulls_ok, "one or two pulled boxes never came back: returned_at IS NULL finds them (and the catalogue says 'out'); = NULL, = '', no status, IS NOT NULL and the filled list don't")
-	check(route_ok, "the catalogue route: Mercer's three boxes (his department, the archivist note) list the room; broader lists and one lucky row don't")
+	check(route_ok, "the catalogue route: Mercer's boxes (his department, the archivist note, the title) name the room, with or without DISTINCT; broader lists and the reader's rows don't")
+	check(forms_ok, "every correct form passes: the top room with its count, COUNT on a column, aliases, the raw rows for the lock; a lone raw row and the whole log's top room don't")
+	check(window_ok, "the night's swipes all fall between 19:00 and 23:00 on the 15th, before the crew signs in; none cross midnight")
+	check(cart_ok, "the returns cart holds every filled slip's box (7 or more); the key box is one nobody checked back in, 'out' in the catalogue; the rest are 'returned'")
 	check(hosts.size() == Level3Data.CANDIDATES.size(), "the safe room hides behind a different side room on different runs (%s)" % [hosts.keys()])
 	check(code_ok and codes.size() > 40, "the lock's code is the four digits of the one badge that used the host room's reader, and it changes with the seed")
 	var building := FacilityDB.new()
@@ -4034,27 +4086,45 @@ func test_level_3_scene() -> void:
 	# The desk's stations (no hints are asserted: the ladders are drafts awaiting approval).
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
-	check(level.desk.puzzles.size() == 6 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "six stations on the desk, none with a hint ladder yet")
-	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log")
+	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.is_empty()), "seven stations on the desk, none with a hint ladder yet")
+	level.terminal_ui.run("SELECT COUNT(*) FROM access_log")
 	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")
 	check(level.tally_puzzle.solved and not level.visits_puzzle.solved, "the tally sheet's whole-log count passes the tally station only")
-	check(_doc(level, "Reader tally") != null and _doc(level, "Retention review memo") != null and _doc(level, "Retrieval slips").plain_text().contains(Level3Data.NIGHT),
-		"the tally sheet, the memo on the card catalogue and the night's date on the slips are on the floor")
+	check(_doc(level, "Reader tally") != null and _doc(level, "Retention review memo") != null and _doc(level, "Retrieval slips").plain_text().contains(Level3Data.NIGHT) and _doc(level, "Clerk's sticky") != null and _doc(level, "Note by the spike") != null,
+		"the tally sheet, the memo on the card catalogue, the COUNT sticky, the spike note and the night's date on the slips are on the floor")
+	# The room's question hasn't been asked yet: Security's sheet hangs in the north corridor.
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT)
+	check(not level.room_asked and not level.visits_puzzle.solved and not _game().case_info("room").get("open", false), "before Security's sheet is read, the night's count isn't a station yet, and the room case isn't open")
+	var sheet: Node = _doc(level, "Reader exceptions")
+	check(sheet != null and level.to_local(sheet.global_position).z < -22.0, "Security's exceptions sheet hangs in the north corridor")
+	sheet.open_reader(p).close()
+	await _frames(3)
+	check(level.room_asked and _game().case_info("room").get("open", false) and not _game().case_info("room").get("solved", false) and _game().current_todo() == level.TEXT.todo_room, "reading the sheet asks the question: the room case opens unsolved and the to-do says to find the room")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room ORDER BY COUNT(*) DESC")
 	check(not level.visits_puzzle.solved and not _game().case_info("room").get("solved", false), "a count over the whole log doesn't pass: the reading room comes first")
-	level.terminal_ui.run("SELECT box_id, room FROM catalogue WHERE note LIKE '%archivist%'")
+	level.terminal_ui.run("SELECT room FROM catalogue WHERE note LIKE '%archivist%'")
 	check(level.mercer_puzzle.solved and _game().case_info("room").solved and _game().case_info("room").how.contains(host), "the catalogue route: Mercer's boxes name the room, and the case page closes with it")
-	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT)
-	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's count passes too; the case stays closed once")
-	level.terminal_ui.run("SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'")
+	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC LIMIT 1" % Level3Data.NIGHT)
+	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's top room with its count passes too; the case stays closed once")
+	level.terminal_ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
+	check(level.keyholder_puzzle.solved, "the lock's question: that room's raw rows, read by eye, pass it")
+	level.terminal_ui.run("SELECT COUNT(slip_no) FROM retrieval_slips WHERE status = 'open'")
 	level.terminal_ui.run("SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'")
-	check(level.slips_puzzle.solved and level.depts_puzzle.solved, "the slips and departments stations pass")
+	check(level.slips_puzzle.solved and level.depts_puzzle.solved and _game().case_info("duties").get("solved", false), "the slips and departments stations pass, and the night clerk's list closes")
 	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE returned_at = NULL")
 	check(not level.unreturned_puzzle.solved, "= NULL finds nothing, so the unreturned station doesn't pass")
 	level.terminal_ui.run("SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL")
-	check(level.unreturned_puzzle.solved, "IS NULL finds the boxes that never came back, and the station passes")
-	check(level.find_children("*", "Terminal", true, false).size() == 2 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (the web skill is on hold)")
+	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false) and _game().case_info("key").how.contains(level.data.key_box), "IS NULL finds the boxes nobody checked back in; the key case names them")
+	check(level.find_children("*", "Terminal", true, false).size() == 3 and level.fiche.puzzles.is_empty(), "the archive intranet terminal is there, with no station yet (the web skill is on hold); Mercer's PC is the third")
+	# Mercer's PC: its own little database, off the building's, with the safe IS NULL practice.
+	level.terminal_ui.terminal = level.pc
+	level.terminal_ui.run("SELECT box_id FROM pulled WHERE back_on IS NULL")
+	check(level.pc_puzzle.solved and level.db.run_silent("SELECT name FROM sqlite_master WHERE name = 'pulled'").is_empty(), "the PC's practice passes on its own table, which the building's database doesn't have")
+	level.terminal_ui.terminal = level.desk
+	level.terminal_ui.run("SELECT box_id FROM pulled WHERE back_on IS NULL")
+	check(Array(level.desk.transcript).any(func(l): return str(l).to_lower().contains("no such table")), "the desk terminal has no 'pulled' table: the PC is off the network")
+
 	level.queue_free()
 	await process_frame
 
@@ -4076,7 +4146,7 @@ func test_level_3_safe_room() -> void:
 	check(level.safe_door.is_hinged() and level.safe_door.locked and level.db.run_silent("SELECT * FROM doors WHERE id = 'MERCER'").is_empty(), "Mercer's door is a plain hinged door with a mechanical lock: no badge, nothing in the doors table")
 	check(not level.lights.keys().any(func(k): return k.contains("MERCER")) and level.db.run_silent("SELECT * FROM lights WHERE room LIKE '%Mercer%'").is_empty(), "nothing in the safe room is in the lights table: it's off the grid")
 	var card := _doc(level, "SQL pocket reference")
-	check(card != null and level.safe_room_box.has_point(level.to_local(card.global_position)) and card.plain_text().contains("IS NULL") and not card.plain_text().contains("SELECT"), "Mercer's reference card is on his desk: it explains IS NULL, and gives no query")
+	check(card != null and level.safe_room_box.has_point(level.to_local(card.global_position)) and card.plain_text().contains("IS NULL") and not card.plain_text().contains("SELECT") and not card.plain_text().contains("returned_at"), "Mercer's reference card is on his desk: it explains IS NULL on another table, and gives no query")
 	level.cranks[host].interact(p)
 	level.safe_door.interact(p)
 	for i in 60:
@@ -4098,11 +4168,23 @@ func test_level_3_safe_room() -> void:
 		await physics_frame
 	check(level.reached_safe and _game().current_todo() == "", "stepping in finds the room: the to-do is ticked off")
 	level.floppy.interact(p)
-	level.key_dock.interact(p)
 	for i in 5:
 		await physics_frame
 	check(p.inventory.has("floppy_disk") and level.floppy_taken and not level.floppy.enabled, "the floppy is taken, and there was only one")
-	check(p.inventory.has("stair_key") and level.key_taken and not level.stair_out.locked, "the key ring unlocks the stairs down")
+	# No key on the hook: Mercer's note says it's in the box nobody checked back in.
+	var note: Node = _doc(level, "Mercer's note")
+	check(note != null and level.safe_room_box.has_point(level.to_local(note.global_position)) and note.plain_text().contains("checked back in"), "Mercer's note on the cot says where the key went")
+	note.open_reader(p).close()
+	await _frames(3)
+	check(_game().current_todo() == level.TEXT.todo_key_box and _game().case_info("key").get("open", false), "reading it sets the to-do and opens the key case")
+	check(level.key_dock != null and level.cart_boxes.size() >= 7 and level.cart_boxes.has(level.data.key_box) and level.cart_boxes[level.data.key_box] == level.key_dock and level.to_local(level.key_dock.global_position).x > 5.0, "the key is in the box on the returns cart that nobody checked back in, among the other returned boxes")
+	var decoy_id: String = level.cart_boxes.keys().filter(func(k): return k != level.data.key_box)[0]
+	level.cart_boxes[decoy_id].interact(p)
+	check(not p.inventory.has("stair_key") and level.stair_out.locked, "opening another box on the cart gives no key")
+	level.key_dock.interact(p)
+	for i in 5:
+		await physics_frame
+	check(p.inventory.has("stair_key") and level.key_taken and not level.stair_out.locked, "the key ring in the right box unlocks the stairs down")
 	check(_game().current_todo() == level.TEXT.todo_key, "the to-do says to get everyone to the stairs")
 	# Down: you come to on Mercer's cot now.
 	p.take_damage(1000.0, "fall")
@@ -4259,6 +4341,16 @@ func test_level_3_shredder() -> void:
 	p.controls.sprint = false
 	p.local_control = true
 	check(level.to_local(p.global_position).z < 4.0 and not s.active and s.state == "dormant", "a sprint through the lobby doesn't wake it: it's asleep (z %.1f, %s)" % [level.to_local(p.global_position).z, s.state])
+	# Setting foot in the north corridor wakes it: the question that needs the night's
+	# count hangs there, so that count is always typed with the Shredder up.
+	check(level.find_children("NorthCorridor", "", true, false).size() == 1 and _doc(level, "Reader exceptions") != null and level.to_local(_doc(level, "Reader exceptions").global_position).z < -22.0, "the corridor has a trigger, and Security's sheet hangs past it")
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-9.5, 0.1, -23.5)))
+	for i in 20:
+		await physics_frame
+	check(level.shredder_awake and s.active and s.state == "listening" and level.hud._notice.text == level.TEXT.shredder_wakes_near, "setting foot in the north corridor wakes it, and the crew hears the machines stop (%s)" % s.state)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(0, 0.1, 0)))
+	for i in 5:
+		await physics_frame
 	# The first crank wakes it, and it heads for the sound.
 	var host: String = level.data.host
 	level.cranks[host].interact(p)

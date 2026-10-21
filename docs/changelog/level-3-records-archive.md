@@ -4,3 +4,6 @@
 - **Added:** a fourth puzzle at the records desk, a pocket reference card to find, and a second way to work out where the hidden room is.
 - **Changed:** the hidden room on 18 is behind a push-button lock as well as its shelving; the code is in the building's records, and a sheet on the records desk says where to look.
 - **Added:** the records desk's papers now teach the floor's new words where you find them: a clerk's memo on the card catalogue, a reader tally taped to the desk (with a practice station of its own), and the night's date on the slips.
+- **Changed:** on floor 18 every desk question is now asked somewhere in the world and tracked on a case page; the hidden room's question hangs in the north corridor, and the thing that hunts by sound wakes when you walk in there.
+- **Changed:** the stair key on 18 is no longer on a hook: it is inside one box on the returns cart, and one query says which. Mercer's room has an offline PC to practise on.
+- **Fixed:** floor 18's desk accepts every correct form of an answer (a count on a column, an alias, the top row with its count, repeated rows), and the night's badge swipes no longer run past midnight.
