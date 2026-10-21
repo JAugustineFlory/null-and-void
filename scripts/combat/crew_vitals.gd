@@ -17,8 +17,6 @@ extends Node
 signal crew_down(cause: String)
 ## Host: a player's block caught a hit from `cause` (the attacker can recoil).
 signal hit_blocked(peer_id: int, cause: String)
-## The machine whose player earned an unlock (`source` is a Profile.earn id).
-signal unlocked(source: String)
 
 ## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
 const REVIVE_PROMPT := "[E] Help them up"
@@ -190,19 +188,19 @@ func _host_blocked(id: int, cause: String) -> void:
 	hit_blocked.emit(id, cause)
 	if not PlayerCombat.practice(cause) and not _first_blocks.has(id):
 		_first_blocks[id] = true
-		_run("_earn", [FIRST_BLOCK, id])
+		_earn_for(id, FIRST_BLOCK)
 
 
-## Every machine: player `id` earns `source`, on their own machine and profile
-## only; teammates get nothing (Net says "Unlocked: ..." the first time; after
-## that it's a no-op).
-func _earn(source: String, id: int) -> void:
-	if id != my_id():
+## Host: just player `id` earns `source`, on their own machine; teammates get
+## nothing. With no LevelSync (a bare world), the one player here earns it.
+func _earn_for(id: int, source: String) -> void:
+	var s := _sync()
+	if s:
+		s.unlock_for([id], source)
 		return
 	var net := get_node_or_null("/root/Net")
 	if net:
 		net.earn(source, level.get("hud"))
-	unlocked.emit(source)
 
 
 # --- What entities do to players (host) ---------------------------------------
