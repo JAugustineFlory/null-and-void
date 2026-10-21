@@ -83,6 +83,11 @@ func is_running() -> bool:
 	return not chapter.is_empty()
 
 
+## A huddle is open here, or still closing.
+func is_busy() -> bool:
+	return _busy
+
+
 ## Hold a huddle for chapter `id` and wait until the crew has finished it. If one
 ## is already open (two papers read close together), this one waits its turn.
 func run(id: String, mode: String = FLASHBACK) -> void:

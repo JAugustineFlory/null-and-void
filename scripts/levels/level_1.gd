@@ -61,6 +61,9 @@ var stair_door: Door
 var spare_walkies: ItemDock
 ## Who carries cable up to Level 2: peer id -> true, the same on every machine.
 var cable_holders := {}
+## Host: Easy SQL chapters whose paper has been read: "found" waits until its
+## puzzle is ready, "played" has been held (_book_found).
+var _books := {}
 
 ## The to-do once the controller is found: the sign-off's count comes first.
 const COUNT_TODO := "Count the faulted controllers for the reset sign-off (terminal)"
@@ -267,26 +270,30 @@ func _build_door_plates() -> void:
 
 
 func _rack_card(pos: Vector3, facing: float, flat: bool) -> void:
-	Document.place(geo, pos, facing, "SERVER ROOM B - RACK MONITORING", [
+	var card := Document.place(geo, pos, facing, "SERVER ROOM B - RACK MONITORING", [
 		"SERVER ROOM B - RACK MONITORING",
 		{"before": "Rack temperatures are logged in the table ", "filled": "racks", "after": "."},
 		"Columns: id, room, temp_c, load_pct, note",
 		"ALERT if temp_c > %d" % Level1Data.INTERLOCK_C,
 		"Running hot? Reseat that rack's fan tray.",
-	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15)).clues = [
+	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15))
+	card.clues = [
 		{"case": "hot_rack", "text": "Rack temperatures are in the table racks. Columns: id, room, temp_c, load_pct, note."},
 		{"case": "hot_rack", "text": "ALERT if temp_c > %d. Running hot? Reseat that rack's fan tray." % Level1Data.INTERLOCK_C},
 	]
+	card.read_by.connect(func(_p): _book_found("easy_sql_7"))  # More than, less than
 
 
 func _facilities_card(pos: Vector3, facing: float, flat: bool) -> void:
-	Document.place(geo, pos, facing, "FACILITIES - LIGHTING CIRCUITS", [
+	var card := Document.place(geo, pos, facing, "FACILITIES - LIGHTING CIRCUITS", [
 		"FACILITIES - LIGHTING CIRCUITS",
 		{"before": "Before a reset, pull every light that's 'dead' OR 'flickering' from the table ", "filled": "lights", "after": "."},
 		"Columns: id, room, floor, is_on, status",
 		"One reset clears the lot.",
 		"Lights marked 'off' are off on purpose. Leave them.",
-	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15)).clues = [
+	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15))
+	card.read_by.connect(func(_p): _book_found("easy_sql_8"))  # Either one will do
+	card.clues = [
 		{"case": "dark_room", "opens": DARK_CASE, "tables": ["lights"], "text": "List every light that's 'dead' OR 'flickering' in the lights table (columns: id, room, floor, is_on, status), then reset the circuit by the break room door."},
 		{"case": "dark_room", "text": "Lights marked 'off' are off on purpose. Leave them."},
 	]
@@ -437,6 +444,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		{"case": "controller", "text": "The stuck doors on this floor: Server Room A's rear exit, Server Room C, Lift 1."},
 		{"case": "controller", "text": "The Records Archive and Cold Lab faults aren't this floor's."},
 	]
+	shift_log.read_by.connect(func(_p): _book_found("easy_sql_5"))  # Keeping only some rows
 	# A charger of spare walkie-talkies on the front desk.
 	Greybox.box(geo, Vector3(-13.5, 0.78, 1.2), Vector3(0.9, 0.04, 0.26), Color(0.12, 0.12, 0.13), "ChargingDock")
 	spare_walkies = ItemDock.walkies(geo, Vector3(-13.5, 0.8, 1.2))
@@ -465,13 +473,15 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	# a room full of cable stays sealed while any rack on the floor runs hot.
 	vault_back = add_door("VAULT-BACK", Vector3(-12.0, 1.1, -3.0), Vector3(1.35, 2.2, 0.08)).make_hinged(Vector3(-0.675, 0, 0), 90.0)
 	vault_back.locked = true
-	Document.place(geo, Vector3(-10.85, 1.5, -2.89), 180.0, "Fire interlock", [
+	var interlock := Document.place(geo, Vector3(-10.85, 1.5, -2.89), 180.0, "Fire interlock", [
 		"FIRE INTERLOCK",
 		"This door stays sealed while any rack on this floor reads over %d°C." % Level1Data.INTERLOCK_C,
-	], false, "laminated", Vector2(0.36, 0.24)).clues = [
+	], false, "laminated", Vector2(0.36, 0.24))
+	interlock.clues = [
 		{"case": "hot_rack", "opens": "Why won't the cable vault's back door open?", "tables": ["racks"],
 			"text": "It stays sealed while any rack on this floor reads over %d°C." % Level1Data.INTERLOCK_C},
 	]
+	interlock.read_by.connect(func(_p): _book_found("easy_sql_7"))
 
 	# Server Room B: x 8..22, z -3..9. Racks on another zone; nothing to fix here.
 	Greybox.room(geo, Vector3(15, 0, 3), Vector3(14, 3.6, 12), machine, [_gap("s", -0.5, door), _gap("n", -3.0, door)])
@@ -515,7 +525,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	Document.place(geo, Vector3(13.0, 1.15, -9.12), 180.0, "Sticky note", [
 		{"text": "Bulb's dead AGAIN. It's in the lights table. Nobody reads it.", "hand": true},
 		{"text": "- night shift", "hand": true},
-	], false, "sticky")
+	], false, "sticky").read_by.connect(func(_p): _book_found("easy_sql_8"))
 	# Its row in the lights table says the bulb is dead (Level1Data), so it's dark.
 	add_light("1-BREAK", Vector3(15, 3, -6), 6.0, 1.0, office)
 	# Optional: inside the door, the floor's lighting circuit reset and facilities'
@@ -584,6 +594,11 @@ func _on_asked() -> void:
 	if asked:
 		return
 	asked = true
+	# The self-test filters with WHERE and AND: the book's chapters on those first,
+	# round the garage bench (Keeping only some rows is skipped if the shift log
+	# already brought it back).
+	await _book_huddle("easy_sql_5")
+	await _book_huddle("easy_sql_6")
 	terminal.locked = false
 	if not controller_puzzle.solved:
 		hud.todo("Find the door controller that keeps faulting, and reset it" if stuck_doors_puzzle.solved else "Find which zone the stuck doors are in (terminal)")
@@ -715,6 +730,31 @@ func _on_light_panel(_p: Node) -> void:
 
 func _on_light_refused() -> void:
 	hud.notice("> LIGHTING CIRCUIT: RESET LOCKED.\n> It unlocks once the terminal lists every light that's dead or flickering.", 4.0, ThemeUtil.RED)
+
+
+## Host: a paper brings back chapter `id` of Easy SQL. Read before its puzzle is
+## ready, it waits: reading that paper again once it is plays it.
+func _book_found(id: String) -> void:
+	if sync.is_host():
+		if not _books.has(id):
+			_books[id] = "found"
+		_book_check(id)
+
+
+## Host: play chapter `id` if its paper has been read and its puzzle is ready.
+func _book_check(id: String) -> void:
+	if sync.is_host() and _books.get(id, "") == "found" and _book_ready(id):
+		_books[id] = "played"
+		sync.event("_book_huddle", [id])
+
+
+func _book_ready(id: String) -> bool:
+	match id:
+		"easy_sql_7", "easy_sql_8":
+			# After the self-test's chapters, so their WHERE comes first.
+			var h := Huddle.of(self)
+			return asked and h != null and h.done.has("easy_sql_6")
+	return true
 
 
 ## Every machine: a paper brings back its chapter of Easy SQL, read round the garage
