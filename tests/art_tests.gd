@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_moods()
 	await test_rig_walks_from_movement()
 	await test_rig_actions()
+	test_rig_steps_through_turns()
 	await test_rig_budget()
 	await test_skinned_body()
 	test_outfits()
@@ -105,6 +106,31 @@ func test_rig_walks_from_movement() -> void:
 	holder.position.z -= 50.0
 	rig.animate(1.0 / 60.0)
 	check(rig.current_speed() < 2.5, "a teleport is not read as a sprint")
+	stage.free()
+
+
+func test_rig_steps_through_turns() -> void:
+	# Ground floor playtest: Rourke turned on the spot with his legs still.
+	var stage := _stage()
+	var holder := Node3D.new()
+	stage.add_child(holder)
+	var rig := CharacterRig.build(holder, CharacterLooks.rourke())
+	rig.set_process(false)
+	var swing := func(rate: float) -> float:
+		var most := 0.0
+		for i in 90:
+			holder.rotation.y += rate / 60.0
+			rig.animate(1.0 / 60.0)
+			if i > 30:
+				most = maxf(most, absf(rig.joints["r_hip"].rotation.x))
+		return most
+	var drift: float = swing.call(0.3)
+	var turning: float = swing.call(3.0)
+	check(turning > 0.15 and rig.current_speed() > 0.3, "turning on the spot steps the legs round (hip swing %.2f)" % turning)
+	check(drift < 0.05, "while a slow drift of the head and shoulders leaves the feet planted (%.2f)" % drift)
+	for i in 120:
+		rig.animate(1.0 / 60.0)
+	check(rig.current_speed() < 0.05, "and once the turn ends, the feet stop")
 	stage.free()
 
 

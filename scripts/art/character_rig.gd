@@ -21,6 +21,11 @@ const ACTIONS := UPPER_BODY + FULL_BODY
 ## Meters covered by one full walk cycle (two steps).
 const STRIDE := 1.5
 const WALK_SPEED := 1.9
+## Turning on the spot steps the feet round: a turn this fast (radians a
+## second) or slower doesn't move them, and above it each radian a second
+## counts as this many metres a second of walking.
+const TURN_STILL := 0.8
+const TURN_STEP := 0.3
 ## Beyond this distance from the camera the rig updates less often.
 const FAR_DISTANCE := 30.0
 ## Body heights, matching Player's collider.
@@ -55,6 +60,7 @@ var _phase := 0.0
 var _speed := 0.0
 var _t := 0.0
 var _last_pos := Vector3.ZERO
+var _last_yaw := 0.0
 var _has_last := false
 var _skip := 0
 var _skipped_delta := 0.0
@@ -133,14 +139,20 @@ func _measure_speed(delta: float) -> void:
 	if speed_override >= 0.0:
 		measured = speed_override
 	elif is_inside_tree():
-		var p := get_parent_node_3d().global_position if get_parent_node_3d() else global_position
+		var body := get_parent_node_3d() if get_parent_node_3d() else self
+		var p := body.global_position
+		var yaw := body.global_rotation.y
 		if _has_last and delta > 0.0:
 			var d := p - _last_pos
 			d.y = 0.0
 			measured = d.length() / delta
 			if measured > 20.0:  # a teleport or respawn, not a sprint
 				measured = 0.0
+			var turn := absf(wrapf(yaw - _last_yaw, -PI, PI)) / delta
+			if turn > TURN_STILL and turn < 30.0:
+				measured = maxf(measured, minf(1.2, (turn - TURN_STILL) * TURN_STEP + 0.3))
 		_last_pos = p
+		_last_yaw = yaw
 		_has_last = true
 	_speed = lerpf(_speed, measured, 1.0 - exp(-8.0 * delta))
 	_phase = fmod(_phase + delta * _speed / STRIDE * TAU, TAU)
