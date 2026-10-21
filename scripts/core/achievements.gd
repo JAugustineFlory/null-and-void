@@ -6,8 +6,8 @@ extends RefCounted
 ## Secrets stay off the list until found. How to earn one is the hint of the
 ## item it unlocks, so the list never says more than the lobby already does.
 ##
-## Names: "Filed under F" was approved with floor 18 (plan/approvals/l3-text.md);
-## the rest are drafts for Augustine (plan/approvals/achievements-ui-text.md).
+## Names, the notice and the lobby tab: approved by Augustine 2026-10-21 12:25Z
+## (plan/approvals/achievements-ui-text.md; "Filed under F" from l3-text.md).
 
 const LIST := [
 	{"id": "achievement:book_easy_sql", "name": "Required Reading"},
