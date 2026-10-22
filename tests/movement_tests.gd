@@ -7,10 +7,19 @@ var t: SceneTree
 var _check: Callable
 
 
-func run(tree: SceneTree, check: Callable) -> void:
+## `part`: "moves" (parkour), "hands" (notebook, terminals, items, sitting,
+## stamina, knocks and the gym) or "all". Split so each CI group stays short.
+func run(tree: SceneTree, check: Callable, part := "all") -> void:
 	t = tree
 	_check = check
-	print("Movement")
+	print("Movement (%s)" % part)
+	if part != "hands":
+		await _run_moves()
+	if part != "moves":
+		await _run_hands()
+
+
+func _run_moves() -> void:
 	await test_walk_and_sprint()
 	await test_gate_needs_slide_or_crouch()
 	await test_crouch_fits_the_gap()
@@ -25,6 +34,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_ledge_shuffle()
 	await test_shoulders()
 	await test_same_controls_same_moves()
+
+
+func _run_hands() -> void:
 	await test_notebook_hold()
 	await test_use_terminal()
 	await test_pick_up()
@@ -357,10 +369,49 @@ func test_hang_shimmy_pull_up() -> void:
 	p.controls.jump = true
 	await frames(3)
 	stop(p)
+	await frames(15)
+	check(p.state == Player.Move.HANG, "hanging, waiting")
+	p.controls.jump = true
+	for i in 60:
+		await frames(1)
+		if p.state == Player.Move.WALK:
+			break
+	await frames(5)
+	check(p.global_position.y > 1.9 and p.state == Player.Move.WALK, "Space pulls you up from a hang")
+	await done(a)
+
+	a = arena()
+	_high_wall(a, 2.0)
+	p = spawn(a, Vector3(0, 0.05, -1.3))
+	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
+	p.controls.jump = true
+	await frames(3)
+	stop(p)
+	p.controls.jump = true  # straight away, before you've settled on the edge
+	for i in 60:
+		await frames(1)
+		if p.state == Player.Move.WALK:
+			break
+	await frames(5)
+	check(p.global_position.y > 1.9, "Space pressed the moment you catch the edge still pulls you up (y %.2f)" % p.global_position.y)
+	await done(a)
+
+	a = arena()
+	_high_wall(a, 2.0)
+	p = spawn(a, Vector3(0, 0.05, -1.3))
+	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
+	p.controls.jump = true
+	await frames(3)
+	stop(p)
+	await frames(15)
+	Greybox.box(a, Vector3(0, 2.5, -2.6), Vector3(6, 1.0, 1.0), Color.DIM_GRAY)  # something lands on the edge
+	await frames(2)
 	var z_hang := p.global_position.z
 	p.controls.jump = true
 	await frames(20)
-	check(p.state == Player.Move.WALK and p.global_position.z > z_hang + 0.5, "Space kicks off the wall from a hang")
+	check(p.state == Player.Move.WALK and p.global_position.z > z_hang + 0.5 and p.global_position.y < 1.9, "no room on top, Space kicks off the wall instead")
 	await done(a)
 
 	a = arena()

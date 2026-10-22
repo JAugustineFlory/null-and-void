@@ -204,6 +204,8 @@ var _hang_normal := Vector3.ZERO
 var _hang_top := 0.0
 ## Forward must be let go after catching an edge before it pulls you up.
 var _fwd_released := false
+## Space pressed while hanging, waiting out HANG_SETTLE to pull you up.
+var _hang_jump := false
 var _sprint_grace := 0.0
 ## The way your body faces on a narrow ledge: into the wall or out over the drop.
 var _ledge_face := Vector3.ZERO
@@ -1468,6 +1470,7 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		_hang_top = p.top
 		_timer = 0.0
 		_fwd_released = controls.move.y > -0.5
+		_hang_jump = false
 		_set_crouch(false)
 		velocity = Vector3.ZERO
 		_roll_queued = false
@@ -1600,22 +1603,23 @@ func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 		velocity = n * 1.0
 		_was_on_floor = false
 		return
-	if jump_pressed:
-		# Kick off backwards, like off a pipe.
-		state = Move.WALK
-		velocity = n * 3.0 + Vector3.UP * 3.0
-		_was_on_floor = false
-		return
+	_hang_jump = _hang_jump or jump_pressed
 	var fwd := controls.move.y < -0.5
 	if not fwd:
 		_fwd_released = true
-	elif _fwd_released and _timer >= HANG_SETTLE:
-		# Holding W from the jump only grabs; a fresh W press climbs up.
+	if (_hang_jump or (fwd and _fwd_released)) and _timer >= HANG_SETTLE:
+		# Space or a fresh W press climbs up (holding W from the jump only grabs).
 		var face := global_position - n * (RADIUS + 0.03)
 		var target := face - n * (RADIUS + 0.08)
 		target.y = _hang_top + 0.02
 		if _fits(target, CRAWL_HEIGHT):
 			_start_mantle(target)
+			return
+		if _hang_jump:
+			# No room on top: Space kicks off backwards instead, like off a pipe.
+			state = Move.WALK
+			velocity = n * 3.0 + Vector3.UP * 3.0
+			_was_on_floor = false
 			return
 	if absf(controls.move.x) > 0.1:
 		var right := (-n).cross(Vector3.UP)
