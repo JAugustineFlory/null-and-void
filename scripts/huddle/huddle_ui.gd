@@ -12,10 +12,13 @@ const RIGHT := Color(0.12, 0.5, 0.2)
 const WRONG := Color(0.7, 0.15, 0.1)
 ## Multiplies the flashback's picture towards an old photo's brown.
 const SEPIA := Color(1.0, 0.84, 0.62)
+## The typewriter font's size on a page, unless it has to shrink to fit (_bbcode).
+const CODE_SIZE := 20
 
 var huddle: Huddle
 var _hud: Node
 var _shown_count := 0
+var _drawn_width := -1.0
 var flashback := false
 var _title: Label
 var _body: RichTextLabel
@@ -86,7 +89,7 @@ func _ready() -> void:
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_body.add_theme_color_override("default_color", INK)
 	_body.add_theme_font_size_override("normal_font_size", 22)
-	_body.add_theme_font_size_override("mono_font_size", 20)
+	_body.add_theme_font_size_override("mono_font_size", CODE_SIZE)
 	_body.add_theme_font_override("mono_font", ThemeUtil.mono())
 	box.add_child(_body)
 	_options = VBoxContainer.new()
@@ -113,6 +116,9 @@ func _ready() -> void:
 	_buttons.add_child(_next)
 
 	huddle.changed.connect(_redraw)
+	_body.resized.connect(func():  # the code on a page fits its width
+		if _body.size.x != _drawn_width:
+			_redraw())
 	_redraw()
 
 
@@ -125,6 +131,7 @@ func _ink(text: String, size: int, color: Color = INK) -> Label:
 
 
 func _redraw() -> void:
+	_drawn_width = _body.size.x
 	var ch := huddle.chapter
 	if ch.is_empty():
 		_title.text = ""
@@ -185,7 +192,7 @@ func _draw_question(ch: Dictionary) -> void:
 	var word: String = q.get("word", "")
 	var refs := ""
 	for text in huddle.reference():
-		refs += "[color=#57534c][font_size=17]%s[/font_size][/color]\n\n" % _bbcode(text)
+		refs += "[color=#57534c][font_size=17]%s[/font_size][/color]\n\n" % _bbcode(text, 17)
 	_body.text = "%s[b]Quick check %d of %d[/b]%s\n%s" % [refs, huddle.question + 1, ch.quiz.size(),
 		("  " + _escape(word)) if word != "" else "", _escape(q.q)]
 	_clear_options()
@@ -232,12 +239,23 @@ static func _escape(text: String) -> String:
 	return text.replace("[", "[lb]")
 
 
-## Indented lines in a page are code: they show in the typewriter font.
-static func _bbcode(text: String) -> String:
+## Indented lines in a page are code: they show in the typewriter font, at
+## `size` or smaller, so that the widest of them fits the page without wrapping
+## (a table split over two lines can't be read; playtest 2026-10-22).
+func _bbcode(text: String, size: int = CODE_SIZE) -> String:
+	var lines := text.split("\n")
+	var widest := 0.0
+	for line in lines:
+		if line.begins_with("    "):
+			widest = maxf(widest, ThemeUtil.mono().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x)
+	var room := _body.size.x - 8.0
+	var fit := size
+	if room > 0.0 and widest > room:
+		fit = maxi(10, floori(size * room / widest))
 	var out := []
-	for line in text.split("\n"):
+	for line in lines:
 		var safe := line.replace("[", "[lb]")
-		out.append("[code]%s[/code]" % safe if line.begins_with("    ") else safe)
+		out.append("[font_size=%d][code]%s[/code][/font_size]" % [fit, safe] if line.begins_with("    ") else safe)
 	return "\n".join(out)
 
 

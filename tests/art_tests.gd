@@ -995,13 +995,11 @@ func test_dressed_home_base() -> void:
 	var walk := []
 	var m: Dictionary = HomeBase.MADDISON_MARKS
 	var legs := []
-	for pair in [["door", "greet"], ["greet", "fax"], ["fax", "bench"], ["bench", "van"], ["van", "board"]]:
+	for pair in [["door", "board"], ["board", "side"], ["side", "board"], ["board", "van"]]:  # the opening's walks
 		var a: Vector3 = m[pair[0]][0]
-		var b: Vector3 = m[pair[1]][0]
-		if HomeBase._crosses_bench(a, b):
-			legs.append_array([[a, HomeBase.BENCH_WAY], [HomeBase.BENCH_WAY, b]])
-		else:
+		for b in level.maddison_route(a, m[pair[1]][0]):
 			legs.append([a, b])
+			a = b
 	for leg in legs:
 		var steps := ceili(leg[0].distance_to(leg[1]) / 0.5)
 		for i in steps + 1:
