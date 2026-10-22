@@ -1,0 +1,1 @@
+- **Changed:** On floor 9 the air holds out longer, the read-back hints keep their answer for the last step, and every station can be finished from either terminal.

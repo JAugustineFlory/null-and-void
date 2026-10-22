@@ -259,6 +259,9 @@ func test_data_every_seed() -> void:
 		ok_hints = ok_hints and _ask(fresh, fresh.check_circuits_puzzle, _last_hint_query(fresh.check_circuits_puzzle)).passes
 		ok_hints = ok_hints and _ask(fresh, fresh.air_puzzle, _last_hint_query(fresh.air_puzzle)).passes
 		ok_hints = ok_hints and _ask(fresh, fresh.check_air_puzzle, _last_hint_query(fresh.check_air_puzzle)).passes
+		# The read-backs' first tier keeps the service behind the blank; the last names it.
+		ok_hints = ok_hints and not fresh.check_air_puzzle.hints[0].contains("/work_orders") and fresh.check_air_puzzle.hints[-1].contains("GET /work_orders/enter_order_id") \
+			and not fresh.check_lockup_puzzle.hints[0].contains("/doors") and fresh.check_lockup_puzzle.hints[-1].contains("GET /doors/enter_door")
 		# The passes' last tier types this run's two door unlocks and both passes, on
 		# either ladder; the lockup's last tier is all typeable (its read-back too).
 		_power_cage(fresh)
@@ -328,6 +331,7 @@ func test_scene() -> void:
 		"the clipboard shows another panel's PATCH and the limit; the carbon copy is another floor's order")
 	check(level.hr.puzzles.map(func(pz): return pz.hints.size()) == [3, 2, 2, 2, 2, 2] and level.panel.puzzles.map(func(pz): return pz.hints.size()) == [3, 2, 3, 2],
 		"the key, the panel and the work order have three-step ladders; the reviews two")
+	check(level.AIR_GRACE >= 300.0 and level.air_grace == level.AIR_GRACE, "the air's grace covers a lost player's four minutes after the power is back")
 	var ui: TerminalUI = level.terminal_ui
 	ui.terminal = level.hr
 	check(level.hr.next_hint().contains("X-Api-Key: enter_key"), "the first hint is the request's shape with the key as enter_key")
@@ -358,9 +362,11 @@ func test_scene() -> void:
 	check(not level.swipes_puzzle.solved and _game().current_todo() == level.TEXT.todo_radio and _said(level.hr, level.TEXT.tip_lure), "the radio station opens, the to-do asks who's really there, and SYSOP says a voice isn't a record")
 	check(level.hud._subtitle.text.contains(VoiceLines.get_line("l5_mimic_maddison_lure").text), "the subtitle is Maddison's line")
 	check(level.hr.next_hint().contains("GET /swipes/enter_badge") and level.hr.next_hint().contains("GET /swipes/VIS-02"), "the radio's ladder: the shape, then the voice's badge")
+	ui.terminal = level.panel
 	ui.run(_last_hint_query(level.swipes_puzzle))
 	await _frames(3)
-	check(level.swipes_puzzle.solved and _game().case_info("radio").get("solved", false) and _game().case_info("radio").how.contains("VIS-02") and _game().current_todo() == level.TEXT.todo_power, "no such badge: the voice is exposed, the case says so, and the to-do goes back to the power")
+	ui.terminal = level.hr
+	check(level.swipes_puzzle.solved and _game().case_info("radio").get("solved", false) and _game().case_info("radio").how.contains("VIS-02") and _game().current_todo() == level.TEXT.todo_power, "no such badge: the voice is exposed (from the panel's terminal, too), the case says so, and the to-do goes back to the power")
 	await _frames(40)
 	check(level.lures == 1, "exposed, the voice doesn't ask again")
 	ui.run(_key(level, "GET /swipes/VIS-01"))
@@ -462,9 +468,11 @@ func test_scene() -> void:
 	ui.run(_key(level, "GET /doors/%s" % first.hide.door))
 	await _frames(2)
 	check(not level.check_lockup_puzzle.solved and level.read_back.has(first.hide.door), "one door read back isn't every door, but it counts")
+	ui.terminal = level.panel
 	ui.run(_key(level, "GET /doors/%s" % second.hide.door))
 	await _frames(3)
-	check(level.check_lockup_puzzle.solved and level.released and not level.stair_out.locked and _game().current_todo() == level.TEXT.todo_down and _game().case_info("people").get("solved", false), "the doors read back: STAIR 2 releases, the to-do says everyone down, and the people case names who was where")
+	ui.terminal = level.hr
+	check(level.check_lockup_puzzle.solved and level.released and not level.stair_out.locked and _game().current_todo() == level.TEXT.todo_down and _game().case_info("people").get("solved", false), "the doors read back (the last one from the panel): STAIR 2 releases, the to-do says everyone down, and the people case names who was where")
 	check(_game().case_info("people").how.contains(first.first) and _game().case_info("people").how.contains(first.hide.place), "the case page puts %s in %s" % [first.first, first.hide.place])
 	# Down: the voice has one more thing to say, then the floor ends.
 	var done := [false]

@@ -237,9 +237,9 @@ const WAIT_AT := [Vector3(-2.4, 0, 6.2), Vector3(-2.4, 0, 7.3)]
 ## The shaft past the loading door: step onto it and you fall.
 const SHAFT_AT := Vector3(6, 0, -32.5)
 ## How the air goes: once the carbon copy has shown the fix and the power is back, a
-## grace long enough to type it at a first-timer's pace, then a little each tick
-## until it's back.
-const AIR_GRACE := 180.0
+## grace long enough to type it at a lost player's pace (Teaching's walk: about four
+## minutes), then a little each tick until it's back.
+const AIR_GRACE := 300.0
 const AIR_TICK := 15.0
 const AIR_DAMAGE := 3.0
 ## The stair door propped: how long until the air clears on its own.
@@ -474,9 +474,10 @@ func _make_puzzles() -> void:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/work_orders") and _air_ok() and _shows_order(res.body), [
 		"the shape: ask for it back, with the service left as enter_service:\n" +
 		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
-		"enter_service is the service you just posted to. the 201 came with the order's number: GET /work_orders/enter_order_id asks for just that one.",
+		"enter_service is the service you just posted to.",
 		"type this, then Enter twice:\n" +
-		"    [color=#ffffff]GET /work_orders\n%s[/color]" % hr_key,
+		"    [color=#ffffff]GET /work_orders\n%s[/color]\n" % hr_key +
+		"the 201 came with the order's number: GET /work_orders/enter_order_id asks for just that one.",
 	])
 	check_air_puzzle.case_id = "air"
 	# The radio's claim against the readers' log: GET with an id in the path is
@@ -507,9 +508,10 @@ func _make_puzzles() -> void:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and _lockup_ok() and _shows_locked(res.body), [
 		"the shape: read the doors back, with the service left as enter_service:\n" +
 		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
-		"enter_service is the service whose doors you just locked. GET /doors/enter_door reads one back.",
+		"enter_service is the service whose doors you just locked.",
 		"type this, then Enter twice:\n" +
-		"    [color=#ffffff]GET /doors\n%s[/color]" % hr_key,
+		"    [color=#ffffff]GET /doors\n%s[/color]\n" % hr_key +
+		"GET /doors/enter_door reads one back.",
 	])
 	check_lockup_puzzle.case_id = "people"
 	vale_puzzle = RequestPuzzle.new("vale", "GET /staff/%s\n%s" % [Level5Data.VALE.id, hr_key], func(line: String, res: Dictionary) -> bool:
@@ -1162,16 +1164,11 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 	var path := _path_of(line).to_upper()
 	var method := _method_of(line)
 	var status := int(res.status)
-	var term: Terminal = _terminal(which)
-	for p in term.puzzles:
+	# Every station checks at either terminal (both reach every service): the key
+	# passes on any 200, a GET /doors at the panel is the lockup's read-back too.
+	for p in puzzles():
 		if not p.solved and p.request_matches(line, res):
 			sync.event("_on_solved", [p.id])
-	# The key passes at either terminal (any 200 is the manager's key), and Vale's
-	# record is read at either, whichever listed the staff.
-	if not key_puzzle.solved and key_puzzle.request_matches(line, res):
-		sync.event("_on_solved", ["key"])
-	if not vale_puzzle.solved and vale_puzzle.request_matches(line, res):
-		sync.event("_on_solved", ["vale"])
 	if status == 200 and path == "/STAFF":
 		sync.event("_staff_listed")
 	if status == 200 and path.begins_with("/SWIPES/VIS-") and issued.has(path.trim_prefix("/SWIPES/")):
