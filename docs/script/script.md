@@ -831,7 +831,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **CREW:** *(Reading the back cover, hopeful.)* Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly. `[l5_book_open]`
 
-**CREW:** *(Starting a chapter, reading it out.)* Chapter one. POST. You send it something, it makes something. Like a suggestion box that answers. `[l5_huddle_post_1]`
+**CREW:** *(Starting a chapter, reading it out.)* Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers. `[l5_huddle_post_1]`
 
 **CREW:** *(Wrapping up, pleased it's simple.)* So GET looks, POST makes. Got it. `[l5_huddle_post_2]`
 

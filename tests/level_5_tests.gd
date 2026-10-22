@@ -19,6 +19,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_data_every_seed()
 	await test_scene()
 	await test_floor_hazards()
+	await test_dock_custodian()
 	await test_book_huddles()
 	await test_coop()
 	await test_world()
@@ -79,11 +80,13 @@ func _key(level: Node, req: String, body := "") -> String:
 	return out
 
 
-## A level script with its data, services and stations built for `run_seed`, outside
-## the tree (no doors: those live in the building's tables).
+## A level script with its data, services, stations and its own copy of the building's
+## tables (the floor's doors and lights) built for `run_seed`, outside the tree.
 func _stations(run_seed: int, players := 1) -> Node:
 	var lvl = load("res://scripts/levels/level_5.gd").new()
 	lvl.data = Level5Data.build(run_seed)
+	lvl.db = FacilityDB.new()
+	lvl.db.load_seed(lvl.data.sql)
 	for c in lvl.data.circuits:
 		lvl.circuits[c[0]] = {"id": c[0], "circuit": c[1], "amps": int(c[2]), "on": bool(c[3]), "note": c[4]}
 	lvl.swipes = lvl.data.swipes.duplicate(true)
@@ -94,10 +97,19 @@ func _stations(run_seed: int, players := 1) -> Node:
 
 
 ## A request through the level's services, and whether station `p` passes on it.
+## Outside the tree nothing plays a door's change out, so a door opened through the
+## service goes on the lockup's list here, as _door_changed does on a floor.
 func _ask(lvl: Node, p: Puzzle, req: String) -> Dictionary:
 	var res: Dictionary = lvl.api.request(req)
+	if res.status == 200 and req.begins_with("PATCH /doors/") and res.body is Dictionary and not bool(res.body.get("locked", true)):
+		lvl.doors_opened[str(res.body.id)] = true
 	res["passes"] = p.request_matches(req, res)
 	return res
+
+
+## The cage's lock gets its power (as _circuits_changed does on a floor once C9-04 is on).
+func _power_cage(lvl: Node) -> void:
+	lvl.db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'PERS-CAGE'")
 
 
 func test_data_every_seed() -> void:
@@ -137,6 +149,12 @@ func test_data_every_seed() -> void:
 		ok_key = ok_key and r.status == 200 and r.passes and r.body.staff.size() == 8
 		r = _ask(lvl, lvl.key_puzzle, _key(lvl, "GET /staff/%s" % data.example_key_id))
 		ok_key = ok_key and r.status == 404 and not r.passes
+		# The path's case is the service's business, not the station's; and the key is
+		# the point, so any 200 it gets passes, at either terminal.
+		ok_key = ok_key and _ask(lvl, lvl.key_puzzle, _key(lvl, "GET /STAFF")).passes \
+			and _ask(lvl, lvl.key_puzzle, _key(lvl, "GET /circuits")).passes \
+			and _ask(lvl, lvl.key_puzzle, _key(lvl, "GET /swipes/VIS-01")).passes \
+			and not _ask(lvl, lvl.key_puzzle, "GET /circuits\nX-Api-Key: %s" % data.keys.temp).passes
 		# The panel: the lights don't fit under the limit until the copiers go off; the
 		# decoys say why; a wrong body is 400; the clipboard's example is another panel's.
 		r = _ask(lvl, lvl.circuits_puzzle, _key(lvl, "PATCH /circuits/C9-01", "{\"on\": true}"))
@@ -159,6 +177,7 @@ func test_data_every_seed() -> void:
 		ok_circuits = ok_circuits and r.status == 200 and r.passes and lvl._power_ok() and lvl._load() <= data.limit
 		r = _ask(lvl, lvl.check_circuits_puzzle, _key(lvl, "GET /circuits"))
 		ok_circuits = ok_circuits and r.status == 200 and r.passes and r.body.load_amps == lvl._load()
+		ok_circuits = ok_circuits and _ask(lvl, lvl.check_circuits_puzzle, _key(lvl, "GET /CIRCUITS")).passes
 		# The work order: a missing field, a quoted floor, the carbon copy's unit, then ours.
 		r = _ask(lvl, lvl.air_puzzle, _key(lvl, "POST /work_orders", "{\"floor\": 9, \"unit\": \"%s\"}" % data.ahu))
 		ok_orders = ok_orders and r.status == 400 and str(r.body.error).contains("fault") and not r.passes
@@ -172,6 +191,7 @@ func test_data_every_seed() -> void:
 		ok_orders = ok_orders and r.status == 201 and r.passes and lvl._air_ok() and r.body.id.begins_with("WO-9")
 		r = _ask(lvl, lvl.check_air_puzzle, _key(lvl, "GET /work_orders/%s" % r.body.id))
 		ok_orders = ok_orders and r.status == 200 and r.passes
+		ok_orders = ok_orders and _ask(lvl, lvl.check_air_puzzle, _key(lvl, "GET /WORK_ORDERS")).passes
 		# The badge log: each night-shifter's last swipe is their hiding place; the crew's
 		# badges were in Vale's lab; a badge never issued is 404.
 		for n in data.night:
@@ -208,7 +228,19 @@ func test_data_every_seed() -> void:
 		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-02\"}" % data.night[0].id))
 		ok_escorts = ok_escorts and r.status == 409 and not r.passes
 		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-02\"}" % data.night[1].id.to_lower()))
-		ok_escorts = ok_escorts and r.status == 201 and r.passes and lvl._passes_ok() and lvl.escorts.size() == 2
+		ok_escorts = ok_escorts and r.status == 201 and not r.passes and not lvl._passes_ok() and lvl.escorts.size() == 2
+		# Both passes logged before any door opened isn't a dead end: the station waits
+		# for both to be out. The cage's lock holds shut (409, with the reason) until its
+		# circuit is back; then each door opened lets its night-shifter out.
+		var cage: Dictionary = data.night.filter(func(n): return n.hide.door == "PERS-CAGE")[0]
+		var store: Dictionary = data.night.filter(func(n): return n.hide.door == "PERS-STORE")[0]
+		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "PATCH /doors/PERS-CAGE", "{\"locked\": false}"))
+		ok_escorts = ok_escorts and r.status == 409 and str(r.body.error).contains("no power") and not r.passes
+		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "PATCH /doors/PERS-STORE", "{\"locked\": false}"))
+		ok_escorts = ok_escorts and r.status == 200 and not r.passes and lvl.doors_opened.has(store.hide.door) and not lvl._passes_ok()
+		_power_cage(lvl)
+		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "PATCH /doors/pers-cage", "{\"locked\": false}"))
+		ok_escorts = ok_escorts and r.status == 200 and r.passes and lvl.doors_opened.has(cage.hide.door) and lvl._passes_ok()
 		# Vale's record, at either terminal: deceased, edited after.
 		r = _ask(lvl, lvl.vale_puzzle, _key(lvl, "GET /staff/%s" % Level5Data.VALE.id))
 		ok_vale = ok_vale and r.status == 200 and r.passes and r.body.status == "deceased" and r.body.edited_by == "EXEC-30" and r.body.last_edited > "10/14/97"
@@ -223,9 +255,27 @@ func test_data_every_seed() -> void:
 		ok_hints = ok_hints and _ask(fresh, fresh.check_circuits_puzzle, _last_hint_query(fresh.check_circuits_puzzle)).passes
 		ok_hints = ok_hints and _ask(fresh, fresh.air_puzzle, _last_hint_query(fresh.air_puzzle)).passes
 		ok_hints = ok_hints and _ask(fresh, fresh.check_air_puzzle, _last_hint_query(fresh.check_air_puzzle)).passes
-		for q in _hint_queries(fresh.passes_puzzle.hints[-1]):
+		# The passes' last tier types this run's two door unlocks and both passes, on
+		# either ladder; the lockup's last tier is all typeable (its read-back too).
+		_power_cage(fresh)
+		var exact := _hint_queries(fresh.passes_puzzle.hints[-1])
+		ok_hints = ok_hints and fresh.passes_puzzle.hints.size() == 2 and exact.size() == 4 \
+			and exact.slice(0, 2).all(func(q): return q.begins_with("PATCH /doors/") and q.contains("\"locked\": false")) \
+			and exact.slice(2).all(func(q): return q.begins_with("POST /escorts") and q.contains("\"escort\": \"VIS-01\""))
+		fresh.passes_ladder = "a"
+		fresh._passes_hints()
+		ok_hints = ok_hints and fresh.passes_puzzle.hints.size() == 3 and fresh.passes_puzzle.hints[1].contains("{\"locked\": false}") \
+			and fresh.passes_puzzle.hints[1].contains("GET /swipes/enter_badge") and _hint_queries(fresh.passes_puzzle.hints[-1]) == exact
+		for q in exact:
 			r = _ask(fresh, fresh.passes_puzzle, q)
-		ok_hints = ok_hints and r.passes
+		ok_hints = ok_hints and r.passes and fresh.passes_puzzle.state_ok()
+		fresh._lockup_hints()
+		var fixes := _hint_queries(fresh.lockup_puzzle.hints[-1])
+		ok_hints = ok_hints and fixes.size() == 3 and fixes.slice(0, 2).all(func(q): return q.begins_with("PATCH /doors/") and q.contains("\"locked\": true")) \
+			and fixes[2].begins_with("GET /doors\n")
+		for q in fixes.slice(0, 2):
+			r = _ask(fresh, fresh.lockup_puzzle, q)
+		ok_hints = ok_hints and r.passes and _ask(fresh, fresh.check_lockup_puzzle, fixes[2]).passes
 		ok_hints = ok_hints and _ask(fresh, fresh.vale_puzzle, _last_hint_query(fresh.vale_puzzle)).passes
 		fresh.lures = 1
 		fresh.lure_badge = "VIS-02"
@@ -235,14 +285,14 @@ func test_data_every_seed() -> void:
 		lvl.free()
 	check(ok_shape, "eight staff records every run, one of them Vale's (deceased), two night-shifters hiding apart, eight circuits, two keys")
 	check(hides.size() == 2 and keys.size() >= 50 and badges.size() >= 30, "who hides where, the HR key and the badge numbers change with the seed (%d hides, %d keys, %d badges over 60 runs)" % [hides.size(), keys.size(), badges.size()])
-	check(ok_key, "no key is 401, the temp's key 403, a wrong key 401; the manager's key lists the staff and passes; the desk sheet's example record is 404")
+	check(ok_key, "no key is 401, the temp's key 403, a wrong key 401; the manager's key lists the staff and passes (GET /STAFF too, and any 200 at the panel); the desk sheet's example record is 404")
 	check(ok_circuits, "the lights don't fit under the night limit (409) until the copiers go off; lights and cage lock on together pass, and the panel read back shows it")
 	check(ok_decoys, "the locked-out closet and the interlocked fans are 409 with a reason, the clipboard's example 404, a quoted switch 400, no key 401")
 	check(ok_orders, "a missing field is 400 and names it, a quoted floor 400; the carbon copy's unit is 201 but not the air; this floor's unit is, and reads back")
 	check(ok_swipes, "the log puts each night-shifter at their hiding place, the crew's badges in Vale's lab, a Mimic's badge nowhere, and an unissued badge is 404; the voice's badge read back exposes it")
-	check(ok_escorts, "a Mimic's badge is 401, an off-site badge 409, a made-up escort 400, a missing field 400, an unknown badge 404; each real night-shifter passes once (409 twice)")
+	check(ok_escorts, "a Mimic's badge is 401, an off-site badge 409, a made-up escort 400, a missing field 400, an unknown badge 404; each real night-shifter passes once (409 twice); both passed before any door opened isn't a dead end: the station passes once both doors have opened (the cage's after its lock has power)")
 	check(ok_vale, "Vale's record says deceased, last edited the night after by EXEC-30; nobody else's carries an edit")
-	check(ok_hints, "every station's last hint does what it wants, across 60 seeds")
+	check(ok_hints, "every station's last hint does what it wants, across 60 seeds: the passes' types both door unlocks and both passes (on the review ladder and ladder A), the lockup's every lock and the read-back")
 
 
 func test_scene() -> void:
@@ -346,11 +396,20 @@ func test_scene() -> void:
 	ui.run(_key(level, "GET /work_orders"))
 	await _frames(2)
 	check(level.check_air_puzzle.solved and _game().case_info("air").get("solved", false), "read back, the air case closes")
-	# The passes: a Mimic's badge, the manager's, then the real ones, each behind a door.
+	# The passes: a typo'd key and Vale's badge (no Mimic tip), a Mimic's badge, the
+	# manager's, then the real ones in the procedure's own order: both passes first,
+	# then the doors.
 	ui.terminal = level.hr
 	_doc(level, "Escort procedure").open_reader(p).close()
 	await _frames(3)
 	check(_game().case_info("people").get("open", false) and _game().current_todo() == level.TEXT.todo_people, "the procedure opens the people case and sets the to-do")
+	check(level.passes_ladder == "review" and level.passes_puzzle.hints.size() == 2, "with the work order logged, POST was practised: the passes get the review ladder")
+	ui.run("POST /escorts\nX-Api-Key: %s\n\n{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % [data.keys.hr.substr(1), data.night[0].id])
+	await _frames(2)
+	check(level.escorts.is_empty() and not _said(level.hr, level.TEXT.tip_mimic), "a real night-shifter's pass with a typo in the key: 401, and no word about Mimics")
+	ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % Level5Data.VALE.id))
+	await _frames(2)
+	check(level.escorts.is_empty() and not _said(level.hr, level.TEXT.tip_mimic), "Vale's badge: 401 from the reader, and still no word about Mimics (nobody is wearing it)")
 	ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % level.mimics[0].badge))
 	await _frames(2)
 	check(level.escorts.is_empty() and _said(level.hr, level.TEXT.tip_mimic), "the badge on a Mimic's lanyard: 401, and SYSOP says a real badge swipes in somewhere")
@@ -364,19 +423,25 @@ func test_scene() -> void:
 	ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % first.id))
 	await _frames(3)
 	check(level.passed.has(first.id) and st1.state == "hiding" and not level.passes_puzzle.solved, "%s's pass is logged; behind a locked door, they stay put" % first.first)
-	ui.run(_key(level, "PATCH /doors/%s" % first.hide.door, "{\"locked\": false}"))
-	await _frames(3)
-	check(level.doors_opened.has(first.hide.door) and st1.state != "hiding" and level._door_unlocked(first.hide.door), "their door opened, they get up and head for the stairs")
-	ui.run(_key(level, "PATCH /doors/%s" % second.hide.door, "{\"locked\": false}"))
-	await _frames(3)
-	check(level.doors_opened.has(second.hide.door) and st2.state == "hiding", "the other door open first: %s waits for a pass" % second.first)
 	ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % second.id))
 	await _frames(3)
-	check(level.passes_puzzle.solved and st2.state != "hiding" and not level.lockup_puzzle.solved and _said(level.hr, level.TEXT.tip_lockup), "both passed: the station passes, and SYSOP says every door opened is still open")
+	check(level.passed.has(second.id) and st2.state == "hiding" and not level.passes_puzzle.solved and not _said(level.hr, level.TEXT.tip_lockup), "both passes logged before any door opened: nobody is out, the station waits, and SYSOP doesn't call the doors open")
+	var shape: String = level.hr.next_hint()
+	check(shape.contains("enter_your_badge") and shape.contains("clipped on") and not shape.contains("GET /staff lists"), "the passes ladder: the shape, with your own badge where it really is")
+	var opens := _hint_queries(level.hr.next_hint())
+	check(opens.size() == 4 and opens.slice(0, 2).map(func(q): return q.get_slice("\n", 0)) == ["PATCH /doors/%s" % first.hide.door, "PATCH /doors/%s" % second.hide.door] and opens.slice(0, 2).all(func(q): return q.contains("{\"locked\": false}")),
+		"then exactly what to type: this run's two door unlocks, then both passes")
+	ui.run(opens[0])
+	await _frames(3)
+	check(level.doors_opened.has(first.hide.door) and st1.state != "hiding" and level._door_unlocked(first.hide.door) and not level.passes_puzzle.solved, "%s's door opened, they get up and head for the stairs; one out isn't both" % first.first)
+	ui.run(opens[1])
+	await _frames(3)
+	check(level.doors_opened.has(second.hide.door) and st2.state != "hiding" and level.passes_puzzle.solved and not level.lockup_puzzle.solved and _said(level.hr, level.TEXT.tip_lockup), "the other door: %s is out, the station passes, and SYSOP says every door opened goes back to locked" % second.first)
 	check(await _until(func(): return st1.state == "waiting" and st2.state == "waiting", 1800), "both night-shifters reach the stairs and wait (%s, %s)" % [st1.state, st2.state])
 	check(level.hr.next_hint().contains("PATCH /doors/enter_door"), "the lockup ladder: the shape")
-	var fixes := _hint_queries(level.hr.next_hint())
-	check(fixes.size() == 2 and fixes.all(func(q): return q.contains("\"locked\": true")), "then one PATCH per door still open (%d)" % fixes.size())
+	var typed := _hint_queries(level.hr.next_hint())
+	var fixes := typed.filter(func(q): return q.begins_with("PATCH"))
+	check(fixes.size() == 2 and fixes.all(func(q): return q.contains("\"locked\": true")) and typed.size() == 3 and typed[2].begins_with("GET /doors\n"), "then one PATCH per door still open (%d) and the read-back, all typeable" % fixes.size())
 	ui.run(fixes[0])
 	await _frames(3)
 	check(not level.lockup_puzzle.solved and not level.released, "one door locked isn't the lockup")
@@ -424,6 +489,10 @@ func test_floor_hazards() -> void:
 	var p: Player = level.player
 	var data: Dictionary = level.data
 	var ui: TerminalUI = level.terminal_ui
+	level.custodian_delay = 0.4
+	level.air_grace = 0.2
+	level.air_tick = 0.2
+	var full: float = p.health
 	check(level.custodian != null and not level.custodian.is_active() and not level.custodian_here, "not sealed on 10, the Custodian is below the dock stairs, not here yet")
 	# A Mimic, looked at from close: it walks off, out of sight, and turns up elsewhere.
 	var m: Mimic = level.mimics[0]
@@ -442,10 +511,21 @@ func test_floor_hazards() -> void:
 	m._wait = 0.05
 	check(await _until(func(): return m.visible and m.state == "standing", 120), "with nobody near, it turns up again somewhere else, back turned")
 	check(level.to_local(m.global_position).distance_to(Vector3(-9, 0, -7)) > 2.0, "not where it was")
-	# The air: after the grace it hurts a little, each tick; the stair door propped clears it.
+	# The practice is safe: nothing counts until the carbon copy has shown the fix, and
+	# the Custodian waits below until the power and the air are back.
+	check(p.health == full and not level.air_armed and not level.custodian_here, "all that while, the air didn't count (the carbon copy isn't read) and the Custodian stayed below")
+	# The air: once the carbon copy is read, after the grace it hurts a little, each
+	# tick, except while a chapter is being read; the stair door propped clears it.
+	_doc(level, "Carbon copy").report_open(p)
+	await _frames(3)
+	check(level.air_armed and _game().case_info("air").get("open", false), "the carbon copy read: the air case opens and the air starts to count")
+	check(await _until(func(): return p.health < full, 120) and p.health > 0.0, "after the grace the air off hurts a little (%.0f)" % p.health)
 	var hp: float = p.health
-	level._air_hurts()
-	check(p.health < hp and p.health > 0.0, "the air off hurts a little (%.0f)" % p.health)
+	level._huddles = 1
+	await _frames(40)
+	check(p.health == hp, "nothing counts while a chapter is being read")
+	level._huddles = 0
+	check(await _until(func(): return p.health < hp, 120), "then it counts again")
 	level.prop_time = 0.3
 	level.prop.used.emit(p)
 	await _frames(3)
@@ -453,25 +533,34 @@ func test_floor_hazards() -> void:
 	check(await _until(func(): return level.air_cleared, 120), "and the floor's air clears, slowly")
 	hp = p.health
 	level._air_hurts()
-	check(p.health == hp, "cleared, the air doesn't hurt")
+	await _frames(30)
+	check(p.health == hp and not level.custodian_here, "cleared, the air doesn't hurt; the Custodian still waits for the power")
 	# The breaker cupboard, by hand: the main trips the copiers, the lights come on.
 	level.hand_reset_time = 0.3
 	level.cupboard.used.emit(p)
 	check(await _until(func(): return level.hand_reset, 120) and level.circuits["C9-01"].on and not level.circuits["C9-03"].on and not level.power_back, "the hand reset: copiers off, lights on, the cage lock still wants the service")
 	check(level.lights["L9-PAY"].all(func(l): return l.visible) and not level.cupboard.enabled, "payroll's lights are on")
-	ui.terminal = level.hr
-	ui.run(_last_hint_query(level.key_puzzle))
-	await _frames(3)
 	ui.terminal = level.panel
+	ui.run(_key(level, "GET /circuits"))
+	await _frames(3)
+	check(level.key_puzzle.solved and _game().case_info("key").get("solved", false) and _game().current_todo() == level.TEXT.todo_power, "the manager's key first used at the panel: the key station passes there too, and the to-do moves on")
 	ui.run(_key(level, "PATCH /circuits/C9-04", "{\"on\": true}"))
 	await _frames(3)
 	check(level.power_back and level.circuits_puzzle.solved, "the cage lock through the service: the power's back")
-	# The loading door, opened for the voice: nobody there, and the Custodian comes up.
+	check(await _until(func(): return level.custodian_here, 120) and level.custodian.is_active() and (level.PAYROLL.has_point(level.to_local(level.custodian.global_position)) or level.DOCK.has_point(level.to_local(level.custodian.global_position))),
+		"with the power and the air back, the Custodian comes up the dock stairs onto the floor")
+	# The procedure read with no work order logged: the passes get ladder A.
+	_doc(level, "Escort procedure").report_open(p)
+	await _frames(3)
+	check(level.passes_ladder == "a" and level.passes_puzzle.hints.size() == 3, "the prop route skipped the work order, so POST is new: the passes get the three-tier ladder")
+	# The loading door, opened for the voice: nobody there. A wrong key on a PATCH gets the key tip.
 	ui.terminal = level.hr
+	ui.run("PATCH /doors/PERS-DOCK\nX-Api-Key: 0000-0000\n\n{\"locked\": false}")
+	await _frames(2)
+	check(not level.dock_opened and _said(level.hr, level.TEXT.tip_wrong_key), "a wrong key on a PATCH: 401, and SYSOP says to copy the key exactly")
 	ui.run(_key(level, "PATCH /doors/PERS-DOCK", "{\"locked\": false}"))
 	await _frames(5)
 	check(level.dock_opened and level.doors_opened.has("PERS-DOCK") and level.dock_door.is_open, "the loading door opens on a black shaft")
-	check(level.custodian_here and level.custodian.is_active() and (level.PAYROLL.has_point(level.to_local(level.custodian.global_position)) or level.DOCK.has_point(level.to_local(level.custodian.global_position))), "and the Custodian comes up the dock stairs onto the floor")
 	# The shaft: step past the landing and you fall, and come to on the landing.
 	hp = p.health
 	p.global_transform = Transform3D(Basis(), level.to_global(level.SHAFT_AT + Vector3(0, 0.3, 0)))
@@ -483,13 +572,34 @@ func test_floor_hazards() -> void:
 		await _frames(2)
 		ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % s.id))
 		await _frames(2)
-	check(level.passes_puzzle.solved and _hint_queries(level.lockup_puzzle.hints[-1]).size() == 3, "both passed; the lockup's last hint lists three doors, the loading door among them")
-	for q in _hint_queries(level.lockup_puzzle.hints[-1]):
+	var locks := _hint_queries(level.lockup_puzzle.hints[-1]).filter(func(q): return q.begins_with("PATCH"))
+	check(level.passes_puzzle.solved and locks.size() == 3, "both passed; the lockup's last hint lists three doors, the loading door among them")
+	for q in locks:
 		ui.run(q)
 		await _frames(2)
 	ui.run("SELECT * FROM doors")
 	await _frames(3)
 	check(level.lockup_puzzle.solved and level.check_lockup_puzzle.solved and level.released, "every door locked and the table read back with SELECT counts as the read-back: the stairs release")
+	level.queue_free()
+	await t.process_frame
+
+
+## The loading door opened for the voice with the power still off: the Custodian
+## comes up at once, not on the clock.
+func test_dock_custodian() -> void:
+	print("Floor 9: the loading door with the Custodian loose")
+	_game().new_run(12)
+	_game().custodian_sealed = false
+	var level = load("res://scenes/level_5.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(30)
+	_chapters_read([level])
+	level.completed.disconnect(level._on_completed)
+	var ui: TerminalUI = level.terminal_ui
+	ui.terminal = level.hr
+	ui.run(_key(level, "PATCH /doors/PERS-DOCK", "{\"locked\": false}"))
+	await _frames(5)
+	check(level.dock_opened and not level.power_back and level.custodian_here and level.custodian.is_active(), "the loading door opened before the power is back: the Custodian comes up the dock stairs the moment it opens")
 	level.queue_free()
 	await t.process_frame
 

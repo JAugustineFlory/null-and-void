@@ -22,9 +22,13 @@ extends LevelBase
 ##   5. passes   two night-shift staffers are hiding behind locked doors while Mimics
 ##               wear their faces (with somebody else's badge on the lanyard). The log
 ##               says which badges are really on the floor and where: PATCH their doors
-##               open, POST an escort pass for each real person (a Mimic's badge answers
-##               401), then PATCH every door opened tonight shut and GET each one.
+##               open and POST an escort pass for each real person (a Mimic's badge
+##               answers 401), in either order; the station passes once both are out.
+##               Then PATCH every door opened tonight shut and GET them back.
 ##               Under pressure: the Mimics, and the Custodian if its bay wasn't sealed.
+## The practice is safe: the air only starts to count once the carbon copy has shown
+## the fix (and never during a chapter), and a loose Custodian only starts up the
+## dock stairs once the power and the air are back, or the loading door is opened.
 ## Every station is checked by what the services answer and the state they're left in
 ## (RequestPuzzle), never by the request's text. Every line players read is a draft
 ## in plan/approvals/l5-text.md until Augustine approves it word for word.
@@ -96,7 +100,7 @@ const TEXT := {
 	# SYSOP tips (text only, never lies; each fires once per run).
 	"tip_header": "401 means the service wants a key with the request. a key goes in a header, on its own line under the request, like the desk sheet shows. Shift+Enter starts the line; Enter on an empty line sends it.",
 	"tip_temp": "403: that key is real, and it still isn't allowed in. it's the temp's, for the mail room. HR's own key is the manager's.",
-	"tip_wrong_key": "401 again: the service doesn't know that key. copy it from the sticky character by character.",
+	"tip_wrong_key": "401: the service doesn't know that key. copy it from the sticky character by character.",
 	"tip_load": "409: the panel's over its night limit. something heavy is still on. the clipboard lists every circuit's amps; turn the heavy one off first, then try the lights again.",
 	"tip_example": "404: that's the clipboard's example, another panel's circuit. this panel's circuits all start C9-.",
 	"tip_unit": "that order went in, for the carbon copy's unit: floor 14's air handler. this floor's unit is on the clipboard.",
@@ -104,7 +108,7 @@ const TEXT := {
 	"tip_lure": "a voice on the radio isn't a record. the readers know where every badge is tonight; the poster by the desk says how to ask.",
 	"tip_mimic": "that badge didn't answer the reader. a real badge on the floor swipes in somewhere. whoever's wearing that one isn't who the face says.",
 	"tip_off_site": "409: that badge left the building hours ago. the night shift is still here; the log says where.",
-	"tip_lockup": "the passes are logged. every door opened tonight is still open. lock each one, then read it back.",
+	"tip_lockup": "both passes are logged. every door opened tonight goes back to locked, then gets read back. GET /doors shows which are still open.",
 }
 ## The laminated desk sheet at the HR front desk: where the header is found. Its
 ## example asks for another floor's clerk with a blank where the key goes.
@@ -231,8 +235,10 @@ const HIDE_AT := {"cage": Vector3(-8.2, 0, -14.2), "store": Vector3(-7.6, 0, -30
 const WAIT_AT := [Vector3(-2.4, 0, 6.2), Vector3(-2.4, 0, 7.3)]
 ## The shaft past the loading door: step onto it and you fall.
 const SHAFT_AT := Vector3(6, 0, -32.5)
-## How the air goes: nothing for a while, then a little each tick until it's back.
-const AIR_GRACE := 60.0
+## How the air goes: once the carbon copy has shown the fix, a grace long enough to
+## type it at a first-timer's pace, then a little each tick until it's back. Nothing
+## counts while a chapter is being read.
+const AIR_GRACE := 180.0
 const AIR_TICK := 15.0
 const AIR_DAMAGE := 3.0
 ## The stair door propped: how long until the air clears on its own.
@@ -244,8 +250,9 @@ const HAND_RESET_TIME := 20.0
 const LURE_DELAY := 40.0
 const LURE_DELAY_PROPPED := 15.0
 const LURE_AGAIN := 50.0
-## Not sealed on 10, the Custodian comes up the dock stairs this long after the crew
-## arrives, or the moment the loading door is opened for the voice on the radio.
+## Not sealed on 10, the Custodian comes up the dock stairs this long after the power
+## and the air are back (the practice is safe; the passes and the lockup aren't), or
+## the moment the loading door is opened for the voice on the radio.
 const CUSTODIAN_DELAY := 150.0
 
 var data: Dictionary
@@ -278,6 +285,15 @@ var _huddles := 0
 var power_back := false
 var air_on := false
 var air_cleared := false
+## The air starts to count against the crew once the carbon copy has shown the fix
+## (host: the seconds counted so far, and the ticks dealt).
+var air_armed := false
+var _air_time := 0.0
+var _air_ticks := 0
+var custodian_timed := false
+## The passes ladder: "review" (POST practised at the work order) or "a" (the prop
+## route skipped the work order, so POST is new here). Set when the people case opens.
+var passes_ladder := ""
 var propped := false
 var hand_reset := false
 ## Floor 9's doors that have been unlocked tonight, by id (the lockup covers them),
@@ -394,8 +410,10 @@ func build() -> void:
 func _make_puzzles() -> void:
 	var key: String = data.keys.hr
 	var hr_key := "X-Api-Key: %s" % key
-	key_puzzle = RequestPuzzle.new("key", "GET /staff\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
-		return res.status == 200 and _path_of(line).begins_with("/staff"), [
+	# The station's point is the key: every service here wants it, so any 200 at either
+	# terminal is the manager's key in a header (the temp's key can't get one).
+	key_puzzle = RequestPuzzle.new("key", "GET /staff\n%s" % hr_key, func(_line: String, res: Dictionary) -> bool:
+		return res.status == 200, [
 		"the shape, with the key left as enter_key:\n" +
 		"    [color=#ffffff]GET /staff\nX-Api-Key: enter_key[/color]\n" +
 		"  GET /staff   ask the HR service for the staff records (it only reads)\n" +
@@ -455,7 +473,7 @@ func _make_puzzles() -> void:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/work_orders") and _air_ok() and _shows_order(res.body), [
 		"the shape: ask for it back, with the service left as enter_service:\n" +
 		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
-		"enter_service is the service you just posted to. the 201 came with the order's number: GET /work_orders/<that number> asks for just that one.",
+		"enter_service is the service you just posted to. the 201 came with the order's number: GET /work_orders/enter_order_id asks for just that one.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /work_orders\n%s[/color]" % hr_key,
 	])
@@ -471,18 +489,13 @@ func _make_puzzles() -> void:
 	])
 	swipes_puzzle.case_id = "radio"
 	swipes_puzzle.solved = true  # until the radio lies
-	# The escort passes: POST is practised at the air handler, so the review ladder.
-	passes_puzzle = RequestPuzzle.new("passes", "POST /escorts\n%s\n\n{\"badge\": \"enter_badge\", \"escort\": \"VIS-01\"}" % hr_key, func(line: String, res: Dictionary) -> bool:
-		return res.status == 201 and _path_of(line).begins_with("/escorts") and _passes_ok(), [
-		"the shape, with the staffer's badge left as enter_badge:\n" +
-		"    [color=#ffffff]POST /escorts\nX-Api-Key: %s\n\n{\"badge\": \"enter_badge\", \"escort\": \"enter_your_badge\"}[/color]\n" % key +
-		"enter_badge is a night-shifter's badge, enter_your_badge your own visitor badge: GET /staff lists them. the readers have the real ones on the floor (GET /swipes/<badge> says where); the faces at the desks carry badges that don't answer.",
-		"type these, Enter twice after each, with your own visitor badge as the escort:\n" +
-		"    [color=#ffffff]POST /escorts\n%s\n\n{\"badge\": \"%s\", \"escort\": \"VIS-01\"}[/color]\n" % [hr_key, data.night[0].id] +
-		"    [color=#ffffff]POST /escorts\n%s\n\n{\"badge\": \"%s\", \"escort\": \"VIS-01\"}[/color]\n" % [hr_key, data.night[1].id] +
-		"each one's door has to be open first: PATCH /doors/<door> with {\"locked\": false}.",
-	], _passes_ok)
+	# The escort passes: both night-shifters passed and out (their doors opened). POST
+	# is practised at the air handler, so the review ladder, unless the prop route
+	# skipped the work order (_passes_hints).
+	passes_puzzle = RequestPuzzle.new("passes", "POST /escorts\n%s\n\n{\"badge\": \"enter_badge\", \"escort\": \"VIS-01\"}" % hr_key, func(_line: String, _res: Dictionary) -> bool:
+		return _passes_ok(), [], _passes_ok)
 	passes_puzzle.case_id = "people"
+	_passes_hints()
 	# The lockup: PATCH is practised at the panel, so the review ladder; its last tier
 	# lists the doors still open (_lockup_hints).
 	lockup_puzzle = RequestPuzzle.new("lockup", "PATCH /doors/enter_door\n%s\n\n{\"locked\": true}" % hr_key, func(line: String, res: Dictionary) -> bool:
@@ -493,7 +506,7 @@ func _make_puzzles() -> void:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and _lockup_ok() and _shows_locked(res.body), [
 		"the shape: read the doors back, with the service left as enter_service:\n" +
 		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
-		"enter_service is the service whose doors you just locked. GET /doors/<door> reads one back.",
+		"enter_service is the service whose doors you just locked. GET /doors/enter_door reads one back.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /doors\n%s[/color]" % hr_key,
 	])
@@ -677,6 +690,7 @@ func _build_payroll(colors: Dictionary) -> void:
 	copy.clues = [{"case": "air", "opens": TEXT.case_air, "text": "A carbon copy of floor 14's work order: POST /work_orders with a body of floor, unit and fault. 201 Created, then GET it back."}]
 	copy.read_by.connect(func(_p):
 		sync.event("_ask", ["air"])
+		sync.event("_air_armed")
 		sync.event("_book_huddle", ["api_post"]))
 	# The air handler's grille in the ceiling, still.
 	Greybox.box(geo, Vector3(0, 3.1, -24), Vector3(1.2, 0.1, 0.6), Color(0.55, 0.55, 0.52), "AirGrille")
@@ -796,10 +810,6 @@ func start() -> void:
 	hud.todo(TEXT.todo_arrive)
 	hud.notice(TEXT.arrive, 5.0)
 	_warden(["l5_arrive_pa", "l5_arrive", "l5_arrive_tease"], 0.8)
-	if sync.is_host():
-		_air_loop()
-		if custodian:
-			_custodian_after(custodian_delay)
 
 
 ## The crew's visitor badges, issued at the front desk tonight, and their swipes
@@ -813,6 +823,7 @@ func seed_crew(count: int) -> void:
 		swipes.append({"badge": badge, "reader": "G-LOBBY", "dir": "IN", "time": "23:0%d" % (2 + i % 4)})
 		swipes.append({"badge": badge, "reader": "LAB-B", "dir": "IN", "time": "23:%02d" % (17 + i % 3)})
 		swipes.append({"badge": badge, "reader": "SEC-22", "dir": "IN", "time": "23:%02d" % (34 + i % 3)})
+	_passes_hints()  # the escort on the last tier is this machine's own badge
 
 
 ## WARDEN's floor 9 lines and the PA's tapes, in order, with a pause between them
@@ -982,10 +993,12 @@ func _door_json(row: Dictionary) -> Dictionary:
 	return {"id": row["id"], "name": row["name"], "locked": int(row["locked"]) == 1, "powered": int(row["actuator_fault"]) == 0}
 
 
+## The request's path, lowercased: the services answer /STAFF and /staff alike, so the
+## stations read them alike.
 static func _path_of(line: String) -> String:
 	var first := line.strip_edges().get_slice("\n", 0).strip_edges()
 	var parts := first.split(" ", false)
-	return parts[1].trim_suffix("/") if parts.size() > 1 else ""
+	return parts[1].trim_suffix("/").to_lower() if parts.size() > 1 else ""
 
 
 static func _method_of(line: String) -> String:
@@ -1028,12 +1041,50 @@ func _shows_order(body: Variant) -> bool:
 	return false
 
 
-## Both night-shifters have a pass.
+## Both night-shifters have a pass and are out: their doors have been opened tonight
+## (a pass logged first sends them out the moment the door opens).
 func _passes_ok() -> bool:
 	for s in data.night:
-		if not escorts.any(func(e): return e.badge == s.id):
+		if not escorts.any(func(e): return e.badge == s.id) or not doors_opened.has(s.hide.door):
 			return false
 	return true
+
+
+## This machine's own visitor badge, as the escort on a pass (the first one issued
+## when the badge isn't known, as in tests).
+func _my_badge() -> String:
+	var tree := Engine.get_main_loop() as SceneTree
+	var game: Node = tree.root.get_node_or_null("Game") if tree else null
+	var mine := str(game.visitor_badge_no) if game else ""
+	return mine if issued.has(mine) else "VIS-01"
+
+
+## The passes ladder: the review ladder (shape, then exactly what to type), or ladder
+## A with where-in-the-world between when POST wasn't practised at the work order.
+## The last tier types this run's door unlocks and both passes, in any order.
+func _passes_hints() -> void:
+	var key: String = data.keys.hr
+	var hr_key := "X-Api-Key: %s" % key
+	var shape: String = "the shape, with the staffer's badge left as enter_badge:\n" + \
+		"    [color=#ffffff]POST /escorts\nX-Api-Key: %s\n\n{\"badge\": \"enter_badge\", \"escort\": \"enter_your_badge\"}[/color]\n" % key + \
+		"enter_badge is a night-shifter's badge, enter_your_badge your own visitor badge (the one clipped on; GET /swipes lists every badge tonight). " + \
+		"the readers have the real ones on the floor: GET /swipes/enter_badge says where. the faces at the desks carry badges that don't answer."
+	if passes_ladder == "a":
+		shape = "the shape, with the staffer's badge left as enter_badge:\n" + \
+			"    [color=#ffffff]POST /escorts\nX-Api-Key: %s\n\n{\"badge\": \"enter_badge\", \"escort\": \"enter_your_badge\"}[/color]\n" % key + \
+			"  POST /escorts   ask Personnel to log a new pass (it makes one)\n" + \
+			"  X-Api-Key: ...   the header, then an empty line\n" + \
+			"  {...}   the body: JSON, the two fields the procedure shows, both text in double quotes\n" + \
+			"enter_badge is a night-shifter's badge, enter_your_badge your own visitor badge (the one clipped on). 201 means the pass was logged; 401 means that badge never answered a reader."
+	var where: String = "the night shift is in the staff list (GET /staff). the readers say which door each one is behind: GET /swipes/enter_badge, their last swipe. " + \
+		"a locked door opens through the doors service: PATCH /doors/enter_door with {\"locked\": false}. the faces at the desks carry badges that don't answer a reader."
+	var exact := "type these, Enter twice after each, in any order (the escort is your own visitor badge):\n"
+	for s in data.night:
+		exact += "    [color=#ffffff]PATCH /doors/%s\n%s\n\n{\"locked\": false}[/color]\n" % [s.hide.door, hr_key]
+	for s in data.night:
+		exact += "    [color=#ffffff]POST /escorts\n%s\n\n{\"badge\": \"%s\", \"escort\": \"%s\"}[/color]\n" % [hr_key, s.id, _my_badge()]
+	exact += "a pass logged first sends them out as soon as their door opens."
+	passes_puzzle.hints = [shape, where, exact] if passes_ladder == "a" else [shape, exact]
 
 
 ## Every door opened tonight is locked again (and at least one was opened).
@@ -1079,12 +1130,13 @@ func _lockup_hints() -> void:
 	if db:
 		for row in db.run_silent("SELECT id FROM doors WHERE zone = '9' AND locked = 0 ORDER BY id"):
 			fixes.append("    [color=#ffffff]PATCH /doors/%s\nX-Api-Key: %s\n\n{\"locked\": true}[/color]" % [row["id"], data.keys.hr])
+	var read_back_all := "    [color=#ffffff]GET /doors\nX-Api-Key: %s[/color]" % data.keys.hr
 	lockup_puzzle.hints = [
 		"the shape, with the door left as enter_door:\n" +
 		"    [color=#ffffff]PATCH /doors/enter_door\nX-Api-Key: %s\n\n{\"locked\": true}[/color]\n" % data.keys.hr +
 		"enter_door is each door opened tonight. GET /doors shows which are still open.",
-		("type these, Enter twice after each:\n" + "\n".join(fixes) + "\nthen read each one back: GET /doors/<door>.") if not fixes.is_empty() else
-			"every door on the floor is locked. read them back: GET /doors.",
+		("type these, Enter twice after each:\n" + "\n".join(fixes) + "\nthen read them back:\n" + read_back_all) if not fixes.is_empty() else
+			"every door on the floor is locked. read them back, then Enter twice:\n" + read_back_all,
 	]
 
 
@@ -1111,7 +1163,10 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 	for p in term.puzzles:
 		if not p.solved and p.request_matches(line, res):
 			sync.event("_on_solved", [p.id])
-	# Vale's record is read at either terminal, whichever listed the staff.
+	# The key passes at either terminal (any 200 is the manager's key), and Vale's
+	# record is read at either, whichever listed the staff.
+	if not key_puzzle.solved and key_puzzle.request_matches(line, res):
+		sync.event("_on_solved", ["key"])
 	if not vale_puzzle.solved and vale_puzzle.request_matches(line, res):
 		sync.event("_on_solved", ["vale"])
 	if status == 200 and path == "/STAFF":
@@ -1126,16 +1181,20 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 		sync.event("_air_on")
 	if status == 201 and path == "/ESCORTS":
 		sync.event("_passed", [str(res.body.get("badge", ""))])
-	# SYSOP's tips, each once: text only, and never the answer.
+	# SYSOP's tips, each once: text only, and never the answer. A 401 from the badge
+	# reader (a pass for a badge that never swiped in) isn't a key problem; it's the
+	# Mimic tip only when the badge is one off a Mimic's lanyard (Vale's gets no tip).
 	var keyed := line.to_lower().contains(FacilityAPI.KEY_HEADER)
+	var error := str(res.body.get("error", "")) if res.body is Dictionary else ""
+	var reader_401 := status == 401 and path == "/ESCORTS" and error.contains("did not answer the reader")
 	_tip_if(status == 401 and not keyed, "header", which)
 	_tip_if(status == 403, "temp", which)
-	_tip_if(status == 401 and keyed and method == "GET", "wrong_key", which)
+	_tip_if(status == 401 and keyed and not reader_401, "wrong_key", which)
 	_tip_if(status == 409 and path.begins_with("/CIRCUITS/") and str(res.body.get("error", "")).contains("Turn something off"), "load", which)
 	_tip_if(status == 404 and path.begins_with("/CIRCUITS/C14"), "example", which)
 	_tip_if(status == 201 and path == "/WORK_ORDERS" and str(res.body.get("unit", "")) == data.example_order.unit, "unit", which)
 	_tip_if(status == 201 and path == "/WORK_ORDERS" and str(res.body.get("unit", "")) == data.ahu, "verify", which)
-	_tip_if(status == 401 and keyed and path == "/ESCORTS", "mimic", which)
+	_tip_if(reader_401 and Level5Data.LOST.any(func(l): return error.contains(l.id)), "mimic", which)
 	_tip_if(status == 409 and path == "/ESCORTS" and str(res.body.get("error", "")).contains("off site"), "off_site", which)
 
 
@@ -1195,7 +1254,9 @@ func _on_solved(id: String) -> void:
 			if _todo_is(TEXT.todo_radio):
 				hud.todo(_next_todo())
 		"passes":
-			if not lockup_puzzle.solved:
+			if _lockup_ok():
+				_on_solved("lockup")  # every door opened tonight is already locked again
+			elif not lockup_puzzle.solved:
 				_tip("lockup", "hr")
 		"check_lockup":
 			_check_done()
@@ -1240,6 +1301,11 @@ func _ask(case_id: String) -> void:
 			if key_puzzle.solved and power_back and not air_on and not air_cleared:
 				hud.todo(TEXT.todo_air)
 		"people":
+			if passes_ladder == "":
+				# POST practised at the work order: the review ladder. Skipped (the stair
+				# door propped instead): ladder A, the word is new here.
+				passes_ladder = "review" if _air_ok() else "a"
+				_passes_hints()
 			if key_puzzle.solved and not released and not _todo_is(TEXT.todo_radio):
 				hud.todo(TEXT.todo_people)
 
@@ -1358,6 +1424,17 @@ func _circuits_changed(id: String) -> void:
 		_warden(["l5_power_back", "l5_power_back_tease"])
 		if _todo_is(TEXT.todo_power):
 			hud.todo(_next_todo())
+		_custodian_clock()
+
+
+## Host: the practice is safe. Once the power is back and the air is on or cleared,
+## the Custodian (if loose) starts up the dock stairs towards the passes and the lockup.
+func _custodian_clock() -> void:
+	if custodian_timed or custodian == null or not sync.is_host():
+		return
+	if power_back and (air_on or air_cleared):
+		custodian_timed = true
+		_custodian_after(custodian_delay)
 
 
 ## Every machine: someone is forcing the lights breaker by hand, behind the vending
@@ -1399,15 +1476,25 @@ func _air_on() -> void:
 	_warden(["l5_air_back", "l5_air_back_tease"])
 	if _todo_is(TEXT.todo_air):
 		hud.todo(_next_todo())
+	_custodian_clock()
 
 
-## Host: while the air is off, after a grace, everyone on the floor takes a little
-## each tick. Deaths explain themselves (the cause is "air").
-func _air_loop() -> void:
-	await get_tree().create_timer(air_grace, false).timeout
-	while is_inside_tree() and not air_on and not air_cleared and not released:
+## Every machine: the carbon copy has shown how the air comes back. From here the air
+## counts against the crew (host: _process), after a grace long enough to type it.
+func _air_armed() -> void:
+	air_armed = true
+
+
+## Host, each frame: while the air is off and no chapter is being read, the clock
+## runs; after the grace everyone on the floor takes a little each tick. Deaths
+## explain themselves (the cause is "air").
+func _air_clock(delta: float) -> void:
+	if not air_armed or air_on or air_cleared or released or _huddles > 0:
+		return
+	_air_time += delta
+	if _air_time >= air_grace + _air_ticks * air_tick:
+		_air_ticks += 1
 		sync.event("_air_hurts")
-		await get_tree().create_timer(air_tick, false).timeout
 
 
 ## Every machine: this machine's player breathes the floor's air.
@@ -1444,6 +1531,7 @@ func _air_cleared() -> void:
 	hud.notice(TEXT.air_cleared, 5.0)
 	if _todo_is(TEXT.todo_air):
 		hud.todo(_next_todo())
+	_custodian_clock()
 
 
 # --- The radio -----------------------------------------------------------------------------
@@ -1519,6 +1607,8 @@ func _door_changed(id: String, locked: bool) -> void:
 	else:
 		hud.notice(TEXT.door_locks % door_name, 3.0)
 	_lockup_hints()
+	if not passes_puzzle.solved and _passes_ok():
+		_on_solved("passes")  # both passed; this door let the last one out
 	if lockup_puzzle.solved and not _lockup_ok():
 		lockup_puzzle.solved = false  # opened again after the lockup: lock it again
 		check_lockup_puzzle.solved = false
@@ -1562,12 +1652,8 @@ func _passed(badge: String) -> void:
 			hud.line(s.line)
 	if _door_unlocked(_hide_door(badge)):
 		_send_out(badge)
-	if _passes_ok():
-		passes_puzzle.solved = true
-		if _lockup_ok():
-			_on_solved("lockup")
-		else:
-			_tip("lockup", "hr")
+	if not passes_puzzle.solved and _passes_ok():
+		_on_solved("passes")
 
 
 func _send_out(badge: String) -> void:
@@ -1619,10 +1705,13 @@ func _custodian_arrives() -> void:
 	hud.notice(TEXT.custodian_in, 4.0, ThemeUtil.RED)
 
 
-## Every machine watches its own player for the drop (a Trigger fires on the host only).
-func _process(_delta: float) -> void:
+## Every machine watches its own player for the drop (a Trigger fires on the host
+## only); the host keeps the air's clock.
+func _process(delta: float) -> void:
 	if player and player.health > 0.0 and player.is_inside_tree() and _in_shaft(to_local(player.global_position)):
 		_fell()
+	if sync and sync.is_host():
+		_air_clock(delta)
 
 
 ## Is this level-space point out over the dock shaft?
