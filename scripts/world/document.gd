@@ -278,7 +278,7 @@ static func _lines_height(lines: Array, font_size: int, width_px: float) -> floa
 func get_prompt(player: Node) -> String:
 	if is_sticky() and _copied:
 		return ""
-	if enabled and not is_sticky() and not uncollected().is_empty():
+	if enabled and not is_sticky() and not notable().is_empty():
 		return "[E] %s    [X] %s" % [NOTE_IT % title, READ_IT]
 	return super(player)
 
@@ -289,6 +289,17 @@ func uncollected() -> Array:
 	if game == null:
 		return []
 	return pieces.filter(func(p): return not game.has_piece(p.case, p.piece))
+
+
+## Its pieces E notes without reading: ones whose case is open, or that this
+## paper's own clue opens. The rest are only found by reading it, so a paper
+## for a case nobody has yet is read first, as any paper.
+func notable() -> Array:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return []
+	return uncollected().filter(func(p): return game.case_info(p.case).get("open", false) \
+			or clues.any(func(c): return c.get("case", "") == p.case and c.has("opens")))
 
 
 ## X: read it in your hands, whether or not its pieces are in.
@@ -312,7 +323,7 @@ func _on_used(player: Node) -> void:
 	if is_sticky():
 		take_sticky(player)
 		return
-	if not uncollected().is_empty():
+	if not notable().is_empty():
 		collect(player)
 		return
 	_read(player)
