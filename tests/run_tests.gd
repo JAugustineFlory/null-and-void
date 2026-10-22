@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "coop", "combat", "movement", "teaching", "teaching_lab", "scripting", "chapters"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "teaching", "teaching_lab", "scripting", "chapters"]
 
 
 func _run() -> void:
@@ -74,6 +74,7 @@ func _run_group(g: String) -> void:
 		"floor_22_lab": await _group_floor_22_lab()
 		"floor_18": await _group_floor_18()
 		"floor_10": await _group_floor_10()
+		"floor_9": await _group_floor_9()
 		"coop": await _group_coop()
 		"combat": await _group_combat()
 		"movement": await _group_movement()
@@ -171,6 +172,10 @@ func _group_floor_18() -> void:
 ## Floor 10, the Power Plant (Level 4).
 func _group_floor_10() -> void:
 	await _run_file("res://tests/level_4_tests.gd")
+
+
+func _group_floor_9() -> void:
+	await _run_file("res://tests/level_5_tests.gd")
 
 
 ## Co-op: several machines in one process.
@@ -3775,6 +3780,9 @@ func test_world() -> void:
 	var plant = world.current
 	check(plant != null and plant.wing_id == "level_4" and plant.active and world._field_notes == null, "after the archive the route goes on to the Power Plant on 10")
 	world.wing_finished(plant)
+	var personnel = world.current
+	check(personnel != null and personnel.wing_id == "level_5" and personnel.active and world._field_notes == null, "after the plant the route goes on to Personnel on 9")
+	world.wing_finished(personnel)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()

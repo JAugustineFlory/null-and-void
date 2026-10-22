@@ -15,7 +15,7 @@ WARDEN's pre-recorded PA tapes: the building computer's canned announcements, pl
 
 Send the files back as they are. They go in `audio/voice/pa/` in the game.
 
-## Your lines (5)
+## Your lines (6)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -42,3 +42,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l4_pa_fridge.wav`  
   "Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch—"  
   *The cheerful recorded tape. It keeps playing underneath when he talks over it.*
+
+### 4. An HR floor at midnight, half of it dark. The building's computer watches you from the ceiling speakers, between its cheerful pre-recorded announcements.
+
+- [ ] `l5_arrive_pa.wav`  
+  "Welcome to floor nine, Personnel! Payroll questions? We're here for you, nine to five!"  
+  *The cheerful tape. Nobody is here for anybody.*

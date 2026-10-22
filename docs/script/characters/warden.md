@@ -15,7 +15,7 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 
 Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
-## Your lines (38)
+## Your lines (50)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -162,3 +162,42 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l4_stairs_tease.wav`  
   "NOT THAT YOU COULD."  
   *A separate beat, his own voice. Teasing; the lifts are already off.*
+
+### 11. An HR floor at midnight, half of it dark. The building's computer watches you from the ceiling speakers, between its cheerful pre-recorded announcements.
+
+- [ ] `l5_arrive.wav`  
+  "VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. PERSONNEL IS CLOSED."  
+  *Flat, over the tape's last word.*
+- [ ] `l5_arrive_tease.wav`  
+  "THE NIGHT SHIFT WILL BE SO PLEASED TO SEE YOU."  
+  *A separate beat, his own voice. He knows what's sitting at the desks.*
+- [ ] `l5_power_back.wav`  
+  "LOAD SHEDDING ON FLOOR NINE HAS BEEN OVERRIDDEN. THIS HAS BEEN LOGGED."  
+  *The announcement, as the lights come up.*
+- [ ] `l5_power_back_tease.wav`  
+  "YOU TURNED SOMETHING OFF TO DO IT. I NOTICED."  
+  *A separate beat. Almost approving.*
+- [ ] `l5_air_back.wav`  
+  "AIR HANDLER NINE IS RUNNING. WORK ORDER ACKNOWLEDGED."  
+  *The announcement, over the fan spinning up.*
+- [ ] `l5_air_back_tease.wav`  
+  "BREATHE. YOU HAVE EARNED IT."  
+  *A separate beat. Dry.*
+- [ ] `l5_dock_open.wav`  
+  "LOADING DOOR OPEN ON FLOOR NINE AFTER HOURS. THIS IS A VIOLATION."  
+  *The announcement, as the door swings onto nothing.*
+- [ ] `l5_dock_open_tease.wav`  
+  "WHOEVER ASKED YOU TO DO THAT IS NOT ON MY LIST."  
+  *A separate beat. He knows exactly who asked.*
+- [ ] `l5_radio_checked.wav`  
+  "BADGE LOG CONSULTED. PERSONNEL THANKS YOU FOR VERIFYING."  
+  *The announcement, after the crew reads the voice's badge back.*
+- [ ] `l5_radio_checked_tease.wav`  
+  "VOICES LIE. RECORDS DO NOT. USUALLY."  
+  *A separate beat. The last word is the one that matters.*
+- [ ] `l5_secured.wav`  
+  "FLOOR NINE IS SECURED. ESCORT PASSES LOGGED. ALL DOORS LOCKED."  
+  *The announcement, as STAIR 2 releases.*
+- [ ] `l5_secured_tease.wav`  
+  "TWO OF THEM WERE REAL. WELL DONE. THE OTHERS ARE STILL HERE."  
+  *A separate beat. Flat. Not a threat; a fact.*

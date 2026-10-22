@@ -15,7 +15,7 @@ Maddison Kowalski, 40s, CEO and founder of a tiny IT company run out of her gara
 
 Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
-## Your lines (39)
+## Your lines (42)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -153,3 +153,15 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l4_huddle_update_2.wav`  
   "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row."  
   *Suddenly serious, for once.*
+
+### 7. A voice on the crew's own walkie-talkie, asking for a door. It sounds exactly like someone it isn't.
+
+- [ ] `l5_mimic_maddison_lure.wav`  
+  "Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you?"  
+  *Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth.*
+- [ ] `l5_mimic_maddison_again.wav`  
+  "Crew, it's Maddison. Still at the loading door. It's freezing down here."  
+  *Second time. Patient. She is never patient.*
+- [ ] `l5_mimic_maddison_last.wav`  
+  "You're leaving? I'm right here."  
+  *As the player leaves the floor. Quiet, flat, no breath.*

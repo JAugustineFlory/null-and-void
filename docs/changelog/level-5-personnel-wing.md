@@ -1,0 +1,2 @@
+- **New:** floor 9, the Personnel Wing: HR and payroll after hours, where the building's services answer to a key and every change is checked by asking again.
+- **Added:** a second beginner's book, Acceptable API's, with five short chapters read on the spot.

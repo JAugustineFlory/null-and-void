@@ -37,6 +37,14 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
 
+**Nadia Oyelaran** (NADIA). Night-shift records clerk on floor 9, one of the two real people the crew rescues. A Mimic wears her face at the HR front.
+
+> Whispering, fast, trying not to cry and mostly managing. Relief breaks through when the pass comes. Heard from behind a door, then up close.
+
+**Tomas Reyes** (TOMAS). Night-shift payroll clerk on floor 9, the other real person. A Mimic sits at his desk in payroll.
+
+> Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
+
 ## Crew barks
 
 Each playable crew member's own short lines, played by Co-op. Their shared commentary lines are in the scenes below, as CREW.
@@ -811,9 +819,9 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 5
 
-### Book huddles: Easy APIs
+### Book huddles: Acceptable API's
 
-*Found in the payroll office on floor 9, the same series as Easy SQL. The crew reads aloud themselves (no Maddison in the tower). Title is a placeholder until Augustine names it. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+*Found on the HR front's training shelf on floor 9, the same series as Easy SQL. The crew reads aloud themselves (no Maddison in the tower). Lines approved by Augustine 2026-10-21; the title is his (2026-10-22).*
 
 **CREW:** *(Picking it up off a desk. Delighted, a little thrown.)* No way. It's the same series. Somebody here bought the sequel. `[l5_book_find]`
 
@@ -838,6 +846,60 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 **CREW:** *(Starting a short chapter. Knowing nod.)* Short chapter. After you change something, ask again. Book says never trust the first answer. `[l5_huddle_check_1]`
 
 **CREW:** *(Wrapping up. Wry; you've been burned before.)* Change it, then look again. The front doors taught us that one. `[l5_huddle_check_2]`
+
+### Floor 9: Personnel
+
+*The crew comes up STAIR 1 from the locked-in lobby. The floor's load was shed under Epsilon: the crew gets payroll's power and air back through the building's services, learns the badge log, and passes two real night-shifters out past two Mimics. WARDEN is version 3.0 here (I, not THIS UNIT): the automatic announcement first, then his own voice as a separate beat. DRAFT lines, for Augustine's approval (plan/approvals/l5-text.md).*
+
+**PA:** *(The cheerful tape. Nobody is here for anybody.)* Welcome to floor nine, Personnel! Payroll questions? We're here for you, nine to five! `[l5_arrive_pa]`
+
+**WARDEN:** *(Flat, over the tape's last word.)* VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. PERSONNEL IS CLOSED. `[l5_arrive]`
+
+**WARDEN:** *(A separate beat, his own voice. He knows what's sitting at the desks.)* THE NIGHT SHIFT WILL BE SO PLEASED TO SEE YOU. `[l5_arrive_tease]`
+
+**WARDEN:** *(The announcement, as the lights come up.)* LOAD SHEDDING ON FLOOR NINE HAS BEEN OVERRIDDEN. THIS HAS BEEN LOGGED. `[l5_power_back]`
+
+**WARDEN:** *(A separate beat. Almost approving.)* YOU TURNED SOMETHING OFF TO DO IT. I NOTICED. `[l5_power_back_tease]`
+
+**WARDEN:** *(The announcement, over the fan spinning up.)* AIR HANDLER NINE IS RUNNING. WORK ORDER ACKNOWLEDGED. `[l5_air_back]`
+
+**WARDEN:** *(A separate beat. Dry.)* BREATHE. YOU HAVE EARNED IT. `[l5_air_back_tease]`
+
+**WARDEN:** *(The announcement, as the door swings onto nothing.)* LOADING DOOR OPEN ON FLOOR NINE AFTER HOURS. THIS IS A VIOLATION. `[l5_dock_open]`
+
+**WARDEN:** *(A separate beat. He knows exactly who asked.)* WHOEVER ASKED YOU TO DO THAT IS NOT ON MY LIST. `[l5_dock_open_tease]`
+
+**WARDEN:** *(The announcement, after the crew reads the voice's badge back.)* BADGE LOG CONSULTED. PERSONNEL THANKS YOU FOR VERIFYING. `[l5_radio_checked]`
+
+**WARDEN:** *(A separate beat. The last word is the one that matters.)* VOICES LIE. RECORDS DO NOT. USUALLY. `[l5_radio_checked_tease]`
+
+**WARDEN:** *(The announcement, as STAIR 2 releases.)* FLOOR NINE IS SECURED. ESCORT PASSES LOGGED. ALL DOORS LOCKED. `[l5_secured]`
+
+**WARDEN:** *(A separate beat. Flat. Not a threat; a fact.)* TWO OF THEM WERE REAL. WELL DONE. THE OTHERS ARE STILL HERE. `[l5_secured_tease]`
+
+### The voice on the walkie
+
+*A Mimic on the radio. In co-op it replays a teammate's own crew voice with their name on the subtitle (the teammate is standing right there); solo it's Maddison, who is in the garage. The badge readers' log is how the crew proves the voice is lying. It lures and lies and never attacks. The CREW lines are recorded by every playable character (the impersonated teammate's voice plays). Approved in the brief by Augustine 2026-10-22; the words are DRAFTS (plan/approvals/l5-text.md).*
+
+**CREW:** *(On the walkie, a little breathless. Your own voice, asking for something you never asked for. Record it straight: the horror is that it sounds like you.)* Hey, it's me. I'm down at the loading door, the dock side. It's shut behind me. Can you open it from the desk? Quick. `[l5_mimic_lure]`
+
+**CREW:** *(Second time. Closer to the mic. Patient, which is the wrong note for you.)* Guys? Still here. Loading door. It's cold. Just open it, please. `[l5_mimic_again]`
+
+**CREW:** *(As the crew leaves the floor. Quiet. No breath in it at all.)* Where are you going? I'm still at the door. `[l5_mimic_last]`
+
+**MADDISON:** *(Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth.)* Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you? `[l5_mimic_maddison_lure]`
+
+**MADDISON:** *(Second time. Patient. She is never patient.)* Crew, it's Maddison. Still at the loading door. It's freezing down here. `[l5_mimic_maddison_again]`
+
+**MADDISON:** *(As the player leaves the floor. Quiet, flat, no breath.)* You're leaving? I'm right here. `[l5_mimic_maddison_last]`
+
+### The night shift, passed out
+
+*The two night-shifters whose faces the Mimics wear. Each speaks once, when their pass is logged. DRAFT lines (plan/approvals/l5-text.md).*
+
+**NADIA:** *(Whispered from behind the cage door, then the door opens. Relief and warning in the same breath.)* That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face. `[l5_nadia_passed]`
+
+**TOMAS:** *(Getting up stiffly. Annoyed first, scared underneath.)* Finally. I've been under this shelf since midnight. There's something at my desk, and it isn't me. `[l5_tomas_passed]`
 
 ## Level 6
 

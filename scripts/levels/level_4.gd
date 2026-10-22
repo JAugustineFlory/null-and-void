@@ -1353,6 +1353,7 @@ func _lie() -> void:
 	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'LOBBY-FRONT'")
 	db.sync_world()
 	db.read_only = true  # for the rest of the game: the building's flag, not the floor's
+	prepare_next()  # floor 9 builds now, below the stairwell
 	hud.notice(TEXT.latch_again, 4.0)
 	hud.todo(TEXT.todo_check_front)
 	if not VoiceLines.get_line("l4_epsilon_db").is_empty():
@@ -1388,6 +1389,18 @@ func _finish() -> void:
 	# Locked in at the front, the crew turns back for the stairs.
 	await _warden(["l4_stairs", "l4_stairs_tease"])
 	if not is_inside_tree():
+		return
+	var next: Node = world.wings.get("level_5") if world else null
+	if next and next.has_method("arrive_by_stairs"):
+		# Back up STAIR 1 and down to 9, behind a fade, as 18 handed over to 10.
+		var up := player.health > 0.0
+		await hud.fade(true, 1.2)
+		Game.completed_level = "level_4"
+		Game.next_level = "level_5"
+		next.arrive_by_stairs()
+		finish_level("level_5")
+		player.input_locked = not up
+		hud.fade(false, 0.8)
 		return
 	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_4"

@@ -61,7 +61,7 @@ func test_books() -> void:
 		for q in ch.quiz:
 			ok = ok and q.answer >= 0 and q.answer < q.options.size() and q.options.size() == 3
 			ok = ok and (ch.words.is_empty() or ch.words.has(q.word))
-	_check.call(ok and Books.chapter_ids().size() == 19, "all 19 chapters have pages and three questions for each new word (three for a review)")
+	_check.call(ok and Books.book_chapter_ids("easy_sql").size() == 19 and Books.chapter_ids().size() == 24, "all 24 chapters (Easy SQL's 19, Acceptable API's 5) have pages and three questions for each new word (three for a review)")
 	var ids := Books.book_chapter_ids("easy_sql")
 	_check.call(ids.slice(15, 17) == ["easy_sql_distinct", "easy_sql_group_by"] and Books.chapter("easy_sql_distinct").number == 15 and Books.chapter("easy_sql_group_by").words == ["GROUP BY"],
 		"floor 18's chapters come next, numbered by their place in it")
