@@ -12,7 +12,8 @@ extends RefCounted
 ## appear as written: table and column names, values, and facts.
 ## Owned by the Teaching and UX thread. Add a row for every new puzzle.
 ## `"known_gap"` says why a puzzle's "taught before any hint" check prints as GAP
-## until its owner fixes it. `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
+## until its owner fixes it. `"silent_copy"` says why a write copied off a paper, when it
+## isn't the answer, still gets no reason; it prints as GAP until one is added. `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
 ## its first hint stays the exact query. `"ladder": "review"` marks a puzzle whose
 ## keyword was practised safely on an earlier floor: two tiers, a reminder with the
 ## shape (the value as a named blank, enter_...) and then the exact query. Every other puzzle uses hint ladder A.
@@ -210,8 +211,7 @@ const PUZZLES := {
 	},
 	# Level 4: the Power Plant on 10 (plan/level-4-power-plant.md). UPDATE and INSERT,
 	# the last new SQL, and verify after write. Both writes are StatePuzzles, checked
-	# by the table's state after the write. The walkthrough doesn't type writes yet
-	# (queries_in reads SELECT and GET lines), so these rows wait on a walk_level_4.
+	# by the table's state after the write. walk_level_4 types them, on both routes.
 	# Facilities' work order: reset the tripped breaker, practised safely. Forgetting
 	# the WHERE flips the whole panel (loud, never dangerous).
 	"reset": {
@@ -239,6 +239,7 @@ const PUZZLES := {
 	"login": {
 		"level": 4,
 		"pressure": false,
+		"silent_copy": "the clerk's crib is another contractor's row: SYSOP's why drafted for Augustine 2026-10-22, Level 4 wires it",
 		"teaches": ["INSERT INTO", "VALUES", "contractor_log"],
 		"needs": ["INSERT INTO", "VALUES", "contractor_log"],
 	},

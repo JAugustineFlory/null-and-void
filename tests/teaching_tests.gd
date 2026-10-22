@@ -8,14 +8,14 @@ extends RefCounted
 ## out of those. tests/curriculum.gd declares what each puzzle teaches and needs: a
 ## puzzle fails if it needs something outside the taught set before any hint, or if
 ## something it teaches never appears on a terminal line or sticky note. Physical steps
-## (a rack, a PIN, a breaker) must be readable off the screen. Plays Levels 0-2 in order
+## (a rack, a PIN, a breaker) must be readable off the screen. Plays the floors in order
 ## so the taught set carries between levels. Owned by the Teaching and UX thread.
 ##
 ## Known teaching gaps are reported as GAP lines instead of failures, so the suite
 ## stays green while the owning thread fixes them. When a gap is fixed, its check
 ## prints FIXED: move it to a normal check() then.
 
-const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS", "DISTINCT", "GROUP BY", "IS NULL"]
+const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS", "DISTINCT", "GROUP BY", "IS NULL", "UPDATE", "SET", "INSERT INTO", "VALUES"]
 ## Concepts that aren't one capitalised word: comparing a column with a value, and
 ## picking columns instead of *.
 const KEYWORD_PATTERNS := {
@@ -63,6 +63,8 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 		await walk_level_2(s)
 	for s in [3, 23]:
 		await walk_level_3(s)
+	await walk_level_4(31, true)
+	await walk_level_4(12, false)
 	check_teaching_order()
 	check_jot_rules()
 	if gaps > 0:
@@ -107,15 +109,15 @@ func world_text(level: Node, at: Node3D = null) -> String:
 	return "\n".join(parts)
 
 
-## Full queries written out on screen (or on a paper in the room), in order: a SELECT
-## line up to its ;, or a GET line's verb and path. Lines that explain a keyword
-## ("SELECT *   every column") have no ; and aren't typed.
+## Full queries written out on screen (or on a paper in the room), in order: a SELECT,
+## UPDATE or INSERT line up to its ;, or a GET line's verb and path. Lines that explain
+## a keyword ("SELECT *   every column") have no ; and aren't typed.
 func queries_in(text: String) -> Array[String]:
 	var out: Array[String] = []
 	for raw in text.split("\n"):
 		var line := raw.strip_edges()
 		var upper := line.to_upper()
-		if upper.begins_with("SELECT ") and line.contains(";"):
+		if (upper.begins_with("SELECT ") or upper.begins_with("UPDATE ") or upper.begins_with("INSERT INTO ")) and line.contains(";"):
 			out.append(line.substr(0, line.find(";") + 1))
 		elif upper.begins_with("GET /"):
 			out.append(" ".join(line.split(" ", false).slice(0, 2)))
@@ -242,11 +244,14 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			check(threat == spec.pressure, said)
 	var outside := []
 	var stuck := false
+	var copies := 0
+	var silent := []
 	while not puzzle.solved and not (done.is_valid() and done.call()):
 		var read := remember(level, ui)
 		if pace:
 			await _spend(read / PACE_READ_CPS)
 		var text := screen(ui)
+		var on_screen := queries_in(text)
 		var fresh: Array[String] = []
 		# The notebook is reference, not a script: old queries name other levels'
 		# tables, so the player only types what this screen shows, or what's written
@@ -277,8 +282,21 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			tried[q] = true
 			if pace:
 				await _spend(PACE_THINK + q.length() / PACE_TYPE_CPS)
+			# A write copied off a paper is a beginner's first move. When it changes
+			# rows and isn't the answer, a SYSOP line or something in the world must
+			# say why (judged the first time it's typed).
+			var copy := FacilityDB.is_write(q) and not on_screen.has(q) and not _copied.has(q)
+			var said_from: int = ui.terminal.transcript.size()
+			var notice: String = level.hud._notice.text
 			ui.run(q)
-			if puzzle.solved or (done.is_valid() and done.call()):
+			if copy:
+				_copied[q] = true
+				copies += 1
+				await t.physics_frame
+				await t.physics_frame
+				if not puzzle.solved and _silent(ui.terminal, said_from) and level.hud._notice.text == notice:
+					silent.append(q)
+			if (done.is_valid() and done.call()) or puzzle.solved:
 				break
 	var read_last := remember(level, ui)
 	if pace:
@@ -301,7 +319,24 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		if not has_item(taught, k):
 			unoffered.append(k)
 	check(unoffered.is_empty(), "%s: everything it teaches is on a terminal line or sticky note, ready to write down%s" % [puzzle.id, "" if unoffered.is_empty() else " (missing %s)" % ", ".join(unoffered)])
+	if copies > 0:
+		var said_why := "%s: a paper's write, copied when it isn't the answer, gets a reason%s" % [puzzle.id, "" if silent.is_empty() else " (nothing said after %s)" % "; ".join(silent)]
+		if spec.has("silent_copy"):
+			gap(silent.is_empty(), "%s (%s)" % [said_why, spec.silent_copy])
+		else:
+			check(silent.is_empty(), said_why)
 	return -1 if stuck else hints
+
+
+## Writes the lost player has copied off papers this floor: each is judged once.
+var _copied := {}
+
+
+## Since line `from` of a terminal's screen: rows changed, and no SYSOP line said why.
+func _silent(term: Node, from: int) -> bool:
+	var lines := Array(term.transcript).slice(from)
+	var changed := RegEx.create_from_string("OK\\. [1-9]\\d* row\\(s\\) changed")
+	return lines.any(func(l): return changed.search(str(l)) != null) and not lines.any(func(l): return str(l).contains("SYSOP"))
 
 
 ## The player read a paper where it lies (a card in another room, say): its lines
@@ -408,7 +443,8 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 	if FacilityAPI.is_request(q):
 		check(q.begins_with("GET /"), "%s: the exact-query hint is a request the player can type (%s)" % [p.id, q])
 	else:
-		check(p.matches(ui.terminal.db, ui.terminal.db.execute(q)), "%s: the exact-query hint solves it (%s)" % [p.id, q])
+		var on: FacilityDB = _scratch(ui.terminal.db) if FacilityDB.is_write(q) else ui.terminal.db
+		check(p.matches(on, on.execute(q)), "%s: the exact-query hint solves it (%s)" % [p.id, q])
 	var missing := []
 	for k in keywords_in(q):
 		var has_line := false
@@ -525,8 +561,8 @@ func _puzzles(level: Node) -> Array:
 ## characters are left out: extensions, temperatures and one-letter zones are inputs.
 func _answer_values(level: Node, p: Puzzle) -> Array:
 	var out := []
-	if p.solution_sql == "":
-		return out  # an API puzzle: its answer comes back as JSON, not rows
+	if p.solution_sql == "" or FacilityDB.is_write(p.solution_sql):
+		return out  # an API puzzle's answer comes back as JSON, and a write's isn't rows
 	for row in level.db.run_silent(p.solution_sql):
 		for v in row.values():
 			var value := str(v).to_lower()
@@ -1024,8 +1060,145 @@ func walk_level_3(seed_value: int) -> void:
 	await t.process_frame
 
 
+# --- Level 4: the Power Plant on 10, and the way down to G -------------------
+
+## Floor 10's new SQL: UPDATE, INSERT, and checking that a write took. The lost player
+## types the writes it finds written out in full (the work order's, the clipboard's,
+## the lockup card's) and climbs the ladders for its own values. With `seal`, the crew
+## locks the Custodian in its bay (INSERT under pressure), and the read-back at the
+## bay's panel runs on its 30-second clock, paced as a first-time player; the ground
+## floor is quiet then. Without it, the Custodian is loose all the way down, and the
+## front doors' UPDATE and its read-back are typed with it coming.
+func walk_level_4(seed_value: int, seal: bool) -> void:
+	_game().new_run(seed_value)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	for id in ["easy_sql_update", "easy_sql_insert"]:
+		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
+	for i in 20:
+		await t.physics_frame
+	level.completed.disconnect(level._on_completed)  # the walk ends with the floor, not in the next scene
+	var net: Node = t.root.get_node("/root/Net")
+	var earned: Array = net.profile.earned.duplicate()
+	_copied.clear()
+	var where := "power plant (seed %d, %s)" % [seed_value, "sealed" if seal else "loose"]
+	check_no_copy_under_pressure(level, where)
+	var ui: TerminalUI = level.terminal_ui
+	var p: Player = level.player
+	p.local_control = false
+	# The hall's papers, seen on the way in: the gantry card and the doors' signs.
+	for title in ["Gantry card", "Control room sign", "Bay sign"]:
+		read_paper(level, title)
+
+	# Quiet: the work order at the plant desk. Its UPDATE is last month's breaker, so
+	# copying it practises the shape and changes nothing; tonight's id is the
+	# player's own step, or its ladder's.
+	_doc(level, "Facilities work order").open_reader(p).close()
+	ui.open(level.maint, p)
+	var h := await solve(level, ui, level.reset_puzzle, _hunted(level))
+	check(h <= rescue_tier(level.reset_puzzle) and level.reset_puzzle.solved and not level.alarm, "%s: tonight's breaker is reset from the work order's shape and the panel, with no alarm (hints %d)" % [where, h])
+	check(_said(level.maint, level.TEXT.tip_example), "%s: the work order's own UPDATE, copied, gets SYSOP's why" % where)
+	h = await solve(level, ui, level.check_puzzle, _hunted(level))
+	check(h == 0 and level.check_puzzle.solved and _game().case_info("power").get("solved", false), "%s: SYSOP asks whether it took, the panel's SELECT is on the screen, and reading it back signs off the work order (hints %d)" % [where, h])
+	ui.close()
+	# A query's answer is what the panel shows now, with tonight's breaker on.
+	check_case_clues(level, where)
+	check_jots(level, where)
+
+	# The control room, open with the power back: the clipboard's rule, then the
+	# crew's own row in the log, read back. The clerk's crib is another contractor's.
+	check(await _until(func(): return level.ctrl_door.is_open, 10.0), "%s: with the power back, the control room's door opens" % where)
+	_doc(level, "Contractor log").open_reader(p).close()
+	ui.open(level.controller, p)
+	h = await solve(level, ui, level.login_puzzle, _hunted(level))
+	check(h <= rescue_tier(level.login_puzzle) and level.login_puzzle.solved and not level.logged_in, "%s: the crew's own row goes in, from the crib's shape, the notebook's number and the clock, or the ladder (hints %d)" % [where, h])
+	h = await solve(level, ui, level.login_read_puzzle, _hunted(level))
+	check(h <= rescue_tier(level.login_read_puzzle) and level.logged_in, "%s: read back, the log-in counts (hints %d)" % [where, h])
+	# Facilities' notice names the fire exit. Its row would have said CONTAINMENT.
+	h = await solve(level, ui, level.main_doors_puzzle, _hunted(level))
+	check(h <= rescue_tier(level.main_doors_puzzle) and level.accident, "%s: main_doors, opened by the notice's name, is the accident (hints %d)" % [where, h])
+	level.custodian.process_mode = Node.PROCESS_MODE_DISABLED  # keep the walk deterministic: it's loose, but stands still
+	check(_hunted(level), "%s: the Custodian is loose" % where)
+
+	if seal:
+		# The lockout, with the Custodian loose. The card by the panel (in view of the
+		# plant desk) names the table and its columns; the row is the player's to build.
+		h = await solve(level, ui, level.lockout_puzzle, _hunted(level))
+		check(h <= rescue_tier(level.lockout_puzzle) and level.lockout_until > 0, "%s: the bay's lockout is logged, built from the card and the panel, or the ladder (hints %d)" % [where, h])
+		ui.close()
+		var tries := 0
+		while not level.sealed and tries < 2:
+			tries += 1
+			if level.lockout_until == 0:
+				# It lapsed: the row came out. Log it again (its query is on the screen now).
+				ui.open(level.controller, p)
+				await solve(level, ui, level.lockout_puzzle, _hunted(level))
+				ui.close()
+			# The clock, measured: across to the bay's panel at a run, then the read-back
+			# as a first-time player reads, thinks and types (PACE_*).
+			Engine.time_scale = 4.0
+			paced = 0.0
+			var ended := [-1.0]
+			await _spend(_bay_run(level) / Player.SPRINT_SPEED)
+			ui.open(level.bay_terminal, p)
+			h = await solve(level, ui, level.readback_puzzle, _hunted(level), 3, "", true, func():
+				if ended[0] < 0.0 and (level.sealed or level.lockout_until == 0):
+					ended[0] = paced
+				return ended[0] >= 0.0)
+			ui.close()
+			Engine.time_scale = 1.0
+			print("  INFO  lockout read-back (seed %d, try %d): %s %d s after the lockout went in, of %d (%d hint%s)" % [seed_value, tries, "sealed" if level.sealed else "lapsed", ended[0], level.LOCKOUT_WINDOW, h, "" if h == 1 else "s"])
+		check(level.sealed and _game().case_info("seal").get("solved", false), "%s: a first-time player seals the bay within two tries of the read-back clock" % where)
+	else:
+		ui.close()
+
+	# Down STAIR 1 to the ground floor, where the crew came in.
+	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
+	check(await _until(func(): return level.on_ground and not p.input_locked, 10.0), "%s: everyone on the stairs, and down to G" % where)
+	level.lie_time = 0.3
+	check_no_copy_under_pressure(level, where + ", on G")
+	# The front doors: the lockup card shows the dock's UPDATE and names main_entrance.
+	# Sealed, nothing hunts the crew down here (the architect knows; no fix asked).
+	var calm := "" if _hunted(level) else "sealed, nothing hunts on G: told the architect 2026-10-21, no fix asked"
+	ui.open(level.front_desk, p)
+	h = await solve(level, ui, level.entrance_puzzle, _hunted(level), 3, calm)
+	check(h <= rescue_tier(level.entrance_puzzle) and level.entrance_puzzle.solved, "%s: the front doors' row is changed, from the card's shape and its last line, or the ladder (hints %d)" % [where, h])
+	check(_said(level.front_desk, level.TEXT.tip_dock), "%s: the card's dock UPDATE, copied, gets SYSOP's why" % where)
+	check(await _until(func(): return level.db.read_only, 5.0), "%s: then Epsilon puts the row back" % where)
+	var done := [false]
+	level.completed.connect(func(): done[0] = true)
+	h = await solve(level, ui, level.verify_puzzle, _hunted(level), 3, calm)
+	check(h <= rescue_tier(level.verify_puzzle) and _game().case_info("entrance").get("solved", false), "%s: reading the row back shows the lie (hints %d)" % [where, h])
+	ui.close()
+	Engine.time_scale = 4.0
+	check(await _until(func(): return done[0], 40.0), "%s: locked in, the floor ends" % where)
+	Engine.time_scale = 1.0
+	net.profile.earned = earned
+	level.queue_free()
+	await t.process_frame
+
+
+## Something can hunt the crew on floor 10: the Custodian, from the accident until
+## its bay is sealed.
+func _hunted(level: Node) -> bool:
+	return level.accident and not level.sealed
+
+
+## How far a player runs from the controller to the bay's panel: out of the control
+## room, along the hall and into the bay (metres, on the floor plan).
+func _bay_run(level: Node) -> float:
+	var way: Array = [level.controller.global_position, level.to_global(level.CTRL_DOOR_AT), level.to_global(level.BAY_DOOR_AT), level.bay_terminal.global_position]
+	var metres := 0.0
+	for i in way.size() - 1:
+		var a: Vector3 = way[i]
+		var b: Vector3 = way[i + 1]
+		metres += Vector2(a.x - b.x, a.z - b.z).length()
+	return metres
+
+
 ## A pressure puzzle is built, not copied: no full query written on a paper within
 ## reach of a terminal (or on its boot screen) may pass a `pressure: true` puzzle.
+## Writes are tried on a copy of the building, so the floor stays as it is.
 func check_no_copy_under_pressure(level: Node, where: String) -> void:
 	var copied := []
 	for term in level.find_children("*", "Terminal", true, false):
@@ -1033,11 +1206,25 @@ func check_no_copy_under_pressure(level: Node, where: String) -> void:
 		var text := world_text(level, term) + "\n" + "\n".join(term.boot_lines)
 		for q in queries_in(text):
 			for shown in fill_blanks(level, q, term):
-				var result: Dictionary = on.execute(shown)
+				var into: FacilityDB = _scratch(on) if FacilityDB.is_write(shown) else on
+				var result: Dictionary = into.execute(shown)
 				for p in _puzzles(level):
-					if Curriculum.PUZZLES.get(p.id, {}).get("pressure", false) and p.matches(on, result):
+					# A write passes a state puzzle only if the rows weren't right already.
+					if Curriculum.PUZZLES.get(p.id, {}).get("pressure", false) and p.matches(into, result) and not (p is StatePuzzle and p.state_ok(on)):
 						copied.append("%s solves %s" % [shown, p.id])
 	check(copied.is_empty(), "%s: no query written on a paper or boot screen passes a pressure puzzle (%s)" % [where, "; ".join(copied) if copied else "built, not copied"])
+
+
+## A copy of the building to try a write on: what the query would do, with the
+## floor left as it is.
+func _scratch(of: FacilityDB) -> FacilityDB:
+	var copy := FacilityDB.new()
+	copy.db.query(of.dump())
+	return copy
+
+
+func _said(term: Node, line: String) -> bool:
+	return Array(term.transcript).any(func(l): return TerminalUI._plain(l).contains(line))
 
 
 func _doc(level: Node, title: String) -> Node:
