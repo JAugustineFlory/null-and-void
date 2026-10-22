@@ -1,0 +1,1 @@
+- **Fixed:** looking down while standing, walking, running or crouching shows your chest, legs and feet instead of the inside of your collar.

@@ -28,6 +28,11 @@ const SEAT_THIGH := 0.06
 ## On a chair, the body sits this much further back under the camera, so looking
 ## down shows your chest and lap rather than the top of your collar.
 const SEAT_BACK := 0.14
+## Standing or moving, the body slides back under the camera as you look down,
+## so that looking straight down your neck is this far behind the camera: you see
+## your chest, legs and feet, not down your own collar. Walking and running lean
+## the body forward; the slide makes up for that too.
+const DOWN_BACK := 0.17
 
 var player: Node3D  # Player
 var rig: CharacterRig
@@ -101,8 +106,22 @@ func _process(delta: float) -> void:
 		turned = angle_difference(atan2(-fwd.x, -fwd.z), player.global_rotation.y)
 	rotation.y = -turned
 	rig.twist = turned
-	var back := BACK + (SEAT_BACK if chair else 0.0) - _lean
+	var back := BACK - _lean
+	if chair:
+		back += SEAT_BACK
+	else:
+		var down := clampf(-(head.rotation.x if head else 0.0) / 1.45, 0.0, 1.0)
+		back += down * (DOWN_BACK - minf(neck_z(), 0.0))
 	position = Vector3(0, -(_sit_hip - SEAT_THIGH) if chair else 0.0, back)  # behind the camera, the way you look
+
+
+## Where the neck is (the head's root), front to back in this node's space:
+## negative when the pose leans it forward of the hips.
+func neck_z() -> float:
+	var skin: SkinnedBody = rig._skin
+	if skin and skin._head_bone >= 0:
+		return to_local(skin.skeleton.global_transform * skin.skeleton.get_bone_global_pose(skin._head_bone).origin).z
+	return to_local((rig.joints["head"] as Node3D).global_position).z
 
 
 ## The action the body should be playing now.

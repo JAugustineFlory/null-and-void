@@ -304,6 +304,18 @@ func test_first_person_body() -> void:
 	you.seat = null
 	step.call(0.2)
 	check(is_zero_approx(fp.rotation.y) and fp.rig.twist == 0.0, "standing up, the body turns with you again")
+	# Looking down standing, walking or running (playtest): the body slides back so
+	# the neck stays behind the camera and you see your chest, legs and feet.
+	you.head.rotation.x = -1.45
+	for speed in [0.0, CharacterRig.WALK_SPEED, 6.5]:
+		fp.rig.speed_override = speed
+		step.call(0.6)
+		check(fp.position.z + fp.neck_z() > FirstPersonBody.BACK + FirstPersonBody.DOWN_BACK - 0.03,
+			"looking straight down at %.1f m/s, your neck is behind the camera, not under it (%.2f m)" % [speed, fp.position.z + fp.neck_z()])
+	fp.rig.speed_override = -1.0
+	you.head.rotation.x = 0.0
+	step.call(0.3)
+	check(absf(fp.position.z - FirstPersonBody.BACK) < 0.01, "looking ahead, the body stands where it always did")
 	you.downed = true
 	step.call(0.1)
 	check(not fp.visible, "lying down, the camera is inside the body, so it's left out")
@@ -317,6 +329,7 @@ class _FakeFighter extends Node3D:
 	var downed := false
 	var seat: Node3D = null
 	var sitting := false
+	var head := Node3D.new()
 
 	func is_sitting() -> bool:
 		return sitting
