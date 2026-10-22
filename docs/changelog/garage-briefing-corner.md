@@ -1,2 +1,0 @@
-- **Changed:** the garage's briefing corner has a proper old couch, a kitchen counter with the coffee on, and red diner stools.
-- **Changed:** the outside of the garage is dressed: a steel roll-up door with windows, lamps, the company sign, the bins and the driveway.

@@ -103,6 +103,12 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 <details open>
 <summary><b>v0.6.0 - 2026-10-21</b></summary>
 
+- **Changed:** cases with a single answer have a blank on their page. Point at the line that answers it, on a terminal or a paper, and click + add to notebook: the pen writes the answer in.
+- **Added:** every row of a query result can be pointed at and added to your notebook on its own.
+- **Changed:** Maddison now takes the crew through Easy SQL on her whiteboard, and a page turns once everyone is ready to move on.
+- **Added:** in co-op you see your teammates punch, guard and flinch.
+- **Changed:** the garage's briefing corner has a proper old couch, a kitchen counter with the coffee on, and red diner stools.
+- **Changed:** the outside of the garage is dressed: a steel roll-up door with windows, lamps, the company sign, the bins and the driveway.
 - **New:** Floor 10, the Power Plant, down the stairs from the Records Archive. Change rows with UPDATE, add them with INSERT, and find out why every write needs its WHERE.
 - **Added:** a gantry arm you drive by code, for a second way into a locked room.
 - **New:** a new opening in front of the crew's garage, solo or co-op: walk in, pick your look and pose, and get ready together.
