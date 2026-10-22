@@ -4,19 +4,15 @@ extends LevelBase
 ## The game opens here: the crew walks in from the pre-game lobby out front and
 ## sits facing Maddison's whiteboard. She briefs them, sends them to the punch bag
 ## and back, points them at the work order in their notebooks, then sends one of
-## them for the book, and they read its first chapter together before the van.
-## The drive cuts to the van in Halcyon's car park (Level 0).
-##
-## Later, when the building needs a new SQL word, the game flashes back here: the
-## same seats, Maddison at the whiteboard (see Huddle). The garage stays loaded
-## out of sight for that, far from the tower.
+## them for the book, whose first chapter goes in everyone's notebook (Huddle),
+## and sees them off in the van. The drive cuts to the van in Halcyon's car park
+## (Level 0). The World keeps the garage loaded out of sight, far from the tower.
 ##
 ## The punch bag by the roll-up door teaches blocking safely: hit it and it swings
 ## back at you, and right-clicking as it comes in blocks it. A miss costs nothing.
 ## Everyone blocks it once before they sit back down.
 ##
-## Maddison, the boss, is on her feet in here: she walks the room in the opening
-## and stands at the whiteboard in every flashback.
+## Maddison, the boss, is on her feet in here: she walks the room in the opening.
 ##
 ## Graphics dresses it; DressHomeBase can hook in at the end of build().
 
@@ -128,7 +124,6 @@ var _swing_at := -100.0
 var _bag_swing: Tween
 ## Everyone back in a seat after the punch bag; the book's carrier sat down with it.
 signal crew_seated
-signal book_seated
 ## Who has pulled out the work order (host decides; every machine hears).
 var read_order: Array = []
 signal crew_read_order
@@ -137,14 +132,10 @@ var book_holder := 0
 var held_book: Node3D
 ## The book on the workbench, once someone has brought it over.
 var bench_book: Node3D
-## The camera a flashback looks through, and the crew it sees in the seats.
+## The shot inside, over the seats at Maddison and her whiteboard (the opening cuts to it).
 var flashback_camera: Camera3D
 ## The pre-game lobby's shot of the garage front (LOBBY_CAMERA): the opening starts on it.
 var lobby_camera: Camera3D
-## The sheet on the whiteboard during a huddle, and what's written on it.
-var board_sheet: Node3D
-var board_text: Label3D
-var _figures: Array[Node3D] = []
 ## Van seats in boarding order (level-local), and who has climbed in.
 var van_seats: Array[Vector3] = []
 var boarded: Array = []
@@ -207,7 +198,6 @@ func build() -> void:
 		for z in [-3.0, 2.5]:
 			add_light("garage", Vector3(x, SIZE.y, z), 8.0, 1.5, bulb)
 
-	_build_board_sheet()
 
 	flashback_camera = Camera3D.new()
 	flashback_camera.name = "FlashbackCamera"
@@ -481,7 +471,7 @@ static func _book(parent: Node3D, at: Vector3) -> Node3D:
 	var bm := BoxMesh.new()
 	bm.size = Vector3(0.19, 0.03, 0.25)
 	cover.mesh = bm
-	cover.material_override = Greybox.mat(HuddleUI.COVER)
+	cover.material_override = Greybox.mat(Books.COVER)
 	book.add_child(cover)
 	var title := Label3D.new()
 	title.text = "Easy\nSQL"
@@ -550,15 +540,11 @@ func start() -> void:
 	hud.todo("Get the book from the shelf by the side door")
 	await sync.gate("bag", book_bag.used)
 	maddison_to("board")
-	if sync.is_host():
-		while book_holder == 0 and is_inside_tree():  # _on_bag can land just after the gate
-			await get_tree().process_frame
-		_watch_seated([book_holder], book_seated)
-	await sync.gate("book_seated", book_seated)
 	hud.todo("")
 	await _say("l0_whiteboard", "l0_whiteboard_solo")
 	_put_book_down()
-	await Huddle.of(self).run("easy_sql_0", Huddle.HERE)
+	# Chapter zero goes in everyone's notebook; nobody has to stop to read it.
+	await Huddle.of(self).run("easy_sql_0")
 	await _beat()
 	await _say("l0_garage_5", "l0_garage_5_solo")
 	maddison_to("van")  # she sees them off at the van door, then stays behind
@@ -933,10 +919,9 @@ func _leave() -> void:
 		get_node("/root/Game").goto("world")
 
 
-# --- Flashbacks -----------------------------------------------------------------
+# --- The World's garage ------------------------------------------------------------
 
-## The garage a flashback cuts to: the World's, or one built for `level` if it
-## has none (a level run on its own).
+## The garage `level` keeps out of sight: its own, or one built for it.
 static func for_flashback(level: Node) -> HomeBase:
 	var home := level.get_node_or_null("HomeBase")
 	if home is HomeBase:
@@ -947,72 +932,3 @@ static func for_flashback(level: Node) -> HomeBase:
 	level.add_child(home)
 	home.visible = false
 	return home
-
-
-## Show the crew in the seats facing Maddison at her whiteboard, as many as are
-## playing, and look through the flashback camera.
-func start_flashback(crew: int) -> void:
-	visible = true
-	maddison_at("board")
-	for i in clampi(crew, 1, CREW_SEATS.size()):
-		var spot := Node3D.new()
-		spot.name = "Crew%d" % i
-		var top: Vector3 = CREW_SEATS[i]
-		spot.position = Vector3(top.x, top.y - 0.45, top.z)  # the rig sits 0.45 m up
-		spot.rotation.y = PI / 2  # facing the whiteboard
-		add_child(spot)
-		var rig := CharacterRig.build(spot, CharacterLooks.crew(i))
-		rig.play("sit")
-		_figures.append(spot)
-	flashback_camera.make_current()
-
-
-## In the garage itself (the opening's chapter zero): the same shot as a
-## flashback, Maddison at her whiteboard, with the crew in their own seats.
-func start_whiteboard() -> void:
-	maddison_at("board")
-	flashback_camera.make_current()
-
-
-## A big sheet stuck on the whiteboard, where Maddison writes up where the crew
-## is in the chapter during a huddle. Hidden the rest of the time.
-func _build_board_sheet() -> void:
-	board_sheet = Node3D.new()
-	board_sheet.name = "BoardSheet"
-	board_sheet.position = WHITEBOARD + Vector3(0.14, 0, 0)  # over the whole board
-	board_sheet.rotation.y = PI / 2  # facing the room (+X)
-	add_child(board_sheet)
-	var paper := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(2.3, 1.2)
-	paper.mesh = quad
-	paper.material_override = Greybox.mat(Color(0.97, 0.96, 0.92))
-	board_sheet.add_child(paper)
-	board_text = Label3D.new()
-	board_text.name = "BoardText"
-	board_text.pixel_size = 0.0022
-	board_text.font_size = 84
-	board_text.outline_size = 0
-	board_text.modulate = Color(0.12, 0.2, 0.55)  # marker blue
-	board_text.width = 960
-	board_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	board_text.position = Vector3(0, 0, 0.01)
-	board_sheet.add_child(board_text)
-	board_sheet.visible = false
-
-
-## Write `text` up on the board sheet ("" takes it down).
-func write_board(text: String) -> void:
-	board_text.text = text
-	board_sheet.visible = text != ""
-
-
-## Back to the present: the figures go and `camera` takes over again.
-func end_flashback(camera: Camera3D) -> void:
-	for f in _figures:
-		f.queue_free()
-	_figures.clear()
-	flashback_camera.clear_current(false)
-	if camera:
-		camera.make_current()
-	visible = active and not (world and world.get("current") != self)

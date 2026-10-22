@@ -1,0 +1,2 @@
+- **Changed:** Easy SQL chapters no longer stop the game or ask questions. A new chapter goes into the Books tab in your notebook while Maddison talks you through it.
+- **Added:** "Test yourself" in the Books tab: a chapter's quick checks, any time, with the page beside each question.

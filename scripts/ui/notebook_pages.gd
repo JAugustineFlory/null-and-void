@@ -3,8 +3,9 @@ extends Control
 ## What goes on which page of the player's notebook: the crew's work order,
 ## a case page per puzzle (everything found about it in one place, with the notes
 ## the player writes or copies while on it), tables discovered with the sticky
-## notes found, and Field Notes. The book
-## itself is drawn by NotebookView and NotebookArt (scripts/art/).
+## notes found, Field Notes, and the crew's books: the chapters they've had so
+## far (Huddle), each with a "Test yourself" quiz (BookQuiz). The notebook itself is drawn by
+## NotebookView and NotebookArt (scripts/art/).
 ## Each section fills the left page, then the right; "next" turns to the next spread.
 ## In a co-op notes huddle (NotesHuddle), each line and sticky note has a "+ share"
 ## chip, and each case a button to share the whole page.
@@ -12,9 +13,16 @@ extends Control
 ## "+ write a note" on the Cases page: the player wants to write something of their own.
 signal write_requested
 
-enum Page { WORK_ORDER, CASES, TABLES, FIELD_NOTES }
+enum Page { WORK_ORDER, CASES, TABLES, FIELD_NOTES, BOOK }
 
-const TAB_NAMES := ["Work order", "Cases", "Tables", "Field Notes"]
+const TAB_NAMES := ["Work order", "Cases", "Tables", "Field Notes", "Books"]
+## The book tab's words (drafts for Augustine's word-for-word OK).
+const BOOK_EMPTY := "New chapters of the crew's books go here."
+const BOOK_TEST := "Test yourself"
+const BOOK_CONTENTS := "< Contents"
+const BOOK_NEXT := "Next question >"
+const BOOK_DONE := "All done: every quick check in this chapter answered right."
+const BOOK_BACK := "< Back to the chapter"
 
 const CONCEPT_NOTES := {
 	"SELECT": "SELECT picks which columns you want to see. * means all of them.",
@@ -53,6 +61,10 @@ var showing := false
 ## The blank written in on this build of the pages, and its case.
 var _fresh_blank: Control
 var _fresh_case := ""
+## The book tab: the chapter open in it ("" for the contents), and its quiz while
+## testing yourself.
+var book_chapter := ""
+var quiz: BookQuiz
 
 
 func _ready() -> void:
@@ -140,8 +152,88 @@ func section_items(page: int) -> Array[Control]:
 			return _case_items(game)
 		Page.TABLES:
 			return _table_items(game.notebook_tables) + _notes_items(game.notebook_notes, _huddling())
+		Page.BOOK:
+			return _book_items(game)
 		_:
 			return _field_notes_items(game)
+
+
+## The Books tab: the contents (each book's chapters had so far), a chapter's
+## pages, or a quiz on it. Each press redraws the tab.
+func _book_items(game: Node) -> Array[Control]:
+	var items: Array[Control] = []
+	if quiz:
+		items.append(NotebookArt.heading("%s: Ch. %d" % [BOOK_TEST, quiz.chapter.number]))
+		if quiz.is_done():
+			items.append(NotebookArt.hand(BOOK_DONE, 24))
+			items.append(_book_button(BOOK_BACK, "BookBack", func(): quiz = null))
+			return items
+		var q := quiz.question()
+		for text in quiz.shown_beside():
+			items.append(_book_page(text, 15))
+		items.append(NotebookArt.hand("Quick check %d of %d   %s" % [quiz.at + 1, quiz.steps.size(), q.word], 20, NotebookArt.PENCIL))
+		items.append(NotebookArt.hand(q.q, 26))
+		for i in q.options.size():
+			var mark := ">  " if quiz.result.get("choice", -1) == i else "    "
+			var b := _book_button(mark + str(q.options[i]), "Option%d" % i, quiz.answer.bind(i))
+			b.disabled = quiz.result.get("right", false)
+			items.append(b)
+		if not quiz.result.is_empty():
+			var right: bool = quiz.result.right
+			items.append(NotebookArt.hand(("Right. " if right else "Not quite. ") + str(q.why), 22, NotebookArt.INK if right else NotebookArt.RED_PEN))
+			if right:
+				items.append(_book_button(BOOK_NEXT, "BookNext", quiz.next))
+		items.append(_book_button(BOOK_BACK, "BookBack", func(): quiz = null))
+		return items
+	if book_chapter != "":
+		var ch := Books.chapter(book_chapter)
+		items.append(NotebookArt.heading("Ch. %d: %s" % [ch.number, ch.title]))
+		for i in Books.reading_order(ch):
+			items.append(_book_page(ch.pages[i]))
+		if not ch.quiz.is_empty():
+			var id := book_chapter
+			items.append(_book_button(BOOK_TEST, "TestYourself", func(): quiz = BookQuiz.create(id, game.run_seed)))
+		items.append(_book_button(BOOK_CONTENTS, "BookContents", func(): book_chapter = ""))
+		return items
+	if game.book_chapters.is_empty():
+		items.append(NotebookArt.heading(TAB_NAMES[Page.BOOK]))
+		items.append(NotebookArt.hand(BOOK_EMPTY, 24, NotebookArt.PENCIL))
+	for book_id in Books.BOOKS:
+		var had: Array = Books.book_chapter_ids(book_id).filter(func(c): return game.book_chapters.has(c))
+		if not had.is_empty():
+			items.append(NotebookArt.heading(Books.book_name(book_id)))
+		for id in had:
+			var ch := Books.chapter(id)
+			items.append(_book_button("Ch. %d: %s" % [ch.number, ch.title], "Chapter_" + id, func(): book_chapter = id))
+	return items
+
+
+## A press on the book tab: do it, then redraw the tab.
+func _book_button(caption: String, node_name: String, action: Callable) -> Button:
+	var b := NotebookArt.write_button(caption)
+	b.name = node_name
+	b.tooltip_text = ""
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	b.pressed.connect(func():
+		action.call()
+		refresh.call_deferred())
+	return b
+
+
+## A page of the book, printed: its code lines in typewriter text, sized to fit.
+func _book_page(text: String, size: int = 17) -> Control:
+	var page := RichTextLabel.new()
+	page.name = "BookPage"
+	page.bbcode_enabled = true
+	page.fit_content = true
+	page.scroll_active = false
+	page.custom_minimum_size.x = NotebookArt.HEADING_RULE_MAX
+	page.add_theme_color_override("default_color", NotebookArt.INK)
+	page.add_theme_font_size_override("normal_font_size", size + 2)
+	page.add_theme_font_override("mono_font", ThemeUtil.mono())
+	page.text = Books.page_bbcode(text, NotebookArt.HEADING_RULE_MAX, size)
+	return page
 
 
 ## Every word in a section, for tests.

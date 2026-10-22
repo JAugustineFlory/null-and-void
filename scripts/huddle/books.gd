@@ -33,11 +33,13 @@ extends RefCounted
 ## garage radio, one as the book opens and one as it closes. Each quiz question:
 ## {word, q, options, answer, why, also?}, three per word; `also` is extra text
 ## shown beside that question only. `answer` indexes `options` as
-## written here; the huddle shuffles them per run. `why` ("" until written) shows
-## after the crew votes.
+## written here; the quiz shuffles them per run. `why` ("" until written) shows
+## after an answer.
 ##
-## A chapter is read in rounds (Books.rounds): each word's page, then straight away
-## its three questions, with that page still on show beside them. Chapters whose
+## The crew reads a chapter's pages in a huddle (Books.reading_order); its quick
+## checks are asked only when a player tests themselves from the book in their
+## notebook (BookQuiz). They come in rounds (Books.rounds): each word's three
+## questions, with its page on show beside them. Chapters whose
 ## pages aren't one per word say how in `rounds`: [{pages: [index], word, ref:
 ## [page index]}], where a round with no word is pages only. A question with
 ## "closed": true tests memory, so it hides the page.
@@ -46,9 +48,15 @@ extends RefCounted
 ## (playtest 2026-10-22: only jobs was on show). No caption: that would answer it.
 const VAN_KIT := "    van_kit\n    item   | qty | shelf\n    -------+-----+------\n    ladder | 1   | A\n    drill  | 2   | B"
 
+## Easy SQL's teal cover (matches ArtKit.easy_sql_book).
+const COVER := Color(0.05, 0.55, 0.6)
+## The typewriter font's size on a page, unless it has to shrink to fit (page_bbcode).
+const CODE_SIZE := 20
+
 const BOOKS := {
 	"easy_sql": {
 		"title": "EASY SQL",
+		"name": "Easy SQL",
 		"chapters": [
 			{
 				"id": "easy_sql_0",
@@ -568,7 +576,15 @@ static func chapter(id: String) -> Dictionary:
 	return {}
 
 
-## How chapter `ch` is read: rounds of {pages, questions, ref}, each a list of
+## The pages of chapter `ch`, by index, in the order a huddle reads them.
+static func reading_order(ch: Dictionary) -> Array:
+	var out := []
+	for r in rounds(ch):
+		out.append_array(r.pages)
+	return out
+
+
+## How chapter `ch` is tested: rounds of {pages, questions, ref}, each a list of
 ## indexes into its pages or quiz. One round per word when each page is a word's
 ## (it starts with the word's name); otherwise the chapter's own `rounds`, or for a
 ## review, every page and then every question.
@@ -598,6 +614,32 @@ static func rounds(ch: Dictionary) -> Array:
 			out.append({"pages": [i], "questions": qs, "ref": [i]})
 		return out
 	return [{"pages": range(pages.size()), "questions": range(quiz.size()), "ref": range(pages.size())}]
+
+
+## Book `book_id`'s name as people say it ("Easy SQL"; its cover says EASY SQL).
+static func book_name(book_id: String) -> String:
+	var book: Dictionary = BOOKS.get(book_id, {})
+	return book.get("name", book.get("title", ""))
+
+
+## A book page as BBCode for a RichTextLabel `room` px wide. Indented lines are
+## code: they show in the typewriter font, at `size` or smaller, so that the
+## widest of them fits without wrapping (a table split over two lines can't be
+## read; playtest 2026-10-22).
+static func page_bbcode(text: String, room: float, size: int = CODE_SIZE) -> String:
+	var lines := text.split("\n")
+	var widest := 0.0
+	for line in lines:
+		if line.begins_with("    "):
+			widest = maxf(widest, ThemeUtil.mono().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x)
+	var fit := size
+	if room > 0.0 and widest > room:
+		fit = maxi(10, floori(size * room / widest))
+	var out := []
+	for line in lines:
+		var safe := line.replace("[", "[lb]")
+		out.append("[font_size=%d][code]%s[/code][/font_size]" % [fit, safe] if line.begins_with("    ") else safe)
+	return "\n".join(out)
 
 
 ## The chapter ids of book `book_id`, in order.
