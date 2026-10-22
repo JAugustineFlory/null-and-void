@@ -27,6 +27,8 @@ const ROUTE := [
 	# Floor 10, down STAIR 1 from 18 the same way. Its ground-floor beat is built inside
 	# it, where Level 0 stands.
 	{"key": "level_4", "scene": "res://scenes/level_4.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -140))},
+	# Floor 9, down STAIR 1 from 10 the same way.
+	{"key": "level_5", "scene": "res://scenes/level_5.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -210))},
 ]
 const FIELD_NOTES := "res://scenes/field_notes.tscn"
 

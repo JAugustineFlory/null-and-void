@@ -16,6 +16,7 @@ const LEVELS := {
 	"level_2": "res://scenes/level_2.tscn",
 	"level_3": "res://scenes/level_3.tscn",
 	"level_4": "res://scenes/level_4.tscn",
+	"level_5": "res://scenes/level_5.tscn",
 	"movement_gym": "res://scenes/movement_gym.tscn",
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",

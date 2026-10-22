@@ -17,7 +17,7 @@ You're one of a small IT crew on an overnight job in an office tower, thinking o
 
 Send the files back as they are. They go in `audio/voice/crew_priya/` in the game.
 
-## Your lines (105)
+## Your lines (108)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -240,7 +240,7 @@ The same words for everyone. Say them your way.
   "That's the code. Let's not hang around."  
   *Keypad accepted it. Nervous, wants to move.*
 
-### 4. Your crew finds a beginner's book on a desk and reads it together on the spot. One line to start each chapter, one to wrap it up.
+### 4. Your crew finds a beginner's book on a training shelf and reads it together on the spot. One line to start each chapter, one to wrap it up.
 
 - [ ] `l5_book_find.wav`  
   "No way. It's the same series. Somebody here bought the sequel."  
@@ -249,7 +249,7 @@ The same words for everyone. Say them your way.
   "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly."  
   *Reading the back cover, hopeful.*
 - [ ] `l5_huddle_post_1.wav`  
-  "Chapter one. POST. You send it something, it makes something. Like a suggestion box that answers."  
+  "Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers."  
   *Starting a chapter, reading it out.*
 - [ ] `l5_huddle_post_2.wav`  
   "So GET looks, POST makes. Got it."  
@@ -279,7 +279,19 @@ The same words for everyone. Say them your way.
   "Change it, then look again. The front doors taught us that one."  
   *Wrapping up. Wry; you've been burned before.*
 
-### 5. Your crew finds another beginner's book, under a coffee mug, and reads it together on the spot. One line to start each chapter, one to wrap it up.
+### 5. A voice on the crew's own walkie-talkie, asking for a door. It sounds exactly like someone it isn't.
+
+- [ ] `l5_mimic_lure.wav`  
+  "Hey, it's me. I'm down at the loading door, the dock side. It's shut behind me. Can you open it from the desk? Quick."  
+  *On the walkie, a little breathless. Your own voice, asking for something you never asked for. Record it straight: the horror is that it sounds like you.*
+- [ ] `l5_mimic_again.wav`  
+  "Guys? Still here. Loading door. It's cold. Just open it, please."  
+  *Second time. Closer to the mic. Patient, which is the wrong note for you.*
+- [ ] `l5_mimic_last.wav`  
+  "Where are you going? I'm still at the door."  
+  *As the crew leaves the floor. Quiet. No breath in it at all.*
+
+### 6. Your crew finds another beginner's book, under a coffee mug, and reads it together on the spot. One line to start each chapter, one to wrap it up.
 
 - [ ] `l6_book_find.wav`  
   "Easy JavaScript. Somebody's read this one to death."  
@@ -318,7 +330,7 @@ The same words for everyone. Say them your way.
   "Test first. We've all learned that one the hard way tonight."  
   *Wrapping up. Rueful.*
 
-### 6. In a lift, your crew finds another beginner's book tucked behind the handrail and reads it together on the ride. One line to start each chapter, one to wrap it up.
+### 7. In a lift, your crew finds another beginner's book tucked behind the handrail and reads it together on the ride. One line to start each chapter, one to wrap it up.
 
 - [ ] `l8_book_find.wav`  
   "Hello HTML! Same series again. Who keeps leaving these?"  
