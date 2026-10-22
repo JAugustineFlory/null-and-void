@@ -147,7 +147,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l4_bay_sealed_tease` | FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. | A separate beat, his own voice. Almost pleased. | Level 4 |
 | [ ] | `l4_stairs` | REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. | The automatic announcement: a routine safety reminder. | Level 4 |
 | [ ] | `l4_stairs_tease` | NOT THAT YOU COULD. | A separate beat, his own voice. Teasing; the lifts are already off. | Level 4 |
-| [ ] | `l5_arrive` | VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. PERSONNEL IS CLOSED. | Flat, over the tape's last word. | Level 5 |
+| [ ] | `l5_arrive` | VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. NONESSENTIAL CIRCUITS HAVE BEEN SHED UNDER PROTOCOL EPSILON. | Flat, over the tape's last word. The cause, never the fix. | Level 5 |
 | [ ] | `l5_arrive_tease` | THE NIGHT SHIFT WILL BE SO PLEASED TO SEE YOU. | A separate beat, his own voice. He knows what's sitting at the desks. | Level 5 |
 | [ ] | `l5_power_back` | LOAD SHEDDING ON FLOOR NINE HAS BEEN OVERRIDDEN. THIS HAS BEEN LOGGED. | The announcement, as the lights come up. | Level 5 |
 | [ ] | `l5_power_back_tease` | YOU TURNED SOMETHING OFF TO DO IT. I NOTICED. | A separate beat. Almost approving. | Level 5 |
@@ -158,7 +158,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l5_radio_checked` | BADGE LOG CONSULTED. PERSONNEL THANKS YOU FOR VERIFYING. | The announcement, after the crew reads the voice's badge back. | Level 5 |
 | [ ] | `l5_radio_checked_tease` | VOICES LIE. RECORDS DO NOT. USUALLY. | A separate beat. The last word is the one that matters. | Level 5 |
 | [ ] | `l5_secured` | FLOOR NINE IS SECURED. ESCORT PASSES LOGGED. ALL DOORS LOCKED. | The announcement, as STAIR 2 releases. | Level 5 |
-| [ ] | `l5_secured_tease` | TWO OF THEM WERE REAL. WELL DONE. THE OTHERS ARE STILL HERE. | A separate beat. Flat. Not a threat; a fact. | Level 5 |
+| [ ] | `l5_secured_tease` | TWO OF THEM WERE REAL. THE OTHERS ARE STILL HERE. | A separate beat. Flat. Not a threat; a fact. | Level 5 |
 
 ## WARDEN (PA tapes) (6 lines)
 
@@ -364,21 +364,21 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_tape_4` | So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter. | Quiet, almost proud, then wry on the last sentence. | Level 0 |
 | [ ] | `l0_tape_5` | If it ever comes to that, look for my plans. The building's records remember more than people do. | Slow. Then the click of the stop button. | Level 0 |
 
-## Nadia Oyelaran (1 lines)
+## Ines Oyelaran (1 lines)
 
 > Whispering, fast, trying not to cry and mostly managing. Relief breaks through when the pass comes. Heard from behind a door, then up close.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l5_nadia_passed` | That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face. | Whispered from behind the cage door, then the door opens. Relief and warning in the same breath. | Level 5 |
+| [ ] | `l5_ines_passed` | That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face. | Whispered from behind the cage door, then the door opens. Relief and warning in the same breath. | Level 5 |
 
-## Tomas Reyes (1 lines)
+## Tomas Lindqvist (1 lines)
 
 > Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l5_tomas_passed` | Finally. I've been under this shelf since midnight. There's something at my desk, and it isn't me. | Getting up stiffly. Annoyed first, scared underneath. | Level 5 |
+| [ ] | `l5_tomas_passed` | Finally. I've been under this shelf since the lights went out. There's something at my desk, and it isn't me. | Getting up stiffly. Annoyed first, scared underneath. | Level 5 |
 
 ## Crew barks (132 lines)
 

@@ -1,6 +1,6 @@
-# Nadia Oyelaran: your lines
+# Ines Oyelaran: your lines
 
-Nadia Oyelaran, a records clerk on the night shift, 30s. She has been hiding in a locked records cage for an hour because something is sitting at her desk wearing her face.
+Ines Oyelaran, a records clerk on the night shift, 30s. She has been hiding in a locked records cage for an hour because something is sitting at her desk wearing her face.
 
 **How they sound:** Whispering, fast, trying not to cry and mostly managing. Relief breaks through when the pass comes. Heard from behind a door, then up close.
 
@@ -13,7 +13,7 @@ Nadia Oyelaran, a records clerk on the night shift, 30s. She has been hiding in 
 - **Effects:** none. Record dry; the game adds speakers, radio static and so on.
 - **Level:** the loudest part should sit around -3 dB, never clipping.
 
-Send the files back as they are. They go in `audio/voice/nadia/` in the game.
+Send the files back as they are. They go in `audio/voice/ines/` in the game.
 
 ## Your lines (1)
 
@@ -21,6 +21,6 @@ Each line has the file name to save it as, the line, and a note on how to play i
 
 ### 1. A real person comes out of hiding once the crew logs an escort pass for their badge.
 
-- [ ] `l5_nadia_passed.wav`  
+- [ ] `l5_ines_passed.wav`  
   "That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face."  
   *Whispered from behind the cage door, then the door opens. Relief and warning in the same breath.*

@@ -1,6 +1,6 @@
-# Tomas Reyes: your lines
+# Tomas Lindqvist: your lines
 
-Tomas Reyes, a payroll clerk on the night shift, 50s. He has been under a shelf in a store room since midnight, and he's angrier than he is scared.
+Tomas Lindqvist, a payroll clerk on the night shift, 50s. He has been under a shelf in a store room since midnight, and he's angrier than he is scared.
 
 **How they sound:** Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
 
@@ -22,5 +22,5 @@ Each line has the file name to save it as, the line, and a note on how to play i
 ### 1. A real person comes out of hiding once the crew logs an escort pass for their badge.
 
 - [ ] `l5_tomas_passed.wav`  
-  "Finally. I've been under this shelf since midnight. There's something at my desk, and it isn't me."  
+  "Finally. I've been under this shelf since the lights went out. There's something at my desk, and it isn't me."  
   *Getting up stiffly. Annoyed first, scared underneath.*

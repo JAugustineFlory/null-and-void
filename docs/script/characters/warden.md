@@ -166,8 +166,8 @@ Each line has the file name to save it as, the line, and a note on how to play i
 ### 11. An HR floor at midnight, half of it dark. The building's computer watches you from the ceiling speakers, between its cheerful pre-recorded announcements.
 
 - [ ] `l5_arrive.wav`  
-  "VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. PERSONNEL IS CLOSED."  
-  *Flat, over the tape's last word.*
+  "VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. NONESSENTIAL CIRCUITS HAVE BEEN SHED UNDER PROTOCOL EPSILON."  
+  *Flat, over the tape's last word. The cause, never the fix.*
 - [ ] `l5_arrive_tease.wav`  
   "THE NIGHT SHIFT WILL BE SO PLEASED TO SEE YOU."  
   *A separate beat, his own voice. He knows what's sitting at the desks.*
@@ -199,5 +199,5 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "FLOOR NINE IS SECURED. ESCORT PASSES LOGGED. ALL DOORS LOCKED."  
   *The announcement, as STAIR 2 releases.*
 - [ ] `l5_secured_tease.wav`  
-  "TWO OF THEM WERE REAL. WELL DONE. THE OTHERS ARE STILL HERE."  
+  "TWO OF THEM WERE REAL. THE OTHERS ARE STILL HERE."  
   *A separate beat. Flat. Not a threat; a fact.*

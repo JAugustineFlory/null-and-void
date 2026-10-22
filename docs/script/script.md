@@ -37,11 +37,11 @@ Each line's file name is in brackets; see [recording-list.md](recording-list.md)
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
 
-**Nadia Oyelaran** (NADIA). Night-shift records clerk on floor 9, one of the two real people the crew rescues. A Mimic wears her face at the HR front.
+**Ines Oyelaran** (INES). Night-shift records clerk on floor 9, one of the two real people the crew rescues. A Mimic wears her face at the HR front.
 
 > Whispering, fast, trying not to cry and mostly managing. Relief breaks through when the pass comes. Heard from behind a door, then up close.
 
-**Tomas Reyes** (TOMAS). Night-shift payroll clerk on floor 9, the other real person. A Mimic sits at his desk in payroll.
+**Tomas Lindqvist** (TOMAS). Night-shift payroll clerk on floor 9, the other real person. A Mimic sits at his desk in payroll.
 
 > Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
 
@@ -857,7 +857,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **PA:** *(The cheerful tape. Nobody is here for anybody.)* Welcome to floor nine, Personnel! Payroll questions? We're here for you, nine to five! `[l5_arrive_pa]`
 
-**WARDEN:** *(Flat, over the tape's last word.)* VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. PERSONNEL IS CLOSED. `[l5_arrive]`
+**WARDEN:** *(Flat, over the tape's last word. The cause, never the fix.)* VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. NONESSENTIAL CIRCUITS HAVE BEEN SHED UNDER PROTOCOL EPSILON. `[l5_arrive]`
 
 **WARDEN:** *(A separate beat, his own voice. He knows what's sitting at the desks.)* THE NIGHT SHIFT WILL BE SO PLEASED TO SEE YOU. `[l5_arrive_tease]`
 
@@ -879,7 +879,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **WARDEN:** *(The announcement, as STAIR 2 releases.)* FLOOR NINE IS SECURED. ESCORT PASSES LOGGED. ALL DOORS LOCKED. `[l5_secured]`
 
-**WARDEN:** *(A separate beat. Flat. Not a threat; a fact.)* TWO OF THEM WERE REAL. WELL DONE. THE OTHERS ARE STILL HERE. `[l5_secured_tease]`
+**WARDEN:** *(A separate beat. Flat. Not a threat; a fact.)* TWO OF THEM WERE REAL. THE OTHERS ARE STILL HERE. `[l5_secured_tease]`
 
 ### The voice on the walkie
 
@@ -899,11 +899,11 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### The night shift, passed out
 
-*The two night-shifters whose faces the Mimics wear. Each speaks once, when their pass is logged. DRAFT lines (plan/approvals/l5-text.md).*
+*The two night-shifters whose faces the Mimics wear (Ines Oyelaran, records; Tomas Lindqvist, payroll: names chosen clear of the visitor log and the receptionist, per Voice's review). Each speaks once, when their pass is logged. DRAFT lines (plan/approvals/l5-text.md).*
 
-**NADIA:** *(Whispered from behind the cage door, then the door opens. Relief and warning in the same breath.)* That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face. `[l5_nadia_passed]`
+**INES:** *(Whispered from behind the cage door, then the door opens. Relief and warning in the same breath.)* That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face. `[l5_ines_passed]`
 
-**TOMAS:** *(Getting up stiffly. Annoyed first, scared underneath.)* Finally. I've been under this shelf since midnight. There's something at my desk, and it isn't me. `[l5_tomas_passed]`
+**TOMAS:** *(Getting up stiffly. Annoyed first, scared underneath.)* Finally. I've been under this shelf since the lights went out. There's something at my desk, and it isn't me. `[l5_tomas_passed]`
 
 ## Level 6
 

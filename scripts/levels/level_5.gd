@@ -396,11 +396,11 @@ func _make_puzzles() -> void:
 	var hr_key := "X-Api-Key: %s" % key
 	key_puzzle = RequestPuzzle.new("key", "GET /staff\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _path_of(line).begins_with("/staff"), [
-		"the shape, with the key left as ?:\n" +
-		"    [color=#ffffff]GET /staff\nX-Api-Key: ?[/color]\n" +
+		"the shape, with the key left as enter_key:\n" +
+		"    [color=#ffffff]GET /staff\nX-Api-Key: enter_key[/color]\n" +
 		"  GET /staff   ask the HR service for the staff records (it only reads)\n" +
-		"  X-Api-Key: ?   a header: the key, on its own line under the request. Shift+Enter starts the line, and an empty line sends it\n" +
-		"? is the HR key. the desk sheet says who issues keys.",
+		"  X-Api-Key: enter_key   a header: the key, on its own line under the request. Shift+Enter starts the line, and an empty line sends it\n" +
+		"enter_key is the HR key. the desk sheet says who issues keys.",
 		"the HR manager's office is through the door on the right. the key is on a sticky under the keyboard. the card in the mail tray is the temp's key, and it won't do.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /staff\n%s[/color]" % hr_key,
@@ -411,13 +411,13 @@ func _make_puzzles() -> void:
 	var cage_id := "C9-04"
 	circuits_puzzle = RequestPuzzle.new("circuits", "PATCH /circuits/%s\n%s\n\n{\"on\": true}" % [lights_id, hr_key], func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _path_of(line).begins_with("/circuits") and _power_ok(), [
-		"the shape, with the circuit left as ?:\n" +
-		"    [color=#ffffff]PATCH /circuits/?\nX-Api-Key: %s\n\n{\"on\": true}[/color]\n" % key +
-		"  PATCH /circuits/?   change one thing about one circuit, and leave the rest alone\n" +
+		"the shape, with the circuit left as enter_circuit_id:\n" +
+		"    [color=#ffffff]PATCH /circuits/enter_circuit_id\nX-Api-Key: %s\n\n{\"on\": true}[/color]\n" % key +
+		"  PATCH /circuits/enter_circuit_id   change one thing about one circuit, and leave the rest alone\n" +
 		"  X-Api-Key: ...   the header, as before\n" +
 		"  (an empty line)   headers end, the body begins\n" +
 		"  {\"on\": true}   the body: JSON. the field and its new value. true is on, false is off, no quotes on either\n" +
-		"? is a circuit's id from the clipboard: the two that were shed. if the panel answers 409, something heavy has to go off first.",
+		"enter_circuit_id is a circuit's id from the clipboard: the two that were shed. if the panel answers 409, something heavy has to go off first.",
 		"the clipboard lists every circuit's amps and the panel's night limit. add up what's on. the copier bank is the heavy one: PATCH it to false first, then the lights and the cage lock to true.",
 		"type these, one at a time, Enter twice after each:\n" +
 		"    [color=#ffffff]PATCH /circuits/%s\n%s\n\n{\"on\": false}[/color]\n" % [copiers_id, hr_key] +
@@ -429,9 +429,9 @@ func _make_puzzles() -> void:
 	# Verify after the change: GET is long practised (floor 22), so the review ladder.
 	check_circuits_puzzle = RequestPuzzle.new("check_circuits", "GET /circuits\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/circuits") and _power_ok() and _shows_circuit_on(res.body, lights_id), [
-		"the shape: ask the panel back, with the service left as ?:\n" +
-		"    [color=#ffffff]GET /?\nX-Api-Key: %s[/color]\n" % key +
-		"? is the service you just changed.",
+		"the shape: ask the panel back, with the service left as enter_service:\n" +
+		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
+		"enter_service is the service you just changed.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /circuits\n%s[/color]" % hr_key,
 	])
@@ -439,12 +439,12 @@ func _make_puzzles() -> void:
 	var ex: Dictionary = data.example_order
 	air_puzzle = RequestPuzzle.new("air", "POST /work_orders\n%s\n\n{\"floor\": 9, \"unit\": \"%s\", \"fault\": \"no air\"}" % [hr_key, data.ahu], func(line: String, res: Dictionary) -> bool:
 		return res.status == 201 and _path_of(line).begins_with("/work_orders") and _air_ok(), [
-		"the shape, with the unit left as ?:\n" +
-		"    [color=#ffffff]POST /work_orders\nX-Api-Key: %s\n\n{\"floor\": 9, \"unit\": \"?\", \"fault\": \"no air\"}[/color]\n" % key +
+		"the shape, with the unit left as enter_unit:\n" +
+		"    [color=#ffffff]POST /work_orders\nX-Api-Key: %s\n\n{\"floor\": 9, \"unit\": \"enter_unit\", \"fault\": \"no air\"}[/color]\n" % key +
 		"  POST /work_orders   ask the service to make a new work order\n" +
 		"  X-Api-Key: ...   the header, then an empty line\n" +
 		"  {...}   the body: every field the carbon copy shows. floor is a number, no quotes; the others are text, in double quotes\n" +
-		"? is this floor's air handler: the clipboard names it. 400 means a field is missing or wrong, and says which.",
+		"enter_unit is this floor's air handler: the clipboard names it. 400 means a field is missing or wrong, and says which.",
 		"the carbon copy over the desk is floor 14's order: the same three fields. the clipboard's last line names this floor's unit.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]POST /work_orders\n%s\n\n{\"floor\": 9, \"unit\": \"%s\", \"fault\": \"no air\"}[/color]\n" % [hr_key, data.ahu] +
@@ -453,30 +453,30 @@ func _make_puzzles() -> void:
 	air_puzzle.case_id = "air"
 	check_air_puzzle = RequestPuzzle.new("check_air", "GET /work_orders\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/work_orders") and _air_ok() and _shows_order(res.body), [
-		"the shape: ask for it back, with the service left as ?:\n" +
-		"    [color=#ffffff]GET /?\nX-Api-Key: %s[/color]\n" % key +
-		"? is the service you just posted to. the 201 came with the order's number: GET /work_orders/<that number> asks for just that one.",
+		"the shape: ask for it back, with the service left as enter_service:\n" +
+		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
+		"enter_service is the service you just posted to. the 201 came with the order's number: GET /work_orders/<that number> asks for just that one.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /work_orders\n%s[/color]" % hr_key,
 	])
 	check_air_puzzle.case_id = "air"
 	# The radio's claim against the readers' log: GET with an id in the path is
 	# practised (floor 22's /doors/SEC-EXIT), so the review ladder.
-	swipes_puzzle = RequestPuzzle.new("swipes", "GET /swipes/?\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
+	swipes_puzzle = RequestPuzzle.new("swipes", "GET /swipes/enter_badge\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return _exposes_lure(line, res), [
-		"the shape, with the badge left as ?:\n" +
-		"    [color=#ffffff]GET /swipes/?\nX-Api-Key: %s[/color]\n" % key +
-		"? is the badge of whoever's talking. the readers log where every badge really is: the voice says the loading door; the log says where they are.",
+		"the shape, with the badge left as enter_badge:\n" +
+		"    [color=#ffffff]GET /swipes/enter_badge\nX-Api-Key: %s[/color]\n" % key +
+		"enter_badge is the badge of whoever's talking. the readers log where every badge really is: the voice says the loading door; the log says where they are.",
 		"",  # the exact query is built once the voice has spoken (_lure_hints)
 	])
 	swipes_puzzle.case_id = "radio"
 	swipes_puzzle.solved = true  # until the radio lies
 	# The escort passes: POST is practised at the air handler, so the review ladder.
-	passes_puzzle = RequestPuzzle.new("passes", "POST /escorts\n%s\n\n{\"badge\": \"?\", \"escort\": \"VIS-01\"}" % hr_key, func(line: String, res: Dictionary) -> bool:
+	passes_puzzle = RequestPuzzle.new("passes", "POST /escorts\n%s\n\n{\"badge\": \"enter_badge\", \"escort\": \"VIS-01\"}" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return res.status == 201 and _path_of(line).begins_with("/escorts") and _passes_ok(), [
-		"the shape, with the staffer's badge left as ?:\n" +
-		"    [color=#ffffff]POST /escorts\nX-Api-Key: %s\n\n{\"badge\": \"?\", \"escort\": \"<your badge>\"}[/color]\n" % key +
-		"? is a night-shifter's badge: GET /staff lists them. the readers have the real ones on the floor (GET /swipes/<badge> says where); the faces at the desks carry badges that don't answer.",
+		"the shape, with the staffer's badge left as enter_badge:\n" +
+		"    [color=#ffffff]POST /escorts\nX-Api-Key: %s\n\n{\"badge\": \"enter_badge\", \"escort\": \"enter_your_badge\"}[/color]\n" % key +
+		"enter_badge is a night-shifter's badge, enter_your_badge your own visitor badge: GET /staff lists them. the readers have the real ones on the floor (GET /swipes/<badge> says where); the faces at the desks carry badges that don't answer.",
 		"type these, Enter twice after each, with your own visitor badge as the escort:\n" +
 		"    [color=#ffffff]POST /escorts\n%s\n\n{\"badge\": \"%s\", \"escort\": \"VIS-01\"}[/color]\n" % [hr_key, data.night[0].id] +
 		"    [color=#ffffff]POST /escorts\n%s\n\n{\"badge\": \"%s\", \"escort\": \"VIS-01\"}[/color]\n" % [hr_key, data.night[1].id] +
@@ -485,24 +485,24 @@ func _make_puzzles() -> void:
 	passes_puzzle.case_id = "people"
 	# The lockup: PATCH is practised at the panel, so the review ladder; its last tier
 	# lists the doors still open (_lockup_hints).
-	lockup_puzzle = RequestPuzzle.new("lockup", "PATCH /doors/?\n%s\n\n{\"locked\": true}" % hr_key, func(line: String, res: Dictionary) -> bool:
+	lockup_puzzle = RequestPuzzle.new("lockup", "PATCH /doors/enter_door\n%s\n\n{\"locked\": true}" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _path_of(line).begins_with("/doors") and _lockup_ok(), [], _lockup_ok)
 	lockup_puzzle.case_id = "people"
 	_lockup_hints()
 	check_lockup_puzzle = RequestPuzzle.new("check_lockup", "GET /doors\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and _lockup_ok() and _shows_locked(res.body), [
-		"the shape: read the doors back, with the service left as ?:\n" +
-		"    [color=#ffffff]GET /?\nX-Api-Key: %s[/color]\n" % key +
-		"? is the service whose doors you just locked. GET /doors/<door> reads one back.",
+		"the shape: read the doors back, with the service left as enter_service:\n" +
+		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
+		"enter_service is the service whose doors you just locked. GET /doors/<door> reads one back.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /doors\n%s[/color]" % hr_key,
 	])
 	check_lockup_puzzle.case_id = "people"
 	vale_puzzle = RequestPuzzle.new("vale", "GET /staff/%s\n%s" % [Level5Data.VALE.id, hr_key], func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _path_of(line).to_upper() == "/STAFF/" + Level5Data.VALE.id, [
-		"the shape, with the badge left as ?:\n" +
-		"    [color=#ffffff]GET /staff/?\nX-Api-Key: %s[/color]\n" % key +
-		"? is her badge number: GET /staff lists every record, with its id.",
+		"the shape, with the badge left as enter_badge:\n" +
+		"    [color=#ffffff]GET /staff/enter_badge\nX-Api-Key: %s[/color]\n" % key +
+		"enter_badge is her badge number: GET /staff lists every record, with its id.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /staff/%s\n%s[/color]" % [Level5Data.VALE.id, hr_key],
 	])
@@ -640,7 +640,7 @@ func _build_payroll(colors: Dictionary) -> void:
 		for z in [-20.0, -24.0]:
 			Greybox.box(geo, Vector3(x, 0.5, z), Vector3(2.0, 1.0, 0.8), Color(0.4, 0.38, 0.34), "PayDesk")
 			Greybox.panel(geo, Vector3(x, 1.25, z - 0.3), Vector3(0.4, 0.3, 0.04), Color(0.1, 0.1, 0.12), 0.0)
-	Greybox.label(geo, Vector3(-4, 1.05, -19.55), "T. REYES", 14, Color(0.1, 0.1, 0.1), 0)
+	Greybox.label(geo, Vector3(-4, 1.05, -19.55), "T. LINDQVIST", 14, Color(0.1, 0.1, 0.1), 0)
 	# The filing bank the Mimic walks behind.
 	Greybox.box(geo, Vector3(-7, 1.0, -23), Vector3(2.4, 2.0, 0.5), Color(0.45, 0.47, 0.5), "FilingBank")
 	# The copier bank along the west wall, humming: the heavy load.
@@ -1080,9 +1080,9 @@ func _lockup_hints() -> void:
 		for row in db.run_silent("SELECT id FROM doors WHERE zone = '9' AND locked = 0 ORDER BY id"):
 			fixes.append("    [color=#ffffff]PATCH /doors/%s\nX-Api-Key: %s\n\n{\"locked\": true}[/color]" % [row["id"], data.keys.hr])
 	lockup_puzzle.hints = [
-		"the shape, with the door left as ?:\n" +
-		"    [color=#ffffff]PATCH /doors/?\nX-Api-Key: %s\n\n{\"locked\": true}[/color]\n" % data.keys.hr +
-		"? is each door opened tonight. GET /doors shows which are still open.",
+		"the shape, with the door left as enter_door:\n" +
+		"    [color=#ffffff]PATCH /doors/enter_door\nX-Api-Key: %s\n\n{\"locked\": true}[/color]\n" % data.keys.hr +
+		"enter_door is each door opened tonight. GET /doors shows which are still open.",
 		("type these, Enter twice after each:\n" + "\n".join(fixes) + "\nthen read each one back: GET /doors/<door>.") if not fixes.is_empty() else
 			"every door on the floor is locked. read them back: GET /doors.",
 	]

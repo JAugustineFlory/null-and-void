@@ -276,7 +276,7 @@ func test_scene() -> void:
 		"the key, the panel and the work order have three-step ladders; the reviews two")
 	var ui: TerminalUI = level.terminal_ui
 	ui.terminal = level.hr
-	check(level.hr.next_hint().contains("X-Api-Key: ?"), "the first hint is the request's shape with the key as ?")
+	check(level.hr.next_hint().contains("X-Api-Key: enter_key"), "the first hint is the request's shape with the key as enter_key")
 	# The key station.
 	_doc(level, "Personnel request sheet").open_reader(p).close()
 	await _frames(3)
@@ -303,7 +303,7 @@ func test_scene() -> void:
 	check(await _until(func(): return level.lures == 1, 120) and level.lure_peer == 0 and level.lure_badge == "VIS-02", "once the service answers, a voice on the walkie asks for the loading door: solo, it's Maddison, with the next badge")
 	check(not level.swipes_puzzle.solved and _game().current_todo() == level.TEXT.todo_radio and _said(level.hr, level.TEXT.tip_lure), "the radio station opens, the to-do asks who's really there, and SYSOP says a voice isn't a record")
 	check(level.hud._subtitle.text.contains(VoiceLines.get_line("l5_mimic_maddison_lure").text), "the subtitle is Maddison's line")
-	check(level.hr.next_hint().contains("GET /swipes/?") and level.hr.next_hint().contains("GET /swipes/VIS-02"), "the radio's ladder: the shape, then the voice's badge")
+	check(level.hr.next_hint().contains("GET /swipes/enter_badge") and level.hr.next_hint().contains("GET /swipes/VIS-02"), "the radio's ladder: the shape, then the voice's badge")
 	ui.run(_last_hint_query(level.swipes_puzzle))
 	await _frames(3)
 	check(level.swipes_puzzle.solved and _game().case_info("radio").get("solved", false) and _game().case_info("radio").how.contains("VIS-02") and _game().current_todo() == level.TEXT.todo_power, "no such badge: the voice is exposed, the case says so, and the to-do goes back to the power")
@@ -374,7 +374,7 @@ func test_scene() -> void:
 	await _frames(3)
 	check(level.passes_puzzle.solved and st2.state != "hiding" and not level.lockup_puzzle.solved and _said(level.hr, level.TEXT.tip_lockup), "both passed: the station passes, and SYSOP says every door opened is still open")
 	check(await _until(func(): return st1.state == "waiting" and st2.state == "waiting", 1800), "both night-shifters reach the stairs and wait (%s, %s)" % [st1.state, st2.state])
-	check(level.hr.next_hint().contains("PATCH /doors/?"), "the lockup ladder: the shape")
+	check(level.hr.next_hint().contains("PATCH /doors/enter_door"), "the lockup ladder: the shape")
 	var fixes := _hint_queries(level.hr.next_hint())
 	check(fixes.size() == 2 and fixes.all(func(q): return q.contains("\"locked\": true")), "then one PATCH per door still open (%d)" % fixes.size())
 	ui.run(fixes[0])

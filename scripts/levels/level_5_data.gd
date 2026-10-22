@@ -20,8 +20,8 @@ const COMPANY := "Byte-Right IT Services"
 const MANAGER := {"name": "Okonjo, Beatrice", "dept": "Personnel", "role": "HR manager", "shift": "day"}
 const TEMP := {"name": "Fisk, Danny", "dept": "Personnel", "role": "Temp (mail room)", "shift": "day"}
 const NIGHT := [
-	{"name": "Oyelaran, Nadia", "first": "Nadia", "dept": "Records", "role": "Records clerk", "shift": "night", "line": "l5_nadia_passed"},
-	{"name": "Reyes, Tomas", "first": "Tomas", "dept": "Payroll", "role": "Payroll clerk", "shift": "night", "line": "l5_tomas_passed"},
+	{"name": "Oyelaran, Ines", "first": "Ines", "dept": "Records", "role": "Records clerk", "shift": "night", "line": "l5_ines_passed"},
+	{"name": "Lindqvist, Tomas", "first": "Tomas", "dept": "Payroll", "role": "Payroll clerk", "shift": "night", "line": "l5_tomas_passed"},
 ]
 ## The two hiding places, with the reader each one badges in at and the door that
 ## shuts it: the Mimics borrow the faces, the badge log tells them apart.
@@ -46,10 +46,10 @@ const LIMIT := 40
 ## heavy thing left on; the lights and the cage lock were shed; the two that stay off
 ## say why. The amps vary a little with the seed (below), the shape never does.
 const CIRCUITS := [
-	["C9-01", "PAYROLL LIGHTS", 12, false, "Shed 23:40 under Epsilon."],
+	["C9-01", "PAYROLL LIGHTS", 12, false, "Shed under Epsilon."],
 	["C9-02", "HR LIGHTS", 6, true, ""],
 	["C9-03", "COPIER BANK", 20, true, "Left on. Payroll's three copiers."],
-	["C9-04", "RECORDS CAGE LOCK", 2, false, "Shed 23:40 under Epsilon. The cage door holds shut without it."],
+	["C9-04", "RECORDS CAGE LOCK", 2, false, "Shed under Epsilon. The cage door holds shut without it."],
 	["C9-05", "VENDING", 6, true, ""],
 	["C9-06", "AHU-9 FANS", 15, false, "Night interlock. AHU-9 restarts on a logged work order, not from the panel."],
 	["C9-07", "SERVER CLOSET 9", 10, false, "LOCKED OUT by IT 10/13. Do not energize."],
@@ -70,7 +70,7 @@ static func build(run_seed: int) -> Dictionary:
 			badge_ids.append(id)
 	var hides: Array = HIDES.duplicate(true)
 	if rng.randi() % 2 == 0:
-		hides.reverse()  # Nadia in the store, Tomas in the cage
+		hides.reverse()  # Ines in the store, Tomas in the cage
 	var staff := []
 	var manager := MANAGER.duplicate()
 	manager["id"] = badge_ids[0]
