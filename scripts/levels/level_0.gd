@@ -63,9 +63,18 @@ const LIFT_AT := Vector3(30, 0, 3)
 const BOOK_CASE := "Who signed in last? The book's last page is gone."
 ## Each case's pieces (Game.set_pieces): what the crew finds on this floor to
 ## put its query together. Drafts for Augustine's word-for-word OK.
+## A value piece's `blank` is its slot's name while it's missing, as its hint
+## names it; only a table piece is `seen_in` its table (the column is the
+## thinking step). The memo starts as the peek: its table, then run it. The
+## scraps come out of order, and the sort and the column join it then.
+const MEMO_PEEK_PIECES := [
+	{"id": "table", "label": "The table", "value": "memo_fragments", "task": "Find the table the scans are saved in", "where": "Something about the scanner, on the front desk", "seen_in": "memo_fragments", "blank": "enter_table_name"},
+]
+const MEMO_PEEK_QUERY := "SELECT * FROM {table};"
+const MEMO_PEEK_STEPS := [{"id": "peek", "text": "Run it at the front desk terminal"}]
 const MEMO_PIECES := [
-	{"id": "table", "label": "The table", "value": "memo_fragments", "task": "Find the table the scans are saved in", "where": "Something about the scanner, on the front desk", "seen_in": "memo_fragments"},
-	{"id": "column", "label": "The column that numbers the scraps", "value": "piece_no", "task": "Find the column that numbers the scraps", "where": "Also something about the scanner", "seen_in": "memo_fragments"},
+	MEMO_PEEK_PIECES[0],
+	{"id": "column", "label": "The column that numbers the scraps", "value": "piece_no", "task": "Find the column that numbers the scraps", "where": "Also something about the scanner", "blank": "enter_column_name"},
 	{"id": "order", "label": "The words that sort rows", "value": "ORDER BY", "task": "Find how to put rows in order", "where": "Someone's reminder, on the front desk"},
 ]
 const MEMO_QUERY := "SELECT * FROM {table} {order} {column};"
@@ -74,12 +83,13 @@ const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's row and add 
 const CALLER_QUERY := "SELECT name, {column} FROM {table};"
 const CALLER_ROUTES := [{"id": "printout", "name": "The mailroom's printout"}]
 const VISITOR_PIECES := [
-	{"id": "table", "label": "The table", "value": "visitors", "task": "Find where every visitor is logged", "where": "The visitor book, on the front desk", "seen_in": "visitors"},
-	{"id": "column", "label": "The column with the sign-in time", "value": "signed_in", "task": "Find the column with the sign-in time", "where": "Type .schema visitors at the terminal", "seen_in": "visitors"},
+	{"id": "table", "label": "The table", "value": "visitors", "task": "Find where every visitor is logged", "where": "The visitor book, on the front desk", "seen_in": "visitors", "blank": "enter_table_name"},
 	{"id": "desc", "label": "Newest first", "value": "DESC", "task": "Find how to put the newest first", "where": "A reminder beside the visitor book"},
 	{"id": "limit", "label": "Just the last few", "value": "LIMIT 5", "task": "Find how to keep only the last few", "where": "Another reminder beside the book"},
 ]
-const VISITOR_QUERY := "SELECT * FROM {table} ORDER BY {column} {desc} {limit};"
+## Which column to sort by is the step being taught (.schema visitors), so it
+## stays the hint's own blank.
+const VISITOR_QUERY := "SELECT * FROM {table} ORDER BY enter_column_name {desc} {limit};"
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
 	"The shape of it:\n" +
 	"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
@@ -698,7 +708,7 @@ func start() -> void:
 	hud.lines(["l0_tour_1", "l0_tour_2", "l0_desk_1", "l0_desk_2"])
 	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
 	get_node("/root/Game").open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
-	get_node("/root/Game").set_pieces("memo", MEMO_PIECES, MEMO_QUERY, MEMO_STEPS)
+	get_node("/root/Game").set_pieces("memo", MEMO_PEEK_PIECES, MEMO_PEEK_QUERY, MEMO_PEEK_STEPS)
 
 
 ## Host: everyone has signed the log and taken a badge.
@@ -926,6 +936,8 @@ func _on_memo_backwards() -> void:
 
 func _on_peek_solved() -> void:
 	peek_puzzle.solved = true
+	# Out of order: now the memo needs sorting, by the column that numbers them.
+	get_node("/root/Game").set_pieces("memo", MEMO_PIECES, MEMO_QUERY, MEMO_STEPS)
 	get_node("/root/Game").collect_piece("memo", "order", "Easy SQL")  # the chapter the crew is about to read
 	# The scraps came out of order: the book's ORDER BY chapter, round the garage bench.
 	await _book_huddle("easy_sql_2")
@@ -1028,8 +1040,8 @@ static func visitor_top_one_for() -> Puzzle:
 static func caller_pieces(ext: int) -> Array:
 	return [
 		{"id": "ext", "label": "The number", "value": "ext. %d" % ext, "task": "Read the extension off the work order", "where": "The work order"},
-		{"id": "table", "label": "The table", "value": "staff_directory", "task": "Find the table of staff", "where": "Ask SYSOP at the front desk terminal", "seen_in": "staff_directory"},
-		{"id": "column", "label": "The column with extensions", "value": "extension", "task": "Find the column that holds extensions", "where": "Type .schema staff_directory at the terminal", "seen_in": "staff_directory"},
+		{"id": "table", "label": "The table", "value": "staff_directory", "task": "Find the table of staff", "where": "Ask SYSOP at the front desk terminal", "seen_in": "staff_directory", "blank": "enter_table_name"},
+		{"id": "column", "label": "The column with extensions", "value": "extension", "task": "Find the column that holds extensions", "where": "Type .schema staff_directory at the terminal", "seen_in": "staff_directory", "blank": "enter_column_name"},
 	]
 
 

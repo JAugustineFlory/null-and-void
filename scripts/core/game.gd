@@ -241,7 +241,7 @@ func ticket_number() -> String:
 
 
 ## Everything a case page can have, for a case made before it could (an old save).
-const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": []}
+const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true}
 
 
 func _case(id: String) -> Dictionary:
@@ -252,7 +252,7 @@ func _case(id: String) -> Dictionary:
 					c[k] = CASE_DEFAULTS[k].duplicate() if CASE_DEFAULTS[k] is Array or CASE_DEFAULTS[k] is Dictionary else CASE_DEFAULTS[k]
 			return c
 	var c := {"id": id, "title": "", "open": false, "solved": false, "how": "", "tables": [], "clues": [],
-		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": []}
+		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true}
 	notebook_cases.append(c)
 	return c
 
@@ -402,17 +402,26 @@ func jot(id: String, line: Dictionary) -> bool:
 ## it. `query` is the query with {piece_id} where each piece goes. `steps` are
 ## the checklist's lines after the pieces: [{id, text}], ticked by tick_step
 ## and all ticked when it's solved. An `optional` case is a side case: the HUD
-## counts only the main one. Pieces found before this keep their place.
+## counts only the main one. Calling it again (a case that grows) keeps the
+## pieces and steps already found or ticked, and so do pieces found before it.
+## A value piece's `blank` names its slot while it's missing, as the hint does
+## (enter_column_name); a word from the book stays ????.
 func set_pieces(id: String, pieces: Array, query: String = "", steps: Array = [], optional: bool = false) -> void:
 	var c := _case(id)
+	var old: Array = c.pieces
 	c.pieces = []
 	for p in pieces:
 		var piece: Dictionary = p.duplicate()
-		piece["found"] = c.solved or c.early.has(piece.id)
-		piece["from"] = str(c.early.get(piece.id, ""))
+		var was := {}
+		for o in old:
+			if o.id == piece.id and o.found:
+				was = o
+		piece["found"] = c.solved or c.early.has(piece.id) or not was.is_empty()
+		piece["from"] = str(was.from) if not was.is_empty() else str(c.early.get(piece.id, ""))
 		c.pieces.append(piece)
 	c.query = query
-	c.steps = steps.map(func(st): return {"id": st.id, "text": st.text, "done": c.solved})
+	var ticked: Array = c.steps.filter(func(st): return st.done).map(func(st): return st.id)
+	c.steps = steps.map(func(st): return {"id": st.id, "text": st.text, "done": c.solved or ticked.has(st.id)})
 	c.optional = optional
 	_seen_tables()
 	notebook_changed.emit()
@@ -461,6 +470,15 @@ func _seen_tables() -> void:
 				collect_piece(c.id, p.id, "Tables page")
 
 
+## A crewmate's query read `table`: pieces seen in it are found for this player
+## too (it's one crew), without it going on this player's Tables page.
+func see_table_pieces(table: String, from: String) -> void:
+	for c in notebook_cases:
+		for p in c.get("pieces", []):
+			if not p.found and p.get("seen_in", "") == table:
+				collect_piece(c.id, p.id, from)
+
+
 func pieces_found(id: String) -> int:
 	return case_info(id).get("pieces", []).filter(func(p): return p.found).size()
 
@@ -479,13 +497,57 @@ func tick_step(id: String, step_id: String) -> bool:
 	return false
 
 
-## Case `id`'s query so far: each found piece written in, each missing one ????.
+## Case `id`'s query so far: each found piece written in, each missing one
+## named as its hint names it (enter_column_name), or ???? for a word. A case
+## that doesn't assemble (see set_assemble) stays the bare shape.
 func case_query(id: String) -> String:
 	var c := case_info(id)
 	var q: String = c.get("query", "")
+	var assemble: bool = c.get("assemble", true)
 	for p in c.get("pieces", []):
-		q = q.replace("{%s}" % p.id, str(p.value) if p.found else PIECE_MISSING)
+		q = q.replace("{%s}" % p.id, str(p.value) if p.found and assemble else str(p.get("blank", PIECE_MISSING)))
 	return q
+
+
+## A puzzle under pressure is put together by the crew, not the notebook: with
+## `on` false, case `id`'s page still lists the pieces found, but its query so
+## far never writes them in.
+func set_assemble(id: String, on: bool) -> void:
+	_case(id).assemble = on
+	notebook_changed.emit()
+
+
+## A hint for case `id` just printed `text`: each piece whose value the query
+## in it shows (white on the screen) is found, from SYSOP. Prose doesn't count.
+func note_hint(id: String, text: String) -> void:
+	var c := case_info(id)
+	if not c.get("open", false) or c.solved:
+		return
+	var shown := ""
+	for m in RegEx.create_from_string("\\[color=#ffffff\\]([\\s\\S]*?)\\[/color\\]").search_all(text):
+		shown += m.get_string(1) + "\n"
+	for p in c.get("pieces", []):
+		if not p.found and hint_shows(shown, str(p.value)):
+			collect_piece(id, p.id, "SYSOP")
+
+
+## Does `text` show `value`? Names match as whole words, any case; signs (>) as is.
+static func hint_shows(text: String, value: String) -> bool:
+	if value == "":
+		return false
+	var low := text.to_lower()
+	var v := value.to_lower()
+	if not v.substr(0, 1).is_valid_identifier() and not v.substr(0, 1).is_valid_int():
+		return low.contains(v)
+	var re := RegEx.create_from_string("(?<![A-Za-z0-9_])" + _regex_escape(v) + "(?![A-Za-z0-9_])")
+	return re.search(low) != null
+
+
+static func _regex_escape(s: String) -> String:
+	var out := ""
+	for ch in s:
+		out += ("\\" + ch) if "\\.^$|?*+()[]{}'".contains(ch) else ch
+	return out
 
 
 ## Case `id`'s checklist, in order: [{text, done}]. Its pieces' tasks, then its

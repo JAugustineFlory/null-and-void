@@ -4,7 +4,9 @@ extends Control
 ## in ("3/4"), a bar of one segment per piece, and what to do next. Finding a
 ## piece pops a card in the top left saying what it was. Only the main case
 ## counts (Game.main_case): side cases and other ways in stay off the screen.
-## Built by the HUD; follows Game.notebook_changed and Game.piece_found.
+## Built by the HUD; follows Game.notebook_changed and Game.piece_found. The
+## next step shows only briefly: after a piece is found and after the notebook
+## closes (brief_next), then the chip is just the case and its count.
 
 ## The words on screen (drafts for Augustine's word-for-word OK).
 const HEADER := "CURRENT CASE"
@@ -14,6 +16,8 @@ const FOUND_SIDE := "PIECE FOUND  ·  SIDE CASE"
 const ADDED := "Added to the case. Checklist updated (Tab)."
 ## How long the found card stays up.
 const TOAST_TIME := 4.0
+## How long the next step stays up.
+const NEXT_TIME := 6.0
 
 const PANEL := Color(0.04, 0.05, 0.055, 0.85)
 const EDGE := Color(0.29, 0.31, 0.33)
@@ -37,6 +41,9 @@ var case_id := ""
 var allowed := true
 ## Pieces found while it was off: [case_id, piece_id] each, shown once it's back.
 var waiting: Array = []
+## The next step is up for now (brief_next).
+var next_up := false
+var _next_turn := 0
 
 
 func _ready() -> void:
@@ -164,7 +171,7 @@ func refresh() -> void:
 		bar.add_child(seg)
 	var step: String = game.case_next(case_id)
 	next.text = NEXT % step if step != "" else ""
-	next.visible = step != ""
+	next.visible = next_up and step != ""
 
 
 ## Case `id`'s piece `piece_id` was just found: say what it was, top left.
@@ -184,6 +191,7 @@ func show_found(id: String, piece_id: String) -> void:
 	if not allowed:
 		waiting.append([id, piece_id])  # said when the terminal's put away
 		return
+	brief_next()
 	toast_head.text = FOUND_SIDE if c.get("optional", false) else FOUND % [game.pieces_found(id), game.pieces_total(id)]
 	toast_value.text = "%s: %s" % [piece.label, piece.value]
 	toast.visible = true
@@ -209,3 +217,21 @@ func set_allowed(on: bool) -> void:
 		var last: Array = waiting.pop_back()  # the newest says the count as it is now
 		waiting.clear()
 		show_found(last[0], last[1])
+
+
+## Show the next step for NEXT_TIME seconds, then just the case and its count.
+func brief_next() -> void:
+	next_up = true
+	_next_turn += 1
+	refresh()
+	if not is_inside_tree():
+		return
+	var turn := _next_turn
+	get_tree().create_timer(NEXT_TIME).timeout.connect(_end_next.bind(turn))
+
+
+## The next step's time is up, unless a newer one has started since.
+func _end_next(turn: int) -> void:
+	if turn == _next_turn:
+		next_up = false
+		refresh()

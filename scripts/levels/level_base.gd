@@ -88,7 +88,10 @@ func _ready() -> void:
 	add_child(notebook)
 	# While it's open, subtitles go above the book instead of across its pages.
 	notebook.opened.connect(func(): hud.subtitles_on_top(true))
-	notebook.closed.connect(func(): if not terminal_ui.visible: hud.subtitles_on_top(false))
+	notebook.closed.connect(func():
+		if not terminal_ui.visible:
+			hud.subtitles_on_top(false)
+			hud.case_chip.brief_next())  # what's next, now the notebook's put away
 	inventory_screen = InventoryScreen.create(self, player, hud)
 	vitals = Vitals.create(self, player)
 	active = true
