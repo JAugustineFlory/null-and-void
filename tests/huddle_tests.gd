@@ -31,6 +31,10 @@ func _game() -> Node:
 	return _tree.root.get_node("Game")
 
 
+func _net() -> Node:
+	return _tree.root.get_node("Net")
+
+
 ## Huddle and HomeBase aren't named as classes here: they pull in
 ## LevelBase, which uses the Game autoload by name.
 func _huddle_of(node: Node) -> Node:
@@ -284,6 +288,9 @@ func _test_yourself(world) -> void:
 	await _frames(3)
 	var said: String = pages.text_of(_book_items(pages, "*"))
 	_check.call(not quiz.result.right and said.contains("Not quite. Each is a whole table") and _book_item(pages, "BookNext") == null, "a wrong answer says why, and you pick again")
+	var check: Control = _book_item(pages, "QuickCheck")
+	_check.call(check != null and check.find_children("Option*", "", true, false).size() == 3 and pages.text_of([check]).contains("Not quite") and pages.text_of([check]).contains("What are jobs"),
+		"the question, its options and its why stay together on one page")
 	_book_item(pages, "Option%d" % right).pressed.emit()
 	await _frames(3)
 	_check.call(quiz.result.right and _book_item(pages, "BookNext") != null, "the right one is marked right, with the next question to go to")
@@ -294,6 +301,15 @@ func _test_yourself(world) -> void:
 	_book_item(pages, "BookBack").pressed.emit()
 	await _frames(3)
 	_check.call(pages.quiz == null and _book_item(pages, "TestYourself") != null, "and you can leave the test for the chapter any time")
+	_book_item(pages, "BookContents").pressed.emit()
+	await _frames(3)
+	var this_run: Array[String] = _game().book_chapters.duplicate()
+	_game().book_chapters.clear()  # a later run, resumed or started on another floor
+	var earned: bool = _net().profile.earned.has("chapter:easy_sql_0")
+	pages.refresh()
+	await _frames(2)
+	_check.call(earned and _book_item(pages, "Chapter_easy_sql_0") != null, "a run that starts later still has the chapter, from the player's profile")
+	_game().book_chapters = this_run
 	nb.close()
 
 

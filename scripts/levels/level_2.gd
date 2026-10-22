@@ -81,8 +81,6 @@ var door_asked := false  # the crew has been told SEC-EXIT is still shut
 ## Host: Easy SQL chapters whose paper or terminal has been found: "found" waits for
 ## its puzzle to open, "played" has been held.
 var _books := {}
-## Book huddles open right now (the Watcher holds still while the crew is away).
-var _huddles := 0
 var _clock := 0.0
 var _cam_tick := 0.0
 var _lie_explained := false
@@ -269,7 +267,6 @@ func build() -> void:
 	add_child(watcher)
 	watcher.position = watcher_home
 	watcher.holders.append(_camera_holds)
-	watcher.holders.append(func(_w): return _huddles > 0)
 	watcher.see_through = _glass
 	watcher.caught.connect(_on_caught)
 	watcher.started_moving.connect(_on_watcher_moving)
@@ -924,12 +921,10 @@ func _book_ready(id: String) -> bool:
 	return true
 
 
-## Every machine: a chapter of Easy SQL, read round the garage bench (a flashback,
-## once per run). The Watcher holds still while the crew is away.
+## Every machine: a chapter of Easy SQL comes into the crew's book (once per run).
+## Nothing stops for it, the Watcher included.
 func _book_huddle(id: String) -> void:
-	_huddles += 1
 	await Huddle.of(self).run(id)
-	_huddles -= 1
 
 
 ## Host: a query ran at `which` terminal. Puzzle results play out on every machine.

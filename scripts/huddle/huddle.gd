@@ -85,6 +85,10 @@ func run(id: String, _mode: String = FLASHBACK) -> void:
 	var hud = level.get("hud")
 	if hud:
 		hud.notice(NOTICE % [Books.book_name(chapter.book_id), chapter.number, chapter.title], 6.0)
+	# At least a frame, even with no lines: whatever else set this chapter off
+	# (one query solving two puzzles) has played out before the level carries on.
+	await get_tree().process_frame
+	if hud:
 		for line in chapter.lines:
 			await hud.line(line)
 	chapter = {}

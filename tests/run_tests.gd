@@ -1499,6 +1499,22 @@ func _huddle_opens(level: Node, id: String, seconds: float = 30.0) -> bool:
 	return await _until(func(): return h.done.has(id), seconds)
 
 
+## Until chapter `id` comes into the book here (at most `seconds`); true only if
+## `before` was still false at that moment (or now, if it came in this frame).
+func _lands_before(level: Node, id: String, before: Callable, seconds: float = 30.0) -> bool:
+	var h := _huddle_of(level)
+	if h.done.has(id):
+		return not before.call()
+	var ok := [false]
+	var on_in := func(got: String):
+		if got == id:
+			ok[0] = not before.call()
+	h.finished.connect(on_in)
+	var landed: bool = await _until(func(): return h.done.has(id), seconds)
+	h.finished.disconnect(on_in)
+	return landed and ok[0]
+
+
 func _table(level: Node, sql: String) -> String:
 	return JSON.stringify(level.db.run_silent(sql))
 
@@ -4145,10 +4161,9 @@ func test_level_2_book_huddles() -> void:
 	check(not h.is_running(), "the WARDEN manual's LIKE page doesn't bring it back again")
 	level.terminal_ui.terminal = level.booth
 	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
-	check(await opens.call("easy_sql_12"), "Pike's suspended PIN brings back One answer feeds the next")
-	check(not level.watcher.active and level.watcher.is_watched(), "it doesn't wake while the crew is in the garage, and is held still")
+	check(await _lands_before(level, "easy_sql_12", func(): return level.watcher.active), "Pike's suspended PIN brings back One answer feeds the next, before it wakes")
 	await _crew_reads([level])
-	check(await _until(func(): return level.watcher.active and level.loose, 10.0), "back from the garage, CAM-2 freezes and it hunts")
+	check(await _until(func(): return level.watcher.active and level.loose, 10.0), "then CAM-2 freezes and it hunts")
 	level.watcher.active = false  # the rest is about the chapters, not the chase
 	level.terminal_ui.terminal = level.booth
 	level.terminal_ui.run(_hint_query(level.har_puzzle.hints[-1]))
@@ -5347,12 +5362,12 @@ func test_level_3_book_huddles() -> void:
 	var p: Player = level.player
 	var h := _huddle_of(level)
 	_doc(level, "Retention review memo").open_reader(p).close()
-	check(await _until(func(): return h.done.has("easy_sql_distinct"), 10.0) and not p.input_locked, "reading the memo on the card catalogue puts the DISTINCT chapter in the book, and nobody is held still")
+	check(await _until(func(): return h.done.has("easy_sql_distinct"), 10.0) and not p.input_locked and level.shredder.is_physics_processing(), "reading the memo on the card catalogue puts the DISTINCT chapter in the book, and nobody is held still, the Shredder included")
 	_doc(level, "Reader tally").open_reader(p).close()
 	check(await _until(func(): return h.done.has("easy_sql_group_by"), 10.0), "then the tally puts in the COUNT and GROUP BY chapter")
 	await _crew_reads([level])
 	check(net.profile.earned.has("chapter:easy_sql_distinct") and net.profile.earned.has("chapter:easy_sql_group_by"), "both chapters are on the reader's profile")
-	check(level.shredder.is_physics_processing() and not p.input_locked, "afterwards the Shredder can move, and so can the crew")
+	check(level.shredder.is_physics_processing() and not p.input_locked, "afterwards the Shredder still moves, and so does the crew")
 	_doc(level, "Retention review memo").open_reader(p).close()
 	await _frames(10)
 	check(not h.is_running(), "reading the memo again doesn't repeat the chapter")
@@ -5399,7 +5414,7 @@ func test_level_0_book_huddles() -> void:
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments;")
 	var nudged := func(): return Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY"))
-	check(await _huddle_opens(level, "easy_sql_2") and not nudged.call(), "the scraps printing out of order bring back Putting things in order, before SYSOP's nudge")
+	check(await _lands_before(level, "easy_sql_2", nudged), "the scraps printing out of order bring back Putting things in order, before SYSOP's nudge")
 	await _crew_reads([level])
 	check(h.done.has("easy_sql_2") and net.profile.earned.has("chapter:easy_sql_2"), "the crew reads it, and it's on the profile")
 	check(await _until(nudged, 5.0), "then SYSOP nudges toward ORDER BY")
@@ -5407,7 +5422,7 @@ func test_level_0_book_huddles() -> void:
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no;")
 	check(await _huddle_opens(level, "easy_sql_4"), "with the memo sorted, the visitor book's Newest first comes back")
 	await _crew_reads([level])
-	check(await _huddle_opens(level, "easy_sql_3", 90.0) and not level.caller_asked, "Rourke asks who called, and Just the columns you need comes back before the case opens")
+	check(await _lands_before(level, "easy_sql_3", func(): return level.caller_asked, 90.0), "Rourke asks who called, and Just the columns you need comes back before the case opens")
 	await _crew_reads([level])
 	check(await _until(func(): return level.caller_asked, 10.0) and h.done.has("easy_sql_3") and h.done.has("easy_sql_4"), "then the caller case opens")
 	level.queue_free()
@@ -5424,7 +5439,7 @@ func test_level_0_book_huddles() -> void:
 	await _crew_reads([level])
 	await _frames(30)
 	h = _huddle_of(level)
-	check(h.chapter.get("id", "") != "easy_sql_2" and not Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY")), "once, with no nudge after it")
+	check(not h.is_busy() and not Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY")), "once, with no nudge after it")
 	level.queue_free()
 	await process_frame
 	net.profile = test_profile
@@ -5445,7 +5460,7 @@ func test_level_1_book_huddles() -> void:
 	check(await _huddle_opens(level, "easy_sql_5"), "the NOC shift log brings back Keeping only some rows")
 	await _crew_reads([level])
 	level._on_asked()
-	check(await _huddle_opens(level, "easy_sql_6") and level.terminal.locked, "the self-test brings back Both must be true, before the terminal opens")
+	check(await _lands_before(level, "easy_sql_6", func(): return not level.terminal.locked), "the self-test brings back Both must be true, before the terminal opens")
 	await _crew_reads([level])
 	check(await _until(func(): return not level.terminal.locked, 5.0) and h.done.has("easy_sql_5") and h.done.has("easy_sql_6"), "then the terminal opens, the shift log's chapter not read twice")
 	_doc(level, "RACK MONITORING").report_open(p)

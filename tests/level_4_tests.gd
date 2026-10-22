@@ -504,7 +504,7 @@ func test_accident() -> void:
 ## the accident, the Custodian and the seal play out on every machine.
 ## Easy SQL's Ch 17 and 18 come up at their papers: Changing a row on the work order
 ## or the gantry card (whichever is read first, once), Adding a row on the clipboard.
-## The Custodian stands still while the crew is away at the garage bench.
+## Nothing stops for them: the Custodian keeps going.
 func test_book_huddles() -> void:
 	print("Floor 10: the book's chapters")
 	_game().new_run(7)
@@ -515,10 +515,10 @@ func test_book_huddles() -> void:
 	var h: Node = t._huddle_of(level)
 	_doc(level, "Gantry card").report_open(p)
 	check(await t._huddle_opens(level, "easy_sql_update"), "the gantry card, read first, brings back Changing a row")
-	check(not level.custodian.is_physics_processing(), "the Custodian stands still while the crew is at the bench")
+	check(level.custodian.is_physics_processing(), "the Custodian keeps going while it comes in")
 	await t._crew_reads([level])
 	await t._until(func(): return not h.is_busy(), 10.0)
-	check(h.done.has("easy_sql_update") and level.custodian.is_physics_processing(), "the chapter ends, and the Custodian ticks again")
+	check(h.done.has("easy_sql_update") and level.custodian.is_physics_processing(), "the chapter is in, and the Custodian is still going")
 	_doc(level, "Facilities work order").report_open(p)
 	await _frames(20)
 	check(not h.is_busy() and _game().case_info("power").get("open", false), "the work order read after doesn't bring the chapter back, and still opens the power case")

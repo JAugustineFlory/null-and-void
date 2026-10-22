@@ -223,7 +223,6 @@ var exit_trigger: Trigger
 var shredder: Shredder
 ## The first crank has been turned: the floor knows what's hunting it now.
 var shredder_awake := false
-var _huddles := 0  # book huddles open or waiting their turn
 ## The stacks' shelf units, for the climb tests and the dressing pass.
 var stack_units: Array[StaticBody3D] = []
 
@@ -1036,17 +1035,10 @@ func _on_solved(id: String, _which: String) -> void:
 	_order_hints()
 
 
-## Every machine: the memo or the tally brings back its chapter of Easy SQL, read
-## round the garage bench (a flashback, once per run). The Shredder stands still
-## while the crew is away, so nobody is grabbed mid-quiz.
+## Every machine: the memo or the tally brings back its chapter of Easy SQL, into
+## the crew's book (once per run). Nothing stops: the Shredder keeps listening.
 func _book_huddle(id: String) -> void:
-	_huddles += 1
-	if sync.is_host():
-		shredder.set_physics_process(false)
 	await Huddle.of(self).run(id)
-	_huddles -= 1
-	if sync.is_host() and _huddles == 0:
-		shredder.set_physics_process(true)
 
 
 ## Every machine: Security's sheet has been read. The room's question is open.

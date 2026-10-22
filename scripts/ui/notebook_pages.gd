@@ -171,18 +171,24 @@ func _book_items(game: Node) -> Array[Control]:
 		var q := quiz.question()
 		for text in quiz.shown_beside():
 			items.append(_book_page(text, 15))
-		items.append(NotebookArt.hand("Quick check %d of %d   %s" % [quiz.at + 1, quiz.steps.size(), q.word], 20, NotebookArt.PENCIL))
-		items.append(NotebookArt.hand(q.q, 26))
+		# The question, its options and its why stay on one page: if they don't
+		# fit under the reference, they start the next page.
+		var check := VBoxContainer.new()
+		check.name = "QuickCheck"
+		check.add_theme_constant_override("separation", book.left.get_theme_constant("separation"))
+		check.add_child(NotebookArt.hand("Quick check %d of %d   %s" % [quiz.at + 1, quiz.steps.size(), q.word], 20, NotebookArt.PENCIL))
+		check.add_child(NotebookArt.hand(q.q, 26))
 		for i in q.options.size():
 			var mark := ">  " if quiz.result.get("choice", -1) == i else "    "
 			var b := _book_button(mark + str(q.options[i]), "Option%d" % i, quiz.answer.bind(i))
 			b.disabled = quiz.result.get("right", false)
-			items.append(b)
+			check.add_child(b)
 		if not quiz.result.is_empty():
 			var right: bool = quiz.result.right
-			items.append(NotebookArt.hand(("Right. " if right else "Not quite. ") + str(q.why), 22, NotebookArt.INK if right else NotebookArt.RED_PEN))
+			check.add_child(NotebookArt.hand(("Right. " if right else "Not quite. ") + str(q.why), 22, NotebookArt.INK if right else NotebookArt.RED_PEN))
 			if right:
-				items.append(_book_button(BOOK_NEXT, "BookNext", quiz.next))
+				check.add_child(_book_button(BOOK_NEXT, "BookNext", quiz.next))
+		items.append(check)
 		items.append(_book_button(BOOK_BACK, "BookBack", func(): quiz = null))
 		return items
 	if book_chapter != "":
@@ -195,17 +201,31 @@ func _book_items(game: Node) -> Array[Control]:
 			items.append(_book_button(BOOK_TEST, "TestYourself", func(): quiz = BookQuiz.create(id, game.run_seed)))
 		items.append(_book_button(BOOK_CONTENTS, "BookContents", func(): book_chapter = ""))
 		return items
-	if game.book_chapters.is_empty():
+	var have := _chapters_had(game)
+	if have.is_empty():
 		items.append(NotebookArt.heading(TAB_NAMES[Page.BOOK]))
 		items.append(NotebookArt.hand(BOOK_EMPTY, 24, NotebookArt.PENCIL))
 	for book_id in Books.BOOKS:
-		var had: Array = Books.book_chapter_ids(book_id).filter(func(c): return game.book_chapters.has(c))
+		var had: Array = Books.book_chapter_ids(book_id).filter(func(c): return have.has(c))
 		if not had.is_empty():
 			items.append(NotebookArt.heading(Books.book_name(book_id)))
 		for id in had:
 			var ch := Books.chapter(id)
 			items.append(_book_button("Ch. %d: %s" % [ch.number, ch.title], "Chapter_" + id, func(): book_chapter = id))
 	return items
+
+
+## The chapters this player has: come in this run, or earned on their profile on
+## an earlier one (so a resumed run, or one started on a later floor, has them too).
+func _chapters_had(game: Node) -> Array:
+	var out: Array = game.book_chapters.duplicate()
+	var net := get_node_or_null("/root/Net")
+	if net and net.profile:
+		for source in net.profile.earned:
+			var id := String(source).trim_prefix("chapter:")
+			if id != String(source) and not out.has(id):
+				out.append(id)
+	return out
 
 
 ## A press on the book tab: do it, then redraw the tab.
