@@ -53,6 +53,8 @@ var van_seating: Array[int] = []
 var open_at_home := false
 ## Words the crew has learned from its books, in order (see Huddle).
 var book_words: Array[String] = []
+## The chapters the crew has read this run, in order: they're in the notebook's book.
+var book_chapters: Array[String] = []
 ## The notebook is held in your hands and terminals are used on their own screens.
 ## Off: both open full-screen over the view, as before (a setting in the pause menu).
 var diegetic_ui := true
@@ -102,6 +104,7 @@ func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	open_at_home = false
 	book_words.clear()
+	book_chapters.clear()
 	rourke_fate = "unknown"
 	has_walkie = false
 	visitor_badge_no = ""

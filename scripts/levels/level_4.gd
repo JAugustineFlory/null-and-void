@@ -259,7 +259,6 @@ var alarm := false
 var bay_powered := false
 var power_back := false
 var logged_in := false
-var _huddles := 0  # book huddles open or waiting their turn
 ## What the alarm said when it last started (the lot, several, or one breaker).
 var alarm_line := ""
 var bay_terminal: Terminal
@@ -929,17 +928,10 @@ func _ask_login() -> void:
 		hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
 
 
-## Every machine: a paper brings back its chapter of Easy SQL, read round the garage
-## bench (a flashback, once per run; nothing until Home base adds the chapter). The
-## Custodian stands still while the crew is away, so nobody is grabbed mid-quiz.
+## Every machine: a paper brings back its chapter of Easy SQL, into the crew's book
+## (once per run). Nothing stops: the Custodian keeps going.
 func _book_huddle(id: String) -> void:
-	_huddles += 1
-	if sync.is_host():
-		custodian.set_physics_process(false)
 	await Huddle.of(self).run(id)
-	_huddles -= 1
-	if sync.is_host() and _huddles == 0:
-		custodian.set_physics_process(true)
 
 
 # --- The ground floor ------------------------------------------------------------------
