@@ -1104,7 +1104,7 @@ func test_caller_answer() -> void:
 		var page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
 		check(page.contains("Ext. %s belongs to:" % ext) and page.contains(NotebookPages.BLANK) and page.contains(NotebookPages.BLANK_HOW), "%s: the page shows the empty blank, and in pencil how to fill it" % route)
 		check(_game().main_case() == "caller" and _game().pieces_found("caller") == 2 and _game().pieces_total("caller") == 3 and not _game().has_piece("caller", "column"), "%s: the work order's number and SYSOP's table are in: 2 of 3 pieces, the column still to find" % route)
-		check(page.contains(NotebookPages.PIECES_COUNT % [2, 3]) and page.contains("ext. %s" % ext) and page.contains("SELECT name, ???? FROM staff_directory;") and page.contains("Type .schema staff_directory at the terminal"), "%s: the case page shows the pieces, the query so far with the missing one as ????, and where to look" % route)
+		check(page.contains(NotebookPages.PIECES_COUNT % [2, 3]) and page.contains("ext. %s" % ext) and page.contains("SELECT name, enter_column_name FROM staff_directory;") and page.contains("Type .schema staff_directory at the terminal"), "%s: the case page shows the pieces, the query so far with the missing column named as the hint names it, and where to look" % route)
 		var chip: CaseChip = level.hud.case_chip
 		check(chip.chip.visible and chip.count.text == "2/3" and chip.next.text == CaseChip.NEXT % "Find the column that holds extensions", "%s: the HUD counts 2/3 and says what's next" % route)
 		if route == "terminal":
@@ -1329,8 +1329,10 @@ func test_level_1_scene() -> void:
 	check(_game().current_todo() == "Find the door controller that keeps faulting, and reset it" and _game().case_info("controller").clues.any(func(k): return k.text == "The stuck doors on this floor are all in zone %s." % z), "their zone goes on the case page, and the to-do moves on to the controller")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % z)
 	check(not level.controller_puzzle.solved, "zone alone isn't enough")
+	check(_game().pieces_found("controller") == 3 and _game().case_next("controller") == level.CONTROLLER_STEPS[0].text, "with all three pieces in, next is running the query, not counting")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z)
 	check(level.controller_puzzle.solved, "WHERE + AND finds the controller")
+	check(_game().case_checklist("controller").any(func(l): return l.text == level.CONTROLLER_STEPS[0].text and l.done), "and running it is ticked on the case's checklist")
 	# The reset's sign-off wants the floor's faulted count first.
 	check(_game().current_todo() == level.COUNT_TODO and not level.count_puzzle.solved, "next, the sign-off wants the faults counted")
 	level._on_panel(null, level.answer)
@@ -1348,9 +1350,13 @@ func test_level_1_scene() -> void:
 	level.terminal_ui.run("SELECT COUNT(id) AS n FROM door_controllers WHERE status = 'fault'")
 	check(level.count_puzzle.solved and _game().current_todo() == "Reset the faulted controller at its rack", "COUNT with WHERE status = 'fault' logs the count, and the to-do moves on to the reset")
 	check(_game().notebook_todo.any(func(t): return t.text == level.COUNT_TODO and t.filled == "units faulted: %d" % level.faulted), "the count is written on the job ticket")
-	check(_game().case_checklist("controller").any(func(l): return l.text == level.CONTROLLER_STEPS[0].text and l.done) and _game().case_next("controller") == level.CONTROLLER_STEPS[1].text, "the count is ticked on the case's checklist, and next is the reset")
+	check(_game().case_checklist("controller").any(func(l): return l.text == level.CONTROLLER_STEPS[1].text and l.done) and _game().case_next("controller") == level.CONTROLLER_STEPS[2].text, "the count is ticked on the case's checklist, and next is the reset")
 	_check_l1_documents(level)
 	check(level.find_children("*", "Document", true, false).any(func(d): return d.title.ends_with("RACK MONITORING") and d.global_position.distance_to(level.terminal.global_position) < 1.5 and d.plain_text().contains("temp_c > %d" % Level1Data.INTERLOCK_C)), "the racks table and its limit are on a card at the terminal, before any hint")
+	var rack_card: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title.ends_with("RACK MONITORING") and d.global_position.distance_to(level.terminal.global_position) < 1.5)[0]
+	var interlock_doc: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Fire interlock")[0]
+	check(not _game().case_info("hot_rack").open and rack_card.notable().is_empty() and not rack_card.get_prompt(level.player).contains(Document.NOTE_IT % rack_card.title), "with the hot rack's case not open yet, E on the rack card reads it rather than noting it unseen")
+	check(interlock_doc.notable().size() == 2, "the interlock opens that case, so E notes its limit and its 'over' (>)")
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
 	level._on_panel(null, healthy)
 	check(level.panels_locked_until == 0.0, "pressing a healthy rack explains itself without a lockout")
@@ -1590,6 +1596,7 @@ func test_coop_level_0() -> void:
 	# Documents are read and copied on your own machine only.
 	var brochures: Array = levels.map(func(l): return _doc(l, "ScanRight"))
 	check(brochures.all(func(d): return d != null and d.local_only), "documents are read locally, not through the host")
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
 	brochures[1].interact(c1.player)
 	await _frames(5)
 	check(levels.all(func(l): return l.find_children("*", "DocumentReader", true, false).is_empty()) and _game().has_piece("memo", "table"), "a client's E on a paper with pieces notes them, without picking it up")
@@ -4653,9 +4660,12 @@ func test_pick_up_papers() -> void:
 		await physics_frame
 	var card: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title.begins_with("ScanRight"))[0]
 	var home := card.global_transform
+	check(not card.get_prompt(p).contains(Document.NOTE_IT % card.title), "before the memo's case is open, the ScanRight card is only read")
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
 	check(card.get_prompt(p).contains(Document.NOTE_IT % card.title), "a paper with pieces of a case on it says E notes it")
 	card._on_used(p)
 	check(level.find_children("*", "DocumentReader", true, false).is_empty() and _game().has_piece("memo", "table") and _game().has_piece("memo", "column"), "E notes the card's pieces straight into the case, without picking it up")
+	_game().case_info("memo").open = false  # the rest of this walk is from before the memo's case opens
 	card._on_used(p)
 	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
 	check(reader.held and p.held_prop == card and not p.input_locked and not reader.view.visible, "E lifts the card off the desk into your hands, with no full-screen page and no freezing in place")

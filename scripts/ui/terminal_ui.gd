@@ -15,6 +15,8 @@ const TABLE_ROWS := ["#e2ffe6", "#8fdca2"]
 const HINT := "#7fd4ff"
 ## SYSOP, when a hint's blank (enter_...) is typed in as it is.
 const BLANK_TYPED := "%s is the blank from the hint. Type the real value in its place."
+## SYSOP, when a case page's missing piece (????) is typed in as it is.
+const PIECE_TYPED := "???? is a piece you haven't found yet. Your case page says where to look."
 const KEYWORD := "#ffcc59"
 const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]
 
@@ -720,6 +722,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	# as an empty value.
 	if result.ok and hint_blank_in(sql) != "":
 		out.append([sysop(BLANK_TYPED % hint_blank_in(sql)), "hint"])
+	elif sql.contains("????"):
+		out.append([sysop(PIECE_TYPED), "hint"])
 	elif sql.contains("?"):
 		out.append([sysop("? is the blank from the hint. Type the real value in its place."), "hint"])
 	for line in out:
@@ -861,6 +865,7 @@ func open_script_editor() -> ScriptEditorUI:
 func _noted_hint(case_id: String, hint: String) -> String:
 	if case_id != "":
 		get_node("/root/Game").add_clue(case_id, _plain(hint), "SYSOP hint")
+		get_node("/root/Game").note_hint(case_id, hint)
 	return hint
 
 
