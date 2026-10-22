@@ -29,6 +29,8 @@ const TURN_STILL := 0.8
 const TURN_STEP := 0.3
 ## Beyond this distance from the camera the rig updates less often.
 const FAR_DISTANCE := 30.0
+## How quickly a hand eases onto what it reaches for, and back (per second).
+const REACH_RATE := 5.0
 ## Body heights, matching Player's collider.
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.25
@@ -51,6 +53,14 @@ var look_target: Variant = null
 ## Turns the upper body (radians, positive to the left) on hips that stay put:
 ## someone sitting looking round. The chest takes most of it, the neck the rest.
 var twist := 0.0
+## Leans the upper body back from the hips (radians): slouching into a couch.
+var lean_back := 0.0
+## Wrists to put somewhere: "r" and/or "l", each a world point, or a world
+## transform whose y is the way the fingers point and whose z is the way the
+## palm faces. The arms bend to reach them, elbows down and out, over whatever
+## is playing, easing there and back (the body models only). Sitting on a
+## chair, a hand with nowhere to be rests on its thigh.
+var reach := {}
 ## Set >= 0 to drive the walk cycle directly instead of measuring movement.
 var speed_override := -1.0
 ## Leave the head (and its hair, hat and glasses) out: your own body in first
@@ -71,6 +81,8 @@ var _last_yaw := 0.0
 var _has_last := false
 var _skip := 0
 var _skipped_delta := 0.0
+var _reach_w := {"r": 0.0, "l": 0.0}
+var _reach_last := {}
 
 static var _meshes := {}
 ## Draw the skinned body models (SkinnedBody); false draws the old primitives.
@@ -137,6 +149,14 @@ func animate(delta: float) -> void:
 	_root_rot = _root_rot.lerp(target.get("_root_rot", Vector3.ZERO), k_root)
 	position = _root_pos
 	rotation = _root_rot
+	for side in _reach_w:
+		var to = reach.get(side)
+		if to is Vector3 or to is Transform3D:
+			_reach_last[side] = to
+		elif action != "sit":
+			_reach_last.erase(side)
+		var on := to is Vector3 or to is Transform3D or action == "sit"
+		_reach_w[side] = move_toward(_reach_w[side], 1.0 if on else 0.0, delta * REACH_RATE)
 	if _skin:
 		_skin.update(delta)
 	elif hide_head:
@@ -167,6 +187,16 @@ func _measure_speed(delta: float) -> void:
 	_phase = fmod(_phase + delta * _speed / STRIDE * TAU, TAU)
 
 
+## How far a hand is onto what it reaches for (see reach), 0..1, and where that
+## is: a world point or transform, or null for its thigh.
+func reach_weight(side: String) -> float:
+	return smoothstep(0.0, 1.0, _reach_w[side])
+
+
+func reach_point(side: String) -> Variant:
+	return _reach_last.get(side)
+
+
 ## Speed of the walk cycle right now, in m/s.
 func current_speed() -> float:
 	return _speed
@@ -188,6 +218,9 @@ func _target_pose() -> Dictionary:
 				_blend_into(p, on_all_fours, low)
 	_action_pose(p)
 	_head(p)
+	if lean_back != 0.0:
+		p["spine"] = p.get("spine", Vector3.ZERO) + Vector3(lean_back, 0, 0)
+		p["neck"] = p.get("neck", Vector3.ZERO) - Vector3(lean_back * 0.6, 0, 0)  # still looking ahead
 	if twist != 0.0:
 		p["spine"] = p.get("spine", Vector3.ZERO) + Vector3(0, twist * 0.8, 0)
 		p["neck"] = p.get("neck", Vector3.ZERO) + Vector3(0, twist * 0.2, 0)
