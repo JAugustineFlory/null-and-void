@@ -6,8 +6,15 @@
 >
 > **2. Install Godot 4.7** (free, nothing else to install).
 > - Download the **standard** version (not .NET) from [godotengine.org/download](https://godotengine.org/download).
-> - **Windows:** unzip it and double-click the Godot `.exe`. **Mac:** open the `.dmg`, drag Godot to Applications, then right-click it and choose **Open** the first time.
-> - In Godot, click **Import**, pick `project.godot` in the game's folder, then **Import & Edit**. The first import takes a minute or two.
+> - **Windows:** unzip it and double-click the Godot `.exe`. 
+> - **Mac:** open the `.dmg`, drag Godot to Applications, then right-click it and choose **Open** the first time.
+> 
+> **3. Open the Game in Godot**
+> - In Godot, click **Import**, pick `project.godot` in the game's folder, then **Import & Edit**
+> - Or open the game's folder and drag `project.godot` directly into the Godot app. 
+>
+>   *The first import takes a minute or two.*
+>  
 > - Press **F5** (or the play button at the top right) to start the game.
 >
 > **3. Co-op over the internet: install Tailscale.** Everyone installs it from
