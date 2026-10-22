@@ -37,7 +37,10 @@ to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
   type or do. **HUD notices are only for controls** ("Hold Ctrl to crouch", "Added to
   your notebook (Tab)"), never for what to type or where to go.
 - **Objectives are notebook to-dos** in the character's handwriting, never HUD text,
-  and never name a puzzle's answer (no rack id, PIN, breaker or guard name).
+  and never name a puzzle's answer (no rack id, PIN, breaker or guard name). The one
+  exception is the case card's "Next:" line (Augustine, 2026-10-22, "Brief Next"). It
+  shows for a few seconds after a piece is found and after the notebook closes. The rest
+  of the time the card shows only the case and its piece count.
 - **Notebook-first:** each level is solvable from what a careful player wrote down
   from terminals, stickies and documents.
 
