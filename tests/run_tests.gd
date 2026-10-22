@@ -2500,9 +2500,17 @@ func test_coop_sitting() -> void:
 	var hip: Vector3 = seen.rig.joints["r_hip"].global_position
 	check(seen.sitting == PlayerPuppet.Sit.CHAIR and seen.rig.action == "sit", "the host sees them sitting on it")
 	check(absf(hip.y - (top.y + PlayerPuppet.SEAT_THIGH)) < 0.08, "with their hips on the seat, not floating above it (%.2f m off)" % (hip.y - top.y - PlayerPuppet.SEAT_THIGH))
+	var body: Node3D = seen.find_child("Body", false, false)
+	var faced := body.global_rotation.y
+	sitter.rotation.y += 1.0  # looks round to their left
+	await _frames(40)
+	check(absf(angle_difference(faced, body.global_rotation.y)) < 0.05 and absf(seen.rig.twist - 1.0) < 0.1,
+		"looking round on a chair, a teammate turns their chest, not their legs (legs %.2f, twist %.2f)" % [angle_difference(faced, body.global_rotation.y), seen.rig.twist])
+	sitter.rotation.y -= 1.0
 	sitter.stand_up(true)
 	await _frames(20)
 	check(seen.sitting == PlayerPuppet.Sit.NONE and seen.rig.action == "idle" and seen.find_child("Body", false, false).position.y == 0.0, "and back on their feet when they stand up")
+	check(seen.rig.twist == 0.0 and body.rotation.y == 0.0, "facing all one way again")
 	check(sitter.sit(null), "the client sits on the floor")
 	await _frames(20)
 	check(seen.sitting == PlayerPuppet.Sit.FLOOR and seen.find_child("Body", false, false).position.y == 0.0
