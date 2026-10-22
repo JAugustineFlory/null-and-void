@@ -514,7 +514,7 @@ const BOOKS := {
 				"when": "L4, the contractor log clipboard, the work log",
 				"required": false,
 				"words": ["INSERT INTO", "VALUES", "same order"],
-				"lines": [],
+				"lines": ["l4_huddle_insert_1", "l4_huddle_insert_2"],
 				"pages": [
 					"INSERT INTO\n\nINSERT INTO adds a brand-new row. INSERT INTO, the table's name, then the columns you're filling, in brackets.\n\nUPDATE changes a row that's already there. INSERT INTO makes a new one.",
 					"VALUES\n\nVALUES comes after the columns, with the new row's values in brackets: VALUES ('Nash', 'Ashford', 80);\n\nWords in 'single quotes', numbers without, and a comma between each.",
