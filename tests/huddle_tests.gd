@@ -432,6 +432,15 @@ func test_coop_huddle() -> void:
 	_check.call(hh.crew.size() == 2 and hc.crew == hh.crew, "the whole crew is in the huddle")
 	_check.call(host.player.input_locked and client.player.input_locked, "nobody can walk out of it: everyone is held at the book")
 	_check.call(host.home.flashback_camera.current and client.home.flashback_camera.current and host.home.board_sheet.visible, "in the garage, everyone watches Maddison at her whiteboard")
+	# Voice: the camera is on the whiteboard, not in anyone's head, so a teammate is
+	# heard however far that camera is from them, and the radio still keys.
+	client.player.global_position = host.player.global_position + Vector3(40, 0, 0)
+	await _frames(20)
+	var heard_before: int = host.voice.heard.near
+	client.voice.send_frames(_tree._tone(4800, 48000.0, 0.5), 48000.0, false)
+	await _frames(10)
+	_check.call(not host.voice.hearing_from_body() and host.voice.heard.near == heard_before + 1, "in a huddle, teammates hear each other wherever they stand")
+	_check.call(host.voice._keys_free() and client.voice._keys_free(), "and can still mute or talk on the radio while held at the book")
 	hc.turn_page()
 	await _frames(10)
 	_check.call(hh.page == 0 and hh.turn_votes.size() == 1 and hc.turn_votes.size() == 1, "one player ready isn't enough: the page waits for the crew")
