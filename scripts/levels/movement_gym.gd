@@ -40,7 +40,7 @@ func build() -> void:
 
 	# Grab a high edge, then drop and roll.
 	Greybox.box(geo, Vector3(-12, 1.2, 0), Vector3(1, 2.4, 10), Color.DIM_GRAY)
-	_sign(Vector3(-14, 3.2, 0), "W + Space at a high wall: grab the edge and hang.\nRelease W and press it again to pull up. A / D shimmy,\nS or Ctrl let go, Space kick off.\nTap Ctrl in the air to roll when you land: quiet.")
+	_sign(Vector3(-14, 3.2, 0), "W + Space at a high wall: grab the edge and hang.\nSpace, or W again, to pull up. A / D shimmy,\nS or Ctrl let go.\nTap Ctrl in the air to roll when you land: quiet.")
 
 	# Crawl through a vent.
 	Traversal.vent(geo, Vector3(-8, 0, 0), Vector3(-4, 0, 0))

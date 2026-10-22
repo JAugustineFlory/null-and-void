@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "coop", "combat", "movement", "teaching", "teaching_lab", "scripting", "chapters"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "scripting", "chapters"]
 
 
 func _run() -> void:
@@ -77,6 +77,7 @@ func _run_group(g: String) -> void:
 		"coop": await _group_coop()
 		"combat": await _group_combat()
 		"movement": await _group_movement()
+		"movement_hands": await _group_movement_hands()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
 		"scripting": await _group_scripting()
@@ -203,8 +204,14 @@ func _group_combat() -> void:
 	await test_coop_custodian()
 
 
+## Parkour: walking, sliding, mantling, vaulting, hanging, climbing, vents, ledges, shoulders.
 func _group_movement() -> void:
-	await _run_file("res://tests/movement_tests.gd")
+	await _run_file("res://tests/movement_tests.gd", "moves")
+
+
+## The rest of the player: notebook, terminals, pickups, inventory, sitting, stamina, knocks, gym.
+func _group_movement_hands() -> void:
+	await _run_file("res://tests/movement_tests.gd", "hands")
 
 
 ## Teaching walkthroughs and audits across every floor.

@@ -1,0 +1,1 @@
+- **Changed:** hanging from an edge, Space now pulls you up (pressing W again still works too). S or Ctrl lets go.
