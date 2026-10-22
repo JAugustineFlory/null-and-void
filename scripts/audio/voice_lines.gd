@@ -367,7 +367,7 @@ const SCENES := [
 	{"id": "l2_crew", "level": 2, "title": "Crew commentary: security floor", "wired": false,
 		"moment": "Thinking out loud while the crew works through a security floor at night: badge logs, a door on a timer, cameras, a smudged sign-in sheet, a stubborn door and a keypad.",
 		"context": "Commentary for the security floor puzzles (badge_log, lab_door, cameras, pike, door, har)."},
-	{"id": "l4_huddles", "level": 4, "title": "Book huddles: UPDATE", "wired": false,
+	{"id": "l4_huddles", "level": 4, "title": "Book huddles: UPDATE", "wired": true,
 		"moment": "At the workbench with your crew while they read a beginner's book together. One line to start the chapter, one to wrap it up.",
 		"context": "Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches."},
 	{"id": "l4_epsilon", "level": 4, "title": "Containment protocol Epsilon", "wired": true,

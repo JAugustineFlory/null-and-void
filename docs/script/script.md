@@ -737,7 +737,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Book huddles: UPDATE
 
-*Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches.* *(Written ahead: not in the game yet.)*
+*Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches.*
 
 **MADDISON:** *(Holding the page at arm's length.)* UPDATE. Changing things. The book's put this one in a red box, which I don't love. `[l4_huddle_update_1]`
 

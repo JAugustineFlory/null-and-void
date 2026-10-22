@@ -481,7 +481,7 @@ const BOOKS := {
 				"when": "L4, the facilities work order, the tripped breaker",
 				"required": false,
 				"words": ["UPDATE", "SET", "check it took"],
-				"lines": [],
+				"lines": ["l4_huddle_update_1", "l4_huddle_update_2"],
 				"pages": [
 					"UPDATE\n\nUPDATE changes rows that are already in a table. UPDATE, the table's name, then SET.\n\nAlways add a WHERE to pick the rows. Without one, UPDATE changes every row in the table.",
 					"SET\n\nSET names the column to change and its new value: SET status = 'done'.\n\nWords still go in 'single quotes'. Numbers don't.",
