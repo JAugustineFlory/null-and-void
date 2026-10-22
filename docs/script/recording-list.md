@@ -1,6 +1,6 @@
 # Recording list
 
-1488 lines in all.
+1490 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -183,7 +183,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
-## Maddison Kowalski (42 lines)
+## Maddison Kowalski (44 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
@@ -228,6 +228,8 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_huddle_get_2` | So it's a SELECT for robots. Got it. Probably. | Not convinced. | Level 2, later |
 | [ ] | `l4_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 4 |
 | [ ] | `l4_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 4 |
+| [ ] | `l4_huddle_insert_1` | INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist. | Reading the title, wistful, then perky again. | Level 4 |
+| [ ] | `l4_huddle_insert_2` | Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford. | Laughing at her own picture of it. Then she writes SAME ORDER on the whiteboard. | Level 4 |
 | [ ] | `l5_mimic_maddison_lure` | Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you? | Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth. | Level 5 |
 | [ ] | `l5_mimic_maddison_again` | Crew, it's Maddison. Still at the loading door. It's freezing down here. | Second time. Patient. She is never patient. | Level 5 |
 | [ ] | `l5_mimic_maddison_last` | You're leaving? I'm right here. | As the player leaves the floor. Quiet, flat, no breath. | Level 5 |

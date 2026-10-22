@@ -743,13 +743,17 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 4
 
-### Book huddles: UPDATE
+### Book huddles: UPDATE and INSERT
 
-*Garage flashback huddle for the UPDATE chapter: 'Never forget the WHERE', the lesson the main_doors accident teaches.*
+*Garage flashback huddles for the UPDATE chapter ('Never forget the WHERE', the lesson the main_doors accident teaches) and the INSERT chapter (Adding a row).*
 
 **MADDISON:** *(Holding the page at arm's length.)* UPDATE. Changing things. The book's put this one in a red box, which I don't love. `[l4_huddle_update_1]`
 
 **MADDISON:** *(Suddenly serious, for once.)* Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. `[l4_huddle_update_2]`
+
+**MADDISON:** *(Reading the title, wistful, then perky again.)* INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist. `[l4_huddle_insert_1]`
+
+**MADDISON:** *(Laughing at her own picture of it. Then she writes SAME ORDER on the whiteboard.)* Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford. `[l4_huddle_insert_2]`
 
 ### Containment protocol Epsilon
 
