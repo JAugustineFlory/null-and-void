@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_actions()
 	test_rig_steps_through_turns()
 	test_first_person_body()
+	await test_byte_right_van()
 	await test_rig_budget()
 	await test_skinned_body()
 	test_outfits()
@@ -306,6 +307,59 @@ class _FakeCombat extends RefCounted:
 
 	func guard_up() -> bool:
 		return guarding
+
+
+func test_byte_right_van() -> void:
+	# The van as one moving node, for the drive up to Halcyon (Playtest fixes).
+	var stage := _stage()
+	Greybox.box(stage, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "Floor")
+	var van := ByteRightVan.build(stage, Transform3D(Basis(), Vector3(0, 0, 0)))
+	var inside := AABB(Vector3(-1.3, ByteRightVan.FLOOR, -2.2), ByteRightVan.SIZE)
+	var seated := 0
+	for i in 6:
+		var s := van.seat(i)
+		if s.name == "Seat%d" % i and inside.has_point(s.position) and s.global_basis.z.is_equal_approx(Vector3.BACK):
+			seated += 1
+	check(seated == 6 and van.seat(0).position.x < 0 and van.seat(0).position.z < van.seat(2).position.z,
+		"the van has six seats facing forward, Seat0 the driver's on the left at the front")
+	check(van.get_node_or_null("Wheel3") != null and van.find_children("Headlight*", "SpotLight3D", false, false).size() == 2,
+		"it carries its own wheels and headlights")
+	var slide: Node3D = van.doors["slide"]
+	await van.open_door("slide", 0.05).finished
+	check(slide.position.z > 1.3 and absf(slide.position.x) > 1.4, "the side door slides back along the outside")
+	await van.open_door("driver", 0.05).finished
+	check(van.doors["driver"].rotation.y < -1.0, "the driver's door swings out")
+	var w: Node3D = van.get_node("Wheel0")
+	van.roll(1.0)
+	check(is_equal_approx(w.rotation.x, -1.0 / ByteRightVan.WHEEL_RADIUS), "rolling forward a metre turns the wheels a metre's worth")
+	# Somebody standing in the back rides along when it drives off.
+	var rider := _Rider.new()
+	var shape := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.25
+	capsule.height = 1.6
+	shape.shape = capsule
+	shape.position.y = 0.8
+	rider.add_child(shape)
+	rider.position = Vector3(0, ByteRightVan.FLOOR + 0.05, 0.1)
+	stage.add_child(rider)
+	await _frames(20)
+	var start := rider.global_position
+	for i in 60:
+		van.global_position.z -= 3.0 / 60.0
+		await t.physics_frame
+	await _frames(5)
+	var moved := start.z - rider.global_position.z
+	check(moved > 2.5 and moved < 3.2, "someone standing in the van rides along when it moves (%.2f m of 3)" % moved)
+	stage.queue_free()
+
+
+class _Rider extends CharacterBody3D:
+	func _physics_process(delta: float) -> void:
+		velocity.y -= 9.8 * delta
+		if is_on_floor():
+			velocity.y = 0.0
+		move_and_slide()
 
 
 func test_skinned_body() -> void:
@@ -907,7 +961,7 @@ func test_dressed_home_base() -> void:
 	check(fax.find_child("FaxMachine", false, false) != null and fax.get_children().all(func(c): return not (c is MeshInstance3D) or not c.visible)
 		and fax.find_children("*", "CollisionShape3D", false, false).size() == 1, "the fax is a fax machine, not a box, and still takes the press")
 	var van: Node3D = ArtDress.dressing_root(level).get_node_or_null("Van")
-	check(van != null and van.find_children("*", "MeshInstance3D", false, false).filter(func(mi): return mi.mesh is CylinderMesh).size() == 8,
+	check(van != null and van.find_children("*", "MeshInstance3D", true, false).filter(func(mi): return mi.mesh is CylinderMesh).size() == 8,
 		"the garage's van is dressed like the van at Halcyon, wheels and all")
 	# Home base's ask: the briefing corner and the garage front, dressed.
 	var dressing := ArtDress.dressing_root(level)
