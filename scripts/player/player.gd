@@ -341,13 +341,18 @@ func _prop_settled() -> bool:
 ## screen) the view holds still, so its tabs and lines can be clicked; once the
 ## cursor leaves it, the view turns that way (radians per second: x right, y
 ## down), faster the nearer the screen's edge. Without a rect, only a band at
-## each edge (EDGE_LOOK_MARGIN of the screen) turns.
+## each edge (EDGE_LOOK_MARGIN of the screen) turns. However big the page is on
+## screen, the outer EDGE_LOOK_MIN_ROOM of each edge always turns.
 func edge_turn(cursor: Vector2, screen: Vector2, reading := Rect2()) -> Vector2:
 	var turn := Vector2.ZERO
 	if screen.x <= 0.0 or screen.y <= 0.0 or not Rect2(Vector2.ZERO, screen).has_point(cursor):
 		return turn
 	var inner := reading if reading.has_area() else Rect2(screen * EDGE_LOOK_MARGIN, screen * (1.0 - 2.0 * EDGE_LOOK_MARGIN))
 	inner = inner.grow(EDGE_LOOK_DEADZONE)
+	# A page that reaches past the screen (held close, or a tall spread) still
+	# leaves a band at each edge that turns.
+	var band := Rect2(screen * EDGE_LOOK_MIN_ROOM, screen * (1.0 - 2.0 * EDGE_LOOK_MIN_ROOM))
+	inner = inner.intersection(band) if inner.intersects(band) else band
 	turn.x = _edge_axis(cursor.x, inner.position.x, inner.end.x, screen.x)
 	turn.y = _edge_axis(cursor.y, inner.position.y, inner.end.y, screen.y)
 	return turn * EDGE_LOOK_SPEED
@@ -363,7 +368,8 @@ static func _edge_axis(at: float, lo: float, hi: float, screen: float) -> float:
 	return 0.0
 
 
-## Where the notebook or the paper you hold is on screen (empty if neither).
+## Where the notebook or the paper you hold is on screen (empty if neither):
+## its pages, not the hands and sleeves holding them, which reach off the screen.
 func reading_rect() -> Rect2:
 	var root: Node3D = held_prop if held_prop else (held_notebook.get("book_root") if held_notebook and _notebook_held else null)
 	if root == null or not is_instance_valid(root):
@@ -372,7 +378,7 @@ func reading_rect() -> Rect2:
 	var first := true
 	for n in root.find_children("*", "GeometryInstance3D", true, false):
 		var g := n as GeometryInstance3D
-		if not g.is_visible_in_tree():
+		if not g.is_visible_in_tree() or str(root.get_path_to(g)).contains("Hand/"):
 			continue
 		var box := g.get_aabb()
 		for i in 8:

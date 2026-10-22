@@ -15,7 +15,7 @@ Maddison Kowalski, 40s, CEO and founder of a tiny IT company run out of her gara
 
 Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
-## Your lines (39)
+## Your lines (41)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -145,7 +145,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "So it's a SELECT for robots. Got it. Probably."  
   *Not convinced.*
 
-### 6. At the workbench with your crew while they read a beginner's book together. One line to start the chapter, one to wrap it up.
+### 6. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
 
 - [ ] `l4_huddle_update_1.wav`  
   "UPDATE. Changing things. The book's put this one in a red box, which I don't love."  
@@ -153,3 +153,9 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l4_huddle_update_2.wav`  
   "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row."  
   *Suddenly serious, for once.*
+- [ ] `l4_huddle_insert_1.wav`  
+  "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist."  
+  *Reading the title, wistful, then perky again.*
+- [ ] `l4_huddle_insert_2.wav`  
+  "Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford."  
+  *Laughing at her own picture of it. Then she writes SAME ORDER on the whiteboard.*

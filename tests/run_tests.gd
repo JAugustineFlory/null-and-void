@@ -189,6 +189,8 @@ func _group_coop() -> void:
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
+	await test_coop_lobby_names()
+	await test_coop_patience()
 	await test_coop_level_2()
 	await test_coop_level_2_lab()
 
@@ -2150,6 +2152,86 @@ func test_coop_pregame_lobby() -> void:
 	net.leave(false)
 	check(not net.solo_lobby and net.roster.is_empty() and net.lobby.is_empty(), "leaving clears it")
 	net.profile = real_profile
+
+
+func test_coop_lobby_names() -> void:
+	print("Co-op: changing your name in the lobby")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	var real_name: String = net.player_name
+	net.profile = Profile.new()
+	net.roster = {1: "Host", 55: "Bo", 77: "Ana"}
+	check(net._unique_name("Bo", 77) == "Bo 2" and net._unique_name("Ana", 77) == "Ana" and net._unique_name("Cy", 77) == "Cy",
+		"a name someone else has gets a number, and keeping your own doesn't")
+	net._assign_name(77, "  Bo  ")
+	check(net.roster[77] == "Bo 2" and net.roster[55] == "Bo", "the host renames a joiner and keeps names apart")
+	net.roster = {}
+
+	net.begin_solo_lobby()
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	lobby.stage.finish_intro()
+	var field: LineEdit = lobby.picker._name
+	check(field.editable, "the name field still takes typing once you're in the lobby")
+	field.text = "Wren"
+	field.text_changed.emit("Wren")
+	await process_frame
+	check(net.roster[net.my_id()] == "Wren" and lobby.stage.figures[net.my_id()].get_node("Tag").text.begins_with("Wren"),
+		"and the new name goes over your head straight away")
+	lobby.queue_free()
+	await process_frame
+	net.leave(false)
+	net.in_game = true
+	net.roster = {1: "Wren"}
+	net.set_player_name("Late")
+	check(net.roster[1] == "Wren", "once the game has started, names stay put")
+	net.in_game = false
+	net.roster = {}
+	net.player_name = real_name
+	net.profile = real_profile
+
+
+func test_coop_patience() -> void:
+	print("Co-op: a host frozen loading the building keeps its joiners")
+	var net := root.get_node("Net")
+	for case in [[net.PATIENCE_LOBBY, false], [net.PATIENCE_LOADING, true]]:
+		_next_port += 1
+		var host := ENetMultiplayerPeer.new()
+		host.create_server(_next_port, 6)
+		var client := ENetMultiplayerPeer.new()
+		client.create_client("127.0.0.1", _next_port)
+		for i in 400:
+			host.poll()
+			client.poll()
+			OS.delay_msec(2)
+			if client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+				break
+		# Messages back and forth, so the client knows how quick the host answers.
+		client.set_target_peer(1)
+		client.transfer_mode = MultiplayerPeer.TRANSFER_MODE_RELIABLE
+		for i in 60:
+			client.put_packet(PackedByteArray([1]))
+			for k in 3:
+				host.poll()
+				client.poll()
+				OS.delay_msec(2)
+			while host.get_available_packet_count() > 0:
+				host.get_packet()
+		net.patient(client.get_peer(1), case[0])
+		client.put_packet(PackedByteArray([2]))
+		# The host freezes for 4 s (loading the building); the client carries on.
+		var t0 := Time.get_ticks_msec()
+		while Time.get_ticks_msec() - t0 < 4000 and client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			client.poll()
+			OS.delay_msec(20)
+		var kept := client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
+		if case[1]:
+			check(kept, "while the building loads, a joiner waits out a host frozen for 4 s")
+		else:
+			check(not kept, "(the lobby's quick patience would have dropped them, which is what happened)")
+		client.close()
+		host.close()
 
 
 func test_coop_scripts() -> void:
@@ -4331,6 +4413,13 @@ func test_in_world_ui() -> void:
 	check(nb.held != null and p.held_notebook == nb.held and nb.pages.get_parent() == nb.held.viewport, "the notebook is held in your hands, its pages drawn on it")
 	check(nb.open() and p.is_holding_notebook() and not p.input_locked, "Tab raises it without freezing you in place")
 	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER, "it opens on the work order")
+	for i in 90:
+		await process_frame  # raised all the way
+	var shown := p.reading_rect()
+	var screen := root.get_visible_rect().size
+	check(shown.has_area() and p.edge_turn(Vector2(screen.x - 3, screen.y / 2), screen, shown).x > 1.0
+		and p.edge_turn(Vector2(3, screen.y / 2), screen, shown).x < -1.0 and p.edge_turn(Vector2(screen.x / 2, screen.y - 3), screen, shown).y > 1.0,
+		"the cursor at any edge of the screen turns the view, however big the book is (its hands and sleeves don't count)")
 	nb.close()
 	check(not nb.is_open() and not p.is_holding_notebook(), "and Tab puts it away")
 	var t: Terminal = level.desk_terminal

@@ -22,6 +22,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_coop_huddle()
 	await test_coop_spar()
 	await test_coop_walk_in()
+	await test_coop_van()
 	Engine.time_scale = 1.0
 	net.profile = real_profile
 
@@ -625,5 +626,29 @@ func test_coop_walk_in() -> void:
 	_check.call(homes[0].read_order.size() == 1, "one look isn't the whole crew")
 	homes[0]._on_notebook_opened()
 	_check.call(await _until(func(): return homes[1].read_order.size() == 2, 120), "then the host's look completes it")
+	_tree._coop_close(worlds)
+	await _frames(2)
+
+
+func test_coop_van() -> void:
+	print("Home base: co-op, the whole crew gets in the van")
+	_game().new_run(26)
+	_game().open_at_home = true
+	var worlds: Array = await _tree._coop_worlds(1)
+	var machines: Array = await _tree._coop_load(worlds, "res://scenes/world.tscn")
+	var homes := machines.map(func(w): return w.home)
+	var ph = machines[0].player
+	var pc = machines[1].player
+	var boarded := [false]
+	homes[1].crew_boarded.connect(func(): boarded[0] = true)
+	homes[0].crew_boarded.connect(func(): boarded[0] = true)
+	for home in homes:
+		home.van_door.enabled = true
+	homes[0].van_door.interact(ph)
+	_check.call(await _until(func(): return homes[1].boarded.size() == 1, 120), "the host climbs in first")
+	homes[1].van_door.interact(pc)
+	_check.call(await _until(func(): return homes[0].boarded.size() == 2 and homes[1].boarded.size() == 2, 120),
+		"and the client still can after them")
+	_check.call(boarded[0] and not homes[0].van_door.enabled and not homes[1].van_door.enabled, "then the van leaves with everyone")
 	_tree._coop_close(worlds)
 	await _frames(2)

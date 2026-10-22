@@ -22,9 +22,7 @@ static func apply(level: LevelBase, center: Vector3, slide_side := 1.0) -> void:
 	var zone := AABB(center + Vector3(-1.45, -0.2, -2.8), Vector3(2.9, 3.2, 5.6))
 	var floor_y := 0.5
 	var paint := ArtPalette.flat(PAINT, 0.35, 0.15)
-	var rubber := ArtPalette.flat(Color(0.06, 0.06, 0.065), 0.9)
 	var trim := ArtPalette.flat(Color(0.12, 0.12, 0.13), 0.6, 0.2)
-	var chrome := ArtPalette.flat(Color(0.72, 0.73, 0.75), 0.25, 0.9)
 	ArtDress.reskin(geo, [
 		{"names": ["Floor"], "zone": zone, "mat": ArtPalette.surface("dark_plastic")},  # ribbed rubber mat
 		{"names": ["Ceiling", "Wall_", "Bonnet"], "zone": zone, "mat": paint},
@@ -48,25 +46,44 @@ static func apply(level: LevelBase, center: Vector3, slide_side := 1.0) -> void:
 		for dx in [-1.15, 1.15]:
 			for dz in [-1.7, 1.5]:
 				wheel_spots.append(Vector3(dx, 0.25, dz))
-	for spot in wheel_spots:
+	# Hide the greybox seat blocks and dashboard; real ones go in below.
+	for mi in geo.get_children():
+		if mi is MeshInstance3D and zone.has_point(mi.position) and mi.position.y < center.y + floor_y + 1.0:
+			mi.visible = false
+
+	details(root, slide_side, wheel_spots, level.get("van_doors") == null, level.get("side_door") as Node3D)
+
+
+## Everything but the body panels, on `root` (the van's middle at ground level,
+## nose to -Z): wheels at `wheel_spots`, bumpers, lights, mirrors, the stripe
+## (and its piece on `side_door`), windscreen, roof rack, dashboard, steering
+## wheel and seats. Shared by the dressed greybox vans and ByteRightVan.
+static func details(root: Node3D, slide_side: float, wheel_spots: Array[Vector3], door_seams: bool, side_door: Node3D = null) -> void:
+	var floor_y := 0.5
+	var paint := ArtPalette.flat(PAINT, 0.35, 0.15)
+	var rubber := ArtPalette.flat(Color(0.06, 0.06, 0.065), 0.9)
+	var trim := ArtPalette.flat(Color(0.12, 0.12, 0.13), 0.6, 0.2)
+	var chrome := ArtPalette.flat(Color(0.72, 0.73, 0.75), 0.25, 0.9)
+	# Each wheel is a node at its hub, so a moving van can roll it (rotation.x).
+	for i in wheel_spots.size():
+		var spot: Vector3 = wheel_spots[i]
 		var side := signf(spot.x)
-		var at := spot + Vector3(side * 0.08, 0.09, 0)  # proud of the chassis
-		var tyre := _cylinder(root, 0.34, 0.3, at, rubber)
+		var hub := Node3D.new()
+		hub.name = "Wheel%d" % i
+		hub.position = spot + Vector3(side * 0.08, 0.09, 0)  # proud of the chassis
+		root.add_child(hub)
+		var tyre := _cylinder(hub, 0.34, 0.3, Vector3.ZERO, rubber)
 		tyre.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		_cylinder(root, 0.17, 0.02, at + Vector3(side * 0.16, 0, 0), chrome)
-	# Front doors: a van with none in its greybox gets their seams and handles.
-	if level.get("van_doors") == null:
+		_cylinder(hub, 0.17, 0.02, Vector3(side * 0.16, 0, 0), chrome)
+		ArtDress.trim(hub, Vector3(side * 0.172, 0.08, 0), Vector3(0.006, 0.05, 0.05), trim)  # a valve, so you can see it turn
+	# Front doors: a van with none of its own gets their seams and handles.
+	if door_seams:
 		for sx in [-1.0, 1.0]:
 			var x: float = sx * 1.312
 			for z in [-1.95, -1.05]:
 				ArtDress.trim(root, Vector3(x, floor_y + 0.95, z), Vector3(0.012, 1.9, 0.015), trim)
 			ArtDress.trim(root, Vector3(x, floor_y + 1.9, -1.5), Vector3(0.012, 0.015, 0.9), trim)
 			ArtDress.trim(root, Vector3(sx * 1.318, floor_y + 0.95, -1.18), Vector3(0.02, 0.04, 0.12), chrome)
-	# Hide the greybox seat blocks and dashboard; real ones go in below.
-	for mi in geo.get_children():
-		if mi is MeshInstance3D and zone.has_point(mi.position) and mi.position.y < center.y + floor_y + 1.0:
-			mi.visible = false
-
 	# Front: bumper, grille, headlights, indicators.
 	var front := -2.2 - 0.9  # front face of the bonnet
 	ArtDress.trim(root, Vector3(0, 0.42, front - 0.06), Vector3(2.66, 0.22, 0.14), trim)
@@ -93,9 +110,8 @@ static func apply(level: LevelBase, center: Vector3, slide_side := 1.0) -> void:
 	ArtDress.trim(root, Vector3(-slide_side * 1.315, 1.3, 0.575), Vector3(0.01, 0.12, 3.25), navy)
 	ArtDress.trim(root, Vector3(slide_side * 1.315, 1.3, -0.8), Vector3(0.01, 0.12, 0.5), navy)
 	ArtDress.trim(root, Vector3(slide_side * 1.315, 1.3, 1.475), Vector3(0.01, 0.12, 1.45), navy)
-	var side_door := level.get("side_door") as Node3D
 	if side_door:
-		ArtDress.trim(side_door, Vector3(0.06, 0.8, 0), Vector3(0.01, 0.12, 1.3), navy)
+		ArtDress.trim(side_door, Vector3(slide_side * 0.06, 0.8, 0), Vector3(0.01, 0.12, 1.3), navy)
 	# Windscreen: faintly tinted glass, so you can still see the building through it.
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color(0.55, 0.65, 0.7, 0.14)
@@ -135,6 +151,8 @@ static func apply(level: LevelBase, center: Vector3, slide_side := 1.0) -> void:
 	for sx in [-0.55, 0.55]:
 		_seat(root, Vector3(sx, floor_y, -1.3), 0.55, fabric, true)
 	_seat(root, Vector3(0, floor_y, 0.7), 2.5, fabric, false)
+
+
 
 
 ## The greybox wheel blocks (found by size: Godot renames repeated "Wheel" nodes).

@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_actions()
 	test_rig_steps_through_turns()
 	test_first_person_body()
+	await test_byte_right_van()
 	await test_rig_budget()
 	await test_skinned_body()
 	test_outfits()
@@ -29,6 +30,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_dressed_level_1()
 	await test_dressed_level_2()
 	await test_dressed_level_3()
+	await test_dressed_level_4()
 	test_prop_models()
 	test_skyline_heights()
 	await test_dressed_home_base()
@@ -285,6 +287,23 @@ func test_first_person_body() -> void:
 	you.combat.swung.emit()
 	check(fp.current_action() == "idle", "with the notebook up the arms stay down")
 	you.notebook_lowered.emit()
+	# On the couch (garage playtest): looking round turns the upper body; the hips
+	# and legs stay facing the way the seat does, on it rather than through it.
+	var seat := Node3D.new()
+	stage.add_child(seat)
+	seat.rotation.y = 0.4
+	you.seat = seat
+	you.sitting = true
+	you.rotation.y = 0.4 + PI / 2  # looking 90 degrees left of the seat
+	step.call(0.5)
+	check(fp.current_action() == "sit" and absf(angle_difference(fp.global_rotation.y, 0.4)) < 0.01,
+		"sitting on a seat and looking round, your hips and legs keep facing the way the seat does")
+	check(absf(fp.rig.twist - PI / 2) < 0.01 and fp.rig._pose["spine"].y > 1.0, "and the upper body turns to look")
+	check(fp.position.z > FirstPersonBody.BACK + 0.1, "seated, the body sits further back, so looking down shows your lap, not your collar")
+	you.sitting = false
+	you.seat = null
+	step.call(0.2)
+	check(is_zero_approx(fp.rotation.y) and fp.rig.twist == 0.0, "standing up, the body turns with you again")
 	you.downed = true
 	step.call(0.1)
 	check(not fp.visible, "lying down, the camera is inside the body, so it's left out")
@@ -296,6 +315,11 @@ class _FakeFighter extends Node3D:
 	signal notebook_lowered
 	var combat := _FakeCombat.new()
 	var downed := false
+	var seat: Node3D = null
+	var sitting := false
+
+	func is_sitting() -> bool:
+		return sitting
 
 
 class _FakeCombat extends RefCounted:
@@ -306,6 +330,59 @@ class _FakeCombat extends RefCounted:
 
 	func guard_up() -> bool:
 		return guarding
+
+
+func test_byte_right_van() -> void:
+	# The van as one moving node, for the drive up to Halcyon (Playtest fixes).
+	var stage := _stage()
+	Greybox.box(stage, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "Floor")
+	var van := ByteRightVan.build(stage, Transform3D(Basis(), Vector3(0, 0, 0)))
+	var inside := AABB(Vector3(-1.3, ByteRightVan.FLOOR, -2.2), ByteRightVan.SIZE)
+	var seated := 0
+	for i in 6:
+		var s := van.seat(i)
+		if s.name == "Seat%d" % i and inside.has_point(s.position) and s.global_basis.z.is_equal_approx(Vector3.BACK):
+			seated += 1
+	check(seated == 6 and van.seat(0).position.x < 0 and van.seat(0).position.z < van.seat(2).position.z,
+		"the van has six seats facing forward, Seat0 the driver's on the left at the front")
+	check(van.get_node_or_null("Wheel3") != null and van.find_children("Headlight*", "SpotLight3D", false, false).size() == 2,
+		"it carries its own wheels and headlights")
+	var slide: Node3D = van.doors["slide"]
+	await van.open_door("slide", 0.05).finished
+	check(slide.position.z > 1.3 and absf(slide.position.x) > 1.4, "the side door slides back along the outside")
+	await van.open_door("driver", 0.05).finished
+	check(van.doors["driver"].rotation.y < -1.0, "the driver's door swings out")
+	var w: Node3D = van.get_node("Wheel0")
+	van.roll(1.0)
+	check(is_equal_approx(w.rotation.x, -1.0 / ByteRightVan.WHEEL_RADIUS), "rolling forward a metre turns the wheels a metre's worth")
+	# Somebody standing in the back rides along when it drives off.
+	var rider := _Rider.new()
+	var shape := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.25
+	capsule.height = 1.6
+	shape.shape = capsule
+	shape.position.y = 0.8
+	rider.add_child(shape)
+	rider.position = Vector3(0, ByteRightVan.FLOOR + 0.05, 0.1)
+	stage.add_child(rider)
+	await _frames(20)
+	var start := rider.global_position
+	for i in 60:
+		van.global_position.z -= 3.0 / 60.0
+		await t.physics_frame
+	await _frames(5)
+	var moved := start.z - rider.global_position.z
+	check(moved > 2.5 and moved < 3.2, "someone standing in the van rides along when it moves (%.2f m of 3)" % moved)
+	stage.queue_free()
+
+
+class _Rider extends CharacterBody3D:
+	func _physics_process(delta: float) -> void:
+		velocity.y -= 9.8 * delta
+		if is_on_floor():
+			velocity.y = 0.0
+		move_and_slide()
 
 
 func test_skinned_body() -> void:
@@ -834,7 +911,58 @@ func test_dressed_level_3() -> void:
 	level.free()
 
 
-## The furniture taken from the packs: small, one surface each, coloured in the vertex.
+## Floor 10, the Power Plant: dressed without moving anything the Custodian, the
+## gantry or the puzzles depend on; the Custodian itself in its own look.
+func test_dressed_level_4() -> void:
+	t.root.get_node("Game").new_run(5)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(10)
+	check(level.GANTRY_Z == DressLevel4.GANTRY_Z and level.GANTRY_HIGH == DressLevel4.GANTRY_HIGH and level.CUSTODIAN_HOME == DressLevel4.CUSTODIAN_HOME
+		and level.CTRL_DOOR_AT.x == DressLevel4.CTRL_DOOR_X and level.BAY_DOOR_AT.x == DressLevel4.BAY_DOOR_X and level.G_FRONT_AT == DressLevel4.G_FRONT_AT,
+		"the plant's dressing knows where the level put the gantry, the doors and the Custodian's bay")
+	var unexplained := ArtDress.unexplained_dark(level, DressLevel4.DARK_CHECK)
+	check(unexplained.is_empty(), "Level 4: every dark patch has a cause you can see, a dead fitting (%s)" % str(unexplained.slice(0, 6)))
+	var dressing: Node = level.get_node("Dressing")
+	check(dressing.get_child_count() > 20, "the power plant is furnished")
+	var gantry_look: Node = level.gantry.get_node_or_null("Look")
+	var robot: Node = level.custodian
+	var shapes: Array = dressing.find_children("*", "CollisionShape3D", true, false)
+	for look in [gantry_look, robot.get_node_or_null("Body/Shell")]:
+		if look:
+			shapes.append_array(look.find_children("*", "CollisionShape3D", true, false))
+	check(_prop_boxes(level).is_empty() and shapes.is_empty(),
+		"nothing the plant's dressing adds collides: the Custodian's paths and the gantry's ride are unchanged")
+	var kept := []
+	for block in ["Transformer", "CableTray", "MaintDesk", "PanelBack", "Breaker", "GantryRail", "LiftController", "Corkboard", "Cradle", "Charger", "BayDesk", "NightGuard"]:
+		for b in level.geo.get_children():
+			if b is StaticBody3D and String(b.name).begins_with(block):
+				var shown: Array = b.get_children().filter(func(c): return c is MeshInstance3D and c.visible)
+				if shown.is_empty() and b.find_children("*", "CollisionShape3D", false, false).size() == 1:
+					kept.append(block)
+				break
+	check(kept.size() == 12, "every block the dressing draws over still collides as before (%s)" % [kept])
+	var lamps_shown: Array = level.lamps.values().filter(func(l): return l.visible)
+	check(lamps_shown.size() == level.lamps.size(), "the breaker lamps still show which breakers are on")
+	check(gantry_look != null and level.gantry.get_children().filter(func(c): return c is MeshInstance3D and c != gantry_look and c.visible).is_empty(),
+		"the gantry wears its deck and rails, and carries them as it travels")
+	# The Custodian: its shell in place of the boxes, arms that still pose, a lamp that still says it's on.
+	var body: Node3D = robot.get("_body")
+	var lamp: MeshInstance3D = robot.get("_lamp")
+	var boxes: Array = body.get_children().filter(func(c): return c is MeshInstance3D and c != lamp and c.name != "Shell" and c.visible)
+	check(body.get_node_or_null("Shell") != null and boxes.is_empty(), "the Custodian wears its own look in place of the greybox")
+	check(body.get_node("ArmL/Arm") != null and body.get_node("ArmR/Arm") != null, "its arms are hydraulic arms on the pivots that pose them")
+	robot.set_powered(false)
+	var dark_when_off := not lamp.visible
+	robot.set_powered(true)
+	check(dark_when_off and lamp.visible, "its visor lights when it has power and goes dark without")
+	var guard: Node = dressing.get_node_or_null("NightGuard")
+	check(guard != null and guard.find_children("*", "Skeleton3D", true, false).size() + guard.find_children("*", "MeshInstance3D", true, false).size() > 0,
+		"the night guard lies where the bay's greybox had him, as a person")
+	_check_polish(level, "Level 4")
+	level.free()
+
+
 func test_prop_models() -> void:
 	var bad := []
 	for id in ArtModels.FREE:
@@ -905,7 +1033,7 @@ func test_dressed_home_base() -> void:
 	check(fax.find_child("FaxMachine", false, false) != null and fax.get_children().all(func(c): return not (c is MeshInstance3D) or not c.visible)
 		and fax.find_children("*", "CollisionShape3D", false, false).size() == 1, "the fax is a fax machine, not a box, and still takes the press")
 	var van: Node3D = ArtDress.dressing_root(level).get_node_or_null("Van")
-	check(van != null and van.find_children("*", "MeshInstance3D", false, false).filter(func(mi): return mi.mesh is CylinderMesh).size() == 8,
+	check(van != null and van.find_children("*", "MeshInstance3D", true, false).filter(func(mi): return mi.mesh is CylinderMesh).size() == 8,
 		"the garage's van is dressed like the van at Halcyon, wheels and all")
 	# Home base's ask: the briefing corner and the garage front, dressed.
 	var dressing := ArtDress.dressing_root(level)

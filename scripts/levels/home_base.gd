@@ -910,10 +910,13 @@ func _on_boarded(id: int) -> void:
 		player.velocity = Vector3.ZERO
 		player.rotation.y = global_rotation.y  # facing the windscreen
 		player.seated = true
-		van_door.enabled = false
+		if not sync.is_host():
+			van_door.enabled = false  # the host's door still takes the others' climbs (forwarded)
 	elif body:
 		body.global_position = seat
 	var total := players.count()
+	if boarded.size() >= total:
+		van_door.enabled = false
 	if boarded.size() < total:
 		hud.notice("In the van. Waiting for the crew (%d/%d)" % [boarded.size(), total], 600.0)
 	elif sync.is_host():

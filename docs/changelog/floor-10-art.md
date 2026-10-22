@@ -1,0 +1,3 @@
+- **Changed:** floor 10 is dressed as a working plant: epoxy floors with walkway lines, a switchgear lineup with moulded-case breakers, cable trays and ducts overhead, a caged transformer, a maintenance bench, and a gantry on a yellow I-beam.
+- **Changed:** the door and lift control room has a raised floor, a sloped console, a mimic board and relay cabinets, and the charging bay has a dock, a charger and a parts rack.
+- **Changed:** the plant's maintenance robot has its own look: tracks, a scuffed yellow body, a glowing visor and hydraulic arms with claws.

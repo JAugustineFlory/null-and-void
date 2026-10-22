@@ -1,0 +1,2 @@
+- **Fixed:** in a co-op lobby, everyone can change their name after hosting or joining, and teammates see it straight away.
+- **Fixed:** joining players no longer get dropped back to the menu when the game starts while the host's computer is still loading.

@@ -4,7 +4,9 @@ Status: **APPROVED by Augustine 2026-10-20 03:03Z** ("Easy SQL book is approved"
 word for word as written here. Any change to a chapter line or question goes back to him.
 Later chapters are approved the same way, word for word with their why lines, as recorded in
 `plan/approvals/floor-18-chapters-and-unlocks.md`: Ch 15 and 16 for floor 18 (2026-10-21 11:44Z, whys 11:49Z),
-Ch 4's LIMIT and Ch 9 "How many?" (2026-10-21 12:12Z), and Ch 17 and 18 for floor 10 (2026-10-21 18:49Z, whys included).
+Ch 4's LIMIT and Ch 9 "How many?" (2026-10-21 12:12Z), Ch 17 and 18 for floor 10 (2026-10-21 18:49Z, whys included),
+and the why lines for Ch 0 to 8 and Ch 10 to 14 (2026-10-22 01:13Z, with the garage playtest fixes in
+`plan/teaching/garage-playtest-2026-10-22.md`). Every question's why line now sits under its word.
 Format, title pattern and rules are his choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
 
 - **Title:** *Easy SQL*. Later books follow the same pattern (*Hello HTML!*).
@@ -97,26 +99,39 @@ the correct option.
 Structure and page text: the Home base and huddles thread's draft
 (plan/approvals/home-base-huddles.md). Questions below, three per word. Table Q1 and row Q2 were
 replaced on 2026-10-21 (18:54Z, approved word for word with their why lines) so the garage quiz no longer uses SELECT
-and FROM before Ch 1 teaches them.
-
-Why lines for the two replaced questions (approved 2026-10-21 18:54Z):
-- table Q1: Each is a whole table: jobs holds the jobs, and van_kit holds the kit.
-- row Q2: One job is one row, so five jobs make five rows.
+and FROM before Ch 1 teaches them. On 2026-10-22 (01:13Z, garage playtest) the first page gained a line on table names
+("A table's name is all one word. Where you'd put a space, it has _ instead: van_kit."), and table Q1 shows a small
+van_kit grid under jobs.
 
 **table**
 1. What are jobs and van_kit? A) two rows  *B) two tables  C) two columns
 2. Which looks like a table name? A) van kit  *B) van_kit  C) Van Kit!
 3. Where would you find a table's name in a building? *A) on a label, card or screen nearby  B) the book tells you  C) you guess
 
+Why lines (approved 2026-10-22 01:13Z; table 1 and row 2 on 2026-10-21 18:54Z):
+1. Each is a whole table: jobs holds the jobs, and van_kit holds the kit.
+2. A space would split the name into two words, so table names join words with _ instead: van_kit. Marks like ! aren't allowed either.
+3. Tables are named where people work: on labels, cards and screens. Look around.
+
 **row**
 1. In jobs, one row is... *A) one job  B) one column  C) the whole table
 2. jobs has 5 jobs in it. How many rows is that? A) 1  B) 3  *C) 5
 3. A row goes... *A) across  B) down  C) nowhere
 
+Why lines (approved 2026-10-22 01:13Z; table 1 and row 2 on 2026-10-21 18:54Z):
+1. A row is one thing. In jobs, that's one job.
+2. One job is one row, so five jobs make five rows.
+3. A row runs across: one job, all its facts, side by side.
+
 **column**
 1. A column goes... A) across  *B) down  C) diagonally
 2. In jobs, which is a column? *A) town  B) job 14  C) jobs
 3. Each column is... A) one whole thing  *B) one fact about every row  C) the table's name
+
+Why lines (approved 2026-10-22 01:13Z; table 1 and row 2 on 2026-10-21 18:54Z):
+1. A column runs down: the same fact for every row.
+2. town is a fact every job has. Job 14 is a row, and jobs is the table.
+3. A column is one fact, like town or fee, for every row.
 
 ### Ch 1. Ask for a table (flashback at the front desk, required, peek)
 
@@ -129,15 +144,30 @@ at three words.
 2. Which word starts a query? *A) SELECT  B) SHOW  C) FIND
 3. What does * mean after SELECT? *A) every column  B) every table  C) multiply
 
+Why lines (approved 2026-10-22 01:13Z):
+1. SELECT means "show me". It never changes anything.
+2. Every query starts with SELECT.
+3. * means every column. SELECT * shows whole rows.
+
 **FROM**
 1. In SELECT qty FROM van_kit; which table is read? A) qty  *B) van_kit  C) SELECT
 2. Where does FROM go? *A) after the columns you want  B) at the very start  C) after the ;
 3. FROM jobs means... A) delete jobs  *B) look in the jobs table  C) make a jobs table
 
+Why lines (approved 2026-10-22 01:13Z):
+1. The table's name comes right after FROM. qty is a column.
+2. First what you want (SELECT ...), then where it lives (FROM ...).
+3. FROM jobs just says where to look. It never changes the table.
+
 **; (semicolon)**
 1. How does every query end? A) with a full stop .  *B) with a semicolon ;  C) with nothing
 2. You typed SELECT item FROM van_kit and nothing happened. What's missing? *A) the ;  B) a second SELECT  C) quotes
 3. Which is a whole query? A) SELECT town FROM jobs  B) FROM jobs SELECT town;  *C) SELECT town FROM jobs;
+
+Why lines (approved 2026-10-22 01:13Z):
+1. The semicolon is the full stop of a query.
+2. Without the ; the terminal waits for the rest of your question.
+3. SELECT, then FROM, then the ; at the end.
 
 ### Ch 2. Putting things in order (L0, memo)
 
@@ -149,12 +179,22 @@ at three words.
 2. SELECT * FROM jobs ORDER BY fee; sorts by... A) client  *B) fee  C) job_no
 3. Without ORDER BY, rows come out... A) sorted A to Z  *B) in saved order  C) newest first
 
+Why lines (approved 2026-10-22 01:13Z):
+1. ORDER BY goes at the end, after the table name and before the ;.
+2. The column after ORDER BY is the one it sorts by: fee.
+3. Rows come out in the order they were saved, until you sort them.
+
 **smallest first**
 - "ORDER BY puts the smallest first: 1, 2, 3, or A, B, C, or earliest time."
 
 1. ORDER BY qty puts which first? *A) the smallest qty  B) the biggest qty  C) random
 2. ORDER BY town puts which town first? A) Zebulon  *B) Ashford  C) the last one saved
 3. ORDER BY job_no lists jobs... *A) 1, 2, 3...  B) 3, 2, 1...  C) mixed
+
+Why lines (approved 2026-10-22 01:13Z):
+1. ORDER BY starts with the smallest: the lowest qty comes first.
+2. Words sort A to Z, so Ashford comes before Zebulon.
+3. Numbers sort smallest first: 1, 2, 3.
 
 ### Ch 3. Just the columns you need (L0, caller)
 
@@ -165,12 +205,22 @@ at three words.
 2. Why name columns instead of *? *A) wide tables are hard to read  B) * is broken  C) it's faster to type
 3. Which shows only item and shelf? A) SELECT * FROM van_kit;  *B) SELECT item, shelf FROM van_kit;  C) SELECT van_kit FROM item, shelf;
 
+Why lines (approved 2026-10-22 01:13Z):
+1. Only the columns you name come back: client and fee.
+2. A wide table won't fit on the screen. Name just the columns you need.
+3. Columns go after SELECT, the table after FROM.
+
 **comma**
 - "Put a comma between column names. No comma after the last one."
 
 1. Which is right? *A) SELECT client, town FROM jobs;  B) SELECT client town FROM jobs;  C) SELECT client, town, FROM jobs;
 2. Commas go... A) after every word  *B) between column names  C) after FROM
 3. SELECT item, FROM van_kit; is wrong because... A) item is wrong  *B) there's a comma after the last column  C) it needs a *
+
+Why lines (approved 2026-10-22 01:13Z):
+1. One comma between each pair of columns, none after the last.
+2. Commas only separate the column names.
+3. A comma after the last column leaves the database waiting for another one.
 
 **.schema**
 - "Don't know a table's columns? Type .schema and the table's name."
@@ -180,6 +230,11 @@ at three words.
 2. Does .schema need a ; at the end? A) yes  *B) no  C) only on Fridays
 3. You need a column's exact name. You type... A) SELECT columns;  *B) .schema and the table name  C) ORDER BY
 
+Why lines (approved 2026-10-22 01:13Z):
+1. .schema lists a table's columns.
+2. Commands that start with a dot talk to the terminal. They don't need a ;.
+3. .schema and the table's name shows every column's exact spelling.
+
 ### Ch 4. Newest first (L0, last_visitor, optional)
 
 **DESC**
@@ -188,6 +243,11 @@ at three words.
 1. ORDER BY fee DESC puts which first? A) the smallest fee  *B) the biggest fee  C) the oldest job
 2. Where does DESC go? A) before ORDER BY  *B) after the column name in ORDER BY  C) after the ;
 3. To see the latest times first you add... *A) DESC  B) LAST  C) nothing
+
+Why lines (approved 2026-10-22 01:13Z):
+1. DESC flips the sort: the biggest fee comes first.
+2. DESC goes straight after the column in ORDER BY, before the ;.
+3. DESC puts the latest time first.
 
 **LIMIT**
 - "LIMIT and a number, at the very end, keeps only that many rows from the top."
@@ -216,6 +276,11 @@ without quotes, which is what the puzzle's second hint says.
 2. Where does WHERE go? *A) after the table name  B) before SELECT  C) after the ;
 3. WHERE is for... A) sorting  *B) filtering  C) naming columns
 
+Why lines (approved 2026-10-22 01:13Z):
+1. WHERE keeps only the rows that match: the open jobs.
+2. WHERE goes after the table name, before the ;.
+3. WHERE filters rows. ORDER BY sorts them.
+
 **= (equals)**
 - "= means 'is exactly'. Column on the left, value on the right."
 
@@ -223,12 +288,22 @@ without quotes, which is what the puzzle's second hint says.
 2. Which is the right way round? *A) WHERE qty = 4  B) WHERE 4 qty =  C) WHERE = qty 4
 3. WHERE shelf = 'B' finds... A) shelves A and B  *B) only shelf B  C) every shelf
 
+Why lines (approved 2026-10-22 01:13Z):
+1. = means exactly that value, nothing near it.
+2. Column first, then =, then the value.
+3. = 'B' keeps only rows where shelf is exactly B.
+
 **'quotes'**
 - "Words go in 'single quotes'. Numbers don't."
 
 1. Which is right? A) WHERE status = open  *B) WHERE status = 'open'  C) WHERE 'status' = open
 2. Which needs quotes? *A) 'done'  B) 12  C) neither
 3. WHERE qty = '4' or WHERE qty = 4 for a number? A) '4'  *B) 4  C) "four"
+
+Why lines (approved 2026-10-22 01:13Z):
+1. Words go in single quotes. Column names don't.
+2. Words like 'done' need quotes. Numbers don't.
+3. Numbers go in bare: qty = 4.
 
 ### Ch 6. Both must be true (L1, controller)
 
@@ -239,6 +314,11 @@ without quotes, which is what the puzzle's second hint says.
 2. With AND, a row stays when... *A) both are true  B) either is true  C) neither is true
 3. AND goes... A) before WHERE  *B) between two conditions  C) after the ;
 
+Why lines (approved 2026-10-22 01:13Z):
+1. AND keeps a row only if both conditions hold: open, and in Ashford.
+2. With AND, both must be true.
+3. AND joins two conditions, after WHERE.
+
 ### Ch 7. More than, less than (L1, hot_rack, optional)
 
 **> (more than)**
@@ -248,6 +328,11 @@ without quotes, which is what the puzzle's second hint says.
 2. Is 100 > 100 true? A) yes  *B) no  C) sometimes
 3. Which finds items with more than 10 in stock? *A) WHERE qty > 10  B) WHERE qty < 10  C) WHERE 10 qty >
 
+Why lines (approved 2026-10-22 01:13Z):
+1. > means more than, so 100 itself doesn't count.
+2. 100 isn't more than 100. They're equal.
+3. qty > 10: the column, then >, then the number.
+
 **< (less than)**
 - "< is the other way: less than."
 
@@ -255,12 +340,22 @@ without quotes, which is what the puzzle's second hint says.
 2. The open side of < and > faces... A) the smaller number  *B) the bigger number  C) the column
 3. To find cheap jobs under 50 you type... A) WHERE fee > 50  *B) WHERE fee < 50  C) WHERE fee = < 50
 
+Why lines (approved 2026-10-22 01:13Z):
+1. < 2 keeps anything under 2: that's 0 and 1.
+2. The open side faces the bigger number.
+3. Under 50 is less than 50: fee < 50.
+
 **numbers**
 - "Numbers go in without quotes, so the database compares them as numbers."
 
 1. Which is right? *A) WHERE fee > 40  B) WHERE fee > '40'  C) WHERE fee > forty
 2. Why no quotes on numbers? A) quotes are banned  *B) so they compare as numbers  C) to save typing
 3. Temperatures like 38 are... *A) numbers  B) words  C) dates
+
+Why lines (approved 2026-10-22 01:13Z):
+1. Numbers go in bare: no quotes, no words.
+2. Without quotes, 9 is less than 40. In quotes they're compared like words.
+3. A temperature is a number, so it goes in without quotes.
 
 ### Ch 8. Either one will do (L1, dark_room, optional)
 
@@ -273,6 +368,11 @@ The dark break room. `lights` shows its bulb 'dead'; listing every light that's
 1. WHERE status = 'open' OR status = 'unpaid' keeps... A) only open jobs  *B) open and unpaid jobs  C) no jobs
 2. With OR, a row stays when... A) both are true  *B) at least one is true  C) neither is true
 3. AND or OR to find jobs in Ashford or Bexley? A) AND  *B) OR  C) neither
+
+Why lines (approved 2026-10-22 01:13Z):
+1. OR keeps a row if either condition is true: open or unpaid.
+2. With OR, one true condition is enough.
+3. A job can't be in two towns at once, so AND would find nothing. OR finds both.
 
 ### Ch 9. How many? (L1, the reset sign-off form, faulted_count)
 
@@ -298,6 +398,11 @@ the server floor. Breathe."
 2. To read a log in time order you add... *A) ORDER BY and the time column  B) DESC only  C) WHERE time
 3. A word value like fault goes in... A) no quotes  *B) 'single quotes'  C) brackets
 
+Why lines (approved 2026-10-22 01:13Z):
+1. Both must be true, so AND.
+2. ORDER BY and the time column puts the log in time order.
+3. A word value goes in single quotes, like 'fault'.
+
 ### Ch 11. Asking a server (L2 camera booth, cameras)
 
 **GET**
@@ -308,12 +413,22 @@ the server floor. Breathe."
 2. Does a GET need a ; at the end? A) yes  *B) no  C) two of them
 3. Which is a request? A) SELECT /jobs;  *B) GET /jobs  C) GET jobs;
 
+Why lines (approved 2026-10-22 01:13Z):
+1. GET asks for data. It doesn't change or delete anything.
+2. A request isn't SQL, so no ;.
+3. GET, a space, then a path starting with /.
+
 **path**
 - "The path after GET says what you want, starting with /."
 
 1. In GET /jobs, the path is... A) GET  *B) /jobs  C) jobs;
 2. Paths start with... *A) /  B) ;  C) *
 3. GET /van_kit asks for... A) the jobs  *B) the van kit  C) everything
+
+Why lines (approved 2026-10-22 01:13Z):
+1. The path is the part after GET, starting with /.
+2. Every path starts with a slash.
+3. The path names what you're asking for: /van_kit.
 
 **JSON**
 - "Answers come back as JSON. { } holds one thing's fields; [ ] is a list of them."
@@ -322,6 +437,11 @@ the server floor. Breathe."
 1. In JSON, [ ] means... A) one field  *B) a list  C) an error
 2. "status": "open" says... *A) status is open  B) open the status  C) nothing
 3. { } holds... *A) one thing's fields  B) a list of things  C) a query
+
+Why lines (approved 2026-10-22 01:13Z):
+1. Square brackets hold a list.
+2. Each field is a name, a colon, then its value.
+3. Curly brackets hold one thing's fields.
 
 ### Ch 12. Half a name (L2 booth, pike)
 
@@ -332,12 +452,22 @@ the server floor. Breathe."
 2. Which is right? *A) WHERE client LIKE 'Ash%'  B) WHERE LIKE client 'Ash%'  C) WHERE client = LIKE 'Ash%'
 3. You can only read the start of a name. You use... A) =  *B) LIKE  C) ORDER BY
 
+Why lines (approved 2026-10-22 01:13Z):
+1. LIKE matches a pattern, not an exact value.
+2. Column, then LIKE, then the pattern in quotes.
+3. When you only have the start of a name, LIKE and % fill in the rest.
+
 **% (percent)**
 - "% means 'any letters, or none'. 'Ash%' matches Ash, Ashford, Ashley."
 
 1. 'Bex%' matches... *A) Bexley  B) Abex  C) Bonex
 2. Where does % go to match names starting with Mac? A) '%Mac'  *B) 'Mac%'  C) 'M%ac'
 3. Does 'Ash%' match plain "Ash"? *A) yes  B) no  C) only in capitals
+
+Why lines (approved 2026-10-22 01:13Z):
+1. 'Bex%' means "starts with Bex", then anything.
+2. % after Mac means "starts with Mac".
+3. % can stand for no letters at all, so plain Ash matches too.
 
 ### Ch 13. One answer feeds the next (L2, har)
 
@@ -348,6 +478,11 @@ No new words. A review huddle on chaining.
 2. A first query told you job 14 is the one. To get its client you type... A) SELECT 14;  *B) SELECT client FROM jobs WHERE job_no = 14;  C) ORDER BY 14
 3. A log sorted by time shows the last person through a door at the... A) top  *B) bottom  C) middle
 
+Why lines (approved 2026-10-22 01:13Z):
+1. Put the id from the first answer into the next query's WHERE.
+2. The first answer, 14, goes into WHERE job_no = 14.
+3. Sorted oldest first, the latest swipe is at the bottom.
+
 ### Ch 14. One door's record (L2 stairwell panel, door)
 
 **id in the path**
@@ -356,6 +491,11 @@ No new words. A review huddle on chaining.
 1. GET /jobs/14 asks for... A) all jobs  *B) job 14 only  C) 14 jobs
 2. To ask about one door you need its... *A) id  B) colour  C) zone
 3. Where does the id go? A) before GET  *B) at the end of the path  C) in quotes after it
+
+Why lines (approved 2026-10-22 01:13Z):
+1. An id at the end of the path asks for that one thing.
+2. Each thing has its own id. That's what goes in the path.
+3. The id goes at the end of the path, after a /.
 
 ### Floor 18 chapters: APPROVED by Augustine word for word (2026-10-21 11:44Z, "Approve all")
 
@@ -510,5 +650,5 @@ Why lines (approved 2026-10-21 18:49Z):
 2. The crew's `jobs` and `van_kit` tables are approved as the book's sample data
    ("that reinforces the plug-and-play approach for sql queries").
 
-Still to write, and to approve: a one-line "why" for each answer (the huddle shows
-it after a wrong vote).
+Every question has a one-line "why", approved word for word and shown under its word above (the huddle shows it
+after each vote).

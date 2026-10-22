@@ -48,6 +48,9 @@ var stance_height := -1.0
 var head_pitch := 0.0
 ## A point to turn the head toward, or null.
 var look_target: Variant = null
+## Turns the upper body (radians, positive to the left) on hips that stay put:
+## someone sitting looking round. The chest takes most of it, the neck the rest.
+var twist := 0.0
 ## Set >= 0 to drive the walk cycle directly instead of measuring movement.
 var speed_override := -1.0
 ## Leave the head (and its hair, hat and glasses) out: your own body in first
@@ -185,6 +188,9 @@ func _target_pose() -> Dictionary:
 				_blend_into(p, on_all_fours, low)
 	_action_pose(p)
 	_head(p)
+	if twist != 0.0:
+		p["spine"] = p.get("spine", Vector3.ZERO) + Vector3(0, twist * 0.8, 0)
+		p["neck"] = p.get("neck", Vector3.ZERO) + Vector3(0, twist * 0.2, 0)
 	return p
 
 

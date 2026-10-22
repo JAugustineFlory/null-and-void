@@ -13,6 +13,18 @@ const MAX_PLAYERS := 6
 const LOBBY_POSES := ["wave", "lean", "sit", "shoulder", "pose"]
 ## The CharacterRig action each pose plays. One the rig can't draw yet plays "idle".
 const LOBBY_POSE_ACTIONS := {"wave": "wave", "lean": "lean", "sit": "sit_floor", "shoulder": "shoulder", "pose": "pose"}
+## How long a machine waits on a silent teammate before dropping them, as
+## ENet's [retry limit, minimum ms, maximum ms]. In the lobby a client notices a
+## vanished host in seconds. Loading the building can freeze a slow machine for
+## several seconds, and a host frozen past the lobby's 3 s used to drop every
+## joiner, so everyone waits much longer until the game has started and the
+## first frames have drawn, then a little longer than the lobby while playing,
+## when a wing streams in.
+const PATIENCE_LOBBY := [32, 3000, 8000]
+const PATIENCE_LOADING := [32, 20000, 45000]
+const PATIENCE_PLAYING := [32, 8000, 20000]
+## How long after everyone has loaded the building the loading patience lasts.
+const SETTLE_TIME := 10.0
 const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Harper", "Jo", "Kit", "Lane", "Morgan"]
 
 ## peer id -> player name, identical on every machine.
@@ -184,11 +196,33 @@ func _assign_lobby(peer: int, change: Dictionary) -> void:
 	roster_changed.emit()
 
 
-## The name teammates see, saved to the profile.
+## The name teammates see, saved to the profile. In the lobby it changes for
+## everyone (the host keeps names apart).
 func set_player_name(n: String) -> void:
 	player_name = n.strip_edges().left(16) if n.strip_edges() != "" else "Player"
 	profile.name = n.strip_edges().left(16)
 	profile.save()
+	if in_game or not roster.has(my_id()):
+		return
+	if not is_online():
+		roster[my_id()] = player_name
+		roster_changed.emit()
+	elif is_host():
+		_assign_name(1, player_name)
+	else:
+		_request_name.rpc_id(1, player_name)
+
+
+@rpc("any_peer", "reliable")
+func _request_name(wanted: String) -> void:
+	if is_host() and not in_game and roster.has(multiplayer.get_remote_sender_id()):
+		_assign_name(multiplayer.get_remote_sender_id(), wanted)
+
+
+func _assign_name(peer: int, wanted: String) -> void:
+	roster[peer] = _unique_name(wanted.strip_edges().left(16), peer)
+	_set_roster.rpc(roster, looks, lobby)
+	roster_changed.emit()
 
 
 ## This player earned an achievement or found a secret ("secret:<id>"): own
@@ -277,10 +311,33 @@ func _start(seed_value: int, names: Dictionary, picked: Dictionary) -> void:
 	roster = names
 	looks = picked
 	in_game = true
+	set_patience(PATIENCE_LOADING)
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
 	game.open_at_home = true
 	game.goto("world")
+
+
+## The building has loaded on every machine (LevelSync, once it begins): after
+## the first frames have drawn, back to the patience for playing.
+func world_began() -> void:
+	await get_tree().create_timer(SETTLE_TIME).timeout
+	if in_game:
+		set_patience(PATIENCE_PLAYING)
+
+
+## How long this machine waits on each teammate (PATIENCE_*). Solo: nothing.
+func set_patience(patience: Array) -> void:
+	var peer := multiplayer.multiplayer_peer
+	if not peer is ENetMultiplayerPeer:
+		return
+	for id in multiplayer.get_peers():
+		patient(peer.get_peer(id), patience)
+
+
+static func patient(link: ENetPacketPeer, patience: Array) -> void:
+	if link:
+		link.set_timeout(patience[0], patience[1], patience[2])
 
 
 ## Host only: everyone goes to the same screen (e.g. on from the field notes).
@@ -319,9 +376,7 @@ func _exit_tree() -> void:
 
 func _on_connected() -> void:
 	# Notice a vanished host in seconds rather than half a minute.
-	var peer := multiplayer.multiplayer_peer
-	if peer is ENetMultiplayerPeer:
-		peer.get_peer(1).set_timeout(32, 3000, 8000)
+	set_patience(PATIENCE_LOBBY)
 	_register.rpc_id(1, player_name, wanted_look)
 
 
@@ -336,7 +391,7 @@ func _register(wanted: String, look: Dictionary) -> void:
 	if roster.size() >= MAX_PLAYERS:
 		_refused.rpc_id(id, "That lobby is full (%d players)." % MAX_PLAYERS)
 		return
-	roster[id] = _unique_name(wanted.strip_edges().left(16))
+	roster[id] = _unique_name(wanted.strip_edges().left(16), id)
 	_assign_look(id, look)
 	roster_changed.emit()
 
@@ -357,11 +412,13 @@ func _refused(reason: String) -> void:
 	leave(true, reason)
 
 
-func _unique_name(wanted: String) -> String:
+## `wanted`, or numbered if someone other than `peer` already has it.
+func _unique_name(wanted: String, peer := 0) -> String:
 	var base := wanted if wanted != "" else "Player"
+	var taken := roster.keys().filter(func(id): return id != peer).map(func(id): return roster[id])
 	var n := base
 	var i := 2
-	while roster.values().has(n):
+	while taken.has(n):
 		n = "%s %d" % [base, i]
 		i += 1
 	return n

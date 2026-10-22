@@ -25,6 +25,9 @@ const RECOIL_TIME := 0.3
 const FLINCH_TIME := 0.35
 ## The hip joint is this far above the underside of the thigh (as PlayerPuppet).
 const SEAT_THIGH := 0.06
+## On a chair, the body sits this much further back under the camera, so looking
+## down shows your chest and lap rather than the top of your collar.
+const SEAT_BACK := 0.14
 
 var player: Node3D  # Player
 var rig: CharacterRig
@@ -86,10 +89,20 @@ func _process(delta: float) -> void:
 	rig.stance_height = height if height != null else -1.0
 	var head = player.get("head")
 	rig.head_pitch = head.rotation.x if head else 0.0
-	# On a chair the player's origin is the seat top: lower the hips onto it.
+	# On a chair the player's origin is the seat top: lower the hips onto it, and
+	# keep them and the legs facing the way the seat does; looking round turns
+	# only the upper body (the player turns, the chair doesn't).
 	var chair: bool = rig.action == "sit"
 	_lean = lerpf(_lean, FIGHT_LEAN if action in FIGHTING else 0.0, 1.0 - exp(-12.0 * delta))
-	position = Vector3(0, -(_sit_hip - SEAT_THIGH) if chair else 0.0, BACK - _lean)
+	var seat = player.get("seat")
+	var turned := 0.0
+	if chair and is_instance_valid(seat):
+		var fwd: Vector3 = -(seat as Node3D).global_basis.z
+		turned = angle_difference(atan2(-fwd.x, -fwd.z), player.global_rotation.y)
+	rotation.y = -turned
+	rig.twist = turned
+	var back := BACK + (SEAT_BACK if chair else 0.0) - _lean
+	position = Vector3(0, -(_sit_hip - SEAT_THIGH) if chair else 0.0, back)  # behind the camera, the way you look
 
 
 ## The action the body should be playing now.
