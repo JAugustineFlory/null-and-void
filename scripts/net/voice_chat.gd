@@ -5,10 +5,10 @@ extends Node
 ## battery and static near entities apply. Radio voice also carries to anyone
 ## standing next to the person talking, like a real walkie-talkie.
 ##
-## Voice keeps working through a book huddle: there the view cuts to the garage,
-## far from where everyone is standing, so teammates' voices play flat instead
-## of fading with distance from that camera, and the radio still keys while the
-## huddle holds everyone still.
+## Voice keeps working through a flashback or cutscene: there the view cuts away,
+## often far from where everyone is standing, so teammates' voices play flat
+## instead of fading with distance from that camera, and the radio still keys
+## while the scene holds everyone still.
 
 const MIC_BUS := "VoiceMic"
 const RADIO_BUS := "Radio"
@@ -96,15 +96,13 @@ func _process(delta: float) -> void:
 	_update_hud()
 
 
-## V and B work while the player can move, and in a huddle, which holds everyone
-## still at the book but has nothing to type into.
+## V and B work while the player can move, and while a flashback or cutscene
+## holds them still (nothing to type into there). Not at a terminal or the
+## notebook, which keep the player's own view and take typing.
 func _keys_free() -> bool:
 	if not is_instance_valid(level.player):
 		return false
-	if not level.player.input_locked:
-		return true
-	var huddle := Huddle.of(level)
-	return huddle != null and huddle.is_running()
+	return not level.player.input_locked or not hearing_from_body()
 
 
 ## Hearing the world from the player's own head: their camera is the one in use.
@@ -137,7 +135,7 @@ func _voice(on_radio: bool, data: PackedByteArray) -> void:
 	var spk := _speaker(from)
 	var dist := body.global_position.distance_to(level.player.global_position)
 	if not hearing_from_body():
-		# The camera is away (a huddle's garage): a voice from the world would
+		# The camera is away (a flashback's garage): a voice from the world would
 		# fade out with distance from it, so the whole crew is heard as if close.
 		heard.near += 1
 		_push(spk.flat, frames)
