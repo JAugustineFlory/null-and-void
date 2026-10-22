@@ -12,13 +12,15 @@ the owning thread through the Game design plan thread.
 3. **Used under pressure.** A later puzzle needs it again while something is after you.
 
 **Every piece is introduced before players use it** (Augustine, 2026-10-21). A word with an Easy SQL
-chapter has its huddle play once, at its map moment, before the puzzle that first needs it (for example,
-Ch 2's ORDER BY plays when the memo's scraps print out of order). Only these words are deliberately
+chapter has its chapter unlock once, at its map moment, before the puzzle that first needs it (for example,
+Ch 2's ORDER BY unlocks when the memo's scraps print out of order). Chapters come in quietly and the book is
+reference (Augustine, 2026-10-22: no quizzes, no book popups), so ladder A's first hint still explains every
+keyword: a player who never opens the book meets each word before using it. Only these words are deliberately
 learned without a chapter, from a reference found in the world:
 - **IS NULL** (floor 18), from Mercer's reference card.
 - **Auth tokens** (Act 2), from an IT admin's runbook page.
 
-Any other word a puzzle needs without its chapter having played is a bug.
+Any other word a puzzle needs without its chapter having unlocked is a bug.
 
 ## Who teaches (Augustine, 2026-10-17)
 

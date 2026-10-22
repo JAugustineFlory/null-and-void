@@ -10,18 +10,18 @@ and the why lines for Ch 0 to 8 and Ch 10 to 14 (2026-10-22 01:13Z, with the gar
 Format, title pattern and rules are his choices (2026-10-20, plan/act2-story-teaching-combat.md section 3, option C):
 
 - **Title:** *Easy SQL*. Later books follow the same pattern (*Hello HTML!*).
-- **Crew huddles.** The game opens in the crew's garage with the first huddle. Each
-  later SQL chapter plays as a flashback to a garage huddle before the job, at the
-  moment the puzzle starts. A book that arrives later is huddled on the spot or in
-  the elevator.
-- **Up to 3 new words per puzzle**, each with a 3-question multiple-choice check
-  (Augustine, 00:08Z: three questions for each word) that the crew answers together (everyone votes, majority wins, a tie re-votes).
-  Solo players read and answer alone.
-- **The garage chapters are required:** Ch 0 (table, row, column) before the van,
-  and Ch 1 (the shape of a query and the semicolon) as a garage flashback at the
-  front desk. Later quizzes can be skipped; the chapter text still plays.
-- **Votes** (Home base default): the crew's answer is the most-voted option; a tie
-  re-votes; a wrong answer shows its "why" and the same question comes back.
+- **Chapters unlock in the book, no popups** (Augustine 2026-10-22 03:33Z "REMOVE THE QUIZZES", and 03:37Z: the
+  removal includes the book's cutscene popup). A chapter unlocks quietly when its floor first needs it: a HUD notice
+  says where to read it, and the chapter's lines play as audio while the crew keeps control. Pages
+  unlock in the order the floors need them and are read in the notebook's Books tab, any time. Ch 0 unlocks in the
+  garage once the book is fetched from the shelf, and Ch 1 at the front desk once the crew has signed in.
+- **Up to 3 new words per puzzle.**
+- **Test yourself (optional).** Each word's three questions and their why lines stay, word for word, in an optional
+  "Test yourself" in the Books tab, for each player on their own. An answer shows its why; a wrong one can be tried
+  again. Nothing waits on them.
+- Superseded (kept for the record): chapters played as garage-huddle flashbacks or on the spot; a 3-question check per
+  word answered together (majority vote, a tie re-votes, a wrong answer shows its why and comes back); Ch 0 and Ch 1's
+  quizzes required.
 - **3 to 5 puzzles per floor.** All three floors meet it: Floor 1's two extra
   puzzles (stuck_doors, dark_room) were proposed here and built in #96.
 
@@ -40,11 +40,10 @@ scenes; puzzle threads own the puzzles.
    These are the crew's own records, not an example of the building's tables, so
    the "hints never use example tables" rule is untouched: hints still use only the
    real tables.
-3. **A chapter is "found in the world".** The huddle is the first sighting, the
-   quiz is a recognition check, and the puzzle stays the safe typed practice. So
-   the order found, then practised safely, then used under pressure still holds.
-   The lost-player test will count chapter text as taught once the huddles exist
-   (`"chapter"` field in tests/curriculum.gd).
+3. **A chapter is "found in the world".** The paper that unlocks it is the first sighting (with its notice and
+   lines), the page in the book is reference, and the puzzle stays the safe typed practice. Ladder A's first hint
+   explains every keyword, so a player who never opens the book still meets each word before using it. So the order
+   found, then practised safely, then used under pressure still holds.
 4. **Questions have three options**, one correct. Wrong options are real mistakes
    beginners make, never jokes. The correct letter varies.
 5. **Never the answer.** No chapter or question contains a puzzle's value or exact
@@ -52,10 +51,10 @@ scenes; puzzle threads own the puzzles.
 
 ## Chapter map
 
-| Ch | When the huddle plays | Puzzle | New words |
+| Ch | Where it unlocks | Puzzle | New words |
 |---|---|---|---|
-| 0 | Garage, before the van (required) | (tutorial) | table, row, column |
-| 1 | L0 front desk, garage flashback (required) | peek | SELECT (with *), FROM, `;` |
+| 0 | Garage, once the book is off the shelf | (tutorial) | table, row, column |
+| 1 | L0 front desk, once the crew has signed in | peek | SELECT (with *), FROM, `;` |
 | 2 | L0, after the memo prints | memo | ORDER BY, smallest first |
 | 3 | L0, Rourke's "who called?" | caller | column list, comma, `.schema` |
 | 4 | L0, visitor book (optional) | last_visitor | DESC, LIMIT |
@@ -64,7 +63,7 @@ scenes; puzzle threads own the puzzles.
 | 7 | L1, Server Room B noise (optional) | hot_rack | `>`, `<`, numbers |
 | 8 | L1, dark break room (optional) | dark_room | OR |
 | 9 | L1, the reset sign-off form | faulted_count | COUNT(*) |
-| 10 | L2 lab lockdown (elevator flashback) | lab_door, badge_log | none: review quiz |
+| 10 | L2 lab lockdown, before the clock starts | lab_door, badge_log | none: review questions |
 | 11 | L2 camera booth | cameras | GET, path, JSON |
 | 12 | L2 booth, sign-in sheet | pike | LIKE, `%` |
 | 13 | L2, Pike's PIN suspended | har | none: "one answer feeds the next" review |
@@ -76,7 +75,7 @@ scenes; puzzle threads own the puzzles.
 
 Chapter ids: the first fourteen keep theirs (`easy_sql_0` to `easy_sql_13`, so `easy_sql_9` is now Ch 10, and so on).
 The newer ones are named for their word: `easy_sql_count` (Ch 9), `easy_sql_distinct` (Ch 15), `easy_sql_group_by`
-(Ch 16), `easy_sql_update` (Ch 17) and `easy_sql_insert` (Ch 18). The huddle shows a chapter's position, not its id.
+(Ch 16), `easy_sql_update` (Ch 17) and `easy_sql_insert` (Ch 18). The book shows a chapter's position, not its id.
 
 Floor counts: L0 has 4 puzzles. L1 has 5 (stuck_doors and dark_room landed in #96, the faulted count with curriculum B). L2 has 6 (lab_door, badge_log, cameras, pike, har, door), one over the
 limit; badge_log is now the har chain's first step, so it can count as part of har.
@@ -89,16 +88,16 @@ Notes:
 - Curriculum debt stays: COLUMNS, DESC, `>` and LIKE are never needed under
   pressure by the end of L2. Level 3 should use them again.
 
-## Chapters and quizzes
+## Chapters and Test yourself
 
-Each word: chapter lines (read aloud in the huddle), then three questions. `*` marks
+Each word: chapter lines (its page in the book), then three questions (in the optional "Test yourself"). `*` marks
 the correct option.
 
-### Ch 0. Read this first (garage, required, before the van)
+### Ch 0. Read this first (garage, before the van)
 
 Structure and page text: the Home base and huddles thread's draft
 (plan/approvals/home-base-huddles.md). Questions below, three per word. Table Q1 and row Q2 were
-replaced on 2026-10-21 (18:54Z, approved word for word with their why lines) so the garage quiz no longer uses SELECT
+replaced on 2026-10-21 (18:54Z, approved word for word with their why lines) so Ch 0's questions no longer use SELECT
 and FROM before Ch 1 teaches them. On 2026-10-22 (01:13Z, garage playtest) the first page gained a line on table names
 ("A table's name is all one word. Where you'd put a space, it has _ instead: van_kit."), and table Q1 shows a small
 van_kit grid under jobs.
@@ -133,7 +132,7 @@ Why lines (approved 2026-10-22 01:13Z; table 1 and row 2 on 2026-10-21 18:54Z):
 2. town is a fact every job has. Job 14 is a row, and jobs is the table.
 3. A column is one fact, like town or fee, for every row.
 
-### Ch 1. Ask for a table (flashback at the front desk, required, peek)
+### Ch 1. Ask for a table (front desk, peek)
 
 Page text: the Home base and huddles draft. Words: SELECT, FROM, `;`. The star is
 taught as part of SELECT ("which columns: * for all of them"), so the chapter stays
@@ -391,7 +390,7 @@ Why lines (approved 2026-10-21 11:49Z, with the move here approved 12:12Z):
 
 ### Ch 10. Under pressure (L2 lab lockdown, review)
 
-No new words. A review huddle, played as a fast elevator flashback: "Same tools as
+No new words. A review chapter, in before the lab's clock starts: "Same tools as
 the server floor. Breathe."
 
 1. To keep rows in one zone that are also faulted you use... A) OR  *B) AND  C) ORDER BY
@@ -471,7 +470,7 @@ Why lines (approved 2026-10-22 01:13Z):
 
 ### Ch 13. One answer feeds the next (L2, har)
 
-No new words. A review huddle on chaining.
+No new words. A review chapter on chaining.
 - "Sometimes the answer isn't the answer. It's what you need for the next query."
 
 1. A first query gives you an id. Next you... *A) use it in a WHERE  B) start over  C) type it after the ;
@@ -506,7 +505,7 @@ Chapters 15 and 16 are for floor 18, the end of Act 1 (curriculum option B). Lev
 book's rules apply, so each word gets three questions, not the two in Level 3's draft. Nothing here names a building
 table, room or value; the examples are the crew's `jobs` and `van_kit`.
 
-- **The slips station has no huddle.** It counts without groups, and it's review: Ch 9 teaches COUNT on floor 14.
+- **The slips station has no chapter.** It counts without groups, and it's review: Ch 9 teaches COUNT on floor 14.
 - **COUNT(*) moved to Ch 9** word for word, with its whys (approved 2026-10-21 12:12Z). Ch 16 keeps GROUP BY; its
   lines still say "With COUNT(*)", which is now review.
 - **IS NULL deliberately has no chapter.** The crew looks it up on Mercer's reference card.
@@ -523,7 +522,7 @@ table, room or value; the examples are the crew's `jobs` and `van_kit`.
 2. Where does DISTINCT go? A) after the table name  B) just before the ;  *C) straight after SELECT
 3. SELECT DISTINCT town FROM jobs WHERE status = 'open'; shows... *A) each town with an open job, once  B) every open job  C) every town, once
 
-Why lines (approved 2026-10-21 11:49Z; the huddle shows one after each vote):
+Why lines (approved 2026-10-21 11:49Z; Test yourself shows one after each answer):
 1. DISTINCT keeps each different town once. Three towns, three rows.
 2. DISTINCT goes right after SELECT, before the column it works on.
 3. WHERE keeps the open jobs first. Then DISTINCT shows each of their towns once.
@@ -650,5 +649,5 @@ Why lines (approved 2026-10-21 18:49Z):
 2. The crew's `jobs` and `van_kit` tables are approved as the book's sample data
    ("that reinforces the plug-and-play approach for sql queries").
 
-Every question has a one-line "why", approved word for word and shown under its word above (the huddle shows it
-after each vote).
+Every question has a one-line "why", approved word for word and shown under its word above (Test yourself shows it
+after each answer).

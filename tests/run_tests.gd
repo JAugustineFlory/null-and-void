@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "scripting", "chapters"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters"]
 
 
 func _run() -> void:
@@ -81,6 +81,7 @@ func _run_group(g: String) -> void:
 		"movement_hands": await _group_movement_hands()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
+		"teaching_api": await _group_teaching_api()
 		"scripting": await _group_scripting()
 		"chapters": await _group_chapters()
 
@@ -229,6 +230,11 @@ func _group_teaching() -> void:
 ## The second lab seed's paced walk, on its own so neither teaching group runs long.
 func _group_teaching_lab() -> void:
 	await _run_file("res://tests/teaching_tests.gd", "lab")
+
+
+## Floor 9's lost-player walks: its services' requests, sealed and loose.
+func _group_teaching_api() -> void:
+	await _run_file("res://tests/teaching_tests.gd", "api")
 
 
 ## Scripting and services: the facility API's writes, and deck scripts.
