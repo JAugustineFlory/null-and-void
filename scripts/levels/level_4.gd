@@ -380,6 +380,7 @@ func build() -> void:
 	# Read-only (from the lie on): the host's database refuses, and WARDEN answers on
 	# every machine.
 	db.write_refused.connect(func(_sql): if sync.is_host(): sync.event("_write_refused"))
+	DressLevel4.apply(self)  # furniture and materials (Graphics thread)
 
 
 func _make_puzzles() -> void:
