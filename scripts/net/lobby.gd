@@ -189,7 +189,6 @@ func _refresh() -> void:
 	var in_session: bool = not net.roster.is_empty()
 	_connect_box.visible = not in_session
 	_session_box.visible = in_session
-	picker.set_name_editable(not in_session)
 	stage.sync_crew(net)
 	var ready_count: int = net.roster.keys().filter(func(id): return net.lobby_of(id).ready).size()
 	_waiting.text = WAITING % [ready_count, net.roster.size()] if in_session and not net.solo_lobby else ""

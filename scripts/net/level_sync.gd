@@ -124,6 +124,9 @@ func _begin() -> void:
 		return
 	_begun = true
 	began.emit()
+	var net := get_node_or_null("/root/Net")
+	if net and net.multiplayer == multiplayer and is_online():
+		net.world_began()  # everyone has loaded: the long wait for a frozen machine can end
 	if _start_fn.is_valid():
 		_start_fn.call()
 
