@@ -41,6 +41,9 @@ var sitting := Sit.NONE
 var at_terminal: Node3D
 ## Which side of it they lean in from: 1 right, -1 left.
 var terminal_side := 1.0
+## On a chair: the way they faced when they sat down. Their legs stay facing
+## it while they look around, and only the upper body turns (rig.twist).
+var seat_yaw := 0.0
 
 var _target_pos := Vector3.ZERO
 var _target_yaw := 0.0
@@ -129,9 +132,9 @@ func _build(look: Dictionary) -> void:
 ## A state update from the owning machine.
 func apply_state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: bool, sit: int = Sit.NONE) -> void:
 	_target_pos = pos
+	_target_yaw = yaw
 	if sit != sitting:
 		set_sitting(sit)
-	_target_yaw = yaw
 	_target_pitch = pitch
 	_light.visible = light_on
 	if not is_equal_approx(height, stance_height):
@@ -159,6 +162,10 @@ func _physics_process(delta: float) -> void:
 	rotation.y = lerp_angle(rotation.y, yaw, k)
 	_head.rotation.x = lerp_angle(_head.rotation.x, _target_pitch, k)
 	rig.head_pitch = _head.rotation.x
+	# Seated, the legs hold the seat's way and the chest and neck turn instead.
+	var turned := angle_difference(seat_yaw, rotation.y) if sitting == Sit.CHAIR else 0.0
+	_body.rotation.y = -turned
+	rig.twist = turned
 
 
 ## They sat down at `terminal` (null: stood up). `seat` is their place in
@@ -195,6 +202,7 @@ func set_fight(action: String) -> void:
 ## They sat down (Sit.CHAIR or Sit.FLOOR) or got up (Sit.NONE).
 func set_sitting(how: int) -> void:
 	sitting = how if how in Sit.values() else Sit.NONE
+	seat_yaw = _target_yaw
 	# Hips on the seat; a little up, since the hip joint is inside the thigh.
 	_body.position.y = -(_sit_hip - SEAT_THIGH) if sitting == Sit.CHAIR else 0.0
 	if not downed:

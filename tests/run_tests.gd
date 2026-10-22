@@ -1621,6 +1621,23 @@ func test_coop_level_0() -> void:
 	await _frames(10)
 	check(c2.voice.heard.near == 1 and c2.voice.heard.radio == 1, "radio reaches a teammate too far away to hear directly")
 	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 40 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
+	# A flashback or cutscene: the view cuts far away and the player is held still.
+	# Teammates are still heard as if close, and the radio still keys.
+	var away := Camera3D.new()
+	away.position = Vector3(0, 0, 400)
+	c2.add_child(away)
+	away.make_current()
+	c2.player.input_locked = true
+	var heard_before: int = c2.voice.heard.near
+	c1.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 40 m off is still heard")
+	check(c2.voice._keys_free(), "and the radio and mute keys still work while the scene holds you still")
+	away.queue_free()
+	c2.player.camera.make_current()
+	await _frames(2)
+	check(c2.voice.hearing_from_body() and not c2.voice._keys_free(), "back in your own eyes, voices come from where people stand, and a locked player's keys stay locked (terminal, notebook)")
+	c2.player.input_locked = false
 	_game().has_walkie = false
 
 	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
@@ -2520,9 +2537,17 @@ func test_coop_sitting() -> void:
 	var hip: Vector3 = seen.rig.joints["r_hip"].global_position
 	check(seen.sitting == PlayerPuppet.Sit.CHAIR and seen.rig.action == "sit", "the host sees them sitting on it")
 	check(absf(hip.y - (top.y + PlayerPuppet.SEAT_THIGH)) < 0.08, "with their hips on the seat, not floating above it (%.2f m off)" % (hip.y - top.y - PlayerPuppet.SEAT_THIGH))
+	var body: Node3D = seen.find_child("Body", false, false)
+	var faced := body.global_rotation.y
+	sitter.rotation.y += 1.0  # looks round to their left
+	await _frames(40)
+	check(absf(angle_difference(faced, body.global_rotation.y)) < 0.05 and absf(seen.rig.twist - 1.0) < 0.1,
+		"looking round on a chair, a teammate turns their chest, not their legs (legs %.2f, twist %.2f)" % [angle_difference(faced, body.global_rotation.y), seen.rig.twist])
+	sitter.rotation.y -= 1.0
 	sitter.stand_up(true)
 	await _frames(20)
 	check(seen.sitting == PlayerPuppet.Sit.NONE and seen.rig.action == "idle" and seen.find_child("Body", false, false).position.y == 0.0, "and back on their feet when they stand up")
+	check(seen.rig.twist == 0.0 and body.rotation.y == 0.0, "facing all one way again")
 	check(sitter.sit(null), "the client sits on the floor")
 	await _frames(20)
 	check(seen.sitting == PlayerPuppet.Sit.FLOOR and seen.find_child("Body", false, false).position.y == 0.0
