@@ -392,11 +392,11 @@ func _make_puzzles() -> void:
 	reset_puzzle = StatePuzzle.new("reset", "UPDATE breakers SET state = 'on' WHERE id = '%s'" % t,
 		"SELECT id, (state = 'on') AS lit FROM breakers",
 		"SELECT column1 AS id, column2 AS lit FROM (VALUES %s)" % ", ".join(expected), ["id", "lit"], [
-		"the shape, with the breaker left as ?:\n" +
-		"    [color=#ffffff]UPDATE breakers SET state = 'on' WHERE id = '?';[/color]\n" +
+		"the shape, with the breaker left blank:\n" +
+		"    [color=#ffffff]UPDATE breakers SET state = 'on' WHERE id = 'enter_breaker_id';[/color]\n" +
 		"  UPDATE breakers   change rows in the breakers table\n" +
 		"  SET state = 'on'   what to change: the state column becomes 'on'\n" +
-		"  WHERE id = '?'   only that one row. ? is the id of the breaker the work order names. without WHERE, every row changes",
+		"  WHERE id = 'enter_breaker_id'   only that one row. replace enter_breaker_id with the id of the breaker the work order names. without WHERE, every row changes",
 		"type\n" +
 		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
 		"the work order names a circuit, not an id. find the PLANT CONTROL row: its id is in the first column.",
@@ -420,12 +420,12 @@ func _make_puzzles() -> void:
 	# Verify after write, practised: the breaker read back, once it's been reset.
 	# The whole panel read back (its id and state shown) answers it too.
 	check_puzzle = Puzzle.new("check", "SELECT state FROM breakers WHERE id = '%s'" % t, ["state"], false, [
-		"the shape, with the breaker left as ?:\n" +
-		"    [color=#ffffff]SELECT state FROM breakers WHERE id = '?';[/color]\n" +
+		"the shape, with the breaker left blank:\n" +
+		"    [color=#ffffff]SELECT state FROM breakers WHERE id = 'enter_breaker_id';[/color]\n" +
 		"  SELECT state   just the state column\n" +
 		"  FROM breakers   the breaker panel\n" +
-		"  WHERE id = '?'   only that breaker. ? is the one you just reset",
-		"the work order's sign-off wants the state you read, not the one you typed. ? is the id from your UPDATE.",
+		"  WHERE id = 'enter_breaker_id'   only that breaker. replace enter_breaker_id with the one you just reset",
+		"the work order's sign-off wants the state you read, not the one you typed. replace enter_breaker_id with the id from your UPDATE.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT state FROM breakers WHERE id = '%s';[/color]\n" % t +
 		"it should say on. that's the read-back the sign-off wants.",
@@ -436,13 +436,13 @@ func _make_puzzles() -> void:
 	login_puzzle = StatePuzzle.new("login", "INSERT INTO contractor_log (company, job, time_in) VALUES %s" % who,
 		"SELECT COUNT(*) > 0 AS logged FROM contractor_log WHERE lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s' AND trim(time_in) = '%s'" % [data.company, data.ticket, data.time_in],
 		"SELECT 1 AS logged", ["logged"], [
-		"the shape, with your job and the time left as ?:\n" +
-		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '?', '?');[/color]\n" % data.company +
+		"the shape, with your job and the time left blank:\n" +
+		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', 'enter_job_number', 'enter_time');[/color]\n" % data.company +
 		"  INSERT INTO contractor_log   add a new row to the contractor log\n" +
 		"  (company, job, time_in)   the columns you're filling. log_no fills itself in\n" +
 		"  VALUES (...)   the new row's values, in the same order as those columns\n" +
 		"  '...'   each value here is text, so it goes in single quotes\n" +
-		"the first ? is your own work order's number (Byte-Right's, in your notebook). the second ? is the time on the clock over this room's door.",
+		"replace enter_job_number with your own work order's number (Byte-Right's, in your notebook), and enter_time with the time on the clock over this room's door.",
 		"open your notebook (Tab): the work order's number is printed at the top, WO- and five digits. the clock over the door reads hours:minutes.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES %s;[/color]\n" % who +
@@ -452,20 +452,20 @@ func _make_puzzles() -> void:
 	# The log-in counts once it's read back (verify after write, practised safely on
 	# every route). Any read of the log that shows the crew's row answers it.
 	login_read_puzzle = Puzzle.new("login_read", "SELECT company, job, time_in FROM contractor_log", ["company", "job", "time_in"], false, [
-		"the shape: read the log back, with the table left as ?:\n" +
-		"    [color=#ffffff]SELECT * FROM ?;[/color]\n" +
-		"? is the table you just added your row to.",
+		"the shape: read the log back, with the table left blank:\n" +
+		"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
+		"replace enter_table_name with the table you just added your row to.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT * FROM contractor_log;[/color]",
 	])
 	login_read_puzzle.case_id = "login"
 	main_doors_puzzle = StatePuzzle.new("main_doors", "UPDATE doors SET locked = 0 WHERE id = 'main_doors'",
 		"SELECT locked FROM doors WHERE id = 'main_doors'", "SELECT 0 AS locked", ["locked"], [
-		"the shape, with the door left as ?:\n" +
-		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = '?';[/color]\n" +
+		"the shape, with the door left blank:\n" +
+		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = 'enter_door_id';[/color]\n" +
 		"  UPDATE doors   change rows in the doors table\n" +
 		"  SET locked = 0   0 is open, 1 is locked\n" +
-		"  WHERE id = '?'   only that door. ? is the fire exit Facilities' notice names",
+		"  WHERE id = 'enter_door_id'   only that door. replace enter_door_id with the fire exit Facilities' notice names",
 		"Facilities' notice on the corkboard here names the east fire exit's door. read its row first: SELECT * FROM doors;",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = 'main_doors';[/color]\n",
@@ -475,26 +475,26 @@ func _make_puzzles() -> void:
 	lockout_puzzle = StatePuzzle.new("lockout", "INSERT INTO lockouts (breaker, company, job) VALUES %s" % lock_row,
 		"SELECT COUNT(*) > 0 AS locked_out FROM lockouts WHERE upper(trim(breaker)) = '%s' AND lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s'" % [data.bay_breaker, data.company, data.ticket],
 		"SELECT 1 AS locked_out", ["locked_out"], [
-		"the shape, with the breaker and your job left as ?:\n" +
-		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES ('?', '%s', '?');[/color]\n" % data.company +
+		"the shape, with the breaker and your job left blank:\n" +
+		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES ('enter_breaker_id', '%s', 'enter_job_number');[/color]\n" % data.company +
 		"  INSERT INTO lockouts   add a lockout\n" +
 		"  (breaker, company, job)   the columns you're filling\n" +
 		"  VALUES (...)   the values, in the same order\n" +
-		"the first ? is the charging bay's breaker id. the second ? is your own work order's number (Byte-Right's, in your notebook).",
+		"replace enter_breaker_id with the charging bay's breaker id, and enter_job_number with your own work order's number (Byte-Right's, in your notebook).",
 		"type\n" +
 		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
-		"the CHARGING BAY row's id is the first ?. then someone reads the lockout back at the bay's own panel, fast.",
+		"the CHARGING BAY row's id goes in place of enter_breaker_id. then someone reads the lockout back at the bay's own panel, fast.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES %s;[/color]\n" % lock_row +
 		"then, at the panel in the bay, within 30 seconds: SELECT * FROM lockouts;",
 	])
 	lockout_puzzle.case_id = "seal"
 	# The read-back at the bay's panel: the lockouts table, or the bay's own row.
-	# SELECT * is long practised: the review ladder (the shape with ?, then the query).
+	# SELECT * is long practised: the review ladder (the shape with a blank, then the query).
 	readback_puzzle = Puzzle.new("readback", "SELECT breaker, company, job FROM lockouts", ["breaker", "company", "job"], false, [
-		"the shape, with the table left as ?:\n" +
-		"    [color=#ffffff]SELECT * FROM ?;[/color]\n" +
-		"? is the lockout log's table: its name is on the lockout card by the breaker panel.",
+		"the shape, with the table left blank:\n" +
+		"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
+		"replace enter_table_name with the lockout log's table: its name is on the lockout card by the breaker panel.",
 		"type this, then Enter, within 30 seconds of logging the lockout:\n" +
 		"    [color=#ffffff]SELECT * FROM lockouts;[/color]",
 	])
@@ -507,11 +507,11 @@ func _make_puzzles() -> void:
 	entrance_puzzle = StatePuzzle.new("entrance", "UPDATE gates SET unlocked = 1 WHERE name = 'main_entrance'",
 		"SELECT MAX(u) AS unlocked FROM (SELECT unlocked AS u FROM gates WHERE name = 'main_entrance' UNION ALL SELECT 1 - locked FROM doors WHERE id = 'LOBBY-FRONT')",
 		"SELECT 1 AS unlocked", ["unlocked"], [
-		"the shape, with the gate left as ?:\n" +
-		"    [color=#ffffff]UPDATE gates SET unlocked = 1 WHERE name = '?';[/color]\n" +
+		"the shape, with the gate left blank:\n" +
+		"    [color=#ffffff]UPDATE gates SET unlocked = 1 WHERE name = 'enter_gate_name';[/color]\n" +
 		"  UPDATE gates   change a row in the gates table\n" +
 		"  SET unlocked = 1   1 is open, 0 is locked\n" +
-		"  WHERE name = '?'   only that gate. ? is the front doors' name on the night lockup card",
+		"  WHERE name = 'enter_gate_name'   only that gate. replace enter_gate_name with the front doors' name on the night lockup card",
 		"the night lockup card on the front desk names the front doors' gate on its last line.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]UPDATE gates SET unlocked = 1 WHERE name = 'main_entrance';[/color]\n" +
@@ -519,9 +519,9 @@ func _make_puzzles() -> void:
 	])
 	entrance_puzzle.case_id = "entrance"
 	verify_puzzle = Puzzle.new("verify", "SELECT unlocked FROM gates WHERE name = 'main_entrance'", ["unlocked"], false, [
-		"the shape: read the row back, with the gate left as ?:\n" +
-		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = '?';[/color]\n" +
-		"? is the gate you just changed.",
+		"the shape: read the row back, with the gate left blank:\n" +
+		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = 'enter_gate_name';[/color]\n" +
+		"replace enter_gate_name with the gate you just changed.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = 'main_entrance';[/color]",
 	])
@@ -530,12 +530,12 @@ func _make_puzzles() -> void:
 	var hb: int = data.hatch_bay
 	gantry_puzzle = StatePuzzle.new("gantry", "UPDATE gantry SET bay = %d WHERE id = 'GA-1'" % hb,
 		"SELECT bay FROM gantry WHERE id = 'GA-1'", "SELECT %d AS bay" % hb, ["bay"], [
-		"the shape, with the bay left as ?:\n" +
-		"    [color=#ffffff]UPDATE gantry SET bay = ? WHERE id = 'GA-1';[/color]\n" +
+		"the shape, with the bay left blank:\n" +
+		"    [color=#ffffff]UPDATE gantry SET bay = enter_bay_number WHERE id = 'GA-1';[/color]\n" +
 		"  UPDATE gantry   change the gantry arm's row\n" +
-		"  SET bay = ?   move it to that bay. ? is a number: no quotes\n" +
+		"  SET bay = enter_bay_number   move it to that bay. it's a number: no quotes\n" +
 		"  WHERE id = 'GA-1'   only the arm GA-1\n" +
-		"? is the bay under the access panel: the gantry card on the north wall says which.",
+		"replace enter_bay_number with the bay under the access panel: the gantry card on the north wall says which.",
 		"read the gantry card by where the arm parks: it numbers the bays and names the one under the access panel. or type\n" +
 		"    [color=#ffffff]SELECT * FROM gantry;[/color]\n" +
 		"to see where the arm is now.",
@@ -1471,12 +1471,12 @@ func _put_back_hints() -> void:
 			if id != data.target and (str(row["state"]) == "on") != was_on:
 				fixes.append("    [color=#ffffff]UPDATE breakers SET state = '%s' WHERE id = '%s';[/color]" % ["on" if was_on else "off", id])
 	put_back_puzzle.hints = [
-		"the shape, with the breaker left as ?:\n" +
-		"    [color=#ffffff]UPDATE breakers SET state = 'off' WHERE id = '?';[/color]\n" +
+		"the shape, with the breaker left blank:\n" +
+		"    [color=#ffffff]UPDATE breakers SET state = 'off' WHERE id = 'enter_breaker_id';[/color]\n" +
 		"  UPDATE breakers   change rows in the breakers table\n" +
 		"  SET state = 'off'   the state column becomes 'off'\n" +
-		"  WHERE id = '?'   only that one breaker\n" +
-		"? is each breaker whose tag says to leave it off, one at a time.",
+		"  WHERE id = 'enter_breaker_id'   only that one breaker\n" +
+		"replace enter_breaker_id with each breaker whose tag says to leave it off, one at a time.",
 		"type\n" +
 		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
 		"and read the note column: the tags say which ones stay off. tonight's breaker stays on.",

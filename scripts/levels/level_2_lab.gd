@@ -97,17 +97,17 @@ static func create(for_level: Node3D, level_data: Dictionary) -> Level2Lab:
 
 
 ## The lab door's query: its own zone, and status 'fault'. Both conditions matter.
-## Hints: the shape with the zone left as '?', then where the zone is, then the query.
+## Hints: the shape with the zone left as 'enter_zone', then where the zone is, then the query.
 static func door_puzzle_for(zone: String) -> Puzzle:
 	return Puzzle.new("lab_door", "SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % zone, ["id"], false, [
-		"the shape, with the zone left as ?:\n" +
-		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '?' AND status = 'fault';[/color]\n" +
-		"  SELECT *               every column\n" +
-		"  FROM door_controllers  the building's door controllers\n" +
-		"  WHERE zone = '?'       only this lab's zone\n" +
-		"  AND status = 'fault'   ...that are ALSO faulted. both must be true\n" +
-		"? is this lab's controller zone. it's on the plate by the door, and on a card in here.",
-		"the door card hangs over the bench. it says \"controller zone\" and a letter. put that letter where the ? is.",
+		"the shape, with the zone left blank:\n" +
+		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = 'enter_zone' AND status = 'fault';[/color]\n" +
+		"  SELECT *                   every column\n" +
+		"  FROM door_controllers      the building's door controllers\n" +
+		"  WHERE zone = 'enter_zone'  only this lab's zone\n" +
+		"  AND status = 'fault'       ...that are ALSO faulted. both must be true\n" +
+		"replace enter_zone with this lab's controller zone. it's on the plate by the door, and on a card in here.",
+		"the door card hangs over the bench. it says \"controller zone\" and a letter. put that letter in place of enter_zone.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % zone +
 		"the id it gives you is the one to reset. the switches are on this lab's wall, by the coat. " +

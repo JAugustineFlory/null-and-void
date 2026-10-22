@@ -217,7 +217,7 @@ func test_scene() -> void:
 		and level.bay_terminal.puzzles.all(func(pz): return pz.hints.size() == 2), "every new write has a three-step hint ladder; the log's and the bay's read-backs, two-step reviews")
 	var ui: TerminalUI = level.terminal_ui
 	ui.terminal = level.maint
-	check(level.maint.next_hint().contains("UPDATE breakers SET state = 'on' WHERE id = '?'"), "the first hint is the UPDATE's shape with the breaker as ?")
+	check(level.maint.next_hint().contains("UPDATE breakers SET state = 'on' WHERE id = 'enter_breaker_id'"), "the first hint is the UPDATE's shape with the breaker left blank")
 	var wo: Node = _doc(level, "Facilities work order")
 	check(wo != null and wo.plain_text().contains("UPDATE breakers SET state = 'on' WHERE id = 'CB-03';") and not wo.plain_text().contains(data.target), "the work order shows last month's UPDATE, not tonight's breaker")
 	wo.open_reader(p).close()
@@ -248,7 +248,7 @@ func test_scene() -> void:
 	var h1: String = level.maint.next_hint()
 	level.maint.next_hint()
 	var fixes := _hint_queries(level.maint.next_hint())
-	check(h1.contains("SET state = 'off' WHERE id = '?'") and fixes.size() == data.decoys.size(), "during the alarm the hints are for putting the others back, ending on one UPDATE per breaker (%d)" % fixes.size())
+	check(h1.contains("SET state = 'off' WHERE id = 'enter_breaker_id'") and fixes.size() == data.decoys.size(), "during the alarm the hints are for putting the others back, ending on one UPDATE per breaker (%d)" % fixes.size())
 	ui.run(fixes[0])
 	await _frames(2)
 	check(level.alarm and _hint_queries(level.maint.next_hint()).size() == data.decoys.size() - 1, "one back isn't all: the alarm goes on, and the last hint lists only the rest")

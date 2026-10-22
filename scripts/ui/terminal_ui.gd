@@ -13,6 +13,8 @@ const TABLE_HEAD := "#ffd27f"
 const TABLE_RULE := "#4f8a5c"
 const TABLE_ROWS := ["#e2ffe6", "#8fdca2"]
 const HINT := "#7fd4ff"
+## SYSOP, when a hint's blank (enter_...) is typed in as it is.
+const BLANK_TYPED := "%s is the blank from the hint. Type the real value in its place."
 const KEYWORD := "#ffcc59"
 const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]
 
@@ -675,7 +677,17 @@ static func _explain(on_terminal: Node, sql: String, error: String) -> String:
 	for blank in blanks:
 		if RegEx.create_from_string("(?i)\\b%s\\b" % blank).search(sql) and error.contains(blank):
 			return blanks[blank]
+	var hint_blank := hint_blank_in(sql)
+	if hint_blank != "" and error.to_lower().contains(hint_blank):
+		return BLANK_TYPED % hint_blank
 	return FacilityDB.explain_error(error)
+
+
+## A hint's shape names each value to fill in (enter_column_name, enter_zone...):
+## the first one typed into `sql` as it is, or "".
+static func hint_blank_in(sql: String) -> String:
+	var m := RegEx.create_from_string("(?i)\\b(enter_[a-z_]+)").search(sql)
+	return m.get_string(1).to_lower() if m else ""
 
 
 ## Print a query and its result on `on_terminal`'s screen. `from_peer` typed it.
@@ -703,9 +715,12 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 				out.append(["(0 rows)", "info"])
 		else:
 			out.append([_format_table(result.columns, result.rows), "result"])
-	# A hint's shape typed in as it is: SQLite takes ? as an empty value, so the
-	# query runs but finds nothing useful.
-	if sql.contains("?"):
+	# A hint's shape typed in as it is: a quoted blank runs but finds nothing useful
+	# (an unquoted one is an error, explained above). So is ?, which SQLite takes
+	# as an empty value.
+	if result.ok and hint_blank_in(sql) != "":
+		out.append([sysop(BLANK_TYPED % hint_blank_in(sql)), "hint"])
+	elif sql.contains("?"):
 		out.append([sysop("? is the blank from the hint. Type the real value in its place."), "hint"])
 	for line in out:
 		on_terminal.print_line(line[0], line[1])
