@@ -15,7 +15,7 @@ extends RefCounted
 ## stays green while the owning thread fixes them. When a gap is fixed, its check
 ## prints FIXED: move it to a normal check() then.
 
-const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS", "DISTINCT", "GROUP BY", "IS NULL", "UPDATE", "SET", "INSERT INTO", "VALUES"]
+const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS", "DISTINCT", "GROUP BY", "IS NULL", "UPDATE", "SET", "INSERT INTO", "VALUES", "PATCH", "POST"]
 ## Concepts that aren't one capitalised word: comparing a column with a value, and
 ## picking columns instead of *.
 const KEYWORD_PATTERNS := {
@@ -40,9 +40,10 @@ var first_use_by := {}
 var used_under_threat := {}
 
 
-## `part` splits the walks across two CI groups, since the paced lab walk is slow:
-## "main" walks every floor with lab seed 11 and runs the whole-game checks; "lab"
-## walks Levels 0-1 again (the lab needs what they taught) and then lab seed 42.
+## `part` splits the walks across CI groups, since the paced walks are slow: "main"
+## walks every floor up to 10 with lab seed 11 and runs the whole-game checks; "lab"
+## walks Levels 0-1 again (the lab needs what they taught) and then lab seed 42; "api"
+## walks floor 9, whose services teach everything their stations need on the floor.
 func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	t = tree
 	_check = check
@@ -51,6 +52,13 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	_jot_docs.clear()
 	first_use.clear()
 	used_under_threat.clear()
+	if part == "api":
+		await walk_level_5(31, true)
+		await walk_level_5(12, false)
+		check_teaching_order()
+		if gaps > 0:
+			print("  (%d known teaching gap%s, see tests/curriculum.gd)" % [gaps, "" if gaps == 1 else "s"])
+		return
 	await walk_level_0()
 	if part == "lab":
 		await walk_level_1(7)
@@ -246,6 +254,8 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 	var stuck := false
 	var copies := 0
 	var silent := []
+	var asking := puzzle is RequestPuzzle
+	var hints_from: int = ui.terminal.transcript.size()
 	while not puzzle.solved and not (done.is_valid() and done.call()):
 		var read := remember(level, ui)
 		if pace:
@@ -258,6 +268,13 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		# in full on a paper in this room (a clerk's crib by the terminal).
 		for shown in queries_in(text + "\n" + world_text(level, ui.terminal)):
 			for q in fill_blanks(level, shown, ui.terminal):
+				if not tried.has(q) and not fresh.has(q) and not (asking and q.contains("<")):
+					fresh.append(q)
+		# A request is copied off a paper in the room, or typed as a hint shows it in white.
+		var papers: Array[String] = paper_requests(level, ui.terminal) if asking else ([] as Array[String])
+		if asking:
+			# A paper's request already sent on this floor isn't sent again: its answer said why.
+			for q in papers.filter(func(q): return not _copied.has(q)) + hint_requests(ui.terminal, hints_from):
 				if not tried.has(q) and not fresh.has(q):
 					fresh.append(q)
 		if fresh.is_empty():
@@ -285,17 +302,21 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			# A write copied off a paper is a beginner's first move. When it changes
 			# rows and isn't the answer, a SYSOP line or something in the world must
 			# say why (judged the first time it's typed).
-			var copy := FacilityDB.is_write(q) and not on_screen.has(q) and not _copied.has(q)
+			var copy := (papers.has(q) if asking else FacilityDB.is_write(q) and not on_screen.has(q)) and not _copied.has(q)
 			var said_from: int = ui.terminal.transcript.size()
 			var notice: String = level.hud._notice.text
 			ui.run(q)
+			if asking:
+				await t.physics_frame
+				await t.physics_frame
 			if copy:
 				_copied[q] = true
 				copies += 1
-				await t.physics_frame
-				await t.physics_frame
-				if not puzzle.solved and _silent(ui.terminal, said_from) and level.hud._notice.text == notice:
-					silent.append(q)
+				if not asking:
+					await t.physics_frame
+					await t.physics_frame
+				if not puzzle.solved and (_silent_request(ui.terminal, said_from) if asking else _silent(ui.terminal, said_from)) and level.hud._notice.text == notice:
+					silent.append(q.replace("\n", " / "))
 			if (done.is_valid() and done.call()) or puzzle.solved:
 				break
 	var read_last := remember(level, ui)
@@ -320,7 +341,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			unoffered.append(k)
 	check(unoffered.is_empty(), "%s: everything it teaches is on a terminal line or sticky note, ready to write down%s" % [puzzle.id, "" if unoffered.is_empty() else " (missing %s)" % ", ".join(unoffered)])
 	if copies > 0:
-		var said_why := "%s: a paper's write, copied when it isn't the answer, gets a reason%s" % [puzzle.id, "" if silent.is_empty() else " (nothing said after %s)" % "; ".join(silent)]
+		var said_why := "%s: a paper's %s, copied when it isn't the answer, gets a reason%s" % [puzzle.id, "request" if asking else "write", "" if silent.is_empty() else " (nothing said after %s)" % "; ".join(silent)]
 		if spec.has("silent_copy"):
 			gap(silent.is_empty(), "%s (%s)" % [said_why, spec.silent_copy])
 		else:
@@ -337,6 +358,13 @@ func _silent(term: Node, from: int) -> bool:
 	var lines := Array(term.transcript).slice(from)
 	var changed := RegEx.create_from_string("OK\\. [1-9]\\d* row\\(s\\) changed")
 	return lines.any(func(l): return changed.search(str(l)) != null) and not lines.any(func(l): return str(l).contains("SYSOP"))
+
+
+## Since line `from`: the service took a copied request (2xx) and no SYSOP line said why
+## it isn't the answer. An error's own body is its reason.
+func _silent_request(term: Node, from: int) -> bool:
+	var lines := Array(term.transcript).slice(from)
+	return lines.any(func(l): return TerminalUI._plain(str(l)).begins_with("HTTP/1.0 2")) and not lines.any(func(l): return str(l).contains("SYSOP"))
 
 
 ## The player read a paper where it lies (a card in another room, say): its lines
@@ -389,6 +417,11 @@ func has_blank(query: String) -> bool:
 func _shape(p: Puzzle) -> String:
 	if p.hints.is_empty():
 		return ""
+	if p is RequestPuzzle:
+		for b in white_blocks(p.hints[0]):
+			if has_blank(b):
+				return b
+		return ""
 	for q in queries_in(_plain(p.hints[0])):
 		if has_blank(q):
 			return q
@@ -399,6 +432,9 @@ func _shape(p: Puzzle) -> String:
 func _answer_query(p: Puzzle) -> String:
 	if p.hints.is_empty():
 		return p.solution_sql
+	if p is RequestPuzzle:
+		var exact := _exact_requests(p)
+		return "\n\n".join(exact) if not exact.is_empty() else p.solution_sql
 	var from: String = p.hints[-1] if _shape(p) != "" else p.hints[0]
 	for q in queries_in(_plain(from)):
 		if not has_blank(q):
@@ -410,6 +446,8 @@ func _answer_query(p: Puzzle) -> String:
 func rescue_tier(p: Puzzle) -> int:
 	if p.hints.is_empty():
 		return 0
+	if p is RequestPuzzle:
+		return p.hints.size()  # both request ladders end on what to type
 	return p.hints.size() if _shape(p) != "" else 1
 
 
@@ -426,6 +464,9 @@ func _escape(text: String) -> String:
 ## puzzle. Every hint uses the real tables. A puzzle with no value to find is marked
 ## "ladder": "exact" in tests/curriculum.gd: its first hint is the exact query.
 func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
+	if p is RequestPuzzle:
+		check_request_ladder(p)
+		return
 	if Curriculum.PUZZLES.get(p.id, {}).get("ladder", "") == "held":
 		# Drafted, not built: the floor's ladders wait on an approval (see the row).
 		gap(not p.hints.is_empty(), "%s: a hint ladder is built (drafted in plan/approvals/l3-text.md, held for approval)" % p.id)
@@ -474,14 +515,161 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 	check(real, "%s: hints use the real tables, never an example one" % p.id)
 
 
+# --- Requests (floor 9's services) -------------------------------------------
+
+## What a hint shows in white, to type as it is: each block's plain text. On screen
+## the keywords inside are coloured too, so a block ends at the tag that closes it.
+func white_blocks(bbcode: String) -> Array[String]:
+	var out: Array[String] = []
+	var opened: Array[bool] = []  # each open colour tag: did it start a white block?
+	var start := -1
+	for m in RegEx.create_from_string("\\[(/?)color[^\\]]*\\]").search_all(bbcode):
+		if m.get_string(1) == "":
+			var starts := start < 0 and m.get_string() == "[color=#ffffff]"
+			if starts:
+				start = m.get_end()
+			opened.append(starts)
+		elif not opened.is_empty() and opened.pop_back():
+			out.append(TerminalUI._plain(bbcode.substr(start, m.get_start() - start)).strip_edges())
+			start = -1
+	return out
+
+
+## The requests a station's last hint says to type, with no blank left in them.
+func _exact_requests(p: Puzzle) -> Array[String]:
+	var out: Array[String] = []
+	if not p.hints.is_empty():
+		for b in white_blocks(p.hints[-1]):
+			if not has_blank(b):
+				out.append(b)
+	return out
+
+
+## The first of `exact` that `shape` matches with its blanks filled in: the match's
+## groups are the values (null: none).
+func _shape_match(shape: String, exact: Array) -> RegExMatch:
+	if shape == "":
+		return null
+	var re := RegEx.create_from_string("^" + RegEx.create_from_string(BLANK).sub(_escape(shape), "(.+?)", true) + "$")
+	for q in exact:
+		var m := re.search(q)
+		if m:
+			return m
+	return null
+
+
+## The requests the hints since line `from` showed in white, ready to send (no blank).
+func hint_requests(term: Node, from: int) -> Array[String]:
+	var out: Array[String] = []
+	for i in range(from, term.transcript.size()):
+		if i < term.transcript_kinds.size() and term.transcript_kinds[i] != "hint":
+			continue
+		for b in white_blocks(term.transcript[i]):
+			if not has_blank(b) and FacilityAPI.is_request(b) and not out.has(b):
+				out.append(b)
+	return out
+
+
+## Requests written out on papers in the room, as a beginner copies them: the request
+## line, its header lines and its JSON body. Once the player has the HR key (it's in
+## what they've read), it goes in a <key> blank; a request with any other blank
+## (<badge>, <door>) can't be sent as it is.
+func paper_requests(level: Node, at: Node3D) -> Array[String]:
+	var data = level.get("data")
+	var key: String = str(data.get("keys", {}).get("hr", "")) if data is Dictionary else ""
+	var header := RegEx.create_from_string("^[A-Za-z][A-Za-z0-9-]*: \\S")
+	var out: Array[String] = []
+	for d in level.find_children("*", "Document", true, false):
+		if not in_room(d, at):
+			continue
+		var lines: Array = Array(d.plain_text().split("\n")).map(func(l): return l.strip_edges())
+		var i := 0
+		while i < lines.size():
+			var line: String = lines[i]
+			i += 1
+			var verb := line.get_slice(" ", 0)
+			if not FacilityAPI.is_request(line) or verb != verb.to_upper():
+				continue
+			var req := [line]
+			while i < lines.size() and header.search(lines[i]):
+				req.append(lines[i])
+				i += 1
+			var j := i
+			while j < lines.size() and lines[j] == "":
+				j += 1
+			if j < lines.size() and str(lines[j]).begins_with("{"):
+				req.append_array(["", lines[j]])
+				i = j + 1
+			var typed := "\n".join(req)
+			if key != "" and taught.contains(key):
+				typed = RegEx.create_from_string("<[^>]*key>").sub(typed, key, true)
+			if not typed.contains("<") and not out.has(typed):
+				out.append(typed)
+	return out
+
+
+## The request ladders, as a query's but in white blocks. Hint 1 is the request's shape
+## with the value as a named blank (enter_...); under ladder A it explains each part on
+## a line of its own (the request line, the header, the body) and a middle tier says
+## where the value is; the last tier is exactly what to type, every block ready to send
+## (the walk sends them: that they solve it is the walk's own check). A "ladder" meta
+## on the station overrides its curriculum row: floor 9's passes take ladder A when
+## POST wasn't practised at the work order.
+func check_request_ladder(p: Puzzle) -> void:
+	var spec: Dictionary = Curriculum.PUZZLES.get(p.id, {})
+	var mode: String = p.get_meta("ladder", spec.get("ladder", ""))
+	var shape := _shape(p)
+	var exact := _exact_requests(p)
+	check(shape != "", "%s: hint 1 is the request's shape with the value as a named blank (%s)" % [p.id, "review" if mode == "review" else "ladder A"])
+	if mode == "review":
+		check(p.hints.size() == 2, "%s: review: a reminder with the shape, then exactly what to type (two tiers)" % p.id)
+	else:
+		check(p.hints.size() >= 3, "%s: three tiers: shape, where the value is, exactly what to type" % p.id)
+	check(not exact.is_empty() and exact.all(func(q): return FacilityAPI.is_request(q) and not q.contains("<")), "%s: the last hint is requests to send as they are (%s)" % [p.id, " | ".join(exact).replace("\n", " / ")])
+	var m := _shape_match(shape, exact)
+	check(m != null, "%s: hint 1's shape is one of the last hint's requests with the value blanked" % p.id)
+	if m:
+		var first := _plain(p.hints[0])
+		for i in range(1, m.get_group_count() + 1):
+			var v := m.get_string(i).strip_edges()
+			var given := RegEx.create_from_string("(?i)(?<![A-Za-z0-9_])" + _escape(v) + "(?![A-Za-z0-9_])").search(first) != null
+			var said := "%s: hint 1 doesn't give the value away (%s)" % [p.id, v]
+			if spec.has("shape_gap"):
+				gap(not given, "%s (%s)" % [said, spec.shape_gap])
+			else:
+				check(not given, said)
+	if mode != "review" and shape != "":
+		var parts := [shape.get_slice(" ", 0) + " /", "X-Api-Key"]
+		if shape.contains("{"):
+			parts.append("{")
+		var shown := shape.split("\n")
+		var lines := Array(_plain(p.hints[0]).split("\n")).map(func(l): return l.strip_edges()).filter(func(l): return not shown.has(l))
+		var missing := parts.filter(func(part): return not lines.any(func(l): return l.begins_with(part)))
+		check(missing.is_empty(), "%s: hint 1 explains each part of the request on a line of its own (the request, the header, the body)%s" % [p.id, "" if missing.is_empty() else " (missing %s)" % ", ".join(missing)])
+	for h in p.hints.slice(1, p.hints.size() - 1):
+		check(not exact.any(func(q): return white_blocks(h).has(q) or _plain(h).contains(q)), "%s: the middle hints say where the value is, not what to type" % p.id)
+	var real := true
+	for h in p.hints:
+		real = real and not RegEx.create_from_string("(?i)\\b(employees|customers|users|students|orders)\\b").search(h)
+	check(real, "%s: hints use the real services, never an example one" % p.id)
+
+
+## The walks time the queries, so every chapter of every book is already in:
+## coming in, its lines would only add time here, and the walks never lean on the
+## book (ladder A explains each word). The chapters have their own tests.
+func skip_chapters(level: Node) -> void:
+	var h := Huddle.of(level)
+	for id in Books.chapter_ids():
+		h.done[id] = true
+
+
 # --- Level 0: the lobby -----------------------------------------------------
 
 func walk_level_0() -> void:
 	_game().new_run(5)
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	t.root.add_child(level)
-	for id in ["easy_sql_2", "easy_sql_3", "easy_sql_4"]:
-		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
+	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
 	check_case_clues(level, "lobby")
@@ -561,7 +749,7 @@ func _puzzles(level: Node) -> Array:
 ## characters are left out: extensions, temperatures and one-letter zones are inputs.
 func _answer_values(level: Node, p: Puzzle) -> Array:
 	var out := []
-	if p.solution_sql == "" or FacilityDB.is_write(p.solution_sql):
+	if p.solution_sql == "" or FacilityDB.is_write(p.solution_sql) or p is RequestPuzzle:
 		return out  # an API puzzle's answer comes back as JSON, and a write's isn't rows
 	for row in level.db.run_silent(p.solution_sql):
 		for v in row.values():
@@ -579,9 +767,12 @@ func _blanks(p: Puzzle) -> Array:
 	var out := []
 	if shape == "":
 		return out
-	var m := RegEx.create_from_string("^" + RegEx.create_from_string(BLANK).sub(_escape(shape), "(.+?)", true) + "$").search(_answer_query(p))
+	var m := _shape_match(shape, _exact_requests(p)) if p is RequestPuzzle else RegEx.create_from_string("^" + RegEx.create_from_string(BLANK).sub(_escape(shape), "(.+?)", true) + "$").search(_answer_query(p))
 	if m:
+		var names := RegEx.create_from_string(BLANK).search_all(shape)
 		for i in range(1, m.get_group_count() + 1):
+			if i <= names.size() and names[i - 1].get_string() == "enter_service":
+				continue  # a service's name is on every boot screen: no secret
 			out.append(m.get_string(i).strip_edges().trim_prefix("'").trim_suffix("'").to_lower())
 	return out
 
@@ -667,8 +858,7 @@ func walk_level_1(seed_value: int) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_1.tscn").instantiate()
 	t.root.add_child(level)
-	for id in ["easy_sql_5", "easy_sql_6", "easy_sql_7", "easy_sql_8"]:
-		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
+	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
 	level._on_asked()  # Rourke has asked the crew to find the fault
@@ -754,8 +944,7 @@ func walk_lab(seed_value: int) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	t.root.add_child(level)
-	for id in ["easy_sql_9", "easy_sql_10", "easy_sql_11", "easy_sql_12", "easy_sql_13"]:
-		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
+	skip_chapters(level)
 	Engine.time_scale = 4.0
 	for i in 20:
 		await t.physics_frame
@@ -812,8 +1001,7 @@ func walk_level_2(seed_value: int) -> void:
 	_game().rourke_fate = "killed"  # the security section; the lab has its own walk
 	var level = load("res://scenes/level_2.tscn").instantiate()
 	t.root.add_child(level)
-	for id in ["easy_sql_9", "easy_sql_10", "easy_sql_11", "easy_sql_12", "easy_sql_13"]:
-		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
+	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
 	check_case_clues(level, "security floor (seed %d)" % seed_value)
@@ -911,6 +1099,7 @@ func walk_level_3(seed_value: int) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_3.tscn").instantiate()
 	t.root.add_child(level)
+	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
 	var where := "records archive (seed %d)" % seed_value
@@ -1073,8 +1262,7 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_4.tscn").instantiate()
 	t.root.add_child(level)
-	for id in ["easy_sql_update", "easy_sql_insert"]:
-		level.get_node("Huddle").done[id] = true  # the walks time the queries; the chapters have their own tests
+	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
 	level.completed.disconnect(level._on_completed)  # the walk ends with the floor, not in the next scene
@@ -1194,6 +1382,122 @@ func _bay_run(level: Node) -> float:
 		var b: Vector3 = way[i + 1]
 		metres += Vector2(a.x - b.x, a.z - b.z).length()
 	return metres
+
+
+# --- Level 5: the Personnel Wing, floor 9 ---------------------------------------
+
+## Floor 9 through the building's services: requests with the HR key in a header and a
+## JSON body, typed as the hints show them in white or copied off the papers. Sealed on
+## 10 (`seal`), the crew logs the work order, so POST is practised before the passes,
+## and its stretch is paced as a first-time player against the air's grace; nothing
+## hunts the passes and the lockup then (a known gap). Loose, the crew props the stair
+## door instead: POST is new at the passes (ladder A), and the Custodian is up the dock
+## stairs before them. The voice on the radio comes as soon as the service answers, so
+## the crew checks it at the desk.
+func walk_level_5(seed_value: int, seal: bool) -> void:
+	_game().new_run(seed_value)
+	_game().custodian_sealed = seal
+	var level = load("res://scenes/level_5.tscn").instantiate()
+	t.root.add_child(level)
+	skip_chapters(level)
+	for i in 20:
+		await t.physics_frame
+	level.completed.disconnect(level._on_completed)  # the walk ends with the floor, not in the next scene
+	var net: Node = t.root.get_node("/root/Net")
+	var earned: Array = net.profile.earned.duplicate()
+	_copied.clear()
+	var where := "personnel wing (seed %d, %s)" % [seed_value, "sealed, work order" if seal else "loose, stair door propped"]
+	var ui: TerminalUI = level.terminal_ui
+	var p: Player = level.player
+	p.local_control = false
+	level.lure_delay = 0.3
+
+	# The HR front desk: the desk sheet's request carries the HR key in a header.
+	_doc(level, "Personnel request sheet").open_reader(p).close()
+	ui.open(level.hr, p)
+	var h := await solve(level, ui, level.key_puzzle, _hunted_9(level))
+	check(h <= rescue_tier(level.key_puzzle) and level.key_puzzle.solved, "%s: the HR service answers to the manager's key, from the desk sheet or the ladder (hints %d)" % [where, h])
+	check(_said(level.hr, level.TEXT.tip_header), "%s: the sheet's request, sent without a key, gets 401 and SYSOP's word on where a key goes" % where)
+	check(await _until(func(): return level.lures == 1, 5.0), "%s: then a voice on the radio wants the loading door" % where)
+	h = await solve(level, ui, level.swipes_puzzle, _hunted_9(level))
+	check(h <= rescue_tier(level.swipes_puzzle) and level.swipes_puzzle.solved and not level.dock_opened, "%s: the readers' log shows it isn't who it sounds like, and the loading door stays shut (hints %d)" % [where, h])
+	ui.close()
+	check_case_clues(level, where)
+	check_jots(level, where)
+
+	# Payroll's panel. The clipboard's crib is another panel's circuit and the carbon
+	# copy another floor's order: copied, each gets SYSOP's why.
+	if not seal:
+		level.prop_time = 0.3
+		level.prop.used.emit(p)  # propped on the way up: the floor clears without a work order
+		check(await _until(func(): return level.air_cleared, 5.0), "%s: the stair door propped, the air clears" % where)
+	_doc(level, "Facilities clipboard").open_reader(p).close()
+	_doc(level, "Carbon copy").open_reader(p).close()
+	ui.open(level.panel, p)
+	h = await solve(level, ui, level.circuits_puzzle, _hunted_9(level))
+	check(h <= rescue_tier(level.circuits_puzzle) and level.power_back, "%s: payroll's lights and the cage lock come back, the copiers off first, from the clipboard or the ladder (hints %d)" % [where, h])
+	check(_said(level.panel, level.TEXT.tip_example), "%s: the clipboard's crib, copied, answers 404 and SYSOP says it's another panel's" % where)
+	if seal:
+		# From the power on, the air counts: the read-back and the work order, at a
+		# first-timer's pace, inside the grace.
+		Engine.time_scale = 4.0
+		paced = 0.0
+		h = await solve(level, ui, level.check_circuits_puzzle, _hunted_9(level), 3, "", true)
+		check(h <= rescue_tier(level.check_circuits_puzzle) and level.check_circuits_puzzle.solved, "%s: the panel read back (hints %d)" % [where, h])
+		var read_back := paced
+		h = await solve(level, ui, level.air_puzzle, _hunted_9(level), 3, "", true)
+		Engine.time_scale = 1.0
+		print("  INFO  work order (seed %d): logged %d s after the power came back (the panel's read-back %d s, then the order), of the air's %d s grace (%d hint%s)" % [seed_value, paced, read_back, level.air_grace, h, "" if h == 1 else "s"])
+		check(h <= rescue_tier(level.air_puzzle) and level.air_on, "%s: the work order logged for this floor's unit, from the carbon copy's shape and the clipboard, or the ladder (hints %d)" % [where, h])
+		gap(level._air_ticks == 0, "%s: a first-time player reads the panel back and logs the work order before the air hurts (%d s of %d; told the architect 2026-10-22: a longer grace, or the clock from the read-back)" % [where, paced, level.air_grace])
+		check(_said(level.panel, level.TEXT.tip_unit), "%s: the carbon copy's order, copied, goes in for floor 14's unit and SYSOP says so" % where)
+		h = await solve(level, ui, level.check_air_puzzle, _hunted_9(level))
+		check(h <= rescue_tier(level.check_air_puzzle) and level.check_air_puzzle.solved, "%s: the work order read back (hints %d)" % [where, h])
+	else:
+		h = await solve(level, ui, level.check_circuits_puzzle, _hunted_9(level))
+		check(h <= rescue_tier(level.check_circuits_puzzle) and level.check_circuits_puzzle.solved, "%s: the panel read back (hints %d)" % [where, h])
+		check(level.custodian_timed and not _hunted_9(level), "%s: with the power back and the air clear, the Custodian starts up the dock stairs" % where)
+		level._custodian_arrives()  # its climb, cut short
+		level.custodian.process_mode = Node.PROCESS_MODE_DISABLED  # keep the walk deterministic: it's loose, but stands still
+		check(_hunted_9(level), "%s: the Custodian is loose on the floor" % where)
+	ui.close()
+
+	# The night-shifters, then the lockup, at the desk. The procedure's requests have
+	# blanks (<their badge>, <door>): there's nothing on it to copy whole.
+	_doc(level, "Escort procedure").open_reader(p).close()
+	var ladder: String = "review" if seal else "a"
+	check(level.passes_ladder == ladder, "%s: the passes take %s" % [where, "the review ladder: POST was practised at the work order" if seal else "ladder A: POST is new here"])
+	level.passes_puzzle.set_meta("ladder", "review" if level.passes_ladder == "review" else "")
+	var calm := "" if _hunted_9(level) else "sealed, nothing hunts the passes and the lockup: the architect put it to Augustine with plan/approvals/l5-text.md"
+	ui.open(level.hr, p)
+	h = await solve(level, ui, level.passes_puzzle, _hunted_9(level), 3, calm)
+	check(h <= rescue_tier(level.passes_puzzle) and level.passes_puzzle.solved and level.out.size() == 2, "%s: both night-shifters passed and out, their doors opened through the service (hints %d)" % [where, h])
+	h = await solve(level, ui, level.lockup_puzzle, _hunted_9(level), 3, calm)
+	check(h <= rescue_tier(level.lockup_puzzle) and level.lockup_puzzle.solved, "%s: every door opened tonight locked again%s (hints %d)" % [where, "" if seal else ", the loading door too", h])
+	h = await solve(level, ui, level.check_lockup_puzzle, _hunted_9(level), 3, calm)
+	check(h <= rescue_tier(level.check_lockup_puzzle) and level.released, "%s: read back, STAIR 2 releases (hints %d)" % [where, h])
+	if seal:
+		# Optional, and safe here: Vale's own record (the review ladder, once the rest is done).
+		h = await solve(level, ui, level.vale_puzzle, _hunted_9(level))
+		check(h <= rescue_tier(level.vale_puzzle) and _game().case_info("vale").get("solved", false), "%s: Vale's record, by her badge from the staff list (hints %d)" % [where, h])
+	ui.close()
+
+	var done := [false]
+	level.completed.connect(func(): done[0] = true)
+	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(-2.4, 0.1, 0)))
+	Engine.time_scale = 4.0
+	check(await _until(func(): return done[0], 40.0), "%s: everyone on STAIR 2, the floor ends" % where)
+	Engine.time_scale = 1.0
+	net.profile.earned = earned
+	level.queue_free()
+	await t.process_frame
+
+
+## Something can hurt the crew on floor 9 while they type: the Custodian loose on the
+## floor, or the air past its grace. The Mimics never attack (Augustine's call).
+func _hunted_9(level: Node) -> bool:
+	var air: bool = level.air_armed and level.power_back and not (level.air_on or level.air_cleared or level.released) and level._air_time >= level.air_grace
+	return (level.custodian_here and not level.released) or air
 
 
 ## A pressure puzzle is built, not copied: no full query written on a paper within

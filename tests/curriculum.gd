@@ -17,6 +17,8 @@ extends RefCounted
 ## its first hint stays the exact query. `"ladder": "review"` marks a puzzle whose
 ## keyword was practised safely on an earlier floor: two tiers, a reminder with the
 ## shape (the value as a named blank, enter_...) and then the exact query. Every other puzzle uses hint ladder A.
+## `"shape_gap"` says why a request ladder's hint 1 still names the value its shape
+## leaves blank; it prints as GAP until the owner fixes it.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 
@@ -302,14 +304,14 @@ const PUZZLES := {
 	# read-only, so every change goes through the building's services: a key in a header,
 	# PATCH and POST with a JSON body, the status codes, and GET to check it took. Every
 	# station is a RequestPuzzle, checked by the service's answer and the state it leaves.
-	# The walkthrough doesn't type requests with headers or bodies yet, so these rows wait
-	# on a walk_level_5.
-	# The HR desk: GET answers 401 until the manager's key rides in an X-Api-Key header
-	# (the temp's key gets 403). Practised safely.
+	# walk_level_5 types the requests as the hints show them, sealed (the work order) and
+	# loose (the stair door propped instead).
+	# The HR desk: GET answers 401 until the manager's key rides in an X-Api-Key header.
+	# Practised safely. (The temp's key gets 403, but only for whoever tries it.)
 	"key": {
 		"level": 5,
 		"pressure": false,
-		"teaches": ["X-Api-Key", "401", "403", "/staff"],
+		"teaches": ["X-Api-Key", "401", "/staff"],
 		"needs": ["GET", "X-Api-Key", "/staff"],
 	},
 	# The panel: PATCH the shed circuits back on; the lights don't fit under the night
@@ -329,7 +331,9 @@ const PUZZLES := {
 		"needs": ["GET", "X-Api-Key", "/circuits"],
 	},
 	# The work order: POST with a body of three fields (400 names a missing one, 201
-	# means it was made). Practised under a mild clock: the air is going bad.
+	# means it was made). Practised safely: the air only counts once the carbon copy is
+	# read and the power is back, and its grace is long enough for a first-timer (the
+	# sealed walk paces it).
 	"air": {
 		"level": 5,
 		"pressure": false,
@@ -340,26 +344,32 @@ const PUZZLES := {
 		"level": 5,
 		"pressure": false,
 		"ladder": "review",
+		"shape_gap": "hint 1 also says GET /work_orders/enter_order_id: told the architect 2026-10-22",
 		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/work_orders"],
 	},
 	# A voice on the walkie wants the loading door: the badge log says where that badge
-	# really is (GET with an id in the path, practised on 22). Under pressure: the voice.
+	# really is (GET with an id in the path, used under pressure on 22's stairwell). The
+	# voice lies, but nothing hunts the crew while they check it: the Mimics never attack,
+	# and the Custodian only comes once the power and the air are back.
 	"swipes": {
 		"level": 5,
-		"pressure": true,
+		"pressure": false,
 		"ladder": "review",
 		"teaches": ["/swipes"],
 		"needs": ["GET", "X-Api-Key", "/swipes"],
 	},
-	# Escort passes for the two real night-shifters (POST, practised at the work order);
-	# a Mimic's badge answers 401. Under pressure: the Mimics, and maybe the Custodian.
+	# Escort passes for the two real night-shifters (POST, practised at the work order),
+	# their doors PATCHed open; a Mimic's badge answers 401. Ladder A instead when the
+	# stair door was propped and the work order skipped (the walk reads the level's
+	# passes_ladder). Under pressure: the Custodian, if its bay wasn't sealed (sealed,
+	# nothing hunts here: a gap the architect put to Augustine).
 	"passes": {
 		"level": 5,
 		"pressure": true,
 		"ladder": "review",
 		"teaches": ["/escorts"],
-		"needs": ["POST", "X-Api-Key", "/escorts"],
+		"needs": ["POST", "PATCH", "X-Api-Key", "/escorts", "/doors"],
 	},
 	# The night lockup: every door opened tonight PATCHed shut (practised at the panel),
 	# then read back, one at a time or all at once.
@@ -368,16 +378,18 @@ const PUZZLES := {
 		"pressure": true,
 		"ladder": "review",
 		"teaches": ["/doors"],
-		"needs": ["PATCH", "X-Api-Key", "/doors"],
+		"needs": ["PATCH", "GET", "X-Api-Key", "/doors"],
 	},
 	"check_lockup": {
 		"level": 5,
 		"pressure": true,
 		"ladder": "review",
+		"shape_gap": "hint 1 also says GET /doors/enter_door: told the architect 2026-10-22",
 		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/doors"],
 	},
-	# Optional: Vale's own record, by id (the staff list shows it).
+	# Optional: Vale's own record, by id (the staff list shows it). Its ladder comes once
+	# the desk's other stations are done; the sealed walk reads it then.
 	"vale": {
 		"level": 5,
 		"pressure": false,
