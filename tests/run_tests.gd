@@ -147,6 +147,7 @@ func _group_floor_22() -> void:
 	await test_level_2_main_route()
 	await test_level_2_cases()
 	await test_level_2_book_huddles()
+	await test_level_2_lab_doors()  # here, not floor_22_lab, to keep that group under 3 minutes
 
 
 ## Floor 22's Secure Lab B, once per way the Rourke fight can end.
@@ -154,7 +155,6 @@ func _group_floor_22_lab() -> void:
 	test_level_2_lab_data_every_seed()
 	for outcome in ["killed", "tied", "untied"]:
 		await test_level_2_lab(outcome)
-	await test_level_2_lab_doors()
 
 
 ## Floor 18, the Records Archive (Level 3): its data, the floor, Mercer's room, the
