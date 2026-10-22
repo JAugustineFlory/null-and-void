@@ -292,11 +292,15 @@ func last_page_of_round() -> bool:
 	return pages.find(page) == pages.size() - 1
 
 
-## The pages on show beside the current question (none for a memory question).
+## The pages on show beside the current question (none for a memory question),
+## then anything shown for that question alone.
 func reference() -> Array:
 	if question < 0 or chapter.quiz[question].get("closed", false):
 		return []
-	return rounds[round_index].ref.map(func(i): return chapter.pages[i])
+	var out: Array = rounds[round_index].ref.map(func(i): return chapter.pages[i])
+	if chapter.quiz[question].has("also"):
+		out.append(chapter.quiz[question].also)
+	return out
 
 
 # --- The quiz ------------------------------------------------------------------

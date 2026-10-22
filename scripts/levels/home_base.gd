@@ -11,8 +11,8 @@ extends LevelBase
 ## same seats, Maddison at the whiteboard (see Huddle). The garage stays loaded
 ## out of sight for that, far from the tower.
 ##
-## The punch bag by the roll-up door teaches blocking safely: it swings back at
-## you, and right-clicking as it comes in blocks it. A miss costs nothing.
+## The punch bag by the roll-up door teaches blocking safely: hit it and it swings
+## back at you, and right-clicking as it comes in blocks it. A miss costs nothing.
 ## Everyone blocks it once before they sit back down.
 ##
 ## Maddison, the boss, is on her feet in here: she walks the room in the opening
@@ -68,17 +68,19 @@ const SIDE_DOOR := Vector3(-7.97, 0, 4.6)
 const PUNCH_BAG := Vector3(0.8, 0, -3.6)
 const BAG_HOOK := 2.5
 const BAG_STAND_HALF := 1.3
-## The bag swings at whoever stands within this of it.
+## Its swing back reaches whoever hit it from within this of it.
 const SPAR_REACH := 2.2
-## The pull back before a swing (the tell), then the swing in: right-click during the
-## swing in. It's shorter than the guard (Guard.WINDOW), so a press anywhere in it blocks.
+## Hit, the bag flies away from you (the tell), then swings back in: right-click during
+## the swing in. It's shorter than the guard (Guard.WINDOW), so a press anywhere in it blocks.
 const SPAR_TELL := 0.7
 const SPAR_SWING := 0.3
-## Between swings.
-const SPAR_GAP := 1.6
-## Lines for Augustine's approval: see plan/approvals/home-base-huddles.md.
-const SPAR_NOTICE := "The punch bag swings back. Stand by it and right-click just as it comes at you to block"
-const SPAR_MISS := "Too early or too late. Right-click as it swings in"
+## Approved by Augustine word for word, 2026-10-22 01:13Z
+## (plan/teaching/garage-playtest-2026-10-22.md, item 3).
+const SPAR_TODO := "Hit the punch bag, then block it"
+const SPAR_NOTICE := "Hit the bag with left-click. It swings back at you: right-click just as it comes in to raise your guard and block it."
+const SPAR_MISS := "It hit you. Right-click just as it swings in to raise your guard."
+const SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait for the swing in, then right-click."
+const SPAR_BLOCKED := "Blocked! Your guard took the hit."
 ## Maddison's marks: where she stands for each beat, and the point she faces there.
 ## She comes in by the side door to the house; "board" is beside her whiteboard,
 ## facing the crew.
@@ -110,14 +112,20 @@ var crew_seats: Array[Seat] = []
 var maddison: Node3D
 var maddison_mark := "door"
 var _maddison_walk: Tween
-## The punch bag's hook: it swings about this point.
-var punch_bag: Node3D
+## The punch bag's hook: it swings about this point. Hit, it swings back.
+var punch_bag: StaticBody3D
 ## Who the bag is swinging at (0: nobody), and whether it's coming in now.
 var spar_target := 0
 var swing_in := false
 ## Who has blocked it (host decides; every machine hears).
 var spar_blocked: Array = []
 signal crew_sparred
+## While the drill is on, and (on the combat clock) when this player's guard last
+## went up and when the bag's last swing at them began: a miss says if it was early.
+var _sparring := false
+var _guard_at := -100.0
+var _swing_at := -100.0
+var _bag_swing: Tween
 ## Everyone back in a seat after the punch bag; the book's carrier sat down with it.
 signal crew_seated
 signal book_seated
@@ -435,7 +443,7 @@ func _build_punch_bag(at: Vector3) -> void:
 		Greybox.box(geo, Vector3(x, BAG_HOOK / 2 + 0.05, at.z), Vector3(0.08, BAG_HOOK + 0.1, 0.08), steel, "BagStandPost" + end)
 		Greybox.box(geo, Vector3(x, 0.04, at.z), Vector3(0.1, 0.08, 1.1), steel, "BagStandFoot" + end)
 	Greybox.box(geo, Vector3(at.x, BAG_HOOK + 0.06, at.z), Vector3(BAG_STAND_HALF * 2 + 0.08, 0.1, 0.1), steel, "BagStandBar")
-	punch_bag = Node3D.new()
+	punch_bag = preload("res://scripts/levels/home_base_bag.gd").new()
 	punch_bag.name = "PunchBag"
 	punch_bag.position = at + Vector3(0, BAG_HOOK, 0)
 	add_child(punch_bag)
@@ -455,6 +463,13 @@ func _build_punch_bag(at: Vector3) -> void:
 	bag.position = Vector3(0, -1.1, 0)  # chest height: 0.85 m to 1.95 m off the floor
 	bag.material_override = Greybox.mat(Color(0.55, 0.12, 0.1))
 	punch_bag.add_child(bag)
+	var shape := CollisionShape3D.new()
+	var cs := CylinderShape3D.new()
+	cs.radius = 0.22
+	cs.height = 1.1
+	shape.shape = cs
+	shape.position = bag.position
+	punch_bag.add_child(shape)
 
 
 ## A paperback with the teal cover: Easy SQL. Graphics swaps in ArtKit.easy_sql_book via DressHomeBase.
@@ -746,51 +761,52 @@ func _on_read_order(id: int) -> void:
 		crew_read_order.emit()
 
 
-## Everyone blocks the punch bag once. The host picks who it swings at; every
-## machine sees the swing, and each player's own machine decides their block.
+## Everyone blocks the punch bag once: hit it, and it swings back at you. The host
+## hears the hit and starts the swing; every machine sees it, and each player's own
+## machine decides their block.
 func _spar_drill() -> void:
-	hud.todo("Block the punch bag")
+	hud.todo(SPAR_TODO)
 	hud.notice(SPAR_NOTICE, 8.0)
+	_sparring = true
+	player.combat.guard_raised.connect(_on_guard_raised)
 	if sync.is_host():
 		_run_bag()
 	await sync.gate("sparred", crew_sparred)
+	_sparring = false
+	player.combat.guard_raised.disconnect(_on_guard_raised)
 	hud.todo("")
 
 
-## Host: swing at someone by the bag who hasn't blocked it yet, until everyone has.
+## Host: until everyone has blocked it, a hit sends the bag back at whoever hit it.
 func _run_bag() -> void:
 	crew.hit_blocked.connect(_on_hit_blocked)
+	punch_bag.struck.connect(_on_bag_struck)
 	while spar_blocked.size() < players.count():
-		await get_tree().create_timer(SPAR_GAP, false).timeout
+		await get_tree().create_timer(0.25, false).timeout
 		if not is_inside_tree():
 			return
-		var id := _spar_pick()
-		if id != 0:
-			sync.event("_swing_bag", [id])
-			await get_tree().create_timer(SPAR_TELL + SPAR_SWING * 2.0, false).timeout
+	punch_bag.struck.disconnect(_on_bag_struck)
 	crew.hit_blocked.disconnect(_on_hit_blocked)
 	crew_sparred.emit()
 
 
-func _spar_pick() -> int:
-	var best := 0
-	var best_d := SPAR_REACH
-	for id in players.all_ids():
-		var body := players.puppet(id)
-		if spar_blocked.has(id) or body == null:
-			continue
-		var d := _flat_distance(body.global_position, to_global(PUNCH_BAG))
-		if d < best_d:
-			best = id
-			best_d = d
-	return best
+## Host: someone hit the bag. Unless it's mid-swing, it swings back at them.
+func _on_bag_struck(by: Node) -> void:
+	var id := players.id_of(by)
+	if id == 0 or spar_target != 0 or spar_blocked.has(id):
+		return
+	sync.event("_swing_bag", [id])
+
+
+func _on_guard_raised() -> void:
+	_guard_at = player.combat.now()
 
 
 static func _flat_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
-## Every machine: the bag pulls back away from player `id`, then swings in at them.
+## Every machine: hit by player `id`, the bag flies away from them, then swings back in at them.
 func _swing_bag(id: int) -> void:
 	var body := players.puppet(id)
 	if body == null:
@@ -802,7 +818,12 @@ func _swing_bag(id: int) -> void:
 	var axis := (global_basis.inverse() * dir).cross(Vector3.UP).normalized()
 	var tilt := func(a: float): punch_bag.basis = Basis(axis, a)
 	spar_target = id
+	if body_is_mine(id):
+		_swing_at = player.combat.now()
+	if _bag_swing:
+		_bag_swing.kill()  # hit again while it settles: this swing takes over
 	var t := create_tween()
+	_bag_swing = t
 	t.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)  # on the guard's clock
 	t.tween_method(tilt, 0.0, -0.6, SPAR_TELL).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func(): swing_in = true)
@@ -816,8 +837,8 @@ func _bag_lands(id: int) -> void:
 	swing_in = false
 	spar_target = 0
 	if body_is_mine(id) and _flat_distance(player.global_position, to_global(PUNCH_BAG)) < SPAR_REACH + 0.5:
-		if player.take_damage(0.0, "spar") == "hit":
-			hud.notice(SPAR_MISS, 3.0)
+		if player.take_damage(0.0, "spar") == "hit" and _sparring:
+			hud.notice(SPAR_EARLY if _guard_at >= _swing_at else SPAR_MISS, 4.0)
 
 
 func body_is_mine(id: int) -> bool:
@@ -836,9 +857,9 @@ func _on_sparred(id: int) -> void:
 	var total := players.count()
 	if body_is_mine(id):  # so you know it landed (playtest: blocks went unnoticed)
 		if spar_blocked.size() < total:
-			hud.notice("Blocked! Waiting for the crew at the punch bag (%d/%d)" % [spar_blocked.size(), total], 4.0)
+			hud.notice(SPAR_BLOCKED + " Waiting for the crew at the punch bag (%d/%d)" % [spar_blocked.size(), total], 4.0)
 		else:
-			hud.notice("Blocked!", 2.5)
+			hud.notice(SPAR_BLOCKED, 2.5)
 
 
 ## Every machine: player `id` took the shop bag with the book in it.

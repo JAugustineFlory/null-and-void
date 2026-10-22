@@ -72,6 +72,14 @@ func test_books() -> void:
 		"How many? (COUNT) follows Chapter 8, and the chapters after it move up one")
 	_check.call(Books.chapter("easy_sql_4").words == ["DESC", "LIMIT"], "Newest first teaches LIMIT after DESC")
 	_check.call(words_ok, "every chapter brings at most three new words")
+	var whys := true
+	for id in Books.chapter_ids():
+		for q in Books.chapter(id).quiz:
+			whys = whys and String(q.why) != ""
+	_check.call(whys, "every question says why after the vote, right or wrong")
+	var ch0 := Books.chapter("easy_sql_0")
+	_check.call(ch0.pages[0].contains("A table's name is all one word") and ch0.quiz[1].why.contains("A space would split the name"),
+		"chapter 0 says a table's name is one word before it asks which looks like one, and says why after")
 	var covered := true
 	for id in Books.chapter_ids():
 		var ch := Books.chapter(id)
@@ -210,7 +218,7 @@ func test_garage_opening() -> void:
 	for pair in [["door", "board"], ["board", "side"], ["side", "board"], ["board", "van"]]:
 		through.append_array(_walks_through(home, home.MADDISON_MARKS[pair[0]][0], home.MADDISON_MARKS[pair[1]][0]))
 	_check.call(through.is_empty(), "she walks round the couch, the counter and the bench, never through them %s" % [through])
-	_check.call(await _until(func(): return home.hud.current_todo() == "Block the punch bag", 2400), "after the brief she sends the crew to the punch bag")
+	_check.call(await _until(func(): return home.hud.current_todo() == home.SPAR_TODO, 2400), "after the brief she sends the crew to the punch bag")
 	p.stand_up(true)
 	await _frames(2)
 	await _spar(home, p)
@@ -272,7 +280,8 @@ func test_garage_opening() -> void:
 		h.turn_page()
 		await _frames(2)
 	_check.call(h.question == 0 and ui.find_children("Option*", "", true, false).size() == 3, "after the first word's pages, its questions: three answers to pick from")
-	_check.call(h.reference().size() == 1 and ui.find_child("*", true, false) != null and ui._body.get_parsed_text().contains("job_no"), "the jobs table is on show beside the question")
+	_check.call(h.reference().size() == 2 and ui._body.get_parsed_text().contains("job_no") and ui._body.get_parsed_text().contains("ladder | 1"), "\"What are jobs and van_kit?\" shows both tables beside it")
+	_check.call(_code_fits(ui), "and both fit the page")
 	_answer(h, false)
 	_check.call(await _until(func(): return h.result.has("choice"), 60) and not h.result.right, "a wrong answer says why")
 	_check.call(await _until(func(): return h.result.is_empty()) and h.question == 0, "and the same question comes back")
@@ -280,6 +289,8 @@ func test_garage_opening() -> void:
 	await _frames(3)
 	_check.call(h.result.get("right", false), "the right answer is marked right")
 	_check.call(await _until(func(): return h.question == 1), "then the next question")
+	await _frames(2)
+	_check.call(h.reference().size() == 1 and not ui._body.get_parsed_text().contains("ladder"), "van_kit isn't beside \"Which looks like a table name?\": it would give it away")
 	_check.call(await _finish_chapter(h, "easy_sql_0"), "the crew finishes the chapter")
 	_check.call(_game().book_words.has("row"), "its words are learned")
 	_check.call(prof.earned.has("chapter:easy_sql_0") and not prof.earned.has("achievement:easy_sql_half"), "the chapter is remembered on the profile; one chapter isn't half the book")
@@ -298,7 +309,6 @@ func test_garage_opening() -> void:
 	await _frames(2)
 
 
-## Maddison stands on `mark`, facing the way it says.
 ## Whether every typewriter line on the open book's page fits its width at the
 ## size it is drawn.
 func _code_fits(ui) -> bool:
@@ -333,6 +343,7 @@ func _walks_through(home, a: Vector3, b: Vector3) -> Array:
 	return hit
 
 
+## Maddison stands on `mark`, facing the way it says.
 func _at_mark(home, mark: String) -> bool:
 	var m: Array = home.MADDISON_MARKS[mark]
 	var mad: Node3D = home.maddison
@@ -341,29 +352,52 @@ func _at_mark(home, mark: String) -> bool:
 	return mad.position.distance_to(m[0]) < 0.1 and Vector2(facing.x, facing.z).normalized().dot(Vector2(to.x, to.z).normalized()) > 0.95
 
 
-## The punch bag drill, solo: it only swings at someone standing by it, a miss
-## costs nothing, and a block lets the crew move on to the huddle.
+## The punch bag drill, solo: it only swings back at someone who hits it, a miss
+## costs nothing and says why, and a block lets the crew move on to the huddle.
 func _spar(home, p) -> void:
 	var net: Node = _tree.root.get_node("/root/Net")
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
 	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag, before the huddle")
-	var swung := await _until(func(): return home.swing_in, 200)
-	_check.call(not swung, "the bag leaves you be while you're nowhere near it")
+	_check.call(home.hud.current_todo() == "Hit the punch bag, then block it", "the to-do says to hit it, then block it")
 	p.global_position = home.to_global(home.PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
-	_check.call(await _until(func(): return home.swing_in, 400), "stand by it and it swings at you")
+	var swung := await _until(func(): return home.spar_target != 0, 200)
+	_check.call(not swung, "the bag hangs still until you hit it, even standing by it")
+	await _hit_bag(home, p)
+	_check.call(home.spar_target != 0 and not home.swing_in, "hit it and it swings away from you")
+	_check.call(await _until(func(): return home.swing_in, 120), "then back in at you")
 	var health: float = p.health
 	await _until(func(): return not home.swing_in, 120)
 	await _frames(3)
 	_check.call(p.health == health and home.spar_blocked.is_empty(), "a missed block costs no health, and doesn't count")
+	_check.call(home.hud._notice.text.contains("It hit you. Right-click just as it swings in"), "no guard up: the notice says when to right-click")
 	_check.call(not _huddle_of(home).is_running(), "the crew can't huddle until it's blocked")
-	_check.call(await _until(func(): return home.swing_in, 400), "the bag swings again")
+	await _frames(40)  # it settles
+	await _hit_bag(home, p)
+	var early: bool = home.spar_target != 0 and not home.swing_in and p.combat.raise_guard()  # as it flies away, long before it's back
+	await _until(func(): return home.spar_target == 0, 120)
+	await _frames(3)
+	_check.call(early and home.spar_blocked.is_empty() and home.hud._notice.text.begins_with("Too early"), "a guard raised too soon drops before it lands, and the notice says so")
+	await _frames(40)
+	await _hit_bag(home, p)
+	_check.call(await _until(func(): return home.swing_in, 120), "hit again, it swings back again")
 	await _frames(2)  # partway into the swing
 	p.combat.raise_guard()
 	_check.call(await _until(func(): return home.spar_blocked.size() == 1, 120), "right-clicking as it swings in blocks it")
 	_check.call(p.health == health, "blocking it costs nothing either")
 	_check.call(not net.profile.earned.has(CrewVitals.FIRST_BLOCK), "and it's practice: the punch bag never earns the High-tops")
 	net.profile = real_profile
+
+
+## Player `p` turns to the bag and throws a punch at it.
+func _hit_bag(home, p) -> void:
+	var at: Vector3 = home.to_global(home.PUNCH_BAG)
+	p.look_at(Vector3(at.x, p.global_position.y, at.z))
+	p.head.rotation = Vector3.ZERO
+	p._strike_cd = 0.0
+	await _frames(2)
+	p._strike()
+	await _frames(2)
 
 
 ## Half the book and the whole book unlock an item each, counted across runs.
@@ -553,7 +587,8 @@ func test_coop_spar() -> void:
 	var host_id: int = machines[0].multiplayer.get_unique_id()
 	var client_id: int = machines[1].multiplayer.get_unique_id()
 	ph.global_position = homes[0].to_global(homes[0].PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
-	_check.call(await _until(func(): return homes[1].spar_target == host_id, 400), "the client sees the bag swing at the host")
+	await _hit_bag(homes[0], ph)
+	_check.call(await _until(func(): return homes[1].spar_target == host_id, 400), "the host hits the bag, and the client sees it swing back at the host")
 	await _until(func(): return homes[0].swing_in, 120)
 	await _frames(2)
 	ph.combat.raise_guard()
@@ -561,7 +596,10 @@ func test_coop_spar() -> void:
 	await _frames(60)
 	_check.call(done[0] == 0, "one block isn't enough: the drill waits for the whole crew")
 	pc.global_position = homes[1].to_global(homes[1].PUNCH_BAG + Vector3(-1.0, 0.2, 0.8))
-	_check.call(await _until(func(): return homes[1].spar_target == client_id and homes[1].swing_in, 600), "then it swings at the client")
+	await _frames(30)
+	_check.call(homes[1].spar_target == 0, "it doesn't swing at the client until they hit it")
+	await _hit_bag(homes[1], pc)
+	_check.call(await _until(func(): return homes[1].spar_target == client_id and homes[1].swing_in, 600), "the client's hit reaches the host, and the bag swings back at them")
 	await _frames(2)
 	pc.combat.raise_guard()
 	_check.call(await _until(func(): return done[0] == 2, 400), "the client blocks it, and both machines move on")
