@@ -92,15 +92,33 @@ func get_prompt(_player: Node) -> String:
 	return "[E] Close the door" if is_open else "[E] Open the door"
 
 
-## E on a hinged door: the host opens or shuts it on every machine.
-func interact(_player: Node) -> void:
+## E on a hinged door: the host opens or shuts it on every machine. A door opens
+## away from whoever opens it, so a crew at a doorway is never swept aside or pinned
+## by its leaf; shut again, it keeps that side (what it offers to anything that can
+## only push, like the Shredder).
+func interact(player: Node) -> void:
 	if not is_hinged() or locked:
 		return
 	var sync := LevelSync.of(self)
 	if sync == null:
-		set_open(not is_open)
+		set_open(not is_open, false, away_from(player))
 	elif not sync.forward(self, "interact"):
-		sync.run_on(self, "set_open", [not is_open])
+		sync.run_on(self, "set_open", [not is_open, false, away_from(player)])
+
+
+## The swing sign (+1 or -1) that opens this shut door away from `body`; 0 to keep
+## the side it has (it's open, or `body` stands in the door's plane).
+func away_from(body: Node) -> float:
+	if body == null or not (body is Node3D) or is_open or swing != 0.0:
+		return 0.0
+	var edge := Basis(Vector3.UP, _closed_rot) * hinge
+	var plus: Vector3 = edge + Basis(Vector3.UP, _closed_rot + PI / 2) * -hinge  # the leaf's middle, opened by +90
+	var through: Vector3 = global_basis.z if size.x > size.z else global_basis.x
+	var plus_side: float = (get_parent().global_basis * plus).dot(through)
+	var body_side: float = (body.global_position - global_position).dot(through)
+	if absf(body_side) < 0.05 or absf(plus_side) < 0.01:
+		return 0.0
+	return -1.0 if body_side * plus_side > 0.0 else 1.0
 
 
 func _pose_swing() -> void:
@@ -112,11 +130,14 @@ func _pose_swing() -> void:
 	rotation.y = _closed_rot + deg_to_rad(swing_deg * swing)
 
 
-func set_open(open: bool, instant: bool = false) -> void:
+## `away` (+1/-1, from away_from) picks the side a shut hinged door swings to.
+func set_open(open: bool, instant: bool = false, away: float = 0.0) -> void:
 	if open == is_open:
 		return
 	if open and not (_tween and _tween.is_running()) and swing == 0.0:
 		_capture_closed_pose()
+		if away != 0.0:
+			swing_deg = absf(swing_deg) * away
 	is_open = open
 	if is_hinged():
 		if _tween:

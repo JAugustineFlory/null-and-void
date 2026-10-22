@@ -162,9 +162,11 @@ func _group_floor_22_lab() -> void:
 
 ## Floor 18, the Records Archive (Level 3): its data, the floor, Mercer's room, the
 ## stairs down from 22, and co-op.
+
 func _group_floor_18() -> void:
 	test_level_3_data_every_seed()
 	await test_level_3_scene()
+	await test_level_3_side_rooms_walkable()
 	await test_level_3_safe_room()
 	await test_level_3_shredder()
 	await test_level_3_book_huddles()
@@ -5130,6 +5132,117 @@ func test_level_3_scene() -> void:
 ## Mercer's room: found through the cranked aisle, a hub from then on; the one floppy
 ## and the stair key go to whoever takes them; the key opens the stairs; everyone on
 ## the stairs ends the floor.
+## Drive a player body toward `target` (level space; y ignored) on the keys, as a
+## hand would: face it and push forward. True once within `near` of it, false if
+## `max_frames` pass first (something is in the way, or there is no way).
+func _walk_to(level: Node, p: Player, target: Vector3, max_frames: int = 420, near: float = 0.3) -> bool:
+	var goal: Vector3 = level.to_global(target)
+	for i in max_frames:
+		var d: Vector3 = goal - p.global_position
+		d.y = 0.0
+		if d.length() <= near:
+			p.controls.move = Vector2.ZERO
+			return true
+		p.rotation.y = atan2(-d.x, -d.z)
+		p.controls.move = Vector2(0, -1)
+		await physics_frame
+	p.controls.move = Vector2.ZERO
+	return false
+
+
+## Where a player stands to walk a side room on 18 (level space): in the hall at its
+## door, just inside, the walkway past the shelving's end (whichever end has room),
+## the aisle along the back wall once the crank has opened it, and Mercer's door.
+func _side_room_spots(level: Node, room: String) -> Dictionary:
+	var spec: Dictionary = level.SIDE_ROOMS[room]
+	var c: Vector3 = spec.center
+	var back: Vector3 = spec.back
+	var half: Vector3 = level.SIDE_ROOM_SIZE / 2 - Vector3(0.1, 0, 0.1)  # inside the walls
+	var door_x: float = c.x - back.x * level.SIDE_ROOM_SIZE.x / 2
+	var uz: float = level.to_local(level.shelving[room][0].global_position).z
+	var lo_room: float = (uz - level.UNIT_SIZE.z / 2) - (c.z - half.z)
+	var hi_room: float = (c.z + half.z) - (uz + level.UNIT_SIZE.z / 2)
+	var wz: float = (uz - level.UNIT_SIZE.z / 2) - lo_room / 2 if lo_room >= hi_room else (uz + level.UNIT_SIZE.z / 2) + hi_room / 2
+	var aisle_x: float = c.x + back.x * (half.x - 0.65)  # clear of the lock on the wall
+	return {
+		"door_x": door_x,
+		"hall": Vector3(door_x - back.x * 0.8, 0, c.z),
+		"inside": Vector3(door_x + back.x * 0.9, 0, c.z),
+		"walk_front": Vector3(door_x + back.x * 0.9, 0, wz),
+		"walk_back": Vector3(aisle_x, 0, wz),
+		"aisle_end": Vector3(aisle_x, 0, c.z + (half.z - 0.5) * signf(c.z - wz)),
+		"mercer": Vector3(aisle_x, 0, c.z + 1.0),
+		"safe": Vector3(c.x + back.x * (level.SIDE_ROOM_SIZE.x / 2 + 1.0), 0, c.z + 1.0),
+	}
+
+
+## Augustine's playtest: the side rooms blocked players or trapped them. A real
+## player body walks every one: in at the door, past the shelving to the back wall,
+## stands in the shelving's path while the crank slides it, then walks the opened
+## aisle to Mercer's door and back out to the hall.
+func test_level_3_side_rooms_walkable() -> void:
+	print("Level 3: every side room can be walked into, through and out of, before and after its crank")
+	_game().new_run(7)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var p: Player = level.player
+	p.local_control = false
+	level.shredder.process_mode = Node.PROCESS_MODE_DISABLED  # the route is the test, not the hunt
+	for room in level.SIDE_ROOMS:
+		var where := "side room %s%s" % [room, " (the host room)" if room == level.data.host else ""]
+		var spec: Dictionary = level.SIDE_ROOMS[room]
+		var c: Vector3 = spec.center
+		var back: Vector3 = spec.back
+		var s := _side_room_spots(level, room)
+		var door: Door = level.room_doors[room]
+		p.global_transform = Transform3D(Basis(), level.to_global(s.hall + Vector3(0, 0.1, 0)))
+		await _frames(5)
+		var kept_out: bool = not await _walk_to(level, p, s.inside, 90)
+		check(kept_out and (level.to_local(p.global_position).x - s.door_x) * back.x < 0.0, "%s: the shut door keeps a player in the hall" % where)
+		door.interact(p)
+		await _frames(70)
+		check(door.is_open and await _walk_to(level, p, s.inside), "%s: with the door open, a player walks in" % where)
+		check(await _walk_to(level, p, s.walk_front) and await _walk_to(level, p, s.walk_back), "%s: a walkway past the shelving's end leads to the back wall, before the crank" % where)
+		check(await _walk_to(level, p, s.walk_front) and await _walk_to(level, p, s.inside), "%s: and back to the door" % where)
+		# Stand right against the front unit, in its path, and turn the crank.
+		var front: Node3D = level.shelving[room][level.UNITS - 1]
+		var fx: float = level.to_local(front.global_position).x - back.x * (level.UNIT_SIZE.x / 2 + 0.45)
+		check(await _walk_to(level, p, Vector3(fx, 0, c.z), 240, 0.15), "%s: a player can stand right in front of the shelving" % where)
+		level.cranks[room].interact(p)
+		await _frames(200)
+		var at: Vector3 = level.to_local(p.global_position)
+		var gap: float = (level.to_local(front.global_position).x - at.x) * back.x - level.UNIT_SIZE.x / 2
+		var wall: float = (at.x - s.door_x) * back.x
+		check(level.cranked[room] and p.is_on_floor() and gap >= Player.RADIUS - 0.05 and wall >= Player.RADIUS - 0.05 and absf(at.z - c.z) < 0.6,
+			"%s: the sliding units push a player in their way back toward the door, with room left to stand (unit %.2f away, wall %.2f)" % [where, gap, wall])
+		check(await _walk_to(level, p, s.walk_front) and await _walk_to(level, p, s.walk_back) and await _walk_to(level, p, s.aisle_end), "%s: after the crank, the walkway leads into the aisle along the back wall, to its far end" % where)
+		if room == level.data.host:
+			check(await _walk_to(level, p, s.mercer), "%s: and to Mercer's door" % where)
+			level.safe_door.locked = false
+			level.safe_door.interact(p)
+			await _frames(70)
+			check(level.safe_door.is_open and await _walk_to(level, p, s.safe), "%s: through Mercer's door once it's unlocked" % where)
+			check(await _walk_to(level, p, s.mercer), "%s: and back out of his room" % where)
+		check(await _walk_to(level, p, s.walk_back) and await _walk_to(level, p, s.walk_front) and await _walk_to(level, p, s.inside) and await _walk_to(level, p, s.hall), "%s: and back out to the hall" % where)
+	# The supply closet and the microfiche room have swing doors; the shredding room's
+	# roll-up stands open while its machines run.
+	for small in [["SUPPLY", Vector3(10.2, 0, -10.5), Vector3(12.3, 0, -10.5)], ["MICROFICHE", Vector3(6.5, 0, -24.2), Vector3(6.5, 0, -26.3)], ["SHRED ROOM", Vector3(-5.5, 0, -24.2), Vector3(-5.5, 0, -26.5)]]:
+		var name: String = small[0]
+		var door: Door = level.room_doors[name]
+		p.global_transform = Transform3D(Basis(), level.to_global(small[1] + Vector3(0, 0.1, 0)))
+		await _frames(5)
+		if door.is_hinged():
+			check(not await _walk_to(level, p, small[2], 90), "%s: shut, its door keeps a player out" % name)
+			door.interact(p)
+			await _frames(80)
+		else:
+			check(door.is_open, "%s: its roll-up is up" % name)
+		check(door.is_open and await _walk_to(level, p, small[2]) and await _walk_to(level, p, small[1]), "%s: open, a player walks in and back out" % name)
+	level.queue_free()
+	await process_frame
+
+
 func test_level_3_safe_room() -> void:
 	print("Level 3: Mercer's room and the way down")
 	_game().new_run(23)
@@ -5296,6 +5409,24 @@ func test_coop_level_3() -> void:
 	await _frames(180)
 	check(machines.all(func(l): return l.cranked[room]) and client.shelving[room][0].position.is_equal_approx(host.shelving[room][0].position), "a client's crank rolls the shelving on every machine, to the same place")
 	check(host.shredder.active and client.shredder.active and client.shredder.global_position.distance_to(host.shredder.global_position) < 0.5, "the crank wakes the Shredder on the host, and clients see it where the host has it")
+	# Every machine plays the slide out: on each, its own player walks the walkway into
+	# the opened aisle (the Shredder, drawn by the crank, holds still meanwhile).
+	host.shredder.process_mode = Node.PROCESS_MODE_DISABLED
+	for l in machines:
+		l.player.local_control = false
+		var spots := _side_room_spots(l, room)
+		l.player.global_transform = Transform3D(Basis(), l.to_global(spots.inside + Vector3(0, 0.1, 0)))
+		await _frames(5)
+		var legs := 0
+		for spot in [spots.walk_front, spots.walk_back, spots.mercer]:
+			if not await _walk_to(l, l.player, spot):
+				break
+			legs += 1
+		check(legs == 3, "%s: after the crank, its player walks the walkway into the aisle, to Mercer's door (legs %d, at %s, downed %s)" % ["host" if l == host else "client", legs, l.to_local(l.player.global_position), l.player.downed])
+		# Out of the aisle again, so the next machine's player doesn't meet this one's body there.
+		l.player.global_transform = Transform3D(Basis(), l.to_global(spots.inside + Vector3(0, 0.1, 0)))
+		await _frames(10)
+	host.shredder.process_mode = Node.PROCESS_MODE_INHERIT
 	# A client types the lock's code: the host checks it, and the door unlocks everywhere.
 	client.type_code("1234" if client.data.code != "1234" else "4321", client.player)
 	await _frames(3)

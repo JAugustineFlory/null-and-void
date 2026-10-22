@@ -61,7 +61,8 @@ func _run() -> void:
 	var odoor_x: float = ospec.center.x - ospec.back.x * level.SIDE_ROOM_SIZE.x / 2
 	level.room_doors[other].set_open(true, true)
 	await _frames(30)
-	await _shot("08_crank_room", Vector3(odoor_x - ospec.back.x * 1.9, 0.05, ospec.center.z + 0.3), ospec.center + Vector3(0, 1.0, 0), true)
+	# From just inside the door, down the walkway past the units' ends to the back wall.
+	await _shot("08_crank_room", Vector3(odoor_x + ospec.back.x * 0.7, 0.05, ospec.center.z - 2.3), ospec.center + Vector3(ospec.back.x * 2.2, 1.0, -1.5), true)
 	level.room_doors[other].set_open(false, true)
 	# 9. The shredding room from its roll-up door: the machines, the bale, the Shredder asleep.
 	await _shot("09_shredding_room", Vector3(-5.5, 0.05, -24.5), level.SHREDDER_HOME + Vector3(-1.2, 1.1, -1.8))
