@@ -74,6 +74,27 @@ to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
   needs appears in the result, and the matching label exists in the world.
 - **Deaths explain themselves** the first time: what killed you and what to check.
 
+## Case board (from the floor G and 14 pilot, PRs #206 and #207)
+
+Each case lists the pieces its main query needs, and its page writes the found ones into "the
+query so far" (how-to: plan/case-board-howto.md). Every floor's board pass is checked for:
+
+- **A piece is found only where the world shows it**: a paper, a terminal line, a query's
+  result, or a hint that prints it. Only a table piece is found from the Tables page
+  (`seen_in`). A column the player has to choose from several isn't a piece: it stays the
+  hint's `enter_` blank in the query, because choosing it is the thinking step.
+- **E notes a paper only for a case that's open**, or one the paper itself opens. Any other
+  paper is read, so the player sees what they found.
+- **A floor's found moment comes before its pieces.** A case grows (`set_pieces` again) when
+  its problem appears: the memo asks for a sort only once the scraps print out of order.
+- **Blanks read like the hints.** A missing value shows the hint's own name
+  (`enter_column_name`); only a missing keyword shows `????`.
+- **Each checklist has a "Run it" step** before the steps that need the query's result.
+- **Pressure puzzles: pieces only** (Augustine, 2026-10-22). A puzzle under threat (a timer,
+  the air clock, a chase, the lab betrayal) calls `Game.set_assemble(id, false)`. The page
+  lists the pieces found, but the query so far stays the bare shape: the crew puts together
+  what they practised once safely.
+
 ## Challenge (keep it a puzzle)
 
 Each puzzle keeps at least one real thinking step that hints don't do for you
