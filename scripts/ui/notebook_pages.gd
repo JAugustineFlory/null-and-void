@@ -51,6 +51,8 @@ const PIECES_COUNT := "%d/%d pieces"
 const PIECE_MISSING := "????"
 const FROM := "From: %s"
 const QUERY_SO_FAR := "The query so far"
+## Above a case's query blocks (Augustine's words, playtest 2026-10-22).
+const MAKE_QUERY := "Create a query in SQL to pull it up in the terminal."
 const CHECKLIST := "Checklist"
 const NOTES := "Notes"
 const OTHER_WAYS := "Other ways in: %d found"
@@ -242,9 +244,12 @@ func _book_items(game: Node) -> Array[Control]:
 
 
 ## The chapters this player has: come in this run, or earned on their profile on
-## an earlier one (so a resumed run, or one started on a later floor, has them too).
+## an earlier one (so a resumed run, or one started on a later floor, has them too),
+## once the crew has the book this run.
 func _chapters_had(game: Node) -> Array:
 	var out: Array = game.book_chapters.duplicate()
+	if game.get("before_book"):
+		return out  # still in the shop bag
 	var net := get_node_or_null("/root/Net")
 	if net and net.profile:
 		for source in net.profile.earned:
@@ -502,19 +507,12 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 	if c.solved:
 		items.append_array(_ending_items(game, c))
 	items.append(_progress(found, total))
+	if c.get("query", "") != "":
+		items.append(_query_blocks(game, c))
 	var n := 1
 	for p in c.pieces:
 		items.append(_piece_item(n, p))
 		n += 1
-	if c.get("query", "") != "":
-		var q := VBoxContainer.new()
-		q.name = "QuerySoFar"
-		q.add_theme_constant_override("separation", 0)
-		q.add_child(NotebookArt.hand(QUERY_SO_FAR, 18, NotebookArt.PENCIL))
-		var line := NotebookArt.code(game.case_query(c.id), 17)
-		line.name = "Query"
-		q.add_child(line)
-		items.append(q)
 	if c.has("blank"):
 		items.append_array(_blank_items(c))
 	if c.solved:
@@ -535,6 +533,99 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 	if is_current:
 		items.append_array(_write_button())
 	return items
+
+
+## The case's query as blocks put together: its fixed words outlined, and each
+## piece a numbered block, filled in once found (gray with its hint's name for
+## the blank until then). A case that doesn't assemble (Game.set_assemble)
+## keeps every piece gray. The whole query so far is the blocks' "query" meta.
+func _query_blocks(game: Node, c: Dictionary) -> Control:
+	var box := VBoxContainer.new()
+	box.name = "QuerySoFar"
+	box.add_theme_constant_override("separation", 6)
+	var goal := NotebookArt.hand(MAKE_QUERY, 22)
+	goal.name = "Goal"
+	box.add_child(goal)
+	var flow := HFlowContainer.new()
+	flow.name = "QueryBlocks"
+	flow.add_theme_constant_override("h_separation", 6)
+	flow.add_theme_constant_override("v_separation", 6)
+	flow.set_meta("query", game.case_query(c.id))
+	var q: String = c.query
+	var assemble: bool = c.get("assemble", true)
+	var at := 0
+	for m in RegEx.create_from_string("\\{([a-z_]+)\\}").search_all(q):
+		var lit := q.substr(at, m.get_start() - at)
+		var quoted := lit.ends_with("'") and q.substr(m.get_end(), 1) == "'"
+		_literal_blocks(flow, lit.left(-1) if quoted else lit)
+		var n := 0
+		for i in c.pieces.size():
+			if c.pieces[i].id == m.get_string(1):
+				n = i + 1
+		if n > 0:
+			flow.add_child(_piece_block(n, c.pieces[n - 1], quoted, assemble))
+		at = m.get_end() + (1 if quoted else 0)
+	_literal_blocks(flow, q.substr(at))
+	box.add_child(flow)
+	return box
+
+
+## A query's fixed words as outlined blocks; a hint's own blank in them
+## (enter_column_name) is a gray block with no number: nothing to find for it.
+func _literal_blocks(flow: Control, text: String) -> void:
+	var at := 0
+	for m in RegEx.create_from_string("\\benter_[a-z_]+").search_all(text):
+		_add_block(flow, text.substr(at, m.get_start() - at), false, Color(0, 0, 0, 0))
+		_add_block(flow, m.get_string(), false, PIECE_MISSING_COLOR)
+		at = m.get_end()
+	_add_block(flow, text.substr(at), false, Color(0, 0, 0, 0))
+
+
+func _add_block(flow: Control, text: String, bold: bool, fill: Color) -> void:
+	text = text.strip_edges()
+	if text != "":
+		flow.add_child(_block(NotebookArt.code(text, 18), fill, bold))
+
+
+## Piece `n`'s block: its value once found, else its hint's name for it.
+func _piece_block(n: int, p: Dictionary, quoted: bool, assemble: bool) -> Control:
+	var shown: bool = p.found and assemble
+	var text := str(p.value) if shown else str(p.get("blank", PIECE_MISSING))
+	if quoted:
+		text = "'%s'" % text
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var num := NotebookArt.hand(str(n), 16, NotebookArt.INK if shown else NotebookArt.PENCIL)
+	num.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(num)
+	var value := NotebookArt.code(text, 18, Color(0.1, 0.1, 0.12) if shown else NotebookArt.PENCIL)
+	value.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(value)
+	var block := _block(row, PIECE_FOUND_COLOR if shown else PIECE_MISSING_COLOR, true)
+	block.name = "Piece%d" % n
+	block.set_meta("found", shown)
+	return block
+
+
+## One block: `inner` on a rounded card, filled with `fill` (a piece) or just
+## outlined in pencil (the query's own words).
+static func _block(inner: Control, fill: Color, solid: bool) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = fill
+	sb.border_color = Color(NotebookArt.PENCIL, 0.0 if solid else 0.6)
+	sb.set_border_width_all(0 if solid else 1)
+	sb.set_corner_radius_all(5)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	p.add_theme_stylebox_override("panel", sb)
+	if inner is Label:
+		(inner as Label).autowrap_mode = TextServer.AUTOWRAP_OFF
+	p.add_child(inner)
+	return p
 
 
 ## "3/4 pieces" and a bar of one segment per piece, the found ones filled.
@@ -569,7 +660,7 @@ func _piece_item(n: int, p: Dictionary) -> Control:
 	box.add_theme_constant_override("separation", -4)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(NotebookArt.hand(str(p.label), 17, NotebookArt.PENCIL))
-	var value := NotebookArt.hand(str(p.value) if p.found else PIECE_MISSING, 28, NotebookArt.INK if p.found else NotebookArt.PENCIL)
+	var value := NotebookArt.hand(str(p.value) if p.found else str(p.get("blank", PIECE_MISSING)), 28, NotebookArt.INK if p.found else NotebookArt.PENCIL)
 	value.name = "Value"
 	box.add_child(value)
 	var source := str(p.get("from", "")) if p.found else str(p.get("where", ""))
