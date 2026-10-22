@@ -1,0 +1,1 @@
+- **Added:** Maddison chimes in as the crew opens and closes Easy SQL's Adding a row chapter.
