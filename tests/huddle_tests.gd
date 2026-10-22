@@ -1,7 +1,7 @@
 extends RefCounted
 ## The garage home base and the crew's book huddles (scripts/huddle/,
 ## scripts/levels/home_base.gd): the book's data, the opening in the garage,
-## a flashback from the building, and a two-player vote.
+## a chapter coming in up in the building, and in co-op.
 
 var _tree: SceneTree
 var _check: Callable
@@ -18,7 +18,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_garage_front()
 	Engine.time_scale = 4.0
 	await test_garage_opening()
-	await test_flashback()
+	await test_chapter_in_building()
 	await test_coop_huddle()
 	await test_coop_spar()
 	await test_coop_walk_in()
@@ -31,7 +31,11 @@ func _game() -> Node:
 	return _tree.root.get_node("Game")
 
 
-## Huddle, HomeBase and HuddleUI aren't named as classes here: they pull in
+func _net() -> Node:
+	return _tree.root.get_node("Net")
+
+
+## Huddle and HomeBase aren't named as classes here: they pull in
 ## LevelBase, which uses the Game autoload by name.
 func _huddle_of(node: Node) -> Node:
 	return _tree._huddle_of(node)
@@ -62,7 +66,7 @@ func test_books() -> void:
 		for q in ch.quiz:
 			ok = ok and q.answer >= 0 and q.answer < q.options.size() and q.options.size() == 3
 			ok = ok and (ch.words.is_empty() or ch.words.has(q.word))
-	_check.call(ok and Books.chapter_ids().size() == 19, "all 19 chapters have pages and three questions for each new word (three for a review)")
+	_check.call(ok and Books.book_chapter_ids("easy_sql").size() == 19 and Books.chapter_ids().size() == 24, "all 24 chapters (Easy SQL's 19, Acceptable API's 5) have pages and three questions for each new word (three for a review)")
 	var ids := Books.book_chapter_ids("easy_sql")
 	_check.call(ids.slice(15, 17) == ["easy_sql_distinct", "easy_sql_group_by"] and Books.chapter("easy_sql_distinct").number == 15 and Books.chapter("easy_sql_group_by").words == ["GROUP BY"],
 		"floor 18's chapters come next, numbered by their place in it")
@@ -73,6 +77,14 @@ func test_books() -> void:
 		"How many? (COUNT) follows Chapter 8, and the chapters after it move up one")
 	_check.call(Books.chapter("easy_sql_4").words == ["DESC", "LIMIT"], "Newest first teaches LIMIT after DESC")
 	_check.call(words_ok, "every chapter brings at most three new words")
+	var whys := true
+	for id in Books.chapter_ids():
+		for q in Books.chapter(id).quiz:
+			whys = whys and String(q.why) != ""
+	_check.call(whys, "every question says why after an answer, right or wrong")
+	var ch0 := Books.chapter("easy_sql_0")
+	_check.call(ch0.pages[0].contains("A table's name is all one word") and ch0.quiz[1].why.contains("A space would split the name"),
+		"chapter 0 says a table's name is one word before it asks which looks like one, and says why after")
 	var covered := true
 	for id in Books.chapter_ids():
 		var ch := Books.chapter(id)
@@ -117,28 +129,9 @@ func test_books() -> void:
 	_check.call(at_huddle > 0 and at_huddle < l0.find("desk_terminal.enabled = true\n\t_rourke_free"), "Level 0 flashes back to chapter 1 before the desk terminal opens")
 
 
-## Answer the huddle's current question: right, or a wrong option.
-func _answer(h, right: bool) -> void:
-	var q: Dictionary = h.current_question()
-	h.vote(q.answer if right else (q.answer + 1) % q.options.size())
-
-
-## Read every page and answer every question right (after one wrong answer).
+## Until chapter `id` is in the crew's book and Maddison's lines for it are over.
 func _finish_chapter(h, id: String) -> bool:
-	if not await _until(func(): return h.chapter.get("id", "") == id, 600):
-		return false
-	while h.question < 0:
-		h.turn_page()
-		await _frames(2)
-	var first_wrong := true
-	while not h.done.has(id):
-		if h.question < 0 and h.is_running():
-			h.turn_page()  # the next round's page
-		elif h.question >= 0 and h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
-			_answer(h, not first_wrong)
-			first_wrong = false
-		await _frames(2)
-	return true
+	return await _until(func(): return h.done.has(id) and not h.is_busy(), 1800)
 
 
 ## Co-op's pre-game lobby builds the garage front on its own and holds a shot on
@@ -203,8 +196,15 @@ func test_garage_opening() -> void:
 	_check.call(await _until(func(): return home.find_children("WalkIn*", "", false, false).is_empty(), 60), "the walk-in stand-ins are gone")
 	var mad: Node3D = home.maddison
 	_check.call(mad != null and mad.get_node_or_null("Look") != null, "Maddison is in the garage in person")
+	var bar: Node3D = home.geo.get_node_or_null("BagStandBar")
+	_check.call(bar != null and home.geo.get_node_or_null("BagStandPostW") != null and absf(home.punch_bag.global_position.y - bar.global_position.y) < 0.1,
+		"the punch bag hangs from the top bar of its own stand, not from thin air")
 	_check.call(await _until(func(): return _at_mark(home, "board"), 600), "she comes in from the house to her whiteboard")
-	_check.call(await _until(func(): return home.hud.current_todo() == "Block the punch bag", 2400), "after the brief she sends the crew to the punch bag")
+	var through := []
+	for pair in [["door", "board"], ["board", "side"], ["side", "board"], ["board", "van"]]:
+		through.append_array(_walks_through(home, home.MADDISON_MARKS[pair[0]][0], home.MADDISON_MARKS[pair[1]][0]))
+	_check.call(through.is_empty(), "she walks round the couch, the counter and the bench, never through them %s" % [through])
+	_check.call(await _until(func(): return home.hud.current_todo() == home.SPAR_TODO, 2400), "after the brief she sends the crew to the punch bag")
 	p.stand_up(true)
 	await _frames(2)
 	await _spar(home, p)
@@ -236,47 +236,20 @@ func test_garage_opening() -> void:
 	await _frames(5)
 	_check.call(prof.earned.has("achievement:book_easy_sql"), "picking up Easy SQL earns its notebook cover")
 	_check.call(not home.book_bag.visible and home.held_book != null and home.held_book.get_parent() == p.camera, "the book is in your hands, like the notebook")
-	await _frames(60)
-	_check.call(not _huddle_of(home).is_running(), "the chapter waits for whoever has the book to sit down with it")
-	await home._seat_me(home.crew_seats[0])
 	var h = _huddle_of(home)
-	h.reveal_scale = 0.2
-	var opened := await _until(func(): return h.is_running(), 1200)
-	if not opened:
-		print("    sitting=%s in_seat=%s holder=%s todo=%s gates=%s" % [p.is_sitting(), home._in_a_seat(p), home.book_holder, home.hud.current_todo(), home.sync._gates.keys()])
-	_check.call(opened, "sitting down with the book opens chapter zero")
-	_check.call(h.chapter.id == "easy_sql_0" and h.is_reader() and p.input_locked and home.held_book == null, "solo, you read the first chapter from your seat")
-	var ui = h.get_node_or_null("HuddleUI")
-	_check.call(ui != null and not ui.flashback and ui.find_child("Next", true, false).visible, "the book opens over the garage with a page-turn for the reader")
-	_check.call(home.flashback_camera.current and home.board_sheet.visible and home.board_text.text.contains("Ch. 0"), "Maddison takes the crew through it on her whiteboard")
-	var book_rect: Rect2 = ui.find_child("Book", true, false).get_global_rect()
-	_check.call(not home.hud._subtitle.get_global_rect().intersects(book_rect), "subtitles sit clear of the open book")
-	h.turn_page(-1)
-	await _frames(2)
-	_check.call(h.page == 0, "the reader can't turn back from the first page")
-	h.turn_page()
-	await _frames(2)
-	var turned: int = h.page
-	h.turn_page(-1)
-	await _frames(2)
-	_check.call(turned != 0 and h.page == 0 and h.peek == -1 and ui.find_child("Next", true, false).text == "Turn the page >" and not ui._footer.text.contains("crew is on"), "solo, Back turns the page back")
-	while h.question < 0:
-		h.turn_page()
+	var came := await _until(func(): return h.done.has("easy_sql_0"), 1200)
+	_check.call(came and home.held_book == null and _game().book_chapters == ["easy_sql_0"], "after Maddison's line, chapter zero goes in your notebook: nobody sits down to read it")
+	var popped := false
+	var locked := false
+	while h.is_busy():
+		popped = popped or h.get_node_or_null("HuddleUI") != null or home.flashback_camera.current
+		locked = locked or p.input_locked
 		await _frames(2)
-	_check.call(h.question == 0 and ui.find_children("Option*", "", true, false).size() == 3, "after the first word's pages, its questions: three answers to pick from")
-	_check.call(h.reference().size() == 1 and ui.find_child("*", true, false) != null and ui._body.get_parsed_text().contains("job_no"), "the jobs table is on show beside the question")
-	_answer(h, false)
-	_check.call(await _until(func(): return h.result.has("choice"), 60) and not h.result.right, "a wrong answer says why")
-	_check.call(await _until(func(): return h.result.is_empty()) and h.question == 0, "and the same question comes back")
-	_answer(h, true)
-	await _frames(3)
-	_check.call(h.result.get("right", false), "the right answer is marked right")
-	_check.call(await _until(func(): return h.question == 1), "then the next question")
-	_check.call(await _finish_chapter(h, "easy_sql_0"), "the crew finishes the chapter")
+	_check.call(not popped and not locked, "no book pops up and nobody is held still: you can walk about while she talks")
+	_check.call(home.hud._notice.text == h.NOTICE % ["Easy SQL", 0, "Read this first"] or home.hud._notice.text.begins_with("New in Easy SQL"), "a notice says it's new in the book, and where to read it")
 	_check.call(_game().book_words.has("row"), "its words are learned")
 	_check.call(prof.earned.has("chapter:easy_sql_0") and not prof.earned.has("achievement:easy_sql_half"), "the chapter is remembered on the profile; one chapter isn't half the book")
-	_check.call(await _until(func(): return not p.input_locked and h.get_node_or_null("HuddleUI") == null), "the book closes and the player can move again")
-	_check.call(home.hud._subtitle.offset_left < -100, "and the subtitles go back to the middle")
+	await _test_yourself(world)
 	_check.call(await _until(func(): return home.van_door.enabled), "then the van")
 	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
 	home.van_door.interact(p)
@@ -285,9 +258,102 @@ func test_garage_opening() -> void:
 	var lobby = world.wings["level_0"]
 	_check.call(await _until(func(): return world.current == lobby and lobby.active), "the drive ends at Halcyon: play moves to the ground floor")
 	_check.call(p.global_position.z > 14.0 and p.global_position.y > 0.3 and p.seated, "the crew arrives sitting in the van in the car park")
-	_check.call(not home.visible and is_instance_valid(home), "the garage stays loaded, out of sight, for flashbacks")
+	_check.call(not home.visible and is_instance_valid(home), "the garage stays loaded, out of sight")
 	world.queue_free()
 	await _frames(2)
+
+
+## The notebook's Books tab after chapter zero: the chapter to read when you like, and
+## its quick checks to test yourself on, with the page beside each question.
+func _test_yourself(world) -> void:
+	var nb = world.notebook
+	_check.call(nb.open(), "the notebook opens after the huddle")
+	var pages = nb.pages
+	pages.show_page(pages.TAB_NAMES.find("Books"))
+	await _frames(2)
+	var chap: Button = _book_item(pages, "Chapter_easy_sql_0")
+	_check.call(chap != null and _game().book_chapters == ["easy_sql_0"], "the chapter is in the notebook's Books tab")
+	chap.pressed.emit()
+	await _frames(3)
+	_check.call(_book_pages(pages).size() == 3 and _book_item(pages, "TestYourself") != null, "its pages are there to read, with Test yourself under them")
+	_check.call(_book_pages(pages)[1].text.contains("job_no") and _book_pages(pages)[1].text.contains("[font_size="), "the jobs table is in typewriter text, sized to fit the page")
+	_book_item(pages, "TestYourself").pressed.emit()
+	await _frames(3)
+	var quiz = pages.quiz
+	var refs: String = "\n".join(_book_pages(pages).map(func(b): return b.text))
+	_check.call(quiz != null and quiz.at == 0 and _book_items(pages, "Option*").size() == 3, "Test yourself asks the chapter's first quick check, three answers to pick from")
+	_check.call(refs.contains("job_no") and refs.contains("ladder | 1"), "\"What are jobs and van_kit?\" shows both tables beside it")
+	var right: int = quiz.question().answer
+	_book_item(pages, "Option%d" % ((right + 1) % 3)).pressed.emit()
+	await _frames(3)
+	var said: String = pages.text_of(_book_items(pages, "*"))
+	_check.call(not quiz.result.right and said.contains("Not quite. Each is a whole table") and _book_item(pages, "BookNext") == null, "a wrong answer says why, and you pick again")
+	var check: Control = _book_item(pages, "QuickCheck")
+	_check.call(check != null and check.find_children("Option*", "", true, false).size() == 3 and pages.text_of([check]).contains("Not quite") and pages.text_of([check]).contains("What are jobs"),
+		"the question, its options and its why stay together on one page")
+	_book_item(pages, "Option%d" % right).pressed.emit()
+	await _frames(3)
+	_check.call(quiz.result.right and _book_item(pages, "BookNext") != null, "the right one is marked right, with the next question to go to")
+	_book_item(pages, "BookNext").pressed.emit()
+	await _frames(3)
+	refs = "\n".join(_book_pages(pages).map(func(b): return b.text))
+	_check.call(quiz.at == 1 and refs.contains("job_no") and not refs.contains("ladder"), "van_kit isn't beside \"Which looks like a table name?\": it would give it away")
+	_book_item(pages, "BookBack").pressed.emit()
+	await _frames(3)
+	_check.call(pages.quiz == null and _book_item(pages, "TestYourself") != null, "and you can leave the test for the chapter any time")
+	_book_item(pages, "BookContents").pressed.emit()
+	await _frames(3)
+	var this_run: Array[String] = _game().book_chapters.duplicate()
+	_game().book_chapters.clear()  # a later run, resumed or started on another floor
+	var earned: bool = _net().profile.earned.has("chapter:easy_sql_0")
+	pages.refresh()
+	await _frames(2)
+	_check.call(earned and _book_item(pages, "Chapter_easy_sql_0") != null, "a run that starts later still has the chapter, from the player's profile")
+	_game().book_chapters = this_run
+	nb.close()
+
+
+## Every item on the open notebook section's pages, on any spread, named like `pattern`.
+func _book_items(pages, pattern: String) -> Array:
+	var found := []
+	for spread in pages._spreads:
+		for side in spread:
+			for item in side:
+				if String(item.name).match(pattern):
+					found.append(item)
+				found.append_array(item.find_children(pattern, "", true, false))
+	return found
+
+
+## The book's printed pages on the open notebook section.
+func _book_pages(pages) -> Array:
+	return _book_items(pages, "*").filter(func(n): return n is RichTextLabel)
+
+
+func _book_item(pages, node_name: String) -> Node:
+	var found := _book_items(pages, node_name)
+	return found[0] if not found.is_empty() else null
+
+
+## The furniture Maddison's walk from `a` to `b` passes through, if any (her body
+## is about 0.2 m round).
+func _walks_through(home, a: Vector3, b: Vector3) -> Array:
+	var things := {"couch": Rect2(home.COUCH.x - 0.45, -1.6, 0.95, 3.2), "counter": Rect2(home.COUNTER.x - 0.3, -1.7, 0.6, 3.4),
+		"bench": Rect2(home.BENCH.x - 1.2, home.BENCH.z - 0.5, 2.4, 1.0)}
+	for i in home.CREW_SEATS.size():
+		var seat: Vector3 = home.CREW_SEATS[i]
+		if seat.y > 0.6:
+			things["stool %d" % i] = Rect2(seat.x - 0.18, seat.z - 0.18, 0.36, 0.36)
+	var hit := []
+	var from := a
+	for to in home.maddison_route(a, b):
+		for i in ceili(from.distance_to(to) / 0.1) + 1:
+			var at: Vector3 = from.lerp(to, minf(1.0, i * 0.1 / maxf(from.distance_to(to), 0.001)))
+			for k in things:
+				if things[k].grow(0.2).has_point(Vector2(at.x, at.z)) and not hit.has(k):
+					hit.append(k)
+		from = to
+	return hit
 
 
 ## Maddison stands on `mark`, facing the way it says.
@@ -299,29 +365,52 @@ func _at_mark(home, mark: String) -> bool:
 	return mad.position.distance_to(m[0]) < 0.1 and Vector2(facing.x, facing.z).normalized().dot(Vector2(to.x, to.z).normalized()) > 0.95
 
 
-## The punch bag drill, solo: it only swings at someone standing by it, a miss
-## costs nothing, and a block lets the crew move on to the huddle.
+## The punch bag drill, solo: it only swings back at someone who hits it, a miss
+## costs nothing and says why, and a block lets the crew move on to the huddle.
 func _spar(home, p) -> void:
 	var net: Node = _tree.root.get_node("/root/Net")
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
 	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag, before the huddle")
-	var swung := await _until(func(): return home.swing_in, 200)
-	_check.call(not swung, "the bag leaves you be while you're nowhere near it")
+	_check.call(home.hud.current_todo() == "Hit the punch bag, then block it", "the to-do says to hit it, then block it")
 	p.global_position = home.to_global(home.PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
-	_check.call(await _until(func(): return home.swing_in, 400), "stand by it and it swings at you")
+	var swung := await _until(func(): return home.spar_target != 0, 200)
+	_check.call(not swung, "the bag hangs still until you hit it, even standing by it")
+	await _hit_bag(home, p)
+	_check.call(home.spar_target != 0 and not home.swing_in, "hit it and it swings away from you")
+	_check.call(await _until(func(): return home.swing_in, 120), "then back in at you")
 	var health: float = p.health
 	await _until(func(): return not home.swing_in, 120)
 	await _frames(3)
 	_check.call(p.health == health and home.spar_blocked.is_empty(), "a missed block costs no health, and doesn't count")
+	_check.call(home.hud._notice.text.contains("It hit you. Right-click just as it swings in"), "no guard up: the notice says when to right-click")
 	_check.call(not _huddle_of(home).is_running(), "the crew can't huddle until it's blocked")
-	_check.call(await _until(func(): return home.swing_in, 400), "the bag swings again")
+	await _frames(40)  # it settles
+	await _hit_bag(home, p)
+	var early: bool = home.spar_target != 0 and not home.swing_in and p.combat.raise_guard()  # as it flies away, long before it's back
+	await _until(func(): return home.spar_target == 0, 120)
+	await _frames(3)
+	_check.call(early and home.spar_blocked.is_empty() and home.hud._notice.text.begins_with("Too early"), "a guard raised too soon drops before it lands, and the notice says so")
+	await _frames(40)
+	await _hit_bag(home, p)
+	_check.call(await _until(func(): return home.swing_in, 120), "hit again, it swings back again")
 	await _frames(2)  # partway into the swing
 	p.combat.raise_guard()
 	_check.call(await _until(func(): return home.spar_blocked.size() == 1, 120), "right-clicking as it swings in blocks it")
 	_check.call(p.health == health, "blocking it costs nothing either")
 	_check.call(not net.profile.earned.has(CrewVitals.FIRST_BLOCK), "and it's practice: the punch bag never earns the High-tops")
 	net.profile = real_profile
+
+
+## Player `p` turns to the bag and throws a punch at it.
+func _hit_bag(home, p) -> void:
+	var at: Vector3 = home.to_global(home.PUNCH_BAG)
+	p.look_at(Vector3(at.x, p.global_position.y, at.z))
+	p.head.rotation = Vector3.ZERO
+	p._strike_cd = 0.0
+	await _frames(2)
+	p._strike()
+	await _frames(2)
 
 
 ## Half the book and the whole book unlock an item each, counted across runs.
@@ -341,11 +430,9 @@ func test_book_unlocks() -> void:
 	_check.call(n == 19, "Easy SQL has 19 chapters to count")
 	var me: int = h.multiplayer.get_unique_id()
 	var finish := func(id: String):
-		h._begin(id, me, [me])
-		h._complete(id)
-	h._begin(ids[n - 1], me + 1, [me + 1])  # a huddle this player wasn't in
-	h._complete(ids[n - 1])
-	_check.call(not prof.earned.has("chapter:" + ids[n - 1]), "a chapter read by a huddle you weren't in doesn't count for you")
+		h._complete(id, [me])
+	h._complete(ids[n - 1], [me + 1])  # given to a crew this player wasn't in
+	_check.call(not prof.earned.has("chapter:" + ids[n - 1]), "a chapter given to a crew you weren't in doesn't count for you")
 	h.done.clear()
 	for i in half - 1:
 		finish.call(ids[n - 1 - i])  # any order
@@ -362,43 +449,39 @@ func test_book_unlocks() -> void:
 	level.free()
 
 
-func test_flashback() -> void:
-	print("Huddle: a flashback from the building")
+func test_chapter_in_building() -> void:
+	print("Huddle: a chapter comes in, up in the building")
 	_game().new_run(22)
 	var world = load("res://scenes/world.tscn").instantiate()
 	_tree.root.add_child(world)
 	await _frames(30)
 	var p: Player = world.player
 	var h = _huddle_of(world.current)
-	h.reveal_scale = 0.2
-	_check.call(world.home == null and h != null, "a game started in the van has no garage until a flashback needs one")
+	var cam: Camera3D = world.get_viewport().get_camera_3d()
+	p.input_locked = false
 	var done := [false]
 	var run_it := func():
 		await h.run("easy_sql_1")
 		done[0] = true
 	run_it.call()
-	_check.call(await _until(func(): return h.is_running() and h.get_node_or_null("HuddleUI") != null), "the flashback opens the book")
-	var home = world.get_node_or_null("HomeBase")
-	_check.call(home != null and home.visible and home.flashback_camera.current, "it cuts to the garage through the flashback camera")
-	var cam: Camera3D = home.flashback_camera
-	_check.call(not cam.is_position_behind(home.to_global(home.WHITEBOARD)) and not cam.is_position_behind(home.maddison.global_position), "the camera looks over the crew at Maddison and her whiteboard")
-	var figures: Array = home.find_children("Crew*", "", false, false)
-	_check.call(figures.size() == 1 and figures[0].get_children().any(func(c): return c.get("action") == "sit"), "solo, one crew member sits facing the whiteboard")
-	_check.call(_at_mark(home, "board"), "Maddison is at her whiteboard, facing the crew")
-	_check.call(home.crew_seats.size() == 6 and home.CREW_SEATS.all(func(v): return v.x > home.WHITEBOARD.x + 2.5 and absf(v.z - home.WHITEBOARD.z) < 1.5), "six seats, all in front of the whiteboard")
-	_check.call(h.get_node("HuddleUI").flashback and p.input_locked, "in sepia, with the player held still")
-	_check.call(await _finish_chapter(h, "easy_sql_1"), "the crew reads chapter 1 and answers its check")
-	_check.call(await _until(func(): return done[0]), "the flashback ends")
-	_check.call(p.camera.current and not home.visible and home.find_children("Crew*", "", false, false).is_empty(), "back to the present: the player's own view, the garage hidden again")
+	_check.call(await _until(func(): return h.is_running()), "the chapter comes in")
+	_check.call(_game().book_chapters.has("easy_sql_1") and world.hud._notice.text.begins_with("New in Easy SQL: Ch. 1, Ask for a table"), "it's in the book, and a notice says so")
+	var held := false
+	var cut := false
+	while not done[0]:
+		held = held or p.input_locked
+		cut = cut or world.get_viewport().get_camera_3d() != cam
+		await _frames(2)
+	_check.call(not held and not cut and world.get_node_or_null("HomeBase") == null, "no cut to the garage, and nobody is held still while Maddison's lines play")
 	_check.call(_game().book_words.has("SELECT") and _game().book_words.has("FROM"), "SELECT, FROM and the semicolon are learned")
 	await h.run("easy_sql_1")
-	_check.call(not h.is_running(), "a chapter is only read once per run")
+	_check.call(not h.is_running() and _game().book_chapters.count("easy_sql_1") == 1, "a chapter comes once per run")
 	world.queue_free()
 	await _frames(2)
 
 
 func test_coop_huddle() -> void:
-	print("Huddle: co-op, two players vote together")
+	print("Huddle: co-op, a chapter comes in for the whole crew")
 	_game().new_run(23)
 	_game().open_at_home = true
 	var worlds: Array = await _tree._coop_worlds(1)
@@ -408,7 +491,6 @@ func test_coop_huddle() -> void:
 	_check.call(machines.all(func(w): return w.current == w.home), "both machines open in the garage")
 	var hh = _huddle_of(host)
 	var hc = _huddle_of(client)
-	hh.reveal_scale = 0.2
 	# One Net autoload serves both machines here: whatever the host grants itself lands
 	# straight away, so swap in the client's profile before its grant arrives.
 	var net := _tree.root.get_node("Net")
@@ -421,73 +503,18 @@ func test_coop_huddle() -> void:
 	_check.call(await _until(func(): return not client.home.book_bag.visible, 120) and client_prof.earned.has("achievement:book_easy_sql"), "the player who picks up the book earns its cover")
 	_check.call(not host_prof.earned.has("achievement:book_easy_sql") and not host.home.book_bag.visible, "a teammate who didn't pick it up doesn't, and the bag is gone for them too")
 	net.profile = Profile.new()
+	var held := [host.player.input_locked, client.player.input_locked]
 	var runs := [0]
-	for h in [hh, hc]:
+	for h in [hc, hh]:  # the client gets there first: it waits for the host
 		var run_it := func():
-			await h.run("easy_sql_0", "here")
+			await h.run("easy_sql_0")
 			runs[0] += 1
 		run_it.call()
-	_check.call(await _until(func(): return hc.is_running() and hh.is_running(), 300), "the huddle opens on both machines")
-	_check.call(hh.is_reader() and not hc.is_reader(), "one player reads (the host, for chapter 0)")
-	_check.call(hh.crew.size() == 2 and hc.crew == hh.crew, "the whole crew is in the huddle")
-	_check.call(host.player.input_locked and client.player.input_locked, "nobody can walk out of it: everyone is held at the book")
-	_check.call(host.home.flashback_camera.current and client.home.flashback_camera.current and host.home.board_sheet.visible, "in the garage, everyone watches Maddison at her whiteboard")
-	hc.turn_page()
-	await _frames(10)
-	_check.call(hh.page == 0 and hh.turn_votes.size() == 1 and hc.turn_votes.size() == 1, "one player ready isn't enough: the page waits for the crew")
-	_check.call(hh.countdown > 0.0 and hc.countdown > 0.0, "with one player left to turn the page, the crew counts down for them")
-	_check.call(await _until(func(): return hc.page != 0, 900) and hc.turn_votes.is_empty(), "and the page turns without them when it runs out")
-	var crew_page: int = hh.page
-	var client_id: int = client.multiplayer.get_unique_id()
-	hc.turn_page(-1)
-	await _frames(5)
-	_check.call(hc.shown_page() != crew_page and hh.page == crew_page and hc.page == crew_page, "Back is your own: you look back, and the crew's page stays put")
-	hc.turn_page()
-	_check.call(await _until(func(): return hh.turn_votes.has(client_id), 60) and hc.peek == -1, "Next takes you back to the crew's page and counts you ready")
-	hh.turn_page()
-	_check.call(await _until(func(): return hc.question >= 0, 60), "once everyone's ready, it turns for everyone")
-	while hh.question < 0:
-		hh.turn_page()
-		hc.turn_page()
-		await _frames(5)
-	await _frames(5)
-	_check.call(hc.question == 0, "both see the quiz start")
-	_answer(hh, true)
-	await _frames(10)
-	_check.call(hh.result.is_empty() and hc.votes.size() == 1, "one vote in of two: the crew waits for the other")
-	_answer(hc, false)
-	_check.call(await _until(func(): return hc.result.has("split"), 120), "a one-one split asks the crew to talk it over")
-	_check.call(await _until(func(): return hc.result.is_empty() and hc.votes.is_empty(), 300) and hc.question == 0, "and vote again")
-	_answer(hc, true)
-	await _frames(10)
-	_answer(hc, false)  # changes their mind before everyone's in
-	await _frames(10)
-	var q: Dictionary = hh.current_question()
-	_check.call(hh.votes.get(client.multiplayer.get_unique_id(), -1) != q.answer, "a player can change their vote until everyone has voted")
-	_answer(hc, true)
-	await _frames(10)
-	_answer(hh, true)
-	_check.call(await _until(func(): return hc.result.get("right", false), 120), "both right: everyone sees it marked right")
-	_check.call(await _until(func(): return hh.question == 1 and hc.question == 1, 300), "and both move on together")
-	for i in hh.chapter.quiz.size() - 1:
-		await _until(func(): return hh.result.is_empty() and hc.result.is_empty() and hc.question == hh.question and hh.question >= 1, 300)
-		_answer(hc, true)
-		await _frames(10)
-		_answer(hh, true)
-		await _until(func(): return not hh.result.is_empty(), 120)
-		await _until(func(): return hh.result.is_empty(), 300)
-	# The chapter's closing page, turned by whoever is reading.
-	for i in 20:
-		for h in [hh, hc]:
-			if h.is_running() and h.question < 0:
-				h.turn_page()
-		await _frames(5)
-	var ended := await _until(func(): return runs[0] == 2, 600)
-	if not ended:
-		print("    host q=%d result=%s votes=%s done=%s / client q=%d done=%s runs=%d" % [hh.question, hh.result, hh.votes, hh.done, hc.question, hc.done, runs[0]])
-	_check.call(ended, "the chapter ends on both machines")
-	_check.call(net.profile.earned.has("chapter:easy_sql_0"), "the players in the huddle have the chapter on their profiles")
-	_check.call(not host.home.board_sheet.visible and host.player.camera.current, "the board is wiped and everyone's back in their own eyes")
+	_check.call(await _until(func(): return hh.done.has("easy_sql_0") and hc.done.has("easy_sql_0"), 300), "the chapter comes in on both machines")
+	_check.call(hh.crew.size() == 2 and hc.crew == hh.crew, "for the whole crew")
+	_check.call([host.player.input_locked, client.player.input_locked] == held and hh.get_node_or_null("HuddleUI") == null, "no book pops up, and it holds nobody")
+	_check.call(await _until(func(): return runs[0] == 2, 1800), "and both machines carry on once Maddison's lines are over")
+	_check.call(net.profile.earned.has("chapter:easy_sql_0"), "the players have the chapter on their profiles")
 	net.profile = test_profile
 	_tree._coop_close(worlds)
 	await _frames(2)
@@ -511,7 +538,8 @@ func test_coop_spar() -> void:
 	var host_id: int = machines[0].multiplayer.get_unique_id()
 	var client_id: int = machines[1].multiplayer.get_unique_id()
 	ph.global_position = homes[0].to_global(homes[0].PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
-	_check.call(await _until(func(): return homes[1].spar_target == host_id, 400), "the client sees the bag swing at the host")
+	await _hit_bag(homes[0], ph)
+	_check.call(await _until(func(): return homes[1].spar_target == host_id, 400), "the host hits the bag, and the client sees it swing back at the host")
 	await _until(func(): return homes[0].swing_in, 120)
 	await _frames(2)
 	ph.combat.raise_guard()
@@ -519,7 +547,10 @@ func test_coop_spar() -> void:
 	await _frames(60)
 	_check.call(done[0] == 0, "one block isn't enough: the drill waits for the whole crew")
 	pc.global_position = homes[1].to_global(homes[1].PUNCH_BAG + Vector3(-1.0, 0.2, 0.8))
-	_check.call(await _until(func(): return homes[1].spar_target == client_id and homes[1].swing_in, 600), "then it swings at the client")
+	await _frames(30)
+	_check.call(homes[1].spar_target == 0, "it doesn't swing at the client until they hit it")
+	await _hit_bag(homes[1], pc)
+	_check.call(await _until(func(): return homes[1].spar_target == client_id and homes[1].swing_in, 600), "the client's hit reaches the host, and the bag swings back at them")
 	await _frames(2)
 	pc.combat.raise_guard()
 	_check.call(await _until(func(): return done[0] == 2, 400), "the client blocks it, and both machines move on")

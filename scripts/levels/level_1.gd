@@ -320,18 +320,18 @@ func _on_noc_entered() -> void:
 
 
 ## The controller puzzle for a run whose stuck doors are in `z`. Hints follow the
-## ladder: the query's shape with ? for the zone, then how to find it, then exact.
+## ladder: the query's shape with enter_zone for the zone, then how to find it, then exact.
 static func controller_puzzle_for(z: String) -> Puzzle:
 	return Puzzle.new("controller",
 		"SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % z, ["id"], false, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = '?' AND status = 'fault';[/color]\n" +
-		"  SELECT id              just the controller's id\n" +
-		"  FROM door_controllers  from the table of door controllers\n" +
-		"  WHERE zone = '?'       keep only the rows in that zone\n" +
-		"  AND status = 'fault'   ...that are ALSO faulted. Both must be true.\n" +
-		"? is the zone the stuck doors share.",
-		"? is the zone your doors query showed for the stuck doors. " +
+		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = 'enter_zone' AND status = 'fault';[/color]\n" +
+		"  SELECT id                 just the controller's id\n" +
+		"  FROM door_controllers     from the table of door controllers\n" +
+		"  WHERE zone = 'enter_zone' keep only the rows in that zone\n" +
+		"  AND status = 'fault'      ...that are ALSO faulted. Both must be true.\n" +
+		"Replace enter_zone with the zone the stuck doors share.",
+		"Replace enter_zone with the zone your doors query showed for the stuck doors. " +
 		"No result yet? Run the doors query first: .hint walks you through it.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % z +
@@ -343,11 +343,11 @@ static func controller_puzzle_for(z: String) -> Puzzle:
 static func stuck_doors_puzzle_for() -> Puzzle:
 	return Puzzle.new("stuck_doors", "SELECT name, zone FROM doors WHERE locked = 1", ["name", "zone"], false, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT name, zone FROM doors WHERE locked = ?;[/color]\n" +
-		"  SELECT name, zone   each door's name and zone\n" +
-		"  FROM doors          from the table of doors\n" +
-		"  WHERE locked = ?    keep only the rows where locked is ?\n" +
-		"? is the number the doors table uses for a door that won't release. The self-test above says which.",
+		"    [color=#ffffff]SELECT name, zone FROM doors WHERE locked = enter_number;[/color]\n" +
+		"  SELECT name, zone           each door's name and zone\n" +
+		"  FROM doors                  from the table of doors\n" +
+		"  WHERE locked = enter_number keep only the rows where locked is that number\n" +
+		"Replace enter_number with the number the doors table uses for a door that won't release. The self-test above says which.",
 		"The self-test says what locked holds for a door that won't release. Numbers go in without quotes. " +
 		"Then find the NOC shift log's doors in the result: they share one zone.",
 		"Type this exactly and press Enter:\n" +
@@ -361,12 +361,12 @@ static func dark_room_puzzle_for() -> Puzzle:
 	return Puzzle.new("dark_room",
 		"SELECT room, status FROM lights WHERE status = 'dead' OR status = 'flickering'", ["room", "status"], false, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT room, status FROM lights WHERE status = '?' OR status = '?';[/color]\n" +
-		"  SELECT room, status  each light's room and status\n" +
-		"  FROM lights          from the lights table\n" +
-		"  WHERE status = '?'   keep the rows with this status\n" +
-		"  OR status = '?'      ...or with this one. Either will do.\n" +
-		"The two ?s are the statuses on facilities' card by the break room door.",
+		"    [color=#ffffff]SELECT room, status FROM lights WHERE status = 'enter_status' OR status = 'enter_other_status';[/color]\n" +
+		"  SELECT room, status               each light's room and status\n" +
+		"  FROM lights                       from the lights table\n" +
+		"  WHERE status = 'enter_status'     keep the rows with this status\n" +
+		"  OR status = 'enter_other_status'  ...or with this one. Either will do.\n" +
+		"Replace enter_status and enter_other_status with the two statuses on facilities' card by the break room door.",
 		"Facilities' card in the break room names the two statuses to list. Words go in 'single quotes'. " +
 		"With OR, a row stays if either condition is true.",
 		"Type this exactly and press Enter:\n" +
@@ -381,11 +381,11 @@ static func count_puzzle_for() -> Puzzle:
 	return Puzzle.new("faulted_count",
 		"SELECT COUNT(*) FROM door_controllers WHERE status = 'fault'", ["count(*)"], false, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT COUNT(*) FROM ? WHERE status = 'fault';[/color]\n" +
+		"    [color=#ffffff]SELECT COUNT(*) FROM enter_table_name WHERE status = 'fault';[/color]\n" +
 		"  SELECT COUNT(*)         how many rows, not the rows themselves\n" +
-		"  FROM ?                  from the table that lists the controllers\n" +
+		"  FROM enter_table_name   from the table that lists the controllers\n" +
 		"  WHERE status = 'fault'  count only the faulted ones\n" +
-		"? is the table you found the faulted controller in.",
+		"Replace enter_table_name with the table you found the faulted controller in.",
 		"The DOOR CONTROLLERS card by the terminal names the table. COUNT(*) counts rows, like WARDEN's printout on the desk. The sign-off form says 'offline' units don't count.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT COUNT(*) FROM door_controllers WHERE status = 'fault';[/color]\n" +
@@ -398,11 +398,11 @@ static func hot_rack_puzzle_for() -> Puzzle:
 	return Puzzle.new("hot_rack",
 		"SELECT id FROM racks WHERE temp_c > %d" % Level1Data.INTERLOCK_C, ["id"], false, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT id, temp_c FROM racks WHERE temp_c > ?;[/color]\n" +
-		"  SELECT id, temp_c  each rack's id and temperature\n" +
-		"  FROM racks         from the rack table\n" +
-		"  WHERE temp_c > ?   only rows where temp_c is more than ?\n" +
-		"? is the limit on the cable vault's back door.",
+		"    [color=#ffffff]SELECT id, temp_c FROM racks WHERE temp_c > enter_limit;[/color]\n" +
+		"  SELECT id, temp_c            each rack's id and temperature\n" +
+		"  FROM racks                   from the rack table\n" +
+		"  WHERE temp_c > enter_limit   only rows where temp_c is more than the limit\n" +
+		"Replace enter_limit with the limit on the cable vault's back door (a number: no quotes).",
 		"The fire interlock plate on the cable vault's back door (in the ops room) gives the limit, in °C.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT id, temp_c FROM racks WHERE temp_c > %d;[/color]\n" % Level1Data.INTERLOCK_C +

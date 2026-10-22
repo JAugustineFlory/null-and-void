@@ -1,0 +1,2 @@
+- **Changed:** a hint's fill-in-the-blank now names what goes there (like `enter_column_name`) instead of a `?`, and typing the blank in as it is gets a nudge to put the real value in.
+- **Fixed:** on the ground floor, the terminal says how to look up a table's column names when you first need them.

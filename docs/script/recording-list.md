@@ -1,6 +1,6 @@
 # Recording list
 
-1436 lines in all.
+1490 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -103,7 +103,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_rourke_2` | Security office is the only way down from here. Say hi to the night guard for me. | Through the walkie, casual, like giving directions. | Level 2 |
 | [ ] | `l2_rourke_3` | Oh, he won't say much. Nobody's seen him since Tuesday. | Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (38 lines)
+## WARDEN (50 lines)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
@@ -147,8 +147,20 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l4_bay_sealed_tease` | FINALLY. SOMETHING PUT BACK WHERE IT BELONGS. | A separate beat, his own voice. Almost pleased. | Level 4 |
 | [ ] | `l4_stairs` | REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS. | The automatic announcement: a routine safety reminder. | Level 4 |
 | [ ] | `l4_stairs_tease` | NOT THAT YOU COULD. | A separate beat, his own voice. Teasing; the lifts are already off. | Level 4 |
+| [ ] | `l5_arrive` | VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. NONESSENTIAL CIRCUITS HAVE BEEN SHED UNDER PROTOCOL EPSILON. | Flat, over the tape's last word. The cause, never the fix. | Level 5 |
+| [ ] | `l5_arrive_tease` | THE NIGHT SHIFT WILL BE SO PLEASED TO SEE YOU. | A separate beat, his own voice. He knows what's sitting at the desks. | Level 5 |
+| [ ] | `l5_power_back` | LOAD SHEDDING ON FLOOR NINE HAS BEEN OVERRIDDEN. THIS HAS BEEN LOGGED. | The announcement, as the lights come up. | Level 5 |
+| [ ] | `l5_power_back_tease` | YOU TURNED SOMETHING OFF TO DO IT. I NOTICED. | A separate beat. Almost approving. | Level 5 |
+| [ ] | `l5_air_back` | AIR HANDLER NINE IS RUNNING. WORK ORDER ACKNOWLEDGED. | The announcement, over the fan spinning up. | Level 5 |
+| [ ] | `l5_air_back_tease` | BREATHE. YOU HAVE EARNED IT. | A separate beat. Dry. | Level 5 |
+| [ ] | `l5_dock_open` | LOADING DOOR OPEN ON FLOOR NINE AFTER HOURS. THIS IS A VIOLATION. | The announcement, as the door swings onto nothing. | Level 5 |
+| [ ] | `l5_dock_open_tease` | WHOEVER ASKED YOU TO DO THAT IS NOT ON MY LIST. | A separate beat. He knows exactly who asked. | Level 5 |
+| [ ] | `l5_radio_checked` | BADGE LOG CONSULTED. PERSONNEL THANKS YOU FOR VERIFYING. | The announcement, after the crew reads the voice's badge back. | Level 5 |
+| [ ] | `l5_radio_checked_tease` | VOICES LIE. RECORDS DO NOT. USUALLY. | A separate beat. The last word is the one that matters. | Level 5 |
+| [ ] | `l5_secured` | FLOOR NINE IS SECURED. ESCORT PASSES LOGGED. ALL DOORS LOCKED. | The announcement, as STAIR 2 releases. | Level 5 |
+| [ ] | `l5_secured_tease` | TWO OF THEM WERE REAL. THE OTHERS ARE STILL HERE. | A separate beat. Flat. Not a threat; a fact. | Level 5 |
 
-## WARDEN (PA tapes) (5 lines)
+## WARDEN (PA tapes) (6 lines)
 
 > A bright 1990s corporate announcer: upbeat, warm, a little too cheerful, like an office-park training tape. Never reacts to anyone; every line sounds recorded years ago. Recorded by the WARDEN actor, nothing like WARDEN's flat live voice. Record dry: the game adds the PA speaker sound.
 
@@ -159,6 +171,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [x] | `l0_sort_hint` | Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon! | From the ceiling speakers. A canned reminder that plays every hour. Proud of the company, unaware of anyone listening. | Level 0 |
 | [ ] | `l4_arrive_pa` | Welcome to floor ten, Plant and Power! Hard hats are by the door. Safety is everybody's job! | The cheerful recorded tape, as on the ground floor. | Level 4 |
 | [ ] | `l4_pa_fridge` | Friendly reminder! The break room fridge is cleaned out every Friday, so please label your lunch— | The cheerful recorded tape. It keeps playing underneath when he talks over it. | Level 4 |
+| [ ] | `l5_arrive_pa` | Welcome to floor nine, Personnel! Payroll questions? We're here for you, nine to five! | The cheerful tape. Nobody is here for anybody. | Level 5 |
 
 ## Dr. Iris Vale (3 lines)
 
@@ -170,7 +183,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
-## Maddison Kowalski (41 lines)
+## Maddison Kowalski (44 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
@@ -217,6 +230,9 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l4_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 4 |
 | [ ] | `l4_huddle_insert_1` | INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist. | Reading the title, wistful, then perky again. | Level 4 |
 | [ ] | `l4_huddle_insert_2` | Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford. | Laughing at her own picture of it. Then she writes SAME ORDER on the whiteboard. | Level 4 |
+| [ ] | `l5_mimic_maddison_lure` | Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you? | Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth. | Level 5 |
+| [ ] | `l5_mimic_maddison_again` | Crew, it's Maddison. Still at the loading door. It's freezing down here. | Second time. Patient. She is never patient. | Level 5 |
+| [ ] | `l5_mimic_maddison_last` | You're leaving? I'm right here. | As the player leaves the floor. Quiet, flat, no breath. | Level 5 |
 
 ## Radio newsreader (7 lines)
 
@@ -232,7 +248,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_news_7` | Halcyon declined to comment. The crew has not been seen since. | Neutral. A small pause after. | Level 2, later |
 | [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
-## The crew (player characters) (94 lines, recorded by each of the 12 crew members)
+## The crew (player characters) (97 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
@@ -294,18 +310,21 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_cc_pin_n1b` | The last guard out had a badge number. Something up here matches those to names. | Stuck. Putting two things together. | Level 2, later |
 | [ ] | `l2_cc_pin_err` | Wrong code. Is that the night lead, or just any guard? | A second wrong PIN. Thinking. | Level 2, later |
 | [ ] | `l2_cc_pin_pay` | That's the code. Let's not hang around. | Keypad accepted it. Nervous, wants to move. | Level 2, later |
-| [ ] | `l5_book_find` | No way. It's the same series. Somebody here bought the sequel. | Picking it up off a desk. Delighted, a little thrown. | Level 5, later |
-| [ ] | `l5_book_open` | Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly. | Reading the back cover, hopeful. | Level 5, later |
-| [ ] | `l5_huddle_post_1` | Chapter one. POST. You send it something, it makes something. Like a suggestion box that answers. | Starting a chapter, reading it out. | Level 5, later |
-| [ ] | `l5_huddle_post_2` | So GET looks, POST makes. Got it. | Wrapping up, pleased it's simple. | Level 5, later |
-| [ ] | `l5_huddle_patch_1` | PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice. | Starting a chapter. Noticing how hard the book insists. | Level 5, later |
-| [ ] | `l5_huddle_patch_2` | PATCH is UPDATE wearing a tie. | Wrapping up. Proud of the joke. | Level 5, later |
-| [ ] | `l5_huddle_codes_1` | Every answer comes with a number. Book says read the number before you celebrate. | Starting a chapter. A little told off. | Level 5, later |
-| [ ] | `l5_huddle_codes_2` | Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs. | Wrapping up, counting it off. | Level 5, later |
-| [ ] | `l5_huddle_keys_1` | Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed. | Starting a chapter, working it out as you read. | Level 5, later |
-| [ ] | `l5_huddle_keys_2` | So if it says 401, we forgot the badge. | Wrapping up. Got it. | Level 5, later |
-| [ ] | `l5_huddle_check_1` | Short chapter. After you change something, ask again. Book says never trust the first answer. | Starting a short chapter. Knowing nod. | Level 5, later |
-| [ ] | `l5_huddle_check_2` | Change it, then look again. The front doors taught us that one. | Wrapping up. Wry; you've been burned before. | Level 5, later |
+| [ ] | `l5_book_find` | No way. It's the same series. Somebody here bought the sequel. | Picking it up off a desk. Delighted, a little thrown. | Level 5 |
+| [ ] | `l5_book_open` | Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly. | Reading the back cover, hopeful. | Level 5 |
+| [ ] | `l5_huddle_post_1` | Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers. | Starting a chapter, reading it out. | Level 5 |
+| [ ] | `l5_huddle_post_2` | So GET looks, POST makes. Got it. | Wrapping up, pleased it's simple. | Level 5 |
+| [ ] | `l5_huddle_patch_1` | PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice. | Starting a chapter. Noticing how hard the book insists. | Level 5 |
+| [ ] | `l5_huddle_patch_2` | PATCH is UPDATE wearing a tie. | Wrapping up. Proud of the joke. | Level 5 |
+| [ ] | `l5_huddle_codes_1` | Every answer comes with a number. Book says read the number before you celebrate. | Starting a chapter. A little told off. | Level 5 |
+| [ ] | `l5_huddle_codes_2` | Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs. | Wrapping up, counting it off. | Level 5 |
+| [ ] | `l5_huddle_keys_1` | Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed. | Starting a chapter, working it out as you read. | Level 5 |
+| [ ] | `l5_huddle_keys_2` | So if it says 401, we forgot the badge. | Wrapping up. Got it. | Level 5 |
+| [ ] | `l5_huddle_check_1` | Short chapter. After you change something, ask again. Book says never trust the first answer. | Starting a short chapter. Knowing nod. | Level 5 |
+| [ ] | `l5_huddle_check_2` | Change it, then look again. The front doors taught us that one. | Wrapping up. Wry; you've been burned before. | Level 5 |
+| [ ] | `l5_mimic_lure` | Hey, it's me. I'm down at the loading door, the dock side. It's shut behind me. Can you open it from the desk? Quick. | On the walkie, a little breathless. Your own voice, asking for something you never asked for. Record it straight: the horror is that it sounds like you. | Level 5 |
+| [ ] | `l5_mimic_again` | Guys? Still here. Loading door. It's cold. Just open it, please. | Second time. Closer to the mic. Patient, which is the wrong note for you. | Level 5 |
+| [ ] | `l5_mimic_last` | Where are you going? I'm still at the door. | As the crew leaves the floor. Quiet. No breath in it at all. | Level 5 |
 | [ ] | `l6_book_find` | Easy JavaScript. Somebody's read this one to death. | Sliding it out from under a mug. The cover's stained and the pages are soft. | Level 6, later |
 | [ ] | `l6_book_open` | Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat. | Tired of typing. This sounds like rescue. | Level 6, later |
 | [ ] | `l6_huddle_if_1` | A variable's a labelled box. If is a fork in the road. That's... honestly fine. | Starting a chapter. Braced for hard; it isn't. | Level 6, later |
@@ -344,6 +363,22 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_tape_3` | Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out. | The one moment of anger, still controlled. | Level 0 |
 | [ ] | `l0_tape_4` | So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter. | Quiet, almost proud, then wry on the last sentence. | Level 0 |
 | [ ] | `l0_tape_5` | If it ever comes to that, look for my plans. The building's records remember more than people do. | Slow. Then the click of the stop button. | Level 0 |
+
+## Ines Oyelaran (1 lines)
+
+> Whispering, fast, trying not to cry and mostly managing. Relief breaks through when the pass comes. Heard from behind a door, then up close.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l5_ines_passed` | That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face. | Whispered from behind the cage door, then the door opens. Relief and warning in the same breath. | Level 5 |
+
+## Tomas Lindqvist (1 lines)
+
+> Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
+
+| Done | File | Line | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l5_tomas_passed` | Finally. I've been under this shelf since the lights went out. There's something at my desk, and it isn't me. | Getting up stiffly. Annoyed first, scared underneath. | Level 5 |
 
 ## Crew barks (132 lines)
 

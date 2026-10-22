@@ -4,6 +4,11 @@ extends Node
 ## has the walkie-talkies, hold V to talk to everyone on the radio: range,
 ## battery and static near entities apply. Radio voice also carries to anyone
 ## standing next to the person talking, like a real walkie-talkie.
+##
+## Voice keeps working through a flashback or cutscene: there the view cuts away,
+## often far from where everyone is standing, so teammates' voices play flat
+## instead of fading with distance from that camera, and the radio still keys
+## while the scene holds everyone still.
 
 const MIC_BUS := "VoiceMic"
 const RADIO_BUS := "Radio"
@@ -29,7 +34,8 @@ var last_quality := 1.0
 
 var _capture: AudioEffectCapture
 var _mic: AudioStreamPlayer
-var _speakers := {}  # peer id -> {"radio": AudioStreamPlayer, "near": AudioStreamPlayer3D}
+## peer id -> {"radio": AudioStreamPlayer, "near": AudioStreamPlayer3D, "flat": AudioStreamPlayer}
+var _speakers := {}
 var _rng := RandomNumberGenerator.new()
 var _open_mic_t := 0.0
 var _was_transmitting := false
@@ -67,13 +73,13 @@ func _has_walkie() -> bool:
 
 func _process(delta: float) -> void:
 	var talking := false
-	if _online() and _has_walkie() and is_instance_valid(level.player) and not level.player.input_locked:
+	if _online() and _has_walkie() and _keys_free():
 		talking = Input.is_action_pressed("radio_talk")
 	radio.tick(delta, talking)
 	if radio.transmitting != _was_transmitting:
 		_was_transmitting = radio.transmitting
 		_squelch.rpc(radio.transmitting)
-	if _online() and Input.is_action_just_pressed("voice_toggle") and is_instance_valid(level.player) and not level.player.input_locked:
+	if _online() and Input.is_action_just_pressed("voice_toggle") and _keys_free():
 		mic_muted = not mic_muted
 	if _capture:
 		var n := _capture.get_frames_available()
@@ -88,6 +94,24 @@ func _process(delta: float) -> void:
 				send_frames(frames, AudioServer.get_mix_rate(), radio.transmitting)
 	_rx_t -= delta
 	_update_hud()
+
+
+## V and B work while the player can move, and while a flashback or cutscene
+## holds them still (nothing to type into there). Not at a terminal or the
+## notebook, which keep the player's own view and take typing.
+func _keys_free() -> bool:
+	if not is_instance_valid(level.player):
+		return false
+	return not level.player.input_locked or not hearing_from_body()
+
+
+## Hearing the world from the player's own head: their camera is the one in use.
+## Not in a flashback or cutscene, where the camera is somewhere else entirely.
+func hearing_from_body() -> bool:
+	if not is_instance_valid(level.player):
+		return false
+	var cam := get_viewport().get_camera_3d()
+	return cam != null and cam == level.player.get("camera")
 
 
 ## Send some microphone audio. Public so tests can feed it frames.
@@ -110,7 +134,12 @@ func _voice(on_radio: bool, data: PackedByteArray) -> void:
 	var frames := VoiceCodec.decode(data)
 	var spk := _speaker(from)
 	var dist := body.global_position.distance_to(level.player.global_position)
-	if dist < NEAR_RANGE:
+	if not hearing_from_body():
+		# The camera is away (a flashback's garage): a voice from the world would
+		# fade out with distance from it, so the whole crew is heard as if close.
+		heard.near += 1
+		_push(spk.flat, frames)
+	elif dist < NEAR_RANGE:
 		heard.near += 1
 		_push(spk.near, frames)
 	if on_radio and _has_walkie():
@@ -159,7 +188,12 @@ func _speaker(id: int) -> Dictionary:
 	(body if body else self).add_child(near)
 	near.position.y = 1.6
 	near.play()
-	_speakers[id] = {"radio": r, "near": near}
+	var flat := AudioStreamPlayer.new()
+	flat.stream = _generator()
+	flat.volume_db = near.volume_db  # as loud as someone standing next to you
+	add_child(flat)
+	flat.play()
+	_speakers[id] = {"radio": r, "near": near, "flat": flat}
 	return _speakers[id]
 
 

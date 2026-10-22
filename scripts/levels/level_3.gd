@@ -223,31 +223,30 @@ var exit_trigger: Trigger
 var shredder: Shredder
 ## The first crank has been turned: the floor knows what's hunting it now.
 var shredder_awake := false
-var _huddles := 0  # book huddles open or waiting their turn
 ## The stacks' shelf units, for the climb tests and the dressing pass.
 var stack_units: Array[StaticBody3D] = []
 
 ## Puzzle stations on the desk terminal. Any query with the same result passes.
-## Hint ladders (ladder A: the shape with the value as ?, how to find it, the exact
+## Hint ladders (ladder A: the shape with the value as a named blank (enter_...), how to find it, the exact
 ## query; a station with no value to find starts on the exact query), approved by
 ## Augustine 2026-10-21 (plan/approvals/l3-text.md, with Teaching's suggestions).
 ## COUNT, as review, safe: how many slips are still open. The player counted on 14
 ## already, so the ladder is two tiers: a reminder with the shape, then the query.
 var slips_puzzle := Puzzle.new("slips", "SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open'", ["count(*)"], false, [
-	"you've counted before: the reset's sign-off on 14. same shape, with the word left as ?:\n" +
-	"    [color=#ffffff]SELECT COUNT(*) FROM retrieval_slips WHERE status = '?';[/color]\n" +
-	"the word for \"not filled yet\" is the one on the clipboard's header, in small letters.",
+	"you've counted before: the reset's sign-off on 14. same shape, with the word left blank:\n" +
+	"    [color=#ffffff]SELECT COUNT(*) FROM retrieval_slips WHERE status = 'enter_status';[/color]\n" +
+	"replace enter_status with the word for \"not filled yet\": the one on the clipboard's header, in small letters.",
 	"type this, then Enter:\n" +
 	"    [color=#ffffff]SELECT COUNT(*) FROM retrieval_slips WHERE status = 'open';[/color]\n" +
 	"the number is the answer; the clipboard on the spike agrees.",
 ])
 ## DISTINCT, new: which departments still have boxes in the stacks (one of each).
 var depts_puzzle := Puzzle.new("depts", "SELECT DISTINCT dept FROM catalogue WHERE room = 'STACKS'", ["dept"], false, [
-	"the shape, with the room left as ?:\n" +
-	"    [color=#ffffff]SELECT DISTINCT dept FROM catalogue WHERE room = '?';[/color]\n" +
+	"the shape, with the room left blank:\n" +
+	"    [color=#ffffff]SELECT DISTINCT dept FROM catalogue WHERE room = 'enter_room';[/color]\n" +
 	"  SELECT DISTINCT dept   each department once, no repeats\n" +
 	"  FROM catalogue   the box records\n" +
-	"  WHERE room = '?'   only the boxes out on the shelves. ? is what the catalogue calls the shelves.",
+	"  WHERE room = 'enter_room'   only the boxes out on the shelves. replace enter_room with what the catalogue calls the shelves.",
 	"type\n" +
 	"    [color=#ffffff]SELECT * FROM catalogue;[/color]\n" +
 	"the room column says where each box sits. the tall shelves are the stacks.",
@@ -270,11 +269,11 @@ var tally_puzzle := Puzzle.new("tally", "SELECT room, COUNT(*) FROM access_log G
 ## The busiest room with its count, as one row, is the same answer as the whole
 ## ranking. A lone row without the count isn't: it could be any swipe.
 var visits_puzzle := _also(Puzzle.new("visits", "SELECT room FROM access_log WHERE time LIKE '%s%%' GROUP BY room ORDER BY COUNT(*) DESC" % Level3Data.NIGHT, ["room"], true, [
-	"the shape, with the night left as ?:\n" +
-	"    [color=#ffffff]SELECT room, COUNT(*) FROM access_log WHERE time LIKE '?%' GROUP BY room ORDER BY COUNT(*) DESC;[/color]\n" +
+	"the shape, with the night left blank:\n" +
+	"    [color=#ffffff]SELECT room, COUNT(*) FROM access_log WHERE time LIKE 'enter_date%' GROUP BY room ORDER BY COUNT(*) DESC;[/color]\n" +
 	"  SELECT room, COUNT(*)   each room and how many times\n" +
 	"  FROM access_log   the readers' log, every swipe\n" +
-	"  WHERE time LIKE '?%'   only that night's swipes. ? is the date, as the readers write it\n" +
+	"  WHERE time LIKE 'enter_date%'   only that night's swipes. replace enter_date with the date, as the readers write it\n" +
 	"  GROUP BY room   one line per room\n" +
 	"  ORDER BY COUNT(*) DESC   busiest first",
 	"the night is tonight: the date on every sign-in sheet you've signed. the readers write it year-month-day. without the WHERE, the reading room wins: that's the day shift.",
@@ -287,11 +286,11 @@ var visits_puzzle := _also(Puzzle.new("visits", "SELECT room FROM access_log WHE
 ## returns cart that nobody checked back in. The stair key is in the first. `= NULL`
 ## and `= ''` find nothing; without the status the open slips sneak in.
 var unreturned_puzzle := Puzzle.new("unreturned", "SELECT box_id FROM retrieval_slips WHERE status = 'filled' AND returned_at IS NULL", ["box_id"], false, [
-	"the shape, with the word left as ?:\n" +
-	"    [color=#ffffff]SELECT box_id FROM retrieval_slips WHERE status = '?' AND returned_at IS NULL;[/color]\n" +
+	"the shape, with the word left blank:\n" +
+	"    [color=#ffffff]SELECT box_id FROM retrieval_slips WHERE status = 'enter_status' AND returned_at IS NULL;[/color]\n" +
 	"  SELECT box_id   just the box labels\n" +
 	"  FROM retrieval_slips   the slips on the spike\n" +
-	"  WHERE status = '?'   slips whose box was pulled. ? is the other word in the status column\n" +
+	"  WHERE status = 'enter_status'   slips whose box was pulled. replace enter_status with the other word in the status column\n" +
 	"  AND returned_at IS NULL   and nobody ever wrote a return time",
 	"type\n" +
 	"    [color=#ffffff]SELECT * FROM retrieval_slips;[/color]\n" +
@@ -305,11 +304,11 @@ var unreturned_puzzle := Puzzle.new("unreturned", "SELECT box_id FROM retrieval_
 ## does SELECT *. Not the twenty rows of that room's reader: that's the other table.
 ## Solves the "room" case like `visits`.
 var mercer_puzzle := _also(Puzzle.new("mercer_room", "SELECT room FROM catalogue WHERE dept = 'EXECUTIVE'", ["room"], false, [
-	"the shape, with the department left as ?:\n" +
-	"    [color=#ffffff]SELECT room FROM catalogue WHERE dept = '?';[/color]\n" +
+	"the shape, with the department left blank:\n" +
+	"    [color=#ffffff]SELECT room FROM catalogue WHERE dept = 'enter_dept';[/color]\n" +
 	"  SELECT room   where each box is filed\n" +
 	"  FROM catalogue   the box records\n" +
-	"  WHERE dept = '?'   only one department's boxes. ? is the department of the man who founded the company",
+	"  WHERE dept = 'enter_dept'   only one department's boxes. replace enter_dept with the department of the man who founded the company",
 	"type\n" +
 	"    [color=#ffffff]SELECT DISTINCT dept FROM catalogue;[/color]\n" +
 	"one of those departments is the top of the company. its boxes are all in one side room: his.",
@@ -350,11 +349,11 @@ func build() -> void:
 	pc_db = FacilityDB.new()
 	pc_db.load_seed(PC_SQL)
 	keyholder_puzzle = _distinct(Puzzle.new("keyholder", "SELECT badge_id FROM access_log WHERE room = '%s'" % data.host, ["badge_id"], false, [
-		"the shape, with the room left as ?:\n" +
-		"    [color=#ffffff]SELECT badge_id FROM access_log WHERE room = '?';[/color]\n" +
+		"the shape, with the room left blank:\n" +
+		"    [color=#ffffff]SELECT badge_id FROM access_log WHERE room = 'enter_room';[/color]\n" +
 		"  SELECT badge_id   the badge numbers\n" +
 		"  FROM access_log   the readers' log\n" +
-		"  WHERE room = '?'   only this room's reader. ? is the name over this room's door",
+		"  WHERE room = 'enter_room'   only this room's reader. replace enter_room with the name over this room's door",
 		"the policy sheet on the records desk: a lock's code is the last four digits of its keyholder's badge. the badge that keeps coming up is the keyholder.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT badge_id FROM access_log WHERE room = '%s';[/color]\n" % data.host +
@@ -1036,17 +1035,10 @@ func _on_solved(id: String, _which: String) -> void:
 	_order_hints()
 
 
-## Every machine: the memo or the tally brings back its chapter of Easy SQL, read
-## round the garage bench (a flashback, once per run). The Shredder stands still
-## while the crew is away, so nobody is grabbed mid-quiz.
+## Every machine: the memo or the tally brings back its chapter of Easy SQL, into
+## the crew's book (once per run). Nothing stops: the Shredder keeps listening.
 func _book_huddle(id: String) -> void:
-	_huddles += 1
-	if sync.is_host():
-		shredder.set_physics_process(false)
 	await Huddle.of(self).run(id)
-	_huddles -= 1
-	if sync.is_host() and _huddles == 0:
-		shredder.set_physics_process(true)
 
 
 ## Every machine: Security's sheet has been read. The room's question is open.

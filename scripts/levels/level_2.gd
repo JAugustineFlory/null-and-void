@@ -81,8 +81,6 @@ var door_asked := false  # the crew has been told SEC-EXIT is still shut
 ## Host: Easy SQL chapters whose paper or terminal has been found: "found" waits for
 ## its puzzle to open, "played" has been held.
 var _books := {}
-## Book huddles open right now (the Watcher holds still while the crew is away).
-var _huddles := 0
 var _clock := 0.0
 var _cam_tick := 0.0
 var _lie_explained := false
@@ -117,28 +115,28 @@ var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"the answer is JSON. { } is one camera's fields, [ ] is a list of them.",
 	"look down the list for \"motion\": true. its location is the room where something's moving.",
 ])
-## Hints climb from the query's shape, with the value to find left as '?', to how
+## Hints climb from the query's shape, with the value to find left as a named blank, to how
 ## to find that value, to the exact query.
 var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE 'Pike%'", ["name"], false, [
-	"the shape, with the name left as ?:\n" +
-	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE '?%';[/color]\n" +
-	"  SELECT *         every column\n" +
-	"  FROM guards      from the guard roster\n" +
-	"  WHERE name LIKE  keep rows whose name matches a pattern\n" +
-	"  '?%'             starts with ?. % = any letters after it, or none\n" +
-	"? is the one name you can read clearly on the sign-in sheet.",
+	"the shape, with the name left blank:\n" +
+	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'enter_surname%';[/color]\n" +
+	"  SELECT *            every column\n" +
+	"  FROM guards         from the guard roster\n" +
+	"  WHERE name LIKE     keep rows whose name matches a pattern\n" +
+	"  'enter_surname%'    starts with the surname. % = any letters after it, or none\n" +
+	"replace enter_surname with the one name you can read clearly on the sign-in sheet.",
 	"the sign-in sheet is on the booth wall. the first name on it is marked NO SHOW. " +
-	"put that surname where the ? is, with the % straight after it.",
+	"put that surname in place of enter_surname, with the % straight after it.",
 	"type this, then Enter:\n" +
 	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]\n" +
 	"keep the 'single quotes' round Pike%.",
 ])
 var door_puzzle := Puzzle.new("door", "", [], false, [
-	"the shape, with the door left as ?:\n" +
-	"    [color=#ffffff]GET /doors/?[/color]\n" +
-	"  GET        ask the security server for data\n" +
-	"  /doors/?   one door's record: what was asked of it, and what its sensor says\n" +
-	"? is the id of the door that won't open. if it won't move, the note in the answer says why. which breaker tripped, say.",
+	"the shape, with the door left blank:\n" +
+	"    [color=#ffffff]GET /doors/enter_door_id[/color]\n" +
+	"  GET                     ask the security server for data\n" +
+	"  /doors/enter_door_id    one door's record: what was asked of it, and what its sensor says\n" +
+	"replace enter_door_id with the id of the door that won't open. if it won't move, the note in the answer says why. which breaker tripped, say.",
 	"the stairwell door's id is in red letters over it. GET that, then read the \"note\" line: it names a breaker, like B-2.",
 	"type this, then Enter:\n" +
 	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
@@ -152,14 +150,14 @@ var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har
 
 static func pin_hints(badge: String) -> Array:
 	return [
-		"the shape, with the badge left as ?:\n" +
-		"    [color=#ffffff]SELECT * FROM guards WHERE badge_id = '?';[/color]\n" +
-		"  SELECT * FROM guards   every column of the guard roster, pin too\n" +
-		"  WHERE badge_id = '?'   only the guard with that badge\n" +
-		"? is the last guard badge (G-) through SEC-EXIT tonight. the readers keep every swipe in [b]badge_log[/b].",
+		"the shape, with the badge left blank:\n" +
+		"    [color=#ffffff]SELECT * FROM guards WHERE badge_id = 'enter_badge_id';[/color]\n" +
+		"  SELECT * FROM guards                every column of the guard roster, pin too\n" +
+		"  WHERE badge_id = 'enter_badge_id'   only the guard with that badge\n" +
+		"replace enter_badge_id with the last guard badge (G-) through SEC-EXIT tonight. the readers keep every swipe in [b]badge_log[/b].",
 		"sort the swipes by time:\n" +
 		"    [color=#ffffff]SELECT * FROM badge_log ORDER BY time;[/color]\n" +
-		"read down the door column for SEC-EXIT. the last G- badge there is your guard. put it where the ? is.",
+		"read down the door column for SEC-EXIT. the last G- badge there is your guard. put it in place of enter_badge_id.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT * FROM guards WHERE badge_id = '%s';[/color]\n" % badge +
 		"the pin column is the code. office door first, then the SEC-EXIT keypad past it.",
@@ -269,7 +267,6 @@ func build() -> void:
 	add_child(watcher)
 	watcher.position = watcher_home
 	watcher.holders.append(_camera_holds)
-	watcher.holders.append(func(_w): return _huddles > 0)
 	watcher.see_through = _glass
 	watcher.caught.connect(_on_caught)
 	watcher.started_moving.connect(_on_watcher_moving)
@@ -924,12 +921,10 @@ func _book_ready(id: String) -> bool:
 	return true
 
 
-## Every machine: a chapter of Easy SQL, read round the garage bench (a flashback,
-## once per run). The Watcher holds still while the crew is away.
+## Every machine: a chapter of Easy SQL comes into the crew's book (once per run).
+## Nothing stops for it, the Watcher included.
 func _book_huddle(id: String) -> void:
-	_huddles += 1
 	await Huddle.of(self).run(id)
-	_huddles -= 1
 
 
 ## Host: a query ran at `which` terminal. Puzzle results play out on every machine.

@@ -21,6 +21,9 @@ extends RefCounted
 ##
 ## Floor 10's chapters (Changing a row, Adding a row) were approved word for word,
 ## pages, questions and why lines, at 18:49Z on 2026-10-21.
+## The garage playtest's fixes (plan/teaching/garage-playtest-2026-10-22.md: chapter
+## zero's table-name line, its van_kit table and quiz why lines) and the remaining why
+## lines, Ch 1-8 and 10-14 (plan/teaching/easy-sql-whys.md), at 01:13Z on 2026-10-22.
 ## Chapter ids never change once shipped: profiles keep "chapter:<id>". The number
 ## shown is the chapter's place in the list, so a chapter added in the middle
 ## renumbers the rest by itself. New chapters get a word id (easy_sql_distinct).
@@ -28,19 +31,32 @@ extends RefCounted
 ## Chapter: {id, title, when, required, words, lines, pages: [text], quiz, rounds?}
 ## `when` is where the huddle plays; `lines` are voice line ids heard over the
 ## garage radio, one as the book opens and one as it closes. Each quiz question:
-## {word, q, options, answer, why}, three per word. `answer` indexes `options` as
-## written here; the huddle shuffles them per run. `why` ("" until written) shows
-## after the crew votes.
+## {word, q, options, answer, why, also?}, three per word; `also` is extra text
+## shown beside that question only. `answer` indexes `options` as
+## written here; the quiz shuffles them per run. `why` ("" until written) shows
+## after an answer.
 ##
-## A chapter is read in rounds (Books.rounds): each word's page, then straight away
-## its three questions, with that page still on show beside them. Chapters whose
+## The crew reads a chapter's pages in a huddle (Books.reading_order); its quick
+## checks are asked only when a player tests themselves from the book in their
+## notebook (BookQuiz). They come in rounds (Books.rounds): each word's three
+## questions, with its page on show beside them. Chapters whose
 ## pages aren't one per word say how in `rounds`: [{pages: [index], word, ref:
 ## [page index]}], where a round with no word is pages only. A question with
 ## "closed": true tests memory, so it hides the page.
 
+## A small van_kit beside chapter zero's "What are jobs and van_kit?", under jobs
+## (playtest 2026-10-22: only jobs was on show). No caption: that would answer it.
+const VAN_KIT := "    van_kit\n    item   | qty | shelf\n    -------+-----+------\n    ladder | 1   | A\n    drill  | 2   | B"
+
+## Easy SQL's teal cover (matches ArtKit.easy_sql_book).
+const COVER := Color(0.05, 0.55, 0.6)
+## The typewriter font's size on a page, unless it has to shrink to fit (page_bbcode).
+const CODE_SIZE := 20
+
 const BOOKS := {
 	"easy_sql": {
 		"title": "EASY SQL",
+		"name": "Easy SQL",
 		"chapters": [
 			{
 				"id": "easy_sql_0",
@@ -53,29 +69,29 @@ const BOOKS := {
 				"rounds": [{"pages": [0, 1], "word": "table", "ref": [1]}, {"word": "row", "ref": [1]},
 					{"word": "column", "ref": [1]}, {"pages": [2]}],
 				"pages": [
-					"A database is a stack of tables.\n\nA table is a grid, like a spreadsheet. It has a name, and it holds facts about one kind of thing.",
+					"A database is a stack of tables.\n\nA table is a grid, like a spreadsheet. It has a name, and it holds facts about one kind of thing.\nA table's name is all one word. Where you'd put a space, it has _ instead: van_kit.",
 					"Each ROW is one thing: one job, one van.\nEach COLUMN is one fact about it: a name, a number, a date.\n\n    jobs\n    job_no | client         | town    | status | fee\n    -------+----------------+---------+--------+----\n    1      | Kemp Dental    | Ashford | done   | 80\n    2      | Bexley Library | Bexley  | open   | 120\n\nThis table is called jobs. It has 2 rows and 5 columns.",
 					"To get anything out of a database, you ask it a question. The questions are written in SQL.\n\nChapter 1 is your first question.",
 				],
 				"quiz": [
-					{"word": "table", "q": "What are jobs and van_kit?",
+					{"word": "table", "q": "What are jobs and van_kit?", "also": VAN_KIT,
 						"options": ["two rows", "two tables", "two columns"], "answer": 1, "why": "Each is a whole table: jobs holds the jobs, and van_kit holds the kit."},
 					{"word": "table", "q": "Which looks like a table name?",
-						"options": ["van kit", "van_kit", "Van Kit!"], "answer": 1, "why": ""},
+						"options": ["van kit", "van_kit", "Van Kit!"], "answer": 1, "why": "A space would split the name into two words, so table names join words with _ instead: van_kit. Marks like ! aren't allowed either."},
 					{"word": "table", "q": "Where would you find a table's name in a building?",
-						"options": ["on a label, card or screen nearby", "the book tells you", "you guess"], "answer": 0, "why": ""},
+						"options": ["on a label, card or screen nearby", "the book tells you", "you guess"], "answer": 0, "why": "Tables are named where people work: on labels, cards and screens. Look around."},
 					{"word": "row", "q": "In jobs, one row is...",
-						"options": ["one job", "one column", "the whole table"], "answer": 0, "why": ""},
+						"options": ["one job", "one column", "the whole table"], "answer": 0, "why": "A row is one thing. In jobs, that's one job."},
 					{"word": "row", "q": "jobs has 5 jobs in it. How many rows is that?",
 						"options": ["1", "3", "5"], "answer": 2, "why": "One job is one row, so five jobs make five rows."},
 					{"word": "row", "q": "A row goes...",
-						"options": ["across", "down", "nowhere"], "answer": 0, "why": ""},
+						"options": ["across", "down", "nowhere"], "answer": 0, "why": "A row runs across: one job, all its facts, side by side."},
 					{"word": "column", "q": "A column goes...",
-						"options": ["across", "down", "diagonally"], "answer": 1, "why": ""},
+						"options": ["across", "down", "diagonally"], "answer": 1, "why": "A column runs down: the same fact for every row."},
 					{"word": "column", "q": "In jobs, which is a column?",
-						"options": ["town", "job 14", "jobs"], "answer": 0, "why": ""},
+						"options": ["town", "job 14", "jobs"], "answer": 0, "why": "town is a fact every job has. Job 14 is a row, and jobs is the table."},
 					{"word": "column", "q": "Each column is...",
-						"options": ["one whole thing", "one fact about every row", "the table's name"], "answer": 1, "why": ""},
+						"options": ["one whole thing", "one fact about every row", "the table's name"], "answer": 1, "why": "A column is one fact, like town or fee, for every row."},
 				],
 			},
 			{
@@ -94,23 +110,23 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "SELECT", "q": "What does SELECT do?",
-						"options": ["deletes rows", "shows you data", "saves your work"], "answer": 1, "why": ""},
+						"options": ["deletes rows", "shows you data", "saves your work"], "answer": 1, "why": "SELECT means \"show me\". It never changes anything."},
 					{"word": "SELECT", "q": "Which word starts a query?",
-						"options": ["SELECT", "SHOW", "FIND"], "answer": 0, "why": ""},
+						"options": ["SELECT", "SHOW", "FIND"], "answer": 0, "why": "Every query starts with SELECT."},
 					{"word": "SELECT", "q": "What does * mean after SELECT?",
-						"options": ["every column", "every table", "multiply"], "answer": 0, "why": ""},
+						"options": ["every column", "every table", "multiply"], "answer": 0, "why": "* means every column. SELECT * shows whole rows."},
 					{"word": "FROM", "q": "In SELECT qty FROM van_kit; which table is read?",
-						"options": ["qty", "van_kit", "SELECT"], "answer": 1, "why": ""},
+						"options": ["qty", "van_kit", "SELECT"], "answer": 1, "why": "The table's name comes right after FROM. qty is a column."},
 					{"word": "FROM", "q": "Where does FROM go?",
-						"options": ["after the columns you want", "at the very start", "after the ;"], "answer": 0, "why": ""},
+						"options": ["after the columns you want", "at the very start", "after the ;"], "answer": 0, "why": "First what you want (SELECT ...), then where it lives (FROM ...)."},
 					{"word": "FROM", "q": "FROM jobs means...",
-						"options": ["delete jobs", "look in the jobs table", "make a jobs table"], "answer": 1, "why": ""},
+						"options": ["delete jobs", "look in the jobs table", "make a jobs table"], "answer": 1, "why": "FROM jobs just says where to look. It never changes the table."},
 					{"word": "; (semicolon)", "q": "How does every query end?",
-						"options": ["with a full stop .", "with a semicolon ;", "with nothing"], "answer": 1, "why": ""},
+						"options": ["with a full stop .", "with a semicolon ;", "with nothing"], "answer": 1, "why": "The semicolon is the full stop of a query."},
 					{"word": "; (semicolon)", "q": "You typed SELECT item FROM van_kit and nothing happened. What's missing?",
-						"options": ["the ;", "a second SELECT", "quotes"], "answer": 0, "why": ""},
+						"options": ["the ;", "a second SELECT", "quotes"], "answer": 0, "why": "Without the ; the terminal waits for the rest of your question."},
 					{"word": "; (semicolon)", "q": "Which is a whole query?",
-						"options": ["SELECT town FROM jobs", "FROM jobs SELECT town;", "SELECT town FROM jobs;"], "answer": 2, "why": ""},
+						"options": ["SELECT town FROM jobs", "FROM jobs SELECT town;", "SELECT town FROM jobs;"], "answer": 2, "why": "SELECT, then FROM, then the ; at the end."},
 				],
 			},
 			{
@@ -126,17 +142,17 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "ORDER BY", "q": "Where does ORDER BY go?",
-						"options": ["before SELECT", "after the table name, before ;", "after the ;"], "answer": 1, "why": ""},
+						"options": ["before SELECT", "after the table name, before ;", "after the ;"], "answer": 1, "why": "ORDER BY goes at the end, after the table name and before the ;."},
 					{"word": "ORDER BY", "q": "SELECT * FROM jobs ORDER BY fee; sorts by...",
-						"options": ["client", "fee", "job_no"], "answer": 1, "why": ""},
+						"options": ["client", "fee", "job_no"], "answer": 1, "why": "The column after ORDER BY is the one it sorts by: fee."},
 					{"word": "ORDER BY", "q": "Without ORDER BY, rows come out...",
-						"options": ["sorted A to Z", "in saved order", "newest first"], "answer": 1, "why": ""},
+						"options": ["sorted A to Z", "in saved order", "newest first"], "answer": 1, "why": "Rows come out in the order they were saved, until you sort them."},
 					{"word": "smallest first", "q": "ORDER BY qty puts which first?",
-						"options": ["the smallest qty", "the biggest qty", "random"], "answer": 0, "why": ""},
+						"options": ["the smallest qty", "the biggest qty", "random"], "answer": 0, "why": "ORDER BY starts with the smallest: the lowest qty comes first."},
 					{"word": "smallest first", "q": "ORDER BY town puts which town first?",
-						"options": ["Zebulon", "Ashford", "the last one saved"], "answer": 1, "why": ""},
+						"options": ["Zebulon", "Ashford", "the last one saved"], "answer": 1, "why": "Words sort A to Z, so Ashford comes before Zebulon."},
 					{"word": "smallest first", "q": "ORDER BY job_no lists jobs...",
-						"options": ["1, 2, 3...", "3, 2, 1...", "mixed"], "answer": 0, "why": ""},
+						"options": ["1, 2, 3...", "3, 2, 1...", "mixed"], "answer": 0, "why": "Numbers sort smallest first: 1, 2, 3."},
 				],
 			},
 			{
@@ -153,23 +169,23 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "column list", "q": "SELECT client, fee FROM jobs; shows...",
-						"options": ["every column", "client and fee", "only fee"], "answer": 1, "why": ""},
+						"options": ["every column", "client and fee", "only fee"], "answer": 1, "why": "Only the columns you name come back: client and fee."},
 					{"word": "column list", "q": "Why name columns instead of *?",
-						"options": ["wide tables are hard to read", "* is broken", "it's faster to type"], "answer": 0, "why": ""},
+						"options": ["wide tables are hard to read", "* is broken", "it's faster to type"], "answer": 0, "why": "A wide table won't fit on the screen. Name just the columns you need."},
 					{"word": "column list", "q": "Which shows only item and shelf?",
-						"options": ["SELECT * FROM van_kit;", "SELECT item, shelf FROM van_kit;", "SELECT van_kit FROM item, shelf;"], "answer": 1, "why": ""},
+						"options": ["SELECT * FROM van_kit;", "SELECT item, shelf FROM van_kit;", "SELECT van_kit FROM item, shelf;"], "answer": 1, "why": "Columns go after SELECT, the table after FROM."},
 					{"word": "comma", "q": "Which is right?",
-						"options": ["SELECT client, town FROM jobs;", "SELECT client town FROM jobs;", "SELECT client, town, FROM jobs;"], "answer": 0, "why": ""},
+						"options": ["SELECT client, town FROM jobs;", "SELECT client town FROM jobs;", "SELECT client, town, FROM jobs;"], "answer": 0, "why": "One comma between each pair of columns, none after the last."},
 					{"word": "comma", "q": "Commas go...",
-						"options": ["after every word", "between column names", "after FROM"], "answer": 1, "why": ""},
+						"options": ["after every word", "between column names", "after FROM"], "answer": 1, "why": "Commas only separate the column names."},
 					{"word": "comma", "q": "SELECT item, FROM van_kit; is wrong because...",
-						"options": ["item is wrong", "there's a comma after the last column", "it needs a *"], "answer": 1, "why": ""},
+						"options": ["item is wrong", "there's a comma after the last column", "it needs a *"], "answer": 1, "why": "A comma after the last column leaves the database waiting for another one."},
 					{"word": ".schema", "q": ".schema van_kit shows...",
-						"options": ["every row", "the column names", "the table's age"], "answer": 1, "why": ""},
+						"options": ["every row", "the column names", "the table's age"], "answer": 1, "why": ".schema lists a table's columns."},
 					{"word": ".schema", "q": "Does .schema need a ; at the end?",
-						"options": ["yes", "no", "only on Fridays"], "answer": 1, "why": ""},
+						"options": ["yes", "no", "only on Fridays"], "answer": 1, "why": "Commands that start with a dot talk to the terminal. They don't need a ;."},
 					{"word": ".schema", "q": "You need a column's exact name. You type...",
-						"options": ["SELECT columns;", ".schema and the table name", "ORDER BY"], "answer": 1, "why": ""},
+						"options": ["SELECT columns;", ".schema and the table name", "ORDER BY"], "answer": 1, "why": ".schema and the table's name shows every column's exact spelling."},
 				],
 			},
 			{
@@ -185,11 +201,11 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "DESC", "q": "ORDER BY fee DESC puts which first?",
-						"options": ["the smallest fee", "the biggest fee", "the oldest job"], "answer": 1, "why": ""},
+						"options": ["the smallest fee", "the biggest fee", "the oldest job"], "answer": 1, "why": "DESC flips the sort: the biggest fee comes first."},
 					{"word": "DESC", "q": "Where does DESC go?",
-						"options": ["before ORDER BY", "after the column name in ORDER BY", "after the ;"], "answer": 1, "why": ""},
+						"options": ["before ORDER BY", "after the column name in ORDER BY", "after the ;"], "answer": 1, "why": "DESC goes straight after the column in ORDER BY, before the ;."},
 					{"word": "DESC", "q": "To see the latest times first you add...",
-						"options": ["DESC", "LAST", "nothing"], "answer": 0, "why": ""},
+						"options": ["DESC", "LAST", "nothing"], "answer": 0, "why": "DESC puts the latest time first."},
 					{"word": "LIMIT", "q": "SELECT * FROM jobs ORDER BY fee DESC LIMIT 3; shows...",
 						"options": ["every job except three", "the three smallest fees", "the three biggest fees"], "answer": 2, "why": "DESC puts the biggest fee on top, and LIMIT 3 keeps the top three."},
 					{"word": "LIMIT", "q": "Where does LIMIT go?",
@@ -212,23 +228,23 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "WHERE", "q": "SELECT * FROM jobs WHERE status = 'open'; shows...",
-						"options": ["every job", "only open jobs", "no jobs"], "answer": 1, "why": ""},
+						"options": ["every job", "only open jobs", "no jobs"], "answer": 1, "why": "WHERE keeps only the rows that match: the open jobs."},
 					{"word": "WHERE", "q": "Where does WHERE go?",
-						"options": ["after the table name", "before SELECT", "after the ;"], "answer": 0, "why": ""},
+						"options": ["after the table name", "before SELECT", "after the ;"], "answer": 0, "why": "WHERE goes after the table name, before the ;."},
 					{"word": "WHERE", "q": "WHERE is for...",
-						"options": ["sorting", "filtering", "naming columns"], "answer": 1, "why": ""},
+						"options": ["sorting", "filtering", "naming columns"], "answer": 1, "why": "WHERE filters rows. ORDER BY sorts them."},
 					{"word": "= (equals)", "q": "WHERE town = 'Ashford' keeps rows where town is...",
-						"options": ["exactly Ashford", "near Ashford", "not Ashford"], "answer": 0, "why": ""},
+						"options": ["exactly Ashford", "near Ashford", "not Ashford"], "answer": 0, "why": "= means exactly that value, nothing near it."},
 					{"word": "= (equals)", "q": "Which is the right way round?",
-						"options": ["WHERE qty = 4", "WHERE 4 qty =", "WHERE = qty 4"], "answer": 0, "why": ""},
+						"options": ["WHERE qty = 4", "WHERE 4 qty =", "WHERE = qty 4"], "answer": 0, "why": "Column first, then =, then the value."},
 					{"word": "= (equals)", "q": "WHERE shelf = 'B' finds...",
-						"options": ["shelves A and B", "only shelf B", "every shelf"], "answer": 1, "why": ""},
+						"options": ["shelves A and B", "only shelf B", "every shelf"], "answer": 1, "why": "= 'B' keeps only rows where shelf is exactly B."},
 					{"word": "'quotes'", "q": "Which is right?",
-						"options": ["WHERE status = open", "WHERE status = 'open'", "WHERE 'status' = open"], "answer": 1, "why": ""},
+						"options": ["WHERE status = open", "WHERE status = 'open'", "WHERE 'status' = open"], "answer": 1, "why": "Words go in single quotes. Column names don't."},
 					{"word": "'quotes'", "q": "Which needs quotes?",
-						"options": ["'done'", "12", "neither"], "answer": 0, "why": ""},
+						"options": ["'done'", "12", "neither"], "answer": 0, "why": "Words like 'done' need quotes. Numbers don't."},
 					{"word": "'quotes'", "q": "WHERE qty = '4' or WHERE qty = 4 for a number?",
-						"options": ["'4'", "4", "\"four\""], "answer": 1, "why": ""},
+						"options": ["'4'", "4", "\"four\""], "answer": 1, "why": "Numbers go in bare: qty = 4."},
 				],
 			},
 			{
@@ -243,11 +259,11 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "AND", "q": "WHERE status = 'open' AND town = 'Ashford' keeps...",
-						"options": ["all open jobs", "open jobs in Ashford", "every Ashford job"], "answer": 1, "why": ""},
+						"options": ["all open jobs", "open jobs in Ashford", "every Ashford job"], "answer": 1, "why": "AND keeps a row only if both conditions hold: open, and in Ashford."},
 					{"word": "AND", "q": "With AND, a row stays when...",
-						"options": ["both are true", "either is true", "neither is true"], "answer": 0, "why": ""},
+						"options": ["both are true", "either is true", "neither is true"], "answer": 0, "why": "With AND, both must be true."},
 					{"word": "AND", "q": "AND goes...",
-						"options": ["before WHERE", "between two conditions", "after the ;"], "answer": 1, "why": ""},
+						"options": ["before WHERE", "between two conditions", "after the ;"], "answer": 1, "why": "AND joins two conditions, after WHERE."},
 				],
 			},
 			{
@@ -264,23 +280,23 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "> (more than)", "q": "WHERE fee > 100 keeps fees of...",
-						"options": ["100 and under", "over 100", "exactly 100"], "answer": 1, "why": ""},
+						"options": ["100 and under", "over 100", "exactly 100"], "answer": 1, "why": "> means more than, so 100 itself doesn't count."},
 					{"word": "> (more than)", "q": "Is 100 > 100 true?",
-						"options": ["yes", "no", "sometimes"], "answer": 1, "why": ""},
+						"options": ["yes", "no", "sometimes"], "answer": 1, "why": "100 isn't more than 100. They're equal."},
 					{"word": "> (more than)", "q": "Which finds items with more than 10 in stock?",
-						"options": ["WHERE qty > 10", "WHERE qty < 10", "WHERE 10 qty >"], "answer": 0, "why": ""},
+						"options": ["WHERE qty > 10", "WHERE qty < 10", "WHERE 10 qty >"], "answer": 0, "why": "qty > 10: the column, then >, then the number."},
 					{"word": "< (less than)", "q": "WHERE qty < 2 keeps...",
-						"options": ["items with 0 or 1 left", "items with 2 left", "items with more than 2"], "answer": 0, "why": ""},
+						"options": ["items with 0 or 1 left", "items with 2 left", "items with more than 2"], "answer": 0, "why": "< 2 keeps anything under 2: that's 0 and 1."},
 					{"word": "< (less than)", "q": "The open side of < and > faces...",
-						"options": ["the smaller number", "the bigger number", "the column"], "answer": 1, "why": ""},
+						"options": ["the smaller number", "the bigger number", "the column"], "answer": 1, "why": "The open side faces the bigger number."},
 					{"word": "< (less than)", "q": "To find cheap jobs under 50 you type...",
-						"options": ["WHERE fee > 50", "WHERE fee < 50", "WHERE fee = < 50"], "answer": 1, "why": ""},
+						"options": ["WHERE fee > 50", "WHERE fee < 50", "WHERE fee = < 50"], "answer": 1, "why": "Under 50 is less than 50: fee < 50."},
 					{"word": "numbers", "q": "Which is right?",
-						"options": ["WHERE fee > 40", "WHERE fee > '40'", "WHERE fee > forty"], "answer": 0, "why": ""},
+						"options": ["WHERE fee > 40", "WHERE fee > '40'", "WHERE fee > forty"], "answer": 0, "why": "Numbers go in bare: no quotes, no words."},
 					{"word": "numbers", "q": "Why no quotes on numbers?",
-						"options": ["quotes are banned", "so they compare as numbers", "to save typing"], "answer": 1, "why": ""},
+						"options": ["quotes are banned", "so they compare as numbers", "to save typing"], "answer": 1, "why": "Without quotes, 9 is less than 40. In quotes they're compared like words."},
 					{"word": "numbers", "q": "Temperatures like 38 are...",
-						"options": ["numbers", "words", "dates"], "answer": 0, "why": ""},
+						"options": ["numbers", "words", "dates"], "answer": 0, "why": "A temperature is a number, so it goes in without quotes."},
 				],
 			},
 			{
@@ -295,11 +311,11 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "OR", "q": "WHERE status = 'open' OR status = 'unpaid' keeps...",
-						"options": ["only open jobs", "open and unpaid jobs", "no jobs"], "answer": 1, "why": ""},
+						"options": ["only open jobs", "open and unpaid jobs", "no jobs"], "answer": 1, "why": "OR keeps a row if either condition is true: open or unpaid."},
 					{"word": "OR", "q": "With OR, a row stays when...",
-						"options": ["both are true", "at least one is true", "neither is true"], "answer": 1, "why": ""},
+						"options": ["both are true", "at least one is true", "neither is true"], "answer": 1, "why": "With OR, one true condition is enough."},
 					{"word": "OR", "q": "AND or OR to find jobs in Ashford or Bexley?",
-						"options": ["AND", "OR", "neither"], "answer": 1, "why": ""},
+						"options": ["AND", "OR", "neither"], "answer": 1, "why": "A job can't be in two towns at once, so AND would find nothing. OR finds both."},
 				],
 			},
 			{
@@ -333,11 +349,11 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "", "q": "To keep rows in one zone that are also faulted you use...",
-						"options": ["OR", "AND", "ORDER BY"], "answer": 1, "why": ""},
+						"options": ["OR", "AND", "ORDER BY"], "answer": 1, "why": "Both must be true, so AND."},
 					{"word": "", "q": "To read a log in time order you add...",
-						"options": ["ORDER BY and the time column", "DESC only", "WHERE time"], "answer": 0, "why": ""},
+						"options": ["ORDER BY and the time column", "DESC only", "WHERE time"], "answer": 0, "why": "ORDER BY and the time column puts the log in time order."},
 					{"word": "", "q": "A word value like fault goes in...",
-						"options": ["no quotes", "'single quotes'", "brackets"], "answer": 1, "why": ""},
+						"options": ["no quotes", "'single quotes'", "brackets"], "answer": 1, "why": "A word value goes in single quotes, like 'fault'."},
 				],
 			},
 			{
@@ -354,23 +370,23 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "GET", "q": "GET /van does what?",
-						"options": ["asks for data about the van", "deletes the van", "runs SQL"], "answer": 0, "why": ""},
+						"options": ["asks for data about the van", "deletes the van", "runs SQL"], "answer": 0, "why": "GET asks for data. It doesn't change or delete anything."},
 					{"word": "GET", "q": "Does a GET need a ; at the end?",
-						"options": ["yes", "no", "two of them"], "answer": 1, "why": ""},
+						"options": ["yes", "no", "two of them"], "answer": 1, "why": "A request isn't SQL, so no ;."},
 					{"word": "GET", "q": "Which is a request?",
-						"options": ["SELECT /jobs;", "GET /jobs", "GET jobs;"], "answer": 1, "why": ""},
+						"options": ["SELECT /jobs;", "GET /jobs", "GET jobs;"], "answer": 1, "why": "GET, a space, then a path starting with /."},
 					{"word": "path", "q": "In GET /jobs, the path is...",
-						"options": ["GET", "/jobs", "jobs;"], "answer": 1, "why": ""},
+						"options": ["GET", "/jobs", "jobs;"], "answer": 1, "why": "The path is the part after GET, starting with /."},
 					{"word": "path", "q": "Paths start with...",
-						"options": ["/", ";", "*"], "answer": 0, "why": ""},
+						"options": ["/", ";", "*"], "answer": 0, "why": "Every path starts with a slash."},
 					{"word": "path", "q": "GET /van_kit asks for...",
-						"options": ["the jobs", "the van kit", "everything"], "answer": 1, "why": ""},
+						"options": ["the jobs", "the van kit", "everything"], "answer": 1, "why": "The path names what you're asking for: /van_kit."},
 					{"word": "JSON", "q": "In JSON, [ ] means...",
-						"options": ["one field", "a list", "an error"], "answer": 1, "why": ""},
+						"options": ["one field", "a list", "an error"], "answer": 1, "why": "Square brackets hold a list."},
 					{"word": "JSON", "q": "\"status\": \"open\" says...",
-						"options": ["status is open", "open the status", "nothing"], "answer": 0, "why": ""},
+						"options": ["status is open", "open the status", "nothing"], "answer": 0, "why": "Each field is a name, a colon, then its value."},
 					{"word": "JSON", "q": "{ } holds...",
-						"options": ["one thing's fields", "a list of things", "a query"], "answer": 0, "why": ""},
+						"options": ["one thing's fields", "a list of things", "a query"], "answer": 0, "why": "Curly brackets hold one thing's fields."},
 				],
 			},
 			{
@@ -386,17 +402,17 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "LIKE", "q": "LIKE is for...",
-						"options": ["exact matches", "patterns", "sorting"], "answer": 1, "why": ""},
+						"options": ["exact matches", "patterns", "sorting"], "answer": 1, "why": "LIKE matches a pattern, not an exact value."},
 					{"word": "LIKE", "q": "Which is right?",
-						"options": ["WHERE client LIKE 'Ash%'", "WHERE LIKE client 'Ash%'", "WHERE client = LIKE 'Ash%'"], "answer": 0, "why": ""},
+						"options": ["WHERE client LIKE 'Ash%'", "WHERE LIKE client 'Ash%'", "WHERE client = LIKE 'Ash%'"], "answer": 0, "why": "Column, then LIKE, then the pattern in quotes."},
 					{"word": "LIKE", "q": "You can only read the start of a name. You use...",
-						"options": ["=", "LIKE", "ORDER BY"], "answer": 1, "why": ""},
+						"options": ["=", "LIKE", "ORDER BY"], "answer": 1, "why": "When you only have the start of a name, LIKE and % fill in the rest."},
 					{"word": "% (percent)", "q": "'Bex%' matches...",
-						"options": ["Bexley", "Abex", "Bonex"], "answer": 0, "why": ""},
+						"options": ["Bexley", "Abex", "Bonex"], "answer": 0, "why": "'Bex%' means \"starts with Bex\", then anything."},
 					{"word": "% (percent)", "q": "Where does % go to match names starting with Mac?",
-						"options": ["'%Mac'", "'Mac%'", "'M%ac'"], "answer": 1, "why": ""},
+						"options": ["'%Mac'", "'Mac%'", "'M%ac'"], "answer": 1, "why": "% after Mac means \"starts with Mac\"."},
 					{"word": "% (percent)", "q": "Does 'Ash%' match plain \"Ash\"?",
-						"options": ["yes", "no", "only in capitals"], "answer": 0, "why": ""},
+						"options": ["yes", "no", "only in capitals"], "answer": 0, "why": "% can stand for no letters at all, so plain Ash matches too."},
 				],
 			},
 			{
@@ -411,11 +427,11 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "", "q": "A first query gives you an id. Next you...",
-						"options": ["use it in a WHERE", "start over", "type it after the ;"], "answer": 0, "why": ""},
+						"options": ["use it in a WHERE", "start over", "type it after the ;"], "answer": 0, "why": "Put the id from the first answer into the next query's WHERE."},
 					{"word": "", "q": "A first query told you job 14 is the one. To get its client you type...",
-						"options": ["SELECT 14;", "SELECT client FROM jobs WHERE job_no = 14;", "ORDER BY 14"], "answer": 1, "why": ""},
+						"options": ["SELECT 14;", "SELECT client FROM jobs WHERE job_no = 14;", "ORDER BY 14"], "answer": 1, "why": "The first answer, 14, goes into WHERE job_no = 14."},
 					{"word": "", "q": "A log sorted by time shows the last person through a door at the...",
-						"options": ["top", "bottom", "middle"], "answer": 1, "why": ""},
+						"options": ["top", "bottom", "middle"], "answer": 1, "why": "Sorted oldest first, the latest swipe is at the bottom."},
 				],
 			},
 			{
@@ -430,11 +446,11 @@ const BOOKS := {
 				],
 				"quiz": [
 					{"word": "id in the path", "q": "GET /jobs/14 asks for...",
-						"options": ["all jobs", "job 14 only", "14 jobs"], "answer": 1, "why": ""},
+						"options": ["all jobs", "job 14 only", "14 jobs"], "answer": 1, "why": "An id at the end of the path asks for that one thing."},
 					{"word": "id in the path", "q": "To ask about one door you need its...",
-						"options": ["id", "colour", "zone"], "answer": 0, "why": ""},
+						"options": ["id", "colour", "zone"], "answer": 0, "why": "Each thing has its own id. That's what goes in the path."},
 					{"word": "id in the path", "q": "Where does the id go?",
-						"options": ["before GET", "at the end of the path", "in quotes after it"], "answer": 1, "why": ""},
+						"options": ["before GET", "at the end of the path", "in quotes after it"], "answer": 1, "why": "The id goes at the end of the path, after a /."},
 				],
 			},
 			{
@@ -543,6 +559,139 @@ const BOOKS := {
 			},
 		],
 	},
+	# The sequel, found on floor 9's training shelf (Level 5): the building's services,
+	# asked through the terminal. Title is Augustine's (2026-10-22, with his apostrophe).
+	# Pages, questions and why lines are DRAFTS until he approves them word for word:
+	# plan/approvals/l5-text.md. The examples use the garage's own job board service
+	# (/jobs and /van_kit, the same records as Easy SQL), never one of the building's.
+	"acceptable_apis": {
+		"title": "ACCEPTABLE API'S",
+		"chapters": [
+			{
+				"id": "api_codes",
+				"title": "Read the number",
+				"when": "L5, desk sheet (with Chapter 2)",
+				"required": false,
+				"words": ["status code", "4xx"],
+				"lines": ["l5_huddle_codes_1", "l5_huddle_codes_2"],
+				"pages": [
+					"status code\n\nEvery answer starts with a number. 200 OK: here's what you asked for. 201 Created: made it. Two hundreds are good news.\n\nThe number comes before the answer. Read it first.",
+					"4xx\n\nFour hundreds mean the request was wrong, and each one says how.\n400: a field is missing or wrong (it names it). 401: no key, or a key it doesn't know. 403: a real key, not allowed to do this. 404: nothing at that path. 409: it can't, the way things are now (it says why).\n\nFive hundreds are the service's own fault. Try again later.",
+				],
+				"quiz": [
+					{"word": "status code", "q": "The job board answers 200. That's...",
+						"options": ["good: here's what you asked for", "bad: it refused", "a count of jobs"], "answer": 0, "why": "Two hundreds are good news. 200 OK means here's your answer."},
+					{"word": "status code", "q": "Where's the status code?",
+						"options": ["at the end of the answer", "at the start of the answer", "in the body you sent"], "answer": 1, "why": "It's the first thing in the answer, before anything else."},
+					{"word": "status code", "q": "201 is...",
+						"options": ["an error", "Created: it made what you asked", "a page number"], "answer": 1, "why": "201 Created is the good answer to a POST."},
+					{"word": "4xx", "q": "404 means...",
+						"options": ["the service is down", "nothing at that path", "the body was wrong"], "answer": 1, "why": "404 Not Found: there's nothing where you asked."},
+					{"word": "4xx", "q": "A 409 says the panel is over its limit. You...",
+						"options": ["send the same request again", "change what's in the way, then try again", "give up: the service is broken"], "answer": 1, "why": "409 means it can't, the way things are now. Change what's in the way; the message says what."},
+					{"word": "4xx", "q": "Which is the service's own fault?",
+						"options": ["400", "404", "500"], "answer": 2, "why": "Five hundreds are the service's problem. Four hundreds are yours."},
+				],
+			},
+			{
+				"id": "api_keys",
+				"title": "A key with every request",
+				"when": "L5, desk sheet (with Chapter 1)",
+				"required": false,
+				"words": ["header", "X-Api-Key"],
+				"lines": ["l5_huddle_keys_1", "l5_huddle_keys_2"],
+				"pages": [
+					"header\n\nA header is a line under the request: a label, a colon, a value. It's about the request, not part of what you're asking for.\n\nGET /jobs\nX-Api-Key: 1a2b-3c4d\n\nOn the terminal, Shift+Enter starts the header's line. An empty line sends it all.",
+					"X-Api-Key\n\nSome services only answer people with a key. The key goes in the X-Api-Key header, on every request.\n\nNo key: 401. A key it doesn't know: 401. The right key for the wrong job: 403.\n\nKeys are issued to people. Somebody's key is written down somewhere near where they sit.",
+				],
+				"quiz": [
+					{"word": "header", "q": "Where does a header go?",
+						"options": ["on the line under the request", "inside the body", "before the request"], "answer": 0, "why": "The request line first, then its headers, one per line."},
+					{"word": "header", "q": "Which is a header?",
+						"options": ["X-Api-Key: 1a2b-3c4d", "{\"X-Api-Key\": \"1a2b-3c4d\"}", "GET /X-Api-Key"], "answer": 0, "why": "A label, a colon, a value, on its own line."},
+					{"word": "header", "q": "On the terminal, you start a header's line with...",
+						"options": ["Enter", "Shift+Enter", "a comma"], "answer": 1, "why": "Enter on an empty line sends the request. Shift+Enter starts a new line inside it."},
+					{"word": "X-Api-Key", "q": "The service answers 401. That means...",
+						"options": ["the path is wrong", "it wants a key it knows", "it made what you asked"], "answer": 1, "why": "401: no key, or a key it doesn't recognise. Send it again with the right one."},
+					{"word": "X-Api-Key", "q": "A real key gets 403. That means...",
+						"options": ["the key is allowed to, but the path is wrong", "the key is real, but not allowed to do this", "the key has expired"], "answer": 1, "why": "403: the key works, for something else. This needs a different key."},
+					{"word": "X-Api-Key", "q": "You sent the key once and got 200. The next request...",
+						"options": ["needs the key again", "remembers it", "needs a new key"], "answer": 0, "why": "A key goes with every request. The service doesn't remember you."},
+				],
+			},
+			{
+				"id": "api_patch",
+				"title": "Changing one thing",
+				"when": "L5, facilities clipboard (panel)",
+				"required": false,
+				"words": ["PATCH", "true / false"],
+				"lines": ["l5_huddle_patch_1", "l5_huddle_patch_2"],
+				"pages": [
+					"PATCH\n\nPATCH changes one thing about one record, and leaves the rest alone. The record is in the path, the change is in the body.\n\nPATCH /van_kit/rope\n\n{\"qty\": 3}\n\nchanges the rope's qty to 3 and nothing else. Like UPDATE with its WHERE built in: the path says which one.",
+					"true / false\n\nSome fields are a switch: on or off, locked or not. Their values are true and false, with no quotes.\n\n{\"charged\": true}\n\n\"true\" in quotes is a word, not a switch, and the service says 400.",
+				],
+				"quiz": [
+					{"word": "PATCH", "q": "PATCH /van_kit/rope with {\"shelf\": \"C\"} does what?",
+						"options": ["moves every item to shelf C", "moves the rope to shelf C", "makes a new rope"], "answer": 1, "why": "The path names the one record (the rope); the body says the one change."},
+					{"word": "PATCH", "q": "Which SQL word is PATCH most like?",
+						"options": ["SELECT", "INSERT INTO", "UPDATE"], "answer": 2, "why": "Both change a record that's already there. PATCH carries its WHERE in the path."},
+					{"word": "PATCH", "q": "To change the fee on job 12, the path is...",
+						"options": ["PATCH /jobs", "PATCH /jobs/12", "PATCH /fee/12"], "answer": 1, "why": "The service, then the one record: /jobs/12."},
+					{"word": "true / false", "q": "Which switches the van's charger on?",
+						"options": ["{\"charged\": \"true\"}", "{\"charged\": true}", "{\"charged\": on}"], "answer": 1, "why": "A switch's value is true or false with no quotes. In quotes it's just a word."},
+					{"word": "true / false", "q": "{\"locked\": false} means...",
+						"options": ["unlock it", "lock it", "it's not valid"], "answer": 0, "why": "false turns the switch off: not locked."},
+					{"word": "true / false", "q": "The service answers 400 to {\"charged\": \"yes\"}. Why?",
+						"options": ["yes should be true", "charged needs capitals", "the body needs a comma"], "answer": 0, "why": "A switch only takes true or false. \"yes\" is a word it doesn't know."},
+				],
+			},
+			{
+				"id": "api_post",
+				"title": "Making something new",
+				"when": "L5, carbon copy (work order)",
+				"required": false,
+				"words": ["POST", "body"],
+				"lines": ["l5_huddle_post_1", "l5_huddle_post_2"],
+				"pages": [
+					"POST\n\nGET asks a service for what it has. POST asks it to make something new.\n\nPOST /jobs\n\nasks the job board to make a new job. The service answers 201 Created when it has, and tells you what it made.",
+					"body\n\nA POST carries the new thing in a body: after the headers, an empty line, then the fields in braces.\n\n{\"client\": \"Nash\", \"town\": \"Ashford\", \"fee\": 80}\n\nEvery field the service wants, every time. Words in \"double quotes\", numbers without. Leave one out and it answers 400 and names the field.",
+				],
+				"quiz": [
+					{"word": "POST", "q": "POST /jobs does what?",
+						"options": ["lists the jobs", "makes a new job", "deletes a job"], "answer": 1, "why": "POST asks the service to make something new. GET is the one that lists."},
+					{"word": "POST", "q": "The job board answers 201 to a POST. That means...",
+						"options": ["it made the new job", "it refused", "it's thinking about it"], "answer": 0, "why": "201 Created: the service made what you asked for."},
+					{"word": "POST", "q": "To see the jobs you already have, you use...",
+						"options": ["POST /jobs", "GET /jobs", "NEW /jobs"], "answer": 1, "why": "GET looks, POST makes. Looking at what's there is a GET."},
+					{"word": "body", "q": "Where does the body go?",
+						"options": ["on the same line as POST", "after the headers and an empty line", "before POST"], "answer": 1, "why": "The request line, then its headers, then an empty line, then the body."},
+					{"word": "body", "q": "Which body is right?",
+						"options": ["{\"client\": \"Nash\", \"fee\": 80}", "{client: Nash, fee: 80}", "(\"client\" = \"Nash\", \"fee\" = 80)"], "answer": 0, "why": "Braces round the whole thing, each field's name in double quotes, a colon, then its value."},
+					{"word": "body", "q": "You POST a job without its fee. The board answers 400 and names \"fee\". You...",
+						"options": ["POST it again with the fee in", "POST it again without the fee", "try GET instead"], "answer": 0, "why": "400 means the request was wrong, and it said which field. Put the field in and send it again."},
+				],
+			},
+			{
+				"id": "api_check",
+				"title": "Ask again",
+				"when": "L5, escort procedure (lockup)",
+				"required": false,
+				"words": ["ask again"],
+				"lines": ["l5_huddle_check_1", "l5_huddle_check_2"],
+				"pages": [
+					"ask again\n\n200 means the service took your change, just then. It doesn't promise it's still that way, or that the thing it's for has happened.\n\nAfter a PATCH or a POST, GET the record back and read it. If it says what you changed, it took. If it doesn't, something changed it back.",
+				],
+				"quiz": [
+					{"word": "ask again", "q": "You PATCH the van's charger to true and get 200. Is it charging?",
+						"options": ["yes, 200 says so", "GET it back and see", "no, 200 means it refused"], "answer": 1, "why": "200 means it heard you. Whether it took is in the record: GET it back."},
+					{"word": "ask again", "q": "After POST /jobs answers 201, how do you see the new job?",
+						"options": ["POST /jobs again", "GET /jobs", "wait for it to show"], "answer": 1, "why": "Ask for it back with a GET. Posting again makes a second one."},
+					{"word": "ask again", "q": "You GET the record back and it's as it was before your change. Then...",
+						"options": ["the change took", "something put it back", "GET is broken"], "answer": 1, "why": "The record is the truth. If it's unchanged, something undid it, whatever the number said."},
+				],
+			},
+		],
+	},
 }
 
 
@@ -560,7 +709,15 @@ static func chapter(id: String) -> Dictionary:
 	return {}
 
 
-## How chapter `ch` is read: rounds of {pages, questions, ref}, each a list of
+## The pages of chapter `ch`, by index, in the order a huddle reads them.
+static func reading_order(ch: Dictionary) -> Array:
+	var out := []
+	for r in rounds(ch):
+		out.append_array(r.pages)
+	return out
+
+
+## How chapter `ch` is tested: rounds of {pages, questions, ref}, each a list of
 ## indexes into its pages or quiz. One round per word when each page is a word's
 ## (it starts with the word's name); otherwise the chapter's own `rounds`, or for a
 ## review, every page and then every question.
@@ -590,6 +747,32 @@ static func rounds(ch: Dictionary) -> Array:
 			out.append({"pages": [i], "questions": qs, "ref": [i]})
 		return out
 	return [{"pages": range(pages.size()), "questions": range(quiz.size()), "ref": range(pages.size())}]
+
+
+## Book `book_id`'s name as people say it ("Easy SQL"; its cover says EASY SQL).
+static func book_name(book_id: String) -> String:
+	var book: Dictionary = BOOKS.get(book_id, {})
+	return book.get("name", book.get("title", ""))
+
+
+## A book page as BBCode for a RichTextLabel `room` px wide. Indented lines are
+## code: they show in the typewriter font, at `size` or smaller, so that the
+## widest of them fits without wrapping (a table split over two lines can't be
+## read; playtest 2026-10-22).
+static func page_bbcode(text: String, room: float, size: int = CODE_SIZE) -> String:
+	var lines := text.split("\n")
+	var widest := 0.0
+	for line in lines:
+		if line.begins_with("    "):
+			widest = maxf(widest, ThemeUtil.mono().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x)
+	var fit := size
+	if room > 0.0 and widest > room:
+		fit = maxi(10, floori(size * room / widest))
+	var out := []
+	for line in lines:
+		var safe := line.replace("[", "[lb]")
+		out.append("[font_size=%d][code]%s[/code][/font_size]" % [fit, safe] if line.begins_with("    ") else safe)
+	return "\n".join(out)
 
 
 ## The chapter ids of book `book_id`, in order.

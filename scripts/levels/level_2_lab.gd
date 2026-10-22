@@ -47,6 +47,9 @@ const ROUND_BACK := [Vector3(-9, 0, 9), Vector3(-17, 0, 9), Vector3(-17, 0, 0)]
 const BEHIND_REAR := Vector3(-17, 0, 0)
 const INSIDE_REAR := Vector3(-15, 0, 0)
 const RESPAWN := Vector3(-12.2, 0.1, 1.6)
+## Well inside the lab, clear of the main doorway's guard: where the whole crew has to
+## be before he walks out and the door locks.
+const INSIDE_BOX := AABB(Vector3(-16, -1, -4), Vector3(5.7, 4, 8))
 
 var level: Node3D  # the Level 2 wing (untyped: tests load this script)
 var data: Dictionary
@@ -74,6 +77,11 @@ var clock: Label3D
 var _plate: Label3D
 var _card: Document
 var _stamps := []
+## Door id -> a wall in its doorway that only the crew bumps into: up while Rourke
+## walks out through it or back in, so nobody slips out after him.
+var guards := {}
+## True while each machine keeps its own player inside the lab (_keep_crew_in).
+var _keeping_in := false
 
 var door_puzzle: Puzzle
 var log_puzzle := Puzzle.new("badge_log", "SELECT time, badge_id FROM badge_log ORDER BY time", ["time", "badge_id"], true, [
@@ -97,17 +105,17 @@ static func create(for_level: Node3D, level_data: Dictionary) -> Level2Lab:
 
 
 ## The lab door's query: its own zone, and status 'fault'. Both conditions matter.
-## Hints: the shape with the zone left as '?', then where the zone is, then the query.
+## Hints: the shape with the zone left as 'enter_zone', then where the zone is, then the query.
 static func door_puzzle_for(zone: String) -> Puzzle:
 	return Puzzle.new("lab_door", "SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % zone, ["id"], false, [
-		"the shape, with the zone left as ?:\n" +
-		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '?' AND status = 'fault';[/color]\n" +
-		"  SELECT *               every column\n" +
-		"  FROM door_controllers  the building's door controllers\n" +
-		"  WHERE zone = '?'       only this lab's zone\n" +
-		"  AND status = 'fault'   ...that are ALSO faulted. both must be true\n" +
-		"? is this lab's controller zone. it's on the plate by the door, and on a card in here.",
-		"the door card hangs over the bench. it says \"controller zone\" and a letter. put that letter where the ? is.",
+		"the shape, with the zone left blank:\n" +
+		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = 'enter_zone' AND status = 'fault';[/color]\n" +
+		"  SELECT *                   every column\n" +
+		"  FROM door_controllers      the building's door controllers\n" +
+		"  WHERE zone = 'enter_zone'  only this lab's zone\n" +
+		"  AND status = 'fault'       ...that are ALSO faulted. both must be true\n" +
+		"replace enter_zone with this lab's controller zone. it's on the plate by the door, and on a card in here.",
+		"the door card hangs over the bench. it says \"controller zone\" and a letter. put that letter in place of enter_zone.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % zone +
 		"the id it gives you is the one to reset. the switches are on this lab's wall, by the coat. " +
@@ -175,6 +183,19 @@ func _build() -> void:
 	rourke.down_time = 1.0e9  # in the lab he stays down: the crew decides what happens to him
 	rourke.can_tie = func(p): return cable_holders.has(level.players.id_of(p))
 	level.add_child(rourke)
+	for id in ["SECLAB-B", "SECLAB-B-REAR"]:
+		var g := StaticBody3D.new()
+		g.name = "Guard_" + id
+		g.position = level.doors[id].position
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = level.doors[id].size
+		shape.shape = box
+		g.add_child(shape)
+		level.add_child(g)
+		rourke.add_collision_exception_with(g)  # he walks through; the crew can't
+		guards[id] = g
+		_guard(id, false)
 
 
 ## Everything that names the lab's zone or its controllers: the door plate, the
@@ -267,6 +288,9 @@ func run() -> void:
 	if sync.is_host():
 		_walk_path([Vector3(-9, 0, 0), Vector3(-11.5, 0, 0), BY_COAT], "by_coat")
 	await _gate("crew_in")
+	# From here he's the only one who leaves: the doorway holds the crew in.
+	_guard("SECLAB-B", true)
+	_keep_crew_in()
 	await _gate("by_coat")
 	await _line("l2_lab_shock_1")
 	await _line("l2_lab_shock_2")
@@ -276,6 +300,7 @@ func run() -> void:
 		_walk_path([Vector3(-11.5, 0, 0), Vector3(-9, 0, 0), OUTSIDE], "outside")
 	await _gate("outside")
 	await _gate("trapped")
+	_keeping_in = false
 	_lock_in()
 	# On the radio, then through the glass: why, how long he knew, and goodbye.
 	for id in FRAME_LINES:
@@ -284,12 +309,17 @@ func run() -> void:
 	if sync.is_host():
 		_walk_path(ROUND_BACK, "round_back")
 	await _gate("round_back")
+	_guard("SECLAB-B-REAR", true)
+	_keep_crew_in()
 	_set_door("SECLAB-B-REAR", false)
 	await _line("l2_return")
 	if sync.is_host():
 		_walk_path([INSIDE_REAR], "in_rear")
 	await _gate("in_rear")
+	_keeping_in = false
+	_pull_in()
 	_set_door("SECLAB-B-REAR", true)
+	_guard("SECLAB-B-REAR", false)
 	_start_fight()
 	await _gate("resolved")
 	await _lockdown()
@@ -304,7 +334,8 @@ func _process(delta: float) -> void:
 	_run_clock(delta)
 	if not level.sync.is_host():
 		return
-	var inside: bool = level.players.all_players().all(func(p): return _in_lab(p.global_position))
+	# Everyone well inside, clear of the doorway (its guard goes up once they are).
+	var inside: bool = level.players.all_players().all(func(p): return _crew_inside(p.global_position))
 	if inside and phase == "inside":
 		_mark("crew_in")
 		if _steps.has("outside"):
@@ -319,6 +350,31 @@ func _process(delta: float) -> void:
 
 func _in_lab(p: Vector3) -> bool:
 	return Level2Floor.LAB_BOX.has_point(level.to_local(p) + Vector3.UP * 0.5)
+
+
+func _crew_inside(p: Vector3) -> bool:
+	return INSIDE_BOX.has_point(level.to_local(p) + Vector3.UP * 0.5)
+
+
+## Raise or drop the crew-only wall in a lab doorway, on this machine.
+func _guard(id: String, up: bool) -> void:
+	guards[id].collision_layer = 1 if up else 0
+
+
+## Every machine, while Rourke walks out or back in: if this machine's player got out
+## of the lab anyway (squeezed past him, or lag), they're back inside, so the doors can
+## lock and the frame and the fight can't stall on someone left outside.
+func _keep_crew_in() -> void:
+	_keeping_in = true
+	while _keeping_in and is_inside_tree():
+		_pull_in()
+		await get_tree().create_timer(0.5, false).timeout
+
+
+func _pull_in() -> void:
+	var p: Node3D = level.player
+	if p and not _in_lab(p.global_position):
+		p.respawn(respawn_point())
 
 
 ## In the World, the Rourke who walked the crew up from the server floor takes this one's place.
@@ -426,6 +482,7 @@ func _log_swipe(badge: String, holder: String) -> void:
 func _lock_in() -> void:
 	phase = "locked"
 	_set_door("SECLAB-B", true)
+	_guard("SECLAB-B", false)
 	level.db.run_silent("UPDATE door_status SET note = 'lockdown: controller latched' WHERE door_id = 'SECLAB-B'")
 	level.hud.notice("> DOOR SECLAB-B: LOCKED", 3.0, ThemeUtil.RED)
 	_lab_lights(RED)

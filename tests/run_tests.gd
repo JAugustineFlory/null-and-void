@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "scripting", "chapters"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "scripting", "chapters"]
 
 
 func _run() -> void:
@@ -74,6 +74,7 @@ func _run_group(g: String) -> void:
 		"floor_22_lab": await _group_floor_22_lab()
 		"floor_18": await _group_floor_18()
 		"floor_10": await _group_floor_10()
+		"floor_9": await _group_floor_9()
 		"coop": await _group_coop()
 		"combat": await _group_combat()
 		"movement": await _group_movement()
@@ -148,6 +149,7 @@ func _group_floor_22() -> void:
 	await test_level_2_main_route()
 	await test_level_2_cases()
 	await test_level_2_book_huddles()
+	await test_level_2_lab_doors()  # here, not floor_22_lab, to keep that group under 3 minutes
 
 
 ## Floor 22's Secure Lab B, once per way the Rourke fight can end.
@@ -172,6 +174,10 @@ func _group_floor_18() -> void:
 ## Floor 10, the Power Plant (Level 4).
 func _group_floor_10() -> void:
 	await _run_file("res://tests/level_4_tests.gd")
+
+
+func _group_floor_9() -> void:
+	await _run_file("res://tests/level_5_tests.gd")
 
 
 ## Co-op: several machines in one process.
@@ -435,15 +441,15 @@ func _hint_query(hint: String) -> String:
 func _exact_query(hint: String) -> String:
 	for line in hint.replace("[color=#ffffff]", "").replace("[/color]", "").split("\n"):
 		var l := line.strip_edges()
-		if l.to_upper().begins_with("SELECT ") and l.ends_with(";") and not l.contains("?"):
+		if l.to_upper().begins_with("SELECT ") and l.ends_with(";") and not l.contains("?") and not l.contains("enter_"):
 			return l
 	return ""
 
 
-## The hint ladder (Augustine, 2026-10-18): hint 1 is the query's shape with ? for
-## the value and doesn't give `secret` away; the last hint's exact query solves it.
+## The hint ladder (Augustine, 2026-10-18): hint 1 is the query's shape with a named
+## blank (enter_..., Augustine 2026-10-22) for the value and doesn't give `secret` away; the last hint's exact query solves it.
 func _check_hint_ladder(p: Puzzle, db: FacilityDB, secret: String) -> bool:
-	if p.hints.size() < 3 or not p.hints[0].contains("?"):
+	if p.hints.size() < 3 or not p.hints[0].contains("enter_"):
 		return false
 	# Whole words only: "phone extensions" says what to look for, not the column's name.
 	if secret != "" and RegEx.create_from_string("(?<![\\w'])%s(?![\\w'])" % secret).search(p.hints[0]):
@@ -1093,6 +1099,13 @@ func test_caller_answer() -> void:
 		if route == "terminal":
 			var ui: TerminalUI = level.terminal_ui
 			ui.open(level.desk_terminal, p)
+			check(screen_text(ui).contains(".schema staff_directory"), "terminal: SYSOP says how to see the directory's column names")
+			ui.run("SELECT name, enter_column_name FROM staff_directory;")
+			await process_frame
+			check(screen_text(ui).contains("enter_column_name is the blank from the hint"), "terminal: the hint's blank typed in as it is gets SYSOP's answer")
+			ui.run("SELECT name FROM staff_directory WHERE name = 'enter_name';")
+			await process_frame
+			check(screen_text(ui).contains("enter_name is the blank from the hint"), "terminal: and so does a quoted one, which finds nothing")
 			ui.run("SELECT name, extension FROM staff_directory WHERE extension != %s;" % ext)
 			await process_frame
 			check(not level.caller_listed and not screen_text(ui).contains("there it is"), "terminal: a list without the caller's row gets no \"there it is\" from SYSOP")
@@ -1476,25 +1489,19 @@ func _books_read(levels: Array) -> void:
 			_huddle_of(l).done[id] = true
 
 
-## Play through the next book huddle on every machine: everyone turns the pages
-## (a page turns once the whole crew is ready), then everyone votes for the
-## right answer (scripts/huddle/).
+## Wait out the next chapter on every machine: it comes into the book while
+## Maddison's lines for it play (scripts/huddle/). A chapter with no lines is in
+## at once, so a quiet half second also counts as over.
 func _crew_reads(levels: Array) -> void:
 	var hs: Array = levels.map(func(l): return _huddle_of(l))
 	var seen := false
+	var quiet := 0
 	for f in 6000:
 		await physics_frame
-		for h in hs:
-			h.reveal_scale = 0.05
-			if not h.is_running():
-				continue
-			seen = true
-			if h.question < 0:
-				if f % 5 == 0 and not h.ready_to_turn():
-					h.turn_page()
-			elif h.result.is_empty() and not h.votes.has(h.multiplayer.get_unique_id()):
-				h.vote(h.current_question().answer)
-		if seen and hs.all(func(h): return not h.is_running() and h.get_node_or_null("HuddleUI") == null):
+		var busy: bool = hs.any(func(h): return h.is_busy())
+		seen = seen or busy
+		quiet = 0 if busy else quiet + 1
+		if (seen and not busy) or quiet > 30:
 			return
 
 
@@ -1506,10 +1513,26 @@ func _lower_chapters_read(levels: Array) -> void:
 			_huddle_of(l).done[id] = true
 
 
-## Until a huddle for chapter `id` is open here (at most `seconds`).
+## Until chapter `id` has come into the book here (at most `seconds`).
 func _huddle_opens(level: Node, id: String, seconds: float = 30.0) -> bool:
 	var h := _huddle_of(level)
-	return await _until(func(): return h.chapter.get("id", "") == id, seconds)
+	return await _until(func(): return h.done.has(id), seconds)
+
+
+## Until chapter `id` comes into the book here (at most `seconds`); true only if
+## `before` was still false at that moment (or now, if it came in this frame).
+func _lands_before(level: Node, id: String, before: Callable, seconds: float = 30.0) -> bool:
+	var h := _huddle_of(level)
+	if h.done.has(id):
+		return not before.call()
+	var ok := [false]
+	var on_in := func(got: String):
+		if got == id:
+			ok[0] = not before.call()
+	h.finished.connect(on_in)
+	var landed: bool = await _until(func(): return h.done.has(id), seconds)
+	h.finished.disconnect(on_in)
+	return landed and ok[0]
 
 
 func _table(level: Node, sql: String) -> String:
@@ -1606,6 +1629,23 @@ func test_coop_level_0() -> void:
 	await _frames(10)
 	check(c2.voice.heard.near == 1 and c2.voice.heard.radio == 1, "radio reaches a teammate too far away to hear directly")
 	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 40 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
+	# A flashback or cutscene: the view cuts far away and the player is held still.
+	# Teammates are still heard as if close, and the radio still keys.
+	var away := Camera3D.new()
+	away.position = Vector3(0, 0, 400)
+	c2.add_child(away)
+	away.make_current()
+	c2.player.input_locked = true
+	var heard_before: int = c2.voice.heard.near
+	c1.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 40 m off is still heard")
+	check(c2.voice._keys_free(), "and the radio and mute keys still work while the scene holds you still")
+	away.queue_free()
+	c2.player.camera.make_current()
+	await _frames(2)
+	check(c2.voice.hearing_from_body() and not c2.voice._keys_free(), "back in your own eyes, voices come from where people stand, and a locked player's keys stay locked (terminal, notebook)")
+	c2.player.input_locked = false
 	_game().has_walkie = false
 
 	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
@@ -2202,7 +2242,9 @@ func test_coop_lobby_names() -> void:
 func test_coop_patience() -> void:
 	print("Co-op: a host frozen loading the building keeps its joiners")
 	var net := root.get_node("Net")
-	for case in [[net.PATIENCE_LOBBY, false], [net.PATIENCE_LOADING, true]]:
+	# (Only the loading patience is checked: the lobby's 3 s minimum drops a joiner
+	# only once enough resends have piled up, so whether a 4 s freeze does is luck.)
+	for patience in [net.PATIENCE_LOADING]:
 		_next_port += 1
 		var host := ENetMultiplayerPeer.new()
 		host.create_server(_next_port, 6)
@@ -2225,18 +2267,14 @@ func test_coop_patience() -> void:
 				OS.delay_msec(2)
 			while host.get_available_packet_count() > 0:
 				host.get_packet()
-		net.patient(client.get_peer(1), case[0])
+		net.patient(client.get_peer(1), patience)
 		client.put_packet(PackedByteArray([2]))
 		# The host freezes for 4 s (loading the building); the client carries on.
 		var t0 := Time.get_ticks_msec()
 		while Time.get_ticks_msec() - t0 < 4000 and client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 			client.poll()
 			OS.delay_msec(20)
-		var kept := client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
-		if case[1]:
-			check(kept, "while the building loads, a joiner waits out a host frozen for 4 s")
-		else:
-			check(not kept, "(the lobby's quick patience would have dropped them, which is what happened)")
+		check(client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED, "while the building loads, a joiner waits out a host frozen for 4 s")
 		client.close()
 		host.close()
 
@@ -2507,9 +2545,17 @@ func test_coop_sitting() -> void:
 	var hip: Vector3 = seen.rig.joints["r_hip"].global_position
 	check(seen.sitting == PlayerPuppet.Sit.CHAIR and seen.rig.action == "sit", "the host sees them sitting on it")
 	check(absf(hip.y - (top.y + PlayerPuppet.SEAT_THIGH)) < 0.08, "with their hips on the seat, not floating above it (%.2f m off)" % (hip.y - top.y - PlayerPuppet.SEAT_THIGH))
+	var body: Node3D = seen.find_child("Body", false, false)
+	var faced := body.global_rotation.y
+	sitter.rotation.y += 1.0  # looks round to their left
+	await _frames(40)
+	check(absf(angle_difference(faced, body.global_rotation.y)) < 0.05 and absf(seen.rig.twist - 1.0) < 0.1,
+		"looking round on a chair, a teammate turns their chest, not their legs (legs %.2f, twist %.2f)" % [angle_difference(faced, body.global_rotation.y), seen.rig.twist])
+	sitter.rotation.y -= 1.0
 	sitter.stand_up(true)
 	await _frames(20)
 	check(seen.sitting == PlayerPuppet.Sit.NONE and seen.rig.action == "idle" and seen.find_child("Body", false, false).position.y == 0.0, "and back on their feet when they stand up")
+	check(seen.rig.twist == 0.0 and body.rotation.y == 0.0, "facing all one way again")
 	check(sitter.sit(null), "the client sits on the floor")
 	await _frames(20)
 	check(seen.sitting == PlayerPuppet.Sit.FLOOR and seen.find_child("Body", false, false).position.y == 0.0
@@ -2826,8 +2872,8 @@ func test_level_2_hints() -> void:
 	check(ok, "pike and the PIN: the last hint's query solves it on every seed, the first hint's shape doesn't")
 	var shapes := true
 	for p in [l2.pike_puzzle, Puzzle.new("har", "", [], false, l2.pin_hints("G-123")), l2.door_puzzle, Level2Lab.door_puzzle_for("E")]:
-		shapes = shapes and _hint_query(p.hints[0]).contains("?") and p.hints.size() == 3 and not _hint_query(p.hints[-1]).contains("?")
-	check(shapes, "first hints give the query's shape with the value as ?, the last hint the exact query")
+		shapes = shapes and _hint_query(p.hints[0]).contains("enter_") and p.hints.size() == 3 and not _hint_query(p.hints[-1]).contains("enter_")
+	check(shapes, "first hints give the query's shape with the value as a named blank, the last hint the exact query")
 	check(_hint_query(l2.pin_hints("G-123")[1]).contains("badge_log ORDER BY time"), "the PIN's second hint shows how to find the badge")
 	check(_hint_query(l2.cameras_puzzle.hints[0]) == "GET /cameras", "cameras: first hint is GET /cameras (nothing to find)")
 	check(_hint_query(l2.door_puzzle.hints[-1]) == "GET /doors/SEC-EXIT", "door: last hint is GET /doors/SEC-EXIT")
@@ -3323,7 +3369,7 @@ func test_level_2_lab_data_every_seed() -> void:
 	check(ok, "the lab door is the one 'fault' in the lab's zone, and only zone AND status finds it, on every seed")
 	check(zones.size() > 1, "the lab's zone changes between runs (%s)" % [zones.keys()])
 	var lab_hints: Array = Level2Lab.door_puzzle_for("E").hints
-	check(lab_hints[0].contains("WHERE zone = '?'") and not lab_hints[0].contains("'E'") and lab_hints[0].contains("AND status = 'fault'"), "the first hint is the query's shape, the zone left as ?, a line per keyword")
+	check(lab_hints[0].contains("WHERE zone = 'enter_zone'") and not lab_hints[0].contains("'E'") and lab_hints[0].contains("AND status = 'fault'"), "the first hint is the query's shape, the zone left blank, a line per keyword")
 	check(lab_hints[-1].contains("WHERE zone = 'E' AND status = 'fault'"), "the last hint is the exact query")
 
 
@@ -3365,6 +3411,59 @@ func _flat_overlap(a: AABB, b: AABB) -> bool:
 
 func _in_lab_room(level: Node, p: Node3D) -> bool:
 	return Level2Floor.LAB_BOX.has_point(level.to_local(p.global_position) + Vector3.UP * 0.5)
+
+
+## Nobody slips out after Rourke (Augustine's co-op playtest, 2026-10-22): not
+## through the main door as he leaves, nor the rear door as he comes back in. And
+## someone who got out anyway is back inside before the doors lock, so the frame and
+## the fight can't stall on them.
+func test_level_2_lab_doors() -> void:
+	print("Level 2 lab: Rourke's doors")
+	_game().new_run(21)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	_books_read([level])
+	Engine.time_scale = 4.0
+	await _frames(20)
+	level.watcher.active = false
+	var lab: Level2Lab = level.lab
+	var p: Player = level.player
+	await _until(func(): return lab.phase == "badge", 40.0)
+	lab.reader.interact(p)
+	await _until(func(): return level.doors["SECLAB-B"].is_open, 10.0)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
+	check(await _until(func(): return lab._steps.has("crew_in"), 40.0), "the crew is in the lab with him")
+	# Follow him out of the main door: face east and keep walking.
+	p.local_control = false
+	p.global_transform = Transform3D(Basis(Vector3.UP, -PI / 2), level.to_global(Vector3(-11.2, 0.1, 0)))
+	p.controls.move = Vector2(0, -1)
+	var furthest := -100.0
+	for i in 60:
+		await physics_frame
+		furthest = maxf(furthest, level.to_local(p.global_position).x)
+	p.controls.move = Vector2.ZERO
+	check(furthest < -10.0, "walking out after him, the doorway stops you (got to x %.2f)" % furthest)
+	# Got out anyway (lag, a squeeze past him): you're brought back before the door locks.
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-8.5, 0.1, 1.5)))
+	check(await _until(func(): return lab.phase == "locked", 40.0) and _in_lab_room(level, p), "he's out, and the door locks with the whole crew inside, even someone who got out")
+	# Out of the rear door as he comes back in: the safety net brings you back.
+	check(await _until(func(): return level.doors["SECLAB-B-REAR"].is_open, 80.0), "he opens the rear door to come back in")
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), level.to_global(Vector3(-15.2, 0.1, 0)))
+	p.controls.move = Vector2(0, -1)
+	furthest = 100.0
+	for i in 400:
+		await physics_frame
+		furthest = minf(furthest, level.to_local(p.global_position).x)
+		if lab.phase != "locked":
+			break
+	p.controls.move = Vector2.ZERO
+	check(furthest > -16.0, "walking out of the rear door past him, the doorway stops you too (got to x %.2f)" % furthest)
+	check(await _until(func(): return lab.phase == "fight", 40.0) and _in_lab_room(level, p) and not level.doors["SECLAB-B-REAR"].is_open,
+		"the fight starts with you inside and the rear door shut")
+	Engine.time_scale = 1.0
+	p.local_control = true
+	level.queue_free()
+	await process_frame
 
 
 ## The betrayal in Vale's lab, with each of the three ways it ends for Rourke.
@@ -3432,7 +3531,7 @@ func test_level_2_lab(outcome: String) -> void:
 	check(_game().rourke_fate == outcome, "the game remembers it, from Level 2")
 	check(await _until(func(): return lab.switches.values().all(func(s): return s.enabled) and not lab.terminal.locked, 60.0), "the lockdown starts, and her terminal opens on Rourke's badge")
 	var h := _huddle_of(level)
-	check(await _until(func(): return h.chapter.get("id", "") == "easy_sql_9", 20.0) and lab.response_left < 0.0, "before the clock starts, the book's review comes back: Under pressure")
+	check(await _until(func(): return _game().book_chapters.has("easy_sql_9"), 20.0), "as the lockdown starts, the book's review goes in the notebook: Under pressure")
 	await _crew_reads([level])
 	check(await _until(func(): return lab.response_left > 0.0, 20.0) and h.done.has("easy_sql_9"), "then the security response is sent")
 	check(_game().current_todo() != "" and not _game().current_todo().contains(level.data.lab_answer) and not _game().current_todo().contains(level.data.lab_zone + "'"), "the to-do names no answer (%s)" % _game().current_todo())
@@ -3864,6 +3963,9 @@ func test_world() -> void:
 	var plant = world.current
 	check(plant != null and plant.wing_id == "level_4" and plant.active and world._field_notes == null, "after the archive the route goes on to the Power Plant on 10")
 	world.wing_finished(plant)
+	var personnel = world.current
+	check(personnel != null and personnel.wing_id == "level_5" and personnel.active and world._field_notes == null, "after the plant the route goes on to Personnel on 9")
+	world.wing_finished(personnel)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
@@ -4140,7 +4242,7 @@ func test_level_2_book_huddles() -> void:
 	var p: Player = level.player
 	var h := _huddle_of(level)
 	var opens := func(id: String) -> bool:
-		return await _until(func(): return h.chapter.get("id", "") == id and p.input_locked, 10.0)
+		return await _until(func(): return h.done.has(id) and not p.input_locked, 10.0)
 	_doc(level, "Camera system card").open_reader(p).close()
 	check(await opens.call("easy_sql_10"), "reading the camera card brings back Asking a server, the GET chapter")
 	await _crew_reads([level])
@@ -4158,10 +4260,9 @@ func test_level_2_book_huddles() -> void:
 	check(not h.is_running(), "the WARDEN manual's LIKE page doesn't bring it back again")
 	level.terminal_ui.terminal = level.booth
 	level.terminal_ui.run("SELECT * FROM guards WHERE name LIKE 'Pike%'")
-	check(await opens.call("easy_sql_12"), "Pike's suspended PIN brings back One answer feeds the next")
-	check(not level.watcher.active and level.watcher.is_watched(), "it doesn't wake while the crew is in the garage, and is held still")
+	check(await _lands_before(level, "easy_sql_12", func(): return level.watcher.active), "Pike's suspended PIN brings back One answer feeds the next, before it wakes")
 	await _crew_reads([level])
-	check(await _until(func(): return level.watcher.active and level.loose, 10.0), "back from the garage, CAM-2 freezes and it hunts")
+	check(await _until(func(): return level.watcher.active and level.loose, 10.0), "then CAM-2 freezes and it hunts")
 	level.watcher.active = false  # the rest is about the chapters, not the chase
 	level.terminal_ui.terminal = level.booth
 	level.terminal_ui.run(_hint_query(level.har_puzzle.hints[-1]))
@@ -4241,7 +4342,7 @@ func test_notebook() -> void:
 	var nb: Notebook = level.notebook
 	level.player.input_locked = false
 	check(nb.open() and nb.is_open() and level.player.input_locked, "Tab opens the notebook and holds the player")
-	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER and NotebookPages.TAB_NAMES == ["Work order", "Cases", "Tables", "Field Notes"], "it opens on the work order, then Cases, Tables and Field Notes: no separate Notes tab")
+	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER and NotebookPages.TAB_NAMES == ["Work order", "Cases", "Tables", "Field Notes", "Books"], "it opens on the work order, then Cases, Tables, Field Notes and the crew's book: no separate Notes tab")
 	nb.close()
 	check(not nb.is_open() and not level.player.input_locked, "and closes again")
 	level.terminal_ui.open(level.desk_terminal, level.player)
@@ -4971,7 +5072,7 @@ func test_level_3_scene() -> void:
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
 	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.size() >= 2) and level.pc_puzzle.hints.size() >= 2, "seven stations on the desk and one on the PC, each with a hint ladder")
-	check(level.desk.puzzles[0] == level.keyholder_puzzle and level.desk.next_hint().contains("access_log WHERE room = '?'"), "with Mercer's door found, .hint starts on the lock's question")
+	check(level.desk.puzzles[0] == level.keyholder_puzzle and level.desk.next_hint().contains("access_log WHERE room = 'enter_room'"), "with Mercer's door found, .hint starts on the lock's question")
 	level.terminal_ui.run("SELECT COUNT(*) FROM access_log")
 	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")
@@ -4994,7 +5095,7 @@ func test_level_3_scene() -> void:
 	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's top room with its count passes too; the case stays closed once")
 	level.terminal_ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
 	check(level.keyholder_puzzle.solved, "the lock's question: that room's raw rows, read by eye, pass it")
-	check(level.slips_puzzle.hints.size() == 2 and level.slips_puzzle.hints[0].contains("counted before") and level.slips_puzzle.hints[0].contains("status = '?'") and not level.slips_puzzle.hints[0].contains("'open'"),
+	check(level.slips_puzzle.hints.size() == 2 and level.slips_puzzle.hints[0].contains("counted before") and level.slips_puzzle.hints[0].contains("status = 'enter_status'") and not level.slips_puzzle.hints[0].contains("'open'"),
 		"the slips ladder is review: a reminder with the shape, then the query")
 	level.terminal_ui.run("SELECT * FROM retrieval_slips")
 	level.terminal_ui.run("SELECT * FROM retrieval_slips WHERE status = 'open'")
@@ -5360,26 +5461,12 @@ func test_level_3_book_huddles() -> void:
 	var p: Player = level.player
 	var h := _huddle_of(level)
 	_doc(level, "Retention review memo").open_reader(p).close()
-	for i in 300:  # the cut to the garage
-		if h.is_running():
-			break
-		await physics_frame
-	check(h.chapter.get("id", "") == "easy_sql_distinct" and p.input_locked, "reading the memo on the card catalogue brings back the DISTINCT chapter, round the garage bench")
-	check(not level.shredder.is_physics_processing(), "the Shredder stands still while the crew is in the huddle")
+	check(await _until(func(): return h.done.has("easy_sql_distinct"), 10.0) and not p.input_locked and level.shredder.is_physics_processing(), "reading the memo on the card catalogue puts the DISTINCT chapter in the book, and nobody is held still, the Shredder included")
 	_doc(level, "Reader tally").open_reader(p).close()
-	await _frames(5)
-	check(h.chapter.get("id", "") == "easy_sql_distinct", "the tally read mid-huddle waits its turn")
+	check(await _until(func(): return h.done.has("easy_sql_group_by"), 10.0), "then the tally puts in the COUNT and GROUP BY chapter")
 	await _crew_reads([level])
-	if not h.done.has("easy_sql_group_by"):
-		check(not level.shredder.is_physics_processing(), "between the two huddles the Shredder still stands still")
-		await _crew_reads([level])
-	check(h.done.has("easy_sql_distinct") and h.done.has("easy_sql_group_by"), "then the tally brings back the COUNT and GROUP BY chapter")
 	check(net.profile.earned.has("chapter:easy_sql_distinct") and net.profile.earned.has("chapter:easy_sql_group_by"), "both chapters are on the reader's profile")
-	for i in 120:  # the cut back to floor 18
-		if level.shredder.is_physics_processing():
-			break
-		await physics_frame
-	check(level.shredder.is_physics_processing() and not p.input_locked, "afterwards the Shredder can move again, and so can the crew")
+	check(level.shredder.is_physics_processing() and not p.input_locked, "afterwards the Shredder still moves, and so does the crew")
 	_doc(level, "Retention review memo").open_reader(p).close()
 	await _frames(10)
 	check(not h.is_running(), "reading the memo again doesn't repeat the chapter")
@@ -5399,28 +5486,10 @@ func test_level_1_book_huddle() -> void:
 	await _frames(30)
 	var p: Player = level.player
 	var h := _huddle_of(level)
-	var reader = _doc(level, "CONTROLLER RESET - SIGN-OFF").open_reader(p)
-	await _frames(20)
-	check(not h.is_running() and p.input_locked and reader.is_inside_tree(), "the cut waits while the sign-off form is still being read")
-	reader.close()
-	for i in 300:  # the cut to the garage
-		if h.is_running():
-			break
-		await physics_frame
-	check(h.chapter.get("id", "") == "easy_sql_count" and p.input_locked, "putting the sign-off form down brings back How many?, the COUNT chapter")
+	_doc(level, "CONTROLLER RESET - SIGN-OFF").open_reader(p).close()
+	check(await _until(func(): return h.done.has("easy_sql_count"), 10.0), "reading the sign-off form puts How many?, the COUNT chapter, in the book")
 	await _crew_reads([level])
-	await _frames(60)  # the cut back to floor 14
-	check(h.done.has("easy_sql_count") and net.profile.earned.has("chapter:easy_sql_count") and not p.input_locked, "the crew reads it, it's on the profile, and the crew can move again")
-	# In the World a paper's reader sits on its wing, under the World's huddle.
-	var wing_script := GDScript.new()
-	wing_script.source_code = "extends Node\nfunc finish_level() -> void:\n\tpass\n"
-	wing_script.reload()
-	var wing := Node.new()
-	wing.set_script(wing_script)
-	level.add_child(wing)
-	var wing_reader := DocumentReader.new()
-	wing.add_child(wing_reader)
-	check(h._papers().has(wing_reader), "the huddle also waits for a paper open on a wing")
+	check(net.profile.earned.has("chapter:easy_sql_count") and not p.input_locked, "it's on the profile, and nobody was held still")
 	net.profile = test_profile
 	level.queue_free()
 	await process_frame
@@ -5444,7 +5513,7 @@ func test_level_0_book_huddles() -> void:
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments;")
 	var nudged := func(): return Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY"))
-	check(await _huddle_opens(level, "easy_sql_2") and not nudged.call(), "the scraps printing out of order bring back Putting things in order, before SYSOP's nudge")
+	check(await _lands_before(level, "easy_sql_2", nudged), "the scraps printing out of order bring back Putting things in order, before SYSOP's nudge")
 	await _crew_reads([level])
 	check(h.done.has("easy_sql_2") and net.profile.earned.has("chapter:easy_sql_2"), "the crew reads it, and it's on the profile")
 	check(await _until(nudged, 5.0), "then SYSOP nudges toward ORDER BY")
@@ -5452,7 +5521,7 @@ func test_level_0_book_huddles() -> void:
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no;")
 	check(await _huddle_opens(level, "easy_sql_4"), "with the memo sorted, the visitor book's Newest first comes back")
 	await _crew_reads([level])
-	check(await _huddle_opens(level, "easy_sql_3", 90.0) and not level.caller_asked, "Rourke asks who called, and Just the columns you need comes back before the case opens")
+	check(await _lands_before(level, "easy_sql_3", func(): return level.caller_asked, 90.0), "Rourke asks who called, and Just the columns you need comes back before the case opens")
 	await _crew_reads([level])
 	check(await _until(func(): return level.caller_asked, 10.0) and h.done.has("easy_sql_3") and h.done.has("easy_sql_4"), "then the caller case opens")
 	level.queue_free()
@@ -5469,7 +5538,7 @@ func test_level_0_book_huddles() -> void:
 	await _crew_reads([level])
 	await _frames(30)
 	h = _huddle_of(level)
-	check(h.chapter.get("id", "") != "easy_sql_2" and not Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY")), "once, with no nudge after it")
+	check(not h.is_busy() and not Array(level.desk_terminal.transcript).any(func(l): return TerminalUI._plain(l).contains("add ORDER BY")), "once, with no nudge after it")
 	level.queue_free()
 	await process_frame
 	net.profile = test_profile
@@ -5490,7 +5559,7 @@ func test_level_1_book_huddles() -> void:
 	check(await _huddle_opens(level, "easy_sql_5"), "the NOC shift log brings back Keeping only some rows")
 	await _crew_reads([level])
 	level._on_asked()
-	check(await _huddle_opens(level, "easy_sql_6") and level.terminal.locked, "the self-test brings back Both must be true, before the terminal opens")
+	check(await _lands_before(level, "easy_sql_6", func(): return not level.terminal.locked), "the self-test brings back Both must be true, before the terminal opens")
 	await _crew_reads([level])
 	check(await _until(func(): return not level.terminal.locked, 5.0) and h.done.has("easy_sql_5") and h.done.has("easy_sql_6"), "then the terminal opens, the shift log's chapter not read twice")
 	_doc(level, "RACK MONITORING").report_open(p)

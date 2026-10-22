@@ -15,7 +15,7 @@ extends RefCounted
 ## until its owner fixes it. `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
 ## its first hint stays the exact query. `"ladder": "review"` marks a puzzle whose
 ## keyword was practised safely on an earlier floor: two tiers, a reminder with the
-## shape (the value as '?') and then the exact query. Every other puzzle uses hint ladder A.
+## shape (the value as a named blank, enter_...) and then the exact query. Every other puzzle uses hint ladder A.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 
@@ -296,5 +296,92 @@ const PUZZLES := {
 		"ladder": "review",
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "lockouts"],
+	},
+	# Level 5: the Personnel Wing on 9 (plan/level-5-personnel-wing.md). The database is
+	# read-only, so every change goes through the building's services: a key in a header,
+	# PATCH and POST with a JSON body, the status codes, and GET to check it took. Every
+	# station is a RequestPuzzle, checked by the service's answer and the state it leaves.
+	# The walkthrough doesn't type requests with headers or bodies yet, so these rows wait
+	# on a walk_level_5.
+	# The HR desk: GET answers 401 until the manager's key rides in an X-Api-Key header
+	# (the temp's key gets 403). Practised safely.
+	"key": {
+		"level": 5,
+		"pressure": false,
+		"teaches": ["X-Api-Key", "401", "403", "/staff"],
+		"needs": ["GET", "X-Api-Key", "/staff"],
+	},
+	# The panel: PATCH the shed circuits back on; the lights don't fit under the night
+	# limit until the copiers go off (409). Practised safely.
+	"circuits": {
+		"level": 5,
+		"pressure": false,
+		"teaches": ["PATCH", "409", "/circuits", "{\"on\": true}"],
+		"needs": ["PATCH", "X-Api-Key", "/circuits"],
+	},
+	# The panel read back (GET is long practised: a review ladder).
+	"check_circuits": {
+		"level": 5,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["GET", "X-Api-Key", "/circuits"],
+	},
+	# The work order: POST with a body of three fields (400 names a missing one, 201
+	# means it was made). Practised under a mild clock: the air is going bad.
+	"air": {
+		"level": 5,
+		"pressure": false,
+		"teaches": ["POST", "201", "400", "/work_orders"],
+		"needs": ["POST", "X-Api-Key", "/work_orders"],
+	},
+	"check_air": {
+		"level": 5,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["GET", "X-Api-Key", "/work_orders"],
+	},
+	# A voice on the walkie wants the loading door: the badge log says where that badge
+	# really is (GET with an id in the path, practised on 22). Under pressure: the voice.
+	"swipes": {
+		"level": 5,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": ["/swipes"],
+		"needs": ["GET", "X-Api-Key", "/swipes"],
+	},
+	# Escort passes for the two real night-shifters (POST, practised at the work order);
+	# a Mimic's badge answers 401. Under pressure: the Mimics, and maybe the Custodian.
+	"passes": {
+		"level": 5,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": ["/escorts"],
+		"needs": ["POST", "X-Api-Key", "/escorts"],
+	},
+	# The night lockup: every door opened tonight PATCHed shut (practised at the panel),
+	# then read back, one at a time or all at once.
+	"lockup": {
+		"level": 5,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": ["/doors"],
+		"needs": ["PATCH", "X-Api-Key", "/doors"],
+	},
+	"check_lockup": {
+		"level": 5,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["GET", "X-Api-Key", "/doors"],
+	},
+	# Optional: Vale's own record, by id (the staff list shows it).
+	"vale": {
+		"level": 5,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["GET", "X-Api-Key", "/staff"],
 	},
 }

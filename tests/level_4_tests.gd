@@ -217,7 +217,7 @@ func test_scene() -> void:
 		and level.bay_terminal.puzzles.all(func(pz): return pz.hints.size() == 2), "every new write has a three-step hint ladder; the log's and the bay's read-backs, two-step reviews")
 	var ui: TerminalUI = level.terminal_ui
 	ui.terminal = level.maint
-	check(level.maint.next_hint().contains("UPDATE breakers SET state = 'on' WHERE id = '?'"), "the first hint is the UPDATE's shape with the breaker as ?")
+	check(level.maint.next_hint().contains("UPDATE breakers SET state = 'on' WHERE id = 'enter_breaker_id'"), "the first hint is the UPDATE's shape with the breaker left blank")
 	var wo: Node = _doc(level, "Facilities work order")
 	check(wo != null and wo.plain_text().contains("UPDATE breakers SET state = 'on' WHERE id = 'CB-03';") and not wo.plain_text().contains(data.target), "the work order shows last month's UPDATE, not tonight's breaker")
 	wo.open_reader(p).close()
@@ -248,7 +248,7 @@ func test_scene() -> void:
 	var h1: String = level.maint.next_hint()
 	level.maint.next_hint()
 	var fixes := _hint_queries(level.maint.next_hint())
-	check(h1.contains("SET state = 'off' WHERE id = '?'") and fixes.size() == data.decoys.size(), "during the alarm the hints are for putting the others back, ending on one UPDATE per breaker (%d)" % fixes.size())
+	check(h1.contains("SET state = 'off' WHERE id = 'enter_breaker_id'") and fixes.size() == data.decoys.size(), "during the alarm the hints are for putting the others back, ending on one UPDATE per breaker (%d)" % fixes.size())
 	ui.run(fixes[0])
 	await _frames(2)
 	check(level.alarm and _hint_queries(level.maint.next_hint()).size() == data.decoys.size() - 1, "one back isn't all: the alarm goes on, and the last hint lists only the rest")
@@ -504,7 +504,7 @@ func test_accident() -> void:
 ## the accident, the Custodian and the seal play out on every machine.
 ## Easy SQL's Ch 17 and 18 come up at their papers: Changing a row on the work order
 ## or the gantry card (whichever is read first, once), Adding a row on the clipboard.
-## The Custodian stands still while the crew is away at the garage bench.
+## Nothing stops for them: the Custodian keeps going.
 func test_book_huddles() -> void:
 	print("Floor 10: the book's chapters")
 	_game().new_run(7)
@@ -515,10 +515,10 @@ func test_book_huddles() -> void:
 	var h: Node = t._huddle_of(level)
 	_doc(level, "Gantry card").report_open(p)
 	check(await t._huddle_opens(level, "easy_sql_update"), "the gantry card, read first, brings back Changing a row")
-	check(not level.custodian.is_physics_processing(), "the Custodian stands still while the crew is at the bench")
+	check(level.custodian.is_physics_processing(), "the Custodian keeps going while it comes in")
 	await t._crew_reads([level])
 	await t._until(func(): return not h.is_busy(), 10.0)
-	check(h.done.has("easy_sql_update") and level.custodian.is_physics_processing(), "the chapter ends, and the Custodian ticks again")
+	check(h.done.has("easy_sql_update") and level.custodian.is_physics_processing(), "the chapter is in, and the Custodian is still going")
 	_doc(level, "Facilities work order").report_open(p)
 	await _frames(20)
 	check(not h.is_busy() and _game().case_info("power").get("open", false), "the work order read after doesn't bring the chapter back, and still opens the power case")

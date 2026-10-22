@@ -63,10 +63,10 @@ const LIFT_AT := Vector3(30, 0, 3)
 const BOOK_CASE := "Who signed in last? The book's last page is gone."
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
 	"The shape of it:\n" +
-	"    [color=#ffffff]SELECT * FROM ?;[/color]\n" +
-	"  SELECT *   which columns to show (* means every column)\n" +
-	"  FROM ?     which table to read them from\n" +
-	"? is the table's name. It's handwritten on the ScanRight card.",
+	"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
+	"  SELECT *                which columns to show (* means every column)\n" +
+	"  FROM enter_table_name   which table to read them from\n" +
+	"Replace enter_table_name with the table's name. It's handwritten on the ScanRight card.",
 	"The ScanRight card lies on the desk, left of the keyboard. Step 2 has the table name written into its blank. " +
 	"Or type .tables to list every table.",
 	"Type this exactly and press Enter. Spelling matters, capitals don't:\n" +
@@ -76,11 +76,11 @@ var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"
 var memo_backwards := Puzzle.new("memo_backwards", "SELECT text FROM memo_fragments ORDER BY piece_no DESC", ["text"], true)
 var memo_puzzle := Puzzle.new("memo", "SELECT text FROM memo_fragments ORDER BY piece_no", ["text"], true, [
 	"The shape of it:\n" +
-	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY ?;[/color]\n" +
-	"  SELECT *             every column\n" +
-	"  FROM memo_fragments  from the scraps table\n" +
-	"  ORDER BY ?           sorted by a column, smallest first\n" +
-	"? is the column that numbers the scraps.",
+	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY enter_column_name;[/color]\n" +
+	"  SELECT *                    every column\n" +
+	"  FROM memo_fragments         from the scraps table\n" +
+	"  ORDER BY enter_column_name  sorted by a column, smallest first\n" +
+	"Replace enter_column_name with the column that numbers the scraps.",
 	"Step 4 of the ScanRight card says which column numbers each scrap. .schema memo_fragments lists every column.",
 	"Type this exactly and press Enter:\n" +
 	"    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY piece_no;[/color]",
@@ -958,11 +958,13 @@ func _after_memo() -> void:
 static func caller_puzzle_for(ext: int) -> Puzzle:
 	return Puzzle.new("caller", "SELECT name, extension FROM staff_directory", ["name", "extension"], false, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT name, ? FROM staff_directory;[/color]\n" +
-		"  SELECT name, ?        just these columns, so each row fits on the screen\n" +
-		"  FROM staff_directory  from the staff directory\n" +
-		"? is the column holding phone extensions. Then find %d, the number on your work order." % ext,
-		"Type .schema staff_directory to list its columns. One of them holds the phone extensions.",
+		"    [color=#ffffff]SELECT name, enter_column_name FROM staff_directory;[/color]\n" +
+		"  SELECT name, enter_column_name  just these columns, so each row fits on the screen\n" +
+		"  FROM staff_directory            from the staff directory\n" +
+		"Replace enter_column_name with the column holding phone extensions. " +
+		"To see every column's name, type .schema staff_directory (or run SELECT * FROM staff_directory; once: the names are across the top). " +
+		"Then find %d, the number on your work order." % ext,
+		"Type .schema staff_directory and press Enter: it lists the table's columns. One of them holds the phone extensions.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT name, extension FROM staff_directory;[/color]\n" +
 		"Then find %d in the extension column, point at that row and click + add to notebook." % ext,
@@ -974,13 +976,13 @@ static func caller_puzzle_for(ext: int) -> Puzzle:
 static func visitor_puzzle_for() -> Puzzle:
 	var p := Puzzle.new("last_visitor", "SELECT name, signed_in FROM visitors ORDER BY signed_in DESC", ["name", "signed_in"], true, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT * FROM visitors ORDER BY ? DESC LIMIT 5;[/color]\n" +
-		"  SELECT *       every column\n" +
-		"  FROM visitors  from the visitor log\n" +
-		"  ORDER BY ?     sorted by a column\n" +
-		"  DESC           biggest (newest) first\n" +
-		"  LIMIT 5        only the first 5 rows\n" +
-		"? is the column with the sign-in time.",
+		"    [color=#ffffff]SELECT * FROM visitors ORDER BY enter_column_name DESC LIMIT 5;[/color]\n" +
+		"  SELECT *                    every column\n" +
+		"  FROM visitors               from the visitor log\n" +
+		"  ORDER BY enter_column_name  sorted by a column\n" +
+		"  DESC                        biggest (newest) first\n" +
+		"  LIMIT 5                     only the first 5 rows\n" +
+		"Replace enter_column_name with the column with the sign-in time.",
 		".schema visitors lists its columns. One of them holds the sign-in time. LIMIT 5 keeps the first 5 rows, and with DESC those are the newest. The sticky on the desk shows where it goes.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 5;[/color]",
@@ -1004,9 +1006,11 @@ func _ask_caller() -> void:
 	game.add_clue("caller", "The call came from ext. %d." % data.extension, "Work order")
 	game.set_blank("caller", "Ext. %d belongs to" % data.extension, ["harold mercer", str(data.extension)], "Harold Mercer")
 	game.add_clue("caller", "Name just the columns you want, with commas between them: SELECT column, column FROM table_name;", "SYSOP")
+	game.add_clue("caller", "Column names: .schema staff_directory lists them.", "SYSOP")
 	desk_terminal.print_line("")
 	desk_terminal.print_line(TerminalUI.sysop("staff_directory is wide. Instead of *, name just the columns you want, with commas between them:"))
 	desk_terminal.print_line("    [color=#ffffff]SELECT [i]column[/i], [i]column[/i] FROM [i]table_name[/i];[/color]")
+	desk_terminal.print_line(TerminalUI.sysop("don't know its column names? type [b].schema staff_directory[/b] and press Enter: it lists them."))
 
 
 func _on_mailroom_entered() -> void:
