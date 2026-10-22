@@ -49,7 +49,8 @@ to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
   Voice lines and HUD notices alone don't count.
 - **Hint ladder (option A, Augustine 2026-10-18).** Players find the value; hints teach
   how, and only the last one gives it away:
-  1. **Hint 1** is the query's shape with the value left as `'?'`, one line per keyword
+  1. **Hint 1** is the query's shape with the value left as a named blank such as
+     `enter_column_name` or `'enter_zone'` (Augustine, 2026-10-22: never `?`), one line per keyword
      saying what it does, and where the value can be found ("the zone is whichever one
      the stuck doors share"). It never contains the value.
   2. **Hint 2** says how to find the value (which paper, room or query), without the
@@ -58,7 +59,7 @@ to the player (plan: "Who teaches: SYSOP, Mercer's notes and the world").
   All hints use the real tables, never an example table, and say exactly what to type
   and where.
 - **Review ladder (Augustine, 2026-10-21).** A word already practised safely on an
-  earlier floor can use a two-step ladder: hint 1 is the shape with `'?'` and where the
+  earlier floor can use a two-step ladder: hint 1 is the shape with a named blank and where the
   value is, with no line per keyword; hint 2 is the exact query. Only for review: the
   first puzzle that practises a word always uses ladder A.
 - **Every gate is a short investigation** (plan/depth-pass-floors-0-2.md): a step's
@@ -93,7 +94,7 @@ cumulative taught set (every terminal line and sticky note seen so far) and fail
 - something a puzzle teaches never appears on a terminal line or sticky note,
 - the needs list misses a keyword from the exact-query hint,
 - a puzzle breaks the hint ladder (checked every time a puzzle is walked, on every
-  seed): hint 1 isn't the exact query's shape with `'?'`, gives the value away, or lacks
+  seed): hint 1 isn't the exact query's shape with a named blank, gives the value away, or lacks
   a line per keyword; a middle hint holds the full query; the exact query doesn't solve
   the puzzle; or a hint uses an example table. A puzzle with no value to find is
   marked `"ladder": "exact"` in the curriculum and keeps an exact first hint. A review
@@ -102,7 +103,7 @@ cumulative taught set (every terminal line and sticky note seen so far) and fail
   physical step (rack, PIN, breaker) off the screen,
 - a keyword is first needed under threat.
 
-The lost player never fills in a `'?'` itself: that's the thinking step the ladder
+The lost player never fills in a blank itself: that's the thinking step the ladder
 leaves to real players. Keywords include `DESC`, `>` (a comparison with a value) and
 `COLUMNS` (SELECT naming columns instead of `*`).
 

@@ -15,7 +15,7 @@ extends RefCounted
 ## until its owner fixes it. `"ladder": "exact"` marks a puzzle with no value to find (one request, one sort):
 ## its first hint stays the exact query. `"ladder": "review"` marks a puzzle whose
 ## keyword was practised safely on an earlier floor: two tiers, a reminder with the
-## shape (the value as '?') and then the exact query. Every other puzzle uses hint ladder A.
+## shape (the value as a named blank, enter_...) and then the exact query. Every other puzzle uses hint ladder A.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 

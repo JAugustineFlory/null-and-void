@@ -428,15 +428,15 @@ func _hint_query(hint: String) -> String:
 func _exact_query(hint: String) -> String:
 	for line in hint.replace("[color=#ffffff]", "").replace("[/color]", "").split("\n"):
 		var l := line.strip_edges()
-		if l.to_upper().begins_with("SELECT ") and l.ends_with(";") and not l.contains("?"):
+		if l.to_upper().begins_with("SELECT ") and l.ends_with(";") and not l.contains("?") and not l.contains("enter_"):
 			return l
 	return ""
 
 
-## The hint ladder (Augustine, 2026-10-18): hint 1 is the query's shape with ? for
-## the value and doesn't give `secret` away; the last hint's exact query solves it.
+## The hint ladder (Augustine, 2026-10-18): hint 1 is the query's shape with a named
+## blank (enter_..., Augustine 2026-10-22) for the value and doesn't give `secret` away; the last hint's exact query solves it.
 func _check_hint_ladder(p: Puzzle, db: FacilityDB, secret: String) -> bool:
-	if p.hints.size() < 3 or not p.hints[0].contains("?"):
+	if p.hints.size() < 3 or not p.hints[0].contains("enter_"):
 		return false
 	# Whole words only: "phone extensions" says what to look for, not the column's name.
 	if secret != "" and RegEx.create_from_string("(?<![\\w'])%s(?![\\w'])" % secret).search(p.hints[0]):
@@ -1086,6 +1086,13 @@ func test_caller_answer() -> void:
 		if route == "terminal":
 			var ui: TerminalUI = level.terminal_ui
 			ui.open(level.desk_terminal, p)
+			check(screen_text(ui).contains(".schema staff_directory"), "terminal: SYSOP says how to see the directory's column names")
+			ui.run("SELECT name, enter_column_name FROM staff_directory;")
+			await process_frame
+			check(screen_text(ui).contains("enter_column_name is the blank from the hint"), "terminal: the hint's blank typed in as it is gets SYSOP's answer")
+			ui.run("SELECT name FROM staff_directory WHERE name = 'enter_name';")
+			await process_frame
+			check(screen_text(ui).contains("enter_name is the blank from the hint"), "terminal: and so does a quoted one, which finds nothing")
 			ui.run("SELECT name, extension FROM staff_directory WHERE extension != %s;" % ext)
 			await process_frame
 			check(not level.caller_listed and not screen_text(ui).contains("there it is"), "terminal: a list without the caller's row gets no \"there it is\" from SYSOP")
@@ -2819,8 +2826,8 @@ func test_level_2_hints() -> void:
 	check(ok, "pike and the PIN: the last hint's query solves it on every seed, the first hint's shape doesn't")
 	var shapes := true
 	for p in [l2.pike_puzzle, Puzzle.new("har", "", [], false, l2.pin_hints("G-123")), l2.door_puzzle, Level2Lab.door_puzzle_for("E")]:
-		shapes = shapes and _hint_query(p.hints[0]).contains("?") and p.hints.size() == 3 and not _hint_query(p.hints[-1]).contains("?")
-	check(shapes, "first hints give the query's shape with the value as ?, the last hint the exact query")
+		shapes = shapes and _hint_query(p.hints[0]).contains("enter_") and p.hints.size() == 3 and not _hint_query(p.hints[-1]).contains("enter_")
+	check(shapes, "first hints give the query's shape with the value as a named blank, the last hint the exact query")
 	check(_hint_query(l2.pin_hints("G-123")[1]).contains("badge_log ORDER BY time"), "the PIN's second hint shows how to find the badge")
 	check(_hint_query(l2.cameras_puzzle.hints[0]) == "GET /cameras", "cameras: first hint is GET /cameras (nothing to find)")
 	check(_hint_query(l2.door_puzzle.hints[-1]) == "GET /doors/SEC-EXIT", "door: last hint is GET /doors/SEC-EXIT")
@@ -3316,7 +3323,7 @@ func test_level_2_lab_data_every_seed() -> void:
 	check(ok, "the lab door is the one 'fault' in the lab's zone, and only zone AND status finds it, on every seed")
 	check(zones.size() > 1, "the lab's zone changes between runs (%s)" % [zones.keys()])
 	var lab_hints: Array = Level2Lab.door_puzzle_for("E").hints
-	check(lab_hints[0].contains("WHERE zone = '?'") and not lab_hints[0].contains("'E'") and lab_hints[0].contains("AND status = 'fault'"), "the first hint is the query's shape, the zone left as ?, a line per keyword")
+	check(lab_hints[0].contains("WHERE zone = 'enter_zone'") and not lab_hints[0].contains("'E'") and lab_hints[0].contains("AND status = 'fault'"), "the first hint is the query's shape, the zone left blank, a line per keyword")
 	check(lab_hints[-1].contains("WHERE zone = 'E' AND status = 'fault'"), "the last hint is the exact query")
 
 
@@ -4964,7 +4971,7 @@ func test_level_3_scene() -> void:
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	level.terminal_ui.terminal = level.desk
 	check(level.desk.puzzles.size() == 7 and level.desk.puzzles.all(func(pz): return pz.hints.size() >= 2) and level.pc_puzzle.hints.size() >= 2, "seven stations on the desk and one on the PC, each with a hint ladder")
-	check(level.desk.puzzles[0] == level.keyholder_puzzle and level.desk.next_hint().contains("access_log WHERE room = '?'"), "with Mercer's door found, .hint starts on the lock's question")
+	check(level.desk.puzzles[0] == level.keyholder_puzzle and level.desk.next_hint().contains("access_log WHERE room = 'enter_room'"), "with Mercer's door found, .hint starts on the lock's question")
 	level.terminal_ui.run("SELECT COUNT(*) FROM access_log")
 	check(not level.tally_puzzle.solved, "a count without GROUP BY is one row, and doesn't pass the tally")
 	level.terminal_ui.run("SELECT room, COUNT(*) FROM access_log GROUP BY room")
@@ -4987,7 +4994,7 @@ func test_level_3_scene() -> void:
 	check(level.visits_puzzle.solved and _game().case_info("room").solved, "that night's top room with its count passes too; the case stays closed once")
 	level.terminal_ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
 	check(level.keyholder_puzzle.solved, "the lock's question: that room's raw rows, read by eye, pass it")
-	check(level.slips_puzzle.hints.size() == 2 and level.slips_puzzle.hints[0].contains("counted before") and level.slips_puzzle.hints[0].contains("status = '?'") and not level.slips_puzzle.hints[0].contains("'open'"),
+	check(level.slips_puzzle.hints.size() == 2 and level.slips_puzzle.hints[0].contains("counted before") and level.slips_puzzle.hints[0].contains("status = 'enter_status'") and not level.slips_puzzle.hints[0].contains("'open'"),
 		"the slips ladder is review: a reminder with the shape, then the query")
 	level.terminal_ui.run("SELECT * FROM retrieval_slips")
 	level.terminal_ui.run("SELECT * FROM retrieval_slips WHERE status = 'open'")

@@ -19,7 +19,7 @@ const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "
 ## Concepts that aren't one capitalised word: comparing a column with a value, and
 ## picking columns instead of *.
 const KEYWORD_PATTERNS := {
-	">": "\\w\\s*>=?\\s*['\\d?]",
+	">": "\\w\\s*>=?\\s*(['\\d?]|enter_)",
 	"COLUMNS": "\\bSELECT\\s+\\w+\\s*,",
 }
 
@@ -130,7 +130,7 @@ func in_room(n: Node3D, at: Node3D) -> bool:
 ## A query on screen with a blank in it ("SELECT * FROM table_name;") is filled in
 ## from what's handwritten on a document in the room, like the brochure's blank.
 func fill_blanks(level: Node, query: String, at: Node3D = null) -> Array[String]:
-	if query.contains("?"):
+	if has_blank(query):
 		return []  # a hint's shape: filling in the value is the thinking step
 	if not query.contains("table_name"):
 		return [query]
@@ -342,12 +342,20 @@ func _plain(hint: String) -> String:
 	return hint.replace("[color=#ffffff]", "").replace("[/color]", "")
 
 
-## Hint 1's query with the value left as '?', or "" (the old ladder: hint 1 is exact).
+## A hint's shape names each value to fill in: enter_column_name, enter_zone...
+const BLANK := "\\benter_[a-z_]+"
+
+
+func has_blank(query: String) -> bool:
+	return RegEx.create_from_string(BLANK).search(query) != null
+
+
+## Hint 1's query with the value left as a named blank, or "" (the old ladder: hint 1 is exact).
 func _shape(p: Puzzle) -> String:
 	if p.hints.is_empty():
 		return ""
 	for q in queries_in(_plain(p.hints[0])):
-		if q.contains("?"):
+		if has_blank(q):
 			return q
 	return ""
 
@@ -358,7 +366,7 @@ func _answer_query(p: Puzzle) -> String:
 		return p.solution_sql
 	var from: String = p.hints[-1] if _shape(p) != "" else p.hints[0]
 	for q in queries_in(_plain(from)):
-		if not q.contains("?"):
+		if not has_blank(q):
 			return q
 	return p.solution_sql
 
@@ -378,7 +386,7 @@ func _escape(text: String) -> String:
 
 
 ## Augustine's hint ladder (option A, 2026-10-18). Hint 1 is the query's shape with
-## the value as '?', a line per keyword, and where to find the value; hint 2 says how
+## the value as a named blank (enter_...), a line per keyword, and where to find the value; hint 2 says how
 ## to find it, without the query; the last hint is the exact query, and it solves the
 ## puzzle. Every hint uses the real tables. A puzzle with no value to find is marked
 ## "ladder": "exact" in tests/curriculum.gd: its first hint is the exact query.
@@ -396,7 +404,7 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 	elif mode == "review":
 		check(shape != "" and p.hints.size() == 2, "%s: review: a reminder with the shape, then the exact query (two tiers)" % p.id)
 	else:
-		check(shape != "", "%s: hint 1 is the query's shape with the value as '?' (ladder A)" % p.id)
+		check(shape != "", "%s: hint 1 is the query's shape with the value as a named blank (ladder A)" % p.id)
 	if FacilityAPI.is_request(q):
 		check(q.begins_with("GET /"), "%s: the exact-query hint is a request the player can type (%s)" % [p.id, q])
 	else:
@@ -413,7 +421,7 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 	if mode != "review":
 		check(missing.is_empty(), "%s: hint 1 has a line for each keyword%s" % [p.id, "" if missing.is_empty() else " (missing %s)" % ", ".join(missing)])
 	if shape != "":
-		var m := RegEx.create_from_string("^" + _escape(shape).replace("\\?", "(.+?)") + "$").search(q)
+		var m := RegEx.create_from_string("^" + RegEx.create_from_string(BLANK).sub(_escape(shape), "(.+?)", true) + "$").search(q)
 		check(m != null, "%s: hint 1's shape is the last hint's query with the value blanked (%s vs %s)" % [p.id, shape, q])
 		if m:
 			for i in range(1, m.get_group_count() + 1):
@@ -529,13 +537,13 @@ func _answer_values(level: Node, p: Puzzle) -> Array:
 	return out
 
 
-## The values hint 1's shape leaves as '?', read off the exact query (lower case).
+## The values hint 1's shape leaves blank, read off the exact query (lower case).
 func _blanks(p: Puzzle) -> Array:
 	var shape := _shape(p)
 	var out := []
 	if shape == "":
 		return out
-	var m := RegEx.create_from_string("^" + _escape(shape).replace("\\?", "(.+?)") + "$").search(_answer_query(p))
+	var m := RegEx.create_from_string("^" + RegEx.create_from_string(BLANK).sub(_escape(shape), "(.+?)", true) + "$").search(_answer_query(p))
 	if m:
 		for i in range(1, m.get_group_count() + 1):
 			out.append(m.get_string(i).strip_edges().trim_prefix("'").trim_suffix("'").to_lower())
