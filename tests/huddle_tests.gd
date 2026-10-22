@@ -202,7 +202,14 @@ func test_garage_opening() -> void:
 	_check.call(await _until(func(): return home.find_children("WalkIn*", "", false, false).is_empty(), 60), "the walk-in stand-ins are gone")
 	var mad: Node3D = home.maddison
 	_check.call(mad != null and mad.get_node_or_null("Look") != null, "Maddison is in the garage in person")
+	var bar: Node3D = home.geo.get_node_or_null("BagStandBar")
+	_check.call(bar != null and home.geo.get_node_or_null("BagStandPostW") != null and absf(home.punch_bag.global_position.y - bar.global_position.y) < 0.1,
+		"the punch bag hangs from the top bar of its own stand, not from thin air")
 	_check.call(await _until(func(): return _at_mark(home, "board"), 600), "she comes in from the house to her whiteboard")
+	var through := []
+	for pair in [["door", "board"], ["board", "side"], ["side", "board"], ["board", "van"]]:
+		through.append_array(_walks_through(home, home.MADDISON_MARKS[pair[0]][0], home.MADDISON_MARKS[pair[1]][0]))
+	_check.call(through.is_empty(), "she walks round the couch, the counter and the bench, never through them %s" % [through])
 	_check.call(await _until(func(): return home.hud.current_todo() == "Block the punch bag", 2400), "after the brief she sends the crew to the punch bag")
 	p.stand_up(true)
 	await _frames(2)
@@ -256,6 +263,8 @@ func test_garage_opening() -> void:
 	h.turn_page()
 	await _frames(2)
 	var turned: int = h.page
+	await _frames(2)
+	_check.call(_code_fits(ui), "the jobs table fits the page, row by row, without wrapping")
 	h.turn_page(-1)
 	await _frames(2)
 	_check.call(turned != 0 and h.page == 0 and h.peek == -1 and ui.find_child("Next", true, false).text == "Turn the page >" and not ui._footer.text.contains("crew is on"), "solo, Back turns the page back")
@@ -290,6 +299,40 @@ func test_garage_opening() -> void:
 
 
 ## Maddison stands on `mark`, facing the way it says.
+## Whether every typewriter line on the open book's page fits its width at the
+## size it is drawn.
+func _code_fits(ui) -> bool:
+	var m := RegEx.create_from_string("\\[font_size=(\\d+)\\]\\[code\\](.*?)\\[/code\\]").search_all(ui._body.text)
+	if m.is_empty():
+		return false
+	for r in m:
+		var line: String = r.get_string(2).replace("[lb]", "[")
+		if ThemeUtil.mono().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, int(r.get_string(1))).x > ui._body.size.x:
+			return false
+	return true
+
+
+## The furniture Maddison's walk from `a` to `b` passes through, if any (her body
+## is about 0.2 m round).
+func _walks_through(home, a: Vector3, b: Vector3) -> Array:
+	var things := {"couch": Rect2(home.COUCH.x - 0.45, -1.6, 0.95, 3.2), "counter": Rect2(home.COUNTER.x - 0.3, -1.7, 0.6, 3.4),
+		"bench": Rect2(home.BENCH.x - 1.2, home.BENCH.z - 0.5, 2.4, 1.0)}
+	for i in home.CREW_SEATS.size():
+		var seat: Vector3 = home.CREW_SEATS[i]
+		if seat.y > 0.6:
+			things["stool %d" % i] = Rect2(seat.x - 0.18, seat.z - 0.18, 0.36, 0.36)
+	var hit := []
+	var from := a
+	for to in home.maddison_route(a, b):
+		for i in ceili(from.distance_to(to) / 0.1) + 1:
+			var at: Vector3 = from.lerp(to, minf(1.0, i * 0.1 / maxf(from.distance_to(to), 0.001)))
+			for k in things:
+				if things[k].grow(0.2).has_point(Vector2(at.x, at.z)) and not hit.has(k):
+					hit.append(k)
+		from = to
+	return hit
+
+
 func _at_mark(home, mark: String) -> bool:
 	var m: Array = home.MADDISON_MARKS[mark]
 	var mad: Node3D = home.maddison

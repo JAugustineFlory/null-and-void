@@ -63,8 +63,11 @@ const DESK := Vector3(-7.4, 0, -4.2)
 ## The shelf in the back corner by the side door to the house: where the shop bag was left.
 const SHELF := Vector3(-6.2, 0, 5.6)
 const SIDE_DOOR := Vector3(-7.97, 0, 4.6)
-## Where the punch bag hangs from its ceiling hook (on the floor below it).
+## Where the punch bag hangs (on the floor below it), from its stand's top bar
+## BAG_HOOK up, between two posts BAG_STAND_HALF either side, clear of its swing.
 const PUNCH_BAG := Vector3(0.8, 0, -3.6)
+const BAG_HOOK := 2.5
+const BAG_STAND_HALF := 1.3
 ## The bag swings at whoever stands within this of it.
 const SPAR_REACH := 2.2
 ## The pull back before a swing (the tell), then the swing in: right-click during the
@@ -93,8 +96,6 @@ const MADDISON_MARKS := {
 const WALK_IN := [Vector3(DOOR_AT, 0, -5.0), Vector3(-1.0, 0, -5.0), Vector3(-3.3, 0, -2.4)]
 ## The book in first person, on the camera: low and to the right, cover up.
 const HELD_BOOK := Transform3D(Basis(Vector3.RIGHT, 1.2) * Basis(Vector3.UP, -0.25), Vector3(0.16, -0.2, -0.42))
-## Round the bench's west end: the way past it when it's in her way.
-const BENCH_WAY := Vector3(-1.4, 0, 2.6)
 ## Maddison takes her time: she walks at this share of a crew member's pace, and
 ## lets a beat go by between one thing and the next.
 const MADDISON_PACE := 0.7
@@ -359,8 +360,6 @@ static func _face(node: Node3D, point: Vector3) -> void:
 		node.rotation.y = atan2(-to.x, -to.z)
 
 
-## Maddison walks to `mark` (see MADDISON_MARKS), round the bench if it's in the
-## way, at her unhurried pace. Await it to wait until she's there.
 ## Lobby spot `i` (garage-local): {"at": Transform3D facing the camera, "pose": a CharacterRig action}.
 static func lobby_spot(i: int) -> Dictionary:
 	var spot: Dictionary = LOBBY_SPOTS[clampi(i, 0, LOBBY_SPOTS.size() - 1)]
@@ -378,14 +377,12 @@ static func lobby_entry(i: int) -> Vector3:
 	return Vector3(LOBBY_CAMERA.origin.x + side * LOBBY_ENTRY_SIDE, 0, at.z)
 
 
+## Maddison walks to `mark` (see MADDISON_MARKS), round whatever is in the way
+## (maddison_route), at her unhurried pace. Await it to wait until she's there.
 func maddison_to(mark: String) -> void:
 	if _maddison_walk:
 		_maddison_walk.kill()
-	var to_mark: Vector3 = MADDISON_MARKS[mark][0]
-	var route: Array[Vector3] = []
-	if _crosses_bench(maddison.position, to_mark):
-		route.append(BENCH_WAY)
-	route.append(to_mark)
+	var route := maddison_route(maddison.position, MADDISON_MARKS[mark][0])
 	maddison_mark = mark
 	_maddison_walk = create_tween()
 	var from := maddison.position
@@ -397,14 +394,20 @@ func maddison_to(mark: String) -> void:
 	await _maddison_walk.finished
 
 
-## Whether a straight walk from `a` to `b` would go through the workbench.
-static func _crosses_bench(a: Vector3, b: Vector3) -> bool:
-	var box := Rect2(BENCH.x - 1.5, BENCH.z - 0.8, 3.0, 1.6)
-	for i in 21:
-		var at := a.lerp(b, i / 20.0)
-		if box.has_point(Vector2(at.x, at.z)):
-			return true
-	return false
+## Maddison's way from `from` to `to` (garage-local, on the floor): round the
+## couch, the counter, the bench and the rest on the garage's navigation mesh, then
+## the last step onto her mark (marks by a wall sit just off the mesh).
+func maddison_route(from: Vector3, to: Vector3) -> Array[Vector3]:
+	var route: Array[Vector3] = []
+	var map := geo.get_navigation_map()
+	if map.is_valid() and NavigationServer3D.map_get_iteration_id(map) > 0:
+		var path := NavigationServer3D.map_get_path(map, to_global(from), to_global(to), true)
+		for i in range(1, path.size()):
+			var at := to_local(path[i])
+			route.append(Vector3(at.x, 0, at.z))
+	if route.is_empty() or Vector2(route[-1].x - to.x, route[-1].z - to.z).length() > 0.05:
+		route.append(to)
+	return route
 
 
 ## A breath between one beat and the next.
@@ -421,18 +424,26 @@ func maddison_at(mark: String) -> void:
 	_face(maddison, MADDISON_MARKS[mark][1])
 
 
-## A heavy bag on a chain from a ceiling hook, out of the way by the roll-up door.
-## It isn't under geo: it moves, and nobody should bump into it.
+## A heavy bag on a short chain from a free-standing steel stand, out of the way
+## by the roll-up door (playtest 2026-10-22: hung from nothing, it floated). The
+## stand is solid, under geo; the bag isn't: it moves, and nobody should bump into it.
 func _build_punch_bag(at: Vector3) -> void:
+	var steel := Color(0.22, 0.23, 0.25)
+	for side in [-1, 1]:
+		var x: float = at.x + side * BAG_STAND_HALF
+		var end := "W" if side < 0 else "E"
+		Greybox.box(geo, Vector3(x, BAG_HOOK / 2 + 0.05, at.z), Vector3(0.08, BAG_HOOK + 0.1, 0.08), steel, "BagStandPost" + end)
+		Greybox.box(geo, Vector3(x, 0.04, at.z), Vector3(0.1, 0.08, 1.1), steel, "BagStandFoot" + end)
+	Greybox.box(geo, Vector3(at.x, BAG_HOOK + 0.06, at.z), Vector3(BAG_STAND_HALF * 2 + 0.08, 0.1, 0.1), steel, "BagStandBar")
 	punch_bag = Node3D.new()
 	punch_bag.name = "PunchBag"
-	punch_bag.position = at + Vector3(0, 3.35, 0)
+	punch_bag.position = at + Vector3(0, BAG_HOOK, 0)
 	add_child(punch_bag)
 	var chain := MeshInstance3D.new()
 	var cm := BoxMesh.new()
-	cm.size = Vector3(0.03, 1.4, 0.03)
+	cm.size = Vector3(0.03, 0.55, 0.03)
 	chain.mesh = cm
-	chain.position = Vector3(0, -0.7, 0)
+	chain.position = Vector3(0, -0.275, 0)
 	chain.material_override = Greybox.mat(Color(0.3, 0.3, 0.3))
 	punch_bag.add_child(chain)
 	var bag := MeshInstance3D.new()
@@ -441,7 +452,7 @@ func _build_punch_bag(at: Vector3) -> void:
 	bm.bottom_radius = 0.22
 	bm.height = 1.1
 	bag.mesh = bm
-	bag.position = Vector3(0, -1.95, 0)  # chest height: 0.85 m to 1.95 m off the floor
+	bag.position = Vector3(0, -1.1, 0)  # chest height: 0.85 m to 1.95 m off the floor
 	bag.material_override = Greybox.mat(Color(0.55, 0.12, 0.1))
 	punch_bag.add_child(bag)
 
@@ -582,6 +593,7 @@ func open_for_crew() -> void:
 		walkers.append(fig)
 	var outside := dusk_outside(environment, self)  # the lobby's sky, so the cut from it doesn't show
 	lobby_camera.make_current()
+	_prewarm_inside()
 	await _beat()
 	await roll_door(true)
 	var walks: Array[Tween] = []
@@ -608,6 +620,30 @@ func open_for_crew() -> void:
 	player.camera.make_current()
 	player.input_locked = false
 	await hud.fade(false, 0.6)
+
+
+## Draw the inside of the garage once, off screen, while the lobby shot holds: the
+## first time a material is drawn its shaders are built, which stalled the cut
+## inside for a few seconds (playtest 2026-10-22). From where the crew watches it
+## and from a seat.
+func _prewarm_inside() -> void:
+	var views: Array[Transform3D] = [flashback_camera.global_transform, crew_seats[0].global_transform.translated(Vector3.UP * 0.75)]
+	var shots: Array[SubViewport] = []
+	for view in views:
+		var shot := SubViewport.new()
+		shot.name = "Prewarm"
+		shot.size = Vector2i(320, 180)
+		shot.render_target_update_mode = SubViewport.UPDATE_ONCE
+		add_child(shot)
+		var cam := Camera3D.new()
+		shot.add_child(cam)
+		cam.global_transform = view
+		cam.make_current()
+		shots.append(shot)
+	for i in 2:
+		await RenderingServer.frame_post_draw
+	for shot in shots:
+		shot.queue_free()
 
 
 ## The rig action a player picked in the lobby (Co-op's Net.lobby_action), or `fallback`.
@@ -768,11 +804,11 @@ func _swing_bag(id: int) -> void:
 	spar_target = id
 	var t := create_tween()
 	t.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)  # on the guard's clock
-	t.tween_method(tilt, 0.0, -0.45, SPAR_TELL).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	t.tween_method(tilt, 0.0, -0.6, SPAR_TELL).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func(): swing_in = true)
-	t.tween_method(tilt, -0.45, 0.3, SPAR_SWING).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	t.tween_method(tilt, -0.6, 0.45, SPAR_SWING).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	t.tween_callback(_bag_lands.bind(id))
-	t.tween_method(tilt, 0.3, 0.0, SPAR_SWING * 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	t.tween_method(tilt, 0.45, 0.0, SPAR_SWING * 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 ## Every machine: the bag reaches player `id`. Only their own machine decides the block.

@@ -1,0 +1,4 @@
+- **Fixed:** walking into the garage no longer stalls for a few seconds.
+- **Fixed:** Maddison walks round the couch and the counter instead of through them.
+- **Fixed:** the punch bag hangs from its own stand, and you can see it swing at you.
+- **Fixed:** tables in Easy SQL fit the page instead of wrapping.
