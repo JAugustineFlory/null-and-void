@@ -541,15 +541,10 @@ func test_floor_hazards() -> void:
 	await _frames(3)
 	check(level.power_back and level.circuits_puzzle.solved and p.health == full, "the cage lock through the service: the power's back, and the PATCH practice cost nothing")
 	# The air: with the power back and the carbon copy read, after the grace it hurts a
-	# little, each tick, except while a chapter is being read; the stair door propped
-	# clears it.
+	# little, each tick; the stair door propped clears it.
 	check(await _until(func(): return p.health < full, 120) and p.health > 0.0, "now, after the grace, the air off hurts a little (%.0f)" % p.health)
 	var hp: float = p.health
-	level._huddles = 1
-	await _frames(40)
-	check(p.health == hp and not level.custodian_here, "nothing counts while a chapter is being read; the Custodian still waits for the air")
-	level._huddles = 0
-	check(await _until(func(): return p.health < hp, 120), "then it counts again")
+	check(not level.custodian_here, "the Custodian still waits for the air")
 	level.prop_time = 0.3
 	level.prop.used.emit(p)
 	await _frames(3)
@@ -653,11 +648,11 @@ func test_book_huddles() -> void:
 	check(level.book.enabled and level.book.visible and level.book.prompt.contains("Acceptable API's"), "the book is on the training shelf")
 	level.book.used.emit(p)
 	check(await _until(func(): return level.book_found, 30) and not level.book.visible and net.profile.earned.has("achievement:acceptable_apis_pickup"), "picked up: it's gone from the shelf, and the find is the player's")
-	check(await t._huddle_opens(level, "api_patch"), "the waiting chapter, Changing one thing, opens on the spot")
-	check(h.chapter.book == "ACCEPTABLE API'S" and level.mimics.all(func(m): return not m.is_physics_processing()), "from Acceptable API's; the Mimics stand still while the crew reads")
+	check(await t._huddle_opens(level, "api_patch"), "the waiting chapter, Changing one thing, comes into the book")
+	check(h.is_busy() and h.chapter.book == "ACCEPTABLE API'S" and level.mimics.all(func(m): return m.is_physics_processing()), "from Acceptable API's; the Mimics keep going while it comes in")
 	await t._crew_reads([level])
 	await t._until(func(): return not h.is_busy(), 10.0)
-	check(h.done.has("api_patch") and level.mimics.all(func(m): return m.is_physics_processing()), "the chapter ends, and the Mimics move again")
+	check(h.done.has("api_patch") and level.mimics.all(func(m): return m.is_physics_processing()), "the chapter is in, and the Mimics are still going")
 	_doc(level, "Facilities clipboard").report_open(p)
 	await _frames(20)
 	check(not h.is_busy(), "read again, the clipboard doesn't bring the chapter back")
