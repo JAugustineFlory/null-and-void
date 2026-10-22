@@ -4413,6 +4413,13 @@ func test_in_world_ui() -> void:
 	check(nb.held != null and p.held_notebook == nb.held and nb.pages.get_parent() == nb.held.viewport, "the notebook is held in your hands, its pages drawn on it")
 	check(nb.open() and p.is_holding_notebook() and not p.input_locked, "Tab raises it without freezing you in place")
 	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER, "it opens on the work order")
+	for i in 90:
+		await process_frame  # raised all the way
+	var shown := p.reading_rect()
+	var screen := root.get_visible_rect().size
+	check(shown.has_area() and p.edge_turn(Vector2(screen.x - 3, screen.y / 2), screen, shown).x > 1.0
+		and p.edge_turn(Vector2(3, screen.y / 2), screen, shown).x < -1.0 and p.edge_turn(Vector2(screen.x / 2, screen.y - 3), screen, shown).y > 1.0,
+		"the cursor at any edge of the screen turns the view, however big the book is (its hands and sleeves don't count)")
 	nb.close()
 	check(not nb.is_open() and not p.is_holding_notebook(), "and Tab puts it away")
 	var t: Terminal = level.desk_terminal
