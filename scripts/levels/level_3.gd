@@ -26,7 +26,9 @@ extends LevelBase
 ##   west/east halls x -11..-8 and 8..11, z -22..-2
 ##   side rooms      Vault C and the map room off the west hall, the cold store and the
 ##                   supply closet off the east hall; one of the three big ones hides
-##                   the safe room behind its rolling shelves (Level3Data.host)
+##                   the safe room behind its rolling shelves (Level3Data.host). Each
+##                   big one keeps a walkway along its north wall, past the shelving's
+##                   end, from the door to the back wall; the crank sits at that end.
 ##   north corridor  x -11..11,  z -25..-22
 ##   shredding room  x -11..0,   z -33..-25 (the Shredder's lair)
 ##   microfiche room x 2..11,    z -31..-25 (readers; its tube is out)
@@ -171,11 +173,17 @@ const SIDE_ROOMS := {
 }
 const SIDE_ROOM_SIZE := Vector3(5, 3.2, 6)
 const SAFE_ROOM_SIZE := Vector3(5, 3, 6)
-## Rolling compact shelving: four units a hand crank slides along the room.
+## Rolling compact shelving: four units a hand crank slides along the room. Shut,
+## they stand at the back wall with 2.2 m clear inside the door; cranked, they slide
+## CRANK_TRAVEL toward the door and still leave 1.2 m there (a player in their path
+## is pushed back, never pinned) while the aisle they open at the back wall is
+## 1.15 m wide. They stop WALKWAY short of the room's north wall, so a player can
+## always walk past their end to the back wall (the only way into that aisle).
 const UNITS := 4
-const UNIT_PITCH := 0.8
-const UNIT_SIZE := Vector3(0.6, 2.4, 5.4)
-const CRANK_TRAVEL := 1.3
+const UNIT_PITCH := 0.65
+const UNIT_SIZE := Vector3(0.5, 2.4, 4.6)
+const CRANK_TRAVEL := 1.0
+const WALKWAY := 1.1
 ## A crank is heard across the floor (Shredder.HEAR_RANGE units).
 const CRANK_LOUDNESS := 2.0
 const SIDE_DOOR := Vector3(0.08, 2.3, 1.0)  # thin along x: a door in a wall that runs along z
@@ -728,20 +736,21 @@ func _build_side_room(room: String, colors: Dictionary) -> void:
 	var door_x: float = c.x - back.x * SIDE_ROOM_SIZE.x / 2
 	Greybox.label(geo, Vector3(door_x - back.x * 0.12, 2.6, c.z), spec.label, 40, Color(0.2, 0.2, 0.2), 90.0 if back.x < 0 else -90.0)
 	var d := add_door(spec.door_id, Vector3(door_x, SIDE_DOOR.y / 2, c.z), SIDE_DOOR)
-	d.make_hinged(Vector3(0, 0, -0.5), 90.0 * -back.x)
+	# Hinged on its south edge, so a leaf swung into the room lies clear of the walkway.
+	d.make_hinged(Vector3(0, 0, 0.5), 90.0 * back.x)
 	room_doors[room] = d
 	_reader(Vector3(door_x - back.x * 0.12, 1.3, c.z + 0.9), 90.0 if back.x < 0 else -90.0)
-	# Rolling units, back to front, on rails.
-	Greybox.box(geo, c + Vector3(0, 0.02, 0), Vector3(SIDE_ROOM_SIZE.x - 0.4, 0.04, 0.1), Color(0.3, 0.3, 0.32), "Rail")
+	# Rolling units, back to front, on rails; the walkway runs along the north wall.
+	var unit_z: float = c.z - SIDE_ROOM_SIZE.z / 2 + 0.1 + WALKWAY + UNIT_SIZE.z / 2
+	Greybox.box(geo, Vector3(c.x, 0.02, unit_z), Vector3(SIDE_ROOM_SIZE.x - 0.4, 0.04, 0.1), Color(0.3, 0.3, 0.32), "Rail")
 	var units: Array = []
 	for i in UNITS:
-		var x: float = c.x + back.x * (SIDE_ROOM_SIZE.x / 2 - 0.5 - i * UNIT_PITCH)
-		units.append(_rolling_unit(Vector3(x, UNIT_SIZE.y / 2, c.z), "%s unit %d" % [room, i + 1]))
+		var x: float = c.x + back.x * (SIDE_ROOM_SIZE.x / 2 - 0.1 - 0.15 - UNIT_SIZE.x / 2 - i * UNIT_PITCH)
+		units.append(_rolling_unit(Vector3(x, UNIT_SIZE.y / 2, unit_z), "%s unit %d" % [room, i + 1]))
 	shelving[room] = units
 	cranked[room] = false
-	# The crank on the front unit's end, by the door.
-	var front_x: float = c.x + back.x * (SIDE_ROOM_SIZE.x / 2 - 0.5 - (UNITS - 1) * UNIT_PITCH)
-	var crank := Interactable.create(self, Vector3(front_x, 1.1, c.z + UNIT_SIZE.z / 2 + 0.12), Vector3(0.3, 0.3, 0.2), "Turn the crank", Color(0.25, 0.25, 0.28))
+	# The crank on the front unit's north end, in the walkway: it rides along with the unit.
+	var crank := Interactable.create(units[UNITS - 1], Vector3(0, 1.1 - UNIT_SIZE.y / 2, -(UNIT_SIZE.z / 2 + 0.12)), Vector3(0.3, 0.3, 0.2), "Turn the crank", Color(0.25, 0.25, 0.28))
 	crank.name = "Crank_" + room.replace(" ", "")
 	crank.used.connect(func(_p): sync.event("_crank", [room]))
 	cranks[room] = crank
@@ -1141,7 +1150,7 @@ func _crank(room: String) -> void:
 	for unit in shelving[room]:
 		var tw := create_tween()
 		tw.tween_property(unit, "position", unit.position - back * CRANK_TRAVEL, 2.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	noise.emit(to_global(cranks[room].position), CRANK_LOUDNESS)
+	noise.emit(cranks[room].global_position, CRANK_LOUDNESS)
 
 
 ## Every machine: the pressure peak. Setting foot in the north corridor wakes it
