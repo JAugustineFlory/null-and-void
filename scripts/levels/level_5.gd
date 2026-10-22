@@ -27,8 +27,9 @@ extends LevelBase
 ##               Then PATCH every door opened tonight shut and GET them back.
 ##               Under pressure: the Mimics, and the Custodian if its bay wasn't sealed.
 ## The practice is safe: the air only starts to count once the carbon copy has shown
-## the fix (and never during a chapter), and a loose Custodian only starts up the
-## dock stairs once the power and the air are back, or the loading door is opened.
+## the fix and the power is back, and a loose Custodian only starts up the dock
+## stairs once the power and the air are back, the crew is at the passes, or the
+## loading door is opened. A chapter of the book stops nothing (Huddle).
 ## Every station is checked by what the services answer and the state they're left in
 ## (RequestPuzzle), never by the request's text. Every line players read is a draft
 ## in plan/approvals/l5-text.md until Augustine approves it word for word.
@@ -235,9 +236,9 @@ const HIDE_AT := {"cage": Vector3(-8.2, 0, -14.2), "store": Vector3(-7.6, 0, -30
 const WAIT_AT := [Vector3(-2.4, 0, 6.2), Vector3(-2.4, 0, 7.3)]
 ## The shaft past the loading door: step onto it and you fall.
 const SHAFT_AT := Vector3(6, 0, -32.5)
-## How the air goes: once the carbon copy has shown the fix, a grace long enough to
-## type it at a first-timer's pace, then a little each tick until it's back. Nothing
-## counts while a chapter is being read.
+## How the air goes: once the carbon copy has shown the fix and the power is back, a
+## grace long enough to type it at a first-timer's pace, then a little each tick
+## until it's back.
 const AIR_GRACE := 180.0
 const AIR_TICK := 15.0
 const AIR_DAMAGE := 3.0
@@ -281,7 +282,6 @@ var swipes: Array = []
 var issued: Array = []
 var book_found := false
 var pending_chapters: Array = []
-var _huddles := 0
 var power_back := false
 var air_on := false
 var air_cleared := false
@@ -1351,9 +1351,9 @@ func _book_found(peer_id: int) -> void:
 		_book_huddle(id)
 
 
-## Every machine: a paper brings up its chapter of Acceptable API's, read on the
-## spot (once per run). Before the book is found the chapter waits for it. The
-## Mimics and the Custodian stand still while the crew reads.
+## Every machine: a paper brings its chapter of Acceptable API's into the crew's
+## book (once per run), quietly: nothing stops, the Mimics and the Custodian keep
+## going. Before the book is found the chapter waits for it.
 func _book_huddle(id: String) -> void:
 	if Huddle.of(self).done.has(id):
 		return
@@ -1361,21 +1361,7 @@ func _book_huddle(id: String) -> void:
 		if not pending_chapters.has(id):
 			pending_chapters.append(id)
 		return
-	_huddles += 1
-	_freeze_people(true)
 	await Huddle.of(self).run(id, Huddle.HERE)
-	_huddles -= 1
-	if _huddles == 0:
-		_freeze_people(false)
-
-
-func _freeze_people(still: bool) -> void:
-	if not sync.is_host():
-		return
-	for m in mimics:
-		m.set_physics_process(not still)
-	if custodian:
-		custodian.set_physics_process(not still)
 
 
 ## A crew line in the voice of the player who says it, their name on the subtitle.
@@ -1491,12 +1477,12 @@ func _air_armed() -> void:
 	air_armed = true
 
 
-## Host, each frame: while the air is off and no chapter is being read, the clock
-## runs; after the grace everyone on the floor takes a little each tick. Deaths
-## explain themselves (the cause is "air"). Not before the power is back either: the
-## panel's practice stays safe whichever paper was read first.
+## Host, each frame: while the air is off, the clock runs; after the grace everyone
+## on the floor takes a little each tick. Deaths explain themselves (the cause is
+## "air"). Not before the power is back either: the panel's practice stays safe
+## whichever paper was read first.
 func _air_clock(delta: float) -> void:
-	if not air_armed or not power_back or air_on or air_cleared or released or _huddles > 0:
+	if not air_armed or not power_back or air_on or air_cleared or released:
 		return
 	_air_time += delta
 	if _air_time >= air_grace + _air_ticks * air_tick:
