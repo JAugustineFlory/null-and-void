@@ -241,7 +241,7 @@ func ticket_number() -> String:
 
 
 ## Everything a case page can have, for a case made before it could (an old save).
-const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": []}
+const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true}
 
 
 func _case(id: String) -> Dictionary:
@@ -252,7 +252,7 @@ func _case(id: String) -> Dictionary:
 					c[k] = CASE_DEFAULTS[k].duplicate() if CASE_DEFAULTS[k] is Array or CASE_DEFAULTS[k] is Dictionary else CASE_DEFAULTS[k]
 			return c
 	var c := {"id": id, "title": "", "open": false, "solved": false, "how": "", "tables": [], "clues": [],
-		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": []}
+		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true}
 	notebook_cases.append(c)
 	return c
 
@@ -470,6 +470,15 @@ func _seen_tables() -> void:
 				collect_piece(c.id, p.id, "Tables page")
 
 
+## A crewmate's query read `table`: pieces seen in it are found for this player
+## too (it's one crew), without it going on this player's Tables page.
+func see_table_pieces(table: String, from: String) -> void:
+	for c in notebook_cases:
+		for p in c.get("pieces", []):
+			if not p.found and p.get("seen_in", "") == table:
+				collect_piece(c.id, p.id, from)
+
+
 func pieces_found(id: String) -> int:
 	return case_info(id).get("pieces", []).filter(func(p): return p.found).size()
 
@@ -489,13 +498,23 @@ func tick_step(id: String, step_id: String) -> bool:
 
 
 ## Case `id`'s query so far: each found piece written in, each missing one
-## named as its hint names it (enter_column_name), or ???? for a word.
+## named as its hint names it (enter_column_name), or ???? for a word. A case
+## that doesn't assemble (see set_assemble) stays the bare shape.
 func case_query(id: String) -> String:
 	var c := case_info(id)
 	var q: String = c.get("query", "")
+	var assemble: bool = c.get("assemble", true)
 	for p in c.get("pieces", []):
-		q = q.replace("{%s}" % p.id, str(p.value) if p.found else str(p.get("blank", PIECE_MISSING)))
+		q = q.replace("{%s}" % p.id, str(p.value) if p.found and assemble else str(p.get("blank", PIECE_MISSING)))
 	return q
+
+
+## A puzzle under pressure is put together by the crew, not the notebook: with
+## `on` false, case `id`'s page still lists the pieces found, but its query so
+## far never writes them in.
+func set_assemble(id: String, on: bool) -> void:
+	_case(id).assemble = on
+	notebook_changed.emit()
 
 
 ## A hint for case `id` just printed `text`: each piece whose value the query

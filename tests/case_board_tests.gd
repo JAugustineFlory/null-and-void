@@ -226,6 +226,17 @@ func test_growing_case() -> void:
 	g.open_case("named", "Named blanks")
 	g.set_pieces("named", named, "SELECT * FROM {table} {order} {column};")
 	check(g.case_query("named") == "SELECT * FROM ???? ???? enter_column_name;", "a missing value is named as its hint names it; a missing word is ????")
+	g.collect_piece("named", "table")
+	g.set_assemble("named", false)
+	check(g.has_piece("named", "table") and g.case_query("named") == "SELECT * FROM ???? ???? enter_column_name;", "under pressure the page keeps the piece found, but the query so far stays the bare shape")
+	var pages := NotebookPages.new()
+	var items := pages._case_items(g)
+	check(NotebookPages.text_of(items).contains("memo_fragments"), "and the piece itself still shows on the page")
+	for i in items:
+		i.free()
+	pages.free()
+	g.set_assemble("named", true)
+	check(g.case_query("named").contains("FROM memo_fragments"), "a case that assembles writes it in")
 
 
 func test_hint_pieces() -> void:
@@ -242,6 +253,12 @@ func test_hint_pieces() -> void:
 	g.set_pieces("hot", [{"id": "more", "label": "More than", "value": ">", "task": "t", "where": "w"}, {"id": "limit", "label": "The limit", "value": "45", "task": "t", "where": "w"}])
 	g.note_hint("hot", "[color=#ffffff]SELECT id FROM racks WHERE temp_c > enter_limit;[/color]")
 	check(g.has_piece("hot", "more") and not g.has_piece("hot", "limit"), "a sign shows as is; a number only as a whole number")
+	g.see_table_pieces("visitors", TerminalUI.QUERY_BY % "Sam")
+	check(not g.has_piece("memo", "column"), "a crewmate's query finds only pieces seen in the table it read")
+	g.open_case("visit", "Who signed in last?")
+	g.set_pieces("visit", [{"id": "table", "label": "The table", "value": "visitors", "task": "t", "where": "w", "seen_in": "visitors"}])
+	g.see_table_pieces("visitors", TerminalUI.QUERY_BY % "Sam")
+	check(g.has_piece("visit", "table") and g.case_info("visit").pieces[0].from == "Sam's query" and not g.notebook_tables.has("visitors"), "in co-op a crewmate's query finds a table piece on every board, without filling your Tables page")
 	check(Game.hint_shows("WHERE zone = 'b2'", "B2") and not Game.hint_shows("WHERE zone = 'b21'", "B2"), "a value matches as a whole word, any case")
 
 
