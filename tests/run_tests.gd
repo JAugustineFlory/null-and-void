@@ -4784,6 +4784,7 @@ func test_pick_up_papers() -> void:
 			break
 		await physics_frame
 	level.notebook.close()
+	check(level.hud.case_chip.next_up, "closing the notebook shows the case's next step for a moment")
 	for i in 60:
 		await physics_frame
 	order._on_used(p)
