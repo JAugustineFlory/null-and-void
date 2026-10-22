@@ -148,6 +148,7 @@ func _group_floor_22() -> void:
 	await test_level_2_main_route()
 	await test_level_2_cases()
 	await test_level_2_book_huddles()
+	await test_level_2_lab_doors()  # here, not floor_22_lab, to keep that group under 3 minutes
 
 
 ## Floor 22's Secure Lab B, once per way the Rourke fight can end.
@@ -3403,6 +3404,59 @@ func _flat_overlap(a: AABB, b: AABB) -> bool:
 
 func _in_lab_room(level: Node, p: Node3D) -> bool:
 	return Level2Floor.LAB_BOX.has_point(level.to_local(p.global_position) + Vector3.UP * 0.5)
+
+
+## Nobody slips out after Rourke (Augustine's co-op playtest, 2026-10-22): not
+## through the main door as he leaves, nor the rear door as he comes back in. And
+## someone who got out anyway is back inside before the doors lock, so the frame and
+## the fight can't stall on them.
+func test_level_2_lab_doors() -> void:
+	print("Level 2 lab: Rourke's doors")
+	_game().new_run(21)
+	var level = load("res://scenes/level_2.tscn").instantiate()
+	root.add_child(level)
+	_books_read([level])
+	Engine.time_scale = 4.0
+	await _frames(20)
+	level.watcher.active = false
+	var lab: Level2Lab = level.lab
+	var p: Player = level.player
+	await _until(func(): return lab.phase == "badge", 40.0)
+	lab.reader.interact(p)
+	await _until(func(): return level.doors["SECLAB-B"].is_open, 10.0)
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
+	check(await _until(func(): return lab._steps.has("crew_in"), 40.0), "the crew is in the lab with him")
+	# Follow him out of the main door: face east and keep walking.
+	p.local_control = false
+	p.global_transform = Transform3D(Basis(Vector3.UP, -PI / 2), level.to_global(Vector3(-11.2, 0.1, 0)))
+	p.controls.move = Vector2(0, -1)
+	var furthest := -100.0
+	for i in 60:
+		await physics_frame
+		furthest = maxf(furthest, level.to_local(p.global_position).x)
+	p.controls.move = Vector2.ZERO
+	check(furthest < -10.0, "walking out after him, the doorway stops you (got to x %.2f)" % furthest)
+	# Got out anyway (lag, a squeeze past him): you're brought back before the door locks.
+	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-8.5, 0.1, 1.5)))
+	check(await _until(func(): return lab.phase == "locked", 40.0) and _in_lab_room(level, p), "he's out, and the door locks with the whole crew inside, even someone who got out")
+	# Out of the rear door as he comes back in: the safety net brings you back.
+	check(await _until(func(): return level.doors["SECLAB-B-REAR"].is_open, 80.0), "he opens the rear door to come back in")
+	p.global_transform = Transform3D(Basis(Vector3.UP, PI / 2), level.to_global(Vector3(-15.2, 0.1, 0)))
+	p.controls.move = Vector2(0, -1)
+	furthest = 100.0
+	for i in 400:
+		await physics_frame
+		furthest = minf(furthest, level.to_local(p.global_position).x)
+		if lab.phase != "locked":
+			break
+	p.controls.move = Vector2.ZERO
+	check(furthest > -16.0, "walking out of the rear door past him, the doorway stops you too (got to x %.2f)" % furthest)
+	check(await _until(func(): return lab.phase == "fight", 40.0) and _in_lab_room(level, p) and not level.doors["SECLAB-B-REAR"].is_open,
+		"the fight starts with you inside and the rear door shut")
+	Engine.time_scale = 1.0
+	p.local_control = true
+	level.queue_free()
+	await process_frame
 
 
 ## The betrayal in Vale's lab, with each of the three ways it ends for Rourke.
