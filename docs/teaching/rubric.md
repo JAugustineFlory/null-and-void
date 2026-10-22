@@ -85,7 +85,9 @@ query so far" (how-to: plan/case-board-howto.md). Every floor's board pass is ch
 - **A piece is found only where the world shows it**: a paper, a terminal line, a query's
   result, or a hint that prints it. Only a table piece is found from the Tables page
   (`seen_in`). A column the player has to choose from several isn't a piece: it stays the
-  hint's `enter_` blank in the query, because choosing it is the thinking step.
+  hint's `enter_` blank in the query, because choosing it is the thinking step. (The one
+  column found there is the caller's `extension` on G: the work order says "ext.", and no
+  other column could hold it.)
 - **E notes a paper only for a case that's open**, or one the paper itself opens. Any other
   paper is read, so the player sees what they found.
 - **A floor's found moment comes before its pieces.** A case grows (`set_pieces` again) when
@@ -127,7 +129,11 @@ cumulative taught set (every terminal line and sticky note seen so far) and fail
   puzzle is marked `"ladder": "review"`: exactly two hints, and no line per keyword,
 - the player can't finish once a hint gives the exact query, or can't read the
   physical step (rack, PIN, breaker) off the screen,
-- a keyword is first needed under threat.
+- a keyword is first needed under threat,
+- the case board, at any step, shows a value the player hasn't been shown on this floor,
+  finds a column on the Tables page, writes a missing value as anything but its hint's
+  `enter_` blank, already solves a practice puzzle when the player starts it, or writes
+  the pieces in for a puzzle typed under threat (checked on every floor with a board).
 
 The lost player never fills in a blank itself: that's the thinking step the ladder
 leaves to real players. Keywords include `DESC`, `>` (a comparison with a value) and
