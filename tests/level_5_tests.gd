@@ -97,12 +97,16 @@ func _stations(run_seed: int, players := 1) -> Node:
 
 
 ## A request through the level's services, and whether station `p` passes on it.
-## Outside the tree nothing plays a door's change out, so a door opened through the
-## service goes on the lockup's list here, as _door_changed does on a floor.
+## Outside the tree nothing plays a request out, so what _door_changed and _passed do
+## on a floor is done here: a door opened goes on the lockup's list, and a passed
+## night-shifter whose door is open is sent out.
 func _ask(lvl: Node, p: Puzzle, req: String) -> Dictionary:
 	var res: Dictionary = lvl.api.request(req)
 	if res.status == 200 and req.begins_with("PATCH /doors/") and res.body is Dictionary and not bool(res.body.get("locked", true)):
 		lvl.doors_opened[str(res.body.id)] = true
+	for s in lvl.data.night:
+		if lvl.escorts.any(func(e): return e.badge == s.id) and lvl._door_unlocked(s.hide.door):
+			lvl._send_out(s.id)
 	res["passes"] = p.request_matches(req, res)
 	return res
 
@@ -237,10 +241,10 @@ func test_data_every_seed() -> void:
 		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "PATCH /doors/PERS-CAGE", "{\"locked\": false}"))
 		ok_escorts = ok_escorts and r.status == 409 and str(r.body.error).contains("no power") and not r.passes
 		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "PATCH /doors/PERS-STORE", "{\"locked\": false}"))
-		ok_escorts = ok_escorts and r.status == 200 and not r.passes and lvl.doors_opened.has(store.hide.door) and not lvl._passes_ok()
+		ok_escorts = ok_escorts and r.status == 200 and not r.passes and lvl.doors_opened.has(store.hide.door) and lvl.out.has(store.id) and not lvl.out.has(cage.id) and not lvl._passes_ok()
 		_power_cage(lvl)
 		r = _ask(lvl, lvl.passes_puzzle, _key(lvl, "PATCH /doors/pers-cage", "{\"locked\": false}"))
-		ok_escorts = ok_escorts and r.status == 200 and r.passes and lvl.doors_opened.has(cage.hide.door) and lvl._passes_ok()
+		ok_escorts = ok_escorts and r.status == 200 and r.passes and lvl.doors_opened.has(cage.hide.door) and lvl.out.has(cage.id) and lvl._passes_ok()
 		# Vale's record, at either terminal: deceased, edited after.
 		r = _ask(lvl, lvl.vale_puzzle, _key(lvl, "GET /staff/%s" % Level5Data.VALE.id))
 		ok_vale = ok_vale and r.status == 200 and r.passes and r.body.status == "deceased" and r.body.edited_by == "EXEC-30" and r.body.last_edited > "10/14/97"
@@ -420,12 +424,19 @@ func test_scene() -> void:
 	var second: Dictionary = data.night[1]
 	var st1: Staffer = level.staffers[first.id]
 	var st2: Staffer = level.staffers[second.id]
+	# A door opened to look and locked again before any pass: nobody is out.
+	ui.run(_key(level, "PATCH /doors/%s" % first.hide.door, "{\"locked\": false}"))
+	await _frames(3)
+	ui.run(_key(level, "PATCH /doors/%s" % first.hide.door, "{\"locked\": true}"))
+	await _frames(3)
+	check(level.doors_opened.has(first.hide.door) and not level._door_unlocked(first.hide.door) and st1.state == "hiding" and level.out.is_empty(), "%s's door opened for a look and locked again: they stay hiding" % first.first)
 	ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % first.id))
 	await _frames(3)
 	check(level.passed.has(first.id) and st1.state == "hiding" and not level.passes_puzzle.solved, "%s's pass is logged; behind a locked door, they stay put" % first.first)
 	ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % second.id))
 	await _frames(3)
-	check(level.passed.has(second.id) and st2.state == "hiding" and not level.passes_puzzle.solved and not _said(level.hr, level.TEXT.tip_lockup), "both passes logged before any door opened: nobody is out, the station waits, and SYSOP doesn't call the doors open")
+	check(level.passed.has(second.id) and st2.state == "hiding" and not level.passes_puzzle.solved and not level.lockup_puzzle.solved and not level.released and not _said(level.hr, level.TEXT.tip_lockup),
+		"both passes logged with every door locked again: nobody is out, so neither station passes, the stairs stay shut, and SYSOP doesn't call the doors open")
 	var shape: String = level.hr.next_hint()
 	check(shape.contains("enter_your_badge") and shape.contains("clipped on") and not shape.contains("GET /staff lists"), "the passes ladder: the shape, with your own badge where it really is")
 	var opens := _hint_queries(level.hr.next_hint())
@@ -511,30 +522,12 @@ func test_floor_hazards() -> void:
 	m._wait = 0.05
 	check(await _until(func(): return m.visible and m.state == "standing", 120), "with nobody near, it turns up again somewhere else, back turned")
 	check(level.to_local(m.global_position).distance_to(Vector3(-9, 0, -7)) > 2.0, "not where it was")
-	# The practice is safe: nothing counts until the carbon copy has shown the fix, and
-	# the Custodian waits below until the power and the air are back.
+	# The practice is safe: nothing counts until the carbon copy has shown the fix and
+	# the power is back, and the Custodian waits below until the power and the air are.
 	check(p.health == full and not level.air_armed and not level.custodian_here, "all that while, the air didn't count (the carbon copy isn't read) and the Custodian stayed below")
-	# The air: once the carbon copy is read, after the grace it hurts a little, each
-	# tick, except while a chapter is being read; the stair door propped clears it.
 	_doc(level, "Carbon copy").report_open(p)
-	await _frames(3)
-	check(level.air_armed and _game().case_info("air").get("open", false), "the carbon copy read: the air case opens and the air starts to count")
-	check(await _until(func(): return p.health < full, 120) and p.health > 0.0, "after the grace the air off hurts a little (%.0f)" % p.health)
-	var hp: float = p.health
-	level._huddles = 1
-	await _frames(40)
-	check(p.health == hp, "nothing counts while a chapter is being read")
-	level._huddles = 0
-	check(await _until(func(): return p.health < hp, 120), "then it counts again")
-	level.prop_time = 0.3
-	level.prop.used.emit(p)
-	await _frames(3)
-	check(level.propped and not level.prop.enabled, "the stair door is propped")
-	check(await _until(func(): return level.air_cleared, 120), "and the floor's air clears, slowly")
-	hp = p.health
-	level._air_hurts()
-	await _frames(30)
-	check(p.health == hp and not level.custodian_here, "cleared, the air doesn't hurt; the Custodian still waits for the power")
+	await _frames(60)
+	check(level.air_armed and _game().case_info("air").get("open", false) and p.health == full, "the carbon copy read first: the air case opens, but with the power still off the air doesn't count yet")
 	# The breaker cupboard, by hand: the main trips the copiers, the lights come on.
 	level.hand_reset_time = 0.3
 	level.cupboard.used.emit(p)
@@ -546,7 +539,26 @@ func test_floor_hazards() -> void:
 	check(level.key_puzzle.solved and _game().case_info("key").get("solved", false) and _game().current_todo() == level.TEXT.todo_power, "the manager's key first used at the panel: the key station passes there too, and the to-do moves on")
 	ui.run(_key(level, "PATCH /circuits/C9-04", "{\"on\": true}"))
 	await _frames(3)
-	check(level.power_back and level.circuits_puzzle.solved, "the cage lock through the service: the power's back")
+	check(level.power_back and level.circuits_puzzle.solved and p.health == full, "the cage lock through the service: the power's back, and the PATCH practice cost nothing")
+	# The air: with the power back and the carbon copy read, after the grace it hurts a
+	# little, each tick, except while a chapter is being read; the stair door propped
+	# clears it.
+	check(await _until(func(): return p.health < full, 120) and p.health > 0.0, "now, after the grace, the air off hurts a little (%.0f)" % p.health)
+	var hp: float = p.health
+	level._huddles = 1
+	await _frames(40)
+	check(p.health == hp and not level.custodian_here, "nothing counts while a chapter is being read; the Custodian still waits for the air")
+	level._huddles = 0
+	check(await _until(func(): return p.health < hp, 120), "then it counts again")
+	level.prop_time = 0.3
+	level.prop.used.emit(p)
+	await _frames(3)
+	check(level.propped and not level.prop.enabled, "the stair door is propped")
+	check(await _until(func(): return level.air_cleared, 120), "and the floor's air clears, slowly")
+	hp = p.health
+	level._air_hurts()
+	await _frames(30)
+	check(p.health == hp, "cleared, the air doesn't hurt")
 	check(await _until(func(): return level.custodian_here, 120) and level.custodian.is_active() and (level.PAYROLL.has_point(level.to_local(level.custodian.global_position)) or level.DOCK.has_point(level.to_local(level.custodian.global_position))),
 		"with the power and the air back, the Custodian comes up the dock stairs onto the floor")
 	# The procedure read with no work order logged: the passes get ladder A.
@@ -584,24 +596,40 @@ func test_floor_hazards() -> void:
 	await t.process_frame
 
 
-## The loading door opened for the voice with the power still off: the Custodian
-## comes up at once, not on the clock.
+## The Custodian loose, with the power and the air never fixed: the loading door
+## opened for the voice brings it up at once; the first pass logged, or a hiding door
+## opened, starts its clock.
 func test_dock_custodian() -> void:
-	print("Floor 9: the loading door with the Custodian loose")
-	_game().new_run(12)
-	_game().custodian_sealed = false
-	var level = load("res://scenes/level_5.tscn").instantiate()
-	t.root.add_child(level)
-	await _frames(30)
-	_chapters_read([level])
-	level.completed.disconnect(level._on_completed)
-	var ui: TerminalUI = level.terminal_ui
-	ui.terminal = level.hr
-	ui.run(_key(level, "PATCH /doors/PERS-DOCK", "{\"locked\": false}"))
-	await _frames(5)
-	check(level.dock_opened and not level.power_back and level.custodian_here and level.custodian.is_active(), "the loading door opened before the power is back: the Custodian comes up the dock stairs the moment it opens")
-	level.queue_free()
-	await t.process_frame
+	print("Floor 9: the Custodian loose, without the power or the air")
+	for way in ["dock", "pass", "door"]:
+		_game().new_run(12)
+		_game().custodian_sealed = false
+		var level = load("res://scenes/level_5.tscn").instantiate()
+		t.root.add_child(level)
+		await _frames(30)
+		_chapters_read([level])
+		level.completed.disconnect(level._on_completed)
+		level.custodian_delay = 0.3
+		var ui: TerminalUI = level.terminal_ui
+		ui.terminal = level.hr
+		var store: Dictionary = level.data.night.filter(func(n): return n.hide.door == "PERS-STORE")[0]
+		match way:
+			"dock":
+				ui.run(_key(level, "PATCH /doors/PERS-DOCK", "{\"locked\": false}"))
+				await _frames(5)
+				check(level.dock_opened and not level.power_back and level.custodian_here and level.custodian.is_active(), "the loading door opened before the power is back: the Custodian comes up the dock stairs the moment it opens")
+			"pass":
+				ui.run(_key(level, "POST /escorts", "{\"badge\": \"%s\", \"escort\": \"VIS-01\"}" % store.id))
+				await _frames(3)
+				var waited: bool = level.passed.has(store.id) and not level.custodian_here
+				check(waited and await _until(func(): return level.custodian_here, 120), "the first pass logged with the air never fixed: the Custodian's clock starts, and it comes up")
+			"door":
+				ui.run(_key(level, "PATCH /doors/PERS-STORE", "{\"locked\": false}"))
+				await _frames(3)
+				var waited: bool = level.doors_opened.has("PERS-STORE") and not level.custodian_here
+				check(waited and await _until(func(): return level.custodian_here, 120), "a hiding door opened with the air never fixed: the Custodian's clock starts, and it comes up")
+		level.queue_free()
+		await t.process_frame
 
 
 ## Acceptable API's: picked up off the training shelf, its chapters come up at their

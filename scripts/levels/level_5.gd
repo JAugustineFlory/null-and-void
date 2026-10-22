@@ -309,6 +309,7 @@ var dock_opened := false
 var custodian_loose := false
 var custodian_here := false
 var passed := {}  # badge -> true once a pass is logged
+var out := {}  # badge -> true once the staffer has left their hiding place (_send_out)
 var released := false
 var tips_sent := {}
 var _started_msec := 0
@@ -1041,11 +1042,12 @@ func _shows_order(body: Variant) -> bool:
 	return false
 
 
-## Both night-shifters have a pass and are out: their doors have been opened tonight
-## (a pass logged first sends them out the moment the door opens).
+## Both night-shifters have a pass and are out (_send_out ran: the pass was logged
+## with their door open, or their door opened after the pass). A door opened to look
+## and locked again before the pass leaves them hiding, and the station waiting.
 func _passes_ok() -> bool:
 	for s in data.night:
-		if not escorts.any(func(e): return e.badge == s.id) or not doors_opened.has(s.hide.door):
+		if not escorts.any(func(e): return e.badge == s.id) or not out.has(s.id):
 			return false
 	return true
 
@@ -1087,9 +1089,10 @@ func _passes_hints() -> void:
 	passes_puzzle.hints = [shape, where, exact] if passes_ladder == "a" else [shape, exact]
 
 
-## Every door opened tonight is locked again (and at least one was opened).
+## Both night-shifters passed and out, and every door opened tonight is locked again
+## (a door opened for a look and locked again before the passes isn't the lockup).
 func _lockup_ok() -> bool:
-	return not doors_opened.is_empty() and db.run_silent("SELECT 1 FROM doors WHERE zone = '9' AND locked = 0").is_empty()
+	return _passes_ok() and not doors_opened.is_empty() and db.run_silent("SELECT 1 FROM doors WHERE zone = '9' AND locked = 0").is_empty()
 
 
 ## The doors read back: one door's record, or the whole list. Each door read back
@@ -1428,11 +1431,14 @@ func _circuits_changed(id: String) -> void:
 
 
 ## Host: the practice is safe. Once the power is back and the air is on or cleared,
-## the Custodian (if loose) starts up the dock stairs towards the passes and the lockup.
-func _custodian_clock() -> void:
-	if custodian_timed or custodian == null or not sync.is_host():
+## the Custodian (if loose) starts up the dock stairs towards the passes and the
+## lockup. It also starts (`engaged`) the moment the crew is at those stations (the
+## first pass logged or a hiding door opened), so a crew that never fixes the air
+## still meets it.
+func _custodian_clock(engaged := false) -> void:
+	if custodian_timed or custodian == null or sync == null or not sync.is_host():
 		return
-	if power_back and (air_on or air_cleared):
+	if engaged or (power_back and (air_on or air_cleared)):
 		custodian_timed = true
 		_custodian_after(custodian_delay)
 
@@ -1487,9 +1493,10 @@ func _air_armed() -> void:
 
 ## Host, each frame: while the air is off and no chapter is being read, the clock
 ## runs; after the grace everyone on the floor takes a little each tick. Deaths
-## explain themselves (the cause is "air").
+## explain themselves (the cause is "air"). Not before the power is back either: the
+## panel's practice stays safe whichever paper was read first.
 func _air_clock(delta: float) -> void:
-	if not air_armed or air_on or air_cleared or released or _huddles > 0:
+	if not air_armed or not power_back or air_on or air_cleared or released or _huddles > 0:
 		return
 	_air_time += delta
 	if _air_time >= air_grace + _air_ticks * air_tick:
@@ -1601,6 +1608,8 @@ func _door_changed(id: String, locked: bool) -> void:
 		hud.notice(TEXT.door_opens % door_name, 3.0)
 		if id == "PERS-DOCK":
 			_dock_opened()
+		if Level5Data.HIDES.any(func(h): return h.door == id):
+			_custodian_clock(true)  # the crew is at the hiding places now
 		for badge in staffers:
 			if passed.has(badge) and _hide_door(badge) == id:
 				_send_out(badge)
@@ -1650,19 +1659,27 @@ func _passed(badge: String) -> void:
 	for s in data.night:
 		if s.id == badge:
 			hud.line(s.line)
+	_custodian_clock(true)  # the crew is at the passes now
 	if _door_unlocked(_hide_door(badge)):
 		_send_out(badge)
 	if not passes_puzzle.solved and _passes_ok():
 		_on_solved("passes")
 
 
+## Every machine: a passed night-shifter's door is open. They get up and head for the
+## stairs (once), and count as out for the passes station. A loose Custodian starts
+## up the dock stairs now if it hasn't already.
 func _send_out(badge: String) -> void:
-	var st: Staffer = staffers[badge]
-	if st.state != "hiding":
+	if out.has(badge):
 		return
-	var n: int = data.night.map(func(s): return s.id).find(badge)
-	st.rescue(to_global(WAIT_AT[maxi(n, 0)]))
-	hud.notice(TEXT.staffer_passed % st.first_name, 4.0)
+	out[badge] = true
+	var st: Staffer = staffers.get(badge)
+	if st:
+		var n: int = data.night.map(func(s): return s.id).find(badge)
+		st.rescue(to_global(WAIT_AT[maxi(n, 0)]))
+		if hud:
+			hud.notice(TEXT.staffer_passed % st.first_name, 4.0)
+	_custodian_clock(true)
 
 
 ## Every machine: both passed, everything locked and read back. The stairs release.
