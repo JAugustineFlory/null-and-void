@@ -34,6 +34,7 @@ func _run_moves() -> void:
 	await test_ledge_shuffle()
 	await test_shoulders()
 	await test_same_controls_same_moves()
+	await test_first_person_motion()
 
 
 func _run_hands() -> void:
@@ -249,6 +250,60 @@ func test_mantle() -> void:
 	stop(p)
 	await frames(10)
 	check(p.global_position.y > 1.1 and p.global_position.z < -2.0, "jump at a waist-high crate mantles onto it (y %.2f)" % p.global_position.y)
+	await done(a)
+
+
+## The camera moves with the body in first person: it looks down at your hands
+## pushing up onto a ledge, dips when you land, and settles back where you look.
+func test_first_person_motion() -> void:
+	var a := arena()
+	Greybox.box(a, Vector3(0, 0.6, -3), Vector3(4, 1.2, 2), Color.DIM_GRAY)  # a crate, face at z = -2
+	var p := spawn(a, Vector3(0, 0.05, -1.4))
+	await frames(10)
+	check(p.camera.transform.is_equal_approx(Transform3D.IDENTITY) and p.move_name() == "walk", "standing still, the view is just where you look")
+	p.controls.move = Vector2(0, -0.5)
+	p.controls.jump = true
+	var dip := 0.0
+	var named := false
+	var progress := 0.0
+	var grip := {}
+	for i in 40:
+		await frames(1)
+		named = named or p.move_name() == "mantle"
+		progress = maxf(progress, p.parkour_progress())
+		if p.move_name() == "mantle" and grip.is_empty():
+			grip = p.parkour_grip()
+		dip = minf(dip, p.camera.rotation.x)
+	stop(p)
+	check(named and progress > 0.5, "the mantle is named and has a progress for the arms")
+	check(not grip.is_empty() and absf(grip.point.y - 1.2) < 0.05 and absf(grip.point.z + 2.0) < 0.15 and grip.normal.dot(Vector3.BACK) > 0.9, "and the hands grip the crate's edge")
+	check(dip < -0.15, "mantling, you look down at your hands as you push up (%.2f rad)" % dip)
+	await frames(60)
+	check(p.camera.transform.origin.length() < 0.01 and absf(p.camera.rotation.x) < 0.01, "and the view settles back where you look")
+	p.global_position = Vector3(0, 4.0, 2.0)
+	p.velocity = Vector3.ZERO
+	var low := 0.0
+	for i in 70:
+		await frames(1)
+		low = minf(low, p.camera.position.y)
+	check(low < -0.05, "dropping off a height, the view dips as you land (%.2f m)" % low)
+	await done(a)
+
+	a = arena()
+	_high_wall(a, 2.0)
+	p = spawn(a, Vector3(0, 0.05, -1.3))
+	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
+	p.controls.jump = true
+	await frames(3)
+	stop(p)
+	var hold := p.parkour_grip()
+	check(p.move_name() == "hang" and not hold.is_empty() and absf(hold.point.y - 2.0) < 0.05 and absf(hold.point.z + 2.0) < 0.1, "hanging, the hands are on the edge")
+	stop(p)
+	await frames(30)
+	p.controls.jump = true
+	await frames(60)
+	check(p.parkour_grip().is_empty() and p.parkour_progress() == 0.0, "standing on top, nothing to hold")
 	await done(a)
 
 

@@ -220,6 +220,15 @@ var stance_height: float:
 	get:
 		return _height
 var _bob_t := 0.0
+## First-person motion on the camera, on top of where you look: x pitch
+## (radians, + up), y dip (metres), z roll (radians, + leaning left). `_cam_pose`
+## follows the move you're in (a mantle looks down at your hands); `_cam_kick`
+## is a jolt (landing, catching an edge) that `_cam_jolt` rises to and eases out of.
+var _cam_pose := Vector3.ZERO
+var _cam_kick := Vector3.ZERO
+var _cam_jolt := Vector3.ZERO
+## Where the hands go on a vault or mantle (see parkour_grip), set as it starts.
+var _grip := {}
 ## The notebook model in your hands (a HeldNotebook on `camera`, from
 ## HeldNotebook.attach). raise/lower_notebook() call its open_book()/close_book(),
 ## which play the pull-out and put-away. Optional: without one only the state changes.
@@ -502,6 +511,9 @@ func respawn(at: Transform3D) -> void:
 	_seated_yaw = rotation.y
 	velocity = Vector3.ZERO
 	head.rotation = Vector3.ZERO
+	_cam_pose = Vector3.ZERO
+	_cam_kick = Vector3.ZERO
+	_cam_jolt = Vector3.ZERO
 	state = Move.WALK
 	_set_crouch(false)
 	lower_notebook(true)
@@ -1363,6 +1375,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			if on_floor and not crouching:
 				velocity.y = JUMP_VELOCITY
 				spend_stamina(JUMP_COST)
+				_cam_kick += Vector3(0.04, -0.03, 0)  # crouch into it, chin up
 		elif not on_floor and _air_time > 0.1 and controls.move.y < -0.5 and velocity.y < 1.5:
 			# Reaching for a ledge mid-jump catches it.
 			if _try_ledge(true):
@@ -1378,6 +1391,10 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 
 func _land(fall_speed: float) -> void:
 	var flat := Vector3(velocity.x, 0, velocity.z)
+	if fall_speed > 2.0:
+		# Knees take it: the view dips and nods, harder the further you fell.
+		var k := clampf((fall_speed - 2.0) / (HARD_LANDING - 2.0), 0.0, 1.5)
+		_cam_kick += Vector3(-0.07 * k, -0.16 * k, 0)
 	if _roll_queued and flat.length() > 1.5 and rider == null:
 		# Tuck and roll: keeps your speed, gets you under low gaps, and is quiet.
 		_begin_dash(Move.ROLL, ROLL_TIME, flat.normalized())
@@ -1471,6 +1488,7 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		_timer = 0.0
 		_fwd_released = controls.move.y > -0.5
 		_hang_jump = false
+		_cam_kick += Vector3(-0.05, -0.1, 0)  # caught it: the arms take your weight
 		_set_crouch(false)
 		velocity = Vector3.ZERO
 		_roll_queued = false
@@ -1530,6 +1548,7 @@ func _try_vault() -> bool:
 	_dir = -n
 	_set_stance(CROUCH_HEIGHT)  # the camera dips as you go over
 	_mantle_path = [feet, Vector3(feet.x, top + 0.05, feet.z), over, land]
+	_grip = {"point": Vector3(face.x, top, face.z) - n * 0.1, "normal": n}
 	_noise(0.3)
 	return true
 
@@ -1576,6 +1595,8 @@ func _start_mantle(target: Vector3) -> void:
 	_roll_queued = false
 	var here := global_position
 	_mantle_path = [here, Vector3(here.x, target.y + 0.05, here.z), target]
+	var n := Vector3(here.x - target.x, 0, here.z - target.z).normalized()
+	_grip = {"point": target + n * (RADIUS + 0.08) + Vector3.DOWN * 0.02, "normal": n}
 	_noise(0.2)
 
 
@@ -1867,7 +1888,80 @@ func _update_head(delta: float) -> void:
 	elif downed:
 		camera.transform = Transform3D(Basis(Vector3.FORWARD, 0.4), Vector3.ZERO)  # head on the floor
 	else:
-		camera.transform = Transform3D.IDENTITY
+		_cam_pose = _cam_pose.lerp(_move_camera_pose(delta), 1.0 - exp(-10.0 * delta))
+		_cam_jolt = _cam_jolt.lerp(_cam_kick, 1.0 - exp(-25.0 * delta))
+		_cam_kick = _cam_kick.lerp(Vector3.ZERO, 1.0 - exp(-7.0 * delta))
+		var o := _cam_pose + _cam_jolt
+		camera.transform = Transform3D(Basis.from_euler(Vector3(o.x, 0.0, o.z)), Vector3(0, o.y, 0))
+
+
+## How the move you're in carries your view (see `_cam_pose`): you look down at
+## your hands as you push up onto a ledge, lean onto the hand you plant to vault,
+## sway hand over hand up a pipe, lean into a slide.
+func _move_camera_pose(delta: float) -> Vector3:
+	match state:
+		Move.MANTLE:
+			var k := sin(PI * parkour_progress())
+			return Vector3(-0.35 * k, -0.06 * k, 0.0)
+		Move.VAULT:
+			var k := sin(PI * parkour_progress())
+			return Vector3(-0.22 * k, -0.04 * k, 0.12 * k)
+		Move.HANG:
+			if absf(controls.move.x) > 0.1:
+				_bob_t += delta * 7.0
+			return Vector3(0.06, 0.0, sin(_bob_t) * 0.04)
+		Move.CLIMB:
+			_bob_t += delta * absf(velocity.y) * 5.0
+			return Vector3(0.0, sin(_bob_t) * 0.04, sin(_bob_t * 0.5) * 0.035)
+		Move.LEDGE:
+			_bob_t += delta * Vector2(velocity.x, velocity.z).length() * 4.0
+			return Vector3(0.0, 0.0, sin(_bob_t) * 0.03)
+		Move.SLIDE:
+			return Vector3(0.03, 0.0, 0.08)
+	return Vector3.ZERO
+
+
+## The move you're in, by name, for whatever shows it (the first-person arms, a
+## teammate's body): "walk", "slide", "roll", "mantle", "vault", "hang", "climb",
+## "ledge", "ride", "terminal", "sit" or "down".
+func move_name() -> String:
+	return (Move.keys()[state] as String).to_lower()
+
+
+## How far through a vault, mantle or roll you are, 0..1 (0 in any other move).
+func parkour_progress() -> float:
+	match state:
+		Move.MANTLE:
+			return clampf(_timer / (MANTLE_UP_TIME + MANTLE_OVER_TIME), 0.0, 1.0)
+		Move.VAULT:
+			return clampf(_timer / (VAULT_UP_TIME + VAULT_OVER_TIME + VAULT_DOWN_TIME), 0.0, 1.0)
+		Move.ROLL:
+			return clampf(1.0 - _timer / ROLL_TIME, 0.0, 1.0)
+	return 0.0
+
+
+## Where your hands hold on, for the arms: {"point": the world point on the edge
+## or surface, "normal": out of its face, toward you}, or {} when you're not
+## holding anything (only vaulting, mantling, hanging, climbing or on a ledge).
+func parkour_grip() -> Dictionary:
+	match state:
+		Move.VAULT, Move.MANTLE:
+			return _grip
+		Move.HANG:
+			var edge := global_position - _hang_normal * (RADIUS + 0.03)
+			edge.y = _hang_top
+			return {"point": edge, "normal": _hang_normal}
+		Move.CLIMB:
+			if _climb:
+				var n := _climb.normal
+				var at := global_position - n * (global_position - _climb.a).dot(n)
+				at.y = minf(global_position.y + 1.7, _climb.b.y)  # reaching up the pipe
+				return {"point": at, "normal": n}
+		Move.LEDGE:
+			if _ledge:
+				var n := _ledge.normal
+				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n}  # flat on the wall
+	return {}
 
 
 func _update_prompt() -> void:
