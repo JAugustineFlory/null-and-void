@@ -1,0 +1,1 @@
+- **Fixed:** on floor 22, nobody can slip out of Secure Lab B's doors mid-scene and leave the floor stuck.
