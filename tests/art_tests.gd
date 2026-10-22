@@ -1063,6 +1063,11 @@ func test_dressed_home_base() -> void:
 			if Vector2(off.x, off.z).length() < 0.05 and absf(off.y - HomeBase.CREW_SEATS[i].y) < 0.02:
 				under += 1
 	check(stools.size() == 3 and under == 3, "a diner stool stands under each counter seat, its top where you sit (%d of 3)" % under)
+	var stand: Array = level.geo.get_children().filter(func(b): return b is StaticBody3D and String(b.name).begins_with("BagStand"))
+	var kept: Array = stand.filter(func(b): return b.get_children().all(func(c): return not (c is MeshInstance3D) or not c.visible) \
+		and b.find_children("*", "CollisionShape3D", false, false).size() == 1)
+	check(stand.size() == 5 and kept.size() == 5 and level.get_node_or_null("Dressing/BagStand") != null,
+		"the punch bag hangs from a real steel stand, still as solid as its greybox (%d of 5)" % kept.size())
 	var stage := _stage()
 	var front := HomeBase.build_front(stage)
 	var door: Node3D = front.get_node("RollUpDoor")

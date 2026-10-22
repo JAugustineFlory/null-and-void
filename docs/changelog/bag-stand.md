@@ -1,0 +1,1 @@
+- **Changed:** the garage punch bag's stand is black steel, with braced corners and weight plates on its feet.

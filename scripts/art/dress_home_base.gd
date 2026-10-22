@@ -33,6 +33,7 @@ static func apply(level: LevelBase) -> void:
 	_bulbs(level)
 	_banner(level, dress)
 	_briefing_corner(level, dress)
+	_bag_stand(level, dress)
 	_book(level)
 
 	# Oil on the slab where the van stands, and an old stain by the door.
@@ -313,3 +314,44 @@ static func _book(level: Node) -> void:
 ## Somewhere to sit (Seat, from Movement): E on the chair sits you facing the way it faces.
 static func _seat(chair: Node3D) -> Seat:
 	return Seat.create_at(chair.get_parent(), chair.transform * Vector3(0, ArtKit.CHAIR_SEAT, 0), chair.rotation.y, Vector2(0.42, 0.4))
+
+
+## The punch bag's stand: black powder-coated square tube, a gusset in each top
+## corner, rubber-capped feet with weight plates on each end to hold it down, and
+## a swivel plate under the bar for the chain. The greybox posts, feet and bar keep
+## their colliders.
+static func _bag_stand(level: LevelBase, dress: Node3D) -> void:
+	var at := HomeBase.PUNCH_BAG
+	var half := HomeBase.BAG_STAND_HALF
+	var top := HomeBase.BAG_HOOK
+	var found := 0
+	for b in level.geo.get_children():
+		if b is StaticBody3D and String(b.name).begins_with("BagStand"):
+			ArtDress.hide_block(b)
+			found += 1
+	if found == 0:
+		return
+	var tube := Color(0.09, 0.09, 0.1)
+	var rubber := Color(0.05, 0.05, 0.05)
+	var iron := Color(0.16, 0.16, 0.17)
+	var m := ArtMesh.new()
+	for side in [-1.0, 1.0]:
+		var x: float = at.x + side * half
+		m.box(Vector3(x, top / 2 + 0.05, at.z), Vector3(0.07, top + 0.1, 0.07), tube)
+		m.box(Vector3(x, 0.04, at.z), Vector3(0.08, 0.07, 1.06), tube)
+		m.box(Vector3(x, 0.03, at.z), Vector3(0.16, 0.06, 0.16), tube)  # base plate
+		for dz in [-1.0, 1.0]:
+			m.box(Vector3(x, 0.04, at.z + dz * 0.54), Vector3(0.09, 0.08, 0.04), rubber)  # end caps
+			# Two plates lying flat on a peg at each end of the foot.
+			var peg := Vector3(x, 0.08, at.z + dz * 0.38)
+			for k in 2:
+				m.rod(peg + Vector3(0, k * 0.045, 0), peg + Vector3(0, k * 0.045 + 0.04, 0), 0.17 - k * 0.03, iron, 18, true)
+			m.rod(peg, peg + Vector3(0, 0.13, 0), 0.025, Color(0.55, 0.55, 0.57), 8, true)
+		# The corner gusset, inward and above head height.
+		var g := Basis(Vector3.BACK, side * deg_to_rad(45.0))  # leaning in toward the bar
+		m.oriented_box(Vector3(x - side * 0.17, top - 0.12, at.z), Vector3(0.05, 0.42, 0.05), tube, g)
+	m.box(Vector3(at.x, top + 0.06, at.z), Vector3(half * 2 + 0.08, 0.08, 0.08), tube)
+	m.box(Vector3(at.x, top + 0.01, at.z), Vector3(0.14, 0.02, 0.14), Color(0.5, 0.5, 0.52))  # swivel plate
+	m.rod(Vector3(at.x, top + 0.0, at.z), Vector3(at.x, top - 0.05, at.z), 0.025, Color(0.6, 0.6, 0.62), 8, true)
+	m.commit(dress, "BagStand", true, 0.45, 0.4)
+
