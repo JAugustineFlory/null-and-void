@@ -1,3 +1,21 @@
+> [!IMPORTANT]
+> ## Beta testers: start here
+>
+> **1. Get the game.** On this page, click the green **Code** button, then **Download ZIP**, and unzip it anywhere.
+> Everyone playing together needs the same download, so grab a fresh one before each session.
+>
+> **2. Install Godot 4.7** (free, nothing else to install).
+> - Download the **standard** version (not .NET) from [godotengine.org/download](https://godotengine.org/download).
+> - **Windows:** unzip it and double-click the Godot `.exe`. **Mac:** open the `.dmg`, drag Godot to Applications, then right-click it and choose **Open** the first time.
+> - In Godot, click **Import**, pick `project.godot` in the game's folder, then **Import & Edit**. The first import takes a minute or two.
+> - Press **F5** (or the play button at the top right) to start the game.
+>
+> **3. Co-op over the internet: install Tailscale.** Everyone installs it from
+> [tailscale.com/download](https://tailscale.com/download) and signs in with their own account.
+> The host shares their computer and everyone joins the host's `100.x` address on port 7777:
+> follow the [Tailscale co-op guide](docs/guides/tailscale-coop.md) the first time (about 10 minutes).
+> Playing on the same wifi, or solo, needs no Tailscale.
+
 <p align="center">
   <img src="docs/store/header.jpg" alt="Null &amp; Void: Halcyon Tower at night" width="100%">
 </p>
@@ -263,7 +281,7 @@ At a terminal: type SQL and press Enter. `.help`, `.tables`, `.schema NAME`, `.h
 
 On the same network, use the address the lobby shows. Over the internet, the host forwards
 UDP port 7777 on their router, or everyone joins the same free VPN such as
-[Tailscale](https://tailscale.com) and uses the host's Tailscale address. (Steam lobbies come later.)
+[Tailscale](https://tailscale.com) and uses the host's Tailscale address ([setup guide](docs/guides/tailscale-coop.md)). (Steam lobbies come later.)
 
 - **Voice:** up close, just talk (open mic; B mutes it).
 - **Radio:** after you pick up the walkie-talkies, hold **V** to talk to everyone. It has a
