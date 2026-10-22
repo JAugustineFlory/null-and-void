@@ -15,6 +15,10 @@ const TABLE_ROWS := ["#e2ffe6", "#8fdca2"]
 const HINT := "#7fd4ff"
 ## SYSOP, when a hint's blank (enter_...) is typed in as it is.
 const BLANK_TYPED := "%s is the blank from the hint. Type the real value in its place."
+## Where a piece came from when a crewmate's query found it.
+const QUERY_BY := "%s's query"
+## SYSOP, when a case page's missing piece (????) is typed in as it is.
+const PIECE_TYPED := "???? is a piece you haven't found yet. Your case page says where to look."
 const KEYWORD := "#ffcc59"
 const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]
 
@@ -705,6 +709,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 		if mine:
 			get_node("/root/Game").log_query(sql)
 			_note_tables(sql, on_terminal.db)
+		else:
+			_note_tables(sql, on_terminal.db, QUERY_BY % who)
 		if result.rows.is_empty():
 			if result.changes > 0:
 				out.append(["OK. %d row(s) changed." % result.changes, "info"])
@@ -720,6 +726,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	# as an empty value.
 	if result.ok and hint_blank_in(sql) != "":
 		out.append([sysop(BLANK_TYPED % hint_blank_in(sql)), "hint"])
+	elif sql.contains("????"):
+		out.append([sysop(PIECE_TYPED), "hint"])
 	elif sql.contains("?"):
 		out.append([sysop("? is the blank from the hint. Type the real value in its place."), "hint"])
 	for line in out:
@@ -861,16 +869,20 @@ func open_script_editor() -> ScriptEditorUI:
 func _noted_hint(case_id: String, hint: String) -> String:
 	if case_id != "":
 		get_node("/root/Game").add_clue(case_id, _plain(hint), "SYSOP hint")
+		get_node("/root/Game").note_hint(case_id, hint)
 	return hint
 
 
-## Tables a query read from go on the notebook's Tables page.
-func _note_tables(sql: String, db: FacilityDB) -> void:
+## Tables a query read from go on the notebook's Tables page. A crewmate's
+## (`by` says whose) only finds the case pieces seen in them.
+func _note_tables(sql: String, db: FacilityDB, by: String = "") -> void:
 	var known: Array = db.table_names()
 	for m in RegEx.create_from_string("(?i)\\b(?:FROM|JOIN)\\s+([A-Za-z_][A-Za-z0-9_]*)").search_all(sql):
 		var t := m.get_string(1).to_lower()
 		for name in known:
-			if name.to_lower() == t:
+			if name.to_lower() == t and by != "":
+				get_node("/root/Game").see_table_pieces(name, by)
+			elif name.to_lower() == t:
 				_discover(name, db)
 
 

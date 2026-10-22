@@ -24,6 +24,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_job_over()
 	test_chip()
 	test_paper_pieces()
+	test_growing_case()
+	test_hint_pieces()
+	test_floor_g_memo()
 	_game().new_run(1)
 
 
@@ -196,7 +199,94 @@ func test_paper_pieces() -> void:
 	check(g.has_piece("memo", "table") and g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "ScanRight", "E notes both its pieces, from the paper")
 	check(g.case_info("memo").clues.size() == 1 and reads.size() == 1, "its clues go on the case page too, and it counts as read")
 	check(card.uncollected().is_empty() and card.get_prompt(null).contains("Read: ScanRight"), "with its pieces in, E reads it as any paper")
+	var side := Document.place(holder, Vector3.ZERO, 0.0, "Rack card", ["Temps are logged in racks."], true, "brochure")
+	side.pieces = [{"case": "hot", "piece": "table"}]
+	g.set_pieces("hot", [PIECES[0]], "", [], true)
+	check(side.notable().is_empty() and not side.get_prompt(null).contains(Document.NOTE_IT % "Rack card"), "a paper for a case nobody has open yet is read, not noted unseen")
+	side.clues = [{"case": "hot", "opens": "Why is it hot?", "text": "Racks run hot."}]
+	check(side.notable().size() == 1, "unless the paper itself opens that case")
 	holder.free()
+
+
+func test_growing_case() -> void:
+	print("Case board: a case that grows keeps what's found")
+	var g := _game()
+	g.new_run(10)
+	g.open_case("memo", "What does the memo say?")
+	g.set_pieces("memo", [PIECES[0]], "SELECT * FROM {table};", [{"id": "peek", "text": "Run it"}])
+	g.collect_piece("memo", "table", "The scanner")
+	g.tick_step("memo", "peek")
+	g.collect_piece("memo", "column", "The scanner")
+	g.set_pieces("memo", PIECES, "SELECT * FROM {table} {order} {column};", [{"id": "peek", "text": "Run it"}, {"id": "run", "text": "Run it sorted"}])
+	check(g.has_piece("memo", "table") and g.case_info("memo").pieces[0].from == "The scanner", "a piece found keeps its place, and where it came from, when the case grows")
+	check(g.has_piece("memo", "column") and not g.has_piece("memo", "order"), "and one found before the case had it is in too")
+	check(g.case_checklist("memo").any(func(l): return l.text == "Run it" and l.done), "a step ticked stays ticked")
+	var named: Array = PIECES.map(func(p): return p.duplicate())
+	named[2]["blank"] = "enter_column_name"
+	g.open_case("named", "Named blanks")
+	g.set_pieces("named", named, "SELECT * FROM {table} {order} {column};")
+	check(g.case_query("named") == "SELECT * FROM ???? ???? enter_column_name;", "a missing value is named as its hint names it; a missing word is ????")
+	g.collect_piece("named", "table")
+	g.set_assemble("named", false)
+	check(g.has_piece("named", "table") and g.case_query("named") == "SELECT * FROM ???? ???? enter_column_name;", "under pressure the page keeps the piece found, but the query so far stays the bare shape")
+	var pages := NotebookPages.new()
+	var items := pages._case_items(g)
+	check(NotebookPages.text_of(items).contains("memo_fragments"), "and the piece itself still shows on the page")
+	for i in items:
+		i.free()
+	pages.free()
+	g.set_assemble("named", true)
+	check(g.case_query("named").contains("FROM memo_fragments"), "a case that assembles writes it in")
+
+
+func test_hint_pieces() -> void:
+	print("Case board: a hint that shows a piece finds it")
+	var g := _game()
+	g.new_run(11)
+	g.open_case("memo", "What does the memo say?")
+	g.set_pieces("memo", PIECES, "SELECT * FROM {table} {order} {column};")
+	g.note_hint("memo", "Replace enter_column_name with the column. ORDER BY sorts them, and memo_fragments holds them.")
+	check(g.pieces_found("memo") == 0, "words in a hint's prose don't count, only the query it prints")
+	g.note_hint("memo", "The shape of it:\n    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY enter_column_name;[/color]")
+	check(g.has_piece("memo", "table") and g.has_piece("memo", "order") and not g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "SYSOP", "the hint's query shows the table and ORDER BY: they're found, from SYSOP")
+	g.open_case("hot", "Why is it hot?")
+	g.set_pieces("hot", [{"id": "more", "label": "More than", "value": ">", "task": "t", "where": "w"}, {"id": "limit", "label": "The limit", "value": "45", "task": "t", "where": "w"}])
+	g.note_hint("hot", "[color=#ffffff]SELECT id FROM racks WHERE temp_c > enter_limit;[/color]")
+	check(g.has_piece("hot", "more") and not g.has_piece("hot", "limit"), "a sign shows as is; a number only as a whole number")
+	g.see_table_pieces("visitors", TerminalUI.QUERY_BY % "Sam")
+	check(not g.has_piece("memo", "column"), "a crewmate's query finds only pieces seen in the table it read")
+	g.open_case("visit", "Who signed in last?")
+	g.set_pieces("visit", [{"id": "table", "label": "The table", "value": "visitors", "task": "t", "where": "w", "seen_in": "visitors"}])
+	g.see_table_pieces("visitors", TerminalUI.QUERY_BY % "Sam")
+	check(g.has_piece("visit", "table") and g.case_info("visit").pieces[0].from == "Sam's query" and not g.notebook_tables.has("visitors"), "in co-op a crewmate's query finds a table piece on every board, without filling your Tables page")
+	check(Game.hint_shows("WHERE zone = 'b2'", "B2") and not Game.hint_shows("WHERE zone = 'b21'", "B2"), "a value matches as a whole word, any case")
+
+
+## Floor G's memo: the board asks only for the peek's table until the scraps come
+## out of order, and the sort and the column come from the world, not the Tables page.
+func test_floor_g_memo() -> void:
+	print("Case board: the memo grows after the peek")
+	var g := _game()
+	g.new_run(12)
+	var l0: GDScript = load("res://scripts/levels/level_0.gd")
+	g.open_case("memo", "What does the memo say?", ["memo_fragments"])
+	g.set_pieces("memo", l0.MEMO_PEEK_PIECES, l0.MEMO_PEEK_QUERY, l0.MEMO_PEEK_STEPS)
+	check(g.pieces_total("memo") == 1 and g.case_query("memo") == "SELECT * FROM enter_table_name;" and not _case_text(g).contains("ORDER"), "before the peek the memo's board asks only for the table, and names no sort")
+	g.discover_table("memo_fragments", ["text", "piece_no", "scanned_at"])
+	g.set_pieces("memo", l0.MEMO_PIECES, l0.MEMO_QUERY, l0.MEMO_STEPS)
+	check(g.has_piece("memo", "table") and not g.has_piece("memo", "column") and g.pieces_total("memo") == 3, "after it, the table stays found and the column isn't handed over by the Tables page")
+	check(l0.VISITOR_PIECES.all(func(p): return p.id != "column") and l0.VISITOR_QUERY.contains("ORDER BY enter_column_name"), "the visitor case leaves choosing its column to the player")
+
+
+## The Cases tab's text for the current case.
+func _case_text(g: Node) -> String:
+	var pages := NotebookPages.new()
+	var items := pages._case_items(g)
+	var text := NotebookPages.text_of(items)
+	for i in items:
+		i.free()
+	pages.free()
+	return text
 
 
 func check(cond: bool, name: String) -> void:
