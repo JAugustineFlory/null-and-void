@@ -286,6 +286,23 @@ func test_first_person_body() -> void:
 	you.combat.swung.emit()
 	check(fp.current_action() == "idle", "with the notebook up the arms stay down")
 	you.notebook_lowered.emit()
+	# On the couch (garage playtest): looking round turns the upper body; the hips
+	# and legs stay facing the way the seat does, on it rather than through it.
+	var seat := Node3D.new()
+	stage.add_child(seat)
+	seat.rotation.y = 0.4
+	you.seat = seat
+	you.sitting = true
+	you.rotation.y = 0.4 + PI / 2  # looking 90 degrees left of the seat
+	step.call(0.5)
+	check(fp.current_action() == "sit" and absf(angle_difference(fp.global_rotation.y, 0.4)) < 0.01,
+		"sitting on a seat and looking round, your hips and legs keep facing the way the seat does")
+	check(absf(fp.rig.twist - PI / 2) < 0.01 and fp.rig._pose["spine"].y > 1.0, "and the upper body turns to look")
+	check(fp.position.z > FirstPersonBody.BACK + 0.1, "seated, the body sits further back, so looking down shows your lap, not your collar")
+	you.sitting = false
+	you.seat = null
+	step.call(0.2)
+	check(is_zero_approx(fp.rotation.y) and fp.rig.twist == 0.0, "standing up, the body turns with you again")
 	you.downed = true
 	step.call(0.1)
 	check(not fp.visible, "lying down, the camera is inside the body, so it's left out")
@@ -297,6 +314,11 @@ class _FakeFighter extends Node3D:
 	signal notebook_lowered
 	var combat := _FakeCombat.new()
 	var downed := false
+	var seat: Node3D = null
+	var sitting := false
+
+	func is_sitting() -> bool:
+		return sitting
 
 
 class _FakeCombat extends RefCounted:
