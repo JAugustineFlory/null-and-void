@@ -11,6 +11,10 @@ const PRINT := Color(0.12, 0.12, 0.14)
 const FORM_RULE := Color(0.62, 0.62, 0.6)
 const BAND := Color(0.16, 0.27, 0.42)  # Byte-Right blue
 const STAMP := Color(0.72, 0.16, 0.12, 0.85)
+## Across the work order once the job is over (Game.end_job). Drafts for
+## Augustine's word-for-word OK.
+const VOID_STAMP := "VOID"
+const VOID_NOTE := "This isn't the job any more. What we're doing now is under Cases."
 
 
 ## Every piece in reading order. `ticket` is Game.ticket(): the printed fields,
@@ -27,8 +31,15 @@ static func build(ticket: Dictionary, page_height: float = 0.0) -> Array[Control
 		form.add_child(part)
 	form.custom_minimum_size.y = page_height
 	var items: Array[Control] = [form]
+	if ticket.get("void", false):
+		var stamp := _type(VOID_STAMP, 34, STAMP, false)
+		stamp.name = "Void"
+		stamp.rotation_degrees = -4.0
+		items.append(stamp)
+		items.append(NotebookArt.hand(VOID_NOTE, 22, NotebookArt.PENCIL))
 	items.append(NotebookArt.hand("Crew notes", 30))
-	var todo: Array = ticket.get("tasks", [])
+	# Only the job's own tasks: once it's over, tasks go on their case's checklist.
+	var todo: Array = ticket.get("tasks", []).filter(func(t): return t.get("case", "") == "")
 	if todo.is_empty():
 		items.append(NotebookArt.hand("Nothing yet.", 24, NotebookArt.PENCIL))
 	for task in todo.slice(maxi(0, todo.size() - 6)):

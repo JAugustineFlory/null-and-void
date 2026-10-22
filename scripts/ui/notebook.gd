@@ -1,6 +1,7 @@
 class_name Notebook
 extends CanvasLayer
-## The player's notebook, opened with Tab; 1-4 turn to its tabs. It can't be opened while using a terminal,
+## The player's notebook, opened with Tab (on the current case, if there is one);
+## 1-5 turn to its tabs. It can't be opened while using a terminal,
 ## so players have to read it, remember, and then type.
 ## With Game.diegetic_ui it's held in your hands (HeldNotebook on the camera, raised
 ## by the Player): you can still look round and walk slowly. Without, it opens
@@ -77,6 +78,18 @@ func _show_answer(_case_id: String) -> void:
 		await get_tree().process_frame
 
 
+## Where Tab opens the notebook: on the case being worked on (or one just
+## solved), or on the work order while there's no case and the job is still the job.
+static func default_page_for(game: Node) -> int:
+	if game.current_case() != "" or game.job_over or game.notebook_cases.any(func(c): return c.get("fresh_solve", false)):
+		return NotebookPages.Page.CASES
+	return NotebookPages.Page.WORK_ORDER
+
+
+func default_page() -> int:
+	return default_page_for(get_node("/root/Game"))
+
+
 func _on_lowered() -> void:
 	if _open and held and not player.is_holding_notebook():
 		_set_closed()
@@ -101,10 +114,9 @@ func open(page: int = -1) -> bool:
 	_open = true
 	pages.visible = true
 	pages.showing = true
-	if page >= 0:
-		pages.show_page(page)
-	else:
-		pages.refresh()
+	pages.showing_completed = false
+	pages.completed_case = ""
+	pages.show_page(page if page >= 0 else default_page())
 	pages.book.show_book()
 	opened.emit()
 	return true
@@ -126,6 +138,7 @@ func close() -> void:
 func _set_closed() -> void:
 	_open = false
 	pages.showing = false
+	pages.file_solved()
 	pages.book.hide_book().finished.connect(func():
 		if not _open and not held:
 			pages.visible = false)

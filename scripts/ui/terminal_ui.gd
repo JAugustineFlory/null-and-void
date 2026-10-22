@@ -364,7 +364,7 @@ func _on_meta(meta: Variant) -> void:
 ## with no name to give it, and you step back from the screen while the notebook
 ## comes up to show it written in (Notebook). False if it answers nothing.
 func answer(index: int) -> bool:
-	if index < 0 or index >= _noteable.size() or not get_node("/root/Game").add_answer(_noteable[index].text):
+	if index < 0 or index >= _noteable.size() or not get_node("/root/Game").add_answer(_noteable[index].text, "terminal"):
 		return false
 	_render("[color=#7fa88a]Written in your notebook.[/color]", "none")
 	if visible:

@@ -8,6 +8,8 @@ signal answer_found(case_id: String)
 ## A line went into the notebook as a plain note (it answered no blank): a
 ## terminal row (kind "row") or a paper's line ("document").
 signal line_noted(text: String, kind: String)
+## One of a case's pieces was found (collect_piece): the HUD shows it.
+signal piece_found(case_id: String, piece_id: String)
 
 const LEVELS := {
 	"world": "res://scenes/world.tscn",
@@ -94,6 +96,11 @@ var notebook_todo: Array[Dictionary] = []
 var notebook_cases: Array[Dictionary] = []
 ## Voice line ids already jotted down this run, so a replayed line isn't jotted twice.
 var notebook_jotted: Array[String] = []
+## The job the crew was hired for is over (end_job): the work order is void, and
+## tasks from then on go on the case they're for.
+var job_over := false
+## What a missing piece shows on its case page and in the query so far.
+const PIECE_MISSING := "????"
 
 
 func _ready() -> void:
@@ -122,6 +129,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_todo.clear()
 	notebook_cases.clear()
 	notebook_jotted.clear()
+	job_over = false
 	inventory.clear()
 	van_seating.clear()
 
@@ -154,6 +162,7 @@ func discover_table(table: String, columns: Array) -> void:
 	if notebook_tables.has(table) and notebook_tables[table] == columns:
 		return
 	notebook_tables[table] = columns
+	_seen_tables()
 	notebook_changed.emit()
 
 
@@ -185,7 +194,9 @@ func current_case() -> String:
 
 
 ## A new task on the job ticket; the one before it is ticked off. "" ticks off
-## the current task and adds nothing. False if nothing changed.
+## the current task and adds nothing. False if nothing changed. Once the job is
+## over (end_job), a task is the current case's: it goes on that case's
+## checklist, not the void work order.
 func set_todo(text: String) -> bool:
 	if text != "" and current_todo() == text:
 		return false
@@ -195,7 +206,7 @@ func set_todo(text: String) -> bool:
 			t.done = true
 			changed = true
 	if text != "":
-		notebook_todo.append({"text": text, "done": false, "filled": ""})
+		notebook_todo.append({"text": text, "done": false, "filled": "", "case": current_case() if job_over else ""})
 		changed = true
 	if changed:
 		notebook_changed.emit()
@@ -220,6 +231,7 @@ func ticket() -> Dictionary:
 	t["order"] = ticket_number()
 	t["caller"] = Level0Data.caller_line(run_seed)  # who placed the call: not the contact
 	t["tasks"] = notebook_todo.duplicate(true)
+	t["void"] = job_over
 	return t
 
 
@@ -228,11 +240,19 @@ func ticket_number() -> String:
 	return "WO-%05d" % (run_seed % 100000)
 
 
+## Everything a case page can have, for a case made before it could (an old save).
+const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": []}
+
+
 func _case(id: String) -> Dictionary:
 	for c in notebook_cases:
 		if c.id == id:
+			for k in CASE_DEFAULTS:
+				if not c.has(k):
+					c[k] = CASE_DEFAULTS[k].duplicate() if CASE_DEFAULTS[k] is Array or CASE_DEFAULTS[k] is Dictionary else CASE_DEFAULTS[k]
 			return c
-	var c := {"id": id, "title": "", "open": false, "solved": false, "how": "", "tables": [], "clues": []}
+	var c := {"id": id, "title": "", "open": false, "solved": false, "how": "", "tables": [], "clues": [],
+		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": []}
 	notebook_cases.append(c)
 	return c
 
@@ -272,6 +292,13 @@ func solve_case(id: String, how: String) -> void:
 		return
 	c.solved = true
 	c.how = how
+	# However they got there, the board is complete: what they didn't pick up on
+	# the way, they knew.
+	for p in c.get("pieces", []):
+		p.found = true
+	for st in c.get("steps", []):
+		st.done = true
+	c["fresh_solve"] = true  # the notebook shows it solved, once, before filing it
 	notebook_changed.emit()
 
 
@@ -321,10 +348,13 @@ func blank_miss(id: String, text: String) -> bool:
 
 ## The player is adding `text` to their notebook: if it answers a case's blank,
 ## it goes in that blank instead, and answer_found fires. True if it did.
-func add_answer(text: String) -> bool:
+## `source` says where the line was ("document", "terminal"): a level can tell
+## which way the crew found it (find_route).
+func add_answer(text: String, source: String = "") -> bool:
 	var id := answers(text)
 	if id == "" or not fill_blank(id):
 		return false
+	case_info(id).blank["source"] = source
 	answer_found.emit(id)
 	return true
 
@@ -360,6 +390,201 @@ func jot(id: String, line: Dictionary) -> bool:
 	return true
 
 
+# --- Case pieces ------------------------------------------------------------
+# A case says up front which pieces its main route needs (a table, a column, a
+# value, a word from the book), each found somewhere on the floor. Found ones
+# fill in on its page and in its query; the HUD counts them. Other ways in
+# (routes) and endings are listed but hidden until found.
+
+## Give case `id` its pieces: [{id, label, value, task, where, seen_in?}].
+## `task` is its line on the case's checklist, `where` the vague nudge shown
+## while it's missing, `seen_in` a table whose columns (on the Tables page) show
+## it. `query` is the query with {piece_id} where each piece goes. `steps` are
+## the checklist's lines after the pieces: [{id, text}], ticked by tick_step
+## and all ticked when it's solved. An `optional` case is a side case: the HUD
+## counts only the main one. Pieces found before this keep their place.
+func set_pieces(id: String, pieces: Array, query: String = "", steps: Array = [], optional: bool = false) -> void:
+	var c := _case(id)
+	c.pieces = []
+	for p in pieces:
+		var piece: Dictionary = p.duplicate()
+		piece["found"] = c.solved or c.early.has(piece.id)
+		piece["from"] = str(c.early.get(piece.id, ""))
+		c.pieces.append(piece)
+	c.query = query
+	c.steps = steps.map(func(st): return {"id": st.id, "text": st.text, "done": c.solved})
+	c.optional = optional
+	_seen_tables()
+	notebook_changed.emit()
+
+
+## Case `id`'s piece `piece_id` is found; `from` says where. One found before its
+## case says what pieces it has is kept for then. True if it's newly found.
+func collect_piece(id: String, piece_id: String, from: String = "") -> bool:
+	var c := _case(id)
+	var p := _piece(c, piece_id)
+	if p.is_empty():
+		if c.early.has(piece_id):
+			return false
+		c.early[piece_id] = from
+		return true
+	if p.found:
+		return false
+	p.found = true
+	p.from = from
+	notebook_changed.emit()
+	piece_found.emit(id, piece_id)
+	return true
+
+
+func _piece(c: Dictionary, piece_id: String) -> Dictionary:
+	for p in c.get("pieces", []):
+		if p.id == piece_id:
+			return p
+	return {}
+
+
+## Is case `id`'s piece `piece_id` found (or was it found before the case said)?
+func has_piece(id: String, piece_id: String) -> bool:
+	var c := case_info(id)
+	if c.is_empty():
+		return false
+	var p := _piece(c, piece_id)
+	return p.found if not p.is_empty() else c.get("early", {}).has(piece_id)
+
+
+## Pieces whose table has turned up on the Tables page are found.
+func _seen_tables() -> void:
+	for c in notebook_cases:
+		for p in c.get("pieces", []):
+			if not p.found and notebook_tables.has(p.get("seen_in", "")):
+				collect_piece(c.id, p.id, "Tables page")
+
+
+func pieces_found(id: String) -> int:
+	return case_info(id).get("pieces", []).filter(func(p): return p.found).size()
+
+
+func pieces_total(id: String) -> int:
+	return case_info(id).get("pieces", []).size()
+
+
+## Tick a step on case `id`'s checklist. True if it was unticked.
+func tick_step(id: String, step_id: String) -> bool:
+	for st in case_info(id).get("steps", []):
+		if st.id == step_id and not st.done:
+			st.done = true
+			notebook_changed.emit()
+			return true
+	return false
+
+
+## Case `id`'s query so far: each found piece written in, each missing one ????.
+func case_query(id: String) -> String:
+	var c := case_info(id)
+	var q: String = c.get("query", "")
+	for p in c.get("pieces", []):
+		q = q.replace("{%s}" % p.id, str(p.value) if p.found else PIECE_MISSING)
+	return q
+
+
+## Case `id`'s checklist, in order: [{text, done}]. Its pieces' tasks, then its
+## steps, then (once the job is over) the tasks set while on it.
+func case_checklist(id: String) -> Array:
+	var c := case_info(id)
+	var out: Array = []
+	for p in c.get("pieces", []):
+		out.append({"text": str(p.get("task", p.label)), "done": p.found})
+	for st in c.get("steps", []):
+		out.append({"text": st.text, "done": st.done})
+	for t in notebook_todo:
+		if t.get("case", "") == id and id != "":
+			out.append({"text": t.text, "done": t.done or c.get("solved", false)})
+	return out
+
+
+## What to do next on case `id`: the first unticked line of its checklist, or "".
+func case_next(id: String) -> String:
+	for line in case_checklist(id):
+		if not line.done:
+			return line.text
+	return ""
+
+
+## The main case being worked on, with pieces to find: the newest open, unsolved,
+## not optional one. "" if none. The HUD counts its pieces.
+func main_case() -> String:
+	for c in notebook_cases:
+		if c.open and not c.solved and not c.get("optional", false) and not c.get("pieces", []).is_empty():
+			return c.id
+	return ""
+
+
+## Solved cases, newest first: the notebook keeps them under Completed cases.
+func completed_cases() -> Array:
+	return notebook_cases.filter(func(c): return c.open and c.solved)
+
+
+## The endings case `id` can have: [{id, name, hint}]. `hint` is the vague line
+## shown for one not found yet.
+func set_endings(id: String, endings: Array) -> void:
+	_case(id).endings = endings.duplicate(true)
+	notebook_changed.emit()
+
+
+## How case `id` ended this time. Each ending found is kept on the player's
+## profile ("ending:<case>:<ending>"), so the case shows it as found on later runs.
+func reach_ending(id: String, ending_id: String) -> void:
+	_case(id).ending = ending_id
+	_earn("ending:%s:%s" % [id, ending_id])
+	notebook_changed.emit()
+
+
+## The other ways into case `id` (besides its main route): [{id, name}].
+func set_routes(id: String, routes: Array) -> void:
+	var c := _case(id)
+	c.routes = routes.map(func(r): return {"id": r.id, "name": r.name, "found": c.get("routes_found", []).has(r.id)})
+	notebook_changed.emit()
+
+
+## This player found another way into case `id`. Kept on their profile like an
+## ending. True if it's new this run.
+func find_route(id: String, route_id: String) -> bool:
+	var c := _case(id)
+	var found: Array = c.get("routes_found", [])
+	if found.has(route_id):
+		return false
+	found.append(route_id)
+	c["routes_found"] = found
+	for r in c.routes:
+		if r.id == route_id:
+			r.found = true
+	_earn("route:%s:%s" % [id, route_id])
+	notebook_changed.emit()
+	return true
+
+
+## Has this player ever found `source` ("ending:..."/"route:..."), this run or an earlier one?
+func ever_found(source: String) -> bool:
+	var net := get_node_or_null("/root/Net")
+	return net != null and net.get("profile") != null and net.profile.earned.has(source)
+
+
+func _earn(source: String) -> void:
+	var net := get_node_or_null("/root/Net")
+	if net and net.get("profile") != null:
+		net.earn(source)
+
+
+## The job the crew was hired for is over: the work order is void from now on
+## and Tab opens on the case instead.
+func end_job() -> void:
+	if job_over:
+		return
+	job_over = true
+	notebook_changed.emit()
+
+
 ## The task the player is on now, or "".
 func current_todo() -> String:
 	return notebook_todo[-1].text if not notebook_todo.is_empty() and not notebook_todo[-1].done else ""
@@ -367,7 +592,7 @@ func current_todo() -> String:
 
 ## The notebook as plain data, for saving.
 func notebook_data() -> Dictionary:
-	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true), "cases": notebook_cases.duplicate(true), "jotted": notebook_jotted.duplicate()}
+	return {"notes": notebook_notes.duplicate(), "tables": notebook_tables.duplicate(true), "written": notebook_written.duplicate(true), "todo": notebook_todo.duplicate(true), "cases": notebook_cases.duplicate(true), "jotted": notebook_jotted.duplicate(), "job_over": job_over}
 
 
 func load_notebook(data: Dictionary) -> void:
@@ -377,6 +602,7 @@ func load_notebook(data: Dictionary) -> void:
 	notebook_todo.assign(data.get("todo", []))
 	notebook_cases.assign(data.get("cases", []))
 	notebook_jotted.assign(data.get("jotted", []))
+	job_over = data.get("job_over", false)
 	notebook_changed.emit()
 
 

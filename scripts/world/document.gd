@@ -33,8 +33,15 @@ var read_face := Vector3.BACK
 ## What reading it adds to the reader's case pages: [{case, text}] (see Game.add_clue).
 ## A clue with "opens" (a case title, and optional "tables") opens that case too.
 var clues: Array = []
+## Pieces of cases it holds: [{case, piece}] (see Game.collect_piece). While any
+## is still to find, E notes them straight into the case without picking it up,
+## and X reads it. Anyone finding them finds them for the whole crew.
+var pieces: Array = []
 ## Lying on a desk rather than up on a wall or a monitor.
 var flat := false
+## The prompt while it holds pieces still to find (drafts for Augustine's OK).
+const NOTE_IT := "Note it: %s"
+const READ_IT := "Read it"
 ## A sticky this player has already copied into their notebook.
 var _copied := false
 
@@ -271,7 +278,26 @@ static func _lines_height(lines: Array, font_size: int, width_px: float) -> floa
 func get_prompt(player: Node) -> String:
 	if is_sticky() and _copied:
 		return ""
+	if enabled and not is_sticky() and not uncollected().is_empty():
+		return "[E] %s    [X] %s" % [NOTE_IT % title, READ_IT]
 	return super(player)
+
+
+## Its pieces nobody has found yet.
+func uncollected() -> Array:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return []
+	return pieces.filter(func(p): return not game.has_piece(p.case, p.piece))
+
+
+## X: read it in your hands, whether or not its pieces are in.
+func interact_alt(player: Node) -> void:
+	if enabled and not pieces.is_empty() and not is_sticky():
+		var level := _level()
+		if level and level.get("player") != null and player != level.player:
+			return
+		_read(player)
 
 
 ## A handwritten sticky note: it goes into the notebook, never up in your hands.
@@ -286,10 +312,34 @@ func _on_used(player: Node) -> void:
 	if is_sticky():
 		take_sticky(player)
 		return
+	if not uncollected().is_empty():
+		collect(player)
+		return
+	_read(player)
+
+
+func _read(player: Node) -> void:
 	if get_node("/root/Game").diegetic_ui and player.has_method("pick_up"):
 		pick_up(player)
 	else:
 		open_reader(player)
+
+
+## E on a paper holding pieces: they go straight into their cases (and its clues
+## onto their pages) without picking it up. Counts as reading it.
+func collect(player: Node) -> void:
+	_note_clues(true)  # quietly (the found card says it), and first: a clue may open the case
+	_collect_pieces()
+	_report_read(player)
+
+
+## Every machine: this paper's pieces are found.
+func _collect_pieces() -> void:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return
+	for p in pieces:
+		game.collect_piece(p.case, p.piece, title)
 
 
 ## Lift it up off the desk or wall to read it in your hands (Game.diegetic_ui).
@@ -357,8 +407,8 @@ func open_reader(player: Node) -> DocumentReader:
 	return reader
 
 
-## Reading it puts its clues on this player's case pages.
-func _note_clues() -> void:
+## Reading it puts its clues on this player's case pages. `quiet`: no notice.
+func _note_clues(quiet: bool = false) -> void:
 	var game := get_node_or_null("/root/Game")
 	if game == null:
 		return
@@ -369,7 +419,7 @@ func _note_clues() -> void:
 		if game.add_clue(k.case, k.text, title):
 			noted = game.case_info(k.case).title
 	var level := _level()
-	if noted != "" and level and level.get("hud"):
+	if noted != "" and not quiet and level and level.get("hud"):
 		level.hud.notice("Noted on the case page: %s (Tab)" % noted, 3.0)
 
 
@@ -380,8 +430,15 @@ func _report_read(player: Node) -> void:
 		report_open(player)
 
 
-## Host: someone read it (or took it, if it's a loose sticky).
+## Host: someone read it (or took it, if it's a loose sticky). Its pieces are
+## found for everyone.
 func report_open(player: Node) -> void:
+	if not pieces.is_empty():
+		var s := LevelSync.of(self)
+		if s:
+			s.run_on(self, "_collect_pieces")
+		else:
+			_collect_pieces()
 	read_by.emit(player)
 	if is_sticky() and flat and is_in_group("interactable"):
 		var sync := LevelSync.of(self)
