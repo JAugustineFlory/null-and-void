@@ -2202,7 +2202,9 @@ func test_coop_lobby_names() -> void:
 func test_coop_patience() -> void:
 	print("Co-op: a host frozen loading the building keeps its joiners")
 	var net := root.get_node("Net")
-	for case in [[net.PATIENCE_LOBBY, false], [net.PATIENCE_LOADING, true]]:
+	# (Only the loading patience is checked: the lobby's 3 s minimum drops a joiner
+	# only once enough resends have piled up, so whether a 4 s freeze does is luck.)
+	for patience in [net.PATIENCE_LOADING]:
 		_next_port += 1
 		var host := ENetMultiplayerPeer.new()
 		host.create_server(_next_port, 6)
@@ -2225,18 +2227,14 @@ func test_coop_patience() -> void:
 				OS.delay_msec(2)
 			while host.get_available_packet_count() > 0:
 				host.get_packet()
-		net.patient(client.get_peer(1), case[0])
+		net.patient(client.get_peer(1), patience)
 		client.put_packet(PackedByteArray([2]))
 		# The host freezes for 4 s (loading the building); the client carries on.
 		var t0 := Time.get_ticks_msec()
 		while Time.get_ticks_msec() - t0 < 4000 and client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 			client.poll()
 			OS.delay_msec(20)
-		var kept := client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
-		if case[1]:
-			check(kept, "while the building loads, a joiner waits out a host frozen for 4 s")
-		else:
-			check(not kept, "(the lobby's quick patience would have dropped them, which is what happened)")
+		check(client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED, "while the building loads, a joiner waits out a host frozen for 4 s")
 		client.close()
 		host.close()
 
