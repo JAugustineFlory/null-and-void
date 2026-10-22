@@ -244,6 +244,9 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 		if not needed.has(k):
 			missing.append(k)
 	check(missing.is_empty(), "%s: its curriculum needs list covers every keyword in the answer%s" % [puzzle.id, "" if missing.is_empty() else " (add %s)" % ", ".join(missing)])
+	var board := board_solves(level, puzzle)
+	if board != "" and not spec.get("teaches", []).is_empty():
+		_board_flag("%s's board already solves it before the player starts (%s)" % [puzzle.id, board])
 	if spec.has("pressure"):
 		var said := "%s: %s while it's typed, as tests/curriculum.gd says" % [puzzle.id, "something can hunt the player" if spec.pressure else "nothing can hurt the player"]
 		if pressure_gap != "":
@@ -258,6 +261,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 	var hints_from: int = ui.terminal.transcript.size()
 	while not puzzle.solved and not (done.is_valid() and done.call()):
 		var read := remember(level, ui)
+		check_board(level, ui, puzzle, threat)
 		if pace:
 			await _spend(read / PACE_READ_CPS)
 		var text := screen(ui)
@@ -320,6 +324,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 			if (done.is_valid() and done.call()) or puzzle.solved:
 				break
 	var read_last := remember(level, ui)
+	check_board(level, ui)
 	if pace:
 		await _spend(read_last / PACE_READ_CPS)
 	for k in needed:
@@ -678,6 +683,10 @@ func walk_level_0() -> void:
 	ui.open(level.desk_terminal, level.player)
 	var h := await solve(level, ui, level.peek_puzzle, false)
 	check(h == 0, "lobby: the boot screen alone gets a new player through the first query (hints %d)" % h)
+	# A floor's found moment comes before its pieces: the memo's board asks for a sort
+	# once the scraps print out of order (before that, tests/case_board_tests.gd).
+	var memo_board: String = _game().case_query("memo")
+	check(memo_board.contains("ORDER BY enter_column_name"), "lobby: once the scraps print out of order, the memo's board asks for the sort, and its column stays the hint's blank (%s)" % memo_board)
 	h = await solve(level, ui, level.memo_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.memo_puzzle), "lobby: a lost player sorts the memo once a hint gives the query (hints %d)" % h)
 	var memo: Array = level.db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no")
@@ -708,6 +717,7 @@ func walk_level_0() -> void:
 	check(h >= 0 and h <= rescue_tier(level.visitor_puzzle), "lobby: a lost player reads the visitor log newest first once a hint gives the query (hints %d)" % h)
 	check(screen(ui).contains("VALE, I."), "lobby: the newest visitors on screen include Vale")
 	ui.close()
+	board_verdict("lobby")
 	level.queue_free()
 	await t.process_frame
 
@@ -779,6 +789,98 @@ func _blanks(p: Puzzle) -> Array:
 
 func _has_word(text: String, word: String) -> bool:
 	return RegEx.create_from_string("(?i)(?<![\\w-])" + _escape(word) + "(?![\\w-])").search(text) != null
+
+
+# --- The case board ------------------------------------------------------------
+
+## Columns the Tables page may find though they aren't tables (case id -> piece ids).
+## The caller's: the work order says "ext.", and no other column could hold it
+## (Teaching audit of PR #206).
+const TABLES_PAGE_COLUMNS := {"caller": ["column"]}
+## What the case board showed this floor that the world hadn't: judged once a floor.
+var _board_bad: Array[String] = []
+## Steps at which some case had pieces: 0 on a floor with no board yet.
+var _board_steps := 0
+## Where this floor starts in `taught`: a value shown on an earlier floor isn't
+## found here (a word from the book is: the player knows it).
+var _board_from := 0
+
+
+## The case board never shows the lost player more than the world has (rubric, "Case
+## board"). At every step of solve(), on every unsolved case with pieces:
+##   - a found piece's value is on a screen it has read on this floor, on a paper or
+##     sign in a room it has worked in, in the to-do or in the book: the board writes
+##     down only what the player was shown (a paper three rooms away hasn't been),
+##   - the Tables page finds only tables: a column picked from several stays the
+##     hint's enter_ blank,
+##   - a missing value reads as its hint's enter_ blank; only a missing word is ????,
+##   - a puzzle typed under threat doesn't write its pieces in (Game.set_assemble).
+func check_board(level: Node, ui: TerminalUI, p: Puzzle = null, threat := false) -> void:
+	var game := _game()
+	var here := "\n".join([taught.substr(_board_from), screen(ui), world_text(level, ui.terminal), _book_text()])
+	var any := false
+	for c in game.notebook_cases:
+		if c.get("solved", false) or c.get("pieces", []).is_empty():
+			continue
+		any = true
+		for piece in c.pieces:
+			var value := str(piece.value)
+			var said := ""
+			if piece.found and not game.hint_shows(here if not _is_word(value) else taught + here, value):
+				said = "shows %s, which the world hasn't (from: %s)" % [value, piece.get("from", "")]
+			elif piece.found and piece.get("from", "") == "Tables page" and not level.db.table_names().has(value) \
+					and not TABLES_PAGE_COLUMNS.get(c.id, []).has(piece.id):
+				said = "takes %s from the Tables page, but only tables are found there" % value
+			elif not piece.found and not str(piece.get("blank", "")).begins_with("enter_") and not _is_word(value):
+				said = "writes its missing value %s as %s, not as the hint's enter_ blank" % [value, piece.get("blank", game.PIECE_MISSING)]
+			if said != "":
+				_board_flag("%s/%s %s" % [c.id, piece.id, said])
+	if p != null and threat:
+		var c: Dictionary = game.case_info(p.case_id)
+		if not c.get("pieces", []).is_empty() and not c.get("solved", false) and c.get("assemble", true):
+			_board_flag("%s is typed under threat, but its board writes the pieces in" % p.id)
+	if any:
+		_board_steps += 1
+
+
+func _board_flag(said: String) -> void:
+	if not _board_bad.has(said):
+		_board_bad.append(said)
+
+
+## Puzzle `p`'s case board, if its query so far is complete and typing it would
+## solve `p` (""). A practice puzzle's board mustn't be, before the player starts:
+## then the board has done the thinking step.
+func board_solves(level: Node, p: Puzzle) -> String:
+	var game := _game()
+	var c: Dictionary = game.case_info(p.case_id)
+	if c.get("pieces", []).is_empty() or c.get("solved", false):
+		return ""
+	var q: String = game.case_query(p.case_id)
+	if has_blank(q) or q.contains(game.PIECE_MISSING):
+		return ""
+	var res: Dictionary = level.db.execute(q)
+	return q if res.ok and p.matches(level.db, res) else ""
+
+
+## A piece that is a word from the book (ORDER BY, DESC, LIMIT 5, >), not a value.
+func _is_word(value: String) -> bool:
+	return not keywords_in(value).is_empty() or ["<", ">", "<=", ">=", "=", "!="].has(value)
+
+
+## The chapters in the book so far: the board may name a word they show.
+func _book_text() -> String:
+	return "\n".join(_game().book_chapters.map(func(id): return JSON.stringify(Books.chapter(id))))
+
+
+## The floor's verdict on its case board, once it's walked (nothing on a floor with
+## no board yet). Starts the next floor's count.
+func board_verdict(where: String) -> void:
+	if _board_steps > 0:
+		check(_board_bad.is_empty(), "%s: the case board never shows more than the world has (%s)" % [where, "; ".join(_board_bad) if _board_bad else "%d steps" % _board_steps])
+	_board_bad.clear()
+	_board_steps = 0
+	_board_from = taught.length()
 
 
 # --- The crew's auto-jots ---------------------------------------------------------
@@ -870,8 +972,11 @@ func walk_level_1(seed_value: int) -> void:
 	ui.open(level.terminal, level.player)
 	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone comes from the doors query, not the boot screen")
 	# First step: the stuck doors, and the zone they share (only the doors table has it).
+	# The controller's board waits for that query to write the zone in.
+	check(_game().case_query("controller").contains("enter_zone"), "server room: before the doors query, the controller's board leaves the zone as the hint's blank (%s)" % _game().case_query("controller"))
 	var h := await solve(level, ui, level.stuck_doors_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player finds the stuck doors once a hint gives the query (hints %d)" % h)
+	check(_game().case_query("controller").contains("zone = '%s'" % level.zone), "server room: once the doors query shows their zone, the controller's board writes it in (%s)" % _game().case_query("controller"))
 	var stuck := last_table(screen(ui)).filter(func(r): return ["Server Room A rear exit", "Server Room C", "Lift 1, server floor"].has(r.get("name", "")))
 	check(stuck.size() == 3 and stuck.all(func(r): return r.get("zone", "") == level.zone), "server room: the shift log's stuck doors share one zone in the result")
 	h = await solve(level, ui, level.controller_puzzle, false)
@@ -919,6 +1024,7 @@ func walk_level_1(seed_value: int) -> void:
 	if reset:
 		reset.interact(level.player)
 	check(await _until(func(): return level.lights["1-BREAK"][0].visible, 6.0), "server floor: the reset lights the break room")
+	board_verdict("server floor (seed %d)" % seed_value)
 	level.queue_free()
 	await t.process_frame
 
@@ -992,6 +1098,7 @@ func walk_lab(seed_value: int) -> void:
 		sw.interact(p)
 	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "lab: resetting the controller read off the screen opens the lab door")
 	Engine.time_scale = 1.0
+	board_verdict("lab (seed %d)" % seed_value)
 	level.queue_free()
 	await t.process_frame
 
@@ -1081,6 +1188,7 @@ func walk_level_2(seed_value: int) -> void:
 	var lines: String = "\n".join(Array(level.booth.transcript) + level.booth.boot_lines).to_lower()
 	check(said.contains("message") and (lines.contains("froze") or lines.contains("last_frame")),
 		"security: after the Watcher gets you, the screen points to a terminal that says why it could move (a camera froze)")
+	board_verdict("security floor (seed %d)" % seed_value)
 	level.queue_free()
 	await t.process_frame
 
@@ -1245,6 +1353,7 @@ func walk_level_3(seed_value: int) -> void:
 	for i in 3:
 		await t.physics_frame
 	check(level.key_taken and not level.stair_out.locked, "%s: the key is in the box the query named, and it unlocks the stairs down" % where)
+	board_verdict(where)
 	level.queue_free()
 	await t.process_frame
 
@@ -1362,6 +1471,7 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	check(await _until(func(): return done[0], 40.0), "%s: locked in, the floor ends" % where)
 	Engine.time_scale = 1.0
 	net.profile.earned = earned
+	board_verdict(where)
 	level.queue_free()
 	await t.process_frame
 
@@ -1489,6 +1599,7 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 	check(await _until(func(): return done[0], 40.0), "%s: everyone on STAIR 2, the floor ends" % where)
 	Engine.time_scale = 1.0
 	net.profile.earned = earned
+	board_verdict(where)
 	level.queue_free()
 	await t.process_frame
 
