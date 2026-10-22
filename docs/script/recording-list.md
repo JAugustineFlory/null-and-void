@@ -213,8 +213,8 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_huddle_like_2` | So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. | Pleased to have found themself. | Level 2, later |
 | [ ] | `l2_huddle_get_1` | This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' | Flipping the book over to check the cover. | Level 2, later |
 | [ ] | `l2_huddle_get_2` | So it's a SELECT for robots. Got it. Probably. | Not convinced. | Level 2, later |
-| [ ] | `l4_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 4, later |
-| [ ] | `l4_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 4, later |
+| [ ] | `l4_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 4 |
+| [ ] | `l4_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 4 |
 
 ## Radio newsreader (7 lines)
 
