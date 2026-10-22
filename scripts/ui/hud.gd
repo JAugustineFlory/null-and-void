@@ -1,6 +1,7 @@
 class_name HUD
 extends CanvasLayer
-## On-screen info: crosshair, prompts, subtitles, objective, notices, damage.
+## On-screen info: crosshair, prompts, subtitles, objective, notices, damage,
+## and the main case's pieces (CaseChip).
 
 var _prompt: Label
 var _subtitle: Label
@@ -12,6 +13,8 @@ var _crosshair: Label
 var _notice_tween: Tween
 var _line_id := 0
 var _voice: Voice
+## The main case and how many of its pieces are in, top right (CaseChip).
+var case_chip: CaseChip
 
 
 func _ready() -> void:
@@ -60,6 +63,9 @@ func _ready() -> void:
 	_keys.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_keys.position = Vector2(28, -36)
 	root.add_child(_keys)
+	case_chip = CaseChip.new()
+	case_chip.name = "CaseChip"
+	root.add_child(case_chip)
 	subtitles_on_top(false)  # lays out the subtitle and notice
 
 	_voice = Voice.new()
@@ -141,6 +147,8 @@ func subtitles_on_top(on: bool) -> void:
 	_notice.offset_top = -46 if on else 70
 	_notice.offset_bottom = _notice.offset_top
 	_keys.visible = not on
+	if case_chip:
+		case_chip.set_allowed(not on)
 
 
 ## Keep subtitles clear of a panel `width` px wide down the right of the screen

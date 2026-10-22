@@ -266,7 +266,7 @@ func _index_of(text: String) -> int:
 ## up to show it written in (Notebook). False if it answers nothing.
 func answer(index: int) -> bool:
 	var all: Array[Dictionary] = document.lines()
-	if index < 0 or index >= all.size() or not get_node("/root/Game").add_answer(str(all[index].text)):
+	if index < 0 or index >= all.size() or not get_node("/root/Game").add_answer(str(all[index].text), "document"):
 		return false
 	close()
 	return true

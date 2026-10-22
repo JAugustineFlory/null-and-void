@@ -44,6 +44,27 @@ const ANSWER_WRITE_TIME := 1.4
 ## An empty answer blank on a case page, and how to fill it.
 const BLANK := "______________"
 const BLANK_HOW := "Found it? Point at the line that answers it, on a screen or a paper, and click + add to notebook."
+## The Cases tab's words (drafts for Augustine's word-for-word OK).
+const CASE_LABEL := "CASE"
+const SIDE_CASE := "SIDE CASE"
+const PIECES_COUNT := "%d/%d pieces"
+const PIECE_MISSING := "????"
+const FROM := "From: %s"
+const QUERY_SO_FAR := "The query so far"
+const CHECKLIST := "Checklist"
+const NOTES := "Notes"
+const OTHER_WAYS := "Other ways in: %d found"
+const ENDINGS := "Endings"
+const HIDDEN := "???"
+const ENDING := "%s  -  Ending %d of %d"
+const COMPLETED := "Completed cases (%d)  >"
+const COMPLETED_TITLE := "Completed cases"
+const BACK_TO_CASE := "< Back to the current case"
+const BACK_TO_COMPLETED := "< Completed cases"
+const ENDINGS_FOUND := "Ending %d of %d found"
+const ROUTES_FOUND := "%d of %d other ways in"
+const PIECE_FOUND_COLOR := Color(0.91, 0.69, 0.29)
+const PIECE_MISSING_COLOR := Color(0.78, 0.74, 0.62)
 const KIND_LABELS := {"result": "Query result", "hint": "Hint", "error": "Error", "schema": "Table shape", "echo": "I typed", "document": "From a document"}
 
 ## At the end of a level the notebook opens on Field Notes with buttons to carry on.
@@ -65,6 +86,11 @@ var _fresh_case := ""
 ## testing yourself.
 var book_chapter := ""
 var quiz: BookQuiz
+## The Cases tab: showing the list of completed cases, or one of them ("" for none).
+var showing_completed := false
+var completed_case := ""
+## Just-solved cases shown on screen this time: filed when the notebook closes.
+var _solved_seen := {}
 
 
 func _ready() -> void:
@@ -370,43 +396,47 @@ func _written_item(w: Dictionary, share: Dictionary = {}) -> Control:
 	return _clue_item("\n".join(lines.slice(0, 12)), label, share)
 
 
-## A page per open case, unsolved ones first: the question, what this player has
-## read about it and where, the notes they wrote or copied while on it, and the
-## tables it needs that they've found. Notes from before any case, or from one
-## not open, go under Other notes at the end.
+## The Cases tab. Solved cases are filed under Completed cases (the button at
+## the top), except one just solved, shown once, solved, before it's filed. A
+## case with pieces (Game.set_pieces) gets a spread to itself: the case on the
+## left, its checklist and notes on the right, the main case first. One without
+## pieces is a page of its question, clues and notes, as before. Notes from
+## before any case, or from one not open, go under Other notes at the end.
 func _case_items(game: Node) -> Array[Control]:
+	if completed_case != "":
+		return _completed_case_items(game)
+	if showing_completed:
+		return _completed_items(game)
 	var items: Array[Control] = []
 	var open: Array = game.notebook_cases.filter(func(c): return c.open)
 	var current: String = game.current_case()
+	var main: String = game.main_case()
 	var shown := {}
 	var h := _huddling()
 	if h:
 		items.append_array(_huddle_items(h, game))
-	if open.is_empty():
+	var filed: Array = open.filter(func(c): return c.solved and not c.get("fresh_solve", false))
+	if not filed.is_empty() and not end_of_level:
+		items.append(_case_button(COMPLETED % filed.size(), "CompletedCases", func(): showing_completed = true))
+	for c in filed:
+		shown[c.id] = true  # their notes stay with them
+	var list: Array = open.filter(func(c): return not filed.has(c))
+	if list.is_empty():
 		items.append(NotebookArt.heading("Cases"))
 		items.append(NotebookArt.hand("No open cases. When the job turns up something to figure out, it gets a page here.", 24, NotebookArt.PENCIL))
-	open.sort_custom(func(a, b): return not a.solved and b.solved)
-	for c in open:
+	# Just solved first (the reward), then the main case, then the rest.
+	list.sort_custom(func(a, b): return _case_rank(a, main) < _case_rank(b, main))
+	for c in list:
 		shown[c.id] = true
-		var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
-		items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
-		if h and not (c.clues.is_empty() and notes.is_empty()):
-			items.append(_share_case_button(h, game, c.id))
-		if c.has("blank"):
-			items.append_array(_blank_items(c))
-		if c.solved:
-			items.append(NotebookArt.hand("Solved: " + c.how, 22))
-		if c.clues.is_empty() and notes.is_empty():
-			items.append(NotebookArt.hand("Nothing yet. Read what's around: papers, plates on the doors, the terminal.", 22, NotebookArt.PENCIL))
-		for k in c.clues:
-			items.append(_clue_item(k.text, k.from, NotesHuddle.clue_item(c, k.text, k.from) if h else {}))
-		for w in notes:
-			items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
-		if c.id == current:
-			items.append_array(_write_button())
-		for t in c.tables:
-			if game.notebook_tables.has(t):
-				items.append(NotebookArt.table_card(t, game.notebook_tables[t]))
+		if c.get("fresh_solve", false) and showing:
+			_solved_seen[c.id] = true
+		if not c.get("pieces", []).is_empty():
+			var board := _board_items(game, c, c.id == current)
+			if c == list[0]:
+				board.pop_front().free()  # the first starts right under the button
+			items.append_array(board)
+		else:
+			items.append_array(_plain_case_items(game, c, c.id == current, h))
 	var other: Array = game.notebook_written.filter(func(w): return not shown.has(w.get("case", "")))
 	if not other.is_empty() or current == "":
 		items.append(NotebookArt.heading("Other notes"))
@@ -417,6 +447,229 @@ func _case_items(game: Node) -> Array[Control]:
 		if current == "":
 			items.append_array(_write_button())
 	return items
+
+
+## Where a case goes on the Cases tab: just solved, the main case, the rest.
+static func _case_rank(c: Dictionary, main: String) -> int:
+	if c.get("fresh_solve", false):
+		return 0
+	return 1 if c.id == main else 2
+
+
+## A case without pieces: its question, blank, clues, notes and tables, in order.
+func _plain_case_items(game: Node, c: Dictionary, is_current: bool, h: NotesHuddle) -> Array[Control]:
+	var items: Array[Control] = []
+	var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
+	items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
+	if h and not (c.clues.is_empty() and notes.is_empty()):
+		items.append(_share_case_button(h, game, c.id))
+	if c.has("blank"):
+		items.append_array(_blank_items(c))
+	if c.solved:
+		items.append(NotebookArt.hand("Solved: " + c.how, 22))
+	if c.clues.is_empty() and notes.is_empty():
+		items.append(NotebookArt.hand("Nothing yet. Read what's around: papers, plates on the doors, the terminal.", 22, NotebookArt.PENCIL))
+	items.append_array(_case_notes(game, c, notes, h))
+	if is_current:
+		items.append_array(_write_button())
+	for t in c.tables:
+		if game.notebook_tables.has(t):
+			items.append(NotebookArt.table_card(t, game.notebook_tables[t]))
+	return items
+
+
+## A case's clues and the notes written on it.
+func _case_notes(game: Node, c: Dictionary, notes: Array, h: NotesHuddle) -> Array[Control]:
+	var items: Array[Control] = []
+	for k in c.clues:
+		items.append(_clue_item(k.text, k.from, NotesHuddle.clue_item(c, k.text, k.from) if h else {}))
+	for w in notes:
+		items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
+	return items
+
+
+## A case with pieces, on a spread of its own. Left: the question, how many
+## pieces are in, each piece (found, or ???? with where to look), the query so
+## far and the blank for the answer; solved, its ending. Right: the checklist,
+## the other ways in and endings still hidden, then the clues and notes.
+func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]:
+	var h := _huddling()
+	var items: Array[Control] = [_break("spread")]
+	var found: int = game.pieces_found(c.id)
+	var total: int = game.pieces_total(c.id)
+	items.append(NotebookArt.hand(SIDE_CASE if c.get("optional", false) else CASE_LABEL, 18, NotebookArt.PENCIL))
+	items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
+	if c.solved:
+		items.append_array(_ending_items(game, c))
+	items.append(_progress(found, total))
+	var n := 1
+	for p in c.pieces:
+		items.append(_piece_item(n, p))
+		n += 1
+	if c.get("query", "") != "":
+		var q := VBoxContainer.new()
+		q.name = "QuerySoFar"
+		q.add_theme_constant_override("separation", 0)
+		q.add_child(NotebookArt.hand(QUERY_SO_FAR, 18, NotebookArt.PENCIL))
+		var line := NotebookArt.code(game.case_query(c.id), 17)
+		line.name = "Query"
+		q.add_child(line)
+		items.append(q)
+	if c.has("blank"):
+		items.append_array(_blank_items(c))
+	if c.solved:
+		items.append(NotebookArt.hand("Solved: " + c.how, 22))
+	items.append(_break("page"))
+	items.append(NotebookArt.hand(CHECKLIST, 30))
+	for line in game.case_checklist(c.id):
+		var l := NotebookArt.hand(("[x]  " if line.done else "[  ]  ") + line.text, 22 if line.done else 24, NotebookArt.PENCIL if line.done else NotebookArt.INK)
+		l.name = "Check"
+		items.append(l)
+	items.append_array(_route_items(game, c))
+	var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
+	if h and not (c.clues.is_empty() and notes.is_empty()):
+		items.append(_share_case_button(h, game, c.id))
+	if not (c.clues.is_empty() and notes.is_empty()):
+		items.append(NotebookArt.hand(NOTES, 26))
+	items.append_array(_case_notes(game, c, notes, h))
+	if is_current:
+		items.append_array(_write_button())
+	return items
+
+
+## "3/4 pieces" and a bar of one segment per piece, the found ones filled.
+func _progress(found: int, total: int) -> Control:
+	var row := HBoxContainer.new()
+	row.name = "Progress"
+	row.add_theme_constant_override("separation", 6)
+	for i in total:
+		var seg := ColorRect.new()
+		seg.color = PIECE_FOUND_COLOR if i < found else PIECE_MISSING_COLOR
+		seg.custom_minimum_size = Vector2(0, 10)
+		seg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		seg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(seg)
+	var count := NotebookArt.hand(PIECES_COUNT % [found, total], 24)
+	count.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(count)
+	return row
+
+
+## One piece: its number and what kind of piece it is, then what it is (or ????)
+## and where it came from (or a vague nudge where to look).
+func _piece_item(n: int, p: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.name = "Piece"
+	row.add_theme_constant_override("separation", 10)
+	var num := NotebookArt.hand("%d." % n, 26, NotebookArt.INK if p.found else NotebookArt.PENCIL)
+	num.autowrap_mode = TextServer.AUTOWRAP_OFF
+	num.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(num)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", -4)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(NotebookArt.hand(str(p.label), 17, NotebookArt.PENCIL))
+	var value := NotebookArt.hand(str(p.value) if p.found else PIECE_MISSING, 28, NotebookArt.INK if p.found else NotebookArt.PENCIL)
+	value.name = "Value"
+	box.add_child(value)
+	var source := str(p.get("from", "")) if p.found else str(p.get("where", ""))
+	if source != "":
+		box.add_child(NotebookArt.hand((FROM % source) if p.found else source, 17, NotebookArt.PENCIL))
+	row.add_child(box)
+	return row
+
+
+## A solved case's ending: "Rourke survived  -  Ending 1 of 3", in red pen. None
+## if the case has only the one way to end.
+func _ending_items(game: Node, c: Dictionary) -> Array[Control]:
+	var endings: Array = c.get("endings", [])
+	var at := -1
+	for i in endings.size():
+		if endings[i].id == c.get("ending", ""):
+			at = i
+	if at < 0:
+		return []
+	var l := NotebookArt.hand(ENDING % [endings[at].name, at + 1, endings.size()], 30, NotebookArt.RED_PEN)
+	l.name = "Ending"
+	return [l]
+
+
+## The right page's other ways in and endings: each one found (this run, or on
+## an earlier one) by name, the rest as ???.
+func _route_items(game: Node, c: Dictionary) -> Array[Control]:
+	var items: Array[Control] = []
+	var routes: Array = c.get("routes", [])
+	if not routes.is_empty():
+		var found := routes.filter(func(r): return r.found or game.ever_found("route:%s:%s" % [c.id, r.id]))
+		items.append(NotebookArt.hand(OTHER_WAYS % found.size(), 24))
+		for r in routes:
+			items.append(NotebookArt.hand("   " + (r.name if found.has(r) else HIDDEN), 20, NotebookArt.INK if found.has(r) else NotebookArt.PENCIL))
+	var endings: Array = c.get("endings", [])
+	if not endings.is_empty():
+		items.append(NotebookArt.hand(ENDINGS, 24))
+		for e in endings:
+			var had: bool = c.get("ending", "") == e.id or game.ever_found("ending:%s:%s" % [c.id, e.id])
+			items.append(NotebookArt.hand("   " + (e.name if had else HIDDEN + "   " + str(e.get("hint", ""))), 20, NotebookArt.INK if had else NotebookArt.PENCIL))
+	return items
+
+
+## Completed cases: each solved case, with its pieces, ending and other ways in
+## found. Pressing one opens it.
+func _completed_items(game: Node) -> Array[Control]:
+	var items: Array[Control] = [NotebookArt.heading(COMPLETED_TITLE)]
+	items.append(_case_button(BACK_TO_CASE, "BackToCase", func(): showing_completed = false))
+	for c in game.completed_cases():
+		items.append(_case_button("[x]  " + c.title, "Completed_" + c.id, func(): completed_case = c.id))
+		var parts: Array = []
+		if not c.get("pieces", []).is_empty():
+			parts.append(PIECES_COUNT % [game.pieces_found(c.id), game.pieces_total(c.id)])
+		var endings: Array = c.get("endings", [])
+		if not endings.is_empty():
+			parts.append(ENDINGS_FOUND % [endings.filter(func(e): return c.ending == e.id or game.ever_found("ending:%s:%s" % [c.id, e.id])).size(), endings.size()])
+		var routes: Array = c.get("routes", [])
+		if not routes.is_empty():
+			parts.append(ROUTES_FOUND % [routes.filter(func(r): return r.found or game.ever_found("route:%s:%s" % [c.id, r.id])).size(), routes.size()])
+		parts.append(c.how)
+		items.append(NotebookArt.hand("   " + "  -  ".join(parts), 20, NotebookArt.PENCIL))
+	return items
+
+
+## One completed case, opened from the list.
+func _completed_case_items(game: Node) -> Array[Control]:
+	var c: Dictionary = game.case_info(completed_case)
+	var items: Array[Control] = [_case_button(BACK_TO_COMPLETED, "BackToCompleted", func(): completed_case = "")]
+	if c.is_empty():
+		return items
+	if c.get("pieces", []).is_empty():
+		items.append_array(_plain_case_items(game, c, false, null))
+	else:
+		var board := _board_items(game, c, false)
+		board.pop_front().free()  # straight under the button, not on a spread of its own
+		items.append_array(board)
+	return items
+
+
+## A press on the Cases tab (completed cases, back): do it, then redraw the tab.
+func _case_button(caption: String, node_name: String, action: Callable) -> Button:
+	return _book_button(caption, node_name, action)
+
+
+## Where the pages break: "page" goes on to the next page, "spread" to the next
+## left-hand page. Taken out when the pages are laid out (_paginate).
+static func _break(kind: String) -> Control:
+	var c := Control.new()
+	c.name = "Break"
+	c.set_meta("break", kind)
+	return c
+
+
+## The notebook was put away: cases it showed just solved are filed now.
+func file_solved() -> void:
+	var game := (Engine.get_main_loop() as SceneTree).root.get_node("Game")
+	for id in _solved_seen:
+		game.case_info(id).erase("fresh_solve")
+	if not _solved_seen.is_empty():
+		_solved_seen.clear()
 
 
 ## A case's blank for its answer, under the question: empty, with how to fill it
@@ -513,6 +766,17 @@ func _paginate(items: Array[Control]) -> Array:
 	var used := 0.0
 	book.clear_pages()
 	for item in items:
+		if item.has_meta("break"):
+			var kind: String = item.get_meta("break")
+			item.free()
+			var empty: bool = pages[-1].is_empty()
+			# A spread starts on a left page; one already starting there needs no break.
+			if kind == "page" or not empty:
+				pages.append([])
+			if kind == "spread" and (pages.size() - 1) % 2 == 1:
+				pages.append([])
+			used = 0.0
+			continue
 		# Measure on the page itself, so fonts and wrapping match what's shown.
 		book.left.add_child(item)
 		# Wrapped text measures at the page's width, before the page lays it out.

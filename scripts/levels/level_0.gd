@@ -61,6 +61,25 @@ var stair_door: Door
 const LIFT_AT := Vector3(30, 0, 3)
 ## The visitor book's case page, opened by reading the book (optional).
 const BOOK_CASE := "Who signed in last? The book's last page is gone."
+## Each case's pieces (Game.set_pieces): what the crew finds on this floor to
+## put its query together. Drafts for Augustine's word-for-word OK.
+const MEMO_PIECES := [
+	{"id": "table", "label": "The table", "value": "memo_fragments", "task": "Find the table the scans are saved in", "where": "Something about the scanner, on the front desk", "seen_in": "memo_fragments"},
+	{"id": "column", "label": "The column that numbers the scraps", "value": "piece_no", "task": "Find the column that numbers the scraps", "where": "Also something about the scanner", "seen_in": "memo_fragments"},
+	{"id": "order", "label": "The words that sort rows", "value": "ORDER BY", "task": "Find how to put rows in order", "where": "Someone's reminder, on the front desk"},
+]
+const MEMO_QUERY := "SELECT * FROM {table} {order} {column};"
+const MEMO_STEPS := [{"id": "run", "text": "Run it at the front desk terminal"}]
+const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's row and add it to your notebook"}]
+const CALLER_QUERY := "SELECT name, {column} FROM {table};"
+const CALLER_ROUTES := [{"id": "printout", "name": "The mailroom's printout"}]
+const VISITOR_PIECES := [
+	{"id": "table", "label": "The table", "value": "visitors", "task": "Find where every visitor is logged", "where": "The visitor book, on the front desk", "seen_in": "visitors"},
+	{"id": "column", "label": "The column with the sign-in time", "value": "signed_in", "task": "Find the column with the sign-in time", "where": "Type .schema visitors at the terminal", "seen_in": "visitors"},
+	{"id": "desc", "label": "Newest first", "value": "DESC", "task": "Find how to put the newest first", "where": "A reminder beside the visitor book"},
+	{"id": "limit", "label": "Just the last few", "value": "LIMIT 5", "task": "Find how to keep only the last few", "where": "Another reminder beside the book"},
+]
+const VISITOR_QUERY := "SELECT * FROM {table} ORDER BY {column} {desc} {limit};"
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
 	"The shape of it:\n" +
 	"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
@@ -163,7 +182,8 @@ func build() -> void:
 	desk_terminal.queried.connect(_on_desk_query)
 	StickyNote.on_monitor(desk_terminal, "select_from")
 	# Someone's reminder to themselves, left on the desk.
-	StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true)
+	StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true).taken.connect(
+		func(_p): get_node("/root/Game").collect_piece("memo", "order", "Sticky note on the front desk"))
 	Document.place(geo, Vector3(1.86, 1.102, -0.78), 0.0, "Sticky note", [{"text": "ORDER matters.", "hand": true}, {"text": "  - I.", "hand": true}], true, "sticky").clues = [
 		{"case": "memo", "text": "\"ORDER matters.\" - I."},
 	]
@@ -179,6 +199,7 @@ func build() -> void:
 		"",
 		{"text": "Front desk scanner. Don't feed it staples!! - IT", "hand": true},
 	], true, "brochure", Vector2(0.15, 0.21))
+	scan_card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo", "piece": "column"}]
 	scan_card.clues = [
 		{"case": "memo", "text": "The scanner saves each scrap as one row in the table memo_fragments."},
 		{"case": "memo", "text": "piece_no numbers each scrap by where it sat on the page, starting at 1."},
@@ -203,6 +224,8 @@ func build() -> void:
 		"Sign in AND out. All visitors are also logged in visitors.",
 		{"text": "Who tore the last page out?? - N.F.", "hand": true},
 	], true, "note", Vector2(0.15, 0.2))
+	game.set_pieces("last_visitor", VISITOR_PIECES, VISITOR_QUERY, [], true)
+	book.pieces = [{"case": "last_visitor", "piece": "table"}]
 	book.clues = [{"case": "last_visitor", "opens": BOOK_CASE, "tables": ["visitors"],
 		"text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
 	# The night desk's own reminder beside the book: DESC, found before it's needed.
@@ -212,12 +235,14 @@ func build() -> void:
 		{"text": "  - N.F.", "hand": true},
 	], true, "sticky")
 	newest.clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
+	newest.pieces = [{"case": "last_visitor", "piece": "desc"}]
 	var last_few := Document.place(geo, Vector3(-2.95, 1.102, -1.15), -8.0, "Sticky note", [
 		{"text": "Just the last few?", "hand": true},
 		{"text": "...DESC LIMIT 5", "hand": true},
 		{"text": "  - N.F.", "hand": true},
 	], true, "sticky")
 	last_few.clues = [{"case": "last_visitor", "text": "Just the last few? End the query with LIMIT 5: only the first 5 rows."}]
+	last_few.pieces = [{"case": "last_visitor", "piece": "limit"}]
 	# The book or N.F.'s stickies bring back Newest first (DESC, LIMIT), once the memo
 	# has put ORDER BY to use.
 	for d in [book, newest, last_few]:
@@ -673,6 +698,7 @@ func start() -> void:
 	hud.lines(["l0_tour_1", "l0_tour_2", "l0_desk_1", "l0_desk_2"])
 	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
 	get_node("/root/Game").open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
+	get_node("/root/Game").set_pieces("memo", MEMO_PIECES, MEMO_QUERY, MEMO_STEPS)
 
 
 ## Host: everyone has signed the log and taken a badge.
@@ -900,6 +926,7 @@ func _on_memo_backwards() -> void:
 
 func _on_peek_solved() -> void:
 	peek_puzzle.solved = true
+	get_node("/root/Game").collect_piece("memo", "order", "Easy SQL")  # the chapter the crew is about to read
 	# The scraps came out of order: the book's ORDER BY chapter, round the garage bench.
 	await _book_huddle("easy_sql_2")
 	if memo_puzzle.solved:
@@ -996,6 +1023,16 @@ static func visitor_top_one_for() -> Puzzle:
 	return Puzzle.new("visitor_top_one", "SELECT name, signed_in FROM visitors ORDER BY signed_in DESC LIMIT 1", ["name", "signed_in"], true)
 
 
+## The caller case's pieces for a run whose work order shows extension `ext`.
+## Drafts for Augustine's word-for-word OK.
+static func caller_pieces(ext: int) -> Array:
+	return [
+		{"id": "ext", "label": "The number", "value": "ext. %d" % ext, "task": "Read the extension off the work order", "where": "The work order"},
+		{"id": "table", "label": "The table", "value": "staff_directory", "task": "Find the table of staff", "where": "Ask SYSOP at the front desk terminal", "seen_in": "staff_directory"},
+		{"id": "column", "label": "The column with extensions", "value": "extension", "task": "Find the column that holds extensions", "where": "Type .schema staff_directory at the terminal", "seen_in": "staff_directory"},
+	]
+
+
 ## Rourke didn't place the call: who did? The work order has the extension; the
 ## staff directory (or the mailroom's printout of it) has the name.
 func _ask_caller() -> void:
@@ -1003,6 +1040,10 @@ func _ask_caller() -> void:
 	hud.todo("Find out who called from ext. %d" % data.extension)
 	var game := get_node("/root/Game")
 	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"])
+	game.set_pieces("caller", caller_pieces(data.extension), CALLER_QUERY, CALLER_STEPS)
+	game.set_routes("caller", CALLER_ROUTES)
+	game.collect_piece("caller", "ext", "the work order")
+	game.collect_piece("caller", "table", "SYSOP")
 	game.add_clue("caller", "The call came from ext. %d." % data.extension, "Work order")
 	game.set_blank("caller", "Ext. %d belongs to" % data.extension, ["harold mercer", str(data.extension)], "Harold Mercer")
 	game.add_clue("caller", "Name just the columns you want, with commas between them: SELECT column, column FROM table_name;", "SYSOP")
@@ -1037,6 +1078,9 @@ func _on_caller_listed() -> void:
 ## This player added a line that answers one of their cases: tell the host.
 func _on_answer_found(id: String) -> void:
 	if id == "caller":
+		var game := get_node("/root/Game")
+		if game.case_info("caller").blank.get("source", "") == "document":
+			game.find_route("caller", "printout")  # off the wall, no query needed
 		sync.report_answer(id)
 
 
