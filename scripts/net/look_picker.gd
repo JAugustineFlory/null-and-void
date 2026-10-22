@@ -52,7 +52,8 @@ func _exit_tree() -> void:
 	_net().roster_changed.disconnect(refresh)
 
 
-## Your name is fixed once you're in a session: teammates already see it.
+## Whether you can change your name here (in the lobby you always can: the
+## host passes it on).
 func set_name_editable(on: bool) -> void:
 	_name.editable = on
 
