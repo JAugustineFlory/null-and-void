@@ -836,7 +836,7 @@ func test_voice_playback() -> void:
 	var wait := voice.play("l0_greet_1")
 	check(absf(wait - (0.5 + Voice.TAIL)) < 0.05, "the line lasts as long as its recording (%.2f s)" % wait)
 	check(voice.is_playing(), "the recording plays")
-	check(voice._player.bus == &"Master", "Rourke plays without the PA filter")
+	check(voice._player.bus == Sfx.VOICE, "Rourke plays on the Voice bus, without the PA filter")
 	DirAccess.remove_absolute(wav_path)
 	DirAccess.make_dir_recursive_absolute(Voice.folder.path_join("rourke"))
 	var take2 := Voice.folder.path_join("rourke/l0_greet_1_take2.wav")
@@ -858,6 +858,8 @@ func test_voice_playback() -> void:
 	voice.play("l0_pa_1")
 	check(voice._player.bus == Voice.PA_BUS, "the building's announcements play through the PA speaker sound too")
 	var pa_bus := AudioServer.get_bus_index(Voice.PA_BUS)
+	var voice_bus := AudioServer.get_bus_index(Sfx.VOICE)
+	check(AudioServer.get_bus_send(pa_bus) == Sfx.VOICE and voice_bus != -1 and voice_bus < pa_bus, "the PA feeds the Voice bus, so the Voices slider covers WARDEN too")
 	var hall: AudioEffectReverb = null
 	for i in AudioServer.get_bus_effect_count(pa_bus):
 		if AudioServer.get_bus_effect(pa_bus, i) is AudioEffectReverb:

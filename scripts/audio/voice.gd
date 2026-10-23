@@ -10,7 +10,8 @@ const EXTENSIONS := ["ogg", "wav", "mp3"]
 const TAIL := 0.1
 ## WARDEN and the building's announcements play through the PA: thin, boxy speakers
 ## echoing down empty halls. The dry voice stays at full level so subtitles and
-## speech still line up; the hall is added underneath.
+## speech still line up; the hall is added underneath. Both end up on the Voice bus,
+## so the pause menu's Voices slider turns them up and down together.
 const PA_BUS := &"VoicePA"
 const PA_SPEAKERS := ["WARDEN", "PA"]
 
@@ -85,7 +86,7 @@ func play(id: String, dir: String = "") -> float:
 	if stream == null:
 		return 0.0
 	_player.stream = stream
-	_player.bus = PA_BUS if VoiceLines.get_line(id).get("speaker") in PA_SPEAKERS else &"Master"
+	_player.bus = PA_BUS if VoiceLines.get_line(id).get("speaker") in PA_SPEAKERS else Sfx.VOICE
 	_player.play()
 	return stream.get_length() + TAIL
 
@@ -99,12 +100,14 @@ func is_playing() -> bool:
 
 
 static func _ensure_pa_bus() -> void:
+	# Voice first: a bus only sends to one made before it.
+	Sfx.ensure_buses()
 	if AudioServer.get_bus_index(PA_BUS) >= 0:
 		return
 	AudioServer.add_bus()
 	var bus := AudioServer.bus_count - 1
 	AudioServer.set_bus_name(bus, PA_BUS)
-	AudioServer.set_bus_send(bus, &"Master")
+	AudioServer.set_bus_send(bus, Sfx.VOICE)
 	var high := AudioEffectHighPassFilter.new()
 	high.cutoff_hz = 350.0
 	var low := AudioEffectLowPassFilter.new()
