@@ -45,6 +45,7 @@ var _field_notes: CanvasLayer
 
 ## A new game opens in the garage; otherwise (tests, debugging) in the van at Halcyon.
 func start() -> void:
+	MusicDirector.follow(self)  # the score follows the floor's danger from here on
 	if get_node("/root/Game").open_at_home:
 		enter_home()
 	else:

@@ -5468,6 +5468,13 @@ func test_coop_level_3() -> void:
 	await _frames(180)
 	check(machines.all(func(l): return l.cranked[room]) and client.shelving[room][0].position.is_equal_approx(host.shelving[room][0].position), "a client's crank rolls the shelving on every machine, to the same place")
 	check(host.shredder.active and client.shredder.active and client.shredder.global_position.distance_to(host.shredder.global_position) < 0.5, "the crank wakes the Shredder on the host, and clients see it where the host has it")
+	# The music reads the Shredder's replicated state, so every machine hears the same mood.
+	for i in 30:
+		if MusicDirector.danger(host.shredder) == MusicDirector.danger(client.shredder):
+			break
+		await physics_frame
+	check(MusicDirector.danger(host.shredder) > 0 and MusicDirector.danger(client.shredder) == MusicDirector.danger(host.shredder),
+		"awake, it makes the music hunted or chase, the same on every machine")
 	# Every machine plays the slide out: on each, its own player walks the walkway into
 	# the opened aisle (the Shredder, drawn by the crank, holds still meanwhile).
 	host.shredder.process_mode = Node.PROCESS_MODE_DISABLED
