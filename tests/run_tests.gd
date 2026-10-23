@@ -3238,6 +3238,7 @@ func test_level_2_routes() -> void:
 	p.controls.move = Vector2.ZERO
 	check(shuffled and lowest > -0.5 and p.global_position.z < -7.5, "the east ledge shuffles to the far corner without falling (z %.1f)" % p.global_position.z)
 	check(level.wind.playing and level.wind.volume_db > -12.0, "out on the ledge the wind is loud (%.0f dB)" % level.wind.volume_db)
+	check(level.wind.bus == Sfx.AMBIENCE, "the wind plays on the Ambience bus, under its slider")
 	check(absf(p.head.rotation.z) > 0.0005, "and the view sways a little")
 	# A step off the edge, 80 m up, is the end of that player: they come to at the floor's checkpoint.
 	p.state = Player.Move.WALK  # off the ledge, a step clear of it

@@ -482,6 +482,7 @@ func _build_ledge() -> void:
 	wind.name = "LedgeWind"
 	wind.stream = Level2FX.wind()
 	wind.volume_db = WIND_SILENT
+	wind.bus = Sfx.AMBIENCE  # the Ambience slider turns it down
 	add_child(wind)
 
 

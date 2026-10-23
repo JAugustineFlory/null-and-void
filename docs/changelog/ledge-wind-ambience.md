@@ -1,0 +1,1 @@
+- **Fixed:** the wind on floor 22's ledge follows the Ambience volume slider.
