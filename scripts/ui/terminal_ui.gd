@@ -869,7 +869,6 @@ func open_script_editor() -> ScriptEditorUI:
 func _noted_hint(case_id: String, hint: String) -> String:
 	if case_id != "":
 		get_node("/root/Game").add_clue(case_id, _plain(hint), "SYSOP hint")
-		get_node("/root/Game").note_hint(case_id, hint)
 	return hint
 
 

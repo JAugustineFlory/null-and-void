@@ -250,6 +250,7 @@ func test_growing_case() -> void:
 	check(NotebookPages.text_of(items).contains("memo_fragments"), "and the piece itself still shows on the page")
 	var qb: Control = items.filter(func(i): return i.name == "QuerySoFar")[0].get_node("QueryBlocks")
 	check(not qb.get_node("Piece1").get_meta("found"), "but its block in the query stays gray")
+	check(qb.get_children().all(func(b): return b.find_child("Number", true, false) == null), "and no block is numbered, so the page doesn't say which piece goes where")
 	for i in items:
 		i.free()
 	pages.free()
@@ -277,6 +278,16 @@ func test_hint_pieces() -> void:
 	g.set_pieces("visit", [{"id": "table", "label": "The table", "value": "visitors", "task": "t", "where": "w", "seen_in": "visitors"}])
 	g.see_table_pieces("visitors", TerminalUI.QUERY_BY % "Sam")
 	check(g.has_piece("visit", "table") and g.case_info("visit").pieces[0].from == "Sam's query" and not g.notebook_tables.has("visitors"), "in co-op a crewmate's query finds a table piece on every board, without filling your Tables page")
+	var term := Terminal.new()
+	var pz := Puzzle.new("p", "SELECT * FROM memo_fragments ORDER BY piece_no", ["text"], true, ["The shape:\n    [color=#ffffff]SELECT * FROM memo_fragments ORDER BY piece_no;[/color]"])
+	pz.case_id = "memo"
+	term.puzzles = [pz]
+	_tree.root.add_child(term)
+	term.print_line(TerminalUI.sysop("Something else entirely."), "hint")
+	check(not g.has_piece("memo", "column"), "a SYSOP line that isn't one of the terminal's hints finds nothing")
+	term.print_line(TerminalUI.sysop(pz.hints[0]), "hint")
+	check(g.has_piece("memo", "column"), "a hint shown on a terminal's screen finds its pieces on that machine, whoever asked (the screen is shared in co-op)")
+	term.free()
 	check(Game.hint_shows("WHERE zone = 'b2'", "B2") and not Game.hint_shows("WHERE zone = 'b21'", "B2"), "a value matches as a whole word, any case")
 
 
