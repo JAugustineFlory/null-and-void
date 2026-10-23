@@ -540,6 +540,7 @@ func test_coop_spar() -> void:
 	ph.global_position = homes[0].to_global(homes[0].PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
 	await _hit_bag(homes[0], ph)
 	_check.call(await _until(func(): return homes[1].spar_target == host_id, 400), "the host hits the bag, and the client sees it swing back at the host")
+	_check.call(homes.all(func(h): return h.punch_bag.get_meta("sounds_played", []).any(func(x): return x.kind == "bag_hit")), "and both machines hear the punch land on it")
 	await _until(func(): return homes[0].swing_in, 120)
 	await _frames(2)
 	ph.combat.raise_guard()

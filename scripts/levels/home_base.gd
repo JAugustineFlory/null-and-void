@@ -805,6 +805,7 @@ func _swing_bag(id: int) -> void:
 	var axis := (global_basis.inverse() * dir).cross(Vector3.UP).normalized()
 	var tilt := func(a: float): punch_bag.basis = Basis(axis, a)
 	spar_target = id
+	Sfx.play(punch_bag, "bag_hit", Vector3(0, -1.1, 0))  # the punch landing, heard by everyone
 	if body_is_mine(id):
 		_swing_at = player.combat.now()
 	if _bag_swing:

@@ -42,12 +42,13 @@ var _was_on_floor := true
 var _move := ""
 
 
-## Steps for `b`, on every machine that has it.
+## Steps for `b`, on every machine that has it, and its fight sounds (SfxCombat).
 static func attach(b: Node3D) -> SfxSteps:
 	var s := SfxSteps.new()
 	s.name = "Steps"
 	s.body = b
 	b.add_child(s)
+	SfxCombat.attach(b)
 	return s
 
 

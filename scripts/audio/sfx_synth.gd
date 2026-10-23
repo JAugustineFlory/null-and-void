@@ -1,7 +1,7 @@
 class_name SfxSynth
 ## Sounds made in code: the building's electrical noises (tube buzz, flicker crackle,
-## CRT whine, server hum, beeps, key clicks, door motors) and the security wing's
-## knocks and breaks. Tiny, and nothing to license. Sfx uses these whenever
+## CRT whine, server hum, beeps, key clicks, door motors), the security wing's
+## knocks and breaks, and a fight's whooshes and falls. Tiny, and nothing to license. Sfx uses these whenever
 ## audio/sfx/ has no recorded file of the same name.
 
 const RATE := 22050
@@ -10,7 +10,7 @@ const HI_RATE := 44100
 
 ## Every sound this file can make.
 const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "key", "flicker",
-	"door_motor", "fluorescent_buzz", "crt_whine", "server_hum"]
+	"door_motor", "swing", "body_fall", "fluorescent_buzz", "crt_whine", "server_hum"]
 ## The ones that loop (seamlessly).
 const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum"]
 
@@ -26,11 +26,13 @@ static func make(kind: String) -> AudioStreamWAV:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(kind)
 	var secs: float = {"glass": 0.6, "clunk": 0.35, "click": 0.06, "clatter": 0.7, "tap": 0.9,
-		"beep": 0.14, "error": 0.42, "key": 0.05, "flicker": 0.22, "door_motor": 1.1}.get(kind, 0.3)
+		"beep": 0.14, "error": 0.42, "key": 0.05, "flicker": 0.22, "door_motor": 1.1,
+		"swing": 0.28, "body_fall": 0.7}.get(kind, 0.3)
 	var n := int(secs * RATE)
 	var out := PackedFloat32Array()
 	out.resize(n)
 	var low := 0.0
+	var lower := 0.0
 	var phase := 0.0
 	for i in n:
 		var t := float(i) / RATE
@@ -78,6 +80,18 @@ static func make(kind: String) -> AudioStreamWAV:
 				low = lerpf(low, rng.randf_range(-1, 1), 0.15)
 				var gear := 0.5 + 0.5 * sin(phase * 6.0)
 				v = (sin(phase) * 0.45 + sin(phase * 2.0) * 0.2 + low * gear * 0.6) * speed
+			"swing":
+				# A fist through the air: a band of noise that rises in pitch and is gone.
+				var k := lerpf(0.04, 0.35, t / secs)
+				low = lerpf(low, rng.randf_range(-1, 1), k)
+				lower = lerpf(lower, low, k * 0.25)
+				v = (low - lower) * 2.2 * sin(PI * t / secs) ** 2
+			"body_fall":
+				# Someone going down: knees, then the rest of them, and their clothes.
+				var hit := exp(-t * 18.0) * 0.6 + (exp(-(t - 0.16) * 11.0) if t > 0.16 else 0.0)
+				low = lerpf(low, rng.randf_range(-1, 1), 0.06)
+				var cloth := rng.randf_range(-1, 1) * 0.08 * exp(-absf(t - 0.25) * 9.0)
+				v = (low * 2.0 + sin(TAU * 70 * t) * 0.5) * hit + cloth
 		out[i] = v
 	return _wav(out, RATE)
 
