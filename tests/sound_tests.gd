@@ -17,6 +17,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_play()
 	await test_flicker_light()
 	await test_hum_on_ambience()
+	await test_terminal_sounds()
+	await test_door_sounds()
 	test_volume_sliders()
 
 
@@ -160,6 +162,52 @@ func test_hum_on_ambience() -> void:
 	h.listener = room
 	await t.process_frame
 	check(h._player.bus == Sfx.AMBIENCE, "the Hum plays on Ambience")
+	room.queue_free()
+	await t.process_frame
+
+
+func test_terminal_sounds() -> void:
+	var room := Node3D.new()
+	t.root.add_child(room)
+	var ui := TerminalUI.new()
+	room.add_child(ui)
+	var term := Terminal.spawn(room, Vector3(2, 0.8, 0), 0, "TEST", FacilityDB.new(), ui)
+	ui.terminal = term
+	await t.process_frame
+	var whine: AudioStreamPlayer3D = term.get_node("Loop_crt_whine")
+	check(whine.playing and whine.bus == Sfx.AMBIENCE and whine.max_distance > 0.0 and whine.max_distance <= 6.0,
+		"a terminal's tube whines, only heard up close (%.1f m)" % whine.max_distance)
+	ui.run("SELECT 1 AS one;")
+	var played: Array = term.get_meta("sounds_played", [])
+	check(not played.is_empty() and played.back().kind == "beep" and played.back().pos == term.focus_point.position,
+		"a query that works beeps, at the screen")
+	ui.run("SELEC 1;")
+	check(term.get_meta("sounds_played").back().kind == "error", "a query that fails buzzes")
+	ui.visible = true
+	ui._input.insert_text_at_caret("S")
+	await t.process_frame  # TextEdit says it changed a frame later
+	check(term.get_meta("sounds_played").back().kind == "key", "typing clicks the keys")
+	room.queue_free()
+	await t.process_frame
+
+
+func test_door_sounds() -> void:
+	var room := Node3D.new()
+	t.root.add_child(room)
+	var slid := Door.create(room, "TEST-SLID", Vector3(4, 1.2, 0), Vector3(1.6, 2.4, 0.2))
+	var hinged := Door.create(room, "TEST-HINGED", Vector3(8, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
+	await t.process_frame
+	var kinds := func(): return room.get_meta("sounds_played", []).map(func(x): return x.kind)
+	slid.set_open(true)
+	check(kinds.call() == ["door_motor"] and room.get_meta("sounds_played")[0].pos == Vector3(4, 1.2, 0), "a sliding door's motor runs as it opens, at the door")
+	slid.set_open(false)
+	check(kinds.call().back() == "clunk", "and it thuds shut")
+	hinged.set_open(true)
+	check(kinds.call().back() == "click", "a hinged door's latch clicks")
+	var before: int = kinds.call().size()
+	slid.set_open(true, true)
+	slid.set_open(true)
+	check(kinds.call().size() == before, "a door set at once (loading in) or already open makes no sound")
 	room.queue_free()
 	await t.process_frame
 
