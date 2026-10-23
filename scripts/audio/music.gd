@@ -64,14 +64,17 @@ func _ready() -> void:
 		add_child(p)
 		layers[layer] = p
 		level[layer] = 0.0
-	WorkerThreadPool.add_task(_make_layers)
+	WorkerThreadPool.add_task(Callable(Music, "_make_layers").bind(weakref(self)))
 
 
-func _make_layers() -> void:
+## On a worker thread. Holds only a weak reference, in case the Music goes first.
+static func _make_layers(music: WeakRef) -> void:
 	var made := {}
 	for layer in MusicSynth.LAYERS:
 		made[layer] = _stream(layer)
-	_layers_made.call_deferred(made)
+	var m: Object = music.get_ref()
+	if m:
+		m._layers_made.call_deferred(made)
 
 
 func _layers_made(made: Dictionary) -> void:
@@ -115,7 +118,7 @@ func _process(delta: float) -> void:
 			p.stop()
 
 
-func _stream(layer: String) -> AudioStream:
+static func _stream(layer: String) -> AudioStream:
 	for ext in [".ogg", ".wav"]:
 		if ResourceLoader.exists(DIR + layer + ext):
 			var s: AudioStream = load(DIR + layer + ext)

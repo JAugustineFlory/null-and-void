@@ -26,6 +26,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_recorded_budget_and_credits()
 	test_music_layers()
 	await test_music_moods()
+	test_npc_danger()
+	await test_music_director()
 	test_volume_sliders()
 
 
@@ -413,6 +415,91 @@ func test_music_moods() -> void:
 	m._process(0.1)
 	check(m.layers.values().all(func(p): return not p.playing), "silent: it stops")
 	m.queue_free()
+	await t.process_frame
+
+
+## Stands in for the World: its current wing, and its checkpoint signal.
+class FakeWorld extends Node:
+	signal checkpoint_reached(wing_id: String)
+	var current: Node
+	var home: Node
+
+
+func test_npc_danger() -> void:
+	var w := Watcher.new()
+	check(MusicDirector.danger(w) == 0, "a Watcher not yet let loose is no danger")
+	w.active = true
+	w.seen = true
+	check(MusicDirector.danger(w) == 1, "loose but watched: hunted")
+	w.seen = false
+	check(MusicDirector.danger(w) == 2, "loose and unwatched, it's coming: chase")
+	w.free()
+	var s := Shredder.new()
+	check(MusicDirector.danger(s) == 0, "a sleeping Shredder is no danger")
+	s.active = true
+	s.state = "roaming"
+	check(MusicDirector.danger(s) == 1, "an awake Shredder roaming: hunted")
+	s.state = "investigating"
+	check(MusicDirector.danger(s) == 2, "a Shredder walking to a sound it heard: chase")
+	s.free()
+	var c := Custodian.new()
+	c.state = "bay"
+	check(MusicDirector.danger(c) == 0, "the Custodian in its bay is no danger")
+	c.state = "hunting"
+	check(MusicDirector.danger(c) == 2, "the Custodian hunting: chase")
+	c.free()
+	var m := Mimic.new()
+	m.state = "standing"
+	check(MusicDirector.danger(m) == 1, "a Mimic standing where you can find it: hunted")
+	m.state = "gone"
+	check(MusicDirector.danger(m) == 0, "a Mimic that's gone: nothing")
+	m.free()
+	check(MusicDirector.danger(Node.new()) == 0, "anything else is no danger")
+
+
+func test_music_director() -> void:
+	var game := t.root.get_node("Game")
+	var fate: String = game.rourke_fate
+	var world := FakeWorld.new()
+	t.root.add_child(world)
+	var floor_wing := Node3D.new()
+	world.add_child(floor_wing)
+	world.current = floor_wing
+	var d := MusicDirector.follow(world)
+	check(MusicDirector.follow(world) == d, "one director per game")
+	game.rourke_fate = "unknown"
+	check(d.pick() == "calm", "with Rourke still escorting, calm")
+	game.rourke_fate = "tied"
+	check(d.pick() == "uneasy", "once the escort's gone, uneasy")
+	var s := Shredder.new()
+	floor_wing.add_child(s)
+	s.set_process(false)
+	s.set_physics_process(false)
+	s.active = true
+	s.state = "roaming"
+	check(d.pick() == "hunted", "a threat loose on this floor: hunted")
+	s.state = "grabbing"
+	check(d.pick() == "chase", "it has someone: chase")
+	s.active = false
+	world.checkpoint_reached.emit("level_3")
+	check(d.pick() == "checkpoint", "a floor done: relief")
+	d._process(MusicDirector.CHECKPOINT_HOLD + 0.1)
+	check(d.pick() == "uneasy" and d.get_parent().mood == "uneasy", "after the ride up, back to the floor's own mood, and Music follows")
+	# Another floor's threat isn't this floor's.
+	var other := Node3D.new()
+	world.add_child(other)
+	s.reparent(other)
+	s.active = true
+	check(d.pick() == "uneasy", "a threat on another floor doesn't count")
+	world.home = Node3D.new()
+	world.current = world.home
+	check(d.pick() == "checkpoint", "at home base, relief")
+	world.home.free()
+	world.queue_free()
+	await t.process_frame
+	check(d.pick() == "silent", "with no world, silence")
+	game.rourke_fate = fate
+	d.get_parent().queue_free()
 	await t.process_frame
 
 
