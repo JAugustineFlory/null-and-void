@@ -8,6 +8,16 @@ To replace a sound, drop a file named after it here (`glass.ogg`, or `step_1.ogg
 ... for variants picked at random). The list of sounds is `Sfx.KINDS` in `scripts/audio/sfx.gd`;
 any without a file here are made in code by `scripts/audio/sfx_synth.gd`.
 
-| File | Source | Author | Licence |
-| --- | --- | --- | --- |
-| (none yet: every sound is made in code) | | | |
+Files are converted to mono Ogg Vorbis (44.1 kHz, quality 3) to stay small.
+
+| Files | Original | Source | Author | Licence |
+| --- | --- | --- | --- | --- |
+| `step_concrete_1..5` | footstep_concrete_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `step_carpet_1..5` | footstep_carpet_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `step_wood_1..5` | footstep_wood_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `step_metal_1..5` | impactMetal_light_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `step_vent_1..5` | impactPlate_light_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `land_1..5` | impactSoft_medium_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `land_hard_1..5` | impactSoft_heavy_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `ledge_grab_1..3` | impactGeneric_light_000..002 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
+| `vault_1..4` | cloth1..4 | [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney | CC0 |

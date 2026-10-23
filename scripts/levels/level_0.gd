@@ -159,6 +159,7 @@ func build() -> void:
 		{"wall": "n", "at": 6.5, "width": 1.6, "height": 2.6},
 		{"wall": "w", "at": 4.0, "width": 0.9, "height": 1.0},  # the air return, flush with the floor so you can crawl in
 	])
+	Sfx.mark_surface(geo.get_node("Floor"), "carpet")  # the lobby's
 	Greybox.label(geo, Vector3(0, 3.0, -6.88), "HALCYON DATA SYSTEMS", 160, Color(0.15, 0.2, 0.35))
 	Greybox.label(geo, Vector3(0, 2.55, -6.88), "Data you can trust.", 64, Color(0.25, 0.25, 0.3))
 	# Front doors: Rourke lets the crew in, then they lock behind them.

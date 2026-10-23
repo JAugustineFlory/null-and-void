@@ -67,6 +67,7 @@ static func create(parent: Node, id: int, player_name: String, look: Dictionary,
 	p.display_name = player_name
 	p.name = str(id)
 	p._build(look)
+	SfxSteps.attach(p)  # a teammate's footsteps, from how their body moves here
 	p.transform = at  # before entering the world, so it never flashes at the origin
 	parent.add_child(p)
 	return p

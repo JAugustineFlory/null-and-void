@@ -19,6 +19,11 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hum_on_ambience()
 	await test_terminal_sounds()
 	await test_door_sounds()
+	test_surfaces()
+	await test_footsteps()
+	await test_landing()
+	await test_teammate_steps()
+	test_recorded_budget_and_credits()
 	test_volume_sliders()
 
 
@@ -210,6 +215,149 @@ func test_door_sounds() -> void:
 	check(kinds.call().size() == before, "a door set at once (loading in) or already open makes no sound")
 	room.queue_free()
 	await t.process_frame
+
+
+func test_surfaces() -> void:
+	var b := StaticBody3D.new()
+	b.name = "VentFloor"
+	check(SfxSteps.surface_of(b) == "vent", "a duct's floor sounds like a duct")
+	b.name = "Floor"
+	check(SfxSteps.surface_of(b) == "concrete", "an ordinary floor is concrete")
+	Sfx.mark_surface(b, "carpet")
+	check(SfxSteps.surface_of(b) == "carpet", "a level can say a floor is carpet")
+	b.free()
+	for surface in ["concrete", "carpet", "wood", "metal", "vent"]:
+		var st := Sfx.stream("step_" + surface)
+		check(st is AudioStreamRandomizer and st.streams_count >= 3, "steps on %s are recorded, with variants" % surface)
+
+
+## A floor and a player who walks north on it, `how`: "walk", "sprint" or "crouch".
+func _walker(how: String, surface := "") -> Array:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	var floor_body := Greybox.box(a, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "Floor")
+	if surface != "":
+		Sfx.mark_surface(floor_body, surface)
+	var p := Player.new()
+	p.local_control = false
+	p.position = Vector3(0, 0.1, 10)
+	a.add_child(p)
+	var noise := []
+	p.noise_made.connect(func(_at, l): noise.append(l))
+	for i in 5:
+		await t.physics_frame
+	p.controls.move = Vector2(0, -1)
+	p.controls.sprint = how == "sprint"
+	p.controls.crouch = how == "crouch"
+	for i in 120:
+		await t.physics_frame
+	var steps: Array = p.get_node("Steps").heard.filter(func(h): return h.kind.begins_with("step_"))
+	a.queue_free()
+	await t.process_frame
+	return [steps, noise]
+
+
+func test_footsteps() -> void:
+	var walk: Array = await _walker("walk")
+	var steps: Array = walk[0]
+	check(steps.size() >= 2 and steps.all(func(h): return h.kind == "step_concrete" and h.db == SfxSteps.WALK_DB),
+		"walking on concrete, you hear soft concrete steps (%d)" % steps.size())
+	var sprint: Array = await _walker("sprint")
+	check(sprint[0].size() > steps.size() and sprint[0].all(func(h): return h.db == SfxSteps.SPRINT_DB),
+		"sprinting, the steps come faster and louder (%d)" % sprint[0].size())
+	var crouch: Array = await _walker("crouch")
+	check(not crouch[0].is_empty() and crouch[0].all(func(h): return h.db == SfxSteps.CROUCH_DB) and crouch[1].is_empty(),
+		"crouching, your steps are barely there, and the Shredder hears nothing either")
+	check(sprint[1].size() > 0 and sprint[1].all(func(l): return l >= 0.5), "sprinting is loud to the Shredder too")
+	var carpet: Array = await _walker("walk", "carpet")
+	check(not carpet[0].is_empty() and carpet[0].all(func(h): return h.kind == "step_carpet"), "on carpet, carpet steps")
+
+
+func test_landing() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	Greybox.box(a, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "Floor")
+	var p := Player.new()
+	p.local_control = false
+	p.position = Vector3(0, 0.1, 0)
+	a.add_child(p)
+	for i in 10:
+		await t.physics_frame
+	var steps: SfxSteps = p.get_node("Steps")
+	check(steps.heard.is_empty(), "standing still makes no sound")
+	p.global_position = Vector3(0, 2.0, 0)
+	for i in 90:
+		await t.physics_frame
+	check(steps.heard.any(func(h): return h.kind == "land"), "dropping from 2 m, you land with a thump")
+	p.global_position = Vector3(0, 9.0, 0)
+	for i in 120:
+		await t.physics_frame
+	check(steps.heard.back().kind == "land_hard", "from 9 m, a hard landing (as loud to the Shredder)")
+	a.queue_free()
+	await t.process_frame
+
+
+func test_teammate_steps() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	Greybox.box(a, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "Floor")
+	var mate := PlayerPuppet.create(a, 7, "Mate", {}, Transform3D(Basis(), Vector3(0, 0, 10)))
+	var steps: SfxSteps = mate.get_node("Steps")
+	for i in 120:
+		mate.apply_state(Vector3(0, 0, 10 - i * 0.06), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(steps.heard.size() >= 2 and steps.heard.all(func(h): return h.kind == "step_concrete"),
+		"a teammate walking past makes steps on your machine too (%d)" % steps.heard.size())
+	var n := steps.heard.size()
+	mate.set_sitting(PlayerPuppet.Sit.CHAIR)
+	for i in 60:
+		mate.apply_state(Vector3(i * 0.06, 0, 3), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false, PlayerPuppet.Sit.CHAIR)
+		await t.physics_frame
+	check(steps.heard.size() == n, "carried along sitting down (in the van), no steps")
+	mate.set_sitting(PlayerPuppet.Sit.NONE)
+	var desk := Node3D.new()
+	a.add_child(desk)
+	mate.sit_at(desk, 0)
+	for i in 60:
+		mate.apply_state(Vector3(3 - i * 0.06, 0, 3), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(steps.heard.size() == n, "sliding into place at a terminal, no steps")
+	mate.at_terminal = null
+	mate.set_downed(true)
+	for i in 60:
+		mate.apply_state(Vector3(-0.6 + i * 0.06, 0, 3), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(steps.heard.size() == n, "dragged while down, no steps")
+	mate.set_downed(false)
+	# Teleports and snaps: one big jump a frame, again and again, never a step.
+	for i in 40:
+		mate.apply_state(Vector3(0 if i % 2 == 0 else 6, 0, -6), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(steps.heard.size() == n, "snapping to a new place (over 4 m), no steps")
+	a.queue_free()
+	await t.process_frame
+
+
+## Recorded sounds stay small, mono-ish and credited.
+func test_recorded_budget_and_credits() -> void:
+	var total := 0
+	var credits := FileAccess.get_file_as_string("res://audio/sfx/CREDITS.md")
+	var uncredited := []
+	for dir in ["res://audio/sfx/", "res://audio/music/"]:
+		if not DirAccess.dir_exists_absolute(dir):
+			continue
+		for f in DirAccess.get_files_at(dir):
+			if not (f.ends_with(".ogg") or f.ends_with(".wav")):
+				continue
+			total += FileAccess.get_file_as_bytes(dir + f).size()
+			var kind := f.get_basename()
+			var digits := kind.get_slice("_", kind.get_slice_count("_") - 1)
+			if digits.is_valid_int():
+				kind = kind.trim_suffix("_" + digits)
+			if not credits.contains("`%s" % kind):
+				uncredited.append(f)
+	check(total < 5_000_000, "recorded effects and music stay under 5 MB (%d KB)" % (total / 1024))
+	check(uncredited.is_empty(), "every recorded sound is in audio/sfx/CREDITS.md (missing: %s)" % [uncredited])
 
 
 func test_volume_sliders() -> void:

@@ -956,6 +956,7 @@ func _build_ground() -> void:
 		{"wall": "s", "at": 0.0, "width": 3.4, "height": 2.7},
 		{"wall": "e", "at": 3.0, "width": 1.8, "height": 2.4},
 	])
+	Sfx.mark_surface(g_geo.get_node("Floor"), "carpet")
 	Greybox.room(g_geo, Vector3(16, 0, 3), Vector3(16, 3, 2), {"floor": Color(0.3, 0.3, 0.3), "wall": wall}, [
 		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},
 		{"wall": "e", "at": 0.0, "width": 1.8, "height": 2.4},

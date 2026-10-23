@@ -33,6 +33,15 @@ const KINDS := {
 	"key": {"unit": 1.5, "db": -10.0, "pitch": 0.12},
 	"flicker": {"bus": AMBIENCE, "unit": 2.5, "db": -6.0, "pitch": 0.15},
 	"door_motor": {"unit": 4.0, "db": -4.0},
+	"step_concrete": {"unit": 3.0, "pitch": 0.06},
+	"step_carpet": {"unit": 3.0, "pitch": 0.06},
+	"step_wood": {"unit": 3.0, "pitch": 0.06},
+	"step_metal": {"unit": 4.0, "pitch": 0.06},
+	"step_vent": {"unit": 5.0, "pitch": 0.08},
+	"land": {"unit": 4.0, "pitch": 0.05},
+	"land_hard": {"unit": 6.0, "pitch": 0.05},
+	"vault": {"unit": 3.0, "pitch": 0.08},
+	"ledge_grab": {"unit": 3.0, "pitch": 0.08},
 	"fluorescent_buzz": {"bus": AMBIENCE, "unit": 1.2, "db": -18.0, "max": 10.0},
 	"crt_whine": {"bus": AMBIENCE, "unit": 0.8, "db": -20.0, "max": 5.0},
 	"server_hum": {"bus": AMBIENCE, "unit": 3.0, "db": -10.0, "max": 18.0},
@@ -73,6 +82,12 @@ static func stream(kind: String) -> AudioStream:
 		if _streams[kind] == null:
 			_streams[kind] = SfxSynth.make(kind)
 	return _streams[kind]
+
+
+## Tells footsteps what a floor (or anything walked on) is made of: "concrete",
+## "carpet", "wood", "metal" or "vent". Without it, SfxSteps guesses from the name.
+static func mark_surface(body: Node, surface: String) -> void:
+	body.set_meta("surface", surface)
 
 
 ## Forgets loaded sounds, so a newly dropped-in file is picked up (tests, Foley swaps).

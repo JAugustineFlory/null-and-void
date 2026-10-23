@@ -695,6 +695,8 @@ func test_world() -> void:
 	var l4 = world.wings.get("level_4")
 	check(l4 != null and not l4.active and l4.global_position.distance_to(l3.global_position) > 40.0, "floor 10 builds apart from 18, without starting")
 	check(l4.g_geo.global_transform.origin.distance_to(world.ROUTE[0].at.origin) < 0.01, "its ground floor stands where Level 0's lobby does")
+	var g_floor: Node3D = l4.g_geo.get_node("Floor")
+	check(g_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(g_floor) == "carpet", "and its lobby is carpet underfoot, like Level 0's")
 	l3.sync.event("_on_exit")
 	for i in 600:
 		await t.physics_frame

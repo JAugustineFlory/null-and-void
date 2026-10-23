@@ -1,0 +1,2 @@
+- **Added:** footsteps for you and your teammates that change with the floor (concrete, carpet, wood, metal, air ducts): soft when walking, loud when sprinting, barely there when crouching.
+- **Added:** landings thump (harder the further you fall), vaults rustle and grabbing a ledge slaps.
