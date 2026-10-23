@@ -1,0 +1,1 @@
+- **Added:** the game's version shows in a corner of the pause menu and the pre-game lobby.

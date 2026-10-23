@@ -129,6 +129,7 @@ func _ready() -> void:
 	if _net().last_message != "":
 		_status.text = _net().last_message
 		_net().last_message = ""
+	add_child(ThemeUtil.version_tag())  # last, so it's drawn over the panels
 	_refresh()
 
 

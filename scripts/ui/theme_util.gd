@@ -26,3 +26,18 @@ static func label(text: String, size: int, color: Color = Color.WHITE) -> Label:
 	l.add_theme_constant_override("shadow_offset_x", 2)
 	l.add_theme_constant_override("shadow_offset_y", 2)
 	return l
+
+
+## The game's version (project.godot's application/config/version), as "v0.7",
+## small in the bottom-right corner of whatever it's added to, so every
+## screenshot and playtest note names its build.
+static func version_tag() -> Label:
+	var l := label("v%s" % ProjectSettings.get_setting("application/config/version", "?"), 14, Color(1, 1, 1, 0.55))
+	l.name = "Version"
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	l.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	l.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	l.offset_right = -12
+	l.offset_bottom = -8
+	return l
