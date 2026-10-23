@@ -18,6 +18,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_rig_steps_through_turns()
 	test_first_person_body()
 	await test_first_person_hands()
+	test_first_person_parkour()
 	await test_byte_right_van()
 	await test_rig_budget()
 	await test_skinned_body()
@@ -467,6 +468,23 @@ class _FakeFighter extends Node3D:
 		return sitting
 
 
+## A player in the middle of a parkour move (Player.move_name, parkour_grip,
+## parkour_progress), as Movement reports it.
+class _FakeRunner extends _FakeFighter:
+	var move := "walk"
+	var grip := {}
+	var progress := 0.0
+
+	func move_name() -> String:
+		return move
+
+	func parkour_grip() -> Dictionary:
+		return grip
+
+	func parkour_progress() -> float:
+		return progress
+
+
 class _FakeCombat extends RefCounted:
 	signal swung
 	signal blocked(cause: String)
@@ -475,6 +493,130 @@ class _FakeCombat extends RefCounted:
 
 	func guard_up() -> bool:
 		return guarding
+
+
+func test_first_person_parkour() -> void:
+	# Playtest 2026-10-22: "the first-person parkour animations seem to be
+	# non-existent". Movement moves the camera; these are your hands and body.
+	var stage := _stage()
+	var you := _FakeRunner.new()
+	stage.add_child(you)
+	you.add_child(you.head)
+	you.head.position.y = 1.68
+	var cam := Camera3D.new()
+	cam.fov = 78
+	you.head.add_child(cam)
+	you.camera = cam
+	var fp := FirstPersonBody.attach(you, CharacterLooks.rourke())
+	fp.set_process(false)
+	fp.rig.set_process(false)
+	var sk := fp.rig._skin.skeleton
+	var bone := func(b: String) -> Transform3D:
+		return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(b))
+	var step := func(seconds: float, also: Callable = Callable()) -> void:
+		for i in maxi(1, int(seconds * 60)):
+			if also.is_valid():
+				also.call()
+			fp._process(1.0 / 60.0)
+			fp.rig.animate(1.0 / 60.0)
+	var on_grips := func(within: float) -> bool:
+		for side in ["r", "l"]:
+			var want = fp.rig.reach.get(side)
+			if not want is Transform3D or (bone.call("hand_" + side) as Transform3D).origin.distance_to((want as Transform3D).origin) > within:
+				return false
+		return true
+	step.call(0.3)
+
+	# Hanging from an edge (Player hangs you with your eyes 0.47 m under it).
+	you.move = "hang"
+	you.grip = {"point": Vector3(0, 1.68 + 0.47, -0.33), "normal": Vector3.BACK}
+	you.head.rotation.x = 0.6
+	step.call(0.6)
+	var seen := cam.is_position_in_frustum(bone.call("hand_r").origin) and cam.is_position_in_frustum(bone.call("hand_l").origin)
+	var over: float = (bone.call("hand_r") as Transform3D).basis.y.normalized().dot((Vector3.UP + Vector3.FORWARD).normalized())
+	check(fp.rig.action == "hang" and on_grips.call(0.06) and seen and over > 0.7,
+		"hanging, looking up you see both hands on the edge, fingers curled over it (%s, over %.2f)" % [on_grips.call(0.06), over])
+	var body_mat: ShaderMaterial = sk.get_node("Body").material_override
+	var other := CharacterRig.build(stage, CharacterLooks.rourke())
+	var theirs = (other._skin.skeleton.get_node("Body") as MeshInstance3D).material_override.get_shader_parameter("near_cut")
+	check(fp._pull.length() <= FirstPersonBody.PULL_MAX + 0.001 and body_mat.get_shader_parameter("near_cut") > 0.0 and (theirs == null or theirs == 0.0),
+		"you pull yourself up to it, and your collar isn't drawn in front of your eyes (only yours: %s)" % [theirs])
+
+	# Climbing a pipe, hand over hand (Player reaches 1.7 m up it).
+	you.move = "climb"
+	you.head.rotation.x = 0.2
+	var climb := func() -> void:
+		you.position.y += 0.5 / 60.0
+		you.grip = {"point": Vector3(0, you.position.y + 1.7, -0.5), "normal": Vector3.BACK}
+	step.call(0.5, climb)
+	var start := [bone.call("hand_r").origin.y, bone.call("hand_l").origin.y]
+	var moving_together := 0
+	var last := start.duplicate()
+	for i in 120:
+		step.call(1.0 / 60.0, climb)
+		var now := [bone.call("hand_r").origin.y, bone.call("hand_l").origin.y]
+		if now[0] - last[0] > 0.001 and now[1] - last[1] > 0.001:
+			moving_together += 1
+		last = now
+	check(on_grips.call(0.08) and last[0] - start[0] > 0.5 and last[1] - start[1] > 0.5 and absf(last[0] - last[1]) > 0.15,
+		"climbing, your hands go up the pipe one over the other (%.2f, %.2f m)" % [last[0] - start[0], last[1] - start[1]])
+	check(moving_together < 40, "one holds on while the other reaches (both moving %d of 120 frames)" % moving_together)
+	you.position = Vector3.ZERO
+
+	# Edging along a ledge, facing the wall: hands flat on it.
+	you.move = "ledge"
+	you.grip = {"point": Vector3(0, 1.2, -0.35), "normal": Vector3.BACK}
+	you.head.rotation.x = 0.0
+	step.call(0.6)
+	var palm := -(bone.call("hand_r") as Transform3D).basis.x.normalized()
+	check(on_grips.call(0.06) and palm.dot(Vector3.FORWARD) > 0.8, "on a ledge facing the wall, your palms are flat on it (%.2f)" % palm.dot(Vector3.FORWARD))
+
+	# Mantling: hands on the edge as you go up, letting go once you're over it.
+	you.move = "mantle"
+	you.progress = 0.1
+	you.grip = {"point": Vector3(0, 1.2, -0.3), "normal": Vector3.BACK}  # up against the crate
+	you.head.rotation.x = -0.3
+	step.call(0.3)
+	check(on_grips.call(0.1), "mantling, your hands go onto the edge")
+	you.progress = 0.9
+	step.call(0.1)
+	check(fp.rig.reach.is_empty(), "and let go once you're up")
+
+	# Vaulting: one hand planted, the other free.
+	you.move = "vault"
+	you.progress = 0.02
+	you.position = Vector3(0, 0.05, 0.3)  # going up at a desk, its face at z = 0
+	you.grip = {"point": Vector3(0, 0.9, -0.1), "normal": Vector3.BACK}
+	step.call(0.3)
+	check(fp.rig.reach.has("l") and not fp.rig.reach.has("r"), "vaulting, you plant your left hand and swing over (%s)" % [fp.rig.reach.keys()])
+	you.position = Vector3.ZERO
+
+	# Sliding: feet first, low.
+	you.move = "slide"
+	you.grip = {}
+	you.head.position.y = 0.73  # Player slides at crawl height
+	step.call(0.6)
+	var ahead := -minf(fp.to_local(bone.call("calf_r").origin).z, fp.to_local(bone.call("calf_l").origin).z)
+	var hips: float = bone.call("thigh_r").origin.y
+	check(fp.rig.action == "slide" and ahead > 0.3 and hips < 0.45, "sliding, your legs go out in front of you, low (knee %.2f m ahead, hips %.2f m up)" % [ahead, hips])
+
+	# Rolling: tucked, you turn over with your view.
+	you.move = "roll"
+	you.progress = 0.5
+	cam.transform = Transform3D(Basis(Vector3.RIGHT, -PI), Vector3.ZERO)  # Player turns the view over
+	step.call(0.2)
+	check(fp.global_basis.y.dot(Vector3.UP) < -0.9 and body_mat.get_shader_parameter("near_cut") > 0.0, "rolling, your body turns over with your view")
+
+	you.move = "walk"
+	you.progress = 0.0
+	cam.transform = Transform3D.IDENTITY
+	you.head.position.y = 1.68
+	step.call(1.0)
+	check(fp.rig.reach.is_empty() and fp.rig.reach_weight("r") == 0.0 and fp._pull.length() < 0.01 and body_mat.get_shader_parameter("near_cut") == 0.0
+		and fp.global_basis.y.dot(Vector3.UP) > 0.99 and fp.rig.reach_rate == CharacterRig.REACH_RATE,
+		"back on your feet, the body and arms are your own again (%s, %.2f, %.2f, %s, %.2f, %.1f)" % [fp.rig.reach.keys(), fp.rig.reach_weight("r"), fp._pull.length(),
+			body_mat.get_shader_parameter("near_cut"), fp.global_basis.y.dot(Vector3.UP), fp.rig.reach_rate])
+	stage.queue_free()
 
 
 func test_byte_right_van() -> void:

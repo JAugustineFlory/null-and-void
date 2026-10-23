@@ -11,7 +11,10 @@ extends Node3D
 ## Typing at a terminal plays "type" like everywhere else; the camera is on the
 ## screen by then, so the hands stay out of sight. Holding a paper, the notebook
 ## or something carried, these hands hold it: the held things' own stand-in hands
-## (HeldPaper, HeldNotebook) only say where, and aren't drawn.
+## (HeldPaper, HeldNotebook) only say where, and aren't drawn. Vaulting,
+## mantling, hanging, climbing or edging along a ledge, they grab the edge,
+## pipe or wall the move holds on to (Player.parkour_grip); sliding, the legs go
+## out in front; rolling, the body tucks and turns over with the view.
 
 ## The rig stands this far behind the camera, so looking down shows the chest
 ## and feet in front of you rather than the inside of your collar.
@@ -49,6 +52,37 @@ const TORSO := 0.45
 ## paper's edge, so the palm and fingers are behind the page, the thumb on it.
 const GRIP_BEHIND := 0.035
 const GRIP_BELOW := 0.075
+## The parkour moves the body plays (Player.move_name), and how quickly the
+## hands get to a grip in one: a grab is quick.
+const PARKOUR := ["slide", "roll", "mantle", "vault", "hang", "climb", "ledge"]
+const GRAB_RATE := 14.0
+## About where the shoulders are above the feet, standing: an edge above this
+## is grabbed from below, one under it pushed down on.
+const SHOULDER := 1.45
+## Hands on an edge are this far apart; on a wall, this far.
+const EDGE_SPREAD := 0.2
+const WALL_SPREAD := 0.26
+## Climbing, each hand takes the next hold this far above the other's, and one
+## pull is twice it: the body's hand-over-hand cycle.
+const RUNG := 0.35
+## How far above where Player reaches on a pipe the hands may go, overhead.
+const CLIMB_REACH := 0.45
+## Where the wrists are, out from the wall a pipe runs up (Traversal.climbable).
+const PIPE_OUT := 0.15
+## Mantling, the hands let go of the edge this far through (you're up on it);
+## vaulting, the planted hand lets go this far through (you're over).
+const MANTLE_LET_GO := 0.8
+const VAULT_LET_GO := 0.7
+## Hanging from an edge, climbing a pipe or edging along a wall further than
+## arm's length away, the body moves up to this far towards it, so the hands get
+## there: you're pulling yourself in to it, or (vaulting) pushing down on it.
+## Otherwise, or further than that, a hand that can't reach lets go.
+const PULL_MAX := 0.45
+const PULLED_IN := ["hang", "climb", "vault", "ledge"]
+const PUSHED_OFF := ["vault"]
+## Pulled towards a grip, the body near your eyes (the collar, the backs of the
+## shoulders) isn't drawn this close, so your arms show reaching past your face.
+const NEAR_CUT := 0.4
 
 var player: Node3D  # Player
 var rig: CharacterRig
@@ -65,6 +99,12 @@ var _clear := 0.0  # how far back the neck needs the body to go, standing
 var _seat_fwd := 0.0  # how far forward the hips came, seated
 var _lean_back := 0.0
 var _edges := {}  # seat -> how far ahead its front edge is
+var _holds := {}  # climbing, side -> where that hand is on the pipe now
+var _pull := Vector3.ZERO  # how far the body has moved towards what the hands hold
+var _grips := {}  # this frame's parkour grips, side -> wrist transform
+var _arm := 0.0  # shoulder to wrist, arm straight
+var _own: Array[Material] = []  # this body's own copies of its materials (near cut)
+var _cut := -1.0
 
 
 static func attach(to: Node3D, look: Dictionary = {}) -> FirstPersonBody:
@@ -80,6 +120,7 @@ static func attach(to: Node3D, look: Dictionary = {}) -> FirstPersonBody:
 	fp.rig.hide_head = true
 	fp.rig.process_priority = 11
 	fp._sit_hip = 0.87 * float(look.get("height", 1.0)) - 0.45
+	fp._own_materials()
 	fp._listen()
 	return fp
 
@@ -112,6 +153,12 @@ func _process(delta: float) -> void:
 	# Lying down, the camera is on the floor inside the body: leave it out.
 	visible = action != "down"
 	rig.play(action)
+	_grips = _parkour_grips(delta)
+	rig.reach_rate = GRAB_RATE if action in PARKOUR else CharacterRig.REACH_RATE
+	if action == "climb":
+		rig.move_progress = fposmod(player.global_position.y / (2.0 * RUNG), 1.0)
+	elif player.has_method("parkour_progress"):
+		rig.move_progress = player.parkour_progress()
 	var height = player.get("stance_height")
 	rig.stance_height = height if height != null else -1.0
 	var head = player.get("head")
@@ -130,7 +177,7 @@ func _process(delta: float) -> void:
 	if chair and is_instance_valid(seat):
 		var fwd: Vector3 = -(seat as Node3D).global_basis.z
 		turned = angle_difference(atan2(-fwd.x, -fwd.z), player.global_rotation.y)
-	rotation.y = -turned
+	basis = Basis(Vector3.UP, -turned)
 	rig.twist = turned
 	var back := BACK - _lean
 	var k := 1.0 - exp(-10.0 * delta)
@@ -147,16 +194,26 @@ func _process(delta: float) -> void:
 		back += down * (DOWN_BACK - minf(neck_z(), 0.0))
 	# Behind the camera, the way you look (seated, the way the seat faces).
 	var at := Vector3(0, -(_sit_hip - SEAT_THIGH) if chair else 0.0, 0) + Basis(Vector3.UP, rotation.y) * Vector3(0, 0, back)
-	var need := _neck_needs(at)
+	_pull = _pull.lerp(_pull_needed(), 1.0 - exp(-12.0 * delta))
+	if _grips.is_empty() and _pull.length() < 0.005:
+		_pull = Vector3.ZERO
+	at += _pull
+	_near_cut(NEAR_CUT if action == "roll" else NEAR_CUT * clampf(_pull.length() / 0.1, 0.0, 1.0))
+	var need := _neck_needs(at) if _pull.length() < 0.05 else 0.0
 	if chair:
 		_clear = 0.0
 		_lean_back = clampf(_lean_back + need / TORSO * k, 0.0, LEAN_MAX)
 	else:
 		_lean_back = move_toward(_lean_back, 0.0, delta * 2.0)
-		_clear = maxf(need, lerpf(_clear, maxf(need, 0.0), k))
+		if action != "roll":  # (turning over with the view: see below)
+			_clear = maxf(need, lerpf(_clear, maxf(need, 0.0), k))
 		at.z += maxf(_clear, 0.0)
 	rig.lean_back = _lean_back
 	position = at
+	if action == "roll" and head and player.get("camera") is Camera3D:
+		# Tucked, you turn over with your view: the world goes round, not you.
+		var eye: Vector3 = head.position
+		transform = Transform3D((player.camera as Camera3D).transform.basis, eye) * Transform3D(Basis.IDENTITY, -eye) * transform
 	_hold_with_hands()
 
 
@@ -230,8 +287,8 @@ func _knee_ahead(seat: Node3D) -> float:
 ## "carried" group), these arms reach for it, where the stand-in hands would hold it.
 func _hold_with_hands() -> void:
 	var cam = player.get("camera")
-	var grips := {}
-	if cam is Camera3D:
+	var grips := _grips.duplicate()
+	if grips.is_empty() and cam is Camera3D:
 		for hand: Node3D in (cam as Node).find_children("*Hand", "Node3D", true, false):
 			if not hand.has_meta("body_hand"):
 				hand.set_meta("body_hand", true)
@@ -252,6 +309,123 @@ func _hold_with_hands() -> void:
 						var corner := face.origin + face.basis.x * (-1.0 if left else 1.0) - face.basis.y + face.basis.y.normalized() * 0.03
 						grips[side] = _edge_grip(Transform3D(face.basis.orthonormalized(), corner), left)
 	rig.reach = grips
+
+
+## Your body's materials are shared with everyone dressed the same: this one
+## gets its own, so leaving the near parts out (_near_cut) leaves out only yours.
+func _own_materials() -> void:
+	for mi: MeshInstance3D in rig.find_children("*", "MeshInstance3D", true, false):
+		var m := mi.material_override
+		if m is ShaderMaterial or m is StandardMaterial3D:
+			m = m.duplicate()
+			if m is StandardMaterial3D:
+				# Always on, so changing how near costs no new shader mid-climb.
+				(m as StandardMaterial3D).distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+			mi.material_override = m
+			_own.append(m)
+	_near_cut(0.0)
+
+
+func _near_cut(near: float) -> void:
+	if is_equal_approx(near, _cut):
+		return
+	_cut = near
+	for m in _own:
+		if m is ShaderMaterial:
+			(m as ShaderMaterial).set_shader_parameter("near_cut", near)
+		else:
+			(m as StandardMaterial3D).distance_fade_min_distance = near * 0.8
+			(m as StandardMaterial3D).distance_fade_max_distance = maxf(near, 0.001)
+
+
+## How far (in the player's space) the body needs to move for the hands to
+## reach their grips, at most PULL_MAX: zero when they reach already. A grip
+## still out of reach after that is dropped from _grips: that hand lets go.
+func _pull_needed() -> Vector3:
+	var skin: SkinnedBody = rig._skin
+	if _grips.is_empty() or skin == null:
+		return Vector3.ZERO
+	var sk := skin.skeleton
+	if _arm == 0.0:
+		var u := sk.get_bone_global_rest(sk.find_bone("upperarm_r")).origin
+		var l := sk.get_bone_global_rest(sk.find_bone("lowerarm_r")).origin
+		var h := sk.get_bone_global_rest(sk.find_bone("hand_r")).origin
+		_arm = (u.distance_to(l) + l.distance_to(h)) * sk.global_basis.get_scale().x * 0.95
+	var to_player := (player as Node3D).global_transform.affine_inverse()
+	var most := Vector3.ZERO
+	for side in _grips.keys():
+		var shoulder := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("upperarm_" + side)).origin
+		var gap: Vector3 = to_player.basis * ((_grips[side] as Transform3D).origin - shoulder)
+		# Up to it if it's out of reach above (down, too, pushing off it as you
+		# go over), then in towards it.
+		var lift := maxf(gap.y - _arm * 0.9, 0.0)
+		if rig.action in PUSHED_OFF:
+			lift += minf(gap.y + _arm * 0.9, 0.0)
+		var flat := Vector3(gap.x, 0, gap.z)
+		var dy := gap.y - lift
+		var fwd := maxf(flat.length() - sqrt(maxf(_arm * _arm - dy * dy, 0.0)), 0.0)
+		var move := flat.normalized() * fwd + Vector3.UP * lift
+		if not rig.action in PULLED_IN:
+			move = Vector3.ZERO
+		var pulled := (_pull + move).limit_length(PULL_MAX)
+		if (gap - (pulled - _pull)).length() > _arm * 1.2:
+			_grips.erase(side)  # out of reach: let go
+		elif move.length() > most.length():
+			most = move
+	return (_pull + most).limit_length(PULL_MAX)
+
+
+## Where the hands hold on in a parkour move ({} in any other): on an edge,
+## palms down and fingers over it; on a pipe, hand over hand; on a wall, flat
+## against it, at the shoulders facing it or the hips with your back to it.
+func _parkour_grips(delta: float) -> Dictionary:
+	var move: String = rig.action
+	if not (move in PARKOUR and player.has_method("parkour_grip")):
+		_holds.clear()
+		return {}
+	var grip: Dictionary = player.parkour_grip()
+	if grip.is_empty():
+		return {}
+	var at: Vector3 = grip.point
+	var n: Vector3 = grip.normal
+	n = Vector3(n.x, 0, n.z).normalized()
+	var you_right := (player as Node3D).global_basis.x
+	var along := (-n).cross(Vector3.UP)  # along the edge or wall, to your right
+	if along.dot(you_right) < 0.0:
+		along = -along
+	var grips := {}
+	for side in ["r", "l"]:
+		var s := 1.0 if side == "r" else -1.0
+		match move:
+			"mantle", "hang", "vault":
+				if move == "mantle" and rig.move_progress > MANTLE_LET_GO:
+					continue
+				if move == "vault" and (side == "r" or rig.move_progress > VAULT_LET_GO):
+					continue  # the left hand is planted, the right swings free
+				var spread := EDGE_SPREAD if move != "vault" else 0.08
+				var edge := at + along * s * spread
+				if edge.y > (player as Node3D).global_position.y + SHOULDER:
+					# Above you: fingers curled over it, the wrist below the lip.
+					grips[side] = _grip(edge + n * 0.03 - Vector3.UP * 0.05, Vector3.UP - n, -n - Vector3.UP)
+				else:
+					# Below you: the palm flat on top, fingers pointing on over it.
+					grips[side] = _grip(edge - n * 0.03 + Vector3.UP * 0.035, -n - Vector3.UP * 0.2, Vector3.DOWN)
+			"climb":
+				# Each hand holds on up by your head until the other has gone
+				# past it, then reaches over it.
+				var off := 0.0 if side == "r" else RUNG
+				var top := minf(at.y + CLIMB_REACH, (player as Node3D).global_position.y + 2.1)
+				var y := floorf((top - off) / (2.0 * RUNG)) * 2.0 * RUNG + off
+				var hold := Vector3(at.x, y, at.z) + along * s * 0.06 + n * PIPE_OUT
+				var now: Vector3 = _holds.get(side, hold)
+				_holds[side] = now.move_toward(hold, delta * 3.0)
+				grips[side] = _grip(_holds[side], Vector3.UP, -n)
+			"ledge":
+				var facing := ((player as Node3D).global_basis.z * -1.0).dot(-n) > 0.0
+				var high := 0.15 if facing else -0.3
+				var wrist := at + Vector3.UP * high + along * s * WALL_SPREAD + n * 0.02
+				grips[side] = _grip(wrist, Vector3.UP if facing else Vector3.DOWN, -n)
+	return grips
 
 
 ## Where a hand holds something by its edge, its frame `t` on the held thing's
@@ -323,6 +497,9 @@ func current_action() -> String:
 		return "sit" if player.get("seat") != null else "sit_floor"
 	if _is("is_using_terminal"):
 		return "type"
+	var move: String = player.move_name() if player.has_method("move_name") else ""
+	if move in PARKOUR:
+		return move
 	if _notebook or _prop:
 		return "idle"  # the notebook or the paper is up in front of you
 	if _t < _until:

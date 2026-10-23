@@ -20,6 +20,11 @@ uniform float waist = 0.985;
 // where the jacket bends with the arms. jacket_hem is where the jacket ends.
 uniform float tuck = 0.0;
 uniform float jacket_hem = 0.8;
+// Your own body in first person, pulled up to an edge or a pipe: what isn't
+// arm and is this close to your eyes (the collar, the back of the shoulders) is
+// left out, so you see your arms reach past your face (FirstPersonBody). A
+// short sleeve goes too: the arm shows from where it comes out of it.
+uniform float near_cut = 0.0;
 
 varying vec2 place;
 
@@ -31,6 +36,9 @@ void vertex() {
 }
 
 void fragment() {
+	if (near_cut > 0.0 && place.y < (sleeve < 0.5 ? sleeve + 0.03 : 0.12) && length(VERTEX) < near_cut) {
+		discard;
+	}
 	if (COLOR.a < 0.5) {
 		ALBEDO = COLOR.rgb;  // the eyes
 		ROUGHNESS = 0.3;

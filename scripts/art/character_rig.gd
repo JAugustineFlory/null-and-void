@@ -16,7 +16,8 @@ extends Node3D
 ## Upper-body actions keep the legs walking; the rest take over the whole body.
 const UPPER_BODY := ["idle", "talk", "wave", "point", "radio", "flashlight", "type", "hands_up", "windup", "strike", "shoulder",
 	"jab", "cross", "guard", "recoil", "flinch"]
-const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl", "lean", "pose"]
+const FULL_BODY := ["stagger", "down", "tied", "dead", "sit", "sit_floor", "crouch", "crawl", "lean", "pose",
+	"slide", "roll", "mantle", "vault", "hang", "climb", "ledge"]
 const ACTIONS := UPPER_BODY + FULL_BODY
 
 ## Meters covered by one full walk cycle (two steps).
@@ -61,6 +62,12 @@ var lean_back := 0.0
 ## is playing, easing there and back (the body models only). Sitting on a
 ## chair, a hand with nowhere to be rests on its thigh.
 var reach := {}
+## How far through a mantle, vault or roll (0..1), or round one hand-over-hand
+## cycle of a climb: the parkour moves pose from it.
+var move_progress := 0.0
+## How quickly a hand eases onto what it reaches for (per second): a grab at a
+## ledge is quicker than reaching for a paper.
+var reach_rate := REACH_RATE
 ## Set >= 0 to drive the walk cycle directly instead of measuring movement.
 var speed_override := -1.0
 ## Leave the head (and its hair, hat and glasses) out: your own body in first
@@ -156,7 +163,7 @@ func animate(delta: float) -> void:
 		elif action != "sit":
 			_reach_last.erase(side)
 		var on := to is Vector3 or to is Transform3D or action == "sit"
-		_reach_w[side] = move_toward(_reach_w[side], 1.0 if on else 0.0, delta * REACH_RATE)
+		_reach_w[side] = move_toward(_reach_w[side], 1.0 if on else 0.0, delta * reach_rate)
 	if _skin:
 		_skin.update(delta)
 	elif hide_head:
@@ -427,6 +434,78 @@ func _action_pose(p: Dictionary) -> void:
 			p["neck"] = Vector3(0.08, -0.1, 0)
 			_sym(p, "shoulder", Vector3(-0.6, 1.4, 0))
 			_sym(p, "elbow", Vector3(1.6, 0, 0))
+		"slide":
+			# Feet first and low, the front leg out straight, the other tucked
+			# under, leaning back with a hand trailing.
+			p["_root_pos"] = Vector3(0, -0.72, 0)
+			p["r_hip"] = Vector3(1.45, 0, 0.06)
+			p["r_knee"] = Vector3(-0.15, 0, 0)
+			p["l_hip"] = Vector3(1.0, 0, -0.12)
+			p["l_knee"] = Vector3(-1.7, 0, 0)
+			p["spine"] = Vector3(0.45, 0, 0)
+			p["neck"] = Vector3(-0.35, 0, 0)
+			p["r_shoulder"] = Vector3(0.7, 0, 0.25)
+			p["r_elbow"] = Vector3(0.5, 0, 0)
+			p["l_shoulder"] = Vector3(-0.6, 0, -0.35)
+			p["l_elbow"] = Vector3(0.15, 0, 0)
+		"roll":
+			# Tucked tight, knees to the chest and arms round them. (Your own
+			# body turns over with your view: FirstPersonBody.)
+			p["_root_pos"] = Vector3(0, -0.45, 0)
+			_sym(p, "hip", Vector3(2.1, 0, 0.12))
+			_sym(p, "knee", Vector3(-2.4, 0, 0))
+			p["spine"] = Vector3(-0.5, 0, 0)
+			p["neck"] = Vector3(0.35, 0, 0)
+			_sym(p, "shoulder", Vector3(1.1, -0.25, -0.1))
+			_sym(p, "elbow", Vector3(1.9, 0, 0))
+		"mantle":
+			# Hands on the edge (CharacterRig.reach), pushing down on it;
+			# leaning over it, one knee comes up onto it and the other leg trails.
+			var k := sin(PI * clampf((move_progress - 0.1) / 0.8, 0.0, 1.0))
+			_sym(p, "shoulder", Vector3(0.5, 0, 0.2))
+			_sym(p, "elbow", Vector3(0.3, 0, 0))
+			p["spine"] = Vector3(-0.35 * k, 0, 0)
+			p["r_hip"] = Vector3(1.5 * k, 0, 0.05)
+			p["r_knee"] = Vector3(-1.9 * k, 0, 0)
+			p["l_hip"] = Vector3(-0.2 * k, 0, -0.05)
+			p["l_knee"] = Vector3(-0.6 * k, 0, 0)
+		"vault":
+			# One hand planted (the left), legs swung up and over to the right,
+			# the free arm out for balance.
+			var k := sin(PI * clampf(move_progress / 0.9, 0.0, 1.0))
+			p["spine"] = Vector3(-0.25 * k, 0, 0)
+			p["hips"] = Vector3(0, 0, 0.2 * k)
+			p["r_hip"] = Vector3(1.25 * k, 0, 0.4 * k)
+			p["l_hip"] = Vector3(1.1 * k, 0, 0.4 * k)
+			_sym(p, "knee", Vector3(-1.5 * k, 0, 0))
+			p["l_shoulder"] = Vector3(1.2, 0, -0.2)
+			p["r_shoulder"] = Vector3(0.4, 0, 0.6 * k + 0.1)
+			p["r_elbow"] = Vector3(0.4, 0, 0)
+		"hang":
+			# From the fingertips, legs loose and swaying a little.
+			var sway := sin(t * 1.3) * 0.06
+			_sym(p, "shoulder", Vector3(0.5, 0, 2.6))
+			_sym(p, "elbow", Vector3(0.4, 0, 0))
+			_sym(p, "hip", Vector3(0.15 + sway, 0, 0.04))
+			_sym(p, "knee", Vector3(-0.25, 0, 0))
+		"climb":
+			# Hand over hand, a knee up for each pull.
+			var c := sin(move_progress * TAU)
+			_sym(p, "shoulder", Vector3(0.5, 0, 2.4))
+			_sym(p, "elbow", Vector3(0.8, 0, 0))
+			p["spine"] = Vector3(-0.1, 0, 0)
+			p["r_hip"] = Vector3(0.85 + 0.55 * c, 0, 0.08)
+			p["r_knee"] = Vector3(-1.15 - 0.75 * c, 0, 0)
+			p["l_hip"] = Vector3(0.85 - 0.55 * c, 0, -0.08)
+			p["l_knee"] = Vector3(-1.15 + 0.75 * c, 0, 0)
+		"ledge":
+			# Flat to the wall, arms out along it, feet edging sideways.
+			var step := sin(t * 5.0) * clampf(_speed / 0.5, 0.0, 1.0)
+			_sym(p, "shoulder", Vector3(0.15, 0, 1.0))
+			_sym(p, "elbow", Vector3(0.3, 0, 0))
+			p["r_hip"] = Vector3(0.05, 0, 0.08 + 0.1 * maxf(step, 0.0))
+			p["l_hip"] = Vector3(0.05, 0, -0.08 - 0.1 * maxf(-step, 0.0))
+			_sym(p, "knee", Vector3(-0.15, 0, 0))
 		"crouch":
 			p["_root_pos"] = Vector3(0, -0.48, 0)
 			_sym(p, "hip", Vector3(1.4, 0, 0.1))
