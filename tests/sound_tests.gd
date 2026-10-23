@@ -314,6 +314,26 @@ func test_teammate_steps() -> void:
 		mate.apply_state(Vector3(i * 0.06, 0, 3), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false, PlayerPuppet.Sit.CHAIR)
 		await t.physics_frame
 	check(steps.heard.size() == n, "carried along sitting down (in the van), no steps")
+	mate.set_sitting(PlayerPuppet.Sit.NONE)
+	var desk := Node3D.new()
+	a.add_child(desk)
+	mate.sit_at(desk, 0)
+	for i in 60:
+		mate.apply_state(Vector3(3 - i * 0.06, 0, 3), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(steps.heard.size() == n, "sliding into place at a terminal, no steps")
+	mate.at_terminal = null
+	mate.set_downed(true)
+	for i in 60:
+		mate.apply_state(Vector3(-0.6 + i * 0.06, 0, 3), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(steps.heard.size() == n, "dragged while down, no steps")
+	mate.set_downed(false)
+	# Teleports and snaps: one big jump a frame, again and again, never a step.
+	for i in 40:
+		mate.apply_state(Vector3(0 if i % 2 == 0 else 6, 0, -6), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(steps.heard.size() == n, "snapping to a new place (over 4 m), no steps")
 	a.queue_free()
 	await t.process_frame
 
