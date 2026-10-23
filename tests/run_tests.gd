@@ -913,6 +913,8 @@ func test_level_0_scene() -> void:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
 	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
+	var lobby_floor: Node3D = level.geo.get_node("Floor")
+	check(lobby_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(lobby_floor) == "carpet", "the lobby is carpet underfoot")
 	var flickering := 0
 	for id in ["lobby", "hall"]:
 		for l in level.lights[id]:
