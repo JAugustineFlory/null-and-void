@@ -1106,7 +1106,7 @@ func test_caller_answer() -> void:
 		var page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
 		check(page.contains("Ext. %s belongs to:" % ext) and page.contains(NotebookPages.BLANK) and page.contains(NotebookPages.BLANK_HOW), "%s: the page shows the empty blank, and in pencil how to fill it" % route)
 		check(_game().main_case() == "caller" and _game().pieces_found("caller") == 2 and _game().pieces_total("caller") == 3 and not _game().has_piece("caller", "column"), "%s: the work order's number and SYSOP's table are in: 2 of 3 pieces, the column still to find" % route)
-		check(page.contains(NotebookPages.PIECES_COUNT % [2, 3]) and page.contains("ext. %s" % ext) and page.contains("SELECT name, enter_column_name FROM staff_directory;") and page.contains("Type .schema staff_directory at the terminal"), "%s: the case page shows the pieces, the query so far with the missing column named as the hint names it, and where to look" % route)
+		check(page.contains(NotebookPages.PIECES_COUNT % [2, 3]) and page.contains("ext. %s" % ext) and page.contains(NotebookPages.MAKE_QUERY) and page.contains("enter_column_name") and _game().case_query("caller") == "SELECT name, enter_column_name FROM staff_directory;" and page.contains("Type .schema staff_directory at the terminal"), "%s: the case page shows the pieces, the query so far with the missing column named as the hint names it, and where to look" % route)
 		var chip: CaseChip = level.hud.case_chip
 		check(chip.chip.visible and chip.count.text == "2/3" and chip.next.text == CaseChip.NEXT % "Find the column that holds extensions", "%s: the HUD counts 2/3 and says what's next" % route)
 		if route == "terminal":

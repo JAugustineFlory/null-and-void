@@ -177,6 +177,7 @@ func build() -> void:
 
 	# The back corner by the side door: the shelf where the shop bag was left.
 	Greybox.box(geo, SHELF + Vector3(0, 0.5, 0), Vector3(1.6, 1.0, 0.7), Color(0.3, 0.3, 0.32), "Shelf")
+	get_node("/root/Game").before_book = true  # the book's still in the bag
 	book_bag = Interactable.create(self, SHELF + Vector3(0.3, 1.15, -0.05), Vector3(0.4, 0.3, 0.15), "Take the shop bag", Color(0.85, 0.85, 0.8))
 	book_bag.name = "BookBag"
 	book_bag.enabled = false
@@ -853,6 +854,8 @@ func _on_bag(id: int) -> void:
 	book_bag.visible = false
 	book_bag.enabled = false
 	book_holder = id
+	get_node("/root/Game").before_book = false
+	get_node("/root/Game").notebook_changed.emit()
 	sync.unlock_for([id], "achievement:book_easy_sql")  # its notebook cover, for whoever picked it up (host)
 	# The book in their hands, as the notebook is: in first person for them, at
 	# chest height for everyone else.

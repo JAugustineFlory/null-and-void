@@ -1,0 +1,2 @@
+- **Changed:** a case page now builds its query from blocks at the top, with each piece filled in as you find it and gray until then. It also says what to do with the query.
+- **Fixed:** the Easy SQL book no longer shows in the notebook before you've picked it up.

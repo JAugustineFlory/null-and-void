@@ -56,6 +56,9 @@ var van_seating: Array[int] = []
 var open_at_home := false
 ## Words the crew has learned from its books, in order (see Huddle).
 var book_words: Array[String] = []
+## The crew hasn't got the book yet this run (the garage, before the shop bag):
+## chapters earned on earlier runs stay out of the notebook until they have.
+var before_book := false
 ## The chapters the crew has read this run, in order: they're in the notebook's book.
 var book_chapters: Array[String] = []
 ## The notebook is held in your hands and terminals are used on their own screens.
@@ -113,6 +116,7 @@ func new_run(seed_value: int = -1) -> void:
 	open_at_home = false
 	book_words.clear()
 	book_chapters.clear()
+	before_book = false
 	rourke_fate = "unknown"
 	has_walkie = false
 	visitor_badge_no = ""

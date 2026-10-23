@@ -27,6 +27,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_growing_case()
 	test_hint_pieces()
 	test_floor_g_memo()
+	test_book_before_bag()
 	_game().new_run(1)
 
 
@@ -79,9 +80,14 @@ func test_board_page() -> void:
 	var items := pages._case_items(g)
 	var text := NotebookPages.text_of(items)
 	check(text.contains(NotebookPages.PIECES_COUNT % [1, 3]) and text.contains("memo_fragments") and text.contains(NotebookPages.FROM % "The scanner"), "the case shows its count and each found piece with where it came from")
-	check(text.contains(NotebookPages.PIECE_MISSING) and text.contains("A sticky") and not text.contains("ORDER BY ????") and text.contains("SELECT * FROM memo_fragments ???? ????;"), "a missing piece is ???? with where to look, in the slot and in the query")
+	var blocks: Control = items.filter(func(i): return i.name == "QuerySoFar")[0].get_node("QueryBlocks")
+	var shown: Array = blocks.get_children().map(func(b): return NotebookPages.text_of([b]).strip_edges().replace("\n", " "))
+	check(text.contains(NotebookPages.MAKE_QUERY) and blocks.get_meta("query") == "SELECT * FROM memo_fragments ???? ????;", "the case says to make a query, and builds it from blocks")
+	check(shown == ["SELECT * FROM", "1 memo_fragments", "2 ????", "3 ????", ";"], "the query's own words, then a numbered block per piece: found ones filled in (%s)" % [shown])
+	check(blocks.get_node("Piece1").get_meta("found") and not blocks.get_node("Piece2").get_meta("found"), "a found piece's block is filled, a missing one's gray")
+	check(text.contains(NotebookPages.PIECE_MISSING) and text.contains("A sticky"), "a missing piece is ???? with where to look")
 	check(text.contains("[x]  Find the table") and text.contains("[  ]  Find how to sort") and text.contains("[  ]  Run it"), "the checklist ticks what's found")
-	check(text.find(NotebookPages.CHECKLIST) > text.find(NotebookPages.QUERY_SO_FAR) and text.find("ORDER matters.") > text.find(NotebookPages.CHECKLIST), "the case comes first, then its checklist, then its notes")
+	check(text.find(NotebookPages.CHECKLIST) > text.find(NotebookPages.MAKE_QUERY) and text.find("ORDER matters.") > text.find(NotebookPages.CHECKLIST), "the case comes first, then its checklist, then its notes")
 	var breaks := items.filter(func(i): return i.has_meta("break"))
 	check(breaks.size() == 1 and breaks[0].get_meta("break") == "page" and items.find(breaks[0]) > items.find(items.filter(func(i): return i.name == "QuerySoFar")[0]), "the checklist starts the right-hand page")
 	for i in items:
@@ -242,6 +248,8 @@ func test_growing_case() -> void:
 	var pages := NotebookPages.new()
 	var items := pages._case_items(g)
 	check(NotebookPages.text_of(items).contains("memo_fragments"), "and the piece itself still shows on the page")
+	var qb: Control = items.filter(func(i): return i.name == "QuerySoFar")[0].get_node("QueryBlocks")
+	check(not qb.get_node("Piece1").get_meta("found"), "but its block in the query stays gray")
 	for i in items:
 		i.free()
 	pages.free()
@@ -286,6 +294,30 @@ func test_floor_g_memo() -> void:
 	g.set_pieces("memo", l0.MEMO_PIECES, l0.MEMO_QUERY, l0.MEMO_STEPS)
 	check(g.has_piece("memo", "table") and not g.has_piece("memo", "column") and g.pieces_total("memo") == 3, "after it, the table stays found and the column isn't handed over by the Tables page")
 	check(l0.VISITOR_PIECES.all(func(p): return p.id != "column") and l0.VISITOR_QUERY.contains("ORDER BY enter_column_name"), "the visitor case leaves choosing its column to the player")
+
+
+
+## In the garage, chapters earned on an earlier run stay out of the Books tab
+## until the shop bag's been taken.
+func test_book_before_bag() -> void:
+	print("Case board: no book before the shop bag")
+	var g := _game()
+	g.new_run(13)
+	var net := _tree.root.get_node_or_null("Net")
+	var had_profile: bool = net != null and net.profile != null
+	if had_profile:
+		net.profile.earned.append("chapter:easy_sql_0")
+	var pages := NotebookPages.new()
+	_tree.root.add_child(pages)
+	g.before_book = true
+	check(pages._chapters_had(g).is_empty(), "before the shop bag's taken, the Books tab has nothing in it")
+	g.before_book = false
+	check(not had_profile or pages._chapters_had(g).has("easy_sql_0"), "once it's taken, chapters earned before are back")
+	if had_profile:
+		net.profile.earned.erase("chapter:easy_sql_0")
+	g.new_run(14)
+	check(not g.before_book, "a new run starts with the book (a run started past the garage has it)")
+	pages.free()
 
 
 ## The Cases tab's text for the current case.
