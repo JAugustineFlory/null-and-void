@@ -34,6 +34,8 @@ func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.stream = tone()
 	_player.volume_db = QUIET_DB
+	Sfx.ensure_buses()
+	_player.bus = Sfx.AMBIENCE
 	add_child(_player)
 
 

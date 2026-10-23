@@ -310,15 +310,7 @@ func _build_pause_menu() -> void:
 	resume.text = "Resume"
 	resume.pressed.connect(_toggle_pause)
 	box.add_child(resume)
-	box.add_child(ThemeUtil.label("Volume", 20))
-	var volume := HSlider.new()
-	volume.min_value = 0.0
-	volume.max_value = 2.0
-	volume.step = 0.05
-	volume.value = db_to_linear(AudioServer.get_bus_volume_db(0))
-	volume.custom_minimum_size = Vector2(300, 24)
-	volume.value_changed.connect(func(v): AudioServer.set_bus_volume_db(0, linear_to_db(maxf(v, 0.0001))))
-	box.add_child(volume)
+	box.add_child(SfxVolume.sliders())
 	# Off: the notebook and terminals open full-screen, as before (for anyone who finds that easier).
 	var in_world := CheckButton.new()
 	in_world.name = "InWorldUI"

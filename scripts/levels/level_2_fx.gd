@@ -1,7 +1,6 @@
 class_name Level2FX
 ## What the security wing does when you act on it, seen and heard instead of told:
 ## glass bursts into shards, a grate clatters down, a breaker thunks.
-## Sounds are made in code until the audio pass brings real ones.
 
 const RATE := 22050
 ## How long the end card holds, after fading in.
@@ -9,22 +8,9 @@ const CARD_TIME := 3.5
 
 
 ## A short sound at `pos`: "glass", "clunk" (heavy, a bolt or a motor), "click",
-## "clatter" or "tap" (one knock on a metal door).
+## "clatter" or "tap" (one knock on a metal door). See Sfx for the rest.
 static func sound(parent: Node, pos: Vector3, kind: String) -> void:
-	if not parent.is_inside_tree():
-		return
-	# What played where, for the tests (a played sound frees itself).
-	var played: Array = parent.get_meta("sounds_played", [])
-	played.append({"kind": kind, "pos": pos})
-	parent.set_meta("sounds_played", played)
-	var p := AudioStreamPlayer3D.new()
-	p.stream = _make(kind)
-	p.name = "Sound_" + kind
-	p.position = pos
-	p.unit_size = 6.0
-	parent.add_child(p)
-	p.finished.connect(p.queue_free)
-	p.play()
+	Sfx.play(parent, kind, pos)
 
 
 ## Shards of a pane spill out and drop to the floor, then fade.
@@ -89,42 +75,6 @@ static func wind() -> AudioStreamWAV:
 	w.data = data
 	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	w.loop_end = n
-	return w
-
-
-static func _make(kind: String) -> AudioStreamWAV:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(kind)
-	var secs: float = {"glass": 0.6, "clunk": 0.35, "click": 0.06, "clatter": 0.7, "tap": 0.9}.get(kind, 0.3)
-	var n := int(secs * RATE)
-	var data := PackedByteArray()
-	data.resize(n * 2)
-	var low := 0.0
-	for i in n:
-		var t := float(i) / RATE
-		var v := 0.0
-		match kind:
-			"glass":
-				# Bright noise with high rings, gone fast.
-				v = (rng.randf_range(-1, 1) * 0.6 + sin(TAU * 3100 * t) * 0.25 + sin(TAU * 4700 * t) * 0.15) * exp(-t * 9.0)
-			"clunk":
-				# A low thud: filtered noise and a falling tone.
-				low = lerpf(low, rng.randf_range(-1, 1), 0.08)
-				v = (low * 1.5 + sin(TAU * (90 - 40 * t) * t) * 0.7) * exp(-t * 14.0)
-			"click":
-				v = rng.randf_range(-1, 1) * exp(-t * 120.0)
-			"clatter":
-				# Sheet metal hitting the floor, twice.
-				var hit := exp(-t * 12.0) + (exp(-(t - 0.22) * 16.0) * 0.6 if t > 0.22 else 0.0)
-				v = (rng.randf_range(-1, 1) * 0.5 + sin(TAU * 620 * t) * 0.3 + sin(TAU * 1330 * t) * 0.2) * hit
-			"tap":
-				# A knuckle on a steel door: a sharp knock and a long, low ring.
-				v = rng.randf_range(-1, 1) * exp(-t * 90.0) * 0.8 + (sin(TAU * 210 * t) * 0.5 + sin(TAU * 537 * t) * 0.25) * exp(-t * 4.0)
-		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 26000))
-	var w := AudioStreamWAV.new()
-	w.format = AudioStreamWAV.FORMAT_16_BITS
-	w.mix_rate = RATE
-	w.data = data
 	return w
 
 
