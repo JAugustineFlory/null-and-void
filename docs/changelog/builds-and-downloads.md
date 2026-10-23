@@ -1,0 +1,1 @@
+- **New:** download the game for Windows, Mac or Linux from its own download page, no Godot needed.

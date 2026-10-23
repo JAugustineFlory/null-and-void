@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Null &amp; Void: Download</title>
+<meta name="description" content="Download Null & Void, a first-person co-op survival-horror escape game where the only way out is to write real code.">
+<style>
+  :root {
+    --bg: #0d0f12;
+    --panel: #161a20;
+    --line: #262c35;
+    --text: #e6e8eb;
+    --muted: #9aa3ae;
+    --accent: #e0b84c;
+    --accent-ink: #1a1405;
+    --link: #8fc1ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--link); }
+  main { max-width: 860px; margin: 0 auto; padding: 0 16px 48px; }
+  .hero { display: block; width: 100%; height: auto; border-radius: 0 0 8px 8px; }
+  h1 { font-size: 2rem; margin: 24px 0 4px; }
+  h2 { font-size: 1.25rem; margin: 36px 0 8px; }
+  h3 { font-size: 1rem; margin: 20px 0 4px; }
+  .tagline { color: var(--muted); margin: 0 0 20px; }
+  .version { margin: 0 0 16px; color: var(--muted); }
+  .version strong { color: var(--text); }
+  .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .download {
+    display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); color: var(--text); text-decoration: none;
+  }
+  .download:hover { border-color: var(--accent); }
+  .download b { display: block; font-size: 1.1rem; }
+  .download span { color: var(--muted); font-size: 0.9rem; }
+  .download.mine { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .download.mine span { color: var(--accent-ink); }
+  .note { color: var(--muted); font-size: 0.95rem; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 20px 12px; margin-top: 12px; }
+  ol, ul { padding-left: 1.3em; }
+  li { margin: 4px 0; }
+  code { background: #0006; padding: 1px 5px; border-radius: 4px; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <img class="hero" src="header.jpg" alt="Null &amp; Void: Halcyon Tower at night" width="1840" height="690">
+
+  <h1>Null &amp; Void</h1>
+  <p class="tagline">A first-person co-op survival-horror escape game where the only way out is to write real code.</p>
+
+  <p class="version" id="version">Latest version: see <a href="https://github.com/JAugustineFlory/null-and-void/releases/latest">the newest release</a>.</p>
+
+  <div class="downloads" id="downloads">
+    <a class="download" data-os="windows" href="https://github.com/JAugustineFlory/null-and-void/releases/latest/download/NullAndVoid-windows.zip">
+      <b>Windows</b><span>Windows 10 or 11, 64-bit</span>
+    </a>
+    <a class="download" data-os="mac" href="https://github.com/JAugustineFlory/null-and-void/releases/latest/download/NullAndVoid-mac.zip">
+      <b>Mac</b><span>Apple silicon or Intel</span>
+    </a>
+    <a class="download" data-os="linux" href="https://github.com/JAugustineFlory/null-and-void/releases/latest/download/NullAndVoid-linux.zip">
+      <b>Linux</b><span>64-bit</span>
+    </a>
+  </div>
+  <p class="note">Free, nothing else to install. Everyone playing together needs the same version, so grab the newest one before each session.</p>
+
+  <h2>Opening it the first time</h2>
+  <p class="note">The game isn't signed with a paid developer certificate yet, so your computer asks once whether you trust it.</p>
+  <div class="panel">
+    <h3>Windows</h3>
+    <ol>
+      <li>Right-click the zip, choose <b>Extract All</b>, then open the folder. Keep the files in it together.</li>
+      <li>Double-click <b>NullAndVoid</b>.</li>
+      <li>If you see "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>.</li>
+      <li>If Windows asks whether the game may use networks, tick <b>Private</b> and <b>Public</b> and click <b>Allow</b>. Co-op needs it.</li>
+    </ol>
+    <h3>Mac</h3>
+    <ol>
+      <li>Double-click the zip to unzip it, and drag <b>Null &amp; Void</b> into Applications.</li>
+      <li>Right-click (or Control-click) the game and choose <b>Open</b>, then <b>Open</b> again.</li>
+      <li>If your Mac only offers <b>Done</b> or <b>Move to Trash</b>, click <b>Done</b>, open <b>System Settings &gt; Privacy &amp; Security</b>, scroll down, and click <b>Open Anyway</b> next to Null &amp; Void.</li>
+      <li>Allow the microphone if you want voice chat.</li>
+    </ol>
+    <h3>Linux</h3>
+    <ol>
+      <li>Unzip it and run <code>NullAndVoid.x86_64</code> from the folder.</li>
+    </ol>
+  </div>
+  <p class="note">After the first time, it opens like any other game.</p>
+
+  <h2>Playing together</h2>
+  <ul>
+    <li><b>Same Wi-Fi, or solo:</b> nothing extra. One player hosts, and everyone else joins the address the host's lobby shows.</li>
+    <li><b>Over the internet:</b> we use <a href="https://tailscale.com/download">Tailscale</a>. It's free for this and puts everyone's computers on one private network, so the game works as if you shared Wi-Fi. Not sponsored, just our recommendation for playing together over the internet. Set it up once with our <a href="https://github.com/JAugustineFlory/null-and-void/blob/main/docs/guides/tailscale-coop.md">10-minute guide</a>.</li>
+  </ul>
+
+  <h2>More</h2>
+  <ul>
+    <li><a href="https://github.com/JAugustineFlory/null-and-void#changelog">What's new</a></li>
+    <li><a href="https://github.com/JAugustineFlory/null-and-void/releases">Every version</a></li>
+    <li><a href="https://github.com/JAugustineFlory/null-and-void#play-it">Controls, and running it from source with Godot</a></li>
+  </ul>
+
+  <footer>Null &amp; Void is in development. Needs a graphics card with Vulkan support (most from 2016 on).</footer>
+</main>
+<script>
+  // Put the player's own system first, and fill in the newest version from GitHub.
+  (function () {
+    var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || "";
+    ua = ua.toLowerCase();
+    var mine = ua.indexOf("win") >= 0 ? "windows" : ua.indexOf("mac") >= 0 ? "mac" : ua.indexOf("linux") >= 0 ? "linux" : "";
+    var list = document.getElementById("downloads");
+    var link = mine && list.querySelector('[data-os="' + mine + '"]');
+    if (link) {
+      link.classList.add("mine");
+      list.insertBefore(link, list.firstChild);
+    }
+    fetch("https://api.github.com/repos/JAugustineFlory/null-and-void/releases/latest")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rel) {
+        if (!rel || !rel.tag_name) return;
+        var when = new Date(rel.published_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+        var v = document.getElementById("version");
+        v.textContent = "Latest version: ";
+        var b = document.createElement("strong");
+        b.textContent = rel.tag_name;
+        v.appendChild(b);
+        v.appendChild(document.createTextNode(", released " + when + "."));
+      })
+      .catch(function () {});
+  })();
+</script>
+</body>
+</html>

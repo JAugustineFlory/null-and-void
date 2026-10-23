@@ -1,0 +1,195 @@
+name: release
+
+# Builds the game for Windows, macOS and Linux, so players can download it without Godot.
+# - A version tag (v0.7, v0.7.1, ...) builds all three, smoke-tests each on its own system,
+#   and attaches them to that tag's GitHub Release. The tag must match project.godot's
+#   application/config/version.
+# - A pull request that changes the build setup builds and smoke-tests, without releasing.
+# - A push to main that changes site/ (or a manual run on main) publishes the download page
+#   to GitHub Pages. The page reads the latest release itself, so a new tag needs no redeploy.
+# Release files keep the same names every version, so
+# releases/latest/download/NullAndVoid-windows.zip always points at the newest build.
+
+on:
+  push:
+    tags: ['v*']
+    branches: [main]
+    paths: ['site/**', '.github/workflows/release.yml']
+  pull_request:
+    paths:
+      - 'export_presets.cfg'
+      - 'project.godot'
+      - 'addons/**'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.7.1
+
+jobs:
+  build:
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the version
+        id: version
+        run: |
+          version="v$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot)"
+          if [ "$version" = "v" ]; then
+            echo "::error::project.godot has no application/config/version"
+            exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match the game's version $version (project.godot, application/config/version)."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building $version"
+      - name: Install Godot ${{ env.GODOT_VERSION }}
+        run: |
+          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/$GODOT_VERSION-stable/Godot_v$GODOT_VERSION-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          sudo mv Godot_v$GODOT_VERSION-stable_linux.x86_64 /usr/local/bin/godot
+          rm godot.zip
+      - name: Cache export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-export-templates-${{ env.GODOT_VERSION }}-desktop
+      - name: Install export templates
+        if: steps.templates.outputs.cache-hit != 'true'
+        # The official templates file holds every platform (1.3 GB); keep only the three we ship.
+        run: |
+          dir=~/.local/share/godot/export_templates/$GODOT_VERSION.stable
+          mkdir -p "$dir"
+          curl -sSL -o templates.tpz https://github.com/godotengine/godot/releases/download/$GODOT_VERSION-stable/Godot_v$GODOT_VERSION-stable_export_templates.tpz
+          unzip -q -j -o templates.tpz templates/version.txt \
+            templates/linux_debug.x86_64 templates/linux_release.x86_64 \
+            templates/windows_debug_x86_64.exe templates/windows_release_x86_64.exe \
+            templates/windows_debug_x86_64_console.exe templates/windows_release_x86_64_console.exe \
+            templates/macos.zip -d "$dir"
+          rm templates.tpz
+      - name: Import project
+        # Same as tests.yml: 4.7.1 can segfault while exiting a first headless import.
+        run: |
+          godot --headless --import || true
+          godot --headless --import
+      - name: Export
+        run: |
+          mkdir -p builds/windows builds/linux builds/mac
+          godot --headless --export-release "Windows" builds/windows/NullAndVoid.exe
+          godot --headless --export-release "Linux" builds/linux/NullAndVoid.x86_64
+          godot --headless --export-release "macOS" builds/mac/NullAndVoid.zip
+          ls -la builds/*
+          test -s builds/windows/NullAndVoid.exe
+          test -s builds/linux/NullAndVoid.x86_64
+          test -s builds/mac/NullAndVoid.zip
+      - name: Smoke-test the Linux build
+        # Boots to the main menu, which loads the autoloads and the SQLite library, then quits.
+        run: |
+          s=0; timeout 120 builds/linux/NullAndVoid.x86_64 --headless --quit-after 300 --log-file "$PWD/smoke.log" > /dev/null 2>&1 || s=$?
+          cat smoke.log
+          [ $s -eq 0 ] && ! grep -q "ERROR" smoke.log
+      - name: Package
+        # Windows and Linux need the SQLite library next to the game, so they ship as a zip
+        # holding one folder named after the version. macOS is Godot's own zip of the app.
+        run: |
+          version=${{ steps.version.outputs.version }}
+          mkdir -p dist
+          for os in windows linux; do
+            mv builds/$os "builds/NullAndVoid-$version"
+            (cd builds && zip -qry "../dist/NullAndVoid-$os.zip" "NullAndVoid-$version")
+            mv "builds/NullAndVoid-$version" builds/$os
+          done
+          cp builds/mac/NullAndVoid.zip dist/NullAndVoid-mac.zip
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: builds
+          path: dist/
+          retention-days: 14
+
+  smoke-windows:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds
+      - name: Smoke-test the Windows build
+        shell: pwsh
+        run: |
+          Expand-Archive NullAndVoid-windows.zip -DestinationPath game
+          $exe = Get-ChildItem game -Recurse -Filter NullAndVoid.exe | Select-Object -First 1
+          $p = Start-Process $exe.FullName -ArgumentList '--headless','--quit-after','300','--log-file',"$PWD\smoke.log" -PassThru -Wait
+          Get-Content smoke.log
+          if ($p.ExitCode -ne 0) { throw "The game exited with $($p.ExitCode)" }
+          if (Select-String -Path smoke.log -Pattern 'ERROR' -Quiet) { throw "The game logged errors" }
+
+  smoke-mac:
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds
+      - name: Smoke-test the macOS build
+        run: |
+          ditto -x -k NullAndVoid-mac.zip game
+          app="game/Null & Void.app"
+          codesign --verify --deep --strict "$app"
+          lipo -archs "$app/Contents/MacOS/Null & Void"
+          s=0; "$app/Contents/MacOS/Null & Void" --headless --quit-after 300 --log-file "$PWD/smoke.log" > /dev/null 2>&1 || s=$?
+          cat smoke.log
+          [ $s -eq 0 ] && ! grep -q "ERROR" smoke.log
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, smoke-windows, smoke-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds
+          path: dist
+      - name: Attach the builds to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        # Keeps the notes of a release that was published by hand before the tag built.
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --title "Null & Void $TAG" \
+              --notes "Download the game for Windows, macOS or Linux below. What's new is in the README's Changelog."
+          fi
+          gh release upload "$TAG" dist/* --clobber
+
+  pages:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add the header image
+        run: cp docs/store/header.jpg site/header.jpg
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

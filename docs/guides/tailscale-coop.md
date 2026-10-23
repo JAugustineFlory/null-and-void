@@ -4,7 +4,7 @@ Tailscale puts every player's computer on one private network, so Null & Void's 
 
 ## Before you start
 - One person is the **host**. Pick the one with the best internet connection.
-- Everyone must run **the same version of the game**, built from the same commit of `main`. Mismatched versions can fail to connect or desync.
+- Everyone must run **the same version of the game** (it shows in a corner of the pause menu). Grab the newest from the [download page](https://jaugustineflory.github.io/null-and-void/). Mismatched versions can fail to connect or desync.
 
 ## 1. Everyone: install Tailscale and sign in
 1. Download Tailscale from https://tailscale.com/download (Windows, Mac or Linux) and install it.
@@ -35,7 +35,7 @@ This lets friends reach only your computer, not the rest of your network.
 - **Can they see the host?** The friend opens Command Prompt (Windows) or Terminal (Mac) and runs `tailscale ping <host's 100.x address>`. A reply means the network works and the problem is the game or firewall.
 - **Firewall:** on the host, open Windows Security → Firewall & network protection → Allow an app through firewall. Make sure the game (or Godot) is ticked for Private and Public.
 - **Typo or stale address:** re-copy the host's 100.x address from the Tailscale icon.
-- **Different game versions:** everyone updates to the same build of `main`.
+- **Different game versions:** everyone downloads the newest version from the [download page](https://jaugustineflory.github.io/null-and-void/).
 - **Only one copy hosting:** if the lobby says it couldn't host on port 7777, another copy of the game is already running on the host's computer. Close it.
 
 ## Afterwards

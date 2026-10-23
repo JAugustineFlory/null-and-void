@@ -3,3 +3,5 @@
 export/
 builds/
 *.tmp
+dist/
+site/header.jpg
