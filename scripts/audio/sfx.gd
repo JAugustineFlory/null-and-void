@@ -19,8 +19,9 @@ const SETTINGS := "user://audio.cfg"
 ## Most variants a kind can have (<kind>_1 .. <kind>_8).
 const MAX_VARIANTS := 8
 
-## How each kind plays: its bus, loudness and how far it carries (unit_size: metres
-## at full volume). Anything not listed is a short effect on SFX.
+## How each kind plays: its bus, loudness and how far it carries (unit: metres at
+## full volume; max: metres past which it isn't played at all, which keeps a floor
+## full of buzzing tubes cheap). Anything not listed is a short effect on SFX.
 const KINDS := {
 	"glass": {"unit": 6.0},
 	"clunk": {"unit": 6.0},
@@ -32,9 +33,9 @@ const KINDS := {
 	"key": {"unit": 1.5, "db": -10.0, "pitch": 0.12},
 	"flicker": {"bus": AMBIENCE, "unit": 2.5, "db": -6.0, "pitch": 0.15},
 	"door_motor": {"unit": 4.0, "db": -4.0},
-	"fluorescent_buzz": {"bus": AMBIENCE, "unit": 1.2, "db": -18.0},
-	"crt_whine": {"bus": AMBIENCE, "unit": 0.8, "db": -20.0},
-	"server_hum": {"bus": AMBIENCE, "unit": 3.0, "db": -10.0},
+	"fluorescent_buzz": {"bus": AMBIENCE, "unit": 1.2, "db": -18.0, "max": 10.0},
+	"crt_whine": {"bus": AMBIENCE, "unit": 0.8, "db": -20.0, "max": 5.0},
+	"server_hum": {"bus": AMBIENCE, "unit": 3.0, "db": -10.0, "max": 18.0},
 }
 
 static var _streams := {}
@@ -156,6 +157,7 @@ static func _player_3d(kind: String, volume_db: float) -> AudioStreamPlayer3D:
 	p.stream = stream(kind)
 	p.bus = bus_for(kind)
 	p.unit_size = info.get("unit", 6.0)
+	p.max_distance = info.get("max", 0.0)
 	p.volume_db = info.get("db", 0.0) + volume_db
 	p.pitch_scale = _pitch(kind)
 	return p

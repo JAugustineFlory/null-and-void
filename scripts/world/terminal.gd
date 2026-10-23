@@ -99,6 +99,8 @@ static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: Stri
 	shape.shape = bs
 	shape.position.y = 0.25
 	t.add_child(shape)
+	# The tube's thin whine, only heard up close.
+	Sfx.loop(t, "crt_whine", t.focus_point.position)
 	t.screen = TerminalScreen.attach(t)
 	t.screen.set_title(name_text)
 	t.screen.follow(t)
@@ -234,6 +236,12 @@ func is_locked() -> bool:
 
 func set_screen_color(c: Color) -> void:
 	_screen.material_override = Greybox.mat(c, 1.6)
+
+
+## A sound from the screen: "key", "beep" or "error". Every machine that runs the
+## query plays it, at this terminal.
+func sound(kind: String) -> void:
+	Sfx.play(self, kind, focus_point.position)
 
 
 func on_query(sql: String, result: Dictionary, terminal_ui: TerminalUI) -> void:

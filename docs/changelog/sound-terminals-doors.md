@@ -1,0 +1,2 @@
+- **Added:** terminals whine faintly up close, their keys click as you type, and they beep when a query works and buzz when it fails.
+- **Added:** sliding security doors whir open and thud shut; ordinary doors click on the latch.

@@ -294,6 +294,8 @@ func _mirror() -> TerminalMirror:
 
 ## The input line changed: show it on everyone's copy of the screen.
 func _typed() -> void:
+	if visible and terminal and terminal.has_method("sound"):
+		terminal.sound("key")
 	var mirror := _mirror()
 	if mirror and visible:
 		mirror.typed(terminal, _input.text)
@@ -732,6 +734,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 		out.append([sysop("? is the blank from the hint. Type the real value in its place."), "hint"])
 	for line in out:
 		on_terminal.print_line(line[0], line[1])
+	if on_terminal.has_method("sound"):
+		on_terminal.sound("beep" if result.ok else "error")
 
 
 func _echo(sql: String, who: String) -> String:
@@ -755,6 +759,8 @@ func show_request(on_terminal: Node, line: String, res: Dictionary, from_peer: i
 	var color := "#7dff8c" if res.status < 400 else "#ff6655"
 	on_terminal.print_line("[color=%s]HTTP/1.0 %d %s[/color]" % [color, res.status, FacilityAPI.status_text(res.status)])
 	on_terminal.print_line(_esc(res.text), "result")
+	if on_terminal.has_method("sound"):
+		on_terminal.sound("beep" if res.status < 400 else "error")
 	if LevelSync.of(on_terminal) == null:
 		on_terminal.on_request(line, res, self)
 

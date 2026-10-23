@@ -139,6 +139,8 @@ func set_open(open: bool, instant: bool = false, away: float = 0.0) -> void:
 		if away != 0.0:
 			swing_deg = absf(swing_deg) * away
 	is_open = open
+	if not instant:
+		_sound(open)
 	if is_hinged():
 		if _tween:
 			_tween.kill()
@@ -156,6 +158,13 @@ func set_open(open: bool, instant: bool = false, away: float = 0.0) -> void:
 		return
 	_tween = create_tween()
 	_tween.tween_property(self, "position", target, 1.1 if open else 0.35).set_trans(Tween.TRANS_QUAD)
+
+
+## A sliding door's motor runs it open and it thuds shut; a hinged one's latch clicks.
+func _sound(opening: bool) -> void:
+	var parent := get_parent()
+	if parent is Node3D:
+		Sfx.play(parent, "click" if is_hinged() else ("door_motor" if opening else "clunk"), position)
 
 
 ## Called when the database row changes. A hinged door's row is its lock: it
