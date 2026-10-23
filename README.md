@@ -1,27 +1,18 @@
 > [!IMPORTANT]
 > ## Beta testers: start here
 >
-> **1. Get the game.** On this page, click the green **Code** button, then **Download ZIP**, and unzip it anywhere.
-> Everyone playing together needs the same download, so grab a fresh one before each session.
+> **1. Download the game** from **[the download page](https://jaugustineflory.github.io/null-and-void/)**
+> (Windows, Mac or Linux). No Godot needed. Unzip it and open the game; the page shows how to
+> get past Windows' and the Mac's "unknown app" warning the first time.
+> Everyone playing together needs the same version, so grab the newest one before each session.
 >
-> **2. Install Godot 4.7** (free, nothing else to install).
-> - Download the **standard** version (not .NET) from [godotengine.org/download](https://godotengine.org/download).
-> - **Windows:** unzip it and double-click the Godot `.exe`. 
-> - **Mac:** open the `.dmg`, drag Godot to Applications, then right-click it and choose **Open** the first time.
-> 
-> **3. Open the Game in Godot**
-> - In Godot, click **Import**, pick `project.godot` in the game's folder, then **Import & Edit**
-> - Or open the game's folder and drag `project.godot` directly into the Godot app. 
->
->   *The first import takes a minute or two.*
->  
-> - Press **F5** (or the play button at the top right) to start the game.
->
-> **3. Co-op over the internet: install Tailscale.** Everyone installs it from
+> **2. Co-op over the internet: install Tailscale.** Everyone installs it from
 > [tailscale.com/download](https://tailscale.com/download) and signs in with their own account.
 > The host shares their computer and everyone joins the host's `100.x` address on port 7777:
 > follow the [Tailscale co-op guide](docs/guides/tailscale-coop.md) the first time (about 10 minutes).
 > Playing on the same wifi, or solo, needs no Tailscale.
+>
+> Prefer to run it from source? Install [Godot 4.7](https://godotengine.org/download) and see [Play it](#play-it).
 
 <p align="center">
   <img src="docs/store/header.jpg" alt="Null &amp; Void: Halcyon Tower at night" width="100%">
@@ -98,10 +89,9 @@ SQL into the building's terminals to get the next door open.
 
 ### System requirements
 
-The game runs from source for now (see [Play it](#play-it)).
+Download it for Windows, Mac or Linux from [the download page](https://jaugustineflory.github.io/null-and-void/).
 
 - **OS:** Windows, macOS or Linux
-- **Software:** [Godot 4.7](https://godotengine.org/download), the standard version (free)
 - **Graphics:** a graphics card with Vulkan support
 - **Online co-op:** a home network, or a free VPN such as Tailscale
 
@@ -261,6 +251,8 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 | Ship | Steam lobbies, final art and recorded voices | Later |
 
 ## Play it
+
+Download the game from [the download page](https://jaugustineflory.github.io/null-and-void/), or run it from source:
 
 1. Install [Godot 4.7](https://godotengine.org/download) or newer (the standard version, not .NET). It's free.
 2. Open Godot, choose **Import**, and select `project.godot` in this folder.
