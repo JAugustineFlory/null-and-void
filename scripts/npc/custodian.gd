@@ -76,6 +76,7 @@ var _bay_set := false
 
 func _ready() -> void:
 	add_to_group("npc")
+	SfxCombat.watch(self)  # punches landing on it, heard on every machine
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(1.0, BODY_HEIGHT, 0.9)

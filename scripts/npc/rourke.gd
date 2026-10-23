@@ -53,6 +53,7 @@ var wounds: Injuries
 
 func _ready() -> void:
 	add_to_group("npc")
+	SfxCombat.watch(self)  # punches landing on him and his swings, heard on every machine
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.32

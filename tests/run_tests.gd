@@ -3700,9 +3700,12 @@ func test_coop_custodian() -> void:
 	check(not hc.powered and not cc.powered and cc.state == "off", "its power cut by code, it's dead on every machine")
 	check(hc.held == null and not client.player.input_locked, "and the client is dropped")
 	var before := hc.strikes
+	var clangs := [hc, cc].map(func(c): return c.get_node("FightSounds").heard.size())
 	cc.take_hit(client.player)
 	await _frames(10)
 	check(hc.strikes == before + 1, "a client's strike reaches the host, which runs it")
+	check([hc, cc].map(func(c): return c.get_node("FightSounds").heard.size()) == clangs.map(func(n): return n + 1)
+		and [hc, cc].all(func(c): return c.get_node("FightSounds").heard.back() == "punch_metal"), "and both machines hear the punch land on it, once")
 	check(cc.strikes == hc.strikes and cc.wounds.shown() == hc.wounds.shown(), "and every machine shows the same wounds")
 	await _coop_close(worlds)
 
@@ -3724,6 +3727,9 @@ func test_coop_combat() -> void:
 	puppet.take_damage(22.0, "rourke")
 	await _frames(10)
 	check(is_equal_approx(client.player.health, 78.0), "a hit from the host's Rourke lands on the client's own machine")
+	var mate_sounds: SfxCombat = puppet.get_node("FightSounds")
+	check(client.player.get_node("FightSounds").heard.has("hurt") and await _until(func(): return mate_sounds.heard.has("hurt"), 2.0),
+		"and is heard on both machines: the client's own, and the host's from the client flinching")
 	var blocks := []
 	host.crew.hit_blocked.connect(func(id, cause): blocks.append([id, cause]))
 	var net: Node = root.get_node("/root/Net")
@@ -3736,6 +3742,8 @@ func test_coop_combat() -> void:
 	await _frames(10)
 	check(is_equal_approx(client.player.health, 78.0), "the client's block, on their own machine, catches it")
 	check(blocks == [[client_id, "rourke"]], "and the host hears about it, so he can reel")
+	check(client.player.get_node("FightSounds").heard.back() == "block" and await _until(func(): return mate_sounds.heard.has("block"), 2.0),
+		"the block thuds on both machines")
 	check(client.hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:first_block") + "\nUnlocked: High-tops") and host.hud._notice.text == "",
 		"the client's first real block unlocks the High-tops for the client only: the host, in the same fight, gets nothing")
 	check(net.profile.earned.has(CrewVitals.FIRST_BLOCK), "into the player's own profile")
@@ -3752,6 +3760,7 @@ func test_coop_combat() -> void:
 	check(client.player.downed and client.player.input_locked and client.player.health == 0.0, "knocked out: the client is down, not dead")
 	check(machines.all(func(l): return l.crew.downed.has(client_id)), "every machine knows")
 	check(host.players.puppet(client_id).downed, "the host sees them lying there")
+	check(client.player.get_node("FightSounds").heard.back() == "body_fall" and mate_sounds.heard.back() == "body_fall", "and both machines hear them hit the floor")
 	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "and can help them up")
 	puppet.interact(host.player)
 	await _frames(10)

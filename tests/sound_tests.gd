@@ -23,6 +23,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_footsteps()
 	await test_landing()
 	await test_teammate_steps()
+	await test_fight_sounds()
+	await test_teammate_fight_sounds()
+	await test_npc_fight_sounds()
 	test_recorded_budget_and_credits()
 	test_music_layers()
 	await test_music_moods()
@@ -338,6 +341,96 @@ func test_teammate_steps() -> void:
 		mate.apply_state(Vector3(0 if i % 2 == 0 else 6, 0, -6), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
 		await t.physics_frame
 	check(steps.heard.size() == n, "snapping to a new place (over 4 m), no steps")
+	a.queue_free()
+	await t.process_frame
+
+
+## Your own fight: from your PlayerCombat's signals.
+func test_fight_sounds() -> void:
+	for kind in ["swing", "body_fall"]:
+		check(Sfx.stream(kind) is AudioStreamWAV, "%s is made in code" % kind)
+	for kind in ["punch_hit", "punch_metal", "hurt", "block", "bag_hit", "guard"]:
+		check(Sfx.stream(kind) is AudioStreamRandomizer, "%s is recorded, with variants" % kind)
+	var a := Node3D.new()
+	t.root.add_child(a)
+	var p := Player.new()
+	p.local_control = false
+	a.add_child(p)
+	await t.process_frame
+	var fight: SfxCombat = p.get_node("FightSounds")
+	p.combat.swung.emit()
+	check(fight.heard == ["swing"], "throwing a punch, a whoosh")
+	p.combat.take_damage(10.0, "rourke")
+	check(fight.heard.back() == "hurt", "taking a punch, a hit")
+	p.combat.raise_guard()
+	p.combat.take_damage(10.0, "rourke")
+	check(fight.heard.slice(-2) == ["guard", "block"], "the guard going up rustles, and a block thuds")
+	p.combat.reset()
+	p.combat.take_damage(0.0, "spar")
+	check(fight.heard.back() == "bag_hit", "the punch bag catching you is the bag's thud, not a fist")
+	var n := fight.heard.size()
+	p.combat.hurt.emit(30.0, "fall")
+	check(fight.heard.size() == n, "a fall's hurt is the landing's sound, not a punch")
+	p.combat.went_down.emit("watcher")
+	check(fight.heard.back() == "body_fall", "going down, you hit the floor")
+	check(a.get_meta("sounds_played", []).any(func(x): return x.kind == "body_fall"), "and it plays where you are")
+	a.queue_free()
+	await t.process_frame
+
+
+## A teammate's fight, from the fists their machine sends and from lying down.
+func test_teammate_fight_sounds() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	var mate := PlayerPuppet.create(a, 7, "Mate", {}, Transform3D(Basis(), Vector3(0, 0, 4)))
+	var fight: SfxCombat = mate.get_node("FightSounds")
+	for action in ["jab", "", "jab", "cross", "guard", "recoil", "flinch", "flinch"]:
+		mate.set_fight(action)
+		await t.process_frame
+	check(fight.heard == ["swing", "swing", "swing", "guard", "block", "hurt"],
+		"a teammate's punches, guard, blocks and hits are heard on your machine, once each (%s)" % [fight.heard])
+	mate.set_downed(true)
+	await t.process_frame
+	await t.process_frame
+	check(fight.heard.back() == "body_fall" and fight.heard.count("body_fall") == 1, "and going down, once")
+	a.queue_free()
+	await t.process_frame
+
+
+## Rourke and the Custodian, from what the host replicates of them.
+func test_npc_fight_sounds() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	var r := Rourke.new()
+	r.hits_left = 0
+	a.add_child(r)
+	r.hits_left = 3
+	await t.process_frame
+	var fight: SfxCombat = r.get_node("FightSounds")
+	check(fight.heard.is_empty(), "his fight starting (hits left going up) makes no sound")
+	r.hits_left = 2
+	await t.process_frame
+	check(fight.heard == ["punch_hit"], "a punch landing on Rourke")
+	r.set("_windup", 0.4)
+	await t.process_frame
+	r.set("_windup", -0.01)
+	await t.process_frame
+	check(fight.heard.back() == "swing", "his wind-up running out is his swing")
+	r.set("_windup", 0.4)
+	await t.process_frame
+	r.set("_windup", 0.0)
+	r.hits_left = 1
+	await t.process_frame
+	check(fight.heard.slice(1) == ["swing", "punch_hit"], "hit mid-wind-up, he doesn't swing")
+	r.hits_left = 0
+	await t.process_frame
+	check(fight.heard.slice(-2) == ["punch_hit", "body_fall"], "the last punch puts him on the floor")
+	var c := Custodian.new()
+	a.add_child(c)
+	await t.process_frame
+	c.strikes += 1
+	await t.process_frame
+	check(c.get_node("FightSounds").heard == ["punch_metal"], "a punch on the Custodian clangs")
 	a.queue_free()
 	await t.process_frame
 
