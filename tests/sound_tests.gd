@@ -24,6 +24,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_landing()
 	await test_teammate_steps()
 	test_recorded_budget_and_credits()
+	test_music_layers()
+	await test_music_moods()
 	test_volume_sliders()
 
 
@@ -360,6 +362,60 @@ func test_recorded_budget_and_credits() -> void:
 	check(uncredited.is_empty(), "every recorded sound is in audio/sfx/CREDITS.md (missing: %s)" % [uncredited])
 
 
+func test_music_layers() -> void:
+	var ms := 0
+	for layer in MusicSynth.LAYERS:
+		var start := Time.get_ticks_msec()
+		var w := MusicSynth.make(layer)
+		ms += Time.get_ticks_msec() - start
+		check(w != null and w.loop_mode == AudioStreamWAV.LOOP_FORWARD and w.loop_end == MusicSynth.samples(),
+			"music layer %s loops, the same length as the rest" % layer)
+		var peak := _peak(w, 7)
+		check(peak > 0.1 and _clipped(w, 7) < 0.001, "music layer %s is audible and not clipped (peak %.2f)" % [layer, peak])
+		var first := w.data.decode_s16(0) / 26000.0
+		var last := w.data.decode_s16((w.loop_end - 1) * 2) / 26000.0
+		check(absf(first - last) < 0.05, "music layer %s loops without a click (seam %.3f)" % [layer, absf(first - last)])
+	print("    (music made in %d ms)" % ms)
+	check(MusicSynth.make("kazoo") == null, "there's no layer that isn't listed")
+	for m in Music.MOODS:
+		for layer in Music.MOODS[m]:
+			check(layer in MusicSynth.LAYERS, "mood %s only uses real layers (%s)" % [m, layer])
+
+
+func test_music_moods() -> void:
+	var m := Music.of(t.root)
+	check(Music.of(t.root) == m, "there's only ever one Music")
+	m.set_mood("calm")
+	check(not m.layers.values().any(func(p): return p.playing), "before its layers are made, nothing plays")
+	for i in 200:
+		if m.ready_to_play:
+			break
+		await t.create_timer(0.05).timeout
+	check(m.ready_to_play, "the layers are made in the background")
+	check(m.layers.size() == MusicSynth.LAYERS.size() and m.layers.values().all(func(p): return p.bus == Sfx.MUSIC),
+		"every layer plays on the Music bus")
+	m.set_mood("calm")
+	check(m.layers.values().all(func(p): return p.playing), "every layer starts together, so they stay in time")
+	m._process(Music.FADE_IN)
+	check(is_equal_approx(m.level["drone"], 0.6) and m.level["heart"] == 0.0, "calm: the drone and pad, nothing chasing")
+	m.set_mood("chase")
+	m._process(0.5)
+	check(m.level["heart"] > 0.0 and m.level["heart"] < 1.0, "danger fades in over a moment, not all at once")
+	m._process(Music.FADE_IN)
+	check(m.level["tension"] == 1.0 and m.level["heart"] == 1.0, "chase: everything")
+	m.set_mood("checkpoint")
+	m._process(Music.FADE_IN)
+	check(m.level["tension"] > 0.0 and m.level["relief"] > 0.7, "at a checkpoint the relief comes in quickly while the chase lingers")
+	m._process(Music.FADE_OUT)
+	check(m.level["tension"] == 0.0, "then the chase is gone")
+	m.set_mood("silent")
+	m._process(Music.FADE_OUT)
+	m._process(0.1)
+	check(m.layers.values().all(func(p): return not p.playing), "silent: it stops")
+	m.queue_free()
+	await t.process_frame
+
+
 func test_volume_sliders() -> void:
 	var box := SfxVolume.sliders()
 	var names := []
@@ -371,17 +427,18 @@ func test_volume_sliders() -> void:
 	box.free()
 
 
-func _peak(w: AudioStreamWAV) -> float:
+## Looks at every `stride`th sample (a music layer is long).
+func _peak(w: AudioStreamWAV, stride := 1) -> float:
 	var peak := 0
-	for i in range(0, w.data.size(), 2):
+	for i in range(0, w.data.size(), 2 * stride):
 		peak = maxi(peak, absi(w.data.decode_s16(i)))
 	return peak / 32767.0
 
 
 ## The share of samples pinned at SfxSynth's ceiling.
-func _clipped(w: AudioStreamWAV) -> float:
+func _clipped(w: AudioStreamWAV, stride := 1) -> float:
 	var n := 0
-	for i in range(0, w.data.size(), 2):
+	for i in range(0, w.data.size(), 2 * stride):
 		if absi(w.data.decode_s16(i)) >= 26000:
 			n += 1
-	return float(n) / (w.data.size() / 2)
+	return float(n) / (w.data.size() / (2 * stride))
