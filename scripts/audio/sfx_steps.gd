@@ -27,7 +27,7 @@ const SPRINT_DB := 0.0
 ## Collider names that say what a floor is made of, checked in order.
 const NAMED_SURFACES := [
 	["vent", "vent"], ["grate", "metal"], ["gantry", "metal"], ["catwalk", "metal"],
-	["stair", "metal"], ["ladder", "metal"], ["carpet", "carpet"], ["rug", "carpet"],
+	["carpet", "carpet"], ["rug", "carpet"],
 	["desk", "wood"], ["table", "wood"], ["counter", "wood"], ["crate", "wood"],
 	["shelf", "wood"], ["bench", "wood"],
 ]
