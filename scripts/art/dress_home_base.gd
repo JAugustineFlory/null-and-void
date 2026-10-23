@@ -22,7 +22,6 @@ static func apply(level: LevelBase) -> void:
 	var bench_mat := ArtPalette.surface("laminate", Color(0.8, 0.7, 0.6))
 	front(geo, level)
 	ArtDress.reskin(geo, [
-		{"names": ["Shelf"], "mat": ArtPalette.surface("metal", Color(0.7, 0.72, 0.75))},
 		{"names": ["Desk"], "mat": ArtPalette.surface("laminate", Color(0.75, 0.68, 0.6))},
 		{"names": ["Radio"], "mat": ArtPalette.surface("dark_plastic")},
 	])
@@ -35,6 +34,8 @@ static func apply(level: LevelBase) -> void:
 	_briefing_corner(level, dress)
 	_bag_stand(level, dress)
 	_book(level)
+	_shelf(level, dress)
+	_shop_bag(level)
 
 	# Oil on the slab where the van stands, and an old stain by the door.
 	var oil := ArtPalette.flat(Color(0.05, 0.05, 0.05, 0.55), 0.25)
@@ -309,6 +310,95 @@ static func _book(level: Node) -> void:
 		if c is GeometryInstance3D:
 			c.visible = false
 	ArtKit.easy_sql_book(book, Vector3(0, -0.04, 0), 180)
+
+
+## The steel shelving in the back corner, where the shop bag was left: grey
+## angle posts, three particle-board shelves and the garage's overflow below.
+## The greybox block keeps its collider.
+static func _shelf(level: LevelBase, dress: Node3D) -> void:
+	var block := level.geo.get_node_or_null("Shelf")
+	if block == null:
+		return
+	ArtDress.hide_block(block)
+	var at := HomeBase.SHELF
+	var w := 1.6
+	var d := 0.7
+	var steel := Color(0.55, 0.57, 0.6)
+	var board := Color(0.74, 0.69, 0.6)
+	var card := Color(0.52, 0.36, 0.19)
+	var m := ArtMesh.new()
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			# Slotted angle posts, one flange along each side.
+			var post := at + Vector3(sx * (w / 2 - 0.02), 0.5, sz * (d / 2 - 0.02))
+			m.box(post + Vector3(-sx * 0.015, 0, 0), Vector3(0.035, 1.0, 0.004), steel)
+			m.box(post + Vector3(0, 0, -sz * 0.015), Vector3(0.004, 1.0, 0.035), steel)
+	for y in [0.12, 0.55, 0.985]:
+		m.box(at + Vector3(0, y, 0), Vector3(w - 0.02, 0.025, d - 0.02), board)
+		for sz in [-1.0, 1.0]:
+			m.box(at + Vector3(0, y - 0.02, sz * (d / 2 - 0.02)), Vector3(w, 0.035, 0.004), steel)  # front and back rails
+	# The overflow: storage boxes, a paint can, a coil of network cable.
+	m.box(at + Vector3(-0.45, 0.135 + 0.16, 0.0), Vector3(0.5, 0.32, 0.45), card)
+	m.box(at + Vector3(-0.45, 0.135 + 0.28, -0.12), Vector3(0.12, 0.08, 0.004), Color(0.95, 0.93, 0.85))  # its label
+	m.box(at + Vector3(0.2, 0.135 + 0.12, 0.05), Vector3(0.42, 0.24, 0.38), card.darkened(0.15))
+	for x in [-0.45, -0.3]:
+		var top: float = 0.135 + 0.32 if x < -0.4 else 0.565 + 0.22
+		var bx: float = x
+		m.box(at + Vector3(bx, top + 0.001, 0.0), Vector3(0.05, 0.002, 0.36), Color(0.78, 0.7, 0.5))  # packing tape
+	m.rod(at + Vector3(0.6, 0.135, -0.05), at + Vector3(0.6, 0.135 + 0.19, -0.05), 0.085, Color(0.75, 0.75, 0.72), 10, true)
+	m.box(at + Vector3(-0.3, 0.565 + 0.11, 0.0), Vector3(0.38, 0.22, 0.34), card)
+	for i in 6:
+		var a := TAU * i / 6.0
+		var b := TAU * (i + 1) / 6.0
+		var c := at + Vector3(0.35, 0.585, 0.0)
+		m.rod(c + Vector3(cos(a), 0, sin(a)) * 0.13, c + Vector3(cos(b), 0, sin(b)) * 0.13, 0.02, Color(0.25, 0.45, 0.75), 5)
+	m.commit(dress, "Shelf", true, 0.7)
+
+
+## The bookshop's paper bag on the shelf, with the book in it: kraft paper with
+## a folded rim, twisted paper handles and the shop's name on the front. It rides
+## on the bag itself, so it goes when the bag is picked up; the greybox box keeps
+## its collider and prompt.
+static func _shop_bag(level: Node) -> void:
+	var bag: Node3D = level.get("book_bag")
+	if bag == null:
+		return
+	for c in bag.get_children():
+		if c is GeometryInstance3D:
+			c.visible = false
+	var kraft := Color(0.66, 0.49, 0.31)
+	var crease := kraft.darkened(0.18)
+	var m := ArtMesh.new()
+	var w := 0.38
+	var h := 0.27
+	var d := 0.14
+	var base := -0.15  # the shelf, under the bag's middle
+	m.box(Vector3(0, base + h / 2, 0), Vector3(w, h, d), kraft, 0.0, ["top"])
+	m.box(Vector3(0, base + h - 0.015, 0), Vector3(w + 0.004, 0.03, d + 0.004), kraft.lightened(0.06), 0.0, ["top", "bottom"])  # the folded rim
+	for sx in [-1.0, 1.0]:
+		m.box(Vector3(sx * (w / 2 + 0.001), base + h / 2 - 0.01, 0), Vector3(0.002, h - 0.04, 0.006), crease)  # the gusset folds
+	m.box(Vector3(0, base + h - 0.035, 0), Vector3(w - 0.01, 0.002, d - 0.01), kraft.darkened(0.55), 0.0, ["bottom"])  # the shadow inside
+	# Twisted paper handles over the top, one on each face.
+	for sz in [-1.0, 1.0]:
+		var z: float = sz * (d / 2 - 0.01)
+		var pts := []
+		for i in 7:
+			var t := float(i) / 6.0
+			pts.append(Vector3(lerpf(-0.07, 0.07, t), base + h - 0.02 + sin(PI * t) * 0.09, z))
+		for i in 6:
+			m.rod(pts[i], pts[i + 1], 0.006, kraft.darkened(0.1), 5)
+	# The book, standing in the bag: its teal top edge just shows above the rim.
+	m.box(Vector3(-0.03, base + 0.13, 0.005), Vector3(0.19, 0.25, 0.03), Color(0.05, 0.55, 0.6), -4.0)
+	m.box(Vector3(-0.03, base + 0.255, 0.005), Vector3(0.18, 0.004, 0.025), Color(0.95, 0.94, 0.88), -4.0)  # page edges
+	m.commit(bag, "ShopBag", true)
+	# The shop's name, printed on the side that faces the room.
+	var bold := ThemeDB.fallback_font
+	var front := Node3D.new()
+	front.name = "Print"
+	front.position = Vector3(0, base + h * 0.45, -d / 2 - 0.0015)
+	bag.add_child(front)
+	ArtProps._print(front, "PAGE ONE", Vector3(0, 0.025, 0), 0.24, bold, 110, Color(0.12, 0.25, 0.16)).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ArtProps._print(front, "books · software · coffee", Vector3(0, -0.02, 0), 0.22, bold, 52, Color(0.12, 0.25, 0.16)).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
 ## Somewhere to sit (Seat, from Movement): E on the chair sits you facing the way it faces.

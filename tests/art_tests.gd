@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_actions()
 	test_rig_steps_through_turns()
 	test_first_person_body()
+	await test_first_person_hands()
 	await test_byte_right_van()
 	await test_rig_budget()
 	await test_skinned_body()
@@ -299,7 +300,7 @@ func test_first_person_body() -> void:
 	check(fp.current_action() == "sit" and absf(angle_difference(fp.global_rotation.y, 0.4)) < 0.01,
 		"sitting on a seat and looking round, your hips and legs keep facing the way the seat does")
 	check(absf(fp.rig.twist - PI / 2) < 0.01 and fp.rig._pose["spine"].y > 1.0, "and the upper body turns to look")
-	check(fp.position.z > FirstPersonBody.BACK + 0.1, "seated, the body sits further back, so looking down shows your lap, not your collar")
+	check((Basis(Vector3.UP, -fp.rotation.y) * fp.position).z > FirstPersonBody.BACK + 0.1, "seated, the body sits further back, so looking down shows your lap, not your collar")
 	you.sitting = false
 	you.seat = null
 	step.call(0.2)
@@ -308,17 +309,146 @@ func test_first_person_body() -> void:
 	# the neck stays behind the camera and you see your chest, legs and feet.
 	you.head.rotation.x = -1.45
 	for speed in [0.0, CharacterRig.WALK_SPEED, 6.5]:
-		fp.rig.speed_override = speed
+		you.velocity = Vector3(0, 0, -speed)
 		step.call(0.6)
 		check(fp.position.z + fp.neck_z() > FirstPersonBody.BACK + FirstPersonBody.DOWN_BACK - 0.03,
 			"looking straight down at %.1f m/s, your neck is behind the camera, not under it (%.2f m)" % [speed, fp.position.z + fp.neck_z()])
-	fp.rig.speed_override = -1.0
+	you.velocity = Vector3.ZERO
 	you.head.rotation.x = 0.0
 	step.call(0.3)
 	check(absf(fp.position.z - FirstPersonBody.BACK) < 0.01, "looking ahead, the body stands where it always did")
+	# Standing still and looking round (playtest: "always walking, even when
+	# standing still"): the legs stand; they walk when you do.
+	for i in 60:
+		you.rotation.y += 0.05  # three radians a second of looking round
+		step.call(1.0 / 60.0)
+	check(skin._clip == "Idle_Loop" and fp.rig.current_speed() < 0.05, "standing still and looking round, your legs stand still (%s)" % skin._clip)
+	you.velocity = Vector3(3.0, 0, 0)
+	step.call(0.5)
+	check(skin._clip == "Jog_Fwd_Loop", "moving, they jog (%s)" % skin._clip)
+	you.velocity = Vector3.ZERO
+	you.rotation.y = 0.0
+	step.call(0.5)
 	you.downed = true
 	step.call(0.1)
 	check(not fp.visible, "lying down, the camera is inside the body, so it's left out")
+	stage.queue_free()
+
+
+func test_first_person_hands() -> void:
+	# Playtest 2026-10-22: the neck showed when punching; on the couch the legs
+	# went through the cushion and the hands floated; papers and books were held
+	# by a second, boxy pair of hands.
+	var stage := _stage()
+	var you := _FakeFighter.new()
+	stage.add_child(you)
+	you.add_child(you.head)
+	you.head.position.y = 1.68
+	var cam := Camera3D.new()
+	cam.fov = 78
+	you.head.add_child(cam)
+	you.camera = cam
+	var fp := FirstPersonBody.attach(you, CharacterLooks.rourke())
+	fp.set_process(false)
+	fp.rig.set_process(false)
+	var skin: SkinnedBody = fp.rig._skin
+	var sk := skin.skeleton
+	var bone_at := func(bone: String) -> Vector3:
+		return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin
+	var step := func(seconds: float, also: Callable = Callable()) -> void:
+		for i in maxi(1, int(seconds * 60)):
+			if also.is_valid():
+				also.call()
+			fp._process(1.0 / 60.0)
+			fp.rig.animate(1.0 / 60.0)
+	step.call(0.3)
+	for pitch in [0.0, -0.6, -1.0]:
+		you.head.rotation.x = pitch
+		step.call(0.5)
+		var worst := -INF
+		var fist_seen := false
+		you.combat.swung.emit()
+		for i in 36:
+			step.call(1.0 / 60.0)
+			worst = maxf(worst, fp._neck_needs(fp.position))
+			fist_seen = fist_seen or cam.is_position_in_frustum(bone_at.call("hand_r")) or cam.is_position_in_frustum(bone_at.call("hand_l"))
+		check(worst < 0.06, "throwing a punch looking %.1f rad down, your neck never comes into view (%.2f m in)" % [-pitch, maxf(worst, 0.0)])
+		if pitch == 0.0:
+			check(fist_seen, "and you see your fist go out")
+	you.head.rotation.x = 0.0
+	step.call(FirstPersonBody.JAB_TIME + 0.3)
+
+	# A deep couch: a seat in the middle of a 0.9 m cushion.
+	var couch := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(3.0, 0.44, 0.9)
+	shape.shape = box
+	couch.add_child(shape)
+	couch.position = Vector3(0, 0.22, -3.0)
+	stage.add_child(couch)
+	var seat := Node3D.new()
+	seat.position = Vector3(0, 0.44, -3.0)  # facing -Z: its front edge is 0.45 m ahead
+	stage.add_child(seat)
+	await _frames(2)
+	you.global_position = seat.global_position
+	you.seat = seat
+	you.sitting = true
+	you.head.position.y = 0.83  # seated eye height (Player.SIT_HEIGHT)
+	step.call(1.5)
+	var knees := maxf((bone_at.call("calf_r") - seat.global_position).dot(Vector3.FORWARD), (bone_at.call("calf_l") - seat.global_position).dot(Vector3.FORWARD))
+	check(absf(knees - (0.45 + FirstPersonBody.KNEE_OVER)) < 0.04, "on a deep couch your knees come to its front edge, so your shins hang in front of it (%.2f m ahead)" % knees)
+	var resting := 0
+	var gaps := []
+	for side in ["r", "l"]:
+		gaps.append(bone_at.call("hand_" + side).distance_to(bone_at.call("calf_" + side)))
+		if gaps[-1] < 0.3 and bone_at.call("hand_" + side).y > bone_at.call("calf_" + side).y:
+			resting += 1
+	check(resting == 2 and fp.rig.reach_weight("r") > 0.99, "and your hands rest on your thighs (%d of 2, %s m from the knees)" % [resting, gaps])
+	you.head.rotation.x = -1.2
+	step.call(1.0)
+	check(fp._neck_needs(fp.position) < 0.06 and fp.rig.lean_back > 0.0, "looking down at your lap you lean back into it, and don't see your neck (%.2f m in, %.2f rad back)" % [fp._neck_needs(fp.position), fp.rig.lean_back])
+	you.sitting = false
+	you.seat = null
+	you.head.rotation.x = 0.0
+	you.head.position.y = 1.68
+	you.global_position = Vector3.ZERO
+	step.call(1.0)
+	check(fp.rig.reach_weight("r") == 0.0 and fp.rig.lean_back == 0.0, "standing up, the arms and back are your own again")
+
+	# A paper up to read: these hands hold it, round its bottom corners.
+	var held := HeldPaper.attach(cam, CharacterLooks.rourke())
+	var paper := MeshInstance3D.new()
+	var pm := BoxMesh.new()
+	pm.size = Vector3(0.21, 0.28, 0.003)
+	paper.mesh = pm
+	paper.position = Vector3(0, -0.01, -0.22)  # where Player.read_pose holds it
+	cam.add_child(paper)
+	held.hold(paper, Vector2(0.21, 0.28))
+	step.call(1.0, func(): held._process(1.0 / 60.0))
+	var drawn: Array = held.find_children("*", "GeometryInstance3D", true, false).filter(func(g): return g.is_visible_in_tree() and g != held.page)
+	var grip: Transform3D = fp.rig.reach.get("r", Transform3D())
+	check(drawn.is_empty() and fp.rig.reach.has("l") and bone_at.call("hand_r").distance_to(grip.origin) < 0.02,
+		"holding a paper, your own hands hold it and the old boxy ones aren't drawn (%d boxy parts, %s, %.3f m off)" % [drawn.size(), fp.rig.reach.keys(), bone_at.call("hand_r").distance_to(grip.origin)])
+	var palm_in: float = (sk.global_transform.basis * sk.get_bone_global_pose(sk.find_bone("hand_r")).basis).x.normalized().dot(Vector3.RIGHT)
+	check(palm_in > 0.3, "the right palm faces in towards the page, fingers behind it (%.2f)" % palm_in)
+	held.release()
+	paper.queue_free()
+	step.call(1.0, func(): held._process(1.0 / 60.0))
+	check(fp.rig.reach.is_empty() and fp.rig.reach_weight("r") == 0.0, "put down, the hands go back to your sides")
+	# Something carried in front of you (the Easy SQL book): by its bottom corners too.
+	var book := Node3D.new()
+	book.add_to_group("carried")
+	var cover := MeshInstance3D.new()
+	var cm := BoxMesh.new()
+	cm.size = Vector3(0.19, 0.03, 0.25)
+	cover.mesh = cm
+	book.add_child(cover)
+	book.transform = Transform3D(Basis(Vector3.RIGHT, 1.2), Vector3(0.1, -0.2, -0.42))
+	cam.add_child(book)
+	step.call(1.0)
+	var low: Vector3 = cam.global_transform.affine_inverse() * bone_at.call("hand_r")
+	check(fp.rig.reach.has("r") and fp.rig.reach.has("l") and low.y < -0.25 and low.z < -0.2, "a carried book is held in both hands, under it (%s, %s)" % [fp.rig.reach.keys(), low])
 	stage.queue_free()
 
 
@@ -330,6 +460,8 @@ class _FakeFighter extends Node3D:
 	var seat: Node3D = null
 	var sitting := false
 	var head := Node3D.new()
+	var velocity := Vector3.ZERO
+	var camera: Camera3D = null
 
 	func is_sitting() -> bool:
 		return sitting
@@ -422,7 +554,8 @@ func test_skinned_body() -> void:
 		for i in 90:
 			rig.animate(1.0 / 60.0)
 		var limbs := [["r_hip", "r_knee"], ["l_hip", "l_knee"]] if not act in ["wave", "shoulder"] else []
-		limbs.append(["r_shoulder", "r_elbow"])
+		if act != "sit":  # seated, the hands go to the knees instead (CharacterRig.reach)
+			limbs.append(["r_shoulder", "r_elbow"])
 		for l in limbs:
 			worst = maxf(worst, limb_error.call(l[0], l[1]))
 		if act == "wave":
@@ -1068,6 +1201,23 @@ func test_dressed_home_base() -> void:
 		and b.find_children("*", "CollisionShape3D", false, false).size() == 1)
 	check(stand.size() == 5 and kept.size() == 5 and level.get_node_or_null("Dressing/BagStand") != null,
 		"the punch bag hangs from a real steel stand, still as solid as its greybox (%d of 5)" % kept.size())
+	# Playtest 2026-10-22: the shop bag was a plain white box.
+	var bag: Node3D = level.book_bag
+	var shown: Array = bag.get_children().filter(func(c): return c is GeometryInstance3D and c.visible)
+	check(bag.get_node_or_null("ShopBag") != null and bag.get_node_or_null("Print") != null and not shown.any(func(c): return c is MeshInstance3D and c.mesh is BoxMesh)
+		and bag.find_children("*", "CollisionShape3D", false, false).size() == 1,
+		"the shop bag is a printed paper bag with handles and the book in it, still where E finds it")
+	var shelf: Node3D = level.geo.get_node("Shelf")
+	check(level.get_node_or_null("Dressing/Shelf") != null and shelf.get_children().all(func(c): return not (c is MeshInstance3D) or not c.visible),
+		"the shelf it sits on is steel shelving, still as solid as its greybox")
+	# Seated on the couch, your knees reach its front edge (FirstPersonBody brings
+	# them there; from the middle of its deep cushion they couldn't).
+	var lip := HomeBase.COUCH.x - 0.45
+	var reach_ok := 0
+	for i in 3:
+		if absf(lip - HomeBase.CREW_SEATS[i].x) > 0.2 and absf(lip - HomeBase.CREW_SEATS[i].x) < 0.4:
+			reach_ok += 1
+	check(reach_ok == 3, "each couch seat sits a thigh's length back from its front edge (%d of 3)" % reach_ok)
 	var stage := _stage()
 	var front := HomeBase.build_front(stage)
 	var door: Node3D = front.get_node("RollUpDoor")

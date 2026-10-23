@@ -51,6 +51,12 @@ const ACTION_CLIPS := {"jab": "Punch_Jab", "cross": "Punch_Cross", "guard": "Pun
 	"recoil": "Hit_Chest", "flinch": "Hit_Head"}
 const HELD := ["guard"]
 const FINGERS := ["thumb", "index", "middle", "ring", "pinky"]
+## Reaching (CharacterRig.reach), the elbow bends towards this, in the rig's
+## space for the right arm (x flips for the left): down, out and a little back.
+const ELBOW_POLE := Vector3(0.6, -1.0, 0.4)
+## A hand resting on its thigh: this far along it from the hip (forearm along
+## the thigh, the upper arm hanging), and this far up, onto the top of it.
+const KNEE_REST := Vector2(0.24, 0.08)
 ## The chest bones between the rig's spine and neck joints. The pack's idle bends
 ## them forward to stand over its own tilted pelvis; under the rig's upright hips
 ## that bend made everyone stoop, so while the rig holds the hips they keep their
@@ -166,8 +172,10 @@ func update(delta: float) -> void:
 				pose.origin = base.origin.lerp(parent_g.affine_inverse() * at, w)
 		g[i] = parent_g * pose
 		skeleton.set_bone_pose(i, pose)
-	if _lower > 0.0:
-		_plant_feet(g, cache)
+	var lift := _plant_feet(g, cache) if _lower > 0.0 else Vector3.ZERO
+	for side in ["r", "l"]:
+		if _rig.reach_weight(side) > 0.0:
+			_reach(side, g, lift)
 	if _rig.hide_head:
 		# Shrink the head to a point: the hair, hat and glasses ride on it too.
 		skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.001)
@@ -330,7 +338,7 @@ func _bind() -> void:
 
 ## Lifts or lowers the body so its feet land where the rig's do: the pack's legs
 ## are longer than the rig's, so a crouch or a chair would sink them otherwise.
-func _plant_feet(g: Array[Transform3D], cache: Dictionary) -> void:
+func _plant_feet(g: Array[Transform3D], cache: Dictionary) -> Vector3:
 	var to_parent: Transform3D = _rig.transform * _skel
 	var low := INF
 	for f in _feet:
@@ -341,12 +349,82 @@ func _plant_feet(g: Array[Transform3D], cache: Dictionary) -> void:
 		rig_low = minf(rig_low, sole.y)
 	var lift := (rig_low - (low - _foot_height * _rig.scale.y)) * _lower
 	if absf(lift) < 0.001:
-		return
+		return Vector3.ZERO
 	var up: Vector3 = to_parent.basis.inverse() * Vector3(0, lift, 0)
 	var parent_g: Transform3D = g[_parent[_pelvis]] if _parent[_pelvis] >= 0 else Transform3D.IDENTITY
 	var pose := skeleton.get_bone_pose(_pelvis)
 	pose.origin += parent_g.basis.inverse() * up
 	skeleton.set_bone_pose(_pelvis, pose)
+	return up  # how far the whole body moved, in the skeleton's space
+
+
+## Bends one arm (CharacterRig.reach) so its wrist lands on the rig's reach
+## point, or onto its own thigh: the upper arm swings to put the elbow down and out
+## of the way, then the forearm turns onto the point, and the hand turns the way
+## it's asked to (fingers along the reach's y, palm facing its z). `g` is every
+## bone in the skeleton's space before `lift` raised the body.
+func _reach(side: String, g: Array[Transform3D], lift: Vector3) -> void:
+	var u := skeleton.find_bone("upperarm_" + side)
+	var l := skeleton.find_bone("lowerarm_" + side)
+	var h := skeleton.find_bone("hand_" + side)
+	if u < 0 or l < 0 or h < 0:
+		return
+	var to_skel := _rig.global_transform * _skel if _rig.is_inside_tree() else _skel
+	var at = _rig.reach_point(side)
+	var target: Vector3
+	var fingers := Vector3.ZERO
+	var palm := Vector3.ZERO
+	var from_world := to_skel.affine_inverse()
+	if at is Transform3D:
+		var t: Transform3D = at
+		target = from_world * t.origin - lift
+		fingers = (from_world.basis * t.basis.y).normalized()
+		palm = (from_world.basis * t.basis.z).normalized()
+	elif at is Vector3:
+		target = from_world * (at as Vector3) - lift
+	else:
+		# Resting on the thigh, palm down and fingers towards the knee.
+		var hip: Vector3 = g[skeleton.find_bone("thigh_" + side)].origin
+		var knee: Vector3 = g[skeleton.find_bone("calf_" + side)].origin
+		var up := (_skel.basis.inverse() * Vector3.UP).normalized()
+		target = hip + (knee - hip).normalized() * KNEE_REST.x + up * KNEE_REST.y
+		fingers = (knee - hip).normalized()
+		palm = -up
+	var s := g[u].origin
+	var e := g[l].origin
+	var hand := g[h].origin
+	var l1 := s.distance_to(e)
+	var l2 := e.distance_to(hand)
+	var to := target - s
+	var d := clampf(to.length(), absf(l1 - l2) + 0.01, l1 + l2 - 0.002)
+	var dir := to.normalized()
+	var sx := 1.0 if side == "r" else -1.0
+	var pole := (_skel.basis.inverse() * ELBOW_POLE * Vector3(sx, 1, 1)).normalized()
+	var perp := pole - dir * pole.dot(dir)
+	if perp.length() < 0.001:
+		perp = (_skel.basis.inverse() * Vector3.DOWN).normalized()
+	perp = perp.normalized()
+	var a := acos(clampf((l1 * l1 + d * d - l2 * l2) / (2.0 * l1 * d), -1.0, 1.0))
+	var elbow := s + (dir * cos(a) + perp * sin(a)) * l1
+	var upper := Basis(Quaternion((e - s).normalized(), (elbow - s).normalized())) * g[u].basis
+	var lower_g := Transform3D(upper, s) * skeleton.get_bone_pose(l)
+	var hand_now := (lower_g * skeleton.get_bone_pose(h)).origin
+	var lower := Basis(Quaternion((hand_now - lower_g.origin).normalized(), (s + dir * d - lower_g.origin).normalized())) * lower_g.basis
+	var w := _rig.reach_weight(side)
+	var parent_g := g[_parent[u]]
+	var up_local := (parent_g.basis.inverse() * upper).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(u, skeleton.get_bone_pose_rotation(u).slerp(up_local, w))
+	var low_local := (upper.inverse() * lower).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(l, skeleton.get_bone_pose_rotation(l).slerp(low_local, w))
+	if fingers != Vector3.ZERO:
+		# The pack's hands run their y along the fingers, with x up the back of
+		# the right hand and the palm of the left.
+		var y := fingers
+		var x := (-palm if side == "r" else palm)
+		x = (x - y * x.dot(y)).normalized()
+		var want := Basis(x, y, x.cross(y))
+		var hand_local := (lower.orthonormalized().inverse() * want).get_rotation_quaternion()
+		skeleton.set_bone_pose_rotation(h, skeleton.get_bone_pose_rotation(h).slerp(hand_local, w))
 
 
 func _add_clips() -> void:

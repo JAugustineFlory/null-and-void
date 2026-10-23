@@ -31,7 +31,7 @@ const COUCH := Vector3(-4.4, 0, 0.0)
 const COUNTER := Vector3(-1.9, 0, 0.0)
 ## Where each crew member sits, in the order they're given out (couch first, from
 ## the middle), facing the whiteboard. Level-local seat tops.
-const CREW_SEATS := [Vector3(-4.4, 0.45, 0.0), Vector3(-4.4, 0.45, -1.0), Vector3(-4.4, 0.45, 1.0),
+const CREW_SEATS := [Vector3(-4.55, 0.45, 0.0), Vector3(-4.55, 0.45, -1.0), Vector3(-4.55, 0.45, 1.0),
 	Vector3(-2.6, 0.75, 0.0), Vector3(-2.6, 0.75, -1.0), Vector3(-2.6, 0.75, 1.0)]
 ## Outside: the foot of the roll-up door, and the driveway apron in front of it.
 const FRONT_DOOR := Vector3(DOOR_AT, 0, -SIZE.z / 2)
@@ -859,6 +859,7 @@ func _on_bag(id: int) -> void:
 	if body_is_mine(id):
 		held_book = _book(player.camera, HELD_BOOK.origin)
 		held_book.basis = HELD_BOOK.basis
+		held_book.add_to_group("carried")  # held in your own hands (FirstPersonBody)
 		hud.todo("Sit down with the book")
 	else:
 		var body := players.puppet(id)
