@@ -96,7 +96,7 @@ jobs:
           [ $s -eq 0 ] && ! grep -q "ERROR" smoke.log
       - name: Package
         # Windows and Linux need the SQLite library next to the game, so they ship as a zip
-        # holding one folder named after the version. macOS is Godot's own zip of the app.
+        # holding one folder named after the version. The Mac app is finished on a Mac (below).
         run: |
           version=${{ steps.version.outputs.version }}
           mkdir -p dist
@@ -105,13 +105,17 @@ jobs:
             (cd builds && zip -qry "../dist/NullAndVoid-$os.zip" "NullAndVoid-$version")
             mv "builds/NullAndVoid-$version" builds/$os
           done
-          cp builds/mac/NullAndVoid.zip dist/NullAndVoid-mac.zip
           ls -la dist
       - uses: actions/upload-artifact@v4
         with:
           name: builds
           path: dist/
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-export
+          path: builds/mac/NullAndVoid.zip
+          retention-days: 1
 
   smoke-windows:
     needs: build
@@ -130,26 +134,41 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "The game exited with $($p.ExitCode)" }
           if (Select-String -Path smoke.log -Pattern 'ERROR' -Quiet) { throw "The game logged errors" }
 
-  smoke-mac:
+  mac:
     needs: build
     runs-on: macos-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: builds
-      - name: Smoke-test the macOS build
+          name: mac-export
+      - name: Fix, sign and smoke-test the Mac app
+        # Godot 4.7.1 writes the app's executable name into Info.plist without escaping the
+        # "&" in "Null & Void", which breaks the plist and the signature. Escape it, then
+        # re-sign ad-hoc with Apple's own codesign (no certificate needed).
         run: |
-          ditto -x -k NullAndVoid-mac.zip game
+          ditto -x -k NullAndVoid.zip game
           app="game/Null & Void.app"
-          codesign --verify --deep --strict "$app"
+          perl -pi -e 's/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/&amp;/g' "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+          for fw in "$app"/Contents/Frameworks/*; do codesign --force --sign - "$fw"; done
+          codesign --force --sign - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
           lipo -archs "$app/Contents/MacOS/Null & Void"
           s=0; "$app/Contents/MacOS/Null & Void" --headless --quit-after 300 --log-file "$PWD/smoke.log" > /dev/null 2>&1 || s=$?
           cat smoke.log
           [ $s -eq 0 ] && ! grep -q "ERROR" smoke.log
+          mkdir dist
+          ditto -c -k --sequesterRsrc --keepParent "$app" dist/NullAndVoid-mac.zip
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: dist/
+          retention-days: 14
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, smoke-windows, smoke-mac]
+    needs: [build, smoke-windows, mac]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -157,6 +176,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: builds
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac
           path: dist
       - name: Attach the builds to the release
         env:
