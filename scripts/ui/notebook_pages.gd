@@ -587,7 +587,8 @@ func _add_block(flow: Control, text: String, bold: bool, fill: Color) -> void:
 		flow.add_child(_block(NotebookArt.code(text, 18), fill, bold))
 
 
-## Piece `n`'s block: its value once found, else its hint's name for it.
+## Piece `n`'s block: its value once found, else its hint's name for it. Its
+## number matches the piece list, except on a case that doesn't assemble.
 func _piece_block(n: int, p: Dictionary, quoted: bool, assemble: bool) -> Control:
 	var shown: bool = p.found and assemble
 	var text := str(p.value) if shown else str(p.get("blank", PIECE_MISSING))
@@ -595,9 +596,11 @@ func _piece_block(n: int, p: Dictionary, quoted: bool, assemble: bool) -> Contro
 		text = "'%s'" % text
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-	var num := NotebookArt.hand(str(n), 16, NotebookArt.INK if shown else NotebookArt.PENCIL)
-	num.autowrap_mode = TextServer.AUTOWRAP_OFF
-	row.add_child(num)
+	if assemble:  # under pressure, no number says which piece goes where
+		var num := NotebookArt.hand(str(n), 16, NotebookArt.INK if shown else NotebookArt.PENCIL)
+		num.name = "Number"
+		num.autowrap_mode = TextServer.AUTOWRAP_OFF
+		row.add_child(num)
 	var value := NotebookArt.code(text, 18, Color(0.1, 0.1, 0.12) if shown else NotebookArt.PENCIL)
 	value.autowrap_mode = TextServer.AUTOWRAP_OFF
 	row.add_child(value)

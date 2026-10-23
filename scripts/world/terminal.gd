@@ -169,9 +169,27 @@ func report_open(player: Node) -> void:
 func print_line(bbcode: String, kind: String = "") -> void:
 	transcript.append(bbcode)
 	transcript_kinds.append(kind)
+	if kind == "hint":
+		_note_hint_pieces(bbcode)
 	if ui:
 		ui.on_terminal_line(self, bbcode, kind)
 	screen_changed.emit()
+
+
+## One of this terminal's puzzle hints is on the screen (every machine's copy):
+## the case pieces its query shows are found for everyone looking at it.
+func _note_hint_pieces(bbcode: String) -> void:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return
+	var shown := TerminalUI._plain(bbcode)
+	for p in puzzles:
+		if p.case_id == "":
+			continue
+		for h in p.hints:
+			if TerminalUI._plain(TerminalUI.sysop(h)) == shown:
+				game.note_hint(p.case_id, h)
+				return
 
 
 func clear_screen() -> void:
