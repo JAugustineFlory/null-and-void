@@ -902,6 +902,9 @@ func test_screens_fill_window() -> void:
 			if r.position.x < 0 or r.position.y < 0 or r.end.x > win.x or r.end.y > win.y:
 				inside = false
 		check(inside, "%s buttons are fully on screen" % path.get_file())
+		if path.ends_with("lobby.tscn"):
+			var tag: Label = screen.find_child("Version", true, false)
+			check(tag != null and tag.text == "v0.7" and tag.is_visible_in_tree() and Rect2(Vector2.ZERO, win).encloses(tag.get_global_rect()), "the lobby shows the game's version, v0.7, on screen")
 		screen.queue_free()
 		await process_frame
 
@@ -914,6 +917,8 @@ func test_level_0_scene() -> void:
 	for i in 30:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
+	var version: Label = level._pause.find_child("Version", true, false)
+	check(ProjectSettings.get_setting("application/config/version") == "0.7" and version != null and version.text == "v0.7", "the pause menu shows the game's version, v0.7")
 	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
 	var lobby_floor: Node3D = level.geo.get_node("Floor")
 	check(lobby_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(lobby_floor) == "carpet", "the lobby is carpet underfoot")

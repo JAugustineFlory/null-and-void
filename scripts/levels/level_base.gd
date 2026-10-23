@@ -296,6 +296,7 @@ func _build_pause_menu() -> void:
 	_pause.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause.visible = false
 	layer.add_child(_pause)
+	_pause.add_child(ThemeUtil.version_tag())
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause.add_child(center)
