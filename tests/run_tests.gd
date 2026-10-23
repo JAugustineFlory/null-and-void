@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound"]
 
 
 func _run() -> void:
@@ -84,6 +84,7 @@ func _run_group(g: String) -> void:
 		"teaching_api": await _group_teaching_api()
 		"scripting": await _group_scripting()
 		"chapters": await _group_chapters()
+		"sound": await _group_sound()
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -138,6 +139,11 @@ func _group_floor_14() -> void:
 func _group_chapters() -> void:
 	await test_level_0_book_huddles()
 	await test_level_1_book_huddles()
+
+
+## Sound effects, buses and ambience.
+func _group_sound() -> void:
+	await _run_file("res://tests/sound_tests.gd")
 
 
 ## Floor 22, the security floor (Level 2), outside the lab.
