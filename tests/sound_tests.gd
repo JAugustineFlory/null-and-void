@@ -130,15 +130,16 @@ func test_flicker_light() -> void:
 	var buzz: AudioStreamPlayer3D = l.get_node("Loop_fluorescent_buzz")
 	check(buzz != null and buzz.playing and buzz.bus == Sfx.AMBIENCE and buzz.global_position == l.global_position,
 		"a flickering tube buzzes, at the tube, on Ambience")
-	for i in 30:
-		await t.process_frame
+	# Stepped by hand: headless frames can be shorter than a flicker's shortest beat.
+	for i in 20:
+		f._process(0.2)
 	check(f.crackles > 0, "it crackles as it flickers (%d)" % f.crackles)
 	# Switched off by the lights table: quiet.
 	l.visible = false
 	await t.process_frame
 	var crackled := f.crackles
 	for i in 20:
-		await t.process_frame
+		f._process(0.2)
 	check(not buzz.playing and f.crackles == crackled, "switched off, it neither buzzes nor crackles")
 	l.visible = true
 	await t.process_frame
