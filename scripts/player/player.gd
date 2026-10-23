@@ -321,6 +321,7 @@ func _ready() -> void:
 		_add_body_mesh()
 	combat = PlayerCombat.create(self)
 	if local_control: FirstPersonBody.attach(self)  # your own body, seen from your eyes
+	SfxSteps.attach(self)
 
 
 ## Turn your view right by `yaw` and down by `pitch` (radians); a held notebook
