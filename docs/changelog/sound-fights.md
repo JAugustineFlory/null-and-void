@@ -1,1 +1,0 @@
-- **Added:** fight sounds: punches whoosh and land with a thud (or a clang on metal), blocks and hits sound different, raising your guard rustles, and anyone going down hits the floor. You hear your teammates' swings, blocks and falls too.

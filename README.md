@@ -100,22 +100,46 @@ Download it for Windows, Mac or Linux from [the download page](https://jaugustin
 The full design is in [docs/game-plan.md](docs/game-plan.md).
 
 
-Playable now: **the ground floor and floors 14 and 22** of Halcyon Tower, solo or co-op
-(1 to 6 players), furnished art, subtitles for placeholder voices.
-
-- **Ground floor, the lobby:** check in with security, get your visitor badges, and piece
-  together a shredded memo with your first queries (`SELECT`, `FROM`, `ORDER BY`).
-- **Floor 14, the server floor:** the job you were hired for. Track down the faulty door
-  controllers with `WHERE` and reset the right rack. The faulty rack changes every run.
-- **Floor 22, the security floor:** filter, sort and count your way
-  through the guards' own records.
+Playable now: **six floors of Halcyon Tower** (the ground floor and floors 9, 10, 14, 18 and 22), solo or co-op
+(1 to 6 players), starting from the crew's garage.
 
 ## Changelog
 
-Newest first, one version per day. Click a version to open it. Floors are listed by their in-game
+Newest first, one release per drop-down, with its fix builds inside. Click a version to open it. Floors are listed by their in-game
 floor number. Changes that have merged but aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 <details open>
+<summary><b>v0.7 - 2026-10-24</b></summary>
+
+- **New:** download the game for Windows, Mac or Linux from its own download page, no Godot needed.
+- **New:** Floor 9, the Personnel Wing: HR and payroll after hours, where the building's services answer to a key and every change is checked by asking again. It comes with a second beginner's book, *Acceptable API's*.
+- **New:** Case board on the ground floor and floor 14: each case lists the pieces it needs; find them on the floor and the case page builds the query from blocks as they come in. Press E on a paper to note its piece straight into the case (X still reads the whole paper). Solved cases go under Completed cases, with the endings and other ways in you've found. In co-op, a piece anyone finds fills in everyone's case.
+- **New:** Sound: footsteps that change with the floor, landings, vaults and ledge grabs; fight sounds; terminals that whine, click, beep and buzz; doors that whir, thud and click; flickering tubes that buzz and crackle; and an adaptive score that follows the danger. You hear your teammates too.
+- **Added:** Volume sliders for music, effects, ambience and voices in the pause menu, remembered between sessions.
+- **Added:** The game's version shows in a corner of the pause menu and the pre-game lobby.
+- **Added:** Two new Easy SQL chapters, on changing a row and adding a row, with Maddison chiming in.
+- **Added:** "Test yourself" in the notebook's Books tab: a chapter's quick checks, any time, with the page beside each question.
+- **Added:** In first person, your own hands hold papers, the notebook and the book, and grab edges, climb pipes and press to walls; your view moves with every mantle, vault, landing, slide and roll.
+- **Added:** The case on screen shows the case and how many pieces you have, and what to do next for a moment after you find a piece or put the notebook away.
+- **Changed:** Easy SQL and Acceptable API's chapters no longer stop the game or ask questions: a new chapter goes into the Books tab while Maddison talks you through it.
+- **Changed:** Hanging from an edge, Space now pulls you up (W still works). S or Ctrl lets go.
+- **Changed:** A hint's fill-in-the-blank names what goes there (like `enter_column_name`) instead of a `?`, and typing it in as it is gets a nudge.
+- **Changed:** The garage punch bag swings back at you: block it. A miss says whether you were too early or never raised your guard. It hangs from a black steel stand.
+- **Changed:** Floor 10 is dressed as a working plant, with its own control room, charging bay and maintenance robot.
+- **Changed:** On floor 9 the air holds out longer, and every station can be finished from either terminal.
+- **Changed:** The garage shop bag is a printed paper bag on steel shelving.
+- **Fixed:** Floor 18's side rooms can always be entered and left, and doors swing away from whoever opens them.
+- **Fixed:** On floor 22, nobody can slip out of Secure Lab B mid-scene and leave the floor stuck.
+- **Fixed:** Co-op: everyone can climb into the van; names can be changed in the lobby and show straight away; joining players aren't dropped to the menu while the host is still loading; and you can always hear your crew during flashbacks and cutscenes.
+- **Fixed:** Your first-person body: looking down shows your chest, legs and feet; seated, only your upper body turns, and your legs hang over the front of the couch; a punch no longer shows your neck; and standing still no longer walks on the spot.
+- **Fixed:** The garage no longer stalls as you walk in, and Maddison walks round the furniture.
+- **Fixed:** Easy SQL's tables fit the page, chapter one shows both tables it asks about and why table names use `_`, and the book doesn't appear in the notebook before you pick it up.
+- **Fixed:** The ground floor terminal says how to look up a table's column names when you first need them.
+- **Fixed:** Reading the notebook or a paper, pushing the cursor to a screen edge looks that way again.
+
+</details>
+
+<details>
 <summary><b>v0.6.0 - 2026-10-21</b></summary>
 
 - **Changed:** cases with a single answer have a blank on their page. Point at the line that answers it, on a terminal or a paper, and click + add to notebook: the pen writes the answer in.

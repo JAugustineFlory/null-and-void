@@ -1,1 +1,0 @@
-- **Added:** two new Easy SQL chapters, on changing a row and adding a row.
