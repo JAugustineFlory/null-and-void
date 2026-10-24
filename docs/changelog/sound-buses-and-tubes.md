@@ -1,2 +1,0 @@
-- **Added:** flickering ceiling tubes buzz and crackle, and go quiet when they're switched off or mended.
-- **Added:** separate volume sliders for music, effects, ambience and voices in the pause menu, remembered between sessions.

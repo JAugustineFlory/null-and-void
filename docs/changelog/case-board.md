@@ -1,5 +1,0 @@
-- **New:** case board. Each case on the ground floor and floor 14 lists the pieces it needs; find them on the floor and the case page fills in the query as they come in.
-- **Added:** press E on a paper that holds a piece to note it straight into the case (X still reads the whole paper).
-- **Added:** the current case on screen, with how many of its pieces you've found and what to do next, plus a card for each piece found.
-- **Added:** solved cases go under Completed cases, with the endings and other ways in you've found.
-- **Changed:** the notebook opens on the current case, with the case on the left and its checklist on the right.

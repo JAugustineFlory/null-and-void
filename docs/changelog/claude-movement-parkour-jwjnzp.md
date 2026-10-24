@@ -1,2 +1,0 @@
-- **Changed:** hanging from an edge, Space now pulls you up (pressing W again still works too). S or Ctrl lets go.
-- **Added:** parkour moves your view in first person: you look down at your hands as you mantle, lean onto your hand as you vault, feel the jolt when you catch an edge or land, and sway climbing, shimmying and sliding.

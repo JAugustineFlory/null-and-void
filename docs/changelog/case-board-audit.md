@@ -1,2 +1,0 @@
-- **Changed:** the case board only fills in a piece once you've found it, names each missing value the way the hints do, and says to run the query before what comes next.
-- **Changed:** in co-op, a piece one player's query turns up fills in everyone's case.

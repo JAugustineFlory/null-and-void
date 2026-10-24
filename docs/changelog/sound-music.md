@@ -1,1 +1,0 @@
-- **Added:** an adaptive score that follows the danger: a low drone while you explore, a pulse once you're on your own, a heartbeat and strings when something is hunting you, and a breath of relief at home and between floors.

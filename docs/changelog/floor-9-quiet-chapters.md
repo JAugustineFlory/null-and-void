@@ -1,1 +1,0 @@
-- **Changed:** On floor 9, a new chapter of Acceptable API's comes into your notebook's Books tab without stopping anything, as on every other floor.

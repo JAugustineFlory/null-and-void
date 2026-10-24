@@ -1,1 +1,0 @@
-- **Changed:** the case on screen shows what to do next only for a moment, after you find a piece or put the notebook away; the rest of the time it shows just the case and how many pieces you have.

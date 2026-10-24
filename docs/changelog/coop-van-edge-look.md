@@ -1,2 +1,0 @@
-- **Fixed:** in co-op, every player can climb into the crew's van, not just the first one in.
-- **Fixed:** reading the notebook or a paper, pushing the cursor to any edge of the screen looks that way again, even when the page fills the view.
