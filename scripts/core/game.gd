@@ -189,12 +189,40 @@ func note_aside(label: String, text: String, kind: String, case_id: String = "")
 	notebook_changed.emit()
 
 
-## The case being worked on: the newest open one not yet solved, or "".
+## The case being worked on, and the only one the notebook shows: the newest open,
+## unsolved case, a real one before a side case. "" when there's nothing open.
 func current_case() -> String:
+	for c in notebook_cases:
+		if c.open and not c.solved and not c.get("optional", false):
+			return c.id
 	for c in notebook_cases:
 		if c.open and not c.solved:
 			return c.id
 	return ""
+
+
+## Side cases open alongside the current one, newest first: optional ones the crew
+## can look into, which never take the page from the case they're on.
+func side_cases() -> Array:
+	var on := current_case()
+	return notebook_cases.filter(func(c): return c.open and not c.solved and c.id != on)
+
+
+## A line under the case's question, in pencil: how the case board itself works,
+## for the floor that teaches it. Rare: most cases explain themselves. `hunt` goes
+## under its pieces until one is found; `terminal` names where the finished query
+## is typed ("the terminal" if not given).
+func set_case_note(id: String, text: String, hunt := "", terminal := "") -> void:
+	var c := _case(id)
+	c["note"] = text
+	c["hunt"] = hunt
+	c["terminal"] = terminal
+	notebook_changed.emit()
+
+
+## What to do about case `id`, in the imperative, or "" if it was never said.
+func case_objective(id: String) -> String:
+	return str(case_info(id).get("objective", ""))
 
 
 ## A new task on the job ticket; the one before it is ticked off. "" ticks off
@@ -245,7 +273,7 @@ func ticket_number() -> String:
 
 
 ## Everything a case page can have, for a case made before it could (an old save).
-const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true}
+const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true, "objective": "", "note": "", "hunt": "", "terminal": ""}
 
 
 func _case(id: String) -> Dictionary:
@@ -256,19 +284,23 @@ func _case(id: String) -> Dictionary:
 					c[k] = CASE_DEFAULTS[k].duplicate() if CASE_DEFAULTS[k] is Array or CASE_DEFAULTS[k] is Dictionary else CASE_DEFAULTS[k]
 			return c
 	var c := {"id": id, "title": "", "open": false, "solved": false, "how": "", "tables": [], "clues": [],
-		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true}
+		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true,
+		"objective": "", "note": "", "hunt": "", "terminal": ""}
 	notebook_cases.append(c)
 	return c
 
 
 ## Open a case page: `title` is the question, never its answer; `tables` are the
-## ones that matter (the page only names those this player has found). True if new.
-func open_case(id: String, title: String, tables: Array = []) -> bool:
+## ones that matter (the page only names those this player has found); `objective`
+## is the one thing to do about it, in the imperative, which the HUD and the top of
+## the case page both show. True if new.
+func open_case(id: String, title: String, tables: Array = [], objective: String = "") -> bool:
 	var c := _case(id)
 	if c.open:
 		return false
 	c.title = title
 	c.open = true
+	c.objective = objective
 	c.tables = tables.duplicate()
 	# The newest open case goes on top.
 	notebook_cases.erase(c)
