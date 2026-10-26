@@ -1,5 +1,5 @@
 extends Control
-## Title screen.
+## Title screen: Start (into the garage) and Quit.
 
 
 func _ready() -> void:
@@ -27,29 +27,16 @@ func _ready() -> void:
 	box.add_child(sub)
 	box.add_child(Control.new())
 
-	var start := _button("Start (solo)")
+	# Start goes into the crew's garage. Single-player, co-op, levels and
+	# customize are on its nav bar (lobby.gd), not here.
+	var start := _button("Start")
+	start.name = "Start"
 	start.pressed.connect(func():
-		get_node("/root/Net").begin_solo_lobby()  # the same opening as co-op, for one
+		get_node("/root/Net").begin_solo_lobby()
 		Game.goto("lobby"))
 	box.add_child(start)
-	var customize := _button("Customize")
-	customize.name = "Customize"
-	customize.pressed.connect(func(): Game.goto("customize"))
-	box.add_child(customize)
-	var skip := _button("Playtest: jump to Level 2")
-	skip.pressed.connect(func():
-		Game.new_run()
-		Game.goto("level_2"))
-	box.add_child(skip)
-	var gym := _button("Movement gym (practice)")
-	gym.pressed.connect(func(): Game.goto("movement_gym"))
-	box.add_child(gym)
-	var coop := _button("Co-op (2 to 6 players)")
-	coop.pressed.connect(func():
-		get_node("/root/Net").leave(false)  # nothing left over from a solo lobby
-		Game.goto("lobby"))
-	box.add_child(coop)
 	var quit := _button("Quit")
+	quit.name = "Quit"
 	quit.pressed.connect(func(): get_tree().quit())
 	box.add_child(quit)
 
