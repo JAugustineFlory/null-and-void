@@ -4599,8 +4599,9 @@ func test_in_world_ui() -> void:
 		await process_frame  # raised all the way
 	var shown := p.reading_rect()
 	var screen := root.get_visible_rect().size
-	check(shown.has_area() and p.edge_turn(Vector2(screen.x - 3, screen.y / 2), screen, shown).x > 1.0
-		and p.edge_turn(Vector2(3, screen.y / 2), screen, shown).x < -1.0 and p.edge_turn(Vector2(screen.x / 2, screen.y - 3), screen, shown).y > 1.0,
+	var full := Player.EDGE_LOOK_SPEED * 0.6
+	check(shown.has_area() and p.edge_turn(Vector2(screen.x - 3, screen.y / 2), screen, shown).x > full
+		and p.edge_turn(Vector2(3, screen.y / 2), screen, shown).x < -full and p.edge_turn(Vector2(screen.x / 2, screen.y - 3), screen, shown).y > full,
 		"the cursor at any edge of the screen turns the view, however big the book is (its hands and sleeves don't count)")
 	nb.close()
 	check(not nb.is_open() and not p.is_holding_notebook(), "and Tab puts it away")

@@ -1,0 +1,1 @@
+- **Fixed:** reading the notebook or a paper, the view turns more gently, with the mouse and when the cursor goes past the page.

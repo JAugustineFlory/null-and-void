@@ -702,14 +702,16 @@ func test_notebook_hold() -> void:
 	stop(p)
 	var screen := Vector2(1920, 1080)
 	check(p.edge_turn(screen / 2, screen) == Vector2.ZERO and p.edge_turn(Vector2(900, 300), screen) == Vector2.ZERO, "with the cursor over the page the view holds still")
-	check(p.edge_turn(Vector2(2, 540), screen).x < -1.0 and p.edge_turn(Vector2(1917, 540), screen).x > 1.0, "the cursor at the left or right edge turns your view that way")
-	check(p.edge_turn(Vector2(960, 1078), screen).y > 1.0 and p.edge_turn(Vector2(960, 3), screen).y < -1.0, "and at the top or bottom edge, up or down")
+	var full := Player.EDGE_LOOK_SPEED * 0.9
+	check(p.edge_turn(Vector2(2, 540), screen).x < -full and p.edge_turn(Vector2(1917, 540), screen).x > full, "the cursor at the left or right edge turns your view that way")
+	check(p.edge_turn(Vector2(960, 1078), screen).y > full and p.edge_turn(Vector2(960, 3), screen).y < -full, "and at the top or bottom edge, up or down")
+	check(Player.EDGE_LOOK_SPEED <= 1.0 and Player.NOTEBOOK_LOOK_SCALE <= 0.3, "reading, the view turns gently (playtest v0.7: it was too sensitive)")
 	var slight := p.edge_turn(Vector2(screen.x * Player.EDGE_LOOK_MARGIN * 0.8, 540), screen).x
 	check(slight < 0.0 and slight > -0.2, "just inside the edge zone it turns slowly")
 	check(p.edge_turn(Vector2(-5, 540), screen) == Vector2.ZERO, "and off the window it doesn't turn at all")
 	var on_screen := Rect2(400, 100, 1100, 900)  # the notebook and its tabs on screen
 	check(p.edge_turn(Vector2(1490, 300), screen, on_screen) == Vector2.ZERO and p.edge_turn(Vector2(1508, 300), screen, on_screen) == Vector2.ZERO, "over the notebook, its tabs included, the view holds still")
-	check(p.edge_turn(Vector2(1600, 300), screen, on_screen).x > 0.0 and p.edge_turn(Vector2(1910, 300), screen, on_screen).x > 1.0, "off the notebook it starts turning, fastest at the screen's edge")
+	check(p.edge_turn(Vector2(1600, 300), screen, on_screen).x > 0.0 and p.edge_turn(Vector2(1910, 300), screen, on_screen).x > full * 0.8, "off the notebook it starts turning, fastest at the screen's edge")
 	check(p.edge_turn(Vector2(300, 540), screen, on_screen).x < 0.0, "and off its left side, the other way")
 	p.local_control = true
 	check(p._wants_cursor(), "reading, the cursor is always out: no button puts it away to look around")
@@ -723,9 +725,9 @@ func test_notebook_hold() -> void:
 	check(p.is_holding_notebook() and not p.notebook_cursor and absf(turned - 100 * Player.MOUSE_SENS * Player.NOTEBOOK_LOOK_SCALE) < 0.001, "reading, the mouse still looks around, slower")
 	check(not book.is_processing_input(), "and the pages ignore the mouse while it's looking")
 	check(book.global_basis.is_equal_approx(book_at) and (-p.camera.global_basis.z).dot(-cam_at.z) < 0.999, "glancing across the spread, the book stays put while your view moves")
-	_mouse_move(p, Vector2(0, 150))
+	_mouse_move(p, Vector2(0, 225))
 	check(book.global_basis.is_equal_approx(book_at) and p.notebook_drift.y < -0.1, "and looking down the page, too")
-	_mouse_move(p, Vector2(400, 0))
+	_mouse_move(p, Vector2(600, 0))
 	var off := (-book.global_basis.z).signed_angle_to(-book_at.z, Vector3.UP)
 	check(absf(p.notebook_drift.x + Player.NOTEBOOK_SLACK_SIDE) < 0.001 and off > 0.2, "look further and it comes with you (%.2f rad)" % off)
 	var in_view := p.camera.global_basis.inverse() * (-book.global_basis.z)
@@ -1214,6 +1216,26 @@ func test_sit() -> void:
 	await frames(settle)
 	p.respawn(Transform3D(Basis(), Vector3(3, 0.05, 2)))
 	check(not p.is_sitting() and p.global_position.distance_to(Vector3(3, 0.05, 2)) < 0.01 and chair.is_free(q), "respawning gets you up and frees the chair")
+	await frames(20)
+	chair.interact(p)
+	await frames(settle)
+	p.sit_held = true  # belted in
+	p.controls.jump = true
+	await frames(5)
+	p.controls.sit = true
+	await frames(settle)
+	check(p.is_sitting() and p.seat == chair, "belted in, Space and Z don't stand you up")
+	p.sit_held = false  # unbuckled
+	p.controls.jump = true
+	await frames(settle + 5)
+	check(not p.is_sitting(), "unbuckled, Space stands you up again")
+	var air := Seat.create_at(a, Vector3(-3, 0.45, 2), PI)
+	p.global_position = Vector3(-3, 1.6, 2)
+	await frames(2)
+	check(not p.is_on_floor() and p.sit(air) and p.seat == air, "a chair catches you even off the floor (the van at the start)")
+	p.sit_held = true
+	p.respawn(Transform3D(Basis(), Vector3(3, 0.05, 2)))
+	check(not p.is_sitting() and not p.sit_held, "respawning gets you out of a belt too")
 	await done(a)
 
 
