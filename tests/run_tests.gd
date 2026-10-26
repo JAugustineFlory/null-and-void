@@ -973,6 +973,11 @@ func test_level_select() -> void:
 	check(rows.size() == LevelSelect.FLOORS.size() + 2, "it lists every floor, the movement gym and a way back (%d rows)" % rows.size())
 	check(rows[0].text == "Ground floor" and rows[1].text.ends_with("(not reached yet)") and not rows[1].disabled,
 		"the floors nobody has reached say so, and still open in a development build")
+	# The garage's nav bar opens the same screen and takes the floor picked (lobby.gd).
+	var picked := []
+	var handed: MenuModal = LevelSelect.open(menu, func(key): picked.append(key))
+	handed.box.find_children("*", "Button", true, false)[0].pressed.emit()
+	check(picked == ["level_0"], "opened with somewhere to send it, it hands over the floor instead of starting there")
 	menu.find_child("Settings", true, false).pressed.emit()
 	await process_frame
 	check(menu.find_child("Volume", true, false) != null and menu.find_child("InWorldUI", true, false) != null, "and Settings has the same audio and controls pages as the pause menu")

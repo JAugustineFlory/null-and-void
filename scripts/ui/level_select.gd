@@ -34,8 +34,10 @@ static func reached(earned: Array) -> int:
 	return mini(n, FLOORS.size())
 
 
-## The panel, over `parent`. Each floor starts a fresh run on that floor.
-static func open(parent: Node) -> MenuModal:
+## The panel, over `parent`. A floor picked starts a fresh run on it, or, with
+## `on_pick`, hands its key (a Game.LEVELS key) to whoever opened the panel: the
+## garage's nav bar picks the floor a co-op host's crew will start on.
+static func open(parent: Node, on_pick := Callable()) -> MenuModal:
 	var m := MenuModal.open(parent)
 	var net := parent.get_node_or_null("/root/Net")
 	var earned: Array = net.profile.earned if net and net.profile else []
@@ -49,13 +51,21 @@ static func open(parent: Node) -> MenuModal:
 		if locked:
 			b.text += "   (not reached yet)"
 		var key: String = floor_entry.key
-		b.pressed.connect(func():
-			var game := parent.get_node("/root/Game")
-			game.new_run()
-			game.goto(key))
+		b.pressed.connect(func(): _picked(parent, m, on_pick, key))
 		m.box.add_child(b)
 	var gym := SettingsPanel.button("Movement gym  -  practice jumps and climbs")
-	gym.pressed.connect(func(): parent.get_node("/root/Game").goto("movement_gym"))
+	gym.pressed.connect(func(): _picked(parent, m, on_pick, "movement_gym"))
 	m.box.add_child(gym)
 	m.add_back()
 	return m
+
+
+## A row was pressed: hand it over if someone's waiting for it, else start there.
+static func _picked(parent: Node, panel: MenuModal, on_pick: Callable, key: String) -> void:
+	if on_pick.is_valid():
+		panel.close()
+		on_pick.call(key)
+		return
+	var game := parent.get_node("/root/Game")
+	game.new_run()
+	game.goto(key)
