@@ -960,7 +960,10 @@ func test_level_select() -> void:
 	check(LevelSelect.reached([]) == 1, "a new player can only start on the ground floor")
 	check(LevelSelect.reached(["achievement:floor_g"]) == 2, "finishing the ground floor opens floor 14")
 	check(LevelSelect.reached(["achievement:floor_g", "achievement:floor_14", "achievement:floor_22"]) == 4, "and so on up the building")
-	check(LevelSelect.testing(), "while the version is below 1.0, playtesters can open any floor")
+	check(LevelSelect.testing() and ProjectSettings.get_setting("game/levels_any_floor") == true, "in a playtest build, the levels_any_floor setting lets playtesters open any floor")
+	ProjectSettings.set_setting("game/levels_any_floor", false)
+	check(not LevelSelect.testing(), "with the setting off, only reached floors open")
+	ProjectSettings.set_setting("game/levels_any_floor", true)
 	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
 	root.add_child(menu)
 	await process_frame

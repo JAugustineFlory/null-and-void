@@ -32,6 +32,10 @@ window/size/viewport_height=900
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[game]
+
+levels_any_floor=true
+
 [rendering]
 
 anti_aliasing/quality/msaa_3d=1
