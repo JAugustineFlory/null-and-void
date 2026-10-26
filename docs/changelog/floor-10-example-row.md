@@ -1,0 +1,1 @@
+- **Added:** on floor 10, copying the clipboard's example into the contractor log gets a tip saying whose row that was and what goes in yours.

@@ -125,6 +125,7 @@ const TEXT := {
 	"tip_order": "that row went in, but its values are in the wrong columns. they line up with the columns you named: company, job, time_in.",
 	"tip_count": "the log has four columns and log_no fills itself in. name the three you're filling: (company, job, time_in).",
 	"tip_quotes": "a word without 'quotes' reads as a column name. text goes in single quotes, like the clipboard says.",
+	"tip_example_log": "that's the clerk's example: another contractor's job, so it's in the log twice now. your row is Byte-Right's: your own work order's number, and the time on the clock over the door.",
 	"tip_dock": "that's not the front doors, and its note says why it can't let you out: SELECT * FROM gates; the front doors are the card's last line.",
 }
 ## Facilities' work order on the maintenance desk: where UPDATE ... SET ... WHERE is
@@ -816,6 +817,7 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	_tip_if(on_breakers and changed == 1 and lower.contains("cb-03") and data.target != "CB-03", "example", which)
 	_tip_if(which == "maint" and reset_puzzle.solved and not check_puzzle.solved and changed > 0, "verify", which)
 	_tip_if(is_insert and lower.contains("contractor_log") and changed > 0 and not login_puzzle.solved and _ticket_in_wrong_column(), "order", which)
+	_tip_if(is_insert and lower.contains("contractor_log") and changed > 0 and not login_puzzle.solved and _example_logged_twice(), "example_log", which)
 	# The lockup card's own example copied at the desk: another gate changed, not the front.
 	_tip_if(which == "desk" and is_update and lower.contains("gates") and changed > 0 and not entrance_puzzle.state_ok(db), "dock", which)
 
@@ -855,6 +857,12 @@ func _reads_entrance(result: Dictionary) -> bool:
 ## A ticket number in the log's company or time column: the values went in out of order.
 func _ticket_in_wrong_column() -> bool:
 	return not db.run_silent("SELECT 1 FROM contractor_log WHERE upper(company) = '%s' OR upper(time_in) = '%s'" % [data.ticket, data.ticket]).is_empty()
+
+
+## The clipboard's example row copied as it reads: that contractor's job is in the log twice.
+func _example_logged_twice() -> bool:
+	var job: String = str(data.example_log[1]).to_upper()
+	return int(db.run_silent("SELECT COUNT(*) AS n FROM contractor_log WHERE upper(trim(job)) = '%s'" % job)[0]["n"]) > 1
 
 
 func _tip_if(when: bool, id: String, which: String) -> void:
