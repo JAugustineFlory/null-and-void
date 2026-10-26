@@ -282,6 +282,10 @@ func test_scene() -> void:
 	ui.run("INSERT INTO contractor_log (company, job, time_in) VALUES ('Byte-Right IT Services', %s, '%s')" % [data.ticket.replace("-", ""), data.time_in])
 	await _frames(2)
 	check(not level.login_puzzle.solved and Array(level.controller.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_quotes)), "an unquoted value is an error, and SYSOP says to quote it")
+	ui.run("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % data.example_log)
+	await _frames(2)
+	check(not level.login_puzzle.solved and Array(level.controller.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_example_log)),
+		"the clipboard's example copied as it reads goes in twice, doesn't count, and SYSOP says whose row it is and what goes in the crew's")
 	ui.run("INSERT INTO visitors VALUES ('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in])
 	check(not level.login_puzzle.solved, "the wrong table doesn't count")
 	ui.run("insert into contractor_log (company, job, time_in) values ('byte-right it services', '%s', '%s')" % [data.ticket.to_lower(), data.time_in])
