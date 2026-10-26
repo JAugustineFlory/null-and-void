@@ -2266,6 +2266,26 @@ func test_coop_pregame_lobby() -> void:
 	net.roster = {1: "Friend"}
 	stage.sync_crew(net)
 	check(stage.figures.keys() == [1] and stage.is_leaving(), "someone who leaves walks back off rather than vanishing")
+	# Joining from your own garage for real, and the host can't be reached.
+	net.begin_solo_lobby()
+	for f in 600:
+		if not stage.is_leaving():
+			break
+		await process_frame
+	lobby._refresh()
+	lobby._address.text = "127.0.0.1"
+	lobby._on_join()
+	check(stage.handing_off and not net.solo_lobby and net.is_online(), "Join walks you out of your own garage while it connects")
+	net._on_connection_failed()
+	check(net.solo_lobby and net.roster.keys() == [net.my_id()] and lobby._status.text.begins_with("Couldn't reach the host"),
+		"a join that fails says so and puts you back in your own garage")
+	Engine.time_scale = 5.0
+	for f in 900:
+		if not stage.handing_off:
+			break
+		await process_frame
+	Engine.time_scale = 1.0
+	check(stage.figures.keys() == [net.my_id()], "and you walk back in")
 	lobby.queue_free()
 	await process_frame
 	net.leave(false)

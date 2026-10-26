@@ -32,6 +32,9 @@ var _ready_btn: Button
 var _pose_btn: Button
 var _waiting: Label
 var _all_ready_for := 0.0
+## Joining from your own garage (solo lobby): if it doesn't work out, or the
+## host leaves, you walk back into it.
+var _left_garage := false
 
 
 func _ready() -> void:
@@ -160,6 +163,9 @@ func _on_joined() -> void:
 
 func _on_session_ended(reason: String) -> void:
 	_status.text = reason
+	if _left_garage:
+		_left_garage = false
+		_net().begin_solo_lobby()  # roster_changed: you walk back in
 	_refresh()
 
 
@@ -177,9 +183,14 @@ func _on_join() -> void:
 	if _address.text.strip_edges() == "":
 		_status.text = "Type the host's address first."
 		return
+	var from_garage: bool = _net().solo_lobby
 	if _net().join(_address.text) != OK:
 		_status.text = "That address doesn't look right."
 		return
+	if from_garage:
+		# Out of your own garage; you walk on into theirs once you're in.
+		_left_garage = true
+		stage.hand_off()
 	_status.text = "Connecting to %s..." % _address.text.strip_edges()
 	_refresh()
 
