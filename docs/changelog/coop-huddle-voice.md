@@ -1,1 +1,0 @@
-- **Fixed:** in co-op, you can always hear your crew during a flashback or cutscene, and the radio still works there.

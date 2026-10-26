@@ -1,1 +1,0 @@
-- **Fixed:** sitting on a couch or chair, looking around turns only your upper body; your legs stay on the seat, and looking down shows your lap instead of the inside of your shirt.

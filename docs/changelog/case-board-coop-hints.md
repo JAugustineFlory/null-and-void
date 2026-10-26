@@ -1,1 +1,0 @@
-- **Changed:** in co-op, a hint shown on a terminal fills in the case for everyone at it, not just whoever asked.

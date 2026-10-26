@@ -1,2 +1,0 @@
-- **Added:** in first person you see your own hands grab the edge when you hang, vault or mantle, go hand over hand up pipes, and press flat to the wall on narrow ledges.
-- **Added:** sliding, your legs go out in front of you; rolling, you tuck and turn over with the view.

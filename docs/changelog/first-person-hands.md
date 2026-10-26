@@ -1,5 +1,0 @@
-- **Changed:** papers, the notebook and the Easy SQL book are held in your own hands, and the old blocky hands are gone.
-- **Fixed:** sitting on the couch, your legs hang over the front of the cushion instead of through it, and your hands rest on your knees.
-- **Fixed:** throwing a punch no longer shows your own neck.
-- **Fixed:** standing still, your legs stand still instead of walking on the spot.
-- **Changed:** the shop bag in the garage is a printed paper bag with handles, on steel shelving.

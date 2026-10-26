@@ -1,1 +1,0 @@
-- **Fixed:** on floor 18 the side rooms can always be entered and left: a walkway runs past the rolling shelving to the back wall, the shelving no longer pins anyone when it slides, and doors swing away from whoever opens them.
