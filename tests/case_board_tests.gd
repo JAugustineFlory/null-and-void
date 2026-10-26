@@ -329,9 +329,13 @@ func test_one_case_at_a_time() -> void:
 	var text := _case_text(g)
 	check(text.contains("Read the memo at the front desk") and text.find("Read the memo at the front desk") < text.find("What does the memo say?"),
 		"what to do about the case is its top line, with the question under it")
-	check(text.contains(NotebookPages.MAKE_QUERY) and not text.contains(NotebookPages.QUERY_READY), "with a word still missing, the page says to build the query")
+	check(text.contains(NotebookPages.MAKE_QUERY) and not text.contains(NotebookPages.QUERY_READY % "terminal"), "with a word still missing, the page says to build the query")
+	g.set_case_note("first", "", "The words are out there.", "front desk terminal")
+	check(_case_text(g).contains("The words are out there."), "while no word is found, the line about where they are sits under the pieces")
 	g.collect_piece("first", "table", "The scanner")
-	check(_case_text(g).contains(NotebookPages.QUERY_READY), "with every word in, it says the query is whole and how to use it")
+	text = _case_text(g)
+	check(text.contains(NotebookPages.QUERY_READY % "front desk terminal") and not text.contains("The words are out there."),
+		"with every word in, it says the query is whole and which terminal takes it, and the line about finding words is gone")
 	# A side case and the next case open; neither takes the page from the case in hand.
 	g.open_case("side", "Who signed in last?", [], "Find who signed in last")
 	g.set_pieces("side", [PIECES[0]], "SELECT * FROM {table};", [], true)

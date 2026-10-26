@@ -4,6 +4,8 @@ extends StaticBody3D
 
 signal used(player: Node)
 signal alt_used(player: Node)
+## A player aimed at it while it shone (once): the moment to say what the shine means.
+signal shine_seen(player: Node)
 
 var prompt := "Use"
 var alt_prompt := ""
@@ -19,6 +21,8 @@ const SHINE_BREATH := 1.1
 var _shine: MeshInstance3D
 ## It has been read: no shine comes back.
 var _shine_spent := false
+## shine_seen has gone out.
+var _shine_seen := false
 
 
 static func create(parent: Node, center: Vector3, size: Vector3, prompt_text: String, color: Color = Color(0.3, 0.3, 0.3), visible_mesh: bool = true) -> Interactable:
@@ -90,6 +94,14 @@ func shining() -> bool:
 	return is_instance_valid(_shine)
 
 
+## The prompt is only asked for by the player aiming at it, on their own machine, so
+## that's when this player has seen it shine.
+func _seen_shining(player: Node) -> void:
+	if shining() and not _shine_seen:
+		_shine_seen = true
+		shine_seen.emit(player)
+
+
 ## The size of what's being shone on: its aim box.
 func _shine_box() -> Vector3:
 	for c in get_children():
@@ -98,7 +110,8 @@ func _shine_box() -> Vector3:
 	return Vector3(0.2, 0.2, 0.02)
 
 
-func get_prompt(_player: Node) -> String:
+func get_prompt(player: Node) -> String:
+	_seen_shining(player)
 	if not enabled:
 		return ""
 	var p := "[E] " + prompt

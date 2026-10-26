@@ -929,6 +929,10 @@ func test_clue_papers_shine() -> void:
 	level._shine_clue_papers()
 	check(card.shining() and card.find_child("Shine", true, false) is MeshInstance3D, "with the case open, the paper it needs shines")
 	check(not order_note.shining(), "a paper for a later case stays as it is")
+	order_note.get_prompt(level.player)
+	check(not level._shine_told, "looking at a paper that isn't shining says nothing")
+	card.get_prompt(level.player)
+	check(level._shine_told, "the first shining paper looked at puts the line about pressing E to read it on screen")
 	card._on_used(level.player)
 	await process_frame
 	check(not card.shining() and card.find_child("Shine", true, false) == null, "reading it takes the shine away")

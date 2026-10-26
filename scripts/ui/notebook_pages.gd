@@ -54,7 +54,7 @@ const QUERY_SO_FAR := "The query so far"
 ## Above a case's query blocks (Augustine's words, playtest 2026-10-22), then once
 ## every word of it is in hand.
 const MAKE_QUERY := "Create a query in SQL to pull it up in the terminal."
-const QUERY_READY := "That's the whole query. Type it at the terminal exactly as it reads here."
+const QUERY_READY := "That's the whole query. Type it at the %s exactly as it reads here."
 const CHECKLIST := "Checklist"
 const NOTES := "Notes"
 const OTHER_WAYS := "Other ways in: %d found"
@@ -549,6 +549,10 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 	for p in c.pieces:
 		items.append(_piece_item(n, p))
 		n += 1
+	if found == 0 and not c.solved and c.get("hunt", "") != "":
+		var hunt := NotebookArt.hand(c.hunt, 20, NotebookArt.PENCIL)
+		hunt.name = "Hunt"
+		items.append(hunt)
 	if c.has("blank"):
 		items.append_array(_blank_items(c))
 	if c.solved:
@@ -584,7 +588,8 @@ func _query_blocks(game: Node, c: Dictionary) -> Control:
 	# Every word in and nothing left to work out: say so, and that it's typed as it reads.
 	var whole: bool = not c.solved and c.get("assemble", true) and game.pieces_total(c.id) > 0 \
 			and game.pieces_found(c.id) == game.pieces_total(c.id)
-	var goal := NotebookArt.hand(QUERY_READY if whole else MAKE_QUERY, 22)
+	var at_terminal: String = c.get("terminal", "")
+	var goal := NotebookArt.hand(QUERY_READY % (at_terminal if at_terminal != "" else "terminal") if whole else MAKE_QUERY, 22)
 	goal.name = "Goal"
 	box.add_child(goal)
 	var flow := HFlowContainer.new()

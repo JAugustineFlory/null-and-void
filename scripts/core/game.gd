@@ -209,9 +209,14 @@ func side_cases() -> Array:
 
 
 ## A line under the case's question, in pencil: how the case board itself works,
-## for the floor that teaches it. Rare: most cases explain themselves.
-func set_case_note(id: String, text: String) -> void:
-	_case(id)["note"] = text
+## for the floor that teaches it. Rare: most cases explain themselves. `hunt` goes
+## under its pieces until one is found; `terminal` names where the finished query
+## is typed ("the terminal" if not given).
+func set_case_note(id: String, text: String, hunt := "", terminal := "") -> void:
+	var c := _case(id)
+	c["note"] = text
+	c["hunt"] = hunt
+	c["terminal"] = terminal
 	notebook_changed.emit()
 
 
@@ -268,7 +273,7 @@ func ticket_number() -> String:
 
 
 ## Everything a case page can have, for a case made before it could (an old save).
-const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true, "objective": "", "note": ""}
+const CASE_DEFAULTS := {"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true, "objective": "", "note": "", "hunt": "", "terminal": ""}
 
 
 func _case(id: String) -> Dictionary:
@@ -280,7 +285,7 @@ func _case(id: String) -> Dictionary:
 			return c
 	var c := {"id": id, "title": "", "open": false, "solved": false, "how": "", "tables": [], "clues": [],
 		"pieces": [], "query": "", "steps": [], "optional": false, "early": {}, "endings": [], "ending": "", "routes": [], "assemble": true,
-		"objective": "", "note": ""}
+		"objective": "", "note": "", "hunt": "", "terminal": ""}
 	notebook_cases.append(c)
 	return c
 

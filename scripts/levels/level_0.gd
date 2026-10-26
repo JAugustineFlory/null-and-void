@@ -90,7 +90,10 @@ const OBJ_VISITOR := "Find who signed in last, now the book's last page is gone"
 ## The ground floor teaches the case board itself, so the first case says how it
 ## works and the papers it needs shine until they've been read.
 const INTRO_CASE := "Your notebook keeps one case at a time. This is it: read it, find what it needs, then type the query at a terminal."
+const INTRO_HUNT := "The words you need are written down somewhere out here. Anything worth reading has a shine on it until you've read it."
 const INTRO_SHINE := "Press E to read it. What it tells you goes straight into your case."
+## This floor's queries are all typed at the front desk.
+const DESK_TERMINAL := "front desk terminal"
 const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's row and add it to your notebook"}]
 const CALLER_QUERY := "SELECT name, {column} FROM {table};"
 const CALLER_ROUTES := [{"id": "printout", "name": "The mailroom's printout"}]
@@ -145,6 +148,8 @@ signal caller_found
 ## This floor's clue papers, as [the paper, the case whose word it carries]: the
 ## ones for the case in hand shine until they're read (_shine_clue_papers).
 var _clue_papers: Array = []
+## INTRO_SHINE has been on screen.
+var _shine_told := false
 ## The staff directory printout in the mailroom: the walking route to the caller.
 var directory_printout: Document
 ## Host: Easy SQL chapters whose paper has been read: "found" waits for the puzzle
@@ -237,6 +242,9 @@ func build() -> void:
 	# word the case in hand needs shines until this player has read it.
 	_clue_papers = [[scan_card, "memo"], [scan_card, "memo_order"], [order_sticky, "memo_order"], [order_note, "memo_order"]]
 	game.notebook_changed.connect(_shine_clue_papers)
+	for pair in _clue_papers:
+		if not pair[0].shine_seen.is_connected(_on_shine_seen):
+			pair[0].shine_seen.connect(_on_shine_seen)
 	# Everyone signs the log, and everyone takes a badge off the counter.
 	_mesh(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), Color(0.92, 0.9, 0.82)).name = "VisitorLog"
 	visitor_log = ItemDock.make(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), "Sign the visitor log")
@@ -752,9 +760,8 @@ func start() -> void:
 	game.set_pieces("memo", MEMO_PEEK_PIECES, MEMO_PEEK_QUERY, MEMO_PEEK_STEPS)
 	# The crew's first case, so the page says how a case works and the room says
 	# which things are worth reading.
-	game.set_case_note("memo", INTRO_CASE)
+	game.set_case_note("memo", INTRO_CASE, INTRO_HUNT, DESK_TERMINAL)
 	_shine_clue_papers()
-	hud.notice(INTRO_SHINE, 8.0)
 
 
 ## Whatever carries a word the case in hand still needs: it shines until this
@@ -765,6 +772,13 @@ func _shine_clue_papers() -> void:
 	for pair in _clue_papers:
 		if pair[1] == on and is_instance_valid(pair[0]):
 			pair[0].shine()
+
+
+## The first shining paper this player looks at: what the shine is for, on screen.
+func _on_shine_seen(_player: Node) -> void:
+	if not _shine_told:
+		_shine_told = true
+		hud.notice(INTRO_SHINE, 8.0)
 
 
 ## Host: everyone has signed the log and taken a badge.
@@ -1015,6 +1029,7 @@ func _file_memo_case() -> void:
 	game.collect_piece("memo_order", "table", "your first query")  # already in hand
 	game.open_case("memo_order", "Which scrap comes first?", ["memo_fragments"], OBJ_ORDER)
 	game.set_pieces("memo_order", ORDER_PIECES, ORDER_QUERY, ORDER_STEPS)
+	game.set_case_note("memo_order", "", "", DESK_TERMINAL)
 	game.collect_piece("memo_order", "order", "Easy SQL")  # the chapter the crew is about to read
 	_shine_clue_papers()
 

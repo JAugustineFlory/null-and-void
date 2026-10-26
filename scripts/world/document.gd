@@ -276,6 +276,7 @@ static func _lines_height(lines: Array, font_size: int, width_px: float) -> floa
 
 
 func get_prompt(player: Node) -> String:
+	_seen_shining(player)
 	if is_sticky() and _copied:
 		return ""
 	if enabled and not is_sticky() and not notable().is_empty():
