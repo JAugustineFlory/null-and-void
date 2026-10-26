@@ -79,7 +79,7 @@ var _driven := {}  # bone -> [joint, the bone's rest basis relative to the joint
 var _hips_offset := Transform3D.IDENTITY  # the pelvis relative to the hips joint
 var _skel := Transform3D.IDENTITY  # the skeleton in rig space
 var _feet: Array[int] = []
-var _fingers := {}
+var _fingers := {}  # finger bone -> its hand's side ("r", "l"), or "thumb"
 var _chest := {}
 var _pelvis := -1
 var _foot_height := 0.0
@@ -150,7 +150,10 @@ func update(delta: float) -> void:
 		var parent_g: Transform3D = g[parent] if parent >= 0 else Transform3D.IDENTITY
 		var base: Transform3D = skeleton.get_bone_pose(i) if player else _rest_local[i]
 		if player and _fingers.has(i):
-			base.basis = Basis(_rest_local[i].basis.get_rotation_quaternion().slerp(base.basis.get_rotation_quaternion(), curl))
+			var c := curl
+			if _rig.grip_curl >= 0.0 and _fingers[i] != "thumb":
+				c = lerpf(curl, _rig.grip_curl, _rig.reach_weight(_fingers[i]))  # flat behind what it holds
+			base.basis = Basis(_rest_local[i].basis.get_rotation_quaternion().slerp(base.basis.get_rotation_quaternion(), c))
 		elif player and _chest.has(i):
 			# Straighten the chest, and remember where the clip had it, so the
 			# shoulders it carries can stay where the clip put them (arms hanging).
@@ -327,8 +330,9 @@ func _bind() -> void:
 	_pelvis = skeleton.find_bone("pelvis")
 	_head_bone = skeleton.find_bone("Head")
 	for i in n:
-		if skeleton.get_bone_name(i).get_slice("_", 0) in FINGERS:
-			_fingers[i] = true
+		var bone := skeleton.get_bone_name(i)
+		if bone.get_slice("_", 0) in FINGERS:
+			_fingers[i] = "thumb" if bone.begins_with("thumb") else bone.right(1)  # its side, "r" or "l"
 	for bone in CHEST:
 		_chest[skeleton.find_bone(bone)] = true
 	for side in ["r", "l"]:

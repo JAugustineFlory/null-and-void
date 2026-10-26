@@ -1,0 +1,3 @@
+- **Fixed:** your hands fit the notebook now: it's a proper A5 notebook, held by its bottom corners with your thumbs clear of the tabs.
+- **Fixed:** putting the notebook away while sitting no longer leaves a hand floating in front of you.
+- **Fixed:** crawling through vents no longer shows your own neck and back.
