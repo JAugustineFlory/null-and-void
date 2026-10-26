@@ -27,6 +27,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_growing_case()
 	test_hint_pieces()
 	test_floor_g_memo()
+	test_one_case_at_a_time()
 	test_book_before_bag()
 	_game().new_run(1)
 
@@ -56,7 +57,8 @@ func test_pieces() -> void:
 	g.piece_found.disconnect(on_found)
 	g.open_case("visit", "Who signed in last?")
 	g.set_pieces("visit", [PIECES[0]], "", [], true)
-	check(g.current_case() == "visit" and g.main_case() == "memo", "a side case can be the newest, but the HUD's main case stays the main one")
+	check(g.current_case() == "memo" and g.main_case() == "memo", "a side case opened later doesn't take the page: the case in hand stays the current one")
+	check(g.side_cases().map(func(c): return c.id) == ["visit"], "it's listed as a side case alongside it")
 	g.open_case("caller", "Who called?")
 	g.set_pieces("caller", [{"id": "ext", "label": "The number", "value": "ext. 1", "task": "Read it", "where": "The work order"}])
 	g.solve_case("caller", "it was Mercer.")
@@ -291,21 +293,72 @@ func test_hint_pieces() -> void:
 	check(Game.hint_shows("WHERE zone = 'b2'", "B2") and not Game.hint_shows("WHERE zone = 'b21'", "B2"), "a value matches as a whole word, any case")
 
 
-## Floor G's memo: the board asks only for the peek's table until the scraps come
-## out of order, and the sort and the column come from the world, not the Tables page.
+## Floor G's memo is two cases, one idea each: read the scraps, then put them in
+## order. The sort and the column come from the world, not the Tables page.
 func test_floor_g_memo() -> void:
-	print("Case board: the memo grows after the peek")
+	print("Case board: the memo, then putting it in order")
 	var g := _game()
 	g.new_run(12)
 	var l0: GDScript = load("res://scripts/levels/level_0.gd")
-	g.open_case("memo", "What does the memo say?", ["memo_fragments"])
+	g.open_case("memo", "What does the memo say?", ["memo_fragments"], l0.OBJ_MEMO)
 	g.set_pieces("memo", l0.MEMO_PEEK_PIECES, l0.MEMO_PEEK_QUERY, l0.MEMO_PEEK_STEPS)
-	check(g.pieces_total("memo") == 1 and g.case_query("memo") == "SELECT * FROM enter_table_name;" and not _case_text(g).contains("ORDER"), "before the peek the memo's board asks only for the table, and names no sort")
+	check(g.pieces_total("memo") == 1 and g.case_query("memo") == "SELECT * FROM enter_table_name;" and not _case_text(g).contains("ORDER"), "the first case asks for the table and nothing else: no sort anywhere on it")
+	check(_case_text(g).contains(l0.OBJ_MEMO), "what to do about it is the top line of its page")
 	g.discover_table("memo_fragments", ["text", "piece_no", "scanned_at"])
-	g.set_pieces("memo", l0.MEMO_PIECES, l0.MEMO_QUERY, l0.MEMO_STEPS)
-	check(g.has_piece("memo", "table") and not g.has_piece("memo", "column") and g.pieces_total("memo") == 3, "after it, the table stays found and the column isn't handed over by the Tables page")
+	g.solve_case("memo", "one scrap to a row.")
+	g.collect_piece("memo_order", "table", "your first query")
+	g.open_case("memo_order", "Which scrap comes first?", ["memo_fragments"], l0.OBJ_ORDER)
+	g.set_pieces("memo_order", l0.ORDER_PIECES, l0.ORDER_QUERY, l0.ORDER_STEPS)
+	check(g.has_piece("memo_order", "table") and not g.has_piece("memo_order", "column") and g.pieces_total("memo_order") == 3, "the sort is the next case, with the table already in hand and the column still to find")
+	check(g.current_case() == "memo_order" and not _case_text(g).contains("What does the memo say?"), "and it has the page to itself: the one just read is filed")
 	check(l0.VISITOR_PIECES.all(func(p): return p.id != "column") and l0.VISITOR_QUERY.contains("ORDER BY enter_column_name"), "the visitor case leaves choosing its column to the player")
 
+
+
+## The Cases tab holds one case: the case in hand. Everything solved is in the
+## archive, and a side case is a line under it, not a second page (Augustine,
+## 2026-10-26).
+func test_one_case_at_a_time() -> void:
+	print("Case board: one case on the page")
+	var g := _game()
+	g.new_run(15)
+	g.open_case("first", "What does the memo say?", [], "Read the memo at the front desk")
+	g.set_pieces("first", [PIECES[0]], "SELECT * FROM {table};", [{"id": "run", "text": "Run it"}])
+	var pages := NotebookPages.new()
+	_tree.root.add_child(pages)
+	var text := _case_text(g)
+	check(text.contains("Read the memo at the front desk") and text.find("Read the memo at the front desk") < text.find("What does the memo say?"),
+		"what to do about the case is its top line, with the question under it")
+	check(text.contains(NotebookPages.MAKE_QUERY) and not text.contains(NotebookPages.QUERY_READY), "with a word still missing, the page says to build the query")
+	g.collect_piece("first", "table", "The scanner")
+	check(_case_text(g).contains(NotebookPages.QUERY_READY), "with every word in, it says the query is whole and how to use it")
+	# A side case and the next case open; neither takes the page from the case in hand.
+	g.open_case("side", "Who signed in last?", [], "Find who signed in last")
+	g.set_pieces("side", [PIECES[0]], "SELECT * FROM {table};", [], true)
+	text = _case_text(g)
+	check(g.current_case() == "first" and text.contains("What does the memo say?") and not text.contains("Find who signed in last"),
+		"a side case doesn't take the page")
+	var side_items := pages._case_items(g)
+	check(side_items.any(func(i): return i is Button and i.text == NotebookPages.ALSO % "Who signed in last?"), "it's one line under the case instead, which opens it")
+	for i in side_items:
+		i.free()
+	g.solve_case("first", "the scraps are in memo_fragments.")
+	g.open_case("second", "Which scrap comes first?", [], "Put the scraps in order")
+	g.set_pieces("second", [PIECES[2]], "SELECT * FROM memo_fragments ORDER BY {column};", [])
+	pages.file_solved()
+	g.case_info("first").erase("fresh_solve")
+	text = _case_text(g)
+	check(text.contains("Put the scraps in order") and not text.contains("What does the memo say?"), "once a case is solved the next one has the page")
+	var items := pages._case_items(g)
+	check(items.any(func(i): return i is Button and i.text == NotebookPages.COMPLETED % 1), "and the one before it is in the archive")
+	for i in items:
+		i.free()
+	# The HUD says the same sentence as the page.
+	var chip := CaseChip.new()
+	_tree.root.add_child(chip)
+	check(chip.title.text == "Put the scraps in order", "the HUD's case chip says what to do in those same words")
+	chip.free()
+	pages.free()
 
 
 ## In the garage, chapters earned on an earlier run stay out of the Books tab

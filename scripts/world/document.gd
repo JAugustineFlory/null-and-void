@@ -436,6 +436,7 @@ func _note_clues(quiet: bool = false) -> void:
 
 ## Tell the host this was read (a story step may wait on a paper being found).
 func _report_read(player: Node) -> void:
+	shine(false)  # this player has read it, so it stops asking to be read
 	var sync := LevelSync.of(self)
 	if sync == null or not sync.forward(self, "report_open"):
 		report_open(player)

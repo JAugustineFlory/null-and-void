@@ -82,7 +82,7 @@ func hold(doc: Node, by_player: Node) -> bool:
 	if doc.paper_kind() == "brochure":
 		# Its side panels fold up in front of the page; held, you see it opened out flat.
 		for mi in doc.find_children("*", "GeometryInstance3D", true, false):
-			if mi != hands.page and mi.visible:
+			if mi != hands.page and mi.visible and mi.name != "Shine":  # the shine goes out on its own
 				mi.visible = false
 				_hidden.append(mi)
 	var sheet: Node = doc.get_node_or_null("WallSheet")

@@ -683,10 +683,11 @@ func walk_level_0() -> void:
 	ui.open(level.desk_terminal, level.player)
 	var h := await solve(level, ui, level.peek_puzzle, false)
 	check(h == 0, "lobby: the boot screen alone gets a new player through the first query (hints %d)" % h)
-	# A floor's found moment comes before its pieces: the memo's board asks for a sort
-	# once the scraps print out of order (before that, tests/case_board_tests.gd).
-	var memo_board: String = _game().case_query("memo")
-	check(memo_board.contains("ORDER BY enter_column_name"), "lobby: once the scraps print out of order, the memo's board asks for the sort, and its column stays the hint's blank (%s)" % memo_board)
+	# Reading the scraps closes that case and opens the next one: putting them in
+	# order, whose column is still the hint's own blank (tests/case_board_tests.gd).
+	var order_board: String = _game().case_query("memo_order")
+	check(_game().case_info("memo").solved and _game().current_case() == "memo_order" and order_board.contains("ORDER BY enter_column_name"),
+		"lobby: reading the scraps files that case and opens the sort, whose column stays the hint's blank (%s)" % order_board)
 	h = await solve(level, ui, level.memo_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.memo_puzzle), "lobby: a lost player sorts the memo once a hint gives the query (hints %d)" % h)
 	var memo: Array = level.db.run_silent("SELECT text FROM memo_fragments ORDER BY piece_no")

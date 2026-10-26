@@ -126,6 +126,7 @@ func _group_floor_g() -> void:
 	await test_ground_floor()
 	await test_rourke_leads_in()
 	await test_caller_answer()
+	await test_clue_papers_shine()
 
 
 ## Floor 14, the server floor (Level 1).
@@ -907,6 +908,32 @@ func test_screens_fill_window() -> void:
 			check(tag != null and tag.text == "v0.7" and tag.is_visible_in_tree() and Rect2(Vector2.ZERO, win).encloses(tag.get_global_rect()), "the lobby shows the game's version, v0.7, on screen")
 		screen.queue_free()
 		await process_frame
+
+
+## The ground floor's lesson in reading the room: whatever carries a word the case
+## in hand needs shines until this player has read it.
+func test_clue_papers_shine() -> void:
+	print("Floor G: clues shine until they're read")
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	_lower_chapters_read([level])
+	for i in 20:
+		await physics_frame
+	var card := _doc(level, "ScanRight")
+	var order_note: Node = level.find_children("*", "Document", true, false).filter(func(d): return d.plain_text().contains("ORDER matters."))[0]
+	check(level._clue_papers.any(func(pair): return pair[0] == card and pair[1] == "memo"), "the scanner card is registered as the first case's clue")
+	check(not card.shining(), "nothing shines before there's a case")
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], level.OBJ_MEMO)
+	level._shine_clue_papers()
+	check(card.shining() and card.find_child("Shine", true, false) is MeshInstance3D, "with the case open, the paper it needs shines")
+	check(not order_note.shining(), "a paper for a later case stays as it is")
+	card._on_used(level.player)
+	await process_frame
+	check(not card.shining() and card.find_child("Shine", true, false) == null, "reading it takes the shine away")
+	level._shine_clue_papers()
+	check(not card.shining(), "and it never comes back")
+	level.queue_free()
+	await process_frame
 
 
 func test_level_0_scene() -> void:
@@ -1964,7 +1991,8 @@ func test_coop_notes_huddle() -> void:
 	var names: Array = []
 	for item in cases:
 		names.append_array(([item] + item.find_children("*", "Button", true, false)).filter(func(n): return n is Button).map(func(b): return b.name))
-	check(names.has("ShareAll") and names.has("LeaveHuddle") and names.has("ShareCase") and names.count("Share") >= 3, "in a huddle, the case pages offer + share on each line, Share case notes and Share all cases")
+	check(names.has("ShareAll") and names.has("LeaveHuddle") and names.has("ShareCase") and names.count("Share") >= 1,
+		"in a huddle, the case on the page offers + share on each line, Share case notes and Share all cases")
 	check(NotebookPages.text_of(cases).contains("Notes huddle with Player %d, Player %d" % [h_id, c2_id]), "and say who's in it")
 	for item in cases:
 		item.free()
@@ -3837,7 +3865,7 @@ func _check_l0_documents(level: Node) -> void:
 	check(_doc_has(level, "memo_fragments") and _doc_has(level, "piece_no"), "the scanner card names the scraps table and the column that numbers them")
 	check(not level.desk_terminal.boot_lines.any(func(l): return l.contains("memo_fragments")), "the terminal no longer names the table: it's on the card")
 	var todo: Array = _game().notebook_todo.map(func(t): return t.text)
-	check(todo.has("Put the memo back in order") and todo.find("Put the memo back in order") > todo.find("Read Dr. Vale's shredded memo (front desk terminal)") \
+	check(todo.has(level.OBJ_ORDER) and todo.find(level.OBJ_ORDER) > todo.find(level.OBJ_MEMO) \
 		and _game().notebook_todo.filter(func(t): return t.text.contains("memo")).all(func(t): return t.done), "the to-do list adds sorting the memo after reading it, and ticks both off (%s)" % [todo])
 	check(_game().ticket().tasks.any(func(t): return t.filled.contains("memo_fragments")), "the job ticket records which table the crew rebuilt the memo from")
 	check(Array(level.desk_terminal.transcript).all(func(l): return not TerminalUI._plain(l).strip_edges().begins_with("WARDEN:")), "no tips from WARDEN on the front desk terminal")
@@ -4241,24 +4269,25 @@ func test_case_pages() -> void:
 	check(text.contains("memo_fragments") and text.contains("piece_no"), "once found, the case's table is on its page")
 	g.open_case("caller", "Who called?")
 	g.solve_case("memo", "sorted by piece_no.")
+	pages.showing = true
 	var items := pages._case_items(g)
 	text = NotebookPages.text_of(items)
-	check(text.find("[x]  What does the memo say?") < text.find("Who called?") and text.contains("Solved: sorted by piece_no."), "a case just solved comes first, ticked with how, the once")
+	check(text.contains("[x]  What does the memo say?") and text.contains("Solved: sorted by piece_no.") and text.contains(NotebookPages.FILED) and not text.contains("Who called?"),
+		"a case just solved keeps the page once, ticked with how and filed")
 	for i in items:
 		i.free()
-	pages.showing = true
 	for i in pages._case_items(g):
 		i.free()
 	pages.file_solved()
 	items = pages._case_items(g)
 	text = NotebookPages.text_of(items)
-	check(not text.contains("What does the memo say?") and items.any(func(i): return i is Button and i.text == NotebookPages.COMPLETED % 1) and text.contains("Who called?"), "once seen, it's filed under Completed cases")
+	check(not text.contains("What does the memo say?") and items.any(func(i): return i is Button and i.text == NotebookPages.COMPLETED % 1) and text.contains("Who called?"), "once seen, it's filed in the archive and the next case has the page to itself")
 	for i in items:
 		i.free()
 	pages.showing_completed = true
 	items = pages._case_items(g)
 	text = NotebookPages.text_of(items)
-	check(items.any(func(i): return i is Button and i.text == "[x]  What does the memo say?") and text.contains("sorted by piece_no.") and not text.contains("Who called?"), "Completed cases lists it with how it was solved")
+	check(items.any(func(i): return i is Button and i.text == "[x]  What does the memo say?") and text.contains("sorted by piece_no.") and not text.contains("Who called?"), "the archive lists it with how it was solved")
 	for i in items:
 		i.free()
 	pages.free()
@@ -4531,7 +4560,15 @@ func test_notebook() -> void:
 		nb.pages._show_spread(nb.pages._spread + 1)
 	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
 	var written_text := nb.pages.section_text(NotebookPages.Page.CASES)
+	check(written_text.contains("memo scraps") and written_text.contains("piece_no"), "a line copied while a case is open goes on that case's page, under the player's label")
+	# With nothing open, copied lines are under Other notes instead.
+	var cases_kept: Array = _game().notebook_cases.duplicate(true)
+	_game().notebook_cases.clear()
+	for w in _game().notebook_written:
+		w.case = ""
+	written_text = nb.pages.section_text(NotebookPages.Page.CASES)
 	check(written_text.contains("Other notes") and written_text.contains("memo scraps") and written_text.contains("piece_no") and not written_text.contains("Sticky notes"), "lines copied with no case open go under Other notes on the Cases page, with their labels")
+	_game().notebook_cases.assign(cases_kept)
 	# A long case title wraps on its own page: nothing pushes the pages out over the spine.
 	_game().open_case("long_title", "Who signed in last? The book's last page is gone, and nobody owns up to it.")
 	_game().add_clue("long_title", "Rourke: the front desk scanner \"ate\" one of Vale's memos. The scanner's card might say where it went.", "Rourke")
@@ -4552,6 +4589,12 @@ func test_notebook() -> void:
 	level.player.input_locked = false
 	_game().open_case("memo", "What does the memo say?", ["memo_fragments"])
 	nb.open(NotebookPages.Page.CASES)
+	var reward := nb.pages.section_text(NotebookPages.Page.CASES)
+	nb.close()  # the case solved in the lobby has had its page: it's filed now
+	nb.open(NotebookPages.Page.CASES)
+	var on_page := nb.pages.section_text(NotebookPages.Page.CASES)
+	check(reward.contains("[x]  What does the memo say?") and not on_page.contains("What does the memo say?") and on_page.contains(_game().case_objective(_game().current_case())),
+		"the case solved in the lobby has the page once, then the next one takes it")
 	var write_btn: Button = nb.pages.book.find_child("WriteMine", true, false)
 	check(write_btn != null and write_btn.text.contains("write a note"), "the Cases page has a button to write your own note")
 	write_btn.pressed.emit()
@@ -4560,9 +4603,10 @@ func test_notebook() -> void:
 	check(not nb.is_writing() and level.player.input_locked and nb.is_open(), "Enter writes it in and the notebook stays open")
 	check(_game().notebook_written[-1].text == "PIN for HARDY: 2751" and _game().notebook_written[-1].kind == "mine", "the note is written as typed")
 	var mine_text := nb.pages.section_text(NotebookPages.Page.CASES)
-	check(_game().notebook_written[-1].case == "memo" and mine_text.contains("My note") and mine_text.find("PIN for HARDY: 2751") < mine_text.find("Other notes"), "your note goes on the page of the case you're working on")
+	check(_game().notebook_written[-1].case == _game().current_case() and mine_text.contains("My note") and mine_text.find("PIN for HARDY: 2751") < mine_text.find("Other notes"), "your note goes on the page of the case you're working on")
 	check(mine_text.count("PIN for HARDY") == 1, "and isn't listed again under Other notes")
-	_game().solve_case("memo", "done")
+	while _game().current_case() != "":
+		_game().solve_case(_game().current_case(), "done")
 	_game().write_note("Query result", "a line copied after", "result")
 	check(_game().notebook_written[-1].case == "" and nb.pages.section_text(NotebookPages.Page.CASES).contains("a line copied after"), "with every case solved, new notes go under Other notes")
 	_game().open_case("caller", "Who called?")
@@ -4691,7 +4735,7 @@ func test_pick_up_papers() -> void:
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
 	check(card.get_prompt(p).contains(Document.NOTE_IT % card.title), "a paper with pieces of a case on it says E notes it")
 	card._on_used(p)
-	check(level.find_children("*", "DocumentReader", true, false).is_empty() and _game().has_piece("memo", "table") and _game().has_piece("memo", "column"), "E notes the card's pieces straight into the case, without picking it up")
+	check(level.find_children("*", "DocumentReader", true, false).is_empty() and _game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "E notes the card's pieces straight into the case, without picking it up")
 	_game().case_info("memo").open = false  # the rest of this walk is from before the memo's case opens
 	card._on_used(p)
 	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
@@ -4819,7 +4863,7 @@ func test_pick_up_papers() -> void:
 			break
 		await physics_frame
 	var noted: Array = _game().notebook_written.filter(func(w): return w.text.contains("ORDER matters."))
-	check(noted.size() == 1 and noted[0].case == "memo" and not is_instance_valid(order), "once it lands its clue is in the notebook for the memo case, and it's gone from the desk")
+	check(noted.size() == 1 and noted[0].case == "memo_order" and not is_instance_valid(order), "once it lands its clue is in the notebook for the case the sort belongs to, and it's gone from the desk")
 	check(level.notebook.pages.section_text(NotebookPages.Page.CASES).contains("ORDER matters."), "kept under Other notes until the memo case opens")
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?")
 	var memo_page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)

@@ -64,6 +64,7 @@ func get_prompt(player: Node) -> String:
 
 
 func _on_used(player: Node) -> void:
+	shine(false)  # read, so it stops asking to be read
 	if on_terminal:
 		if _is_local(player):
 			_file(player)
