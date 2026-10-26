@@ -1,6 +1,6 @@
 # Recording list
 
-1490 lines in all.
+1488 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -183,7 +183,7 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_vale_2` | If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it. | Urgent. A glance over her shoulder in the voice. | Level 2 |
 | [ ] | `l2_vale_3` | And please don't give your PIN to anyone. Not even Dale. | Softer. Then she hangs up. | Level 2 |
 
-## Maddison Kowalski (44 lines)
+## Maddison Kowalski (42 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
@@ -206,8 +206,6 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_bookstore` | ...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven. | Proud of this. Holding up the receipt, not the book. | Level 0 |
 | [ ] | `l0_grab` | It's in the shop bag on the shelf by the side door. One of you go grab it. | Pointing at the side door to the house. | Level 0 |
 | [ ] | `l0_grab_solo` | It's in the shop bag on the shelf by the side door. Go on, grab it for me. | Solo version. Pointing at the side door to the house. | Level 0 |
-| [ ] | `l0_whiteboard` | Thank you! Okay. Whiteboard. Chapter zero. We're reading this together. | When whoever got the book sits down. Uncapping a marker with a flourish, like she's about to teach a class she's never taken. | Level 0 |
-| [ ] | `l0_whiteboard_solo` | Thank you! Okay. Whiteboard. Chapter zero. Let's read this together. | Solo version. Uncapping a marker with a flourish. | Level 0 |
 | [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. After the huddle's quiz. | Level 0 |
 | [ ] | `l0_garage_5_solo` | Look at that. You're practically an engineer. Take the book with you. Into the van. | Solo version. Genuinely thrilled. After the huddle's quiz. | Level 0 |
 | [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. | At the van door, counting the rules off. She stays behind. | Level 0 |

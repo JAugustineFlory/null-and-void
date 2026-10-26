@@ -542,7 +542,7 @@ func start() -> void:
 	await sync.gate("bag", book_bag.used)
 	maddison_to("board")
 	hud.todo("")
-	await _say("l0_whiteboard", "l0_whiteboard_solo")
+	await _beat()  # the book in your hands a moment, then chapter zero
 	_put_book_down()
 	# Chapter zero goes in everyone's notebook; nobody has to stop to read it.
 	await Huddle.of(self).run("easy_sql_0")
