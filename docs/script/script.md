@@ -257,10 +257,6 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **MADDISON:** *(Solo version. Pointing at the side door to the house.)* It's in the shop bag on the shelf by the side door. Go on, grab it for me. `[l0_grab_solo]`
 
-**MADDISON:** *(When whoever got the book sits down. Uncapping a marker with a flourish, like she's about to teach a class she's never taken.)* Thank you! Okay. Whiteboard. Chapter zero. We're reading this together. `[l0_whiteboard]`
-
-**MADDISON:** *(Solo version. Uncapping a marker with a flourish.)* Thank you! Okay. Whiteboard. Chapter zero. Let's read this together. `[l0_whiteboard_solo]`
-
 **MADDISON:** *(Genuinely thrilled. After the huddle's quiz.)* Look at that. You're practically engineers. Take the book with you. Everybody in the van. `[l0_garage_5]`
 
 **MADDISON:** *(Solo version. Genuinely thrilled. After the huddle's quiz.)* Look at that. You're practically an engineer. Take the book with you. Into the van. `[l0_garage_5_solo]`

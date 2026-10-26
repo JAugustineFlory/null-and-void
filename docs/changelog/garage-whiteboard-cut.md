@@ -1,0 +1,1 @@
+- **Changed:** In the garage, Maddison skips straight from the book to the van: one line fewer before you head out.

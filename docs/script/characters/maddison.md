@@ -15,7 +15,7 @@ Maddison Kowalski, 40s, CEO and founder of a tiny IT company run out of her gara
 
 Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
-## Your lines (44)
+## Your lines (42)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -72,12 +72,6 @@ Each line has the file name to save it as, the line, and a note on how to play i
 - [ ] `l0_grab_solo.wav`  
   "It's in the shop bag on the shelf by the side door. Go on, grab it for me."  
   *Solo version. Pointing at the side door to the house.*
-- [ ] `l0_whiteboard.wav`  
-  "Thank you! Okay. Whiteboard. Chapter zero. We're reading this together."  
-  *When whoever got the book sits down. Uncapping a marker with a flourish, like she's about to teach a class she's never taken.*
-- [ ] `l0_whiteboard_solo.wav`  
-  "Thank you! Okay. Whiteboard. Chapter zero. Let's read this together."  
-  *Solo version. Uncapping a marker with a flourish.*
 - [ ] `l0_garage_5.wav`  
   "Look at that. You're practically engineers. Take the book with you. Everybody in the van."  
   *Genuinely thrilled. After the huddle's quiz.*
