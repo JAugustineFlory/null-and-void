@@ -6,7 +6,8 @@ goes in the private assets repository instead.
 
 To replace a sound, drop a file named after it here (`glass.ogg`, or `step_1.ogg`, `step_2.ogg`
 ... for variants picked at random). The list of sounds is `Sfx.KINDS` in `scripts/audio/sfx.gd`;
-any without a file here are made in code by `scripts/audio/sfx_synth.gd`.
+any without a file here are made in code by `scripts/audio/sfx_synth.gd` (a fight's
+impacts by `scripts/audio/sfx_punches.gd`).
 
 Files are converted to mono Ogg Vorbis (44.1 kHz, quality 3) to stay small.
 
@@ -21,9 +22,4 @@ Files are converted to mono Ogg Vorbis (44.1 kHz, quality 3) to stay small.
 | `land_hard_1..5` | impactSoft_heavy_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
 | `ledge_grab_1..3` | impactGeneric_light_000..002 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
 | `vault_1..4` | cloth1..4 | [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney | CC0 |
-| `punch_hit_1..5` | impactPunch_medium_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
-| `hurt_1..5` | impactPunch_heavy_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
 | `punch_metal_1..5` | impactPlate_medium_000..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
-| `block_1..2` | impactGeneric_light_003..004 | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 |
-| `bag_hit_1..2` | dropLeather, handleSmallLeather | [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney | CC0 |
-| `guard_1..2` | clothBelt, clothBelt2 | [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney | CC0 |

@@ -1,0 +1,1 @@
+- **Fixed:** punches, hits and the punch bag now land with a proper smack instead of a dull thud, and blocking sounds like a hit taken on the arms instead of jingling keys.
