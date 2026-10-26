@@ -99,6 +99,8 @@ func _group_core() -> void:
 	await test_commentary()
 	await test_pause_holds_subtitles()
 	await test_screens_fill_window()
+	await test_pause_menu()
+	await test_level_select()
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
@@ -907,6 +909,75 @@ func test_screens_fill_window() -> void:
 			check(tag != null and tag.text == "v0.7" and tag.is_visible_in_tree() and Rect2(Vector2.ZERO, win).encloses(tag.get_global_rect()), "the lobby shows the game's version, v0.7, on screen")
 		screen.queue_free()
 		await process_frame
+
+
+## The pause menu: five buttons and nothing else on its first page, so the way out
+## can't end up below the bottom of a short window, with audio and controls behind
+## their own buttons.
+func test_pause_menu() -> void:
+	print("Pause menu")
+	var level = load("res://scenes/movement_gym.tscn").instantiate()
+	root.add_child(level)
+	await process_frame
+	await process_frame
+	var main: VBoxContainer = level._pause_pages["main"]
+	var names := []
+	for b in main.get_children():
+		names.append((b as Button).text)
+	check(names == ["Resume", "Restart", "Audio", "Controls", "Exit"], "the pause menu is resume, restart, audio, controls, exit (%s)" % [names])
+	check(main.get_combined_minimum_size().y < 400.0 and level._pause.find_children("*", "ScrollContainer", true, false).size() == 1,
+		"its first page is short enough for a small window, and scrolls if it isn't (%s px)" % main.get_combined_minimum_size().y)
+	level._toggle_pause()
+	await process_frame
+	await process_frame
+	var win := root.get_visible_rect().size
+	var inside := true
+	for b in level._pause.find_children("*", "Button", true, false):
+		if b.is_visible_in_tree() and not Rect2(Vector2.ZERO, win).encloses(b.get_global_rect()):
+			inside = false
+	check(inside, "every button on it is fully on screen")
+	check(level._pause_at == "main" and not level._pause_pages["audio"].visible, "it opens on that first page")
+	level._show_pause_page("audio")
+	await process_frame
+	var faders: Node = level._pause_pages["audio"].find_child("Volume", true, false)
+	check(faders != null and faders.is_visible_in_tree() and level._pause_pages["audio"].find_child("Back", true, false) != null,
+		"Audio opens the volume sliders, with a way back")
+	level._show_pause_page("controls")
+	await process_frame
+	var keys: Label = level._pause_pages["controls"].find_child("ControlSettings", true, false).get_child(2)
+	check(keys.text == SettingsPanel.CONTROLS and not level._pause_pages["audio"].visible, "Controls opens the key list instead")
+	level._show_pause_page("main")
+	level._toggle_pause()
+	paused = false
+	level.queue_free()
+	await process_frame
+
+
+## The Levels screen: floors the crew has reached, and a way into the rest while the
+## game is still in development.
+func test_level_select() -> void:
+	print("Levels screen")
+	check(LevelSelect.reached([]) == 1, "a new player can only start on the ground floor")
+	check(LevelSelect.reached(["achievement:floor_g"]) == 2, "finishing the ground floor opens floor 14")
+	check(LevelSelect.reached(["achievement:floor_g", "achievement:floor_14", "achievement:floor_22"]) == 4, "and so on up the building")
+	check(LevelSelect.testing(), "while the version is below 1.0, playtesters can open any floor")
+	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
+	root.add_child(menu)
+	await process_frame
+	check(menu.find_child("Levels", true, false) is Button and menu.find_child("Settings", true, false) is Button, "the title screen has Levels and Settings buttons")
+	menu.find_child("Levels", true, false).pressed.emit()
+	await process_frame
+	await process_frame
+	var panel: MenuModal = menu.find_children("*", "MenuModal", true, false)[0]
+	var rows := panel.box.find_children("*", "Button", true, false)
+	check(rows.size() == LevelSelect.FLOORS.size() + 2, "it lists every floor, the movement gym and a way back (%d rows)" % rows.size())
+	check(rows[0].text == "Ground floor" and rows[1].text.ends_with("(not reached yet)") and not rows[1].disabled,
+		"the floors nobody has reached say so, and still open in a development build")
+	menu.find_child("Settings", true, false).pressed.emit()
+	await process_frame
+	check(menu.find_child("Volume", true, false) != null and menu.find_child("InWorldUI", true, false) != null, "and Settings has the same audio and controls pages as the pause menu")
+	menu.queue_free()
+	await process_frame
 
 
 func test_level_0_scene() -> void:
