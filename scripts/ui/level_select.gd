@@ -1,8 +1,8 @@
 class_name LevelSelect
-## The Levels panel: start a run on any floor the crew has reached. Before v1.0 the
-## floors nobody has reached yet can still be opened, so playtesters can go straight
-## to the one they're testing; from v1.0 on they stay locked until the floor before
-## them is finished.
+## The Levels panel: start a run on any floor the crew has reached. While
+## `game/levels_any_floor` is on (playtest builds), the floors nobody has reached yet
+## can still be opened, so playtesters can go straight to the one they're testing;
+## with it off they stay locked until the floor before them is finished.
 ##
 ## A floor counts as reached when the floor before it was finished, which the player's
 ## profile already records as its achievement (Cosmetics unlock sources).
@@ -19,10 +19,10 @@ const FLOORS := [
 ]
 
 
-## True while this is a pre-release build, where every floor can be opened.
+## True while every floor can be opened from the Levels screen: playtest builds,
+## until `game/levels_any_floor` in project.godot is turned off for release.
 static func testing() -> bool:
-	var v := str(ProjectSettings.get_setting("application/config/version", "0"))
-	return v.begins_with("0.") or v == "0"
+	return bool(ProjectSettings.get_setting("game/levels_any_floor", true))
 
 
 ## How far the crew has got: the number of floors they can start on, at least one.
