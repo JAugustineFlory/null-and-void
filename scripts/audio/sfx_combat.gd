@@ -42,6 +42,7 @@ static func watch(npc: Node3D) -> SfxCombat:
 func _ready() -> void:
 	var combat = body.get("combat")
 	if combat is PlayerCombat:
+		Sfx.warm_fight()
 		combat.swung.connect(_play.bind("swing"))
 		combat.guard_raised.connect(_play.bind("guard"))
 		combat.blocked.connect(func(_cause): _play("block"))
