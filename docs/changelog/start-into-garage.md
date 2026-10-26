@@ -1,0 +1,1 @@
+- **Changed:** The title screen is simpler: Start takes you into the crew's garage, where a bar along the bottom switches between single-player and co-op and opens Levels and Customize.

@@ -7,6 +7,9 @@ extends Control
 ## stand, and says they're ready. Once everyone is, the game starts and the
 ## garage opens on the same shot.
 ##
+## Start on the title screen comes here, single-player. A nav bar along the
+## bottom switches between Single-player and Co-op (the same lobby, for one or for
+## a crew), opens Levels (start straight on a floor) and Customize, or goes Back.
 ## Left: the session (host or join, then pose and ready). Right: Customize opens
 ## the LookPicker, without its own figure, since your figure on the driveway is
 ## the preview.
@@ -19,11 +22,30 @@ const WELCOME := "Welcome to Byte-Right IT!"
 const READY := "Ready"
 const CHANGE_POSE := "Change pose"
 const WAITING := "Waiting for everyone to get ready (%d/%d)"
+## The nav bar: drafts awaiting Augustine's OK.
+const NAV_SOLO := "Single-player"
+const NAV_COOP := "Co-op"
+const NAV_LEVELS := "Levels"
+const NAV_CUSTOMIZE := "Customize"
+const NAV_BACK := "Back"
+const FLOOR_PICKED := "Starting on %s once everyone's ready."
 
 var stage: LobbyStage
 var picker: LookPicker
 var _welcome: Label
 var _side: Control
+var _nav: Control
+var _solo_btn: Button
+var _coop_btn: Button
+var _levels_btn: Button
+var _customize_btn: Button
+var _coop_title: Control
+var _coop_sub: Control
+var _right: Control
+## The Co-op tab is showing (host or join), whether or not you're in a session yet.
+var _coop_view := false
+## Host: where the game starts (a Game.LEVELS key), picked from Levels.
+var start_level := "world"
 var _address: LineEdit
 var _status: Label
 var _connect_box: Control
@@ -31,6 +53,7 @@ var _session_box: Control
 var _ready_btn: Button
 var _pose_btn: Button
 var _waiting: Label
+var _floor_note: Label
 var _all_ready_for := 0.0
 ## Joining from your own garage (solo lobby): if it doesn't work out, or the
 ## host leaves, you walk back into it.
@@ -63,27 +86,22 @@ func _ready() -> void:
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_side.add_child(gap)
 	var right := _panel(_side, 600)
-	# Folded away until wanted, so the crew on the driveway stays in view.
-	var customize := _button("Customize")
-	customize.name = "OpenCustomize"
-	customize.toggle_mode = true
-	right.add_child(customize)
+	_right = right.get_parent()
+	# Folded away until wanted (Customize on the nav bar), so the crew on the
+	# driveway stays in view.
 	picker = LookPicker.new()
 	picker.with_preview = false
-	picker.visible = false
 	right.add_child(picker)
-	customize.toggled.connect(func(on): picker.visible = on)
+	_right.visible = false
 	picker.previewed.connect(func(look): stage.preview_own(_net(), look))
 
 	# Solo: just you, Change pose and Ready.
-	var solo: bool = _net().solo_lobby
-	var title := ThemeUtil.label("CO-OP", 56, ThemeUtil.GREEN)
-	title.add_theme_font_override("font", ThemeUtil.mono())
-	title.visible = not solo
-	left.add_child(title)
+	_coop_title = ThemeUtil.label("CO-OP", 56, ThemeUtil.GREEN)
+	_coop_title.add_theme_font_override("font", ThemeUtil.mono())
+	left.add_child(_coop_title)
 	var sub := ThemeUtil.label("Up to %d players. One hosts, the others join by address." % _net().MAX_PLAYERS, 18, ThemeUtil.DIM)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sub.visible = not solo
+	_coop_sub = sub
 	left.add_child(sub)
 
 	_connect_box = VBoxContainer.new()
@@ -114,18 +132,17 @@ func _ready() -> void:
 	_waiting = ThemeUtil.label("", 20, ThemeUtil.AMBER)
 	_waiting.name = "Waiting"
 	_session_box.add_child(_waiting)
+	_floor_note = ThemeUtil.label("", 20, ThemeUtil.GREEN)
+	_floor_note.name = "FloorPicked"
+	_floor_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_session_box.add_child(_floor_note)
 
 	_status = ThemeUtil.label("", 18, ThemeUtil.AMBER)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(_status)
-	var back := _button("Back")
-	back.name = "Back"
-	back.pressed.connect(func():
-		_net().leave(false)
-		get_node("/root/Game").goto("menu"))
-	left.add_child(back)
-
+	_build_nav()
 	_side.visible = false
+	_nav.visible = false
 	_net().roster_changed.connect(_refresh)
 	_net().joined.connect(_on_joined)
 	_net().session_ended.connect(_on_session_ended)
@@ -155,6 +172,108 @@ func _on_intro_finished() -> void:
 	var fade := create_tween()
 	fade.tween_property(_welcome, "modulate:a", 0.0, 0.6)
 	_side.visible = true
+	_nav.visible = true
+
+
+## The bar along the bottom: Back, then Single-player | Co-op, Levels, Customize.
+func _build_nav() -> void:
+	var bar := PanelContainer.new()
+	bar.name = "Nav"
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.01, 0.015, 0.02, 0.82)
+	bg.set_content_margin_all(12)
+	bar.add_theme_stylebox_override("panel", bg)
+	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	add_child(bar)
+	_nav = bar
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	bar.add_child(row)
+	var back := _nav_button(row, NAV_BACK, "Back")
+	back.pressed.connect(func():
+		_net().leave(false)
+		get_node("/root/Game").goto("menu"))
+	row.add_child(VSeparator.new())
+	var modes := ButtonGroup.new()
+	_solo_btn = _nav_button(row, NAV_SOLO, "NavSolo")
+	_solo_btn.toggle_mode = true
+	_solo_btn.button_group = modes
+	_solo_btn.pressed.connect(_to_solo)
+	_coop_btn = _nav_button(row, NAV_COOP, "NavCoop")
+	_coop_btn.toggle_mode = true
+	_coop_btn.button_group = modes
+	_coop_btn.pressed.connect(_to_coop)
+	_levels_btn = _nav_button(row, NAV_LEVELS, "NavLevels")
+	_levels_btn.pressed.connect(open_levels)
+	_customize_btn = _nav_button(row, NAV_CUSTOMIZE, "NavCustomize")
+	_customize_btn.toggle_mode = true
+	_customize_btn.toggled.connect(func(on): _right.visible = on)
+
+
+func _nav_button(row: Control, text: String, node_name: String) -> Button:
+	var b := _button(text)
+	b.name = node_name
+	b.custom_minimum_size = Vector2(170, 50)
+	row.add_child(b)
+	return b
+
+
+## Single-player: leave any co-op session and stand in the garage on your own.
+func _to_solo() -> void:
+	_coop_view = false
+	start_level = "world"
+	_floor_note.text = ""
+	if not _net().solo_lobby:
+		_left_garage = false
+		_net().begin_solo_lobby()
+	_status.text = ""
+	_refresh()
+
+
+## Co-op: the same garage, to host a crew or join one. You stay on your mark
+## until you join someone else's.
+func _to_coop() -> void:
+	_coop_view = true
+	if _net().solo_lobby:
+		_net().set_ready(false)  # single-player's Ready doesn't start anything from here
+	_status.text = ""
+	_refresh()
+
+
+## Levels opens the title screen's Levels screen (Playtest's LevelSelect, coming
+## to this branch from main), picking with `pick_level`. Until it's here, nothing.
+const LEVEL_SELECT := "res://scripts/ui/level_select.gd"
+
+
+func open_levels() -> Node:
+	if not ResourceLoader.exists(LEVEL_SELECT):
+		return null
+	return load(LEVEL_SELECT).open(self, pick_level)
+
+
+## A floor (or the gym) was picked. Single-player starts straight on it; a host
+## starts everyone on it once they're ready.
+func pick_level(key: String) -> void:
+	var net := _net()
+	if net.is_online() and net.is_host():
+		start_level = key
+		_floor_note.text = FLOOR_PICKED % _level_name(key)
+		return
+	net.leave(false)
+	var game := get_node("/root/Game")
+	game.new_run()
+	game.goto(key)
+
+
+## What the Levels screen calls floor `key`.
+func _level_name(key: String) -> String:
+	if ResourceLoader.exists(LEVEL_SELECT):
+		for f in load(LEVEL_SELECT).FLOORS:
+			if f.key == key:
+				return f.name
+	return key
 
 
 func _on_joined() -> void:
@@ -172,6 +291,8 @@ func _on_session_ended(reason: String) -> void:
 func _on_host() -> void:
 	if _net().host() != OK:
 		_status.text = "Couldn't host on port %d. Is another copy of the game already hosting?" % _net().DEFAULT_PORT
+		_net().begin_solo_lobby()  # back on your own mark
+		_refresh()
 		return
 	var ips: Array = _net().local_addresses()
 	_status.text = "Hosting. Friends join with %s (port %d). Over the internet, forward that port or use a VPN like Tailscale." % [
@@ -199,8 +320,17 @@ func _on_join() -> void:
 func _refresh() -> void:
 	var net := _net()
 	var in_session: bool = not net.roster.is_empty()
-	_connect_box.visible = not in_session
-	_session_box.visible = in_session
+	var online: bool = in_session and not net.solo_lobby
+	var coop: bool = _coop_view or not net.solo_lobby
+	# Co-op: Host or Join until you're in a session; single-player: pose and Ready.
+	_connect_box.visible = coop and (net.solo_lobby or not in_session)
+	_session_box.visible = online or (in_session and not coop)
+	_coop_title.visible = coop
+	_coop_sub.visible = coop
+	_solo_btn.set_pressed_no_signal(not coop)
+	_coop_btn.set_pressed_no_signal(coop)
+	# In co-op only the host picks the floor.
+	_levels_btn.disabled = coop and not (online and net.is_host())
 	stage.sync_crew(net)
 	var ready_count: int = net.roster.keys().filter(func(id): return net.lobby_of(id).ready).size()
 	_waiting.text = WAITING % [ready_count, net.roster.size()] if in_session and not net.solo_lobby else ""
@@ -216,7 +346,8 @@ func my_look() -> Dictionary:
 ## once you have).
 func _process(delta: float) -> void:
 	var net := _net()
-	if not ((net.is_online() or net.solo_lobby) and net.is_host() and net.all_ready()):
+	var solo_ready: bool = net.solo_lobby and not _coop_view
+	if not ((net.is_online() or solo_ready) and net.is_host() and net.all_ready()):
 		_all_ready_for = 0.0
 		return
 	_all_ready_for += delta
@@ -225,7 +356,7 @@ func _process(delta: float) -> void:
 		if net.solo_lobby:
 			net.start_solo_game()
 		else:
-			net.start_game()
+			net.start_game(start_level)
 
 
 func _panel(parent: Control, width: float) -> VBoxContainer:

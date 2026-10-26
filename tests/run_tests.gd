@@ -207,6 +207,7 @@ func _group_coop() -> void:
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_lobby_names()
+	await test_front_end()
 	await test_coop_patience()
 	await test_coop_level_2()
 	await test_coop_level_2_lab()
@@ -890,7 +891,7 @@ func test_pause_holds_subtitles() -> void:
 func test_screens_fill_window() -> void:
 	print("Menu screens")
 	var win := root.get_visible_rect().size
-	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn", "res://scenes/customize.tscn"]:
+	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn"]:
 		var screen: Control = load(path).instantiate()
 		root.add_child(screen)
 		await process_frame
@@ -2083,31 +2084,31 @@ func test_coop_looks() -> void:
 	check(net.earn("achievement:test") == ["head/hard_hat"], "earning an achievement unlocks its item")
 	Cosmetics.reset()
 
-	# Solo: the main menu's Customize screen has the same picker, and solo play wears it.
-	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
-	root.add_child(menu)
-	await process_frame
-	var to_customize: Button = menu.find_child("Customize", true, false)
-	check(to_customize != null and to_customize.text == "Customize", "the main menu has a Customize button")
-	menu.queue_free()
+	# Solo: Customize on the garage's nav bar has the same picker, and solo play wears it.
 	net.profile = Profile.new()
 	net.wanted_look = {}
-	var custom: Control = load("res://scenes/customize.tscn").instantiate()
+	net.begin_solo_lobby()
+	var custom: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(custom)
 	await process_frame
+	custom.stage.finish_intro()
 	var solo_picker: LookPicker = custom.find_child("LookPicker", true, false)
-	check(solo_picker != null and custom.find_child("Customize", true, false) is TabContainer and custom.find_child("Back", true, false) is Button,
-		"it shows the Crew, Look, Gear and Achievements tabs, with a way back")
+	check(not solo_picker.is_visible_in_tree(), "single-player, the picker is folded away")
+	custom.find_child("NavCustomize", true, false).button_pressed = true
+	check(solo_picker.is_visible_in_tree() and custom.find_child("Customize", true, false) is TabContainer,
+		"Customize on the nav bar opens the Crew, Look, Gear and Achievements tabs")
 	custom.find_child("Crew_mei", true, false).pressed.emit()
 	custom.find_child("Skin3", true, false).pressed.emit()
 	var solo_term: ColorPickerButton = custom.find_child("Color_terminal", true, false)
 	solo_term.color = Color(0.3, 0.8, 1.0)
 	solo_term.popup_closed.emit()
 	await process_frame
-	check(net.profile.loadout.crew == "mei" and net.profile.loadout.skin == 2 and solo_picker._preview_rig.look.skin == CharacterLooks.SKIN_TONES[2],
-		"picks show on the figure and are saved to the profile, with nobody connected")
+	var my_fig: Node3D = custom.stage.figures[net.my_id()]
+	check(net.profile.loadout.crew == "mei" and net.profile.loadout.skin == 2 and my_fig.get_node("Rig").look.skin == CharacterLooks.SKIN_TONES[2],
+		"picks show on your figure in the garage and are saved to the profile, with nobody connected")
 	check(custom.find_child("CrewCaption", true, false).text.begins_with(PlayableCrew.info("mei").name), "with who they are underneath")
 	custom.queue_free()
+	net.leave(false)
 	await process_frame
 	_game().new_run(8)
 	var solo = load("res://scenes/level_0.tscn").instantiate()
@@ -2206,10 +2207,10 @@ func test_coop_pregame_lobby() -> void:
 	check(net.pose_action("sit") == "sit_floor" and net.pose_action("nonsense") == "idle" and net.LOBBY_POSES.all(func(p): return net.pose_action(p) in CharacterRig.ACTIONS),
 		"every pose plays something the rig can draw (idle until Graphics draws it)")
 	check(stage.figures[55].get_node("Tag").text == "Ana\nReady" and host_fig.get_node("Tag").text == "Host", "a name over each head, and who's ready")
-	var open_picker: Button = lobby.find_child("OpenCustomize", true, false)
-	check(not lobby.picker.visible and open_picker.text == "Customize", "the picker is folded away behind Customize, so the crew stays in view")
+	var open_picker: Button = lobby.find_child("NavCustomize", true, false)
+	check(not lobby.picker.is_visible_in_tree() and open_picker.text == "Customize", "the picker is folded away behind Customize on the nav bar, so the crew stays in view")
 	open_picker.button_pressed = true
-	check(lobby.picker.visible, "and opens on a click")
+	check(lobby.picker.is_visible_in_tree(), "and opens on a click")
 	check(lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (1/3)" and lobby.find_child("Host", true, false).is_visible_in_tree() == false,
 		"the menu counts who's ready, and hosting or joining is done")
 	lobby.find_child("ChangePose", true, false).pressed.emit()
@@ -2290,6 +2291,78 @@ func test_coop_pregame_lobby() -> void:
 	await process_frame
 	net.leave(false)
 	check(not net.solo_lobby and net.roster.is_empty() and net.lobby.is_empty(), "leaving clears it")
+	net.profile = real_profile
+
+
+## The title screen's Start goes into the garage, single-player. Its nav bar
+## switches to co-op and back, opens Levels and Customize, and goes Back.
+func test_front_end() -> void:
+	print("Start, the garage's nav bar and Levels")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()
+	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
+	root.add_child(menu)
+	await process_frame
+	var labels: Array = menu.find_children("*", "Button", true, false).map(func(b): return b.text)
+	check(labels == ["Start", "Quit"], "the title screen is just Start and Quit (%s)" % ", ".join(labels))
+	menu.queue_free()
+	await process_frame
+
+	net.begin_solo_lobby()  # what Start does, before it goes to the lobby
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var nav: Control = lobby.find_child("Nav", true, false)
+	check(not nav.visible, "the nav bar waits for the opening")
+	lobby.stage.finish_intro()
+	var names: Array = nav.find_children("*", "Button", true, false).map(func(b): return b.text)
+	check(nav.visible and names == ["Back", "Single-player", "Co-op", "Levels", "Customize"], "then a bar along the bottom: %s" % ", ".join(names))
+	var solo: Button = lobby.find_child("NavSolo", true, false)
+	var coop: Button = lobby.find_child("NavCoop", true, false)
+	check(solo.button_pressed and not coop.button_pressed and lobby.find_child("Ready", true, false).is_visible_in_tree()
+		and not lobby.find_child("Host", true, false).is_visible_in_tree() and lobby.stage.figures.keys() == [net.my_id()],
+		"Start lands single-player: just you in the garage, with Ready")
+	lobby.find_child("Ready", true, false).button_pressed = true
+	coop.button_pressed = true
+	coop.pressed.emit()
+	await process_frame
+	check(net.solo_lobby and coop.button_pressed and not solo.button_pressed and lobby.find_child("Host", true, false).is_visible_in_tree()
+		and lobby.find_child("Join", true, false).is_visible_in_tree() and lobby._coop_title.is_visible_in_tree()
+		and not lobby.find_child("Ready", true, false).is_visible_in_tree() and lobby.stage.figures.keys() == [net.my_id()],
+		"Co-op turns the same garage into hosting or joining, and you stay on your mark")
+	lobby._process(5.0)
+	check(not net.lobby_of(net.my_id()).ready and lobby._all_ready_for == 0.0, "single-player's Ready doesn't start a game from the co-op tab")
+	check(lobby.find_child("NavLevels", true, false).disabled, "Levels waits until you host: in co-op the host picks the floor")
+	check(net.host(18300 + randi() % 500) == OK, "(hosting on a spare port)")
+	lobby._refresh()
+	check(net.is_online() and lobby.stage.figures.keys() == [net.my_id()] and lobby.find_child("Ready", true, false).is_visible_in_tree()
+		and not lobby.find_child("NavLevels", true, false).disabled, "hosting, you're still on your mark, with Ready and Levels")
+	lobby.pick_level("level_3")
+	check(lobby.start_level == "level_3" and lobby.find_child("FloorPicked", true, false).text.begins_with("Starting on ")
+		and lobby.find_child("FloorPicked", true, false).text.ends_with(" once everyone's ready."), "the host's pick is where everyone starts, once they're ready")
+	solo.button_pressed = true
+	solo.pressed.emit()
+	await process_frame
+	check(net.solo_lobby and not net.is_online() and lobby.stage.figures.keys() == [net.my_id()] and lobby.find_child("Ready", true, false).is_visible_in_tree()
+		and not lobby._coop_title.is_visible_in_tree() and not lobby.find_child("NavLevels", true, false).disabled and lobby.start_level == "world",
+		"and Single-player closes the session and brings it back to just you")
+	# Changing your mind mid-join: back to your own garage once the cut is done.
+	coop.button_pressed = true
+	coop.pressed.emit()
+	lobby._address.text = "127.0.0.1"
+	lobby._on_join()
+	check(lobby._left_garage and lobby.stage.handing_off, "Join walks you out of your garage")
+	solo.button_pressed = true
+	solo.pressed.emit()
+	check(net.solo_lobby and not net.is_online() and not lobby._left_garage, "Single-player mid-join drops the connection")
+	await _until(func(): return not lobby.stage.handing_off, 10.0)
+	check(lobby.stage.figures.keys() == [net.my_id()] and lobby.find_child("Ready", true, false).is_visible_in_tree(), "and you walk back into your own garage")
+
+	check(lobby.find_child("NavLevels", true, false).pressed.get_connections().size() == 1, "Levels on the nav bar opens the Levels screen")
+	lobby.queue_free()
+	await process_frame
+	net.leave(false)
 	net.profile = real_profile
 
 
