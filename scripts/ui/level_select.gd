@@ -1,8 +1,8 @@
 class_name LevelSelect
-## The Levels panel: start a run on any floor the crew has reached. Before v1.0 the
-## floors nobody has reached yet can still be opened, so playtesters can go straight
-## to the one they're testing; from v1.0 on they stay locked until the floor before
-## them is finished.
+## The Levels panel: start a run on any floor the crew has reached. While
+## `game/levels_any_floor` is on (playtest builds), the floors nobody has reached yet
+## can still be opened, so playtesters can go straight to the one they're testing;
+## with it off they stay locked until the floor before them is finished.
 ##
 ## A floor counts as reached when the floor before it was finished, which the player's
 ## profile already records as its achievement (Cosmetics unlock sources).
