@@ -2243,6 +2243,49 @@ func test_coop_pregame_lobby() -> void:
 	lobby._process(1.0)
 	check(net.all_ready() and lobby._all_ready_for == 1.0, "and Ready starts the game a moment later")
 	lobby.find_child("Ready", true, false).button_pressed = false
+	# Joining a friend: you walk off out of your own garage, the shot cuts, and the
+	# friend's crew, you among them, walk on into theirs.
+	stage = lobby.stage
+	Engine.time_scale = 5.0
+	await create_timer(5.0).timeout  # onto your mark first
+	var mine: Node3D = stage.figures[1]
+	stage.hand_off()
+	net.roster = {1: "Friend", 42: "You"}  # their session turns up straight away
+	stage.sync_crew(net)
+	check(stage.handing_off and stage.figures.is_empty() and stage.is_leaving() and mine.get_node("Rig").action == "idle",
+		"joining a friend, you turn and walk off out of your own garage")
+	await create_timer(0.3).timeout
+	check(stage.figures.is_empty(), "the friend's crew waits until you're gone")
+	for f in 600:
+		if not stage.handing_off:
+			break
+		await process_frame
+	Engine.time_scale = 1.0
+	check(not is_instance_valid(mine) and stage.figures.keys() == [1, 42] and stage.modulate == Color.WHITE
+		and stage.figures[42].position.distance_to(stage.mark(1)) > 5.0, "then the shot cuts and the crew walks on into theirs, you with them")
+	net.roster = {1: "Friend"}
+	stage.sync_crew(net)
+	check(stage.figures.keys() == [1] and stage.is_leaving(), "someone who leaves walks back off rather than vanishing")
+	# Joining from your own garage for real, and the host can't be reached.
+	net.begin_solo_lobby()
+	for f in 600:
+		if not stage.is_leaving():
+			break
+		await process_frame
+	lobby._refresh()
+	lobby._address.text = "127.0.0.1"
+	lobby._on_join()
+	check(stage.handing_off and not net.solo_lobby and net.is_online(), "Join walks you out of your own garage while it connects")
+	net._on_connection_failed()
+	check(net.solo_lobby and net.roster.keys() == [net.my_id()] and lobby._status.text.begins_with("Couldn't reach the host"),
+		"a join that fails says so and puts you back in your own garage")
+	Engine.time_scale = 5.0
+	for f in 900:
+		if not stage.handing_off:
+			break
+		await process_frame
+	Engine.time_scale = 1.0
+	check(stage.figures.keys() == [net.my_id()], "and you walk back in")
 	lobby.queue_free()
 	await process_frame
 	net.leave(false)
