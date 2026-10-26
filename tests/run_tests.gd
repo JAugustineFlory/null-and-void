@@ -1427,6 +1427,10 @@ func test_level_1_scene() -> void:
 	check(not level.controller_puzzle.solved and level.doors["SRA-EXIT"].is_open == false, "the racks do nothing before Rourke asks")
 	level._on_asked()
 	check(not level.terminal.locked and _game().current_todo() != "", "once Rourke asks, the terminal opens and the job goes on the to-do list")
+	check(_game().current_case() == "controller" and _game().case_objective("controller") == level.OBJ_CONTROLLER,
+		"the controller is the case in hand, and its page says what to do in the same words as the to-do list")
+	_game().open_case("dark_room", level.DARK_CASE, ["lights"])
+	check(_game().current_case() == "controller" and _game().side_cases().any(func(c): return c.id == "dark_room"), "the dark break room is a side case: it doesn't take the controller's page")
 	level._on_panel(null, level.answer)
 	check(not level.controller_puzzle.solved and level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until == 0.0 and level.hud._notice.text.contains("NO POWER"), "pressing racks can't stand in for the query: no power until the terminal finds the controller")
 	check(not level.rourke.is_in_group(VoiceChat.INTERFERENCE_GROUP) and Rourke.State.keys()[level.rourke.state] != "CHASE", "no fight on the server floor")
