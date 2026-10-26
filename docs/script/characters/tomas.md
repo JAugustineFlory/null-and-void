@@ -1,6 +1,6 @@
 # Tomas Lindqvist: your lines
 
-Tomas Lindqvist, a payroll clerk on the night shift, 50s. He has been under a shelf in a store room since midnight, and he's angrier than he is scared.
+Tomas Lindqvist, a payroll clerk on the night shift, 50s. He has been under a shelf in a store room since the lights went out, and he's angrier than he is scared.
 
 **How they sound:** Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
 

@@ -1,0 +1,3 @@
+- **Changed:** the pause menu is now Resume, Restart, Audio, Controls and Exit, and every button stays on screen whatever the window size.
+- **Added:** a Settings button on the title screen, with the same audio and controls pages.
+- **Added:** a Levels screen: start a run on any floor the crew has reached, with the movement gym alongside it.

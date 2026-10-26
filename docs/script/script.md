@@ -853,7 +853,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Floor 9: Personnel
 
-*The crew comes up STAIR 1 from the locked-in lobby. The floor's load was shed under Epsilon: the crew gets payroll's power and air back through the building's services, learns the badge log, and passes two real night-shifters out past two Mimics. WARDEN is version 3.0 here (I, not THIS UNIT): the automatic announcement first, then his own voice as a separate beat. DRAFT lines, for Augustine's approval (plan/approvals/l5-text.md).*
+*The crew comes up STAIR 1 from the locked-in lobby. The floor's load was shed under Epsilon: the crew gets payroll's power and air back through the building's services, learns the badge log, and passes two real night-shifters out past two Mimics. WARDEN is version 3.0 here (I, not THIS UNIT): the automatic announcement first, then his own voice as a separate beat. Approved by Augustine word for word 2026-10-26 (plan/approvals/l5-text.md).*
 
 **PA:** *(The cheerful tape. Nobody is here for anybody.)* Welcome to floor nine, Personnel! Payroll questions? We're here for you, nine to five! `[l5_arrive_pa]`
 
@@ -883,7 +883,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### The voice on the walkie
 
-*A Mimic on the radio. In co-op it replays a teammate's own crew voice with their name on the subtitle (the teammate is standing right there); solo it's Maddison, who is in the garage. The badge readers' log is how the crew proves the voice is lying. It lures and lies and never attacks. The CREW lines are recorded by every playable character (the impersonated teammate's voice plays). Approved in the brief by Augustine 2026-10-22; the words are DRAFTS (plan/approvals/l5-text.md).*
+*A Mimic on the radio. In co-op it replays a teammate's own crew voice with their name on the subtitle (the teammate is standing right there); solo it's Maddison, who is in the garage. The badge readers' log is how the crew proves the voice is lying. It lures and lies and never attacks. The CREW lines are recorded by every playable character (the impersonated teammate's voice plays). Held back for a later session: the actor notes give the twist away. Approved in the brief by Augustine 2026-10-22, and word for word 2026-10-26 (plan/approvals/l5-text.md).*
 
 **CREW:** *(On the walkie, a little breathless. Your own voice, asking for something you never asked for. Record it straight: the horror is that it sounds like you.)* Hey, it's me. I'm down at the loading door, the dock side. It's shut behind me. Can you open it from the desk? Quick. `[l5_mimic_lure]`
 
@@ -899,7 +899,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### The night shift, passed out
 
-*The two night-shifters whose faces the Mimics wear (Ines Oyelaran, records; Tomas Lindqvist, payroll: names chosen clear of the visitor log and the receptionist, per Voice's review). Each speaks once, when their pass is logged. DRAFT lines (plan/approvals/l5-text.md).*
+*The two night-shifters whose faces the Mimics wear (Ines Oyelaran, records; Tomas Lindqvist, payroll: names chosen clear of the visitor log and the receptionist, per Voice's review). Each speaks once, when their pass is logged. Approved by Augustine word for word 2026-10-26 (plan/approvals/l5-text.md).*
 
 **INES:** *(Whispered from behind the cage door, then the door opens. Relief and warning in the same breath.)* That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face. `[l5_ines_passed]`
 
