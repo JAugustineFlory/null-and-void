@@ -947,6 +947,7 @@ func test_level_0_scene() -> void:
 	var version: Label = level._pause.find_child("Version", true, false)
 	check(ProjectSettings.get_setting("application/config/version") == "0.7" and version != null and version.text == "v0.7", "the pause menu shows the game's version, v0.7")
 	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
+	check(level.player.is_sitting() and level.player.sit_held, "sitting in their seat, belted in: Space and Z don't stand them up")
 	var lobby_floor: Node3D = level.geo.get_node("Floor")
 	check(lobby_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(lobby_floor) == "carpet", "the lobby is carpet underfoot")
 	var flickering := 0
@@ -978,7 +979,9 @@ func test_level_0_scene() -> void:
 	level.van_seats[4].buckle.interact(mate)
 	check(level._intro_started and level.ready_players[mate] == 4, "the second player's buckle starts the intro")
 	await create_timer(0.55).timeout
-	check(level.player.rotation.y < -1.0 and level.player.head.rotation.x < -0.2, "climbing out, the camera looks down at the door handle (yaw %.2f, pitch %.2f)" % [level.player.rotation.y, level.player.head.rotation.x])
+	# Sitting in the seat, the handle is about level with your eyes, not below them.
+	check(level.player.rotation.y < -1.0 and level.player.head.rotation.x < 0.2 and level.player.head.rotation.x > -0.6,
+		"climbing out, the camera turns to the door handle beside them (yaw %.2f, pitch %.2f)" % [level.player.rotation.y, level.player.head.rotation.x])
 	var look := InputEventMouseMotion.new()
 	look.relative = Vector2(-5000, 0)
 	var held_yaw: float = level.player.rotation.y
@@ -989,7 +992,7 @@ func test_level_0_scene() -> void:
 	await create_timer(2.95).timeout
 	var pos: Vector3 = level.player.global_position
 	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
-	check(not level.player.seated, "out of the van, the player can walk again")
+	check(not level.player.seated and not level.player.sit_held and not level.player.is_sitting(), "out of the van, the player is on their feet and can walk again")
 	var mpos: Vector3 = mate.global_position
 	check(mpos.x > 3.5 and mpos.y < 0.3 and not mate.input_locked, "a rear-bench player climbs out of the side door (%.1f, %.1f, %.1f)" % [mpos.x, mpos.y, mpos.z])
 	mate.queue_free()

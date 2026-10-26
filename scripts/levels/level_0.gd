@@ -611,10 +611,26 @@ func _hold_camera(p: Player) -> void:
 		_look_base = _view(p)
 
 
+## Sat in the van seat, strapped in: the crew rides in with the view and the body
+## of someone sitting down, and Space and Z don't get them out of it (Player.sit_held).
+## It takes a physics frame for the body to be standing on the van floor at all.
+func _belt_in() -> void:
+	for i in 60:
+		await get_tree().physics_frame
+		if not is_instance_valid(player) or not player.seated or player.is_sitting():
+			return  # already down, or out of the van before they ever sat
+		if player.sit():
+			player.sit_held = true
+			return
+
+
 func _release_camera(p: Node) -> void:
 	p.process_mode = Node.PROCESS_MODE_INHERIT
 	p.input_locked = false
 	p.seated = false  # out of the van
+	p.sit_held = false  # the belt's off: on their feet on the tarmac
+	if p.is_sitting():
+		p.stand_up(true)
 	if p == _look_player:
 		_look_player = null
 		_look_offset = Vector2.ZERO
@@ -675,6 +691,7 @@ func start() -> void:
 	player.flashlight.visible = false  # the lights are on; nobody needs a torch yet
 	player.seated = true  # belted in until they unbuckle
 	hud.notice("Look down at your seat belt and press E to unbuckle when you're ready", 600.0)
+	_belt_in()
 	_dispatch_chatter()
 	if not _intro_started:
 		await all_ready
