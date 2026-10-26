@@ -68,6 +68,10 @@ var move_progress := 0.0
 ## How quickly a hand eases onto what it reaches for (per second): a grab at a
 ## ledge is quicker than reaching for a paper.
 var reach_rate := REACH_RATE
+## Set >= 0 while the hands hold something flat by its edge (a page, the
+## notebook): how far its fingers curl, 0 flat behind it, 1 a fist. The thumb
+## keeps its curl, round the front. Below 0 the fingers curl as they do anyway.
+var grip_curl := -1.0
 ## Set >= 0 to drive the walk cycle directly instead of measuring movement.
 var speed_override := -1.0
 ## Leave the head (and its hair, hat and glasses) out: your own body in first
@@ -158,11 +162,14 @@ func animate(delta: float) -> void:
 	rotation = _root_rot
 	for side in _reach_w:
 		var to = reach.get(side)
-		if to is Vector3 or to is Transform3D:
+		var holding: bool = to is Vector3 or to is Transform3D
+		if holding:
 			_reach_last[side] = to
-		elif action != "sit":
+		elif action != "sit" or _reach_w[side] <= 0.0:
 			_reach_last.erase(side)
-		var on := to is Vector3 or to is Transform3D or action == "sit"
+		# Seated, a hand let go of something eases back to the side first, and
+		# only then down onto the thigh: it never stays where the thing was.
+		var on := holding or (action == "sit" and not _reach_last.has(side))
 		_reach_w[side] = move_toward(_reach_w[side], 1.0 if on else 0.0, delta * reach_rate)
 	if _skin:
 		_skin.update(delta)
