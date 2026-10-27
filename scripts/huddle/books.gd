@@ -135,7 +135,7 @@ const BOOKS := {
 				"when": "L0, memo",
 				"required": false,
 				"words": ["ORDER BY", "smallest first"],
-				"lines": [],
+				"lines": ["l0_huddle_order_1"],
 				"pages": [
 					"ORDER BY\n\nRows come out in whatever order they were saved.\n\nAdd ORDER BY and a column name, before the ;, to sort them.",
 					"smallest first\n\nORDER BY puts the smallest first: 1, 2, 3, or A, B, C, or earliest time.",
@@ -220,7 +220,7 @@ const BOOKS := {
 				"when": "L1, stuck_doors, PROPOSED step",
 				"required": false,
 				"words": ["WHERE", "= (equals)", "'quotes'"],
-				"lines": [],
+				"lines": ["l1_huddle_where_1"],
 				"pages": [
 					"WHERE\n\nWHERE keeps only the rows that match. It goes after the table name.",
 					"= (equals)\n\n= means 'is exactly'. Column on the left, value on the right.",
@@ -253,7 +253,7 @@ const BOOKS := {
 				"when": "L1, controller",
 				"required": false,
 				"words": ["AND"],
-				"lines": [],
+				"lines": ["l1_huddle_where_2"],
 				"pages": [
 					"AND\n\nAND joins two conditions. A row stays only if both are true.",
 				],
@@ -272,7 +272,7 @@ const BOOKS := {
 				"when": "L1, hot_rack, optional",
 				"required": false,
 				"words": ["> (more than)", "< (less than)", "numbers"],
-				"lines": [],
+				"lines": ["l1_huddle_compare_1", "l1_huddle_compare_2"],
 				"pages": [
 					"> (more than)\n\n> keeps rows where the column is more than a number.",
 					"< (less than)\n\n< is the other way: less than.",
@@ -395,7 +395,7 @@ const BOOKS := {
 				"when": "L2 booth, pike",
 				"required": false,
 				"words": ["LIKE", "% (percent)"],
-				"lines": [],
+				"lines": ["l2_huddle_like_1", "l2_huddle_like_2"],
 				"pages": [
 					"LIKE\n\nLIKE matches a pattern instead of an exact value.",
 					"% (percent)\n\n% means 'any letters, or none'. 'Ash%' matches Ash, Ashford, Ashley.",

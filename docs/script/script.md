@@ -441,7 +441,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Book huddles: WHERE and comparisons
 
-*Garage flashback huddles for the WHERE / AND and comparison chapters.* *(Written ahead: not in the game yet.)*
+*Garage flashback huddles for the WHERE / AND and comparison chapters.*
 
 **MADDISON:** *(Patting pockets.)* WHERE. For finding one thing in a big pile. Like my car keys. `[l1_huddle_where_1]`
 
