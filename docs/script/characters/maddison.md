@@ -94,7 +94,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "Chapter two. 'Putting things in order.' Now that, I can get behind."  
   *Reading off the page.*
 - [ ] `l0_huddle_order_2.wav`  
-  "Smallest first, unless you say DESC. Write that down. I'm writing it down."  
+  "Smallest first. Always smallest first. Write that down. I'm writing it down."  
   *Scribbling.*
 
 ### 3. You're on the radio to an IT crew parked outside a client's building at 11 p.m.
@@ -133,7 +133,7 @@ Each line has the file name to save it as, the line, and a note on how to play i
   "So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere."  
   *Pleased to have found themself.*
 - [ ] `l2_huddle_get_1.wav`  
-  "This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.'"  
+  "This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'"  
   *Flipping the book over to check the cover.*
 - [ ] `l2_huddle_get_2.wav`  
   "So it's a SELECT for robots. Got it. Probably."  
