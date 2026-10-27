@@ -1358,7 +1358,7 @@ func _book_huddle(id: String) -> void:
 		if not pending_chapters.has(id):
 			pending_chapters.append(id)
 		return
-	await Huddle.of(self).run(id, Huddle.HERE)
+	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
 
 ## A crew line in the voice of the player who says it, their name on the subtitle.

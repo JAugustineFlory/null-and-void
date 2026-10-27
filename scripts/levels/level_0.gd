@@ -699,7 +699,7 @@ func start() -> void:
 	visitor_log.enabled = false
 	badges.enabled = false
 	hud.todo("")
-	await Huddle.of(self).run("easy_sql_1")  # flashback: the garage, the book's first query
+	await Huddle.of(self).run("easy_sql_1", Huddle.REMEMBERED)  # the book's first query
 	# The terminal is ready at once: nobody waits on Rourke to finish talking.
 	desk_terminal.enabled = true
 	_rourke_free = true
@@ -1172,10 +1172,10 @@ func _book_ready(id: String) -> bool:
 	return true
 
 
-## Every machine: a chapter of Easy SQL, read round the garage bench (a flashback,
-## once per run).
+## Every machine: a chapter of Easy SQL comes into the crew's book (once per run),
+## and one of the crew remembers what Maddison said about it.
 func _book_huddle(id: String) -> void:
-	await Huddle.of(self).run(id)
+	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
 
 ## Every machine: until no huddle is open or waiting here.

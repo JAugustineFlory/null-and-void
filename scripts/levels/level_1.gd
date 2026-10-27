@@ -811,10 +811,10 @@ func _book_ready(id: String) -> bool:
 	return true
 
 
-## Every machine: a paper brings back its chapter of Easy SQL, read round the garage
-## bench (a flashback, once per run).
+## Every machine: a paper brings back its chapter of Easy SQL, into the crew's book
+## (once per run), and one of the crew remembers what Maddison said about it.
 func _book_huddle(id: String) -> void:
-	await Huddle.of(self).run(id)
+	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
 
 ## Every machine: the break room lights up and the north corridor stops flickering.

@@ -306,7 +306,7 @@ const SCENES := [
 	{"id": "l0_huddles", "level": 0, "title": "Book huddles: SELECT and ORDER BY", "wired": false,
 		"moment": "At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.",
 		"context": "Flashbacks to the garage, earlier that night ('The garage, earlier that night', sepia). A player reads the chapter aloud and the crew votes on its quiz; Maddison stands at the head of the bench and opens and closes each chapter. Never gives the night's answers."},
-	{"id": "l0_recall", "level": 0, "title": "Remembering what Maddison said", "wired": false,
+	{"id": "l0_recall", "level": 0, "title": "Remembering what Maddison said", "wired": true,
 		"setting": "Halcyon Tower, any floor. During the job.",
 		"setup": "Maddison read the book with the crew in the garage before the job. Now, in the tower, a new chapter has just turned up in the crew's notebooks, and you remember she had something to say about it. You say this, then her line from the garage plays.",
 		"moment": "In the tower, a new chapter of the crew's book turns up and you remember something your boss said about it back at the garage.",

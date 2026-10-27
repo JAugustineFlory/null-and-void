@@ -1047,7 +1047,7 @@ func _on_solved(id: String, _which: String) -> void:
 ## Every machine: the memo or the tally brings back its chapter of Easy SQL, into
 ## the crew's book (once per run). Nothing stops: the Shredder keeps listening.
 func _book_huddle(id: String) -> void:
-	await Huddle.of(self).run(id)
+	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
 
 ## Every machine: Security's sheet has been read. The room's question is open.

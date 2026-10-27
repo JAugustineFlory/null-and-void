@@ -19,6 +19,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	Engine.time_scale = 4.0
 	await test_garage_opening()
 	await test_chapter_in_building()
+	test_lead_ins_wired()
+	await test_lead_ins()
 	await test_coop_huddle()
 	await test_coop_spar()
 	await test_coop_walk_in()
@@ -125,8 +127,8 @@ func test_books() -> void:
 				leaks.append("%s: %s" % [id, t])
 	_check.call(leaks.is_empty(), "the book only uses its own example table %s" % [leaks])
 	var l0 := FileAccess.get_file_as_string("res://scripts/levels/level_0.gd")
-	var at_huddle := l0.find("run(\"easy_sql_1\")")
-	_check.call(at_huddle > 0 and at_huddle < l0.find("desk_terminal.enabled = true\n\t_rourke_free"), "Level 0 flashes back to chapter 1 before the desk terminal opens")
+	var at_huddle := l0.find("run(\"easy_sql_1\"")
+	_check.call(at_huddle > 0 and at_huddle < l0.find("desk_terminal.enabled = true\n\t_rourke_free"), "Level 0 brings in chapter 1 before the desk terminal opens")
 
 
 ## Until chapter `id` is in the crew's book and Maddison's lines for it are over.
@@ -480,6 +482,83 @@ func test_chapter_in_building() -> void:
 	await _frames(2)
 
 
+## Every floor's chapters come in REMEMBERED; the garage's don't (Augustine,
+## 2026-10-27: up on the floors Maddison isn't there).
+func test_lead_ins_wired() -> void:
+	print("Huddle: a crew lead-in before Maddison on every floor, never in the garage")
+	var run_re := RegEx.create_from_string("Huddle\\.of\\([^)]*\\)\\.run\\(([^\\n]*)\\)")
+	var plain := []
+	for f in DirAccess.get_files_at("res://scripts/levels/"):
+		if not f.ends_with(".gd"):
+			continue
+		for m in run_re.search_all(FileAccess.get_file_as_string("res://scripts/levels/" + f)):
+			var remembered := m.get_string(1).contains("REMEMBERED")
+			if remembered == f.begins_with("home_base"):
+				plain.append("%s: run(%s)" % [f, m.get_string(1)])
+	_check.call(plain.is_empty(), "every floor level brings its chapters in remembered, and the garage doesn't %s" % [plain])
+	var lead_ins: Array = _huddle_class().LEAD_INS
+	_check.call(lead_ins.size() == 3 and lead_ins.all(func(id): return VoiceLines.get_line(id).get("speaker") == "CREW"), "three lead-ins, each a crew line every crew member records")
+
+
+func _huddle_class() -> Script:
+	return load("res://scripts/huddle/huddle.gd")
+
+
+## The subtitles that come up while `run` plays, in order.
+func _subtitles(hud, run: Callable) -> Array:
+	var seen := []
+	var done := [false]
+	var go := func():
+		await run.call()
+		done[0] = true
+	go.call()
+	while not done[0]:
+		var t: String = hud._subtitle.text
+		if t != "" and (seen.is_empty() or seen.back() != t):
+			seen.append(t)
+		await _tree.process_frame
+	return seen
+
+
+## Just the chapters' lines and their lead-ins, from `subtitles` (the van radio
+## can be talking at the same time).
+func _huddle_lines(subtitles: Array) -> Array:
+	var texts := []
+	for id in _huddle_class().LEAD_INS:
+		texts.append(VoiceLines.get_line(id).text)
+	for ch in Books.chapter_ids():
+		for id in Books.chapter(ch).lines:
+			texts.append(VoiceLines.get_line(id).text)
+	return subtitles.filter(func(t): return texts.any(func(x): return t.ends_with(": " + x)))
+
+
+func test_lead_ins() -> void:
+	print("Huddle: up on a floor, one of the crew remembers Maddison's lines")
+	_game().new_run(25)
+	var world = load("res://scenes/world.tscn").instantiate()
+	_tree.root.add_child(world)
+	await _frames(30)
+	var h = _huddle_of(world.current)
+	var hud = world.hud
+	var me: String = _net().display_name(world.multiplayer.get_unique_id())
+	var remembered: String = _huddle_class().REMEMBERED
+	var said := _huddle_lines(await _subtitles(hud, func(): await h.run("easy_sql_1", remembered)))
+	var lead: Dictionary = h.leads.get("easy_sql_1", {})
+	var first: String = VoiceLines.get_line(lead.get("line", "")).get("text", "?")
+	_check.call(said.size() == 3 and said[0] == "%s: %s" % [me, first], "a crew lead-in comes first, in the player's own name %s" % [said])
+	_check.call(said.size() == 3 and said[1].begins_with("MADDISON: Chapter one.") and said[2].begins_with("MADDISON: Book says"), "then both of her lines")
+	await h.run("easy_sql_2", remembered)
+	await h.run("easy_sql_5", remembered)
+	var used := ["easy_sql_1", "easy_sql_2", "easy_sql_5"].map(func(id): return h.leads.get(id, {}).get("line", ""))
+	_check.call(used[0] != used[1] and used[1] != used[2] and used[0] != used[2] and not used.has(""), "the three lead-ins take turns %s" % [used])
+	await h.run("easy_sql_3", remembered)
+	_check.call(not h.leads.has("easy_sql_3"), "a chapter without her lines gets no lead-in")
+	said = _huddle_lines(await _subtitles(hud, func(): await h.run("easy_sql_7")))
+	_check.call(not h.leads.has("easy_sql_7") and said.size() == 2 and said.all(func(t): return t.begins_with("MADDISON: ")), "brought in as if she's there (the garage), her lines play with no lead-in")
+	world.queue_free()
+	await _frames(2)
+
+
 func test_coop_huddle() -> void:
 	print("Huddle: co-op, a chapter comes in for the whole crew")
 	_game().new_run(23)
@@ -515,6 +594,13 @@ func test_coop_huddle() -> void:
 	_check.call([host.player.input_locked, client.player.input_locked] == held and hh.get_node_or_null("HuddleUI") == null, "no book pops up, and it holds nobody")
 	_check.call(await _until(func(): return runs[0] == 2, 1800), "and both machines carry on once Maddison's lines are over")
 	_check.call(net.profile.earned.has("chapter:easy_sql_0"), "the players have the chapter on their profiles")
+	_check.call(not hh.leads.has("easy_sql_0") and not hc.leads.has("easy_sql_0"), "in the garage, nobody says a lead-in")
+	var remembered: String = _huddle_class().REMEMBERED
+	for h in [hc, hh]:
+		h.run("easy_sql_1", remembered)
+	_check.call(await _until(func(): return hh.leads.has("easy_sql_1") and hc.leads.has("easy_sql_1"), 300), "up on a floor, both machines get the lead-in")
+	_check.call(hc.leads["easy_sql_1"] == hh.leads["easy_sql_1"] and hh.crew.has(hh.leads["easy_sql_1"].peer), "the same crew member says the same one on every machine")
+	await _until(func(): return not hh.is_busy() and not hc.is_busy(), 1800)
 	net.profile = test_profile
 	_tree._coop_close(worlds)
 	await _frames(2)

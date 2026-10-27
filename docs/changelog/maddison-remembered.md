@@ -1,0 +1,1 @@
+- **Changed:** Out on the job, Maddison's chapter lines play as something one of the crew remembers her saying.

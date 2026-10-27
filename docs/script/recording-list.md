@@ -252,9 +252,9 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_recall_1` | I think Maddison said... | Half to yourself, trying to remember. Trail off: her line follows. | Level 0, later |
-| [ ] | `l0_recall_2` | Didn't Maddison say... | To the others, as it comes back to you. Trail off: her line follows. | Level 0, later |
-| [ ] | `l0_recall_3` | Maddison mentioned... | Remembering, a little fond. Trail off: her line follows. | Level 0, later |
+| [ ] | `l0_recall_1` | I think Maddison said... | Half to yourself, trying to remember. Trail off: her line follows. | Level 0 |
+| [ ] | `l0_recall_2` | Didn't Maddison say... | To the others, as it comes back to you. Trail off: her line follows. | Level 0 |
+| [ ] | `l0_recall_3` | Maddison mentioned... | Remembering, a little fond. Trail off: her line follows. | Level 0 |
 | [ ] | `cc_nudge2_first` | That SYSOP on the screen seems to know this building. Maybe ask. | Stuck, before SYSOP has helped. Half a joke, half serious. | Level 0, later |
 | [ ] | `cc_nudge2` | Whoever SYSOP is, they've been right so far. Maybe ask. | Stuck again. A little uneasy about trusting a stranger on a screen. | Level 0, later |
 | [ ] | `l0_cc_peek_card` | Quick-start card for the scanner. Somebody's filled in the blanks. | Picked up a scanner's instruction card. Noticing handwriting on it. | Level 0, later |

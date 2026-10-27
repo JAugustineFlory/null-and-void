@@ -277,7 +277,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Remembering what Maddison said
 
-*Augustine, 2026-10-27: Maddison isn't in the tower, so before each of her chapter lines on a floor a crew member says one of these, then her line plays as a memory. One of the three, picked by the game. His own words, approved as written.* *(Written ahead: not in the game yet.)*
+*Augustine, 2026-10-27: Maddison isn't in the tower, so before each of her chapter lines on a floor a crew member says one of these, then her line plays as a memory. One of the three, picked by the game. His own words, approved as written.*
 
 **CREW:** *(Half to yourself, trying to remember. Trail off: her line follows.)* I think Maddison said... `[l0_recall_1]`
 

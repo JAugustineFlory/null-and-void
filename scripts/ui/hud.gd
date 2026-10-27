@@ -172,19 +172,21 @@ func subtitles_clear_of_right(width: float) -> void:
 ## is timed from the text. Await it to wait until the line is over.
 ## subtitle = false plays the voice only, for lines the screen already shows.
 ## remembered = true plays it as a memory of the line, not someone saying it here (Voice.MEMORY_BUS).
-func line(id: String, subtitle: bool = true, remembered := false) -> void:
+## A crew line can name who says it (`who`, on the subtitle) and use their
+## recordings (`voice_dir`, "crew_dana").
+func line(id: String, subtitle: bool = true, remembered := false, who: String = "", voice_dir: String = "") -> void:
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		push_warning("No voice line with id '%s'" % id)
 		return
 	if get_node("/root/Game").jot(VoiceLines.resolve(id), l):
 		notice("Notebook updated (Tab)", 3.0)
-	var dur := _voice.play(id, "", remembered)
+	var dur := _voice.play(id, voice_dir, remembered)
 	var has_audio := dur > 0.0
 	if not has_audio:
 		dur = Voice.read_time(l["text"])
 	if subtitle:
-		await _show(l["speaker"], l["text"], dur)
+		await _show(who if who != "" else l["speaker"], l["text"], dur)
 	elif has_audio:
 		await get_tree().create_timer(dur, false).timeout
 
