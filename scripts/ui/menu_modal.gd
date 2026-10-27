@@ -24,23 +24,32 @@ func _ready() -> void:
 	dim.color = Color(0, 0, 0, 0.85)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
+	box = VBoxContainer.new()
+	box.name = "Box"
+	box.custom_minimum_size = Vector2(460, 0)
+	box.add_theme_constant_override("separation", 12)
+	column(self, box)
+
+
+## Puts `box` in the middle of `parent`, inside the window's margins, scrolling when
+## it's taller than the window so nothing runs off the bottom. A scroll view keeps
+## its contents at the left on its own, so the column sits in a centering box.
+static func column(parent: Control, box: Control) -> ScrollContainer:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 24)
-	add_child(margin)
+	parent.add_child(margin)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.follow_focus = true
 	margin.add_child(scroll)
-	box = VBoxContainer.new()
-	box.name = "Box"
-	box.custom_minimum_size = Vector2(460, 0)
-	box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 12)
-	scroll.add_child(box)
+	var center := CenterContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(center)
+	center.add_child(box)
+	return scroll
 
 
 ## Adds the way out, last of all.

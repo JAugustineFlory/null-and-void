@@ -10,24 +10,13 @@ func _ready() -> void:
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	# Inside the window's margins and scrolling: on a short window the buttons
-	# stay reachable instead of running off the bottom.
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
-	add_child(margin)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus = true
-	margin.add_child(scroll)
+	# In the middle of the window, scrolling: on a short window the buttons stay
+	# reachable instead of running off the bottom.
 	var box := VBoxContainer.new()
+	box.name = "Menu"
 	box.custom_minimum_size = Vector2(700, 0)
-	box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 18)
-	scroll.add_child(box)
+	MenuModal.column(self, box)
 
 	var title := ThemeUtil.label("NULL & VOID", 84, ThemeUtil.GREEN)
 	title.add_theme_font_override("font", ThemeUtil.mono())

@@ -1,0 +1,1 @@
+- **Fixed:** the title screen, the pause menu, Settings and the Levels list sit in the middle of the screen again, instead of against the left edge.

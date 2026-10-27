@@ -292,23 +292,11 @@ func _build_pause_menu() -> void:
 	_pause.visible = false
 	layer.add_child(_pause)
 	_pause.add_child(ThemeUtil.version_tag())
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
-	_pause.add_child(margin)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus = true
-	margin.add_child(scroll)
 	var box := VBoxContainer.new()
 	box.name = "Pages"
 	box.custom_minimum_size = Vector2(360, 0)
-	box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 12)
-	scroll.add_child(box)
+	MenuModal.column(_pause, box)
 	var title := ThemeUtil.label("PAUSED", 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
