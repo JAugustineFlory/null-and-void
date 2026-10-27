@@ -218,6 +218,8 @@ const LURE_LINES := {
 const CASES := {"key": TEXT.case_key, "power": TEXT.case_power, "air": TEXT.case_air, "radio": TEXT.case_radio,
 	"frame": TEXT.case_frame, "people": TEXT.case_people, "vale": TEXT.case_vale}
 ## The clock on the HR front wall reads 00:MM when the crew arrives (seeded) and runs.
+## The stairs down hold this long before the end card, or the walkie's last line if longer.
+const EXIT_HOLD := 2.5
 const STAIR_IN_AT := Vector3(4, 0, 6)
 const STAIR_OUT_AT := Vector3(-4, 0, 6)
 const CAGE_DOOR_AT := Vector3(-6, 1.15, -8)
@@ -305,6 +307,8 @@ var read_back := {}
 var lure_peer := -1
 var lure_badge := ""
 var lures := 0
+## How long the stairs down hold before the end card: the walkie's last line, at least.
+var exit_hold := 0.0
 var dock_opened := false
 var custodian_loose := false
 var custodian_here := false
@@ -1549,7 +1553,8 @@ func _lure_after(seconds: float) -> void:
 
 ## Every machine: the voice on the walkie. `peer` is who it sounds like (0 for
 ## Maddison), in their own recorded voice and with their name on the subtitle.
-func _lure(peer: int, badge: String, n: int) -> void:
+## Returns how long the line takes (the recording, or the time to read it).
+func _lure(peer: int, badge: String, n: int) -> float:
 	lure_peer = peer
 	lure_badge = badge
 	lures = n
@@ -1564,10 +1569,13 @@ func _lure(peer: int, badge: String, n: int) -> void:
 		_tip("lure", "hr")
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
-		return
+		return 0.0
 	var who: String = "MADDISON" if peer == 0 else _name_of(peer)
 	var dur: float = _radio_voice.play(id, _voice_dir(peer) if peer > 0 else "") if _radio_voice else 0.0
-	hud.say(who, l.text, dur if dur > 0.0 else Voice.read_time(l.text))
+	if dur <= 0.0:
+		dur = Voice.read_time(l.text)
+	hud.say(who, l.text, dur)
+	return dur
 
 
 ## Every machine: a Mimic was looked at and left.
@@ -1750,12 +1758,14 @@ func _swipe(badge: String, reader: String, time: String) -> void:
 ## Every machine: everyone is on STAIR 2. The radio crackles once more, then down.
 func _on_exit() -> void:
 	get_node("/root/Net").earn("achievement:floor_9", hud)
+	# The voice has one more thing to say; the end card waits for it to be heard.
+	exit_hold = EXIT_HOLD
 	if lures > 0:
-		_lure(lure_peer, lure_badge, 3)
+		exit_hold = maxf(exit_hold, _lure(lure_peer, lure_badge, 3))
 	if not player:
 		return
 	player.input_locked = true
-	await get_tree().create_timer(2.5, false).timeout
+	await get_tree().create_timer(exit_hold, false).timeout
 	if not is_inside_tree():
 		return
 	await Level2FX.end_card(self, TEXT.end_card)
