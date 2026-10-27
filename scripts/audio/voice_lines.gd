@@ -603,7 +603,7 @@ const LINES := {
 	"l0_brief_2": {"scene": "l0_garage", "speaker": "MADDISON", "text": "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change.",
 		"note": "Cheerful, as if it's good news.",
 		"with_previous": true,
-		"action": "With a breath between. Standing at the whiteboard, counting it off on her fingers."},
+		"action": "Standing at the whiteboard, counting it off on her fingers."},
 	"l0_brief_3": {"scene": "l0_garage", "speaker": "MADDISON", "text": "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off.",
 		"note": "Every 'maybe' a little grander, then the sign brings it back down to earth.",
 		"with_previous": true,

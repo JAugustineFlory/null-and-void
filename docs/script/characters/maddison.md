@@ -19,8 +19,8 @@ Maddison Kowalski, 40s, CEO and founder of a tiny IT company run out of her gara
 - It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
 - Each file name is one recording. Read everything under it in one take, top to bottom.
 - What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
-- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.
-- A boxed quote is someone else's line, just before yours.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
@@ -46,21 +46,31 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Okay! Everybody comfy? Look at you. My whole company, in one garage."
 
-*With a breath between. Standing at the whiteboard, counting it off on her fingers. Cheerful, as if it's good news.*
+*1 second pause*
+
+*Standing at the whiteboard, counting it off on her fingers. Cheerful, as if it's good news.*
 
 "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change."
+
+*1 second pause*
 
 *Pacing a step or two in front of the whiteboard. Every 'maybe' a little grander, then the sign brings it back down to earth.*
 
 "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off."
 
+*1 second pause*
+
 *Tapping the whiteboard with her marker. Building to it. She can't stand still for 'Ours.'*
 
 "Forget all that. We got Halcyon. The overnight database contract. Ours."
 
+*1 second pause*
+
 *Waving a hand to brush off the question. Quickly, before anyone can ask.*
 
 "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock."
+
+*1 second pause*
 
 *The crew is buzzing in their seats. Pointing across the garage at the punching bag by the big door. Laughing, shooing them off.*
 
@@ -83,6 +93,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 *Everyone has hit the punching bag and sat back down facing you. Back at the whiteboard, clapping her hands once. A little flirty, played light, like a coach.*
 
 "Better? Good. Now eyes on me, gorgeous people."
+
+*1 second pause*
 
 *Once they're settled. Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
 
@@ -117,6 +129,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 *After the pause, when nobody owns up to knowing SQL. Holding up the bookstore receipt, not the book. Proud of this.*
 
 "...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven."
+
+*1 second pause*
 
 *Walking over to the back shelf by the side door to the house. Pointing at the side door to the house.*
 
@@ -170,6 +184,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?"
 
+*1 second pause*
+
 *Tapping the page twice with one finger. Deadly serious about the one thing they're sure of.*
 
 "Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon."
@@ -179,6 +195,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 *Chapter two goes into the crew's notebooks, when they need to put rows in order. You open it. Leaning on the desk, the book open in front of you. Reading off the page.*
 
 "Chapter two. 'Putting things in order.' Now that, I can get behind."
+
+*1 second pause*
 
 *Writing on the back of a receipt by the radio. Scribbling.*
 
@@ -196,9 +214,13 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Van three, you're on site at Halcyon Data Systems. After-hours callout."
 
+*1 second pause*
+
 *If the crew has already climbed out, the radio has cut off. Leaning back in her desk chair, mic close. Reading it off the ticket.*
 
 "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors."
+
+*1 second pause*
 
 *Unless the crew has already climbed out. Reaching for the next ticket, thumbing the mic off at the end. Bored, reading the form. Signing off, already onto the next call.*
 
@@ -216,6 +238,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "WHERE. For finding one thing in a big pile. Like my car keys."
 
+*1 second pause*
+
 *Holding up two fingers, then pressing them together. Rueful.*
 
 "Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears."
@@ -225,6 +249,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 *Optional. Only if the crew goes after the overheating rack: the chapter 'More than, less than' goes into their notebooks. Uncapping a marker and turning to the whiteboard behind you. Drawing one on the whiteboard, with teeth.*
 
 "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number."
+
+*1 second pause*
 
 *Capping the marker and stepping back from the board. Relieved.*
 
@@ -242,6 +268,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'"
 
+*1 second pause*
+
 *Tapping your own name in the example. Pleased to have found themself.*
 
 "So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere."
@@ -251,6 +279,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 *The chapter 'Asking a server' goes into the crew's notebooks. You open it. Holding the book at arm's length, frowning at the chapter title. Flipping the book over to check the cover.*
 
 "This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.'"
+
+*1 second pause*
 
 *Closing the book with a shrug. Not convinced.*
 
@@ -268,6 +298,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "UPDATE. Changing things. The book's put this one in a red box, which I don't love."
 
+*1 second pause*
+
 *Lowering the book and leaning into the radio mic. Suddenly serious, for once.*
 
 "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row."
@@ -277,6 +309,8 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 *On floor 10 the crew reads the contractor sign-in clipboard, and the chapter on adding rows goes into their notebooks. You open it. Flipping to the next chapter, leaning on the desk. Reading the title, wistful, then perky again.*
 
 "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist."
+
+*1 second pause*
 
 *Turning to the whiteboard and writing SAME ORDER in big letters. Laughing at her own picture of it.*
 

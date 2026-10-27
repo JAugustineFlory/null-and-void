@@ -202,10 +202,11 @@ static func character_markdown(speaker: String, later: bool = false, member: Str
 				var before := all_ids.slice(0, all_ids.find(first)).filter(func(id): return not id.ends_with("_solo") or first.ends_with("_solo"))
 				if not before.is_empty() and VoiceLines.LINES[before[-1]]["speaker"] != speaker:
 					var prev: Dictionary = VoiceLines.LINES[before[-1]]
-					body.append("> %s: \"%s\"" % [_label(prev["speaker"]), prev["text"]])
-					body.append("")
+					body.append_array(["**Lead-in**", "", "> %s: \"%s\"" % [_label(prev["speaker"]), prev["text"]], "", "**Begin**", ""])
 			for id in b["lines"]:
 				var l: Dictionary = VoiceLines.LINES[id]
+				if id != first:
+					body.append_array(["*1 second pause*", ""])
 				var direction := PackedStringArray()
 				for part in [l.get("cue", ""), l.get("action", ""), l["note"]]:
 					if part != "":
@@ -231,8 +232,8 @@ static func character_markdown(speaker: String, later: bool = false, member: Str
 	md.append("- It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.")
 	md.append("- Each file name is one recording. Read everything under it in one take, top to bottom.")
 	md.append("- What you say is in \"quotes\". *Italics* say what's happening, what you're doing and how to say it: don't read them out.")
-	md.append("- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.")
-	md.append("- A boxed quote is someone else's line, just before yours.")
+	md.append("- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.")
+	md.append("- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.")
 	md.append("")
 	md.append("## Recording")
 	md.append("")

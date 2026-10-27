@@ -19,8 +19,8 @@ A local morning-radio newsreader, reading the third story of the hour.
 - It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
 - Each file name is one recording. Read everything under it in one take, top to bottom.
 - What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
-- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.
-- A boxed quote is someone else's line, just before yours.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
@@ -46,25 +46,37 @@ Send the files back as they are. They go in `audio/voice/newsreader/` in the gam
 
 "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems."
 
+*1 second pause*
+
 *Reading on from the page, same steady pace. No change in tone.*
 
 "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered."
+
+*1 second pause*
 
 *Glancing down to find the quote. A slight shift for the quote: reading it, not acting it.*
 
 "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'"
 
+*1 second pause*
+
 *Reading on, one finger on the line. Even, a touch of interest.*
 
 "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside."
+
+*1 second pause*
 
 *Reading the quote off the page. Reading the quote flat, not acting it. Then a beat.*
 
 "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'"
 
+*1 second pause*
+
 *Squaring the pages, pausing. Neutral. A small pause after.*
 
 "Halcyon declined to comment. The crew has not been seen since."
+
+*1 second pause*
 
 *The last line before the weather. Reaching for the weather sheet. Brightening for the weather. The game cuts the audio on 'weather'.*
 

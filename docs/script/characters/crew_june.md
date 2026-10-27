@@ -21,8 +21,8 @@
 - It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
 - Each file name is one recording. Read everything under it in one take, top to bottom.
 - What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
-- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.
-- A boxed quote is someone else's line, just before yours.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
@@ -472,6 +472,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "No way. It's the same series. Somebody here bought the sequel."
 
+*1 second pause*
+
 *As you open it. Holding it up so the crew can see the cover. Reading the back cover, hopeful.*
 
 "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly."
@@ -481,6 +483,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *When the crew reads the carbon copy of a work order pinned up in payroll. If nobody has the book yet, this waits until someone picks it up. Walking with the book open, reading as you go. Starting a chapter, reading it out.*
 
 "Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers."
+
+*1 second pause*
 
 *As you finish the chapter. Keeping a finger in the page, looking up. Wrapping up, pleased it's simple.*
 
@@ -492,6 +496,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice."
 
+*1 second pause*
+
 *As you finish the chapter. Glancing up from the page, grinning at the crew. Wrapping up. Proud of the joke.*
 
 "PATCH is UPDATE wearing a tie."
@@ -501,6 +507,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *When the crew reads the request sheet on the HR front desk. Waits for the book, if nobody has it yet. Standing at the HR desk, the book open beside the terminal. Starting a chapter. A little told off.*
 
 "Every answer comes with a number. Book says read the number before you celebrate."
+
+*1 second pause*
 
 *As you finish the chapter. Tapping the page as you go down it. Wrapping up, counting it off.*
 
@@ -512,6 +520,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed."
 
+*1 second pause*
+
 *As you finish the chapter. Tapping the page, then the terminal. Wrapping up. Got it.*
 
 "So if it says 401, we forgot the badge."
@@ -521,6 +531,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *When the crew reads the after-hours procedure pinned behind the HR desk. Waits for the book, if nobody has it yet. Reading by the wall where the procedure hangs. Starting a short chapter. Knowing nod.*
 
 "Short chapter. After you change something, ask again. Book says never trust the first answer."
+
+*1 second pause*
 
 *As you finish the chapter. Closing the book, looking back toward the stairs. Wrapping up. Wry; you've been burned before.*
 
@@ -538,6 +550,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Easy JavaScript. Somebody's read this one to death."
 
+*1 second pause*
+
 *As you open it. Flicking through the pages, shaking out your typing hand. Tired of typing. This sounds like rescue.*
 
 "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat."
@@ -547,6 +561,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *Starting the chapter on variables and if, on B1. This floor isn't built yet, so the exact moment isn't set. Reading off the page, standing by the terminal. Starting a chapter. Braced for hard; it isn't.*
 
 "A variable's a labelled box. If is a fork in the road. That's... honestly fine."
+
+*1 second pause*
 
 *As you finish the chapter. Tapping the page twice, nodding to yourself. Wrapping up, to yourself.*
 
@@ -558,6 +574,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see."
 
+*1 second pause*
+
 *As you finish the chapter. Scribbling a note on the back of your hand. Wrapping up, making a note.*
 
 "Always put the wait in. Always log it. Writing that one down."
@@ -567,6 +585,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *Starting the chapter on functions, on the floor below B1. This floor isn't built yet, so the exact moment isn't set. Walking with the book open, reading as you go. Starting a chapter, reading it out.*
 
 "Functions. Write it once, give it a name, use it anywhere."
+
+*1 second pause*
 
 *As you finish the chapter. Shutting the book on a finger, half smiling. Wrapping up. Pleased with that.*
 
@@ -578,6 +598,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Lists. A whole line of things in one box. Loop over it and you've done them all."
 
+*1 second pause*
+
 *As you finish the chapter. Looking up from the book toward the nearest door. Wrapping up. Genuinely unsure which.*
 
 "One loop, every door. That's either brilliant or terrifying."
@@ -587,6 +609,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *Starting the last chapter, on testing, on the floor below B1. This floor isn't built yet, so the exact moment isn't set. Holding the book steady, reading carefully. Starting the last chapter. Taking it seriously.*
 
 "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't."
+
+*1 second pause*
 
 *As you finish the book. Closing the book and tucking it under your arm. Wrapping up. Rueful.*
 
@@ -604,6 +628,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Hello HTML! Same series again. Who keeps leaving these?"
 
+*1 second pause*
+
 *As you open it while the lift climbs. Leafing through it, glancing up at the floor numbers. Working it out as you go. The pause is the idea landing.*
 
 "Book says everything on a screen is built from tags. And the building's been drawing things that aren't there. So... we fix the drawing."
@@ -613,6 +639,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *Starting the chapter on tags, for the next floor up. This floor isn't built yet, so the exact moment isn't set. Reading aloud in the lift, the book open in both hands. Starting a chapter, reading it out.*
 
 "Tags. Angle brackets. You open one, you close one. Like a sandwich. The inspector shows you every one on the screen."
+
+*1 second pause*
 
 *As you finish the chapter. Shrugging, turning the page. Wrapping up. Accepting it.*
 
@@ -624,6 +652,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Attributes. Little settings on a tag. Including one called hidden."
 
+*1 second pause*
+
 *As you finish the chapter. Lowering the book, staring at nothing for a second. Wrapping up. Quieter; that thought sticks.*
 
 "Hidden doesn't mean gone. Hidden means somebody hid it."
@@ -633,6 +663,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *Starting the chapter on CSS, for the floor after that. This floor isn't built yet, so the exact moment isn't set. Reading aloud, holding the book up to the lift's light. Starting a chapter, reading it out.*
 
 "CSS. Where things go and what they look like. The book calls it the paint."
+
+*1 second pause*
 
 *As you finish the chapter. Glancing at the lift's walls. Wrapping up. Half hopeful.*
 
@@ -644,6 +676,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Two ways to make something vanish. One leaves a gap, one doesn't. Book says that matters."
 
+*1 second pause*
+
 *As you finish the chapter. Marking the page with a folded corner. Wrapping up, filing it away.*
 
 "So when something vanishes, ask which kind of vanished."
@@ -654,6 +688,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Things on a screen stack up, like papers on a desk. A number decides which one's on top."
 
+*1 second pause*
+
 *As you finish the chapter. Looking up from the book, thinking. Wrapping up. An idea forming.*
 
 "So the thing in our way might just be lying on top."
@@ -663,6 +699,8 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *Starting the last chapter, on forms, for a floor further up. This floor isn't built yet, so the exact moment isn't set. Turning to the last chapter as the lift slows. Starting the last chapter. Recognising it.*
 
 "Forms. Boxes you type in, and a button that sends it. Every login screen tonight was one of these."
+
+*1 second pause*
 
 *As you finish the book. Closing the book firmly, facing the lift doors. Wrapping up. Quietly determined.*
 

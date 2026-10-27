@@ -19,8 +19,8 @@ Harold Mercer, the company's founder, 70s. Recording a cassette at his desk on h
 - It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
 - Each file name is one recording. Read everything under it in one take, top to bottom.
 - What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
-- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.
-- A boxed quote is someone else's line, just before yours.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
@@ -46,17 +46,25 @@ Send the files back as they are. They go in `audio/voice/mercer/` in the game.
 
 "Harold Mercer. March of '94. My last day, apparently."
 
+*1 second pause*
+
 *Sitting back in his chair, recorder in hand. Approving, a little smile.*
 
 "If you're hearing this, you crawled through a vent to get in here. Good. You don't trust doors."
+
+*1 second pause*
 
 *Gripping the edge of his desk. The one moment of anger, still controlled.*
 
 "Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out."
 
+*1 second pause*
+
 *Glancing down at drawings spread across his desk. Quiet, almost proud, then wry on the last sentence.*
 
 "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter."
+
+*1 second pause*
 
 *The end of the tape. Leaning close to the recorder, then clicking stop. Slow.*
 

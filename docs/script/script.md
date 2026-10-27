@@ -228,7 +228,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 **MADDISON** `l0_brief_1_block.wav`  
 *Cue: The crew has just walked in and sat down facing your whiteboard. You come in from the house*  
 *(Striding in from the house door to her whiteboard, arms wide)* "Okay! Everybody comfy? Look at you. My whole company, in one garage." *Big, warm, delighted to have an audience.* `[l0_brief_1]`  
-*(With a breath between. Standing at the whiteboard, counting it off on her fingers)* "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change." *Cheerful, as if it's good news.* `[l0_brief_2]`  
+*(Standing at the whiteboard, counting it off on her fingers)* "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change." *Cheerful, as if it's good news.* `[l0_brief_2]`  
 *(Pacing a step or two in front of the whiteboard)* "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off." *Every 'maybe' a little grander, then the sign brings it back down to earth.* `[l0_brief_3]`  
 *(Tapping the whiteboard with her marker)* "Forget all that. We got Halcyon. The overnight database contract. Ours." *Building to it. She can't stand still for 'Ours.'* `[l0_brief_4]`  
 *(Waving a hand to brush off the question)* "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock." *Quickly, before anyone can ask.* `[l0_brief_5]`  

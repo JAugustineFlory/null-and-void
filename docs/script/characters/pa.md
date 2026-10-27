@@ -19,8 +19,8 @@ WARDEN's pre-recorded PA tapes: the building computer's canned announcements, pl
 - It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
 - Each file name is one recording. Read everything under it in one take, top to bottom.
 - What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
-- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.
-- A boxed quote is someone else's line, just before yours.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
@@ -42,11 +42,17 @@ Send the files back as they are. They go in `audio/voice/pa/` in the game.
 
 **[x] `l0_pa_1_block.wav`**
 
+**Lead-in**
+
 > ROURKE: "Come on in. I'll sign you in at the front desk."
+
+**Begin**
 
 *The crew steps inside the lobby. Over the lobby's ceiling speakers, a recording on a loop. Pleasant, like a store closing announcement.*
 
 "Good evening! Halcyon Data Systems is now closed."
+
+*1 second pause*
 
 *The same recording plays again later, as the crew finishes at the front desk. Over the lobby's ceiling speakers, the same recording continuing. Same announcement, continuing.*
 

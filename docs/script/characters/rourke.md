@@ -19,8 +19,8 @@ Dale Rourke, the building's facilities manager, 50s. Tonight he's escorting an I
 - It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
 - Each file name is one recording. Read everything under it in one take, top to bottom.
 - What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
-- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.
-- A boxed quote is someone else's line, just before yours.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
@@ -46,9 +46,13 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "There you are. Dale Rourke, facilities. I'll be your escort tonight."
 
+*1 second pause*
+
 *Tapping the badge clipped to his belt. Still smiling. Should sound like a joke the first time and a threat on replay.*
 
 "Badge rules after hours. You don't go anywhere I don't take you."
+
+*1 second pause*
 
 *Swiping his badge at the front door and pulling it open. Holding the door, waving them through.*
 
@@ -56,15 +60,23 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 **[ ] `l0_greet_2_block.wav`**
 
+**Lead-in**
+
 > PA (TAPE): "Visitors must remain with their escort at all times. Thank you for your cooperation!"
+
+**Begin**
 
 *Right after the PA finishes. You're at the front desk now. (If the crew has already signed in and taken badges by now, this whole recording is skipped.) Behind the front desk, waving a hand at the ceiling speaker. Chuckling.*
 
 "Sorry about that. The company loves its PA system."
 
+*1 second pause*
+
 *As the front doors lock behind the crew. Sliding the visitor log and a pen across the counter. Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)*
 
 "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me."
+
+*1 second pause*
 
 *While the crew signs in. Holding visitor badges out across the desk. Routine. Helpful, a little bored.*
 
@@ -82,13 +94,19 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Here's the job. Dr. Vale, our lead engineer, went missing three nights ago."
 
+*1 second pause*
+
 *Glancing toward the hall, lowering his voice a touch. Small beat before "Quietly."*
 
 "Her systems are a mess and the director wants them recovered by morning. Quietly."
 
+*1 second pause*
+
 *Pointing at the scanner and the terminal on the desk. Getting down to business.*
 
 "The front desk scanner ate one of Vale's memos. The scraps went into a table."
+
+*1 second pause*
 
 *Stepping back from the terminal to let them at it. Casual, but he wants to know too.*
 
@@ -102,23 +120,35 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 **[ ] `l0_memo_flag_block.wav`**
 
+**Lead-in**
+
 > PA (TAPE): "Employees are reminded to shred all documents in the marked company shredders! Your files belong to Halcyon!"
+
+**Begin**
 
 *The crew gets the memo reading in order on the screen and steps back from the terminal. Scribbling on his clipboard without looking at the screen. Pleased, before he's even read it. Warm; on a replay it's the worst thing he says all night.*
 
 "Nice work. I'll make sure that goes straight to the director."
 
+*1 second pause*
+
 *Now you actually read the memo. Reading the screen over someone's shoulder, then looking away. A beat too long before he speaks. Covering.*
 
 "...Huh. She always was dramatic."
+
+*1 second pause*
 
 *Your eye falls on the crew's work order. Tapping the work order with one finger. Mild, a little puzzled. Not suspicious yet.*
 
 "One thing on your paperwork. It says I called you in. I didn't. That call came from building services."
 
+*1 second pause*
+
 *Nodding toward the terminal on the desk. Helpful, easygoing.*
 
 "Want to know who? The staff directory's on that terminal."
+
+*1 second pause*
 
 *Nodding down the back corridor toward the mailroom. Amused, a little fond.*
 
@@ -130,13 +160,19 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Mercer? Huh. That line's been dead for years. Somebody's having fun with the phones. Anyway."
 
+*1 second pause*
+
 *Thumbing over his shoulder at the lost and found behind the desk. Back to friendly, changing the subject.*
 
 "Grab the walkie-talkies from lost and found, back behind the desk."
 
+*1 second pause*
+
 *Patting the top of the counter with his palm. Amused, he's said this to every visitor. A little eye-roll at corporate.*
 
 "And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either."
+
+*1 second pause*
 
 *Turning toward the hall, already a step away. Friendly.*
 
@@ -214,13 +250,19 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings."
 
+*1 second pause*
+
 *Still walking, half turned back toward the crew. Still chatting to the crew, a little proud of the trivia.*
 
 "Board fired him when they installed WARDEN. That's the AI that runs the campus now."
 
+*1 second pause*
+
 *Slowing his step and leaning in toward the crew. Spooky-campfire voice, playing it up.*
 
 "Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable."
+
+*1 second pause*
 
 *Before anyone can ask about it. Picking up the pace again, eyes front. Dropping it fast. He doesn't want them thinking about it.*
 
@@ -292,6 +334,8 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Would you look at that. Green across the board. Six months I've been filing tickets on that thing."
 
+*1 second pause*
+
 *Turning to the crew with a grin. Warm. On a replay, the director hearing about them is the problem.*
 
 "You lot are good. Director's going to want to hear about this."
@@ -308,9 +352,13 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Hang on. That fault log... every reset this week came from Vale's login."
 
+*1 second pause*
+
 *Straightening up, eyes still on the screen. Thinking out loud.*
 
 "Her lab's up on the security floor. Secure Lab B."
+
+*1 second pause*
 
 *Heading for the door, waving them along. Friendly, steering.*
 
@@ -334,6 +382,8 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Secure Lab B. Vale practically lived in here."
 
+*1 second pause*
+
 *Pointing at the badge reader on the wall by the door. Routine. The frame happens in plain sight.*
 
 "Badge in for me, each of you. Visitor log. Security floor's fussy about it."
@@ -350,9 +400,13 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Oh, no. No, no. Iris?"
 
+*1 second pause*
+
 *Standing by her coat, not touching it. Quiet, staring at it.*
 
 "That's her coat. She never leaves without her coat."
+
+*1 second pause*
 
 *Waving at her desk terminal as he moves off. Backing toward the door, already reaching for his radio.*
 
@@ -364,29 +418,43 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale."
 
+*1 second pause*
+
 *Lowering the radio, facing them through the door's glass. Tired, explaining a chore.*
 
 "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself."
+
+*1 second pause*
 
 *Leaning close to the glass, almost smiling. Almost fond. The friendly tour voice, which is what makes it awful.*
 
 "You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language."
 
+*1 second pause*
+
 *Still at the glass, remembering the van. Shaking his head, smiling.*
 
 "Then I saw the book in your van. Easy SQL. Still had the price sticker on it."
+
+*1 second pause*
 
 *Counting it off on his fingers. Enjoying himself.*
 
 "Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend."
 
+*1 second pause*
+
 *Stepping back from the glass, going slow. Slower. Savouring it.*
 
 "I should've reported you. Then it hit me. No... this is perfect."
 
+*1 second pause*
+
 *Throwing his head back, laughing at the glass. The only time he laughs in the game: real delight, loud and sudden, then it stops dead.*
 
 "A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha!"
+
+*1 second pause*
 
 *Straightening his jacket, face flat again. Flat again, tired. Back to normal.*
 
@@ -476,9 +544,13 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "You think a bit of cable holds me?"
 
+*1 second pause*
+
 *Going still on the floor, looking up at them. Quieter. He means it.*
 
 "WARDEN will eat you alive in here."
+
+*1 second pause*
 
 *Lying tied up, watching them move away. Smiling. The frame, said out loud.*
 
@@ -496,9 +568,13 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Still on channel one? Good. Thought you'd want to know I'm out."
 
+*1 second pause*
+
 *Strolling along, the radio held close. Casual, like giving directions.*
 
 "Security office is the only way down from here. Say hi to the night guard for me."
+
+*1 second pause*
 
 *Smiling, thumb on the radio's switch. Let it hang. Then the radio clicks off.*
 

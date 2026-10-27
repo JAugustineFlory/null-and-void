@@ -19,8 +19,8 @@ The building's computer system. It runs the doors, the lights and the speakers, 
 - It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
 - Each file name is one recording. Read everything under it in one take, top to bottom.
 - What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
-- When a recording has more than one line, stop for a full second wherever italics come between them. The game cuts the recording at those pauses.
-- A boxed quote is someone else's line, just before yours.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
@@ -142,6 +142,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 "SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE."
 
+*1 second pause*
+
 *Over the same speakers, as they eye the monitor wall. Small pause before the second sentence.*
 
 "CAMERA FEEDS ARE RESTRICTED TO SECURITY STAFF. YOU ARE NOT SECURITY STAFF."
@@ -176,9 +178,13 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 "CONTAINMENT PROTOCOL EPSILON IS NOW IN EFFECT."
 
+*1 second pause*
+
 *Over every speaker, while door locks thud shut across the building. Even pauses between sentences, like reading a checklist.*
 
 "ALL DOORS ARE SEALED. LIFT SERVICE IS SUSPENDED. EXTERIOR EXITS ARE LOCKED UNTIL FURTHER NOTICE."
+
+*1 second pause*
 
 *When it ends, the stair door out by the lifts unlocks. Over every speaker in the building, the same even tone. No change in tone for 'not a drill'. That's the frightening part.*
 
@@ -280,6 +286,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 "SECURITY NOTICE. FLOOR TEN IS UNDER CONTAINMENT."
 
+*1 second pause*
+
 *Still over the tape. Over the speakers, cutting across the tape's bright voice. His own voice, over the tape. Irritated, dry.*
 
 "NOBODY CARES ABOUT THE FRIDGE."
@@ -289,6 +297,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *Only if the crew locks out the charging bay's power and reads it back at the bay's own panel in time. Whatever was in the bay goes dark. Over the speakers, as the bay's last light goes out. The automatic announcement: flat and procedural.*
 
 "LOCKOUT ENTRY ACCEPTED. CHARGING BAY SEALED."
+
+*1 second pause*
 
 *Over the speakers, almost to itself. A separate beat, his own voice. Almost pleased.*
 
@@ -306,6 +316,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 "REMINDER: IN CASE OF EMERGENCY, DO NOT USE THE ELEVATORS."
 
+*1 second pause*
+
 *As the crew heads for the stairwell. Over the lobby speakers, in your own dry voice. A separate beat, his own voice. Teasing; the lifts are already off.*
 
 "NOT THAT YOU COULD."
@@ -322,6 +334,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 "VISITORS ON FLOOR NINE. NO ESCORT ON RECORD. NONESSENTIAL CIRCUITS HAVE BEEN SHED UNDER PROTOCOL EPSILON."
 
+*1 second pause*
+
 *Over the speakers, unhurried, in your own voice. A separate beat, his own voice. He knows what's sitting at the desks.*
 
 "THE NIGHT SHIFT WILL BE SO PLEASED TO SEE YOU."
@@ -331,6 +345,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *When the crew gets payroll's lights back on. They had to switch the copiers off to do it. Over the speakers, as the dark office lights up. The announcement, as the lights come up.*
 
 "LOAD SHEDDING ON FLOOR NINE HAS BEEN OVERRIDDEN. THIS HAS BEEN LOGGED."
+
+*1 second pause*
 
 *Over the speakers, in your own voice. A separate beat. Almost approving.*
 
@@ -342,6 +358,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 "AIR HANDLER NINE IS RUNNING. WORK ORDER ACKNOWLEDGED."
 
+*1 second pause*
+
 *Over the speakers, in your own voice. A separate beat. Dry.*
 
 "BREATHE. YOU HAVE EARNED IT."
@@ -351,6 +369,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *Only if the crew opens the loading door, as a voice on their walkie asked. It opens on a black shaft and cold air. Nobody is there. Over the speakers, while cold air blows in. The announcement, as the door swings onto nothing.*
 
 "LOADING DOOR OPEN ON FLOOR NINE AFTER HOURS. THIS IS A VIOLATION."
+
+*1 second pause*
 
 *Over the speakers, in your own voice, knowing. A separate beat. He knows exactly who asked.*
 
@@ -362,6 +382,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 "BADGE LOG CONSULTED. PERSONNEL THANKS YOU FOR VERIFYING."
 
+*1 second pause*
+
 *Over the speakers, in your own voice. A separate beat. The last word is the one that matters.*
 
 "VOICES LIE. RECORDS DO NOT. USUALLY."
@@ -371,6 +393,8 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *When both night-shift staff have their passes and every door opened tonight is locked again and checked. The stairs down unlock. Over the speakers, while the crew reads the doors back on screen. The announcement, as STAIR 2 releases.*
 
 "FLOOR NINE IS SECURED. ESCORT PASSES LOGGED. ALL DOORS LOCKED."
+
+*1 second pause*
 
 *Over the speakers, in your own voice. A separate beat. Flat. Not a threat; a fact.*
 
