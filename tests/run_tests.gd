@@ -96,6 +96,7 @@ func _group_core() -> void:
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
+	test_voice_split()
 	await test_commentary()
 	await test_pause_holds_subtitles()
 	await test_screens_fill_window()
@@ -585,6 +586,29 @@ func test_voice_script() -> void:
 	check(speakers_ok, "every line's speaker has a character entry")
 	var no_note := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["note"] == "")
 	check(no_note.is_empty(), "every line has an acting note %s" % [no_note])
+	# A line that runs straight on from the one before is cued by it.
+	var unstaged := VoiceLines.LINES.keys().filter(func(id): return (VoiceLines.LINES[id].get("cue", "") == "") != VoiceLines.LINES[id].get("with_previous", false) or VoiceLines.LINES[id].get("action", "") == "")
+	check(unstaged.is_empty(), "every line says what makes it play and what the speaker is doing %s" % [unstaged])
+	var blocks: Array[Dictionary] = []
+	for sc in VoiceLines.SCENES:
+		blocks.append_array(VoiceLines.blocks(sc["id"]))
+	var unjoined := []
+	var block_ids := {}
+	for b in blocks:
+		for i in b["lines"].size():
+			if VoiceLines.LINES[b["lines"][i]].get("with_previous", false) != (i > 0):
+				unjoined.append(b["lines"][i])
+		if block_ids.has(b["id"]):
+			unjoined.append(b["id"])
+		block_ids[b["id"]] = true
+	check(unjoined.is_empty(), "a speech is one recording: each line that runs on joins its speaker's line before it %s" % [unjoined])
+	var l0_tour := VoiceLines.blocks("l0_tour").map(func(b): return b["lines"])
+	check(l0_tour.any(func(ls): return ls.has("l0_tour_1") and ls.has("l0_tour_2")), "the tour opens with one speech, not two recordings")
+	var unset := VoiceLines.SCENES.filter(func(sc): return sc.get("setting", "") == "" or sc.get("setup", "") == "").map(func(sc): return sc["id"])
+	check(unset.is_empty(), "every scene says where and when it is, and what's going on %s" % [unset])
+	var thin := VoiceLines.CHARACTERS.keys().filter(func(sp): return VoiceLines.CHARACTERS[sp].get("background", "") == "" or VoiceLines.CHARACTERS[sp].get("tonight", "") == "")
+	thin.append_array(VoiceLines.CREW.keys().filter(func(slug): return VoiceLines.CREW[slug].get("background", "") == "" or VoiceLines.CREW[slug].get("with_crew", "") == ""))
+	check(thin.is_empty(), "every character has a background and a night for the actor %s" % [thin])
 	check(scenes_ok, "every line belongs to a scene")
 
 	var used := {}
@@ -626,10 +650,10 @@ func test_voice_script() -> void:
 	check(in_sync, "docs/script/ matches voice_lines.gd (run tools/write_script_docs.gd)")
 	var listed := true
 	var recording_list := ScriptDocs.recording_list_markdown()
-	for id in VoiceLines.LINES:
-		if not recording_list.contains("`%s`" % id):
+	for b in blocks:
+		if not recording_list.contains("`%s`" % b["id"]):
 			listed = false
-	check(listed, "every line is on the recording list")
+	check(listed, "every recording is on the recording list")
 
 	var docs := ScriptDocs.character_docs()
 	var on_disk := {}
@@ -643,18 +667,21 @@ func test_voice_script() -> void:
 	check(chars_in_sync, "docs/script/characters/ matches voice_lines.gd (run tools/write_script_docs.gd)")
 	var placed_once := []
 	var wrong_file := []
-	for id in VoiceLines.LINES:
+	for b in blocks:
 		var hits := 0
-		var slug: String = VoiceLines.CHARACTERS[VoiceLines.LINES[id]["speaker"]]["slug"]
+		var slug: String = VoiceLines.CHARACTERS[b["speaker"]]["slug"]
 		for path in docs:
-			if docs[path].contains("`%s.wav`" % id):
+			if docs[path].contains("`%s.wav`" % b["id"]):
 				hits += 1
 				if not path.get_file().begins_with(slug):
+					wrong_file.append(b["id"])
+			for id in b["lines"]:
+				if docs[path].contains("\"%s\"" % VoiceLines.LINES[id]["text"]) and not path.get_file().begins_with(slug) and not docs[path].contains(": \"%s\"" % VoiceLines.LINES[id]["text"]):
 					wrong_file.append(id)
 		# The shared crew lines are in every playable crew member's script.
-		if hits != (VoiceLines.CREW.size() if VoiceLines.LINES[id]["speaker"] == "CREW" else 1):
-			placed_once.append(id)
-	check(placed_once.is_empty(), "every line is in exactly one character's script %s" % [placed_once])
+		if hits != (VoiceLines.CREW.size() if b["speaker"] == "CREW" else 1):
+			placed_once.append(b["id"])
+	check(placed_once.is_empty(), "every recording is in exactly one character's script %s" % [placed_once])
 	var bodies := {}
 	var missing_barks := []
 	var named := []
@@ -813,6 +840,59 @@ func test_commentary() -> void:
 		and Commentary.kind_of({"ok": false, "error": "no such column: ext"}) == "column", "failed queries are sorted into mistakes")
 	cc.queue_free()
 	hud.queue_free()
+
+
+## A 16-bit mono WAV of tone bursts and silences, as [seconds, loud] pairs.
+func _speech_wav(path: String, parts: Array) -> void:
+	var rate := 8000
+	var data := PackedByteArray()
+	for p in parts:
+		var at := data.size()
+		var n := int(p[0] * rate)
+		data.resize(at + n * 2)
+		for i in n:
+			data.encode_s16(at + i * 2, int(sin(TAU * 220.0 * i / rate) * 12000.0) if p[1] else 0)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = rate
+	wav.data = data
+	wav.save_to_wav(path)
+
+
+func _wav_seconds(path: String) -> float:
+	var bytes := FileAccess.get_file_as_bytes(path)
+	return 0.0 if bytes.size() < 44 else (bytes.size() - 44) / 2.0 / 8000.0
+
+
+func test_voice_split() -> void:
+	print("Voice block splitting")
+	var dir := "user://voice_split_test"
+	DirAccess.make_dir_recursive_absolute(dir)
+	var take := dir.path_join("take.wav")
+	# Two lines, the first with a short gap between its words, a long pause between them.
+	_speech_wav(take, [[0.3, false], [0.5, true], [0.15, false], [0.4, true], [1.0, false], [0.6, true], [0.3, false]])
+	var outs := [dir.path_join("a.wav"), dir.path_join("b.wav")]
+	var err := VoiceSplit.split_file(take, outs)
+	var a := _wav_seconds(outs[0])
+	var b := _wav_seconds(outs[1])
+	check(err == "" and absf(a - 1.85) < 0.05 and absf(b - 1.4) < 0.05, "a take is cut at its long pause, not between words (%s %.2f s, %.2f s)" % [err, a, b])
+	check(VoiceSplit.split_file(take, [outs[0], outs[1], dir.path_join("c.wav"), dir.path_join("d.wav")]) != "", "a take with too few pauses for its lines isn't cut")
+	# The tool finds an actor's block recording by its file name and cuts it into the lines.
+	var block: Dictionary = VoiceLines.blocks("l0_tour").filter(func(bl): return bl["lines"].has("l0_tour_1"))[0]
+	DirAccess.make_dir_recursive_absolute(dir.path_join("rourke"))
+	var parts := [[0.3, false]]
+	for i in block["lines"].size():
+		parts.append_array([[0.6, true], [1.0, false]])
+	_speech_wav(dir.path_join("rourke").path_join(block["id"] + ".wav"), parts)
+	var log := VoiceSplit.split_all(dir)
+	var cut: bool = block["lines"].all(func(id): return FileAccess.file_exists(dir.path_join("rourke").path_join(id + ".wav")))
+	check(log.size() == 1 and cut, "the split tool cuts a block recording into one file per line %s" % [log])
+	check(not FileAccess.file_exists(dir.path_join("rourke").path_join(block["id"] + ".wav")) and FileAccess.file_exists(dir + "_takes/rourke/%s.wav" % block["id"]) and FileAccess.file_exists(dir + "_takes/.gdignore"), "the whole take is kept out of the game once it's cut")
+	DirAccess.remove_absolute(dir + "_takes/.gdignore")
+	for d in [dir.path_join("rourke"), dir + "_takes/rourke", dir + "_takes", dir]:
+		for f in DirAccess.get_files_at(d):
+			DirAccess.remove_absolute(d.path_join(f))
+		DirAccess.remove_absolute(d)
 
 
 func test_voice_playback() -> void:
