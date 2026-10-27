@@ -171,14 +171,15 @@ func subtitles_clear_of_right(width: float) -> void:
 ## and keeps the subtitle up for as long as it lasts; otherwise the subtitle
 ## is timed from the text. Await it to wait until the line is over.
 ## subtitle = false plays the voice only, for lines the screen already shows.
-func line(id: String, subtitle: bool = true) -> void:
+## remembered = true plays it as a memory of the line, not someone saying it here (Voice.MEMORY_BUS).
+func line(id: String, subtitle: bool = true, remembered := false) -> void:
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		push_warning("No voice line with id '%s'" % id)
 		return
 	if get_node("/root/Game").jot(VoiceLines.resolve(id), l):
 		notice("Notebook updated (Tab)", 3.0)
-	var dur := _voice.play(id)
+	var dur := _voice.play(id, "", remembered)
 	var has_audio := dur > 0.0
 	if not has_audio:
 		dur = Voice.read_time(l["text"])

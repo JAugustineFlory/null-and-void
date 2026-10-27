@@ -26,6 +26,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_fight_sounds()
 	await test_teammate_fight_sounds()
 	await test_npc_fight_sounds()
+	await test_remembered_voice()
 	test_recorded_budget_and_credits()
 	test_music_layers()
 	await test_music_moods()
@@ -432,6 +433,43 @@ func test_npc_fight_sounds() -> void:
 	await t.process_frame
 	check(c.get_node("FightSounds").heard == ["punch_metal"], "a punch on the Custodian clangs")
 	a.queue_free()
+	await t.process_frame
+
+
+## Maddison's chapter lines out on a floor: a memory of her saying it, not her in the room.
+func test_remembered_voice() -> void:
+	var real_folder := Voice.folder
+	Voice.folder = "user://sound_voice_test/"
+	DirAccess.make_dir_recursive_absolute(Voice.folder)
+	var path := Voice.folder.path_join("l0_brief_1.wav")
+	SfxSynth.make("beep").save_to_wav(path)
+	var voice := Voice.new()
+	t.root.add_child(voice)
+	await t.process_frame
+	check(voice.play("l0_brief_1") > 0.0 and voice._player.bus == Sfx.VOICE, "said in the garage, her line plays as it is")
+	voice.play("l0_brief_1", "", true)
+	check(voice._player.bus == Voice.MEMORY_BUS, "remembered, it plays through the memory sound")
+	var bus := AudioServer.get_bus_index(Voice.MEMORY_BUS)
+	check(bus > AudioServer.get_bus_index(Sfx.VOICE) and AudioServer.get_bus_send(bus) == Sfx.VOICE,
+		"which feeds the Voice bus, so the Voices slider still covers it")
+	var fx := []
+	for i in AudioServer.get_bus_effect_count(bus):
+		fx.append(AudioServer.get_bus_effect(bus, i))
+	var low: Array = fx.filter(func(e): return e is AudioEffectLowPassFilter)
+	var room: Array = fx.filter(func(e): return e is AudioEffectReverb)
+	check(low.size() == 1 and low[0].cutoff_hz < 3000.0 and fx.any(func(e): return e is AudioEffectHighPassFilter),
+		"a memory is softer: the top taken off, the boom kept out")
+	check(room.size() == 1 and room[0].room_size < 0.6 and room[0].dry > 0.85 and room[0].wet < 0.35,
+		"in a small soft room, with every word still clear")
+	var pa_room: AudioEffectReverb = null
+	var pa := AudioServer.get_bus_index(Voice.PA_BUS)
+	for i in AudioServer.get_bus_effect_count(pa):
+		if AudioServer.get_bus_effect(pa, i) is AudioEffectReverb:
+			pa_room = AudioServer.get_bus_effect(pa, i)
+	check(pa_room != null and pa_room.room_size > room[0].room_size, "and nothing like the PA's empty halls")
+	voice.queue_free()
+	DirAccess.remove_absolute(path)
+	Voice.folder = real_folder
 	await t.process_frame
 
 
