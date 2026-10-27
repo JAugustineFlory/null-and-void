@@ -265,7 +265,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Book huddles: SELECT and ORDER BY
 
-*Flashbacks to the garage, earlier that night ('The garage, earlier that night', sepia). A player reads the chapter aloud and the crew votes on its quiz; Maddison stands at the head of the bench and opens and closes each chapter. Never gives the night's answers.* *(Written ahead: not in the game yet.)*
+*Flashbacks to the garage, earlier that night ('The garage, earlier that night', sepia). A player reads the chapter aloud and the crew votes on its quiz; Maddison stands at the head of the bench and opens and closes each chapter. Never gives the night's answers.*
 
 **MADDISON:** *(Disbelieving, delighted.)* Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? `[l0_huddle_select_1]`
 
@@ -273,7 +273,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **MADDISON:** *(Reading off the page.)* Chapter two. 'Putting things in order.' Now that, I can get behind. `[l0_huddle_order_1]`
 
-**MADDISON:** *(Scribbling.)* Smallest first, unless you say DESC. Write that down. I'm writing it down. `[l0_huddle_order_2]`
+**MADDISON:** *(Scribbling.)* Smallest first. Always smallest first. Write that down. I'm writing it down. `[l0_huddle_order_2]`
 
 ### Remembering what Maddison said
 
@@ -689,13 +689,13 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ### Book huddles: LIKE and GET
 
-*Garage flashback huddles for the LIKE and GET chapters.* *(Written ahead: not in the game yet.)*
+*Garage flashback huddles for the LIKE and GET chapters.*
 
 **MADDISON:** *(Squinting at the page.)* LIKE. For when you only know part of a word. The percent sign means 'anything goes here.' `[l2_huddle_like_1]`
 
 **MADDISON:** *(Pleased to have found themself.)* So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. `[l2_huddle_like_2]`
 
-**MADDISON:** *(Flipping the book over to check the cover.)* This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' `[l2_huddle_get_1]`
+**MADDISON:** *(Flipping the book over to check the cover.)* This chapter isn't even SQL. 'Asking a server.' GET means 'show me.' `[l2_huddle_get_1]`
 
 **MADDISON:** *(Not convinced.)* So it's a SELECT for robots. Got it. Probably. `[l2_huddle_get_2]`
 
