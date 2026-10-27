@@ -967,6 +967,8 @@ func test_pause_menu() -> void:
 		if b.is_visible_in_tree() and not Rect2(Vector2.ZERO, win).encloses(b.get_global_rect()):
 			inside = false
 	check(inside, "every button on it is fully on screen")
+	var pages: Control = level._pause.find_child("Pages", true, false)
+	check(absf(pages.get_global_rect().get_center().x - win.x / 2.0) < 2.0, "it sits in the middle of the window, not against the left edge (%s)" % pages.get_global_rect())
 	check(level._pause_at == "main" and not level._pause_pages["audio"].visible, "it opens on that first page")
 	level._show_pause_page("audio")
 	await process_frame
@@ -999,10 +1001,14 @@ func test_level_select() -> void:
 	root.add_child(menu)
 	await process_frame
 	check(menu.find_child("Levels", true, false) is Button and menu.find_child("Settings", true, false) is Button, "the title screen has Levels and Settings buttons")
+	var mid := root.get_visible_rect().size.x / 2.0
+	var column: Control = menu.find_child("Menu", true, false)
+	check(absf(column.get_global_rect().get_center().x - mid) < 2.0, "the title screen's buttons sit in the middle of the window, not against the left edge (%s)" % column.get_global_rect())
 	menu.find_child("Levels", true, false).pressed.emit()
 	await process_frame
 	await process_frame
 	var panel: MenuModal = menu.find_children("*", "MenuModal", true, false)[0]
+	check(absf(panel.box.get_global_rect().get_center().x - mid) < 2.0, "and so does the Levels list (%s)" % panel.box.get_global_rect())
 	var rows := panel.box.find_children("*", "Button", true, false)
 	check(rows.size() == LevelSelect.FLOORS.size() + 2, "it lists every floor, the movement gym and a way back (%d rows)" % rows.size())
 	check(rows[0].text == "Ground floor" and rows[1].text.ends_with("(not reached yet)") and not rows[1].disabled,
