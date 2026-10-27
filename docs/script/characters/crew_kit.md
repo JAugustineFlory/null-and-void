@@ -17,7 +17,7 @@ You're one of a small IT crew on an overnight job in an office tower, thinking o
 
 Send the files back as they are. They go in `audio/voice/crew_kit/` in the game.
 
-## Your lines (108)
+## Your lines (111)
 
 Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
 
@@ -63,7 +63,19 @@ Short lines only you say, each played in lots of different moments.
 
 The same words for everyone. Say them your way.
 
-### 1. Thinking out loud while the crew works through the front desk and the ground floor: noticing papers, getting stuck, getting it.
+### 1. In the tower, a new chapter of the crew's book turns up and you remember something your boss said about it back at the garage.
+
+- [ ] `l0_recall_1.wav`  
+  "I think Maddison said..."  
+  *Half to yourself, trying to remember. Trail off: her line follows.*
+- [ ] `l0_recall_2.wav`  
+  "Didn't Maddison say..."  
+  *To the others, as it comes back to you. Trail off: her line follows.*
+- [ ] `l0_recall_3.wav`  
+  "Maddison mentioned..."  
+  *Remembering, a little fond. Trail off: her line follows.*
+
+### 2. Thinking out loud while the crew works through the front desk and the ground floor: noticing papers, getting stuck, getting it.
 
 - [ ] `cc_nudge2_first.wav`  
   "That SYSOP on the screen seems to know this building. Maybe ask."  
@@ -129,7 +141,7 @@ The same words for everyone. Say them your way.
   "Vale signed in. And never signed out."  
   *Quietly. That's not good.*
 
-### 2. Thinking out loud while the crew fixes a stuck door controller in a server room, and finds a rack running too hot.
+### 3. Thinking out loud while the crew fixes a stuck door controller in a server room, and finds a rack running too hot.
 
 - [ ] `l1_cc_log.wav`  
   "Night shift wrote down every alarm. That has to help."  
@@ -171,7 +183,7 @@ The same words for everyone. Say them your way.
   "That one's cooking. No wonder it's loud."  
   *Found the hot rack. Impressed.*
 
-### 3. Thinking out loud while the crew works through a security floor at night: badge logs, a door on a timer, cameras, a smudged sign-in sheet, a stubborn door and a keypad.
+### 4. Thinking out loud while the crew works through a security floor at night: badge logs, a door on a timer, cameras, a smudged sign-in sheet, a stubborn door and a keypad.
 
 - [ ] `l2_cc_reader_card.wav`  
   "Every door up here logs who swipes in."  
@@ -240,7 +252,7 @@ The same words for everyone. Say them your way.
   "That's the code. Let's not hang around."  
   *Keypad accepted it. Nervous, wants to move.*
 
-### 4. Your crew finds a beginner's book on a training shelf and reads it together on the spot. One line to start each chapter, one to wrap it up.
+### 5. Your crew finds a beginner's book on a training shelf and reads it together on the spot. One line to start each chapter, one to wrap it up.
 
 - [ ] `l5_book_find.wav`  
   "No way. It's the same series. Somebody here bought the sequel."  
@@ -279,7 +291,7 @@ The same words for everyone. Say them your way.
   "Change it, then look again. The front doors taught us that one."  
   *Wrapping up. Wry; you've been burned before.*
 
-### 5. A voice on the crew's own walkie-talkie, asking for a door. It sounds exactly like someone it isn't.
+### 6. A voice on the crew's own walkie-talkie, asking for a door. It sounds exactly like someone it isn't.
 
 - [ ] `l5_mimic_lure.wav`  
   "Hey, it's me. I'm down at the loading door, the dock side. It's shut behind me. Can you open it from the desk? Quick."  
@@ -291,7 +303,7 @@ The same words for everyone. Say them your way.
   "Where are you going? I'm still at the door."  
   *As the crew leaves the floor. Quiet. No breath in it at all.*
 
-### 6. Your crew finds another beginner's book, under a coffee mug, and reads it together on the spot. One line to start each chapter, one to wrap it up.
+### 7. Your crew finds another beginner's book, under a coffee mug, and reads it together on the spot. One line to start each chapter, one to wrap it up.
 
 - [ ] `l6_book_find.wav`  
   "Easy JavaScript. Somebody's read this one to death."  
@@ -330,7 +342,7 @@ The same words for everyone. Say them your way.
   "Test first. We've all learned that one the hard way tonight."  
   *Wrapping up. Rueful.*
 
-### 7. In a lift, your crew finds another beginner's book tucked behind the handrail and reads it together on the ride. One line to start each chapter, one to wrap it up.
+### 8. In a lift, your crew finds another beginner's book tucked behind the handrail and reads it together on the ride. One line to start each chapter, one to wrap it up.
 
 - [ ] `l8_book_find.wav`  
   "Hello HTML! Same series again. Who keeps leaving these?"  

@@ -275,6 +275,16 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **MADDISON:** *(Scribbling.)* Smallest first, unless you say DESC. Write that down. I'm writing it down. `[l0_huddle_order_2]`
 
+### Remembering what Maddison said
+
+*Augustine, 2026-10-27: Maddison isn't in the tower, so before each of her chapter lines on a floor a crew member says one of these, then her line plays as a memory. One of the three, picked by the game. His own words, approved as written.* *(Written ahead: not in the game yet.)*
+
+**CREW:** *(Half to yourself, trying to remember. Trail off: her line follows.)* I think Maddison said... `[l0_recall_1]`
+
+**CREW:** *(To the others, as it comes back to you. Trail off: her line follows.)* Didn't Maddison say... `[l0_recall_2]`
+
+**CREW:** *(Remembering, a little fond. Trail off: her line follows.)* Maddison mentioned... `[l0_recall_3]`
+
 ### The IT van
 
 *The crew sits in their Byte-Right IT van in Halcyon's car park while dispatch reads them the job over the radio. Nothing is wrong yet: this is an ordinary after-hours callout. The radio stops once everyone has readied up.*

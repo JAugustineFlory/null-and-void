@@ -1,6 +1,6 @@
 # Recording list
 
-1488 lines in all.
+1524 lines in all.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -246,12 +246,15 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l2_news_7` | Halcyon declined to comment. The crew has not been seen since. | Neutral. A small pause after. | Level 2, later |
 | [ ] | `l2_news_5` | Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather. | Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
-## The crew (player characters) (97 lines, recorded by each of the 12 crew members)
+## The crew (player characters) (100 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
 | Done | File | Line | Direction | Where |
 |---|---|---|---|---|
+| [ ] | `l0_recall_1` | I think Maddison said... | Half to yourself, trying to remember. Trail off: her line follows. | Level 0, later |
+| [ ] | `l0_recall_2` | Didn't Maddison say... | To the others, as it comes back to you. Trail off: her line follows. | Level 0, later |
+| [ ] | `l0_recall_3` | Maddison mentioned... | Remembering, a little fond. Trail off: her line follows. | Level 0, later |
 | [ ] | `cc_nudge2_first` | That SYSOP on the screen seems to know this building. Maybe ask. | Stuck, before SYSOP has helped. Half a joke, half serious. | Level 0, later |
 | [ ] | `cc_nudge2` | Whoever SYSOP is, they've been right so far. Maybe ask. | Stuck again. A little uneasy about trusting a stranger on a screen. | Level 0, later |
 | [ ] | `l0_cc_peek_card` | Quick-start card for the scanner. Somebody's filled in the blanks. | Picked up a scanner's instruction card. Noticing handwriting on it. | Level 0, later |
