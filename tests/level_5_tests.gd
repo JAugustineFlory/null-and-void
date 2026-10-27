@@ -479,6 +479,7 @@ func test_scene() -> void:
 	level.completed.connect(func(): done[0] = true)
 	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(-2.4, 0.1, 0)))
 	check(await _until(func(): return level.lures == 3, 300) and level.hud._subtitle.text == "MADDISON: " + VoiceLines.get_line("l5_mimic_maddison_last").text, "everyone on the stairs down: the voice on the walkie asks where you're going")
+	check(level.get_node_or_null("EndCard") == null and level.exit_hold >= Voice.read_time(VoiceLines.get_line("l5_mimic_maddison_last").text) and level.exit_hold >= level.EXIT_HOLD, "the end card waits until the line has been read")
 	check(await _until(func(): return done[0], 900) and _game().completed_level == "level_5" and net.profile.earned.has("achievement:floor_9"), "then the floor ends")
 	net.profile.earned = had
 	level.queue_free()
@@ -745,6 +746,7 @@ func test_coop() -> void:
 		l.completed.disconnect(l._on_completed)
 	host.sync.event("_on_exit")
 	check(await _until(func(): return machines.all(func(l): return l.lures == 3), 120), "leaving, the voice has one more thing to say on every machine")
+	check(client.hud._subtitle.text == "%s: %s" % [client._name_of(peer), VoiceLines.get_line("l5_mimic_last").text] and host.exit_hold >= Voice.read_time(VoiceLines.get_line("l5_mimic_last").text), "in the teammate's voice, with their name, and the host holds the end card for it")
 	await t._coop_close(worlds)
 
 
