@@ -14,6 +14,10 @@ const TAIL := 0.1
 ## so the pause menu's Voices slider turns them up and down together.
 const PA_BUS := &"VoicePA"
 const PA_SPEAKERS := ["WARDEN", "PA"]
+## A line someone remembers hearing (Maddison's chapter lines, out on a floor): darker
+## and softer, in a small hazy room, so it's plainly not her standing there. Also
+## ends up on the Voice bus, under the Voices slider.
+const MEMORY_BUS := &"VoiceMemory"
 
 ## Where recordings live. Tests point this somewhere else.
 static var folder := "res://audio/voice/"
@@ -25,6 +29,7 @@ func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	add_child(_player)
 	_ensure_pa_bus()
+	_ensure_memory_bus()
 
 
 ## Path of the recording for this line, or "" if it hasn't been recorded yet.
@@ -81,12 +86,16 @@ static func read_time(text: String) -> float:
 ## Start this line's recording, cutting off whatever was playing.
 ## Returns how long to wait before the next line: the recording's length,
 ## or 0.0 if there is no recording.
-func play(id: String, dir: String = "") -> float:
+## `remembered`: a line someone is remembering, not one said here (MEMORY_BUS).
+func play(id: String, dir: String = "", remembered := false) -> float:
 	var stream := stream_for(id, dir)
 	if stream == null:
 		return 0.0
 	_player.stream = stream
-	_player.bus = PA_BUS if VoiceLines.get_line(id).get("speaker") in PA_SPEAKERS else Sfx.VOICE
+	if remembered:
+		_player.bus = MEMORY_BUS
+	else:
+		_player.bus = PA_BUS if VoiceLines.get_line(id).get("speaker") in PA_SPEAKERS else Sfx.VOICE
 	_player.play()
 	return stream.get_length() + TAIL
 
@@ -123,4 +132,40 @@ static func _ensure_pa_bus() -> void:
 	hall.dry = 1.0
 	hall.wet = 0.32
 	for fx in [high, low, hall]:
+		AudioServer.add_bus_effect(bus, fx)
+
+
+static func _ensure_memory_bus() -> void:
+	Sfx.ensure_buses()
+	if AudioServer.get_bus_index(MEMORY_BUS) >= 0:
+		return
+	AudioServer.add_bus()
+	var bus := AudioServer.bus_count - 1
+	AudioServer.set_bus_name(bus, MEMORY_BUS)
+	AudioServer.set_bus_send(bus, Sfx.VOICE)
+	AudioServer.set_bus_volume_db(bus, -2.0)  # a little further off than the room
+	# Warm and a little muffled: the top taken off, the boom kept out, every word clear.
+	var high := AudioEffectHighPassFilter.new()
+	high.cutoff_hz = 180.0
+	var low := AudioEffectLowPassFilter.new()
+	low.cutoff_hz = 2600.0
+	# The faintest waver, like a recollection that won't quite hold still.
+	var waver := AudioEffectChorus.new()
+	waver.voice_count = 2
+	waver.dry = 1.0
+	waver.wet = 0.25
+	waver.set_voice_rate_hz(0, 0.4)
+	waver.set_voice_depth_ms(0, 1.5)
+	waver.set_voice_rate_hz(1, 0.55)
+	waver.set_voice_depth_ms(1, 1.2)
+	# A small, soft room with no slap: closer than the PA's empty halls.
+	var room := AudioEffectReverb.new()
+	room.room_size = 0.45
+	room.damping = 0.75
+	room.spread = 0.8
+	room.predelay_msec = 25.0
+	room.predelay_feedback = 0.0
+	room.dry = 0.9
+	room.wet = 0.3
+	for fx in [high, low, waver, room]:
 		AudioServer.add_bus_effect(bus, fx)
