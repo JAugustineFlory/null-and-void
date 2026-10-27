@@ -109,7 +109,27 @@ Newest first, one release per drop-down, with its fix builds inside. Click a ver
 floor number. Changes that have merged but aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 <details open>
-<summary><b>v0.7 - 2026-10-24</b></summary>
+<summary><b>v0.7 - 2026-10-24</b> (with fix build v0.7.1 - 2026-10-27)</summary>
+
+**v0.7.1 - 2026-10-27** (fix build)
+
+- **Changed:** Your notebook keeps one case at a time: solve it and it's filed in the Archive, and the next one takes the page.
+- **Changed:** The ground floor's first puzzle is back to reading the memo, with putting the scraps in order as the case after it.
+- **Changed:** On floor 14, the case on screen and at the top of its notebook page says what to do, in the same words as your to-do list.
+- **Changed:** The pause menu is now Resume, Restart, Audio, Controls and Exit, and every button stays on screen whatever the window size.
+- **Added:** Every case says what to do about it in one line, in the same words on screen and at the top of its page.
+- **Added:** Papers carrying something the case needs have a shine on them until you've read them.
+- **Added:** A Settings button on the title screen, with the same audio and controls pages.
+- **Added:** A Levels button on the title screen: start a run on any floor, or in the movement gym.
+- **Fixed:** Punches, hits and the punch bag now land with a proper smack instead of a dull thud, and blocking sounds like a hit taken on the arms instead of jingling keys.
+- **Fixed:** Reading the notebook or a paper, the view turns more gently, with the mouse and when the cursor goes past the page.
+- **Fixed:** Your hands fit the notebook now: it's a proper A5 notebook, held by its bottom corners with your thumbs clear of the tabs.
+- **Fixed:** Putting the notebook away while sitting no longer leaves a hand floating in front of you.
+- **Fixed:** Crawling through vents no longer shows your own neck and back.
+- **Fixed:** The crew rides to Halcyon sitting in the van's seats instead of standing in them.
+- **Fixed:** On floor 9 the voice on the walkie gets its last word in as the crew heads down the stairs: the floor no longer ends before the line is finished.
+
+**v0.7 - 2026-10-24**
 
 - **New:** download the game for Windows, Mac or Linux from its own download page, no Godot needed.
 - **New:** Floor 9, the Personnel Wing: HR and payroll after hours, where the building's services answer to a key and every change is checked by asking again. It comes with a second beginner's book, *Acceptable API's*.

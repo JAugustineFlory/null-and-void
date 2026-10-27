@@ -1,1 +1,0 @@
-- **Fixed:** On floor 9 the voice on the walkie gets its last word in as the crew heads down the stairs: the floor no longer ends before the line is finished.
