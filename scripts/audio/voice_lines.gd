@@ -330,7 +330,7 @@ const SCENES := [
 	{"id": "l0_crew", "level": 0, "title": "Crew commentary: ground floor", "wired": false,
 		"moment": "Thinking out loud while the crew works through the front desk and the ground floor: noticing papers, getting stuck, getting it.",
 		"context": "Commentary played by scripts/audio/commentary.gd: discovery lines when a paper is read or a result appears, nudges when the crew is stuck (the clock pauses during cut-scenes and typing), error lines on the same mistake twice, payoffs after a solve. Also holds the two shared Nudge 2 lines that point at SYSOP."},
-	{"id": "l1_huddles", "level": 1, "title": "Book huddles: WHERE and comparisons", "wired": false,
+	{"id": "l1_huddles", "level": 1, "title": "Book huddles: WHERE and comparisons", "wired": true,
 		"moment": "At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.",
 		"context": "Garage flashback huddles for the WHERE / AND and comparison chapters."},
 	{"id": "l1_job", "level": 1, "title": "The database problem", "wired": true,

@@ -216,10 +216,10 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio, in the professional dispatcher voice. 'Van three' is a bluff: they own one van. | Level 0 |
 | [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
 | [ ] | `l0_dispatch_3` | Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. | Bored, reading the form. Signing off, already onto the next call. | Level 0 |
-| [ ] | `l1_huddle_where_1` | WHERE. For finding one thing in a big pile. Like my car keys. | Patting pockets. | Level 1, later |
-| [ ] | `l1_huddle_where_2` | Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears. | Rueful. | Level 1, later |
-| [ ] | `l1_huddle_compare_1` | Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number. | Drawing one on the whiteboard, with teeth. | Level 1, later |
-| [ ] | `l1_huddle_compare_2` | Okay. That's maths I actually remember from school. | Relieved. | Level 1, later |
+| [ ] | `l1_huddle_where_1` | WHERE. For finding one thing in a big pile. Like my car keys. | Patting pockets. | Level 1 |
+| [ ] | `l1_huddle_where_2` | Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears. | Rueful. | Level 1 |
+| [ ] | `l1_huddle_compare_1` | Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number. | Drawing one on the whiteboard, with teeth. | Level 1 |
+| [ ] | `l1_huddle_compare_2` | Okay. That's maths I actually remember from school. | Relieved. | Level 1 |
 | [ ] | `l2_huddle_like_1` | LIKE. For when you only know part of a word. The percent sign means 'anything goes here.' | Squinting at the page. | Level 2, later |
 | [ ] | `l2_huddle_like_2` | So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. | Pleased to have found themself. | Level 2, later |
 | [ ] | `l2_huddle_get_1` | This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' | Flipping the book over to check the cover. | Level 2, later |
