@@ -209,10 +209,10 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l0_garage_5` | Look at that. You're practically engineers. Take the book with you. Everybody in the van. | Genuinely thrilled. After the huddle's quiz. | Level 0 |
 | [ ] | `l0_garage_5_solo` | Look at that. You're practically an engineer. Take the book with you. Into the van. | Solo version. Genuinely thrilled. After the huddle's quiz. | Level 0 |
 | [ ] | `l0_garage_6` | Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio. | At the van door, counting the rules off. She stays behind. | Level 0 |
-| [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0, later |
-| [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0, later |
-| [ ] | `l0_huddle_order_1` | Chapter two. 'Putting things in order.' Now that, I can get behind. | Reading off the page. | Level 0, later |
-| [ ] | `l0_huddle_order_2` | Smallest first, unless you say DESC. Write that down. I'm writing it down. | Scribbling. | Level 0, later |
+| [ ] | `l0_huddle_select_1` | Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language? | Disbelieving, delighted. | Level 0 |
+| [ ] | `l0_huddle_select_2` | Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon. | Deadly serious about the one thing they're sure of. | Level 0 |
+| [ ] | `l0_huddle_order_1` | Chapter two. 'Putting things in order.' Now that, I can get behind. | Reading off the page. | Level 0 |
+| [ ] | `l0_huddle_order_2` | Smallest first. Always smallest first. Write that down. I'm writing it down. | Scribbling. | Level 0 |
 | [ ] | `l0_dispatch_1` | Van three, you're on site at Halcyon Data Systems. After-hours callout. | Over the van radio, in the professional dispatcher voice. 'Van three' is a bluff: they own one van. | Level 0 |
 | [ ] | `l0_dispatch_2` | They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors. | Reading it off the ticket. | Level 0 |
 | [ ] | `l0_dispatch_3` | Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out. | Bored, reading the form. Signing off, already onto the next call. | Level 0 |
@@ -220,10 +220,10 @@ Lines marked **later** are written ahead for a level that isn't built yet. Recor
 | [ ] | `l1_huddle_where_2` | Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears. | Rueful. | Level 1 |
 | [ ] | `l1_huddle_compare_1` | Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number. | Drawing one on the whiteboard, with teeth. | Level 1 |
 | [ ] | `l1_huddle_compare_2` | Okay. That's maths I actually remember from school. | Relieved. | Level 1 |
-| [ ] | `l2_huddle_like_1` | LIKE. For when you only know part of a word. The percent sign means 'anything goes here.' | Squinting at the page. | Level 2, later |
-| [ ] | `l2_huddle_like_2` | So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. | Pleased to have found themself. | Level 2, later |
-| [ ] | `l2_huddle_get_1` | This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.' | Flipping the book over to check the cover. | Level 2, later |
-| [ ] | `l2_huddle_get_2` | So it's a SELECT for robots. Got it. Probably. | Not convinced. | Level 2, later |
+| [ ] | `l2_huddle_like_1` | LIKE. For when you only know part of a word. The percent sign means 'anything goes here.' | Squinting at the page. | Level 2 |
+| [ ] | `l2_huddle_like_2` | So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere. | Pleased to have found themself. | Level 2 |
+| [ ] | `l2_huddle_get_1` | This chapter isn't even SQL. 'Asking a server.' GET means 'show me.' | Flipping the book over to check the cover. | Level 2 |
+| [ ] | `l2_huddle_get_2` | So it's a SELECT for robots. Got it. Probably. | Not convinced. | Level 2 |
 | [ ] | `l4_huddle_update_1` | UPDATE. Changing things. The book's put this one in a red box, which I don't love. | Holding the page at arm's length. | Level 4 |
 | [ ] | `l4_huddle_update_2` | Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row. | Suddenly serious, for once. | Level 4 |
 | [ ] | `l4_huddle_insert_1` | INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist. | Reading the title, wistful, then perky again. | Level 4 |
