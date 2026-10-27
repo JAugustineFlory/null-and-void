@@ -135,7 +135,7 @@ const BOOKS := {
 				"when": "L0, memo",
 				"required": false,
 				"words": ["ORDER BY", "smallest first"],
-				"lines": ["l0_huddle_order_1"],
+				"lines": ["l0_huddle_order_1", "l0_huddle_order_2"],
 				"pages": [
 					"ORDER BY\n\nRows come out in whatever order they were saved.\n\nAdd ORDER BY and a column name, before the ;, to sort them.",
 					"smallest first\n\nORDER BY puts the smallest first: 1, 2, 3, or A, B, C, or earliest time.",
@@ -362,7 +362,7 @@ const BOOKS := {
 				"when": "L2 camera booth, cameras",
 				"required": false,
 				"words": ["GET", "path", "JSON"],
-				"lines": [],
+				"lines": ["l2_huddle_get_1", "l2_huddle_get_2"],
 				"pages": [
 					"GET\n\nSome systems answer web requests, not SQL. GET asks for data.\n\nNo SELECT, no ;. Just GET and a path.",
 					"path\n\nThe path after GET says what you want, starting with /.",
