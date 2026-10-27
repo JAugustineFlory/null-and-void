@@ -1,5 +1,0 @@
-- **Changed:** your notebook now keeps one case at a time: solve it and it's filed in the Archive, and the next one takes the page.
-- **Added:** every case says what to do about it in one line, in the same words on screen and at the top of its page.
-- **Changed:** the ground floor's first puzzle is back to reading the memo, with putting the scraps in order as the case after it.
-- **Added:** papers carrying something the case needs have a shine on them until you've read them.
-- **Fixed:** the crew rides to Halcyon sitting in the van's seats instead of standing in them.

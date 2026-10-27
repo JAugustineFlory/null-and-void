@@ -987,7 +987,8 @@ func test_screens_fill_window() -> void:
 		check(inside, "%s buttons are fully on screen" % path.get_file())
 		if path.ends_with("lobby.tscn"):
 			var tag: Label = screen.find_child("Version", true, false)
-			check(tag != null and tag.text == "v0.7" and tag.is_visible_in_tree() and Rect2(Vector2.ZERO, win).encloses(tag.get_global_rect()), "the lobby shows the game's version, v0.7, on screen")
+			var want := "v%s" % ProjectSettings.get_setting("application/config/version", "")
+			check(tag != null and want.length() > 1 and tag.text == want and tag.is_visible_in_tree() and Rect2(Vector2.ZERO, win).encloses(tag.get_global_rect()), "the lobby shows the game's version (%s) on screen" % want)
 		screen.queue_free()
 		await process_frame
 
@@ -1114,7 +1115,8 @@ func test_level_0_scene() -> void:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
 	var version: Label = level._pause.find_child("Version", true, false)
-	check(ProjectSettings.get_setting("application/config/version") == "0.7" and version != null and version.text == "v0.7", "the pause menu shows the game's version, v0.7")
+	var want_version := "v%s" % ProjectSettings.get_setting("application/config/version", "")
+	check(want_version.length() > 1 and version != null and version.text == want_version, "the pause menu shows the game's version (%s)" % want_version)
 	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
 	check(level.player.is_sitting() and level.player.sit_held, "sitting in their seat, belted in: Space and Z don't stand them up")
 	var lobby_floor: Node3D = level.geo.get_node("Floor")
