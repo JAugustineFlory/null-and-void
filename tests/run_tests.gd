@@ -585,6 +585,13 @@ func test_voice_script() -> void:
 	check(speakers_ok, "every line's speaker has a character entry")
 	var no_note := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["note"] == "")
 	check(no_note.is_empty(), "every line has an acting note %s" % [no_note])
+	var unstaged := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id].get("cue", "") == "" or VoiceLines.LINES[id].get("action", "") == "")
+	check(unstaged.is_empty(), "every line says what makes it play and what the speaker is doing %s" % [unstaged])
+	var unset := VoiceLines.SCENES.filter(func(sc): return sc.get("setting", "") == "" or sc.get("setup", "") == "").map(func(sc): return sc["id"])
+	check(unset.is_empty(), "every scene says where and when it is, and what's going on %s" % [unset])
+	var thin := VoiceLines.CHARACTERS.keys().filter(func(sp): return VoiceLines.CHARACTERS[sp].get("background", "") == "" or VoiceLines.CHARACTERS[sp].get("tonight", "") == "")
+	thin.append_array(VoiceLines.CREW.keys().filter(func(slug): return VoiceLines.CREW[slug].get("background", "") == "" or VoiceLines.CREW[slug].get("with_crew", "") == ""))
+	check(thin.is_empty(), "every character has a background and a night for the actor %s" % [thin])
 	check(scenes_ok, "every line belongs to a scene")
 
 	var used := {}

@@ -35,7 +35,7 @@ static func script_markdown() -> String:
 		md.append("**%s** (`%s`, %s). %s" % [m["name"], slug, m["age"], m["bio"]])
 		md.append("")
 		for bark in VoiceLines.BARKS:
-			md.append("- *%s:* %s `[%s]`" % [VoiceLines.BARKS[bark], m["barks"][bark], bark])
+			md.append("- %s *(%s)* `[%s]`" % [m["barks"][bark], VoiceLines.BARKS[bark], bark])
 		md.append("")
 	var level := -1
 	for s in VoiceLines.SCENES:
@@ -45,12 +45,18 @@ static func script_markdown() -> String:
 			md.append("")
 		md.append("### %s" % s["title"])
 		md.append("")
+		if s.get("setting", "") != "":
+			md.append("**%s**" % s["setting"])
+			md.append("")
 		md.append("*%s*%s" % [s["context"], "" if s["wired"] else " *(Written ahead: not in the game yet.)*"])
 		md.append("")
 		for id in VoiceLines.ids_in_scene(s["id"]):
 			var l: Dictionary = VoiceLines.LINES[id]
+			if l.get("cue", "") != "":
+				md.append("*Cue: %s*  " % l["cue"])
+			var action: String = (" *(%s)*" % l["action"].trim_suffix(".")) if l.get("action", "") != "" else ""
 			var note: String = (" *(%s)*" % l["note"]) if l["note"] != "" else ""
-			md.append("**%s:**%s %s `[%s]`" % [l["speaker"], note, l["text"], id])
+			md.append("**%s:**%s %s%s `[%s]`" % [l["speaker"], action, l["text"], note, id])
 			md.append("")
 	return "\n".join(md)
 
@@ -132,78 +138,135 @@ static func character_docs() -> Dictionary:
 	return docs
 
 
-## One character's script: their card, the recording spec, and their lines grouped
-## by moment. Never mentions other characters' lines or the scene's plot.
-## Returns "" if the character has no lines in this session. `member` is a
-## playable crew member's slug, for the CREW lines plus that member's barks.
+## One character's script, laid out like a play: who you are, how to read the
+## script, the recording spec, then each scene with where you are and what's going
+## on, and each line with its cue, what you're doing, the words and how to say them.
+## Never shows the team-only character notes or scene plot. Returns "" if the
+## character has no lines in this session. `member` is a playable crew member's
+## slug, for the CREW lines plus that member's own lines.
 static func character_markdown(speaker: String, later: bool = false, member: String = "") -> String:
 	var c: Dictionary = VoiceLines.CHARACTERS[speaker]
 	var folder: String = VoiceLines.crew_dir(member) if member != "" else c["slug"]
+	var own_dir: String = folder if member != "" else ""
+	var label: String = "YOU" if member != "" else speaker
 	var body := PackedStringArray()
 	var count := 0
-	var moment_no := 0
+	var scene_no := 0
 	if member != "" and not later:
-		var m: Dictionary = VoiceLines.CREW[member]
-		body.append("### Your own lines")
+		body.append("## Your own lines")
 		body.append("")
-		body.append("Short lines only you say, each played in lots of different moments.")
+		body.append("Short lines only you say. The game plays them at lots of different moments, so each one has to work on its own, with no lead-in.")
 		body.append("")
 		for bark in VoiceLines.BARKS:
-			var id := VoiceLines.bark_id(bark)
 			count += 1
-			body.append("- [%s] `%s.wav`  " % [_tick(id, folder), id])
-			body.append("  \"%s\"  " % m["barks"][bark])
-			body.append("  *When: %s.*" % VoiceLines.BARKS[bark])
-		body.append("")
-		body.append("### Lines every crew member says")
-		body.append("")
-		body.append("The same words for everyone. Say them your way.")
-		body.append("")
+			body.append_array(_line_block(VoiceLines.bark_id(bark), own_dir, label, VoiceLines.CREW[member]["barks"][bark], VoiceLines.BARKS[bark], "", "", ""))
 	for s in VoiceLines.SCENES:
 		if VoiceLines.held_back(s) != later:
 			continue
-		var ids := VoiceLines.ids_in_scene(s["id"]).filter(func(id): return VoiceLines.LINES[id]["speaker"] == speaker)
+		var all_ids := VoiceLines.ids_in_scene(s["id"])
+		var ids := all_ids.filter(func(id): return VoiceLines.LINES[id]["speaker"] == speaker)
 		if ids.is_empty():
 			continue
-		moment_no += 1
-		body.append("### %d. %s" % [moment_no, s.get("moment", "")])
+		scene_no += 1
+		body.append("## Scene %d: %s" % [scene_no, s["title"]])
+		body.append("")
+		if s.get("setting", "") != "":
+			body.append("**%s**" % s["setting"])
+			body.append("")
+		body.append("> %s" % s.get("setup", s.get("moment", "")))
 		body.append("")
 		for id in ids:
 			var l: Dictionary = VoiceLines.LINES[id]
 			count += 1
-			body.append("- [%s] `%s.wav`  " % [_tick(id, folder if member != "" else ""), id])
-			body.append("  \"%s\"  " % l["text"])
-			body.append("  *%s*" % l["note"])
-		body.append("")
+			var before := ""
+			var at := all_ids.find(id)
+			if s.get("in_order", false) and at > 0:
+				var prev: Dictionary = VoiceLines.LINES[all_ids[at - 1]]
+				if prev["speaker"] != speaker:
+					before = "%s: \"%s\"" % [_label(prev["speaker"]), prev["text"]]
+			body.append_array(_line_block(id, own_dir, label, l["text"], l.get("cue", ""), before, l.get("action", ""), l["note"]))
 	if count == 0:
 		return ""
 	var md := PackedStringArray()
 	var title: String = VoiceLines.CREW[member]["name"] if member != "" else c["name"]
-	md.append("# %s: %s" % [title, "later session" if later else "your lines"])
+	md.append("# %s" % title)
 	md.append("")
-	md.append("%s" % c["card"])
-	md.append("")
-	if member != "":
-		var m: Dictionary = VoiceLines.CREW[member]
-		md.append("**Who you are:** %s, %s. %s Players type their own name, so nobody in the game calls you %s." % [m["name"], m["age"], m["bio"], m["name"].get_slice(" ", 0)])
-		md.append("")
-	md.append("**How they sound:** %s" % c["voice"])
+	md.append("*Your %sscript for Null & Void: %d line%s.*" % ["later-session " if later else "", count, "" if count == 1 else "s"])
 	md.append("")
 	if later:
-		md.append("These lines come later in the story. Please keep them to yourself until after you've played that part.")
+		md.append("**These lines come later in the story. Please keep them to yourself until you've played that part.**")
 		md.append("")
+	md.append_array(_who_you_are(c, member))
+	md.append("## How to read this script")
+	md.append("")
+	md.append("- It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.")
+	md.append("- **Cue** is what happens in the game to make you speak. Some lines only play if the players do something, and the cue says so.")
+	md.append("- *Just before*, in a conversation, is the line you're answering.")
+	md.append("- *(In brackets and italics)* is what you're doing while you speak. Picture it, or do it: it changes how the line comes out.")
+	md.append("- Then your line, in bold, and *how to say it*.")
+	md.append("- Each line is its own file, with the name above it. Don't worry about timing: you'll hear it in the game, and any line can be redone after the playtest.")
+	md.append("")
 	md.append("## Recording")
 	md.append("")
 	md.append_array(_recording_spec())
 	md.append("")
 	md.append("Send the files back as they are. They go in `audio/voice/%s/` in the game." % folder)
 	md.append("")
-	md.append("## Your lines (%d)" % count)
-	md.append("")
-	md.append("Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.")
-	md.append("")
 	md.append_array(body)
 	return "\n".join(md).strip_edges() + "\n"
+
+
+## The character sheet at the top of a script.
+static func _who_you_are(c: Dictionary, member: String) -> PackedStringArray:
+	var md := PackedStringArray()
+	md.append("## Who you are")
+	md.append("")
+	if member != "":
+		var m: Dictionary = VoiceLines.CREW[member]
+		md.append("**%s, %s.** %s %s" % [m["name"], m["age"], m["bio"], m.get("background", "")])
+		md.append("")
+		for field in [["The crew", c.get("background", "")], ["Tonight", c.get("tonight", "")], ["You and the others", m.get("with_crew", "")], ["Think of", m.get("inspiration", "")]]:
+			if field[1] != "":
+				md.append("**%s.** %s" % field)
+				md.append("")
+		md.append("**How you sound.** %s" % c["voice"])
+		md.append("")
+		md.append("**Your name.** Players type their own name, so nobody in the game calls you %s, and none of the lines below says anyone's name." % m["name"].get_slice(" ", 0))
+		md.append("")
+		return md
+	md.append(c["card"])
+	md.append("")
+	for field in [["Background", "background"], ["Tonight", "tonight"], ["The people around you", "relationships"], ["What you look like", "look"], ["How you sound", "voice"], ["Think of", "inspiration"]]:
+		if c.get(field[1], "") != "":
+			md.append("**%s.** %s" % [field[0], c[field[1]]])
+			md.append("")
+	return md
+
+
+## One line, the way a play script sets it out.
+static func _line_block(id: String, own_dir: String, label: String, text: String, cue: String, before: String, action: String, note: String) -> PackedStringArray:
+	var md := PackedStringArray()
+	md.append("**[%s] `%s.wav`**  " % [_tick(id, own_dir), id])
+	if cue != "":
+		md.append("**Cue:** %s  " % cue)
+	if before != "":
+		md.append("*Just before:* %s  " % before)
+	if action != "":
+		md.append("*(%s)*  " % action.trim_suffix("."))
+	md.append("**%s:** \"%s\"  " % [label, text])
+	if note != "":
+		md.append("*How to say it:* %s" % note)
+	md.append("")
+	return md
+
+
+## A speaker's name as it appears in someone else's script.
+static func _label(speaker: String) -> String:
+	if speaker == "CREW":
+		return "A TEAMMATE"
+	if speaker == "PA":
+		return "PA (TAPE)"
+	return speaker
 
 
 static func _recording_spec() -> PackedStringArray:
