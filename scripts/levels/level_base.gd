@@ -273,20 +273,15 @@ func _bake_navigation() -> void:
 	geo.bake_navigation_mesh(false)
 
 
-const CONTROLS := """WASD  move          Shift  sprint
-Ctrl  crouch, slide, roll
-Space  jump     W + Space  vault, mantle, grab a ledge or pipe
-Z  sit on the floor (E at a chair sits on it)     Space or Z  stand up
-E  use, boost a teammate     X  other use
-F  flashlight     Click  strike
-Tab  your notebook: work order, cases, tables, Field Notes (1-4 turn to a tab)
-     reading, push the cursor to a screen edge to look that way; Tab also closes menus
-1-4  take out a hotbar item     I  inventory: choose what's on the hotbar
-V (hold)  talk on the radio, once you have one
-B  mute your open mic
-Esc  this menu"""
+## The pause menu's pages: the buttons, then one page behind each of them. Only
+## one is on screen at a time (see _pause_page).
+var _pause_pages := {}
+## Which page is up: "main", "audio", "controls", "restart" or "exit".
+var _pause_at := "main"
 
 
+## Resume, restart, audio, controls, exit. Everything sits in a scroll view inside
+## the screen's margins, so no button can end up off the bottom on a short window.
 func _build_pause_menu() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 30
@@ -297,40 +292,65 @@ func _build_pause_menu() -> void:
 	_pause.visible = false
 	layer.add_child(_pause)
 	_pause.add_child(ThemeUtil.version_tag())
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_pause.add_child(center)
 	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(300, 0)
+	box.name = "Pages"
+	box.custom_minimum_size = Vector2(360, 0)
 	box.add_theme_constant_override("separation", 12)
-	center.add_child(box)
+	MenuModal.column(_pause, box)
 	var title := ThemeUtil.label("PAUSED", 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
-	var resume := Button.new()
-	resume.text = "Resume"
+
+	var main := _pause_page("main", box)
+	var resume := SettingsPanel.button("Resume")
 	resume.pressed.connect(_toggle_pause)
-	box.add_child(resume)
-	box.add_child(SfxVolume.sliders())
-	# Off: the notebook and terminals open full-screen, as before (for anyone who finds that easier).
-	var in_world := CheckButton.new()
-	in_world.name = "InWorldUI"
-	in_world.text = "Notebook and terminals in the world"
-	in_world.button_pressed = get_node("/root/Game").diegetic_ui
-	in_world.toggled.connect(func(on):
-		get_node("/root/Game").diegetic_ui = on
+	main.add_child(resume)
+	var restart := SettingsPanel.button("Restart")
+	restart.name = "Restart"
+	restart.pressed.connect(func(): _show_pause_page("restart"))
+	main.add_child(restart)
+	var audio := SettingsPanel.button("Audio")
+	audio.pressed.connect(func(): _show_pause_page("audio"))
+	main.add_child(audio)
+	var controls := SettingsPanel.button("Controls")
+	controls.pressed.connect(func(): _show_pause_page("controls"))
+	main.add_child(controls)
+	var exit := SettingsPanel.button("Exit")
+	exit.pressed.connect(func(): _show_pause_page("exit"))
+	main.add_child(exit)
+
+	var audio_page := _pause_page("audio", box)
+	audio_page.add_child(SettingsPanel.audio())
+	audio_page.add_child(_pause_back())
+
+	var controls_page := _pause_page("controls", box)
+	controls_page.add_child(SettingsPanel.controls(func(_on):
 		if notebook:
-			notebook.rebuild())
-	box.add_child(in_world)
-	box.add_child(ThemeUtil.label("Controls", 20))
-	box.add_child(ThemeUtil.label(CONTROLS, 17, Color(0.85, 0.85, 0.85)))
-	var menu := Button.new()
-	menu.text = "Quit to menu"
-	menu.pressed.connect(func():
+			notebook.rebuild()))
+	controls_page.add_child(_pause_back())
+
+	var restart_page := _pause_page("restart", box)
+	restart_page.add_child(SettingsPanel.heading("Start again?"))
+	restart_page.add_child(ThemeUtil.label("This run goes back to the beginning. Anything you've worked out is lost.", 17, Color(0.85, 0.85, 0.85)))
+	var again := SettingsPanel.button("Start again")
+	again.pressed.connect(_restart_run)
+	restart_page.add_child(again)
+	restart_page.add_child(_pause_back())
+
+	var exit_page := _pause_page("exit", box)
+	exit_page.add_child(SettingsPanel.heading("Leave the run?"))
+	var to_menu := SettingsPanel.button("Quit to title screen")
+	to_menu.pressed.connect(func():
 		get_tree().paused = false
 		get_node("/root/Net").leave()
-		Game.goto("menu"))
-	box.add_child(menu)
+		get_node("/root/Game").goto("menu"))
+	exit_page.add_child(to_menu)
+	var quit := SettingsPanel.button("Quit the game")
+	quit.pressed.connect(func(): get_tree().quit())
+	exit_page.add_child(quit)
+	exit_page.add_child(_pause_back())
+
+	_show_pause_page("main")
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	var catcher := PauseCatcher.new()
 	catcher.level = self
@@ -345,11 +365,47 @@ class PauseCatcher:
 	func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("pause") and not level.terminal_ui.visible and not (level.notebook and level.notebook.is_open()) \
 				and not (level.inventory_screen and level.inventory_screen.is_open()):
-			level._toggle_pause()
+			# Esc steps back out of a settings page first, then closes the menu.
+			if level._pause.visible and level._pause_at != "main":
+				level._show_pause_page("main")
+			else:
+				level._toggle_pause()
 			get_viewport().set_input_as_handled()
 		elif event.is_action_pressed("notebook") and level._pause.visible:
 			level._toggle_pause()  # Tab closes any menu but a terminal's
 			get_viewport().set_input_as_handled()
+
+
+## One page of the pause menu, hidden until it's asked for.
+func _pause_page(id: String, box: VBoxContainer) -> VBoxContainer:
+	var page := VBoxContainer.new()
+	page.name = id.capitalize()
+	page.add_theme_constant_override("separation", 12)
+	page.visible = false
+	box.add_child(page)
+	_pause_pages[id] = page
+	return page
+
+
+func _pause_back() -> Button:
+	var back := SettingsPanel.button("Back")
+	back.name = "Back"
+	back.pressed.connect(func(): _show_pause_page("main"))
+	return back
+
+
+func _show_pause_page(id: String) -> void:
+	_pause_at = id
+	for key in _pause_pages:
+		_pause_pages[key].visible = key == id
+
+
+## Start this run over from the top. Solo only: in co-op one player can't send
+## everyone back, so the button isn't there.
+func _restart_run() -> void:
+	get_tree().paused = false
+	get_node("/root/Game").new_run()
+	get_tree().reload_current_scene()
 
 
 func _toggle_pause() -> void:
@@ -359,4 +415,7 @@ func _toggle_pause() -> void:
 		get_tree().paused = p
 	player.input_locked = p
 	_pause.visible = p
+	if p:
+		_pause_pages["main"].get_node("Restart").visible = not sync.is_online()
+		_show_pause_page("main")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if p else Input.MOUSE_MODE_CAPTURED

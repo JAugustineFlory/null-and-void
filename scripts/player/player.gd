@@ -90,14 +90,14 @@ const STRIKE_RANGE := 2.0
 const STRIKE_COOLDOWN := 0.55
 ## Walking pace while reading the notebook: no sprinting, jumping or climbing.
 const NOTEBOOK_WALK_SPEED := 1.4
-## Mouse look is slower while reading.
-const NOTEBOOK_LOOK_SCALE := 0.45
+## Mouse look is slower while reading (the notebook or a paper in your hands).
+const NOTEBOOK_LOOK_SCALE := 0.3
 ## Reading with the cursor out, off the page the view turns that way, up to
 ## EDGE_LOOK_SPEED (radians per second) at the screen's edge (edge_turn).
 const EDGE_LOOK_MARGIN := 0.08
-const EDGE_LOOK_SPEED := 1.6
+const EDGE_LOOK_SPEED := 0.9
 ## Pixels past the edge of what you read before the view starts to turn.
-const EDGE_LOOK_DEADZONE := 12.0
+const EDGE_LOOK_DEADZONE := 24.0
 ## The turn ramps up over at least this share of the screen past the page.
 const EDGE_LOOK_MIN_ROOM := 0.04
 ## How far your view can drift off the held notebook before it follows (radians):
@@ -175,6 +175,10 @@ var input_locked := false
 ## What you carry: the hotbar on keys 1-4 (Inventory). LevelBase hands it the
 ## run's inventory; a bare Player gets its own.
 var inventory := Inventory.new()
+## Sitting and belted in (the van): Space and Z don't stand you up and there's no
+## "Stand up" prompt until it's cleared (unbuckling). Getting up any other way
+## (respawn, a knock, stand_up(true)) still works, and clears it.
+var sit_held := false
 ## Strapped into a seat (the van): look around and press E, but no walking,
 ## crouching or jumping. You look around from the way you face when strapped in,
 ## as far as on a chair (SIT_LOOK).
@@ -973,8 +977,10 @@ func _process(delta: float) -> void:
 ## reach; Space or Z stands you up (stand_up). False if you can't: mid-air, busy,
 ## on or under a teammate, in a vent, or the seat is taken.
 func sit(on_seat: Node3D = null) -> bool:
-	if state != Move.WALK or not is_on_floor() or rider or carrier or not _filing.is_empty():
+	if state != Move.WALK or rider or carrier or not _filing.is_empty():
 		return false
+	if not on_seat and not is_on_floor():
+		return false  # a chair catches you; the floor needs you on it
 	if in_volume(MovementVolume.Kind.VENT) or crawling:
 		return false
 	if on_seat:
@@ -1004,7 +1010,7 @@ func sit(on_seat: Node3D = null) -> bool:
 ## way (or back where you came from, if that's blocked); off the floor you rise
 ## where you are (into a crouch if something's overhead). `instant` skips the motion.
 func stand_up(instant: bool = false) -> void:
-	if state != Move.SIT:
+	if state != Move.SIT or (sit_held and not instant):
 		return
 	if not _sit_leaving and _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
 		var out := Vector3(_sit_to.origin.x, _sit_from.origin.y, _sit_to.origin.z) + _forward() * SIT_STEP_OUT
@@ -1049,6 +1055,7 @@ func _end_sit() -> void:
 	if _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
 		global_position = _sit_from.origin
 	seat = null
+	sit_held = false
 	sit_amount = 0.0
 	_sit_leaving = false
 	state = Move.WALK
@@ -1974,7 +1981,7 @@ func _update_prompt() -> void:
 		if target and target.has_method("get_prompt"):
 			text = target.get_prompt(self)
 		if text == "" and state == Move.SIT and not _sit_leaving:
-			text = "[Space] Stand up"
+			text = "" if sit_held else "[Space] Stand up"
 	hud.set_prompt(text)
 	if hud.has_method("set_crosshair"):
 		hud.set_crosshair(not notebook_cursor)  # reading, the mouse pointer is the one to aim with

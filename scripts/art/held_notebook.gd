@@ -1,6 +1,6 @@
 class_name HeldNotebook
 extends Node3D
-## The pocket notebook held open in the player's hands, in first person: the
+## The notebook (A5, spiral-bound) held open in the player's hands, in first person: the
 ## NotebookView pages are drawn into a SubViewport and shown on the open spread,
 ## low in the view so the room stays visible above it. Mouse clicks on the pages
 ## reach the buttons on them (tabs, "+ note", next page). Visual only: what's on
@@ -18,12 +18,17 @@ extends Node3D
 signal opened
 signal closed
 
-const BOOK_WIDTH := 0.2  # the open spread, metres (a pocket notebook)
+const BOOK_WIDTH := 0.32  # the open spread, metres (an A5 notebook, so it fits in your hands)
 const WIDTH_FRACTION := 0.62  # of the screen's width, for the book without its tabs
 const MAX_HEIGHT_FRACTION := 0.62  # never more of the screen's height than this
 const TILT := 14.0  # top of the book leans away, like holding it to read
 const SPREAD_ANGLE := 7.0  # each half tilts up from the spine
 const CLOSED_ANGLE := 176.0
+## The hands hold the book by its bottom corners, this far up its outer edges,
+## turned in this far (degrees) so the thumbs lie low across the pages, under
+## the tabs, and the fingers spread behind the covers.
+const HAND_UP := 0.02
+const HAND_TURN := 35.0
 const STICKER := Color(0.86, 0.8, 0.62)  # manila archive label, before a color is picked
 const DISK := Color(0.12, 0.12, 0.14)  # a black disk
 
@@ -359,7 +364,8 @@ func _hands(look_in: Dictionary, size: Vector2, mid_y: float, book_h: float) -> 
 		# On the page's face at its half's outer edge, turning with it; the cover and page block are behind.
 		var hand := HeldNotebook.make_hand(left_half if side < 0 else right_half, side, look_in, 0.0035 + 0.0015)
 		hand.name = "LeftHand" if side < 0 else "RightHand"
-		hand.position = Vector3(side * bw, mid_y - book_h / 2.0 + 0.03, 0.0035)
+		hand.position = Vector3(side * bw, mid_y - book_h / 2.0 + HAND_UP, 0.0035)
+		hand.rotation_degrees.z = side * HAND_TURN
 
 
 ## A first-person hand (palm, thumb and sleeve) under `parent`, holding something

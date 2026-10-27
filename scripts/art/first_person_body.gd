@@ -38,6 +38,10 @@ const SEAT_BACK := 0.14
 ## your chest, legs and feet, not down your own collar. Walking and running lean
 ## the body forward; the slide makes up for that too.
 const DOWN_BACK := 0.17
+## On hands and knees (vents, low gaps), the neck is this far behind the
+## camera whichever way you look: your hands are under you on the floor, and
+## your back is never in front of your eyes.
+const CRAWL_BACK := 0.0
 ## Whatever the body is doing (a punch leans the neck forward), your neck stays
 ## this far outside what the camera sees: no stump of neck under your nose.
 const NECK_CLEAR := 0.06
@@ -52,6 +56,9 @@ const TORSO := 0.45
 ## paper's edge, so the palm and fingers are behind the page, the thumb on it.
 const GRIP_BEHIND := 0.035
 const GRIP_BELOW := 0.075
+## Holding a page or the notebook, the fingers this curled (0 flat, 1 a fist):
+## flat behind it, so their tips don't come through to the front.
+const HOLD_CURL := 0.0
 ## The parkour moves the body plays (Player.move_name), and how quickly the
 ## hands get to a grip in one: a grab is quick.
 const PARKOUR := ["slide", "roll", "mantle", "vault", "hang", "climb", "ledge"]
@@ -191,7 +198,11 @@ func _process(delta: float) -> void:
 	else:
 		_seat_fwd = 0.0
 		var down := clampf(-(head.rotation.x if head else 0.0) / 1.45, 0.0, 1.0)
-		back += down * (DOWN_BACK - minf(neck_z(), 0.0))
+		# On all fours the body lies out ahead of the hips: the neck comes back
+		# under the eyes whichever way you look, or your back fills the view.
+		var low := rig.crawl_amount() if not rig.is_full_body() else 0.0
+		var neck := minf(neck_z(), 0.0)
+		back += maxf(down * (DOWN_BACK - neck), low * (CRAWL_BACK - neck))
 	# Behind the camera, the way you look (seated, the way the seat faces).
 	var at := Vector3(0, -(_sit_hip - SEAT_THIGH) if chair else 0.0, 0) + Basis(Vector3.UP, rotation.y) * Vector3(0, 0, back)
 	_pull = _pull.lerp(_pull_needed(), 1.0 - exp(-12.0 * delta))
@@ -309,6 +320,7 @@ func _hold_with_hands() -> void:
 						var corner := face.origin + face.basis.x * (-1.0 if left else 1.0) - face.basis.y + face.basis.y.normalized() * 0.03
 						grips[side] = _edge_grip(Transform3D(face.basis.orthonormalized(), corner), left)
 	rig.reach = grips
+	rig.grip_curl = HOLD_CURL if _grips.is_empty() else -1.0  # (a parkour grip curls round its edge)
 
 
 ## Your body's materials are shared with everyone dressed the same: this one

@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Null & Void"
-config/version="0.7"
+config/version="0.7.1"
 config/description="Co-op survival-horror escape game where you code your way out."
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.7")
@@ -31,6 +31,10 @@ window/size/viewport_width=1600
 window/size/viewport_height=900
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[game]
+
+levels_any_floor=true
 
 [rendering]
 
