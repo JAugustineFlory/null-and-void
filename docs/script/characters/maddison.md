@@ -1,6 +1,6 @@
 # Maddison Kowalski
 
-*Your script for Null & Void: 23 recordings.*
+*Your script for Null & Void: 30 recordings.*
 
 ## Who you are
 
@@ -190,6 +190,30 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Smallest first. Always smallest first. Write that down. I'm writing it down."
 
+**[ ] `l0_huddle_columns_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Just the columns you need'. Pressing a hand to your heart over the open page. Mock-wounded.*
+
+"'Just the columns you need.' So no more star. The star was my favourite part."
+
+*1 second pause*
+
+*Counting the rules off on your fingers. Ticking them off.*
+
+"Commas between the names, never after the last one. And dot schema when you can't remember what they're called. That one's for me."
+
+**[ ] `l0_huddle_desc_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Newest first'. Flipping the book upside down to show it, then back. Brightly, then a little sorry for herself.*
+
+"'Newest first.' DESC flips it. Biggest on top, latest on top. Like my inbox, if anyone ever emailed me."
+
+*1 second pause*
+
+*Snapping the book shut on one finger. Snappy and pleased.*
+
+"And LIMIT at the very end, so you only get the top few. Newest three. Done."
+
 ## Scene 3: The IT van
 
 **Byte-Right's garage desk, on the radio to the IT van in the Halcyon Data Systems car park. 11:02 p.m.**
@@ -244,11 +268,47 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Okay. That's maths I actually remember from school."
 
+**[ ] `l1_huddle_or_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Either one will do'. Leaning back against the bench, book on your knee. Relaxed.*
+
+"'Either one will do.' OR. Finally, a word with no pressure on it."
+
+*1 second pause*
+
+*Holding up one hand, then the other. Decided.*
+
+"AND needs both to be true. OR takes either one. I'm an OR person."
+
+**[ ] `l1_huddle_count_1_block.wav`**
+
+*At the bench, you turn to the chapter 'How many?'. Tracing the brackets on the page with a finger. Reading slowly, getting the brackets right.*
+
+"'How many?' COUNT, star, in brackets. It doesn't show you the rows. It just counts them."
+
+*1 second pause*
+
+*Glancing round the garage at the crew, counting heads. Fond.*
+
+"One number back. Like counting heads before the van leaves."
+
 ## Scene 5: Book huddles: LIKE and GET
 
 **Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
 
 > Still at the garage bench before the job, reading ahead with the crew: the chapters on half a name, and on asking a server. Later, in the tower, one of them remembers what you said as each chapter turns up. To you it's all still a fun night of homework.
+
+**[ ] `l2_huddle_pressure_1_block.wav`**
+
+*At the bench, you flip ahead to the chapter 'Under pressure'. Holding up the almost empty page. Light. She thinks it's a joke.*
+
+"This page just says, 'Breathe.' So if it ever gets hairy in there, this is the one to read."
+
+*1 second pause*
+
+*Closing the book and looking round at the crew. Warm and steady, a coach before a big game.*
+
+"AND, ORDER BY, quotes round the words. You'll know all of it by then. Deep breath, then type."
 
 **[ ] `l2_huddle_like_1_block.wav`**
 
@@ -273,6 +333,30 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 *Closing the book with a shrug. Not convinced.*
 
 "So it's a SELECT for robots. Got it. Probably."
+
+**[ ] `l2_huddle_feeds_1_block.wav`**
+
+*At the bench, you turn to the chapter 'One answer feeds the next'. Raising an eyebrow at the chapter title. Dry.*
+
+"'One answer feeds the next.' So the answer isn't the answer. Most honest thing in this book."
+
+*1 second pause*
+
+*Tapping the page, then an imaginary second page. Liking it.*
+
+"Get the number, then put it in your next WHERE. A treasure hunt, with semicolons."
+
+**[ ] `l2_huddle_door_1_block.wav`**
+
+*At the bench, you turn to the chapter 'One door's record'. Following the line with a finger. Reading along, nodding.*
+
+"'One door's record.' Don't ask for the whole list. Put the one you want on the end of the path."
+
+*1 second pause*
+
+*Reading the example off the page. The book's own example, amused.*
+
+"GET slash jobs slash fourteen. Job fourteen, nothing else. Robots are very literal."
 
 ## Scene 6: Book huddles: UPDATE and INSERT
 
