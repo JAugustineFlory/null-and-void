@@ -1,0 +1,1 @@
+- **Added:** Maddison has something to say about seven more chapters of Easy SQL, from naming your columns to asking for one door's record.

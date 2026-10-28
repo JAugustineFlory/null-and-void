@@ -300,6 +300,16 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Leaning on the bench, the book open in front of you)* "Chapter two. 'Putting things in order.' Now that, I can get behind." *Reading off the page.* `[l0_huddle_order_1]`  
 *(Writing on the back of a receipt from your pocket)* "Smallest first. Always smallest first. Write that down. I'm writing it down." *Scribbling.* `[l0_huddle_order_2]`
 
+**MADDISON** `l0_huddle_columns_1_block.wav`  
+*Cue: At the bench, you turn to the chapter 'Just the columns you need'*  
+*(Pressing a hand to your heart over the open page)* "'Just the columns you need.' So no more star. The star was my favourite part." *Mock-wounded.* `[l0_huddle_columns_1]`  
+*(Counting the rules off on your fingers)* "Commas between the names, never after the last one. And dot schema when you can't remember what they're called. That one's for me." *Ticking them off.* `[l0_huddle_columns_2]`
+
+**MADDISON** `l0_huddle_desc_1_block.wav`  
+*Cue: At the bench, you turn to the chapter 'Newest first'*  
+*(Flipping the book upside down to show it, then back)* "'Newest first.' DESC flips it. Biggest on top, latest on top. Like my inbox, if anyone ever emailed me." *Brightly, then a little sorry for herself.* `[l0_huddle_desc_1]`  
+*(Snapping the book shut on one finger)* "And LIMIT at the very end, so you only get the top few. Newest three. Done." *Snappy and pleased.* `[l0_huddle_desc_2]`
+
 ### Remembering what Maddison said
 
 **Halcyon Tower, any floor. During the job.**
@@ -574,6 +584,16 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: At the bench, you reach the chapter 'More than, less than'. (In the game it only plays if the crew goes after the overheating rack.)*  
 *(Uncapping a marker and turning to the whiteboard behind you)* "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number." *Drawing one on the whiteboard, with teeth.* `[l1_huddle_compare_1]`  
 *(Capping the marker and stepping back from the board)* "Okay. That's maths I actually remember from school." *Relieved.* `[l1_huddle_compare_2]`
+
+**MADDISON** `l1_huddle_or_1_block.wav`  
+*Cue: At the bench, you turn to the chapter 'Either one will do'*  
+*(Leaning back against the bench, book on your knee)* "'Either one will do.' OR. Finally, a word with no pressure on it." *Relaxed.* `[l1_huddle_or_1]`  
+*(Holding up one hand, then the other)* "AND needs both to be true. OR takes either one. I'm an OR person." *Decided.* `[l1_huddle_or_2]`
+
+**MADDISON** `l1_huddle_count_1_block.wav`  
+*Cue: At the bench, you turn to the chapter 'How many?'*  
+*(Tracing the brackets on the page with a finger)* "'How many?' COUNT, star, in brackets. It doesn't show you the rows. It just counts them." *Reading slowly, getting the brackets right.* `[l1_huddle_count_1]`  
+*(Glancing round the garage at the crew, counting heads)* "One number back. Like counting heads before the van leaves." *Fond.* `[l1_huddle_count_2]`
 
 ### The database problem
 
@@ -925,6 +945,11 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 *Garage flashback huddles for the LIKE and GET chapters.*
 
+**MADDISON** `l2_huddle_pressure_1_block.wav`  
+*Cue: At the bench, you flip ahead to the chapter 'Under pressure'*  
+*(Holding up the almost empty page)* "This page just says, 'Breathe.' So if it ever gets hairy in there, this is the one to read." *Light. She thinks it's a joke.* `[l2_huddle_pressure_1]`  
+*(Closing the book and looking round at the crew)* "AND, ORDER BY, quotes round the words. You'll know all of it by then. Deep breath, then type." *Warm and steady, a coach before a big game.* `[l2_huddle_pressure_2]`
+
 **MADDISON** `l2_huddle_like_1_block.wav`  
 *Cue: At the bench, you turn to the chapter 'Half a name'*  
 *(Holding the book close to the work lamp)* "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'" *Squinting at the page.* `[l2_huddle_like_1]`  
@@ -934,6 +959,16 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: At the bench, you turn to the chapter 'Asking a server'*  
 *(Holding the book at arm's length, frowning at the chapter title)* "This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'" *Flipping the book over to check the cover.* `[l2_huddle_get_1]`  
 *(Closing the book with a shrug)* "So it's a SELECT for robots. Got it. Probably." *Not convinced.* `[l2_huddle_get_2]`
+
+**MADDISON** `l2_huddle_feeds_1_block.wav`  
+*Cue: At the bench, you turn to the chapter 'One answer feeds the next'*  
+*(Raising an eyebrow at the chapter title)* "'One answer feeds the next.' So the answer isn't the answer. Most honest thing in this book." *Dry.* `[l2_huddle_feeds_1]`  
+*(Tapping the page, then an imaginary second page)* "Get the number, then put it in your next WHERE. A treasure hunt, with semicolons." *Liking it.* `[l2_huddle_feeds_2]`
+
+**MADDISON** `l2_huddle_door_1_block.wav`  
+*Cue: At the bench, you turn to the chapter 'One door's record'*  
+*(Following the line with a finger)* "'One door's record.' Don't ask for the whole list. Put the one you want on the end of the path." *Reading along, nodding.* `[l2_huddle_door_1]`  
+*(Reading the example off the page)* "GET slash jobs slash fourteen. Job fourteen, nothing else. Robots are very literal." *The book's own example, amused.* `[l2_huddle_door_2]`
 
 ### Crew commentary: security floor
 
