@@ -1,6 +1,6 @@
 class_name CaseChip
 extends Control
-## The main case on screen (top right): its question, how many of its pieces are
+## The main case on screen (top right): what to do about it, how many of its pieces are
 ## in ("3/4"), a bar of one segment per piece, and what to do next. Finding a
 ## piece pops a card in the top left saying what it was. Only the main case
 ## counts (Game.main_case): side cases and other ways in stay off the screen.
@@ -158,7 +158,8 @@ func refresh() -> void:
 	var c: Dictionary = game.case_info(case_id)
 	var found: int = game.pieces_found(case_id)
 	var total: int = game.pieces_total(case_id)
-	title.text = c.title
+	# What to do about it, which is what the case page's top line says too.
+	title.text = str(c.get("objective", "")) if str(c.get("objective", "")) != "" else c.title
 	count.text = "%d/%d" % [found, total]
 	for s in bar.get_children():
 		bar.remove_child(s)

@@ -350,8 +350,32 @@ func test_teammate_steps() -> void:
 func test_fight_sounds() -> void:
 	for kind in ["swing", "body_fall"]:
 		check(Sfx.stream(kind) is AudioStreamWAV, "%s is made in code" % kind)
-	for kind in ["punch_hit", "punch_metal", "hurt", "block", "bag_hit", "guard"]:
-		check(Sfx.stream(kind) is AudioStreamRandomizer, "%s is recorded, with variants" % kind)
+	check(Sfx.stream("punch_metal") is AudioStreamRandomizer, "punch_metal is recorded, with variants")
+	# Augustine's playtest: the recorded punches were all low thud, too dull to read as
+	# a hit on a laptop's speakers, and the guard's belt-buckle rustle jingled like keys.
+	for kind in SfxPunches.KINDS:
+		var takes: AudioStreamRandomizer = Sfx.stream(kind)
+		check(takes.streams_count == SfxPunches.VARIANTS, "%s is made in code, in %d takes" % [kind, SfxPunches.VARIANTS])
+		var ok := true
+		for v in SfxPunches.VARIANTS:
+			var w := SfxPunches.make(kind, v)
+			ok = ok and _peak(w) > 0.5 and _clipped(w) < 0.001 and Sfx.KINDS.has(kind)
+		check(ok, "every take of %s is loud, unclipped and has a bus" % kind)
+	for kind in ["punch_hit", "hurt", "block", "bag_hit"]:
+		var bite := _bite(SfxPunches.make(kind))
+		check(bite > 0.02, "%s has bite above the low thud, so small speakers play it (%.3f)" % [kind, bite])
+	check(_bite(SfxPunches.make("guard")) < 0.5, "the guard going up is a soft swish, not a jingle")
+	check(SfxPunches.make("punch_hit").data != SfxPunches.make("punch_hit", 1).data, "the takes differ")
+	check(SfxPunches.make("punch_hit").data == SfxPunches.make("punch_hit").data, "and each is the same every run")
+	Sfx.clear_cache()
+	Sfx._warming = false
+	Sfx.warm_fight()
+	for i in 300:
+		if Sfx._streams.size() == SfxPunches.KINDS.size():
+			break
+		await t.process_frame
+	check(SfxPunches.KINDS.keys().all(func(k): return Sfx._streams.get(k) is AudioStreamRandomizer),
+		"a player's fight sounds are made in the background before the first punch")
 	var a := Node3D.new()
 	t.root.add_child(a)
 	var p := Player.new()
@@ -646,6 +670,20 @@ func test_volume_sliders() -> void:
 
 
 ## Looks at every `stride`th sample (a music layer is long).
+## How much of a sound is in its edges: sample-to-sample change against its level.
+## A low thud is near 0; something with a slap or a crack in it is well above.
+func _bite(w: AudioStreamWAV) -> float:
+	var level := 0.0
+	var change := 0.0
+	var last := 0.0
+	for i in w.data.size() / 2:
+		var v := w.data.decode_s16(i * 2) / 26000.0
+		level += v * v
+		change += (v - last) * (v - last)
+		last = v
+	return change / maxf(level, 0.0001)
+
+
 func _peak(w: AudioStreamWAV, stride := 1) -> float:
 	var peak := 0
 	for i in range(0, w.data.size(), 2 * stride):

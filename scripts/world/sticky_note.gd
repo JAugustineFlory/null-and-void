@@ -58,12 +58,14 @@ static func place(parent: Node, pos: Vector3, id: String, stuck_to_terminal: boo
 
 
 func get_prompt(player: Node) -> String:
+	_seen_shining(player)
 	if on_terminal and _is_local(player) and get_node("/root/Game").notebook_notes.has(note_id):
 		return ""
 	return super(player)
 
 
 func _on_used(player: Node) -> void:
+	shine(false)  # read, so it stops asking to be read
 	if on_terminal:
 		if _is_local(player):
 			_file(player)

@@ -72,13 +72,28 @@ const MEMO_PEEK_PIECES := [
 ]
 const MEMO_PEEK_QUERY := "SELECT * FROM {table};"
 const MEMO_PEEK_STEPS := [{"id": "peek", "text": "Run it at the front desk terminal"}]
-const MEMO_PIECES := [
+## The scraps come back out of order: that's the next case, with the sort and the
+## column of its own. The table is already in hand from the case before it.
+const ORDER_PIECES := [
 	MEMO_PEEK_PIECES[0],
 	{"id": "column", "label": "The column that numbers the scraps", "value": "piece_no", "task": "Find the column that numbers the scraps", "where": "Also something about the scanner", "blank": "enter_column_name"},
 	{"id": "order", "label": "The words that sort rows", "value": "ORDER BY", "task": "Find how to put rows in order", "where": "Someone's reminder, on the front desk"},
 ]
-const MEMO_QUERY := "SELECT * FROM {table} {order} {column};"
-const MEMO_STEPS := [{"id": "run", "text": "Run it at the front desk terminal"}]
+const ORDER_QUERY := "SELECT * FROM {table} {order} {column};"
+const ORDER_STEPS := [{"id": "run", "text": "Run it at the front desk terminal"}]
+## What to do about each case, in the imperative: the HUD and the top of the case
+## page show these same words (drafts for Augustine's word-for-word OK).
+const OBJ_MEMO := "Read what's left of Dr. Vale's memo on the front desk terminal"
+const OBJ_ORDER := "Put the memo's scraps back in the order they were written"
+const OBJ_CALLER := "Find out who called the office from ext. %d"
+const OBJ_VISITOR := "Find who signed in last, now the book's last page is gone"
+## The ground floor teaches the case board itself, so the first case says how it
+## works and the papers it needs shine until they've been read.
+const INTRO_CASE := "Your notebook keeps one case at a time. This is it: read it, find what it needs, then type the query at a terminal."
+const INTRO_HUNT := "The words you need are written down somewhere out here. Anything worth reading has a shine on it until you've read it."
+const INTRO_SHINE := "Press E to read it. What it tells you goes straight into your case."
+## This floor's queries are all typed at the front desk.
+const DESK_TERMINAL := "front desk terminal"
 const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's row and add it to your notebook"}]
 const CALLER_QUERY := "SELECT name, {column} FROM {table};"
 const CALLER_ROUTES := [{"id": "printout", "name": "The mailroom's printout"}]
@@ -130,6 +145,11 @@ var caller_listed := false
 ## SYSOP has said why a wrong directory row didn't fill the blank (once per run).
 var caller_miss_said := false
 signal caller_found
+## This floor's clue papers, as [the paper, the case whose word it carries]: the
+## ones for the case in hand shine until they're read (_shine_clue_papers).
+var _clue_papers: Array = []
+## INTRO_SHINE has been on screen.
+var _shine_told := false
 ## The staff directory printout in the mailroom: the walking route to the caller.
 var directory_printout: Document
 ## Host: Easy SQL chapters whose paper has been read: "found" waits for the puzzle
@@ -187,16 +207,19 @@ func build() -> void:
 		"Type .help for commands, .hint if you're stuck.",
 	]
 	peek_puzzle.case_id = "memo"
+	memo_puzzle.case_id = "memo_order"
 	desk_terminal.puzzles = [peek_puzzle, memo_puzzle, caller_puzzle, visitor_puzzle]
 	desk_terminal.blanks = {"table_name": "table_name is a blank. the real name is handwritten on the ScanRight card."}
 	desk_terminal.enabled = false
 	desk_terminal.queried.connect(_on_desk_query)
 	StickyNote.on_monitor(desk_terminal, "select_from")
 	# Someone's reminder to themselves, left on the desk.
-	StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true).taken.connect(
-		func(_p): get_node("/root/Game").collect_piece("memo", "order", "Sticky note on the front desk"))
-	Document.place(geo, Vector3(1.86, 1.102, -0.78), 0.0, "Sticky note", [{"text": "ORDER matters.", "hand": true}, {"text": "  - I.", "hand": true}], true, "sticky").clues = [
-		{"case": "memo", "text": "\"ORDER matters.\" - I."},
+	var order_sticky := StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true)
+	order_sticky.taken.connect(
+		func(_p): get_node("/root/Game").collect_piece("memo_order", "order", "Sticky note on the front desk"))
+	var order_note := Document.place(geo, Vector3(1.86, 1.102, -0.78), 0.0, "Sticky note", [{"text": "ORDER matters.", "hand": true}, {"text": "  - I.", "hand": true}], true, "sticky")
+	order_note.clues = [
+		{"case": "memo_order", "text": "\"ORDER matters.\" - I."},
 	]
 	# The scanner's quick-start card: the table name is handwritten in its blank.
 	var scan_card := Document.place(geo, Vector3(0.75, 1.102, -0.75), 10.0, "ScanRight 3000 - Quick Start", [
@@ -210,11 +233,18 @@ func build() -> void:
 		"",
 		{"text": "Front desk scanner. Don't feed it staples!! - IT", "hand": true},
 	], true, "brochure", Vector2(0.15, 0.21))
-	scan_card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo", "piece": "column"}]
+	scan_card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo_order", "piece": "column"}]
 	scan_card.clues = [
 		{"case": "memo", "text": "The scanner saves each scrap as one row in the table memo_fragments."},
-		{"case": "memo", "text": "piece_no numbers each scrap by where it sat on the page, starting at 1."},
+		{"case": "memo_order", "text": "piece_no numbers each scrap by where it sat on the page, starting at 1."},
 	]
+	# This floor is also the game's lesson in reading the room: whatever carries a
+	# word the case in hand needs shines until this player has read it.
+	_clue_papers = [[scan_card, "memo"], [scan_card, "memo_order"], [order_sticky, "memo_order"], [order_note, "memo_order"]]
+	game.notebook_changed.connect(_shine_clue_papers)
+	for pair in _clue_papers:
+		if not pair[0].shine_seen.is_connected(_on_shine_seen):
+			pair[0].shine_seen.connect(_on_shine_seen)
 	# Everyone signs the log, and everyone takes a badge off the counter.
 	_mesh(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), Color(0.92, 0.9, 0.82)).name = "VisitorLog"
 	visitor_log = ItemDock.make(geo, Vector3(-1.5, 1.13, -0.8), Vector3(0.35, 0.05, 0.26), "Sign the visitor log")
@@ -589,10 +619,26 @@ func _hold_camera(p: Player) -> void:
 		_look_base = _view(p)
 
 
+## Sat in the van seat, strapped in: the crew rides in with the view and the body
+## of someone sitting down, and Space and Z don't get them out of it (Player.sit_held).
+## It takes a physics frame for the body to be standing on the van floor at all.
+func _belt_in() -> void:
+	for i in 60:
+		await get_tree().physics_frame
+		if not is_instance_valid(player) or not player.seated or player.is_sitting():
+			return  # already down, or out of the van before they ever sat
+		if player.sit():
+			player.sit_held = true
+			return
+
+
 func _release_camera(p: Node) -> void:
 	p.process_mode = Node.PROCESS_MODE_INHERIT
 	p.input_locked = false
 	p.seated = false  # out of the van
+	p.sit_held = false  # the belt's off: on their feet on the tarmac
+	if p.is_sitting():
+		p.stand_up(true)
 	if p == _look_player:
 		_look_player = null
 		_look_offset = Vector2.ZERO
@@ -653,6 +699,7 @@ func start() -> void:
 	player.flashlight.visible = false  # the lights are on; nobody needs a torch yet
 	player.seated = true  # belted in until they unbuckle
 	hud.notice("Look down at your seat belt and press E to unbuckle when you're ready", 600.0)
+	_belt_in()
 	_dispatch_chatter()
 	if not _intro_started:
 		await all_ready
@@ -707,9 +754,31 @@ func start() -> void:
 	walkies.enabled = true
 	walkies.stock(players.count())
 	hud.lines(["l0_tour_1", "l0_tour_2", "l0_desk_1", "l0_desk_2"])
-	hud.todo("Read Dr. Vale's shredded memo (front desk terminal)")
-	get_node("/root/Game").open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
-	get_node("/root/Game").set_pieces("memo", MEMO_PEEK_PIECES, MEMO_PEEK_QUERY, MEMO_PEEK_STEPS)
+	hud.todo(OBJ_MEMO)
+	var game := get_node("/root/Game")
+	game.open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], OBJ_MEMO)
+	game.set_pieces("memo", MEMO_PEEK_PIECES, MEMO_PEEK_QUERY, MEMO_PEEK_STEPS)
+	# The crew's first case, so the page says how a case works and the room says
+	# which things are worth reading.
+	game.set_case_note("memo", INTRO_CASE, INTRO_HUNT, DESK_TERMINAL)
+	_shine_clue_papers()
+
+
+## Whatever carries a word the case in hand still needs: it shines until this
+## player reads it (Interactable.shine), which is how the ground floor teaches that
+## the answers are lying around the room. Papers already read stay as they are.
+func _shine_clue_papers() -> void:
+	var on: String = get_node("/root/Game").current_case()
+	for pair in _clue_papers:
+		if pair[1] == on and is_instance_valid(pair[0]):
+			pair[0].shine()
+
+
+## The first shining paper this player looks at: what the shine is for, on screen.
+func _on_shine_seen(_player: Node) -> void:
+	if not _shine_told:
+		_shine_told = true
+		hud.notice(INTRO_SHINE, 8.0)
 
 
 ## Host: everyone has signed the log and taken a badge.
@@ -936,10 +1005,7 @@ func _on_memo_backwards() -> void:
 
 
 func _on_peek_solved() -> void:
-	peek_puzzle.solved = true
-	# Out of order: now the memo needs sorting, by the column that numbers them.
-	get_node("/root/Game").set_pieces("memo", MEMO_PIECES, MEMO_QUERY, MEMO_STEPS)
-	get_node("/root/Game").collect_piece("memo", "order", "Easy SQL")  # the chapter the crew is about to read
+	_file_memo_case()
 	# The scraps came out of order: the book's ORDER BY chapter, round the garage bench.
 	await _book_huddle("easy_sql_2")
 	if memo_puzzle.solved:
@@ -947,12 +1013,30 @@ func _on_peek_solved() -> void:
 	desk_terminal.print_line("")
 	desk_terminal.print_line(TerminalUI.sysop("the scraps are out of order. one of the columns numbers them."))
 	desk_terminal.print_line(TerminalUI.sysop("add ORDER BY to the end of your query, then that column's name."))
-	hud.todo("Put the memo back in order")
+	hud.todo(OBJ_ORDER)
+
+
+## The memo is up on the screen, so the first case is answered: file it, and the
+## scraps being in the scanner's order makes putting them straight the next case.
+## Once only, whether the crew peeked first or went straight to the sorted query.
+func _file_memo_case() -> void:
+	if peek_puzzle.solved:
+		return
+	peek_puzzle.solved = true
+	var game := get_node("/root/Game")
+	game.tick_step("memo", "peek")
+	game.solve_case("memo", "memo_fragments holds the shredded memo: one scrap to a row.")
+	game.collect_piece("memo_order", "table", "your first query")  # already in hand
+	game.open_case("memo_order", "Which scrap comes first?", ["memo_fragments"], OBJ_ORDER)
+	game.set_pieces("memo_order", ORDER_PIECES, ORDER_QUERY, ORDER_STEPS)
+	game.set_case_note("memo_order", "", "", DESK_TERMINAL)
+	game.collect_piece("memo_order", "order", "Easy SQL")  # the chapter the crew is about to read
+	_shine_clue_papers()
 
 
 func _on_memo_solved() -> void:
 	memo_puzzle.solved = true
-	peek_puzzle.solved = true
+	_file_memo_case()  # sorted in one go, without the peek: both cases are answered
 	# The sorted result on screen is the memo: nothing more to print.
 	_after_memo()
 
@@ -964,8 +1048,8 @@ func _after_memo() -> void:
 		var from_it: bool = rourke.global_position.x > 8.0
 		_rourke_back_to_desk(TO_IT_CLOSET if from_it else TO_CAFETERIA)
 	# Written on the job ticket: what the crew touched, for later levels to read back.
-	get_node("/root/Game").ticket_fill("Put the memo back in order", "rebuilt from memo_fragments. Copy to the director, says Rourke")
-	get_node("/root/Game").solve_case("memo", "the scraps sorted by piece_no read as the memo.")
+	get_node("/root/Game").ticket_fill(OBJ_ORDER, "rebuilt from memo_fragments. Copy to the director, says Rourke")
+	get_node("/root/Game").solve_case("memo_order", "the scraps sorted by piece_no read as the memo.")
 	# Sorted without the peek first: ORDER BY's chapter still comes before Rourke
 	# moves on, and Newest first too if its paper was read on the way.
 	await _book_huddle("easy_sql_2")
@@ -1050,9 +1134,9 @@ static func caller_pieces(ext: int) -> Array:
 ## staff directory (or the mailroom's printout of it) has the name.
 func _ask_caller() -> void:
 	caller_asked = true
-	hud.todo("Find out who called from ext. %d" % data.extension)
+	hud.todo(OBJ_CALLER % data.extension)
 	var game := get_node("/root/Game")
-	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"])
+	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"], OBJ_CALLER % data.extension)
 	game.set_pieces("caller", caller_pieces(data.extension), CALLER_QUERY, CALLER_STEPS)
 	game.set_routes("caller", CALLER_ROUTES)
 	game.collect_piece("caller", "ext", "the work order")
@@ -1188,7 +1272,7 @@ func _huddles_over() -> void:
 ## Optional: the visitor log, newest first. Vale signed in tonight and never left.
 func _on_last_visitor() -> void:
 	visitor_puzzle.solved = true
-	get_node("/root/Game").open_case("last_visitor", BOOK_CASE, ["visitors"])
+	get_node("/root/Game").open_case("last_visitor", BOOK_CASE, ["visitors"], OBJ_VISITOR)
 	get_node("/root/Game").solve_case("last_visitor", "VALE, I. signed in at %s tonight and never signed out." % str(data.vale_in).right(5))
 	get_node("/root/Game").write_note("Last visitor", "VALE, I. signed in %s tonight. Never signed out." % str(data.vale_in).right(5), "result")
 	hud.notice("Added to your notebook (Tab)", 3.0)

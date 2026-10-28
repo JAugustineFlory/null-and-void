@@ -96,9 +96,12 @@ func _group_core() -> void:
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
+	test_voice_split()
 	await test_commentary()
 	await test_pause_holds_subtitles()
 	await test_screens_fill_window()
+	await test_pause_menu()
+	await test_level_select()
 	test_wing_seeds_in_order()
 	test_reset_keeps_earlier_wings()
 	await test_world()
@@ -126,6 +129,7 @@ func _group_floor_g() -> void:
 	await test_ground_floor()
 	await test_rourke_leads_in()
 	await test_caller_answer()
+	await test_clue_papers_shine()
 
 
 ## Floor 14, the server floor (Level 1).
@@ -583,6 +587,29 @@ func test_voice_script() -> void:
 	check(speakers_ok, "every line's speaker has a character entry")
 	var no_note := VoiceLines.LINES.keys().filter(func(id): return VoiceLines.LINES[id]["note"] == "")
 	check(no_note.is_empty(), "every line has an acting note %s" % [no_note])
+	# A line that runs straight on from the one before is cued by it.
+	var unstaged := VoiceLines.LINES.keys().filter(func(id): return (VoiceLines.LINES[id].get("cue", "") == "") != VoiceLines.LINES[id].get("with_previous", false) or VoiceLines.LINES[id].get("action", "") == "")
+	check(unstaged.is_empty(), "every line says what makes it play and what the speaker is doing %s" % [unstaged])
+	var blocks: Array[Dictionary] = []
+	for sc in VoiceLines.SCENES:
+		blocks.append_array(VoiceLines.blocks(sc["id"]))
+	var unjoined := []
+	var block_ids := {}
+	for b in blocks:
+		for i in b["lines"].size():
+			if VoiceLines.LINES[b["lines"][i]].get("with_previous", false) != (i > 0):
+				unjoined.append(b["lines"][i])
+		if block_ids.has(b["id"]):
+			unjoined.append(b["id"])
+		block_ids[b["id"]] = true
+	check(unjoined.is_empty(), "a speech is one recording: each line that runs on joins its speaker's line before it %s" % [unjoined])
+	var l0_tour := VoiceLines.blocks("l0_tour").map(func(b): return b["lines"])
+	check(l0_tour.any(func(ls): return ls.has("l0_tour_1") and ls.has("l0_tour_2")), "the tour opens with one speech, not two recordings")
+	var unset := VoiceLines.SCENES.filter(func(sc): return sc.get("setting", "") == "" or sc.get("setup", "") == "").map(func(sc): return sc["id"])
+	check(unset.is_empty(), "every scene says where and when it is, and what's going on %s" % [unset])
+	var thin := VoiceLines.CHARACTERS.keys().filter(func(sp): return VoiceLines.CHARACTERS[sp].get("background", "") == "" or VoiceLines.CHARACTERS[sp].get("tonight", "") == "")
+	thin.append_array(VoiceLines.CREW.keys().filter(func(slug): return VoiceLines.CREW[slug].get("background", "") == "" or VoiceLines.CREW[slug].get("with_crew", "") == ""))
+	check(thin.is_empty(), "every character has a background and a night for the actor %s" % [thin])
 	check(scenes_ok, "every line belongs to a scene")
 
 	var used := {}
@@ -624,10 +651,10 @@ func test_voice_script() -> void:
 	check(in_sync, "docs/script/ matches voice_lines.gd (run tools/write_script_docs.gd)")
 	var listed := true
 	var recording_list := ScriptDocs.recording_list_markdown()
-	for id in VoiceLines.LINES:
-		if not recording_list.contains("`%s`" % id):
+	for b in blocks:
+		if not recording_list.contains("`%s`" % b["id"]):
 			listed = false
-	check(listed, "every line is on the recording list")
+	check(listed, "every recording is on the recording list")
 
 	var docs := ScriptDocs.character_docs()
 	var on_disk := {}
@@ -641,18 +668,21 @@ func test_voice_script() -> void:
 	check(chars_in_sync, "docs/script/characters/ matches voice_lines.gd (run tools/write_script_docs.gd)")
 	var placed_once := []
 	var wrong_file := []
-	for id in VoiceLines.LINES:
+	for b in blocks:
 		var hits := 0
-		var slug: String = VoiceLines.CHARACTERS[VoiceLines.LINES[id]["speaker"]]["slug"]
+		var slug: String = VoiceLines.CHARACTERS[b["speaker"]]["slug"]
 		for path in docs:
-			if docs[path].contains("`%s.wav`" % id):
+			if docs[path].contains("`%s.wav`" % b["id"]):
 				hits += 1
 				if not path.get_file().begins_with(slug):
+					wrong_file.append(b["id"])
+			for id in b["lines"]:
+				if docs[path].contains("\"%s\"" % VoiceLines.LINES[id]["text"]) and not path.get_file().begins_with(slug) and not docs[path].contains(": \"%s\"" % VoiceLines.LINES[id]["text"]):
 					wrong_file.append(id)
 		# The shared crew lines are in every playable crew member's script.
-		if hits != (VoiceLines.CREW.size() if VoiceLines.LINES[id]["speaker"] == "CREW" else 1):
-			placed_once.append(id)
-	check(placed_once.is_empty(), "every line is in exactly one character's script %s" % [placed_once])
+		if hits != (VoiceLines.CREW.size() if b["speaker"] == "CREW" else 1):
+			placed_once.append(b["id"])
+	check(placed_once.is_empty(), "every recording is in exactly one character's script %s" % [placed_once])
 	var bodies := {}
 	var missing_barks := []
 	var named := []
@@ -813,6 +843,59 @@ func test_commentary() -> void:
 	hud.queue_free()
 
 
+## A 16-bit mono WAV of tone bursts and silences, as [seconds, loud] pairs.
+func _speech_wav(path: String, parts: Array) -> void:
+	var rate := 8000
+	var data := PackedByteArray()
+	for p in parts:
+		var at := data.size()
+		var n := int(p[0] * rate)
+		data.resize(at + n * 2)
+		for i in n:
+			data.encode_s16(at + i * 2, int(sin(TAU * 220.0 * i / rate) * 12000.0) if p[1] else 0)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = rate
+	wav.data = data
+	wav.save_to_wav(path)
+
+
+func _wav_seconds(path: String) -> float:
+	var bytes := FileAccess.get_file_as_bytes(path)
+	return 0.0 if bytes.size() < 44 else (bytes.size() - 44) / 2.0 / 8000.0
+
+
+func test_voice_split() -> void:
+	print("Voice block splitting")
+	var dir := "user://voice_split_test"
+	DirAccess.make_dir_recursive_absolute(dir)
+	var take := dir.path_join("take.wav")
+	# Two lines, the first with a short gap between its words, a long pause between them.
+	_speech_wav(take, [[0.3, false], [0.5, true], [0.15, false], [0.4, true], [1.0, false], [0.6, true], [0.3, false]])
+	var outs := [dir.path_join("a.wav"), dir.path_join("b.wav")]
+	var err := VoiceSplit.split_file(take, outs)
+	var a := _wav_seconds(outs[0])
+	var b := _wav_seconds(outs[1])
+	check(err == "" and absf(a - 1.85) < 0.05 and absf(b - 1.4) < 0.05, "a take is cut at its long pause, not between words (%s %.2f s, %.2f s)" % [err, a, b])
+	check(VoiceSplit.split_file(take, [outs[0], outs[1], dir.path_join("c.wav"), dir.path_join("d.wav")]) != "", "a take with too few pauses for its lines isn't cut")
+	# The tool finds an actor's block recording by its file name and cuts it into the lines.
+	var block: Dictionary = VoiceLines.blocks("l0_tour").filter(func(bl): return bl["lines"].has("l0_tour_1"))[0]
+	DirAccess.make_dir_recursive_absolute(dir.path_join("rourke"))
+	var parts := [[0.3, false]]
+	for i in block["lines"].size():
+		parts.append_array([[0.6, true], [1.0, false]])
+	_speech_wav(dir.path_join("rourke").path_join(block["id"] + ".wav"), parts)
+	var log := VoiceSplit.split_all(dir)
+	var cut: bool = block["lines"].all(func(id): return FileAccess.file_exists(dir.path_join("rourke").path_join(id + ".wav")))
+	check(log.size() == 1 and cut, "the split tool cuts a block recording into one file per line %s" % [log])
+	check(not FileAccess.file_exists(dir.path_join("rourke").path_join(block["id"] + ".wav")) and FileAccess.file_exists(dir + "_takes/rourke/%s.wav" % block["id"]) and FileAccess.file_exists(dir + "_takes/.gdignore"), "the whole take is kept out of the game once it's cut")
+	DirAccess.remove_absolute(dir + "_takes/.gdignore")
+	for d in [dir.path_join("rourke"), dir + "_takes/rourke", dir + "_takes", dir]:
+		for f in DirAccess.get_files_at(d):
+			DirAccess.remove_absolute(d.path_join(f))
+		DirAccess.remove_absolute(d)
+
+
 func test_voice_playback() -> void:
 	print("Voice playback")
 	var real_folder := Voice.folder
@@ -905,9 +988,122 @@ func test_screens_fill_window() -> void:
 		check(inside, "%s buttons are fully on screen" % path.get_file())
 		if path.ends_with("lobby.tscn"):
 			var tag: Label = screen.find_child("Version", true, false)
-			check(tag != null and tag.text == "v0.7" and tag.is_visible_in_tree() and Rect2(Vector2.ZERO, win).encloses(tag.get_global_rect()), "the lobby shows the game's version, v0.7, on screen")
+			var want := "v%s" % ProjectSettings.get_setting("application/config/version", "")
+			check(tag != null and want.length() > 1 and tag.text == want and tag.is_visible_in_tree() and Rect2(Vector2.ZERO, win).encloses(tag.get_global_rect()), "the lobby shows the game's version (%s) on screen" % want)
 		screen.queue_free()
 		await process_frame
+
+
+## The ground floor's lesson in reading the room: whatever carries a word the case
+## in hand needs shines until this player has read it.
+func test_clue_papers_shine() -> void:
+	print("Floor G: clues shine until they're read")
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	_lower_chapters_read([level])
+	for i in 20:
+		await physics_frame
+	var card := _doc(level, "ScanRight")
+	var order_note: Node = level.find_children("*", "Document", true, false).filter(func(d): return d.plain_text().contains("ORDER matters."))[0]
+	check(level._clue_papers.any(func(pair): return pair[0] == card and pair[1] == "memo"), "the scanner card is registered as the first case's clue")
+	check(not card.shining(), "nothing shines before there's a case")
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], level.OBJ_MEMO)
+	level._shine_clue_papers()
+	check(card.shining() and card.find_child("Shine", true, false) is MeshInstance3D, "with the case open, the paper it needs shines")
+	check(not order_note.shining(), "a paper for a later case stays as it is")
+	order_note.get_prompt(level.player)
+	check(not level._shine_told, "looking at a paper that isn't shining says nothing")
+	card.get_prompt(level.player)
+	check(level._shine_told, "the first shining paper looked at puts the line about pressing E to read it on screen")
+	card._on_used(level.player)
+	await process_frame
+	check(not card.shining() and card.find_child("Shine", true, false) == null, "reading it takes the shine away")
+	level._shine_clue_papers()
+	check(not card.shining(), "and it never comes back")
+	level.queue_free()
+	await process_frame
+
+
+## The pause menu: five buttons and nothing else on its first page, so the way out
+## can't end up below the bottom of a short window, with audio and controls behind
+## their own buttons.
+func test_pause_menu() -> void:
+	print("Pause menu")
+	var level = load("res://scenes/movement_gym.tscn").instantiate()
+	root.add_child(level)
+	await process_frame
+	await process_frame
+	var main: VBoxContainer = level._pause_pages["main"]
+	var names := []
+	for b in main.get_children():
+		names.append((b as Button).text)
+	check(names == ["Resume", "Restart", "Audio", "Controls", "Exit"], "the pause menu is resume, restart, audio, controls, exit (%s)" % [names])
+	check(main.get_combined_minimum_size().y < 400.0 and level._pause.find_children("*", "ScrollContainer", true, false).size() == 1,
+		"its first page is short enough for a small window, and scrolls if it isn't (%s px)" % main.get_combined_minimum_size().y)
+	level._toggle_pause()
+	await process_frame
+	await process_frame
+	var win := root.get_visible_rect().size
+	var inside := true
+	for b in level._pause.find_children("*", "Button", true, false):
+		if b.is_visible_in_tree() and not Rect2(Vector2.ZERO, win).encloses(b.get_global_rect()):
+			inside = false
+	check(inside, "every button on it is fully on screen")
+	var pages: Control = level._pause.find_child("Pages", true, false)
+	check(absf(pages.get_global_rect().get_center().x - win.x / 2.0) < 2.0, "it sits in the middle of the window, not against the left edge (%s)" % pages.get_global_rect())
+	check(level._pause_at == "main" and not level._pause_pages["audio"].visible, "it opens on that first page")
+	level._show_pause_page("audio")
+	await process_frame
+	var faders: Node = level._pause_pages["audio"].find_child("Volume", true, false)
+	check(faders != null and faders.is_visible_in_tree() and level._pause_pages["audio"].find_child("Back", true, false) != null,
+		"Audio opens the volume sliders, with a way back")
+	level._show_pause_page("controls")
+	await process_frame
+	var keys: Label = level._pause_pages["controls"].find_child("ControlSettings", true, false).get_child(2)
+	check(keys.text == SettingsPanel.CONTROLS and not level._pause_pages["audio"].visible, "Controls opens the key list instead")
+	level._show_pause_page("main")
+	level._toggle_pause()
+	paused = false
+	level.queue_free()
+	await process_frame
+
+
+## The Levels screen: floors the crew has reached, and a way into the rest while the
+## game is still in development.
+func test_level_select() -> void:
+	print("Levels screen")
+	check(LevelSelect.reached([]) == 1, "a new player can only start on the ground floor")
+	check(LevelSelect.reached(["achievement:floor_g"]) == 2, "finishing the ground floor opens floor 14")
+	check(LevelSelect.reached(["achievement:floor_g", "achievement:floor_14", "achievement:floor_22"]) == 4, "and so on up the building")
+	check(LevelSelect.testing() and ProjectSettings.get_setting("game/levels_any_floor") == true, "in a playtest build, the levels_any_floor setting lets playtesters open any floor")
+	ProjectSettings.set_setting("game/levels_any_floor", false)
+	check(not LevelSelect.testing(), "with the setting off, only reached floors open")
+	ProjectSettings.set_setting("game/levels_any_floor", true)
+	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
+	root.add_child(menu)
+	await process_frame
+	check(menu.find_child("Settings", true, false) is Button, "the title screen has a Settings button")
+	var mid := root.get_visible_rect().size.x / 2.0
+	var column: Control = menu.find_child("Menu", true, false)
+	check(absf(column.get_global_rect().get_center().x - mid) < 2.0, "the title screen's buttons sit in the middle of the window, not against the left edge (%s)" % column.get_global_rect())
+	var panel: MenuModal = LevelSelect.open(menu)
+	await process_frame
+	await process_frame
+	check(absf(panel.box.get_global_rect().get_center().x - mid) < 2.0, "and so does the Levels list (%s)" % panel.box.get_global_rect())
+	var rows := panel.box.find_children("*", "Button", true, false)
+	check(rows.size() == LevelSelect.FLOORS.size() + 2, "it lists every floor, the movement gym and a way back (%d rows)" % rows.size())
+	check(rows[0].text == "Ground floor" and rows[1].text.ends_with("(not reached yet)") and not rows[1].disabled,
+		"the floors nobody has reached say so, and still open in a development build")
+	# The garage's nav bar opens the same screen and takes the floor picked (lobby.gd).
+	var picked := []
+	var handed: MenuModal = LevelSelect.open(menu, func(key): picked.append(key))
+	handed.box.find_children("*", "Button", true, false)[0].pressed.emit()
+	check(picked == ["level_0"], "opened with somewhere to send it, it hands over the floor instead of starting there")
+	menu.find_child("Settings", true, false).pressed.emit()
+	await process_frame
+	check(menu.find_child("Volume", true, false) != null and menu.find_child("InWorldUI", true, false) != null, "and Settings has the same audio and controls pages as the pause menu")
+	menu.queue_free()
+	await process_frame
 
 
 func test_level_0_scene() -> void:
@@ -919,8 +1115,10 @@ func test_level_0_scene() -> void:
 		await physics_frame
 	check(level.player != null and level.player.is_inside_tree(), "level 0 loads with a player")
 	var version: Label = level._pause.find_child("Version", true, false)
-	check(ProjectSettings.get_setting("application/config/version") == "0.7" and version != null and version.text == "v0.7", "the pause menu shows the game's version, v0.7")
+	var want_version := "v%s" % ProjectSettings.get_setting("application/config/version", "")
+	check(want_version.length() > 1 and version != null and version.text == want_version, "the pause menu shows the game's version (%s)" % want_version)
 	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
+	check(level.player.is_sitting() and level.player.sit_held, "sitting in their seat, belted in: Space and Z don't stand them up")
 	var lobby_floor: Node3D = level.geo.get_node("Floor")
 	check(lobby_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(lobby_floor) == "carpet", "the lobby is carpet underfoot")
 	var flickering := 0
@@ -952,7 +1150,9 @@ func test_level_0_scene() -> void:
 	level.van_seats[4].buckle.interact(mate)
 	check(level._intro_started and level.ready_players[mate] == 4, "the second player's buckle starts the intro")
 	await create_timer(0.55).timeout
-	check(level.player.rotation.y < -1.0 and level.player.head.rotation.x < -0.2, "climbing out, the camera looks down at the door handle (yaw %.2f, pitch %.2f)" % [level.player.rotation.y, level.player.head.rotation.x])
+	# Sitting in the seat, the handle is about level with your eyes, not below them.
+	check(level.player.rotation.y < -1.0 and level.player.head.rotation.x < 0.2 and level.player.head.rotation.x > -0.6,
+		"climbing out, the camera turns to the door handle beside them (yaw %.2f, pitch %.2f)" % [level.player.rotation.y, level.player.head.rotation.x])
 	var look := InputEventMouseMotion.new()
 	look.relative = Vector2(-5000, 0)
 	var held_yaw: float = level.player.rotation.y
@@ -963,7 +1163,7 @@ func test_level_0_scene() -> void:
 	await create_timer(2.95).timeout
 	var pos: Vector3 = level.player.global_position
 	check(pos.x > 3.5 and pos.y < 0.3 and not level.player.input_locked, "readying up climbs the player out of the van (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
-	check(not level.player.seated, "out of the van, the player can walk again")
+	check(not level.player.seated and not level.player.sit_held and not level.player.is_sitting(), "out of the van, the player is on their feet and can walk again")
 	var mpos: Vector3 = mate.global_position
 	check(mpos.x > 3.5 and mpos.y < 0.3 and not mate.input_locked, "a rear-bench player climbs out of the side door (%.1f, %.1f, %.1f)" % [mpos.x, mpos.y, mpos.z])
 	mate.queue_free()
@@ -1315,6 +1515,10 @@ func test_level_1_scene() -> void:
 	check(not level.controller_puzzle.solved and level.doors["SRA-EXIT"].is_open == false, "the racks do nothing before Rourke asks")
 	level._on_asked()
 	check(not level.terminal.locked and _game().current_todo() != "", "once Rourke asks, the terminal opens and the job goes on the to-do list")
+	check(_game().current_case() == "controller" and _game().case_objective("controller") == level.OBJ_CONTROLLER,
+		"the controller is the case in hand, and its page says what to do in the same words as the to-do list")
+	_game().open_case("dark_room", level.DARK_CASE, ["lights"])
+	check(_game().current_case() == "controller" and _game().side_cases().any(func(c): return c.id == "dark_room"), "the dark break room is a side case: it doesn't take the controller's page")
 	level._on_panel(null, level.answer)
 	check(not level.controller_puzzle.solved and level.doors["SRA-EXIT"].is_open == false and level.panels_locked_until == 0.0 and level.hud._notice.text.contains("NO POWER"), "pressing racks can't stand in for the query: no power until the terminal finds the controller")
 	check(not level.rourke.is_in_group(VoiceChat.INTERFERENCE_GROUP) and Rourke.State.keys()[level.rourke.state] != "CHASE", "no fight on the server floor")
@@ -1965,7 +2169,8 @@ func test_coop_notes_huddle() -> void:
 	var names: Array = []
 	for item in cases:
 		names.append_array(([item] + item.find_children("*", "Button", true, false)).filter(func(n): return n is Button).map(func(b): return b.name))
-	check(names.has("ShareAll") and names.has("LeaveHuddle") and names.has("ShareCase") and names.count("Share") >= 3, "in a huddle, the case pages offer + share on each line, Share case notes and Share all cases")
+	check(names.has("ShareAll") and names.has("LeaveHuddle") and names.has("ShareCase") and names.count("Share") >= 1,
+		"in a huddle, the case on the page offers + share on each line, Share case notes and Share all cases")
 	check(NotebookPages.text_of(cases).contains("Notes huddle with Player %d, Player %d" % [h_id, c2_id]), "and say who's in it")
 	for item in cases:
 		item.free()
@@ -2305,7 +2510,7 @@ func test_front_end() -> void:
 	root.add_child(menu)
 	await process_frame
 	var labels: Array = menu.find_children("*", "Button", true, false).map(func(b): return b.text)
-	check(labels == ["Start", "Quit"], "the title screen is just Start and Quit (%s)" % ", ".join(labels))
+	check(labels == ["Start", "Settings", "Quit"], "the title screen is just Start, Settings and Quit (%s)" % ", ".join(labels))
 	menu.queue_free()
 	await process_frame
 
@@ -3953,7 +4158,7 @@ func _check_l0_documents(level: Node) -> void:
 	check(_doc_has(level, "memo_fragments") and _doc_has(level, "piece_no"), "the scanner card names the scraps table and the column that numbers them")
 	check(not level.desk_terminal.boot_lines.any(func(l): return l.contains("memo_fragments")), "the terminal no longer names the table: it's on the card")
 	var todo: Array = _game().notebook_todo.map(func(t): return t.text)
-	check(todo.has("Put the memo back in order") and todo.find("Put the memo back in order") > todo.find("Read Dr. Vale's shredded memo (front desk terminal)") \
+	check(todo.has(level.OBJ_ORDER) and todo.find(level.OBJ_ORDER) > todo.find(level.OBJ_MEMO) \
 		and _game().notebook_todo.filter(func(t): return t.text.contains("memo")).all(func(t): return t.done), "the to-do list adds sorting the memo after reading it, and ticks both off (%s)" % [todo])
 	check(_game().ticket().tasks.any(func(t): return t.filled.contains("memo_fragments")), "the job ticket records which table the crew rebuilt the memo from")
 	check(Array(level.desk_terminal.transcript).all(func(l): return not TerminalUI._plain(l).strip_edges().begins_with("WARDEN:")), "no tips from WARDEN on the front desk terminal")
@@ -4357,24 +4562,25 @@ func test_case_pages() -> void:
 	check(text.contains("memo_fragments") and text.contains("piece_no"), "once found, the case's table is on its page")
 	g.open_case("caller", "Who called?")
 	g.solve_case("memo", "sorted by piece_no.")
+	pages.showing = true
 	var items := pages._case_items(g)
 	text = NotebookPages.text_of(items)
-	check(text.find("[x]  What does the memo say?") < text.find("Who called?") and text.contains("Solved: sorted by piece_no."), "a case just solved comes first, ticked with how, the once")
+	check(text.contains("[x]  What does the memo say?") and text.contains("Solved: sorted by piece_no.") and text.contains(NotebookPages.FILED) and not text.contains("Who called?"),
+		"a case just solved keeps the page once, ticked with how and filed")
 	for i in items:
 		i.free()
-	pages.showing = true
 	for i in pages._case_items(g):
 		i.free()
 	pages.file_solved()
 	items = pages._case_items(g)
 	text = NotebookPages.text_of(items)
-	check(not text.contains("What does the memo say?") and items.any(func(i): return i is Button and i.text == NotebookPages.COMPLETED % 1) and text.contains("Who called?"), "once seen, it's filed under Completed cases")
+	check(not text.contains("What does the memo say?") and items.any(func(i): return i is Button and i.text == NotebookPages.COMPLETED % 1) and text.contains("Who called?"), "once seen, it's filed in the archive and the next case has the page to itself")
 	for i in items:
 		i.free()
 	pages.showing_completed = true
 	items = pages._case_items(g)
 	text = NotebookPages.text_of(items)
-	check(items.any(func(i): return i is Button and i.text == "[x]  What does the memo say?") and text.contains("sorted by piece_no.") and not text.contains("Who called?"), "Completed cases lists it with how it was solved")
+	check(items.any(func(i): return i is Button and i.text == "[x]  What does the memo say?") and text.contains("sorted by piece_no.") and not text.contains("Who called?"), "the archive lists it with how it was solved")
 	for i in items:
 		i.free()
 	pages.free()
@@ -4647,7 +4853,15 @@ func test_notebook() -> void:
 		nb.pages._show_spread(nb.pages._spread + 1)
 	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
 	var written_text := nb.pages.section_text(NotebookPages.Page.CASES)
+	check(written_text.contains("memo scraps") and written_text.contains("piece_no"), "a line copied while a case is open goes on that case's page, under the player's label")
+	# With nothing open, copied lines are under Other notes instead.
+	var cases_kept: Array = _game().notebook_cases.duplicate(true)
+	_game().notebook_cases.clear()
+	for w in _game().notebook_written:
+		w.case = ""
+	written_text = nb.pages.section_text(NotebookPages.Page.CASES)
 	check(written_text.contains("Other notes") and written_text.contains("memo scraps") and written_text.contains("piece_no") and not written_text.contains("Sticky notes"), "lines copied with no case open go under Other notes on the Cases page, with their labels")
+	_game().notebook_cases.assign(cases_kept)
 	# A long case title wraps on its own page: nothing pushes the pages out over the spine.
 	_game().open_case("long_title", "Who signed in last? The book's last page is gone, and nobody owns up to it.")
 	_game().add_clue("long_title", "Rourke: the front desk scanner \"ate\" one of Vale's memos. The scanner's card might say where it went.", "Rourke")
@@ -4668,6 +4882,12 @@ func test_notebook() -> void:
 	level.player.input_locked = false
 	_game().open_case("memo", "What does the memo say?", ["memo_fragments"])
 	nb.open(NotebookPages.Page.CASES)
+	var reward := nb.pages.section_text(NotebookPages.Page.CASES)
+	nb.close()  # the case solved in the lobby has had its page: it's filed now
+	nb.open(NotebookPages.Page.CASES)
+	var on_page := nb.pages.section_text(NotebookPages.Page.CASES)
+	check(reward.contains("[x]  What does the memo say?") and not on_page.contains("What does the memo say?") and on_page.contains(_game().case_objective(_game().current_case())),
+		"the case solved in the lobby has the page once, then the next one takes it")
 	var write_btn: Button = nb.pages.book.find_child("WriteMine", true, false)
 	check(write_btn != null and write_btn.text.contains("write a note"), "the Cases page has a button to write your own note")
 	write_btn.pressed.emit()
@@ -4676,9 +4896,10 @@ func test_notebook() -> void:
 	check(not nb.is_writing() and level.player.input_locked and nb.is_open(), "Enter writes it in and the notebook stays open")
 	check(_game().notebook_written[-1].text == "PIN for HARDY: 2751" and _game().notebook_written[-1].kind == "mine", "the note is written as typed")
 	var mine_text := nb.pages.section_text(NotebookPages.Page.CASES)
-	check(_game().notebook_written[-1].case == "memo" and mine_text.contains("My note") and mine_text.find("PIN for HARDY: 2751") < mine_text.find("Other notes"), "your note goes on the page of the case you're working on")
+	check(_game().notebook_written[-1].case == _game().current_case() and mine_text.contains("My note") and mine_text.find("PIN for HARDY: 2751") < mine_text.find("Other notes"), "your note goes on the page of the case you're working on")
 	check(mine_text.count("PIN for HARDY") == 1, "and isn't listed again under Other notes")
-	_game().solve_case("memo", "done")
+	while _game().current_case() != "":
+		_game().solve_case(_game().current_case(), "done")
 	_game().write_note("Query result", "a line copied after", "result")
 	check(_game().notebook_written[-1].case == "" and nb.pages.section_text(NotebookPages.Page.CASES).contains("a line copied after"), "with every case solved, new notes go under Other notes")
 	_game().open_case("caller", "Who called?")
@@ -4715,8 +4936,9 @@ func test_in_world_ui() -> void:
 		await process_frame  # raised all the way
 	var shown := p.reading_rect()
 	var screen := root.get_visible_rect().size
-	check(shown.has_area() and p.edge_turn(Vector2(screen.x - 3, screen.y / 2), screen, shown).x > 1.0
-		and p.edge_turn(Vector2(3, screen.y / 2), screen, shown).x < -1.0 and p.edge_turn(Vector2(screen.x / 2, screen.y - 3), screen, shown).y > 1.0,
+	var full := Player.EDGE_LOOK_SPEED * 0.6
+	check(shown.has_area() and p.edge_turn(Vector2(screen.x - 3, screen.y / 2), screen, shown).x > full
+		and p.edge_turn(Vector2(3, screen.y / 2), screen, shown).x < -full and p.edge_turn(Vector2(screen.x / 2, screen.y - 3), screen, shown).y > full,
 		"the cursor at any edge of the screen turns the view, however big the book is (its hands and sleeves don't count)")
 	nb.close()
 	check(not nb.is_open() and not p.is_holding_notebook(), "and Tab puts it away")
@@ -4807,7 +5029,7 @@ func test_pick_up_papers() -> void:
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
 	check(card.get_prompt(p).contains(Document.NOTE_IT % card.title), "a paper with pieces of a case on it says E notes it")
 	card._on_used(p)
-	check(level.find_children("*", "DocumentReader", true, false).is_empty() and _game().has_piece("memo", "table") and _game().has_piece("memo", "column"), "E notes the card's pieces straight into the case, without picking it up")
+	check(level.find_children("*", "DocumentReader", true, false).is_empty() and _game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "E notes the card's pieces straight into the case, without picking it up")
 	_game().case_info("memo").open = false  # the rest of this walk is from before the memo's case opens
 	card._on_used(p)
 	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
@@ -4935,7 +5157,7 @@ func test_pick_up_papers() -> void:
 			break
 		await physics_frame
 	var noted: Array = _game().notebook_written.filter(func(w): return w.text.contains("ORDER matters."))
-	check(noted.size() == 1 and noted[0].case == "memo" and not is_instance_valid(order), "once it lands its clue is in the notebook for the memo case, and it's gone from the desk")
+	check(noted.size() == 1 and noted[0].case == "memo_order" and not is_instance_valid(order), "once it lands its clue is in the notebook for the case the sort belongs to, and it's gone from the desk")
 	check(level.notebook.pages.section_text(NotebookPages.Page.CASES).contains("ORDER matters."), "kept under Other notes until the memo case opens")
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?")
 	var memo_page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)

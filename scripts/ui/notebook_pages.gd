@@ -51,18 +51,26 @@ const PIECES_COUNT := "%d/%d pieces"
 const PIECE_MISSING := "????"
 const FROM := "From: %s"
 const QUERY_SO_FAR := "The query so far"
-## Above a case's query blocks (Augustine's words, playtest 2026-10-22).
+## Above a case's query blocks (Augustine's words, playtest 2026-10-22), then once
+## every word of it is in hand.
 const MAKE_QUERY := "Create a query in SQL to pull it up in the terminal."
+const QUERY_READY := "That's the whole query. Type it at the %s exactly as it reads here."
 const CHECKLIST := "Checklist"
 const NOTES := "Notes"
 const OTHER_WAYS := "Other ways in: %d found"
 const ENDINGS := "Endings"
 const HIDDEN := "???"
 const ENDING := "%s  -  Ending %d of %d"
-const COMPLETED := "Completed cases (%d)  >"
-const COMPLETED_TITLE := "Completed cases"
-const BACK_TO_CASE := "< Back to the current case"
-const BACK_TO_COMPLETED := "< Completed cases"
+const COMPLETED := "Archive (%d)  >"
+const COMPLETED_TITLE := "Archive"
+const ARCHIVE_HOW := "Cases you've closed. The newest is first."
+const BACK_TO_CASE := "< Back to your case"
+const BACK_TO_COMPLETED := "< Archive"
+## Shown once on a case just solved, before the next one takes the page.
+const FILED := "Filed in the archive. Your next case is on this page."
+const NO_CASE := "No case right now. When the job turns up something to work out, it lands here."
+## A side case, as one line under the case being worked on.
+const ALSO := "Also looking into: %s  >"
 const ENDINGS_FOUND := "Ending %d of %d found"
 const ROUTES_FOUND := "%d of %d other ways in"
 const PIECE_FOUND_COLOR := Color(0.91, 0.69, 0.29)
@@ -88,9 +96,11 @@ var _fresh_case := ""
 ## testing yourself.
 var book_chapter := ""
 var quiz: BookQuiz
-## The Cases tab: showing the list of completed cases, or one of them ("" for none).
+## The Cases tab: showing the archive, or one case in it ("" for none).
 var showing_completed := false
 var completed_case := ""
+## A side case opened from the line under the current case ("" for none).
+var side_case := ""
 ## Just-solved cases shown on screen this time: filed when the notebook closes.
 var _solved_seen := {}
 
@@ -401,77 +411,87 @@ func _written_item(w: Dictionary, share: Dictionary = {}) -> Control:
 	return _clue_item("\n".join(lines.slice(0, 12)), label, share)
 
 
-## The Cases tab. Solved cases are filed under Completed cases (the button at
-## the top), except one just solved, shown once, solved, before it's filed. A
-## case with pieces (Game.set_pieces) gets a spread to itself: the case on the
-## left, its checklist and notes on the right, the main case first. One without
-## pieces is a page of its question, clues and notes, as before. Notes from
-## before any case, or from one not open, go under Other notes at the end.
+## The Cases tab holds one case: the one being worked on (Augustine, 2026-10-26:
+## "I want a single case to exist until a puzzle is solved, then it will be archived
+## and the single case will be the next puzzle"). A case with pieces (Game.set_pieces)
+## gets a spread: the case on the left, its checklist and notes on the right. One
+## without pieces is a page of its question, clues and notes. Solved cases are filed
+## under Archive, except one just solved, which keeps the page once as its reward.
+## A side case is one line under the case, opening its own page; notes with no open
+## case go under Other notes at the end.
 func _case_items(game: Node) -> Array[Control]:
 	if completed_case != "":
 		return _completed_case_items(game)
 	if showing_completed:
 		return _completed_items(game)
 	var items: Array[Control] = []
-	var open: Array = game.notebook_cases.filter(func(c): return c.open)
 	var current: String = game.current_case()
-	var main: String = game.main_case()
-	var shown := {}
 	var h := _huddling()
 	if h:
 		items.append_array(_huddle_items(h, game))
-	var filed: Array = open.filter(func(c): return c.solved and not c.get("fresh_solve", false))
+	# One case on the page: the case being worked on, or one just solved while the
+	# crew is looking at it (its reward, filed when the notebook closes). A side
+	# case opened from the line below takes the page while it's being read.
+	var showing_id := current
+	for c in game.notebook_cases:
+		if c.open and c.get("fresh_solve", false) and (showing or current == ""):
+			showing_id = c.id
+			break
+	if side_case != "" and game.case_info(side_case).get("open", false) and not game.case_info(side_case).solved:
+		showing_id = side_case
+	elif side_case != "":
+		side_case = ""
+	var filed: Array = game.completed_cases().filter(func(c): return c.id != showing_id)
 	if not filed.is_empty() and not end_of_level:
 		items.append(_case_button(COMPLETED % filed.size(), "CompletedCases", func(): showing_completed = true))
-	for c in filed:
-		shown[c.id] = true  # their notes stay with them
-	var list: Array = open.filter(func(c): return not filed.has(c))
-	if list.is_empty():
+	if side_case != "":
+		items.append(_case_button(BACK_TO_CASE, "BackToCase", func(): side_case = ""))
+	if showing_id == "":
 		items.append(NotebookArt.heading("Cases"))
-		items.append(NotebookArt.hand("No open cases. When the job turns up something to figure out, it gets a page here.", 24, NotebookArt.PENCIL))
-	# Just solved first (the reward), then the main case, then the rest.
-	list.sort_custom(func(a, b): return _case_rank(a, main) < _case_rank(b, main))
-	for c in list:
-		shown[c.id] = true
+		items.append(NotebookArt.hand(NO_CASE, 24, NotebookArt.PENCIL))
+	else:
+		var c: Dictionary = game.case_info(showing_id)
 		if c.get("fresh_solve", false) and showing:
 			_solved_seen[c.id] = true
 		if not c.get("pieces", []).is_empty():
 			var board := _board_items(game, c, c.id == current)
-			if c == list[0]:
-				board.pop_front().free()  # the first starts right under the button
+			board.pop_front().free()  # the one case starts here, not on a spread of its own
 			items.append_array(board)
 		else:
 			items.append_array(_plain_case_items(game, c, c.id == current, h))
-	var other: Array = game.notebook_written.filter(func(w): return not shown.has(w.get("case", "")))
-	if not other.is_empty() or current == "":
+	if side_case == "":
+		for c in game.side_cases():
+			if c.id != showing_id:
+				var id: String = c.id
+				items.append(_case_button(ALSO % c.title, "SideCase_" + id, func(): side_case = id))
+	# Notes with no case of their own, or on a case that isn't open yet.
+	var other: Array = game.notebook_written.filter(func(w):
+		var on: String = str(w.get("case", ""))
+		return on == "" or not game.case_info(on).get("open", false))
+	if not other.is_empty() or showing_id == "":
 		items.append(NotebookArt.heading("Other notes"))
 		if other.is_empty():
 			items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 22, NotebookArt.PENCIL))
 		for w in other:
 			items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
-		if current == "":
+		if showing_id == "":
 			items.append_array(_write_button())
 	return items
-
-
-## Where a case goes on the Cases tab: just solved, the main case, the rest.
-static func _case_rank(c: Dictionary, main: String) -> int:
-	if c.get("fresh_solve", false):
-		return 0
-	return 1 if c.id == main else 2
 
 
 ## A case without pieces: its question, blank, clues, notes and tables, in order.
 func _plain_case_items(game: Node, c: Dictionary, is_current: bool, h: NotesHuddle) -> Array[Control]:
 	var items: Array[Control] = []
 	var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
-	items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
+	items.append_array(_case_heading(c))
 	if h and not (c.clues.is_empty() and notes.is_empty()):
 		items.append(_share_case_button(h, game, c.id))
 	if c.has("blank"):
 		items.append_array(_blank_items(c))
 	if c.solved:
 		items.append(NotebookArt.hand("Solved: " + c.how, 22))
+		if c.get("fresh_solve", false):
+			items.append(NotebookArt.hand(FILED, 22, NotebookArt.PENCIL))
 	if c.clues.is_empty() and notes.is_empty():
 		items.append(NotebookArt.hand("Nothing yet. Read what's around: papers, plates on the doors, the terminal.", 22, NotebookArt.PENCIL))
 	items.append_array(_case_notes(game, c, notes, h))
@@ -480,6 +500,22 @@ func _plain_case_items(game: Node, c: Dictionary, is_current: bool, h: NotesHudd
 	for t in c.tables:
 		if game.notebook_tables.has(t):
 			items.append(NotebookArt.table_card(t, game.notebook_tables[t]))
+	return items
+
+
+## The top of a case: what to do about it, with the question it answers under
+## that. Solved, the question is the heading with its tick, since the thing to do
+## is done. A case made before objectives existed is just its question.
+func _case_heading(c: Dictionary) -> Array[Control]:
+	var items: Array[Control] = []
+	var objective := str(c.get("objective", ""))
+	if c.solved or objective == "":
+		items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
+		return items
+	items.append(NotebookArt.heading(objective))
+	items.append(NotebookArt.hand(c.title, 22, NotebookArt.PENCIL))
+	if str(c.get("note", "")) != "":
+		items.append(NotebookArt.hand(str(c.note), 20, NotebookArt.PENCIL))
 	return items
 
 
@@ -503,7 +539,7 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 	var found: int = game.pieces_found(c.id)
 	var total: int = game.pieces_total(c.id)
 	items.append(NotebookArt.hand(SIDE_CASE if c.get("optional", false) else CASE_LABEL, 18, NotebookArt.PENCIL))
-	items.append(NotebookArt.heading(("[x]  " if c.solved else "") + c.title))
+	items.append_array(_case_heading(c))
 	if c.solved:
 		items.append_array(_ending_items(game, c))
 	items.append(_progress(found, total))
@@ -513,10 +549,16 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 	for p in c.pieces:
 		items.append(_piece_item(n, p))
 		n += 1
+	if found == 0 and not c.solved and c.get("hunt", "") != "":
+		var hunt := NotebookArt.hand(c.hunt, 20, NotebookArt.PENCIL)
+		hunt.name = "Hunt"
+		items.append(hunt)
 	if c.has("blank"):
 		items.append_array(_blank_items(c))
 	if c.solved:
 		items.append(NotebookArt.hand("Solved: " + c.how, 22))
+		if c.get("fresh_solve", false):
+			items.append(NotebookArt.hand(FILED, 22, NotebookArt.PENCIL))
 	items.append(_break("page"))
 	items.append(NotebookArt.hand(CHECKLIST, 30))
 	for line in game.case_checklist(c.id):
@@ -543,7 +585,11 @@ func _query_blocks(game: Node, c: Dictionary) -> Control:
 	var box := VBoxContainer.new()
 	box.name = "QuerySoFar"
 	box.add_theme_constant_override("separation", 6)
-	var goal := NotebookArt.hand(MAKE_QUERY, 22)
+	# Every word in and nothing left to work out: say so, and that it's typed as it reads.
+	var whole: bool = not c.solved and c.get("assemble", true) and game.pieces_total(c.id) > 0 \
+			and game.pieces_found(c.id) == game.pieces_total(c.id)
+	var at_terminal: String = c.get("terminal", "")
+	var goal := NotebookArt.hand(QUERY_READY % (at_terminal if at_terminal != "" else "terminal") if whole else MAKE_QUERY, 22)
 	goal.name = "Goal"
 	box.add_child(goal)
 	var flow := HFlowContainer.new()
@@ -712,6 +758,7 @@ func _route_items(game: Node, c: Dictionary) -> Array[Control]:
 func _completed_items(game: Node) -> Array[Control]:
 	var items: Array[Control] = [NotebookArt.heading(COMPLETED_TITLE)]
 	items.append(_case_button(BACK_TO_CASE, "BackToCase", func(): showing_completed = false))
+	items.append(NotebookArt.hand(ARCHIVE_HOW, 20, NotebookArt.PENCIL))
 	for c in game.completed_cases():
 		items.append(_case_button("[x]  " + c.title, "Completed_" + c.id, func(): completed_case = c.id))
 		var parts: Array = []

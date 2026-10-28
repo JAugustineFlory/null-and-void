@@ -19,6 +19,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_first_person_body()
 	await test_first_person_hands()
 	test_first_person_parkour()
+	await test_first_person_notebook_and_vents()
 	await test_byte_right_van()
 	await test_rig_budget()
 	await test_skinned_body()
@@ -463,6 +464,7 @@ class _FakeFighter extends Node3D:
 	var head := Node3D.new()
 	var velocity := Vector3.ZERO
 	var camera: Camera3D = null
+	var stance_height := -1.0
 
 	func is_sitting() -> bool:
 		return sitting
@@ -493,6 +495,109 @@ class _FakeCombat extends RefCounted:
 
 	func guard_up() -> bool:
 		return guarding
+
+
+func test_first_person_notebook_and_vents() -> void:
+	# Playtest 2026-10-26: the hands were way bigger than the notebook and the
+	# thumb covered its tabs; seated, a hand stayed up in the air after putting it
+	# away; crawling through a vent showed your own neck and back.
+	var stage := _stage()
+	var you := _FakeFighter.new()
+	stage.add_child(you)
+	you.add_child(you.head)
+	you.head.position.y = 1.68
+	var cam := Camera3D.new()
+	cam.fov = 78
+	you.head.add_child(cam)
+	you.camera = cam
+	var fp := FirstPersonBody.attach(you, CharacterLooks.crew(0))
+	fp.set_process(false)
+	fp.rig.set_process(false)
+	var sk: Skeleton3D = fp.rig._skin.skeleton
+	var bone_at := func(bone: String) -> Vector3:
+		return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin
+	var step := func(seconds: float) -> void:
+		for i in maxi(1, int(seconds * 60)):
+			fp._process(1.0 / 60.0)
+			fp.rig.animate(1.0 / 60.0)
+	var held := HeldNotebook.attach(cam, CharacterLooks.crew(0))
+	var book := NotebookView.new()
+	for tab in ["Work order", "Cases", "Tables", "Book"]:
+		book.add_tab(tab)
+	held.set_content(book)
+	held.set_process(false)
+	held.open_book().custom_step(5.0)
+	you.notebook_raised.emit()
+	await _frames(3)  # the tabs lay themselves out
+	step.call(1.5)
+
+	var page := held.right_half
+	var tip := func(bone: String) -> Vector3:
+		return page.to_local(bone_at.call(bone))
+	var page_h: float = held.page_size().y
+	var hand_long: float = bone_at.call("hand_r").distance_to(bone_at.call("middle_04_leaf_r"))
+	check(hand_long < page_h * 1.1, "the hand holding the notebook is no longer than a page is tall, give or take a fingertip (%.2f m hand, %.2f m page)" % [hand_long, page_h])
+	var lowest := INF
+	for b: Button in book._tab_buttons.values():
+		lowest = minf(lowest, page.to_local(held.page_to_world(b.get_global_rect().end)).y)
+	var thumb: Vector3 = tip.call("thumb_04_leaf_r")
+	check(lowest < INF and thumb.y < lowest - 0.02 and thumb.z > 0.0,
+		"the thumb holds the front of the page, under the tabs (%.3f m under the lowest)" % (lowest - thumb.y))
+	var poking := []
+	for finger in ["index", "middle", "ring", "pinky"]:
+		for side in ["r", "l"]:
+			var at: Vector3 = (held.right_half if side == "r" else held.left_half).to_local(bone_at.call(finger + "_04_leaf_" + side))
+			if at.z > -0.01:
+				poking.append(finger + "_" + side)
+	check(poking.is_empty(), "the fingers stay behind the book, none poking through the pages (%s)" % [poking])
+
+	# Seated: put it away and both hands come down to your thighs.
+	held.close_book().custom_step(5.0)
+	you.notebook_lowered.emit()
+	step.call(0.5)
+	var seat := Node3D.new()
+	stage.add_child(seat)
+	seat.global_position = Vector3(0, 0.46, -3.0)
+	you.global_position = seat.global_position
+	you.seat = seat
+	you.sitting = true
+	you.head.position.y = 0.83
+	step.call(1.5)
+	held.open_book().custom_step(5.0)
+	you.notebook_raised.emit()
+	step.call(1.5)
+	check(fp.rig.reach_point("r") is Transform3D, "seated, your hands hold the notebook up")
+	held.close_book().custom_step(5.0)
+	you.notebook_lowered.emit()
+	step.call(2.0)
+	var resting := 0
+	for side in ["r", "l"]:
+		var hand: Vector3 = bone_at.call("hand_" + side)
+		if fp.rig.reach_point(side) == null and hand.distance_to(bone_at.call("calf_" + side)) < 0.3 and not cam.is_position_in_frustum(hand):
+			resting += 1
+	check(resting == 2, "put away, both hands go back down to your thighs, out of sight (%d of 2)" % resting)
+	you.sitting = false
+	you.seat = null
+	held.queue_free()
+
+	# Crawling through a vent, looking ahead, up, round and down.
+	you.global_position = Vector3(0, 0, 3.0)
+	you.stance_height = CharacterRig.CRAWL_HEIGHT
+	you.head.position.y = CharacterRig.CRAWL_HEIGHT - 0.12
+	for pitch in [0.0, 0.4, -0.6, -1.2]:
+		you.head.rotation.x = pitch
+		step.call(1.0)
+		var seen := []
+		for b in ["neck_01", "spine_03", "spine_02", "clavicle_r", "clavicle_l"]:
+			if cam.is_position_in_frustum(bone_at.call(b)):
+				seen.append(b)
+		check(seen.is_empty() and fp._neck_needs(fp.position) < FirstPersonBody.NECK_CLEAR,
+			"crawling and looking %.1f rad up, you don't see your own neck or back (%s)" % [pitch, seen])
+	you.head.rotation.x = -1.2
+	step.call(1.0)
+	check(cam.is_position_in_frustum(bone_at.call("hand_r")) or cam.is_position_in_frustum(bone_at.call("hand_l")),
+		"looking down while crawling, you see your hands on the floor")
+	stage.queue_free()
 
 
 func test_first_person_parkour() -> void:

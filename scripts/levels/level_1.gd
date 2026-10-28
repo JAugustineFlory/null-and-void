@@ -65,6 +65,9 @@ var cable_holders := {}
 ## puzzle is ready, "played" has been held (_book_found).
 var _books := {}
 
+## What the floor's case is for, the same words on its page, the chip on screen and
+## the to-do list once the stuck doors' zone is known.
+const OBJ_CONTROLLER := "Find the door controller that keeps faulting, and reset it"
 ## The to-do once the controller is found: the sign-off's count comes first.
 const COUNT_TODO := "Count the faulted controllers for the reset sign-off (terminal)"
 ## The dark break room's case page (optional), opened by facilities' card.
@@ -651,8 +654,8 @@ func _on_asked() -> void:
 	await _book_huddle("easy_sql_6")
 	terminal.locked = false
 	if not controller_puzzle.solved:
-		hud.todo("Find the door controller that keeps faulting, and reset it" if stuck_doors_puzzle.solved else "Find which zone the stuck doors are in (terminal)")
-		get_node("/root/Game").open_case("controller", "Which door controller keeps faulting?", ["door_controllers", "doors"])
+		hud.todo(OBJ_CONTROLLER if stuck_doors_puzzle.solved else "Find which zone the stuck doors are in (terminal)")
+		get_node("/root/Game").open_case("controller", "Which door controller keeps faulting?", ["door_controllers", "doors"], OBJ_CONTROLLER)
 		get_node("/root/Game").set_pieces("controller", controller_pieces(zone), CONTROLLER_QUERY, CONTROLLER_STEPS)
 	if sync.is_host():
 		await get_tree().create_timer(WAITING_AFTER, false).timeout
@@ -761,7 +764,7 @@ func _on_stuck_doors_found() -> void:
 	get_node("/root/Game").add_clue("controller", "The stuck doors on this floor are all in zone %s." % zone, "Query result")
 	get_node("/root/Game").collect_piece("controller", "zone", "the doors query")
 	if not controller_puzzle.solved:
-		hud.todo("Find the door controller that keeps faulting, and reset it")
+		hud.todo(OBJ_CONTROLLER)
 
 
 ## Optional: the list of lights that are out. The circuit reset takes now.

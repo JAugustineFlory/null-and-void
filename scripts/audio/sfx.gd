@@ -5,7 +5,8 @@ class_name Sfx
 ##
 ## Each kind is a recorded file in audio/sfx/ when there is one (<kind>.ogg or .wav,
 ## or variants <kind>_1, <kind>_2, ... picked at random each time), otherwise a sound
-## SfxSynth makes in code. Drop a same-named file in audio/sfx/ to replace one.
+## made in code (SfxSynth, or SfxPunches for a fight's impacts). Drop a same-named
+## file in audio/sfx/ to replace one.
 ##
 ## Buses: Master > Music, SFX, Ambience, Voice. Volumes are saved in user://audio.cfg.
 
@@ -57,6 +58,7 @@ const KINDS := {
 
 static var _streams := {}
 static var _settings_loaded := false
+static var _warming := false
 
 
 ## Adds the buses if they aren't there yet, at their saved volumes. Safe to call often.
@@ -88,8 +90,31 @@ static func stream(kind: String) -> AudioStream:
 	if not _streams.has(kind):
 		_streams[kind] = _recorded(kind, DIR)
 		if _streams[kind] == null:
-			_streams[kind] = SfxSynth.make(kind)
+			_streams[kind] = SfxPunches.takes(kind) if SfxPunches.KINDS.has(kind) else SfxSynth.make(kind)
 	return _streams[kind]
+
+
+## Makes the fight's sounds (SfxPunches) off the main thread, so the first punch of
+## a session doesn't stall a frame while they're made (about 0.1 s each).
+static func warm_fight() -> void:
+	if _warming:
+		return
+	_warming = true
+	WorkerThreadPool.add_task(Callable(Sfx, "_warm").bind(SfxPunches.KINDS.keys()))
+
+
+static func _warm(kinds: Array) -> void:
+	var made := {}
+	for kind in kinds:
+		made[kind] = SfxPunches.takes(kind)
+	Callable(Sfx, "_warmed").call_deferred(made)
+
+
+## Main thread: keep what was made, unless a recording or an earlier play beat it here.
+static func _warmed(made: Dictionary) -> void:
+	for kind in made:
+		if not _streams.has(kind) and _recorded(kind, DIR) == null:
+			_streams[kind] = made[kind]
 
 
 ## Tells footsteps what a floor (or anything walked on) is made of: "concrete",
