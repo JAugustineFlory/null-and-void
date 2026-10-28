@@ -65,6 +65,12 @@ const CHEST := ["spine_02", "spine_03"]
 ## How much of the clip's shoulder angle survives straightening the chest: all
 ## of it swings the arms back behind the hips, none leaves them reaching forward.
 const SHOULDER_KEEP := 0.6
+## The flesh a look's "shape" can fill out (CharacterLooks.CREW_BODIES), by the
+## bones it follows: bone (left and right alike) -> region.
+const REGIONS := {"clavicle": "shoulders", "spine_03": "chest", "spine_02": "belly", "spine_01": "belly",
+	"pelvis": "hips", "thigh": "legs", "calf": "legs", "upperarm": "arms", "lowerarm": "arms", "neck_01": "neck"}
+## A fuller belly comes this much further forward than it fills out to the sides.
+const BELLY_FORWARD := 1.0
 
 var model: Node3D
 var skeleton: Skeleton3D
@@ -88,13 +94,15 @@ var _action_playing := ""  # the ACTION_CLIPS action the clips are playing, if a
 var _upper := 1.0
 var _lower := 1.0
 var _clip := ""
+var _stoop := 0.0  # look.stoop
 
-static var _scaled := {}  # "body|build|mesh" -> [Mesh, Skin]
+static var _scaled := {}  # "body|build|shape|mesh" -> [Mesh, Skin]
 static var _materials := {}
 
 
 ## Builds the model under `rig`, keeps the meshes `look` wears and binds the
-## skeleton to the rig's joints. `look.build` thickens the body.
+## skeleton to the rig's joints. `look.build` widens the body, `look.shape`
+## fills out its regions and `look.stoop` rounds its back.
 static func attach(rig: CharacterRig, look: Dictionary) -> SkinnedBody:
 	var sb := SkinnedBody.new()
 	sb._rig = rig
@@ -105,14 +113,16 @@ static func attach(rig: CharacterRig, look: Dictionary) -> SkinnedBody:
 	sb.skeleton = sb.model.find_children("*", "Skeleton3D", true, false)[0]
 	var keep := wears(look)
 	var build: float = look.build
+	var shape: Dictionary = look.get("shape", {})
+	sb._stoop = float(look.get("stoop", 0.0))
 	for mi: MeshInstance3D in sb.model.find_children("*", "MeshInstance3D", true, false):
 		var part := String(mi.name)
 		if not keep.has(part):
 			mi.get_parent().remove_child(mi)
 			mi.free()
 			continue
-		if not is_equal_approx(build, 1.0):
-			var m: Array = _widened(body, build, part, mi.mesh, mi.skin)
+		if not is_equal_approx(build, 1.0) or not shape.is_empty():
+			var m: Array = _shaped(body, build, shape, part, mi.mesh, mi.skin)
 			mi.mesh = m[0]
 			mi.skin = m[1]
 		mi.material_override = _material(part, keep[part])
@@ -160,6 +170,11 @@ func update(delta: float) -> void:
 			var clip_parent: Transform3D = clip_chest.get(parent, parent_g)
 			clip_chest[i] = clip_parent * base
 			base.basis = Basis(base.basis.get_rotation_quaternion().slerp(_rest_local[i].basis.get_rotation_quaternion(), _lower))
+		if _stoop != 0.0 and _chest.has(i):
+			# Round forward about the body's own side-to-side axis (the rig faces -z);
+			# the neck and head stay level (ALWAYS).
+			var across := (parent_g.basis.inverse() * (inv.basis * Vector3.RIGHT)).normalized()
+			base.basis = Basis(across, -_stoop / CHEST.size()) * base.basis
 		elif player and clip_chest.has(parent) and not _driven.has(i):
 			var keep := Basis(Quaternion.IDENTITY.slerp((parent_g.basis.inverse() * clip_chest[parent].basis).get_rotation_quaternion(), SHOULDER_KEEP))
 			base.basis = keep * base.basis
@@ -487,29 +502,64 @@ func _in_rig(node: Node3D, cache: Dictionary) -> Transform3D:
 	return t
 
 
-## A copy of a body part `build` times thicker round each bone, with the skin
-## moved to match.
-static func _widened(body: int, build: float, part: String, mesh: Mesh, skin: Skin) -> Array:
-	var key := "%d|%.3f|%s" % [body, build, part]
+## A copy of a body part `build` times wider, with the skin moved to match, and
+## its flesh filled out round each bone by `shape` (REGIONS): every vertex moves
+## out from the bones it follows, by how much each one's region asks, so the
+## clothes over a region fill out with it.
+static func _shaped(body: int, build: float, shape: Dictionary, part: String, mesh: Mesh, skin: Skin) -> Array:
+	var key := "%d|%.3f|%s|%s" % [body, build, JSON.stringify(shape, "", true), part]
 	if _scaled.has(key):
 		return _scaled[key]
 	var s := Vector3(build, 1.0, build)
+	var sk := skin.duplicate() as Skin
+	# Per bind: how much thicker its flesh, and the bone's line.
+	var grow := PackedFloat32Array()
+	var belly: Array[bool] = []
+	var heads := PackedVector3Array()  # where each bone starts
+	var ways := PackedVector3Array()  # and the way it runs
+	var front := Vector3.FORWARD
+	for b in sk.get_bind_count():
+		var bone_rest := sk.get_bind_pose(b).affine_inverse()
+		bone_rest.origin *= s
+		sk.set_bind_pose(b, bone_rest.affine_inverse())
+		var region: String = REGIONS.get(_bone_kind(sk.get_bind_name(b)), "")
+		grow.append(float(shape.get(region, 1.0)) - 1.0)
+		belly.append(region == "belly")
+		heads.append(bone_rest.origin)
+		ways.append(bone_rest.basis.y.normalized())
 	var out := ArrayMesh.new()
 	for i in mesh.get_surface_count():
 		var arrays := mesh.surface_get_arrays(i)
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+		var per := bones.size() / maxi(verts.size(), 1)
 		for v in verts.size():
-			verts[v] *= s
+			var p := verts[v] * s
+			var move := Vector3.ZERO
+			for k in per:
+				var w := weights[v * per + k]
+				var b := bones[v * per + k]
+				if w <= 0.0 or grow[b] == 0.0:
+					continue
+				# Out from the bone's line, square to it.
+				var off := p - heads[b]
+				off -= ways[b] * off.dot(ways[b])
+				var g := grow[b]
+				if belly[b] and off.dot(front) > 0.0 and g > 0.0:
+					off += front * off.dot(front) * BELLY_FORWARD  # a belly comes forward more than out
+				move += off * g * w
+			verts[v] = p + move
 			normals[v] = (normals[v] / s).normalized()
 		arrays[Mesh.ARRAY_VERTEX] = verts
 		arrays[Mesh.ARRAY_NORMAL] = normals
 		arrays[Mesh.ARRAY_TANGENT] = null
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var sk := skin.duplicate() as Skin
-	for b in sk.get_bind_count():
-		var bone_rest := sk.get_bind_pose(b).affine_inverse()
-		bone_rest.origin *= s
-		sk.set_bind_pose(b, bone_rest.affine_inverse())
 	_scaled[key] = [out, sk]
 	return _scaled[key]
+
+
+## "upperarm" for "upperarm_r", "spine_02" for itself: the name REGIONS knows a bone by.
+static func _bone_kind(bone: String) -> String:
+	return bone if REGIONS.has(bone) else bone.trim_suffix("_r").trim_suffix("_l")

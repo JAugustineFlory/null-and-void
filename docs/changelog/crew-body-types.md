@@ -1,0 +1,1 @@
+- **Added:** each of the twelve crew has their own body now: their own height, build and posture, from the big mover to the tiny kiosk tech. Your colours, clothes and name are still yours.
