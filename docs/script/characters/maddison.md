@@ -1,167 +1,305 @@
-# Maddison Kowalski: your lines
+# Maddison Kowalski
+
+*Your script for Null & Void: 23 recordings.*
+
+## Who you are
 
 Maddison Kowalski, 40s, CEO and founder of a tiny IT company run out of her garage. Striking, sharp-dressed and completely sure of herself. She has just landed the biggest contract the company has ever had, and nobody on her crew is qualified for it. Cheerful even when she's admitting something terrible.
 
-**How they sound:** Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
+**Background.** Founder of Byte-Right Computer Services, run from her garage. It fixes PCs for small offices, and its best client is a library that pays in exact change. She talked everyone on the crew into it, including her aunt June and her oldest friend Luis.
+
+**Tonight.** She underbid every real firm for Halcyon's overnight database job, and nobody on her crew knows SQL. She preps them in the garage, then stays behind on the van radio as dispatch, reading each new chapter of the book with them as they reach it.
+
+**How you sound.** Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
+
+**Think of.** The ringleader assembling a crew in a heist film, crossed with a coach before a game they'll probably lose. She is never worried out loud.
+
+## How to read this script
+
+- It runs in story order, scene by scene, like a play. Each scene opens with where you are and what's going on.
+- Each file name is one recording. Read everything under it in one take, top to bottom.
+- What you say is in "quotes". *Italics* say what's happening, what you're doing and how to say it: don't read them out.
+- **Lead-in** shows someone else's line, just before yours, so you know what you're answering. Don't read it: start recording at **Begin**.
+- *1 second pause* between two of your lines means stop for a full second there. The game cuts the recording at those pauses.
 
 ## Recording
 
-- **Format:** WAV, mono, 48 kHz.
+- **Format:** WAV, mono, 48 kHz, 16- or 24-bit.
 - **Room:** somewhere quiet, with soft things around (a closet or a carpeted room works). Keep the mic a hand's width away.
-- **Takes:** two per line, in separate files: `<line_id>.wav` and `<line_id>_take2.wav`.
+- **Takes:** two of each recording, in separate files: `<file name>.wav` and `<file name>_take2.wav`.
 - **Silence:** half a second at the start and end of every file.
+- **Pauses:** in a recording with more than one line, a full second of silence between the lines, longer than any pause inside a line.
 - **Effects:** none. Record dry; the game adds speakers, radio static and so on.
 - **Level:** the loudest part should sit around -3 dB, never clipping.
 
 Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
-## Your lines (42)
+## Scene 1: The garage
 
-Each line has the file name to save it as, the line, and a note on how to play it. Don't worry about timing: you'll hear it in the game and we can redo any line after the playtest.
+**Byte-Right IT Services' garage, home base. Earlier that evening, 15 October 1997.**
 
-### 1. In your garage with your small IT crew: you just won a big contract none of you is qualified for.
+> Your garage is also your company's office. Your small crew has just walked in and sat down on the couch and stools facing your whiteboard. You've landed Halcyon, the biggest contract you've ever had, and the job is tonight at eleven. Nobody here knows databases. You want them excited, ready, and out the door in the van.
 
-- [ ] `l0_brief_1.wav`  
-  "Okay! Everybody comfy? Look at you. My whole company, in one garage."  
-  *Big, warm, delighted to have an audience. The crew is already sitting, facing her.*
-- [ ] `l0_brief_1_solo.wav`  
-  "Okay! Look at you. My whole company, in one seat."  
-  *Solo version. The same joke, a little teasing.*
-- [ ] `l0_brief_2.wav`  
-  "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change."  
-  *Cheerful, as if it's good news. Counting it off on her fingers.*
-- [ ] `l0_brief_3.wav`  
-  "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off."  
-  *Every 'maybe' a little grander, then the sign brings it back down to earth.*
-- [ ] `l0_brief_4.wav`  
-  "Forget all that. We got Halcyon. The overnight database contract. Ours."  
-  *Building to it. She can't stand still for 'Ours.'*
-- [ ] `l0_brief_5.wav`  
-  "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock."  
-  *Quickly, before anyone can ask.*
-- [ ] `l0_bag.wav`  
-  "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."  
-  *Laughing, shooing them off.*
-- [ ] `l0_bag_solo.wav`  
-  "You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."  
-  *Solo version. Laughing, shooing them off.*
-- [ ] `l0_bag_back.wav`  
-  "Better? Good. Now eyes on me, gorgeous people."  
-  *Once everyone's back in their seats. A little flirty, played light, like a coach.*
-- [ ] `l0_bag_back_solo.wav`  
-  "Better? Good. Now eyes on me, gorgeous."  
-  *Solo version. A little flirty, played light, like a coach.*
-- [ ] `l0_workorder.wav`  
-  "I put a copy of the work order in each of your notebooks. Pull it out and take a look."  
-  *Pleased with herself for being organized.*
-- [ ] `l0_workorder_solo.wav`  
-  "I put a copy of the work order in your notebook. Pull it out and take a look."  
-  *Solo version. Pleased with herself for being organized.*
-- [ ] `l0_book_catch.wav`  
-  "Small problem. It says database. And unless one of you secretly knows SQL..."  
-  *The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
-- [ ] `l0_book_catch_solo.wav`  
-  "Small problem. It says database. And unless you secretly know SQL..."  
-  *Solo version. The smile stays on. She leaves the sentence hanging and waits.*
-- [ ] `l0_bookstore.wav`  
-  "...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven."  
-  *Proud of this. Holding up the receipt, not the book.*
-- [ ] `l0_grab.wav`  
-  "It's in the shop bag on the shelf by the side door. One of you go grab it."  
-  *Pointing at the side door to the house.*
-- [ ] `l0_grab_solo.wav`  
-  "It's in the shop bag on the shelf by the side door. Go on, grab it for me."  
-  *Solo version. Pointing at the side door to the house.*
-- [ ] `l0_garage_5.wav`  
-  "Look at that. You're practically engineers. Take the book with you. Everybody in the van."  
-  *Genuinely thrilled. After the huddle's quiz.*
-- [ ] `l0_garage_5_solo.wav`  
-  "Look at that. You're practically an engineer. Take the book with you. Into the van."  
-  *Solo version. Genuinely thrilled. After the huddle's quiz.*
-- [ ] `l0_garage_6.wav`  
-  "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio."  
-  *At the van door, counting the rules off. She stays behind.*
+**[ ] `l0_brief_1_block.wav`**
 
-### 2. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
+*The crew has just walked in and sat down facing your whiteboard. You come in from the house. Striding in from the house door to her whiteboard, arms wide. Big, warm, delighted to have an audience.*
 
-- [ ] `l0_huddle_select_1.wav`  
-  "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?"  
-  *Disbelieving, delighted.*
-- [ ] `l0_huddle_select_2.wav`  
-  "Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon."  
-  *Deadly serious about the one thing they're sure of.*
-- [ ] `l0_huddle_order_1.wav`  
-  "Chapter two. 'Putting things in order.' Now that, I can get behind."  
-  *Reading off the page.*
-- [ ] `l0_huddle_order_2.wav`  
-  "Smallest first. Always smallest first. Write that down. I'm writing it down."  
-  *Scribbling.*
+"Okay! Everybody comfy? Look at you. My whole company, in one garage."
 
-### 3. You're on the radio to an IT crew parked outside a client's building at 11 p.m.
+*1 second pause*
 
-- [ ] `l0_dispatch_1.wav`  
-  "Van three, you're on site at Halcyon Data Systems. After-hours callout."  
-  *Over the van radio, in the professional dispatcher voice. 'Van three' is a bluff: they own one van.*
-- [ ] `l0_dispatch_2.wav`  
-  "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors."  
-  *Reading it off the ticket.*
-- [ ] `l0_dispatch_3.wav`  
-  "Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out."  
-  *Bored, reading the form. Signing off, already onto the next call.*
+*Standing at the whiteboard, counting it off on her fingers. Cheerful, as if it's good news.*
 
-### 4. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
+"Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change."
 
-- [ ] `l1_huddle_where_1.wav`  
-  "WHERE. For finding one thing in a big pile. Like my car keys."  
-  *Patting pockets.*
-- [ ] `l1_huddle_where_2.wav`  
-  "Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears."  
-  *Rueful.*
-- [ ] `l1_huddle_compare_1.wav`  
-  "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number."  
-  *Drawing one on the whiteboard, with teeth.*
-- [ ] `l1_huddle_compare_2.wav`  
-  "Okay. That's maths I actually remember from school."  
-  *Relieved.*
+*1 second pause*
 
-### 5. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
+*Pacing a step or two in front of the whiteboard. Every 'maybe' a little grander, then the sign brings it back down to earth.*
 
-- [ ] `l2_huddle_like_1.wav`  
-  "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'"  
-  *Squinting at the page.*
-- [ ] `l2_huddle_like_2.wav`  
-  "So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere."  
-  *Pleased to have found themself.*
-- [ ] `l2_huddle_get_1.wav`  
-  "This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'"  
-  *Flipping the book over to check the cover.*
-- [ ] `l2_huddle_get_2.wav`  
-  "So it's a SELECT for robots. Got it. Probably."  
-  *Not convinced.*
+"So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off."
 
-### 6. At the workbench with your crew while they read a beginner's book together. One line to start each chapter, one to wrap it up.
+*1 second pause*
 
-- [ ] `l4_huddle_update_1.wav`  
-  "UPDATE. Changing things. The book's put this one in a red box, which I don't love."  
-  *Holding the page at arm's length.*
-- [ ] `l4_huddle_update_2.wav`  
-  "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row."  
-  *Suddenly serious, for once.*
-- [ ] `l4_huddle_insert_1.wav`  
-  "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist."  
-  *Reading the title, wistful, then perky again.*
-- [ ] `l4_huddle_insert_2.wav`  
-  "Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford."  
-  *Laughing at her own picture of it. Then she writes SAME ORDER on the whiteboard.*
+*Tapping the whiteboard with her marker. Building to it. She can't stand still for 'Ours.'*
 
-### 7. A voice on the crew's own walkie-talkie, asking for a door. It sounds exactly like someone it isn't.
+"Forget all that. We got Halcyon. The overnight database contract. Ours."
 
-- [ ] `l5_mimic_maddison_lure.wav`  
-  "Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you?"  
-  *Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth.*
-- [ ] `l5_mimic_maddison_again.wav`  
-  "Crew, it's Maddison. Still at the loading door. It's freezing down here."  
-  *Second time. Patient. She is never patient.*
-- [ ] `l5_mimic_maddison_last.wav`  
-  "You're leaving? I'm right here."  
-  *As the player leaves the floor. Quiet, flat, no breath.*
+*1 second pause*
+
+*Waving a hand to brush off the question. Quickly, before anyone can ask.*
+
+"How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock."
+
+*1 second pause*
+
+*The crew is buzzing in their seats. Pointing across the garage at the punching bag by the big door. Laughing, shooing them off.*
+
+"You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."
+
+**[ ] `l0_brief_1_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "Okay! Everybody comfy? Look at you. My whole company, in one garage." Striding in from the house door to her whiteboard, arms wide. The same joke, a little teasing.*
+
+"Okay! Look at you. My whole company, in one seat."
+
+**[ ] `l0_bag_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down." Pointing across the garage at the punching bag by the big door. Laughing, shooing them off.*
+
+"You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."
+
+**[ ] `l0_bag_back_block.wav`**
+
+*Everyone has hit the punching bag and sat back down facing you. Back at the whiteboard, clapping her hands once. A little flirty, played light, like a coach.*
+
+"Better? Good. Now eyes on me, gorgeous people."
+
+*1 second pause*
+
+*Once they're settled. Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
+
+"I put a copy of the work order in each of your notebooks. Pull it out and take a look."
+
+**[ ] `l0_bag_back_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "Better? Good. Now eyes on me, gorgeous people." Back at the whiteboard, clapping her hands once. A little flirty, played light, like a coach.*
+
+"Better? Good. Now eyes on me, gorgeous."
+
+**[ ] `l0_workorder_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "I put a copy of the work order in each of your notebooks. Pull it out and take a look." Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
+
+"I put a copy of the work order in your notebook. Pull it out and take a look."
+
+**[ ] `l0_book_catch.wav`**
+
+*Everyone has pulled out the work order and read it. Holding up her copy of the work order, tapping one word. The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
+
+"Small problem. It says database. And unless one of you secretly knows SQL..."
+
+**[ ] `l0_book_catch_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "Small problem. It says database. And unless one of you secretly knows SQL..." Holding up her copy of the work order, tapping one word. The smile stays on. She leaves the sentence hanging and waits.*
+
+"Small problem. It says database. And unless you secretly know SQL..."
+
+**[ ] `l0_bookstore_block.wav`**
+
+*After the pause, when nobody owns up to knowing SQL. Holding up the bookstore receipt, not the book. Proud of this.*
+
+"...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven."
+
+*1 second pause*
+
+*Walking over to the back shelf by the side door to the house. Pointing at the side door to the house.*
+
+"It's in the shop bag on the shelf by the side door. One of you go grab it."
+
+**[ ] `l0_grab_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "It's in the shop bag on the shelf by the side door. One of you go grab it." Walking to the back shelf by the side door to the house. Pointing at the side door to the house.*
+
+"It's in the shop bag on the shelf by the side door. Go on, grab it for me."
+
+**[ ] `l0_garage_5.wav`**
+
+*The crew has gone through chapter zero together. Capping her marker, beaming at the crew. Genuinely thrilled.*
+
+"Look at that. You're practically engineers. Take the book with you. Everybody in the van."
+
+**[ ] `l0_garage_5_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "Look at that. You're practically engineers. Take the book with you. Everybody in the van." Capping her marker, beaming. Genuinely thrilled.*
+
+"Look at that. You're practically an engineer. Take the book with you. Into the van."
+
+**[ ] `l0_garage_6.wav`**
+
+*The whole crew has climbed into the van. You're at the door to see them off. Leaning in at the van door, counting rules on her fingers. She stays behind.*
+
+"Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio."
+
+## Scene 2: Book huddles: SELECT and ORDER BY
+
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
+
+> Earlier that evening, before the van leaves, you sit at the garage bench with the crew and read ahead in Easy SQL together. Later, in the tower, whenever a new chapter turns up in their notebooks, one of them remembers what you said about it, and your line plays. So each line is you at the bench, meeting that chapter for the first time. You want them to believe they can do this.
+
+**[ ] `l0_huddle_select_1_block.wav`**
+
+*At the bench, you open the chapter 'Ask for a table'. Sitting on the bench, your copy of the book open on your knees. Disbelieving, delighted.*
+
+"Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?"
+
+*1 second pause*
+
+*Tapping the page twice with one finger. Deadly serious about the one thing they're sure of.*
+
+"Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon."
+
+**[ ] `l0_huddle_order_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Putting things in order'. Leaning on the bench, the book open in front of you. Reading off the page.*
+
+"Chapter two. 'Putting things in order.' Now that, I can get behind."
+
+*1 second pause*
+
+*Writing on the back of a receipt from your pocket. Scribbling.*
+
+"Smallest first. Always smallest first. Write that down. I'm writing it down."
+
+## Scene 3: The IT van
+
+**Byte-Right's garage desk, on the radio to the IT van in the Halcyon Data Systems car park. 11:02 p.m.**
+
+> You stayed behind at the garage. The crew has just parked the van outside Halcyon, and you're tonight's dispatch on the radio. Nothing is wrong. It's an ordinary after-hours callout, and you read them the job as if it's one of many. You want to sound like a real company with a real fleet.
+
+**[ ] `l0_dispatch_1_block.wav`**
+
+*The van has just parked in the Halcyon car park. The crew is still belted in. At the garage desk, radio mic in hand. In the professional dispatcher voice. 'Van three' is a bluff: they own one van.*
+
+"Van three, you're on site at Halcyon Data Systems. After-hours callout."
+
+*1 second pause*
+
+*If the crew has already climbed out, the radio has cut off. Leaning back in her desk chair, mic close. Reading it off the ticket.*
+
+"They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors."
+
+*1 second pause*
+
+*Unless the crew has already climbed out. Reaching for the next ticket, thumbing the mic off at the end. Bored, reading the form. Signing off, already onto the next call.*
+
+"Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out."
+
+## Scene 4: Book huddles: WHERE and comparisons
+
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
+
+> Still at the garage bench before the job, reading ahead with the crew: the chapters on picking out rows, AND, and more than and less than. Later, in the tower, one of them remembers what you said as each chapter turns up. You've got the whiteboard behind you and you're using it.
+
+**[ ] `l1_huddle_where_1.wav`**
+
+*At the bench, you turn to the chapter 'Keeping only some rows'. Standing by the whiteboard, the open book in one hand. Patting pockets.*
+
+"WHERE. For finding one thing in a big pile. Like my car keys."
+
+**[ ] `l1_huddle_where_2.wav`**
+
+*A few pages on, you reach the chapter 'Both must be true'. Holding up two fingers, then pressing them together. Rueful.*
+
+"Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears."
+
+**[ ] `l1_huddle_compare_1_block.wav`**
+
+*At the bench, you reach the chapter 'More than, less than'. (In the game it only plays if the crew goes after the overheating rack.) Uncapping a marker and turning to the whiteboard behind you. Drawing one on the whiteboard, with teeth.*
+
+"Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number."
+
+*1 second pause*
+
+*Capping the marker and stepping back from the board. Relieved.*
+
+"Okay. That's maths I actually remember from school."
+
+## Scene 5: Book huddles: LIKE and GET
+
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
+
+> Still at the garage bench before the job, reading ahead with the crew: the chapters on half a name, and on asking a server. Later, in the tower, one of them remembers what you said as each chapter turns up. To you it's all still a fun night of homework.
+
+**[ ] `l2_huddle_like_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Half a name'. Holding the book close to the work lamp. Squinting at the page.*
+
+"LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'"
+
+*1 second pause*
+
+*Tapping your own name in the example. Pleased to have found themself.*
+
+"So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere."
+
+**[ ] `l2_huddle_get_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Asking a server'. Holding the book at arm's length, frowning at the chapter title. Flipping the book over to check the cover.*
+
+"This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'"
+
+*1 second pause*
+
+*Closing the book with a shrug. Not convinced.*
+
+"So it's a SELECT for robots. Got it. Probably."
+
+## Scene 6: Book huddles: UPDATE and INSERT
+
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
+
+> Still at the garage bench before the job, reading ahead with the crew: changing a row, and adding a new one. Later, in the tower, one of them remembers what you said as each chapter turns up. These are the chapters the book puts in red boxes, and you want the crew to take that seriously.
+
+**[ ] `l4_huddle_update_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Changing a row'. Frowning at a red box on the page. Holding the page at arm's length.*
+
+"UPDATE. Changing things. The book's put this one in a red box, which I don't love."
+
+*1 second pause*
+
+*Lowering the book and looking round at the crew. Suddenly serious, for once.*
+
+"Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row."
+
+**[ ] `l4_huddle_insert_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Adding a row'. Flipping to the next chapter, leaning on the bench. Reading the title, wistful, then perky again.*
+
+"INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist."
+
+*1 second pause*
+
+*Turning to the whiteboard and writing SAME ORDER in big letters. Laughing at her own picture of it.*
+
+"Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford."
