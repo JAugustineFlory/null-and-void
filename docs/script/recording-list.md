@@ -1,6 +1,6 @@
 # Recording list
 
-1185 recordings in all, 1488 lines.
+1192 recordings in all, 1502 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -135,7 +135,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_vale_1_block` | "Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry." "If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it." "And please don't give your PIN to anyone. Not even Dale." | Beep before this. Hushed, fast. Urgent. A glance over her shoulder in the voice. Softer. | Level 2 |
 
-## Maddison Kowalski (26 recordings, 42 lines)
+## Maddison Kowalski (33 recordings, 56 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
@@ -156,12 +156,19 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l0_garage_6` | "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio." | She stays behind. | Level 0 |
 | [ ] | `l0_huddle_select_1_block` | "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?" "Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon." | Disbelieving, delighted. Deadly serious about the one thing they're sure of. | Level 0 |
 | [ ] | `l0_huddle_order_1_block` | "Chapter two. 'Putting things in order.' Now that, I can get behind." "Smallest first. Always smallest first. Write that down. I'm writing it down." | Reading off the page. Scribbling. | Level 0 |
+| [ ] | `l0_huddle_columns_1_block` | "'Just the columns you need.' So no more star. The star was my favourite part." "Commas between the names, never after the last one. And dot schema when you can't remember what they're called. That one's for me." | Mock-wounded. Ticking them off. | Level 0 |
+| [ ] | `l0_huddle_desc_1_block` | "'Newest first.' DESC flips it. Biggest on top, latest on top. Like my inbox, if anyone ever emailed me." "And LIMIT at the very end, so you only get the top few. Newest three. Done." | Brightly, then a little sorry for herself. Snappy and pleased. | Level 0 |
 | [ ] | `l0_dispatch_1_block` | "Van three, you're on site at Halcyon Data Systems. After-hours callout." "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors." "Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out." | In the professional dispatcher voice. 'Van three' is a bluff: they own one van. Reading it off the ticket. Bored, reading the form. Signing off, already onto the next call. | Level 0 |
 | [ ] | `l1_huddle_where_1` | "WHERE. For finding one thing in a big pile. Like my car keys." | Patting pockets. | Level 1 |
 | [ ] | `l1_huddle_where_2` | "Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears." | Rueful. | Level 1 |
 | [ ] | `l1_huddle_compare_1_block` | "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number." "Okay. That's maths I actually remember from school." | Drawing one on the whiteboard, with teeth. Relieved. | Level 1 |
+| [ ] | `l1_huddle_or_1_block` | "'Either one will do.' OR. Finally, a word with no pressure on it." "AND needs both to be true. OR takes either one. I'm an OR person." | Relaxed. Decided. | Level 1 |
+| [ ] | `l1_huddle_count_1_block` | "'How many?' COUNT, star, in brackets. It doesn't show you the rows. It just counts them." "One number back. Like counting heads before the van leaves." | Reading slowly, getting the brackets right. Fond. | Level 1 |
+| [ ] | `l2_huddle_pressure_1_block` | "This page just says, 'Breathe.' So if it ever gets hairy in there, this is the one to read." "AND, ORDER BY, quotes round the words. You'll know all of it by then. Deep breath, then type." | Light. She thinks it's a joke. Warm and steady, a coach before a big game. | Level 2 |
 | [ ] | `l2_huddle_like_1_block` | "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'" "So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere." | Squinting at the page. Pleased to have found themself. | Level 2 |
 | [ ] | `l2_huddle_get_1_block` | "This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'" "So it's a SELECT for robots. Got it. Probably." | Flipping the book over to check the cover. Not convinced. | Level 2 |
+| [ ] | `l2_huddle_feeds_1_block` | "'One answer feeds the next.' So the answer isn't the answer. Most honest thing in this book." "Get the number, then put it in your next WHERE. A treasure hunt, with semicolons." | Dry. Liking it. | Level 2 |
+| [ ] | `l2_huddle_door_1_block` | "'One door's record.' Don't ask for the whole list. Put the one you want on the end of the path." "GET slash jobs slash fourteen. Job fourteen, nothing else. Robots are very literal." | Reading along, nodding. The book's own example, amused. | Level 2 |
 | [ ] | `l4_huddle_update_1_block` | "UPDATE. Changing things. The book's put this one in a red box, which I don't love." "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row." | Holding the page at arm's length. Suddenly serious, for once. | Level 4 |
 | [ ] | `l4_huddle_insert_1_block` | "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist." "Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford." | Reading the title, wistful, then perky again. Laughing at her own picture of it. | Level 4 |
 | [ ] | `l5_mimic_maddison_lure` | "Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you?" | Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth. | Level 5 |
