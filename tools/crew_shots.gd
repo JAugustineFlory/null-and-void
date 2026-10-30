@@ -90,9 +90,9 @@ func _run() -> void:
 		CharacterRig.build(n, look_of(order[k], PlayableCrew.slugs().find(order[k])))
 		names.append(PlayableCrew.info(order[k]).name.get_slice(" ", 0))
 	for n in chart:
-		n.position.x *= 3.0  # out past the ends of the line
+		n.position.x += signf(n.position.x) * 2.6  # out past the ends of the line
 	cam.fov = 40
-	cam.position = Vector3(0, 1.0, 7.4)
+	cam.position = Vector3(0, 1.0, 7.8)
 	cam.look_at(Vector3(0, 0.95, 0))
 	label.text = "The crew, shortest to tallest: " + ", ".join(names)
 	await _frames(40)
@@ -143,28 +143,43 @@ func _studio() -> void:
 	floor_mi.mesh = pm
 	floor_mi.material_override = ArtPalette.flat(Color(0.72, 0.72, 0.7), 0.9)
 	world.add_child(floor_mi)
-	# A height chart beside them: a mark every 10 cm from 1.4 m to 2.0 m, level
-	# with where they stand.
-	for k in 7:
-		var h := 1.4 + k * 0.1
-		for x in [-1.25, 1.25]:
+	# A height ruler on each side, standing on the floor level with them: a
+	# tick every 10 cm up to 2 m, longer every 50 cm, labelled on the left.
+	var ink := ArtPalette.flat(Color(0.35, 0.35, 0.4), 0.9)
+	for x in [-1.25, 1.25]:
+		var post := MeshInstance3D.new()
+		var pm2 := BoxMesh.new()
+		pm2.size = Vector3(0.01, 2.0, 0.01)
+		post.mesh = pm2
+		post.position = Vector3(x, 1.0, 0)
+		post.material_override = ink
+		post.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		world.add_child(post)
+		chart.append(post)
+		for k in 21:
+			var h := k * 0.1
+			var major := k % 5 == 0
 			var mark := MeshInstance3D.new()
 			var lm := BoxMesh.new()
-			lm.size = Vector3(0.25, 0.006, 0.006)
+			lm.size = Vector3(0.2 if major else 0.1, 0.006, 0.006)
 			mark.mesh = lm
-			mark.position = Vector3(x, h, 0)
-			mark.material_override = ArtPalette.flat(Color(0.35, 0.35, 0.4), 0.9)
+			mark.position = Vector3(x + signf(x) * lm.size.x / 2.0, h, 0)
+			mark.material_override = ink
+			mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			world.add_child(mark)
 			chart.append(mark)
-		var tag := Label3D.new()
-		tag.text = "%.1f m" % h
-		tag.pixel_size = 0.002
-		tag.font_size = 40
-		tag.outline_size = 0
-		tag.modulate = Color(0.3, 0.3, 0.34)
-		tag.position = Vector3(-1.25, h + 0.035, 0)
-		world.add_child(tag)
-		chart.append(tag)
+			if x > 0 or k == 0 or (k < 14 and not major):
+				continue
+			var tag := Label3D.new()
+			tag.text = "%.1f m" % h
+			tag.pixel_size = 0.002
+			tag.font_size = 40
+			tag.outline_size = 0
+			tag.modulate = Color(0.3, 0.3, 0.34)
+			tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			tag.position = Vector3(x - 0.24, h, 0)
+			world.add_child(tag)
+			chart.append(tag)
 
 
 func _frames(n: int) -> void:
