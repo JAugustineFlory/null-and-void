@@ -71,6 +71,24 @@ const REGIONS := {"clavicle": "shoulders", "spine_03": "chest", "spine_02": "bel
 	"pelvis": "hips", "thigh": "legs", "calf": "legs", "upperarm": "arms", "lowerarm": "arms", "neck_01": "neck"}
 ## A fuller belly comes this much further forward than it fills out to the sides.
 const BELLY_FORWARD := 1.0
+## The feet below the rig's knees. The pack's idle turns them in to stand under
+## its own legs; under the rig's straight legs that left everyone pigeon-toed, so
+## while the rig holds the legs they keep their rest shape, flat and forward.
+const FEET := ["foot_r", "foot_l", "ball_r", "ball_l"]
+## The pack's feet are bare and small (about 21 cm), and the shader only paints
+## shoes on them, so they read as small and pointed. A shoe is this much longer
+## (about its middle), wider (and wider still towards a blunt toe) and higher
+## near the floor, its sole staying on it.
+const SHOE_LONG := 0.35
+const SHOE_WIDE := 0.35
+const SHOE_TOE := 0.5
+const SHOE_HIGH := 0.5
+const SHOE_LOW := 0.08  # how high off the floor the shoe fills out
+const SHOE_BONES := ["foot", "ball", "ball_leaf"]
+## The bare toes show through as bumps and a point; this many passes smooth them
+## into a toe box, and the toe's sides push out this far (m) to round its tip.
+const TOE_SMOOTH := 8
+const TOE_ROUND := 0.02
 
 var model: Node3D
 var skeleton: Skeleton3D
@@ -87,6 +105,7 @@ var _skel := Transform3D.IDENTITY  # the skeleton in rig space
 var _feet: Array[int] = []
 var _fingers := {}  # finger bone -> its hand's side ("r", "l"), or "thumb"
 var _chest := {}
+var _foot_bones := {}
 var _pelvis := -1
 var _foot_height := 0.0
 var _head_bone := -1
@@ -121,7 +140,7 @@ static func attach(rig: CharacterRig, look: Dictionary) -> SkinnedBody:
 			mi.get_parent().remove_child(mi)
 			mi.free()
 			continue
-		if not is_equal_approx(build, 1.0) or not shape.is_empty():
+		if part == "Body" or not is_equal_approx(build, 1.0) or not shape.is_empty():
 			var m: Array = _shaped(body, build, shape, part, mi.mesh, mi.skin)
 			mi.mesh = m[0]
 			mi.skin = m[1]
@@ -169,6 +188,8 @@ func update(delta: float) -> void:
 			# shoulders it carries can stay where the clip put them (arms hanging).
 			var clip_parent: Transform3D = clip_chest.get(parent, parent_g)
 			clip_chest[i] = clip_parent * base
+			base.basis = Basis(base.basis.get_rotation_quaternion().slerp(_rest_local[i].basis.get_rotation_quaternion(), _lower))
+		elif player and _foot_bones.has(i):
 			base.basis = Basis(base.basis.get_rotation_quaternion().slerp(_rest_local[i].basis.get_rotation_quaternion(), _lower))
 		if _stoop != 0.0 and _chest.has(i):
 			# Round forward about the body's own side-to-side axis (the rig faces -z);
@@ -350,6 +371,8 @@ func _bind() -> void:
 			_fingers[i] = "thumb" if bone.begins_with("thumb") else bone.right(1)  # its side, "r" or "l"
 	for bone in CHEST:
 		_chest[skeleton.find_bone(bone)] = true
+	for bone in FEET:
+		_foot_bones[skeleton.find_bone(bone)] = true
 	for side in ["r", "l"]:
 		_feet.append(skeleton.find_bone("foot_" + side))
 	_foot_height = (_skel * g[_feet[0]]).origin.y
@@ -515,6 +538,7 @@ static func _shaped(body: int, build: float, shape: Dictionary, part: String, me
 	# Per bind: how much thicker its flesh, and the bone's line.
 	var grow := PackedFloat32Array()
 	var belly: Array[bool] = []
+	var shoe_at := {}  # foot or ball bind -> its side
 	var heads := PackedVector3Array()  # where each bone starts
 	var ways := PackedVector3Array()  # and the way it runs
 	var front := Vector3.FORWARD
@@ -525,8 +549,27 @@ static func _shaped(body: int, build: float, shape: Dictionary, part: String, me
 		var region: String = REGIONS.get(_bone_kind(sk.get_bind_name(b)), "")
 		grow.append(float(shape.get(region, 1.0)) - 1.0)
 		belly.append(region == "belly")
+		var bone := sk.get_bind_name(b)
+		if part == "Body" and _bone_kind(bone) in SHOE_BONES:
+			shoe_at[b] = bone.right(1)
 		heads.append(bone_rest.origin)
 		ways.append(bone_rest.basis.y.normalized())
+	# Each foot's ball (where a shoe widens from), toe tip and middle, by side.
+	var balls := {}
+	var tips := {}
+	var mids := {}
+	for b in sk.get_bind_count():
+		var bone := String(sk.get_bind_name(b))
+		var side := bone.right(1)
+		if bone.begins_with("ball_leaf_"):
+			tips[side] = heads[b].z
+		elif bone.begins_with("ball_"):
+			balls[side] = heads[b]
+		elif bone.begins_with("foot_"):
+			mids[side] = heads[b].z  # the ankle, for now
+	for side in balls:
+		tips[side] = tips.get(side, balls[side].z - 0.08)
+		mids[side] = (mids.get(side, balls[side].z) + tips[side]) / 2.0
 	var out := ArrayMesh.new()
 	for i in mesh.get_surface_count():
 		var arrays := mesh.surface_get_arrays(i)
@@ -535,6 +578,7 @@ static func _shaped(body: int, build: float, shape: Dictionary, part: String, me
 		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
 		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
 		var per := bones.size() / maxi(verts.size(), 1)
+		var toes := {}  # vertex past the ball of a shod foot -> how far towards the tip, times how shod
 		for v in verts.size():
 			var p := verts[v] * s
 			var move := Vector3.ZERO
@@ -550,14 +594,68 @@ static func _shaped(body: int, build: float, shape: Dictionary, part: String, me
 				if belly[b] and off.dot(front) > 0.0 and g > 0.0:
 					off += front * off.dot(front) * BELLY_FORWARD  # a belly comes forward more than out
 				move += off * g * w
-			verts[v] = p + move
+			p += move
+			var shod := 0.0
+			var side := ""
+			for k in per:
+				var b := bones[v * per + k]
+				if shoe_at.has(b):
+					shod += weights[v * per + k]
+					side = shoe_at[b]
+			if shod > 0.0 and balls.has(side):
+				var ball: Vector3 = balls[side]
+				var toe := clampf((ball.z - p.z) / maxf(ball.z - tips[side], 0.01), 0.0, 1.0)
+				p.x = ball.x + (p.x - ball.x) * (1.0 + (SHOE_WIDE + SHOE_TOE * toe) * shod)
+				p.z = mids[side] + (p.z - mids[side]) * (1.0 + SHOE_LONG * shod)
+				p.y *= 1.0 + SHOE_HIGH * shod * clampf(1.0 - p.y / SHOE_LOW, 0.0, 1.0)
+				p.x += tanh((p.x - ball.x) / 0.01) * TOE_ROUND * toe * shod
+				if toe > 0.0:
+					toes[v] = toe * shod
+			verts[v] = p
 			normals[v] = (normals[v] / s).normalized()
+		if not toes.is_empty():
+			_smooth_toes(verts, arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(), toes)
 		arrays[Mesh.ARRAY_VERTEX] = verts
 		arrays[Mesh.ARRAY_NORMAL] = normals
 		arrays[Mesh.ARRAY_TANGENT] = null
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	_scaled[key] = [out, sk]
 	return _scaled[key]
+
+
+## Evens out the toes (TOE_SMOOTH passes, each vertex towards its neighbours'
+## middle), more towards the tip, so a shoe shows no toes. Vertices that share a
+## spot (at a seam) move together; soles stay on the floor.
+static func _smooth_toes(verts: PackedVector3Array, index: PackedInt32Array, toes: Dictionary) -> void:
+	var spot := {}  # vertex -> the first vertex at its spot
+	var at := {}
+	for v in toes:
+		var key := Vector3i((verts[v] * 10000.0).round())
+		if not at.has(key):
+			at[key] = v
+		spot[v] = at[key]
+	var near := {}  # spot -> the spots it shares an edge with
+	for i in range(0, index.size(), 3):
+		for k in 3:
+			var a := index[i + k]
+			var b := index[i + (k + 1) % 3]
+			if spot.has(a) and spot.has(b) and spot[a] != spot[b]:
+				near.get_or_add(spot[a], {})[spot[b]] = true
+				near.get_or_add(spot[b], {})[spot[a]] = true
+	for _round in TOE_SMOOTH:
+		var moved := {}
+		for s in near:
+			var mid := Vector3.ZERO
+			for n in near[s]:
+				mid += verts[n]
+			mid /= near[s].size()
+			var p := verts[s].lerp(mid, 0.5 * smoothstep(0.1, 0.5, toes[s]))
+			p.y = maxf(p.y, 0.0) if verts[s].y > 0.002 else verts[s].y
+			moved[s] = p
+		for s in moved:
+			verts[s] = moved[s]
+	for v in spot:
+		verts[v] = verts[spot[v]]
 
 
 ## "upperarm" for "upperarm_r", "spine_02" for itself: the name REGIONS knows a bone by.

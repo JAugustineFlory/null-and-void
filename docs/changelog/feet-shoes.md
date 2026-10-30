@@ -1,0 +1,1 @@
+- **Fixed:** everyone's feet point straight ahead when standing instead of turning inward, and they wear proper shoes instead of small, pointed ones.
