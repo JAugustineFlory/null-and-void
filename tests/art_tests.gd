@@ -24,6 +24,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_rig_budget()
 	await test_skinned_body()
 	test_outfits()
+	await test_crew_bodies()
 	test_unlockable_items()
 	await test_props()
 	test_kits()
@@ -1003,6 +1004,120 @@ func test_rig_budget() -> void:
 	a.get_parent().free()
 	b.get_parent().free()
 	stage.free()
+
+
+func test_crew_bodies() -> void:
+	# v0.8 (Augustine 2026-10-26, plan/crew-attributes.md): each of the twelve
+	# playable crew has their own build. Clothes, colours and names stay the player's.
+	var slugs := PlayableCrew.slugs()
+	var missing := slugs.filter(func(c): return not CharacterLooks.CREW_BODIES.has(c))
+	check(missing.is_empty() and CharacterLooks.CREW_BODIES.size() == slugs.size(), "every playable crew member has a build of their own (missing: %s)" % [missing])
+	var seen := {}
+	var heights := {}
+	for c in slugs:
+		var b: Dictionary = CharacterLooks.CREW_BODIES[c]
+		seen[JSON.stringify([PlayableCrew.info(c).body, b], "", true)] = c
+		heights[c] = (1.81 if PlayableCrew.info(c).body == 1 else 1.77) * float(b.height)
+	check(seen.size() == slugs.size(), "no two crew members share a build")
+	var tall: Array = heights.values().filter(func(h): return h < 1.5 or h > 1.95)
+	check(tall.is_empty() and heights.priya < heights.kit and heights.sam == heights.values().max(), "heights stay between 1.5 and 1.95 m: Priya small, Sam the tallest (%s)" % [heights])
+
+	var dressed := func(crew: String, extra := {}) -> Dictionary:
+		var choice := {"crew": crew, "top": {"item": "polo", "color": Color.RED}}
+		choice.merge(extra, true)
+		return CharacterLooks.outfit(Cosmetics.clean(choice, 0))
+	var marcus: Dictionary = dressed.call("marcus")
+	check(is_equal_approx(marcus.height, CharacterLooks.CREW_BODIES.marcus.height) and marcus.shape.has("belly") and marcus.shirt == Color.RED,
+		"picking a crew member gives you their build, still in the colours you picked")
+	check(CharacterLooks.outfit({}).shape.is_empty() and is_equal_approx(CharacterLooks.outfit({}).height, 1.0), "a loadout with no crew member is the stock body")
+
+	var stage := _stage()
+	var build := func(look: Dictionary) -> CharacterRig:
+		var n := Node3D.new()
+		stage.add_child(n)
+		return CharacterRig.build(n, look)
+	var box_of := func(rig: CharacterRig, part: String) -> AABB:
+		var mi: MeshInstance3D = rig.find_child(part, true, false)
+		return mi.mesh.get_aabb() if mi else AABB()
+	# Fully dressed, every build stays in the rig's budgets.
+	var worst_tris := 0
+	var worst_parts := 0
+	var all_on := {"hair": {"item": "long"}, "head": {"item": "cap"}, "jacket": {"item": "coat"}, "face": {"item": "glasses"},
+		"ears": {"item": "studs"}, "feet": {"item": "high_tops"}, "belt": {"item": "radio"}}
+	for c in slugs:
+		var rig: CharacterRig = build.call(dressed.call(c, all_on))
+		var tris := 0
+		for mi: MeshInstance3D in rig.find_children("*", "MeshInstance3D", true, false):
+			for k in mi.mesh.get_surface_count():
+				var idx = mi.mesh.surface_get_arrays(k)[Mesh.ARRAY_INDEX]
+				tris += (idx.size() if idx else mi.mesh.surface_get_array_len(k)) / 3
+		worst_tris = maxi(worst_tris, tris)
+		worst_parts = maxi(worst_parts, rig.part_count())
+	check(worst_tris <= 10500 and worst_parts <= 32, "every crew member, fully dressed, stays within about 10k triangles and 32 pieces (%d, %d)" % [worst_tris, worst_parts])
+
+	# Builds show: a mover is broader than the kiosk tech; a guard's gut comes
+	# forward, and the jacket over it comes with it.
+	var sam: CharacterRig = build.call(dressed.call("sam"))
+	var priya: CharacterRig = build.call(dressed.call("priya"))
+	var wide := func(rig: CharacterRig) -> float:
+		return box_of.call(rig, "Body").size.z * rig.scale.x
+	check(wide.call(sam) > wide.call(priya) * 1.3 and sam.scale.y > priya.scale.y * 1.15, "Sam is bigger and taller than Priya")
+	var plain_look: Dictionary = dressed.call("marcus", {"jacket": {"item": "security"}})
+	plain_look.merge({"shape": {}, "build": 1.0}, true)
+	var plain: CharacterRig = build.call(plain_look)
+	var guard: CharacterRig = build.call(dressed.call("marcus", {"jacket": {"item": "security"}}))
+	var gut := -(box_of.call(guard, "Body") as AABB).position.z
+	var flat := -(box_of.call(plain, "Body") as AABB).position.z
+	var coat := -(box_of.call(guard, "Jacket_closed") as AABB).position.z
+	check(gut > flat + 0.03 and coat >= gut, "Marcus's belly comes forward, and his jacket comes with it (%.3f m out, jacket %.3f m)" % [gut - flat, coat - gut])
+	var again: CharacterRig = build.call(dressed.call("marcus", {"jacket": {"item": "security"}, "top": {"item": "tee", "color": Color.BLUE}}))
+	var ma: MeshInstance3D = guard.find_child("Body", true, false)
+	var mb: MeshInstance3D = again.find_child("Body", true, false)
+	check(ma.mesh == mb.mesh, "two players on the same crew member share one shaped body, whatever they wear")
+	# June's shoulders round forward; her head stays level.
+	var june: CharacterRig = build.call(dressed.call("june"))
+	var june_flat_look: Dictionary = dressed.call("june")
+	june_flat_look.stoop = 0.0
+	var june_flat: CharacterRig = build.call(june_flat_look)
+	for r in [june, june_flat]:
+		for i in 10:
+			r.animate(0.1)
+	var bone_in := func(rig: CharacterRig, bone: String) -> Vector3:
+		var sk: Skeleton3D = rig._skin.skeleton
+		return rig.to_local(sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin)
+	var ahead: Vector3 = (bone_in.call(june, "ball_r") - bone_in.call(june, "foot_r")) * Vector3(1, 0, 1)  # the way her toes point
+	var rounded: float = (bone_in.call(june, "neck_01") - bone_in.call(june_flat, "neck_01")).dot(ahead.normalized())
+	check(rounded > 0.03, "June's upper back rounds forward with age (neck %.3f m further forward)" % rounded)
+	stage.queue_free()
+
+	# In first person, on any crew member's body, you don't see your own neck.
+	var fp_stage := _stage()
+	var worst := -INF
+	var worst_who := ""
+	for c in slugs:
+		var you := _FakeFighter.new()
+		fp_stage.add_child(you)
+		you.add_child(you.head)
+		you.head.position.y = 1.68
+		var cam := Camera3D.new()
+		cam.fov = 78
+		you.head.add_child(cam)
+		you.camera = cam
+		var fp := FirstPersonBody.attach(you, dressed.call(c))
+		fp.set_process(false)
+		fp.rig.set_process(false)
+		for pitch in [0.0, -0.7, -1.3]:
+			you.head.rotation.x = pitch
+			for i in 40:
+				fp._process(1.0 / 60.0)
+				fp.rig.animate(1.0 / 60.0)
+			var need := fp._neck_needs(fp.position)
+			if need > worst:
+				worst = need
+				worst_who = "%s at %.1f" % [c, pitch]
+		you.queue_free()
+	check(worst < FirstPersonBody.NECK_CLEAR, "on every crew member's body, looking ahead or down, your own neck stays out of view (worst %.3f m, %s)" % [worst, worst_who])
+	fp_stage.queue_free()
 
 
 func test_kits() -> void:
