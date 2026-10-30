@@ -21,6 +21,12 @@ signal idle
 ## Where a chapter used to be read. Callers can still say; it changes nothing.
 const FLASHBACK := "flashback"
 const HERE := "here"
+## Up on the floors Maddison isn't with the crew (Augustine, 2026-10-27): one of
+## them remembers what she said ("Didn't Maddison say..."), and her lines play as
+## a memory. Only the garage plays them as if she's there.
+const REMEMBERED := "remembered"
+## What the crew says first, in turn so the same one doesn't come twice running.
+const LEAD_INS := ["l0_recall_1", "l0_recall_2", "l0_recall_3"]
 ## The notice as a chapter goes into the book (a draft for Augustine's word-for-word OK).
 const NOTICE := "New in %s: Ch. %d, %s. Press Tab, then Books, to read it."
 
@@ -32,6 +38,10 @@ var chapter := {}
 var crew: Array = []
 ## Chapters this run has had.
 var done := {}
+## Chapter id -> {line, peer}: which lead-in comes before her lines, and who says
+## it. The host picks, so every machine hears the same player.
+var leads := {}
+var _next_lead := 0
 var _busy := false
 
 
@@ -70,14 +80,15 @@ func is_busy() -> bool:
 ## Put chapter `id` in the crew's book and wait while Maddison's lines for it
 ## play. The players keep moving the whole time. If one is already playing (two
 ## papers read close together), this one waits its turn.
-func run(id: String, _mode: String = FLASHBACK) -> void:
+## `mode` REMEMBERED: up on a floor, where she isn't (see LEAD_INS).
+func run(id: String, mode: String = FLASHBACK) -> void:
 	while _busy:
 		await idle
 	if done.has(id) or Books.chapter(id).is_empty():
 		return
 	_busy = true
 	if is_host():
-		_complete(id)
+		_complete(id, [], mode == REMEMBERED)
 	while not done.has(id):
 		await finished
 	chapter = Books.chapter(id)
@@ -89,8 +100,11 @@ func run(id: String, _mode: String = FLASHBACK) -> void:
 	# (one query solving two puzzles) has played out before the level carries on.
 	await get_tree().process_frame
 	if hud:
+		var lead: Dictionary = leads.get(id, {})
+		if not lead.is_empty():
+			await hud.line(lead.line, true, false, _name_of(lead.peer), _voice_dir(lead.peer))
 		for line in chapter.lines:
-			await hud.line(line)
+			await hud.line(line, true, not lead.is_empty() and _is_hers(line))
 	chapter = {}
 	changed.emit()
 	_busy = false
@@ -98,17 +112,24 @@ func run(id: String, _mode: String = FLASHBACK) -> void:
 
 
 ## Host: chapter `id` is in. Every player (or just `ids`) has it on their own
-## profile, and every machine puts it in the book.
-func _complete(id: String, ids: Array = []) -> void:
+## profile, and every machine puts it in the book. `remembered`: one of them, at
+## random, says the next lead-in before Maddison's lines.
+func _complete(id: String, ids: Array = [], remembered: bool = false) -> void:
 	if ids.is_empty():
 		ids = NetPlayers.ids_for(multiplayer)
 	LevelSync.of(self).unlock_for(ids, "chapter:" + id)
-	_finish.rpc(id, ids)
+	var lead := {}
+	if remembered and Books.chapter(id).get("lines", []).any(_is_hers):
+		lead = {"line": LEAD_INS[_next_lead % LEAD_INS.size()], "peer": ids.pick_random()}
+		_next_lead += 1
+	_finish.rpc(id, ids, lead)
 
 
 @rpc("authority", "call_local", "reliable")
-func _finish(id: String, in_crew: Array) -> void:
+func _finish(id: String, in_crew: Array, lead: Dictionary) -> void:
 	crew = in_crew
+	if not lead.is_empty():
+		leads[id] = lead
 	var game := get_node("/root/Game")
 	for w in Books.chapter(id).get("words", []):
 		if not game.book_words.has(w):
@@ -119,6 +140,25 @@ func _finish(id: String, in_crew: Array) -> void:
 	done[id] = true
 	_earn_book(Books.chapter(id).get("book_id", ""))
 	finished.emit(id)
+
+
+static func _is_hers(line_id: String) -> bool:
+	return VoiceLines.get_line(line_id).get("speaker", "") == "MADDISON"
+
+
+## A player's name as the roster has it.
+func _name_of(peer_id: int) -> String:
+	var net := get_node_or_null("/root/Net")
+	return net.display_name(peer_id) if net else ""
+
+
+## The recordings folder for a player's crew member ("crew_dana"), or "" for none.
+func _voice_dir(peer_id: int) -> String:
+	var net := get_node_or_null("/root/Net")
+	if net == null:
+		return ""
+	var slug := str(net.look_of(peer_id, maxi(NetPlayers.index_of(peer_id, multiplayer), 0)).get("crew", ""))
+	return VoiceLines.crew_dir(slug) if slug != "" else ""
 
 
 # --- Unlocks (plan/approvals/unlocks.md) ---------------------------------------

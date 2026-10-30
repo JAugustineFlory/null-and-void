@@ -939,7 +939,7 @@ func _ask_login() -> void:
 ## Every machine: a paper brings back its chapter of Easy SQL, into the crew's book
 ## (once per run). Nothing stops: the Custodian keeps going.
 func _book_huddle(id: String) -> void:
-	await Huddle.of(self).run(id)
+	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
 
 # --- The ground floor ------------------------------------------------------------------

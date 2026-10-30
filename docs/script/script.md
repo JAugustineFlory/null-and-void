@@ -314,7 +314,19 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, any floor. During the job.**
 
-*Augustine, 2026-10-27: Maddison isn't in the tower, so before each of her chapter lines on a floor a crew member says one of these, then her line plays as a memory. One of the three, picked by the game. His own words, approved as written.* *(Written ahead: not in the game yet.)*
+*Augustine, 2026-10-27: Maddison isn't in the tower, so before each of her chapter lines on a floor a crew member says one of these, then her line plays as a memory. One of the three, picked by the game. His own words, approved as written.*
+
+**CREW** `l0_recall_1.wav`  
+*Cue: A new chapter of the book has just turned up in the crew's notebooks*  
+*(Flipping to the new page in your notebook)* "I think Maddison said..." *Half to yourself, trying to remember. Trail off: her line follows.*
+
+**CREW** `l0_recall_2.wav`  
+*Cue: A new chapter of the book has just turned up in the crew's notebooks*  
+*(Looking up from the new page at the others)* "Didn't Maddison say..." *To the others, as it comes back to you. Trail off: her line follows.*
+
+**CREW** `l0_recall_3.wav`  
+*Cue: A new chapter of the book has just turned up in the crew's notebooks*  
+*(Tapping the new page in your notebook)* "Maddison mentioned..." *Remembering, a little fond. Trail off: her line follows.*
 
 ### The IT van
 
