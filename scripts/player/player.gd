@@ -64,6 +64,11 @@ const MANTLE_MAX := 1.6
 const HANG_REACH := 2.25
 ## A beat after catching an edge before you can pull up.
 const HANG_SETTLE := 0.15
+## Hanging and looking round further than this (radians) from the wall, you let go
+## with the arm on the side you look to; looking back past straight behind you,
+## the arms swap. HANG_ONE_ARM_HOLD keeps the swap from flickering right behind.
+const HANG_ONE_ARM := deg_to_rad(60.0)
+const HANG_ONE_ARM_HOLD := deg_to_rad(170.0)
 ## How far (radians) you can turn from your stance while shuffling along a ledge.
 const LEDGE_LOOK := deg_to_rad(100.0)
 const MANTLE_UP_TIME := 0.22
@@ -206,6 +211,8 @@ var _air_time := 0.0
 var _mantle_path: Array[Vector3] = []
 var _hang_normal := Vector3.ZERO
 var _hang_top := 0.0
+## Hanging one-armed: the hand you let go with ("l" or "r"), or "" with both on.
+var _hang_free := ""
 ## Forward must be let go after catching an edge before it pulls you up.
 var _fwd_released := false
 ## Space pressed while hanging, waiting out HANG_SETTLE to pull you up.
@@ -1496,6 +1503,7 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		_timer = 0.0
 		_fwd_released = controls.move.y > -0.5
 		_hang_jump = false
+		_hang_free = ""
 		_cam_kick += Vector3(-0.05, -0.1, 0)  # caught it: the arms take your weight
 		_set_crouch(false)
 		velocity = Vector3.ZERO
@@ -1958,7 +1966,9 @@ func parkour_grip() -> Dictionary:
 		Move.HANG:
 			var edge := global_position - _hang_normal * (RADIUS + 0.03)
 			edge.y = _hang_top
-			return {"point": edge, "normal": _hang_normal}
+			var hands := ["l", "r"]
+			hands.erase(hang_free_hand())
+			return {"point": edge, "normal": _hang_normal, "hands": hands}
 		Move.CLIMB:
 			if _climb:
 				var n := _climb.normal
@@ -1968,8 +1978,24 @@ func parkour_grip() -> Dictionary:
 		Move.LEDGE:
 			if _ledge:
 				var n := _ledge.normal
-				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n}  # flat on the wall
+				# "face": the way you faced when you stepped on (-normal: chest to the wall).
+				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n, "face": _ledge_face}  # flat on the wall
 	return {}
+
+
+## Hanging from an edge, the hand you've let go with to look round: "l" or "r"
+## (the side you look to), or "" while you face the wall. Any other move: "".
+func hang_free_hand() -> String:
+	if state != Move.HANG:
+		_hang_free = ""
+		return ""
+	var wall := atan2(_hang_normal.x, _hang_normal.z)  # facing the wall
+	var d := angle_difference(wall, rotation.y)  # + is looking left
+	if absf(d) < HANG_ONE_ARM:
+		_hang_free = ""
+	elif _hang_free == "" or absf(d) < HANG_ONE_ARM_HOLD:
+		_hang_free = "l" if d > 0.0 else "r"
+	return _hang_free
 
 
 func _update_prompt() -> void:

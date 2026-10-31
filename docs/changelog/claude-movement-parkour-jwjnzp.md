@@ -1,0 +1,1 @@
+- **Changed:** Hanging from an edge and looking round, you let go with the arm on the side you look to, and swap hands when you turn past behind you.
