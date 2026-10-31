@@ -69,6 +69,10 @@ const SHOULDER := 1.45
 ## Hands on an edge are this far apart; on a wall, this far.
 const EDGE_SPREAD := 0.2
 const WALL_SPREAD := 0.26
+## Hanging and looking round further than this (radians) from the wall, the
+## hand on that side lets go and hangs this far below its shoulder.
+const HANG_ONE_ARM := deg_to_rad(60.0)
+const FREE_DROP := 0.5
 ## Climbing, each hand takes the next hold this far above the other's, and one
 ## pull is twice it: the body's hand-over-hand cycle.
 const RUNG := 0.35
@@ -441,9 +445,21 @@ func _parkour_grips(delta: float) -> Dictionary:
 	var along := (-n).cross(Vector3.UP)  # along the edge or wall, to your right
 	if along.dot(you_right) < 0.0:
 		along = -along
+	# Hanging and looking round, you let go with the hand on the side you look
+	# to: it would reach past your face. The Player says which still hold on
+	# ("hands"); if it doesn't, you let go once you look this far from the wall.
+	var holding: Array = grip.get("hands", ["l", "r"])
+	if move == "hang" and not grip.has("hands"):
+		var look := -(player as Node3D).global_basis.z
+		var turned := (-n).signed_angle_to(Vector3(look.x, 0, look.z), Vector3.UP)  # + to your left
+		if absf(turned) > HANG_ONE_ARM:
+			holding = ["r"] if turned > 0.0 else ["l"]
 	var grips := {}
 	for side in ["r", "l"]:
 		var s := 1.0 if side == "r" else -1.0
+		if move == "hang" and not side in holding:
+			grips[side] = _hanging_free(side, along * s)
+			continue
 		match move:
 			"mantle", "hang", "vault":
 				if move == "mantle" and rig.move_progress > MANTLE_LET_GO:
@@ -474,6 +490,17 @@ func _parkour_grips(delta: float) -> Dictionary:
 				var wrist := at + Vector3.UP * high + along * s * WALL_SPREAD + n * 0.02
 				grips[side] = _grip(wrist, Vector3.UP if facing else Vector3.DOWN, -n)
 	return grips
+
+
+## The hand you let go with while hanging: down by your side, out of your view
+## as you look round, the palm in towards you. `out` points from you to that side.
+func _hanging_free(side: String, out: Vector3) -> Transform3D:
+	var shoulder := (player as Node3D).global_position + Vector3.UP * SHOULDER + out * 0.18
+	var skin: SkinnedBody = rig._skin
+	if skin:
+		var sk := skin.skeleton
+		shoulder = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("upperarm_" + side)).origin
+	return _grip(shoulder + Vector3.DOWN * FREE_DROP + out * 0.06, Vector3.DOWN, -out)
 
 
 ## Where a hand holds something by its edge, its frame `t` on the held thing's
