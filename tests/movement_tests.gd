@@ -637,14 +637,18 @@ func test_ledge_shuffle() -> void:
 	var lowest := 10.0
 	var turned := false
 	var max_turn := 0.0
+	var face_on := Vector3.ZERO
+	var face_turned := Vector3.ZERO
 	for i in 900:
 		await frames(1)
 		if p.state == Player.Move.LEDGE:
 			if not turned:
 				# Facing the wall on the ledge: try to turn right around.
 				turned = true
+				face_on = p.parkour_grip().get("face", Vector3.ZERO)
 				p.rotation.y = PI
 			elif max_turn == 0.0:
+				face_turned = p.parkour_grip().get("face", Vector3.ZERO)
 				max_turn = absf(angle_difference(0.0, p.rotation.y))
 				p.rotation.y = 0.0  # face the wall again and carry on
 			shuffled = true
@@ -655,6 +659,7 @@ func test_ledge_shuffle() -> void:
 	check(shuffled and top_speed < Player.LEDGE_SPEED + 0.6, "stepping onto a ledge shuffles slowly, even sprinting (%.2f m/s)" % top_speed)
 	check(lowest > -0.5 and p.global_position.x > 9.0, "the shuffle reaches the far side without falling")
 	check(turned and max_turn <= Player.LEDGE_LOOK + 0.01, "facing the wall on a ledge, you can't turn your back to it (%.0f deg)" % rad_to_deg(max_turn))
+	check(face_on.is_equal_approx(Vector3(0, 0, -1)) and face_turned == face_on, "the ledge grip keeps the stance you stepped on with, however you look")
 	check(p.state == Player.Move.WALK, "walking off the end returns to normal movement")
 	await done(a)
 

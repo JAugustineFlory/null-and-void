@@ -1978,7 +1978,8 @@ func parkour_grip() -> Dictionary:
 		Move.LEDGE:
 			if _ledge:
 				var n := _ledge.normal
-				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n}  # flat on the wall
+				# "face": the way you faced when you stepped on (-normal: chest to the wall).
+				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n, "face": _ledge_face}  # flat on the wall
 	return {}
 
 
