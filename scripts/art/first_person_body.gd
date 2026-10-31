@@ -72,6 +72,12 @@ const WALL_SPREAD := 0.26
 ## Holding on with both hands, your shoulders turn only this share of your
 ## look (your neck does the rest), so neither arm comes across your face.
 const HOLD_TWIST := 0.3
+## Looking further round than this (radians), the Player has you hold on with
+## one hand ("hands"): the other swings out in front of you, this far ahead of
+## your eyes, the way you look.
+const LOOK_BOTH := deg_to_rad(80.0)
+const LOOK_FACE := deg_to_rad(120.0)
+const SWING_OUT := 0.6
 ## Climbing, each hand takes the next hold this far above the other's, and one
 ## pull is twice it: the body's hand-over-hand cycle.
 const RUNG := 0.35
@@ -95,6 +101,10 @@ const PUSHED_OFF := ["vault"]
 const NEAR_CUT := 0.4
 ## Garments (a jacket) fade out over this last share of it, not cut off hard.
 const NEAR_FADE := 0.98
+## Holding on one-handed, turned to face the way you look: nothing of your
+## collar is in front of your eyes, so less is left out, and the free arm shows
+## out of its sleeve.
+const ONE_HAND_CUT := 0.5
 
 var player: Node3D  # Player
 var rig: CharacterRig
@@ -113,6 +123,9 @@ var _lean_back := 0.0
 var _edges := {}  # seat -> how far ahead its front edge is
 var _holds := {}  # climbing, side -> where that hand is on the pipe now
 var _square := Vector3.ZERO  # hanging or flat to a wall, the way your hips face
+var _one_hand := false  # and holding on with only one hand
+var _faced := 0.0  # how far round you've pivoted on it, 1 facing the way you look
+var _swung := []  # the sides swung out, holding nothing
 var _pull := Vector3.ZERO  # how far the body has moved towards what the hands hold (world axes)
 var _grips := {}  # this frame's parkour grips, side -> wrist transform
 var _arm := 0.0  # shoulder to wrist, arm straight
@@ -189,13 +202,19 @@ func _process(delta: float) -> void:
 	_lean = lerpf(_lean, FIGHT_LEAN if action in FIGHTING else 0.0, 1.0 - exp(-12.0 * delta))
 	var seat = player.get("seat")
 	var turned := 0.0
+	_faced = 0.0
 	if chair and is_instance_valid(seat):
 		var fwd: Vector3 = -(seat as Node3D).global_basis.z
 		turned = angle_difference(atan2(-fwd.x, -fwd.z), player.global_rotation.y)
 	elif _square != Vector3.ZERO:
 		# Hanging or flat to a wall, your hips stay square to it and both hands
 		# on it: looking round turns your head, and your shoulders a little.
+		# Look further and you hold on with one hand: you pivot on it, round to
+		# face the way you look by LOOK_FACE.
 		turned = angle_difference(atan2(-_square.x, -_square.z), player.global_rotation.y)
+		if _one_hand:
+			_faced = clampf((absf(turned) - LOOK_BOTH) / (LOOK_FACE - LOOK_BOTH), 0.0, 1.0)
+			turned = signf(turned) * minf(absf(turned), LOOK_BOTH * (1.0 - _faced))
 	basis = Basis(Vector3.UP, -turned)
 	rig.twist = turned * (HOLD_TWIST if _square != Vector3.ZERO else 1.0)
 	var back := BACK - _lean
@@ -221,7 +240,7 @@ func _process(delta: float) -> void:
 	if _grips.is_empty() and _pull.length() < 0.005:
 		_pull = Vector3.ZERO
 	at += (player as Node3D).global_basis.inverse() * _pull  # (it stays put as you look round)
-	_near_cut(NEAR_CUT if action == "roll" else NEAR_CUT * clampf(_pull.length() / 0.1, 0.0, 1.0))
+	_near_cut(NEAR_CUT if action == "roll" else NEAR_CUT * clampf(_pull.length() / 0.1, 0.0, 1.0) * lerpf(1.0, ONE_HAND_CUT, _faced))
 	var need := _neck_needs(at) if _pull.length() < 0.05 else 0.0
 	if chair:
 		_clear = 0.0
@@ -410,9 +429,14 @@ func _pull_needed() -> Vector3:
 		var h := sk.get_bone_global_rest(sk.find_bone("hand_r")).origin
 		_arm = (u.distance_to(l) + l.distance_to(h)) * sk.global_basis.get_scale().x * 0.95
 	var most := Vector3.ZERO
+	# Holding on one-handed, you hang from that hand alone: how far in towards it
+	# is worked out afresh, not added to how far both hands pulled you.
+	var base := Vector3.ZERO if _one_hand else _pull
 	for side in _grips.keys():
+		if _one_hand and _swung.has(side):
+			continue  # (the free hand holds nothing)
 		var shoulder := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("upperarm_" + side)).origin
-		var gap: Vector3 = (_grips[side] as Transform3D).origin - shoulder
+		var gap: Vector3 = (_grips[side] as Transform3D).origin - shoulder + (_pull - base)
 		# Up to it if it's out of reach above (down, too, pushing off it as you
 		# go over), then in towards it.
 		var lift := maxf(gap.y - _arm * 0.9, 0.0)
@@ -424,12 +448,12 @@ func _pull_needed() -> Vector3:
 		var move := flat.normalized() * fwd + Vector3.UP * lift
 		if not rig.action in PULLED_IN:
 			move = Vector3.ZERO
-		var pulled := (_pull + move).limit_length(PULL_MAX)
-		if (gap - (pulled - _pull)).length() > _arm * 1.2:
+		var pulled := (base + move).limit_length(PULL_MAX)
+		if (gap - (pulled - base)).length() > _arm * 1.2:
 			_grips.erase(side)  # out of reach: let go
 		elif move.length() > most.length():
 			most = move
-	return (_pull + most).limit_length(PULL_MAX)
+	return (base + most).limit_length(PULL_MAX)
 
 
 ## Where the hands hold on in a parkour move ({} in any other): on an edge,
@@ -440,10 +464,12 @@ func _parkour_grips(delta: float) -> Dictionary:
 	if not (move in PARKOUR and player.has_method("parkour_grip")):
 		_holds.clear()
 		_square = Vector3.ZERO
+		_one_hand = false
 		return {}
 	var grip: Dictionary = player.parkour_grip()
 	if grip.is_empty():
 		_square = Vector3.ZERO
+		_one_hand = false
 		return {}
 	var at: Vector3 = grip.point
 	var n: Vector3 = grip.normal
@@ -467,9 +493,18 @@ func _parkour_grips(delta: float) -> Dictionary:
 	var along := (-n).cross(Vector3.UP)  # along the edge or wall, to your right
 	if along.dot(you_right) < 0.0:
 		along = -along
+	# Looking round far enough, you hold on with one hand ("hands": those still
+	# on); the other swings out the way you look, ready to push off.
+	var holding: Array = grip.get("hands", ["l", "r"])
+	_one_hand = _square != Vector3.ZERO and holding.size() < 2
 	var grips := {}
+	_swung.clear()
 	for side in ["r", "l"]:
 		var s := 1.0 if side == "r" else -1.0
+		if not side in holding:
+			grips[side] = _swung_out(side)
+			_swung.append(side)
+			continue
 		match move:
 			"mantle", "hang", "vault":
 				if move == "mantle" and rig.move_progress > MANTLE_LET_GO:
@@ -500,6 +535,28 @@ func _parkour_grips(delta: float) -> Dictionary:
 				var wrist := at + Vector3.UP * high + along * s * WALL_SPREAD + n * 0.02
 				grips[side] = _grip(wrist, Vector3.UP if facing else Vector3.DOWN, -n)
 	return grips
+
+
+## The hand you've let go with to look round: out in front of you the way
+## you look, low in your view on its own side (as far as the arm reaches),
+## fingers that way, palm down.
+func _swung_out(side: String) -> Transform3D:
+	var you := player as Node3D
+	var look := -you.global_basis.z
+	look = Vector3(look.x, 0, look.z).normalized()
+	var out := you.global_basis.x * (1.0 if side == "r" else -1.0)
+	var eye := you.global_position + Vector3.UP * 1.68
+	var cam = player.get("camera")
+	if cam is Node3D:
+		eye = (cam as Node3D).global_position
+	var shoulder := eye - Vector3.UP * 0.2 + out * 0.18
+	var skin: SkinnedBody = rig._skin
+	if skin:
+		var sk := skin.skeleton
+		shoulder = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("upperarm_" + side)).origin
+	var want := eye + look * SWING_OUT + out * 0.12 + Vector3.DOWN * 0.08
+	var at := shoulder + (want - shoulder).limit_length(maxf(_arm, 0.5) * 0.95)
+	return _grip(at, (at - shoulder).normalized(), Vector3.DOWN - look * 0.3)
 
 
 ## Where a hand holds something by its edge, its frame `t` on the held thing's

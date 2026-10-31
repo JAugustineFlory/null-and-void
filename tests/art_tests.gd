@@ -713,8 +713,27 @@ func test_first_person_parkour() -> void:
 		var square := Vector3(hips.x, 0, hips.z).normalized().dot(Vector3(hips_on.x, 0, hips_on.z).normalized())
 		check(on_grips.call(0.06) and square > 0.97,
 			"hanging and looking round (%.1f rad), both hands stay on the edge and your hips square to the wall (%s, %.2f)" % [yaw, on_grips.call(0.06), square])
+	# Looking further round, behind you, the Player has you hold on with one
+	# hand: you pivot on it to face away, and the other swings out ahead of you
+	# where you can see it.
+	you.grip["hands"] = ["r"]
+	you.rotation.y = 2.6
+	you.head.rotation.x = 0.0  # looking out, where you'd jump
+	step.call(0.8)
+	var hips_now := (bone.call("pelvis") as Transform3D).basis.z.normalized()
+	var turned_round := Vector3(hips_now.x, 0, hips_now.z).normalized().dot(Vector3(hips_on.x, 0, hips_on.z).normalized())
+	var swung: Vector3 = bone.call("hand_l").origin
+	var holds = fp.rig.reach.get("r")
+	check(holds is Transform3D and (holds as Transform3D).origin.distance_to(you.grip.point) < 0.3
+			and (bone.call("hand_r") as Transform3D).origin.distance_to((holds as Transform3D).origin) < 0.08,
+		"looking behind you while hanging, your right hand keeps hold of the edge")
+	check(turned_round < -0.3 and cam.is_position_in_frustum(swung) and swung.distance_to(you.grip.point) > 0.5,
+		"you pivot on it to face away (%.2f), your left hand out ahead of you where you can see it (%s, %.2f m from the edge)" % [turned_round, cam.is_position_in_frustum(swung), swung.distance_to(you.grip.point)])
+	you.grip.erase("hands")
 	you.rotation.y = 0.0
-	step.call(0.4)
+	you.head.rotation.x = 0.6
+	step.call(0.6)
+	check(on_grips.call(0.06), "facing the wall again, both hands are back on the edge")
 
 	# Climbing a pipe, hand over hand (Player reaches 1.7 m up it).
 	you.move = "climb"
