@@ -105,6 +105,14 @@ const NEAR_FADE := 0.98
 ## collar is in front of your eyes, so less is left out, and the free arm shows
 ## out of its sleeve.
 const ONE_HAND_CUT := 0.5
+## Hanging by one hand, you hang off it: the body tips this far about that
+## shoulder, so the other shoulder, and the arm swung out from it, drop away
+## from your eyes.
+const HANG_TIP := deg_to_rad(18.0)
+const SHOULDER_OUT := 0.15  # how far out from your middle a shoulder is
+## ...and your head leans in against that arm: the body hangs this far off
+## to the other side, so the free arm swings out clear of your face.
+const HANG_SIDE := 0.25
 
 var player: Node3D  # Player
 var rig: CharacterRig
@@ -126,6 +134,10 @@ var _square := Vector3.ZERO  # hanging or flat to a wall, the way your hips face
 var _one_hand := false  # and holding on with only one hand
 var _faced := 0.0  # how far round you've pivoted on it, 1 facing the way you look
 var _swung := []  # the sides swung out, holding nothing
+var _hung_by := ""  # hanging by one hand: that one
+var _tip := 0.0  # how far the body tips about it (radians, + lifts the right shoulder)
+var _tip_side := "r"
+var _drawn := Transform3D.IDENTITY  # where the body was put last
 var _pull := Vector3.ZERO  # how far the body has moved towards what the hands hold (world axes)
 var _grips := {}  # this frame's parkour grips, side -> wrist transform
 var _arm := 0.0  # shoulder to wrist, arm straight
@@ -236,7 +248,15 @@ func _process(delta: float) -> void:
 		back += maxf(down * (DOWN_BACK - neck), low * (CRAWL_BACK - neck))
 	# Behind the camera, the way you look (seated, the way the seat faces).
 	var at := Vector3(0, -(_sit_hip - SEAT_THIGH) if chair else 0.0, 0) + Basis(Vector3.UP, rotation.y) * Vector3(0, 0, back)
-	_pull = _pull.lerp(_pull_needed(), 1.0 - exp(-12.0 * delta))
+	at += Basis(Vector3.UP, -turned) * Vector3.LEFT * HANG_SIDE * (_tip / HANG_TIP)  # (+ hanging by the right hand)
+	if _tip != 0.0:
+		# (where your shoulders are is where they were drawn, tipped)
+		var now := transform
+		transform = _drawn
+		_pull = _pull.lerp(_pull_needed(), 1.0 - exp(-12.0 * delta))
+		transform = now
+	else:
+		_pull = _pull.lerp(_pull_needed(), 1.0 - exp(-12.0 * delta))
 	if _grips.is_empty() and _pull.length() < 0.005:
 		_pull = Vector3.ZERO
 	at += (player as Node3D).global_basis.inverse() * _pull  # (it stays put as you look round)
@@ -252,11 +272,34 @@ func _process(delta: float) -> void:
 		at.z += maxf(_clear, 0.0)
 	rig.lean_back = _lean_back
 	position = at
+	_tip_about_hand(k)
+	_drawn = transform
 	if action == "roll" and head and player.get("camera") is Camera3D:
 		# Tucked, you turn over with your view: the world goes round, not you.
 		var eye: Vector3 = head.position
 		transform = Transform3D((player.camera as Camera3D).transform.basis, eye) * Transform3D(Basis.IDENTITY, -eye) * transform
 	_hold_with_hands()
+
+
+## Hanging by one hand and turned away from the wall, tip the body about that
+## hand's shoulder (it stays put, so the hand still reaches the edge).
+func _tip_about_hand(k: float) -> void:
+	var want := 0.0
+	if _hung_by != "":
+		_tip_side = _hung_by
+		want = HANG_TIP * _faced * (1.0 if _hung_by == "r" else -1.0)
+	_tip = lerpf(_tip, want, k)
+	if absf(_tip) < 0.001:
+		_tip = 0.0
+		return
+	var pivot := Vector3(0.18 * (1.0 if _tip_side == "r" else -1.0), 1.42, 0.0)
+	var skin: SkinnedBody = rig._skin
+	if skin:
+		var sk := skin.skeleton
+		var bone := sk.find_bone("upperarm_" + _tip_side)
+		if bone >= 0:
+			pivot = (global_transform.affine_inverse() * sk.global_transform) * sk.get_bone_global_pose(bone).origin
+	transform = transform * Transform3D(Basis.IDENTITY, pivot) * Transform3D(Basis(Vector3.BACK, _tip), Vector3.ZERO) * Transform3D(Basis.IDENTITY, -pivot)
 
 
 ## How much further back the body at `at` must go for the neck to be out of the
@@ -465,11 +508,13 @@ func _parkour_grips(delta: float) -> Dictionary:
 		_holds.clear()
 		_square = Vector3.ZERO
 		_one_hand = false
+		_hung_by = ""
 		return {}
 	var grip: Dictionary = player.parkour_grip()
 	if grip.is_empty():
 		_square = Vector3.ZERO
 		_one_hand = false
+		_hung_by = ""
 		return {}
 	var at: Vector3 = grip.point
 	var n: Vector3 = grip.normal
@@ -497,6 +542,7 @@ func _parkour_grips(delta: float) -> Dictionary:
 	# on); the other swings out the way you look, ready to push off.
 	var holding: Array = grip.get("hands", ["l", "r"])
 	_one_hand = _square != Vector3.ZERO and holding.size() < 2
+	_hung_by = holding[0] if _one_hand and move == "hang" and holding.size() == 1 else ""
 	var grips := {}
 	_swung.clear()
 	for side in ["r", "l"]:
@@ -513,6 +559,12 @@ func _parkour_grips(delta: float) -> Dictionary:
 					continue  # the left hand is planted, the right swings free
 				var spread := EDGE_SPREAD if move != "vault" else 0.08
 				var edge := at + along * s * spread
+				if side == _hung_by:
+					# Hanging by it, turned round: it's over that shoulder, not
+					# across behind your head (you swing under it as you turn).
+					var you := player as Node3D
+					var over := you.global_position + you.global_basis.x * s * SHOULDER_OUT
+					edge = at + along * lerpf(s * spread, clampf((over - at).dot(along), -spread * 1.5, spread * 1.5), _faced)
 				if edge.y > (player as Node3D).global_position.y + SHOULDER:
 					# Above you: fingers curled over it, the wrist below the lip.
 					grips[side] = _grip(edge + n * 0.03 - Vector3.UP * 0.05, Vector3.UP - n, -n - Vector3.UP)
@@ -555,6 +607,7 @@ func _swung_out(side: String) -> Transform3D:
 		var sk := skin.skeleton
 		shoulder = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("upperarm_" + side)).origin
 	var want := eye + look * SWING_OUT + out * 0.12 + Vector3.DOWN * 0.08
+	want.y += absf(sin(_tip)) * 2.0 * SHOULDER_OUT  # (hanging off the other hand, this shoulder's that much lower)
 	var at := shoulder + (want - shoulder).limit_length(maxf(_arm, 0.5) * 0.95)
 	return _grip(at, (at - shoulder).normalized(), Vector3.DOWN - look * 0.3)
 

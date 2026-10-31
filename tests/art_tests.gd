@@ -729,6 +729,23 @@ func test_first_person_parkour() -> void:
 		"looking behind you while hanging, your right hand keeps hold of the edge")
 	check(turned_round < -0.3 and cam.is_position_in_frustum(swung) and swung.distance_to(you.grip.point) > 0.5,
 		"you pivot on it to face away (%.2f), your left hand out ahead of you where you can see it (%s, %.2f m from the edge)" % [turned_round, cam.is_position_in_frustum(swung), swung.distance_to(you.grip.point)])
+	# Turned right round, you hang off that hand: it's up over its own shoulder
+	# (not across behind your head), and you tip under it, so the free shoulder
+	# drops and its sleeve keeps out of your face.
+	you.rotation.y = 3.0
+	step.call(0.8)
+	var sh_r: Vector3 = bone.call("upperarm_r").origin
+	var sh_l: Vector3 = bone.call("upperarm_l").origin
+	var held: Vector3 = bone.call("hand_r").origin
+	var across := Vector2(held.x - sh_r.x, held.z - sh_r.z).length()
+	holds = fp.rig.reach.get("r")
+	check(holds is Transform3D and held.distance_to((holds as Transform3D).origin) < 0.08 and across < 0.3,
+		"looking right behind you, your right hand still holds on, up over that shoulder (%.2f m across)" % across)
+	# (in view on a 16:9 screen: this test's window is square)
+	var free_at: Vector3 = cam.global_transform.affine_inverse() * (bone.call("hand_l").origin as Vector3)
+	var in_view := free_at.z < 0.0 and atan2(absf(free_at.x), -free_at.z) < deg_to_rad(52.0) and atan2(absf(free_at.y), -free_at.z) < deg_to_rad(cam.fov / 2.0)
+	check(sh_l.y < sh_r.y - 0.05 and in_view,
+		"you hang off it, your free shoulder lower (%.2f m), that hand still in view (%s)" % [sh_r.y - sh_l.y, free_at])
 	you.grip.erase("hands")
 	you.rotation.y = 0.0
 	you.head.rotation.x = 0.6

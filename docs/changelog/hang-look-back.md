@@ -1,1 +1,1 @@
-- **Fixed:** hanging from a ledge or flat against a wall, your arms stay in view as you look round: both hands hold on, and look far enough round and you swing round on one hand with the other reaching out. Your own sleeves and jacket no longer fill the view.
+- **Fixed:** hanging from a ledge or flat against a wall, looking round turns your head and shoulders while both hands hold on. Look far enough round and you hang off one hand, with the other reaching out where you can see it. Your own sleeves and jacket no longer fill the view.
