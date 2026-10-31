@@ -1,0 +1,1 @@
+- **Fixed:** holding the notebook, your thumbs rest on its outer edges, so no writing or tab is ever under a thumb, whatever size your hands are.
