@@ -51,6 +51,7 @@ const SLIDE_TIME := 0.8
 const SPRINT_GRACE := 0.3
 const ROLL_SPEED := 5.5
 const ROLL_TIME := 0.6
+## A standard body's heights and radius; yours are these times body.size (CrewBody).
 const STAND_HEIGHT := 1.8
 ## Crouching is on two feet with bent knees.
 const CROUCH_HEIGHT := 1.25
@@ -224,12 +225,25 @@ var _climb: MovementVolume
 var _ledge: MovementVolume
 var _step_t := 0.0
 var _strike_cd := 0.0
+## How big you are: your character's height scales your standing, crouching,
+## crawling and sitting heights, your width and your eyes (CrewBody). Set it
+## before the player enters the world (LevelBase does, from your look).
+var body := CrewBody.new():
+	set(value):
+		var stance := stance_height
+		body = value
+		if _capsule:  # already built: same pose, new size
+			_height = stance * body.size
+			_capsule.radius = body.radius
+			_capsule.height = maxf(_height, body.radius * 2.0)
+			_collider.position.y = _capsule.height / 2
 var _height := STAND_HEIGHT
-## How tall the body is right now: 1.8 standing, 1.25 crouching, 0.85 crawling,
-## or in between. Read-only; co-op sends it so teammates see the same pose.
+## Your stance as a standard body's height: 1.8 standing, 1.25 crouching, 0.85
+## crawling, or in between, whatever your size (your real height is this times
+## body.size). Read-only; co-op sends it so teammates see the same pose.
 var stance_height: float:
 	get:
-		return _height
+		return _height / body.size
 var _bob_t := 0.0
 ## First-person motion on the camera, on top of where you look: x pitch
 ## (radians, + up), y dip (metres), z roll (radians, + leaning left). `_cam_pose`
@@ -295,14 +309,15 @@ func _ready() -> void:
 	floor_snap_length = 0.3
 	_collider = CollisionShape3D.new()
 	_capsule = CapsuleShape3D.new()
-	_capsule.radius = RADIUS
-	_capsule.height = STAND_HEIGHT
+	_capsule.radius = body.radius
+	_height = body.stand
+	_capsule.height = body.stand
 	_collider.shape = _capsule
-	_collider.position.y = STAND_HEIGHT / 2
+	_collider.position.y = body.stand / 2
 	add_child(_collider)
 
 	head = Node3D.new()
-	head.position.y = STAND_HEIGHT - 0.12
+	head.position.y = body.eyes(body.stand)
 	add_child(head)
 	camera = Camera3D.new()
 	camera.fov = 78
@@ -1004,11 +1019,11 @@ func sit(on_seat: Node3D = null) -> bool:
 	sit_amount = 0.0
 	state = Move.SIT
 	velocity = Vector3.ZERO
-	_height = SIT_HEIGHT
+	_height = body.sit
 	crouching = false
 	crawling = false
-	_capsule.height = SIT_HEIGHT
-	_collider.position.y = SIT_HEIGHT / 2
+	_capsule.height = body.sit
+	_collider.position.y = body.sit / 2
 	sat_down.emit(on_seat)
 	return true
 
@@ -1021,7 +1036,7 @@ func stand_up(instant: bool = false) -> void:
 		return
 	if not _sit_leaving and _sit_from.origin.distance_to(_sit_to.origin) > 0.01:
 		var out := Vector3(_sit_to.origin.x, _sit_from.origin.y, _sit_to.origin.z) + _forward() * SIT_STEP_OUT
-		if _fits(out, STAND_HEIGHT):
+		if _fits(out, body.stand):
 			_sit_from.origin = out
 	_sit_leaving = true
 	if instant:
@@ -1067,9 +1082,9 @@ func _end_sit() -> void:
 	_sit_leaving = false
 	state = Move.WALK
 	if _can_stand():
-		_set_stance(STAND_HEIGHT)
+		_set_stance(body.stand)
 	else:
-		_set_stance(maxf(_room(global_position), CRAWL_HEIGHT))
+		_set_stance(maxf(_room(global_position), body.crawl))
 	stood_up.emit()
 
 
@@ -1158,7 +1173,7 @@ func knock_down(seconds: float = 2.0) -> void:
 	_height = DOWN_HEIGHT
 	crouching = true
 	crawling = true
-	_capsule.height = maxf(DOWN_HEIGHT, RADIUS * 2.0)
+	_capsule.height = maxf(DOWN_HEIGHT, body.radius * 2.0)
 	_collider.position.y = _capsule.height / 2
 	knocked_down.emit()
 
@@ -1188,9 +1203,9 @@ func _end_down() -> void:
 	state = Move.WALK
 	_down_time = 0.0
 	if _can_stand():
-		_set_stance(STAND_HEIGHT)
+		_set_stance(body.stand)
 	else:
-		_set_stance(maxf(_room(global_position), CRAWL_HEIGHT))
+		_set_stance(maxf(_room(global_position), body.crawl))
 	got_up.emit()
 
 
@@ -1278,7 +1293,7 @@ func _step_ride(jump_pressed: bool, crouch_pressed: bool) -> void:
 	if crouch_pressed:
 		# Step down behind them.
 		_leave_carrier()
-		global_position = base.global_position - base._forward() * (RADIUS * 2 + 0.15)
+		global_position = base.global_position - base._forward() * (body.radius + base.body.radius + 0.15)
 		velocity = Vector3.ZERO
 		return
 	if jump_pressed:
@@ -1324,7 +1339,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 	if state == Move.WALK and rider == null and on_floor:
 		if controls.crouch and not crouching and sprinting and flat.length() > WALK_SPEED and not in_vent:
 			_begin_dash(Move.SLIDE, SLIDE_TIME, flat.normalized())
-			_set_stance(CRAWL_HEIGHT)
+			_set_stance(body.crawl)
 		else:
 			_settle_stance()
 
@@ -1369,7 +1384,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			velocity = Vector3.ZERO
 			_roll_queued = false
 			if crouching and _can_stand():
-				_set_stance(STAND_HEIGHT)
+				_set_stance(body.stand)
 			return
 		var ledge := in_volume(MovementVolume.Kind.LEDGE)
 		if ledge and on_floor and _on_ledge_line(ledge, 0.15):
@@ -1413,7 +1428,7 @@ func _land(fall_speed: float) -> void:
 	if _roll_queued and flat.length() > 1.5 and rider == null:
 		# Tuck and roll: keeps your speed, gets you under low gaps, and is quiet.
 		_begin_dash(Move.ROLL, ROLL_TIME, flat.normalized())
-		_set_stance(CRAWL_HEIGHT)
+		_set_stance(body.crawl)
 	elif fall_speed > HARD_LANDING:
 		_noise(0.7)
 	_roll_queued = false
@@ -1460,7 +1475,7 @@ func _ledge_probe(dir: Vector3) -> Dictionary:
 	var wall := {}
 	for h in [0.5, 1.1, 1.7]:
 		var from: Vector3 = feet + Vector3.UP * h
-		wall = space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + dir * (RADIUS + 0.55), collision_mask, _exclude()))
+		wall = space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + dir * (body.radius + 0.55), collision_mask, _exclude()))
 		if not wall.is_empty():
 			break
 	if wall.is_empty() or absf(wall.normal.y) > 0.3:
@@ -1481,9 +1496,9 @@ func _ledge_probe(dir: Vector3) -> Dictionary:
 	var height: float = top.position.y - feet.y
 	if height < 0.35:
 		return {}
-	var target := face - n * (RADIUS + 0.08)
+	var target := face - n * (body.radius + 0.08)
 	target.y = top.position.y + 0.02
-	if not _fits(target, CRAWL_HEIGHT):
+	if not _fits(target, body.crawl):
 		return {}
 	return {"normal": n, "face": face, "top": top.position.y, "height": height, "target": target}
 
@@ -1508,7 +1523,7 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		_set_crouch(false)
 		velocity = Vector3.ZERO
 		_roll_queued = false
-		global_position = p.face + p.normal * (RADIUS + 0.03) + Vector3.UP * (p.top - p.face.y - HANG_REACH + 0.1)
+		global_position = p.face + p.normal * (body.radius + 0.03) + Vector3.UP * (p.top - p.face.y - HANG_REACH + 0.1)
 		_noise(0.25)
 		return true
 	return false
@@ -1523,7 +1538,7 @@ func _try_vault() -> bool:
 	var wall := {}
 	for h in [0.2, 0.5]:
 		var from: Vector3 = feet + Vector3.UP * h
-		wall = space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + fwd * (RADIUS + 0.5), collision_mask, _exclude()))
+		wall = space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + fwd * (body.radius + 0.5), collision_mask, _exclude()))
 		if not wall.is_empty():
 			break
 	if wall.is_empty() or absf(wall.normal.y) > 0.3:
@@ -1550,19 +1565,19 @@ func _try_vault() -> bool:
 		return false
 	var over := face - n * (depth / 2.0)
 	over.y = top + 0.05
-	var land := face - n * (depth + RADIUS + 0.12)
+	var land := face - n * (depth + body.radius + 0.12)
 	var floor_y := _surface_at(land, top + 0.2, top + 0.2 - (feet.y - 0.6))
 	if floor_y == INF or floor_y > top - 0.35:
 		return false
 	land.y = floor_y + 0.02
-	if not _fits(over, CRAWL_HEIGHT) or not _fits(land, STAND_HEIGHT):
+	if not _fits(over, body.crawl) or not _fits(land, body.stand):
 		return false
 	state = Move.VAULT
 	_timer = 0.0
 	velocity = Vector3.ZERO
 	_roll_queued = false
 	_dir = -n
-	_set_stance(CROUCH_HEIGHT)  # the camera dips as you go over
+	_set_stance(body.crouch)  # the camera dips as you go over
 	_mantle_path = [feet, Vector3(feet.x, top + 0.05, feet.z), over, land]
 	_grip = {"point": Vector3(face.x, top, face.z) - n * 0.1, "normal": n}
 	_noise(0.3)
@@ -1603,8 +1618,8 @@ func _step_vault(delta: float) -> void:
 
 
 func _start_mantle(target: Vector3) -> void:
-	if not _fits(target, STAND_HEIGHT):
-		_set_stance(CROUCH_HEIGHT if _fits(target, CROUCH_HEIGHT) else CRAWL_HEIGHT)
+	if not _fits(target, body.stand):
+		_set_stance(body.crouch if _fits(target, body.crouch) else body.crawl)
 	state = Move.MANTLE
 	_timer = 0.0
 	velocity = Vector3.ZERO
@@ -1612,7 +1627,7 @@ func _start_mantle(target: Vector3) -> void:
 	var here := global_position
 	_mantle_path = [here, Vector3(here.x, target.y + 0.05, here.z), target]
 	var n := Vector3(here.x - target.x, 0, here.z - target.z).normalized()
-	_grip = {"point": target + n * (RADIUS + 0.08) + Vector3.DOWN * 0.02, "normal": n}
+	_grip = {"point": target + n * (body.radius + 0.08) + Vector3.DOWN * 0.02, "normal": n}
 	_noise(0.2)
 
 
@@ -1646,10 +1661,10 @@ func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 		_fwd_released = true
 	if (_hang_jump or (fwd and _fwd_released)) and _timer >= HANG_SETTLE:
 		# Space or a fresh W press climbs up (holding W from the jump only grabs).
-		var face := global_position - n * (RADIUS + 0.03)
-		var target := face - n * (RADIUS + 0.08)
+		var face := global_position - n * (body.radius + 0.03)
+		var target := face - n * (body.radius + 0.08)
 		target.y = _hang_top + 0.02
-		if _fits(target, CRAWL_HEIGHT):
+		if _fits(target, body.crawl):
 			_start_mantle(target)
 			return
 		if _hang_jump:
@@ -1672,7 +1687,7 @@ func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 ## Is there still ledge to hold onto above this hanging position?
 func _edge_at(pos: Vector3) -> bool:
 	var space := get_world_3d().direct_space_state
-	var over := pos - _hang_normal * (RADIUS + 0.03 + 0.15)
+	var over := pos - _hang_normal * (body.radius + 0.03 + 0.15)
 	over.y = _hang_top + 0.3
 	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(over, over + Vector3.DOWN * 0.5, collision_mask, _exclude()))
 	return not hit.is_empty() and hit.normal.y > 0.7 and absf(hit.position.y - _hang_top) < 0.15
@@ -1699,7 +1714,7 @@ func _step_climb(delta: float, jump_pressed: bool) -> void:
 	velocity = Vector3.UP * up * climb_speed + right * controls.move.x * climb_speed * 0.5
 	# Stay snug against the surface.
 	var dist := (global_position - v.a).dot(v.normal)
-	velocity += v.normal * (RADIUS + 0.2 - dist) * 8.0
+	velocity += v.normal * (body.radius + 0.2 - dist) * 8.0
 	if up > 0.0 and global_position.y + MANTLE_MAX - 0.1 >= v.b.y:
 		if _try_ledge(false, -v.normal):
 			_climb = null
@@ -1782,14 +1797,14 @@ func _exclude() -> Array[RID]:
 
 
 func _set_crouch(on: bool) -> void:
-	_set_stance(CROUCH_HEIGHT if on else STAND_HEIGHT)
+	_set_stance(body.crouch if on else body.stand)
 
 
 func _set_stance(height: float) -> void:
 	_height = height
-	crouching = height < STAND_HEIGHT
-	# Below about a metre you're on hands and knees.
-	crawling = height < 1.0
+	crouching = height < body.stand - 0.001
+	# Below about a metre (for a standard body) you're on hands and knees.
+	crawling = height < body.crawling_below()
 	_capsule.height = height
 	_collider.position.y = height / 2
 
@@ -1800,8 +1815,8 @@ func _set_stance(height: float) -> void:
 func _settle_stance() -> void:
 	if not controls.crouch and not crouching:
 		return
-	if not controls.crouch and _fits(global_position, STAND_HEIGHT):
-		_set_stance(STAND_HEIGHT)
+	if not controls.crouch and _fits(global_position, body.stand):
+		_set_stance(body.stand)
 		return
 	var room := _room(global_position)
 	var wish := transform.basis * Vector3(controls.move.x, 0, controls.move.y)
@@ -1816,8 +1831,8 @@ func _settle_stance() -> void:
 
 ## The tallest low stance, crawl to crouch, that fits with feet at `feet`; 0 if none.
 func _room(feet: Vector3) -> float:
-	var h := CROUCH_HEIGHT
-	while h >= CRAWL_HEIGHT - 0.001:
+	var h := body.crouch
+	while h >= body.crawl - 0.001:
 		if _fits(feet, h + 0.05):  # keep a little headroom; the probe is slimmer than the body
 			return h
 		h -= 0.05
@@ -1825,7 +1840,7 @@ func _room(feet: Vector3) -> float:
 
 
 func _can_stand() -> bool:
-	return _fits(global_position, STAND_HEIGHT)
+	return _fits(global_position, body.stand)
 
 
 ## Would a body `height` tall fit with its feet at `feet`?
@@ -1833,7 +1848,7 @@ func _fits(feet: Vector3, height: float) -> bool:
 	var space := get_world_3d().direct_space_state
 	var q := PhysicsShapeQueryParameters3D.new()
 	var shape := CapsuleShape3D.new()
-	shape.radius = RADIUS * 0.9
+	shape.radius = body.radius * 0.9
 	shape.height = height - 0.1
 	q.shape = shape
 	q.exclude = _exclude()
@@ -1845,11 +1860,11 @@ func _add_body_mesh() -> void:
 	# Teammates need a body to look at and climb on.
 	var mesh := MeshInstance3D.new()
 	var cm := CapsuleMesh.new()
-	cm.radius = RADIUS
-	cm.height = STAND_HEIGHT
+	cm.radius = body.radius
+	cm.height = body.stand
 	mesh.mesh = cm
 	mesh.material_override = Greybox.mat(Color(0.3, 0.38, 0.5))
-	mesh.position.y = STAND_HEIGHT / 2
+	mesh.position.y = body.stand / 2
 	add_child(mesh)
 
 
@@ -1883,7 +1898,7 @@ func _look_target() -> Node:
 
 
 func _update_head(delta: float) -> void:
-	var target_y := PlayerCombat.DOWN_EYE if downed else _height - 0.12
+	var target_y := PlayerCombat.DOWN_EYE if downed else body.eyes(_height)
 	var flat_speed := Vector2(velocity.x, velocity.z).length()
 	if is_on_floor() and flat_speed > 0.5 and state == Move.WALK:
 		_bob_t += delta * flat_speed * 2.2
@@ -1964,7 +1979,7 @@ func parkour_grip() -> Dictionary:
 		Move.VAULT, Move.MANTLE:
 			return _grip
 		Move.HANG:
-			var edge := global_position - _hang_normal * (RADIUS + 0.03)
+			var edge := global_position - _hang_normal * (body.radius + 0.03)
 			edge.y = _hang_top
 			var hands := ["l", "r"]
 			hands.erase(hang_free_hand())
@@ -1973,13 +1988,13 @@ func parkour_grip() -> Dictionary:
 			if _climb:
 				var n := _climb.normal
 				var at := global_position - n * (global_position - _climb.a).dot(n)
-				at.y = minf(global_position.y + 1.7, _climb.b.y)  # reaching up the pipe
+				at.y = minf(global_position.y + 1.7 * body.size, _climb.b.y)  # reaching up the pipe
 				return {"point": at, "normal": n}
 		Move.LEDGE:
 			if _ledge:
 				var n := _ledge.normal
 				# "face": the way you faced when you stepped on (-normal: chest to the wall).
-				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n, "face": _ledge_face}  # flat on the wall
+				return {"point": global_position - n * (body.radius + 0.05) + Vector3.UP * 1.2 * body.size, "normal": n, "face": _ledge_face}  # flat on the wall
 	return {}
 
 

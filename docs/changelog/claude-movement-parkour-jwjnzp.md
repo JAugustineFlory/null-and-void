@@ -1,1 +1,2 @@
 - **Changed:** Hanging from an edge and looking round, you let go with the arm on the side you look to, and swap hands when you turn past behind you.
+- **Changed:** Each crew member now stands, crouches, crawls and sits at their own height, so shorter characters see the world from lower down and taller ones from higher up. Vents are a little roomier so everyone fits.

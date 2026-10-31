@@ -326,8 +326,8 @@ func build() -> void:
 	_build_ground_floor(wall)
 
 	# The vent in the west wall leads to a forgotten storage closet: x -14..-8, z 3.5..4.5 duct
-	Traversal.vent(geo, Vector3(-8, 0.0, 4), Vector3(-14, 0.0, 4), Vector2(0.9, 0.95))
-	vent_grate = Interactable.create(self, Vector3(-7.96, 0.5, 4), Vector3(0.05, 0.95, 0.9), "Pull the grate off the air return", Color(0.55, 0.56, 0.58))
+	Traversal.vent(geo, Vector3(-8, 0.0, 4), Vector3(-14, 0.0, 4), Vector2(0.9, 1.0))
+	vent_grate = Interactable.create(self, Vector3(-7.96, 0.5, 4), Vector3(0.05, 1.0, 0.9), "Pull the grate off the air return", Color(0.55, 0.56, 0.58))
 	vent_grate.name = "VentGrate"
 	for i in 6:  # louvres
 		var louvre := MeshInstance3D.new()
