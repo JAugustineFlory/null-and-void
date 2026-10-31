@@ -1,0 +1,3 @@
+- **Changed:** papers worth reading glow blue, with light running round their edges.
+- **Changed:** E picks a paper up so you read it; what it tells you still goes into your case.
+- **Fixed:** riding to Halcyon, the crew sits up on the van's seats instead of low down on the floor.

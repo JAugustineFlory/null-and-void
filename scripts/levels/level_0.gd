@@ -482,10 +482,19 @@ func _build_van(center: Vector3) -> void:
 		var at: Vector3 = cab + seat[0]
 		Greybox.panel(geo, at + Vector3(0, 0.25, 0.1), Vector3(0.55, 0.5, 0.5), Color(0.15, 0.15, 0.18))
 		var buckle := Interactable.create(self, at + Vector3(0.15, 0.3, -0.38), Vector3(0.08, 0.06, 0.08), "Unbuckle (ready up)", Color(0.85, 0.1, 0.1))
+		# A real seat on the cushion, as on the garage couch: the crew rides sitting up
+		# on it, not on the van floor. Nobody looks at it to sit (they're belted in),
+		# so it has no aim box to get in the way of the buckle.
+		var cushion := Seat.create_at(geo, at + Vector3(0, 0.5, 0.1), 0.0, Vector2(0.55, 0.5))
+		cushion.name = "VanSeat"
+		for c in cushion.get_children():
+			if c is CollisionShape3D:
+				c.disabled = true
 		var entry := {
 			"spawn": global_transform * Transform3D(Basis(), at + Vector3(0, 0.05, 0)),
 			"buckle": buckle,
 			"exit": seat[1],
+			"seat": cushion,
 		}
 		var handle_side := -1.0 if seat[1] == "w" else 1.0
 		var handle_z := -0.45 if seat[1] == "side" else -1.15
@@ -578,7 +587,7 @@ func climb_out(p: Player, seat: Dictionary, order: int = 0) -> void:
 	_hold_camera(p)
 	if order > 0:
 		await get_tree().create_timer(0.8 * order, false).timeout
-	var eye: Vector3 = seat.spawn.origin + Vector3.UP * p.head.position.y
+	var eye: Vector3 = p.global_position + Vector3.UP * p.head.position.y  # sat on the cushion
 	var start := _view(p)
 	var at_handle := _view_at(eye, seat.handle, start.x)
 	var out_yaw := PI / 2 if seat.exit == "w" else -PI / 2
@@ -619,17 +628,27 @@ func _hold_camera(p: Player) -> void:
 		_look_base = _view(p)
 
 
-## Sat in the van seat, strapped in: the crew rides in with the view and the body
-## of someone sitting down, and Space and Z don't get them out of it (Player.sit_held).
-## It takes a physics frame for the body to be standing on the van floor at all.
+## Sat in the van seat, strapped in: the crew rides in on the seat's cushion with
+## the view and the body of someone sitting down, and Space and Z don't get them out
+## of it (Player.sit_held). The seat is the one this player spawned at.
 func _belt_in() -> void:
 	for i in 60:
 		await get_tree().physics_frame
 		if not is_instance_valid(player) or not player.seated or player.is_sitting():
 			return  # already down, or out of the van before they ever sat
-		if player.sit():
+		if player.sit(_van_seat_near(player.global_position)):
 			player.sit_held = true
 			return
+
+
+## The van seat closest to `at`.
+func _van_seat_near(at: Vector3) -> Seat:
+	var best: Seat = null
+	for entry in van_seats:
+		var s: Seat = entry.seat
+		if best == null or s.global_position.distance_to(at) < best.global_position.distance_to(at):
+			best = s
+	return best
 
 
 func _release_camera(p: Node) -> void:
@@ -638,7 +657,9 @@ func _release_camera(p: Node) -> void:
 	p.seated = false  # out of the van
 	p.sit_held = false  # the belt's off: on their feet on the tarmac
 	if p.is_sitting():
+		var at: Vector3 = p.global_position  # out on the tarmac: standing up off the seat doesn't put them back by it
 		p.stand_up(true)
+		p.global_position = at
 	if p == _look_player:
 		_look_player = null
 		_look_offset = Vector2.ZERO
