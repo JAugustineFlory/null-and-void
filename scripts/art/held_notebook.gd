@@ -24,11 +24,18 @@ const MAX_HEIGHT_FRACTION := 0.62  # never more of the screen's height than this
 const TILT := 14.0  # top of the book leans away, like holding it to read
 const SPREAD_ANGLE := 7.0  # each half tilts up from the spine
 const CLOSED_ANGLE := 176.0
-## The hands hold the book by its bottom corners, this far up its outer edges,
-## turned in this far (degrees) so the thumbs lie low across the pages, under
-## the tabs, and the fingers spread behind the covers.
-const HAND_UP := 0.02
-const HAND_TURN := 35.0
+## The hands hold the book low on its outer edges, this far up from its foot
+## and this far in from its sides, turned out this far (degrees) so the thumbs
+## run up the outer margins and the fingers spread behind the covers. Each
+## thumb's middle is this far in from the book's side, up from its foot and
+## out from the page (resting on it): clear of the writing (and under the
+## tabs), whatever size your hands are.
+const HAND_UP := 0.005
+const HAND_IN := 0.028
+const HAND_TURN := -30.0
+const THUMB_IN := 0.005
+const THUMB_UP := 0.035
+const THUMB_OUT := 0.007
 const STICKER := Color(0.86, 0.8, 0.62)  # manila archive label, before a color is picked
 const DISK := Color(0.12, 0.12, 0.14)  # a black disk
 
@@ -137,6 +144,19 @@ func page_to_world(px: Vector2) -> Vector3:
 		var qs: Vector2 = (quad.mesh as QuadMesh).size
 		return quad.global_transform * Vector3((local_uv.x - 0.5) * qs.x, (0.5 - local_uv.y) * qs.y, 0.0)
 	return halves[1].global_position
+
+
+## Where a point in the world lies on the page image (viewport pixels), on
+## whichever half is on its side of the spine: page_to_world the other way.
+func world_to_page(at: Vector3) -> Vector2:
+	var full := Vector2(NotebookView.EMBED_SIZE)
+	var quad := halves[0] if left_half.to_local(at).x < 0.0 else halves[1]
+	var local := quad.global_transform.affine_inverse() * at
+	var qs: Vector2 = (quad.mesh as QuadMesh).size
+	var mat := quad.material_override as ShaderMaterial
+	var off: Vector2 = mat.get_shader_parameter("uv_offset")
+	var sc: Vector2 = mat.get_shader_parameter("uv_scale")
+	return (Vector2(local.x / qs.x + 0.5, 0.5 - local.y / qs.y) * sc + off) * full
 
 
 ## The free hand on the note being filed, the book lowered while it's on its way.
@@ -364,8 +384,10 @@ func _hands(look_in: Dictionary, size: Vector2, mid_y: float, book_h: float) -> 
 		# On the page's face at its half's outer edge, turning with it; the cover and page block are behind.
 		var hand := HeldNotebook.make_hand(left_half if side < 0 else right_half, side, look_in, 0.0035 + 0.0015)
 		hand.name = "LeftHand" if side < 0 else "RightHand"
-		hand.position = Vector3(side * bw, mid_y - book_h / 2.0 + HAND_UP, 0.0035)
+		hand.position = Vector3(side * (bw - HAND_IN), mid_y - book_h / 2.0 + HAND_UP, 0.0035)
 		hand.rotation_degrees.z = side * HAND_TURN
+		var thumb := Vector3(side * (bw - THUMB_IN), mid_y - book_h / 2.0 + THUMB_UP, 0.0035 + THUMB_OUT)
+		hand.set_meta("thumb", hand.transform.affine_inverse() * Transform3D(Basis.IDENTITY, thumb))
 
 
 ## A first-person hand (palm, thumb and sleeve) under `parent`, holding something

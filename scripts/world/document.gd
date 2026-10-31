@@ -40,8 +40,6 @@ var pieces: Array = []
 ## Lying on a desk rather than up on a wall or a monitor.
 var flat := false
 ## The prompt while it holds pieces still to find (drafts for Augustine's OK).
-const NOTE_IT := "Note it: %s"
-const READ_IT := "Read it"
 ## A sticky this player has already copied into their notebook.
 var _copied := false
 
@@ -279,8 +277,6 @@ func get_prompt(player: Node) -> String:
 	_seen_shining(player)
 	if is_sticky() and _copied:
 		return ""
-	if enabled and not is_sticky() and not notable().is_empty():
-		return "[E] %s    [X] %s" % [NOTE_IT % title, READ_IT]
 	return super(player)
 
 
@@ -290,26 +286,6 @@ func uncollected() -> Array:
 	if game == null:
 		return []
 	return pieces.filter(func(p): return not game.has_piece(p.case, p.piece))
-
-
-## Its pieces E notes without reading: ones whose case is open, or that this
-## paper's own clue opens. The rest are only found by reading it, so a paper
-## for a case nobody has yet is read first, as any paper.
-func notable() -> Array:
-	var game := get_node_or_null("/root/Game")
-	if game == null:
-		return []
-	return uncollected().filter(func(p): return game.case_info(p.case).get("open", false) \
-			or clues.any(func(c): return c.get("case", "") == p.case and c.has("opens")))
-
-
-## X: read it in your hands, whether or not its pieces are in.
-func interact_alt(player: Node) -> void:
-	if enabled and not pieces.is_empty() and not is_sticky():
-		var level := _level()
-		if level and level.get("player") != null and player != level.player:
-			return
-		_read(player)
 
 
 ## A handwritten sticky note: it goes into the notebook, never up in your hands.
@@ -324,25 +300,17 @@ func _on_used(player: Node) -> void:
 	if is_sticky():
 		take_sticky(player)
 		return
-	if not notable().is_empty():
-		collect(player)
-		return
 	_read(player)
 
 
+## E picks it up to read, and reading it puts its pieces in their cases
+## (report_open): with one case on the page and a shine on what it needs, the
+## crew reads the paper rather than filing it unseen (Augustine, v0.7.1 playtest).
 func _read(player: Node) -> void:
 	if get_node("/root/Game").diegetic_ui and player.has_method("pick_up"):
 		pick_up(player)
 	else:
 		open_reader(player)
-
-
-## E on a paper holding pieces: they go straight into their cases (and its clues
-## onto their pages) without picking it up. Counts as reading it.
-func collect(player: Node) -> void:
-	_note_clues(true)  # quietly (the found card says it), and first: a clue may open the case
-	_collect_pieces()
-	_report_read(player)
 
 
 ## Every machine: this paper's pieces are found.

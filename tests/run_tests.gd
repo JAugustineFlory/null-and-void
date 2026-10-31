@@ -1119,6 +1119,11 @@ func test_level_0_scene() -> void:
 	check(want_version.length() > 1 and version != null and version.text == want_version, "the pause menu shows the game's version (%s)" % want_version)
 	check(level.player.global_position.z > 14.0 and level.player.global_position.y > 0.3, "player starts inside the van")
 	check(level.player.is_sitting() and level.player.sit_held, "sitting in their seat, belted in: Space and Z don't stand them up")
+	for i in 30:
+		await physics_frame  # done settling onto the cushion
+	var van_seat: Node3D = level.player.seat
+	check(van_seat is Seat and van_seat.name == "VanSeat" and absf(level.player.global_position.y - van_seat.global_position.y) < 0.1,
+		"sat up on the seat's cushion, as on the garage couch, not down on the van floor (%.2f m above the floor)" % (level.player.global_position.y - level.player._sit_from.origin.y if level.player.get("_sit_from") else 0.0))
 	var lobby_floor: Node3D = level.geo.get_node("Floor")
 	check(lobby_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(lobby_floor) == "carpet", "the lobby is carpet underfoot")
 	var flickering := 0
@@ -1130,7 +1135,7 @@ func test_level_0_scene() -> void:
 	check(flickering == 0 and level.lights["lobby"].size() >= 6, "lobby and hall lights are steady")
 	check(not level.front_doors.is_open, "front doors start closed")
 	check(level.van_seats.size() == 6, "the van seats six")
-	check(level.seat_spawn(0).origin.distance_to(level.player.global_position) < 0.3, "solo play starts in the driver's seat, where you got in at home base")
+	check(level.player.seat == level.van_seats[0].seat, "solo play starts in the driver's seat, where you got in at home base")
 	_game().van_seating.assign([7, level.multiplayer.get_unique_id()])
 	check(level.seat_for(0) == 1, "each player arrives in the seat they took at home base")
 	_game().van_seating.clear()
@@ -1577,8 +1582,7 @@ func test_level_1_scene() -> void:
 	check(level.find_children("*", "Document", true, false).any(func(d): return d.title.ends_with("RACK MONITORING") and d.global_position.distance_to(level.terminal.global_position) < 1.5 and d.plain_text().contains("temp_c > %d" % Level1Data.INTERLOCK_C)), "the racks table and its limit are on a card at the terminal, before any hint")
 	var rack_card: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title.ends_with("RACK MONITORING") and d.global_position.distance_to(level.terminal.global_position) < 1.5)[0]
 	var interlock_doc: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Fire interlock")[0]
-	check(not _game().case_info("hot_rack").open and rack_card.notable().is_empty() and not rack_card.get_prompt(level.player).contains(Document.NOTE_IT % rack_card.title), "with the hot rack's case not open yet, E on the rack card reads it rather than noting it unseen")
-	check(interlock_doc.notable().size() == 2, "the interlock opens that case, so E notes its limit and its 'over' (>)")
+	check(rack_card.get_prompt(level.player) == "[E] Read: %s" % rack_card.title and interlock_doc.get_prompt(level.player) == "[E] Read: %s" % interlock_doc.title, "E on the rack card or the interlock picks it up to read")
 	var healthy: String = level.db.run_silent("SELECT id FROM door_controllers WHERE status = 'ok' AND location LIKE 'Server Room A%'")[0]["id"]
 	level._on_panel(null, healthy)
 	check(level.panels_locked_until == 0.0, "pressing a healthy rack explains itself without a lockout")
@@ -1711,6 +1715,20 @@ func _coop_load(worlds: Array, scene: String) -> Array:
 	return levels
 
 
+## Floor G starts everyone belted into their van seat, which holds them there. For a
+## test that moves players about: everyone unbuckled and standing where they are.
+func _out_of_van(levels: Array) -> void:
+	for l in levels:
+		var p: Node = l.player
+		p.seated = false  # the belt-in stops trying
+		p.sit_held = false
+		if p.is_sitting():
+			var at: Vector3 = p.global_position
+			p.stand_up(true)
+			p.global_position = at
+	await _frames(2)
+
+
 func _coop_close(worlds: Array) -> void:
 	for w in worlds:
 		get_multiplayer(w.get_path()).multiplayer_peer.close()
@@ -1796,6 +1814,7 @@ func test_coop_level_0() -> void:
 	check(get_multiplayer(worlds[0].get_path()).get_peers().size() == 2, "two clients connect to the host")
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
 	_lower_chapters_read(levels)  # about something else: no huddle cuts in
+	await _out_of_van(levels)  # moved about the floor, not riding in
 	var host = levels[0]
 	var c1 = levels[1]
 	var c2 = levels[2]
@@ -1821,8 +1840,7 @@ func test_coop_level_0() -> void:
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
 	brochures[1].interact(c1.player)
 	await _frames(5)
-	check(levels.all(func(l): return l.find_children("*", "DocumentReader", true, false).is_empty()) and _game().has_piece("memo", "table"), "a client's E on a paper with pieces notes them, without picking it up")
-	brochures[1].interact(c1.player)
+	check(_game().has_piece("memo", "table"), "a client's E on a paper with pieces picks it up to read, and that puts its pieces in")
 	check(c1.find_children("*", "DocumentReader", true, false).size() == 1 and host.find_children("*", "DocumentReader", true, false).is_empty() \
 		and c2.find_children("*", "DocumentReader", true, false).is_empty(), "a client reading a document opens it on their screen only")
 	c1.find_children("*", "DocumentReader", true, false)[0].close()
@@ -2027,6 +2045,7 @@ func test_coop_tape_secret() -> void:
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
 	_lower_chapters_read(levels)  # about something else: no huddle cuts in
+	await _out_of_van(levels)  # moved about the floor, not riding in
 	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
 	levels[0].player.global_position = levels[0].to_global(Vector3(0, 0.1, 6))
 	levels[1].player.global_position = levels[1].to_global(Vector3(-17.5, 0.1, 4))
@@ -2124,6 +2143,7 @@ func test_coop_notes_huddle() -> void:
 	var worlds := await _coop_worlds(2)
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
 	_lower_chapters_read(levels)  # about something else: no huddle cuts in
+	await _out_of_van(levels)  # moved about the floor, not riding in
 	var ids: Array = worlds.map(func(w): return get_multiplayer(w.get_path()).get_unique_id())
 	var h_id: int = ids[0]
 	var c1_id: int = ids[1]
@@ -3670,6 +3690,7 @@ func test_level_2_main_route() -> void:
 	await _frames(10)
 	check(world.current == sec and sec.active, "play is in the security wing")
 	var p: Player = world.player
+	await _out_of_van([world])  # the run began belted into the van on the ground floor
 	p.global_position = sec.to_global(Vector3(-3, 0.1, 4.4))
 	sec._on_cameras_found("booth")
 	sec._on_pike_found("booth")
@@ -5025,15 +5046,14 @@ func test_pick_up_papers() -> void:
 		await physics_frame
 	var card: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title.begins_with("ScanRight"))[0]
 	var home := card.global_transform
-	check(not card.get_prompt(p).contains(Document.NOTE_IT % card.title), "before the memo's case is open, the ScanRight card is only read")
+	check(card.get_prompt(p) == "[E] Read: %s" % card.title, "the ScanRight card says E reads it")
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
-	check(card.get_prompt(p).contains(Document.NOTE_IT % card.title), "a paper with pieces of a case on it says E notes it")
-	card._on_used(p)
-	check(level.find_children("*", "DocumentReader", true, false).is_empty() and _game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "E notes the card's pieces straight into the case, without picking it up")
+	check(card.get_prompt(p) == "[E] Read: %s" % card.title, "and still does with the memo's case open: E picks it up to read, never files it unseen")
 	_game().case_info("memo").open = false  # the rest of this walk is from before the memo's case opens
 	card._on_used(p)
 	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
 	check(reader.held and p.held_prop == card and not p.input_locked and not reader.view.visible, "E lifts the card off the desk into your hands, with no full-screen page and no freezing in place")
+	check(_game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "reading it puts the card's pieces into their cases")
 	for i in 120:
 		if p.is_holding_prop() and p._prop_t >= 1.0:
 			break
