@@ -1,1 +1,0 @@
-- **Fixed:** Hanging from an edge or holding a pipe, Space while looking behind you kicks you off the way you look again; looking at the wall, Space still climbs up. Look round far enough and one hand lets go so you can turn, with both arms staying in view.
