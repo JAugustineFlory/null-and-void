@@ -94,7 +94,7 @@ const PUSHED_OFF := ["vault"]
 ## shoulders) isn't drawn this close, so your arms show reaching past your face.
 const NEAR_CUT := 0.4
 ## Garments (a jacket) fade out over this last share of it, not cut off hard.
-const NEAR_FADE := 0.92
+const NEAR_FADE := 0.98
 
 var player: Node3D  # Player
 var rig: CharacterRig
