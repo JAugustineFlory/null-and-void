@@ -43,6 +43,13 @@ const CROUCH_SPEED := 1.9
 const CRAWL_SPEED := 1.5
 ## Hurrying through a vent: faster, but you bang the duct.
 const VENT_RUSH_SPEED := 2.6
+## Squeezing through somewhere you barely fit (a vent, a low gap) slows you, down
+## to SQUEEZE_SLOW of your speed with no room to spare. You have room once there's
+## SQUEEZE_ROOM (metres) over your crawl height and SQUEEZE_WIDTH (metres, both
+## sides together) beside you: what a standard body has in a standard vent.
+const SQUEEZE_SLOW := 0.5
+const SQUEEZE_ROOM := 0.14
+const SQUEEZE_WIDTH := 0.36
 const CARRY_SPEED := 1.6
 const JUMP_VELOCITY := 4.3
 const SLIDE_SPEED := 9.0
@@ -1365,6 +1372,8 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			speed = CROUCH_SPEED
 		elif sprinting:
 			speed = SPRINT_SPEED
+		if (in_vent or crouching) and not rider and dir != Vector3.ZERO:
+			speed *= lerpf(1.0, SQUEEZE_SLOW, squeeze(dir))
 		if _hands_full():
 			speed = minf(speed, NOTEBOOK_WALK_SPEED)
 		var accel := 12.0 if on_floor else 3.0
@@ -1827,6 +1836,25 @@ func _settle_stance() -> void:
 			room = minf(room, ahead)
 	if room > 0.0 and absf(room - _height) > 0.01:
 		_set_stance(room)
+
+
+## How tightly you fit where you are, going `dir`: 0 with room to spare, up to 1
+## when your body only just fits (no headroom over your crawl, or the sides
+## brushing you). Bigger crew members squeeze more in the same vent.
+func squeeze(dir: Vector3) -> float:
+	var space := get_world_3d().direct_space_state
+	var feet := global_position
+	var up := space.intersect_ray(PhysicsRayQueryParameters3D.create(feet + Vector3.UP * 0.1, feet + Vector3.UP * (body.crawl + SQUEEZE_ROOM), collision_mask, _exclude()))
+	var room := 1.0 if up.is_empty() else clampf((up.position.y - feet.y - body.crawl) / SQUEEZE_ROOM, 0.0, 1.0)
+	var right := dir.cross(Vector3.UP).normalized()
+	var mid := global_position + Vector3.UP * minf(_height / 2.0, 0.4)
+	var reach := body.radius + 0.6
+	var spare := -2.0 * body.radius
+	for side in [right, -right]:
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(mid, mid + side * reach, collision_mask, _exclude()))
+		spare += reach if hit.is_empty() else mid.distance_to(hit.position)
+	var wide := clampf(spare / SQUEEZE_WIDTH, 0.0, 1.0)
+	return 1.0 - minf(room, wide)
 
 
 ## The tallest low stance, crawl to crouch, that fits with feet at `feet`; 0 if none.

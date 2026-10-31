@@ -21,6 +21,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_eyes_and_size()
 	for b in [CrewBody.smallest(), CrewBody.largest()]:
 		await test_moves(b)
+	await test_squeeze()
 	for scene in FLOORS:
 		await test_floor_fits(scene)
 
@@ -203,6 +204,42 @@ func test_moves(b: CrewBody) -> void:
 			break
 	check(lowest > -0.5 and p.global_position.x > 9.0, "%s shuffles the length of a ledge without falling" % who)
 	await done(a)
+
+
+## Where you barely fit you go slower: the largest crew member crawls a vent
+## slower than a standard body, nobody is stopped, and roomy crouching isn't slowed.
+func test_squeeze() -> void:
+	var times := {}
+	for b in [CrewBody.smallest(), CrewBody.new(), CrewBody.largest()]:
+		var a := arena()
+		Traversal.vent(a, Vector3(0, 0, -2), Vector3(0, 0, -10))
+		var p := spawn(a, Vector3(0, 0.05, 0), b)
+		await frames(5)
+		p.controls.move = Vector2(0, -1)
+		p.controls.crouch = true
+		var n := 0
+		while p.global_position.z > -3.0 and n < 600:
+			await frames(1)
+			n += 1
+		n = 0
+		while p.global_position.z > -7.0 and n < 900:
+			await frames(1)
+			n += 1
+		times[b.size] = n
+		check(p.global_position.z <= -7.0, "a %.2f body crawls 4 m of vent (%d frames)" % [b.size, n])
+		await done(a)
+	var small: int = times[CrewBody.smallest().size]
+	var std: int = times[1.0]
+	var big: int = times[CrewBody.largest().size]
+	check(big > std * 1.2, "the largest crew member, barely fitting, crawls a vent much slower (%d frames to %d)" % [big, std])
+	check(absf(small - std) <= std * 0.05, "a standard or smaller body has room, and isn't slowed (%d, %d)" % [small, std])
+	var o := arena()
+	var q := spawn(o, Vector3(0, 0.05, 0), CrewBody.largest())
+	await frames(5)
+	q.controls.crouch = true
+	await frames(20)
+	check(q.squeeze(Vector3.FORWARD) == 0.0, "crouching out in the open is no squeeze, even for the largest")
+	await done(o)
 
 
 func _stop(p: Player) -> void:
