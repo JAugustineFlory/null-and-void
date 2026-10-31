@@ -68,6 +68,8 @@ func _ready() -> void:
 	player.name = "Player"
 	player.hud = hud
 	player.inventory = get_node("/root/Game").inventory  # one run's inventory, across levels
+	# Your character's size: how tall you stand, crawl and sit, and where your eyes are.
+	player.body = CrewBody.from_look(NetPlayers.look_for(self, multiplayer.get_unique_id()))
 	# Place it before it enters the world: a body that appears at the origin for
 	# even one physics step can set off triggers there.
 	player.transform = player_spawn(NetPlayers.index_of(multiplayer.get_unique_id(), multiplayer))

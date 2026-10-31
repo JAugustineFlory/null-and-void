@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "bodies", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound"]
 
 
 func _run() -> void:
@@ -79,6 +79,7 @@ func _run_group(g: String) -> void:
 		"combat": await _group_combat()
 		"movement": await _group_movement()
 		"movement_hands": await _group_movement_hands()
+		"bodies": await _group_bodies()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
 		"teaching_api": await _group_teaching_api()
@@ -233,6 +234,11 @@ func _group_movement() -> void:
 ## The rest of the player: notebook, terminals, pickups, inventory, sitting, stamina, knocks, gym.
 func _group_movement_hands() -> void:
 	await _run_file("res://tests/movement_tests.gd", "hands")
+
+
+## Every crew body, smallest to largest, against every move and every floor.
+func _group_bodies() -> void:
+	await _run_file("res://tests/body_tests.gd")
 
 
 ## Teaching walkthroughs and audits across every floor.
@@ -1951,11 +1957,13 @@ func test_coop_level_1() -> void:
 	var dump := "SELECT * FROM doors ORDER BY id"
 	check(_table(host, dump) == _table(client, dump), "the doors table matches on both machines")
 	client.player.set_physics_process(false)  # hold the stance still for the check
-	client.player._set_stance(Player.CRAWL_HEIGHT)
+	client.player._set_stance(client.player.body.crawl)  # their own crawl height, whoever they play
 	await _frames(10)
 	var mate: PlayerPuppet = host.players.puppet(client_id)
 	check(mate.crawling and mate.stance_height < 1.0 and mate.rig.crawl_amount() > 0.9, "a teammate crawling shows crawling for the others, not standing")
-	client.player._set_stance(Player.STAND_HEIGHT)
+	check(is_equal_approx(mate.size, client.player.body.size) and absf(mate._capsule.height - client.player.body.crawl) < 0.01,
+		"their body is their own size for everyone else (%.2f m crawling)" % mate._capsule.height)
+	client.player._set_stance(client.player.body.stand)
 	await _frames(10)
 	check(not mate.crouching and is_equal_approx(mate.stance_height, Player.STAND_HEIGHT) and mate.rig.crouch_amount() == 0.0, "and stands back up with them")
 	client.player.set_physics_process(true)
