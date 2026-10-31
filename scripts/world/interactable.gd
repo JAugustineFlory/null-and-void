@@ -12,12 +12,29 @@ var alt_prompt := ""
 var enabled := true
 ## Co-op: act on this machine only, instead of asking the host (e.g. hopping a counter).
 var local_only := false
-## The shine over something still worth reading (see shine()).
-const SHINE_COLOR := Color(1.0, 0.86, 0.45, 0.3)
+## The shine over something still worth reading (see shine()): blue, so it can't be
+## mistaken for lamplight on paper (Augustine, v0.7.1 playtest).
+const SHINE_COLOR := Color(0.3, 0.68, 1.0)
 ## How much wider than the thing itself the shine spreads.
 const SHINE_GROW := 1.35
-## Seconds for the shine to fade down, and back up again.
-const SHINE_BREATH := 1.1
+## A bright border with light running round it, over a faint fill that breathes.
+const SHINE_SHADER := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec3 tint : source_color;
+uniform float border = 0.09;
+void fragment() {
+	vec2 d = abs(UV - 0.5);
+	float edge = 0.5 - max(d.x, d.y);  // 0 at the rim, 0.5 in the middle
+	float rim = 1.0 - smoothstep(0.0, border, edge);
+	float around = atan(UV.y - 0.5, UV.x - 0.5) / 6.2832;  // where on the rim, 0..1
+	float run = pow(0.5 + 0.5 * sin((around - TIME * 0.35) * 12.5664), 6.0);  // two lights chasing round
+	float fill = 0.05 + 0.03 * sin(TIME * 2.4);
+	ALBEDO = tint;
+	ALPHA = clamp(rim * (0.35 + 0.9 * run) + fill, 0.0, 1.0);
+}
+"""
+static var _shine_shader: Shader
 var _shine: MeshInstance3D
 ## It has been read: no shine comes back.
 var _shine_spent := false
@@ -48,8 +65,8 @@ static func create(parent: Node, center: Vector3, size: Vector3, prompt_text: St
 
 ## A shine over it while it still holds something this player needs, so a first-time
 ## player can see which things in the room are worth reading (Augustine, 2026-10-26:
-## "showing how to find clues by making the papers/hints glow"). It's a soft panel
-## just off the surface, breathing in and out; `shine(false)` takes it away, which is
+## "showing how to find clues by making the papers/hints glow"). It's a blue panel
+## just off the surface, its border lit and moving; `shine(false)` takes it away, which is
 ## what reading the thing does. Each machine shines its own: it follows what this
 ## player has read, not the crew.
 func shine(on: bool = true) -> void:
@@ -74,19 +91,15 @@ func shine(on: bool = true) -> void:
 		mesh.position.y = box.y * 0.5 + 0.004
 	else:
 		mesh.position.z = box.z * 0.5 + 0.004
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.albedo_color = SHINE_COLOR
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if _shine_shader == null:
+		_shine_shader = Shader.new()
+		_shine_shader.code = SHINE_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = _shine_shader
+	m.set_shader_parameter("tint", SHINE_COLOR)
 	mesh.material_override = m
 	add_child(mesh)
 	_shine = mesh
-	var tw := create_tween().set_loops()
-	tw.tween_method(func(a: float): m.albedo_color.a = a, SHINE_COLOR.a, SHINE_COLOR.a * 0.35, SHINE_BREATH).set_trans(Tween.TRANS_SINE)
-	tw.tween_method(func(a: float): m.albedo_color.a = a, SHINE_COLOR.a * 0.35, SHINE_COLOR.a, SHINE_BREATH).set_trans(Tween.TRANS_SINE)
 
 
 ## True while it's shining.
