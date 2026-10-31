@@ -1,1 +1,1 @@
-- **Fixed:** hanging from a ledge or flat against a wall, looking round turns your head and shoulders while both hands hold on. Look far enough round and you hang off one hand, with the other reaching out where you can see it. Your own sleeves and jacket no longer fill the view.
+- **Fixed:** Hanging from an edge or holding a pipe, your head and shoulders turn as you look round while both hands hold on, and your own sleeves no longer fill the view.
