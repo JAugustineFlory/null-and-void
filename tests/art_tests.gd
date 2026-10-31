@@ -25,6 +25,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_skinned_body()
 	test_outfits()
 	await test_crew_bodies()
+	await test_feet()
 	test_unlockable_items()
 	await test_props()
 	test_kits()
@@ -1004,6 +1005,46 @@ func test_rig_budget() -> void:
 	a.get_parent().free()
 	b.get_parent().free()
 	stage.free()
+
+
+func test_feet() -> void:
+	# Augustine 2026-10-30: everyone's feet turned inward and looked small and
+	# pointed. Standing, the toes point straight ahead; the bare feet are shod.
+	var stage := _stage()
+	for look in [{"body": 1}, {"body": 2}, CharacterLooks.outfit(Cosmetics.clean({"crew": "marcus"}, 0))]:
+		var n := Node3D.new()
+		stage.add_child(n)
+		var full: Dictionary = CharacterLooks.base()
+		full.merge(look, true)
+		var rig := CharacterRig.build(n, full)
+		for i in 10:
+			rig.animate(0.1)
+		var sk: Skeleton3D = rig._skin.skeleton
+		var at := func(bone: String) -> Vector3:
+			return rig.to_local(sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin)
+		var turns := []
+		for side in ["r", "l"]:
+			var toes: Vector3 = (at.call("ball_" + side) - at.call("foot_" + side)) * Vector3(1, 0, 1)
+			turns.append(snappedf(rad_to_deg(atan2(toes.x, -toes.z)), 0.1))
+		check(absf(turns[0]) < 5.0 and absf(turns[1]) < 5.0, "standing, body %d's toes point straight ahead, not turned in (%s degrees)" % [full.body, turns])
+		var bare: Node3D = ArtModels.scene(SkinnedBody.MODELS[2 if int(full.body) == 2 else 1]).instantiate()
+		var raw: MeshInstance3D = bare.find_child("Body", true, false)
+		var shod: MeshInstance3D = rig.find_child("Body", true, false)
+		var foot := func(mesh: Mesh) -> AABB:
+			var box := AABB()
+			var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+			var first := true
+			for v in verts:
+				if v.y < 0.04 and v.x > 0.0:  # the right foot, at the floor
+					box = AABB(v, Vector3.ZERO) if first else box.expand(v)
+					first = false
+			return box
+		var was: AABB = foot.call(raw.mesh)
+		var now: AABB = foot.call(shod.mesh)
+		check(now.size.z > was.size.z * 1.1 and now.size.x > was.size.x * 1.2 and now.position.y > -0.001,
+			"body %d wears shoes: longer and wider than the bare foot, the sole on the floor (%.2f x %.2f m, was %.2f x %.2f)" % [full.body, now.size.z, now.size.x, was.size.z, was.size.x])
+		bare.free()
+	stage.queue_free()
 
 
 func test_crew_bodies() -> void:
