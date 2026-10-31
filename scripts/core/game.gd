@@ -89,6 +89,10 @@ const TICKET := {
 		"Test, write up, get client sign-off.",
 	],
 }
+## Printed lines of the work order the crew marked up in the garage briefing, as
+## Maddison talked them through it (WorkOrderForm keys: "contact", "problem",
+## "scope_0"...). The same on every copy.
+var ticket_marks: Array[String] = []
 ## The ticket's task list, in the character's hand as tasks come up:
 ## {text, done, filled}. `filled` is what was written in once it was done.
 var notebook_todo: Array[Dictionary] = []
@@ -130,6 +134,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_tables.clear()
 	notebook_written.clear()
 	notebook_todo.clear()
+	ticket_marks.clear()
 	notebook_cases.clear()
 	notebook_jotted.clear()
 	job_over = false
@@ -263,7 +268,17 @@ func ticket() -> Dictionary:
 	t["caller"] = Level0Data.caller_line(run_seed)  # who placed the call: not the contact
 	t["tasks"] = notebook_todo.duplicate(true)
 	t["void"] = job_over
+	t["marks"] = ticket_marks.duplicate()
 	return t
+
+
+## Mark a printed line of the work order (a ticket_marks key). False if it already was.
+func mark_ticket(key: String) -> bool:
+	if ticket_marks.has(key):
+		return false
+	ticket_marks.append(key)
+	notebook_changed.emit()
+	return true
 
 
 ## The work order number, the same all run.

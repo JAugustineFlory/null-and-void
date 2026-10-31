@@ -1,0 +1,2 @@
+- **Changed:** In the garage, the punch bag is the last thing before the van, and each player can climb in as soon as they've blocked it.
+- **Added:** As Maddison goes over the work order, she marks the lines she's talking about on everyone's copy.

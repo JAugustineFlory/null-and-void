@@ -232,32 +232,20 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Pacing a step or two in front of the whiteboard)* "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off." *Every 'maybe' a little grander, then the sign brings it back down to earth.* `[l0_brief_3]`  
 *(Tapping the whiteboard with her marker)* "Forget all that. We got Halcyon. The overnight database contract. Ours." *Building to it. She can't stand still for 'Ours.'* `[l0_brief_4]`  
 *(Waving a hand to brush off the question)* "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock." *Quickly, before anyone can ask.* `[l0_brief_5]`  
-*(The crew is buzzing in their seats. Pointing across the garage at the punching bag by the big door)* "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down." *Laughing, shooing them off.* `[l0_bag]`
+*(Once they're settled. Tapping her own notebook, then pointing at theirs)* "I put a copy of the work order in each of your notebooks. Pull it out and take a look." *Pleased with herself for being organized.* `[l0_workorder]`
 
 **MADDISON** `l0_brief_1_solo.wav`  
 *Cue: Only when one player is playing alone. Plays instead of "Okay! Everybody comfy? Look at you. My whole company, in one garage."*  
 *(Striding in from the house door to her whiteboard, arms wide)* "Okay! Look at you. My whole company, in one seat." *The same joke, a little teasing.*
 
-**MADDISON** `l0_bag_solo.wav`  
-*Cue: Only when one player is playing alone. Plays instead of "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."*  
-*(Pointing across the garage at the punching bag by the big door)* "You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down." *Laughing, shooing them off.*
-
-**MADDISON** `l0_bag_back_block.wav`  
-*Cue: Everyone has hit the punching bag and sat back down facing you*  
-*(Back at the whiteboard, clapping her hands once)* "Better? Good. Now eyes on me, gorgeous people." *A little flirty, played light, like a coach.* `[l0_bag_back]`  
-*(Once they're settled. Tapping her own notebook, then pointing at theirs)* "I put a copy of the work order in each of your notebooks. Pull it out and take a look." *Pleased with herself for being organized.* `[l0_workorder]`
-
-**MADDISON** `l0_bag_back_solo.wav`  
-*Cue: Only when one player is playing alone. Plays instead of "Better? Good. Now eyes on me, gorgeous people."*  
-*(Back at the whiteboard, clapping her hands once)* "Better? Good. Now eyes on me, gorgeous." *A little flirty, played light, like a coach.*
-
 **MADDISON** `l0_workorder_solo.wav`  
 *Cue: Only when one player is playing alone. Plays instead of "I put a copy of the work order in each of your notebooks. Pull it out and take a look."*  
 *(Tapping her own notebook, then pointing at theirs)* "I put a copy of the work order in your notebook. Pull it out and take a look." *Pleased with herself for being organized.*
 
-**MADDISON** `l0_book_catch.wav`  
-*Cue: Everyone has pulled out the work order and read it*  
-*(Holding up her copy of the work order, tapping one word)* "Small problem. It says database. And unless one of you secretly knows SQL..." *The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
+**MADDISON** `l0_workorder_walk_block.wav`  
+*Cue: Everyone has the work order open in their notebook*  
+*(Holding up her copy of the work order, running a finger down it)* "Sign in at reception, then wait for their facilities guy, Rourke. He walks us in." *Going down her copy line by line, easy and organized.* `[l0_workorder_walk]`  
+*(Holding up her copy of the work order, tapping one word)* "Small problem. It says database. And unless one of you secretly knows SQL..." *The smile stays on. She leaves the sentence hanging and waits. Nobody does.* `[l0_book_catch]`
 
 **MADDISON** `l0_book_catch_solo.wav`  
 *Cue: Only when one player is playing alone. Plays instead of "Small problem. It says database. And unless one of you secretly knows SQL..."*  
@@ -272,8 +260,16 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: Only when one player is playing alone. Plays instead of "It's in the shop bag on the shelf by the side door. One of you go grab it."*  
 *(Walking to the back shelf by the side door to the house)* "It's in the shop bag on the shelf by the side door. Go on, grab it for me." *Pointing at the side door to the house.*
 
+**MADDISON** `l0_bag.wav`  
+*Cue: Chapter zero has gone into everyone's notebook. The job's about to start*  
+*(Pointing across the garage at the punching bag by the big door)* "Before the van, everybody hits the bag once. Nerves out here, not at the client's." *Coach before the big game, brisk and warm.*
+
+**MADDISON** `l0_bag_solo.wav`  
+*Cue: Only when one player is playing alone. Plays instead of "Before the van, everybody hits the bag once. Nerves out here, not at the client's."*  
+*(Pointing across the garage at the punching bag by the big door)* "Before the van, hit the bag once. Nerves out here, not at the client's." *Coach before the big game, brisk and warm.*
+
 **MADDISON** `l0_garage_5.wav`  
-*Cue: The crew has gone through chapter zero together*  
+*Cue: The whole crew has blocked the punching bag*  
 *(Capping her marker, beaming at the crew)* "Look at that. You're practically engineers. Take the book with you. Everybody in the van." *Genuinely thrilled.*
 
 **MADDISON** `l0_garage_5_solo.wav`  

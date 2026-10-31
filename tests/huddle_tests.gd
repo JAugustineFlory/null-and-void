@@ -206,21 +206,22 @@ func test_garage_opening() -> void:
 	for pair in [["door", "board"], ["board", "side"], ["side", "board"], ["board", "van"]]:
 		through.append_array(_walks_through(home, home.MADDISON_MARKS[pair[0]][0], home.MADDISON_MARKS[pair[1]][0]))
 	_check.call(through.is_empty(), "she walks round the couch, the counter and the bench, never through them %s" % [through])
-	_check.call(await _until(func(): return home.hud.current_todo() == home.SPAR_TODO, 2400), "after the brief she sends the crew to the punch bag")
-	p.stand_up(true)
-	await _frames(2)
-	await _spar(home, p)
-	_check.call(await _until(func(): return home.hud.current_todo() == "Sit back down facing Maddison", 300), "then back to their seats")
+	_check.call(await _until(func(): return home.hud.current_todo() == "Look at the work order in your notebook", 2400), "after the brief, still in their seats, she points them at the work order in their notebooks")
+	_check.call(p.is_sitting() and home.spar_blocked.is_empty() and not home._sparring, "nobody's been sent to the punch bag yet: that's last, before the van")
 	await _frames(60)
-	_check.call(home.read_order.is_empty() and not home.book_bag.enabled, "she waits for everyone to sit down")
-	await home._seat_me(home.crew_seats[2])
-	_check.call(await _until(func(): return home.hud.current_todo() == "Look at the work order in your notebook", 1200), "seated again, she points them at the work order in their notebooks")
-	await _frames(60)
-	_check.call(not home.book_bag.enabled, "and waits for everyone to look")
+	_check.call(not home.book_bag.enabled and _game().ticket_marks.is_empty(), "she waits for everyone to look, and nothing's marked yet")
 	home.notebook.open()
 	_check.call(await _until(func(): return home.read_order.size() == 1, 60), "pulling out the notebook counts as looking")
+	_check.call(await _until(func(): return _game().ticket_marks == ["scope_0"], 600), "with it open, she starts down the work order: \"Sign in at reception\" is marked first")
+	_check.call(await _until(func(): return _game().ticket_marks == ["scope_0", "contact"], 600), "then Rourke, the contact, as she says his name")
+	var order_page: Array[Control] = home.notebook.pages.section_items(NotebookPages.Page.WORK_ORDER)
+	_check.call(NotebookPages.text_of(order_page).contains("Sign in at reception") and order_page[0].find_child("Marked_scope_0", true, false) != null and order_page[0].find_child("Marked_contact", true, false) != null,
+		"the marks are on the printed form itself")
 	home.notebook.close()
+	_check.call(await _until(func(): return _game().ticket_marks == ["scope_0", "contact", "problem"], 600), "then \"database problem\", one mark at a time, even with the notebook put away")
+	_check.call(home.notebook.pages.section_items(NotebookPages.Page.WORK_ORDER)[0].find_children("Marked_*", "", true, false).size() == 3, "and they're all there next time it's opened")
 	_check.call(await _until(func(): return home.book_bag.enabled, 2400), "then the book on the shelf by the side door")
+	_check.call(home.hud._notice.text == home.MOVE_NOTICE, "whoever gets up for it is told how to stand and walk")
 	var lit := true
 	for spot in [home.book_bag.global_position, home.fax.global_position, home.to_global(home.WHITEBOARD), home.to_global(home.VAN)]:
 		var reach := 0.0
@@ -252,7 +253,13 @@ func test_garage_opening() -> void:
 	_check.call(_game().book_words.has("row"), "its words are learned")
 	_check.call(prof.earned.has("chapter:easy_sql_0") and not prof.earned.has("achievement:easy_sql_half"), "the chapter is remembered on the profile; one chapter isn't half the book")
 	await _test_yourself(world)
-	_check.call(await _until(func(): return home.van_door.enabled), "then the van")
+	_check.call(await _until(func(): return home.hud.current_todo() == home.SPAR_TODO, 2400), "last, before the van, she sends the crew to the punch bag")
+	_check.call(home.hud._notice.text == home.MOVE_NOTICE and not home.van_door.enabled, "everyone's told again how to stand and walk, and the van isn't open yet")
+	_check.call(await _until(func(): return home.hud._notice.text == home.SPAR_NOTICE, 600), "then how to block it")
+	p.stand_up(true)
+	await _frames(2)
+	await _spar(home, p)
+	_check.call(home.van_door.enabled and home.hud.current_todo() == "Get in the van", "blocked, it's straight to the van")
 	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
 	_check.call(home.van_doors.size() == 2 and home.side_door.find_child("SideDoor", true, false) != null, "the garage's van has the same doors as the van at Halcyon: two front doors and a sliding door")
 	_check.call(await _until(func(): return home.side_door.position.distance_to(home.SIDE_DOOR_OPEN) < 0.05, 120), "its sliding door slides back to let the crew in")
@@ -375,7 +382,7 @@ func _spar(home, p) -> void:
 	var net: Node = _tree.root.get_node("/root/Net")
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
-	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag, before the huddle")
+	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag")
 	_check.call(home.hud.current_todo() == "Hit the punch bag, then block it", "the to-do says to hit it, then block it")
 	p.global_position = home.to_global(home.PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
 	var swung := await _until(func(): return home.spar_target != 0, 200)
@@ -388,7 +395,7 @@ func _spar(home, p) -> void:
 	await _frames(3)
 	_check.call(p.health == health and home.spar_blocked.is_empty(), "a missed block costs no health, and doesn't count")
 	_check.call(home.hud._notice.text.contains("It hit you. Right-click just as it swings in"), "no guard up: the notice says when to right-click")
-	_check.call(not _huddle_of(home).is_running(), "the crew can't huddle until it's blocked")
+	_check.call(not home.van_door.enabled, "the van stays shut until it's blocked")
 	await _frames(40)  # it settles
 	await _hit_bag(home, p)
 	var early: bool = home.spar_target != 0 and not home.swing_in and p.combat.raise_guard()  # as it flies away, long before it's back
@@ -681,13 +688,23 @@ func test_coop_van() -> void:
 	var boarded := [false]
 	homes[1].crew_boarded.connect(func(): boarded[0] = true)
 	homes[0].crew_boarded.connect(func(): boarded[0] = true)
-	for home in homes:
-		home.van_door.enabled = true
+	var client_id: int = machines[1].multiplayer.get_unique_id()
+	homes[0].van_door.enabled = true  # as if the drill were on: the bag isn't blocked yet
+	homes[0].van_door.interact(ph)
+	await _frames(30)
+	_check.call(homes[0].boarded.is_empty() and homes[1].boarded.is_empty(), "nobody gets in the van before they've blocked the punch bag")
+	homes[0].sync.event("_on_sparred", [machines[0].multiplayer.get_unique_id()])
+	_check.call(await _until(func(): return homes[0].van_door.enabled and not homes[1].van_door.enabled and homes[1].spar_blocked.size() == 1, 120),
+		"once the host has blocked it, the van opens to the host, and only to them")
 	homes[0].van_door.interact(ph)
 	_check.call(await _until(func(): return homes[1].boarded.size() == 1, 120), "the host climbs in first")
+	_check.call(not boarded[0] and homes[0].hud._notice.text.begins_with("In the van") and not homes[1].hud._notice.text.begins_with("In the van"),
+		"the van waits for the client, who's still at the bag")
+	homes[0].sync.event("_on_sparred", [client_id])
+	_check.call(await _until(func(): return homes[1].van_door.enabled, 120), "the client blocks it too")
 	homes[1].van_door.interact(pc)
 	_check.call(await _until(func(): return homes[0].boarded.size() == 2 and homes[1].boarded.size() == 2, 120),
-		"and the client still can after them")
+		"and climbs in after them: their climb reaches the host")
 	_check.call(boarded[0] and not homes[0].van_door.enabled and not homes[1].van_door.enabled, "then the van leaves with everyone")
 	_tree._coop_close(worlds)
 	await _frames(2)

@@ -79,6 +79,8 @@ const SPAR_NOTICE := "Hit the bag with left-click. It swings back at you: right-
 const SPAR_MISS := "It hit you. Right-click just as it swings in to raise your guard."
 const SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait for the swing in, then right-click."
 const SPAR_BLOCKED := "Blocked! Your guard took the hit."
+const MOVE_NOTICE := "Space stands you up. WASD to walk, the mouse to look around"
+const MOVE_SECONDS := 5.0
 ## Maddison's marks: where she stands for each beat, and the point she faces there.
 ## She comes in by the side door to the house; "board" is beside her whiteboard,
 ## facing the crew.
@@ -104,6 +106,7 @@ const BEAT := 1.2
 var fax: Interactable
 var book_bag: Interactable
 var van_door: Interactable
+var van_relay: Interactable
 ## The van's front doors ({"w"/"e": {pivot, swing}}) and sliding door, built as
 ## Level 0's are, so the garage van is the same van parked at Halcyon.
 var van_doors := {}
@@ -128,8 +131,6 @@ var _sparring := false
 var _guard_at := -100.0
 var _swing_at := -100.0
 var _bag_swing: Tween
-## Everyone back in a seat after the punch bag; the book's carrier sat down with it.
-signal crew_seated
 ## Who has pulled out the work order (host decides; every machine hears).
 var read_order: Array = []
 signal crew_read_order
@@ -381,7 +382,15 @@ func _build_van(center: Vector3) -> void:
 	van_door = Interactable.create(self, cab + Vector3(-1.25, 0.95, 0.1), Vector3(0.1, 1.9, 1.3), "Get in the van", white, false)
 	van_door.name = "VanDoor"
 	van_door.enabled = false
-	van_door.used.connect(_on_van_door)
+	van_door.local_only = true  # open to each player once they've blocked the bag: their own machine knows
+	van_door.used.connect(func(p): van_relay.interact(p))
+	# What a climb tells the host: a door nobody can see or aim at, which a client's
+	# climb is forwarded through like any other.
+	van_relay = Interactable.create(self, cab + Vector3(-1.35, 0.95, 0.1), Vector3(0.1, 1.9, 1.3), "", white, false)
+	van_relay.name = "VanRelay"
+	van_relay.remove_from_group("interactable")
+	van_relay.collision_layer = 0
+	van_relay.used.connect(_on_van_door)
 	# Front seats, then the rear bench, as in the van at Halcyon.
 	for at in [Vector3(-0.55, 0, -1.3), Vector3(0.55, 0, -1.3), Vector3(-0.99, 0, 0.7),
 			Vector3(-0.33, 0, 0.7), Vector3(0.33, 0, 0.7), Vector3(0.99, 0, 0.7)]:
@@ -544,20 +553,6 @@ func start() -> void:
 	await hud.lines(["l0_brief_4", "l0_brief_5"])
 	await _beat()
 
-	# Blow off some steam: everyone blocks the punch bag once, then sits back down.
-	await _say("l0_bag", "l0_bag_solo")
-	hud.notice("Space stands you up. WASD to walk, the mouse to look around", 7.0)
-	await _spar_drill()
-	hud.todo("Sit back down facing Maddison")
-	hud.notice("Look at a seat and press E to sit", 6.0)
-	if sync.is_host():
-		_watch_seated(players.all_ids(), crew_seated)
-	await sync.gate("seated", crew_seated)
-	hud.todo("")
-	await _beat()
-	await _say("l0_bag_back", "l0_bag_back_solo")
-	await _beat(0.5)
-
 	# The work order is already in everyone's notebook: each player pulls theirs out.
 	await _say("l0_workorder", "l0_workorder_solo")
 	hud.todo("Look at the work order in your notebook")
@@ -567,7 +562,10 @@ func start() -> void:
 	hud.todo("")
 	await _beat(1.5)
 
-	await _say("l0_book_catch", "l0_book_catch_solo")
+	# With it open, she walks them through it, marking each line as she says it.
+	await _say_marking("l0_workorder_walk", "", [["scope_0", "Sign in"], ["contact", "Rourke"]])
+	await _beat(0.5)
+	await _say_marking("l0_book_catch", "l0_book_catch_solo", [["problem", "database"]])
 	await _beat()  # she leaves it hanging; nobody does
 	await hud.line("l0_bookstore")
 	await _beat(0.5)
@@ -575,6 +573,7 @@ func start() -> void:
 	await _say("l0_grab", "l0_grab_solo")
 	book_bag.enabled = true
 	hud.todo("Get the book from the shelf by the side door")
+	hud.notice(MOVE_NOTICE, 7.0)  # for whoever gets up for it first
 	await sync.gate("bag", book_bag.used)
 	maddison_to("board")
 	hud.todo("")
@@ -583,12 +582,14 @@ func start() -> void:
 	# Chapter zero goes in everyone's notebook; nobody has to stop to read it.
 	await Huddle.of(self).run("easy_sql_0")
 	await _beat()
+
+	# Nerves out before the job: everyone blocks the punch bag once, and whoever has
+	# can climb straight into the van.
+	await _say("l0_bag", "l0_bag_solo")
+	await _spar_drill(true)
 	await _say("l0_garage_5", "l0_garage_5_solo")
 	maddison_to("van")  # she sees them off at the van door, then stays behind
-	_open_side_door()
-	van_door.enabled = true
-	hud.todo("Get in the van")
-	await sync.gate("boarded", crew_boarded)
+	await sync.gate("boarded", _all_aboard)
 	await hud.line("l0_garage_6")
 	await hud.fade(true, 1.2)
 	hud.notice("Halcyon Data Systems. 11:02 p.m.", 3.5, Color(0.9, 0.9, 0.85))
@@ -602,6 +603,25 @@ func start() -> void:
 ## Maddison's line for a crew, or its version for one player.
 func _say(crew_id: String, solo_id: String = "") -> void:
 	await hud.line(solo_id if solo_id != "" and players.count() == 1 else crew_id)
+
+
+## _say, marking the work order as she goes: each of `marks` ([key, word]) goes on
+## everyone's copy (Game.mark_ticket) as she reaches that word of the line.
+func _say_marking(crew_id: String, solo_id: String, marks: Array) -> void:
+	var id := solo_id if solo_id != "" and players.count() == 1 else crew_id
+	var text: String = VoiceLines.get_line(id).get("text", "")
+	var stream := Voice.stream_for(id)
+	var length := stream.get_length() if stream else Voice.read_time(text)
+	for mark in marks:
+		_mark_at(mark[0], length * maxi(0, text.find(mark[1])) / maxf(1.0, text.length()))
+	await hud.line(id)
+
+
+func _mark_at(key: String, seconds: float) -> void:
+	if seconds > 0.0:
+		await get_tree().create_timer(seconds, false).timeout
+	if is_inside_tree():
+		get_node("/root/Game").mark_ticket(key)
 
 
 # --- The walk in -----------------------------------------------------------------
@@ -731,25 +751,7 @@ func _seat_me(seat: Seat) -> void:
 			return
 
 
-# --- Back in their seats ------------------------------------------------------------
-
-## Host: emit `done` once every player in `ids` is sitting in a briefing seat.
-func _watch_seated(ids: Array, done: Signal) -> void:
-	await get_tree().process_frame  # the story's gate is listening by then
-	var shown := -1
-	while is_inside_tree():
-		var n := 0
-		for id in ids:
-			if _in_a_seat(players.puppet(id)):
-				n += 1
-		if n >= ids.size():
-			done.emit()
-			return
-		if n != shown and ids.size() > 1:
-			shown = n
-			sync.team_notice("Waiting for the crew to sit down (%d/%d)" % [n, ids.size()], 4.0)
-		await get_tree().create_timer(0.25, false).timeout
-
+# --- In a seat ---------------------------------------------------------------------
 
 func _in_a_seat(body: Node3D) -> bool:
 	if body == null:
@@ -788,9 +790,13 @@ func _on_read_order(id: int) -> void:
 ## Everyone blocks the punch bag once: hit it, and it swings back at you. The host
 ## hears the hit and starts the swing; every machine sees it, and each player's own
 ## machine decides their block.
-func _spar_drill() -> void:
+func _spar_drill(stand_up_first := false) -> void:
 	hud.todo(SPAR_TODO)
-	hud.notice(SPAR_NOTICE, 8.0)
+	if stand_up_first:  # out of their seats: how to get up and over there, then how to block
+		hud.notice(MOVE_NOTICE, MOVE_SECONDS)
+		_notice_after(SPAR_NOTICE, 8.0, MOVE_SECONDS, MOVE_NOTICE)
+	else:
+		hud.notice(SPAR_NOTICE, 8.0)
 	_sparring = true
 	player.combat.guard_raised.connect(_on_guard_raised)
 	if sync.is_host():
@@ -798,7 +804,13 @@ func _spar_drill() -> void:
 	await sync.gate("sparred", crew_sparred)
 	_sparring = false
 	player.combat.guard_raised.disconnect(_on_guard_raised)
-	hud.todo("")
+
+
+## Show notice `text` in `delay` seconds, unless something has replaced `after` by then.
+func _notice_after(text: String, seconds: float, delay: float, after: String) -> void:
+	await get_tree().create_timer(delay, false).timeout
+	if is_inside_tree() and hud._notice.text == after:
+		hud.notice(text, seconds)
 
 
 ## Host: until everyone has blocked it, a hit sends the bag back at whoever hit it.
@@ -879,12 +891,13 @@ func _on_hit_blocked(id: int, cause: String) -> void:
 func _on_sparred(id: int) -> void:
 	if not spar_blocked.has(id):
 		spar_blocked.append(id)
-	var total := players.count()
+	if spar_blocked.size() == 1:
+		_open_side_door()
 	if body_is_mine(id):  # so you know it landed (playtest: blocks went unnoticed)
-		if spar_blocked.size() < total:
-			hud.notice(SPAR_BLOCKED + " Waiting for the crew at the punch bag (%d/%d)" % [spar_blocked.size(), total], 4.0)
-		else:
-			hud.notice(SPAR_BLOCKED, 2.5)
+		hud.notice(SPAR_BLOCKED, 2.5)
+		# Done with the bag: straight to the van, without waiting on the others.
+		van_door.enabled = true
+		hud.todo("Get in the van")
 
 
 ## Every machine: player `id` took the shop bag with the book in it.
@@ -922,12 +935,19 @@ func _open_side_door() -> void:
 	create_tween().tween_property(side_door, "position", SIDE_DOOR_OPEN, 0.7).set_trans(Tween.TRANS_QUAD)
 
 
-## Host: a player climbs into the van. Everyone sees them take the next seat.
+## Host: a player climbs into the van, once they've blocked the bag. Everyone sees
+## them take the next seat.
 func _on_van_door(p: Node) -> void:
 	var id := players.id_of(p)
-	if boarded.has(id):
+	if id == 0 or boarded.has(id) or not spar_blocked.has(id):
 		return
 	sync.event("_on_boarded", [id])
+
+
+## Host: until the whole crew is in the van (some may have climbed in already).
+func _all_aboard() -> void:
+	if boarded.size() < players.count():
+		await crew_boarded
 
 
 func _on_boarded(id: int) -> void:
@@ -943,15 +963,13 @@ func _on_boarded(id: int) -> void:
 		player.velocity = Vector3.ZERO
 		player.rotation.y = global_rotation.y  # facing the windscreen
 		player.seated = true
-		if not sync.is_host():
-			van_door.enabled = false  # the host's door still takes the others' climbs (forwarded)
+		van_door.enabled = false
 	elif body:
 		body.global_position = seat
 	var total := players.count()
-	if boarded.size() >= total:
-		van_door.enabled = false
 	if boarded.size() < total:
-		hud.notice("In the van. Waiting for the crew (%d/%d)" % [boarded.size(), total], 600.0)
+		if boarded.any(body_is_mine):  # not for anyone still at the bag
+			hud.notice("In the van. Waiting for the crew (%d/%d)" % [boarded.size(), total], 600.0)
 	elif sync.is_host():
 		crew_boarded.emit()
 
