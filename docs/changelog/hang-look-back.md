@@ -1,1 +1,1 @@
-- **Fixed:** hanging from a ledge and looking up or back, your own sleeves and jacket no longer fill the view.
+- **Fixed:** hanging from a ledge or flat against a wall and looking round, both hands stay on it and your body stays facing it, and your own sleeves and jacket no longer fill the view.

@@ -703,6 +703,18 @@ func test_first_person_parkour() -> void:
 	var theirs = (other._skin.skeleton.get_node("Body") as MeshInstance3D).material_override.get_shader_parameter("near_cut")
 	check(fp._pull.length() <= FirstPersonBody.PULL_MAX + 0.001 and body_mat.get_shader_parameter("near_cut") > 0.0 and (theirs == null or theirs == 0.0),
 		"you pull yourself up to it, and your collar isn't drawn in front of your eyes (only yours: %s)" % [theirs])
+	# Playtest 2026-10-31: looking round while hanging, your hips stay square to
+	# the wall and both hands stay on the edge; your shoulders turn only a little.
+	var hips_on := (bone.call("pelvis") as Transform3D).basis.z.normalized()
+	for yaw in [1.0, -1.0, 1.3]:
+		you.rotation.y = yaw
+		step.call(0.5)
+		var hips := (bone.call("pelvis") as Transform3D).basis.z.normalized()
+		var square := Vector3(hips.x, 0, hips.z).normalized().dot(Vector3(hips_on.x, 0, hips_on.z).normalized())
+		check(on_grips.call(0.06) and square > 0.97,
+			"hanging and looking round (%.1f rad), both hands stay on the edge and your hips square to the wall (%s, %.2f)" % [yaw, on_grips.call(0.06), square])
+	you.rotation.y = 0.0
+	step.call(0.4)
 
 	# Climbing a pipe, hand over hand (Player reaches 1.7 m up it).
 	you.move = "climb"
@@ -732,6 +744,18 @@ func test_first_person_parkour() -> void:
 	step.call(0.6)
 	var palm := -(bone.call("hand_r") as Transform3D).basis.x.normalized()
 	check(on_grips.call(0.06) and palm.dot(Vector3.FORWARD) > 0.8, "on a ledge facing the wall, your palms are flat on it (%.2f)" % palm.dot(Vector3.FORWARD))
+	# Looking round, you're still chest to the wall: palms flat on it, each hand
+	# on its own side.
+	for yaw in [1.2, -1.2]:
+		you.rotation.y = yaw
+		step.call(0.4)
+		var flat := -(bone.call("hand_r") as Transform3D).basis.x.normalized()
+		var both := fp.rig.reach.has("r") and fp.rig.reach.has("l")
+		var r_side: float = (fp.rig.reach["r"] as Transform3D).origin.x - (fp.rig.reach["l"] as Transform3D).origin.x if both else 0.0
+		check(flat.dot(Vector3.FORWARD) > 0.8 and r_side > 0.3,
+			"on a ledge looking round (%.1f rad), your palms stay on the wall, right hand on the right (%.2f, %.2f m)" % [yaw, flat.dot(Vector3.FORWARD), r_side])
+	you.rotation.y = 0.0
+	step.call(0.4)
 
 	# Mantling: hands on the edge as you go up, letting go once you're over it.
 	you.move = "mantle"
