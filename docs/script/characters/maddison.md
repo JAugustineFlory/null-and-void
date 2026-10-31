@@ -1,6 +1,6 @@
 # Maddison Kowalski
 
-*Your script for Null & Void: 30 recordings.*
+*Your script for Null & Void: 29 recordings.*
 
 ## Who you are
 
@@ -72,9 +72,9 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 *1 second pause*
 
-*The crew is buzzing in their seats. Pointing across the garage at the punching bag by the big door. Laughing, shooing them off.*
+*Once they're settled. Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
 
-"You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."
+"I put a copy of the work order in each of your notebooks. Pull it out and take a look."
 
 **[ ] `l0_brief_1_solo.wav`**
 
@@ -82,39 +82,21 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Okay! Look at you. My whole company, in one seat."
 
-**[ ] `l0_bag_solo.wav`**
-
-*Only when one player is playing alone. Plays instead of "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down." Pointing across the garage at the punching bag by the big door. Laughing, shooing them off.*
-
-"You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."
-
-**[ ] `l0_bag_back_block.wav`**
-
-*Everyone has hit the punching bag and sat back down facing you. Back at the whiteboard, clapping her hands once. A little flirty, played light, like a coach.*
-
-"Better? Good. Now eyes on me, gorgeous people."
-
-*1 second pause*
-
-*Once they're settled. Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
-
-"I put a copy of the work order in each of your notebooks. Pull it out and take a look."
-
-**[ ] `l0_bag_back_solo.wav`**
-
-*Only when one player is playing alone. Plays instead of "Better? Good. Now eyes on me, gorgeous people." Back at the whiteboard, clapping her hands once. A little flirty, played light, like a coach.*
-
-"Better? Good. Now eyes on me, gorgeous."
-
 **[ ] `l0_workorder_solo.wav`**
 
 *Only when one player is playing alone. Plays instead of "I put a copy of the work order in each of your notebooks. Pull it out and take a look." Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
 
 "I put a copy of the work order in your notebook. Pull it out and take a look."
 
-**[ ] `l0_book_catch.wav`**
+**[ ] `l0_workorder_walk_block.wav`**
 
-*Everyone has pulled out the work order and read it. Holding up her copy of the work order, tapping one word. The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
+*Everyone has the work order open in their notebook. Holding up her copy of the work order, running a finger down it. Going down her copy line by line, easy and organized.*
+
+"Sign in at reception, then wait for their facilities guy, Rourke. He walks us in."
+
+*1 second pause*
+
+*Holding up her copy of the work order, tapping one word. The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
 
 "Small problem. It says database. And unless one of you secretly knows SQL..."
 
@@ -142,9 +124,21 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "It's in the shop bag on the shelf by the side door. Go on, grab it for me."
 
+**[ ] `l0_bag.wav`**
+
+*Chapter zero has gone into everyone's notebook. The job's about to start. Pointing across the garage at the punching bag by the big door. Coach before the big game, brisk and warm.*
+
+"Before the van, everybody hits the bag once. Nerves out here, not at the client's."
+
+**[ ] `l0_bag_solo.wav`**
+
+*Only when one player is playing alone. Plays instead of "Before the van, everybody hits the bag once. Nerves out here, not at the client's." Pointing across the garage at the punching bag by the big door. Coach before the big game, brisk and warm.*
+
+"Before the van, hit the bag once. Nerves out here, not at the client's."
+
 **[ ] `l0_garage_5.wav`**
 
-*The crew has gone through chapter zero together. Capping her marker, beaming at the crew. Genuinely thrilled.*
+*The whole crew has blocked the punching bag. Capping her marker, beaming at the crew. Genuinely thrilled.*
 
 "Look at that. You're practically engineers. Take the book with you. Everybody in the van."
 

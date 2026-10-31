@@ -1,6 +1,6 @@
 # Recording list
 
-1228 recordings in all, 1538 lines.
+1227 recordings in all, 1537 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -135,22 +135,21 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_vale_1_block` | "Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry." "If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it." "And please don't give your PIN to anyone. Not even Dale." | Beep before this. Hushed, fast. Urgent. A glance over her shoulder in the voice. Softer. | Level 2 |
 
-## Maddison Kowalski (33 recordings, 56 lines)
+## Maddison Kowalski (32 recordings, 55 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_brief_1_block` | "Okay! Everybody comfy? Look at you. My whole company, in one garage." "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change." "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off." "Forget all that. We got Halcyon. The overnight database contract. Ours." "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock." "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down." | Big, warm, delighted to have an audience. Cheerful, as if it's good news. Every 'maybe' a little grander, then the sign brings it back down to earth. Building to it. She can't stand still for 'Ours.' Quickly, before anyone can ask. Laughing, shooing them off. | Level 0 |
+| [ ] | `l0_brief_1_block` | "Okay! Everybody comfy? Look at you. My whole company, in one garage." "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change." "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off." "Forget all that. We got Halcyon. The overnight database contract. Ours." "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock." "I put a copy of the work order in each of your notebooks. Pull it out and take a look." | Big, warm, delighted to have an audience. Cheerful, as if it's good news. Every 'maybe' a little grander, then the sign brings it back down to earth. Building to it. She can't stand still for 'Ours.' Quickly, before anyone can ask. Pleased with herself for being organized. | Level 0 |
 | [ ] | `l0_brief_1_solo` | "Okay! Look at you. My whole company, in one seat." | The same joke, a little teasing. | Level 0 |
-| [ ] | `l0_bag_solo` | "You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down." | Laughing, shooing them off. | Level 0 |
-| [ ] | `l0_bag_back_block` | "Better? Good. Now eyes on me, gorgeous people." "I put a copy of the work order in each of your notebooks. Pull it out and take a look." | A little flirty, played light, like a coach. Pleased with herself for being organized. | Level 0 |
-| [ ] | `l0_bag_back_solo` | "Better? Good. Now eyes on me, gorgeous." | A little flirty, played light, like a coach. | Level 0 |
 | [ ] | `l0_workorder_solo` | "I put a copy of the work order in your notebook. Pull it out and take a look." | Pleased with herself for being organized. | Level 0 |
-| [ ] | `l0_book_catch` | "Small problem. It says database. And unless one of you secretly knows SQL..." | The smile stays on. She leaves the sentence hanging and waits. Nobody does. | Level 0 |
+| [ ] | `l0_workorder_walk_block` | "Sign in at reception, then wait for their facilities guy, Rourke. He walks us in." "Small problem. It says database. And unless one of you secretly knows SQL..." | Going down her copy line by line, easy and organized. The smile stays on. She leaves the sentence hanging and waits. Nobody does. | Level 0 |
 | [ ] | `l0_book_catch_solo` | "Small problem. It says database. And unless you secretly know SQL..." | The smile stays on. She leaves the sentence hanging and waits. | Level 0 |
 | [ ] | `l0_bookstore_block` | "...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven." "It's in the shop bag on the shelf by the side door. One of you go grab it." | Proud of this. Pointing at the side door to the house. | Level 0 |
 | [ ] | `l0_grab_solo` | "It's in the shop bag on the shelf by the side door. Go on, grab it for me." | Pointing at the side door to the house. | Level 0 |
+| [ ] | `l0_bag` | "Before the van, everybody hits the bag once. Nerves out here, not at the client's." | Coach before the big game, brisk and warm. | Level 0 |
+| [ ] | `l0_bag_solo` | "Before the van, hit the bag once. Nerves out here, not at the client's." | Coach before the big game, brisk and warm. | Level 0 |
 | [ ] | `l0_garage_5` | "Look at that. You're practically engineers. Take the book with you. Everybody in the van." | Genuinely thrilled. | Level 0 |
 | [ ] | `l0_garage_5_solo` | "Look at that. You're practically an engineer. Take the book with you. Into the van." | Genuinely thrilled. | Level 0 |
 | [ ] | `l0_garage_6` | "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio." | She stays behind. | Level 0 |
