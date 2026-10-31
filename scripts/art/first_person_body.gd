@@ -112,6 +112,8 @@ var _grips := {}  # this frame's parkour grips, side -> wrist transform
 var _arm := 0.0  # shoulder to wrist, arm straight
 var _own: Array[Material] = []  # this body's own copies of its materials (near cut)
 var _cut := -1.0
+var _thumbs := {}  # side -> [middle, way it points] of that thumb, in its grip's frame
+var _fitted := {}  # side -> the grip _fit_thumb gave that hand last
 
 
 static func attach(to: Node3D, look: Dictionary = {}) -> FirstPersonBody:
@@ -309,7 +311,10 @@ func _hold_with_hands() -> void:
 			if not hand.is_visible_in_tree():
 				continue
 			var left := String(hand.name).begins_with("Left")
-			grips["l" if left else "r"] = _edge_grip(hand.global_transform.orthonormalized(), left)
+			var side := "l" if left else "r"
+			grips[side] = _edge_grip(hand.global_transform.orthonormalized(), left)
+			if hand.has_meta("thumb"):
+				grips[side] = _fit_thumb(side, grips[side], hand.global_transform.orthonormalized() * (hand.get_meta("thumb") as Transform3D))
 		for held in (cam as Node).get_children():
 			if held is Node3D and held.is_in_group("carried") and held.is_visible_in_tree():
 				# By its two bottom corners, as a paper is held up to read.
@@ -321,6 +326,37 @@ func _hold_with_hands() -> void:
 						grips[side] = _edge_grip(Transform3D(face.basis.orthonormalized(), corner), left)
 	rig.reach = grips
 	rig.grip_curl = HOLD_CURL if _grips.is_empty() else -1.0  # (a parkour grip curls round its edge)
+
+
+## A stand-in hand can say where its thumb lies (a "thumb" meta: a transform in
+## its space at the middle of the thumb, y the way it points, z out of what it
+## holds): the notebook's are up its outer margins, off the writing. Everyone's
+## hands are a different size, so this hand's grip turns about z and moves
+## until its own thumb lies there, as measured from where it last held on.
+func _fit_thumb(side: String, grip: Transform3D, want: Transform3D) -> Transform3D:
+	var skin: SkinnedBody = rig._skin
+	if skin == null:
+		return grip
+	var sk := skin.skeleton
+	var last = _fitted.get(side)
+	if last is Transform3D and rig.reach_weight(side) > 0.99:
+		var bone := func(b: String) -> Vector3:
+			return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(b + side)).origin
+		var a: Vector3 = bone.call("thumb_02_")
+		var b: Vector3 = bone.call("thumb_04_leaf_")
+		var inv := (last as Transform3D).basis.inverse()
+		_thumbs[side] = [inv * ((a + b) / 2.0 - bone.call("hand_")), inv * (b - a)]
+	if not _thumbs.has(side):
+		_fitted[side] = grip
+		return grip
+	var n := want.basis.z.normalized()
+	var flat := func(v: Vector3) -> Vector3:
+		return v - n * v.dot(n)
+	var points: Vector3 = flat.call(grip.basis * (_thumbs[side][1] as Vector3))
+	var turned := Basis(n, points.signed_angle_to(flat.call(want.basis.y), n)) * grip.basis
+	var middle: Vector3 = grip.origin + turned * (_thumbs[side][0] as Vector3)
+	_fitted[side] = Transform3D(turned, grip.origin + want.origin - middle)
+	return _fitted[side]
 
 
 ## Your body's materials are shared with everyone dressed the same: this one
