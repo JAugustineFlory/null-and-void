@@ -27,6 +27,7 @@ func _run_moves() -> void:
 	await test_mantle()
 	await test_vault()
 	await test_hang_shimmy_pull_up()
+	await test_hang_one_arm()
 	await test_too_high_alone()
 	await test_no_climbing_through_the_ceiling()
 	await test_climb()
@@ -370,6 +371,41 @@ func test_vault() -> void:
 	check(not r.vaulted, "not with no headroom over the top")
 	r = await _vault_run(desk, true, false, true)
 	check(not r.vaulted, "not while crouching")
+
+
+func test_hang_one_arm() -> void:
+	var a := arena()
+	_high_wall(a, 2.0)
+	var p := spawn(a, Vector3(0, 0.05, -1.3))
+	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
+	p.controls.jump = true
+	await frames(3)
+	stop(p)
+	await frames(2)
+	check(p.state == Player.Move.HANG, "caught the edge to test one-armed hanging")
+	check(p.hang_free_hand() == "" and p.parkour_grip().get("hands", []) == ["l", "r"], "facing the wall, both hands hold the edge")
+	p.rotation.y = deg_to_rad(40.0)
+	check(p.hang_free_hand() == "", "a glance aside keeps both hands on")
+	p.rotation.y = deg_to_rad(90.0)
+	check(p.hang_free_hand() == "l" and p.parkour_grip()["hands"] == ["r"], "looking left lets go with the left hand")
+	p.rotation.y = deg_to_rad(175.0)
+	check(p.hang_free_hand() == "l", "still the left hand looking almost straight back")
+	p.rotation.y = deg_to_rad(-175.0)
+	check(p.hang_free_hand() == "l", "no flicker just past straight behind")
+	p.rotation.y = deg_to_rad(-120.0)
+	check(p.hang_free_hand() == "r" and p.parkour_grip()["hands"] == ["l"], "past the centre line to the right, the hands swap")
+	p.rotation.y = deg_to_rad(-90.0)
+	await frames(10)
+	check(p.state == Player.Move.HANG, "still hanging one-armed")
+	p.rotation.y = 0.0
+	check(p.parkour_grip()["hands"] == ["l", "r"], "face the wall again: both hands back on")
+	p.controls.jump = true
+	await frames(30)
+	p.controls.jump = false
+	await frames(10)
+	check(p.state != Player.Move.HANG and p.hang_free_hand() == "", "off the wall, no hand is free")
+	await done(a)
 
 
 func test_hang_shimmy_pull_up() -> void:
