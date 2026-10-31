@@ -252,6 +252,8 @@ func test_garage_opening() -> void:
 	await _test_yourself(world)
 	_check.call(await _until(func(): return home.van_door.enabled), "then the van")
 	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
+	_check.call(home.van_doors.size() == 2 and home.side_door.find_child("SideDoor", true, false) != null, "the garage's van has the same doors as the van at Halcyon: two front doors and a sliding door")
+	_check.call(await _until(func(): return home.side_door.position.distance_to(home.SIDE_DOOR_OPEN) < 0.05, 120), "its sliding door slides back to let the crew in")
 	home.van_door.interact(p)
 	await _frames(3)
 	_check.call(p.seated and home.to_local(p.global_position).distance_to(home.van_seats[0]) < 0.3, "the player takes a seat in the van")

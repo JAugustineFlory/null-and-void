@@ -54,6 +54,8 @@ const LOBBY_SPOTS := [
 const LOBBY_ENTRY_SIDE := 9.5
 const BENCH := Vector3(0.5, 0, 3.6)
 const VAN := Vector3(4.6, 0, -0.6)
+## Where the van's sliding door sits once it's open: back along its side.
+const SIDE_DOOR_OPEN := VAN + Vector3(-1.45, 0.5, 1.4)
 ## The office desk with the fax and the radio, in the north-west corner.
 const DESK := Vector3(-7.4, 0, -4.2)
 ## The shelf in the back corner by the side door to the house: where the shop bag was left.
@@ -102,6 +104,10 @@ const BEAT := 1.2
 var fax: Interactable
 var book_bag: Interactable
 var van_door: Interactable
+## The van's front doors ({"w"/"e": {pivot, swing}}) and sliding door, built as
+## Level 0's are, so the garage van is the same van parked at Halcyon.
+var van_doors := {}
+var side_door: Node3D
 ## The seats facing the whiteboard, as CREW_SEATS.
 var crew_seats: Array[Seat] = []
 ## Maddison (CharacterLooks.maddison), and the mark she's at or walking to.
@@ -330,18 +336,48 @@ func roll_door(up: bool, seconds: float = 2.5) -> void:
 	await t.finished
 
 
-## The crew's van, parked nose to the roll-up door: a hollow body with a sliding
-## side door facing the workbench, and six seats inside.
+## The crew's van, parked nose to the roll-up door: the same van as at Halcyon
+## (Level 0's _build_van), with its two front doors, a windscreen and wheels, but
+## its sliding side door on the left, facing the workbench, and six seats inside.
 func _build_van(center: Vector3) -> void:
 	var white := Color(0.86, 0.86, 0.83)
 	var cab := center + Vector3(0, 0.5, 0)
 	Greybox.room(geo, cab, Vector3(2.6, 2.1, 4.4), {"floor": Color(0.2, 0.2, 0.22), "wall": white, "ceiling": white}, [
-		{"wall": "n", "at": 0.0, "width": 2.3, "height": 1.95, "bottom": 0.85},
-		{"wall": "w", "at": 0.1, "width": 1.3, "height": 1.9},
+		{"wall": "n", "at": 0.0, "width": 2.3, "height": 1.95, "bottom": 0.85},  # windscreen
+		{"wall": "w", "at": -1.5, "width": 0.9, "height": 1.9},  # driver door
+		{"wall": "e", "at": -1.5, "width": 0.9, "height": 1.9},  # passenger door
+		{"wall": "w", "at": 0.1, "width": 1.3, "height": 1.9},  # sliding side door
 	])
+	var glass := StaticBody3D.new()
+	glass.name = "Windscreen"
+	glass.position = cab + Vector3(0, 0.85 + 1.95 / 2.0, -2.2)
+	var glass_shape := CollisionShape3D.new()
+	var glass_box := BoxShape3D.new()
+	glass_box.size = Vector3(2.3, 1.95, 0.06)
+	glass_shape.shape = glass_box
+	glass.add_child(glass_shape)
+	geo.add_child(glass)
 	Greybox.box(geo, center + Vector3(0, 0.2, 0), Vector3(2.7, 0.2, 4.7), Color(0.15, 0.15, 0.15), "Chassis")
 	Greybox.box(geo, center + Vector3(0, 0.95, -2.65), Vector3(2.6, 0.9, 0.9), white, "Bonnet")
+	for dx in [-1.0, 1.0]:
+		for dz in [-1.7, 1.5]:
+			Greybox.box(geo, center + Vector3(dx * 1.15, 0.25, dz), Vector3(0.3, 0.5, 0.7), Color(0.05, 0.05, 0.05), "Wheel")
+	Greybox.label(geo, center + Vector3(1.42, 1.7, 0.4), "BYTE-RIGHT IT SERVICES\nWe fix what's broken.", 60, Color(0.1, 0.3, 0.6), 90.0)
 	Greybox.label(geo, center + Vector3(-1.42, 1.7, 1.5), "BYTE-RIGHT\nIT SERVICES", 50, Color(0.1, 0.3, 0.6), -90.0)
+	Greybox.panel(geo, cab + Vector3(0, 0.75, -2.05), Vector3(2.4, 0.2, 0.3), Color(0.12, 0.12, 0.13))
+	# Front doors hinge at their front edge; the sliding door runs back along the
+	# outside when the crew gets in. Off geo: they move.
+	for side in [-1.0, 1.0]:
+		var pivot := Node3D.new()
+		pivot.position = cab + Vector3(1.3 * side, 0, -1.95)
+		add_child(pivot)
+		Greybox.box(pivot, Vector3(0, 0.95, 0.45), Vector3(0.1, 1.9, 0.9), white, "VanDoor")
+		van_doors["w" if side < 0 else "e"] = {"pivot": pivot, "swing": deg_to_rad(90.0 * side)}
+	side_door = Node3D.new()
+	side_door.name = "SlidingDoor"
+	side_door.position = cab + Vector3(-1.3, 0, 0.1)
+	add_child(side_door)
+	Greybox.box(side_door, Vector3(0, 0.95, 0), Vector3(0.1, 1.9, 1.3), white, "SideDoor")
 	van_door = Interactable.create(self, cab + Vector3(-1.25, 0.95, 0.1), Vector3(0.1, 1.9, 1.3), "Get in the van", white, false)
 	van_door.name = "VanDoor"
 	van_door.enabled = false
@@ -549,6 +585,7 @@ func start() -> void:
 	await _beat()
 	await _say("l0_garage_5", "l0_garage_5_solo")
 	maddison_to("van")  # she sees them off at the van door, then stays behind
+	_open_side_door()
 	van_door.enabled = true
 	hud.todo("Get in the van")
 	await sync.gate("boarded", crew_boarded)
@@ -878,6 +915,11 @@ func _put_book_down() -> void:
 	if held_book:
 		held_book.queue_free()
 		held_book = null
+
+
+## The sliding door runs back along the van, out of the way of the crew climbing in.
+func _open_side_door() -> void:
+	create_tween().tween_property(side_door, "position", SIDE_DOOR_OPEN, 0.7).set_trans(Tween.TRANS_QUAD)
 
 
 ## Host: a player climbs into the van. Everyone sees them take the next seat.
