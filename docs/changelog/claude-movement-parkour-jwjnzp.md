@@ -1,3 +1,3 @@
-- **Changed:** While hanging from an edge or holding a pipe, Space while looking behind you kicks you off the way you look; looking at the wall, Space climbs up. Look round far enough and one hand lets go so you can turn, with both arms staying in view.
+- **Changed:** While hanging from an edge or holding a pipe, Space kicks you off the way you're looking if you look behind you, and climbs up if you look at the wall. Turn far enough and one hand lets go so you can face away, and you see both arms as you turn.
 - **Changed:** Each crew member now stands, crouches, crawls and sits at their own height, so shorter characters see the world from lower down and taller ones from higher up. Vents are a little roomier so everyone fits.
 - **Changed:** Bigger crew members slow down where they barely fit, like a tight vent; nobody gets stuck.
