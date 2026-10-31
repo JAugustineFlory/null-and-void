@@ -499,6 +499,55 @@ class _FakeCombat extends RefCounted:
 		return guarding
 
 
+## Playtest 2026-10-31: the thumbs still lay over the writing. They run up the
+## outer margins: no part of either page's writing is under a thumb, a thumb's
+## width (0.009 m) around its bones included. Returns the bits of thumb on it.
+func _thumbs_on_writing(held: HeldNotebook, book: NotebookView, bone_at: Callable) -> Array:
+	var thumb_px := 0.009 / HeldNotebook.BOOK_WIDTH * NotebookView.BOOK_SIZE.x
+	var covered := []
+	for side in ["l", "r"]:
+		var half: Node3D = held.left_half if side == "l" else held.right_half
+		var text: Rect2 = (book.left if side == "l" else book.right).get_global_rect().grow(thumb_px)
+		var bones := ["thumb_02_" + side, "thumb_03_" + side, "thumb_04_leaf_" + side]
+		for k in bones.size() - 1:
+			for i in 6:
+				var at: Vector3 = (bone_at.call(bones[k]) as Vector3).lerp(bone_at.call(bones[k + 1]), i / 5.0)
+				if half.to_local(at).z > -0.005 and text.has_point(held.world_to_page(at)):
+					covered.append("%s %.0f%%" % [bones[k], i * 20.0])
+	return covered
+
+
+## The notebook held up in first person by `look`'s body: [held, book, bone_at, body].
+func _hold_notebook(stage: Node3D, look: Dictionary) -> Array:
+	var you := _FakeFighter.new()
+	stage.add_child(you)
+	you.add_child(you.head)
+	you.head.position.y = 1.68
+	var cam := Camera3D.new()
+	cam.fov = 78
+	you.head.add_child(cam)
+	you.camera = cam
+	var fp := FirstPersonBody.attach(you, look)
+	fp.set_process(false)
+	fp.rig.set_process(false)
+	var sk: Skeleton3D = fp.rig._skin.skeleton
+	var bone_at := func(bone: String) -> Vector3:
+		return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin
+	var held := HeldNotebook.attach(cam, look)
+	var book := NotebookView.new()
+	for tab in ["Work order", "Cases", "Tables", "Book"]:
+		book.add_tab(tab)
+	held.set_content(book)
+	held.set_process(false)
+	held.open_book().custom_step(5.0)
+	you.notebook_raised.emit()
+	await _frames(3)  # the tabs lay themselves out
+	for i in 90:
+		fp._process(1.0 / 60.0)
+		fp.rig.animate(1.0 / 60.0)
+	return [held, book, bone_at, you]
+
+
 func test_first_person_notebook_and_vents() -> void:
 	# Playtest 2026-10-26: the hands were way bigger than the notebook and the
 	# thumb covered its tabs; seated, a hand stayed up in the air after putting it
@@ -545,6 +594,8 @@ func test_first_person_notebook_and_vents() -> void:
 	var thumb: Vector3 = tip.call("thumb_04_leaf_r")
 	check(lowest < INF and thumb.y < lowest - 0.02 and thumb.z > 0.0,
 		"the thumb holds the front of the page, under the tabs (%.3f m under the lowest)" % (lowest - thumb.y))
+	var covered := _thumbs_on_writing(held, book, bone_at)
+	check(covered.is_empty(), "the thumbs hold the book by its outer margins, off the writing on both pages (%s)" % [covered])
 	var poking := []
 	for finger in ["index", "middle", "ring", "pinky"]:
 		for side in ["r", "l"]:
@@ -552,6 +603,12 @@ func test_first_person_notebook_and_vents() -> void:
 			if at.z > -0.01:
 				poking.append(finger + "_" + side)
 	check(poking.is_empty(), "the fingers stay behind the book, none poking through the pages (%s)" % [poking])
+	# Everyone's hands are a different size: the slightest build, the broadest, and the other body.
+	for pick in [[5, 1], [3, 1], [2, 2]]:
+		var other: Array = await _hold_notebook(stage, CharacterLooks.crew(pick[0], {"body": pick[1]}))
+		var on_text := _thumbs_on_writing(other[0], other[1], other[2])
+		check(on_text.is_empty(), "crew %d on body %d: the thumbs stay off the writing too (%s)" % [pick[0], pick[1], on_text])
+		(other[3] as Node).queue_free()
 
 	# Seated: put it away and both hands come down to your thighs.
 	held.close_book().custom_step(5.0)

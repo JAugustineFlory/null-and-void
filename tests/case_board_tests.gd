@@ -212,17 +212,11 @@ func test_paper_pieces() -> void:
 	card.clues = [{"case": "memo", "text": "Scraps are saved in memo_fragments."}]
 	var reads := []
 	card.read_by.connect(func(p): reads.append(p))
-	check(card.get_prompt(null) == "[E] %s    [X] %s" % [Document.NOTE_IT % "ScanRight", Document.READ_IT], "a paper holding pieces offers E to note it, X to read it")
-	card.collect(null)
-	check(g.has_piece("memo", "table") and g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "ScanRight", "E notes both its pieces, from the paper")
+	check(card.get_prompt(null) == "[E] Read: ScanRight", "a paper holding pieces is read like any paper: E picks it up")
+	card._note_clues()  # what picking it up does (pick_up / open_reader)
+	card._report_read(null)
+	check(g.has_piece("memo", "table") and g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "ScanRight", "reading it puts both its pieces in, from the paper")
 	check(g.case_info("memo").clues.size() == 1 and reads.size() == 1, "its clues go on the case page too, and it counts as read")
-	check(card.uncollected().is_empty() and card.get_prompt(null).contains("Read: ScanRight"), "with its pieces in, E reads it as any paper")
-	var side := Document.place(holder, Vector3.ZERO, 0.0, "Rack card", ["Temps are logged in racks."], true, "brochure")
-	side.pieces = [{"case": "hot", "piece": "table"}]
-	g.set_pieces("hot", [PIECES[0]], "", [], true)
-	check(side.notable().is_empty() and not side.get_prompt(null).contains(Document.NOTE_IT % "Rack card"), "a paper for a case nobody has open yet is read, not noted unseen")
-	side.clues = [{"case": "hot", "opens": "Why is it hot?", "text": "Racks run hot."}]
-	check(side.notable().size() == 1, "unless the paper itself opens that case")
 	holder.free()
 
 
