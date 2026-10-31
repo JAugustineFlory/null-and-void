@@ -109,7 +109,14 @@ Newest first, one release per drop-down, with its fix builds inside. Click a ver
 floor number. Changes that have merged but aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 <details open>
-<summary><b>v0.7 - 2026-10-24</b> (with fix build v0.7.1 - 2026-10-27)</summary>
+<summary><b>v0.7 - 2026-10-24</b> (with fix builds v0.7.1 - 2026-10-27 and v0.7.2 - 2026-10-31)</summary>
+
+**v0.7.2 - 2026-10-31** (fix build)
+
+- **Changed:** Papers worth reading glow blue, with light running round their edges.
+- **Changed:** E picks a paper up so you read it; what it tells you still goes into your case.
+- **Fixed:** Riding to Halcyon, the crew sits up on the van's seats instead of low down on the floor.
+- **Fixed:** Holding the notebook, your thumbs rest on its outer edges, so no writing or tab is ever under a thumb, whatever size your hands are.
 
 **v0.7.1 - 2026-10-27** (fix build)
 

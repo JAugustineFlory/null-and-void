@@ -88,8 +88,8 @@ query so far" (how-to: plan/case-board-howto.md). Every floor's board pass is ch
   hint's `enter_` blank in the query, because choosing it is the thinking step. (The one
   column found there is the caller's `extension` on G: the work order says "ext.", and no
   other column could hold it.)
-- **E notes a paper only for a case that's open**, or one the paper itself opens. Any other
-  paper is read, so the player sees what they found.
+- **E picks a paper up to read it, and reading it notes its pieces** (Augustine, 2026-10-31,
+  PR #255). A piece never goes in from a paper the player hasn't seen.
 - **A floor's found moment comes before its pieces.** A case grows (`set_pieces` again) when
   its problem appears: the memo asks for a sort only once the scraps print out of order.
 - **Blanks read like the hints.** A missing value shows the hint's own name
