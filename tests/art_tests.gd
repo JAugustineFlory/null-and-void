@@ -703,6 +703,20 @@ func test_first_person_parkour() -> void:
 	var theirs = (other._skin.skeleton.get_node("Body") as MeshInstance3D).material_override.get_shader_parameter("near_cut")
 	check(fp._pull.length() <= FirstPersonBody.PULL_MAX + 0.001 and body_mat.get_shader_parameter("near_cut") > 0.0 and (theirs == null or theirs == 0.0),
 		"you pull yourself up to it, and your collar isn't drawn in front of your eyes (only yours: %s)" % [theirs])
+	# Looking round to your left, you let go with your left hand: it would reach
+	# past your face. It drops to your side, out of view; the right holds on.
+	you.rotation.y = 1.4
+	step.call(0.6)
+	var free_l: Vector3 = bone.call("hand_l").origin
+	var shoulder_l: Vector3 = bone.call("upperarm_l").origin
+	var held_r = fp.rig.reach.get("r")
+	check(held_r is Transform3D and (bone.call("hand_r") as Transform3D).origin.distance_to((held_r as Transform3D).origin) < 0.06
+			and (held_r as Transform3D).origin.distance_to(you.grip.point) < 0.3,
+		"hanging and looking round, your right hand stays on the edge")
+	check(shoulder_l.y - free_l.y > 0.35 and not cam.is_position_in_frustum(free_l),
+		"and the left lets go and hangs by your side, out of view (%.2f m under the shoulder)" % (shoulder_l.y - free_l.y))
+	you.rotation.y = 0.0
+	step.call(0.4)
 
 	# Climbing a pipe, hand over hand (Player reaches 1.7 m up it).
 	you.move = "climb"

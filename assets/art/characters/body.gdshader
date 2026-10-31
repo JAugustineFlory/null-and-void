@@ -23,8 +23,13 @@ uniform float jacket_hem = 0.8;
 // Your own body in first person, pulled up to an edge or a pipe: what isn't
 // arm and is this close to your eyes (the collar, the back of the shoulders) is
 // left out, so you see your arms reach past your face (FirstPersonBody). A
-// short sleeve goes too: the arm shows from where it comes out of it.
+// short sleeve goes too: the arm shows from where it comes out of it. The arm
+// itself is left out only this much nearer (share of near_cut), where it would
+// fill the view; under a jacket, which fades out at near_cut, it goes with it,
+// a little further, so you don't see it down the cut-off sleeve.
 uniform float near_cut = 0.0;
+const float ARM_NEAR = 0.4;
+const float ARM_JACKET = 1.2;
 
 varying vec2 place;
 
@@ -36,8 +41,11 @@ void vertex() {
 }
 
 void fragment() {
-	if (near_cut > 0.0 && place.y < (sleeve < 0.5 ? sleeve + 0.03 : 0.12) && length(VERTEX) < near_cut) {
-		discard;
+	if (near_cut > 0.0) {
+		bool arm = place.y >= (sleeve < 0.5 ? sleeve + 0.03 : 0.12);
+		if (length(VERTEX) < near_cut * (!arm ? 1.0 : tuck > 0.0 ? ARM_JACKET : ARM_NEAR)) {
+			discard;
+		}
 	}
 	if (COLOR.a < 0.5) {
 		ALBEDO = COLOR.rgb;  // the eyes

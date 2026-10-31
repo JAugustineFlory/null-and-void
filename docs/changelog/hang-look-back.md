@@ -1,0 +1,1 @@
+- **Fixed:** hanging from a ledge and looking up or back, your own sleeves and jacket no longer fill the view: look round and you let go with the hand on that side.
