@@ -34,7 +34,7 @@ const FAR_DISTANCE := 30.0
 const REACH_RATE := 5.0
 ## Hanging braced on a wall, the body leans in this far (radians) about a point
 ## this high (the shoulders), so the hips sit out from the wall.
-const BRACE_LEAN := 0.45
+const BRACE_LEAN := 0.5
 const BRACE_PIVOT := 1.4
 ## Body heights, matching Player's collider.
 const STAND_HEIGHT := 1.8
@@ -83,6 +83,9 @@ var reach_rate := REACH_RATE
 ## notebook): how far its fingers curl, 0 flat behind it, 1 a fist. The thumb
 ## keeps its curl, round the front. Below 0 the fingers curl as they do anyway.
 var grip_curl := -1.0
+## ...and the thumb's, set >= 0 likewise (hands flat on top of a ledge: the
+## thumb lies along the top beside the fingers, not curled down into it).
+var thumb_curl := -1.0
 ## Set >= 0 to drive the walk cycle directly instead of measuring movement.
 var speed_override := -1.0
 ## Leave the head (and its hair, hat and glasses) out: your own body in first
@@ -528,6 +531,7 @@ func _action_pose(p: Dictionary) -> void:
 			p["_root_rot"] = Vector3(-lean, 0, 0)
 			p["_root_pos"] = Vector3(0, BRACE_PIVOT * (1.0 - cos(lean)), BRACE_PIVOT * sin(lean))
 			p["spine"] = Vector3(-0.15 + breathe, 0, 0)
+			p["neck"] = Vector3(0.35, 0, 0)  # (head up and back off the wall, looking at it)
 			_sym(p, "shoulder", Vector3(0.5, 0, 2.6))
 			_sym(p, "elbow", Vector3(0.6, 0, 0))
 			_sym(p, "hip", Vector3(1.35, 0, 0.18))

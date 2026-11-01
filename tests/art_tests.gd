@@ -725,16 +725,41 @@ func test_first_person_parkour() -> void:
 		whole.append([yaw, cut_off, snappedf(cut, 0.01)])
 		check(on_grips.call(0.06) and cut <= FirstPersonBody.HANG_CUT + 0.01 and cut_off == 0,
 			"hanging with your view lifted, looking %.1f rad round, both arms show whole up to your hands (cut %.2f m, %d bits left out in view)" % [yaw, cut, cut_off])
-	# Your feet are braced on the wall below you, knees bent, hips out from it.
+	# Playtest 2026-11-01 (his photo of a cat hang): your feet are braced on
+	# the wall below you, knees bent and hips out from it; your arms near
+	# straight up to the edge, so your chest and head hang back off the wall.
 	var wall_z: float = you.grip.point.z
-	var braced := true
+	var top_y: float = you.grip.point.y
+	var feet := []
 	for side in ["r", "l"]:
 		var foot: Vector3 = bone.call("foot_" + side).origin
 		var knee: Vector3 = bone.call("calf_" + side).origin
 		var hip: Vector3 = bone.call("thigh_" + side).origin
-		var bend := (hip - knee).angle_to(foot - knee)
-		braced = braced and absf(foot.z - wall_z) < 0.2 and foot.y < you.grip.point.y - 0.9 and bend < deg_to_rad(120.0) and hip.z > foot.z + 0.15
-	check(braced, "hanging, your feet are braced on the wall below you, knees bent and hips out from it")
+		var bend := rad_to_deg((hip - knee).angle_to(foot - knee))
+		feet.append([snappedf(foot.z - wall_z, 0.01), snappedf(top_y - foot.y, 0.01), snappedf(bend, 1.0), snappedf(hip.z - wall_z, 0.01)])
+	var braced := feet.all(func(f: Array) -> bool: return f[0] < 0.2 and f[1] > 0.6 and f[2] < 120.0 and f[3] > 0.4)
+	check(braced, "hanging, your feet are braced on the wall below you, knees bent and hips out from it (out, down, knee, hips out: %s)" % [feet])
+	var sh_out: float = ((bone.call("upperarm_r").origin + bone.call("upperarm_l").origin) / 2.0).z - wall_z
+	var head_out: float = (bone.call("Head").origin as Vector3).z - wall_z
+	var elbow: float = rad_to_deg((bone.call("upperarm_r").origin - bone.call("lowerarm_r").origin).angle_to(bone.call("hand_r").origin - bone.call("lowerarm_r").origin))
+	check(sh_out > 0.25 and head_out > 0.15 and elbow > 140.0,
+		"and you hang back off it on near-straight arms: shoulders %.2f m and head %.2f m out from the wall, elbows %.0f°" % [sh_out, head_out, elbow])
+	# ...and your hands sit on top of the edge: no bone of either hand is in
+	# the wall (behind its face and below its top).
+	var in_wall := func() -> Array:
+		var inside := []
+		for i in sk.get_bone_count():
+			var name := sk.get_bone_name(i)
+			if name.begins_with("hand_") or name.get_slice("_", 0) in SkinnedBody.FINGERS:
+				var at: Vector3 = (bone.call(name) as Transform3D).origin
+				if at.z < wall_z - 0.005 and at.y < top_y - 0.005:
+					inside.append(name)
+		return inside
+	for yaw in [0.0, 0.8, -1.3]:
+		you.rotation.y = yaw
+		step.call(0.4)
+		check(on_grips.call(0.06) and in_wall.call().is_empty(),
+			"hanging, looking %.1f rad round, your hands sit on top of the edge, none of them in the wall (%s)" % [yaw, in_wall.call()])
 	cam.position = eye_was
 	you.rotation.y = 0.0
 	step.call(0.6)
@@ -778,6 +803,7 @@ func test_first_person_parkour() -> void:
 	holds = fp.rig.reach.get("r")
 	check(holds is Transform3D and held.distance_to((holds as Transform3D).origin) < 0.08 and across < 0.3,
 		"looking right behind you, your right hand still holds on, up over that shoulder (%.2f m across)" % across)
+	check(in_wall.call().is_empty(), "and it's still on top of the edge, not in the wall (%s)" % [in_wall.call()])
 	# (in view on a 16:9 screen: this test's window is square)
 	var free_at: Vector3 = cam.global_transform.affine_inverse() * (bone.call("hand_l").origin as Vector3)
 	var in_view := free_at.z < 0.0 and atan2(absf(free_at.x), -free_at.z) < deg_to_rad(52.0) and atan2(absf(free_at.y), -free_at.z) < deg_to_rad(cam.fov / 2.0)

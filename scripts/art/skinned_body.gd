@@ -157,6 +157,8 @@ func update(delta: float) -> void:
 			var c := curl
 			if _rig.grip_curl >= 0.0 and _fingers[i] != "thumb":
 				c = lerpf(curl, _rig.grip_curl, _rig.reach_weight(_fingers[i]))  # flat behind what it holds
+			elif _rig.thumb_curl >= 0.0 and _fingers[i] == "thumb":
+				c = lerpf(curl, _rig.thumb_curl, _rig.reach_weight(skeleton.get_bone_name(i).right(1)))
 			base.basis = Basis(_rest_local[i].basis.get_rotation_quaternion().slerp(base.basis.get_rotation_quaternion(), c))
 		elif player and _chest.has(i):
 			# Straighten the chest, and remember where the clip had it, so the
@@ -438,6 +440,26 @@ func _reach(side: String, g: Array[Transform3D], lift: Vector3) -> void:
 		var want := Basis(x, y, x.cross(y))
 		var hand_local := (lower.orthonormalized().inverse() * want).get_rotation_quaternion()
 		skeleton.set_bone_pose_rotation(h, skeleton.get_bone_pose_rotation(h).slerp(hand_local, w))
+		if _rig.thumb_curl >= 0.0:
+			_lay_thumb(side, palm, w)
+
+
+## Turns the thumb from its root so it lies along the palm, not down through
+## whatever the palm is flat on (hands on top of a ledge).
+func _lay_thumb(side: String, palm: Vector3, w: float) -> void:
+	var root := skeleton.find_bone("thumb_01_" + side)
+	var tip := skeleton.find_bone("thumb_04_leaf_" + side)
+	if root < 0 or tip < 0:
+		return
+	var root_g := skeleton.get_bone_global_pose(root)
+	var along := skeleton.get_bone_global_pose(tip).origin - root_g.origin
+	var flat := along - palm * along.dot(palm)
+	if along.length() < 0.001 or flat.length() < 0.001:
+		return
+	var turned := Basis(Quaternion(along.normalized(), flat.normalized())) * root_g.basis
+	var parent_g := skeleton.get_bone_global_pose(skeleton.get_bone_parent(root))
+	var local := (parent_g.basis.orthonormalized().inverse() * turned.orthonormalized()).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(root, skeleton.get_bone_pose_rotation(root).slerp(local, w))
 
 
 ## Bends one leg (CharacterRig.feet) so its ankle lands on the rig's foot point,

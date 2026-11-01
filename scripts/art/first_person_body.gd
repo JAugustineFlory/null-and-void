@@ -127,10 +127,21 @@ const SHOULDER_OUT := 0.15  # how far out from your middle a shoulder is
 ## Hanging, your feet are braced on the wall this far below the edge, this far
 ## either side of your middle, their ankles this far out from it; kicking off,
 ## they stay on it this long (seconds) as your legs straighten.
-const BRACE_DROP := 1.15
-const BRACE_SPREAD := 0.14
+const BRACE_DROP := 1.1
+const BRACE_STAGGER := 0.3  # (the left foot this much higher than the right)
+const BRACE_SPREAD := 0.13
 const BRACE_OFF := 0.1
 const BRACE_PUSH := 0.18
+## Hanging, your hands are on top of the edge: the wrist this far out over its
+## front and up off its top. Your arms are near straight from them, hanging
+## this far (radians) out from the wall, so your chest and head are back
+## off it and your hips further out: a cat hang.
+const HAND_OUT := 0.045
+const HAND_UP := 0.055
+const HANG_ARM := deg_to_rad(40.0)
+const HANG_STRAIGHT := 1.06
+const HANG_ARM_TURNED := deg_to_rad(12.0)
+const HANG_CURL := 0.1  # (fingers near flat on top, just gripping its far side)
 ## ...and your head leans in against that arm: the body hangs this far off
 ## to the other side, so the free arm swings out clear of your face.
 const HANG_SIDE := 0.25
@@ -303,7 +314,7 @@ func _process(delta: float) -> void:
 		var high := clampf((HANG_LOW - _eye_under) / (HANG_LOW - HANG_HIGH), 0.0, 1.0)
 		cut = lerpf(cut, lerpf(lerpf(HANG_CUT, HANG_CUT_TURNED, _faced), HANG_CUT_DOWN, below), high)
 	rig.hide_neck = action == "hang"
-	_near_cut(NEAR_CUT if action == "roll" else cut * clampf(_pull.length() / 0.1, 0.0, 1.0))
+	_near_cut(NEAR_CUT if action == "roll" else cut * (1.0 if action == "hang" and not _grips.is_empty() else clampf(_pull.length() / 0.1, 0.0, 1.0)))
 	var need := _neck_needs(at) if _pull.length() < 0.05 else 0.0
 	if chair:
 		_clear = 0.0
@@ -339,7 +350,7 @@ func _brace_feet(delta: float) -> void:
 		mid.y = (grip.point as Vector3).y - BRACE_DROP
 		for side in ["r", "l"]:
 			var s := 1.0 if side == "r" else -1.0
-			_feet[side] = mid + right * s * BRACE_SPREAD + n * BRACE_OFF
+			_feet[side] = mid + right * s * BRACE_SPREAD + n * BRACE_OFF + Vector3.UP * (BRACE_STAGGER if side == "l" else 0.0)
 		_push = BRACE_PUSH
 		return
 	if not _feet.is_empty() and _push > 0.0 and rig.action != "hang":
@@ -471,7 +482,8 @@ func _hold_with_hands() -> void:
 						grips[side] = _edge_grip(Transform3D(face.basis.orthonormalized(), corner), left)
 	rig.reach = grips
 	rig.feet = _feet
-	rig.grip_curl = HOLD_CURL if _grips.is_empty() else -1.0  # (a parkour grip curls round its edge)
+	rig.grip_curl = HOLD_CURL if _grips.is_empty() else (HANG_CURL if rig.action == "hang" else -1.0)  # (a parkour grip curls round its edge)
+	rig.thumb_curl = HANG_CURL if rig.action == "hang" and not _grips.is_empty() else -1.0
 
 
 ## A stand-in hand can say where its thumb lies (a "thumb" meta: a transform in
@@ -545,6 +557,24 @@ func _pull_needed() -> Vector3:
 		var l := sk.get_bone_global_rest(sk.find_bone("lowerarm_r")).origin
 		var h := sk.get_bone_global_rest(sk.find_bone("hand_r")).origin
 		_arm = (u.distance_to(l) + l.distance_to(h)) * sk.global_basis.get_scale().x * 0.95
+	if rig.action == "hang" and _square != Vector3.ZERO:
+		# Hanging, each holding shoulder goes where its arm hangs near straight
+		# from its hand, out from the wall: the body moves however far that is.
+		var out := -_square
+		# (turned away off one hand you hang more under it: your chest below
+		# your eyes, not out in front of them)
+		var arm := lerpf(HANG_ARM, HANG_ARM_TURNED, _faced)
+		var hang := (out * sin(arm) - Vector3.UP * cos(arm)) * _arm * HANG_STRAIGHT
+		var move := Vector3.ZERO
+		var held := 0
+		for side in _grips.keys():
+			if _swung.has(side):
+				continue
+			var shoulder := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("upperarm_" + side)).origin
+			move += (_grips[side] as Transform3D).origin + hang - shoulder
+			held += 1
+		if held > 0:
+			return _pull + move / held
 	var most := Vector3.ZERO
 	# Holding on one-handed, you hang from that hand alone: how far in towards it
 	# is worked out afresh, not added to how far both hands pulled you.
@@ -639,7 +669,11 @@ func _parkour_grips(delta: float) -> Dictionary:
 					var you := player as Node3D
 					var over := you.global_position + global_basis.x.normalized() * s * SHOULDER_OUT
 					edge = at + along * lerpf(s * spread, clampf((over - at).dot(along), -spread * 1.5, spread * 1.5), _faced)
-				if edge.y > (player as Node3D).global_position.y + SHOULDER:
+				if move == "hang":
+					# Hanging from it: the palm on top, the fingers flat across it,
+					# the wrist out over its front, the arm down the wall from there.
+					grips[side] = _grip(edge + n * HAND_OUT + Vector3.UP * HAND_UP, -n, Vector3.DOWN + n * 0.15)
+				elif edge.y > (player as Node3D).global_position.y + SHOULDER:
 					# Above you: fingers curled over it, the wrist below the lip.
 					grips[side] = _grip(edge + n * 0.03 - Vector3.UP * 0.05, Vector3.UP - n, -n - Vector3.UP)
 				else:
