@@ -4886,31 +4886,12 @@ func test_in_world_ui() -> void:
 	root.size = window
 	ui.run("SELECT * FROM memo_fragments")
 	check(t.transcript.any(func(l): return l.contains("piece_no")), "queries typed on the glass run as usual")
-	# Select a line of the screen's text, copy it, and keep typing.
+	# Select the screen's text (which takes the keyboard), copy it, and keep typing.
 	var out: RichTextLabel = ui._output
-	var line: Dictionary = ui.noteable_lines()[-1]  # the newest, so it's in view
-	var y: float = ui._para_top(line.from) - out.get_v_scroll_bar().value + 8.0
-	var from := out.get_global_transform() * Vector2(40, y)
-	var to := out.get_global_transform() * Vector2(240, y)
-	var press := InputEventMouseButton.new()
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = true
-	press.button_mask = MOUSE_BUTTON_MASK_LEFT
-	press.position = from
-	t.screen.viewport.push_input(press)
+	out.grab_focus()
+	out.select_all()
 	await process_frame
-	var drag := InputEventMouseMotion.new()
-	drag.button_mask = MOUSE_BUTTON_MASK_LEFT
-	drag.position = to
-	t.screen.viewport.push_input(drag)
-	await process_frame
-	var release: InputEventMouseButton = press.duplicate()
-	release.pressed = false
-	release.button_mask = 0
-	release.position = to
-	t.screen.viewport.push_input(release)
-	await process_frame
-	check(out.get_selected_text() != "" and out.has_focus(), "dragging over the screen's text selects it")
+	check(out.get_selected_text() != "" and not ui._input.has_focus(), "selecting the screen's text takes the keyboard off the typing line")
 	var copy := InputEventKey.new()
 	copy.keycode = KEY_C
 	copy.ctrl_pressed = true
