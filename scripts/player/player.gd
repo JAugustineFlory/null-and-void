@@ -64,6 +64,12 @@ const MANTLE_MAX := 1.6
 const HANG_REACH := 2.25
 ## A beat after catching an edge before you can pull up.
 const HANG_SETTLE := 0.15
+## Hanging braced on an edge, your head leans up and in over your hands: the view
+## moves this far up (x) and toward the wall (y), metres, so your arms run from
+## the bottom of the screen to the edge.
+const HANG_LEAN := Vector2(0.30, 0.15)
+## ...but your eyes stay at least this far (metres) below the edge you hold.
+const HANG_EYES_BELOW := 0.08
 ## How far (radians) you can turn from your stance while shuffling along a ledge.
 const LEDGE_LOOK := deg_to_rad(100.0)
 ## Holding a wall (hanging from an edge, up a pipe, chest to the wall on a ledge),
@@ -244,6 +250,8 @@ var _bob_t := 0.0
 ## is a jolt (landing, catching an edge) that `_cam_jolt` rises to and eases out of.
 var _cam_pose := Vector3.ZERO
 var _cam_kick := Vector3.ZERO
+## Where the view sits off your head, in the world (HANG_LEAN while hanging).
+var _cam_lean := Vector3.ZERO
 var _cam_jolt := Vector3.ZERO
 ## Where the hands go on a vault or mantle (see parkour_grip), set as it starts.
 var _grip := {}
@@ -533,6 +541,7 @@ func respawn(at: Transform3D) -> void:
 	_cam_pose = Vector3.ZERO
 	_cam_kick = Vector3.ZERO
 	_cam_jolt = Vector3.ZERO
+	_cam_lean = Vector3.ZERO
 	state = Move.WALK
 	_set_crouch(false)
 	lower_notebook(true)
@@ -1937,6 +1946,13 @@ func _update_head(delta: float) -> void:
 		_cam_kick = _cam_kick.lerp(Vector3.ZERO, 1.0 - exp(-7.0 * delta))
 		var o := _cam_pose + _cam_jolt
 		camera.transform = Transform3D(Basis.from_euler(Vector3(o.x, 0.0, o.z)), Vector3(0, o.y, 0))
+		var lean := Vector3.ZERO
+		if state == Move.HANG:
+			# Eyes come up level with your hands at most, never over the top.
+			var up := minf(HANG_LEAN.x, _hang_top - HANG_EYES_BELOW - head.global_position.y)
+			lean = Vector3.UP * up - _hang_normal * HANG_LEAN.y
+		_cam_lean = _cam_lean.lerp(lean, 1.0 - exp(-10.0 * delta))
+		camera.global_position += _cam_lean
 
 
 ## How the move you're in carries your view (see `_cam_pose`): you look down at
