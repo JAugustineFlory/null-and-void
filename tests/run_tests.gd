@@ -4872,8 +4872,63 @@ func test_in_world_ui() -> void:
 	check(ui._output.get_theme_font_size("normal_font_size") == TerminalScreen.DISPLAY_FONT and ui._input.get_theme_font_size("font_size") == TerminalScreen.DISPLAY_FONT,
 		"sitting down, the screen's text stays the size it was from across the room")
 	check(level.hud._subtitle.anchor_top == 0.0 and level.hud._notice.anchor_top == 1.0 and not level.hud._keys.visible, "subtitles and notices move off the glass while you're at it")
+	var window := root.size
+	root.size = Vector2i(1600, 900)  # a 16:9 screen (headless runs square)
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], level.OBJ_MEMO)
+	_game().set_pieces("memo", level.MEMO_PEEK_PIECES, level.MEMO_PEEK_QUERY, level.MEMO_PEEK_STEPS)
+	for i in 3:
+		await process_frame
+	var chip: Control = level.hud.case_chip.chip
+	var cam := root.get_viewport().get_camera_3d()
+	var glass_right := cam.unproject_position(t.screen.glass.global_transform * Vector3(TerminalScreen.SCREEN_SIZE.x / 2.0, 0, 0)).x
+	check(chip.is_visible_in_tree() and chip.get_global_rect().position.x > glass_right and chip.get_global_rect().end.x <= 1600.0,
+		"the case in hand stays on screen at the terminal, beside the glass, not over it")
+	root.size = window
 	ui.run("SELECT * FROM memo_fragments")
 	check(t.transcript.any(func(l): return l.contains("piece_no")), "queries typed on the glass run as usual")
+	# Select a line of the screen's text, copy it, and keep typing.
+	var out: RichTextLabel = ui._output
+	var line: Dictionary = ui.noteable_lines()[-1]  # the newest, so it's in view
+	var y: float = ui._para_top(line.from) - out.get_v_scroll_bar().value + 8.0
+	var from := out.get_global_transform() * Vector2(40, y)
+	var to := out.get_global_transform() * Vector2(240, y)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.button_mask = MOUSE_BUTTON_MASK_LEFT
+	press.position = from
+	t.screen.viewport.push_input(press)
+	await process_frame
+	var drag := InputEventMouseMotion.new()
+	drag.button_mask = MOUSE_BUTTON_MASK_LEFT
+	drag.position = to
+	t.screen.viewport.push_input(drag)
+	await process_frame
+	var release: InputEventMouseButton = press.duplicate()
+	release.pressed = false
+	release.button_mask = 0
+	release.position = to
+	t.screen.viewport.push_input(release)
+	await process_frame
+	check(out.get_selected_text() != "" and out.has_focus(), "dragging over the screen's text selects it")
+	var copy := InputEventKey.new()
+	copy.keycode = KEY_C
+	copy.ctrl_pressed = true
+	copy.pressed = true
+	t.screen.viewport.push_input(copy)
+	await process_frame
+	check(ui._input.has_focus(), "Ctrl+C copies it and hands the keyboard back to the typing line, ready to paste")
+	out.grab_focus()
+	ui._input.text = ""
+	var key := InputEventKey.new()
+	key.keycode = KEY_S
+	key.unicode = "S".unicode_at(0)
+	key.pressed = true
+	t.screen.viewport.push_input(key)
+	await process_frame
+	await process_frame
+	check(ui._input.has_focus() and ui._input.text == "S", "typing with the screen's text clicked still types on the typing line")
+	ui._input.text = ""
 	ui.close()
 	await process_frame
 	await process_frame

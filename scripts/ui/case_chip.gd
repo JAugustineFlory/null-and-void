@@ -18,6 +18,10 @@ const ADDED := "Added to the case. Checklist updated (Tab)."
 const TOAST_TIME := 4.0
 ## How long the next step stays up.
 const NEXT_TIME := 6.0
+## Widths: the chip and its wrapped lines, then narrower at a terminal, so it
+## fits in the margin beside the glass (TerminalScreen fills 85% of the height).
+const WIDE := 340
+const NARROW := 220
 
 const PANEL := Color(0.04, 0.05, 0.055, 0.85)
 const EDGE := Color(0.29, 0.31, 0.33)
@@ -37,7 +41,8 @@ var toast_value: Label
 var _toast_tween: Tween
 ## The case shown, "" for none.
 var case_id := ""
-## Off while a terminal fills the view.
+## Off while a terminal fills the view: the found card waits, and the chip
+## narrows to sit beside the glass.
 var allowed := true
 ## Pieces found while it was off: [case_id, piece_id] each, shown once it's back.
 var waiting: Array = []
@@ -65,7 +70,6 @@ func _build_chip() -> void:
 	chip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	chip.offset_right = -24
 	chip.offset_top = 24
-	chip.custom_minimum_size.x = 340
 	add_child(chip)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
@@ -81,7 +85,6 @@ func _build_chip() -> void:
 	title = ThemeUtil.label("", 18, Color.WHITE)
 	title.name = "Title"
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.custom_minimum_size.x = 300
 	box.add_child(title)
 	bar = HBoxContainer.new()
 	bar.name = "Bar"
@@ -90,8 +93,18 @@ func _build_chip() -> void:
 	next = ThemeUtil.label("", 15, DIM)
 	next.name = "Next"
 	next.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	next.custom_minimum_size.x = 300
 	box.add_child(next)
+	_fit(WIDE)
+
+
+## Lay the chip out `width` px wide.
+func _fit(width: int) -> void:
+	chip.custom_minimum_size.x = width
+	title.custom_minimum_size.x = width - 40
+	next.custom_minimum_size.x = width - 40
+	# Down to nothing: it grows back to fit, leftward from the right edge.
+	chip.offset_left = chip.offset_right
+	chip.offset_bottom = chip.offset_top
 
 
 func _build_toast() -> void:
@@ -152,7 +165,7 @@ static func _panel(bg: Color, edge: Color) -> PanelContainer:
 func refresh() -> void:
 	var game := get_node_or_null("/root/Game")
 	case_id = game.main_case() if game else ""
-	chip.visible = allowed and case_id != ""
+	chip.visible = case_id != ""
 	if case_id == "":
 		return
 	var c: Dictionary = game.case_info(case_id)
@@ -207,12 +220,14 @@ func show_found(id: String, piece_id: String) -> void:
 	_toast_tween.tween_callback(func(): toast.visible = false)
 
 
-## Hide both while a terminal's glass fills the view (they'd cover its text). A
-## piece found meanwhile is shown once it's back.
+## While a terminal's glass fills the view the chip stays, narrowed to fit
+## beside it, so the task is still in sight; the found card would cover the
+## glass, so a piece found meanwhile is shown once it's put away.
 func set_allowed(on: bool) -> void:
 	allowed = on
 	if not on:
 		toast.visible = false
+	_fit(WIDE if on else NARROW)
 	refresh()
 	if on and not waiting.is_empty():
 		var last: Array = waiting.pop_back()  # the newest says the count as it is now

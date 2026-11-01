@@ -1,0 +1,2 @@
+- **Changed:** the case you're working on stays in the corner while you're at a terminal.
+- **Fixed:** after selecting text on a terminal's screen, Ctrl+C copies it and you can paste or keep typing straight away.
