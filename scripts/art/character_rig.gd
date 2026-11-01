@@ -32,6 +32,10 @@ const TURN_STEP := 0.3
 const FAR_DISTANCE := 30.0
 ## How quickly a hand eases onto what it reaches for, and back (per second).
 const REACH_RATE := 5.0
+## Hanging braced on a wall, the body leans in this far (radians) about a point
+## this high (the shoulders), so the hips sit out from the wall.
+const BRACE_LEAN := 0.45
+const BRACE_PIVOT := 1.4
 ## Body heights, matching Player's collider.
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.25
@@ -62,6 +66,13 @@ var lean_back := 0.0
 ## is playing, easing there and back (the body models only). Sitting on a
 ## chair, a hand with nowhere to be rests on its thigh.
 var reach := {}
+## Feet to plant somewhere: "r" and/or "l", each a world point for the ankle.
+## The legs bend to put them there, knees forward, easing there and back (the
+## body models only): bracing your feet on a wall as you hang from it.
+var feet := {}
+## How far into that brace the body leans (0..1): hanging off one hand, turned
+## side on to the wall, it hangs straight under that hand.
+var brace := 1.0
 ## How far through a mantle, vault or roll (0..1), or round one hand-over-hand
 ## cycle of a climb: the parkour moves pose from it.
 var move_progress := 0.0
@@ -77,6 +88,8 @@ var speed_override := -1.0
 ## Leave the head (and its hair, hat and glasses) out: your own body in first
 ## person, where the camera is the head.
 var hide_head := false
+## ...and the neck under it (hanging, your eyes sit right over it).
+var hide_neck := false
 
 var look: Dictionary
 var joints := {}  # name -> Node3D
@@ -94,6 +107,8 @@ var _skip := 0
 var _skipped_delta := 0.0
 var _reach_w := {"r": 0.0, "l": 0.0}
 var _reach_last := {}
+var _foot_w := {"r": 0.0, "l": 0.0}
+var _foot_last := {}
 
 static var _meshes := {}
 ## Draw the skinned body models (SkinnedBody); false draws the old primitives.
@@ -171,6 +186,13 @@ func animate(delta: float) -> void:
 		# only then down onto the thigh: it never stays where the thing was.
 		var on := holding or (action == "sit" and not _reach_last.has(side))
 		_reach_w[side] = move_toward(_reach_w[side], 1.0 if on else 0.0, delta * reach_rate)
+	for side in _foot_w:
+		var to = feet.get(side)
+		if to is Vector3:
+			_foot_last[side] = to
+		_foot_w[side] = move_toward(_foot_w[side], 1.0 if to is Vector3 else 0.0, delta * reach_rate)
+		if _foot_w[side] <= 0.0:
+			_foot_last.erase(side)
 	if _skin:
 		_skin.update(delta)
 	elif hide_head:
@@ -209,6 +231,15 @@ func reach_weight(side: String) -> float:
 
 func reach_point(side: String) -> Variant:
 	return _reach_last.get(side)
+
+
+## How far a foot is onto where it's planted (see feet), 0..1, and where that is.
+func foot_weight(side: String) -> float:
+	return smoothstep(0.0, 1.0, _foot_w[side]) if _foot_last.has(side) else 0.0
+
+
+func foot_point(side: String) -> Transform3D:
+	return Transform3D(Basis.IDENTITY, _foot_last.get(side, Vector3.ZERO))
 
 
 ## Speed of the walk cycle right now, in m/s.
@@ -489,12 +520,18 @@ func _action_pose(p: Dictionary) -> void:
 			p["r_shoulder"] = Vector3(0.4, 0, 0.6 * k + 0.1)
 			p["r_elbow"] = Vector3(0.4, 0, 0)
 		"hang":
-			# From the fingertips, legs loose and swaying a little.
-			var sway := sin(t * 1.3) * 0.06
+			# Braced on the wall: hanging from the hands, leaning in to it from
+			# the shoulders so the hips sit out from it, knees up and the feet
+			# against it below them (planted there by feet, when it's given).
+			var breathe := sin(t * 1.3) * 0.02
+			var lean := BRACE_LEAN * brace
+			p["_root_rot"] = Vector3(-lean, 0, 0)
+			p["_root_pos"] = Vector3(0, BRACE_PIVOT * (1.0 - cos(lean)), BRACE_PIVOT * sin(lean))
+			p["spine"] = Vector3(-0.15 + breathe, 0, 0)
 			_sym(p, "shoulder", Vector3(0.5, 0, 2.6))
-			_sym(p, "elbow", Vector3(0.4, 0, 0))
-			_sym(p, "hip", Vector3(0.15 + sway, 0, 0.04))
-			_sym(p, "knee", Vector3(-0.25, 0, 0))
+			_sym(p, "elbow", Vector3(0.6, 0, 0))
+			_sym(p, "hip", Vector3(1.35, 0, 0.18))
+			_sym(p, "knee", Vector3(-1.7, 0, 0))
 		"climb":
 			# Hand over hand, a knee up for each pull.
 			var c := sin(move_progress * TAU)

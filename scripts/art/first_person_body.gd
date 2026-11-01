@@ -77,6 +77,10 @@ const HOLD_TWIST := 0.3
 ## your eyes, the way you look.
 const LOOK_BOTH := deg_to_rad(80.0)
 const LOOK_FACE := deg_to_rad(120.0)
+## ...round until your hips are side on to the wall, this far round off it, and
+## your shoulders take this share of the rest of your look: coiled, back to it.
+const BODY_AWAY := deg_to_rad(100.0)
+const AWAY_TWIST := 1.0
 const SWING_OUT := 0.6
 ## Climbing, each hand takes the next hold this far above the other's, and one
 ## pull is twice it: the body's hand-over-hand cycle.
@@ -105,11 +109,28 @@ const NEAR_FADE := 0.98
 ## collar is in front of your eyes, so less is left out, and the free arm shows
 ## out of its sleeve.
 const ONE_HAND_CUT := 0.5
+## Hanging from an edge with your eyes this close under it (Player lifts the
+## view there, in towards the wall), your shoulders are well below them, so
+## only this much is left out: your arms show whole, up from the bottom
+## corners of your view to your hands. (With your eyes HANG_LOW under it or
+## more, it's the usual cut.)
+const HANG_HIGH := 0.3
+const HANG_LOW := 0.5
+const HANG_CUT := 0.2
+const HANG_CUT_TURNED := 0.26  # (turned off it, your shoulder's in front of you)
+const HANG_CUT_DOWN := 0.5  # (looking down past your chest at your feet)
 ## Hanging by one hand, you hang off it: the body tips this far about that
 ## shoulder, so the other shoulder, and the arm swung out from it, drop away
 ## from your eyes.
 const HANG_TIP := deg_to_rad(18.0)
 const SHOULDER_OUT := 0.15  # how far out from your middle a shoulder is
+## Hanging, your feet are braced on the wall this far below the edge, this far
+## either side of your middle, their ankles this far out from it; kicking off,
+## they stay on it this long (seconds) as your legs straighten.
+const BRACE_DROP := 1.15
+const BRACE_SPREAD := 0.14
+const BRACE_OFF := 0.1
+const BRACE_PUSH := 0.18
 ## ...and your head leans in against that arm: the body hangs this far off
 ## to the other side, so the free arm swings out clear of your face.
 const HANG_SIDE := 0.25
@@ -138,6 +159,10 @@ var _hung_by := ""  # hanging by one hand: that one
 var _tip := 0.0  # how far the body tips about it (radians, + lifts the right shoulder)
 var _tip_side := "r"
 var _drawn := Transform3D.IDENTITY  # where the body was put last
+var _feet := {}  # hanging, where each foot is braced on the wall
+var _wall := Plane()  # the wall they're on
+var _push := 0.0  # kicked off it: how much longer the feet stay on it, pushing
+var _eye_under := 0.0  # hanging, how far your eyes are under the edge
 var _pull := Vector3.ZERO  # how far the body has moved towards what the hands hold (world axes)
 var _grips := {}  # this frame's parkour grips, side -> wrist transform
 var _arm := 0.0  # shoulder to wrist, arm straight
@@ -194,6 +219,7 @@ func _process(delta: float) -> void:
 	visible = action != "down"
 	rig.play(action)
 	_grips = _parkour_grips(delta)
+	_brace_feet(delta)
 	rig.reach_rate = GRAB_RATE if action in PARKOUR else CharacterRig.REACH_RATE
 	if action == "climb":
 		rig.move_progress = fposmod(player.global_position.y / (2.0 * RUNG), 1.0)
@@ -225,10 +251,19 @@ func _process(delta: float) -> void:
 		# face the way you look by LOOK_FACE.
 		turned = angle_difference(atan2(-_square.x, -_square.z), player.global_rotation.y)
 		if _one_hand:
+			if _hung_by != "" and absf(turned) > PI / 2.0:
+				# Hanging off your right hand you turned left (and the other way
+				# about): looking right behind you, keep turning that way round,
+				# not back the other way past the wall.
+				var way := 1.0 if _hung_by == "r" else -1.0
+				if signf(turned) != way:
+					turned += way * TAU
 			_faced = clampf((absf(turned) - LOOK_BOTH) / (LOOK_FACE - LOOK_BOTH), 0.0, 1.0)
-			turned = signf(turned) * minf(absf(turned), LOOK_BOTH * (1.0 - _faced))
+			var away := minf(absf(turned), BODY_AWAY) * _faced  # how far your hips have come round off the wall
+			turned = signf(turned) * (absf(turned) - away)
 	basis = Basis(Vector3.UP, -turned)
-	rig.twist = turned * (HOLD_TWIST if _square != Vector3.ZERO else 1.0)
+	rig.twist = turned * (lerpf(HOLD_TWIST, AWAY_TWIST, _faced) if _square != Vector3.ZERO else 1.0)
+	rig.brace = 1.0 - _faced
 	var back := BACK - _lean
 	var k := 1.0 - exp(-10.0 * delta)
 	if chair:
@@ -260,7 +295,15 @@ func _process(delta: float) -> void:
 	if _grips.is_empty() and _pull.length() < 0.005:
 		_pull = Vector3.ZERO
 	at += (player as Node3D).global_basis.inverse() * _pull  # (it stays put as you look round)
-	_near_cut(NEAR_CUT if action == "roll" else NEAR_CUT * clampf(_pull.length() / 0.1, 0.0, 1.0) * lerpf(1.0, ONE_HAND_CUT, _faced))
+	var cut := NEAR_CUT * lerpf(1.0, ONE_HAND_CUT, _faced)
+	if action == "hang" and _eye_under < HANG_LOW:
+		# (looking down past your chest, your collar is left out too: less
+		# so turned away, or the free arm's sleeve would go with it)
+		var below := clampf(-(head.rotation.x if head else 0.0) / 0.4, 0.0, 1.0) * lerpf(1.0, 0.35, _faced)
+		var high := clampf((HANG_LOW - _eye_under) / (HANG_LOW - HANG_HIGH), 0.0, 1.0)
+		cut = lerpf(cut, lerpf(lerpf(HANG_CUT, HANG_CUT_TURNED, _faced), HANG_CUT_DOWN, below), high)
+	rig.hide_neck = action == "hang"
+	_near_cut(NEAR_CUT if action == "roll" else cut * clampf(_pull.length() / 0.1, 0.0, 1.0))
 	var need := _neck_needs(at) if _pull.length() < 0.05 else 0.0
 	if chair:
 		_clear = 0.0
@@ -281,6 +324,34 @@ func _process(delta: float) -> void:
 	_hold_with_hands()
 
 
+## Hanging, your feet are braced on the wall below the edge, either side of you.
+## Kicking off it, they stay on it a moment as your legs push you away.
+func _brace_feet(delta: float) -> void:
+	var grip: Dictionary = player.parkour_grip() if rig.action == "hang" and player.has_method("parkour_grip") else {}
+	if not grip.is_empty():
+		var n: Vector3 = grip.normal
+		n = Vector3(n.x, 0, n.z).normalized()
+		_wall = Plane(n, grip.point)
+		var cam = player.get("camera")
+		_eye_under = (grip.point as Vector3).y - ((cam as Node3D).global_position.y if cam is Node3D else (player as Node3D).global_position.y + 1.68)
+		var right := (-n).cross(Vector3.UP)  # facing the wall
+		var mid := _wall.project(global_position)
+		mid.y = (grip.point as Vector3).y - BRACE_DROP
+		for side in ["r", "l"]:
+			var s := 1.0 if side == "r" else -1.0
+			_feet[side] = mid + right * s * BRACE_SPREAD + n * BRACE_OFF
+		_push = BRACE_PUSH
+		return
+	if not _feet.is_empty() and _push > 0.0 and rig.action != "hang":
+		# Just let go: only a kick off it (moving away from it) keeps them there.
+		var v = player.get("velocity")
+		if not (v is Vector3 and (v as Vector3).dot(_wall.normal) > 0.5):
+			_push = 0.0
+		_push -= delta
+	if _push <= 0.0:
+		_feet.clear()
+
+
 ## Hanging by one hand and turned away from the wall, tip the body about that
 ## hand's shoulder (it stays put, so the hand still reaches the edge).
 func _tip_about_hand(k: float) -> void:
@@ -299,7 +370,9 @@ func _tip_about_hand(k: float) -> void:
 		var bone := sk.find_bone("upperarm_" + _tip_side)
 		if bone >= 0:
 			pivot = (global_transform.affine_inverse() * sk.global_transform) * sk.get_bone_global_pose(bone).origin
-	transform = transform * Transform3D(Basis.IDENTITY, pivot) * Transform3D(Basis(Vector3.BACK, _tip), Vector3.ZERO) * Transform3D(Basis.IDENTITY, -pivot)
+	# (about the way you look: your shoulders face it, coiled round off your hips)
+	var back := (basis.inverse() * Vector3.BACK).normalized()
+	transform = transform * Transform3D(Basis.IDENTITY, pivot) * Transform3D(Basis(back, _tip), Vector3.ZERO) * Transform3D(Basis.IDENTITY, -pivot)
 
 
 ## How much further back the body at `at` must go for the neck to be out of the
@@ -397,6 +470,7 @@ func _hold_with_hands() -> void:
 						var corner := face.origin + face.basis.x * (-1.0 if left else 1.0) - face.basis.y + face.basis.y.normalized() * 0.03
 						grips[side] = _edge_grip(Transform3D(face.basis.orthonormalized(), corner), left)
 	rig.reach = grips
+	rig.feet = _feet
 	rig.grip_curl = HOLD_CURL if _grips.is_empty() else -1.0  # (a parkour grip curls round its edge)
 
 
@@ -563,7 +637,7 @@ func _parkour_grips(delta: float) -> Dictionary:
 					# Hanging by it, turned round: it's over that shoulder, not
 					# across behind your head (you swing under it as you turn).
 					var you := player as Node3D
-					var over := you.global_position + you.global_basis.x * s * SHOULDER_OUT
+					var over := you.global_position + global_basis.x.normalized() * s * SHOULDER_OUT
 					edge = at + along * lerpf(s * spread, clampf((over - at).dot(along), -spread * 1.5, spread * 1.5), _faced)
 				if edge.y > (player as Node3D).global_position.y + SHOULDER:
 					# Above you: fingers curled over it, the wrist below the lip.
