@@ -387,6 +387,10 @@ func test_hang_one_arm() -> void:
 	stop(p)
 	await frames(2)
 	check(p.state == Player.Move.HANG, "caught the edge to test one-armed hanging")
+	await frames(30)
+	var lean := p.camera.global_position - p.head.global_position
+	check(absf(lean.y - Player.HANG_LEAN.x) < 0.03 and absf(-lean.z - Player.HANG_LEAN.y) < 0.03, "hanging, your view leans up and in over your hands (%s)" % lean)
+	check(p.camera.global_position.y <= p._hang_top - Player.HANG_EYES_BELOW + 0.01, "with your eyes still below the edge, not peeking over it")
 	check(p.hang_free_hand() == "" and p.parkour_grip().get("hands", []) == ["l", "r"], "facing the wall, both hands hold the edge")
 	p.rotation.y = deg_to_rad(70.0)
 	check(p.hang_free_hand() == "", "turning head and shoulders aside keeps both hands on")
@@ -410,6 +414,17 @@ func test_hang_one_arm() -> void:
 	p.controls.jump = false
 	await frames(10)
 	check(p.state != Player.Move.HANG and p.hang_free_hand() == "", "off the wall, no hand is free")
+	check((p.camera.global_position - p.head.global_position).length() < 0.05, "and your view settles back on your head")
+	# The tallest crew member's eyes start nearer the edge: still kept below it.
+	var big := spawn(a, Vector3(2, 0.05, -1.3))
+	big.body = CrewBody.largest()
+	await frames(5)
+	big.controls.move = Vector2(0, -0.5)
+	big.controls.jump = true
+	await frames(3)
+	stop(big)
+	await frames(30)
+	check(big.state == Player.Move.HANG and big.camera.global_position.y <= big._hang_top - Player.HANG_EYES_BELOW + 0.01, "the tallest crew member's eyes stay below the edge too (%.2f below)" % (big._hang_top - big.camera.global_position.y))
 	await done(a)
 
 
