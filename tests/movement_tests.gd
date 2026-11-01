@@ -27,6 +27,8 @@ func _run_moves() -> void:
 	await test_mantle()
 	await test_vault()
 	await test_hang_shimmy_pull_up()
+	await test_hang_one_arm()
+	await test_leap_off_the_way_you_look()
 	await test_too_high_alone()
 	await test_no_climbing_through_the_ceiling()
 	await test_climb()
@@ -372,6 +374,97 @@ func test_vault() -> void:
 	check(not r.vaulted, "not while crouching")
 
 
+## Hanging from an edge, your head and shoulders turn with both hands on; further
+## round one hand lets go and you pivot on the other.
+func test_hang_one_arm() -> void:
+	var a := arena()
+	_high_wall(a, 2.0)
+	var p := spawn(a, Vector3(0, 0.05, -1.3))
+	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
+	p.controls.jump = true
+	await frames(3)
+	stop(p)
+	await frames(2)
+	check(p.state == Player.Move.HANG, "caught the edge to test one-armed hanging")
+	await frames(30)
+	var lean := p.camera.global_position - p.head.global_position
+	check(absf(lean.y - Player.HANG_LEAN.x) < 0.03 and absf(-lean.z - Player.HANG_LEAN.y) < 0.03, "hanging, your view leans up and in over your hands (%s)" % lean)
+	check(p.camera.global_position.y <= p._hang_top - Player.HANG_EYES_BELOW + 0.01, "with your eyes still below the edge, not peeking over it")
+	check(p.hang_free_hand() == "" and p.parkour_grip().get("hands", []) == ["l", "r"], "facing the wall, both hands hold the edge")
+	p.rotation.y = deg_to_rad(70.0)
+	check(p.hang_free_hand() == "", "turning head and shoulders aside keeps both hands on")
+	p.rotation.y = deg_to_rad(90.0)
+	check(p.hang_free_hand() == "l" and p.parkour_grip()["hands"] == ["r"], "looking further left lets go with the left hand")
+	p.rotation.y = deg_to_rad(78.0)
+	check(p.hang_free_hand() == "l", "turning back a touch doesn't flicker the hand on and off")
+	p.rotation.y = deg_to_rad(175.0)
+	check(p.hang_free_hand() == "l", "still the left hand looking almost straight back")
+	p.rotation.y = deg_to_rad(-175.0)
+	check(p.hang_free_hand() == "l", "no flicker just past straight behind")
+	p.rotation.y = deg_to_rad(-120.0)
+	check(p.hang_free_hand() == "r" and p.parkour_grip()["hands"] == ["l"], "past the centre line to the right, the hands swap")
+	p.rotation.y = deg_to_rad(-90.0)
+	await frames(10)
+	check(p.state == Player.Move.HANG, "still hanging one-armed")
+	p.rotation.y = 0.0
+	check(p.parkour_grip()["hands"] == ["l", "r"], "face the wall again: both hands back on")
+	p.controls.jump = true
+	await frames(30)
+	p.controls.jump = false
+	await frames(10)
+	check(p.state != Player.Move.HANG and p.hang_free_hand() == "", "off the wall, no hand is free")
+	check((p.camera.global_position - p.head.global_position).length() < 0.05, "and your view settles back on your head")
+	await done(a)
+
+
+## Hanging or on a pipe, Space while looking away from the wall kicks you off the
+## way you look; facing the wall it climbs (or kicks straight back) as before.
+func test_leap_off_the_way_you_look() -> void:
+	var a := arena()
+	_high_wall(a, 2.0)
+	var p := spawn(a, Vector3(0, 0.05, -1.3))
+	await frames(5)
+	p.controls.move = Vector2(0, -0.5)
+	p.controls.jump = true
+	await frames(3)
+	stop(p)
+	await frames(10)
+	check(p.state == Player.Move.HANG, "caught the edge to test kicking off")
+	p.rotation.y = deg_to_rad(150.0)  # looking back over your left shoulder
+	var look := -p.global_transform.basis.z
+	var x0 := p.global_position.x
+	var z0 := p.global_position.z
+	p.controls.jump = true
+	await frames(2)
+	p.controls.jump = false
+	check(p.state == Player.Move.WALK, "Space looking away from the wall lets go")
+	var flat := Vector2(p.velocity.x, p.velocity.z).normalized()
+	check(flat.dot(Vector2(look.x, look.z).normalized()) > 0.99 and p.velocity.y > 0.0, "and kicks you off the way you look")
+	await frames(20)
+	check(p.global_position.z > z0 + 0.8 and p.global_position.x < x0 - 0.3, "away from the wall and off to the side you looked (x %.2f z %.2f)" % [p.global_position.x - x0, p.global_position.z - z0])
+
+	# On a pipe, the same.
+	Greybox.box(a, Vector3(6, 2, -4), Vector3(2, 4, 4), Color.DIM_GRAY)  # face at z = -2
+	Traversal.climbable(a, Vector3(6, 0, -2), Vector3(6, 4, -2), Vector3(0, 0, 1))
+	var q := spawn(a, Vector3(6, 0.05, -1.0))
+	await frames(5)
+	forward(q)
+	q.controls.jump = true
+	await frames(30)
+	q.controls.jump = false
+	stop(q)
+	await frames(2)
+	check(q.state == Player.Move.CLIMB and q.parkour_grip().get("hands", []) == ["l", "r"], "up a pipe, both hands on it")
+	q.rotation.y = deg_to_rad(-120.0)  # looking back over your right shoulder
+	check(q.parkour_grip()["hands"] == ["l"], "looking round past your shoulder, the right hand lets go")
+	q.controls.jump = true
+	await frames(2)
+	q.controls.jump = false
+	check(q.state == Player.Move.WALK and q.velocity.x > 2.0 and q.velocity.z > 1.0, "Space looking away from a pipe kicks you off the way you look (v %s)" % q.velocity)
+	await done(a)
+
+
 func test_hang_shimmy_pull_up() -> void:
 	var a := arena()
 	_high_wall(a, 2.0)
@@ -601,6 +694,7 @@ func test_ledge_shuffle() -> void:
 	var lowest := 10.0
 	var turned := false
 	var max_turn := 0.0
+	var grip := {}
 	for i in 900:
 		await frames(1)
 		if p.state == Player.Move.LEDGE:
@@ -610,6 +704,7 @@ func test_ledge_shuffle() -> void:
 				p.rotation.y = PI
 			elif max_turn == 0.0:
 				max_turn = absf(angle_difference(0.0, p.rotation.y))
+				grip = p.parkour_grip()
 				p.rotation.y = 0.0  # face the wall again and carry on
 			shuffled = true
 			top_speed = max(top_speed, Vector2(p.velocity.x, p.velocity.z).length())
@@ -619,6 +714,8 @@ func test_ledge_shuffle() -> void:
 	check(shuffled and top_speed < Player.LEDGE_SPEED + 0.6, "stepping onto a ledge shuffles slowly, even sprinting (%.2f m/s)" % top_speed)
 	check(lowest > -0.5 and p.global_position.x > 9.0, "the shuffle reaches the far side without falling")
 	check(turned and max_turn <= Player.LEDGE_LOOK + 0.01, "facing the wall on a ledge, you can't turn your back to it (%.0f deg)" % rad_to_deg(max_turn))
+	check(grip.get("face", Vector3.ZERO).dot(Vector3(0, 0, -1)) > 0.99, "the ledge grip says you face the wall")
+	check(grip.get("hands", []).size() == 1, "turned that far, one hand comes off the wall (%s)" % [grip.get("hands")])
 	check(p.state == Player.Move.WALK, "walking off the end returns to normal movement")
 	await done(a)
 
