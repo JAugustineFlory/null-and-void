@@ -4872,8 +4872,44 @@ func test_in_world_ui() -> void:
 	check(ui._output.get_theme_font_size("normal_font_size") == TerminalScreen.DISPLAY_FONT and ui._input.get_theme_font_size("font_size") == TerminalScreen.DISPLAY_FONT,
 		"sitting down, the screen's text stays the size it was from across the room")
 	check(level.hud._subtitle.anchor_top == 0.0 and level.hud._notice.anchor_top == 1.0 and not level.hud._keys.visible, "subtitles and notices move off the glass while you're at it")
+	var window := root.size
+	root.size = Vector2i(1600, 900)  # a 16:9 screen (headless runs square)
+	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], level.OBJ_MEMO)
+	_game().set_pieces("memo", level.MEMO_PEEK_PIECES, level.MEMO_PEEK_QUERY, level.MEMO_PEEK_STEPS)
+	for i in 3:
+		await process_frame
+	var chip: Control = level.hud.case_chip.chip
+	var cam := root.get_viewport().get_camera_3d()
+	var glass_right := cam.unproject_position(t.screen.glass.global_transform * Vector3(TerminalScreen.SCREEN_SIZE.x / 2.0, 0, 0)).x
+	check(chip.is_visible_in_tree() and chip.get_global_rect().position.x > glass_right and chip.get_global_rect().end.x <= 1600.0,
+		"the case in hand stays on screen at the terminal, beside the glass, not over it")
+	root.size = window
 	ui.run("SELECT * FROM memo_fragments")
 	check(t.transcript.any(func(l): return l.contains("piece_no")), "queries typed on the glass run as usual")
+	# Select the screen's text (which takes the keyboard), copy it, and keep typing.
+	var out: RichTextLabel = ui._output
+	out.grab_focus()
+	out.select_all()
+	await process_frame
+	check(out.get_selected_text() != "" and not ui._input.has_focus(), "selecting the screen's text takes the keyboard off the typing line")
+	var copy := InputEventKey.new()
+	copy.keycode = KEY_C
+	copy.ctrl_pressed = true
+	copy.pressed = true
+	t.screen.viewport.push_input(copy)
+	await process_frame
+	check(ui._input.has_focus(), "Ctrl+C copies it and hands the keyboard back to the typing line, ready to paste")
+	out.grab_focus()
+	ui._input.text = ""
+	var key := InputEventKey.new()
+	key.keycode = KEY_S
+	key.unicode = "S".unicode_at(0)
+	key.pressed = true
+	t.screen.viewport.push_input(key)
+	await process_frame
+	await process_frame
+	check(ui._input.has_focus() and ui._input.text == "S", "typing with the screen's text clicked still types on the typing line")
+	ui._input.text = ""
 	ui.close()
 	await process_frame
 	await process_frame

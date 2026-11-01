@@ -100,7 +100,7 @@ func _ready() -> void:
 	_output.add_theme_font_size_override("bold_font_size", 17)
 	_output.add_theme_color_override("default_color", ThemeUtil.GREEN)
 	_output.mouse_exited.connect(func(): if not _chip_hovered(): _hover_line(-1))
-	_output.gui_input.connect(_on_output_mouse)
+	_output.gui_input.connect(_on_output_input)
 	vbox.add_child(_output)
 	_hover_band = ColorRect.new()
 	_hover_band.color = Color(ThemeUtil.GREEN, 0.12)
@@ -390,9 +390,20 @@ func _start_note(index: int) -> void:
 	_note_label.grab_focus()
 
 
-func _on_output_mouse(event: InputEvent) -> void:
+## Clicking the screen's text to select it takes the keyboard from the typing
+## line. Ctrl+C copies the selection and hands the keyboard back, ready to paste;
+## typing and pasting go straight to the typing line. (Other Ctrl keys, like
+## select-all, stay with the text.)
+func _on_output_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_hover_line(_line_at(event.position.y))
+	elif event is InputEventKey and event.pressed:
+		if event.is_action("ui_copy", true):
+			_input.grab_focus.call_deferred()
+		elif event.keycode not in [KEY_CTRL, KEY_SHIFT, KEY_ALT, KEY_META] and (event.is_action("ui_paste", true) or not (event.ctrl_pressed or event.meta_pressed)):
+			_output.accept_event()
+			_input.grab_focus()
+			get_viewport().push_input.call_deferred(event)
 
 
 ## Which noteable line is at this height in the output, or -1.
