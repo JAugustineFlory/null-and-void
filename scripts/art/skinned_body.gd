@@ -446,6 +446,7 @@ func _reach(side: String, g: Array[Transform3D], lift: Vector3) -> void:
 
 ## Turns the thumb from its root so it lies along the palm, not down through
 ## whatever the palm is flat on (hands on top of a ledge).
+const THUMB_LIFT := 0.2
 func _lay_thumb(side: String, palm: Vector3, w: float) -> void:
 	var root := skeleton.find_bone("thumb_01_" + side)
 	var tip := skeleton.find_bone("thumb_04_leaf_" + side)
@@ -456,7 +457,8 @@ func _lay_thumb(side: String, palm: Vector3, w: float) -> void:
 	var flat := along - palm * along.dot(palm)
 	if along.length() < 0.001 or flat.length() < 0.001:
 		return
-	var turned := Basis(Quaternion(along.normalized(), flat.normalized())) * root_g.basis
+	var lie := (flat.normalized() - palm * THUMB_LIFT).normalized()  # (a little up off it)
+	var turned := Basis(Quaternion(along.normalized(), lie)) * root_g.basis
 	var parent_g := skeleton.get_bone_global_pose(skeleton.get_bone_parent(root))
 	var local := (parent_g.basis.orthonormalized().inverse() * turned.orthonormalized()).get_rotation_quaternion()
 	skeleton.set_bone_pose_rotation(root, skeleton.get_bone_pose_rotation(root).slerp(local, w))
