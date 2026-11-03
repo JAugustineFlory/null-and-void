@@ -1,1 +1,0 @@
-- **Fixed:** Hanging from an edge or holding a pipe, your head and shoulders turn as you look round while both hands hold on, and your own sleeves no longer fill the view.
