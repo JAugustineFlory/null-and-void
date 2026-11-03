@@ -64,8 +64,26 @@ const MANTLE_MAX := 1.6
 const HANG_REACH := 2.25
 ## A beat after catching an edge before you can pull up.
 const HANG_SETTLE := 0.15
+## Hanging braced on an edge, your head leans up and in over your hands: the view
+## moves this far up (x) and toward the wall (y), metres, so your arms run from
+## the bottom of the screen to the edge.
+const HANG_LEAN := Vector2(0.30, 0.15)
+## ...but your eyes stay at least this far (metres) below the edge you hold.
+const HANG_EYES_BELOW := 0.08
 ## How far (radians) you can turn from your stance while shuffling along a ledge.
 const LEDGE_LOOK := deg_to_rad(100.0)
+## Holding a wall (hanging from an edge, up a pipe, chest to the wall on a ledge),
+## up to this far (radians) from facing it your head and shoulders turn with both
+## hands on; further round, the hand on the side you look to lets go and you
+## pivot on the other one to face away. HANG_ONE_ARM_EASE is how far back you turn
+## before it takes hold again; HANG_ONE_ARM_HOLD keeps the hands from swapping
+## back and forth right behind you.
+const HANG_ONE_ARM := deg_to_rad(80.0)
+const HANG_ONE_ARM_EASE := deg_to_rad(5.0)
+const HANG_ONE_ARM_HOLD := deg_to_rad(170.0)
+## Space while holding a wall and looking away from it (more than 90 degrees):
+## you kick off the way you look, this fast out (x) and up (y), m/s.
+const WALL_LEAP := Vector2(4.0, 3.5)
 const MANTLE_UP_TIME := 0.22
 ## W + Space at something shin to waist high (a coffee table, a desk, a counter, a
 ## railing) vaults you over it if there's floor on the other side. Taller than
@@ -208,6 +226,8 @@ var _hang_normal := Vector3.ZERO
 var _hang_top := 0.0
 ## Forward must be let go after catching an edge before it pulls you up.
 var _fwd_released := false
+## The hand let go of a wall to look round: "l", "r" or "" (hang_free_hand).
+var _hang_free := ""
 ## Space pressed while hanging, waiting out HANG_SETTLE to pull you up.
 var _hang_jump := false
 var _sprint_grace := 0.0
@@ -230,6 +250,8 @@ var _bob_t := 0.0
 ## is a jolt (landing, catching an edge) that `_cam_jolt` rises to and eases out of.
 var _cam_pose := Vector3.ZERO
 var _cam_kick := Vector3.ZERO
+## Where the view sits off your head, in the world (HANG_LEAN while hanging).
+var _cam_lean := Vector3.ZERO
 var _cam_jolt := Vector3.ZERO
 ## Where the hands go on a vault or mantle (see parkour_grip), set as it starts.
 var _grip := {}
@@ -480,7 +502,7 @@ func step(delta: float) -> void:
 		Move.CLIMB:
 			_step_climb(delta, jump_pressed)
 		Move.LEDGE:
-			_step_ledge(delta)
+			_step_ledge(delta, jump_pressed)
 		Move.TERMINAL:
 			_step_terminal(delta)
 		Move.SIT:
@@ -519,6 +541,7 @@ func respawn(at: Transform3D) -> void:
 	_cam_pose = Vector3.ZERO
 	_cam_kick = Vector3.ZERO
 	_cam_jolt = Vector3.ZERO
+	_cam_lean = Vector3.ZERO
 	state = Move.WALK
 	_set_crouch(false)
 	lower_notebook(true)
@@ -1496,6 +1519,7 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		_timer = 0.0
 		_fwd_released = controls.move.y > -0.5
 		_hang_jump = false
+		_hang_free = ""
 		_cam_kick += Vector3(-0.05, -0.1, 0)  # caught it: the arms take your weight
 		_set_crouch(false)
 		velocity = Vector3.ZERO
@@ -1636,6 +1660,8 @@ func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 	var fwd := controls.move.y < -0.5
 	if not fwd:
 		_fwd_released = true
+	if _hang_jump and _timer >= HANG_SETTLE and _leap_off(n):
+		return
 	if (_hang_jump or (fwd and _fwd_released)) and _timer >= HANG_SETTLE:
 		# Space or a fresh W press climbs up (holding W from the jump only grabs).
 		var face := global_position - n * (RADIUS + 0.03)
@@ -1645,7 +1671,7 @@ func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 			_start_mantle(target)
 			return
 		if _hang_jump:
-			# No room on top: Space kicks off backwards instead, like off a pipe.
+			# No room on top: Space kicks straight back off the wall instead.
 			state = Move.WALK
 			velocity = n * 3.0 + Vector3.UP * 3.0
 			_was_on_floor = false
@@ -1659,6 +1685,20 @@ func _step_hang(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 			move_and_slide()
 			global_position.y = y
 			velocity = Vector3.ZERO
+
+
+## Looking away from a wall you're holding (more than 90 degrees from facing it,
+## `normal` pointing out of it): kick off and jump the way you look.
+func _leap_off(normal: Vector3) -> bool:
+	var look := _forward()
+	if look.dot(normal) <= 0.0:
+		return false
+	state = Move.WALK
+	velocity = look * WALL_LEAP.x + Vector3.UP * WALL_LEAP.y
+	_was_on_floor = false
+	spend_stamina(JUMP_COST)
+	_cam_kick += Vector3(0.04, -0.03, 0)
+	return true
 
 
 ## Is there still ledge to hold onto above this hanging position?
@@ -1679,9 +1719,11 @@ func _step_climb(delta: float, jump_pressed: bool) -> void:
 		_climb = null
 		return
 	if jump_pressed:
-		# Kick off backwards.
-		state = Move.WALK
+		# Kick off the way you look, or straight back if you're facing the pipe.
 		_climb = null
+		if _leap_off(v.normal):
+			return
+		state = Move.WALK
 		velocity = v.normal * 3.0 + Vector3.UP * 3.0
 		_was_on_floor = false
 		return
@@ -1721,10 +1763,13 @@ func _on_ledge_line(v: MovementVolume, margin: float) -> bool:
 	return t > margin and t < length - margin and side.length() < 0.4
 
 
-func _step_ledge(delta: float) -> void:
+func _step_ledge(delta: float, jump_pressed: bool) -> void:
 	var v := _ledge
 	if v == null or not _volumes.has(v):
 		state = Move.WALK
+		_ledge = null
+		return
+	if jump_pressed and _leap_off(v.normal):
 		_ledge = null
 		return
 	_clamp_ledge_yaw()
@@ -1901,6 +1946,13 @@ func _update_head(delta: float) -> void:
 		_cam_kick = _cam_kick.lerp(Vector3.ZERO, 1.0 - exp(-7.0 * delta))
 		var o := _cam_pose + _cam_jolt
 		camera.transform = Transform3D(Basis.from_euler(Vector3(o.x, 0.0, o.z)), Vector3(0, o.y, 0))
+		var lean := Vector3.ZERO
+		if state == Move.HANG:
+			# Eyes come up level with your hands at most, never over the top.
+			var up := minf(HANG_LEAN.x, _hang_top - HANG_EYES_BELOW - head.global_position.y)
+			lean = Vector3.UP * up - _hang_normal * HANG_LEAN.y
+		_cam_lean = _cam_lean.lerp(lean, 1.0 - exp(-10.0 * delta))
+		camera.global_position += _cam_lean
 
 
 ## How the move you're in carries your view (see `_cam_pose`): you look down at
@@ -1958,18 +2010,57 @@ func parkour_grip() -> Dictionary:
 		Move.HANG:
 			var edge := global_position - _hang_normal * (RADIUS + 0.03)
 			edge.y = _hang_top
-			return {"point": edge, "normal": _hang_normal}
+			return {"point": edge, "normal": _hang_normal, "hands": _holding_hands()}
 		Move.CLIMB:
 			if _climb:
 				var n := _climb.normal
 				var at := global_position - n * (global_position - _climb.a).dot(n)
 				at.y = minf(global_position.y + 1.7, _climb.b.y)  # reaching up the pipe
-				return {"point": at, "normal": n}
+				return {"point": at, "normal": n, "hands": _holding_hands()}
 		Move.LEDGE:
 			if _ledge:
 				var n := _ledge.normal
-				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n}  # flat on the wall
+				# "face": the way you faced when you stepped on (-normal: chest to the wall).
+				return {"point": global_position - n * (RADIUS + 0.05) + Vector3.UP * 1.2, "normal": n, "face": _ledge_face, "hands": _holding_hands()}  # flat on the wall
 	return {}
+
+
+func _holding_hands() -> Array:
+	var hands := ["l", "r"]
+	hands.erase(hang_free_hand())
+	return hands
+
+
+## Holding a wall and looking round past HANG_ONE_ARM, the hand you've let go
+## with: "l" or "r" (the side you look to), or "" while both hands hold on or
+## you hold nothing.
+func hang_free_hand() -> String:
+	var n := _hold_normal()
+	if n == Vector3.ZERO:
+		_hang_free = ""
+		return ""
+	var wall := atan2(n.x, n.z)  # facing the wall
+	var d := angle_difference(wall, rotation.y)  # + is looking left
+	var back_on := HANG_ONE_ARM - (HANG_ONE_ARM_EASE if _hang_free != "" else 0.0)
+	if absf(d) < back_on:
+		_hang_free = ""
+	elif _hang_free == "" or absf(d) < HANG_ONE_ARM_HOLD:
+		_hang_free = "l" if d > 0.0 else "r"
+	return _hang_free
+
+
+## Out of the wall you're holding with your hands (Vector3.ZERO if none).
+func _hold_normal() -> Vector3:
+	match state:
+		Move.HANG:
+			return _hang_normal
+		Move.CLIMB:
+			if _climb:
+				return _climb.normal
+		Move.LEDGE:
+			if _ledge and _ledge_face.dot(_ledge.normal) < 0.0:  # chest to the wall
+				return _ledge.normal
+	return Vector3.ZERO
 
 
 func _update_prompt() -> void:
