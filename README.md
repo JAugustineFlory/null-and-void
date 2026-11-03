@@ -109,7 +109,14 @@ Newest first, one release per drop-down, with its fix builds inside. Click a ver
 floor number. Changes that have merged but aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 <details open>
-<summary><b>v0.7 - 2026-10-24</b> (with fix builds v0.7.1 - 2026-10-27 and v0.7.2 - 2026-10-31)</summary>
+<summary><b>v0.7 - 2026-10-24</b> (with fix builds v0.7.1 - 2026-10-27, v0.7.2 - 2026-10-31 and v0.7.3 - 2026-11-03)</summary>
+
+**v0.7.3 - 2026-11-03** (fix build)
+
+- **Changed:** The case you're working on stays in the corner while you're at a terminal.
+- **Fixed:** While hanging from an edge or holding a pipe, Space kicks you off the way you're looking again if you look behind you, and climbs up if you look at the wall. Turn far enough and one hand lets go so you can face away.
+- **Fixed:** Hanging from an edge, you crouch with your feet braced on the wall, and your head and shoulders turn as you look round with both hands still holding on. Your own sleeves no longer fill the view as you hang or climb.
+- **Fixed:** After selecting text on a terminal's screen, Ctrl+C copies it and you can paste or keep typing straight away.
 
 **v0.7.2 - 2026-10-31** (fix build)
 
