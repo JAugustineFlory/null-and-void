@@ -33,13 +33,11 @@ var read_face := Vector3.BACK
 ## What reading it adds to the reader's case pages: [{case, text}] (see Game.add_clue).
 ## A clue with "opens" (a case title, and optional "tables") opens that case too.
 var clues: Array = []
-## Pieces of cases it holds: [{case, piece}] (see Game.collect_piece). While any
-## is still to find, E notes them straight into the case without picking it up,
-## and X reads it. Anyone finding them finds them for the whole crew.
+## Pieces of cases it holds: [{case, piece}] (see Game.collect_piece). Reading
+## it puts them into their cases. Anyone finding them finds them for the whole crew.
 var pieces: Array = []
 ## Lying on a desk rather than up on a wall or a monitor.
 var flat := false
-## The prompt while it holds pieces still to find (drafts for Augustine's OK).
 ## A sticky this player has already copied into their notebook.
 var _copied := false
 
