@@ -57,6 +57,9 @@ const ELBOW_POLE := Vector3(0.6, -1.0, 0.4)
 ## A hand resting on its thigh: this far along it from the hip (forearm along
 ## the thigh, the upper arm hanging), and this far up, onto the top of it.
 const KNEE_REST := Vector2(0.24, 0.08)
+## Planting a foot (CharacterRig.feet), the knee bends towards this, in the rig's
+## space for the right leg (x flips for the left): forward, up and a little out.
+const KNEE_POLE := Vector3(0.15, 0.3, -1.0)
 ## The chest bones between the rig's spine and neck joints. The pack's idle bends
 ## them forward to stand over its own tilted pelvis; under the rig's upright hips
 ## that bend made everyone stoop, so while the rig holds the hips they keep their
@@ -84,6 +87,7 @@ var _chest := {}
 var _pelvis := -1
 var _foot_height := 0.0
 var _head_bone := -1
+var _neck_bone := -1
 var _action_playing := ""  # the ACTION_CLIPS action the clips are playing, if any
 var _upper := 1.0
 var _lower := 1.0
@@ -153,6 +157,8 @@ func update(delta: float) -> void:
 			var c := curl
 			if _rig.grip_curl >= 0.0 and _fingers[i] != "thumb":
 				c = lerpf(curl, _rig.grip_curl, _rig.reach_weight(_fingers[i]))  # flat behind what it holds
+			elif _rig.thumb_curl >= 0.0 and _fingers[i] == "thumb":
+				c = lerpf(curl, _rig.thumb_curl, _rig.reach_weight(skeleton.get_bone_name(i).right(1)))
 			base.basis = Basis(_rest_local[i].basis.get_rotation_quaternion().slerp(base.basis.get_rotation_quaternion(), c))
 		elif player and _chest.has(i):
 			# Straighten the chest, and remember where the clip had it, so the
@@ -179,9 +185,13 @@ func update(delta: float) -> void:
 	for side in ["r", "l"]:
 		if _rig.reach_weight(side) > 0.0:
 			_reach(side, g, lift)
+		if _rig.foot_weight(side) > 0.0:
+			_plant(side, g, lift)
 	if _rig.hide_head:
 		# Shrink the head to a point: the hair, hat and glasses ride on it too.
 		skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.001)
+		if _rig.hide_neck and _neck_bone >= 0:
+			skeleton.set_bone_pose_scale(_neck_bone, Vector3.ONE * 0.001)
 
 
 ## Mesh name -> what it wears: a Color for a tinted part, or a Dictionary of
@@ -329,6 +339,7 @@ func _bind() -> void:
 			_hips_offset = j.affine_inverse() * _skel * g[i]
 	_pelvis = skeleton.find_bone("pelvis")
 	_head_bone = skeleton.find_bone("Head")
+	_neck_bone = skeleton.find_bone("neck_01")
 	for i in n:
 		var bone := skeleton.get_bone_name(i)
 		if bone.get_slice("_", 0) in FINGERS:
@@ -429,6 +440,68 @@ func _reach(side: String, g: Array[Transform3D], lift: Vector3) -> void:
 		var want := Basis(x, y, x.cross(y))
 		var hand_local := (lower.orthonormalized().inverse() * want).get_rotation_quaternion()
 		skeleton.set_bone_pose_rotation(h, skeleton.get_bone_pose_rotation(h).slerp(hand_local, w))
+		if _rig.thumb_curl >= 0.0:
+			_lay_thumb(side, palm, w)
+
+
+## Turns the thumb from its root so it lies along the palm, not down through
+## whatever the palm is flat on (hands on top of a ledge).
+const THUMB_LIFT := 0.2
+func _lay_thumb(side: String, palm: Vector3, w: float) -> void:
+	var root := skeleton.find_bone("thumb_01_" + side)
+	var tip := skeleton.find_bone("thumb_04_leaf_" + side)
+	if root < 0 or tip < 0:
+		return
+	var root_g := skeleton.get_bone_global_pose(root)
+	var along := skeleton.get_bone_global_pose(tip).origin - root_g.origin
+	var flat := along - palm * along.dot(palm)
+	if along.length() < 0.001 or flat.length() < 0.001:
+		return
+	var lie := (flat.normalized() - palm * THUMB_LIFT).normalized()  # (a little up off it)
+	var turned := Basis(Quaternion(along.normalized(), lie)) * root_g.basis
+	var parent_g := skeleton.get_bone_global_pose(skeleton.get_bone_parent(root))
+	var local := (parent_g.basis.orthonormalized().inverse() * turned.orthonormalized()).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(root, skeleton.get_bone_pose_rotation(root).slerp(local, w))
+
+
+## Bends one leg (CharacterRig.feet) so its ankle lands on the rig's foot point,
+## the knee forward and a little out.
+func _plant(side: String, g: Array[Transform3D], lift: Vector3) -> void:
+	var t := skeleton.find_bone("thigh_" + side)
+	var c := skeleton.find_bone("calf_" + side)
+	var f := skeleton.find_bone("foot_" + side)
+	if t < 0 or c < 0 or f < 0:
+		return
+	var to_skel := _rig.global_transform * _skel if _rig.is_inside_tree() else _skel
+	var from_world := to_skel.affine_inverse()
+	var at: Transform3D = _rig.foot_point(side)
+	var target := from_world * at.origin - lift
+	var s := g[t].origin
+	var e := g[c].origin
+	var ankle := g[f].origin
+	var l1 := s.distance_to(e)
+	var l2 := e.distance_to(ankle)
+	var to := target - s
+	var d := clampf(to.length(), absf(l1 - l2) + 0.01, l1 + l2 - 0.002)
+	var dir := to.normalized()
+	var sx := 1.0 if side == "r" else -1.0
+	var pole := (_skel.basis.inverse() * KNEE_POLE * Vector3(sx, 1, 1)).normalized()
+	var perp := pole - dir * pole.dot(dir)
+	if perp.length() < 0.001:
+		perp = (_skel.basis.inverse() * Vector3.FORWARD).normalized()
+	perp = perp.normalized()
+	var a := acos(clampf((l1 * l1 + d * d - l2 * l2) / (2.0 * l1 * d), -1.0, 1.0))
+	var knee := s + (dir * cos(a) + perp * sin(a)) * l1
+	var upper := Basis(Quaternion((e - s).normalized(), (knee - s).normalized())) * g[t].basis
+	var lower_g := Transform3D(upper, s) * skeleton.get_bone_pose(c)
+	var ankle_now := (lower_g * skeleton.get_bone_pose(f)).origin
+	var lower := Basis(Quaternion((ankle_now - lower_g.origin).normalized(), (s + dir * d - lower_g.origin).normalized())) * lower_g.basis
+	var w := _rig.foot_weight(side)
+	var parent_g := g[_parent[t]]
+	var up_local := (parent_g.basis.inverse() * upper).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(t, skeleton.get_bone_pose_rotation(t).slerp(up_local, w))
+	var low_local := (upper.inverse() * lower).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(c, skeleton.get_bone_pose_rotation(c).slerp(low_local, w))
 
 
 func _add_clips() -> void:

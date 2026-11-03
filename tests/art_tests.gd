@@ -703,6 +703,117 @@ func test_first_person_parkour() -> void:
 	var theirs = (other._skin.skeleton.get_node("Body") as MeshInstance3D).material_override.get_shader_parameter("near_cut")
 	check(fp._pull.length() <= FirstPersonBody.PULL_MAX + 0.001 and body_mat.get_shader_parameter("near_cut") > 0.0 and (theirs == null or theirs == 0.0),
 		"you pull yourself up to it, and your collar isn't drawn in front of your eyes (only yours: %s)" % [theirs])
+	# Playtest 2026-11-01: "why are the arms floating?" With the view lifted and
+	# in at the wall as Player has it hanging, each arm shows whole: no part of
+	# it nearer than what's left out is in view (16:9), so nothing cut off floats.
+	var eye_was := cam.position
+	cam.position = Vector3(0, 0.3, -0.15)
+	var whole := []
+	for yaw in [0.0, 0.8, 1.3]:
+		you.rotation.y = yaw
+		step.call(0.6)
+		var cut: float = body_mat.get_shader_parameter("near_cut")
+		var cut_off := 0
+		for side in ["r", "l"]:
+			var joints := [bone.call("upperarm_" + side).origin, bone.call("lowerarm_" + side).origin, bone.call("hand_" + side).origin]
+			for j in 2:
+				for i in 9:
+					var at: Vector3 = cam.global_transform.affine_inverse() * (joints[j] as Vector3).lerp(joints[j + 1], i / 8.0)
+					var shown := at.z < 0.0 and atan2(absf(at.x), -at.z) < deg_to_rad(52.0) and atan2(absf(at.y), -at.z) < deg_to_rad(cam.fov / 2.0)
+					if shown and at.length() < cut:
+						cut_off += 1
+		whole.append([yaw, cut_off, snappedf(cut, 0.01)])
+		check(on_grips.call(0.06) and cut <= FirstPersonBody.HANG_CUT + 0.01 and cut_off == 0,
+			"hanging with your view lifted, looking %.1f rad round, both arms show whole up to your hands (cut %.2f m, %d bits left out in view)" % [yaw, cut, cut_off])
+	# Playtest 2026-11-01 (his photo of a cat hang): your feet are braced on
+	# the wall below you, knees bent and hips out from it; your arms near
+	# straight up to the edge, so your chest and head hang back off the wall.
+	var wall_z: float = you.grip.point.z
+	var top_y: float = you.grip.point.y
+	var feet := []
+	for side in ["r", "l"]:
+		var foot: Vector3 = bone.call("foot_" + side).origin
+		var knee: Vector3 = bone.call("calf_" + side).origin
+		var hip: Vector3 = bone.call("thigh_" + side).origin
+		var bend := rad_to_deg((hip - knee).angle_to(foot - knee))
+		feet.append([snappedf(foot.z - wall_z, 0.01), snappedf(top_y - foot.y, 0.01), snappedf(bend, 1.0), snappedf(hip.z - wall_z, 0.01)])
+	var braced := feet.all(func(f: Array) -> bool: return f[0] < 0.2 and f[1] > 0.6 and f[2] < 120.0 and f[3] > 0.4)
+	check(braced, "hanging, your feet are braced on the wall below you, knees bent and hips out from it (out, down, knee, hips out: %s)" % [feet])
+	var sh_out: float = ((bone.call("upperarm_r").origin + bone.call("upperarm_l").origin) / 2.0).z - wall_z
+	var head_out: float = (bone.call("Head").origin as Vector3).z - wall_z
+	var elbow: float = rad_to_deg((bone.call("upperarm_r").origin - bone.call("lowerarm_r").origin).angle_to(bone.call("hand_r").origin - bone.call("lowerarm_r").origin))
+	check(sh_out > 0.25 and head_out > 0.15 and elbow > 140.0,
+		"and you hang back off it on near-straight arms: shoulders %.2f m and head %.2f m out from the wall, elbows %.0f°" % [sh_out, head_out, elbow])
+	# ...and your hands sit on top of the edge: no bone of either hand is in
+	# the wall (behind its face and below its top).
+	var in_wall := func() -> Array:
+		var inside := []
+		for i in sk.get_bone_count():
+			var name := sk.get_bone_name(i)
+			if name.begins_with("hand_") or name.get_slice("_", 0) in SkinnedBody.FINGERS:
+				var at: Vector3 = (bone.call(name) as Transform3D).origin
+				if at.z < wall_z - 0.005 and at.y < top_y - 0.005:
+					inside.append(name)
+		return inside
+	for yaw in [0.0, 0.8, -1.3]:
+		you.rotation.y = yaw
+		step.call(0.4)
+		check(on_grips.call(0.06) and in_wall.call().is_empty(),
+			"hanging, looking %.1f rad round, your hands sit on top of the edge, none of them in the wall (%s)" % [yaw, in_wall.call()])
+	cam.position = eye_was
+	you.rotation.y = 0.0
+	step.call(0.6)
+	# Playtest 2026-10-31: looking round while hanging, your hips stay square to
+	# the wall and both hands stay on the edge; your shoulders turn only a little.
+	var hips_on := (bone.call("pelvis") as Transform3D).basis.z.normalized()
+	for yaw in [1.0, -1.0, 1.3]:
+		you.rotation.y = yaw
+		step.call(0.5)
+		var hips := (bone.call("pelvis") as Transform3D).basis.z.normalized()
+		var square := Vector3(hips.x, 0, hips.z).normalized().dot(Vector3(hips_on.x, 0, hips_on.z).normalized())
+		check(on_grips.call(0.06) and square > 0.97,
+			"hanging and looking round (%.1f rad), both hands stay on the edge and your hips square to the wall (%s, %.2f)" % [yaw, on_grips.call(0.06), square])
+	# Looking further round, behind you, the Player has you hold on with one
+	# hand: you pivot on it, coiled, hips side on to the wall and shoulders
+	# facing away, and the other hand swings out ahead of you where you can see it.
+	you.grip["hands"] = ["r"]
+	you.rotation.y = 2.6
+	you.head.rotation.x = 0.0  # looking out, where you'd jump
+	step.call(0.8)
+	var hips_now := (bone.call("pelvis") as Transform3D).basis.z.normalized()
+	var turned_round := Vector3(hips_now.x, 0, hips_now.z).normalized().dot(Vector3(hips_on.x, 0, hips_on.z).normalized())
+	var chest := (bone.call("spine_03") as Transform3D).basis.z.normalized()
+	var chest_round := Vector3(chest.x, 0, chest.z).normalized().dot(Vector3(hips_on.x, 0, hips_on.z).normalized())
+	var swung: Vector3 = bone.call("hand_l").origin
+	var holds = fp.rig.reach.get("r")
+	check(holds is Transform3D and (holds as Transform3D).origin.distance_to(you.grip.point) < 0.3
+			and (bone.call("hand_r") as Transform3D).origin.distance_to((holds as Transform3D).origin) < 0.08,
+		"looking behind you while hanging, your right hand keeps hold of the edge")
+	check(absf(turned_round) < 0.35 and chest_round < -0.5 and cam.is_position_in_frustum(swung) and swung.distance_to(you.grip.point) > 0.5,
+		"you pivot on it, hips side on (%.2f) and shoulders facing away (%.2f), your left hand out ahead of you where you can see it (%s, %.2f m from the edge)" % [turned_round, chest_round, cam.is_position_in_frustum(swung), swung.distance_to(you.grip.point)])
+	# Turned right round, you hang off that hand: it's up over its own shoulder
+	# (not across behind your head), and you tip under it, so the free shoulder
+	# drops and its sleeve keeps out of your face.
+	you.rotation.y = 3.0
+	step.call(0.8)
+	var sh_r: Vector3 = bone.call("upperarm_r").origin
+	var sh_l: Vector3 = bone.call("upperarm_l").origin
+	var held: Vector3 = bone.call("hand_r").origin
+	var across := Vector2(held.x - sh_r.x, held.z - sh_r.z).length()
+	holds = fp.rig.reach.get("r")
+	check(holds is Transform3D and held.distance_to((holds as Transform3D).origin) < 0.08 and across < 0.3,
+		"looking right behind you, your right hand still holds on, up over that shoulder (%.2f m across)" % across)
+	check(in_wall.call().is_empty(), "and it's still on top of the edge, not in the wall (%s)" % [in_wall.call()])
+	# (in view on a 16:9 screen: this test's window is square)
+	var free_at: Vector3 = cam.global_transform.affine_inverse() * (bone.call("hand_l").origin as Vector3)
+	var in_view := free_at.z < 0.0 and atan2(absf(free_at.x), -free_at.z) < deg_to_rad(52.0) and atan2(absf(free_at.y), -free_at.z) < deg_to_rad(cam.fov / 2.0)
+	check(sh_l.y < sh_r.y - 0.05 and in_view,
+		"you hang off it, your free shoulder lower (%.2f m), that hand still in view (%s)" % [sh_r.y - sh_l.y, free_at])
+	you.grip.erase("hands")
+	you.rotation.y = 0.0
+	you.head.rotation.x = 0.6
+	step.call(0.6)
+	check(on_grips.call(0.06), "facing the wall again, both hands are back on the edge")
 
 	# Climbing a pipe, hand over hand (Player reaches 1.7 m up it).
 	you.move = "climb"
@@ -732,6 +843,18 @@ func test_first_person_parkour() -> void:
 	step.call(0.6)
 	var palm := -(bone.call("hand_r") as Transform3D).basis.x.normalized()
 	check(on_grips.call(0.06) and palm.dot(Vector3.FORWARD) > 0.8, "on a ledge facing the wall, your palms are flat on it (%.2f)" % palm.dot(Vector3.FORWARD))
+	# Looking round, you're still chest to the wall: palms flat on it, each hand
+	# on its own side.
+	for yaw in [1.2, -1.2]:
+		you.rotation.y = yaw
+		step.call(0.4)
+		var flat := -(bone.call("hand_r") as Transform3D).basis.x.normalized()
+		var both := fp.rig.reach.has("r") and fp.rig.reach.has("l")
+		var r_side: float = (fp.rig.reach["r"] as Transform3D).origin.x - (fp.rig.reach["l"] as Transform3D).origin.x if both else 0.0
+		check(flat.dot(Vector3.FORWARD) > 0.8 and r_side > 0.3,
+			"on a ledge looking round (%.1f rad), your palms stay on the wall, right hand on the right (%.2f, %.2f m)" % [yaw, flat.dot(Vector3.FORWARD), r_side])
+	you.rotation.y = 0.0
+	step.call(0.4)
 
 	# Mantling: hands on the edge as you go up, letting go once you're over it.
 	you.move = "mantle"
