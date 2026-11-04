@@ -187,7 +187,7 @@ func _build_wall_sheet(size: Vector2) -> void:
 	var width := size.x - margin * 2
 	var room := top - (-size.y / 2 + margin)
 	var font_size := 44
-	while font_size > 14 and _lines_height(lines, font_size, width / px) * px > room:
+	while font_size > 8 and _lines_height(lines, font_size, width / px) * px > room:  # small on a tag; held up, it reads big
 		font_size -= 2
 	var y := top
 	var n := 0
