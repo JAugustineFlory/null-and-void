@@ -17,22 +17,22 @@ const LEAVE := "Log off"
 const SECRET := "???"
 const NO_CASES := "No cases closed yet. Give it time."
 const CREW_NOTES := {
-	"dana": "Can run cable through any wall. Thinks a database is a kind of cable.",
-	"priya": "Fixed my phone in four minutes. Then sold me a case for it.",
-	"rosa": "Runs a school office. Nothing scares her. Especially not you.",
-	"kit": "Never takes the stairs. Rarely takes the floor.",
-	"june": "My aunt. Talks to strangers in Norway on the radio. Do not let her near the radio.",
-	"mei": "Makes great coffee. Laughs when she's scared, so we always know.",
-	"marcus": "Ex-mall security. Still says 'sir' to the vending machine.",
-	"theo": "Says he's 'basically a hacker'. He has played a game about hackers.",
-	"sam": "Lifts anything. Asks where it goes after.",
-	"luis": "Can fix anything with a screwdriver and twenty minutes. Has never met a computer he trusts.",
-	"ike": "Calls the van 'our mobile platform'. Calls lunch 'a sync'.",
-	"walt": "Climbs poles in storms for a living. Afraid of the photocopier.",
+	"dana": "Wired a vet's office for me once, and I never gave her back. Calls me 'chief', which I've decided means CEO.",
+	"priya": "Fixed my phone in four minutes, then sold me a case for it. Hired on the spot.",
+	"rosa": "Twelve years running a school's front office. Counts heads at lunch. Counts mine twice.",
+	"kit": "Delivered a parcel to the garage and never left. Climbs first, asks later, mostly doesn't ask.",
+	"june": "My aunt. Has talked to every continent from her garden shed, and says 'over' at dinner.",
+	"mei": "Answered my ad on a dare. Laughs when she's nervous, so we always know where she is.",
+	"marcus": "Ten years of mall security, swore off night work, then I called. Still checks the corners of my kitchen.",
+	"theo": "Quick with computers, quicker with a joke. Thinks every job is a video game, and I've stopped correcting him.",
+	"sam": "Professional mover. Joined because I asked nicely. Lifts anything, then asks where it goes.",
+	"luis": "My oldest friend. Twenty years fixing my plumbing, my van and my bad decisions, mostly by turning them off and on again.",
+	"ike": "Told me he 'basically knows SQL'. Calls the van 'our mobile platform'.",
+	"walt": "Climbs poles in storms for a living, and still won't go near the photocopier. Says he's only here to keep an eye on us.",
 }
 const COMPANY := [
-	["about", "Byte-Right IT Services. Founded in Maddison's garage. Fleet: one van (two if you count the one on bricks)."],
-	["reviews", "★★★★★ 'They came!' - Bexley Library.  ★★★★★ 'Very friendly.' - Maddison's mom.  ★☆☆☆☆ 'They unplugged the fridge.' - Kemp Dental."],
+	["about", "Byte-Right IT Services. Founded in Maddison's garage. Fleet: one van. On the radio, it's van three."],
+	["reviews", "★★★★★ 'They came!' - Bexley Library (paid in exact change).  ★★★★★ 'Very friendly.' - Maddison's mom.  ★☆☆☆☆ 'They unplugged the fridge.' - Kemp Dental."],
 	["mission", "We fix what's broken."],
 ]
 
