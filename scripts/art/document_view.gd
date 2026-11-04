@@ -22,6 +22,8 @@ extends Control
 
 signal copy_requested(text: String)
 signal closed
+## Its lines were printed smaller (fit_scale) so they all fit on the page.
+signal fitted(scale: float)
 
 const KINDS := ["memo", "manual", "card", "brochure", "clipboard"]
 ## Design size of each paper, where its text goes (scaled to fit the screen), the
@@ -50,6 +52,12 @@ var _title: Label
 var _close: Button
 var _last_row: HBoxContainer
 var _columns: Array[float] = []  # widths of the ruled table being filled in, if any
+## How big its lines are drawn (1: as printed). A page with more on it than fits
+## is printed smaller, so its last line is always on the paper.
+var fit_scale := 1.0
+var _fit_queued := false
+var _fit_lo := 0.0  # the biggest print found to fit (0: none yet)
+var _fit_hi := 1.0  # the smallest found not to
 ## Drawn into a texture (paper_texture): just the paper, at scale 1 from the
 ## top-left corner, with no dimming and no close button.
 var flat := false:
@@ -76,6 +84,8 @@ func _init() -> void:
 	body.name = "Body"
 	body.clip_contents = true
 	body.add_theme_constant_override("separation", 6)
+	body.minimum_size_changed.connect(_queue_fit_lines)
+	body.sort_children.connect(_queue_fit_lines)
 	paper.add_child(body)
 	_title = Label.new()
 	_title.name = "Title"
@@ -122,6 +132,10 @@ func set_paper(paper_kind: String) -> void:
 	paper.size = p.size
 	paper.pivot_offset = paper.size / 2
 	body.position = p.body.position
+	fit_scale = 1.0
+	_fit_lo = 0.0
+	_fit_hi = 1.0
+	body.scale = Vector2.ONE
 	body.size = p.body.size
 	margin_width = p.margin
 	_close.position = Vector2(paper.size.x - 110, -46)
@@ -525,6 +539,50 @@ func _style_title() -> void:
 	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 
+func _queue_fit_lines() -> void:
+	if not _fit_queued:
+		_fit_queued = true
+		_fit_lines.call_deferred()
+
+
+## Lines settle a frame or two after they go in (wrapping needs their width), so
+## this runs each time they do: if they run past the page, they're printed
+## smaller, and a little wider so they keep to the page's right edge. Narrowing
+## in on the biggest print that fits takes a few rounds.
+func _fit_lines() -> void:
+	_fit_queued = false
+	var room: Vector2 = PAPERS[kind].body.size
+	var need := body.get_combined_minimum_size().y
+	if need * fit_scale <= room.y + 0.5:
+		_fit_lo = fit_scale
+		if fit_scale < 1.0 and _fit_hi - _fit_lo > 0.01:
+			_set_fit((_fit_lo + _fit_hi) / 2.0)
+		return
+	_fit_hi = fit_scale
+	if _fit_lo >= _fit_hi:
+		_fit_lo = 0.0  # more was written on it since
+	if _fit_lo == 0.0:
+		_set_fit(room.y / need)  # fits: wider lines only ever run shorter
+	elif _fit_hi - _fit_lo > 0.01:
+		_set_fit((_fit_lo + _fit_hi) / 2.0)
+	else:
+		_set_fit(_fit_lo)
+
+
+func _set_fit(s: float) -> void:
+	var room: Vector2 = PAPERS[kind].body.size
+	if is_equal_approx(s, fit_scale) and body.size.x == room.x / s:
+		return
+	fit_scale = s
+	body.scale = Vector2(s, s)
+	body.size = room / s
+	var vp := get_parent()
+	if vp and vp.has_method("redraw"):
+		vp.redraw()
+	fitted.emit(s)
+	_queue_fit_lines()
+
+
 func _fit() -> void:
 	if paper == null:
 		return
@@ -660,6 +718,15 @@ class _RenderOnce extends SubViewport:
 
 	func _init() -> void:
 		render_target_update_mode = SubViewport.UPDATE_ALWAYS
+
+	## The page changed after it was drawn: draw it again for a few frames (unless
+	## something is keeping it drawing already).
+	func redraw() -> void:
+		if render_target_update_mode == SubViewport.UPDATE_ALWAYS and not is_processing():
+			return
+		_frames = 0
+		render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		set_process(true)
 
 	func _process(_delta: float) -> void:
 		_frames += 1
