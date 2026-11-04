@@ -2075,10 +2075,11 @@ func test_coop_tape_secret() -> void:
 	net.profile = saved
 
 
-## Up at a terminal brings back the last command anyone in the crew typed, in the
-## order the host ran them (Augustine, v0.8): not only your own.
+## Up at a terminal brings back the last command anyone in the crew typed there, in
+## the order the host ran them (Augustine, v0.8): one history per terminal, shared
+## by everyone who uses it.
 func test_coop_shared_history() -> void:
-	print("Co-op: terminal history is shared")
+	print("Co-op: each terminal's history is shared")
 	_game().new_run(5)
 	var worlds := await _coop_worlds(1)
 	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
@@ -2102,7 +2103,7 @@ func test_coop_shared_history() -> void:
 	check(hui._input.text == "SELECT na", "a teammate's command doesn't touch the line you're typing")
 	hui._input.text = ""
 	hui._on_input_key(up)
-	check(hui._input.text == "SELECT * FROM visitors;", "Up on the host brings back the client's command")
+	check(hui._input.text == "SELECT * FROM visitors;", "Up on the host brings back the client's command at the same terminal")
 	# The client scrolls back to its own command, then the host sends one.
 	cui._on_input_key(up)
 	check(cui._input.text == "SELECT * FROM visitors;", "Up on the client brings back its own")
@@ -2125,8 +2126,31 @@ func test_coop_shared_history() -> void:
 	hui._submit()
 	await _frames(15)
 	var sent := ["SELECT * FROM visitors;", "SELECT name FROM visitors;", "SELECT COUNT(*) FROM visitors;"]
-	check(cui._history == sent, "the client's history has everyone's commands in the order they ran (%s)" % [cui._history])
+	check(cui._history == sent, "the client's history at the desk has everyone's commands there, in the order they ran (%s)" % [cui._history])
 	check(hui._history == sent + [".tables"], "and so does the host's, with their own .tables at the end (%s)" % [hui._history])
+	# A second terminal on the floor, the same on both machines: its history is its own.
+	var other := []
+	for l in levels:
+		var t := Terminal.spawn(l.geo, Vector3(-1.5, 1.1, -1.0), 0, "BACK OFFICE", l.db, l.terminal_ui)
+		t.name = "HistoryTestTerminal"
+		other.append(t)
+	await _frames(5)
+	cui.close()
+	cui.open(other[1], c1.player)
+	cui._on_input_key(up)
+	check(cui._input.text == "", "a terminal nobody has typed at has no history, whatever was typed at the desk")
+	cui._input.text = "SELECT id FROM visitors;"
+	cui._submit()
+	await _frames(15)
+	hui._input.text = ""
+	hui._on_input_key(up)
+	check(hui._input.text == ".tables", "a command at the other terminal stays out of the desk's history (%s)" % hui._input.text)
+	hui.close()
+	hui.open(other[0], host.player)
+	hui._on_input_key(up)
+	check(hui._input.text == "SELECT id FROM visitors;", "and at the other terminal, Up on the host brings back the client's command there")
+	check(hui._history_of(other[0]) == ["SELECT id FROM visitors;"] and cui._history_of(other[1]) == ["SELECT id FROM visitors;"], "both machines hold the same history for it")
+	check(hui._history_of(host.desk_terminal) == sent + [".tables"] and cui._history_of(c1.desk_terminal) == sent, "and the desk's history is unchanged on both")
 	hui.close()
 	cui.close()
 	await _frames(5)
