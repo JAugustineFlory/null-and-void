@@ -137,6 +137,8 @@ func _group_floor_14() -> void:
 	test_level_1_data_every_seed()
 	await test_level_1_scene()
 	await test_level_1_book_huddle()
+	# The case in the corner on every floor, solo and with two players on floor 14.
+	await _run_file("res://tests/case_floor_tests.gd")
 
 
 ## Easy SQL's chapters at their moments on the ground floor and floor 14.
