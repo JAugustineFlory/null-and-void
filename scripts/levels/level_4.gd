@@ -343,7 +343,7 @@ func build() -> void:
 	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, -90.0, "10")
 	stair_out.name = "Door_STAIR-OUT"
 	exit_door = stair_out
-	Document.place(geo, STAIR_OUT_AT + Vector3(-0.12, 1.75, 0.9), -90.0, "Stair notice", STAIR_CLOSED_LINES, false, "laminated", Vector2(0.26, 0.2))
+	Document.place(geo, STAIR_OUT_AT + Vector3(-0.12, 1.75, 0.9), 90.0, "Stair notice", STAIR_CLOSED_LINES, false, "laminated", Vector2(0.26, 0.2))
 
 	_build_hall(colors)
 	_build_control_room(colors)
@@ -589,8 +589,8 @@ func _build_hall(colors: Dictionary) -> void:
 		lamp.name = "Lamp_" + r[0]
 		lamps[r[0]] = lamp
 		if str(r[4]) != "":
-			Document.place(geo, at + Vector3(0.14, -0.3, 0.2), 90.0, "Breaker tag", [r[0], {"text": r[4], "hand": true}], false, "note", Vector2(0.12, 0.09))
-	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), 90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
+			Document.place(geo, at + Vector3(0.14, -0.3, 0.2), -90.0, "Breaker tag", [r[0], {"text": r[4], "hand": true}], false, "note", Vector2(0.12, 0.09))
+	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), -90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
 	card.clues = [{"case": "seal", "opens": TEXT.case_seal, "tables": ["lockouts", "breakers"], "text": "The lockout card: a locked-out breaker stays off. Log it on the controller, then read it back at the panel it covers within 30 seconds."}]
 	# The plant maintenance desk, facing the panel's end: its terminal and the work order.
 	Greybox.box(geo, Vector3(-6, 0.5, 1.6), Vector3(2.4, 1.0, 0.8), Color(0.4, 0.38, 0.34), "MaintDesk")
@@ -653,8 +653,8 @@ func _build_control_room(colors: Dictionary) -> void:
 	# The shift's papers pinned on a corkboard by the desk: Facilities' notice, and
 	# beside it the earlier copy of the warning.
 	Greybox.box(geo, Vector3(7.9, 1.6, -17.92), Vector3(1.8, 1.0, 0.04), Color(0.55, 0.42, 0.28), "Corkboard")
-	Document.place(geo, Vector3(7.85, 1.6, -17.88), 0, "Facilities notice", NOTICE_LINES, false, "paper", Vector2(0.21, 0.28))
-	Document.place(geo, Vector3(7.3, 1.8, -17.88), 0, "Shift roster", ["PLANT 10  -  ON CALL", "Mon-Wed: R. Okonkwo, ext. 4410", "Thu-Sun: Facilities desk, ext. 2200"], false, "paper", Vector2(0.21, 0.15))
+	Document.place(geo, Vector3(7.85, 1.6, -17.88), 180, "Facilities notice", NOTICE_LINES, false, "paper", Vector2(0.21, 0.28))
+	Document.place(geo, Vector3(7.3, 1.8, -17.88), 180, "Shift roster", ["PLANT 10  -  ON CALL", "Mon-Wed: R. Okonkwo, ext. 4410", "Thu-Sun: Facilities desk, ext. 2200"], false, "paper", Vector2(0.21, 0.15))
 	var warning := Document.place(geo, Vector3(8.45, 1.55, -17.88), 0, "Sticky note", [{"text": WARNING, "hand": true}], false, "sticky")
 	warning.name = "EarlyWarning"
 	warning.read_by.connect(func(p): sync.event("_warning_read", [players.id_of(p)]))

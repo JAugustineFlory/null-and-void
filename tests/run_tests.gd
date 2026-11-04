@@ -192,6 +192,8 @@ func _group_floor_10() -> void:
 
 func _group_floor_9() -> void:
 	await _run_file("res://tests/level_5_tests.gd")
+	# Papers on every floor face their readers (here as this group has the room).
+	await _run_file("res://tests/paper_facing_tests.gd")
 
 
 ## Co-op: several machines in one process.
@@ -4123,11 +4125,11 @@ func _check_l1_documents(level: Node) -> void:
 	for d in level.find_children("*", "Document", true, false):
 		if d.title in ["SERVER ROOM A - DOOR CONTROLLERS", "Reminders"]:
 			check(level.terminal.global_position.distance_to(d.global_position) < 1.5, "%s is on the terminal desk" % d.title)
-			# A flat paper's page reads from its +Z side up (HeldPaper): the top of the
-			# page points at the terminal and wall, the reader stands in the room.
-			check((d.global_basis * Vector3.BACK).z > 0.9, "%s reads the right way up from the room, so it isn't spun round as you pick it up" % d.title)
+			# A flat paper's text runs up its local -Z, its foot towards +Z (Document.place):
+			# the foot towards the room, the top at the terminal and wall.
+			check((d.global_basis * Vector3.BACK).z < -0.9, "%s reads the right way up from the room, so it isn't spun round as you pick it up" % d.title)
 		elif d.title == "SYSLOG PRINTOUT":
-			check((d.global_basis * Vector3.BACK).z < -0.9, "the syslog printout reads the right way up from the room, not from the wall")
+			check((d.global_basis * Vector3.BACK).z > 0.9, "the syslog printout reads the right way up from the room, not from the wall")
 
 
 func _game() -> Node:

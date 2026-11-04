@@ -388,7 +388,7 @@ func build() -> void:
 		Greybox.panel(geo, Vector3(x, 1.1, 7.88), Vector3(1.3, 2.2, 0.04), Color(0.5, 0.52, 0.55), 0.0)
 		Greybox.label(geo, Vector3(x, 2.5, 7.86), "ELEVATOR  18", 32, Color(1.0, 0.45, 0.1), 180)
 	# Facilities memo by the lifts: day staff use the stairs until the lifts are fixed.
-	Document.place(geo, Vector3(0, 1.5, 7.87), 180, "Facilities memo", [
+	Document.place(geo, Vector3(0, 1.5, 7.87), 0, "Facilities memo", [
 		"HALCYON DATA SYSTEMS  -  FACILITIES",
 		"MEMO  10/15",
 		"Lifts 1-4 keep faulting after Tuesday night's power event.",
@@ -401,7 +401,7 @@ func build() -> void:
 	stair_in.name = "Door_STAIR-IN"
 	stair_in.locked = false
 	Greybox.box(geo, STAIR_IN_AT + Vector3(0.1, 0.03, 0.55), Vector3(0.12, 0.06, 0.2), Color(0.6, 0.45, 0.2), "DoorWedge")
-	Document.place(geo, STAIR_IN_AT + Vector3(0.12, 1.75, -0.9), 90.0, "Door sign", [
+	Document.place(geo, STAIR_IN_AT + Vector3(0.12, 1.75, -0.9), -90.0, "Door sign", [
 		"FIRE DOOR",
 		"KEEP CLOSED",
 		"DO NOT PROP",
@@ -527,10 +527,10 @@ func _build_reading_room(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(-7.5, 0.7, 1.0), Vector3(0.9, 1.4, 3.6), Color(0.45, 0.32, 0.2), "CardCatalogue")
 	Greybox.label(geo, Vector3(-7.03, 1.5, 1.0), "CATALOGUE  A - Z", 30, Color(0.95, 0.92, 0.85), 90)
 	# The clerk's memo pinned on the drawers: DISTINCT, found here.
-	var memo := Document.place(geo, Vector3(-7.02, 1.15, 2.3), 90, "Retention review memo", MEMO_LINES, false, "memo")
+	var memo := Document.place(geo, Vector3(-7.02, 1.15, 2.3), -90, "Retention review memo", MEMO_LINES, false, "memo")
 	memo.read_by.connect(func(_p): sync.event("_book_huddle", ["easy_sql_distinct"]))
 	# The stacks' lighting panel by the stacks doors: why it's dark through there.
-	Document.place(geo, Vector3(-1.6, 1.5, -5.88), 0, "Stacks lighting notice", [
+	Document.place(geo, Vector3(-1.6, 1.5, -5.88), 180, "Stacks lighting notice", [
 		"STACKS LIGHTING",
 		"Occupancy sensors. Lights come on with motion 07:00-19:00.",
 		"After 19:00 the sensors are off. Override at the records desk (archivist key).",
@@ -905,7 +905,7 @@ func _build_safe_room() -> void:
 	]
 	pc.queried.connect(_on_query.bind("pc"))
 	# His note, on the cot: where the stair key went.
-	var note := Document.place(geo, Vector3(c.x, 0.41, c.z + 2.2), 0, "Mercer's note", NOTE_LINES, true, "note")
+	var note := Document.place(geo, Vector3(c.x, 0.41, c.z + 2.2), 180, "Mercer's note", NOTE_LINES, true, "note")
 	note.clues = [{"case": "key", "opens": TEXT.case_key, "tables": ["retrieval_slips"], "text": "Mercer's note: the stair key is in the box on the returns cart that nobody checked back in."}]
 	note.read_by.connect(func(_p): sync.event("_note_read"))
 	# The floppy, one copy: whoever takes it carries it.

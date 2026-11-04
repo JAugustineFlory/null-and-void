@@ -584,7 +584,7 @@ func _build_hr_front(colors: Dictionary) -> void:
 		sync.event("_ask", ["people"])
 		sync.event("_book_huddle", ["api_check"]))
 	# The badge poster on the east wall.
-	var poster := Document.place(geo, Vector3(9.88, 1.8, -3), -90, "Badge poster", POSTER_LINES, false, "paper", Vector2(0.42, 0.56))
+	var poster := Document.place(geo, Vector3(9.88, 1.8, -3), 90, "Badge poster", POSTER_LINES, false, "paper", Vector2(0.42, 0.56))
 	poster.clues = [{"case": "radio", "text": "The poster: every reader logs every swipe. GET /swipes/<badge> is a badge's log."}]
 	# The training shelf by the west wall, with the book on it.
 	Greybox.box(geo, Vector3(-9.3, 0.9, 0.5), Vector3(1.2, 1.8, 0.4), Color(0.36, 0.3, 0.26), "TrainingShelf")
@@ -673,7 +673,7 @@ func _build_payroll(colors: Dictionary) -> void:
 	cupboard = Interactable.create(self, Vector3(9.4, 1.0, -21.0), Vector3(0.5, 0.8, 0.5), "Reset the lights breaker by hand", Color(0.4, 0.4, 0.42))
 	cupboard.name = "BreakerCupboard"
 	cupboard.used.connect(func(p): sync.event("_hand_reset_started", [players.id_of(p)]))
-	Document.place(geo, Vector3(9.88, 1.7, -21.0), -90, "Cupboard sign", CUPBOARD_LINES, false, "laminated", Vector2(0.22, 0.16))
+	Document.place(geo, Vector3(9.88, 1.7, -21.0), 90, "Cupboard sign", CUPBOARD_LINES, false, "laminated", Vector2(0.22, 0.16))
 	# The facilities desk by the north wall: the panel's terminal and its clipboard.
 	Greybox.box(geo, Vector3(6, 0.5, -26.5), Vector3(3.0, 1.0, 0.8), Color(0.38, 0.38, 0.4), "FacilitiesDesk")
 	panel = Terminal.spawn(geo, Vector3(5.4, 1.0, -26.5), 0, "PANEL 9", db, terminal_ui)

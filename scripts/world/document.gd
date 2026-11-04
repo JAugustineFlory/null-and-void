@@ -43,8 +43,13 @@ var _copied := false
 
 
 ## `lines` is an Array of Strings (typed lines) or Dictionaries (see doc_lines).
-## Stands like a poster facing -Z, or lies flat on a desk with `flat`; on a desk,
-## `pos` is the desk-top spot. `size` is only a fallback for an unknown look.
+## Hangs on a wall, or lies flat on a desk with `flat`; on a desk, `pos` is the
+## desk-top spot. `size` is only a fallback for an unknown look.
+## `facing_deg` turns it so its printed side faces whoever reads it. At 0°: a
+## paper, note or laminated card on a wall faces -Z, like a poster; a clipboard,
+## binder, brochure or sticky on a wall faces +Z; lying flat, the foot of its
+## text is towards +Z, where you stand. tests/paper_facing_tests.gd checks every
+## floor's papers this way, so one turned to the wall says which to turn.
 static func place(parent: Node, pos: Vector3, facing_deg: float, doc_title: String, lines: Array, flat: bool = false, doc_look: String = "paper", size := Vector2(0.21, 0.28)) -> Document:
 	var d := Document.new()
 	d.name = "Doc_" + doc_title.validate_node_name().replace(" ", "")
