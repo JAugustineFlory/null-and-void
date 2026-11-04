@@ -27,6 +27,8 @@ var player: Player
 var _output: RichTextLabel
 var _input: TextEdit
 var _title: Label
+## Up and Down: every command typed on this floor, by anyone in the crew, in the
+## order the host ran them (yours go in as you press Enter).
 var _history: Array[String] = []
 var _history_i := -1
 ## Every line on screen that can be written into the notebook: {kind, text,
@@ -663,6 +665,15 @@ func _submit() -> void:
 	run(sql)
 
 
+## A teammate's command, for Up and Down. Scrolling back stays where it is; at
+## the end, Up now starts from this one.
+func _remember(line: String) -> void:
+	var at_end := _history_i < 0 or _history_i >= _history.size()
+	_history.append(line)
+	if at_end:
+		_history_i = _history.size()
+
+
 ## Run a command or query as if typed. Public so tests and scripted events can use it.
 ## Queries go through the level's LevelSync, so in co-op the host runs them.
 func run(sql: String) -> void:
@@ -714,6 +725,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	if not mine:
 		var net := get_node_or_null("/root/Net")
 		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+	if not mine:
+		_remember(sql)
 	var out: Array = [[_echo(sql, who), "echo"]]
 	if not result.ok:
 		out.append(["[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error"])
@@ -761,6 +774,7 @@ func show_request(on_terminal: Node, line: String, res: Dictionary, from_peer: i
 	if not mine:
 		var net := get_node_or_null("/root/Net")
 		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+		_remember(line)
 	on_terminal.print_line(_echo(line, who), "echo")
 	if res.is_empty():
 		on_terminal.print_line("[color=#ff6655]No network API on this terminal. It only speaks SQL.[/color]")

@@ -201,6 +201,7 @@ func _group_coop() -> void:
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_terminal_screens()
+	await test_coop_shared_history()
 	await test_coop_notes_huddle()
 	await test_coop_looks()
 	await test_coop_sitting()
@@ -2072,6 +2073,64 @@ func test_coop_tape_secret() -> void:
 	check(not levels[0].tape.enabled and not levels[1].tape.enabled, "the tape is used up on every machine")
 	await _coop_close(worlds)
 	net.profile = saved
+
+
+## Up at a terminal brings back the last command anyone in the crew typed, in the
+## order the host ran them (Augustine, v0.8): not only your own.
+func test_coop_shared_history() -> void:
+	print("Co-op: terminal history is shared")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var c1 = levels[1]
+	var hui: TerminalUI = host.terminal_ui
+	var cui: TerminalUI = c1.terminal_ui
+	hui.open(host.desk_terminal, host.player)
+	cui.open(c1.desk_terminal, c1.player)
+	await _frames(10)
+	var up := InputEventKey.new()
+	up.keycode = KEY_UP
+	up.pressed = true
+	var down: InputEventKey = up.duplicate()
+	down.keycode = KEY_DOWN
+	hui._input.text = "SELECT na"  # the host is halfway through a line of their own
+	cui._input.text = "SELECT * FROM visitors;"
+	cui._submit()
+	await _frames(15)
+	check(hui._input.text == "SELECT na", "a teammate's command doesn't touch the line you're typing")
+	hui._input.text = ""
+	hui._on_input_key(up)
+	check(hui._input.text == "SELECT * FROM visitors;", "Up on the host brings back the client's command")
+	# The client scrolls back to its own command, then the host sends one.
+	cui._on_input_key(up)
+	check(cui._input.text == "SELECT * FROM visitors;", "Up on the client brings back its own")
+	hui._input.text = "SELECT name FROM visitors;"
+	hui._submit()
+	await _frames(15)
+	check(cui._input.text == "SELECT * FROM visitors;", "the host sending one doesn't move the client's place in the history")
+	cui._on_input_key(down)
+	check(cui._input.text == "SELECT name FROM visitors;", "Down from there reaches the host's command, sent after")
+	cui._on_input_key(down)
+	check(cui._input.text == "", "and past it the line is empty again")
+	cui._on_input_key(up)
+	check(cui._input.text == "SELECT name FROM visitors;", "from the end, Up starts at the newest command, the host's")
+	cui._input.text = ""
+	# Both send one more, client first: everyone's history reads in the same order.
+	cui._input.text = "SELECT COUNT(*) FROM visitors;"
+	cui._submit()
+	await _frames(15)
+	hui._input.text = ".tables"  # the host's own dot command stays in their own history
+	hui._submit()
+	await _frames(15)
+	var sent := ["SELECT * FROM visitors;", "SELECT name FROM visitors;", "SELECT COUNT(*) FROM visitors;"]
+	check(cui._history == sent, "the client's history has everyone's commands in the order they ran (%s)" % [cui._history])
+	check(hui._history == sent + [".tables"], "and so does the host's, with their own .tables at the end (%s)" % [hui._history])
+	hui.close()
+	cui.close()
+	await _frames(5)
+	await _coop_close(worlds)
 
 
 func test_coop_terminal_screens() -> void:
