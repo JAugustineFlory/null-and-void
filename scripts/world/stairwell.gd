@@ -83,7 +83,10 @@ static func _flight_down(holder: Node3D, concrete: Color) -> void:
 			holder.remove_child(c)
 			c.free()
 	var back := -4.1
-	var depth := STEPS_DOWN * STEP_RISE + 0.2
+	# The well's foot sits a whole number of navmesh cells (0.25 m, LevelBase) below
+	# the floor slab's underside (-0.2): the bake's grid starts at the lowest
+	# geometry, so this keeps every floor's walkable surfaces where they were.
+	var depth := 1.45
 	# The floor: all of the landing, and the strip under the flight up.
 	Greybox.box(holder, Vector3(0, -0.1, (DOWN_FROM_Z - 0.1) / 2.0), Vector3(3.6, 0.2, -DOWN_FROM_Z - 0.1), concrete.darkened(0.3), "Floor")
 	Greybox.box(holder, Vector3(0.85, -0.1, (DOWN_FROM_Z + back) / 2.0), Vector3(1.9, 0.2, DOWN_FROM_Z - back), concrete.darkened(0.3), "Floor")
