@@ -926,7 +926,7 @@ func _build_safe_room() -> void:
 	]
 	pc.queried.connect(_on_query.bind("pc"))
 	# His note, on the cot: where the stair key went.
-	var note := Document.place(geo, Vector3(c.x, 0.41, c.z + 2.2), 0, "Mercer's note", NOTE_LINES, true, "note")
+	var note := Document.place(geo, Vector3(c.x, 0.41, c.z + 2.2), 180, "Mercer's note", NOTE_LINES, true, "note")
 	note.clues = [{"case": "key", "opens": TEXT.case_key, "tables": ["retrieval_slips"], "text": "Mercer's note: the stair key is in the box on the returns cart that nobody checked back in."}]
 	note.read_by.connect(func(_p): sync.event("_note_read"))
 	# The floppy, one copy: whoever takes it carries it.

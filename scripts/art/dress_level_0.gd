@@ -28,6 +28,37 @@ const DARK_CHECK := [
 static func apply(level: LevelBase) -> void:
 	var geo := level.geo
 	var dress := ArtDress.dressing_root(level)
+	ground(geo, dress)
+	ArtDress.reskin(geo, [
+		# Car park and the building front
+		{"names": ["Asphalt"], "mat": ArtPalette.surface("asphalt")},
+		{"names": ["Facade"], "mat": ArtPalette.surface("concrete", Color(1.1, 1.05, 0.95))},
+		{"names": ["Fence"], "mat": ArtPalette.flat(Color(0.18, 0.22, 0.19), 0.6, 0.5)},
+		{"names": ["Canopy", "LampPost"], "mat": ArtPalette.flat(Color(0.28, 0.28, 0.3), 0.6, 0.3)},
+	])
+	# Car park: two staff cars, one in each side bay. The van has the middle.
+	ArtProps.car(geo, Vector3(-4, 0, 16.6), 0, Color(0.42, 0.12, 0.1))
+	ArtProps.car(geo, Vector3(8, 0, 16.6), 0, Color(0.55, 0.62, 0.68))
+	_tower(level, dress)
+	DressVan.apply(level, Vector3(2, 0, 16.6))
+	# The sagging cable tray in the hall (the first crouch) sits outside geo.
+	var tray := level.get("cable_tray") as Node3D
+	if tray:
+		ArtDress.reskin(tray.get_parent() as Node3D, [{"names": ["CableTray"], "mat": ArtPalette.surface("metal")}])
+
+	ArtDress.link_light_panels(level)
+	ArtKit.dress_stairwells(level)
+	ArtMood.polish(level.environment)
+	ArtDress.explain_dark(level, DARK_CHECK, 3.6, [Vector3(10.2, 0, -12.6)])  # the IT closet's ceiling panel stays bare
+	var rourke: Node3D = level.get("rourke")
+	if rourke:
+		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
+
+
+## The ground floor indoors (GroundFloor's rooms, under `geo`, in Level 0's
+## coordinates): Level 0's, and Level 4's when the crew come back down to it.
+## Solid props go in `geo`, the rest in `dress`, which stands where `geo` does.
+static func ground(geo: Node3D, dress: Node3D) -> void:
 	var drywall := ArtPalette.surface("drywall")
 	var tiles := ArtPalette.surface("ceiling_tile")
 	var concrete := ArtPalette.surface("concrete")
@@ -68,11 +99,6 @@ static func apply(level: LevelBase) -> void:
 		{"names": ["Floor", "Ceiling"], "zone": CLOSET, "mat": concrete},
 		{"names": ["Wall_"], "zone": CLOSET, "mat": ArtPalette.surface("concrete", Color(1.0, 0.95, 0.85))},
 		{"names": ["Shelf", "Vent"], "mat": metal},
-		# Car park and the building front
-		{"names": ["Asphalt"], "mat": ArtPalette.surface("asphalt")},
-		{"names": ["Facade"], "mat": ArtPalette.surface("concrete", Color(1.1, 1.05, 0.95))},
-		{"names": ["Fence"], "mat": ArtPalette.flat(Color(0.18, 0.22, 0.19), 0.6, 0.5)},
-		{"names": ["Canopy", "LampPost"], "mat": ArtPalette.flat(Color(0.28, 0.28, 0.3), 0.6, 0.3)},
 		# Everything else indoors on this floor
 		{"names": ["Ceiling"], "mat": tiles},
 		{"names": ["Wall_"], "mat": drywall},
@@ -106,29 +132,11 @@ static func apply(level: LevelBase) -> void:
 	ArtProps.boxes(geo, Vector3(-15.6, 0, 1.6), 0, 3)
 	ArtProps.boxes(geo, Vector3(-16.4, 0, 6.4), 20, 2)
 
-	# Car park: two staff cars, one in each side bay. The van has the middle.
-	ArtProps.car(geo, Vector3(-4, 0, 16.6), 0, Color(0.42, 0.12, 0.1))
-	ArtProps.car(geo, Vector3(8, 0, 16.6), 0, Color(0.55, 0.62, 0.68))
-
 	var legs := ArtPalette.flat(Color(0.6, 0.61, 0.62), 0.3, 0.8)
 	for b in geo.get_children():
 		if b is StaticBody3D and ArtDress._name_matches(b.name, ["CafTable", "SortingTable"]):
 			ArtDress.table_look(b, ArtPalette.surface("laminate"), legs)
 	_ground_floor(geo, dress)
-	_tower(level, dress)
-	DressVan.apply(level, Vector3(2, 0, 16.6))
-	# The sagging cable tray in the hall (the first crouch) sits outside geo.
-	var tray := level.get("cable_tray") as Node3D
-	if tray:
-		ArtDress.reskin(tray.get_parent() as Node3D, [{"names": ["CableTray"], "mat": metal}])
-
-	ArtDress.link_light_panels(level)
-	ArtKit.dress_stairwells(level)
-	ArtMood.polish(level.environment)
-	ArtDress.explain_dark(level, DARK_CHECK, 3.6, [Vector3(10.2, 0, -12.6)])  # the IT closet's ceiling panel stays bare
-	var rourke: Node3D = level.get("rourke")
-	if rourke:
-		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
 
 
 ## Halcyon Tower over the lobby: from the car park it rises out of sight, thirty

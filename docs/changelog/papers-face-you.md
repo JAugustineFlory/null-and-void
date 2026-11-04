@@ -1,0 +1,1 @@
+- **Fixed:** Papers on walls and desks face you, so you can read them where they are, and lifting one to read no longer flips it over.
