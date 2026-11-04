@@ -93,12 +93,13 @@ const PIPE_OUT := 0.15
 ## vaulting, the planted hand lets go this far through (you're over).
 const MANTLE_LET_GO := 0.8
 const VAULT_LET_GO := 0.7
-## Hanging from an edge, climbing a pipe or edging along a wall further than
-## arm's length away, the body moves up to this far towards it, so the hands get
-## there: you're pulling yourself in to it, or (vaulting) pushing down on it.
-## Otherwise, or further than that, a hand that can't reach lets go.
+## Hanging from an edge, mantling up onto one, climbing a pipe or edging along a
+## wall further than arm's length away, the body moves up to this far towards
+## it, so the hands get there: you're pulling yourself in to it, or (vaulting)
+## pushing down on it. Otherwise, or further than that, a hand that can't reach
+## lets go.
 const PULL_MAX := 0.45
-const PULLED_IN := ["hang", "climb", "vault", "ledge"]
+const PULLED_IN := ["hang", "mantle", "climb", "vault", "ledge"]
 const PUSHED_OFF := ["vault"]
 ## Pulled towards a grip, the body near your eyes (the collar, the backs of the
 ## shoulders) isn't drawn this close, so your arms show reaching past your face.
