@@ -9,8 +9,11 @@ extends RefCounted
 ## ground floor's lobby as the crew left it. Called once at the end of Level 4's
 ## build(), before navigation bakes.
 ##
-## Nothing added here collides: every prop is visual only, against a wall, overhead,
-## or over a Greybox block whose collider stays (ArtDress.hide_block). The strip
+## Nothing added on floor 10 collides: every prop is visual only, against a wall,
+## overhead, or over a Greybox block whose collider stays (ArtDress.hide_block). The
+## ground floor is Level 0's lobby (DressLevel0.ground), so its solid props (plants,
+## water cooler, cabinets, the receptionist's chair, archive boxes) stand on g_geo
+## as they do there, and navigation bakes around them; the rest is visual only. The strip
 ## along the hall's north wall stays clear for the gantry and whoever rides it.
 ## Papers on the walls are plant life, never hints.
 
