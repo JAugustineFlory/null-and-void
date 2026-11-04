@@ -109,6 +109,37 @@ Newest first, one release per drop-down, with its fix builds inside. Click a ver
 floor number. Changes that have merged but aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 <details open>
+<summary><b>v0.8 - 2026-11-04</b></summary>
+
+- **Added:** Each of the twelve crew has their own body now: their own height, build and posture, from the big mover to the tiny kiosk tech. Your colours, clothes and name are still yours.
+- **Added:** Maddison chimes in over the radio for more of Easy SQL's chapters as they land in your book.
+- **Added:** Maddison has something to say about seven more chapters of Easy SQL, from naming your columns to asking for one door's record.
+- **Added:** As Maddison goes over the work order, she marks the lines she's talking about on everyone's copy.
+- **Added:** On floor 10, copying the clipboard's example into the contractor log gets a tip saying whose row that was and what goes in yours.
+- **Added:** At a terminal, pressing Up brings back the last command anyone in the crew typed there, not just your own.
+- **Changed:** The title screen is simpler: Start takes you into the crew's garage, where a bar along the bottom switches between single-player and co-op and opens Levels and Customize.
+- **Changed:** In the garage, the punch bag is the last thing before the van, and each player can climb in as soon as they've blocked it.
+- **Changed:** In the garage, Maddison skips straight from the book to the van: one line fewer before you head out.
+- **Changed:** Out on the job, Maddison's chapter lines play as something one of the crew remembers her saying.
+- **Changed:** Each crew member now stands, crouches, crawls and sits at their own height, so shorter characters see the world from lower down and taller ones from higher up. Vents are a little roomier so everyone fits.
+- **Changed:** Bigger crew members slow down where they barely fit, like a tight vent; nobody gets stuck.
+- **Changed:** Walking into the lobby puts the sign-in step up straight away.
+- **Changed:** When you make it back down to the lobby at the end, it's the same lobby you walked into.
+- **Fixed:** Everyone's feet point straight ahead when standing instead of turning inward, and they wear proper shoes instead of small, pointed ones.
+- **Fixed:** The van in the garage now has the same doors as the van parked at the building, and its sliding door opens when it's time to get in.
+- **Fixed:** The front doors no longer lock with one of the crew still outside.
+- **Fixed:** Long papers and cards no longer get cut off when you read them: a page with a lot on it prints a little smaller and comes up a little closer, so every line shows.
+- **Fixed:** A handwritten tag with a long note no longer runs off the bottom.
+- **Fixed:** Box labels in the archive stacks no longer print on top of each other.
+- **Fixed:** The clock over the controller room's door on floor 10 can be read again.
+- **Fixed:** Signs, notices and labels on floors 9, 10 and 18 that faced the wall now face the room.
+- **Fixed:** Every player in the crew sees the current case in the corner, on every floor.
+- **Fixed:** Papers on walls and desks face you, so you can read them where they are, and lifting one to read no longer flips it over.
+- **Fixed:** Stair doors open out of the stairwell, and nobody arrives stuck behind one; the stairs now go down as well as up.
+
+</details>
+
+<details>
 <summary><b>v0.7 - 2026-10-24</b> (with fix builds v0.7.1 - 2026-10-27, v0.7.2 - 2026-10-31 and v0.7.3 - 2026-11-03)</summary>
 
 **v0.7.3 - 2026-11-03** (fix build)

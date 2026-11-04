@@ -44,6 +44,11 @@ func _ready() -> void:
 	_name.max_length = 16
 	_name.text_changed.connect(func(t): _net().set_player_name(t))
 	_build_tabs(picker)
+	if not with_preview:
+		# Who the crew pick is, under the tabs, since there's no figure here to caption.
+		var caption := _caption()
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		picker.add_child(caption)
 	_net().roster_changed.connect(refresh)
 	refresh()
 
@@ -266,13 +271,18 @@ func _build_preview() -> Control:
 	floor_disc.material_override = Greybox.mat(Color(0.12, 0.13, 0.14))
 	vp.add_child(floor_disc)
 	column.add_child(frame)
+	column.add_child(_caption())
+	return column
+
+
+## The line saying who the picked crew member is.
+func _caption() -> Label:
 	_crew_caption = ThemeUtil.label("", 20)
 	_crew_caption.name = "CrewCaption"
 	_crew_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_crew_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_crew_caption.custom_minimum_size = Vector2(300, 0)
-	column.add_child(_crew_caption)
-	return column
+	return _crew_caption
 
 
 func _show_look(look: Dictionary) -> void:

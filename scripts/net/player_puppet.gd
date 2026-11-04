@@ -24,8 +24,11 @@ var display_name := ""
 var crouching := false
 var crawling := false
 ## How tall the owner's body is right now, as their machine sends it: 1.8
-## standing, 1.25 crouching, 0.85 crawling, and anything in between.
+## standing, 1.25 crouching, 0.85 crawling, and anything in between, as a
+## standard body (Player.stance_height); their real height is this times `size`.
 var stance_height := STAND_HEIGHT
+## Their character's size (CrewBody), from their look.
+var size := 1.0
 var health := 100.0
 ## Lying on the floor at 0 health (CrewVitals keeps this the same everywhere).
 var downed := false
@@ -78,11 +81,13 @@ func _build(look: Dictionary) -> void:
 	add_to_group("puppet")
 	sync_to_physics = false
 	_shape = CollisionShape3D.new()
+	var crew_body := CrewBody.from_look(look)
+	size = crew_body.size
 	_capsule = CapsuleShape3D.new()
-	_capsule.radius = 0.32
-	_capsule.height = STAND_HEIGHT
+	_capsule.radius = crew_body.radius
+	_capsule.height = crew_body.stand
 	_shape.shape = _capsule
-	_shape.position.y = STAND_HEIGHT / 2
+	_shape.position.y = crew_body.stand / 2
 	add_child(_shape)
 
 	_body = Node3D.new()
@@ -95,7 +100,7 @@ func _build(look: Dictionary) -> void:
 	# The flashlight rides at eye level, in the direction they look.
 	_head = Node3D.new()
 	_head.name = "Head"
-	_head.position.y = STAND_HEIGHT - 0.18
+	_head.position.y = (STAND_HEIGHT - 0.18) * size
 	add_child(_head)
 	var lamp := MeshInstance3D.new()
 	lamp.name = "Lamp"
@@ -126,7 +131,7 @@ func _build(look: Dictionary) -> void:
 	_tag.pixel_size = 0.004
 	_tag.modulate = Color(1, 1, 1, 0.7)
 	_tag.outline_size = 8
-	_tag.position.y = 2.1
+	_tag.position.y = 2.1 * size
 	add_child(_tag)
 
 
@@ -180,13 +185,13 @@ func sit_at(terminal: Node3D, seat: int = 0) -> void:
 ## the collider shrinks too, so a teammate in a vent fits in it.
 func set_stance(height: float) -> void:
 	stance_height = clampf(height, CRAWL_HEIGHT * 0.5, STAND_HEIGHT)
-	crouching = stance_height < STAND_HEIGHT
-	crawling = stance_height <= CRAWL_HEIGHT
+	crouching = stance_height < STAND_HEIGHT - 0.001
+	crawling = stance_height <= CRAWL_HEIGHT + 0.001
 	rig.stance_height = stance_height
-	_capsule.height = maxf(stance_height, _capsule.radius * 2.0)
+	_capsule.height = maxf(stance_height * size, _capsule.radius * 2.0)
 	_shape.position.y = _capsule.height / 2
-	_head.position.y = stance_height - 0.18
-	_tag.position.y = stance_height + 0.3
+	_head.position.y = (stance_height - 0.18) * size
+	_tag.position.y = (stance_height + 0.3) * size
 
 
 ## Their fists, as their own machine plays them ("" when not fighting): the

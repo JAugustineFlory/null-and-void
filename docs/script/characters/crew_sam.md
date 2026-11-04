@@ -1,6 +1,6 @@
 # Sam Abara
 
-*Your script for Null & Void: 86 recordings.*
+*Your script for Null & Void: 89 recordings.*
 
 ## Who you are
 
@@ -106,7 +106,31 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Hush, now. Listen."
 
-## Scene 1: Crew commentary: ground floor
+## Scene 1: Remembering what Maddison said
+
+**Halcyon Tower, any floor. During the job.**
+
+> Maddison read the book with the crew in the garage before the job. Now, in the tower, a new chapter has just turned up in the crew's notebooks, and you remember she had something to say about it. You say this, then her line from the garage plays.
+
+**[ ] `l0_recall_1.wav`**
+
+*A new chapter of the book has just turned up in the crew's notebooks. Flipping to the new page in your notebook. Half to yourself, trying to remember. Trail off: her line follows.*
+
+"I think Maddison said..."
+
+**[ ] `l0_recall_2.wav`**
+
+*A new chapter of the book has just turned up in the crew's notebooks. Looking up from the new page at the others. To the others, as it comes back to you. Trail off: her line follows.*
+
+"Didn't Maddison say..."
+
+**[ ] `l0_recall_3.wav`**
+
+*A new chapter of the book has just turned up in the crew's notebooks. Tapping the new page in your notebook. Remembering, a little fond. Trail off: her line follows.*
+
+"Maddison mentioned..."
+
+## Scene 2: Crew commentary: ground floor
 
 **Halcyon Tower, ground floor: the front desk, the lobby and the mailroom. Around 11:05 p.m.**
 
@@ -238,7 +262,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Vale signed in. And never signed out."
 
-## Scene 2: Crew commentary: server floor
+## Scene 3: Crew commentary: server floor
 
 **Halcyon Tower, floor 14, the server floor. Late at night.**
 
@@ -322,7 +346,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "That one's cooking. No wonder it's loud."
 
-## Scene 3: Crew commentary: security floor
+## Scene 4: Crew commentary: security floor
 
 **Halcyon Tower, floor 22, the security floor. Past midnight.**
 
@@ -460,7 +484,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "That's the code. Let's not hang around."
 
-## Scene 4: Book huddles: Acceptable API's
+## Scene 5: Book huddles: Acceptable API's
 
 **Halcyon Tower, floor 9, Personnel: the HR front and payroll. After midnight.**
 
@@ -538,7 +562,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Change it, then look again. The front doors taught us that one."
 
-## Scene 5: Book huddles: Easy JavaScript
+## Scene 6: Book huddles: Easy JavaScript
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
@@ -616,7 +640,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Test first. We've all learned that one the hard way tonight."
 
-## Scene 6: Book huddles: Hello HTML!
+## Scene 7: Book huddles: Hello HTML!
 
 **Halcyon Tower, in a lift riding up from the basements. Later that night.**
 

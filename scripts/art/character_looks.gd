@@ -10,6 +10,8 @@ static func base() -> Dictionary:
 		"name": "",
 		"height": 1.0,  # scale on the whole body
 		"build": 1.0,  # shoulder and waist width
+		"shape": {},  # region -> how much thicker its flesh is (SkinnedBody.REGIONS), 1 = as modelled
+		"stoop": 0.0,  # how far the upper back rounds forward (radians), with the head kept level
 		"skin": Color(0.8, 0.64, 0.52),
 		"hair": Color(0.2, 0.15, 0.1),
 		"hair_style": "short",  # short, long, bald, cap
@@ -79,9 +81,43 @@ static func crew(index: int, picks: Dictionary = {}) -> Dictionary:
 	return look
 
 
+## Each playable crew member's own build (PlayableCrew slugs), from their bios
+## (script/drafts/playable-crew.md, approved 2026-10-20): height is a scale on
+## the model (body 1 is 1.81 m, body 2 1.77 m tall), build its width, shape the
+## flesh round each region (see SkinnedBody.REGIONS), stoop the round of the
+## upper back. Colours, clothes and names stay the player's.
+const CREW_BODIES := {
+	# Ex-cable installer, 30s: average height, wiry, strong arms from pulling cable.
+	"dana": {"height": 0.96, "build": 0.97, "shape": {"arms": 1.08, "belly": 0.92}},
+	# Phone-repair kiosk, 20s: "I'm tiny." Short and slight.
+	"priya": {"height": 0.875, "build": 0.9, "shape": {"arms": 0.92, "legs": 0.94, "belly": 0.9}},
+	# School office manager, 30s: medium height, soft and curvy.
+	"rosa": {"height": 0.925, "build": 1.05, "shape": {"hips": 1.14, "legs": 1.08, "belly": 1.1, "chest": 1.06}},
+	# Courier and free-runner, 20s: tall, lean, runner's legs.
+	"kit": {"height": 0.99, "build": 0.93, "shape": {"legs": 1.08, "belly": 0.86}},
+	# Ham-radio operator, 60s: short, soft, rounded shoulders.
+	"june": {"height": 0.905, "build": 1.02, "shape": {"belly": 1.16, "hips": 1.08, "arms": 1.04, "legs": 0.96}, "stoop": 0.3},
+	# Ex-barista, 30s: small and slight.
+	"mei": {"height": 0.915, "build": 0.93, "shape": {"arms": 0.95, "belly": 0.92}},
+	# Ex-mall security, 40s: tall and heavyset, a guard's gut.
+	"marcus": {"height": 1.01, "build": 1.1, "shape": {"belly": 1.28, "chest": 1.1, "neck": 1.12, "arms": 1.06}, "stoop": 0.05},
+	# Gamer, 20s: lanky and thin, a desk slouch.
+	"theo": {"height": 0.985, "build": 0.9, "shape": {"arms": 0.88, "legs": 0.92, "chest": 0.92, "belly": 0.94}, "stoop": 0.15},
+	# Professional mover, 30s: big and strong.
+	"sam": {"height": 1.065, "build": 1.16, "shape": {"chest": 1.12, "arms": 1.14, "legs": 1.08, "neck": 1.12, "belly": 1.04}},
+	# Handyman, 50s: short and stocky, a round belly.
+	"luis": {"height": 0.94, "build": 1.1, "shape": {"belly": 1.3, "chest": 1.04, "arms": 1.06, "neck": 1.08}, "stoop": 0.1},
+	# Startup dropout, 20s: average and slim.
+	"ike": {"height": 0.965, "build": 0.95, "shape": {"arms": 0.95, "belly": 0.94}},
+	# Power-company lineman, 30s: tall and rangy, climber's arms and shoulders.
+	"walt": {"height": 1.04, "build": 1.02, "shape": {"arms": 1.08, "neck": 1.05, "belly": 0.94}},
+}
+
+
 ## Player customisation. A loadout is {slot: {"item": id, "color": Color}} plus
-## "name", "body" (1 or 2, from the chosen character) and "skin" (a SKIN_TONES
-## index). Every item's color tints it. Unlockable items add ids to a slot,
+## "name", "crew" (the chosen character's PlayableCrew slug: their build, from
+## CREW_BODIES), "body" (1 or 2, from the chosen character) and "skin" (a
+## SKIN_TONES index). Every item's color tints it. Unlockable items add ids to a slot,
 ## never new slots; each slot holds one item so the rig stays in budget.
 ## The first id in each list is the default; "none" leaves the slot empty.
 const SLOTS := {
@@ -171,6 +207,8 @@ static func outfit(slots: Dictionary) -> Dictionary:
 	look.body = int(slots.get("body", 1)) if int(slots.get("body", 1)) in BODY_TYPES else 1
 	if look.body == 2:
 		look.build = 0.95
+	var crew: Dictionary = CREW_BODIES.get(str(slots.get("crew", "")), {})
+	look.merge(crew.duplicate(true), true)  # their own height and build
 	look.skin = SKIN_TONES[clampi(int(slots.get("skin", 2)), 0, SKIN_TONES.size() - 1)]
 	look.logo = Color(0.95, 0.95, 0.92)
 	var pick := func(slot: String) -> Array:

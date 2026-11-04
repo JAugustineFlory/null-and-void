@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "bodies", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers"]
 
 
 func _run() -> void:
@@ -79,6 +79,7 @@ func _run_group(g: String) -> void:
 		"combat": await _group_combat()
 		"movement": await _group_movement()
 		"movement_hands": await _group_movement_hands()
+		"bodies": await _group_bodies()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
 		"teaching_api": await _group_teaching_api()
@@ -212,6 +213,7 @@ func _group_coop() -> void:
 	await test_coop_level_1()
 	await test_coop_six_players()
 	await test_coop_terminal_screens()
+	await test_coop_shared_history()
 	await test_coop_notes_huddle()
 	await test_coop_looks()
 	await test_coop_sitting()
@@ -223,6 +225,7 @@ func _group_coop() -> void:
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
 	await test_coop_lobby_names()
+	await test_front_end()
 	await test_coop_patience()
 	await test_coop_level_2()
 	await test_coop_level_2_lab()
@@ -246,6 +249,11 @@ func _group_movement() -> void:
 func _group_movement_hands() -> void:
 	await _run_file("res://tests/movement_tests.gd", "hands")
 	await _run_file("res://tests/stairwell_tests.gd")
+
+
+## Every crew body, smallest to largest, against every move and every floor.
+func _group_bodies() -> void:
+	await _run_file("res://tests/body_tests.gd")
 
 
 ## Teaching walkthroughs and audits across every floor.
@@ -987,7 +995,7 @@ func test_pause_holds_subtitles() -> void:
 func test_screens_fill_window() -> void:
 	print("Menu screens")
 	var win := root.get_visible_rect().size
-	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn", "res://scenes/customize.tscn"]:
+	for path in ["res://scenes/main_menu.tscn", "res://scenes/field_notes.tscn", "res://scenes/lobby.tscn"]:
 		var screen: Control = load(path).instantiate()
 		root.add_child(screen)
 		await process_frame
@@ -1095,14 +1103,13 @@ func test_level_select() -> void:
 	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
 	root.add_child(menu)
 	await process_frame
-	check(menu.find_child("Levels", true, false) is Button and menu.find_child("Settings", true, false) is Button, "the title screen has Levels and Settings buttons")
+	check(menu.find_child("Settings", true, false) is Button, "the title screen has a Settings button")
 	var mid := root.get_visible_rect().size.x / 2.0
 	var column: Control = menu.find_child("Menu", true, false)
 	check(absf(column.get_global_rect().get_center().x - mid) < 2.0, "the title screen's buttons sit in the middle of the window, not against the left edge (%s)" % column.get_global_rect())
-	menu.find_child("Levels", true, false).pressed.emit()
+	var panel: MenuModal = LevelSelect.open(menu)
 	await process_frame
 	await process_frame
-	var panel: MenuModal = menu.find_children("*", "MenuModal", true, false)[0]
 	check(absf(panel.box.get_global_rect().get_center().x - mid) < 2.0, "and so does the Levels list (%s)" % panel.box.get_global_rect())
 	var rows := panel.box.find_children("*", "Button", true, false)
 	check(rows.size() == LevelSelect.FLOORS.size() + 2, "it lists every floor, the movement gym and a way back (%d rows)" % rows.size())
@@ -1983,11 +1990,13 @@ func test_coop_level_1() -> void:
 	var dump := "SELECT * FROM doors ORDER BY id"
 	check(_table(host, dump) == _table(client, dump), "the doors table matches on both machines")
 	client.player.set_physics_process(false)  # hold the stance still for the check
-	client.player._set_stance(Player.CRAWL_HEIGHT)
+	client.player._set_stance(client.player.body.crawl)  # their own crawl height, whoever they play
 	await _frames(10)
 	var mate: PlayerPuppet = host.players.puppet(client_id)
 	check(mate.crawling and mate.stance_height < 1.0 and mate.rig.crawl_amount() > 0.9, "a teammate crawling shows crawling for the others, not standing")
-	client.player._set_stance(Player.STAND_HEIGHT)
+	check(is_equal_approx(mate.size, client.player.body.size) and absf(mate._capsule.height - client.player.body.crawl) < 0.01,
+		"their body is their own size for everyone else (%.2f m crawling)" % mate._capsule.height)
+	client.player._set_stance(client.player.body.stand)
 	await _frames(10)
 	check(not mate.crouching and is_equal_approx(mate.stance_height, Player.STAND_HEIGHT) and mate.rig.crouch_amount() == 0.0, "and stands back up with them")
 	client.player.set_physics_process(true)
@@ -2078,6 +2087,88 @@ func test_coop_tape_secret() -> void:
 	check(not levels[0].tape.enabled and not levels[1].tape.enabled, "the tape is used up on every machine")
 	await _coop_close(worlds)
 	net.profile = saved
+
+
+## Up at a terminal brings back the last command anyone in the crew typed there, in
+## the order the host ran them (Augustine, v0.8): one history per terminal, shared
+## by everyone who uses it.
+func test_coop_shared_history() -> void:
+	print("Co-op: each terminal's history is shared")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var c1 = levels[1]
+	var hui: TerminalUI = host.terminal_ui
+	var cui: TerminalUI = c1.terminal_ui
+	hui.open(host.desk_terminal, host.player)
+	cui.open(c1.desk_terminal, c1.player)
+	await _frames(10)
+	var up := InputEventKey.new()
+	up.keycode = KEY_UP
+	up.pressed = true
+	var down: InputEventKey = up.duplicate()
+	down.keycode = KEY_DOWN
+	hui._input.text = "SELECT na"  # the host is halfway through a line of their own
+	cui._input.text = "SELECT * FROM visitors;"
+	cui._submit()
+	await _frames(15)
+	check(hui._input.text == "SELECT na", "a teammate's command doesn't touch the line you're typing")
+	hui._input.text = ""
+	hui._on_input_key(up)
+	check(hui._input.text == "SELECT * FROM visitors;", "Up on the host brings back the client's command at the same terminal")
+	# The client scrolls back to its own command, then the host sends one.
+	cui._on_input_key(up)
+	check(cui._input.text == "SELECT * FROM visitors;", "Up on the client brings back its own")
+	hui._input.text = "SELECT name FROM visitors;"
+	hui._submit()
+	await _frames(15)
+	check(cui._input.text == "SELECT * FROM visitors;", "the host sending one doesn't move the client's place in the history")
+	cui._on_input_key(down)
+	check(cui._input.text == "SELECT name FROM visitors;", "Down from there reaches the host's command, sent after")
+	cui._on_input_key(down)
+	check(cui._input.text == "", "and past it the line is empty again")
+	cui._on_input_key(up)
+	check(cui._input.text == "SELECT name FROM visitors;", "from the end, Up starts at the newest command, the host's")
+	cui._input.text = ""
+	# Both send one more, client first: everyone's history reads in the same order.
+	cui._input.text = "SELECT COUNT(*) FROM visitors;"
+	cui._submit()
+	await _frames(15)
+	hui._input.text = ".tables"  # the host's own dot command stays in their own history
+	hui._submit()
+	await _frames(15)
+	var sent := ["SELECT * FROM visitors;", "SELECT name FROM visitors;", "SELECT COUNT(*) FROM visitors;"]
+	check(cui._history == sent, "the client's history at the desk has everyone's commands there, in the order they ran (%s)" % [cui._history])
+	check(hui._history == sent + [".tables"], "and so does the host's, with their own .tables at the end (%s)" % [hui._history])
+	# A second terminal on the floor, the same on both machines: its history is its own.
+	var other := []
+	for l in levels:
+		var t := Terminal.spawn(l.geo, Vector3(-1.5, 1.1, -1.0), 0, "BACK OFFICE", l.db, l.terminal_ui)
+		t.name = "HistoryTestTerminal"
+		other.append(t)
+	await _frames(5)
+	cui.close()
+	cui.open(other[1], c1.player)
+	cui._on_input_key(up)
+	check(cui._input.text == "", "a terminal nobody has typed at has no history, whatever was typed at the desk")
+	cui._input.text = "SELECT id FROM visitors;"
+	cui._submit()
+	await _frames(15)
+	hui._input.text = ""
+	hui._on_input_key(up)
+	check(hui._input.text == ".tables", "a command at the other terminal stays out of the desk's history (%s)" % hui._input.text)
+	hui.close()
+	hui.open(other[0], host.player)
+	hui._on_input_key(up)
+	check(hui._input.text == "SELECT id FROM visitors;", "and at the other terminal, Up on the host brings back the client's command there")
+	check(hui._history_of(other[0]) == ["SELECT id FROM visitors;"] and cui._history_of(other[1]) == ["SELECT id FROM visitors;"], "both machines hold the same history for it")
+	check(hui._history_of(host.desk_terminal) == sent + [".tables"] and cui._history_of(c1.desk_terminal) == sent, "and the desk's history is unchanged on both")
+	hui.close()
+	cui.close()
+	await _frames(5)
+	await _coop_close(worlds)
 
 
 func test_coop_terminal_screens() -> void:
@@ -2323,31 +2414,31 @@ func test_coop_looks() -> void:
 	check(net.earn("achievement:test") == ["head/hard_hat"], "earning an achievement unlocks its item")
 	Cosmetics.reset()
 
-	# Solo: the main menu's Customize screen has the same picker, and solo play wears it.
-	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
-	root.add_child(menu)
-	await process_frame
-	var to_customize: Button = menu.find_child("Customize", true, false)
-	check(to_customize != null and to_customize.text == "Customize", "the main menu has a Customize button")
-	menu.queue_free()
+	# Solo: Customize on the garage's nav bar has the same picker, and solo play wears it.
 	net.profile = Profile.new()
 	net.wanted_look = {}
-	var custom: Control = load("res://scenes/customize.tscn").instantiate()
+	net.begin_solo_lobby()
+	var custom: Control = load("res://scenes/lobby.tscn").instantiate()
 	root.add_child(custom)
 	await process_frame
+	custom.stage.finish_intro()
 	var solo_picker: LookPicker = custom.find_child("LookPicker", true, false)
-	check(solo_picker != null and custom.find_child("Customize", true, false) is TabContainer and custom.find_child("Back", true, false) is Button,
-		"it shows the Crew, Look, Gear and Achievements tabs, with a way back")
+	check(not solo_picker.is_visible_in_tree(), "single-player, the picker is folded away")
+	custom.find_child("NavCustomize", true, false).button_pressed = true
+	check(solo_picker.is_visible_in_tree() and custom.find_child("Customize", true, false) is TabContainer,
+		"Customize on the nav bar opens the Crew, Look, Gear and Achievements tabs")
 	custom.find_child("Crew_mei", true, false).pressed.emit()
 	custom.find_child("Skin3", true, false).pressed.emit()
 	var solo_term: ColorPickerButton = custom.find_child("Color_terminal", true, false)
 	solo_term.color = Color(0.3, 0.8, 1.0)
 	solo_term.popup_closed.emit()
 	await process_frame
-	check(net.profile.loadout.crew == "mei" and net.profile.loadout.skin == 2 and solo_picker._preview_rig.look.skin == CharacterLooks.SKIN_TONES[2],
-		"picks show on the figure and are saved to the profile, with nobody connected")
+	var my_fig: Node3D = custom.stage.figures[net.my_id()]
+	check(net.profile.loadout.crew == "mei" and net.profile.loadout.skin == 2 and my_fig.get_node("Rig").look.skin == CharacterLooks.SKIN_TONES[2],
+		"picks show on your figure in the garage and are saved to the profile, with nobody connected")
 	check(custom.find_child("CrewCaption", true, false).text.begins_with(PlayableCrew.info("mei").name), "with who they are underneath")
 	custom.queue_free()
+	net.leave(false)
 	await process_frame
 	_game().new_run(8)
 	var solo = load("res://scenes/level_0.tscn").instantiate()
@@ -2446,10 +2537,10 @@ func test_coop_pregame_lobby() -> void:
 	check(net.pose_action("sit") == "sit_floor" and net.pose_action("nonsense") == "idle" and net.LOBBY_POSES.all(func(p): return net.pose_action(p) in CharacterRig.ACTIONS),
 		"every pose plays something the rig can draw (idle until Graphics draws it)")
 	check(stage.figures[55].get_node("Tag").text == "Ana\nReady" and host_fig.get_node("Tag").text == "Host", "a name over each head, and who's ready")
-	var open_picker: Button = lobby.find_child("OpenCustomize", true, false)
-	check(not lobby.picker.visible and open_picker.text == "Customize", "the picker is folded away behind Customize, so the crew stays in view")
+	var open_picker: Button = lobby.find_child("NavCustomize", true, false)
+	check(not lobby.picker.is_visible_in_tree() and open_picker.text == "Customize", "the picker is folded away behind Customize on the nav bar, so the crew stays in view")
 	open_picker.button_pressed = true
-	check(lobby.picker.visible, "and opens on a click")
+	check(lobby.picker.is_visible_in_tree(), "and opens on a click")
 	check(lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (1/3)" and lobby.find_child("Host", true, false).is_visible_in_tree() == false,
 		"the menu counts who's ready, and hosting or joining is done")
 	lobby.find_child("ChangePose", true, false).pressed.emit()
@@ -2483,10 +2574,125 @@ func test_coop_pregame_lobby() -> void:
 	lobby._process(1.0)
 	check(net.all_ready() and lobby._all_ready_for == 1.0, "and Ready starts the game a moment later")
 	lobby.find_child("Ready", true, false).button_pressed = false
+	# Joining a friend: you walk off out of your own garage, the shot cuts, and the
+	# friend's crew, you among them, walk on into theirs.
+	stage = lobby.stage
+	Engine.time_scale = 5.0
+	await create_timer(5.0).timeout  # onto your mark first
+	var mine: Node3D = stage.figures[1]
+	stage.hand_off()
+	net.roster = {1: "Friend", 42: "You"}  # their session turns up straight away
+	stage.sync_crew(net)
+	check(stage.handing_off and stage.figures.is_empty() and stage.is_leaving() and mine.get_node("Rig").action == "idle",
+		"joining a friend, you turn and walk off out of your own garage")
+	await create_timer(0.3).timeout
+	check(stage.figures.is_empty(), "the friend's crew waits until you're gone")
+	for f in 600:
+		if not stage.handing_off:
+			break
+		await process_frame
+	Engine.time_scale = 1.0
+	check(not is_instance_valid(mine) and stage.figures.keys() == [1, 42] and stage.modulate == Color.WHITE
+		and stage.figures[42].position.distance_to(stage.mark(1)) > 5.0, "then the shot cuts and the crew walks on into theirs, you with them")
+	net.roster = {1: "Friend"}
+	stage.sync_crew(net)
+	check(stage.figures.keys() == [1] and stage.is_leaving(), "someone who leaves walks back off rather than vanishing")
+	# Joining from your own garage for real, and the host can't be reached.
+	net.begin_solo_lobby()
+	for f in 600:
+		if not stage.is_leaving():
+			break
+		await process_frame
+	lobby._refresh()
+	lobby._address.text = "127.0.0.1"
+	lobby._on_join()
+	check(stage.handing_off and not net.solo_lobby and net.is_online(), "Join walks you out of your own garage while it connects")
+	net._on_connection_failed()
+	check(net.solo_lobby and net.roster.keys() == [net.my_id()] and lobby._status.text.begins_with("Couldn't reach the host"),
+		"a join that fails says so and puts you back in your own garage")
+	Engine.time_scale = 5.0
+	for f in 900:
+		if not stage.handing_off:
+			break
+		await process_frame
+	Engine.time_scale = 1.0
+	check(stage.figures.keys() == [net.my_id()], "and you walk back in")
 	lobby.queue_free()
 	await process_frame
 	net.leave(false)
 	check(not net.solo_lobby and net.roster.is_empty() and net.lobby.is_empty(), "leaving clears it")
+	net.profile = real_profile
+
+
+## The title screen's Start goes into the garage, single-player. Its nav bar
+## switches to co-op and back, opens Levels and Customize, and goes Back.
+func test_front_end() -> void:
+	print("Start, the garage's nav bar and Levels")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()
+	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
+	root.add_child(menu)
+	await process_frame
+	var labels: Array = menu.find_children("*", "Button", true, false).map(func(b): return b.text)
+	check(labels == ["Start", "Settings", "Quit"], "the title screen is just Start, Settings and Quit (%s)" % ", ".join(labels))
+	menu.queue_free()
+	await process_frame
+
+	net.begin_solo_lobby()  # what Start does, before it goes to the lobby
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	var nav: Control = lobby.find_child("Nav", true, false)
+	check(not nav.visible, "the nav bar waits for the opening")
+	lobby.stage.finish_intro()
+	var names: Array = nav.find_children("*", "Button", true, false).map(func(b): return b.text)
+	check(nav.visible and names == ["Back", "Single-player", "Co-op", "Levels", "Customize"], "then a bar along the bottom: %s" % ", ".join(names))
+	var solo: Button = lobby.find_child("NavSolo", true, false)
+	var coop: Button = lobby.find_child("NavCoop", true, false)
+	check(solo.button_pressed and not coop.button_pressed and lobby.find_child("Ready", true, false).is_visible_in_tree()
+		and not lobby.find_child("Host", true, false).is_visible_in_tree() and lobby.stage.figures.keys() == [net.my_id()],
+		"Start lands single-player: just you in the garage, with Ready")
+	lobby.find_child("Ready", true, false).button_pressed = true
+	coop.button_pressed = true
+	coop.pressed.emit()
+	await process_frame
+	check(net.solo_lobby and coop.button_pressed and not solo.button_pressed and lobby.find_child("Host", true, false).is_visible_in_tree()
+		and lobby.find_child("Join", true, false).is_visible_in_tree() and lobby._coop_title.is_visible_in_tree()
+		and not lobby.find_child("Ready", true, false).is_visible_in_tree() and lobby.stage.figures.keys() == [net.my_id()],
+		"Co-op turns the same garage into hosting or joining, and you stay on your mark")
+	lobby._process(5.0)
+	check(not net.lobby_of(net.my_id()).ready and lobby._all_ready_for == 0.0, "single-player's Ready doesn't start a game from the co-op tab")
+	check(lobby.find_child("NavLevels", true, false).disabled, "Levels waits until you host: in co-op the host picks the floor")
+	check(net.host(18300 + randi() % 500) == OK, "(hosting on a spare port)")
+	lobby._refresh()
+	check(net.is_online() and lobby.stage.figures.keys() == [net.my_id()] and lobby.find_child("Ready", true, false).is_visible_in_tree()
+		and not lobby.find_child("NavLevels", true, false).disabled, "hosting, you're still on your mark, with Ready and Levels")
+	lobby.pick_level("level_3")
+	check(lobby.start_level == "level_3" and lobby.find_child("FloorPicked", true, false).text.begins_with("Starting on ")
+		and lobby.find_child("FloorPicked", true, false).text.ends_with(" once everyone's ready."), "the host's pick is where everyone starts, once they're ready")
+	solo.button_pressed = true
+	solo.pressed.emit()
+	await process_frame
+	check(net.solo_lobby and not net.is_online() and lobby.stage.figures.keys() == [net.my_id()] and lobby.find_child("Ready", true, false).is_visible_in_tree()
+		and not lobby._coop_title.is_visible_in_tree() and not lobby.find_child("NavLevels", true, false).disabled and lobby.start_level == "world",
+		"and Single-player closes the session and brings it back to just you")
+	# Changing your mind mid-join: back to your own garage once the cut is done.
+	coop.button_pressed = true
+	coop.pressed.emit()
+	lobby._address.text = "127.0.0.1"
+	lobby._on_join()
+	check(lobby._left_garage and lobby.stage.handing_off, "Join walks you out of your garage")
+	solo.button_pressed = true
+	solo.pressed.emit()
+	check(net.solo_lobby and not net.is_online() and not lobby._left_garage, "Single-player mid-join drops the connection")
+	await _until(func(): return not lobby.stage.handing_off, 10.0)
+	check(lobby.stage.figures.keys() == [net.my_id()] and lobby.find_child("Ready", true, false).is_visible_in_tree(), "and you walk back into your own garage")
+
+	check(lobby.find_child("NavLevels", true, false).pressed.get_connections().size() == 1, "Levels on the nav bar opens the Levels screen")
+	lobby.queue_free()
+	await process_frame
+	net.leave(false)
 	net.profile = real_profile
 
 

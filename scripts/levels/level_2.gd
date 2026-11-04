@@ -925,7 +925,7 @@ func _book_ready(id: String) -> bool:
 ## Every machine: a chapter of Easy SQL comes into the crew's book (once per run).
 ## Nothing stops for it, the Watcher included.
 func _book_huddle(id: String) -> void:
-	await Huddle.of(self).run(id)
+	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
 
 ## Host: a query ran at `which` terminal. Puzzle results play out on every machine.

@@ -201,7 +201,7 @@ static func _lift_hall(geo: Node3D) -> void:
 ## The forgotten storage closet behind the lobby's air return, and the duct to it:
 ## x -20..-14, z 1..7.
 static func _closet(geo: Node3D) -> void:
-	Traversal.vent(geo, Vector3(-8, 0.0, 4), Vector3(-14, 0.0, 4), Vector2(0.9, 0.95))
+	Traversal.vent(geo, Vector3(-8, 0.0, 4), Vector3(-14, 0.0, 4), Vector2(0.9, 1.0))
 	Greybox.room(geo, Vector3(-17, 0, 4), Vector3(6, 2.6, 6), {"floor": Color(0.2, 0.2, 0.2), "wall": Color(0.4, 0.38, 0.33)}, [
 		{"wall": "e", "at": 0.0, "width": 0.9, "height": 1.0},
 	])

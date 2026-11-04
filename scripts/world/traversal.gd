@@ -10,8 +10,9 @@ const CONCRETE := Color(0.5, 0.49, 0.46)
 
 ## A straight, axis-aligned vent duct from `from` to `to` (points on the duct
 ## floor). Inside is `inner.x` wide and `inner.y` tall, so players must crouch.
+## A metre tall fits the largest crew member crawling (CrewBody); keep it at least that.
 ## Returns the crawl volume.
-static func vent(parent: Node, from: Vector3, to: Vector3, inner := Vector2(1.0, 0.95)) -> MovementVolume:
+static func vent(parent: Node, from: Vector3, to: Vector3, inner := Vector2(1.0, 1.0)) -> MovementVolume:
 	var along := to - from
 	assert(is_zero_approx(along.y) and (is_zero_approx(along.x) or is_zero_approx(along.z)), "vents run along X or Z")
 	var along_x := absf(along.x) > absf(along.z)

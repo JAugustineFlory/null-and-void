@@ -299,23 +299,25 @@ func leave(notify: bool = true, reason: String = "") -> void:
 		session_ended.emit(reason)
 
 
-## Host only: everyone loads the building with the same run seed.
-func start_game() -> void:
+## Host only: everyone loads the building with the same run seed, at `level`
+## (a Game.LEVELS key; "world" opens on the garage).
+func start_game(level := "world") -> void:
 	if not is_host():
 		return
-	_start.rpc(randi(), roster, looks)
+	_start.rpc(randi(), roster, looks, level)
 
 
 @rpc("authority", "call_local", "reliable")
-func _start(seed_value: int, names: Dictionary, picked: Dictionary) -> void:
+func _start(seed_value: int, names: Dictionary, picked: Dictionary, level := "world") -> void:
 	roster = names
 	looks = picked
 	in_game = true
 	set_patience(PATIENCE_LOADING)
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
-	game.open_at_home = true
-	game.goto("world")
+	var key: String = level if game.LEVELS.has(level) else "world"
+	game.open_at_home = key == "world"
+	game.goto(key)
 
 
 ## The building has loaded on every machine (LevelSync, once it begins): after

@@ -19,6 +19,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	Engine.time_scale = 4.0
 	await test_garage_opening()
 	await test_chapter_in_building()
+	test_lead_ins_wired()
+	await test_lead_ins()
 	await test_coop_huddle()
 	await test_coop_spar()
 	await test_coop_walk_in()
@@ -125,8 +127,8 @@ func test_books() -> void:
 				leaks.append("%s: %s" % [id, t])
 	_check.call(leaks.is_empty(), "the book only uses its own example table %s" % [leaks])
 	var l0 := FileAccess.get_file_as_string("res://scripts/levels/level_0.gd")
-	var at_huddle := l0.find("run(\"easy_sql_1\")")
-	_check.call(at_huddle > 0 and at_huddle < l0.find("desk_terminal.enabled = true\n\t_rourke_free"), "Level 0 flashes back to chapter 1 before the desk terminal opens")
+	var at_huddle := l0.find("run(\"easy_sql_1\"")
+	_check.call(at_huddle > 0 and at_huddle < l0.find("desk_terminal.enabled = true\n\t_rourke_free"), "Level 0 brings in chapter 1 before the desk terminal opens")
 
 
 ## Until chapter `id` is in the crew's book and Maddison's lines for it are over.
@@ -204,21 +206,22 @@ func test_garage_opening() -> void:
 	for pair in [["door", "board"], ["board", "side"], ["side", "board"], ["board", "van"]]:
 		through.append_array(_walks_through(home, home.MADDISON_MARKS[pair[0]][0], home.MADDISON_MARKS[pair[1]][0]))
 	_check.call(through.is_empty(), "she walks round the couch, the counter and the bench, never through them %s" % [through])
-	_check.call(await _until(func(): return home.hud.current_todo() == home.SPAR_TODO, 2400), "after the brief she sends the crew to the punch bag")
-	p.stand_up(true)
-	await _frames(2)
-	await _spar(home, p)
-	_check.call(await _until(func(): return home.hud.current_todo() == "Sit back down facing Maddison", 300), "then back to their seats")
+	_check.call(await _until(func(): return home.hud.current_todo() == "Look at the work order in your notebook", 2400), "after the brief, still in their seats, she points them at the work order in their notebooks")
+	_check.call(p.is_sitting() and home.spar_blocked.is_empty() and not home._sparring, "nobody's been sent to the punch bag yet: that's last, before the van")
 	await _frames(60)
-	_check.call(home.read_order.is_empty() and not home.book_bag.enabled, "she waits for everyone to sit down")
-	await home._seat_me(home.crew_seats[2])
-	_check.call(await _until(func(): return home.hud.current_todo() == "Look at the work order in your notebook", 1200), "seated again, she points them at the work order in their notebooks")
-	await _frames(60)
-	_check.call(not home.book_bag.enabled, "and waits for everyone to look")
+	_check.call(not home.book_bag.enabled and _game().ticket_marks.is_empty(), "she waits for everyone to look, and nothing's marked yet")
 	home.notebook.open()
 	_check.call(await _until(func(): return home.read_order.size() == 1, 60), "pulling out the notebook counts as looking")
+	_check.call(await _until(func(): return _game().ticket_marks == ["scope_0"], 600), "with it open, she starts down the work order: \"Sign in at reception\" is marked first")
+	_check.call(await _until(func(): return _game().ticket_marks == ["scope_0", "contact"], 600), "then Rourke, the contact, as she says his name")
+	var order_page: Array[Control] = home.notebook.pages.section_items(NotebookPages.Page.WORK_ORDER)
+	_check.call(NotebookPages.text_of(order_page).contains("Sign in at reception") and order_page[0].find_child("Marked_scope_0", true, false) != null and order_page[0].find_child("Marked_contact", true, false) != null,
+		"the marks are on the printed form itself")
 	home.notebook.close()
+	_check.call(await _until(func(): return _game().ticket_marks == ["scope_0", "contact", "problem"], 600), "then \"database problem\", one mark at a time, even with the notebook put away")
+	_check.call(home.notebook.pages.section_items(NotebookPages.Page.WORK_ORDER)[0].find_children("Marked_*", "", true, false).size() == 3, "and they're all there next time it's opened")
 	_check.call(await _until(func(): return home.book_bag.enabled, 2400), "then the book on the shelf by the side door")
+	_check.call(home.hud._notice.text == home.MOVE_NOTICE, "whoever gets up for it is told how to stand and walk")
 	var lit := true
 	for spot in [home.book_bag.global_position, home.fax.global_position, home.to_global(home.WHITEBOARD), home.to_global(home.VAN)]:
 		var reach := 0.0
@@ -250,8 +253,16 @@ func test_garage_opening() -> void:
 	_check.call(_game().book_words.has("row"), "its words are learned")
 	_check.call(prof.earned.has("chapter:easy_sql_0") and not prof.earned.has("achievement:easy_sql_half"), "the chapter is remembered on the profile; one chapter isn't half the book")
 	await _test_yourself(world)
-	_check.call(await _until(func(): return home.van_door.enabled), "then the van")
+	_check.call(await _until(func(): return home.hud.current_todo() == home.SPAR_TODO, 2400), "last, before the van, she sends the crew to the punch bag")
+	_check.call(home.hud._notice.text == home.MOVE_NOTICE and not home.van_door.enabled, "everyone's told again how to stand and walk, and the van isn't open yet")
+	_check.call(await _until(func(): return home.hud._notice.text == home.SPAR_NOTICE, 600), "then how to block it")
+	p.stand_up(true)
+	await _frames(2)
+	await _spar(home, p)
+	_check.call(home.van_door.enabled and home.hud.current_todo() == "Get in the van", "blocked, it's straight to the van")
 	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
+	_check.call(home.van_doors.size() == 2 and home.side_door.find_child("SideDoor", true, false) != null, "the garage's van has the same doors as the van at Halcyon: two front doors and a sliding door")
+	_check.call(await _until(func(): return home.side_door.position.distance_to(home.SIDE_DOOR_OPEN) < 0.05, 120), "its sliding door slides back to let the crew in")
 	home.van_door.interact(p)
 	await _frames(3)
 	_check.call(p.seated and home.to_local(p.global_position).distance_to(home.van_seats[0]) < 0.3, "the player takes a seat in the van")
@@ -371,7 +382,7 @@ func _spar(home, p) -> void:
 	var net: Node = _tree.root.get_node("/root/Net")
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
-	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag, before the huddle")
+	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag")
 	_check.call(home.hud.current_todo() == "Hit the punch bag, then block it", "the to-do says to hit it, then block it")
 	p.global_position = home.to_global(home.PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
 	var swung := await _until(func(): return home.spar_target != 0, 200)
@@ -384,7 +395,7 @@ func _spar(home, p) -> void:
 	await _frames(3)
 	_check.call(p.health == health and home.spar_blocked.is_empty(), "a missed block costs no health, and doesn't count")
 	_check.call(home.hud._notice.text.contains("It hit you. Right-click just as it swings in"), "no guard up: the notice says when to right-click")
-	_check.call(not _huddle_of(home).is_running(), "the crew can't huddle until it's blocked")
+	_check.call(not home.van_door.enabled, "the van stays shut until it's blocked")
 	await _frames(40)  # it settles
 	await _hit_bag(home, p)
 	var early: bool = home.spar_target != 0 and not home.swing_in and p.combat.raise_guard()  # as it flies away, long before it's back
@@ -480,6 +491,83 @@ func test_chapter_in_building() -> void:
 	await _frames(2)
 
 
+## Every floor's chapters come in REMEMBERED; the garage's don't (Augustine,
+## 2026-10-27: up on the floors Maddison isn't there).
+func test_lead_ins_wired() -> void:
+	print("Huddle: a crew lead-in before Maddison on every floor, never in the garage")
+	var run_re := RegEx.create_from_string("Huddle\\.of\\([^)]*\\)\\.run\\(([^\\n]*)\\)")
+	var plain := []
+	for f in DirAccess.get_files_at("res://scripts/levels/"):
+		if not f.ends_with(".gd"):
+			continue
+		for m in run_re.search_all(FileAccess.get_file_as_string("res://scripts/levels/" + f)):
+			var remembered := m.get_string(1).contains("REMEMBERED")
+			if remembered == f.begins_with("home_base"):
+				plain.append("%s: run(%s)" % [f, m.get_string(1)])
+	_check.call(plain.is_empty(), "every floor level brings its chapters in remembered, and the garage doesn't %s" % [plain])
+	var lead_ins: Array = _huddle_class().LEAD_INS
+	_check.call(lead_ins.size() == 3 and lead_ins.all(func(id): return VoiceLines.get_line(id).get("speaker") == "CREW"), "three lead-ins, each a crew line every crew member records")
+
+
+func _huddle_class() -> Script:
+	return load("res://scripts/huddle/huddle.gd")
+
+
+## The subtitles that come up while `run` plays, in order.
+func _subtitles(hud, run: Callable) -> Array:
+	var seen := []
+	var done := [false]
+	var go := func():
+		await run.call()
+		done[0] = true
+	go.call()
+	while not done[0]:
+		var t: String = hud._subtitle.text
+		if t != "" and (seen.is_empty() or seen.back() != t):
+			seen.append(t)
+		await _tree.process_frame
+	return seen
+
+
+## Just the chapters' lines and their lead-ins, from `subtitles` (the van radio
+## can be talking at the same time).
+func _huddle_lines(subtitles: Array) -> Array:
+	var texts := []
+	for id in _huddle_class().LEAD_INS:
+		texts.append(VoiceLines.get_line(id).text)
+	for ch in Books.chapter_ids():
+		for id in Books.chapter(ch).lines:
+			texts.append(VoiceLines.get_line(id).text)
+	return subtitles.filter(func(t): return texts.any(func(x): return t.ends_with(": " + x)))
+
+
+func test_lead_ins() -> void:
+	print("Huddle: up on a floor, one of the crew remembers Maddison's lines")
+	_game().new_run(25)
+	var world = load("res://scenes/world.tscn").instantiate()
+	_tree.root.add_child(world)
+	await _frames(30)
+	var h = _huddle_of(world.current)
+	var hud = world.hud
+	var me: String = _net().display_name(world.multiplayer.get_unique_id())
+	var remembered: String = _huddle_class().REMEMBERED
+	var said := _huddle_lines(await _subtitles(hud, func(): await h.run("easy_sql_1", remembered)))
+	var lead: Dictionary = h.leads.get("easy_sql_1", {})
+	var first: String = VoiceLines.get_line(lead.get("line", "")).get("text", "?")
+	_check.call(said.size() == 3 and said[0] == "%s: %s" % [me, first], "a crew lead-in comes first, in the player's own name %s" % [said])
+	_check.call(said.size() == 3 and said[1].begins_with("MADDISON: Chapter one.") and said[2].begins_with("MADDISON: Book says"), "then both of her lines")
+	await h.run("easy_sql_2", remembered)
+	await h.run("easy_sql_5", remembered)
+	var used := ["easy_sql_1", "easy_sql_2", "easy_sql_5"].map(func(id): return h.leads.get(id, {}).get("line", ""))
+	_check.call(used[0] != used[1] and used[1] != used[2] and used[0] != used[2] and not used.has(""), "the three lead-ins take turns %s" % [used])
+	await h.run("api_codes", remembered)
+	_check.call(not h.leads.has("api_codes"), "a chapter without her lines (the crew reads Acceptable API's themselves) gets no lead-in")
+	said = _huddle_lines(await _subtitles(hud, func(): await h.run("easy_sql_7")))
+	_check.call(not h.leads.has("easy_sql_7") and said.size() == 2 and said.all(func(t): return t.begins_with("MADDISON: ")), "brought in as if she's there (the garage), her lines play with no lead-in")
+	world.queue_free()
+	await _frames(2)
+
+
 func test_coop_huddle() -> void:
 	print("Huddle: co-op, a chapter comes in for the whole crew")
 	_game().new_run(23)
@@ -515,6 +603,13 @@ func test_coop_huddle() -> void:
 	_check.call([host.player.input_locked, client.player.input_locked] == held and hh.get_node_or_null("HuddleUI") == null, "no book pops up, and it holds nobody")
 	_check.call(await _until(func(): return runs[0] == 2, 1800), "and both machines carry on once Maddison's lines are over")
 	_check.call(net.profile.earned.has("chapter:easy_sql_0"), "the players have the chapter on their profiles")
+	_check.call(not hh.leads.has("easy_sql_0") and not hc.leads.has("easy_sql_0"), "in the garage, nobody says a lead-in")
+	var remembered: String = _huddle_class().REMEMBERED
+	for h in [hc, hh]:
+		h.run("easy_sql_1", remembered)
+	_check.call(await _until(func(): return hh.leads.has("easy_sql_1") and hc.leads.has("easy_sql_1"), 300), "up on a floor, both machines get the lead-in")
+	_check.call(hc.leads["easy_sql_1"] == hh.leads["easy_sql_1"] and hh.crew.has(hh.leads["easy_sql_1"].peer), "the same crew member says the same one on every machine")
+	await _until(func(): return not hh.is_busy() and not hc.is_busy(), 1800)
 	net.profile = test_profile
 	_tree._coop_close(worlds)
 	await _frames(2)
@@ -593,13 +688,23 @@ func test_coop_van() -> void:
 	var boarded := [false]
 	homes[1].crew_boarded.connect(func(): boarded[0] = true)
 	homes[0].crew_boarded.connect(func(): boarded[0] = true)
-	for home in homes:
-		home.van_door.enabled = true
+	var client_id: int = machines[1].multiplayer.get_unique_id()
+	homes[0].van_door.enabled = true  # as if the drill were on: the bag isn't blocked yet
+	homes[0].van_door.interact(ph)
+	await _frames(30)
+	_check.call(homes[0].boarded.is_empty() and homes[1].boarded.is_empty(), "nobody gets in the van before they've blocked the punch bag")
+	homes[0].sync.event("_on_sparred", [machines[0].multiplayer.get_unique_id()])
+	_check.call(await _until(func(): return homes[0].van_door.enabled and not homes[1].van_door.enabled and homes[1].spar_blocked.size() == 1, 120),
+		"once the host has blocked it, the van opens to the host, and only to them")
 	homes[0].van_door.interact(ph)
 	_check.call(await _until(func(): return homes[1].boarded.size() == 1, 120), "the host climbs in first")
+	_check.call(not boarded[0] and homes[0].hud._notice.text.begins_with("In the van") and not homes[1].hud._notice.text.begins_with("In the van"),
+		"the van waits for the client, who's still at the bag")
+	homes[0].sync.event("_on_sparred", [client_id])
+	_check.call(await _until(func(): return homes[1].van_door.enabled, 120), "the client blocks it too")
 	homes[1].van_door.interact(pc)
 	_check.call(await _until(func(): return homes[0].boarded.size() == 2 and homes[1].boarded.size() == 2, 120),
-		"and the client still can after them")
+		"and climbs in after them: their climb reaches the host")
 	_check.call(boarded[0] and not homes[0].van_door.enabled and not homes[1].van_door.enabled, "then the van leaves with everyone")
 	_tree._coop_close(worlds)
 	await _frames(2)

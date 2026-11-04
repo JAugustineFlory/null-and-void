@@ -1,1 +1,0 @@
-- **Fixed:** Every player in the crew sees the current case in the corner, on every floor.

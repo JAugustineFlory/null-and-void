@@ -1,6 +1,6 @@
 # Maddison Kowalski
 
-*Your script for Null & Void: 24 recordings.*
+*Your script for Null & Void: 29 recordings.*
 
 ## Who you are
 
@@ -72,9 +72,9 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 *1 second pause*
 
-*The crew is buzzing in their seats. Pointing across the garage at the punching bag by the big door. Laughing, shooing them off.*
+*Once they're settled. Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
 
-"You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."
+"I put a copy of the work order in each of your notebooks. Pull it out and take a look."
 
 **[ ] `l0_brief_1_solo.wav`**
 
@@ -82,39 +82,21 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Okay! Look at you. My whole company, in one seat."
 
-**[ ] `l0_bag_solo.wav`**
-
-*Only when one player is playing alone. Plays instead of "You guys are too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down." Pointing across the garage at the punching bag by the big door. Laughing, shooing them off.*
-
-"You're too excited! Go hit the punching bag to blow off some steam. When you're done, come sit down."
-
-**[ ] `l0_bag_back_block.wav`**
-
-*Everyone has hit the punching bag and sat back down facing you. Back at the whiteboard, clapping her hands once. A little flirty, played light, like a coach.*
-
-"Better? Good. Now eyes on me, gorgeous people."
-
-*1 second pause*
-
-*Once they're settled. Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
-
-"I put a copy of the work order in each of your notebooks. Pull it out and take a look."
-
-**[ ] `l0_bag_back_solo.wav`**
-
-*Only when one player is playing alone. Plays instead of "Better? Good. Now eyes on me, gorgeous people." Back at the whiteboard, clapping her hands once. A little flirty, played light, like a coach.*
-
-"Better? Good. Now eyes on me, gorgeous."
-
 **[ ] `l0_workorder_solo.wav`**
 
 *Only when one player is playing alone. Plays instead of "I put a copy of the work order in each of your notebooks. Pull it out and take a look." Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
 
 "I put a copy of the work order in your notebook. Pull it out and take a look."
 
-**[ ] `l0_book_catch.wav`**
+**[ ] `l0_workorder_walk_block.wav`**
 
-*Everyone has pulled out the work order and read it. Holding up her copy of the work order, tapping one word. The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
+*Everyone has the work order open in their notebook. Holding up her copy of the work order, running a finger down it. Going down her copy line by line, easy and organized.*
+
+"Sign in at reception, then wait for their facilities guy, Rourke. He walks us in."
+
+*1 second pause*
+
+*Holding up her copy of the work order, tapping one word. The smile stays on. She leaves the sentence hanging and waits. Nobody does.*
 
 "Small problem. It says database. And unless one of you secretly knows SQL..."
 
@@ -142,21 +124,21 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "It's in the shop bag on the shelf by the side door. Go on, grab it for me."
 
-**[ ] `l0_whiteboard.wav`**
+**[ ] `l0_bag.wav`**
 
-*A player brings the book back from the shelf. You're back at the whiteboard. Taking the book, then uncapping a marker with a flourish. Like she's about to teach a class she's never taken.*
+*Chapter zero has gone into everyone's notebook. The job's about to start. Pointing across the garage at the punching bag by the big door. Coach before the big game, brisk and warm.*
 
-"Thank you! Okay. Whiteboard. Chapter zero. We're reading this together."
+"Before the van, everybody hits the bag once. Nerves out here, not at the client's."
 
-**[ ] `l0_whiteboard_solo.wav`**
+**[ ] `l0_bag_solo.wav`**
 
-*Only when one player is playing alone. Plays instead of "Thank you! Okay. Whiteboard. Chapter zero. We're reading this together." Taking the book, then uncapping a marker with a flourish. Like she's about to teach a class she's never taken.*
+*Only when one player is playing alone. Plays instead of "Before the van, everybody hits the bag once. Nerves out here, not at the client's." Pointing across the garage at the punching bag by the big door. Coach before the big game, brisk and warm.*
 
-"Thank you! Okay. Whiteboard. Chapter zero. Let's read this together."
+"Before the van, hit the bag once. Nerves out here, not at the client's."
 
 **[ ] `l0_garage_5.wav`**
 
-*The crew has gone through chapter zero together. Capping her marker, beaming at the crew. Genuinely thrilled.*
+*The whole crew has blocked the punching bag. Capping her marker, beaming at the crew. Genuinely thrilled.*
 
 "Look at that. You're practically engineers. Take the book with you. Everybody in the van."
 
@@ -174,13 +156,13 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 ## Scene 2: Book huddles: SELECT and ORDER BY
 
-**Byte-Right's garage, at the radio desk, with your own copy of Easy SQL. During the job.**
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
 
-> You're back at the garage running dispatch while the crew works in the tower. Whenever the job needs a new word, the crew finds the next chapter of Easy SQL in their notebooks, and you read it with them over the radio from your own copy. One line opens the chapter and one closes it. They're in a dark office tower; you're in your garage with the whiteboard and a mug of coffee. You want them to feel you're right there with them.
+> Earlier that evening, before the van leaves, you sit at the garage bench with the crew and read ahead in Easy SQL together. Later, in the tower, whenever a new chapter turns up in their notebooks, one of them remembers what you said about it, and your line plays. So each line is you at the bench, meeting that chapter for the first time. You want them to believe they can do this.
 
 **[ ] `l0_huddle_select_1_block.wav`**
 
-*Chapter one goes into the crew's notebooks, when the job first needs a database question. You open it. At the radio desk, your copy of the book open in front of you. Disbelieving, delighted.*
+*At the bench, you open the chapter 'Ask for a table'. Sitting on the bench, your copy of the book open on your knees. Disbelieving, delighted.*
 
 "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?"
 
@@ -192,15 +174,39 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 **[ ] `l0_huddle_order_1_block.wav`**
 
-*Chapter two goes into the crew's notebooks, when they need to put rows in order. You open it. Leaning on the desk, the book open in front of you. Reading off the page.*
+*At the bench, you turn to the chapter 'Putting things in order'. Leaning on the bench, the book open in front of you. Reading off the page.*
 
 "Chapter two. 'Putting things in order.' Now that, I can get behind."
 
 *1 second pause*
 
-*Writing on the back of a receipt by the radio. Scribbling.*
+*Writing on the back of a receipt from your pocket. Scribbling.*
 
-"Smallest first, unless you say DESC. Write that down. I'm writing it down."
+"Smallest first. Always smallest first. Write that down. I'm writing it down."
+
+**[ ] `l0_huddle_columns_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Just the columns you need'. Pressing a hand to your heart over the open page. Mock-wounded.*
+
+"'Just the columns you need.' So no more star. The star was my favourite part."
+
+*1 second pause*
+
+*Counting the rules off on your fingers. Ticking them off.*
+
+"Commas between the names, never after the last one. And dot schema when you can't remember what they're called. That one's for me."
+
+**[ ] `l0_huddle_desc_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Newest first'. Flipping the book upside down to show it, then back. Brightly, then a little sorry for herself.*
+
+"'Newest first.' DESC flips it. Biggest on top, latest on top. Like my inbox, if anyone ever emailed me."
+
+*1 second pause*
+
+*Snapping the book shut on one finger. Snappy and pleased.*
+
+"And LIMIT at the very end, so you only get the top few. Newest three. Done."
 
 ## Scene 3: The IT van
 
@@ -228,25 +234,25 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 ## Scene 4: Book huddles: WHERE and comparisons
 
-**Byte-Right's garage, at the radio desk, with your own copy of Easy SQL. During the job.**
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
 
-> The crew is on Halcyon's server floor, and the job needs new words. As each chapter goes into their notebooks, you read along with them over the radio from your own copy: one line to open it, one to close it. You've got the whiteboard behind you and you're using it, even though nobody can see.
+> Still at the garage bench before the job, reading ahead with the crew: the chapters on picking out rows, AND, and more than and less than. Later, in the tower, one of them remembers what you said as each chapter turns up. You've got the whiteboard behind you and you're using it.
 
-**[ ] `l1_huddle_where_1_block.wav`**
+**[ ] `l1_huddle_where_1.wav`**
 
-*On the server floor, the chapter 'Keeping only some rows' goes into the crew's notebooks. You open it. At the radio desk, the open book in one hand. Patting pockets.*
+*At the bench, you turn to the chapter 'Keeping only some rows'. Standing by the whiteboard, the open book in one hand. Patting pockets.*
 
 "WHERE. For finding one thing in a big pile. Like my car keys."
 
-*1 second pause*
+**[ ] `l1_huddle_where_2.wav`**
 
-*Holding up two fingers, then pressing them together. Rueful.*
+*A few pages on, you reach the chapter 'Both must be true'. Holding up two fingers, then pressing them together. Rueful.*
 
 "Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears."
 
 **[ ] `l1_huddle_compare_1_block.wav`**
 
-*Optional. Only if the crew goes after the overheating rack: the chapter 'More than, less than' goes into their notebooks. Uncapping a marker and turning to the whiteboard behind you. Drawing one on the whiteboard, with teeth.*
+*At the bench, you reach the chapter 'More than, less than'. (In the game it only plays if the crew goes after the overheating rack.) Uncapping a marker and turning to the whiteboard behind you. Drawing one on the whiteboard, with teeth.*
 
 "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number."
 
@@ -256,15 +262,51 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "Okay. That's maths I actually remember from school."
 
+**[ ] `l1_huddle_or_1_block.wav`**
+
+*At the bench, you turn to the chapter 'Either one will do'. Leaning back against the bench, book on your knee. Relaxed.*
+
+"'Either one will do.' OR. Finally, a word with no pressure on it."
+
+*1 second pause*
+
+*Holding up one hand, then the other. Decided.*
+
+"AND needs both to be true. OR takes either one. I'm an OR person."
+
+**[ ] `l1_huddle_count_1_block.wav`**
+
+*At the bench, you turn to the chapter 'How many?'. Tracing the brackets on the page with a finger. Reading slowly, getting the brackets right.*
+
+"'How many?' COUNT, star, in brackets. It doesn't show you the rows. It just counts them."
+
+*1 second pause*
+
+*Glancing round the garage at the crew, counting heads. Fond.*
+
+"One number back. Like counting heads before the van leaves."
+
 ## Scene 5: Book huddles: LIKE and GET
 
-**Byte-Right's garage, at the radio desk, with your own copy of Easy SQL. During the job.**
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
 
-> The crew is on the security floor, and two more chapters go into their notebooks. You read along with them over the radio from your own copy, one line to open each chapter and one to close it. You don't know what's happening up there; to you it's still a good night at work.
+> Still at the garage bench before the job, reading ahead with the crew: the chapters on half a name, and on asking a server. Later, in the tower, one of them remembers what you said as each chapter turns up. To you it's all still a fun night of homework.
+
+**[ ] `l2_huddle_pressure_1_block.wav`**
+
+*At the bench, you flip ahead to the chapter 'Under pressure'. Holding up the almost empty page. Light. She thinks it's a joke.*
+
+"This page just says, 'Breathe.' So if it ever gets hairy in there, this is the one to read."
+
+*1 second pause*
+
+*Closing the book and looking round at the crew. Warm and steady, a coach before a big game.*
+
+"AND, ORDER BY, quotes round the words. You'll know all of it by then. Deep breath, then type."
 
 **[ ] `l2_huddle_like_1_block.wav`**
 
-*On the security floor, the chapter 'Half a name' goes into the crew's notebooks. You open it. Holding the book close to the desk lamp. Squinting at the page.*
+*At the bench, you turn to the chapter 'Half a name'. Holding the book close to the work lamp. Squinting at the page.*
 
 "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'"
 
@@ -276,9 +318,9 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 **[ ] `l2_huddle_get_1_block.wav`**
 
-*The chapter 'Asking a server' goes into the crew's notebooks. You open it. Holding the book at arm's length, frowning at the chapter title. Flipping the book over to check the cover.*
+*At the bench, you turn to the chapter 'Asking a server'. Holding the book at arm's length, frowning at the chapter title. Flipping the book over to check the cover.*
 
-"This chapter isn't even SQL. 'Talking to other machines.' GET means 'show me.'"
+"This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'"
 
 *1 second pause*
 
@@ -286,27 +328,51 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 "So it's a SELECT for robots. Got it. Probably."
 
+**[ ] `l2_huddle_feeds_1_block.wav`**
+
+*At the bench, you turn to the chapter 'One answer feeds the next'. Raising an eyebrow at the chapter title. Dry.*
+
+"'One answer feeds the next.' So the answer isn't the answer. Most honest thing in this book."
+
+*1 second pause*
+
+*Tapping the page, then an imaginary second page. Liking it.*
+
+"Get the number, then put it in your next WHERE. A treasure hunt, with semicolons."
+
+**[ ] `l2_huddle_door_1_block.wav`**
+
+*At the bench, you turn to the chapter 'One door's record'. Following the line with a finger. Reading along, nodding.*
+
+"'One door's record.' Don't ask for the whole list. Put the one you want on the end of the path."
+
+*1 second pause*
+
+*Reading the example off the page. The book's own example, amused.*
+
+"GET slash jobs slash fourteen. Job fourteen, nothing else. Robots are very literal."
+
 ## Scene 6: Book huddles: UPDATE and INSERT
 
-**Byte-Right's garage, at the radio desk, with your own copy of Easy SQL. During the job.**
+**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
 
-> The crew is on a mechanical floor of the tower, and the next two chapters go into their notebooks: changing a row, and adding a new one. You read along with them over the radio from your own copy, one line to open each chapter and one to close it. These are the chapters the book puts in red boxes, and you want them to take that seriously.
+> Still at the garage bench before the job, reading ahead with the crew: changing a row, and adding a new one. Later, in the tower, one of them remembers what you said as each chapter turns up. These are the chapters the book puts in red boxes, and you want the crew to take that seriously.
 
 **[ ] `l4_huddle_update_1_block.wav`**
 
-*On floor 10 the crew reads a work order about a tripped breaker, and the chapter on changing rows goes into their notebooks. You open it. At the radio desk, frowning at a red box on the page. Holding the page at arm's length.*
+*At the bench, you turn to the chapter 'Changing a row'. Frowning at a red box on the page. Holding the page at arm's length.*
 
 "UPDATE. Changing things. The book's put this one in a red box, which I don't love."
 
 *1 second pause*
 
-*Lowering the book and leaning into the radio mic. Suddenly serious, for once.*
+*Lowering the book and looking round at the crew. Suddenly serious, for once.*
 
 "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row."
 
 **[ ] `l4_huddle_insert_1_block.wav`**
 
-*On floor 10 the crew reads the contractor sign-in clipboard, and the chapter on adding rows goes into their notebooks. You open it. Flipping to the next chapter, leaning on the desk. Reading the title, wistful, then perky again.*
+*At the bench, you turn to the chapter 'Adding a row'. Flipping to the next chapter, leaning on the bench. Reading the title, wistful, then perky again.*
 
 "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist."
 

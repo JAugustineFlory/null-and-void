@@ -28,7 +28,7 @@ static func label(text: String, size: int, color: Color = Color.WHITE) -> Label:
 	return l
 
 
-## The game's version (project.godot's application/config/version), as "v0.7.3",
+## The game's version (project.godot's application/config/version), as "v0.8-beta1",
 ## small in the bottom-right corner of whatever it's added to, so every
 ## screenshot and playtest note names its build.
 static func version_tag() -> Label:

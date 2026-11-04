@@ -5,6 +5,9 @@ extends SubViewportContainer
 ## from the edge of the shot to their mark and stands there their way
 ## (Net.LOBBY_POSES), wearing what they picked, so a change shows on them as it's
 ## made. When everyone is ready the World opens the garage on the same shot.
+## Anyone who leaves walks back off the way they came. Joining a friend's game,
+## your own crew walks off first, the shot cuts, and you walk on into theirs
+## (hand_off).
 ##
 ## The garage front, the held shot, each player's mark and where they walk in
 ## from are Home base's (HomeBase.build_front, LOBBY_CAMERA, lobby_spot,
@@ -12,6 +15,8 @@ extends SubViewportContainer
 
 ## The opening: from the sky down to the held shot, in seconds.
 const INTRO_TIME := 4.0
+## The cut between your garage and a friend's, to black and back, in seconds.
+const CUT_TIME := 0.35
 ## Where the opening starts, from the held shot: high up and further back, looking at the sky.
 const SKY_RISE := Vector3(0, 45, 30)
 const SKY_TILT := PI * 25.0 / 180.0
@@ -20,11 +25,15 @@ const SKY_TILT := PI * 25.0 / 180.0
 const HOME_BASE := "res://scripts/levels/home_base.gd"
 
 signal intro_finished
+## Everyone has walked off and the shot has cut: the next crew walks on.
+signal handed_off
 
 var camera: Camera3D
 ## peer id -> their figure (a Node3D holding a CharacterRig and a name tag).
 var figures := {}
 var intro_done := false
+## Walking off to join a friend: whoever turns up next waits until the cut.
+var handing_off := false
 ## The held shot of the garage front (HomeBase.LOBBY_CAMERA), and where the opening starts.
 var lobby_shot: Transform3D
 var sky_shot: Transform3D
@@ -32,6 +41,10 @@ var _home: Script
 var _world: Node3D
 var _crew: Node3D
 var _intro: Tween
+## Figures walking off, still on their way out of the shot.
+var _leaving: Array[Node3D] = []
+## The session that arrived during a hand-off, shown once it's done.
+var _pending: Node
 
 
 func _ready() -> void:
@@ -80,10 +93,12 @@ func finish_intro() -> void:
 ## and everyone wears their look and stands their way. `own_look` dresses this
 ## player's figure instead (a color picker mid-drag).
 func sync_crew(net: Node, own_look := {}) -> void:
+	if handing_off:
+		_pending = net
+		return
 	for id in figures.keys():
 		if not net.roster.has(id):
-			figures[id].queue_free()
-			figures.erase(id)
+			walk_off(id)
 	for id in net.roster:
 		var i: int = net.lobby_index(id)
 		var look: Dictionary = own_look if id == net.my_id() and not own_look.is_empty() else net.look_of(id, i)
@@ -93,11 +108,65 @@ func sync_crew(net: Node, own_look := {}) -> void:
 		_dress(fig, look)
 		var state: Dictionary = net.lobby_of(id)
 		fig.set_meta("pose", net.LOBBY_POSES[state.pose])
+		fig.set_meta("spot", i)
 		fig.set_meta("ready", state.ready)
 		var tag: Label3D = fig.get_node("Tag")
 		tag.text = str(net.roster[id]) + ("\nReady" if state.ready else "")
 		tag.modulate = Color(0.55, 1.0, 0.6) if state.ready else Color(1, 1, 1)
 		_walk_to(fig, mark(i))
+
+
+## Leaving to join a friend's game: everyone here walks off the way they came,
+## then the shot cuts to black and back. The friend's crew (and you, as their
+## newest) walk on after that, however soon they turned up. Await it, or wait
+## for handed_off.
+func hand_off() -> void:
+	if handing_off:
+		return
+	handing_off = true
+	for id in figures.keys():
+		walk_off(id)
+	while not _leaving.is_empty():
+		await get_tree().process_frame
+	var cut := create_tween()
+	cut.tween_property(self, "modulate", Color.BLACK, CUT_TIME)
+	cut.tween_property(self, "modulate", Color.WHITE, CUT_TIME)
+	await cut.finished
+	handing_off = false
+	handed_off.emit()
+	if _pending:
+		var net := _pending
+		_pending = null
+		sync_crew(net)
+
+
+## Player `id` walks back off the edge of the shot and is gone.
+func walk_off(id: int) -> void:
+	var fig: Node3D = figures.get(id)
+	if fig == null:
+		return
+	figures.erase(id)
+	_leaving.append(fig)
+	var old: Tween = fig.get_meta("walk") if fig.has_meta("walk") else null
+	if old and old.is_valid():
+		old.kill()
+	var to: Vector3 = _home.lobby_entry(fig.get_meta("spot", 0)) - fig.position
+	var rig: CharacterRig = fig.get_node("Rig")
+	rig.play("idle")
+	fig.get_node("Tag").visible = false
+	if to.length() > 0.01:
+		fig.rotation.y = atan2(-to.x, -to.z)
+	var walk := create_tween()
+	walk.tween_property(fig, "position", fig.position + to, to.length() / CharacterRig.WALK_SPEED)
+	walk.finished.connect(func():
+		_leaving.erase(fig)
+		fig.queue_free())
+	fig.set_meta("walk", walk)
+
+
+## Someone still walking off the shot.
+func is_leaving() -> bool:
+	return not _leaving.is_empty()
 
 
 ## This player's figure dressed as `look` while they pick (LookPicker.previewed).
@@ -116,6 +185,7 @@ func _add_figure(id: int, i: int) -> Node3D:
 	var fig := Node3D.new()
 	fig.name = "Player_%d" % id
 	fig.position = _home.lobby_entry(i)
+	fig.set_meta("spot", i)
 	_crew.add_child(fig)
 	var tag := Label3D.new()
 	tag.name = "Tag"

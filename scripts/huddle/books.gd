@@ -24,6 +24,9 @@ extends RefCounted
 ## The garage playtest's fixes (plan/teaching/garage-playtest-2026-10-22.md: chapter
 ## zero's table-name line, its van_kit table and quiz why lines) and the remaining why
 ## lines, Ch 1-8 and 10-14 (plan/teaching/easy-sql-whys.md), at 01:13Z on 2026-10-22.
+## Maddison's lines for Just the columns you need, Newest first, Either one will do,
+## How many?, Under pressure, One answer feeds the next and One door's record were
+## approved word for word at 17:19Z on 2026-10-28 (plan/approvals/maddison-new-chapter-lines.md).
 ## Chapter ids never change once shipped: profiles keep "chapter:<id>". The number
 ## shown is the chapter's place in the list, so a chapter added in the middle
 ## renumbers the rest by itself. New chapters get a word id (easy_sql_distinct).
@@ -135,7 +138,7 @@ const BOOKS := {
 				"when": "L0, memo",
 				"required": false,
 				"words": ["ORDER BY", "smallest first"],
-				"lines": [],
+				"lines": ["l0_huddle_order_1", "l0_huddle_order_2"],
 				"pages": [
 					"ORDER BY\n\nRows come out in whatever order they were saved.\n\nAdd ORDER BY and a column name, before the ;, to sort them.",
 					"smallest first\n\nORDER BY puts the smallest first: 1, 2, 3, or A, B, C, or earliest time.",
@@ -161,7 +164,7 @@ const BOOKS := {
 				"when": "L0, caller",
 				"required": false,
 				"words": ["column list", "comma", ".schema"],
-				"lines": [],
+				"lines": ["l0_huddle_columns_1", "l0_huddle_columns_2"],
 				"pages": [
 					"column list\n\nInstead of *, name the columns you want. The answer gets narrower and easier to read.",
 					"comma\n\nPut a comma between column names. No comma after the last one.",
@@ -194,7 +197,7 @@ const BOOKS := {
 				"when": "L0, last_visitor, optional",
 				"required": false,
 				"words": ["DESC", "LIMIT"],
-				"lines": [],
+				"lines": ["l0_huddle_desc_1", "l0_huddle_desc_2"],
 				"pages": [
 					"DESC\n\nAdd DESC after ORDER BY's column to flip it: biggest first, latest first.",
 					"LIMIT\n\nLIMIT and a number, at the very end, keeps only that many rows from the top.\n\nWith ORDER BY and DESC first, LIMIT 3 gives you the newest three.",
@@ -220,7 +223,7 @@ const BOOKS := {
 				"when": "L1, stuck_doors, PROPOSED step",
 				"required": false,
 				"words": ["WHERE", "= (equals)", "'quotes'"],
-				"lines": [],
+				"lines": ["l1_huddle_where_1"],
 				"pages": [
 					"WHERE\n\nWHERE keeps only the rows that match. It goes after the table name.",
 					"= (equals)\n\n= means 'is exactly'. Column on the left, value on the right.",
@@ -253,7 +256,7 @@ const BOOKS := {
 				"when": "L1, controller",
 				"required": false,
 				"words": ["AND"],
-				"lines": [],
+				"lines": ["l1_huddle_where_2"],
 				"pages": [
 					"AND\n\nAND joins two conditions. A row stays only if both are true.",
 				],
@@ -272,7 +275,7 @@ const BOOKS := {
 				"when": "L1, hot_rack, optional",
 				"required": false,
 				"words": ["> (more than)", "< (less than)", "numbers"],
-				"lines": [],
+				"lines": ["l1_huddle_compare_1", "l1_huddle_compare_2"],
 				"pages": [
 					"> (more than)\n\n> keeps rows where the column is more than a number.",
 					"< (less than)\n\n< is the other way: less than.",
@@ -305,7 +308,7 @@ const BOOKS := {
 				"when": "L1, dark_room, PROPOSED optional",
 				"required": false,
 				"words": ["OR"],
-				"lines": [],
+				"lines": ["l1_huddle_or_1", "l1_huddle_or_2"],
 				"pages": [
 					"OR\n\nOR keeps a row if either condition is true.",
 				],
@@ -324,7 +327,7 @@ const BOOKS := {
 				"when": "L1, the reset sign-off form, count",
 				"required": false,
 				"words": ["COUNT(*)"],
-				"lines": [],
+				"lines": ["l1_huddle_count_1", "l1_huddle_count_2"],
 				"pages": [
 					"COUNT(*)\n\nSELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves.\n\nAdd a WHERE and it counts only the rows that match.",
 				],
@@ -343,7 +346,7 @@ const BOOKS := {
 				"when": "L2 lab lockdown, review",
 				"required": false,
 				"words": [],
-				"lines": [],
+				"lines": ["l2_huddle_pressure_1", "l2_huddle_pressure_2"],
 				"pages": [
 					"Same tools as the server floor. Breathe.",
 				],
@@ -362,7 +365,7 @@ const BOOKS := {
 				"when": "L2 camera booth, cameras",
 				"required": false,
 				"words": ["GET", "path", "JSON"],
-				"lines": [],
+				"lines": ["l2_huddle_get_1", "l2_huddle_get_2"],
 				"pages": [
 					"GET\n\nSome systems answer web requests, not SQL. GET asks for data.\n\nNo SELECT, no ;. Just GET and a path.",
 					"path\n\nThe path after GET says what you want, starting with /.",
@@ -395,7 +398,7 @@ const BOOKS := {
 				"when": "L2 booth, pike",
 				"required": false,
 				"words": ["LIKE", "% (percent)"],
-				"lines": [],
+				"lines": ["l2_huddle_like_1", "l2_huddle_like_2"],
 				"pages": [
 					"LIKE\n\nLIKE matches a pattern instead of an exact value.",
 					"% (percent)\n\n% means 'any letters, or none'. 'Ash%' matches Ash, Ashford, Ashley.",
@@ -421,7 +424,7 @@ const BOOKS := {
 				"when": "L2, har",
 				"required": false,
 				"words": [],
-				"lines": [],
+				"lines": ["l2_huddle_feeds_1", "l2_huddle_feeds_2"],
 				"pages": [
 					"Sometimes the answer isn't the answer. It's what you need for the next query.",
 				],
@@ -440,7 +443,7 @@ const BOOKS := {
 				"when": "L2 stairwell panel, door",
 				"required": false,
 				"words": ["id in the path"],
-				"lines": [],
+				"lines": ["l2_huddle_door_1", "l2_huddle_door_2"],
 				"pages": [
 					"id in the path\n\nAdd an id to the path to ask about one thing: GET /jobs/14.",
 				],

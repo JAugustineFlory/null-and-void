@@ -11,6 +11,8 @@ const PRINT := Color(0.12, 0.12, 0.14)
 const FORM_RULE := Color(0.62, 0.62, 0.6)
 const BAND := Color(0.16, 0.27, 0.42)  # Byte-Right blue
 const STAMP := Color(0.72, 0.16, 0.12, 0.85)
+## A highlighter stroke over a printed line the crew marked in the briefing (Game.ticket_marks).
+const HIGHLIGHT := Color(1.0, 0.9, 0.2, 0.5)
 ## Across the work order once the job is over (Game.end_job). Drafts for
 ## Augustine's word-for-word OK.
 const VOID_STAMP := "VOID"
@@ -91,13 +93,13 @@ static func _details(t: Dictionary) -> Control:
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 3)
 	sheet.add_child(grid)
-	for field in [["Customer:", t.customer], ["Site:", t.get("site", "")], ["Contact:", t.contact], ["Caller:", t.get("caller", "")], ["Problem:", t.problem], ["Billing:", t.get("billing", "")]]:
+	for field in [["Customer:", t.customer, "customer"], ["Site:", t.get("site", ""), "site"], ["Contact:", t.contact, "contact"], ["Caller:", t.get("caller", ""), "caller"], ["Problem:", t.problem, "problem"], ["Billing:", t.get("billing", ""), "billing"]]:
 		if str(field[1]) == "":
 			continue
 		grid.add_child(_type(field[0], 17, FORM_RULE.darkened(0.35), false))
 		var value := _type(str(field[1]), 19)
 		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		grid.add_child(value)
+		grid.add_child(_marked(value, t, field[2]))
 	return sheet
 
 
@@ -111,8 +113,21 @@ static func _scope(t: Dictionary) -> Control:
 	box.add_child(_rule())
 	var tasks: Array = t.get("scope", [])
 	for i in tasks.size():
-		box.add_child(_type("%d. [ ] %s" % [i + 1, tasks[i]], 19))
+		box.add_child(_marked(_type("%d. [ ] %s" % [i + 1, tasks[i]], 19), t, "scope_%d" % i))
 	return sheet
+
+
+## A printed line, run over with highlighter if the crew marked it (`key` in the
+## ticket's marks). Named Marked_<key> for tests.
+static func _marked(line: Label, t: Dictionary, key: String) -> Label:
+	if t.get("marks", []).has(key):
+		line.name = "Marked_" + key
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = HIGHLIGHT
+		sb.set_corner_radius_all(3)
+		sb.skew = Vector2(-0.08, 0)  # a hand-drawn stroke, not a printed box
+		line.add_theme_stylebox_override("normal", sb)
+	return line
 
 
 static func _signoff() -> Control:
