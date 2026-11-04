@@ -445,27 +445,27 @@ static func _night_guard(level: LevelBase, dress: Node3D) -> void:
 
 # --- Ground floor ----------------------------------------------------------------------
 
-## The ground floor rebuilt in this wing: carpet and plaster as the crew saw it coming
-## in, the front desk in laminate, the night grille dark behind the glass.
+## The ground floor rebuilt in this wing: Level 0's rooms, dressed as Level 0
+## dresses them (DressLevel0.ground), with the night grille dark behind the glass.
 static func _ground(level: LevelBase) -> void:
 	var g: Node3D = level.get("g_geo")
 	if g == null:
 		return
+	var dress := Node3D.new()
+	dress.name = "GroundDressing"
+	dress.transform = g.transform
+	ArtDress.dressing_root(level).add_child(dress)
+	DressLevel0.ground(g, dress)
+	ArtDress.visual_only(dress)  # its odds and ends are for looking at, as the rest of this wing's dressing
 	ArtDress.reskin(g, [
-		{"names": ["Floor"], "zone": AABB(Vector3(-8, -0.5, -7), Vector3(16, 4.5, 14)), "mat": ArtPalette.surface("carpet", Color(1.15, 0.95, 0.85))},
-		{"names": ["Floor"], "mat": ArtPalette.surface("floor_tile")},
-		{"names": ["Wall_"], "mat": ArtPalette.surface("drywall")},
-		{"names": ["Ceiling"], "mat": ArtPalette.surface("ceiling_tile")},
-		{"names": ["FrontDesk"], "mat": ArtPalette.surface("laminate", Color(0.85, 0.68, 0.5))},
 		{"names": ["NightGrille"], "mat": ArtPalette.flat(Color(0.14, 0.14, 0.15), 0.4, 0.7)},
+		{"names": ["LiftDoors"], "mat": ArtPalette.surface("metal")},
 	])
 	var m := ArtMesh.new()
 	var grille := G_FRONT_AT + Vector3(0, 0, 0.22)
 	for k in 17:
 		m.box(grille + Vector3(-1.6 + k * 0.2, 0, 0), Vector3(0.02, 2.65, 0.02), Color(0.35, 0.35, 0.36))
 	m.commit(g, "GrilleSlats", false, 0.4, 0.7)
-	ArtDress.visual_only(ArtProps.potted_plant(g, Vector3(-3.0, 0, 6.2)))
-	ArtDress.visual_only(ArtProps.potted_plant(g, Vector3(3.0, 0, 6.2)))
 
 
 # --- The Custodian ------------------------------------------------------------------------
