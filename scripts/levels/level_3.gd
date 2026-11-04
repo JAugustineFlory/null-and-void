@@ -469,9 +469,8 @@ func _stair_landing(at: Vector3, yaw_deg: float) -> Transform3D:
 
 
 func player_spawn(index: int) -> Transform3D:
-	# Six people fit on the landing in a row along the flight, not spread into the walls.
-	var holder := Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), STAIR_IN_AT)
-	var slot := holder * Vector3(-0.8 + 0.5 * (index % 2), 0.1, -0.7 - 0.55 * (index / 2))
+	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
+	var slot := Stairwell.landing_slot(STAIR_IN_AT, 90.0, index)
 	return global_transform * Transform3D(spawn.basis, slot)
 
 

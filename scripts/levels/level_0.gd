@@ -846,7 +846,7 @@ func _build_ground_floor() -> void:
 	hum = Hum.create(self, AABB(Vector3(12, 0, -10), Vector3(7, 3, 12)))
 
 	# The lift hall: STAIR 1 and the lift.
-	stair_door = Stairwell.build(self, geo, GroundFloor.STAIR_AT, 180.0, "G")
+	stair_door = Stairwell.build(self, geo, GroundFloor.STAIR_AT, 180.0, "G", "STAIR 1", false)  # no way down from G
 	elevator = Elevator.create(self, geo, LIFT_AT, 90, "G", ["22", "14", "G", "B1"], "14")
 	elevator.name = "Elevator"
 	elevator.button.enabled = false

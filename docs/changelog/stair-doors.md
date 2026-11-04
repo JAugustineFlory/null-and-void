@@ -1,0 +1,1 @@
+- **Fixed:** Stair doors open out of the stairwell, and nobody arrives stuck behind one; the stairs now go down as well as up.
