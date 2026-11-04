@@ -210,9 +210,10 @@ const POWER_CUT_TIME := 10.0
 const CASES := {"power": TEXT.case_power, "login": TEXT.case_login, "main_doors": TEXT.case_main_doors, "seal": TEXT.case_seal, "entrance": TEXT.case_entrance}
 ## The ground floor, in Level 0's coordinates: STAIR 1's door into the lift hall, the
 ## corridor to the lobby, and the front doors (as Level 0 builds them).
-const G_STAIR_AT := Vector3(27, 0, 7)
-const G_FRONT_AT := Vector3(0, 1.3, 6.95)
-const G_DESK_AT := Vector3(0, 0, -1.5)
+const G_STAIR_AT := GroundFloor.STAIR_AT
+const G_FRONT_AT := GroundFloor.FRONT_AT
+## The reception desk's middle, at floor level.
+const G_DESK_AT := Vector3(0, 0, -1.0)
 const G_LOBBY := AABB(Vector3(-8, -0.5, -7), Vector3(16, 4.5, 14))
 ## Run on its own, the ground floor sits this far under floor 10 (level space).
 const G_OFFSET := Vector3(0, -40, 0)
@@ -591,7 +592,7 @@ func _build_hall(colors: Dictionary) -> void:
 		lamps[r[0]] = lamp
 		if str(r[4]) != "":
 			Document.place(geo, at + Vector3(0.14, -0.3, 0.2), -90.0, "Breaker tag", [r[0], {"text": r[4], "hand": true}], false, "note", Vector2(0.12, 0.09))
-	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), 90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
+	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), -90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
 	card.clues = [{"case": "seal", "opens": TEXT.case_seal, "tables": ["lockouts", "breakers"], "text": "The lockout card: a locked-out breaker stays off. Log it on the controller, then read it back at the panel it covers within 30 seconds."}]
 	# The plant maintenance desk, facing the panel's end: its terminal and the work order.
 	Greybox.box(geo, Vector3(-6, 0.5, 1.6), Vector3(2.4, 1.0, 0.8), Color(0.4, 0.38, 0.34), "MaintDesk")
@@ -959,32 +960,21 @@ func _build_ground() -> void:
 	g_geo.name = "GroundGeometry"
 	g_geo.transform = at
 	geo.add_child(g_geo)
-	var carpet := Color(0.32, 0.27, 0.24)
-	var wall := Color(0.7, 0.68, 0.62)
-	Greybox.room(g_geo, Vector3.ZERO, Vector3(16, 4, 14), {"floor": carpet, "wall": wall}, [
-		{"wall": "s", "at": 0.0, "width": 3.4, "height": 2.7},
-		{"wall": "e", "at": 3.0, "width": 1.8, "height": 2.4},
-	])
-	Sfx.mark_surface(g_geo.get_node("Floor"), "carpet")
-	Greybox.room(g_geo, Vector3(16, 0, 3), Vector3(16, 3, 2), {"floor": Color(0.3, 0.3, 0.3), "wall": wall}, [
-		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},
-		{"wall": "e", "at": 0.0, "width": 1.8, "height": 2.4},
-	])
-	Greybox.room(g_geo, Vector3(27, 0, 3), Vector3(6, 3.2, 8), {"floor": Color(0.35, 0.33, 0.3), "wall": wall}, [
-		{"wall": "w", "at": 0.0, "width": 1.8, "height": 2.4},
-		{"wall": "s", "at": 0.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},
-	])
+	# The same rooms Level 0 built: the lobby the crew walked in through.
+	GroundFloor.build(g_geo)
 	Greybox.label(g_geo, Vector3(27, 2.75, -0.88), "G   LOBBY", 56, Color(0.75, 0.75, 0.7))
 	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G")
 	g_stair.name = "Door_STAIR-G"
+	# The lift's doors, shut for the night.
+	Greybox.box(g_geo, GroundFloor.LIFT_AT + Vector3(0, Elevator.DOOR_H / 2.0, 0), Vector3(0.12, Elevator.DOOR_H, Elevator.DOORWAY), Color(0.55, 0.56, 0.58), "LiftDoors")
+	# The ordinary doors, as on Level 0; the one into the lift hall stands open.
+	var g_doors := GroundFloor.doors(g_root, "G-")
+	g_doors["LOBBY-HALL-END"].set_open.call_deferred(true, true)
 	# The front doors, and the night grille down behind the glass.
-	front_doors = Door.create(g_root, "G-FRONT", G_FRONT_AT, Vector3(3.2, 2.6, 0.12), Color(0.25, 0.35, 0.4))
-	front_doors.slide_axis = Vector3.RIGHT
+	front_doors = GroundFloor.front_doors(g_root, "G-FRONT")
 	Greybox.box(g_geo, G_FRONT_AT + Vector3(0, 0, 0.25), Vector3(3.4, 2.7, 0.05), Color(0.2, 0.2, 0.22), "NightGrille")
-	Greybox.label(g_geo, Vector3(0, 3.2, 6.88), "HALCYON DATA SYSTEMS", 56, Color(0.75, 0.78, 0.8), 180)
-	# The front desk, its terminal, and the night lockup card.
-	Greybox.box(g_geo, G_DESK_AT + Vector3(0, 0.55, 0), Vector3(3.2, 1.1, 0.8), Color(0.45, 0.35, 0.28), "FrontDesk")
-	front_desk = Terminal.spawn(g_geo, G_DESK_AT + Vector3(-0.6, 1.1, 0), 180, "FRONT DESK", db, terminal_ui)
+	# The front desk's terminal, where Level 0's was, and the night lockup card.
+	front_desk = Terminal.spawn(g_geo, G_DESK_AT + Vector3(1.5, 1.1, 0), 0, "FRONT DESK", db, terminal_ui)
 	front_desk.name = "FrontDeskTerminal"
 	front_desk.puzzles = [entrance_puzzle, verify_puzzle]
 	front_desk.boot_lines = [
@@ -992,10 +982,14 @@ func _build_ground() -> void:
 		"Night lockup: gates.",
 	]
 	front_desk.queried.connect(_on_query.bind("desk"))
-	var card := Document.place(g_geo, G_DESK_AT + Vector3(0.7, 1.1, 0.1), 180, "Night lockup card", GATES_CARD, true, "laminated", Vector2(0.24, 0.3))
+	var card := Document.place(g_geo, G_DESK_AT + Vector3(0.6, 1.102, 0.15), 0, "Night lockup card", GATES_CARD, true, "laminated", Vector2(0.24, 0.3))
 	card.clues = [{"case": "entrance", "opens": TEXT.case_entrance, "tables": ["gates"], "text": "The night lockup card: the front doors are main_entrance in gates. 1 = open."}]
 	for id_pos in [["G-LOBBY", Vector3(-4, 4.0, 0)], ["G-LOBBY", Vector3(4, 4.0, 0)], ["G-HALL", Vector3(16, 3.0, 3)], ["G-LIFTS", Vector3(27, 3.2, 3)]]:
 		add_light(id_pos[0], g_geo.transform * id_pos[1], 9.0, 0.8)
+	# After hours, the rest of the floor is lit low.
+	for l in GroundFloor.LIGHTS:
+		if not l[0] in ["lobby", "hall", "elevators"]:
+			add_light("G-" + str(l[0]).to_upper(), g_geo.transform * l[1], l[2], l[3] * 0.5)
 
 
 # --- The gantry arm -------------------------------------------------------------------

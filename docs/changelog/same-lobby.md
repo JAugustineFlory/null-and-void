@@ -1,0 +1,1 @@
+- **Changed:** When you make it back down to the lobby at the end, it's the same lobby you walked into.
