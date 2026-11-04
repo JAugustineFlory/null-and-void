@@ -620,7 +620,7 @@ func _build_control_room(colors: Dictionary) -> void:
 		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.4},
 		{"wall": "s", "at": HATCH_AT.x - 6.0, "width": HATCH_SIZE.x, "height": HATCH_AT.y + HATCH_SIZE.y / 2, "bottom": HATCH_AT.y - HATCH_SIZE.y / 2},
 	])
-	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.75, -9.88), "DOOR AND LIFT CONTROL", 32, Color(0.8, 0.8, 0.72), 180)
+	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.75, -9.88), "DOOR AND LIFT CONTROL", 32, Color(0.8, 0.8, 0.72), 0)
 	Document.place(geo, Vector3(CTRL_DOOR_AT.x + 1.3, 1.5, -9.88), 180, "Control room sign", CTRL_SIGN_LINES, false, "laminated", Vector2(0.3, 0.2))
 	# A powered sliding door: unlocked in the doors table, but no power to its actuator.
 	ctrl_door = add_door("PLANT-CTRL", CTRL_DOOR_AT, Vector3(1.6, 2.4, 0.12))
@@ -648,8 +648,9 @@ func _build_control_room(colors: Dictionary) -> void:
 	board.read_by.connect(func(_p):
 		sync.event("_ask_login")
 		sync.event("_book_huddle", ["easy_sql_insert"]))
-	# The clock over the door, on the room's side: the time the crew logs in with.
-	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.6, -10.12), data.time_in, 48, Color(1.0, 0.25, 0.15), 0).name = "Clock"
+	# The clock over the door, on the room's side and facing into it (a label reads
+	# from its +Z side): the time the crew logs in with, big enough to read from the desk.
+	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.75, -10.12), data.time_in, 96, Color(1.0, 0.25, 0.15), 180).name = "Clock"
 	# The shift's papers pinned on a corkboard by the desk: Facilities' notice, and
 	# beside it the earlier copy of the warning.
 	Greybox.box(geo, Vector3(7.9, 1.6, -17.92), Vector3(1.8, 1.0, 0.04), Color(0.55, 0.42, 0.28), "Corkboard")
@@ -686,7 +687,7 @@ func _build_bay(colors: Dictionary) -> void:
 	Greybox.room(geo, Vector3(-5, 0, -14), Vector3(10, 3.5, 8), {"floor": Color(0.22, 0.23, 0.25), "wall": colors.wall.darkened(0.2)}, [
 		{"wall": "s", "at": 0.0, "width": 3.0, "height": 2.8},
 	])
-	Greybox.label(geo, Vector3(BAY_DOOR_AT.x, 3.1, -9.88), "CHARGING BAY", 40, Color(0.85, 0.7, 0.2), 180)
+	Greybox.label(geo, Vector3(BAY_DOOR_AT.x, 3.1, -9.88), "CHARGING BAY", 40, Color(0.85, 0.7, 0.2), 0)
 	Document.place(geo, Vector3(BAY_DOOR_AT.x + 2.0, 1.5, -9.88), 180, "Bay sign", BAY_SIGN_LINES, false, "laminated", Vector2(0.3, 0.2))
 	bay_door = add_door("PLANT-BAY", BAY_DOOR_AT, Vector3(3.0, 2.8, 0.12))
 	# The charging cradle against the back wall.
@@ -995,7 +996,7 @@ func _build_gantry() -> void:
 	# The rail along the hall's ceiling, the bays' plates on the north wall under it.
 	Greybox.box(geo, Vector3(0, 5.85, GANTRY_Z), Vector3(19.5, 0.2, 0.35), Color(0.5, 0.45, 0.2), "GantryRail")
 	for bay in range(1, 5):
-		Greybox.label(geo, Vector3(_bay_x(bay), 3.0, -9.88), "BAY %d" % bay, 40, Color(0.9, 0.75, 0.1), 180)
+		Greybox.label(geo, Vector3(_bay_x(bay), 3.0, -9.88), "BAY %d" % bay, 40, Color(0.9, 0.75, 0.1), 0)
 	var park_x := _bay_x(data.park_bay)
 	var lines := GANTRY_CARD.duplicate()
 	lines[2] = GANTRY_CARD[2] % [data.park_bay, data.hatch_bay]
@@ -1033,7 +1034,7 @@ func _build_gantry() -> void:
 	# The panel, latched shut until the carriage docks under it (not a doors row: it's
 	# the gantry's own service hatch).
 	hatch = Door.create(self, "PLANT-HATCH", HATCH_AT, HATCH_SIZE, Color(0.4, 0.42, 0.45))
-	Greybox.label(geo, HATCH_AT + Vector3(0, HATCH_SIZE.y / 2 + 0.2, 0.12), "ACCESS PANEL", 24, Color(0.85, 0.85, 0.8), 180)
+	Greybox.label(geo, HATCH_AT + Vector3(0, HATCH_SIZE.y / 2 + 0.2, 0.12), "ACCESS PANEL", 24, Color(0.85, 0.85, 0.8), 0)
 	gantry_at = {"bay": data.park_bay, "raised": 0}
 	_place_gantry(gantry.position)
 

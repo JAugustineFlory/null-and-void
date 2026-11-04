@@ -192,7 +192,7 @@ func _build_wall_sheet(size: Vector2) -> void:
 	var width := size.x - margin * 2
 	var room := top - (-size.y / 2 + margin)
 	var font_size := 44
-	while font_size > 14 and _lines_height(lines, font_size, width / px) * px > room:
+	while font_size > 8 and _lines_height(lines, font_size, width / px) * px > room:  # small on a tag; held up, it reads big
 		font_size -= 2
 	var y := top
 	var n := 0
@@ -325,6 +325,18 @@ func _collect_pieces() -> void:
 		game.collect_piece(p.case, p.piece, title)
 
 
+## Every machine: the cases this paper opens are open for the whole crew, so the
+## case in the corner is the same for everyone. What it says still goes only on
+## its reader's own case page (_note_clues).
+func _open_cases() -> void:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return
+	for k in clues:
+		if k.has("opens"):
+			game.open_case(k.case, k.opens, k.get("tables", []))
+
+
 ## Lift it up off the desk or wall to read it in your hands (Game.diegetic_ui).
 ## Returns the reader, or null if the player's hands are busy.
 func pick_up(player: Node) -> DocumentReader:
@@ -415,14 +427,19 @@ func _report_read(player: Node) -> void:
 
 
 ## Host: someone read it (or took it, if it's a loose sticky). Its pieces are
-## found for everyone.
+## found for everyone, and the cases it opens open for everyone.
 func report_open(player: Node) -> void:
+	var s := LevelSync.of(self)
 	if not pieces.is_empty():
-		var s := LevelSync.of(self)
 		if s:
 			s.run_on(self, "_collect_pieces")
 		else:
 			_collect_pieces()
+	if clues.any(func(k): return k.has("opens")):
+		if s:
+			s.run_on(self, "_open_cases")
+		else:
+			_open_cases()
 	read_by.emit(player)
 	if is_sticky() and flat and is_in_group("interactable"):
 		var sync := LevelSync.of(self)

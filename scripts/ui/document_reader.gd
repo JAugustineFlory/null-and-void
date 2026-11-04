@@ -10,6 +10,10 @@ extends CanvasLayer
 
 signal closed
 
+## How much of the view's height a page printed small can fill at most: all of it
+## still on screen.
+const CLOSEST_FILL := 0.9
+
 var document: Node
 var player: Node
 var view: DocumentView
@@ -110,7 +114,15 @@ func hold(doc: Node, by_player: Node) -> bool:
 		var page_view := page_viewport.get_child(0) as DocumentView
 		if page_view:
 			page_view.copy_requested.connect(func(text): _start_note(_index_of(text)))
+			# A page with so much on it that it's printed small comes up closer.
+			page_view.fitted.connect(_hold_closer)
+			_hold_closer(page_view.fit_scale)
 	return _finish_hold()
+
+
+func _hold_closer(print_scale: float) -> void:
+	if player and is_instance_valid(player) and player.held_prop == document:
+		player.set_read_fill(minf(player.READ_FILL / maxf(print_scale, 0.01), CLOSEST_FILL))
 
 
 func _finish_hold() -> bool:

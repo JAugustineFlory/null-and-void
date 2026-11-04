@@ -595,7 +595,7 @@ func _build_hr_front(colors: Dictionary) -> void:
 	book.name = "Book"
 	book.used.connect(func(p): sync.event("_book_found", [players.id_of(p)]))
 	# The clock on the wall over the desk: the floor's time when the crew arrives.
-	Greybox.label(geo, Vector3(0, 2.6, -7.88), data.clock, 48, Color(1.0, 0.25, 0.15), 180).name = "Clock"
+	Greybox.label(geo, Vector3(0, 2.6, -7.88), data.clock, 48, Color(1.0, 0.25, 0.15), 0).name = "Clock"
 	# A row of waiting chairs by the east wall.
 	for z in [-5.0, -4.0, -3.0]:
 		Greybox.box(geo, Vector3(8.6, 0.25, z), Vector3(0.5, 0.5, 0.5), Color(0.35, 0.4, 0.45), "Chair")
@@ -627,7 +627,7 @@ func _build_cage(colors: Dictionary) -> void:
 	Greybox.room(geo, Vector3(-6, 0, -12), Vector3(8, 3.0, 8), {"floor": Color(0.26, 0.26, 0.28), "wall": colors.wall.darkened(0.15)}, [
 		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.3},
 	])
-	Greybox.label(geo, Vector3(CAGE_DOOR_AT.x, 2.6, -7.88), "RECORDS CAGE", 32, Color(0.8, 0.8, 0.72), 180)
+	Greybox.label(geo, Vector3(CAGE_DOOR_AT.x, 2.6, -7.88), "RECORDS CAGE", 32, Color(0.8, 0.8, 0.72), 0)
 	Document.place(geo, Vector3(CAGE_DOOR_AT.x + 1.4, 1.5, -7.88), 180, "Cage sign", CAGE_SIGN_LINES, false, "laminated", Vector2(0.26, 0.2))
 	cage_door = add_door("PERS-CAGE", CAGE_DOOR_AT, Vector3(1.6, 2.3, 0.12))
 	# Shelving stacks down both sides; the staffer hides behind the back one.
@@ -642,7 +642,7 @@ func _build_corridor(colors: Dictionary) -> void:
 		{"wall": "s", "at": 0.0, "width": 2.4, "height": 2.4},
 		{"wall": "n", "at": 0.0, "width": 2.4, "height": 2.4},
 	])
-	Greybox.label(geo, Vector3(1, 2.7, -7.88), "PAYROLL  >", 32, Color(0.8, 0.8, 0.72), 180)
+	Greybox.label(geo, Vector3(1, 2.7, -7.88), "PAYROLL  >", 32, Color(0.8, 0.8, 0.72), 0)
 	# The readers by each doorway: a grey box with a slot.
 	Greybox.box(geo, Vector3(2.0, 1.3, 3.9), Vector3(0.1, 0.16, 0.1), Color(0.3, 0.3, 0.32), "ReaderFront")
 	Greybox.box(geo, Vector3(2.9, 1.3, -15.9), Vector3(0.1, 0.16, 0.1), Color(0.3, 0.3, 0.32), "ReaderPay")
@@ -654,7 +654,7 @@ func _build_payroll(colors: Dictionary) -> void:
 		{"wall": "n", "at": STORE_DOOR_AT.x, "width": 1.2, "height": 2.3},
 		{"wall": "n", "at": DOCK_DOOR_AT.x, "width": 1.6, "height": 2.5},
 	])
-	Greybox.label(geo, Vector3(1, 2.8, -16.12), "PAYROLL", 48, Color(0.8, 0.8, 0.72), 0)
+	Greybox.label(geo, Vector3(1, 2.8, -16.12), "PAYROLL", 48, Color(0.8, 0.8, 0.72), 180)
 	# Desks in two rows; the Mimic sits at the second on the left, back to the door.
 	for x in [-4.0, 2.0]:
 		for z in [-20.0, -24.0]:
@@ -720,7 +720,7 @@ func _build_dock(colors: Dictionary) -> void:
 	dock_door = add_door("PERS-DOCK", DOCK_DOOR_AT, Vector3(1.6, 2.5, 0.12))
 	# A landing, then nothing: the dock stairs are a black drop.
 	Greybox.box(geo, Vector3(6, -0.05, -29.0), Vector3(5.6, 0.1, 1.8), Color(0.3, 0.3, 0.3), "DockLanding")
-	Greybox.label(geo, Vector3(6, 2.2, -33.88), "DOCK STAIRS", 28, Color(0.5, 0.1, 0.1), 180)
+	Greybox.label(geo, Vector3(6, 2.2, -33.88), "DOCK STAIRS", 28, Color(0.5, 0.1, 0.1), 0)
 	# The drop itself is checked per machine in _process (a Trigger only fires on the host).
 
 

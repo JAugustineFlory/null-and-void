@@ -271,6 +271,17 @@ func test_scene() -> void:
 	var board: Node = _doc(level, "Contractor log")
 	check(board != null and board.plain_text().contains("INSERT INTO contractor_log (company, job, time_in) VALUES") and not board.plain_text().contains(data.ticket), "the clipboard shows another contractor's INSERT, not the crew's")
 	check(level.CTRL_ROOM.has_point(level.to_local(board.global_position)) and level.find_children("Clock", "Label3D", true, false).size() == 1, "the clipboard and the clock are in the control room")
+	# The clock over the door reads from the controller: it faces the room, in front
+	# of the wall, nothing in the way, and its digits big enough to make out.
+	var clock: Label3D = level.find_children("Clock", "Label3D", true, false)[0]
+	var eye: Vector3 = level.to_global(Vector3(5.4, 1.6, -15.9))  # standing at the controller
+	var to_eye: Vector3 = eye - clock.global_position
+	check(clock.global_basis.z.dot(to_eye.normalized()) > 0.5, "the clock over the control room door faces into the room, toward the controller")
+	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
+	var seen := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, clock.global_position))
+	check(seen.is_empty(), "nothing hides it from the controller%s" % ("" if seen.is_empty() else " (%s is in the way)" % seen.collider.name))
+	check(not space.intersect_ray(PhysicsRayQueryParameters3D.create(clock.global_position, clock.global_position - clock.global_basis.z * 0.06)).is_empty(), "and it's on the wall over the door, just in front of it")
+	check(clock.font_size * clock.pixel_size / to_eye.length() > 0.025, "its digits are big enough to read from there (%.2f m tall at %.1f m)" % [clock.font_size * clock.pixel_size, to_eye.length()])
 	board.open_reader(p).close()
 	await _frames(3)
 	check(_game().current_todo() == level.TEXT.todo_login, "reading the clipboard sets the log-in to-do")

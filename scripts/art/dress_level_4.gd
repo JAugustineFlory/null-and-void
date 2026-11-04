@@ -189,7 +189,7 @@ static func _hall(level: LevelBase, dress: Node3D) -> void:
 		safe.box(hat + Vector3(0, 0.08, 0), Vector3(0.02, 0.02, 0.08), STEEL)
 		safe.rod(hat + Vector3(0, -0.02, -0.12), hat + Vector3(0, 0.08, -0.12), 0.13, [ArtPalette.SAFETY_YELLOW, Color(0.95, 0.95, 0.92), ArtPalette.SAFETY_YELLOW][k], 10, true)
 	safe.commit(dress, "SafetyKit", true, 0.5)
-	ArtProps.fire_extinguisher(dress, Vector3(-3.2, 1.1, 3.89), 180)
+	ArtProps.fire_extinguisher(dress, Vector3(-3.2, 1.1, 3.89), 0)
 	ArtProps.poster(dress, Vector3(4.0, 1.6, 3.89), 180, "DANGER\nHIGH VOLTAGE\n\nAUTHORISED PERSONS ONLY", Vector2(0.45, 0.6), Color(0.95, 0.95, 0.92), 22)
 	ArtProps.poster(dress, Vector3(9.89, 2.2, -4.0), -90, "ARC FLASH HAZARD\n\nPPE REQUIRED\nCAT 2", Vector2(0.4, 0.5), Color(0.95, 0.6, 0.15), 22)
 
@@ -342,7 +342,7 @@ static func _control_room(level: LevelBase, dress: Node3D) -> void:
 	for shaft in 3:
 		m.box(Vector3(wall + 0.02, 1.9, -12.7 + shaft * 0.25), Vector3(0.006, 1.45, 0.012), Color(0.8, 0.8, 0.75))
 	m.commit(dress, "ControlRoom", true, 0.45, 0.3)
-	ArtProps.poster(dress, Vector3(wall + 0.03, 2.9, -14.0), 90, "HALCYON TOWER  -  DOORS AND LIFTS", Vector2(2.4, 0.2), Color(0.18, 0.22, 0.2), 30)
+	ArtProps.poster(dress, Vector3(wall + 0.03, 2.9, -14.0), -90, "HALCYON TOWER  -  DOORS AND LIFTS", Vector2(2.4, 0.2), Color(0.18, 0.22, 0.2), 30)
 	# The relay cabinets for the three lifts, on the greybox cabinets' colliders.
 	var cab := ArtMesh.new()
 	for z in [-16.5, -14.5, -12.5]:
