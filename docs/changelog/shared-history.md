@@ -1,0 +1,1 @@
+- **Added:** At a terminal, pressing Up brings back the last command anyone in the crew typed there, not just your own.

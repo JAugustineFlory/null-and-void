@@ -27,8 +27,13 @@ var player: Player
 var _output: RichTextLabel
 var _input: TextEdit
 var _title: Label
+## Up and Down: every command typed at the open terminal, by anyone in the crew,
+## in the order the host ran them (yours go in as you press Enter). Each terminal
+## keeps its own (_histories); this is the open one's, and _history_i your place in it.
 var _history: Array[String] = []
 var _history_i := -1
+## Each terminal's history on this floor, by terminal.
+var _histories := {}
 ## Every line on screen that can be written into the notebook: {kind, text,
 ## from, to}, where from/to are the paragraphs it covers in the output.
 ## Kinds: info, echo, result, row (one row of a result, with its header), hint,
@@ -156,6 +161,9 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	terminal = from_terminal
 	player = by_player
 	player.input_locked = true
+	# Its own history, shared by everyone who uses it; Up starts from the newest.
+	_history = _history_of(terminal)
+	_history_i = _history.size()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_title.text = "HALCYON DATA SYSTEMS  //  %s" % terminal.terminal_name
 	visible = true
@@ -663,6 +671,24 @@ func _submit() -> void:
 	run(sql)
 
 
+## The history of commands typed at `t`, by anyone.
+func _history_of(t: Node) -> Array[String]:
+	if not _histories.has(t):
+		var h: Array[String] = []
+		_histories[t] = h
+	return _histories[t]
+
+
+## A teammate's command at `on_terminal`, for Up and Down there. If it's the open
+## terminal: scrolling back stays where it is; at the end, Up now starts from this one.
+func _remember(on_terminal: Node, line: String) -> void:
+	var h := _history_of(on_terminal)
+	var at_end := on_terminal == terminal and (_history_i < 0 or _history_i >= h.size())
+	h.append(line)
+	if at_end:
+		_history_i = h.size()
+
+
 ## Run a command or query as if typed. Public so tests and scripted events can use it.
 ## Queries go through the level's LevelSync, so in co-op the host runs them.
 func run(sql: String) -> void:
@@ -714,6 +740,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	if not mine:
 		var net := get_node_or_null("/root/Net")
 		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+	if not mine:
+		_remember(on_terminal, sql)
 	var out: Array = [[_echo(sql, who), "echo"]]
 	if not result.ok:
 		out.append(["[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error"])
@@ -761,6 +789,7 @@ func show_request(on_terminal: Node, line: String, res: Dictionary, from_peer: i
 	if not mine:
 		var net := get_node_or_null("/root/Net")
 		who = net.display_name(from_peer) if net else "Player %d" % from_peer
+		_remember(on_terminal, line)
 	on_terminal.print_line(_echo(line, who), "echo")
 	if res.is_empty():
 		on_terminal.print_line("[color=#ff6655]No network API on this terminal. It only speaks SQL.[/color]")
