@@ -120,6 +120,7 @@ func _group_core() -> void:
 	await test_pick_up_papers()
 	await _run_file("res://tests/art_tests.gd")
 	await _run_file("res://tests/huddle_tests.gd")
+	await _run_file("res://tests/pad_menu_tests.gd")
 
 
 ## Ground floor (Level 0) and Rourke's tour.

@@ -54,6 +54,7 @@ func _ready() -> void:
 	var note := ThemeUtil.label("In development: greybox art, placeholder voices. Six floors playable.", 16, Color(1, 1, 1, 0.4))
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(note)
+	PadFocus.attach(self)
 	start.grab_focus()
 
 

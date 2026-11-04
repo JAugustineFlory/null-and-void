@@ -1,0 +1,1 @@
+- **Added:** The title screen, the garage lobby, Levels, Customize, Settings and the pause menu work with a controller: the d-pad moves, A picks, B goes back, and whatever is picked has a clear outline.
