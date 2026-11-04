@@ -18,6 +18,9 @@ var loadout := {}
 var earned: Array = []
 ## Items granted one by one (Cosmetics.key ids).
 var owned: Array = []
+## Cases this player has solved, on any run: id -> {title, how} (Game.solve_case).
+## The garage's back-office PC lists them (ArchiveTerminal).
+var cases := {}
 
 
 static func open(at: String = PATH) -> Profile:
@@ -32,6 +35,8 @@ static func open(at: String = PATH) -> Profile:
 	p.earned = e.filter(func(x): return x is String) if e is Array else []
 	var o = cfg.get_value("unlocks", "owned", [])
 	p.owned = o.filter(func(x): return x is String) if o is Array else []
+	var c = cfg.get_value("cases", "closed", {})
+	p.cases = c if c is Dictionary else {}
 	var l = cfg.get_value("player", "loadout", {})
 	p.loadout = Cosmetics.trim(l, p) if l is Dictionary else {}
 	return p
@@ -45,6 +50,7 @@ func save() -> void:
 	cfg.set_value("player", "loadout", loadout)
 	cfg.set_value("unlocks", "earned", earned)
 	cfg.set_value("unlocks", "owned", owned)
+	cfg.set_value("cases", "closed", cases)
 	cfg.save(path)
 
 
@@ -66,6 +72,15 @@ func earn(source: String) -> Array:
 	save()
 	return Cosmetics.unlocked_by(source).filter(func(it): return not before.has(it)).map(
 		func(it): return Cosmetics.key(it.slot, it.item))
+
+
+## Record a solved case. False if it was already on the list.
+func close_case(id: String, title: String, how: String) -> bool:
+	if cases.has(id):
+		return false
+	cases[id] = {"title": title, "how": how}
+	save()
+	return true
 
 
 ## Own one item outright. False if they already had it.
