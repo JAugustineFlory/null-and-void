@@ -172,6 +172,10 @@ const SIDE_ROOMS := {
 	"COLD STORE": {"center": Vector3(13.5, 0, -19), "back": Vector3(1, 0, 0), "door_id": "ARC-COLD", "label": "COLD STORE"},
 }
 const SIDE_ROOM_SIZE := Vector3(5, 3.2, 6)
+## The box labels on each stack unit's shelf face: an aisle's catalogue rows, and
+## how many spots a metre apart each shelf has for them (stack_label_spots).
+const STACK_LABELS_SQL := "SELECT box_id, dept, shelf FROM catalogue WHERE aisle = '%s' AND status != 'destroyed' ORDER BY shelf LIMIT 6"
+const STACK_LABEL_SLOTS := 8
 const SAFE_ROOM_SIZE := Vector3(5, 3, 6)
 ## Rolling compact shelving: four units a hand crank slides along the room. Shut,
 ## they stand at the back wall with 2.2 m clear inside the door; cranked, they slide
@@ -645,15 +649,33 @@ func _build_stacks(colors: Dictionary) -> void:
 		Greybox.label(geo, Vector3(x, 3.2, -9.88), aisle, 64, Color(0.95, 0.9, 0.8))
 		Greybox.label(geo, Vector3(x, 3.2, -20.12), aisle, 64, Color(0.95, 0.9, 0.8), 180)
 		# Box labels on the shelf faces: the catalogue's rows, where you can read them.
-		for row in db.run_silent("SELECT box_id, dept, shelf FROM catalogue WHERE aisle = '%s' AND status != 'destroyed' ORDER BY shelf LIMIT 6" % aisle):
-			var y := 0.5 + int(row["shelf"]) * 0.5
-			var z := -18.5 + (int(row["shelf"]) % 4) * 2.0
-			Greybox.label(geo, Vector3(x + 0.61, y, z), "%s\n%s" % [row["box_id"], row["dept"]], 18, Color(0.15, 0.12, 0.1), 90)
+		var rows: Array = db.run_silent(STACK_LABELS_SQL % aisle)
+		var spots := stack_label_spots(rows)
+		for k in rows.size():
+			Greybox.label(geo, Vector3(x + 0.61, spots[k].x, spots[k].y), "%s\n%s" % [rows[k]["box_id"], rows[k]["dept"]], 18, Color(0.15, 0.12, 0.1), 90)
 		# Each unit's end face is a ladder of shelf edges: climb it, then cross along the tops.
 		Traversal.climbable(geo, Vector3(x, 0, -10), Vector3(x, 3.6, -10), Vector3(0, 0, 1), 1.0)
 		Traversal.climbable(geo, Vector3(x, 0, -20), Vector3(x, 3.6, -20), Vector3(0, 0, -1), 1.0)
 	# A records cart left in an aisle: cover, and something to climb from.
 	Greybox.box(geo, Vector3(1.5, 0.45, -12), Vector3(0.7, 0.9, 1.1), Color(0.5, 0.5, 0.52), "RecordsCart")
+
+
+## Where each of an aisle's box labels goes on its shelf face, as (height, z along
+## the unit), for its catalogue rows (STACK_LABELS_SQL): on its shelf's lip, and
+## boxes on the same shelf each in their own spot along it, a metre apart, so no
+## two labels print over each other (Augustine, v0.8-beta1 playtest).
+static func stack_label_spots(rows: Array) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	var taken := {}
+	for row in rows:
+		var shelf := int(row["shelf"])
+		var slot := (shelf % 4) * 2  # the first box on a shelf: where it always went
+		while taken.has(Vector2i(shelf, slot % STACK_LABEL_SLOTS)):
+			slot += 1
+		slot %= STACK_LABEL_SLOTS
+		taken[Vector2i(shelf, slot)] = true
+		out.append(Vector2(0.5 + shelf * 0.5, -18.5 + slot * 1.0))
+	return out
 
 
 ## Make a shelf unit read as shelving, not a slab: the solid box keeps the collision
