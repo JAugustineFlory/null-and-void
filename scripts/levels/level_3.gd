@@ -392,7 +392,7 @@ func build() -> void:
 		Greybox.panel(geo, Vector3(x, 1.1, 7.88), Vector3(1.3, 2.2, 0.04), Color(0.5, 0.52, 0.55), 0.0)
 		Greybox.label(geo, Vector3(x, 2.5, 7.86), "ELEVATOR  18", 32, Color(1.0, 0.45, 0.1), 180)
 	# Facilities memo by the lifts: day staff use the stairs until the lifts are fixed.
-	Document.place(geo, Vector3(0, 1.5, 7.87), 180, "Facilities memo", [
+	Document.place(geo, Vector3(0, 1.5, 7.87), 0, "Facilities memo", [
 		"HALCYON DATA SYSTEMS  -  FACILITIES",
 		"MEMO  10/15",
 		"Lifts 1-4 keep faulting after Tuesday night's power event.",
@@ -405,7 +405,7 @@ func build() -> void:
 	stair_in.name = "Door_STAIR-IN"
 	stair_in.locked = false
 	Greybox.box(geo, STAIR_IN_AT + Vector3(0.1, 0.03, 0.55), Vector3(0.12, 0.06, 0.2), Color(0.6, 0.45, 0.2), "DoorWedge")
-	Document.place(geo, STAIR_IN_AT + Vector3(0.12, 1.75, -0.9), 90.0, "Door sign", [
+	Document.place(geo, STAIR_IN_AT + Vector3(0.12, 1.75, -0.9), -90.0, "Door sign", [
 		"FIRE DOOR",
 		"KEEP CLOSED",
 		"DO NOT PROP",
@@ -531,10 +531,10 @@ func _build_reading_room(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(-7.5, 0.7, 1.0), Vector3(0.9, 1.4, 3.6), Color(0.45, 0.32, 0.2), "CardCatalogue")
 	Greybox.label(geo, Vector3(-7.03, 1.5, 1.0), "CATALOGUE  A - Z", 30, Color(0.95, 0.92, 0.85), 90)
 	# The clerk's memo pinned on the drawers: DISTINCT, found here.
-	var memo := Document.place(geo, Vector3(-7.02, 1.15, 2.3), 90, "Retention review memo", MEMO_LINES, false, "memo")
+	var memo := Document.place(geo, Vector3(-7.02, 1.15, 2.3), -90, "Retention review memo", MEMO_LINES, false, "memo")
 	memo.read_by.connect(func(_p): sync.event("_book_huddle", ["easy_sql_distinct"]))
 	# The stacks' lighting panel by the stacks doors: why it's dark through there.
-	Document.place(geo, Vector3(-1.6, 1.5, -5.88), 0, "Stacks lighting notice", [
+	Document.place(geo, Vector3(-1.6, 1.5, -5.88), 180, "Stacks lighting notice", [
 		"STACKS LIGHTING",
 		"Occupancy sensors. Lights come on with motion 07:00-19:00.",
 		"After 19:00 the sensors are off. Override at the records desk (archivist key).",
@@ -844,7 +844,7 @@ func _build_north(colors: Dictionary) -> void:
 	Greybox.room(geo, Vector3(-5.5, 0, -29), Vector3(11, 3.6, 8), {"floor": Color(0.3, 0.3, 0.3), "wall": Color(0.5, 0.5, 0.48)}, [
 		{"wall": "s", "at": 0.0, "width": 2.4, "height": 2.4},
 	])
-	Greybox.label(geo, Vector3(-5.5, 2.7, -24.88), "SHREDDING", 44, Color(0.75, 0.2, 0.15), 180)
+	Greybox.label(geo, Vector3(-5.5, 2.7, -24.88), "SHREDDING", 44, Color(0.75, 0.2, 0.15), 0)
 	# A wide roll-up door for the bins, up while the machines run (its row is unlocked):
 	# the Shredder's way out, and the way its noise spills into the corridor.
 	room_doors["SHRED ROOM"] = add_door("ARC-SHRED", Vector3(-5.5, 1.2, -25), Vector3(2.4, 2.4, 0.08))
@@ -860,7 +860,7 @@ func _build_north(colors: Dictionary) -> void:
 	Greybox.room(geo, Vector3(6.5, 0, -28), Vector3(9, 3.2, 6), colors, [
 		{"wall": "s", "at": 0.0, "width": 1.0, "height": 2.3},
 	])
-	Greybox.label(geo, Vector3(6.5, 2.6, -24.88), "MICROFICHE", 36, Color(0.2, 0.2, 0.2), 180)
+	Greybox.label(geo, Vector3(6.5, 2.6, -24.88), "MICROFICHE", 36, Color(0.2, 0.2, 0.2), 0)
 	var fd := add_door("ARC-FICHE", Vector3(6.5, SIDE_DOOR.y / 2, -25), Vector3(1.0, 2.3, 0.08))
 	fd.make_hinged(Vector3(-0.5, 0, 0), 90.0)
 	room_doors["MICROFICHE"] = fd

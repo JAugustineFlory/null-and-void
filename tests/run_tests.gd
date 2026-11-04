@@ -190,6 +190,8 @@ func _group_floor_18() -> void:
 ## Floor 10, the Power Plant (Level 4).
 func _group_floor_10() -> void:
 	await _run_file("res://tests/level_4_tests.gd")
+	# Every floor's signs, here because floor 10's clock was the one reported.
+	await _run_file("res://tests/sign_tests.gd")
 
 
 func _group_floor_9() -> void:
