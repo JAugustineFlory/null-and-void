@@ -1,0 +1,2 @@
+- **Fixed:** the front doors no longer lock with one of the crew still outside.
+- **Changed:** walking into the lobby puts the sign-in step up straight away.

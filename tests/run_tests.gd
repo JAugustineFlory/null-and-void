@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "bodies", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "bodies", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers"]
 
 
 func _run() -> void:
@@ -86,6 +86,7 @@ func _run_group(g: String) -> void:
 		"scripting": await _group_scripting()
 		"chapters": await _group_chapters()
 		"sound": await _group_sound()
+		"papers": await _run_file("res://tests/paper_fit_tests.gd")
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -138,6 +139,8 @@ func _group_floor_14() -> void:
 	test_level_1_data_every_seed()
 	await test_level_1_scene()
 	await test_level_1_book_huddle()
+	# The case in the corner on every floor, solo and with two players on floor 14.
+	await _run_file("res://tests/case_floor_tests.gd")
 
 
 ## Easy SQL's chapters at their moments on the ground floor and floor 14.
@@ -177,6 +180,7 @@ func _group_floor_22_lab() -> void:
 
 func _group_floor_18() -> void:
 	test_level_3_data_every_seed()
+	await test_stack_labels_apart()
 	await test_level_3_scene()
 	await test_level_3_side_rooms_walkable()
 	await test_level_3_safe_room()
@@ -189,6 +193,8 @@ func _group_floor_18() -> void:
 ## Floor 10, the Power Plant (Level 4).
 func _group_floor_10() -> void:
 	await _run_file("res://tests/level_4_tests.gd")
+	# Every floor's signs, here because floor 10's clock was the one reported.
+	await _run_file("res://tests/sign_tests.gd")
 
 
 func _group_floor_9() -> void:
@@ -3071,6 +3077,23 @@ func test_coop_lobby_walk_in() -> void:
 		if c.sync._gates.has("inside"):
 			break
 	check(h.sync._gates.has("inside") and c.sync._gates.has("inside"), "a crew walking in one at a time all counts as inside")
+	check(c.hud.current_todo() == "Sign the visitor log and take a visitor badge", "once you're in, the next step goes up at once")
+	# Augustine's group playtest: one of the crew stepped back outside before the
+	# doors shut, and was locked out for good.
+	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 9.5))
+	for f in 3000:
+		await physics_frame
+		if h.sync._gates.has("rourke_at_desk"):
+			break
+	await _frames(60)
+	var locked := func(l): return int(l.db.run_silent("SELECT locked FROM doors WHERE id = 'LOBBY-FRONT'")[0]["locked"]) == 1
+	check(h.sync._gates.has("rourke_at_desk") and not locked.call(h) and not locked.call(c), "Rourke's at the desk, but the front doors stay unlocked while one of the crew is outside")
+	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 1.8))
+	for f in 600:
+		await physics_frame
+		if c.sync._gates.has("crew_in_lobby"):
+			break
+	check(locked.call(h) and locked.call(c), "and lock once they're back in")
 	check(c.badges.enabled and c.badges.models.filter(func(n): return n.visible).size() == 2, "a visitor badge for each of the crew waits on the counter")
 	c.visitor_log.interact(m[1].player)
 	c.badges.interact(m[1].player)
@@ -5299,6 +5322,67 @@ const L3_STAIRS_DOWN := Vector3(6.3, 0.1, 6.0)
 
 ## The readers' log points at one side room that night, the reading room over the
 ## whole log; the catalogue and the slips read the same on every seed.
+## The box labels on the stacks' shelf faces: one per catalogue row, each in its
+## own spot, on every seed (two boxes on the same shelf printed over each other).
+func test_stack_labels_apart() -> void:
+	print("Stack box labels never overlap, 200 seeds")
+	var l3 = load("res://scripts/levels/level_3.gd")
+	var apart := true
+	var on_unit := true
+	var crowded := 0  # aisles with two boxes on one shelf: what used to overlap
+	for s in 200:
+		var db := FacilityDB.new()
+		db.load_seed(Level3Data.build(s).sql)
+		for a in 5:
+			var rows: Array = db.run_silent(l3.STACK_LABELS_SQL % ("A%d" % (a + 1)))
+			var spots: Array[Vector2] = l3.stack_label_spots(rows)
+			var shelves := {}
+			for r in rows:
+				shelves[r["shelf"]] = true
+			if shelves.size() < rows.size():
+				crowded += 1
+			for i in spots.size():
+				if spots[i].y < -19.6 or spots[i].y > -10.4:
+					on_unit = false
+				for j in range(i + 1, spots.size()):
+					if absf(spots[i].x - spots[j].x) < 0.3 and absf(spots[i].y - spots[j].y) < 0.8:
+						apart = false
+	check(crowded > 50, "aisles often have two boxes on one shelf (%d of 1000)" % crowded)
+	check(apart, "every box label in an aisle has its own spot, at least 0.8 m from any other on its shelf")
+	check(on_unit, "and all of them are on the shelf unit's face")
+	# In the level: the labels themselves don't overlap, and each is on its unit,
+	# where the dressing puts a shelf tag behind it (ArtDress Level 3, _stacks).
+	_game().new_run(7)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	root.add_child(level)
+	for i in 5:
+		await physics_frame
+	var labels: Array = []
+	var tagged := true
+	for u in level.stack_units:
+		var c: Vector3 = u.position
+		var bounds := AABB(Vector3(c.x - 0.63, -0.1, -20.06), Vector3(1.26, 3.8, 10.12)).grow(0.05)
+		for l in level.geo.get_children():
+			if l is Label3D and absf(l.position.x - (c.x + 0.61)) < 0.02:
+				labels.append(l)
+				tagged = tagged and bounds.has_point(l.position)
+	# Each label's printed area on the shelf face (z along the unit, y up), from its text.
+	var areas: Array[Rect2] = []
+	for l in labels:
+		var f: Font = l.font if l.font else ThemeDB.fallback_font
+		var ink: Vector2 = f.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_CENTER, -1, l.font_size) * l.pixel_size
+		areas.append(Rect2(Vector2(l.position.z, l.position.y) - ink / 2.0, ink))
+	var overlap := ""
+	for i in labels.size():
+		for j in range(i + 1, labels.size()):
+			if absf(labels[i].position.x - labels[j].position.x) < 0.1 and areas[i].intersects(areas[j]):
+				overlap = "%s / %s" % [labels[i].text.replace("\n", " "), labels[j].text.replace("\n", " ")]
+	check(labels.size() >= 20 and overlap == "", "in the stacks, no two box labels overlap (%d labels%s)" % [labels.size(), "" if overlap == "" else "; overlapping: " + overlap])
+	check(tagged, "and every one is inside its shelf unit, where it gets a shelf tag")
+	level.queue_free()
+	await process_frame
+
+
 func test_level_3_data_every_seed() -> void:
 	print("Level 3 data, 50 seeds")
 	var l3 = load("res://scripts/levels/level_3.gd").new()

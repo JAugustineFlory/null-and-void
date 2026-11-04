@@ -623,13 +623,19 @@ func case_next(id: String) -> String:
 	return ""
 
 
-## The main case being worked on, with pieces to find: the newest open, unsolved,
-## not optional one. "" if none. The HUD counts its pieces.
+## The main case being worked on: the newest open, unsolved, not optional one
+## with pieces to find, or failing that the newest open, unsolved, not optional
+## one (floors whose cases have no pieces). "" if none. The HUD shows it in the
+## corner, counting its pieces if it has any.
 func main_case() -> String:
+	var plain := ""
 	for c in notebook_cases:
-		if c.open and not c.solved and not c.get("optional", false) and not c.get("pieces", []).is_empty():
-			return c.id
-	return ""
+		if c.open and not c.solved and not c.get("optional", false):
+			if not c.get("pieces", []).is_empty():
+				return c.id
+			if plain == "":
+				plain = c.id
+	return plain
 
 
 ## Solved cases, newest first: the notebook keeps them under Completed cases.
