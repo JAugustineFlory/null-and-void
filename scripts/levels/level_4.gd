@@ -590,7 +590,7 @@ func _build_hall(colors: Dictionary) -> void:
 		lamps[r[0]] = lamp
 		if str(r[4]) != "":
 			Document.place(geo, at + Vector3(0.14, -0.3, 0.2), -90.0, "Breaker tag", [r[0], {"text": r[4], "hand": true}], false, "note", Vector2(0.12, 0.09))
-	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), 90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
+	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), -90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
 	card.clues = [{"case": "seal", "opens": TEXT.case_seal, "tables": ["lockouts", "breakers"], "text": "The lockout card: a locked-out breaker stays off. Log it on the controller, then read it back at the panel it covers within 30 seconds."}]
 	# The plant maintenance desk, facing the panel's end: its terminal and the work order.
 	Greybox.box(geo, Vector3(-6, 0.5, 1.6), Vector3(2.4, 1.0, 0.8), Color(0.4, 0.38, 0.34), "MaintDesk")

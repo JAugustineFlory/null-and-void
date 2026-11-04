@@ -196,7 +196,7 @@ func build() -> void:
 	terminal.queried.connect(_on_query)
 	StickyNote.on_monitor(terminal, "where_and")
 	# The room's laminated reference card, and Mercer's note on what the statuses mean.
-	var card := Document.place(geo, Vector3(-5.25, 0.902, 8.35), -5.0, "SERVER ROOM A - DOOR CONTROLLERS", [
+	var card := Document.place(geo, Vector3(-5.25, 0.902, 8.35), 175.0, "SERVER ROOM A - DOOR CONTROLLERS", [
 		"Each rack drives one door lock. Rack ids DC-1 to DC-8 are on the aisle end.",
 		{"before": "Every controller is listed in the table ", "filled": "door_controllers", "after": "."},
 		"Columns: id, zone, status, location, last_reset, note",
@@ -207,7 +207,7 @@ func build() -> void:
 		{"case": "controller", "text": "Every controller is listed in the table door_controllers. Columns: id, zone, status, location, last_reset, note."},
 		{"case": "controller", "text": "Reset a faulted lock at its own rack. Never reset a healthy one."},
 	]
-	var reminders := Document.place(geo, Vector3(-3.55, 0.902, 8.3), 10.0, "Reminders", [
+	var reminders := Document.place(geo, Vector3(-3.55, 0.902, 8.3), -170.0, "Reminders", [
 		{"text": "status 'fault' = the lock relay is stuck. Needs a hand reset at the rack.", "hand": true, "author": "mercer"},
 		{"text": "status 'offline' = someone switched it off on purpose. Leave it alone.", "hand": true, "author": "mercer"},
 		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true, "author": "mercer"},
@@ -222,7 +222,7 @@ func build() -> void:
 	# numbers come from the racks table, so the paper never goes out of date.
 	var racks_all: int = db.run_silent("SELECT COUNT(*) AS n FROM racks")[0]["n"]
 	var racks_c: int = db.run_silent("SELECT COUNT(*) AS n FROM racks WHERE room = 'Server Room C'")[0]["n"]
-	Document.place(geo, Vector3(-3.55, 0.902, 8.62), -6.0, "WARDEN DIAGNOSTICS", [
+	Document.place(geo, Vector3(-3.55, 0.902, 8.62), 174.0, "WARDEN DIAGNOSTICS", [
 		"WARDEN DIAGNOSTICS - FLOOR 14 - 23:40",
 		"> SELECT COUNT(*) FROM racks;",
 		"  COUNT(*): %d" % racks_all,
@@ -233,7 +233,7 @@ func build() -> void:
 		{"case": "controller", "text": "COUNT(*) counts the rows instead of listing them: SELECT COUNT(*) FROM racks WHERE room = 'Server Room C'; gives %d." % racks_c},
 	]
 	# The reset's paperwork: the count it wants comes from the terminal.
-	var signoff := Document.place(geo, Vector3(-3.9, 0.902, 8.6), 4.0, "CONTROLLER RESET - SIGN-OFF", [
+	var signoff := Document.place(geo, Vector3(-3.9, 0.902, 8.6), -176.0, "CONTROLLER RESET - SIGN-OFF", [
 		"CONTROLLER RESET - SIGN-OFF",
 		"Floor 14. No manual reset without this form.",
 		"Units faulted (all doors this bank runs): ______",
@@ -559,7 +559,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	# what counts as too hot (the > the hot rack's query needs, found in the world).
 	# A copy lies on Server Room A's terminal desk, where the query is typed.
 	_rack_card(Vector3(12.6, 1.5, 8.89), 0.0, false)
-	_rack_card(Vector3(-3.7, 0.902, 8.35), -5.0, true)
+	_rack_card(Vector3(-3.7, 0.902, 8.35), 175.0, true)
 
 	# Break room: x 8..22, z -9..-3. Coffee, a fridge, a table.
 	Greybox.room(geo, Vector3(15, 0, -6), Vector3(14, 3, 6), c, [_gap("n", -3.0, door), _gap("s", -3.0, door)])
@@ -569,7 +569,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	Greybox.box(geo, Vector3(21.4, 0.45, -6), Vector3(0.8, 0.9, 4.0), Color(0.55, 0.55, 0.5), "Counter")
 	Greybox.box(geo, Vector3(21.3, 0.95, -4.0), Vector3(0.6, 1.9, 0.8), Color(0.85, 0.85, 0.82), "Fridge")
 	Greybox.box(geo, Vector3(21.5, 1.15, -7.0), Vector3(0.4, 0.5, 0.4), Color(0.15, 0.15, 0.15), "CoffeeMachine")
-	Document.place(geo, Vector3(21.0, 0.902, -6.0), 90.0, "Coffee fund", [
+	Document.place(geo, Vector3(21.0, 0.902, -6.0), -90.0, "Coffee fund", [
 		{"text": "Coffee fund is EMPTY. You know who you are.", "hand": true},
 		{"text": "- night shift", "hand": true},
 	], true, "note", Vector2(0.1, 0.1))
@@ -588,7 +588,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	light_panel.used.connect(_on_light_panel)
 	# A copy lies on Server Room A's terminal desk, where the lights are listed.
 	_facilities_card(Vector3(14.1, 1.45, -8.89), 180.0, false)
-	_facilities_card(Vector3(-5.3, 0.902, 8.62), 5.0, true)  # behind the DOOR CONTROLLERS card, clear of it
+	_facilities_card(Vector3(-5.3, 0.902, 8.62), -175.0, true)  # behind the DOOR CONTROLLERS card, clear of it
 
 	# Server Room C: x -17..-7, z -24..-13. Its lock is on the faulting controller (seeded zone).
 	Greybox.room(geo, Vector3(-12, 0, -18.5), Vector3(10, 3.6, 11), machine, [_gap("s", 0.0, door)])
@@ -599,7 +599,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		Greybox.box(geo, Vector3(x, 1.05, -19), Vector3(0.9, 2.1, 6.0), rack_c, "RackC")
 	Greybox.box(geo, Vector3(-12, 0.38, -23.2), Vector3(2.0, 0.76, 0.8), desk_c, "PrinterDesk")
 	# The floor's syslog printer: the night's events, in-world proof of Vale's override.
-	Document.place(geo, Vector3(-12, 0.762, -23.1), 180.0, "SYSLOG PRINTOUT", [
+	Document.place(geo, Vector3(-12, 0.762, -23.1), 0.0, "SYSLOG PRINTOUT", [
 		"SERVER FLOOR  -  SYSLOG  -  15 OCT 1997",
 		"23:02  LAB B   badge V-0042 (VALE, I.) door open",
 		"23:12  ZONE %s  manual override by user VALE_I, from SECURE LAB B" % zone,
