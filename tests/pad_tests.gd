@@ -110,6 +110,7 @@ func test_glyphs_follow_the_device() -> void:
 	check(InputGlyphs.text("Shift roster [A] [WASD]", true) == "Shift roster [A] [WASD]", "words that aren't keys are left alone")
 	InputGlyphs.deck = true
 	check(InputGlyphs.of("attack", true) == "R2" and InputGlyphs.of("flashlight", true) == "L1", "a Steam Deck's triggers and bumpers read R2 and L1")
+	check(InputGlyphs.deck_names("LB  flashlight     RT  strike     LT  block (LB/RB turn tabs)") == "L1  flashlight     R2  strike     L2  block (L1/R1 turn tabs)", "and so does the controls list")
 	InputGlyphs.deck = false
 	# The last device used decides.
 	InputGlyphs.pad = false

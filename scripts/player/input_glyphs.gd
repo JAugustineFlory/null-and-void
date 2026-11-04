@@ -87,6 +87,15 @@ static func of(action: String, on_pad: Variant = null) -> String:
 	return ""
 
 
+## `s` with LB RB LT RT named L1 R1 L2 R2 when the pad is a Steam Deck.
+static func deck_names(s: String) -> String:
+	if not deck:
+		return s
+	for xbox: String in DECK_NAMES:
+		s = RegEx.create_from_string("\\b%s\\b" % xbox).sub(s, DECK_NAMES[xbox], true)
+	return s
+
+
 ## `s` with each bracketed key ("[E]") and "press E" / "hold V" naming the
 ## button on the device in use. Unchanged on the keyboard.
 static func text(s: String, on_pad: Variant = null) -> String:

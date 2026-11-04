@@ -63,7 +63,7 @@ static func controls(on_in_world := Callable()) -> VBoxContainer:
 		if on_in_world.is_valid():
 			on_in_world.call(on))
 	box.add_child(in_world)
-	box.add_child(ThemeUtil.label(PAD_CONTROLS if InputGlyphs.pad else CONTROLS, 17, Color(0.85, 0.85, 0.85)))
+	box.add_child(ThemeUtil.label(InputGlyphs.deck_names(PAD_CONTROLS) if InputGlyphs.pad else CONTROLS, 17, Color(0.85, 0.85, 0.85)))
 	box.add_child(pad_settings())
 	return box
 
