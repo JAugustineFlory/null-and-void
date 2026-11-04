@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "signs"]
 
 
 func _run() -> void:
@@ -85,6 +85,7 @@ func _run_group(g: String) -> void:
 		"scripting": await _group_scripting()
 		"chapters": await _group_chapters()
 		"sound": await _group_sound()
+		"signs": await _run_file("res://tests/sign_tests.gd")
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
