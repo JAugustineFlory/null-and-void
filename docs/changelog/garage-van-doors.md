@@ -1,1 +1,0 @@
-- **Fixed:** The van in the garage now has the same doors as the van parked at the building, and its sliding door opens when it's time to get in.

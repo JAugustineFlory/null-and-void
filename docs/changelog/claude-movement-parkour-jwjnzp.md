@@ -1,2 +1,0 @@
-- **Changed:** Each crew member now stands, crouches, crawls and sits at their own height, so shorter characters see the world from lower down and taller ones from higher up. Vents are a little roomier so everyone fits.
-- **Changed:** Bigger crew members slow down where they barely fit, like a tight vent; nobody gets stuck.

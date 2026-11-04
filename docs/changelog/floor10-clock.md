@@ -1,2 +1,0 @@
-- **Fixed:** The clock over the controller room's door on floor 10 can be read again.
-- **Fixed:** Signs, notices and labels on floors 9, 10 and 18 that were turned to face the wall now face the room.

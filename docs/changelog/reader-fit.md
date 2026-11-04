@@ -1,2 +1,0 @@
-- **Fixed:** long papers and cards no longer get cut off when you read them: a page with a lot on it is printed a little smaller and held a little closer, so every line shows.
-- **Fixed:** a hand-written tag with a long note no longer runs off the bottom of the tag.

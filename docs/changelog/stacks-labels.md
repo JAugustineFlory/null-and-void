@@ -1,1 +1,0 @@
-- **Fixed:** Box labels in the archive stacks no longer print on top of each other.

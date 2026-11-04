@@ -1,1 +1,0 @@
-- **Added:** Maddison chimes in over the radio for more of Easy SQL's chapters as they land in your book.
