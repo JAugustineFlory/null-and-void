@@ -298,6 +298,8 @@ var notebook_drift := Vector2.ZERO
 var held_prop: Node3D
 var _prop_home := {}  # where it came from: parent, local transform, collision
 var _prop_read := Transform3D()  # camera-local reading pose
+var _prop_size := Vector2.ZERO  # what pick_up was given: its readable face and where it points
+var _prop_face := Vector3.BACK
 var _prop_from := Transform3D()  # camera-local, where it started coming up from
 var _prop_t := 0.0  # 0 at home .. 1 held up
 var _prop_lowering := false
@@ -694,6 +696,8 @@ func pick_up(prop: Node3D, size := Vector2(0.21, 0.28), face := Vector3.BACK) ->
 		prop.collision_mask = 0
 	prop.reparent(camera, true)
 	_prop_from = prop.transform
+	_prop_size = size
+	_prop_face = face
 	_prop_read = read_pose(size, face)
 	notebook_drift = Vector2.ZERO
 	_prop_t = 0.0
@@ -720,16 +724,24 @@ func is_holding_prop() -> bool:
 	return held_prop != null and not _prop_lowering
 
 
+## Hold what you're reading up closer, filling `fill` of the view's height rather
+## than READ_FILL (still no wider than the view): for a page printed small.
+func set_read_fill(fill: float) -> void:
+	if held_prop and not _prop_lowering:
+		_prop_read = read_pose(_prop_size, _prop_face, fill)
+
+
 ## Camera-local pose for reading something `size` big whose readable side points
 ## along its local `face`: centred, tilted back a little, as close as it needs to
-## be to fill READ_FILL of the view's height.
-func read_pose(size: Vector2, face := Vector3.BACK) -> Transform3D:
+## be to fill `fill` of the view's height.
+func read_pose(size: Vector2, face := Vector3.BACK, fill := READ_FILL) -> Transform3D:
 	var tan_v := tan(deg_to_rad(camera.fov / 2.0))
 	var aspect := 16.0 / 9.0
 	if is_inside_tree():
 		var rect := get_viewport().get_visible_rect()
 		aspect = rect.size.x / maxf(rect.size.y, 1.0)
-	var d := maxf(size.y / 2.0 / (tan_v * READ_FILL), size.x / 2.0 / (tan_v * aspect * 0.9))
+	var wide := minf(0.9 * fill / READ_FILL, 0.96)
+	var d := maxf(size.y / 2.0 / (tan_v * fill), size.x / 2.0 / (tan_v * aspect * wide))
 	# Turn the readable side to face the camera (+Z in camera space), upright.
 	var turn := Basis.IDENTITY
 	if face.normalized().is_equal_approx(Vector3.UP):

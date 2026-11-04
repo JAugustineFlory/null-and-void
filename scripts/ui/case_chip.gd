@@ -174,6 +174,8 @@ func refresh() -> void:
 	# What to do about it, which is what the case page's top line says too.
 	title.text = str(c.get("objective", "")) if str(c.get("objective", "")) != "" else c.title
 	count.text = "%d/%d" % [found, total]
+	count.visible = total > 0  # a case with no pieces to find: just what to do
+	bar.visible = total > 0
 	for s in bar.get_children():
 		bar.remove_child(s)
 		s.queue_free()
