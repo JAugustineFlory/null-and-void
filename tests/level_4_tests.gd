@@ -20,6 +20,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_accident()
 	await test_gantry()
 	await test_custodian_follows()
+	await test_same_ground_floor()
 	await test_world()
 	await test_book_huddles()
 	await test_coop()
@@ -689,6 +690,73 @@ func test_custodian_follows() -> void:
 	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0, 120), "it comes out of STAIR 1 on G and hunts there")
 	level.queue_free()
 	await t.process_frame
+
+
+## The lobby the crew come back down to is the one they walked in through
+## (Augustine, v0.8): Level 0's ground floor, built by the same GroundFloor.
+func test_same_ground_floor() -> void:
+	print("Floor 10: back on G, it's Level 0's ground floor")
+	_game().new_run(12)
+	var l0 = load("res://scenes/level_0.tscn").instantiate()
+	t.root.add_child(l0)
+	await _frames(5)
+	var plan0 := _floor_plan(l0.geo)
+	var desk0: Transform3D = l0.desk_terminal.transform
+	var doors0 := {}
+	for d in GroundFloor.DOORS:
+		doors0[d[0]] = l0.doors[d[0]].position
+	var front0: Vector3 = l0.front_doors.position
+	l0.queue_free()
+	await t.process_frame
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(10)
+	var plan4 := _floor_plan(level.g_geo)
+	var missing := plan0.filter(func(x): return x not in plan4)
+	var extra := plan4.filter(func(x): return x not in plan0)
+	check(plan0.size() > 60 and missing.is_empty() and extra.is_empty(), "G has Level 0's floor plan: every floor, wall (so every opening), ceiling, desk, partition and table where Level 0 has it (%d pieces%s%s)" % [plan0.size(), "" if missing.is_empty() else "; missing %s" % [missing], "" if extra.is_empty() else "; extra %s" % [extra]])
+	check(level.front_desk.transform.is_equal_approx(desk0) and level.front_desk.get_parent() == level.g_geo, "the front desk terminal stands where Level 0's does, facing the lobby")
+	var same_doors := true
+	for id in doors0:
+		var d: Node3D = level.g_root.get_node_or_null("Door_G-" + id)
+		same_doors = same_doors and d != null and (d.get("_closed_pos") as Vector3).is_equal_approx(doors0[id])
+	check(same_doors and level.front_doors.position.is_equal_approx(front0), "its doors hang where Level 0's do, the front doors too")
+	check(level.g_root.get_node("Door_G-LOBBY-HALL-END").is_open, "and the door from the lift hall to the lobby stands open")
+	var lockup: Node3D = _doc(level, "Night lockup card")
+	check(lockup != null and level.g_geo.to_local(lockup.global_position).distance_to(desk0.origin) < 1.2, "the night lockup card is on the desk by the terminal")
+	# The way from STAIR 1 to the desk and the front doors, for anyone who fits the
+	# navmesh's agent (0.5 m round, 2 m tall: bigger than any of the crew).
+	var map: RID = level.get_world_3d().navigation_map
+	var g: Transform3D = level.g_geo.global_transform
+	var from: Vector3 = g * (level.G_STAIR_AT + Vector3(0, 0, -1.5))
+	var routes_ok := true
+	for to in [g * Vector3(1.5, 0, 0.2), g * Vector3(0, 0, 6.0)]:
+		var path := NavigationServer3D.map_get_path(map, from, to, true)
+		routes_ok = routes_ok and not path.is_empty() and path[path.size() - 1].distance_to(to) < 0.8 and path[0].distance_to(from) < 0.8
+	check(routes_ok, "from STAIR 1 the crew can walk to the front desk and the front doors")
+	level.queue_free()
+	await t.process_frame
+
+
+## The ground floor's fixed pieces under `geo`: kind, place and size, sorted.
+func _floor_plan(geo: Node3D) -> Array:
+	var kinds := ["Floor", "Wall", "Ceiling", "Desk", "Partition", "Chair", "Table", "Pigeonholes", "SortingTable", "MailCart", "Sinks", "StallWall", "CafTable", "ServingCounter", "VendingMachine", "SpareShelf", "PatchPanel", "Crate", "Shelf"]
+	var area := AABB(Vector3(-21, -1, -19), Vector3(52, 7, 26.5))
+	var word := RegEx.create_from_string("[A-Za-z_]+")
+	var out := []
+	for c in geo.get_children():
+		if not c is StaticBody3D or not area.has_point(c.position):
+			continue
+		var kind := word.search(str(c.name)).get_string()
+		if not kinds.any(func(k): return kind.begins_with(k)):
+			continue
+		var size := Vector3.ZERO
+		for s in c.get_children():
+			if s is CollisionShape3D and s.shape is BoxShape3D:
+				size = s.shape.size
+		out.append("%s %s %s" % [kind, c.position.snapped(Vector3.ONE * 0.01), size.snapped(Vector3.ONE * 0.01)])
+	out.sort()
+	return out
 
 
 ## In the World: down the stairs from 18, out on 10's landing; G where Level 0 stands.
