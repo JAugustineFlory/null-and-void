@@ -2948,6 +2948,23 @@ func test_coop_lobby_walk_in() -> void:
 		if c.sync._gates.has("inside"):
 			break
 	check(h.sync._gates.has("inside") and c.sync._gates.has("inside"), "a crew walking in one at a time all counts as inside")
+	check(c.hud.current_todo() == "Sign the visitor log and take a visitor badge", "once you're in, the next step goes up at once")
+	# Augustine's group playtest: one of the crew stepped back outside before the
+	# doors shut, and was locked out for good.
+	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 9.5))
+	for f in 3000:
+		await physics_frame
+		if h.sync._gates.has("rourke_at_desk"):
+			break
+	await _frames(60)
+	var locked := func(l): return int(l.db.run_silent("SELECT locked FROM doors WHERE id = 'LOBBY-FRONT'")[0]["locked"]) == 1
+	check(h.sync._gates.has("rourke_at_desk") and not locked.call(h) and not locked.call(c), "Rourke's at the desk, but the front doors stay unlocked while one of the crew is outside")
+	m[1].player.global_position = h.to_global(Vector3(1, 0.1, 1.8))
+	for f in 600:
+		await physics_frame
+		if c.sync._gates.has("crew_in_lobby"):
+			break
+	check(locked.call(h) and locked.call(c), "and lock once they're back in")
 	check(c.badges.enabled and c.badges.models.filter(func(n): return n.visible).size() == 2, "a visitor badge for each of the crew waits on the counter")
 	c.visitor_log.interact(m[1].player)
 	c.badges.interact(m[1].player)

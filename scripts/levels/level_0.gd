@@ -748,6 +748,7 @@ func start() -> void:
 	inside.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone to come inside (%d/%d)" % [n, total]))
 	await sync.gate("inside", inside.entered)
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 5.6))
+	_checkin_todo()  # you're in: the next step goes up straight away
 	# The building's PA greets everyone who walks in, and Rourke apologises for it.
 	await get_tree().create_timer(0.8, false).timeout
 	await hud.lines(["l0_pa_1", "l0_pa_2"])
@@ -755,6 +756,9 @@ func start() -> void:
 		if rourke.state == Rourke.State.WALK:
 			await rourke.arrived)
 	# Only once Rourke is through too: shutting the doors on him would strand him.
+	# And only with the whole crew in: anyone who stepped back out meanwhile would
+	# be shut out for good.
+	await sync.gate("crew_in_lobby", _all_inside)
 	_set_front_doors_locked(true)
 	_watch_nearest()
 	_checkin_todo()
@@ -985,6 +989,23 @@ static func _mesh(parent: Node, pos: Vector3, size: Vector3, color: Color) -> Me
 	mi.position = pos
 	parent.add_child(mi)
 	return mi
+
+
+## Host only: until nobody is out in the lot (the far side of the front doors),
+## saying how many are in meanwhile.
+func _all_inside() -> void:
+	var said := -1.0
+	var doors_z := to_local(front_doors.global_position).z
+	while true:
+		var bodies := players.all_players()
+		var n := bodies.filter(func(b): return is_instance_valid(b) and to_local(b.global_position).z < doors_z).size()
+		if n >= bodies.size():
+			return
+		var now := Time.get_ticks_msec() / 1000.0
+		if said < 0.0 or now - said > 2.5:
+			said = now
+			sync.team_notice("Waiting for everyone to come inside (%d/%d)" % [n, bodies.size()])
+		await get_tree().create_timer(0.2, false).timeout
 
 
 func _set_front_doors_locked(locked: bool) -> void:
