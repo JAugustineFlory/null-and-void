@@ -400,11 +400,10 @@ func build() -> void:
 		"Stair doors lock at 19:00. Do not prop them.",
 		"- Facilities, ext. 2200",
 	], false, "paper").clues = []
-	# Stairs in from 22, on the lobby's west wall. Day staff wedged it open, memo or no memo.
+	# Stairs in from 22, on the lobby's west wall: the crew comes down them and opens
+	# the door once they're all on the landing (start()).
 	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, 90.0, "18")
 	stair_in.name = "Door_STAIR-IN"
-	stair_in.locked = false
-	Greybox.box(geo, STAIR_IN_AT + Vector3(0.1, 0.03, 0.55), Vector3(0.12, 0.06, 0.2), Color(0.6, 0.45, 0.2), "DoorWedge")
 	Document.place(geo, STAIR_IN_AT + Vector3(0.12, 1.75, -0.9), -90.0, "Door sign", [
 		"FIRE DOOR",
 		"KEEP CLOSED",
@@ -414,11 +413,14 @@ func build() -> void:
 	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, -90.0, "18")
 	stair_out.name = "Door_STAIR-OUT"
 	exit_door = stair_out
-	exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
-	exit_trigger.name = "StairsDown"
-	exit_trigger.require_all = true
-	exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
-	exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
+	if not world:
+		# On its own, everyone on the stairs ends the slice. In the World the crew
+		# walks down them to 10 (_on_key_taken).
+		exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
+		exit_trigger.name = "StairsDown"
+		exit_trigger.require_all = true
+		exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
+		exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
 
 	_build_reading_room(colors)
 	_build_stacks(colors)
@@ -472,12 +474,6 @@ func player_spawn(index: int) -> Transform3D:
 	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
 	var slot := Stairwell.landing_slot(STAIR_IN_AT, 90.0, index)
 	return global_transform * Transform3D(spawn.basis, slot)
-
-
-## Level 2 calls this (through the World) as the crew heads down STAIR 1: everyone
-## is placed on 18's landing before play moves here. Runs on every machine.
-func arrive_by_stairs() -> void:
-	players.place_all(self)
 
 
 func _build_reading_room(colors: Dictionary) -> void:
@@ -955,7 +951,7 @@ func net_setup() -> void:
 func start() -> void:
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
-	stair_in.set_open(true, true)  # wedged open by day staff
+	stair_in.locked = false  # the crew's all here: out of the stairwell, onto 18
 	floppy.stock(1)
 	key_dock.stock(1)
 	pc.ensure_booted()
@@ -1215,7 +1211,10 @@ func _on_key_taken(peer_id: int) -> void:
 	key_taken = true
 	key_dock.enabled = false
 	stair_out.locked = false
-	prepare_next()  # floor 10 builds now, below the stairwell
+	prepare_next()  # floor 10 builds now, at the foot of the stairs
+	var next: Node = world.wings.get("level_4") if world else null
+	if next:
+		walk_stairs(stair_out, next.stair_in, true, "_on_exit", TEXT.stairs_wait)
 	if peer_id == players.id_of(player):
 		hud.notice(TEXT.key, 5.0)
 	hud.todo(TEXT.todo_key)
@@ -1223,26 +1222,18 @@ func _on_key_taken(peer_id: int) -> void:
 
 # --- The way down -------------------------------------------------------------------
 
-## Everyone is on the stairs. In the World, eight flights down behind a fade to
-## floor 10; on its own, the slice ends here.
+## Everyone is down the stairs: in the World, on 10's landing, and play moves to
+## floor 10; on its own, on 18's stairs, and the slice ends here.
 func _on_exit() -> void:
 	get_node("/root/Net").earn("achievement:floor_18", hud)
 	if not player:
 		return
 	var next: Node = world.wings.get("level_4") if world else null
-	if next and next.has_method("arrive_by_stairs"):
-		# A downed player goes down with everyone (the trigger counted them) and stays
-		# down there until revived.
-		var up := player.health > 0.0
-		var was_locked := player.input_locked
-		player.input_locked = true
-		await hud.fade(true, 1.2)
+	if next:
+		stairs.seal(Stairwell.of(stair_out))
 		Game.completed_level = "level_3"
 		Game.next_level = "level_4"
-		next.arrive_by_stairs()
 		finish_level("level_4")
-		player.input_locked = was_locked if not up else false
-		hud.fade(false, 0.8)
 		return
 	if player.health <= 0.0:
 		return

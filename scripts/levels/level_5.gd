@@ -364,9 +364,8 @@ func build() -> void:
 	for x in [-1.5, 1.5]:
 		Greybox.panel(geo, Vector3(x, 1.1, 7.88), Vector3(1.3, 2.2, 0.04), Color(0.5, 0.52, 0.55), 0.0)
 		Greybox.label(geo, Vector3(x, 2.5, 7.86), "ELEVATOR  9", 32, Color(1.0, 0.45, 0.1), 180)
-	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, -90.0, "9")
-	stair_in.name = "Door_STAIR-IN"
-	stair_in.locked = false
+	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, -90.0, "9", "STAIR 1", 1)  # up from G, nothing under it
+	stair_in.name = "Door_STAIR-IN"  # the crew opens it once they're all up (start())
 	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, 90.0, "9", "STAIR 2")
 	stair_out.name = "Door_STAIR-OUT"
 	exit_door = stair_out
@@ -539,12 +538,6 @@ func player_spawn(index: int) -> Transform3D:
 	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
 	var slot := Stairwell.landing_slot(STAIR_IN_AT, -90.0, index)
 	return global_transform * Transform3D(spawn.basis, slot)
-
-
-## Level 4 calls this (through the World) as the crew heads up STAIR 1 from the
-## lobby: everyone is placed on 9's landing before play moves here. Every machine.
-func arrive_by_stairs() -> void:
-	players.place_all(self)
 
 
 # --- The rooms ------------------------------------------------------------------------
@@ -804,7 +797,7 @@ func apply_environment(env: Environment) -> void:
 
 func start() -> void:
 	_started_msec = Time.get_ticks_msec()
-	stair_in.set_open(true, true)  # the crew came up through it
+	stair_in.locked = false  # the crew's all up: out of the stairwell, onto 9
 	hr.ensure_booted()
 	panel.ensure_booted()
 	_radio_voice = Voice.new()
@@ -1508,6 +1501,7 @@ func _propped() -> void:
 		return
 	propped = true
 	prop.enabled = false
+	stair_in.set_open(true)  # propped open, if it wasn't already
 	hud.notice(TEXT.propped, 3.0)
 	if sync.is_host():
 		_clear_after(prop_time)
