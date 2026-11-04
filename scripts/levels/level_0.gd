@@ -968,7 +968,7 @@ func _build_ground_floor(wall: Color) -> void:
 		{"wall": "e", "at": 0.0, "width": Elevator.DOORWAY, "height": Elevator.DOOR_H},
 		{"wall": "s", "at": 0.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},  # the stairs
 	])
-	stair_door = Stairwell.build(self, geo, Vector3(27, 0, 7), 180.0, "G")
+	stair_door = Stairwell.build(self, geo, Vector3(27, 0, 7), 180.0, "G", "STAIR 1", false)  # no way down from G
 	add_light("elevators", Vector3(27, 3.2, 1), 7.0, 1.1, office)
 	add_light("elevators", Vector3(27, 3.2, 5), 7.0, 1.1, office)
 	elevator = Elevator.create(self, geo, LIFT_AT, 90, "G", ["22", "14", "G", "B1"], "14")

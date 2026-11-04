@@ -235,9 +235,11 @@ func _group_movement() -> void:
 	await _run_file("res://tests/movement_tests.gd", "moves")
 
 
-## The rest of the player: notebook, terminals, pickups, inventory, sitting, stamina, knocks, gym.
+## The rest of the player: notebook, terminals, pickups, inventory, sitting, stamina, knocks, gym;
+## and the fire stairs on every floor.
 func _group_movement_hands() -> void:
 	await _run_file("res://tests/movement_tests.gd", "hands")
+	await _run_file("res://tests/stairwell_tests.gd")
 
 
 ## Teaching walkthroughs and audits across every floor.

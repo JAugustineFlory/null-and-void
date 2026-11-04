@@ -19,6 +19,10 @@ var swing := 0.0:
 		swing = v
 		_pose_swing()
 
+## A hinged door that swings only to the side `swing_deg` picks, whoever opens it
+## and from wherever (a stair door opens out of its stairwell).
+var one_way := false
+
 ## Hinged doors are ordinary doors: anyone can open and shut them with E,
 ## unless `locked` (a badge door: only a badge holder like Rourke opens it).
 var locked := false
@@ -95,7 +99,7 @@ func get_prompt(_player: Node) -> String:
 ## E on a hinged door: the host opens or shuts it on every machine. A door opens
 ## away from whoever opens it, so a crew at a doorway is never swept aside or pinned
 ## by its leaf; shut again, it keeps that side (what it offers to anything that can
-## only push, like the Shredder).
+## only push, like the Shredder). A `one_way` door keeps its own side.
 func interact(player: Node) -> void:
 	if not is_hinged() or locked:
 		return
@@ -136,7 +140,7 @@ func set_open(open: bool, instant: bool = false, away: float = 0.0) -> void:
 		return
 	if open and not (_tween and _tween.is_running()) and swing == 0.0:
 		_capture_closed_pose()
-		if away != 0.0:
+		if away != 0.0 and not one_way:
 			swing_deg = absf(swing_deg) * away
 	is_open = open
 	if not instant:

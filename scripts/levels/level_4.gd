@@ -552,11 +552,10 @@ func _stair_landing(at: Vector3, yaw_deg: float) -> Transform3D:
 
 
 func player_spawn(index: int) -> Transform3D:
-	# Six people fit on the landing in a row along the flight, not spread into the walls.
-	var holder := Transform3D(Basis(Vector3.UP, deg_to_rad(90.0)), STAIR_IN_AT)
+	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
+	var slot := Stairwell.landing_slot(STAIR_IN_AT, 90.0, index)
 	if on_ground:
-		holder = g_geo.transform * Transform3D(Basis(Vector3.UP, PI), G_STAIR_AT)
-	var slot := holder * Vector3(-0.8 + 0.5 * (index % 2), 0.1, -0.7 - 0.55 * (index / 2))
+		slot = g_geo.transform * Stairwell.landing_slot(G_STAIR_AT, 180.0, index)
 	return global_transform * Transform3D(spawn.basis, slot)
 
 
@@ -967,7 +966,7 @@ func _build_ground() -> void:
 		{"wall": "s", "at": 0.0, "width": Stairwell.DOOR_W, "height": Stairwell.DOOR_H},
 	])
 	Greybox.label(g_geo, Vector3(27, 2.75, -0.88), "G   LOBBY", 56, Color(0.75, 0.75, 0.7))
-	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G")
+	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G", "STAIR 1", false)
 	g_stair.name = "Door_STAIR-G"
 	# The front doors, and the night grille down behind the glass.
 	front_doors = Door.create(g_root, "G-FRONT", G_FRONT_AT, Vector3(3.2, 2.6, 0.12), Color(0.25, 0.35, 0.4))

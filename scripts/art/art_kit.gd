@@ -91,13 +91,23 @@ static func dress_stairwells(level: Node3D) -> int:
 				c.visible = false
 				ArtKit.landing_number(holder, Vector3(c.position.x + 0.06, 1.6, c.position.z), -90, storey)
 		ArtDress.reskin(holder, [
-			{"names": ["Stair"], "mat": ArtPalette.surface("concrete", Color(1.05, 1.05, 1.0))},
+			{"names": ["Stair", "StepDown"], "mat": ArtPalette.surface("concrete", Color(1.05, 1.05, 1.0))},
 			{"names": ["Floor"], "mat": ArtPalette.surface("concrete", Color(0.85, 0.85, 0.82))},
 			{"names": ["Wall_", "Ceiling"], "mat": ArtPalette.surface("concrete", Color(1.3, 1.3, 1.24))},
 		])
 		var first := Vector3.INF
 		var last := Vector3.INF
+		var down_first := Vector3.INF
+		var down_last := Vector3.INF
+		var down_size := Vector3.ZERO
 		for c in holder.get_children():
+			if c is StaticBody3D and c.name.begins_with("StepDown"):
+				var tread := _box_top(c)
+				down_size = _box_size(c)
+				if down_first == Vector3.INF or tread.z > down_first.z:
+					down_first = tread
+				if down_last == Vector3.INF or tread.z < down_last.z:
+					down_last = tread
 			if c is StaticBody3D and c.name.begins_with("StairRail"):
 				for mi in c.get_children():
 					if mi is MeshInstance3D:
@@ -111,6 +121,10 @@ static func dress_stairwells(level: Node3D) -> int:
 		if first != Vector3.INF and last != first:
 			var inner := first.x - _box_size(_first_stair(holder)).x / 2.0 + 0.05
 			stair_rail(holder, Vector3(inner, first.y, first.z), Vector3(inner, last.y, last.z))
+		if down_first != Vector3.INF and down_last != down_first:
+			# The flight down's rail, along the half-wall between the flights.
+			var edge := down_first.x + down_size.x / 2.0 - 0.05
+			stair_rail(holder, Vector3(edge, down_first.y, down_first.z), Vector3(edge, down_last.y, down_last.z))
 		emergency_light(holder, Vector3(0, 2.55, -0.21), 0)
 		count += 1
 	return count
