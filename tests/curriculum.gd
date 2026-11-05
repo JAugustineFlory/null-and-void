@@ -19,6 +19,9 @@ extends RefCounted
 ## shape (the value as a named blank, enter_...) and then the exact query. Every other puzzle uses hint ladder A.
 ## `"shape_gap"` says why a request ladder's hint 1 still names the value its shape
 ## leaves blank; it prints as GAP until the owner fixes it.
+## `"hint_gap"` says why a script ladder's hint 1 still lacks a line for a script word the
+## station teaches; it prints as GAP until the line is approved and in.
+## `"threat_first"` says why a keyword is first needed under threat; it prints as GAP.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 
@@ -396,5 +399,66 @@ const PUZZLES := {
 		"ladder": "review",
 		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/staff"],
+	},
+	# Level 6: B1, the cold store (plan/approvals/l6-text.md). The crew's first scripts,
+	# from Journey through JavaScript: let, if, while, await sleep and console.log, then
+	# for ... of and db.query ("Once for each"). The cold is the threat: the corridor and
+	# the vaults drain stamina, then health. Warm rooms are safe.
+	# Who's still clocked in: IS NULL, practised on 18, so the review ladder.
+	"open": {
+		"level": 6,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": ["freezer_log", "clock_out"],
+		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+	},
+	# The first script, at the IT cage: the cradle card's loop with this cradle's key.
+	"pair": {
+		"level": 6,
+		"pressure": false,
+		"teaches": ["let", "while", "await sleep", "console.log", "api.post", "/earpieces/pair"],
+		"needs": ["let", "while", "await sleep", "console.log", "api.post", "X-Api-Key", "/earpieces/pair"],
+		"silent_copy": "the card's script logs 403 and nothing says why: level_6.gd's tip_pair_key (like pair_busy, pair_endless, pair_short and same_door) is written but nothing fires it; sent to Game design plan 2026-11-05",
+	},
+	# The names, one a line, still at the IT cage: the warm first use of for and db.query
+	# (Teaching's B1 audit, item 1).
+	"list": {
+		"level": 6,
+		"pressure": false,
+		"teaches": ["for", "const", "db.query"],
+		"needs": ["let", "for", "const", "db.query", "console.log", "SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+	},
+	# The watchdog, practised at the anteroom, warm: if is new.
+	"practice": {
+		"level": 6,
+		"pressure": false,
+		"teaches": ["if", "api.get", "api.patch", "res.body"],
+		"needs": ["let", "while", "if", "await sleep", "console.log", "api.get", "api.patch", "X-Api-Key", "/doors"],
+		"hint_gap": "the GET line (path, then the header) has no line of its own; one is drafted for Augustine's OK, 2026-11-05",
+	},
+	# The same watchdog for the deep freeze, from a deck in the cold corridor.
+	"hold": {
+		"level": 6,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["let", "while", "if", "await sleep", "console.log", "api.get", "api.patch", "X-Api-Key", "/doors"],
+	},
+	# The release, from inside Vault C: every open entry but ours, a slip at a time.
+	"release": {
+		"level": 6,
+		"pressure": true,
+		"teaches": ["/clock_outs"],
+		"needs": ["let", "for", "const", "if", "!==", "await sleep", "console.log", "db.query", "api.post", "X-Api-Key", "/clock_outs", "SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+		"known_gap": "!== is in its chapter and the release's hint 1 only, so a player who skips the book meets it in a hint; sent to Game design plan 2026-11-05",
+		"threat_first": "nothing practises !== in the warm before the release in Vault C; sent to Game design plan 2026-11-05",
+	},
+	# Optional: leave it tidy, every script stopped and both vault doors locked and read back.
+	"stop": {
+		"level": 6,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["PATCH", "GET", "X-Api-Key", "/doors"],
 	},
 }

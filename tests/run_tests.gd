@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers", "garage"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage"]
 
 
 func _run() -> void:
@@ -86,6 +86,7 @@ func _run_group(g: String) -> void:
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
 		"teaching_api": await _group_teaching_api()
+		"teaching_scripts": await _group_teaching_scripts()
 		"scripting": await _group_scripting()
 		"chapters": await _group_chapters()
 		"sound": await _group_sound()
@@ -296,6 +297,11 @@ func _group_teaching_lab() -> void:
 ## Floor 9's lost-player walks: its services' requests, sealed and loose.
 func _group_teaching_api() -> void:
 	await _run_file("res://tests/teaching_tests.gd", "api")
+
+
+## B1's lost-player walks: the crew's first scripts, warm, then in the cold.
+func _group_teaching_scripts() -> void:
+	await _run_file("res://tests/teaching_tests.gd", "scripts")
 
 
 ## Scripting and services: the facility API's writes, and deck scripts.
