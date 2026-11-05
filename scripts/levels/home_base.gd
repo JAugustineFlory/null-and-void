@@ -112,6 +112,8 @@ const BEAT := 1.2
 var fax: Interactable
 var book_bag: Interactable
 var van_door: Interactable
+## The locked side door, its hidden key and the back office behind it.
+var office: GarageOffice
 var van_relay: Interactable
 ## The van's front doors ({"w"/"e": {pivot, swing}}) and sliding door, built as
 ## Level 0's are, so the garage van is the same van parked at Halcyon.
@@ -198,7 +200,7 @@ func build() -> void:
 
 	_build_van(VAN)
 	_build_punch_bag(PUNCH_BAG)
-	Greybox.panel(geo, SIDE_DOOR + Vector3(0.0, 1.05, 0), Vector3(0.05, 2.1, 0.9), Color(0.5, 0.42, 0.32))  # the side door to the house
+	office = GarageOffice.build(self)  # the side door in the back corner, locked, and what's behind it
 	maddison = Node3D.new()
 	maddison.name = "Maddison"
 	maddison.position = MADDISON_MARKS.door[0]
@@ -921,6 +923,16 @@ func _on_sparred(id: int) -> void:
 		# Done with the bag: straight to the van, without waiting on the others.
 		van_door.enabled = true
 		hud.todo("Get in the van")
+
+
+## Every machine: player `id` found the office's spare key.
+func _office_key(id: int) -> void:
+	office.take_key(id)
+
+
+## Every machine: the key's holder unlocked the office.
+func _office_open(_id: int) -> void:
+	office.open()
 
 
 ## Every machine: player `id` took the shop bag with the book in it.
