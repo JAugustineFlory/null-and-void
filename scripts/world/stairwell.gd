@@ -88,6 +88,8 @@ static func build(level: Node3D, geo: Node3D, at: Vector3, yaw_deg: float, floor
 		label.set_meta("storey", k)
 		if k != 0:
 			_copy_door(holder, y0)
+	if stair == "STAIR 1":
+		add_extra(holder, "13", _taped_plate())  # (Augustine, 2026-11-05: an oddity on 13)
 
 	var door := Door.create(level, "%s-%s" % [stair.replace(" ", "-"), floor_label], holder.transform * Vector3(0, DOOR_H / 2.0, 0), Vector3(DOOR_W, DOOR_H, 0.08))
 	door.rotation_degrees.y = yaw_deg
@@ -139,6 +141,44 @@ static func count_storeys(holder: Node3D, by: int) -> void:
 	for label in labels:  # (relabel swaps the plates, which are children too)
 		var k: int = label.get_meta("storey")
 		relabel(holder, k, _floor_name(holder.get_meta("floor"), k + by))
+	_place_extras(holder)
+
+
+## Something that belongs on floor `floor_name`'s landing in this stairwell (a
+## dropped card, a first-aid cabinet), built as if that landing were this floor's
+## own (y 0): it stands on whichever landing is numbered `floor_name` right now
+## (count_storeys), and is put away while none is.
+static func add_extra(holder: Node3D, floor_name: String, node: Node3D) -> Node3D:
+	node.set_meta("extra_floor", floor_name)
+	node.set_meta("extra_y", node.position.y)
+	holder.add_child(node, true)
+	var extras: Array = holder.get_meta("extras", [])
+	extras.append(node)
+	holder.set_meta("extras", extras)
+	_place_extras(holder)
+	return node
+
+
+## The landing numbered `floor_name` now, as storeys from this floor's own (k), or
+## null if none of this stairwell's landings is.
+static func landing_for(holder: Node3D, floor_name: String) -> Variant:
+	var by: int = holder.get_meta("counted", 0)
+	for k in range(-int(holder.get_meta("below", 2)), ABOVE + 2):
+		if _floor_name(holder.get_meta("floor"), k + by) == floor_name:
+			return k
+	return null
+
+
+static func _place_extras(holder: Node3D) -> void:
+	for node in holder.get_meta("extras", []):
+		if not is_instance_valid(node):
+			continue
+		var k = landing_for(holder, node.get_meta("extra_floor"))
+		var here: bool = k != null
+		node.visible = here
+		node.process_mode = Node.PROCESS_MODE_INHERIT if here else Node.PROCESS_MODE_DISABLED  # (and out of physics)
+		if here:
+			node.position.y = node.get_meta("extra_y") + k * STOREY
 
 
 ## Storeys from one floor to another, by their numbers (G is 0).
@@ -309,3 +349,31 @@ static func _copy_door(holder: Node3D, y0: float) -> void:
 	led.material_override = red
 	led.position = Vector3(0, 0.04, -0.025)
 	reader.add_child(led)
+
+
+## Floor 13's plate on STAIR 1, with masking tape over its number and "12A"
+## written on the tape in marker: something for the observant (nothing behind it yet).
+static func _taped_plate() -> Node3D:
+	var n := Node3D.new()
+	n.name = "Tape12A"
+	# Over the big number on the landing plate (ArtKit.landing_number, on the -x wall).
+	n.position = Vector3(-INNER + 0.025, 1.66, -1.0)
+	n.rotation_degrees.y = 90.0  # its face looks along +x, into the stairwell
+	var strip := MeshInstance3D.new()
+	strip.name = "Tape"
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.5, 0.36, 0.004)
+	strip.mesh = bm
+	strip.material_override = Greybox.mat(Color(0.86, 0.8, 0.62), 0.0, 0.9)
+	n.add_child(strip)
+	var marker := Label3D.new()
+	marker.name = "Marker"
+	marker.text = "12A"
+	marker.font = NotebookArt.hand_font()
+	marker.font_size = 160
+	marker.pixel_size = 0.0016
+	marker.modulate = Color(0.06, 0.06, 0.08)
+	marker.outline_size = 0
+	marker.position.z = 0.004
+	n.add_child(marker)
+	return n

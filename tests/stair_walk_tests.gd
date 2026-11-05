@@ -74,6 +74,7 @@ func test_world_trips() -> void:
 	r = await _trip(world, p, l3.stair_out, l4.stair_in, true)
 	_check.call(r.ok and r.fade == 0.0 and world.current == l4 and l4.active, "18 to 10: down the stairs and out on 10, no fade %s" % [r])
 	_check.call(r.passed == ["17", "16", "15", "14", "13", "12", "11"], "past every floor from 17 to 11 (%s)" % [r.passed])
+	_check.call(r.extras == ["Tape12A on 13"], "on 13, the plate's number is taped over, with 12A in marker, and on no other landing (%s)" % [r.extras])
 	times.append(["18", "10", 8, r.secs])
 	_check.call(_game().completed_level == "level_3" and _game().next_level == "level_4", "floor 18 is complete, floor 10 is next")
 	# 10 down to G: STAIR 1 opens at the accident.
@@ -231,7 +232,7 @@ func _trip(world: Node, p: Player, from: Door, to: Door, down: bool, out := true
 	var b := Stairwell.of(to)
 	var start := a  # where the floors in between are walked past
 	var n := Stairwell.storeys_between(a.get_meta("floor"), b.get_meta("floor"))
-	var r := {"ok": false, "landed": false, "fade": 0.0, "handed": false, "at": "", "end": Vector3.ZERO, "passed": [], "secs": 0.0}
+	var r := {"ok": false, "landed": false, "fade": 0.0, "handed": false, "at": "", "end": Vector3.ZERO, "passed": [], "extras": [], "secs": 0.0}
 	var wing: Node = world.get("current")
 	var fade := [0.0]
 	var s := -1 if down else 1
@@ -246,6 +247,11 @@ func _trip(world: Node, p: Player, from: Door, to: Door, down: bool, out := true
 			var floor_name := label.text.get_slice("FLOOR ", 1).strip_edges()
 			if r.passed.is_empty() or r.passed.back() != floor_name:
 				r.passed.append(floor_name)
+				# What's on that landing (Stairwell.add_extra), where you are.
+				for x in start.get_meta("extras", []):
+					var on := Stairwell.landing_box().grow(0.5).has_point(start.global_transform.affine_inverse() * x.global_position - Vector3(0, s * Stairwell.STOREY, 0) - Vector3(0, x.get_meta("extra_y"), 0))
+					if x.visible and on:
+						r.extras.append("%s on %s" % [x.name, floor_name])
 	_tree.physics_frame.connect(watch)
 	p.input_locked = false
 	await _open_from_lobby(world, p, from)
