@@ -4034,8 +4034,19 @@ func test_level_2_lab(outcome: String) -> void:
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
 	check(await _until(func(): return lab.phase == "locked", 40.0), "with everyone inside and Rourke out, the door locks")
 	check(level.doors["SECLAB-B"].is_open == false and lab.terminal.locked, "locked in, and her terminal is locked too")
-	check(await _until(func(): return level.hud._subtitle.text.contains("Easy SQL"), 40.0), "after the radio call, he gloats through the glass")
-	check(await _until(func(): return level.hud._subtitle.text.contains("Nothing personal"), 40.0), "and signs off before he walks away")
+	# Augustine, 2026-11-05: a few beats after he frames the crew, nobody's at a terminal;
+	# every view turns to him at the door for a moment; he sneaks in while still talking.
+	level.terminal_ui.open(lab.terminal, p)
+	check(await _until(func(): return level.hud._subtitle.text.contains("hurt Dr. Vale"), 40.0), "on the radio, he tells WARDEN the contractors hurt her")
+	check(level.terminal_ui.visible, "for a few beats, the player is still at her terminal")
+	check(await _until(func(): return not level.terminal_ui.visible, 10.0), "then the player is put off her terminal")
+	check(await _until(func(): return p.input_locked, 5.0), "and can't move for a moment")
+	check(await _until(func(): return not p.input_locked, 10.0) and lab._talking, "then can move again while he's still talking")
+	var to_him: Vector3 = r.global_position - p.global_position
+	var facing: Vector3 = -p.global_basis.z
+	check(Vector2(facing.x, facing.z).angle_to(Vector2(to_him.x, to_him.z)) < 0.25, "having been turned to face him at the lab door")
+	check(await _until(func(): return level.hud._subtitle.text.contains("Easy SQL"), 40.0), "he gloats through the glass")
+	check(await _until(func(): return lab._steps.has("round_back"), 60.0) and lab._talking and level.hud._subtitle.text.contains("Nothing personal"), "and is round at the rear door before he's done, as he signs off")
 	check(await _until(func(): return lab.phase == "fight", 60.0), "he comes back in through the rear door")
 	check(not level.doors["SECLAB-B-REAR"].is_open, "and the rear door shuts behind him")
 	if outcome == "tied":
