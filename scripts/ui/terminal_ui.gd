@@ -164,7 +164,7 @@ func _ready() -> void:
 	_foot = ThemeUtil.label(FOOT, 15, ThemeUtil.DIM)
 	vbox.add_child(_foot)
 	PadReader.attach(self, _on_pad, _on_stick)
-	InputGlyphs.watch(self).changed.connect(func(_pad): _show_foot())
+	InputGlyphs.watch(self).changed.connect(_on_device_changed)  # a method: it goes when the screen does
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
@@ -653,6 +653,10 @@ func _stop_picking() -> void:
 		return
 	picking = -1
 	_hover_line(-1)
+	_show_foot()
+
+
+func _on_device_changed(_pad: bool) -> void:
 	_show_foot()
 
 
