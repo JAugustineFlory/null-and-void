@@ -1450,9 +1450,10 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	else:
 		ui.close()
 
-	# Down STAIR 1 to the ground floor, where the crew came in.
-	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
-	check(await _until(func(): return level.on_ground and not p.input_locked, 10.0), "%s: everyone on the stairs, and down to G" % where)
+	# Down STAIR 1 to the ground floor, where the crew came in (the walk itself is
+	# tests/stair_walk_tests.gd's): everyone on G's landing.
+	p.global_transform = level.player_spawn_on_ground(0)
+	check(await _until(func(): return level.on_ground and not p.input_locked, 10.0), "%s: everyone down the stairs, on G" % where)
 	level.lie_time = 0.3
 	check_no_copy_under_pressure(level, where + ", on G")
 	# The front doors: the lockup card shows the dock's UPDATE and names main_entrance.

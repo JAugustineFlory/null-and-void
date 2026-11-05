@@ -1,7 +1,7 @@
 extends RefCounted
 ## Every floor's fire stairs (Augustine, v0.8 playtest): the door swings out of the
-## stairwell from either side, nobody arrives behind it or in it, and every floor
-## but G has a flight going down beside the flight up.
+## stairwell from either side, nobody arrives behind it or in it, and the stairs
+## run a storey or two up and down (none down from G), room for anyone.
 
 ## Bigger than any of the crew (CrewBody.largest() on release/v0.8 is about 0.35 m
 ## round and under 2 m tall), so a slot clear for this is clear for everyone.
@@ -68,33 +68,44 @@ func test_every_stairwell() -> void:
 			door.set_open(false, true)
 			if was_open:
 				door.set_open(true, true)
-			# The flight down, on every floor but G: steps going down from the landing.
-			var steps: Array = holder.find_children("StepDown*", "StaticBody3D", false, false)
-			var ground := _floor_of(holder) == "G"
-			if ground != steps.is_empty():
-				bad_down.append("%s: %d steps down" % [where, steps.size()])
-			elif not ground:
-				var going_down := true
-				var prev := INF
-				steps.sort_custom(func(a, b): return a.position.z > b.position.z)
-				for st in steps:
-					var top: float = st.position.y + _box(st).y / 2.0
-					going_down = going_down and top < prev and top < 0.0
-					prev = top
-				if not going_down:
-					bad_down.append("%s: the steps don't go down from the landing" % where)
-				# The well only takes what's under the stairwell's own floor.
-				var well := _hits(level, holder.global_transform * Transform3D(Basis(), Vector3(-0.9, -0.65, -3.2)), _shape_box(Vector3(1.4, 1.1, 1.6)), holder)
-				if not well.is_empty():
-					bad_well.append("%s: %s" % [where, well])
-				# Someone bigger than any of the crew fits down the flight: on every tread
-				# but the last, short one against the far wall, nothing but the step under them.
-				for st in steps.slice(0, steps.size() - 1):
-					var tread: Vector3 = st.position + Vector3(0, _box(st).y / 2.0, 0)
-					var hits := _body_hits(level, holder, tread)
-					if not hits.is_empty():
-						bad_route.append("%s: down the flight at %.2f: %s" % [where, tread.y, hits])
-						break
+			# A real switchback, storeys of it: up from every landing, and down from
+			# every one but G's (and only to G from the floor over it).
+			var below: int = holder.get_meta("below", -1)
+			var flights_a: Array = holder.find_children("StairA*", "StaticBody3D", false, false)
+			var flights_b: Array = holder.find_children("StairB*", "StaticBody3D", false, false)
+			var storeys := below + Stairwell.ABOVE + 1
+			if (below != 0) == (_floor_of(holder) == "G") or below > 2 or flights_a.size() != storeys * (Stairwell.RISERS - 1) or flights_b.size() != flights_a.size():
+				bad_down.append("%s: %d storeys down, %d+%d treads" % [where, below, flights_a.size(), flights_b.size()])
+			else:
+				for flight in [flights_a, flights_b]:
+					for n in storeys:
+						var treads: Array = flight.slice(n * (Stairwell.RISERS - 1), (n + 1) * (Stairwell.RISERS - 1))
+						var prev := -INF
+						var even := true
+						for st in treads:
+							var top: float = st.position.y + _box(st).y / 2.0
+							even = even and (prev == -INF or absf(absf(top - prev) - Stairwell.RISE) < 0.01)
+							prev = top
+						if not even:
+							bad_down.append("%s: a flight's steps aren't even" % where)
+			# The whole shaft, every storey of it, cuts into nothing but its own floor's
+			# doorway.
+			var lo := -below * Stairwell.STOREY - 0.15
+			var hi := (Stairwell.ABOVE + 1) * Stairwell.STOREY + 3.35
+			var shaft_at := Vector3(0, (lo + hi) / 2.0, (Stairwell.BACK_Z - 0.2 - 0.3) / 2.0)
+			var shaft := _shape_box(Vector3(2 * Stairwell.INNER + 0.3, hi - lo, -Stairwell.BACK_Z - 0.1))
+			var well := _hits(level, holder.global_transform * Transform3D(Basis(), shaft_at), shaft, holder, door)
+			if not well.is_empty():
+				bad_well.append("%s: %s" % [where, well])
+			# Someone bigger than any of the crew fits up and down every flight: on
+			# every tread (on the ramp hidden in them, a hand above), nothing but the
+			# step under them.
+			for st in flights_a + flights_b:
+				var tread: Vector3 = st.position + Vector3(0, _box(st).y / 2.0 + 0.25, 0)
+				var hits := _body_hits(level, holder, tread)
+				if not hits.is_empty():
+					bad_route.append("%s: on the stairs at %.2f: %s" % [where, tread.y, hits])
+					break
 			# And through the doorway, door open, from the landing out into the lobby.
 			door.set_open(true, true)
 			await _settle()
@@ -108,7 +119,7 @@ func test_every_stairwell() -> void:
 				door.set_open(true, true)
 		# Where the crew arrives by the stairs, all six slots stand clear: of the
 		# door, shut or open, of both flights and of the walls.
-		if level.has_method("arrive_by_stairs"):
+		if "stair_in" in level:
 			var doors := []
 			for holder in level.geo.find_children("Stairwell*", "Node3D", true, false):
 				var d := _door_of(level, holder)
@@ -138,9 +149,9 @@ func test_every_stairwell() -> void:
 	_check.call(stairwells >= 10, "found the fire stairs on every floor (%d stairwells)" % stairwells)
 	_check.call(bad_swing.is_empty(), "every stair door swings out into the lobby, opened from either side %s" % [bad_swing])
 	_check.call(bad_leaf.is_empty(), "nothing in a lobby stands in a stair door's swing %s" % [bad_leaf])
-	_check.call(bad_down.is_empty(), "every floor but G has a flight going down beside the flight up, and G has none %s" % [bad_down])
-	_check.call(bad_well.is_empty(), "the flight down's well cuts into nothing but its own floor %s" % [bad_well])
-	_check.call(bad_route.is_empty(), "someone bigger than any of the crew fits from each landing out through the open door, and down the flight %s" % [bad_route])
+	_check.call(bad_down.is_empty(), "every stairwell runs storeys up and down in even steps, and none down from G %s" % [bad_down])
+	_check.call(bad_well.is_empty(), "every stairwell's shaft, top to bottom, cuts into nothing on its floor %s" % [bad_well])
+	_check.call(bad_route.is_empty(), "someone bigger than any of the crew fits from each landing out through the open door, and up and down every flight %s" % [bad_route])
 	_check.call(bad_slots.is_empty(), "all six arrival spots on each landing stand clear of the door (shut or open), the flights and the walls, for a body bigger than any of the crew %s" % [bad_slots])
 
 
@@ -152,7 +163,7 @@ func _settle() -> void:
 
 func _floor_of(holder: Node) -> String:
 	for c in holder.get_children():
-		if c is Label3D and "FLOOR " in (c as Label3D).text:
+		if c is Label3D and "FLOOR " in (c as Label3D).text and c.get_meta("storey", 0) == 0:
 			return (c as Label3D).text.get_slice("FLOOR ", 1).strip_edges()
 	return "?"
 

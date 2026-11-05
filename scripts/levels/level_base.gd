@@ -38,6 +38,9 @@ var players: NetPlayers
 ## Who's down, and what entities do to players on other machines (scripts/combat/).
 var crew: CrewVitals
 var voice: VoiceChat
+## Joins floors' stairwells into one flight of stairs (StairLinks): the World's, in
+## the World.
+var stairs: StairLinks
 var _pause: Control
 
 
@@ -58,6 +61,7 @@ func _ready() -> void:
 	db.light_changed.connect(_on_light_changed)
 	sync = LevelSync.create(self)
 	Huddle.create(self)  # the crew's book huddles (scripts/huddle/)
+	stairs = StairLinks.create(self)
 
 	build()
 	_bake_navigation()
@@ -112,6 +116,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	players = host.players
 	crew = host.crew
 	voice = host.voice
+	stairs = host.stairs
 	environment = host.environment
 	sync = LevelSync.create(self)
 	geo = NavigationRegion3D.new()
@@ -201,6 +206,32 @@ func finish_level(next_key: String) -> void:
 		world.wing_finished(self)
 	else:
 		Game.goto(next_key)
+
+
+## The crew walks from `from`'s stairs to `to`'s (two stair doors' stairwells,
+## Stairwell.build), down if `down`, else up: StairLinks makes them one flight, and
+## the landings between say which floors they are. Once the whole crew stands on
+## `to`'s landing (downed players too: whoever's down on the stairs is revived
+## there, and walked down after), `method` runs on this level on every machine.
+## Runs on every machine.
+func walk_stairs(from: Door, to: Door, down: bool, method: String, waiting: String, args := []) -> Trigger:
+	var a := Stairwell.of(from)
+	var b := Stairwell.of(to)
+	var storeys := Stairwell.storeys_between(a.get_meta("floor"), b.get_meta("floor"))
+	if down:
+		stairs.link(a, b, storeys, true)
+	else:
+		stairs.link(b, a, storeys, false)
+	var old := b.get_node_or_null("Arrival")
+	if old:
+		old.free()
+	var box := Stairwell.landing_box()
+	var t := Trigger.create(b, box.get_center(), box.size)
+	t.name = "Arrival"
+	t.require_all = true
+	t.waiting.connect(func(n, total): sync.team_notice(waiting % [n, total]))
+	t.entered.connect(func(_b): sync.event(method, args), CONNECT_ONE_SHOT)
+	return t
 
 
 func add_door(id: String, pos: Vector3, size: Vector3) -> Door:

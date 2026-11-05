@@ -21,8 +21,8 @@ const ROUTE := [
 	{"key": "level_0", "scene": "res://scenes/level_0.tscn", "at": Transform3D.IDENTITY},
 	{"key": "level_1", "scene": "res://scenes/level_1.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(38, 0, 63))},
 	{"key": "level_2", "scene": "res://scenes/level_2.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -1))},
-	# Floor 18 is reached by the stairs down from 22: the crew is carried into its
-	# stairwell behind a fade, so it sits apart like the other floors.
+	# Floor 18 is reached by the stairs down from 22. It sits apart like the other
+	# floors: StairLinks makes 22's stairwell and 18's one flight of stairs.
 	{"key": "level_3", "scene": "res://scenes/level_3.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -70))},
 	# Floor 10, down STAIR 1 from 18 the same way. Its ground-floor beat is built inside
 	# it, where Level 0 stands.
