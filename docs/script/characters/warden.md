@@ -1,6 +1,6 @@
 # WARDEN
 
-*Your script for Null & Void: 43 recordings.*
+*Your script for Null & Void: 45 recordings.*
 
 ## Who you are
 
@@ -465,3 +465,33 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *Over the speakers, in your own voice. A separate beat. Dry; a compliment you don't mean to give.*
 
 "TIDY. I DID NOT THINK YOU HAD IT IN YOU."
+
+## Scene 13: B2: the dark floor
+
+**Halcyon Tower, basement B2, building services: the machine room under the cold store. Later that night.**
+
+> The crew has come down the fire stairs from the cold store to the very bottom of the building: a lift lobby with dead lifts, an IT admin office, and a ring of corridors round your own core, behind glass. Under Epsilon you control the lighting on this level, zone by zone. You know the crew is below you now. You watch over the ceiling speakers: the automatic announcement first, then your own voice as a separate beat.
+
+**[ ] `l7_arrive_pa_block.wav`**
+
+*As the crew steps off the bottom of the stairs into the lift lobby. Over the basement speakers, as the crew arrives. The announcement. Flat; a notice on a door.*
+
+"VISITORS ON LEVEL B2, BUILDING SERVICES. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, LIGHTING ON THIS LEVEL IS UNDER SECURITY CONTROL."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat, your own voice. Close. You have never had visitors down here.*
+
+"YOU ARE BELOW EVERYTHING NOW. SO AM I."
+
+**[ ] `l7_cut_pa_block.wav`**
+
+*When the first zones of the ring go dark, a little after the crew arrives. Over the speakers, as the lights down the ring go out. The announcement. Clipped.*
+
+"PLANT RING LIGHTING SUSPENDED. SECURITY CONTROL."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat. Patient, not angry.*
+
+"YOU BROUGHT LIGHT DOWN WITH YOU. I WILL TAKE IT BACK."

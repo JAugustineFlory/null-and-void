@@ -1447,6 +1447,26 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: Right after Ines, as the crew comes back onto the landing*  
 *(Looking at the stairwell gate that's open now, not at the crew)* "They're clocked out. All of them. First honest line in that ledger in twenty years." *Flat, then not quite flat.*
 
+## Level 7
+
+### B2: the dark floor
+
+**Halcyon Tower, basement B2, building services: the machine room under the cold store. Later that night.**
+
+*DRAFT for Voice and Augustine (plan/approvals/l7-text.md). The arrive lines play as the crew steps off the stairs; the cut lines when WARDEN first switches off zones of the plant ring.*
+
+**WARDEN** `l7_arrive_pa_block.wav`  
+*Cue: As the crew steps off the bottom of the stairs into the lift lobby*  
+*(Over the basement speakers, as the crew arrives)* "VISITORS ON LEVEL B2, BUILDING SERVICES. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, LIGHTING ON THIS LEVEL IS UNDER SECURITY CONTROL." *The announcement. Flat; a notice on a door.* `[l7_arrive_pa]`  
+*(Over the speakers, in your own voice)* "YOU ARE BELOW EVERYTHING NOW. SO AM I." *A separate beat, your own voice. Close. You have never had visitors down here.* `[l7_arrive_tease]`
+
+**WARDEN** `l7_cut_pa_block.wav`  
+*Cue: When the first zones of the ring go dark, a little after the crew arrives*  
+*(Over the speakers, as the lights down the ring go out)* "PLANT RING LIGHTING SUSPENDED. SECURITY CONTROL." *The announcement. Clipped.* `[l7_cut_pa]`  
+*(Over the speakers, in your own voice)* "YOU BROUGHT LIGHT DOWN WITH YOU. I WILL TAKE IT BACK." *A separate beat. Patient, not angry.* `[l7_cut_tease]`
+
+## Level 6
+
 ### B1: the ones who never left
 
 **Halcyon Tower, basement B1, the cold store's vaults. A night long ago, and also tonight.**

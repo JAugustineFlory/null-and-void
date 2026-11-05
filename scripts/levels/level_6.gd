@@ -1977,6 +1977,13 @@ func _on_all_free() -> void:
 		if hud and is_inside_tree():
 			hud.notice(TEXT.stairs_release, 4.0)
 			hud.todo(TASK_TITLES.todo_down, TEXT.todo_down)
+		# In the World, B2 builds now at the foot of STAIR 2, and the crew walks down
+		# to it; on its own the floor ends on the stairs.
+		prepare_next()
+		var next: Node = world.wings.get("level_7") if world else null
+		if next:
+			exit_trigger.monitoring = false
+			walk_stairs(stair_in, next.stair_in, true, "_down_to_b2", TEXT.stairs_wait)
 	if all_free and _scripts_running():
 		_tip_all("lockup")
 	# Back on the landing, the night-shifters have a question.
@@ -2160,6 +2167,17 @@ func _on_exit() -> void:
 	Game.completed_level = "level_6"
 	Game.next_level = ""
 	completed.emit()
+
+
+## Every machine: everyone is down STAIR 2 on B2's landing. Play moves to the
+## machine room.
+func _down_to_b2() -> void:
+	get_node("/root/Net").earn("achievement:floor_b1", hud)
+	stairs.seal(Stairwell.of(stair_in))
+	active = false  # B1's clocks, cold and deck stay behind: B2's deck opens from here on
+	Game.completed_level = "level_6"
+	Game.next_level = "level_7"
+	finish_level("level_7")
 
 
 func _on_completed() -> void:

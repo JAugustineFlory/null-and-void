@@ -1,0 +1,3 @@
+- **Added:** a new floor below the cold store, reached by walking down the stairs, with its own lights to fight for.
+- **Added:** service tokens: some of the building's services now want a token traded for your key, and tokens run out.
+- **Added:** a test bench where scripts are tried on a fake copy of the floor before they touch the real one, with passing checks counted as you go.
