@@ -81,6 +81,12 @@ const SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait f
 const SPAR_BLOCKED := "Blocked! Your guard took the hit."
 const MOVE_NOTICE := "Space stands you up. WASD to walk, the mouse to look around"
 const MOVE_SECONDS := 5.0
+## The same lines on a gamepad, naming its buttons (InputGlyphs.of: "RT", or "R2" on a
+## Steam Deck). DRAFTS awaiting Augustine's word-for-word OK.
+const PAD_MOVE_NOTICE := "%s stands you up. Left stick to walk, right stick to look around"
+const PAD_SPAR_NOTICE := "Hit the bag with %s. It swings back at you: press %s just as it comes in to raise your guard and block it."
+const PAD_SPAR_MISS := "It hit you. Press %s just as it swings in to raise your guard."
+const PAD_SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait for the swing in, then press %s."
 ## Maddison's marks: where she stands for each beat, and the point she faces there.
 ## She comes in by the side door to the house; "board" is beside her whiteboard,
 ## facing the crew.
@@ -573,7 +579,7 @@ func start() -> void:
 	await _say("l0_grab", "l0_grab_solo")
 	book_bag.enabled = true
 	hud.todo("Get the book from the shelf by the side door")
-	hud.notice(MOVE_NOTICE, 7.0)  # for whoever gets up for it first
+	hud.notice(move_notice(), 7.0)  # for whoever gets up for it first
 	await sync.gate("bag", book_bag.used)
 	maddison_to("board")
 	hud.todo("")
@@ -793,10 +799,10 @@ func _on_read_order(id: int) -> void:
 func _spar_drill(stand_up_first := false) -> void:
 	hud.todo(SPAR_TODO)
 	if stand_up_first:  # out of their seats: how to get up and over there, then how to block
-		hud.notice(MOVE_NOTICE, MOVE_SECONDS)
-		_notice_after(SPAR_NOTICE, 8.0, MOVE_SECONDS, MOVE_NOTICE)
+		hud.notice(move_notice(), MOVE_SECONDS)
+		_notice_after(spar_notice(), 8.0, MOVE_SECONDS, move_notice())
 	else:
-		hud.notice(SPAR_NOTICE, 8.0)
+		hud.notice(spar_notice(), 8.0)
 	_sparring = true
 	player.combat.guard_raised.connect(_on_guard_raised)
 	if sync.is_host():
@@ -807,6 +813,23 @@ func _spar_drill(stand_up_first := false) -> void:
 
 
 ## Show notice `text` in `delay` seconds, unless something has replaced `after` by then.
+## How to stand and walk, for the keyboard or the pad in use.
+static func move_notice() -> String:
+	return for_device(MOVE_NOTICE, PAD_MOVE_NOTICE, ["jump"])
+
+
+## How to hit and block the bag, for the keyboard or the pad in use.
+static func spar_notice() -> String:
+	return for_device(SPAR_NOTICE, PAD_SPAR_NOTICE, ["attack", "block"])
+
+
+## `keys` as written, or on a pad `pad_line` naming the pad buttons for `actions`.
+static func for_device(keys: String, pad_line: String, actions: Array) -> String:
+	if not InputGlyphs.pad:
+		return keys
+	return pad_line % actions.map(func(a): return InputGlyphs.of(a, true))
+
+
 func _notice_after(text: String, seconds: float, delay: float, after: String) -> void:
 	await get_tree().create_timer(delay, false).timeout
 	if is_inside_tree() and hud._notice.text == after:
@@ -875,7 +898,7 @@ func _bag_lands(id: int) -> void:
 	spar_target = 0
 	if body_is_mine(id) and _flat_distance(player.global_position, to_global(PUNCH_BAG)) < SPAR_REACH + 0.5:
 		if player.take_damage(0.0, "spar") == "hit" and _sparring:
-			hud.notice(SPAR_EARLY if _guard_at >= _swing_at else SPAR_MISS, 4.0)
+			hud.notice(for_device(SPAR_EARLY, PAD_SPAR_EARLY, ["block"]) if _guard_at >= _swing_at else for_device(SPAR_MISS, PAD_SPAR_MISS, ["block"]), 4.0)
 
 
 func body_is_mine(id: int) -> bool:

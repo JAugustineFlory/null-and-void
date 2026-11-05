@@ -13,6 +13,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_title_screen()
 	await test_lobby()
 	await test_pause_menu()
+	test_garage_notices()
 
 
 ## Press a ui_* action as a controller would, and let the menu answer it.
@@ -24,6 +25,21 @@ func _press(action: String) -> void:
 		_tree.root.push_input(ev)
 	await _tree.process_frame
 	await _tree.process_frame
+
+
+## Press and let go of a real controller button.
+func _pad_button(button: JoyButton) -> void:
+	for pressed in [true, false]:
+		var ev := InputEventJoypadButton.new()
+		ev.button_index = button
+		ev.pressed = pressed
+		_tree.root.push_input(ev)
+	await _tree.process_frame
+	await _tree.process_frame
+
+
+func _find_tabs(n: Node) -> TabContainer:
+	return n.find_children("*", "TabContainer", true, false)[0]
 
 
 func _focus() -> Control:
@@ -107,6 +123,16 @@ func test_lobby() -> void:
 	mei.grab_focus()
 	await _press("ui_accept")
 	_check.call(net.wanted_look.get("crew", "") == "mei", "A on a crew member picks them")
+	var tabs: TabContainer = _find_tabs(picker)
+	var last := tabs.get_tab_count() - 1
+	tabs.current_tab = 0
+	await _press("ui_tab_next")
+	_check.call(tabs.current_tab == 1 and tabs.get_current_tab_control().is_ancestor_of(_focus()), "RB turns Customize to the next tab, with something on it picked")
+	await _press("ui_tab_prev")
+	await _press("ui_tab_prev")
+	_check.call(tabs.current_tab == last, "and LB turns back, round to the last tab")
+	await _pad_button(JOY_BUTTON_RIGHT_SHOULDER)
+	_check.call(tabs.current_tab == 0, "the real RB button does it too")
 	lobby.queue_free()
 	net.leave(false)
 	net.profile = real_profile
@@ -119,9 +145,8 @@ func test_pause_menu() -> void:
 	_tree.root.add_child(level)
 	await _tree.process_frame
 	await _tree.process_frame
-	level._toggle_pause()
-	await _tree.process_frame
-	await _tree.process_frame
+	await _pad_button(JOY_BUTTON_START)
+	_check.call(level._pause.visible, "Start (Menu) opens the pause menu")
 	_check.call(_named(_focus()) == "Resume" or (_focus() is Button and (_focus() as Button).text == "Resume"), "it opens with Resume picked (%s)" % _named(_focus()))
 	await _press("ui_down")
 	await _press("ui_down")
@@ -132,6 +157,25 @@ func test_pause_menu() -> void:
 	_check.call(level._pause_at == "main" and level._pause.visible and level._pause_pages["main"].is_ancestor_of(_focus()), "B goes back a page")
 	await _press("ui_cancel")
 	_check.call(not level._pause.visible and _focus() == null, "and B again closes the menu, and lets go of the pick so A goes back to the game")
+	await _pad_button(JOY_BUTTON_START)
+	await _pad_button(JOY_BUTTON_START)
+	_check.call(not level._pause.visible and not _tree.paused, "and Start again closes it")
 	_tree.paused = false
 	level.queue_free()
 	await _tree.process_frame
+
+
+func test_garage_notices() -> void:
+	print("Controller: the garage's how-to notices name the pad's buttons")
+	var was := InputGlyphs.pad
+	InputGlyphs.pad = false
+	_check.call(HomeBase.move_notice() == HomeBase.MOVE_NOTICE and HomeBase.spar_notice() == HomeBase.SPAR_NOTICE, "on the keyboard they read as approved")
+	InputGlyphs.pad = true
+	var deck := InputGlyphs.deck
+	InputGlyphs.deck = false
+	_check.call(HomeBase.move_notice().begins_with("A stands you up") and HomeBase.spar_notice().contains("with RT") and HomeBase.spar_notice().contains("press LT"),
+		"on a pad: A to stand, RT to hit, LT to block (%s / %s)" % [HomeBase.move_notice(), HomeBase.spar_notice()])
+	InputGlyphs.deck = true
+	_check.call(HomeBase.spar_notice().contains("with R2") and HomeBase.spar_notice().contains("press L2"), "and R2/L2 on a Steam Deck")
+	InputGlyphs.deck = deck
+	InputGlyphs.pad = was

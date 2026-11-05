@@ -1,0 +1,1 @@
+- **Added:** On a controller, Start opens and closes the pause menu, LB and RB turn the tabs in Customize, and the garage's how-to tips name the controller's buttons.
