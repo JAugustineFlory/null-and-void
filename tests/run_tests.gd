@@ -3649,8 +3649,9 @@ func test_level_2_routes() -> void:
 		"the sign-in sheet has the half-legible name and the PIN table, handwritten")
 	check(not str(docs.map(func(d): return d.plain_text())).contains("Har%"), "no document gives the Har query away")
 	# Papers on the walls are drawn full size, their words readable from the room.
-	# (Papers lying on a table, like Rourke's statement, are picked up to be read.)
-	for d in docs.filter(func(d): return d.read_face != Vector3.UP):
+	# (Papers lying on a table, like Rourke's statement, are picked up to be read;
+	# a sticky on a wall, like the one on the stairs, carries its words on the note.)
+	for d in docs.filter(func(d): return d.read_face != Vector3.UP and d.look != "sticky"):
 		var wall_sheet: Node3D = d.get_node_or_null("WallSheet")
 		var printed: Array = wall_sheet.find_children("Line*", "Label3D", false, false) if wall_sheet else []
 		var shown := " ".join(printed.map(func(l): return l.text))
