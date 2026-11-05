@@ -132,7 +132,7 @@ const TEXT := {
 	"tip_pair_busy": "409 busy: the cradle pairs one set at a time. wait inside the loop, after each request.",
 	"tip_pair_key": "403: that's the dock cradle's key, from the card. this cradle has its own.",
 	"tip_pair_short": "%d paired, and there are %d of you. one set each: count is how many sets.",
-	"tip_list_try": "the service page's loop reads fine with only a log in it: console.log(entry.name), once for each open entry. try it here, where it's warm. nothing gets written.",
+	"tip_list_try": "the service page's loop reads fine with only a log in it: console.log(entry.name), once for each open entry. we're in that log too, as VISITOR: if (entry.name !== \"VISITOR\") around the log keeps us out. try it here, where it's warm. nothing gets written.",  # DRAFT
 	"tip_list_vault": "%d of %d names. that's vault A's query, off the page. the open entries are every vault's, as at the time office: drop the AND.",
 	"tip_list_row": "that's a whole row in one line. log entry.name: one name a line.",
 	"tip_list_ours": "VISITOR is us: VIS-01 and up, punched in at the landing. the names you want are the others. an if around the log keeps ours out: if (entry.name !== \"VISITOR\") { ... }",  # DRAFT
@@ -1691,6 +1691,9 @@ func _on_solved(id: String) -> void:
 			Game.solve_case("pair", TEXT.pair_done % paired)
 			_earpieces_in()
 			_next_case()
+			# The listing opens here, at the cage: SYSOP's warm try (and its if) on this
+			# screen now, whether or not the service page by the clock has been read yet.
+			_tip("list_try", "it")
 		"list":
 			_open_case("list")
 			Game.solve_case("list", TEXT.list_done % ", ".join(PackedStringArray(_open_names())))
