@@ -18,6 +18,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_world_trips()
 	await test_coop_world()
 	await test_coop_downed()
+	await test_mantle_round_the_turn()
 
 
 func _game() -> Node:
@@ -327,3 +328,31 @@ func _walk(p: Player, goal: Callable, max_frames := 360, near := 0.3) -> bool:
 		await _tree.physics_frame
 	p.controls.move = Vector2.ZERO
 	return false
+
+
+## A mantle (or vault) that takes you past a turn is carried a storey with you, and
+## finishes there: it doesn't pull you back to where it started, a storey at a time
+## (seen on CI: a teammate mantled onto their helper at the turn and ended up on 10).
+func test_mantle_round_the_turn() -> void:
+	print("Stairs: a mantle past a turn is carried with you")
+	_game().new_run(24)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	_tree.root.add_child(level)
+	await _frames(20)
+	var p: Player = level.player
+	p.local_control = false
+	var well: Node3D = Stairwell.of(level.stair_out)
+	var floor_y := -Stairwell.STOREY - Stairwell.HALF  # the half-landing below 10's
+	var before: Dictionary = level.stairs.progress(p, well)
+	# Just past the turn and already climbing, before the stairs have counted it.
+	p.global_position = well.to_global(Vector3(0.3, floor_y + 0.02, -5.1))
+	p.velocity = Vector3.ZERO
+	p._start_mantle(well.to_global(Vector3(0.6, floor_y + 0.9, -5.1)))
+	await _frames(90)
+	var after: Dictionary = level.stairs.progress(p, well)
+	var at: Vector3 = well.to_local(p.global_position)
+	_check.call(before.e == 0 and after.e == 1 and not after.dest, "over the turn, the stairs count one storey down, once (%s to %s)" % [before, after])
+	_check.call(p.state == p.Move.WALK and absf(at.x - 0.6) < 0.2 and absf(at.z + 5.1) < 0.2 and absf(at.y - (floor_y + Stairwell.STOREY)) < 0.2, "and the mantle ends where it was going, on the same step a storey round (%s)" % at)
+	level.queue_free()
+	await _frames(5)
+

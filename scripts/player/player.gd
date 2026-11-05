@@ -560,7 +560,7 @@ func step(delta: float) -> void:
 		Move.DOWN:
 			_step_down(delta)
 		_:
-			if sit_pressed and sit():
+			if sit_pressed and not _notebook_held and sit():  # RB turns the held notebook's tabs
 				return
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
@@ -1243,6 +1243,19 @@ func knock_down(seconds: float = 2.0) -> void:
 ## Back on your feet after knock_down() (as far up as there's room for).
 func get_up() -> void:
 	_end_down()
+
+
+## Moved by `by` all at once, as the stairs carry you a storey (StairLinks): the
+## places a mantle, vault, chair or terminal is moving you between move with you.
+func carried_by(by: Transform3D) -> void:
+	for i in _mantle_path.size():
+		_mantle_path[i] = by * _mantle_path[i]
+	if _grip.has("point"):
+		_grip.point = by * (_grip.point as Vector3)
+		_grip.normal = by.basis * (_grip.normal as Vector3)
+	_sit_from = by * _sit_from
+	_sit_to = by * _sit_to
+	_term_from = by * _term_from
 
 
 func is_down() -> bool:
