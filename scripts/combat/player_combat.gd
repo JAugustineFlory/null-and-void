@@ -201,14 +201,14 @@ func go_down(cause: String) -> void:
 		die()
 
 
-## A teammate helped you up.
-func revive() -> void:
+## A teammate helped you up, to `health` (a first-aid kit: MAX_HEALTH).
+func revive(health: float = REVIVE_HEALTH) -> void:
 	if not down:
 		return
 	down = false
 	down_cause = ""
 	_wake()
-	player.health = REVIVE_HEALTH
+	player.health = clampf(health, 1.0, MAX_HEALTH)
 	_since_hurt = 0.0
 	if player.has_method("get_up"):
 		player.get_up()
@@ -216,6 +216,16 @@ func revive() -> void:
 	if player.hud:
 		player.hud.damage_flash(player.health)
 	got_up.emit()
+
+
+## Patched up (a first-aid kit on yourself): back to full health. Not while down:
+## a teammate has to bring you round (CrewVitals.revive).
+func heal_full() -> void:
+	if down:
+		return
+	player.health = MAX_HEALTH
+	if player.hud:
+		player.hud.damage_flash(player.health)
 
 
 ## Out for real: back to the checkpoint, through the level's usual death.

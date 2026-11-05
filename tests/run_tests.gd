@@ -4289,6 +4289,14 @@ func test_coop_combat() -> void:
 	check(await _until(func(): return not client.player.downed, CrewVitals.OUT_REVIVE_TIME + 2.0), "stay with them, and they come round")
 	check(client.player.health == PlayerCombat.REVIVE_HEALTH and not client.player.combat.unconscious and not client.player.input_locked, "back on their feet")
 	check(machines.all(func(l): return l.crew.downed.is_empty() and l.crew.unconscious.is_empty()), "and nobody is down or out anywhere (host is %d)" % host_id)
+	# A first-aid kit brings round even someone who's passed out, at once, to full.
+	puppet.take_damage(1000.0, "watcher")
+	await _frames(10)
+	client.player.combat.bleed_left = 0.05
+	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again")
+	host.crew.revive(client_id, PlayerCombat.MAX_HEALTH, true)
+	await _frames(10)
+	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious, "a first-aid kit brings them round at once, to full health")
 	# Everyone down or out: the crew is beaten.
 	downs.clear()
 	puppet.take_damage(1000.0, "watcher")

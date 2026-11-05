@@ -142,39 +142,40 @@ func revive_prompt(id: int) -> String:
 	return REVIVE_PROMPT if downed.has(id) and not reviving.has(id) and not CrewVitals.is_down(players.player) else ""
 
 
-## The local player helps teammate `id` up.
-func revive(id: int) -> void:
+## The local player helps teammate `id` up, to `health`. `instant` (a first-aid
+## kit) brings round even someone who's passed out at once.
+func revive(id: int, health: float = PlayerCombat.REVIVE_HEALTH, instant: bool = false) -> void:
 	if CrewVitals.is_down(players.player):
 		return
 	if _is_host():
-		_host_revive(id)
+		_host_revive(id, my_id(), health, instant)
 	else:
-		_ask_revive.rpc_id(1, id)
+		_ask_revive.rpc_id(1, id, health, instant)
 
 
 @rpc("any_peer", "reliable")
-func _ask_revive(id: int) -> void:
+func _ask_revive(id: int, health: float, instant: bool) -> void:
 	if _is_host():
-		_host_revive(id, multiplayer.get_remote_sender_id())
+		_host_revive(id, multiplayer.get_remote_sender_id(), health, instant)
 
 
 ## Host: someone who's down gets straight up; someone who's passed out takes
-## OUT_REVIVE_TIME of `by` standing by them.
-func _host_revive(id: int, by: int = 0) -> void:
-	if not downed.has(id) or reviving.has(id):
+## OUT_REVIVE_TIME of `by` standing by them (unless it's `instant`).
+func _host_revive(id: int, by: int, health: float = PlayerCombat.REVIVE_HEALTH, instant: bool = false) -> void:
+	if not downed.has(id) or (reviving.has(id) and not instant):
 		return
-	if unconscious.has(id):
-		_run("_begin_revive", [id, by if by != 0 else my_id()])
+	if unconscious.has(id) and not instant:
+		_run("_begin_revive", [id, by])
 	else:
-		_run("_revived", [id])
+		_run("_revived", [id, health])
 
 
-func _revived(id: int) -> void:
+func _revived(id: int, health: float = PlayerCombat.REVIVE_HEALTH) -> void:
 	_set_down(id, false, "")  # (ends any revive in progress)
 	if id == my_id():
 		var c := _local_combat()
 		if c:
-			c.revive()
+			c.revive(health)
 
 
 # --- Passing out --------------------------------------------------------------
