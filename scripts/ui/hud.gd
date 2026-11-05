@@ -85,7 +85,7 @@ func set_crosshair(on: bool) -> void:
 
 
 func set_prompt(text: String) -> void:
-	_prompt.text = text
+	_prompt.text = InputGlyphs.text(text)  # [E] reads [X] on a gamepad
 
 
 ## Write a task on the player's to-do list in the notebook (it ticks off the one
@@ -107,7 +107,7 @@ func set_objective(text: String) -> void:
 
 
 func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) -> void:
-	_notice.text = text
+	_notice.text = InputGlyphs.text(text)
 	_notice.add_theme_color_override("font_color", color)
 	_notice.modulate.a = 1.0
 	if _notice_tween:

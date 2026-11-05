@@ -118,7 +118,7 @@ func show_page(id: String) -> void:
 		add_back(LEAVE)
 	elif id == "query":
 		box.add_child(SettingsPanel.heading(QUERY))
-		box.add_child(_mono(QUERY_HINT, 16, ThemeUtil.DIM))
+		box.add_child(_mono(InputGlyphs.text(QUERY_HINT), 16, ThemeUtil.DIM))  # "press Esc" names the pad button on a pad
 		_query = LineEdit.new()
 		_query.name = "SQL"
 		_query.custom_minimum_size = Vector2(640, 44)
