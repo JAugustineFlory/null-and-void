@@ -698,7 +698,12 @@ func test_custodian_follows() -> void:
 		if Stairwell.landing_box().grow(0.3).has_point(g.global_transform.affine_inverse() * level.custodian.global_position):
 			seen[0] = true
 	t.physics_frame.connect(watch)
-	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0 and level.custodian.route.is_empty(), 1800), "it comes down STAIR 1 (%s) and out on G, and hunts there" % level.custodian.global_position)
+	var frames := [0]
+	var count := func(): frames[0] += 1
+	t.physics_frame.connect(count)
+	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0 and level.custodian.route.is_empty(), 7200), "it comes down STAIR 1, every floor of it (%s), and out on G, and hunts there" % level.custodian.global_position)
+	t.physics_frame.disconnect(count)
+	print("    the Custodian's walk down from 10: %.1f s" % (frames[0] / float(Engine.physics_ticks_per_second)))
 	t.physics_frame.disconnect(watch)
 	check(seen[0] and level.g_stair.is_open and level.stair_out.is_open, "down the same stairs: through 10's stair door, onto G's landing and out through G's door")
 	level.queue_free()

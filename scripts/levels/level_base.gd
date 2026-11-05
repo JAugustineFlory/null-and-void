@@ -217,12 +217,11 @@ func finish_level(next_key: String) -> void:
 func walk_stairs(from: Door, to: Door, down: bool, method: String, waiting: String, args := []) -> Trigger:
 	var a := Stairwell.of(from)
 	var b := Stairwell.of(to)
+	var storeys := Stairwell.storeys_between(a.get_meta("floor"), b.get_meta("floor"))
 	if down:
-		stairs.link(a, b)
+		stairs.link(a, b, storeys, true)
 	else:
-		stairs.link(b, a)
-	Stairwell.relabel(a, -1 if down else 1, b.get_meta("floor"))
-	Stairwell.relabel(b, 1 if down else -1, a.get_meta("floor"))
+		stairs.link(b, a, storeys, false)
 	var old := b.get_node_or_null("Arrival")
 	if old:
 		old.free()

@@ -342,7 +342,7 @@ func build() -> void:
 	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, 90.0, "10")
 	stair_in.name = "Door_STAIR-IN"
 	# Stairs down toward G, on the east wall: held shut for the night.
-	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, -90.0, "10", "STAIR 1", 1)  # down to G, and no further
+	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, -90.0, "10")
 	stair_out.name = "Door_STAIR-OUT"
 	exit_door = stair_out
 	Document.place(geo, STAIR_OUT_AT + Vector3(-0.12, 1.75, 0.9), 90.0, "Stair notice", STAIR_CLOSED_LINES, false, "laminated", Vector2(0.26, 0.2))
@@ -1316,8 +1316,9 @@ func _custodian_follows() -> void:
 
 
 ## Every machine: it shoulders 10's stair door open and comes down STAIR 1, the
-## way the crew went: down the flight from the landing, round the turn, and down
-## to G's landing (StairLinks carries it from 10's stairs to G's), then out.
+## way the crew went: down every flight and round every turn, past each floor's
+## landing, to G's (StairLinks carries it storey by storey, then onto G's stairs),
+## then out.
 func _custodian_down() -> void:
 	hud.notice(TEXT.custodian_follows, 4.0)
 	stair_out.set_open(true)
@@ -1328,14 +1329,21 @@ func _custodian_down() -> void:
 	# Through each doorway square on, on the open side of the leaf (hung at -x): it
 	# is barely wider than the Custodian.
 	var door := Stairwell.DOOR_W / 2.0 - Stairwell.CORE / 2.0 - 0.5
-	custodian.route = [
-		up * Vector3(door, 0, 2.2), up * Vector3(door, 0, 1.2), up * Vector3(door, 0, -0.9),
-		up * Vector3(-0.9, 0, -1.7), up * Vector3(-0.9, 0, flight),  # down the first flight
-		up * Vector3(0.9, 0, flight),  # round the half-landing
-		# Down the second, which is G's: past the turn it's carried there, with the rest.
-		up * Vector3(0.9, -Stairwell.STOREY, -1.7), up * Vector3(door, -Stairwell.STOREY, -0.9),
-		up * Vector3(door, -Stairwell.STOREY, 1.4),
-	]
+	var route := [up * Vector3(door, 0, 2.2), up * Vector3(door, 0, 1.2), up * Vector3(door, 0, -0.9)]
+	# Each storey: down a flight, round the half-landing, down the next to a landing.
+	# The points are where they'd be if the stairs were stacked: StairLinks moves
+	# the ones still ahead as it carries the Custodian.
+	var storeys := Stairwell.storeys_between("10", "G")
+	for m in storeys:
+		var y := -m * Stairwell.STOREY
+		if m > 0:
+			route.append(up * Vector3(-0.9, y, -1.0))  # across the landing, clear of the middle wall's end
+		var foot := -1.7 if m == storeys - 1 else -1.0
+		route.append_array([up * Vector3(-0.9, y, -1.7), up * Vector3(-0.9, y, flight), up * Vector3(0.9, y, flight),
+			up * Vector3(0.9, y - Stairwell.STOREY, foot)])
+	var bottom := -storeys * Stairwell.STOREY
+	route.append_array([up * Vector3(door, bottom, -0.9), up * Vector3(door, bottom, 1.4)])  # out through G's door
+	custodian.route = route
 	stairs.carry(custodian)
 	if not stairs.carried.is_connected(_on_carried):
 		stairs.carried.connect(_on_carried)

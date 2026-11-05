@@ -17,7 +17,10 @@ extends RefCounted
 ## there, down to their shut doors and floor plates. Floors in the World stand side
 ## by side, not stacked, so StairLinks joins two stairwells into one flight of
 ## stairs: walk down past the turn below and you're on the floor below's stairs,
-## in the same place, without seeing a thing change (Augustine, v0.9).
+## in the same place, without seeing a thing change (Augustine, v0.9). Floors
+## that are several storeys apart are walked storey by storey, past every floor in
+## between (count_storeys numbers the landings as you go): their doors are shut
+## for the night, a red light on each one's badge reader.
 ## The door swings out into the lobby, always, so the landing behind it stays
 ## clear for whoever arrives (v0.8 playtest: players arrived pinned behind it).
 
@@ -125,6 +128,28 @@ static func relabel(holder: Node3D, k: int, floor_name: String) -> void:
 		label.set_meta("plate", ArtKit.landing_number(holder, at, facing, 0 if floor_name == "G" else int(floor_name)))
 
 
+## Number every landing as if the stairs were `by` storeys further up (-3: three
+## floors down): StairLinks counts the floors in between on the same stairs as
+## they're walked past. 0 puts the floor's own numbers back.
+static func count_storeys(holder: Node3D, by: int) -> void:
+	if holder.get_meta("counted", 0) == by:
+		return
+	holder.set_meta("counted", by)
+	var labels := holder.get_children().filter(func(c): return c is Label3D and c.has_meta("storey"))
+	for label in labels:  # (relabel swaps the plates, which are children too)
+		var k: int = label.get_meta("storey")
+		relabel(holder, k, _floor_name(holder.get_meta("floor"), k + by))
+
+
+## Storeys from one floor to another, by their numbers (G is 0).
+static func storeys_between(from_floor: String, to_floor: String) -> int:
+	return absi(_floor_number(from_floor) - _floor_number(to_floor))
+
+
+static func _floor_number(floor_label: String) -> int:
+	return 0 if floor_label == "G" else int(floor_label)
+
+
 ## Where the `index`th of up to six arrivals stands on the landing (in the space
 ## `at` is in), three abreast in two rows between the door and the flights: clear
 ## of both flights, the walls and the door, for the biggest of the crew.
@@ -139,15 +164,16 @@ static func landing_slot(at: Vector3, yaw_deg: float, index: int) -> Vector3:
 ## the half-landing is the one above its landing. The half-landing is shared down
 ## its middle (the end of the wall between the flights): its -x half stays this
 ## floor's, so whoever is there is in one stairwell only, and can be found.
-static func past_turn_down(holder: Node3D, pos: Vector3) -> bool:
-	var p := holder.global_transform.affine_inverse() * pos
+## `storeys` moves the turn that many storeys up (negative: down).
+static func past_turn_down(holder: Node3D, pos: Vector3, storeys := 0) -> bool:
+	var p := holder.global_transform.affine_inverse() * pos - Vector3(0, storeys * STOREY, 0)
 	return _in_shaft(p) and p.y > -STOREY - 0.5 and p.y < -HALF + 0.3 and (p.x > CORE or p.y < -HALF - 0.3)
 
 
 ## The same going up: on the half-landing above on its -x half (the flight up's
 ## side), or anywhere higher.
-static func past_turn_up(holder: Node3D, pos: Vector3) -> bool:
-	var p := holder.global_transform.affine_inverse() * pos
+static func past_turn_up(holder: Node3D, pos: Vector3, storeys := 0) -> bool:
+	var p := holder.global_transform.affine_inverse() * pos - Vector3(0, storeys * STOREY, 0)
 	return _in_shaft(p) and p.y < STOREY + 0.5 and p.y > HALF - 0.1 and (p.x < -CORE or p.y > HALF + 0.3)
 
 
@@ -169,7 +195,7 @@ static func landing_box() -> AABB:
 static func _floor_name(floor_label: String, k: int) -> String:
 	if k == 0:
 		return floor_label
-	var n := 0 if floor_label == "G" else int(floor_label)
+	var n := _floor_number(floor_label)
 	return "G" if n + k == 0 else str(n + k)
 
 
@@ -264,3 +290,22 @@ static func _copy_door(holder: Node3D, y0: float) -> void:
 	stripe.material_override = Greybox.mat(Color(0.8, 0.6, 0.1))
 	stripe.position.y = DOOR_H * 0.25
 	body.add_child(stripe)
+	# Beside it, on the latch side, the badge reader that keeps it shut at night:
+	# its light red (the lobby side's placard says why).
+	var reader := Greybox.box(holder, Vector3(DOOR_W / 2.0 + 0.22, y0 + 1.2, -0.22), Vector3(0.09, 0.14, 0.04), Color(0.12, 0.12, 0.13), "BadgeReader")
+	for c in reader.get_children():
+		if c is CollisionShape3D:
+			(c as CollisionShape3D).disabled = true
+	var led := MeshInstance3D.new()
+	led.name = "Locked"
+	var lm := BoxMesh.new()
+	lm.size = Vector3(0.025, 0.025, 0.01)
+	led.mesh = lm
+	var red := StandardMaterial3D.new()
+	red.albedo_color = Color(0.9, 0.08, 0.05)
+	red.emission_enabled = true
+	red.emission = Color(1.0, 0.1, 0.05)
+	red.emission_energy_multiplier = 2.0
+	led.material_override = red
+	led.position = Vector3(0, 0.04, -0.025)
+	reader.add_child(led)
