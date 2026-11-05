@@ -13,13 +13,17 @@ extends Node
 ## Entities run on the host. To hurt, throw or grab a player, they go through
 ## here (or the player's take_damage), and it reaches the machine that owns them.
 
-## Every machine: the last one standing went down.
+## Every machine: the last one standing went down (everyone else is down or out).
 signal crew_down(cause: String)
 ## Host: a player's block caught a hit from `cause` (the attacker can recoil).
 signal hit_blocked(peer_id: int, cause: String)
 
 ## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
 const REVIVE_PROMPT := "[E] Help them up"
+## Helping up someone who's passed out takes this long, standing by them.
+const OUT_REVIVE_TIME := 4.0
+## Walk further than this from them and you stop.
+const REVIVE_RANGE := 2.5
 ## A player's first block in a real fight: the High-tops, for that player only
 ## (plan/approvals/unlocks.md). The punch bag's practice swings never count.
 const FIRST_BLOCK := "achievement:first_block"
@@ -28,6 +32,12 @@ var level: Node
 var players: Node  # NetPlayers
 ## peer id -> what put them down.
 var downed := {}
+## Peer ids of the downed who have passed out (still in `downed`).
+var unconscious := {}
+## Passed-out peer id -> {"by": who's helping them up, "left": seconds to go}.
+var reviving := {}
+## The local player's progress helping someone up (local player only).
+var _revive_bar: ProgressBar
 ## Host: peer ids whose first-block unlock has gone out from this level already.
 var _first_blocks := {}
 
@@ -107,6 +117,8 @@ func _set_down(id: int, is_down: bool, cause: String) -> void:
 		downed[id] = cause
 	else:
 		downed.erase(id)
+		unconscious.erase(id)
+		_end_revive(id)
 	var body: Node = players.puppet(id)
 	if body is PlayerPuppet:
 		body.set_downed(is_down)
@@ -125,9 +137,9 @@ func send_everyone_back() -> void:
 		c.die()
 
 
-## The prompt on a teammate's body.
+## The prompt on a teammate's body (none while someone's already helping them up).
 func revive_prompt(id: int) -> String:
-	return REVIVE_PROMPT if downed.has(id) and not CrewVitals.is_down(players.player) else ""
+	return REVIVE_PROMPT if downed.has(id) and not reviving.has(id) and not CrewVitals.is_down(players.player) else ""
 
 
 ## The local player helps teammate `id` up.
@@ -143,20 +155,120 @@ func revive(id: int) -> void:
 @rpc("any_peer", "reliable")
 func _ask_revive(id: int) -> void:
 	if _is_host():
-		_host_revive(id)
+		_host_revive(id, multiplayer.get_remote_sender_id())
 
 
-func _host_revive(id: int) -> void:
-	if downed.has(id):
+## Host: someone who's down gets straight up; someone who's passed out takes
+## OUT_REVIVE_TIME of `by` standing by them.
+func _host_revive(id: int, by: int = 0) -> void:
+	if not downed.has(id) or reviving.has(id):
+		return
+	if unconscious.has(id):
+		_run("_begin_revive", [id, by if by != 0 else my_id()])
+	else:
 		_run("_revived", [id])
 
 
 func _revived(id: int) -> void:
-	_set_down(id, false, "")
+	_set_down(id, false, "")  # (ends any revive in progress)
 	if id == my_id():
 		var c := _local_combat()
 		if c:
 			c.revive()
+
+
+# --- Passing out --------------------------------------------------------------
+
+## The local player passed out (down too long).
+func report_unconscious() -> void:
+	if _is_host():
+		_host_unconscious(my_id())
+	else:
+		_ask_unconscious.rpc_id(1)
+
+
+@rpc("any_peer", "reliable")
+func _ask_unconscious() -> void:
+	if _is_host():
+		_host_unconscious(multiplayer.get_remote_sender_id())
+
+
+func _host_unconscious(id: int) -> void:
+	if downed.has(id) and not unconscious.has(id):
+		_run("_set_unconscious", [id])
+
+
+func _set_unconscious(id: int) -> void:
+	unconscious[id] = true
+
+
+func _begin_revive(id: int, by: int) -> void:
+	reviving[id] = {"by": by, "left": OUT_REVIVE_TIME}
+	if by == my_id():
+		_show_revive_bar(true)
+
+
+func _stop_revive(id: int) -> void:
+	_end_revive(id)
+
+
+func _end_revive(id: int) -> void:
+	var r: Dictionary = reviving.get(id, {})
+	reviving.erase(id)
+	if r.get("by", -1) == my_id():
+		_show_revive_bar(false)
+
+
+## The body on this machine for peer `id`: the local player or a puppet.
+func _body(id: int) -> Node3D:
+	if players == null:
+		return null
+	return players.player if id == my_id() else players.puppet(id)
+
+
+## Every machine counts revives down (for the bar); the host decides when one
+## finishes or stops (the helper walked off, or went down themselves).
+func _physics_process(delta: float) -> void:
+	if reviving.is_empty():
+		return
+	for id in reviving.keys():
+		var r: Dictionary = reviving[id]
+		r.left = maxf(0.0, r.left - delta)
+		if r.by == my_id():
+			_show_revive_bar(true, 1.0 - r.left / OUT_REVIVE_TIME)
+		if not _is_host():
+			continue
+		var helper := _body(r.by)
+		var body := _body(id)
+		if helper == null or body == null or CrewVitals.is_down(helper) \
+				or helper.global_position.distance_to(body.global_position) > REVIVE_RANGE:
+			_run("_stop_revive", [id])
+		elif r.left <= 0.0:
+			_run("_revived", [id])
+
+
+## A bar under the crosshair while you help someone up (no words).
+func _show_revive_bar(on: bool, progress: float = 0.0) -> void:
+	var hud: Node = players.player.get("hud") if players and players.player else null
+	if hud == null:
+		return
+	if _revive_bar == null:
+		_revive_bar = ProgressBar.new()
+		_revive_bar.name = "ReviveBar"
+		_revive_bar.show_percentage = false
+		_revive_bar.max_value = 1.0
+		_revive_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_revive_bar.anchor_left = 0.5
+		_revive_bar.anchor_right = 0.5
+		_revive_bar.anchor_top = 0.5
+		_revive_bar.anchor_bottom = 0.5
+		_revive_bar.offset_left = -70
+		_revive_bar.offset_right = 70
+		_revive_bar.offset_top = 48
+		_revive_bar.offset_bottom = 56
+		hud.add_child(_revive_bar)
+	_revive_bar.visible = on
+	_revive_bar.value = progress
 
 
 ## Host: run on every machine (or just here, with no LevelSync).

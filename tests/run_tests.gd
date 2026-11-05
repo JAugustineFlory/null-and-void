@@ -4264,9 +4264,42 @@ func test_coop_combat() -> void:
 	check(machines.all(func(l): return l.crew.downed.is_empty()), "with nobody left down")
 	puppet.take_damage(1000.0, "watcher")
 	await _frames(10)
+	check(client.player.combat.bleed_left > 60.0, "down, you have a good while before you pass out (long enough to come back up the stairs)")
 	client.player.combat.bleed_left = 0.05
-	check(await _until(func(): return not client.player.downed and client.player.health == 100.0, 10.0), "left down too long, you come to at the checkpoint by yourself")
-	check(machines.all(func(l): return not l.crew.downed.has(client_id)), "and you're off the downed list everywhere (host is %d)" % host_id)
+	check(await _until(func(): return machines.all(func(l): return l.crew.unconscious.has(client_id)), 10.0), "left down too long, you pass out, and every machine knows")
+	await _frames(30)
+	check(client.player.downed and client.player.combat.unconscious and client.player.health == 0.0 and machines.all(func(l): return l.crew.downed.has(client_id)),
+		"but you're still lying there: no trip back to the checkpoint")
+	check(client.hud._notice.text == PlayerCombat.OUT_NOTICE, "and you're told your crew can still help you up")
+	# The host comes over to help: it takes a while, standing by them.
+	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	await _frames(5)
+	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "a teammate can still help them up")
+	puppet.interact(host.player)
+	await _frames(20)
+	check(client.player.downed and machines.all(func(l): return l.crew.reviving.has(client_id)), "but it takes a moment")
+	check(host.crew._revive_bar != null and host.crew._revive_bar.visible and host.crew._revive_bar.value > 0.0, "with a bar filling for the one helping")
+	check(puppet.get_prompt(host.player) == "", "and no prompt while they're at it")
+	host.player.global_position = puppet.global_position + Vector3(CrewVitals.REVIVE_RANGE + 2.0, 0.3, 0)
+	check(await _until(func(): return machines.all(func(l): return not l.crew.reviving.has(client_id)), 2.0), "walk off and it stops")
+	check(client.player.downed and not host.crew._revive_bar.visible, "they stay out, and the bar goes")
+	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	await _frames(5)
+	puppet.interact(host.player)
+	check(await _until(func(): return not client.player.downed, CrewVitals.OUT_REVIVE_TIME + 2.0), "stay with them, and they come round")
+	check(client.player.health == PlayerCombat.REVIVE_HEALTH and not client.player.combat.unconscious and not client.player.input_locked, "back on their feet")
+	check(machines.all(func(l): return l.crew.downed.is_empty() and l.crew.unconscious.is_empty()), "and nobody is down or out anywhere (host is %d)" % host_id)
+	# Everyone down or out: the crew is beaten.
+	downs.clear()
+	puppet.take_damage(1000.0, "watcher")
+	await _frames(10)
+	client.player.combat.bleed_left = 0.05
+	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0) and downs.is_empty(), "one out cold, one standing: the crew isn't beaten")
+	host.player.take_damage(1000.0, "watcher")
+	await _frames(10)
+	check(downs == ["watcher", "watcher"], "the last one standing goes down: with the rest down or out, the crew is down")
+	check(await _until(func(): return not host.player.downed and not client.player.downed and not client.player.combat.unconscious, 10.0),
+		"and everyone comes to at the checkpoint")
 	await _coop_close(worlds)
 
 
