@@ -1,6 +1,6 @@
 # Tomas Lindqvist
 
-*Your script for Null & Void: 3 recordings.*
+*Your script for Null & Void: 4 recordings.*
 
 ## Who you are
 
@@ -63,3 +63,9 @@ Send the files back as they are. They go in `audio/voice/tomas/` in the game.
 *Right after Ines, when someone reads the card rack in the time office. Over the crew's earpiece, from the landing. Dry. You've seen the ledger line and never thought about it until now.*
 
 "Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing."
+
+**[ ] `l6_tomas_after.wav`**
+
+*Right after Ines, as the crew comes back onto the landing. Looking at the stairwell gate that's open now, not at the crew. Flat, then not quite flat.*
+
+"They're clocked out. All of them. First honest line in that ledger in twenty years."

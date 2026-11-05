@@ -1,6 +1,6 @@
 # Ines Oyelaran
 
-*Your script for Null & Void: 3 recordings.*
+*Your script for Null & Void: 4 recordings.*
 
 ## Who you are
 
@@ -63,3 +63,9 @@ Send the files back as they are. They go in `audio/voice/ines/` in the game.
 *When someone reads the card rack in the time office and her name is on a card still in the IN slot. Over the crew's earpiece, from the landing, having heard the name. Quiet. A name you've seen written a thousand times, and never on a person.*
 
 "Whitlow. A.W. Her initials are on half the old boxes in our records cage. I always wondered who she was."
+
+**[ ] `l6_ines_after.wav`**
+
+*When the first of the crew comes back onto the landing after every entry is closed. Getting up off the bottom step as they come through the door. Quiet. You already know the answer from their faces.*
+
+"Was she there? Whitlow. Was she still there?"

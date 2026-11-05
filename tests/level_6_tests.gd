@@ -175,6 +175,10 @@ func _case_open(level: Node) -> void:
 
 
 func _case_pair(level: Node) -> void:
+	var turn: int = level._static_turn
+	level._static_whisper()
+	level._static_whisper()
+	check(level._static_turn == turn + 2 and level.data.echoes.size() == 6, "under the walkie's static, a few words from one of tonight's rows, a different one each time")
 	var it: Terminal = level.it_terminal
 	# The card's key is the dock cradle's: 403, nothing paired.
 	var rt := _run(it, level._pair_script(level.data.dock_key, "1"))
@@ -233,6 +237,7 @@ func _case_hold(level: Node) -> void:
 	level._bench_used(1)
 	await _frames(3)
 	check(level.deck_net[0] == "vault" and deck.get_meta("scripts", false), "a fitted deck in the corridor is on the vaults' network, and runs scripts")
+	check(level.find_children("RowLabel_*", "", true, false).size() == level.ROWS.size(), "every row has its label over the shelf, so a name in the log can be found at its row")
 	var c_door: String = level.data.doors.vault_c
 	var hold := _run(deck, level._watchdog(level.data.key, c_door))
 	await _until(func(): return not level._door_locked(c_door), 200)
@@ -268,6 +273,16 @@ func _case_release(level: Node) -> void:
 	check(_game().case_info("release").solved and level.stairs_open, "everyone's free: the case closes and STAIR 2's gate opens")
 	await _until(func(): return level.find_children("Left_*", "", true, false).size() == 6, 2400)
 	check(level.find_children("Left_*", "", true, false).size() == 6, "each one told their story and left a memory or a piece of evidence at their row")
+	await _until(func(): return level.find_children("Slip_*", "", true, false).size() >= 6, 600)
+	var slips: Array = level.find_children("Slip_*", "", true, false)
+	var years := slips.filter(func(d): return d.doc_lines.any(func(l): return str(l.text).begins_with("INSIDE:") and str(l.text).contains("years")))
+	check(slips.size() >= 6 and years.size() == 6 and slips.all(func(d): return level.OFFICE.has_point(level.to_local(d.global_position))),
+		"the clock printed an out slip for each of them, years inside, on the tray in the time office (%d slips, %d in years)" % [slips.size(), years.size()])
+	check(level.inside_for("1982-03-04 02:12", "1997-10-16 01:17") == "15 years, 7 months" and level.inside_for("1997-10-16 01:02", "1997-10-16 01:17") == "0 h 15 min",
+		"a slip says how long they were inside, in years and months, or minutes for one of us")
+	_move(level, Vector3(0, 0.1, 6))
+	await _until(func(): return level.landing_said, 300)
+	check(level.landing_said, "back on the landing, the night-shifters ask about them")
 
 
 func _case_stop(level: Node) -> void:

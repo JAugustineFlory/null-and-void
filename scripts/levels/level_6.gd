@@ -86,6 +86,8 @@ const TEXT := {
 	"warm": "Warm air. Feeling comes back into your fingers.",
 	"static": "The walkie hisses. Under the static, someone is whispering.",
 	"earpieces_in": "Earpieces in. The walkie's static is gone.",
+	"earpieces_voice": "Then, for one second, clear as day in your ear:",
+	"slip_out": "OUT SLIP",
 	"door_opens": "%s unlocks.",
 	"door_locks": "%s locks.",
 	"sweep": "Clunk. Down the hall, a lock drops.",
@@ -377,6 +379,13 @@ var custodian_down := false
 var _custodian_seen := false
 var _custodian_clock := 0.0
 var _static_clock := 0.0
+## Which of tonight's echoes the static carries next, and whether the landing's
+## last beat has played.
+var _static_turn := 0
+var landing_said := false
+## The entry whose slip is printing (set where the punch went through, the same on
+## every machine), so the slip can be laid by the clock when it's done.
+var _slip_row := {}
 var _cold_noted := false
 var _numb_noted := false
 var _was_cold := false
@@ -456,6 +465,7 @@ func build() -> void:
 	_build_vaults(cold)
 	_build_plant(colors)
 	_place_people()
+	_label_rows()
 	_make_decks()
 
 	add_light("LB1-LANDING", Vector3(0, 3.2, 6), 6.0, 0.8)
@@ -567,6 +577,8 @@ func _build_office(colors: Dictionary) -> void:
 	# The lone-worker time clock by the door, its sign and its service page.
 	Greybox.box(geo, Vector3(-3.4, 1.4, -4.2), Vector3(0.3, 0.6, 0.5), Color(0.55, 0.5, 0.4), "TimeClock")
 	Greybox.label(geo, Vector3(-3.56, 1.55, -4.2), data.clock, 28, Color(1.0, 0.25, 0.15), -90).name = "Clock"
+	# The slip tray under it: every entry the clock closes tonight prints one here.
+	Greybox.box(geo, Vector3(-3.75, 0.9, -4.2), Vector3(0.5, 0.04, 0.6), Color(0.45, 0.42, 0.36), "SlipTray")
 	var sign := Document.place(geo, Vector3(-3.12, 1.6, -5.3), 90, "Time clock sign", CLOCK_SIGN_LINES, false, "laminated", Vector2(0.28, 0.3))
 	sign.clues = [{"case": "open", "opens": TEXT.case_open, "text": "The time clock: every vault visit punches IN, and OUT again on the way back. The log is freezer_log. Still inside = no clock_out yet."}]
 	sign.read_by.connect(func(_p): sync.event("_ask", ["open"]))
@@ -763,8 +775,17 @@ func _place_people() -> void:
 		var e: Dictionary = data.echoes[i]
 		var row: Array = ROWS[e.row]
 		var echo := Echo.make(self, e.id, e.first, row[0], row[1], float(i) * 1.37)
+		echo.set_meta("row", e.row)
 		echo.whispered.connect(_on_whisper)
 		echoes[e.id] = echo
+
+
+## Every row's label over its shelf, where someone standing at the row reads it.
+func _label_rows() -> void:
+	for id in ROWS:
+		var row: Array = ROWS[id]
+		var fwd := Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(row[1]))
+		Greybox.label(geo, row[0] + fwd * 0.55 + Vector3(0, 2.25, 0), "ROW " + id, 22, Color(0.9, 0.9, 0.85), row[1]).name = "RowLabel_" + id
 
 
 func _make_decks() -> void:
@@ -1151,6 +1172,7 @@ func _clock_out(req: Dictionary) -> Dictionary:
 	db.run_silent("UPDATE freezer_log SET clock_out = '%s', note = 'closed by hand' WHERE id = %d" % [stamp, int(row.id)])
 	printing = true
 	last_slip = "Entry %d, %s, OUT %s" % [int(row.id), row.name, stamp]
+	_slip_row = {"id": int(row.id), "card": row.card, "name": row.name, "clock_in": row.clock_in, "clock_out": stamp}
 	_after_slip()
 	_closed(row)
 	return {"status": 201, "body": {"entry": int(row.id), "card": row.card, "name": row.name, "clock_out": stamp}}
@@ -1165,6 +1187,46 @@ func _after_slip() -> void:
 ## Every machine: the slip's printed; the clock takes the next punch.
 func _slip_done() -> void:
 	printing = false
+	if not _slip_row.is_empty():
+		_lay_slip(_slip_row)
+		_slip_row = {}
+
+
+## The printed slip goes on the tray under the clock: who, in when, out when, and how
+## long they were inside. The crew finds the pile on the way back through the office.
+func _lay_slip(r: Dictionary) -> void:
+	var n := find_children("Slip_*", "", false, false).size()
+	var at := Vector3(-3.75 + 0.02 * (n % 3), 0.925 + 0.004 * n, -4.2 + 0.03 * (n % 4) - 0.04)
+	var lines := ["LONE WORKER B1  -  %s" % TEXT.slip_out, "%s   %s" % [str(r.name).to_upper(), r.card],
+		"IN   %s" % r.clock_in, "OUT  %s" % r.clock_out, "INSIDE: " + inside_for(str(r.clock_in), str(r.clock_out))]
+	var doc := Document.place(self, at, -90, "Out slip: %s" % r.name, lines, true, "paper", Vector2(0.1, 0.16))
+	doc.name = "Slip_%d" % int(r.id)
+	if not str(r.name) == "VISITOR":
+		doc.clues = [{"case": "release", "text": "%s's slip: in %s, out %s. %s." % [r.name, r.clock_in, r.clock_out, inside_for(str(r.clock_in), str(r.clock_out))]}]
+	LevelSync.name_nodes(doc)
+
+
+## How long between two of the clock's stamps ("YYYY-MM-DD HH:MM"), in words.
+static func inside_for(from_stamp: String, to_stamp: String) -> String:
+	var a := from_stamp.split(" ")
+	var b := to_stamp.split(" ")
+	if a.size() < 2 or b.size() < 2:
+		return ""
+	var ad := a[0].split("-")
+	var bd := b[0].split("-")
+	var at := a[1].split(":")
+	var bt := b[1].split(":")
+	var months := (int(bd[0]) - int(ad[0])) * 12 + int(bd[1]) - int(ad[1])
+	if int(bd[2]) < int(ad[2]):
+		months -= 1
+	if months >= 12:
+		return "%d years, %d months" % [months / 12, months % 12]
+	if months >= 1:
+		return "%d months" % months
+	var mins := (int(bd[2]) - int(ad[2])) * 1440 + (int(bt[0]) - int(at[0])) * 60 + int(bt[1]) - int(at[1])
+	if mins >= 1440:
+		return "%d days" % (mins / 1440)
+	return "%d h %02d min" % [mins / 60, mins % 60]
 
 
 ## POST /clock_ins {"card": "VIS-nn", "vault": "C"}: a visitor wrongly clocked out,
@@ -1557,6 +1619,11 @@ func _earpieces_in() -> void:
 	get_node("/root/Game").set_meta("earpieces", true)
 	if hud and is_inside_tree():
 		hud.notice(TEXT.earpieces_in, 4.0)
+		_after_story(2.5, func():
+			hud.notice(TEXT.earpieces_voice, 3.0)
+			var lines: Array = ECHO_LINES.get(Level6Data.ALWAYS, [])
+			if not lines.is_empty():
+				hud.say("A VOICE", str(lines[0]), 5.0))
 
 
 # --- The decks --------------------------------------------------------------------------
@@ -1703,6 +1770,19 @@ func _on_all_free() -> void:
 			hud.todo(TEXT.todo_down)
 	if all_free and _scripts_running():
 		_tip_all("lockup")
+	# Back on the landing, the night-shifters have a question.
+	var t := Trigger.create(self, LANDING.get_center(), LANDING.size)
+	t.name = "LandingAfter"
+	t.entered.connect(func(_b): sync.event("_landing_after"), CONNECT_ONE_SHOT)
+
+
+## Every machine: the first of the crew is back on the landing with every entry closed.
+func _landing_after() -> void:
+	if landing_said:
+		return
+	landing_said = true
+	await _say("l6_ines_after")
+	await _say("l6_tomas_after")
 
 
 ## Every machine: everyone's across into the deep freeze.
@@ -1786,6 +1866,19 @@ func _static(delta: float) -> void:
 	if _static_clock >= 45.0:
 		_static_clock = 0.0
 		hud.notice(TEXT.static, 3.0)
+		_static_whisper()
+
+
+## Under the hiss, a few words from one of tonight's rows: the next of them each
+## time, so a crew that listens hears every name's loop before they see anyone.
+func _static_whisper() -> void:
+	if data.echoes.is_empty() or not hud:
+		return
+	var e: Dictionary = data.echoes[_static_turn % data.echoes.size()]
+	_static_turn += 1
+	var lines: Array = ECHO_LINES.get(e.id, [])
+	if not lines.is_empty():
+		hud.say("STATIC", "..." + str(lines[0]).to_lower() + "...", 4.0)
 
 
 ## This machine's player and the cold.

@@ -1,6 +1,6 @@
 # Recording list
 
-1236 recordings in all, 1551 lines.
+1238 recordings in all, 1553 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -283,7 +283,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l0_tape_1_block` | "Harold Mercer. March of '94. My last day, apparently." "If you're hearing this, you crawled through a vent to get in here. Good. You don't trust doors." "Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out." "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter." "If it ever comes to that, look for my plans. The building's records remember more than people do." | Dry. Approving, a little smile. The one moment of anger, still controlled. Quiet, almost proud, then wry on the last sentence. Slow. | Level 0 |
 
-## Ines Oyelaran (3 recordings, 3 lines)
+## Ines Oyelaran (4 recordings, 4 lines)
 
 > Whispering, fast, trying not to cry and mostly managing. Relief breaks through when the pass comes. Heard from behind a door, then up close.
 
@@ -292,8 +292,9 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l5_ines_passed` | "That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face." | Whispered. Relief and warning in the same breath. | Level 5 |
 | [ ] | `l6_ines_arrive` | "It's so cold down here. Colder than it should be. We'll wait by the stairs. Please don't be long." | Arms wrapped round yourself. Not going a step further. | Level 6 |
 | [ ] | `l6_ines_whitlow` | "Whitlow. A.W. Her initials are on half the old boxes in our records cage. I always wondered who she was." | Quiet. A name you've seen written a thousand times, and never on a person. | Level 6 |
+| [ ] | `l6_ines_after` | "Was she there? Whitlow. Was she still there?" | Quiet. You already know the answer from their faces. | Level 6 |
 
-## Tomas Lindqvist (3 recordings, 3 lines)
+## Tomas Lindqvist (4 recordings, 4 lines)
 
 > Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
 
@@ -302,6 +303,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l5_tomas_passed` | "Finally. I've been under this shelf since the lights went out. There's something at my desk, and it isn't me." | Annoyed first, scared underneath. | Level 5 |
 | [ ] | `l6_tomas_arrive` | "Twenty years in payroll and I've never been down here. Now I know why. Don't go in the freezers alone." | Flat, practical. You've heard the stories about this place. | Level 6 |
 | [ ] | `l6_tomas_whitlow` | "Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing." | Dry. You've seen the ledger line and never thought about it until now. | Level 6 |
+| [ ] | `l6_tomas_after` | "They're clocked out. All of them. First honest line in that ledger in twenty years." | Flat, then not quite flat. | Level 6 |
 
 ## Crew barks (132 lines)
 

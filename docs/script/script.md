@@ -1398,6 +1398,14 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: Right after Ines, when someone reads the card rack in the time office*  
 *(Over the crew's earpiece, from the landing)* "Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing." *Dry. You've seen the ledger line and never thought about it until now.*
 
+**INES** `l6_ines_after.wav`  
+*Cue: When the first of the crew comes back onto the landing after every entry is closed*  
+*(Getting up off the bottom step as they come through the door)* "Was she there? Whitlow. Was she still there?" *Quiet. You already know the answer from their faces.*
+
+**TOMAS** `l6_tomas_after.wav`  
+*Cue: Right after Ines, as the crew comes back onto the landing*  
+*(Looking at the stairwell gate that's open now, not at the crew)* "They're clocked out. All of them. First honest line in that ledger in twenty years." *Flat, then not quite flat.*
+
 ## Level 8
 
 ### Book huddles: Hello HTML!
