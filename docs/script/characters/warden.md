@@ -1,6 +1,6 @@
 # WARDEN
 
-*Your script for Null & Void: 38 recordings.*
+*Your script for Null & Void: 43 recordings.*
 
 ## Who you are
 
@@ -399,3 +399,69 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *Over the speakers, in your own voice. A separate beat. Flat. Not a threat; a fact.*
 
 "TWO OF THEM WERE REAL. THE OTHERS ARE STILL HERE."
+
+## Scene 12: B1: the cold store
+
+**Halcyon Tower, basement B1, the sample and records cold store. Later that night.**
+
+> The crew has come down the fire stairs from floor 9 into the basement cold store: a time office, an IT cage, a cold corridor and three vaults. Under Epsilon you re-lock the floor's doors every few seconds; the vault doors shut on their own safety timers and are none of your doing. The cold store's lone-worker time clock has entries that were never closed, going back to 1978, and you have kept every one. You watch over the ceiling speakers: the automatic announcement first, then your own voice as a separate beat.
+
+**[ ] `l6_arrive_pa_block.wav`**
+
+*As the crew steps off the landing into the hall, the first lock drops down the corridor. Over the basement speakers, as the crew arrives. The announcement. Flat; a timetable.*
+
+"VISITORS ON LEVEL B1, COLD STORE. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, DOORS ON THIS LEVEL ARE RE-SECURED AT INTERVALS."
+
+*1 second pause*
+
+*Over the speakers, in your own dry voice. A separate beat, your own voice. Patient. True.*
+
+"YOU OPEN THEM. I CLOSE THEM. I HAVE MORE TIME THAN YOU DO."
+
+**[ ] `l6_records_pa_block.wav`**
+
+*When the crew finds the time clock's entries that never closed, some of them twenty years old. Over the time office speaker, as the open entries come up on screen. The announcement. Policy.*
+
+"OPEN ENTRIES ARE RETAINED. COLD STORE RECORDS ARE NEVER DELETED."
+
+*1 second pause*
+
+*Over the speaker, in your own voice. A little quieter. A separate beat. Not cruel. The nearest you come to pity.*
+
+"THE RECORDS KEEP THEM. NOBODY ELSE DID."
+
+**[ ] `l6_guard_pa_block.wav`**
+
+*When a script keeps writing to a door that is already open and the relay guard trips, holding it shut. Over the speakers, as a relay clicks over somewhere in the wall. The announcement. Clipped.*
+
+"RELAY GUARD ENGAGED. DOOR HELD SHUT FOR THIRTY SECONDS."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat. Mild, almost helpful.*
+
+"YOU ARE WEARING IT OUT."
+
+**[ ] `l6_free_pa_block.wav`**
+
+*When the last open entry is closed and the last of them has gone. The gate on the stairs down opens. Over the speakers, into a basement that has just gone quiet. The announcement. Flat.*
+
+"ALL STAFF ENTRIES CLOSED. NO STAFF REMAIN ON LEVEL B1."
+
+*1 second pause*
+
+*Over the speakers, in your own voice, after a pause. A separate beat. Slow. You are stating a fact you have just noticed.*
+
+"THAT HAS NEVER BEEN TRUE BEFORE."
+
+**[ ] `l6_stopped_pa_block.wav`**
+
+*Optional: when the crew stops every script they started, locks the vault doors and reads them back. Over the speakers, as the last door locks. The announcement. Routine.*
+
+"NO SCRIPTS RUNNING. VAULT DOORS SECURE."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat. Dry; a compliment you don't mean to give.*
+
+"TIDY. I DID NOT THINK YOU HAD IT IN YOU."

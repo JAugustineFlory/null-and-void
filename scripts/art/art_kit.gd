@@ -39,7 +39,7 @@ static func stair_rail(parent: Node, from: Vector3, to: Vector3, posts := 0) -> 
 static func landing_number(parent: Node, pos: Vector3, facing_deg: float, storey: int) -> Node3D:
 	var root := ArtProps._node(parent, pos, facing_deg, "LandingNumber")
 	ArtProps._piece(root, Vector3(0.62, 0.82, 0.01), Vector3.ZERO, ArtPalette.flat(Color(0.12, 0.2, 0.36), 0.6))
-	var big := _stencil(root, "G" if storey == 0 else str(storey), 220, Vector3(0, 0.06, -0.008))
+	var big := _stencil(root, "G" if storey == 0 else ("B%d" % -storey if storey < 0 else str(storey)), 220, Vector3(0, 0.06, -0.008))
 	big.pixel_size = 0.0018
 	_stencil(root, "HALCYON TOWER", 34, Vector3(0, 0.33, -0.008)).pixel_size = 0.0012
 	_stencil(root, "STAIR A   ROOF 30 ↑   EXIT G ↓", 30, Vector3(0, -0.3, -0.008)).pixel_size = 0.0011
@@ -88,7 +88,7 @@ static func dress_stairwells(level: Node3D) -> int:
 				var label := c as Label3D
 				var f := label.text.get_slice("FLOOR ", 1).strip_edges()
 				label.visible = false
-				var plate := ArtKit.landing_number(holder, Vector3(label.position.x + 0.06, label.position.y - 0.4, label.position.z), -90, 0 if f == "G" else int(f))
+				var plate := ArtKit.landing_number(holder, Vector3(label.position.x + 0.06, label.position.y - 0.4, label.position.z), -90, Stairwell._floor_number(f))
 				label.set_meta("plate", plate)
 				emergency_light(holder, Vector3(0, label.position.y + 0.55, -0.21), 0)
 		ArtDress.reskin(holder, [

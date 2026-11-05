@@ -8,7 +8,7 @@ var t: SceneTree
 var _check: Callable
 
 ## Each floor's scene and a run seed to build it with.
-const FLOORS := ["home_base", "level_0", "level_1", "level_2", "level_3", "level_4", "level_5", "movement_gym"]
+const FLOORS := ["home_base", "level_0", "level_1", "level_2", "level_3", "level_4", "level_5", "level_6", "movement_gym"]
 ## Spacing (metres) of the floor sweep's grid.
 const GRID := 0.35
 
