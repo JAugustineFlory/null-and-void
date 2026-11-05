@@ -166,7 +166,7 @@ const ECHO_LINES := {
 	"sorokina": ["Sign here. And here. And here.",
 		"I carried the cases between floors. I never knew what was in them; they said it was better that way. That night the case was warm, and everything else was cold.",
 		"I never opened it. I want somebody to know I never opened it."],
-	"ferris": ["First week. First week. Don't ask, just do it.",
+	"fenner": ["First week. First week. Don't ask, just do it.",
 		"I was a temp. First week. They told me to bring a box down and not to read it. I didn't read it. But my own name was on the side.",
 		"I'd only been here a week."],
 	"haddad": ["Minus twenty-five. Hold it at minus twenty-five.",
@@ -183,7 +183,7 @@ const ECHO_LEAVES := {
 	"abernathy": {"title": "Film can label", "lines": [{"text": "HALCYON OPENING DAY 1978", "hand": true}, {"text": "DO NOT DISCARD  -  R.A.", "hand": true}]},
 	"tolliver": {"title": "Maintenance ticket", "lines": ["WORK REQUEST: VAULT C INSIDE RELEASE  -  FAULTY", "DEFERRED", "DEFERRED", "DEFERRED", {"text": "G. Tolliver, refrigeration", "hand": true}]},
 	"sorokina": {"title": "Courier chit", "lines": ["INTERNAL COURIER  -  CASE 7", "FLOOR 14 TO B1", "DO NOT OPEN", {"text": "L.S.", "hand": true}]},
-	"ferris": {"title": "Records box label", "lines": ["PERSONNEL  -  TERMINATED", {"text": "FERRIS, P.", "hand": false}, "dated the week he started"]},
+	"fenner": {"title": "Records box label", "lines": ["PERSONNEL  -  TERMINATED", {"text": "FENNER, P.", "hand": false}, "dated the week he started"]},
 	"haddad": {"title": "Crayon drawing", "lines": [{"text": "DADDYS COLD MACHINES", "hand": true}, {"text": "(three big boxes, all smiling)", "hand": true}]},
 }
 
@@ -201,13 +201,13 @@ const SUPERVISOR_LINES := [
 	"TO ALL COLD STORE STAFF",
 	"Missed punches are fixed in the LOG, not on the rack.",
 	"The rack is not the record.",
-	{"text": "D. Quill, cold store supervisor", "hand": true},
+	{"text": "D. Quarles, cold store supervisor", "hand": true},
 ]
 ## The IN/OUT whiteboard: years stale, every name on it long gone.
 const WHITEBOARD_LINES := [
 	"IN / OUT",
 	{"text": "Marsh  - OUT", "hand": true},
-	{"text": "Okafor - IN (vault B, back by 4)", "hand": true},
+	{"text": "Kowal - IN (vault B, back by 4)", "hand": true},
 	{"text": "Quint  - OUT", "hand": true},
 	{"text": "Pruitt - leave", "hand": true},
 	{"text": "(nobody's wiped this in years)", "hand": true},
@@ -614,8 +614,8 @@ func _build_office(colors: Dictionary) -> void:
 	rack.name = "CardRack"
 	rack.clues = [{"case": "open", "text": "The card rack shows %d cards in the IN slots." % data.rack_in.size()}]
 	rack.read_by.connect(func(_p): sync.event("_rack_read"))
-	var quill := Document.place(geo, Vector3(-9.2, 1.7, -7.88), 180, "Supervisor's note", SUPERVISOR_LINES, false, "paper", Vector2(0.21, 0.2))
-	quill.clues = [{"case": "open", "text": "The supervisor: missed punches are fixed in the log, not the rack. The rack is not the record."}]
+	var quarles := Document.place(geo, Vector3(-9.2, 1.7, -7.88), 180, "Supervisor's note", SUPERVISOR_LINES, false, "paper", Vector2(0.21, 0.2))
+	quarles.clues = [{"case": "open", "text": "The supervisor: missed punches are fixed in the log, not the rack. The rack is not the record."}]
 	# The IN/OUT whiteboard on the west wall.
 	Greybox.panel(geo, Vector3(-12.9, 1.6, -1), Vector3(0.04, 1.0, 1.8), Color(0.92, 0.92, 0.9), 0.0)
 	Document.place(geo, Vector3(-12.88, 1.6, 0.2), -90, "IN/OUT whiteboard", WHITEBOARD_LINES, false, "laminated", Vector2(0.3, 0.3))

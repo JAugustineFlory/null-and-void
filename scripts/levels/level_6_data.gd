@@ -43,7 +43,7 @@ const POOL := [
 		"years": [1992, 1995], "leaves": "evidence"},
 	{"id": "sorokina", "name": "Sorokina, Lena", "first": "Lena", "role": "Sample courier", "vault": "A", "row": "A-2",
 		"years": [1988, 1991], "leaves": "memory"},
-	{"id": "ferris", "name": "Ferris, Paul", "first": "Paul", "role": "Temp records clerk", "vault": "B", "row": "B-1",
+	{"id": "fenner", "name": "Fenner, Paul", "first": "Paul", "role": "Temp records clerk", "vault": "B", "row": "B-1",
 		"years": [1994, 1996], "leaves": "evidence"},
 	{"id": "haddad", "name": "Haddad, Yusuf", "first": "Yusuf", "role": "Deep-freeze technician", "vault": "C", "row": "C-2",
 		"years": [1985, 1988], "leaves": "memory"},
@@ -53,7 +53,7 @@ const ALWAYS := "whitlow"
 const PER_RUN := 6
 const VAULTS := {"A": "Vault A (samples)", "B": "Vault B (records and film)", "C": "Vault C (deep freeze)"}
 ## Ordinary staff whose visits closed properly: the log's long tail.
-const STAFF := ["Okafor, Dee", "Marsh, Albert", "Quint, Nora", "Bellweather, Sy", "Kaminski, Joan", "Ibe, Chidi",
+const STAFF := ["Kowal, Dee", "Marsh, Albert", "Quint, Nora", "Bellweather, Sy", "Kaminski, Joan", "Ibe, Chidi",
 	"Varga, Ilona", "Pruitt, Lyle", "Szabo, Edit", "Nakamura, Ken", "Achebe, Femi", "Lowry, Beth"]
 ## The two cards the supervisor fixed in the log but left IN on the rack.
 const FIXED_NOTE := "missed punch, closed by supervisor"
