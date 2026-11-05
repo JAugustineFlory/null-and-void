@@ -255,7 +255,7 @@ func _follow_route() -> void:
 			route.pop_front()
 		return
 	var flat := Vector3(to.x - global_position.x, 0, to.z - global_position.z)
-	if flat.length() < 0.3:
+	if flat.length() < 0.08:  # close: it lines up with doorways barely wider than it
 		route.pop_front()
 		if route.is_empty():
 			_on_route = false

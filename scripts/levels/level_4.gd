@@ -1325,13 +1325,16 @@ func _custodian_down() -> void:
 		return
 	var up := Stairwell.of(stair_out).global_transform
 	var flight := Stairwell.HALF_Z - 0.6
+	# Through each doorway square on, on the open side of the leaf (hung at -x): it
+	# is barely wider than the Custodian.
+	var door := Stairwell.DOOR_W / 2.0 - Stairwell.CORE / 2.0 - 0.5
 	custodian.route = [
-		up * Vector3(0, 0, 1.4), up * Vector3(0, 0, -0.9),
+		up * Vector3(door, 0, 2.2), up * Vector3(door, 0, 1.2), up * Vector3(door, 0, -0.9),
 		up * Vector3(-0.9, 0, -1.7), up * Vector3(-0.9, 0, flight),  # down the first flight
 		up * Vector3(0.9, 0, flight),  # round the half-landing
 		# Down the second, which is G's: past the turn it's carried there, with the rest.
-		up * Vector3(0.9, -Stairwell.STOREY, -1.7), up * Vector3(0, -Stairwell.STOREY, -0.9),
-		up * Vector3(0, -Stairwell.STOREY, 1.4),
+		up * Vector3(0.9, -Stairwell.STOREY, -1.7), up * Vector3(door, -Stairwell.STOREY, -0.9),
+		up * Vector3(door, -Stairwell.STOREY, 1.4),
 	]
 	stairs.carry(custodian)
 	if not stairs.carried.is_connected(_on_carried):
