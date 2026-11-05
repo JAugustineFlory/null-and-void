@@ -28,7 +28,7 @@ const ITEMS := {
 	"visitor_badge": {"name": "Visitor badge", "about": "Clipped on. Card readers upstairs want to see it."},
 	"floppy_disk": {"name": "Floppy disk", "about": "3.5\", hand-labelled. The first thing in this building that isn't on its network."},
 	"stair_key": {"name": "Key ring", "about": "Brass. STAIR 1 / 18. Opens the stairwell door on floor 18."},
-	"deck": {"name": "Portable deck", "about": "A rugged laptop. Take it out to use it: a terminal you carry."},
+	"deck": {"name": "Portable deck", "about": "A rugged laptop, built to be dropped. Carry it: fitted and in range of a network, it's a terminal in your hands."},
 }
 
 ## Every item carried, in the order picked up (the fixed ones first).
