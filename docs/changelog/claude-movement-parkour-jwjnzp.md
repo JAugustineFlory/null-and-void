@@ -1,0 +1,1 @@
+- **Added:** Play with a gamepad or a Steam Deck: the left stick moves, the right stick looks, and every move works with the buttons. On-screen prompts name the gamepad's buttons while you're using it. Look speed, stick dead zone and invert look are in Settings > Controls.

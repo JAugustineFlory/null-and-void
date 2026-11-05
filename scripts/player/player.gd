@@ -463,6 +463,26 @@ func _edge_look(delta: float) -> void:
 		_turn_view(turn.x * delta, turn.y * delta)
 
 
+## The right stick turns the view (PadInput: look speed, dead zone, invert).
+## Reading the notebook or a paper, it scrolls the page instead (the notebook's job).
+func _pad_look(delta: float) -> void:
+	if not local_control or input_locked or state == Move.TERMINAL or downed or _reading():
+		return
+	var turn := PadInput.look_turn(delta)
+	if turn != Vector2.ZERO:
+		_turn_view(turn.x, turn.y)
+
+
+## D-pad right: take out the next thing on the hotbar; past the last, put it away.
+func _next_hotbar_item() -> void:
+	for slot in range(inventory.active + 1, Inventory.HOTBAR_SIZE):
+		if inventory.hotbar[slot] != "":
+			inventory.use_slot(slot)
+			return
+	if inventory.active >= 0:
+		inventory.use_slot(inventory.active)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if input_locked or not local_control:
 		return
@@ -484,13 +504,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		var target := _look_target()
 		if target and target.has_method("interact_alt"):
 			target.interact_alt(self)
-	elif event.is_action_pressed("block") and not _reading() and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	elif event.is_action_pressed("hotbar_next") and not _reading():
+		_next_hotbar_item()
+	elif event.is_action_pressed("block") and not _reading() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or _from_pad(event)):
 		combat.raise_guard()
 	elif event.is_action_pressed("attack") and not _hands_full():
-		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _from_pad(event):
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else:
 			_strike()
+
+
+static func _from_pad(event: InputEvent) -> bool:
+	return event is InputEventJoypadButton or event is InputEventJoypadMotion
 
 
 func _physics_process(delta: float) -> void:
@@ -1014,6 +1040,7 @@ func _end_terminal(announce: bool) -> void:
 
 func _process(delta: float) -> void:
 	_edge_look(delta)
+	_pad_look(delta)
 	_animate_prop(delta)
 	_animate_filing(delta)
 	_pose_notebook()
