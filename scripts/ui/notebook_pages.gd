@@ -581,9 +581,12 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 	items.append(_break("page"))
 	items.append(NotebookArt.hand(CHECKLIST, 30))
 	for line in game.case_checklist(c.id):
-		var l := NotebookArt.hand(("[x]  " if line.done else "[  ]  ") + line.text, 22 if line.done else 24, NotebookArt.PENCIL if line.done else NotebookArt.INK)
+		var titled: String = line.get("title", "")
+		var l := NotebookArt.hand(("[x]  " if line.done else "[  ]  ") + (titled if titled != "" else line.text), 22 if line.done else 24, NotebookArt.PENCIL if line.done else NotebookArt.INK)
 		l.name = "Check"
 		items.append(l)
+		if titled != "" and not line.done:
+			items.append(task_details(line.text))
 	items.append_array(_route_items(game, c))
 	var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
 	if h and not (c.clues.is_empty() and notes.is_empty()):
@@ -594,6 +597,14 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 	if is_current:
 		items.append_array(_write_button())
 	return items
+
+
+## A task's details, in pencil under its title until it's ticked (the work order's
+## crew notes too): what to do, where the title says how it feels.
+static func task_details(text: String) -> Label:
+	var l := NotebookArt.hand("      " + text, 20, NotebookArt.PENCIL)
+	l.name = "Details"
+	return l
 
 
 ## The case's query as blocks put together: its fixed words outlined, and each

@@ -1,0 +1,1 @@
+- **Changed:** Every task now has a title in the crew's own words, shown on screen as "Next:" when it changes, with what to do written in pencil under it in the notebook and on the work order.

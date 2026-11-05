@@ -46,10 +46,14 @@ static func build(ticket: Dictionary, page_height: float = 0.0) -> Array[Control
 		items.append(NotebookArt.hand("Nothing yet.", 24, NotebookArt.PENCIL))
 	for task in todo.slice(maxi(0, todo.size() - 6)):
 		var filled: String = task.get("filled", "")
+		var titled: String = task.get("title", "")
+		var shown: String = titled if titled != "" else task.text
 		if task.done:
-			items.append(NotebookArt.hand("[x]  %s%s" % [task.text, ("  - " + filled) if filled != "" else ""], 22, NotebookArt.PENCIL))
+			items.append(NotebookArt.hand("[x]  %s%s" % [shown, ("  - " + filled) if filled != "" else ""], 22, NotebookArt.PENCIL))
 		else:
-			items.append(NotebookArt.hand("[  ]  %s" % task.text, 26))
+			items.append(NotebookArt.hand("[  ]  %s" % shown, 26))
+			if titled != "":
+				items.append(NotebookPages.task_details(task.text))
 	return items
 
 

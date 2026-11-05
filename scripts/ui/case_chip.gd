@@ -48,6 +48,9 @@ var allowed := true
 var waiting: Array = []
 ## The next step is up for now (brief_next).
 var next_up := false
+## The task just put on the list, shown as the next step instead (brief_task): its title.
+var task := ""
+var _head: Label
 var _next_turn := 0
 
 
@@ -78,6 +81,7 @@ func _build_chip() -> void:
 	var head := ThemeUtil.label(HEADER, 13, DIM)
 	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(head)
+	_head = head
 	count = ThemeUtil.label("", 22, AMBER)
 	count.name = "Count"
 	top.add_child(count)
@@ -165,8 +169,16 @@ static func _panel(bg: Color, edge: Color) -> PanelContainer:
 func refresh() -> void:
 	var game := get_node_or_null("/root/Game")
 	case_id = game.main_case() if game else ""
-	chip.visible = case_id != ""
+	# With no case open, a new task still shows its title for a moment, on its own.
+	var task_only := case_id == "" and next_up and task != ""
+	chip.visible = case_id != "" or task_only
+	_head.visible = case_id != ""
+	title.visible = case_id != ""
 	if case_id == "":
+		count.visible = false
+		bar.visible = false
+		next.text = NEXT % task if task_only else ""
+		next.visible = task_only
 		return
 	var c: Dictionary = game.case_info(case_id)
 	var found: int = game.pieces_found(case_id)
@@ -185,7 +197,7 @@ func refresh() -> void:
 		seg.custom_minimum_size = Vector2(0, 10)
 		seg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bar.add_child(seg)
-	var step: String = game.case_next(case_id)
+	var step: String = task if task != "" else game.case_next(case_id)
 	next.text = NEXT % step if step != "" else ""
 	next.visible = next_up and step != ""
 
@@ -237,8 +249,15 @@ func set_allowed(on: bool) -> void:
 		show_found(last[0], last[1])
 
 
+## A task just went on the list (HUD.todo): "Next: <its title>" for NEXT_TIME seconds.
+func brief_task(task_title: String) -> void:
+	brief_next(task_title)
+
+
 ## Show the next step for NEXT_TIME seconds, then just the case and its count.
-func brief_next() -> void:
+## `task_title`: a new task's title to show as the next step instead.
+func brief_next(task_title := "") -> void:
+	task = task_title
 	next_up = true
 	_next_turn += 1
 	refresh()
@@ -252,4 +271,5 @@ func brief_next() -> void:
 func _end_next(turn: int) -> void:
 	if turn == _next_turn:
 		next_up = false
+		task = ""
 		refresh()

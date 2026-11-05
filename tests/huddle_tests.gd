@@ -206,7 +206,7 @@ func test_garage_opening() -> void:
 	for pair in [["door", "board"], ["board", "side"], ["side", "board"], ["board", "van"]]:
 		through.append_array(_walks_through(home, home.MADDISON_MARKS[pair[0]][0], home.MADDISON_MARKS[pair[1]][0]))
 	_check.call(through.is_empty(), "she walks round the couch, the counter and the bench, never through them %s" % [through])
-	_check.call(await _until(func(): return home.hud.current_todo() == "Look at the work order in your notebook", 2400), "after the brief, still in their seats, she points them at the work order in their notebooks")
+	_check.call(await _until(func(): return home.hud.current_todo() == "Read the work order in your notebook", 2400), "after the brief, still in their seats, she points them at the work order in their notebooks")
 	_check.call(p.is_sitting() and home.spar_blocked.is_empty() and not home._sparring, "nobody's been sent to the punch bag yet: that's last, before the van")
 	await _frames(60)
 	_check.call(not home.book_bag.enabled and _game().ticket_marks.is_empty(), "she waits for everyone to look, and nothing's marked yet")
@@ -383,7 +383,7 @@ func _spar(home, p) -> void:
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
 	_check.call(home.punch_bag != null and home.spar_blocked.is_empty(), "then the punch bag")
-	_check.call(home.hud.current_todo() == "Hit the punch bag, then block it", "the to-do says to hit it, then block it")
+	_check.call(home.hud.current_todo() == "Hit the punch bag, then block it when it swings back", "the to-do says to hit it, then block it")
 	p.global_position = home.to_global(home.PUNCH_BAG + Vector3(1.0, 0.2, 0.8))
 	var swung := await _until(func(): return home.spar_target != 0, 200)
 	_check.call(not swung, "the bag hangs still until you hit it, even standing by it")

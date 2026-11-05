@@ -89,11 +89,19 @@ func set_prompt(text: String) -> void:
 
 
 ## Write a task on the player's to-do list in the notebook (it ticks off the one
-## before). The screen only flashes that the notebook changed. "" ticks off the
-## current task. Never name an answer here: it's what the character would jot down.
-func todo(text: String) -> void:
-	if get_node("/root/Game").set_todo(text) and text != "":
+## before): its `title`, how the crew feels and what's going on, and its `details`,
+## what to do (Augustine's rule, 2026-11-05). One string is a task without a title.
+## The screen flashes that the notebook changed and, briefly, "Next: <title>". ""
+## ticks off the current task. Never name an answer here: it's what the character
+## would jot down.
+func todo(title: String, details := "") -> void:
+	# One string is a task with no title of its own (or "", ticking off the current one).
+	var text := details if details != "" else title
+	var named := title if details != "" else ""
+	if get_node("/root/Game").set_todo(text, named) and text != "":
 		notice("Notebook updated (Tab)", 3.0)
+		if named != "" and case_chip:
+			case_chip.brief_task(named)
 
 
 ## The task on top of the to-do list, or "".

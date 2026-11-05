@@ -45,8 +45,8 @@ signal noise(at: Vector3, loudness: float)
 ## Player-facing lines, drafted for Augustine's approval: plan/approvals/l3-text.md.
 const TEXT := {
 	"todo_arrive": "Find a way down from 18",
-	"todo_key": "Mercer's key opens the stairs. Everyone to the lobby",
-	"todo_room": "One room on 18 kept its reader busy tonight. Find it",
+	"todo_key": "Mercer's key opens the stairs. Get everyone to the stair lobby",
+	"todo_room": "Find the room on 18 whose door reader stayed busy tonight, at the records desk terminal",
 	"found_room": "A hidden room. No network jack, no grid power. The building can't see in here.",
 	"floppy": "A 3.5\" floppy, hand-labelled. The first thing in this building that isn't on its network.",
 	"key": "A brass key ring: STAIR 1 / 18.",
@@ -55,7 +55,7 @@ const TEXT := {
 	"end_card": "To be continued.",
 	"shredder_wakes": "North of here, the machines stop. Something heavy gets up.",
 	"shredder_wakes_near": "The machines stop. Something heavy gets up.",
-	"todo_key_box": "Mercer's key is in the box nobody checked back in. Ask the desk which",
+	"todo_key_box": "At the records desk terminal, find which box on the returns cart was never checked back in. Mercer's key is in it",
 	"case_duties": "What did the night clerk leave undone?",
 	"case_key": "Which box on the returns cart is the stair key in?",
 	"duties_done": "Counted, listed and tallied: the night clerk's list is done.",
@@ -73,6 +73,16 @@ const TEXT := {
 	"lock_wrong": "NO",
 	"lock_open": "OPEN",
 }
+
+## Each task's title: how the crew feels and what's going on (Augustine, approved
+## 2026-11-05: plan/approvals/task-titles.md). Its details are TEXT under the same key.
+const TASK_TITLES := {
+	"todo_arrive": "Dead end. Keep it down.",
+	"todo_room": "Somebody was here tonight",
+	"todo_key_box": "A key nobody brought back",
+	"todo_key": "Out, quietly",
+}
+
 ## The laminated sheet on the records desk that says where push-button codes come
 ## from. The code gate on Mercer's door: every route in needs the keyholder's badge
 ## number, which only the readers' log has.
@@ -955,7 +965,7 @@ func start() -> void:
 	floppy.stock(1)
 	key_dock.stock(1)
 	pc.ensure_booted()
-	hud.todo(TEXT.todo_arrive)
+	_todo("todo_arrive")
 
 
 # --- Terminals -------------------------------------------------------------------
@@ -1072,7 +1082,7 @@ func _ask_room() -> void:
 	if room_asked:
 		return
 	room_asked = true
-	hud.todo(TEXT.todo_room)
+	_todo("todo_room")
 	_order_hints()
 
 
@@ -1080,7 +1090,7 @@ func _ask_room() -> void:
 func _note_read() -> void:
 	note_read = true
 	if not key_taken:
-		hud.todo(TEXT.todo_key_box)
+		_todo("todo_key_box")
 	_update_cart()
 	_order_hints()
 
@@ -1217,7 +1227,7 @@ func _on_key_taken(peer_id: int) -> void:
 		walk_stairs(stair_out, next.stair_in, true, "_on_exit", TEXT.stairs_wait)
 	if peer_id == players.id_of(player):
 		hud.notice(TEXT.key, 5.0)
-	hud.todo(TEXT.todo_key)
+	_todo("todo_key")
 
 
 # --- The way down -------------------------------------------------------------------
@@ -1257,3 +1267,11 @@ func on_player_died() -> void:
 		player.respawn(global_transform * Transform3D(Basis(), Vector3(c.x, 0.1, c.z + 1.0)))
 	else:
 		player.respawn(spawn_point())
+
+
+## Put task `key` (a TEXT key) on the job: its title and its details. "" ticks off the current one.
+func _todo(key: String) -> void:
+	if key == "":
+		hud.todo("")
+	else:
+		hud.todo(TASK_TITLES[key], TEXT[key])
