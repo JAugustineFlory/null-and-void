@@ -515,7 +515,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("attack") and not _hands_full():
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _from_pad(event):
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		else:
+		elif not FirstAidCabinet.use_on_self(self):  # (the kit in your hands patches you up)
 			_strike()
 
 
