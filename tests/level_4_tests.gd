@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_data_every_seed()
 	await test_scene()
 	await test_right_first_time()
+	await test_deck_cart()
 	await test_accident()
 	await test_gantry()
 	await test_custodian_follows()
@@ -335,6 +336,53 @@ func test_right_first_time() -> void:
 	await t.process_frame
 
 
+## Facilities' loaner cart: locked until the power's back, then one deck each,
+## carried in the inventory and shown in your hands when you take it out.
+func test_deck_cart() -> void:
+	print("Floor 10: the loaner decks")
+	_game().new_run(12)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(20)
+	_chapters_read([level])
+	var p: Player = level.player
+	var cart: ItemDock = level.deck_cart
+	check(level.CTRL_ROOM.has_point(level.to_local(cart.global_position)) and cart.models.size() == 6, "the loaner cart is in door and lift control, with six decks")
+	var cart_box := AABB(level.DECK_CART_AT - Vector3(level.DECK_CART_SIZE.x / 2, 0, level.DECK_CART_SIZE.z / 2), level.DECK_CART_SIZE)
+	var desk_box := AABB(Vector3(4.5, 0, -17.0), Vector3(3.0, 1.0, 0.8))
+	check(not cart_box.intersects(desk_box) and not cart_box.intersects(AABB(Vector3(4.3, 0, -10.6), Vector3(3.3, 2.4, 0.6))) and cart_box.position.x >= 2.0 and cart_box.end.z <= -10.0,
+		"it stands clear of the desk and the door, inside the room")
+	check(not cart.enabled and cart.get_prompt(p) == "", "while the room's dark the decks are locked on the cart")
+	cart.interact(p)
+	await _frames(2)
+	check(not p.inventory.has("deck"), "and pressing it takes nothing")
+	var ui: TerminalUI = level.terminal_ui
+	ui.terminal = level.maint
+	ui.run(_last_hint_query(level.reset_puzzle))
+	await _frames(3)
+	check(level.power_back and cart.enabled and cart.get_prompt(p).contains(level.TEXT.deck_take), "with the power back, the cart lets go of its decks")
+	cart.interact(p)
+	await _frames(2)
+	check(p.inventory.has("deck") and cart.models.filter(func(m): return m.visible).size() == 5, "you take one; five stay for the crew")
+	check(cart.get_prompt(p) == level.TEXT.deck_have, "pressing it again says you have one")
+	cart.interact(p)
+	await _frames(2)
+	check(cart.models.filter(func(m): return m.visible).size() == 5, "and takes nothing more")
+	var slot := p.inventory.hotbar.find("deck")
+	check(slot >= 0 and p.hand_item == null, "the deck goes on the hotbar, not yet in your hands")
+	p.inventory.use_slot(slot)
+	await _frames(3)
+	var held: Node3D = p.hand_item
+	check(held != null and held.get_parent() == p.camera and held.is_in_group("carried") and held.visible, "taken out, it's in your hands in first person")
+	var in_view: bool = p.camera.is_position_in_frustum(held.global_position) if held else false
+	check(in_view, "where you can see it")
+	p.inventory.use_slot(slot)
+	await _frames(3)
+	check(p.hand_item == null, "put away again, your hands are empty")
+	level.queue_free()
+	await t.process_frame
+
+
 func _said(term: Terminal, line: String) -> bool:
 	return Array(term.transcript).any(func(l): return TerminalUI._plain(l).contains(line))
 
@@ -558,6 +606,23 @@ func test_coop() -> void:
 	var client = machines[1]
 	check(machines.all(func(l): return l.sync._begun and l.players.count() == 2 and l.data.target == host.data.target), "both machines start floor 10 with the same breaker tripped")
 	var cui: TerminalUI = client.terminal_ui
+	# The loaner decks: locked until the power's back, then one each, decided by the host.
+	for l in machines:  # one process plays every machine: give each its own inventory, as on real machines
+		l.player.inventory = Inventory.new()
+	client.deck_cart.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.deck_cart.taken_by.is_empty()) and not client.player.inventory.has("deck"), "a client can't take a deck while the power's off")
+	cui.terminal = client.maint
+	cui.run(_last_hint_query(client.reset_puzzle))
+	await _frames(10)
+	check(machines.all(func(l): return l.power_back and l.deck_cart.enabled), "a client's reset unlocks the cart on every machine")
+	client.deck_cart.interact(client.player)
+	await _frames(10)
+	check(client.player.inventory.has("deck") and not host.player.inventory.has("deck"), "the client takes their own deck; the host's hands stay empty")
+	check(machines.all(func(l): return l.deck_cart.models.filter(func(m): return m.visible).size() == 5), "both machines see one gone from the cart")
+	host.deck_cart.interact(host.player)
+	await _frames(10)
+	check(host.player.inventory.has("deck") and machines.all(func(l): return l.deck_cart.taken_by.size() == 2), "the host takes theirs too")
 	cui.terminal = client.controller
 	cui.run("UPDATE doors SET locked = 0 WHERE id = 'main_doors'")
 	await _frames(10)

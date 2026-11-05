@@ -1,6 +1,6 @@
 # Ines Oyelaran
 
-*Your script for Null & Void: 1 recording.*
+*Your script for Null & Void: 4 recordings.*
 
 ## Who you are
 
@@ -45,3 +45,27 @@ Send the files back as they are. They go in `audio/voice/ines/` in the game.
 *When the crew logs an escort pass for your badge. Your door may still be locked, or the crew may already have opened it. Pressed against the door, then stepping out into the room. Whispered. Relief and warning in the same breath.*
 
 "That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face."
+
+## Scene 2: The night shift, on B1's landing
+
+**Halcyon Tower, basement B1, the stair landing. Later that night.**
+
+> You came down the fire stairs from floor 9 with the crew that got you out. You are not going any further into the cold store than the landing. You know this basement a little: the records cage upstairs gets its old boxes from here.
+
+**[ ] `l6_ines_arrive.wav`**
+
+*On the landing, as the crew arrives on B1 and before anyone goes into the cold store. Stopping on the landing, looking down the hall and deciding against it. Arms wrapped round yourself. Not going a step further.*
+
+"It's so cold down here. Colder than it should be. We'll wait by the stairs. Please don't be long."
+
+**[ ] `l6_ines_whitlow.wav`**
+
+*When someone reads the card rack in the time office and her name is on a card still in the IN slot. Over the crew's earpiece, from the landing, having heard the name. Quiet. A name you've seen written a thousand times, and never on a person.*
+
+"Whitlow. A.W. Her initials are on half the old boxes in our records cage. I always wondered who she was."
+
+**[ ] `l6_ines_after.wav`**
+
+*When the first of the crew comes back onto the landing after every entry is closed. Getting up off the bottom step as they come through the door. Quiet. You already know the answer from their faces.*
+
+"Was she there? Whitlow. Was she still there?"

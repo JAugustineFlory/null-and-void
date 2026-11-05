@@ -99,13 +99,23 @@ func test_every_stairwell() -> void:
 				bad_well.append("%s: %s" % [where, well])
 			# Someone bigger than any of the crew fits up and down every flight: on
 			# every tread (on the ramp hidden in them, a hand above), nothing but the
-			# step under them.
+			# step under them. A gate shut across a flight nobody walks (B1's, over the
+			# flight down to B2) is shut on purpose: it sits out of the sweep.
+			var gates: Array = holder.find_children("*", "Door", true, false).filter(func(g): return g != door)
+			var gate_layers := {}
+			for g in gates:
+				gate_layers[g] = g.collision_layer
+				g.collision_layer = 0
+			if not gates.is_empty():
+				await _settle()
 			for st in flights_a + flights_b:
 				var tread: Vector3 = st.position + Vector3(0, _box(st).y / 2.0 + 0.25, 0)
 				var hits := _body_hits(level, holder, tread)
 				if not hits.is_empty():
 					bad_route.append("%s: on the stairs at %.2f: %s" % [where, tread.y, hits])
 					break
+			for g in gates:
+				g.collision_layer = gate_layers[g]
 			# And through the doorway, door open, from the landing out into the lobby.
 			door.set_open(true, true)
 			await _settle()

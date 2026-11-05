@@ -1685,6 +1685,13 @@ func _check_done() -> void:
 		return
 	released = true
 	stair_out.locked = false
+	# In the World, B1 builds now at the foot of STAIR 2, and the crew walks down
+	# to it; on its own the floor ends on the stairs.
+	prepare_next()
+	var next: Node = world.wings.get("level_6") if world else null
+	if next:
+		exit_trigger.monitoring = false
+		walk_stairs(stair_out, next.stair_in, true, "_down_to_b1", TEXT.stairs_wait)
 	var n: Array = data.night
 	Game.open_case("people", CASES.people)
 	Game.solve_case("people", TEXT.people_done % [n[0].first, n[0].hide.place, n[1].first, n[1].hide.place])
@@ -1778,6 +1785,18 @@ func _on_exit() -> void:
 	Game.completed_level = "level_5"
 	Game.next_level = ""
 	completed.emit()
+
+
+## Every machine: everyone is down STAIR 2 on B1's landing. The radio crackles once
+## more on the way, and play moves to the cold store.
+func _down_to_b1() -> void:
+	get_node("/root/Net").earn("achievement:floor_9", hud)
+	if lures > 0:
+		_lure(lure_peer, lure_badge, 3)
+	stairs.seal(Stairwell.of(stair_out))
+	Game.completed_level = "level_5"
+	Game.next_level = "level_6"
+	finish_level("level_6")
 
 
 func _on_completed() -> void:

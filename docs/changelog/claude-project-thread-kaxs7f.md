@@ -1,0 +1,2 @@
+- **New:** Level 6, the cold store on B1 ("The Ones Who Never Left"): down STAIR 2 from floor 9. A lone-worker time clock, vaults that are as cold as they look, doors that won't stay open, and the crew's first scripts: a new book, *Journey through JavaScript*, and a portable deck that goes where the terminals can't.
+- **Added:** a new floor's rewards: an unlock for the book, one for leaving the floor tidy, and one for the floor itself.

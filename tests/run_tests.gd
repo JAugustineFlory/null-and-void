@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers", "garage"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers", "garage"]
 
 
 func _run() -> void:
@@ -75,6 +75,7 @@ func _run_group(g: String) -> void:
 		"floor_18": await _group_floor_18()
 		"floor_10": await _group_floor_10()
 		"floor_9": await _group_floor_9()
+		"floor_b1": await _group_floor_b1()
 		"coop": await _group_coop()
 		"combat": await _group_combat()
 		"movement": await _group_movement()
@@ -208,6 +209,11 @@ func _group_floor_10() -> void:
 
 func _group_floor_9() -> void:
 	await _run_file("res://tests/level_5_tests.gd")
+
+
+## B1, the cold store (Level 6).
+func _group_floor_b1() -> void:
+	await _run_file("res://tests/level_6_tests.gd")
 
 
 ## Papers: how they read in your hands, and that every floor's face their readers.
@@ -4034,8 +4040,19 @@ func test_level_2_lab(outcome: String) -> void:
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-12.5, 0.1, 1.5)))
 	check(await _until(func(): return lab.phase == "locked", 40.0), "with everyone inside and Rourke out, the door locks")
 	check(level.doors["SECLAB-B"].is_open == false and lab.terminal.locked, "locked in, and her terminal is locked too")
-	check(await _until(func(): return level.hud._subtitle.text.contains("Easy SQL"), 40.0), "after the radio call, he gloats through the glass")
-	check(await _until(func(): return level.hud._subtitle.text.contains("Nothing personal"), 40.0), "and signs off before he walks away")
+	# Augustine, 2026-11-05: a few beats after he frames the crew, nobody's at a terminal;
+	# every view turns to him at the door for a moment; he sneaks in while still talking.
+	level.terminal_ui.open(lab.terminal, p)
+	check(await _until(func(): return level.hud._subtitle.text.contains("hurt Dr. Vale"), 40.0), "on the radio, he tells WARDEN the contractors hurt her")
+	check(level.terminal_ui.visible, "for a few beats, the player is still at her terminal")
+	check(await _until(func(): return not level.terminal_ui.visible, 10.0), "then the player is put off her terminal")
+	check(await _until(func(): return p.input_locked, 5.0), "and can't move for a moment")
+	check(await _until(func(): return not p.input_locked, 10.0) and lab._talking, "then can move again while he's still talking")
+	var to_him: Vector3 = r.global_position - p.global_position
+	var facing: Vector3 = -p.global_basis.z
+	check(Vector2(facing.x, facing.z).angle_to(Vector2(to_him.x, to_him.z)) < 0.25, "having been turned to face him at the lab door")
+	check(await _until(func(): return level.hud._subtitle.text.contains("Easy SQL"), 40.0), "he gloats through the glass")
+	check(await _until(func(): return lab._steps.has("round_back"), 60.0) and lab._talking and level.hud._subtitle.text.contains("Nothing personal"), "and is round at the rear door before he's done, as he signs off")
 	check(await _until(func(): return lab.phase == "fight", 60.0), "he comes back in through the rear door")
 	check(not level.doors["SECLAB-B-REAR"].is_open, "and the rear door shuts behind him")
 	if outcome == "tied":
@@ -4550,6 +4567,9 @@ func test_world() -> void:
 	var personnel = world.current
 	check(personnel != null and personnel.wing_id == "level_5" and personnel.active and world._field_notes == null, "after the plant the route goes on to Personnel on 9")
 	world.wing_finished(personnel)
+	var cold = world.current
+	check(cold != null and cold.wing_id == "level_6" and cold.active and world._field_notes == null, "after Personnel the route goes down to the cold store on B1")
+	world.wing_finished(cold)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()

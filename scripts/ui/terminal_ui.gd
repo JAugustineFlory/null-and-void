@@ -1025,6 +1025,8 @@ func open_script_editor() -> ScriptEditorUI:
 		"code": on.get_meta("script_code", ""),
 		"player": who,
 		"skin": on.skin_color,
+		# A level that ticks this terminal's runtimes itself (B1's decks) says so.
+		"ticks": not on.get_meta("ticked_elsewhere", false),
 	})
 	return _editor
 
