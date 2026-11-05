@@ -45,6 +45,42 @@ Each speech is one recording, named after the speaker; lines under the same name
 
 > Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
 
+**Agnes Whitlow** (AGNES). One of the nine echoes on B1 (Level 6): Agnes Whitlow, a records clerk, whose time-clock entry never closed. Augustine voices all nine.
+
+> Precise, a little fussy, kind. A woman who has never left a job half done. Whispered, as if not to disturb anyone. Record dry and close: the game adds the cold-store echo.
+
+**Frank Delacroix** (FRANK). One of the nine echoes on B1 (Level 6): Frank Delacroix, a goods-in porter, whose time-clock entry never closed. Augustine voices all nine.
+
+> Big, slow, tired voice. A man at the end of a long shift who only wants to sign off. Record dry and close: the game adds the cold-store echo.
+
+**Mary-Beth Cole** (MARY-BETH). One of the nine echoes on B1 (Level 6): Mary-Beth Cole, a lab technician, whose time-clock entry never closed. Augustine voices all nine.
+
+> Sharp, indignant, stubborn. Someone who checks her own work twice and won't be told it's wrong. Record dry and close: the game adds the cold-store echo.
+
+**Osei Mensah** (OSEI). One of the nine echoes on B1 (Level 6): Osei Mensah, a night security officer, whose time-clock entry never closed. Augustine voices all nine.
+
+> Steady, proud, measured. A man who keeps his round to the minute and signs his name like it means something. Record dry and close: the game adds the cold-store echo.
+
+**Ruth Abernathy** (RUTH). One of the nine echoes on B1 (Level 6): Ruth Abernathy, a film archivist, whose time-clock entry never closed. Augustine voices all nine.
+
+> Gentle, warm, wistful. Talks about film the way other people talk about family. Record dry and close: the game adds the cold-store echo.
+
+**Gene Tolliver** (GENE). One of the nine echoes on B1 (Level 6): Gene Tolliver, a refrigeration engineer, whose time-clock entry never closed. Augustine voices all nine.
+
+> Exasperated, practical, dry. A tradesman who has filled in the same form one time too many. Record dry and close: the game adds the cold-store echo.
+
+**Lena Sorokina** (LENA). One of the nine echoes on B1 (Level 6): Lena Sorokina, an internal courier, whose time-clock entry never closed. Augustine voices all nine.
+
+> Quick, nervous, defensive. Someone who never asked questions because she was told not to. Record dry and close: the game adds the cold-store echo.
+
+**Paul Fenner** (PAUL). One of the nine echoes on B1 (Level 6): Paul Fenner, a temp records clerk, whose time-clock entry never closed. Augustine voices all nine.
+
+> Young, eager, anxious. A temp in his first week who wants to get everything right. Record dry and close: the game adds the cold-store echo.
+
+**Yusuf Haddad** (YUSUF). One of the nine echoes on B1 (Level 6): Yusuf Haddad, a deep-freeze technician, whose time-clock entry never closed. Augustine voices all nine.
+
+> Calm, quiet, fatherly. A man who keeps a machine steady the way he'd rock a baby to sleep. Record dry and close: the game adds the cold-store echo.
+
 ## Crew barks
 
 Each playable crew member's own short lines, played by Co-op. Their shared commentary lines are in the scenes below, as CREW.
@@ -1313,7 +1349,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
-*Found on B1 next to where the deck's script editor arrives. Variables and loops are used on Level 6; functions, lists and testing on Level 7. Title is a placeholder until Augustine names it. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+*Found on B1 next to where the deck's script editor arrives. Variables and loops are used on Level 6; functions, lists and testing on Level 7. Title approved by Augustine 2026-11-05: Journey through JavaScript. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
 
 **CREW** `l6_book_find_block.wav`  
 *Cue: When someone finds the book under a coffee mug by the terminal on B1. This floor isn't built yet, so the exact moment isn't set*  
@@ -1410,6 +1446,93 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 **TOMAS** `l6_tomas_after.wav`  
 *Cue: Right after Ines, as the crew comes back onto the landing*  
 *(Looking at the stairwell gate that's open now, not at the crew)* "They're clocked out. All of them. First honest line in that ledger in twenty years." *Flat, then not quite flat.*
+
+### B1: the ones who never left
+
+**Halcyon Tower, basement B1, the cold store's vaults. A night long ago, and also tonight.**
+
+*Approved by Augustine word for word 2026-11-05 (plan/approvals/l6-text.md), with his renames (Fenner). Augustine's calls 2c and 3b: staff lost across Halcyon's years, held because their entry never closed; a pool of nine, six per run (seeded), Whitlow in every run. Each has three lines: the loop (played near their row), the story (while the slip prints) and their last words. Nothing explains them beyond their own stories.*
+
+**AGNES** `l6_echo_whitlow_loop.wav`  
+*Cue: When a crew member comes close to your row (B-2). It repeats while they're near*  
+*(Bent over a box at your row, checking the same labels again)* "Box forty-one. No, forty-two. They'll want it by morning." *Counting under your breath, correcting yourself. On a loop.*
+
+**AGNES** `l6_echo_whitlow_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Straightening up from the box, looking at the crew for the first time)* "They moved the old files down in eighty-two. I said I'd finish the boxes before I went home. The door was heavy, and the light went out, and I thought, I'll just finish this row." *Quietly, telling it plainly for the first time. No self-pity.* `[l6_echo_whitlow_story]`  
+*(Putting the last box on the shelf and stepping back from it)* "I finished the row. I can go home now." *Relief. A little surprised it was that simple.* `[l6_echo_whitlow_free]`
+
+**FRANK** `l6_echo_delacroix_loop.wav`  
+*Cue: When a crew member comes close to your row (A-1). It repeats while they're near*  
+*(Leaning on a trolley handle at your row, about to push it again)* "Last trolley. Then I'm done. Last trolley." *Worn out, promising yourself. On a loop.*
+
+**FRANK** `l6_echo_delacroix_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Letting go of the trolley handle and turning to the crew)* "Nights on goods-in. Bring it down, sign it in, shut the door behind you. I signed it in. I don't remember the door." *Steady, working it out as you say it. The last sentence slows down.* `[l6_echo_delacroix_story]`  
+*(Taking his cap off)* "Tell my brother I signed it in." *Warm. The one thing that matters.* `[l6_echo_delacroix_free]`
+
+**MARY-BETH** `l6_echo_cole_loop.wav`  
+*Cue: When a crew member comes close to your row (A-3). It repeats while they're near*  
+*(Holding a sample jar up to the light at your row, turning it)* "That's not the label I wrote. That's not my label." *Angry under your breath, staring at it. On a loop.*
+
+**MARY-BETH** `l6_echo_cole_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Putting the jar down and facing the crew, arms folded)* "The samples came back relabelled. Same jars, new numbers, new dates. I asked who changed them and they said nobody did. So I came down to check the originals." *Indignant, building. Still sure she's right.* `[l6_echo_cole_story]`  
+*(Pointing to the tray, then lowering her hand)* "The originals are in the third tray. Somebody should look." *Urgent, then letting go. Handing it over.* `[l6_echo_cole_free]`
+
+**OSEI** `l6_echo_mensah_loop.wav`  
+*Cue: When a crew member comes close to your row (C-1). It repeats while they're near*  
+*(Checking his watch at your row, clipboard under his arm)* "Round's at three. Round's at three. Round's at..." *Calm, a habit. Trails off each time. On a loop.*
+
+**OSEI** `l6_echo_mensah_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Lowering the clipboard and looking at the crew)* "Every night at three I walked the vaults and signed the sheet. One night the sheet was already signed. My name. My writing. I came down to see who'd done it." *Measured, then quieter at 'My name. My writing.'* `[l6_echo_mensah_story]`  
+*(Signing the clipboard one last time)* "It was a good round. It was always a good round." *Proud, at peace.* `[l6_echo_mensah_free]`
+
+**RUTH** `l6_echo_abernathy_loop.wav`  
+*Cue: When a crew member comes close to your row (B-4). It repeats while they're near*  
+*(Hands resting on a stack of film cans at your row)* "Mind the reels. Mind the reels, they're old." *Soft, protective. On a loop.*
+
+**RUTH** `l6_echo_abernathy_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Turning a film can over in her hands, then looking up at the crew)* "Film has to be kept cold, or it eats itself. I loved that. Something you look after, so it can remember for you." *Fond, smiling as you say it.* `[l6_echo_abernathy_story]`  
+*(Setting the can down carefully on the shelf)* "Run the old reels sometime. Somebody should see them." *Hopeful, a request between friends.* `[l6_echo_abernathy_free]`
+
+**GENE** `l6_echo_tolliver_loop.wav`  
+*Cue: When a crew member comes close to your row (C-3). It repeats while they're near*  
+*(Working at the inside handle of a vault door with a spanner)* "Release handle's sticking. I've reported it. I have reported it." *Muttering, fed up. On a loop.*
+
+**GENE** `l6_echo_tolliver_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Putting the spanner down and wiping his hands on a rag)* "Three times I put the ticket in for the inside handle on Vault C. Three times they said next quarter. So I came in on a Sunday to fix it myself." *Dry, counting the times off. Not angry any more.* `[l6_echo_tolliver_story]`  
+*(Dropping the rag on the shelf)* "Next quarter. Tell them it's next quarter." *Bitter, then almost a laugh.* `[l6_echo_tolliver_free]`
+
+**LENA** `l6_echo_sorokina_loop.wav`  
+*Cue: When a crew member comes close to your row (A-2). It repeats while they're near*  
+*(Holding a sealed case against her chest at your row)* "Sign here. And here. And here." *Hurried, holding out a clipboard. On a loop.*
+
+**LENA** `l6_echo_sorokina_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Setting the case down on the shelf, not letting go of the handle)* "I carried the cases between floors. I never knew what was in them; they said it was better that way. That night the case was warm, and everything else was cold." *Quick at first, then slowing down at 'That night'.* `[l6_echo_sorokina_story]`  
+*(Letting go of the handle at last)* "I never opened it. I want somebody to know I never opened it." *Pleading, then calm once it's said.* `[l6_echo_sorokina_free]`
+
+**PAUL** `l6_echo_fenner_loop.wav`  
+*Cue: When a crew member comes close to your row (B-1). It repeats while they're near*  
+*(Carrying a box at your row, not looking at the label)* "First week. First week. Don't ask, just do it." *Muttering to keep yourself going. On a loop.*
+
+**PAUL** `l6_echo_fenner_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Putting the box down and turning it so the crew can see the side)* "I was a temp. First week. They told me to bring a box down and not to read it. I didn't read it. But my own name was on the side." *Earnest, then quiet at the last sentence.* `[l6_echo_fenner_story]`  
+*(Stepping back from the box)* "I'd only been here a week." *Small. Not complaining, just saying it.* `[l6_echo_fenner_free]`
+
+**YUSUF** `l6_echo_haddad_loop.wav`  
+*Cue: When a crew member comes close to your row (C-2). It repeats while they're near*  
+*(Watching a temperature dial at your row, a hand on the panel)* "Minus twenty-five. Hold it at minus twenty-five." *Calm, almost a lullaby. On a loop.*
+
+**YUSUF** `l6_echo_haddad_story_block.wav`  
+*Cue: When the crew's script closes your entry and the time clock starts printing your slip*  
+*(Taking his hand off the panel and turning to the crew)* "The deep freeze was mine. You keep it steady, you keep it quiet. My daughter drew me the compressors. I kept it in my locker. I keep thinking she's waiting up." *Warm, unhurried. The last sentence catches.* `[l6_echo_haddad_story]`  
+*(Smiling, buttoning his coat)* "Tell her the compressors are fine. Tell her I'm coming." *Tender. Going home.* `[l6_echo_haddad_free]`
 
 ## Level 8
 
