@@ -8,7 +8,7 @@ extends Node3D
 ## HomeBase._office_* run everywhere), the PC is each player's own to read.
 ## plan/garage-secret-room.md.
 
-## DRAFTS awaiting Augustine's word-for-word OK (plan/garage-secret-room.md).
+## Approved by Augustine word for word, 2026-11-05 00:43Z (plan/garage-secret-room.md).
 const PLATE := "OFFICE"
 const DOOR_PROMPT := "Open the door"
 const LOCKED := "Locked."

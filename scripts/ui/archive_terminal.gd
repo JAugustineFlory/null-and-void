@@ -6,7 +6,7 @@ extends MenuModal
 ## a query mode runs real SQL, read-only, on the same tables. Never needed.
 ## plan/garage-secret-room.md.
 
-## DRAFTS awaiting Augustine's word-for-word OK (plan/garage-secret-room.md).
+## Approved by Augustine word for word, 2026-11-05 00:43Z (plan/garage-secret-room.md).
 const BOOT := "BYTE-RIGHT ARCHIVE v1.0  -  (c) 1997 Byte-Right IT Services. All rights reserved. Most wrongs too."
 const SECTIONS := {"crew": "Crew files", "company": "The company", "achievements": "Achievements", "cases": "Cases closed"}
 const QUERY := "Query mode"
@@ -118,7 +118,7 @@ func show_page(id: String) -> void:
 		add_back(LEAVE)
 	elif id == "query":
 		box.add_child(SettingsPanel.heading(QUERY))
-		box.add_child(_mono(InputGlyphs.text(QUERY_HINT), 16, ThemeUtil.DIM))  # "press Esc" names the pad button on a pad
+		box.add_child(_mono(QUERY_HINT, 16, ThemeUtil.DIM))
 		_query = LineEdit.new()
 		_query.name = "SQL"
 		_query.custom_minimum_size = Vector2(640, 44)
