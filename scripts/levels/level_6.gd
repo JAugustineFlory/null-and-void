@@ -83,8 +83,8 @@ const TEXT := {
 	"case_release_do": "From inside Vault C, clock out every entry still open. Not ours",
 	"case_stop": "Leave it how we found it",
 	"case_stop_do": "Stop every script we started, lock the vault doors, read them back",
-	"todo_arrive": "Somebody's still down here. Find the time office",
-	"todo_down": "Let them rest. Everyone down STAIR 2",
+	"todo_arrive": "Find the time office, off the hall",
+	"todo_down": "Back to the landing, then STAIR 2 down, everyone together",
 	"open_done": "%d visits never closed, the oldest from %d. The rack says %d cards are IN. The log is the record.",
 	"pair_done": "%d earpiece sets paired. The walkie's static is gone; we hear each other in our ears now.",
 	"list_done": "%s. One line each, read off the log itself. Now we know who we're going in for.",
@@ -144,6 +144,13 @@ const TEXT := {
 	"tip_visitor": "that was one of ours. the clock thinks they've left the vault. punch them back in: POST /clock_ins with their card and the vault.",
 	"tip_card_visitor": "the crew's cards are VIS-01 and up. VISITOR is what the name column says: entry.name !== \"VISITOR\" keeps ours open.",
 	"tip_lockup": "every entry's closed. the watchdogs are still holding doors open. ^T stops a script; then PATCH the doors shut and GET them back.",
+}
+
+## The to-dos' titles (the story and how the crew feels; TEXT has their details:
+## what to do). Approved by Augustine 2026-11-05 21:34Z, plan/approvals/task-titles.md.
+const TASK_TITLES := {
+	"todo_arrive": "Somebody's still down here",
+	"todo_down": "Let them rest",
 }
 
 ## The echoes' lines, approved 2026-11-05 (each about three lines: the loop they
@@ -906,7 +913,7 @@ func start() -> void:
 	if player and not player.inventory.selected.is_connected(_on_selected):
 		player.inventory.selected.connect(_on_selected)
 	pair_puzzle.hints[2] = "type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(data.key, str(_crew_count()))
-	hud.todo(TEXT.todo_arrive)
+	hud.todo(TASK_TITLES.todo_arrive, TEXT.todo_arrive)
 	hud.notice(TEXT.arrive, 5.0)
 	_lines(["l6_arrive_pa", "l6_arrive_tease"], 0.8)
 	# The landing's reader punches every visitor in to the floor: the crew's own cards
@@ -1719,7 +1726,7 @@ func _next_case() -> void:
 			return
 	if all_free and not stop_puzzle.solved:
 		_open_case("stop")
-		hud.todo(TEXT.todo_down)
+		hud.todo(TASK_TITLES.todo_down, TEXT.todo_down)
 
 
 ## Every machine: a paper opened a case. Only in order: case 2 waits for case 1.
@@ -1966,7 +1973,7 @@ func _on_all_free() -> void:
 		stair_gate.set_open(true)
 		if hud and is_inside_tree():
 			hud.notice(TEXT.stairs_release, 4.0)
-			hud.todo(TEXT.todo_down)
+			hud.todo(TASK_TITLES.todo_down, TEXT.todo_down)
 	if all_free and _scripts_running():
 		_tip_all("lockup")
 	# Back on the landing, the night-shifters have a question.
