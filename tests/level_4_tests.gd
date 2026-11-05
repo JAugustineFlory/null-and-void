@@ -207,7 +207,7 @@ func test_scene() -> void:
 	var p: Player = level.player
 	var data: Dictionary = level.data
 	check(LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on 10's stair landing (%s)" % level.to_local(p.global_position))
-	check(level.stair_in.is_open and level.stair_out.locked and not level.stair_out.is_open, "the door in from the stairs is wedged; the stairs down are held shut")
+	check(not level.stair_in.is_open and not level.stair_in.locked and level.stair_out.locked and not level.stair_out.is_open, "the door in from the stairs opens for the crew; the stairs down are held shut")
 	check(_doc(level, "Stair notice") != null and _doc(level, "Stair notice").plain_text().contains("CLOSED BELOW 10"), "a notice by the stairs down says why they're shut")
 	check(not level.ctrl_door.is_open and level.lights["L10-CTRL"].all(func(l): return not l.visible), "the control room is dark and its door shut")
 	check(level.db.run_silent("SELECT locked, actuator_fault FROM doors WHERE id = 'PLANT-CTRL'")[0] == {"locked": 0, "actuator_fault": 1},
@@ -469,12 +469,13 @@ func test_accident() -> void:
 	ui.run("UPDATE breakers SET state = 'on' WHERE id = '%s'" % data.bay_breaker)
 	await _frames(30)
 	check(not cust.powered, "sealed, power on its breaker doesn't wake it")
-	# The way down: STAIR 1 to the ground floor, where the crew came in.
-	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
-	check(await _until(func(): return level.on_ground and not p.input_locked, 300), "everyone on the stairs down: behind a fade, down to G")
+	# The way down: STAIR 1 to the ground floor, where the crew came in (the walk down
+	# is tests/stair_walk_tests.gd's): everyone on G's landing.
+	p.global_transform = level.player_spawn_on_ground(0)
+	check(await _until(func(): return level.on_ground and not p.input_locked, 300), "everyone down STAIR 1 on G's landing: the crew is on G")
 	await _frames(10)
 	var g_stair: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
-	check(p.global_position.distance_to(g_stair) < 3.0 and p.is_on_floor() and level.g_stair.is_open, "the crew steps out of STAIR 1 by the lifts on G (%.1f m from its door)" % p.global_position.distance_to(g_stair))
+	check(p.global_position.distance_to(g_stair) < 3.0 and p.is_on_floor() and not level.g_stair.locked, "by the lifts on G, and G's stair door opens for them (%.1f m from it)" % p.global_position.distance_to(g_stair))
 	check(_game().current_todo() == level.TEXT.todo_front and level.db.run_silent("SELECT COUNT(*) AS n FROM gates")[0]["n"] == 4, "the to-do says the front doors, and the lockup's gates are in reach")
 	var lockup: Node = _doc(level, "Night lockup card")
 	check(lockup != null and lockup.plain_text().contains("main_entrance") and lockup.plain_text().contains("WHERE name = 'loading_dock'"), "the night lockup card names main_entrance and shows the dock's UPDATE")
@@ -590,7 +591,7 @@ func test_coop() -> void:
 	for l in machines:
 		l.lie_time = 0.3
 		l.completed.disconnect(l._on_completed)
-	host.sync.event("_on_exit")
+	host.sync.event("_on_exit")  # everyone down on G's landing (tests/stair_walk_tests.gd walks it)
 	check(await _until(func(): return machines.all(func(l): return l.on_ground and not l.player.input_locked), 300), "both machines go down to G")
 	cui.terminal = client.front_desk
 	cui.run(_last_hint_query(client.entrance_puzzle))
@@ -688,10 +689,23 @@ func test_custodian_follows() -> void:
 	level.sync.event("_on_solved", ["main_doors"])
 	await _frames(5)
 	var p: Player = level.player
-	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
+	p.global_transform = level.player_spawn_on_ground(0)
 	check(await _until(func(): return level.on_ground, 300), "down to G")
 	var at: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
-	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0, 120), "it comes out of STAIR 1 on G and hunts there")
+	var g: Node3D = Stairwell.of(level.g_stair)
+	var seen := [false]
+	var watch := func():
+		if Stairwell.landing_box().grow(0.3).has_point(g.global_transform.affine_inverse() * level.custodian.global_position):
+			seen[0] = true
+	t.physics_frame.connect(watch)
+	var frames := [0]
+	var count := func(): frames[0] += 1
+	t.physics_frame.connect(count)
+	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0 and level.custodian.route.is_empty(), 7200), "it comes down STAIR 1, every floor of it (%s), and out on G, and hunts there" % level.custodian.global_position)
+	t.physics_frame.disconnect(count)
+	print("    the Custodian's walk down from 10: %.1f s" % (frames[0] / float(Engine.physics_ticks_per_second)))
+	t.physics_frame.disconnect(watch)
+	check(seen[0] and level.g_stair.is_open and level.stair_out.is_open, "down the same stairs: through 10's stair door, onto G's landing and out through G's door")
 	level.queue_free()
 	await t.process_frame
 
@@ -780,13 +794,13 @@ func test_world() -> void:
 	check(l4.g_geo.global_transform.origin.distance_to(world.ROUTE[0].at.origin) < 0.01, "its ground floor stands where Level 0's lobby does")
 	var g_floor: Node3D = l4.g_geo.get_node("Floor")
 	check(g_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(g_floor) == "carpet", "and its lobby is carpet underfoot, like Level 0's")
-	l3.sync.event("_on_exit")
+	l3.sync.event("_on_exit")  # everyone down on 10's landing (tests/stair_walk_tests.gd walks it)
 	for i in 600:
 		await t.physics_frame
 		if world.current == l4 and l4.active:
 			break
 	await _frames(10)
-	check(world.current == l4 and l4.active and LANDING_BOX.has_point(l4.to_local(world.player.global_position)), "the stairs hand play to floor 10, on its landing (%s)" % l4.to_local(world.player.global_position))
+	check(world.current == l4 and l4.active, "the stairs hand play to floor 10")
 	check(_game().completed_level == "level_3" and _game().next_level == "level_4", "floor 18 is complete, floor 10 is next")
 	world.queue_free()
 	await t.process_frame

@@ -72,6 +72,12 @@ var _timer := 0.0
 ## Strikes since it grabbed the one it's holding.
 var _drag_strikes := 0
 var _bay_set := false
+## A way the navmesh doesn't cover, like down a stairwell (world space): it walks
+## to the first point on the navmesh, then straight from point to point, minding
+## nobody, and hunts again at the end. Host only. StairLinks moves what's left of
+## it when it carries it from one floor's stairs to another's.
+var route: Array = []
+var _on_route := false
 
 
 func _ready() -> void:
@@ -225,6 +231,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _hunt() -> void:
+	if not route.is_empty():
+		_follow_route()
+		return
 	if target == null or not _can_chase(target):
 		target = _nearest_visible()
 	if target == null:
@@ -236,6 +245,26 @@ func _hunt() -> void:
 		_grab(target)
 		return
 	_walk_to(target.global_position, SPEED * _limp())
+
+
+func _follow_route() -> void:
+	var to: Vector3 = route[0]
+	if not _on_route:
+		if _walk_to(to, SPEED * _limp(), 0.4):
+			_on_route = true
+			route.pop_front()
+		return
+	var flat := Vector3(to.x - global_position.x, 0, to.z - global_position.z)
+	if flat.length() < 0.08:  # close: it lines up with doorways barely wider than it
+		route.pop_front()
+		if route.is_empty():
+			_on_route = false
+			_stand()
+		return
+	var dir := flat.normalized()
+	velocity.x = dir.x * SPEED * _limp()
+	velocity.z = dir.z * SPEED * _limp()
+	_face(global_position + dir)
 
 
 func _drag() -> void:

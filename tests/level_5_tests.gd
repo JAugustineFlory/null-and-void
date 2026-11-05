@@ -316,7 +316,7 @@ func test_scene() -> void:
 	var net: Node = t.root.get_node("/root/Net")
 	var had: Array = net.profile.earned.duplicate()
 	check(LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on 9's stair landing (%s)" % level.to_local(p.global_position))
-	check(level.stair_in.is_open and level.stair_out.locked and not level.stair_out.is_open, "the door in from STAIR 1 is open behind the crew; STAIR 2 down is held shut")
+	check(not level.stair_in.is_open and not level.stair_in.locked and level.stair_out.locked and not level.stair_out.is_open, "the door in from STAIR 1 opens for the crew; STAIR 2 down is held shut")
 	check(level.custodian == null, "sealed on 10, the Custodian isn't on this floor")
 	check(level.lights["L9-PAY"].all(func(l): return not l.visible) and level.lights["L9-HR"].all(func(l): return l.visible), "payroll is dark, the HR front is lit")
 	check(level.db.run_silent("SELECT locked, actuator_fault FROM doors WHERE id = 'PERS-CAGE'")[0] == {"locked": 1, "actuator_fault": 1} and not level.cage_door.is_open, "the records cage is locked with no power to its lock")
@@ -765,12 +765,19 @@ func test_world() -> void:
 	var l5 = world.wings.get("level_5")
 	check(l5 != null and not l5.active and l5.global_position.distance_to(l4.global_position) > 40.0, "floor 9 builds apart from 10, without starting")
 	l4.sync.event("_finish")
+	# After WARDEN's lines, back up STAIR 1 to 9 (tests/stair_walk_tests.gd walks it):
+	# everyone on 9's landing.
 	for i in 1500:
+		await t.physics_frame
+		if world.stairs.is_linked(Stairwell.of(l5.stair_in)):
+			break
+	world.player.global_transform = l5.player_spawn(0)
+	for i in 300:
 		await t.physics_frame
 		if world.current == l5 and l5.active:
 			break
 	await _frames(10)
-	check(world.current == l5 and l5.active and LANDING_BOX.has_point(l5.to_local(world.player.global_position)), "the stairs hand play to floor 9, on its landing (%s)" % l5.to_local(world.player.global_position))
+	check(world.current == l5 and l5.active and LANDING_BOX.has_point(l5.to_local(world.player.global_position)), "the crew on 9's landing hands play to floor 9 (%s)" % l5.to_local(world.player.global_position))
 	check(_game().completed_level == "level_4" and _game().next_level == "level_5" and not world.player.input_locked, "floor 10 is complete, floor 9 is next, and the crew can move")
 	world.queue_free()
 	await t.process_frame

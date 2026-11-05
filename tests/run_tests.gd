@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers", "garage"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers", "garage"]
 
 
 func _run() -> void:
@@ -79,6 +79,7 @@ func _run_group(g: String) -> void:
 		"combat": await _group_combat()
 		"movement": await _group_movement()
 		"movement_hands": await _group_movement_hands()
+		"stairs": await _group_stairs()
 		"bodies": await _group_bodies()
 		"pad": await _group_pad()
 		"teaching": await _group_teaching()
@@ -263,6 +264,11 @@ func _group_movement() -> void:
 func _group_movement_hands() -> void:
 	await _run_file("res://tests/movement_tests.gd", "hands")
 	await _run_file("res://tests/stairwell_tests.gd")
+
+
+## Walking the stairs from floor to floor, solo and co-op (StairLinks).
+func _group_stairs() -> void:
+	await _run_file("res://tests/stair_walk_tests.gd")
 
 
 ## Every crew body, smallest to largest, against every move and every floor.
@@ -4264,9 +4270,50 @@ func test_coop_combat() -> void:
 	check(machines.all(func(l): return l.crew.downed.is_empty()), "with nobody left down")
 	puppet.take_damage(1000.0, "watcher")
 	await _frames(10)
+	check(client.player.combat.bleed_left > 60.0, "down, you have a good while before you pass out (long enough to come back up the stairs)")
 	client.player.combat.bleed_left = 0.05
-	check(await _until(func(): return not client.player.downed and client.player.health == 100.0, 10.0), "left down too long, you come to at the checkpoint by yourself")
-	check(machines.all(func(l): return not l.crew.downed.has(client_id)), "and you're off the downed list everywhere (host is %d)" % host_id)
+	check(await _until(func(): return machines.all(func(l): return l.crew.unconscious.has(client_id)), 10.0), "left down too long, you pass out, and every machine knows")
+	await _frames(30)
+	check(client.player.downed and client.player.combat.unconscious and client.player.health == 0.0 and machines.all(func(l): return l.crew.downed.has(client_id)),
+		"but you're still lying there: no trip back to the checkpoint")
+	check(client.hud._notice.text == PlayerCombat.OUT_NOTICE, "and you're told your crew can still help you up")
+	# The host comes over to help: it takes a while, standing by them.
+	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	await _frames(5)
+	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "a teammate can still help them up")
+	puppet.interact(host.player)
+	await _frames(20)
+	check(client.player.downed and machines.all(func(l): return l.crew.reviving.has(client_id)), "but it takes a moment")
+	check(host.crew._revive_bar != null and host.crew._revive_bar.visible and host.crew._revive_bar.value > 0.0, "with a bar filling for the one helping")
+	check(puppet.get_prompt(host.player) == "", "and no prompt while they're at it")
+	host.player.global_position = puppet.global_position + Vector3(CrewVitals.REVIVE_RANGE + 2.0, 0.3, 0)
+	check(await _until(func(): return machines.all(func(l): return not l.crew.reviving.has(client_id)), 2.0), "walk off and it stops")
+	check(client.player.downed and not host.crew._revive_bar.visible, "they stay out, and the bar goes")
+	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	await _frames(5)
+	puppet.interact(host.player)
+	check(await _until(func(): return not client.player.downed, CrewVitals.OUT_REVIVE_TIME + 2.0), "stay with them, and they come round")
+	check(client.player.health == PlayerCombat.REVIVE_HEALTH and not client.player.combat.unconscious and not client.player.input_locked, "back on their feet")
+	check(machines.all(func(l): return l.crew.downed.is_empty() and l.crew.unconscious.is_empty()), "and nobody is down or out anywhere (host is %d)" % host_id)
+	# A first-aid kit brings round even someone who's passed out, at once, to full.
+	puppet.take_damage(1000.0, "watcher")
+	await _frames(10)
+	client.player.combat.bleed_left = 0.05
+	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again")
+	host.crew.revive(client_id, PlayerCombat.MAX_HEALTH, true)
+	await _frames(10)
+	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious, "a first-aid kit brings them round at once, to full health")
+	# Everyone down or out: the crew is beaten.
+	downs.clear()
+	puppet.take_damage(1000.0, "watcher")
+	await _frames(10)
+	client.player.combat.bleed_left = 0.05
+	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0) and downs.is_empty(), "one out cold, one standing: the crew isn't beaten")
+	host.player.take_damage(1000.0, "watcher")
+	await _frames(10)
+	check(downs == ["watcher", "watcher"], "the last one standing goes down: with the rest down or out, the crew is down")
+	check(await _until(func(): return not host.player.downed and not client.player.downed and not client.player.combat.unconscious, 10.0),
+		"and everyone comes to at the checkpoint")
 	await _coop_close(worlds)
 
 
@@ -5687,7 +5734,7 @@ func test_level_3_data_every_seed() -> void:
 	l3.free()
 
 
-## The floor on its own: arrive on the landing through a wedged-open fire door, the
+## The floor on its own: arrive on the landing behind a shut fire door you open, the
 ## stairs down locked, dark stacks with a cause, side rooms whose shelving hides the
 ## back wall until the crank is turned, and the desk's stations.
 func test_level_3_scene() -> void:
@@ -5698,7 +5745,7 @@ func test_level_3_scene() -> void:
 	for i in 30:
 		await physics_frame
 	var p: Player = level.player
-	check(level.stair_in.is_open and not level.stair_in.locked, "the fire door from the stairs is wedged open")
+	check(not level.stair_in.is_open and not level.stair_in.locked, "the fire door from the stairs is shut, and opens for the crew")
 	check(level.stair_out.locked and not level.stair_out.is_open, "the stairs down are locked after hours")
 	check(L3_LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on the stairwell landing (%s)" % level.to_local(p.global_position))
 	var ids: Array = level.doors.keys()
@@ -5706,7 +5753,7 @@ func test_level_3_scene() -> void:
 	check(ids == ["ARC-COLD", "ARC-FICHE", "ARC-MAP", "ARC-SHRED", "ARC-SUPPLY", "ARC-VAULT-C"] and level.doors.values().all(func(d): return (d.is_hinged() or d.door_id == "ARC-SHRED") and not d.locked),
 		"every side room has an ordinary door that shuts, in the doors table; the shredding room a roll-up (%s)" % [ids])
 	check(level.lights["L18-STACKS"].all(func(l): return not l.visible) and level.lights["L18-LOBBY"].all(func(l): return l.visible), "the stacks' sensor lights are off after hours; the lobby's are on")
-	check(_doc(level, "Stacks lighting notice") != null and _doc(level, "Facilities memo") != null and _doc(level, "Door sign") != null, "the dark stacks, the dead lifts and the wedged door each have a sign saying why")
+	check(_doc(level, "Stacks lighting notice") != null and _doc(level, "Facilities memo") != null and _doc(level, "Door sign") != null, "the dark stacks, the dead lifts and the fire door each have a sign saying why")
 	var slips: Node = _doc(level, "Retrieval slips")
 	var an_open_slip: String = level.db.run_silent("SELECT slip_no FROM retrieval_slips WHERE status = 'open'")[0]["slip_no"]
 	check(slips != null and slips.plain_text().contains(an_open_slip), "the slips on the desk's spike are the open rows of retrieval_slips")
@@ -6009,8 +6056,9 @@ func test_level_3_safe_room() -> void:
 	await process_frame
 
 
-## In the World, the crew leaves 22 by the stairs and comes out on 18's landing, with
-## play handed to floor 18 and floor 18 kept loaded once Mercer's room is found.
+## In the World, the crew leaves 22 by the stairs and hands play to floor 18 once it's
+## all on 18's landing (tests/stair_walk_tests.gd walks it), and floor 18 is kept
+## loaded once Mercer's room is found.
 func test_level_3_stairs_from_22() -> void:
 	print("World: the stairs from 22 down to 18")
 	_game().new_run(5)
@@ -6024,32 +6072,20 @@ func test_level_3_stairs_from_22() -> void:
 	for i in 30:
 		await physics_frame
 	check(l2 != null and l2.wing_id == "level_2" and not world.wings.has("level_3"), "floor 22 runs; floor 18 isn't built until the stairs open")
-	l2.prepare_next()
+	world.db.run_silent("UPDATE doors SET locked = 0, actuator_fault = 0 WHERE id = 'SEC-EXIT'")
+	l2._update_door()  # the PIN went through: the stairs open and 18 builds
 	var l3 = world.wings.get("level_3")
 	check(l3 != null and not l3.active and l3.global_position.distance_to(l2.global_position) > 30.0, "floor 18 builds apart from 22, behind its stairwell, without starting")
 	check(world.db.table_names().has("access_log") and world.db.table_names().has("badge_log"), "both floors share the building's database")
-	world.player.global_transform = Transform3D(Basis(), l2.to_global(STAIRS))
-	for i in 5:
-		await physics_frame
-	# This player was downed on the stairs (the trigger counts downed players too). They
-	# must still be carried down to 18, or their machine's World stays on 22.
-	world.player.health = 0.0
-	world.player.combat.down = true
-	world.player.combat._lock(true)
-	l2.sync.event("_on_exit", [null])
+	# Everyone on 18's landing: the stairs hand play to 18.
+	world.player.global_transform = Transform3D(Basis(), l3.player_spawn(0).origin)
 	for i in 600:
 		await physics_frame
 		if world.current == l3 and l3.active:
 			break
-	check(world.current == l3 and l3.active, "the stairs hand play to floor 18, even for a player who is down")
-	check(L3_LANDING_BOX.has_point(l3.to_local(world.player.global_position)), "the crew steps out on 18's landing (%s)" % l3.to_local(world.player.global_position))
+	check(world.current == l3 and l3.active, "the crew on 18's landing hands play to floor 18")
 	check(_game().completed_level == "level_2" and _game().next_level == "level_3", "floor 22 is complete, floor 18 is next")
 	check(root.get_node("/root/Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its unlock")
-	for i in 60:
-		await physics_frame
-	check(world.player.input_locked and world.player.combat.down and world.current == l3, "a downed player stays down on the landing until revived")
-	world.player.combat.revive()
-	check(not world.player.input_locked and world.player.health > 0.0, "revived, controls come back on the landing")
 	# Mercer's room is a hub: the wing stays loaded from here on.
 	l3._enter_safe_room()
 	check(world.keep_loaded.has("level_3"), "finding Mercer's room keeps floor 18 loaded for later floors")

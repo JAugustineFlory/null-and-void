@@ -81,6 +81,7 @@ const TEXT := {
 	"bay_quiet": "Behind the bay door, the hum winds down.",
 	"power_back": "In the control room, the lights come on. Its door clunks open.",
 	"todo_down": "Take STAIR 1 down, everyone together",
+	"todo_up": "Exit through Stair 1",
 	"case_main_doors": "What did main_doors open?",
 	"main_doors_done": "main_doors was never a fire exit. The notice was wrong, and the row said so: zone CONTAINMENT. Look at a row before you write to it.",
 	"accident": "Far below, something heavy unlocks. Then every light on the floor goes red.",
@@ -141,6 +142,7 @@ const TASK_TITLES := {
 	"todo_down": "Finally, a way down!",
 	"todo_front": "Home free. Almost.",
 	"todo_check_front": "Why won't they open?!",
+	"todo_up": "Locked In!! The only way out is up!",
 }
 
 ## Facilities' work order on the maintenance desk: where UPDATE ... SET ... WHERE is
@@ -351,11 +353,10 @@ func build() -> void:
 	for x in [-1.5, 1.5]:
 		Greybox.panel(geo, Vector3(x, 1.1, 7.88), Vector3(1.3, 2.2, 0.04), Color(0.5, 0.52, 0.55), 0.0)
 		Greybox.label(geo, Vector3(x, 2.5, 7.86), "ELEVATOR  10", 32, Color(1.0, 0.45, 0.1), 180)
-	# Stairs in from 18, on the west wall: Facilities wedged it for the plant work.
+	# Stairs in from 18, on the west wall: the crew comes down them and opens the door
+	# once they're all on the landing (start()).
 	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, 90.0, "10")
 	stair_in.name = "Door_STAIR-IN"
-	stair_in.locked = false
-	Greybox.box(geo, STAIR_IN_AT + Vector3(0.1, 0.03, 0.55), Vector3(0.12, 0.06, 0.2), Color(0.6, 0.45, 0.2), "DoorWedge")
 	# Stairs down toward G, on the east wall: held shut for the night.
 	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, -90.0, "10")
 	stair_out.name = "Door_STAIR-OUT"
@@ -377,11 +378,9 @@ func build() -> void:
 	add_light("L10-BAY", Vector3(-5, 3.5, -14), 7.0, 0.6, Color(0.6, 0.8, 1.0))
 
 	spawn = _stair_landing(STAIR_IN_AT, 90.0)
-	exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
-	exit_trigger.name = "StairsDown"
-	exit_trigger.require_all = true
-	exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
-	exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
+	# STAIR 1 down to G is one flight of stairs with G's (both floors are this level's):
+	# once everyone's down on G's landing, _on_exit.
+	exit_trigger = walk_stairs(stair_out, g_stair, true, "_on_exit", TEXT.stairs_wait)
 
 	custodian = Custodian.new()
 	custodian.name = "Custodian"
@@ -568,18 +567,17 @@ func _stair_landing(at: Vector3, yaw_deg: float) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, deg_to_rad(yaw_deg + 180.0)), holder * Vector3(-0.8, 0.1, -1.3))
 
 
+## Where player `index` stands on G's stair landing, as on_ground spawns them.
+func player_spawn_on_ground(index: int) -> Transform3D:
+	var at := g_geo.transform * _stair_landing(G_STAIR_AT, 180.0)
+	return global_transform * Transform3D(at.basis, g_geo.transform * Stairwell.landing_slot(G_STAIR_AT, 180.0, index))
+
+
 func player_spawn(index: int) -> Transform3D:
-	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
-	var slot := Stairwell.landing_slot(STAIR_IN_AT, 90.0, index)
 	if on_ground:
-		slot = g_geo.transform * Stairwell.landing_slot(G_STAIR_AT, 180.0, index)
-	return global_transform * Transform3D(spawn.basis, slot)
-
-
-## Level 3 calls this (through the World) as the crew heads down STAIR 1: everyone
-## is placed on 10's landing before play moves here. Runs on every machine.
-func arrive_by_stairs() -> void:
-	players.place_all(self)
+		return player_spawn_on_ground(index)
+	# Six people fit on the landing, three abreast in two rows, clear of the door.
+	return global_transform * Transform3D(spawn.basis, Stairwell.landing_slot(STAIR_IN_AT, 90.0, index))
 
 
 func _build_hall(colors: Dictionary) -> void:
@@ -739,7 +737,7 @@ func apply_environment(env: Environment) -> void:
 
 
 func start() -> void:
-	stair_in.set_open(true, true)  # wedged open for the plant work
+	stair_in.locked = false  # the crew's all here: out of the stairwell, onto 10
 	maint.ensure_booted()
 	controller.ensure_booted()
 	bay_terminal.ensure_booted()
@@ -977,7 +975,7 @@ func _build_ground() -> void:
 	# The same rooms Level 0 built: the lobby the crew walked in through.
 	GroundFloor.build(g_geo)
 	Greybox.label(g_geo, Vector3(27, 2.75, -0.88), "G   LOBBY", 56, Color(0.75, 0.75, 0.7))
-	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G", "STAIR 1", false)
+	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G", "STAIR 1", 0)
 	g_stair.name = "Door_STAIR-G"
 	# The lift's doors, shut for the night.
 	Greybox.box(g_geo, GroundFloor.LIFT_AT + Vector3(0, Elevator.DOOR_H / 2.0, 0), Vector3(0.12, Elevator.DOOR_H, Elevator.DOORWAY), Color(0.55, 0.56, 0.58), "LiftDoors")
@@ -1310,44 +1308,74 @@ func _restore_bay() -> void:
 
 # --- The way down ----------------------------------------------------------------------
 
-## Every machine: everyone is on the stairs down. Ten flights behind a fade, and the
-## crew steps out on the ground floor by the lifts, where it came in.
+## Every machine: everyone is down STAIR 1 on G's landing, by the lifts, where the
+## crew came in. The door up to 10 locks behind them, as stair doors do at night.
 func _on_exit() -> void:
 	if on_ground:
 		return
 	on_ground = true
+	stairs.seal(Stairwell.of(stair_out))
 	# The ground floor's lockup system comes into reach at the front desk.
 	db.run_silent(data.gates_sql)
-	var up := player != null and player.health > 0.0
-	if player:
-		player.input_locked = true
-	await hud.fade(true, 1.2)
 	spawn = g_geo.transform * _stair_landing(G_STAIR_AT, 180.0)
 	g_stair.locked = false
-	g_stair.set_open(true, true)
-	players.place_all(self)
-	if player:
-		player.input_locked = not up
 	_todo("todo_front")
-	hud.fade(false, 0.8)
 	if sync.is_host() and not sealed and custodian.is_active():
 		_custodian_follows()
 
 
-## Host: not locked out, the Custodian comes down after them.
+## Host: not locked out, the Custodian comes down the stairs after them.
 func _custodian_follows() -> void:
 	await get_tree().create_timer(follow_time, false).timeout
 	if is_inside_tree() and not sealed:
+		sync.event("_custodian_down")
+
+
+## Every machine: it shoulders 10's stair door open and comes down STAIR 1, the
+## way the crew went: down every flight and round every turn, past each floor's
+## landing, to G's (StairLinks carries it storey by storey, then onto G's stairs),
+## then out.
+func _custodian_down() -> void:
+	hud.notice(TEXT.custodian_follows, 4.0)
+	stair_out.set_open(true)
+	if not sync.is_host():
+		return
+	var up := Stairwell.of(stair_out).global_transform
+	var flight := Stairwell.HALF_Z - 0.6
+	# Through each doorway square on, on the open side of the leaf (hung at -x): it
+	# is barely wider than the Custodian.
+	var door := Stairwell.DOOR_W / 2.0 - Stairwell.CORE / 2.0 - 0.5
+	var route := [up * Vector3(door, 0, 2.2), up * Vector3(door, 0, 1.2), up * Vector3(door, 0, -0.9)]
+	# Each storey: down a flight, round the half-landing, down the next to a landing.
+	# The points are where they'd be if the stairs were stacked: StairLinks moves
+	# the ones still ahead as it carries the Custodian.
+	var storeys := Stairwell.storeys_between("10", "G")
+	for m in storeys:
+		var y := -m * Stairwell.STOREY
+		if m > 0:
+			route.append(up * Vector3(-0.9, y, -1.0))  # across the landing, clear of the middle wall's end
+		var foot := -1.7 if m == storeys - 1 else -1.0
+		route.append_array([up * Vector3(-0.9, y, -1.7), up * Vector3(-0.9, y, flight), up * Vector3(0.9, y, flight),
+			up * Vector3(0.9, y - Stairwell.STOREY, foot)])
+	var bottom := -storeys * Stairwell.STOREY
+	route.append_array([up * Vector3(door, bottom, -0.9), up * Vector3(door, bottom, 1.4)])  # out through G's door
+	custodian.route = route
+	stairs.carry(custodian)
+	if not stairs.carried.is_connected(_on_carried):
+		stairs.carried.connect(_on_carried)
+
+
+## Host: the Custodian's on G's stairs.
+func _on_carried(body: Node3D, to: Node3D) -> void:
+	if body == custodian and to == Stairwell.of(g_stair):
 		sync.event("_custodian_on_ground")
 
 
-## Every machine: it's on the ground floor now, out of the stairwell.
+## Every machine: it's on G's stairs, and out through the door; G is its floor now.
 func _custodian_on_ground() -> void:
-	hud.notice(TEXT.custodian_follows, 4.0)
-	if not sync.is_host():
-		return
-	custodian.set_bay(g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -3)))
-	custodian.global_position = g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -1.5))
+	g_stair.set_open(true)
+	if sync.is_host():
+		custodian.set_bay(g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -3)))
 
 
 ## Every machine: the main entrance's row says open. The latch clicks; a moment later
@@ -1396,27 +1424,32 @@ func _finish() -> void:
 	get_node("/root/Net").earn("achievement:floor_10", hud)
 	if not player:
 		return
+	var was_locked := player.input_locked
 	player.input_locked = true
 	# Locked in at the front, the crew turns back for the stairs.
 	await _warden(["l4_stairs", "l4_stairs_tease"])
 	if not is_inside_tree():
 		return
 	var next: Node = world.wings.get("level_5") if world else null
-	if next and next.has_method("arrive_by_stairs"):
-		# Back up STAIR 1 and down to 9, behind a fade, as 18 handed over to 10.
-		var up := player.health > 0.0
-		await hud.fade(true, 1.2)
-		Game.completed_level = "level_4"
-		Game.next_level = "level_5"
-		next.arrive_by_stairs()
-		finish_level("level_5")
-		player.input_locked = not up
-		hud.fade(false, 0.8)
+	if next:
+		# Back up STAIR 1, which goes up to 9 now: once everyone's on 9's landing,
+		# play moves there.
+		walk_stairs(g_stair, next.stair_in, false, "_up_to_9", TEXT.stairs_wait)
+		player.input_locked = was_locked or player.health <= 0.0
+		_todo("todo_up")
 		return
 	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_4"
 	Game.next_level = ""
 	completed.emit()
+
+
+## Every machine: everyone is up STAIR 1 on 9's landing.
+func _up_to_9() -> void:
+	stairs.seal(Stairwell.of(g_stair))
+	Game.completed_level = "level_4"
+	Game.next_level = "level_5"
+	finish_level("level_5")
 
 
 func _on_completed() -> void:

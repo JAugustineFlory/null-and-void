@@ -99,6 +99,7 @@ var exit_lift: Elevator
 var stair_door: Door
 ## The stair door, in the lift lobby's east wall.
 const STAIR_DOOR_AT := Vector3(2, 0, -14.5)
+const STAIRS_WAIT := "Waiting for everyone on the stairs (%d/%d)"
 var key_glass: Level2Glass
 ## The floor's case pages in the notebook (Cases tab), by id.
 const CASES := {
@@ -224,12 +225,17 @@ func build() -> void:
 	exit_lift.hud = hud
 	exit_lift.button.enabled = false
 	stair_door = Stairwell.build(self, geo, STAIR_DOOR_AT, -90.0, "22")
-	# Everyone on the stairs, and the wing is done.
 	var down := Trigger.create(self, STAIR_DOOR_AT + Vector3(2.5, 1, 0), Vector3(2.8, 2, 3.2))
 	down.name = "StairsDown"
-	down.require_all = true
-	down.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone on the stairs (%d/%d)" % [n, total]))
-	down.entered.connect(func(_b): sync.event("_on_exit", [null]), CONNECT_ONE_SHOT)
+	if world:
+		# The first of the crew on the stairs hears it: one tap on the metal, from
+		# behind SEC-EXIT. The wing is done once they're all down on 18 (walk_stairs).
+		down.entered.connect(func(_b): sync.event("_tap"), CONNECT_ONE_SHOT)
+	else:
+		# On its own: everyone on the stairs, and the slice is done.
+		down.require_all = true
+		down.waiting.connect(func(n, total): sync.team_notice(STAIRS_WAIT % [n, total]))
+		down.entered.connect(func(_b): sync.event("_on_exit", [null]), CONNECT_ONE_SHOT)
 	# Server Room A's elevator links to this car and opens it at the end of the ride.
 	arrival_lift = Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "22", ["22", "14", "G", "B1"], "22")
 	arrival_lift.name = "ArrivalElevator"
@@ -1187,7 +1193,10 @@ func _update_door() -> bool:
 		Game.open_case("door", CASES.door, ["door_status"])
 		Game.solve_case("door", "Breaker B-%d had tripped and jammed the door. Resetting it let the door open." % data.breaker)
 		stair_door.locked = false
-		prepare_next()  # floor 18 builds now, behind the stairwell
+		prepare_next()  # floor 18 builds now, at the foot of the stairs
+		var next: Node = world.wings.get("level_3") if world else null
+		if next:
+			walk_stairs(stair_door, next.stair_in, true, "_on_exit", STAIRS_WAIT, [null])
 	return open
 
 
@@ -1201,40 +1210,36 @@ func seal_exit() -> void:
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "clunk")
 
 
-## Everyone is on the stairs. In the World the crew heads down to floor 18 (Level 3);
-## on its own, the slice ends here.
+## Everyone is down the stairs: in the World, on 18's landing, and play moves to
+## floor 18 (Level 3); on its own, on 22's stairs, and the slice ends here.
 func _on_exit(_b: Node) -> void:
 	# Everyone here finished the floor, downed or not.
 	get_node("/root/Net").earn("achievement:floor_22", hud)
 	if not player:
 		return
-	# A downed player on the stairs goes down to 18 with everyone else (the trigger
-	# counted them), and stays down there until revived: only the card is for the living.
-	var up := player.health > 0.0
-	var was_locked := player.input_locked
-	player.input_locked = true
-	# No words: one tap on the metal, from behind SEC-EXIT.
-	await get_tree().create_timer(1.0).timeout
-	Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
-	await get_tree().create_timer(1.2).timeout
 	var next: Node = world.wings.get("level_3") if world else null
-	if next and next.has_method("arrive_by_stairs"):
-		# Four flights down behind a fade: everyone steps onto 18's landing.
-		await hud.fade(true, 1.2)
+	if next:
+		stairs.seal(Stairwell.of(stair_door))
 		Game.completed_level = "level_2"
 		Game.next_level = "level_3"
-		next.arrive_by_stairs()
 		finish_level("level_3")
-		player.input_locked = was_locked if not up else false
-		hud.fade(false, 0.8)
 		return
-	if not up:
-		player.input_locked = was_locked
+	if player.health <= 0.0:
 		return
+	player.input_locked = true
+	await _tap()
+	await get_tree().create_timer(1.2).timeout
 	await Level2FX.end_card(self, "To be continued.")
 	Game.completed_level = "level_2"
 	Game.next_level = ""  # the end of the playable slice, for now
 	completed.emit()
+
+
+## Every machine: no words, one tap on the metal, from behind SEC-EXIT.
+func _tap() -> void:
+	await get_tree().create_timer(1.0).timeout
+	if is_inside_tree():
+		Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
 
 
 ## The end of the route: Field Notes, over the live World or as its own scene.
