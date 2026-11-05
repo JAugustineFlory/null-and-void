@@ -39,20 +39,28 @@ class DeviceWatch extends Node:
 	signal changed(pad: bool)
 
 	func _input(event: InputEvent) -> void:
-		var now := InputGlyphs.pad
-		if event is InputEventJoypadButton and event.pressed:
-			now = true
-		elif event is InputEventJoypadMotion and absf(event.axis_value) > 0.5:
-			now = true
-		elif event is InputEventKey and event.pressed or event is InputEventMouseButton and event.pressed:
-			now = false
-		elif event is InputEventMouseMotion and event.relative.length() > 4.0:
-			now = false
-		if now and (event is InputEventJoypadButton or event is InputEventJoypadMotion):
-			InputGlyphs.deck = Input.get_joy_name(event.device).to_lower().contains("steam")
-		if now != InputGlyphs.pad:
-			InputGlyphs.pad = now
-			changed.emit(now)
+		InputGlyphs.saw(event)
+
+
+## Note which device `event` came from. The watcher does this for every event
+## that reaches it; a screen that takes pad presses before it does (PadReader)
+## calls it too, so the prompts still follow.
+static func saw(event: InputEvent) -> void:
+	var now := pad
+	if event is InputEventJoypadButton and event.pressed:
+		now = true
+	elif event is InputEventJoypadMotion and absf(event.axis_value) > 0.5:
+		now = true
+	elif event is InputEventKey and event.pressed or event is InputEventMouseButton and event.pressed:
+		now = false
+	elif event is InputEventMouseMotion and event.relative.length() > 4.0:
+		now = false
+	if now and (event is InputEventJoypadButton or event is InputEventJoypadMotion):
+		deck = Input.get_joy_name(event.device).to_lower().contains("steam")
+	if now != pad:
+		pad = now
+		if is_instance_valid(_watcher):
+			_watcher.changed.emit(now)
 
 
 ## The device watcher (made and added under `parent` the first time).

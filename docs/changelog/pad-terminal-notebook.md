@@ -1,0 +1,2 @@
+- **Added:** the terminal works on a controller: Y runs, the d-pad brings back earlier queries, the right stick scrolls, and X picks a line to add to your notebook; type with the on-screen keyboard.
+- **Added:** the notebook works on a controller: LB and RB turn the tabs, the d-pad and A press the buttons on its pages, Y writes a note, and the right stick turns the page.

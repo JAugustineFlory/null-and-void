@@ -560,7 +560,7 @@ func step(delta: float) -> void:
 		Move.DOWN:
 			_step_down(delta)
 		_:
-			if sit_pressed and sit():
+			if sit_pressed and not _notebook_held and sit():  # RB turns the held notebook's tabs
 				return
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
