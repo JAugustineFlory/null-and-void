@@ -1890,8 +1890,8 @@ func _check_skyline(level: Node3D, wing: String) -> void:
 		var p: Vector3 = b.position
 		inside = inside and Vector2(p.x - sky.position.x, p.z - sky.position.z).length() < radius
 		for r in World.ROUTE:
-			if r.key == wing or r.key == "level_0":
-				continue
+			if r.key == wing or r.key == "level_0" or not ArtSkyline.VIEWS.has(r.key):
+				continue  # a basement (B1) has no sky
 			var v: Dictionary = ArtSkyline.VIEWS[r.key]
 			var c: Vector3 = r.at * Vector3(v.center.x, 0, v.center.y)
 			var w: Vector3 = at * p

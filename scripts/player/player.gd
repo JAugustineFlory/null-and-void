@@ -296,6 +296,10 @@ var _notebook_held := false
 var notebook_drift := Vector2.ZERO
 ## The paper or card you're holding up to read (pick_up), or null. Read-only.
 var held_prop: Node3D
+## The hotbar item you've taken out, as you see it in your hands (HandItem), or
+## null for one with no model or empty hands. Read-only.
+var hand_item: Node3D
+var _hand_item_id := ""
 var _prop_home := {}  # where it came from: parent, local transform, collision
 var _prop_read := Transform3D()  # camera-local reading pose
 var _prop_size := Vector2.ZERO  # what pick_up was given: its readable face and where it points
@@ -820,6 +824,23 @@ func _reading() -> bool:
 	return _notebook_held or is_holding_prop()
 
 
+## The hotbar item you've taken out, in your hands in first person. It's put away
+## (hidden) while your hands are busy: climbing, fighting, reading, typing, down.
+func _show_hand_item() -> void:
+	if not local_control or camera == null:
+		return
+	var want := inventory.active_item() if inventory else ""
+	if want != _hand_item_id:
+		_hand_item_id = want
+		if hand_item:
+			hand_item.queue_free()
+		hand_item = HandItem.make(want, camera)
+	if hand_item:
+		var fp := get_node_or_null("FirstPersonBody")
+		var free: bool = fp.current_action() in ["idle", "sit", "sit_floor"] if fp else state == Move.WALK
+		hand_item.visible = free and not _reading() and not downed
+
+
 ## Something in your hands: no sprinting, jumping or climbing.
 func _hands_full() -> bool:
 	return _notebook_held or held_prop != null or not _filing.is_empty()
@@ -1041,6 +1062,7 @@ func _end_terminal(announce: bool) -> void:
 func _process(delta: float) -> void:
 	_edge_look(delta)
 	_pad_look(delta)
+	_show_hand_item()
 	_animate_prop(delta)
 	_animate_filing(delta)
 	_pose_notebook()

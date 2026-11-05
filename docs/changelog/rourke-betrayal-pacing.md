@@ -1,0 +1,1 @@
+- **Changed:** Floor 22's turning point in the lab no longer rushes past: you're pulled away from the screen, every view turns to the door for a moment, and what comes next doesn't wait until you're ready.

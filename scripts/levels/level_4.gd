@@ -108,6 +108,9 @@ const TEXT := {
 	"gantry_no_bay": "GANTRY 10: NO SUCH POSITION. bay IS 1 TO 4. raised IS 0 (DOWN) OR 1 (UP).",
 	"gantry_bolted": "GANTRY 10: GA-1 IS BOLTED TO THE RAIL. IT CAN'T BE REMOVED.",
 	"manual_release": "Pull the manual release",
+	"deck_take": "Take a portable deck",
+	"deck_have": "You already have a deck.",
+	"deck_cart": "FACILITIES  -  LOANER DECKS",
 	"released": "The door's manual release gives. It shoves open.",
 	"end_card": "To be continued.",
 	"todo_front": "Get out the way we came in: the front doors",
@@ -247,6 +250,11 @@ const BAY_DOOR_AT := Vector3(-5, 1.4, -10)
 ## The control room and the bay, for tests and the art pass.
 const CTRL_ROOM := AABB(Vector3(2, -0.5, -18), Vector3(8, 3.5, 8))
 const BAY_ROOM := AABB(Vector3(-10, -0.5, -18), Vector3(10, 4, 8))
+## Facilities' loaner cart in the control room's north-west corner (level space, on
+## the floor): a portable deck for each of the crew, locked on its charger until
+## PLANT CONTROL has power again. B1's IT bench fits them for scripts (Level 6).
+const DECK_CART_AT := Vector3(3.0, 0, -17.35)
+const DECK_CART_SIZE := Vector3(1.2, 0.9, 0.6)
 ## The Custodian's cradle in the bay (level space): where it drags people.
 const CUSTODIAN_HOME := Vector3(-5, 0, -15.8)
 
@@ -259,6 +267,10 @@ var ctrl_door: Door
 var bay_door: Door
 ## The breaker boxes on the panel, by id: their state lamps follow the table.
 var lamps := {}
+## The loaner cart's decks, one each (enabled once the power's back), and the
+## charge lamp over each slot.
+var deck_cart: ItemDock
+var _deck_lamps: Array[MeshInstance3D] = []
 ## The alarm is going: some breaker other than tonight's is not as the panel had it.
 var alarm := false
 ## The charging bay's breaker is on: the thing inside is awake behind its door.
@@ -663,6 +675,43 @@ func _build_control_room(colors: Dictionary) -> void:
 	# Lift controller cabinets along the east wall.
 	for z in [-16.5, -14.5, -12.5]:
 		Greybox.box(geo, Vector3(9.5, 1.1, z), Vector3(0.8, 2.2, 1.6), Color(0.32, 0.34, 0.38), "LiftController")
+	_build_deck_cart()
+
+
+## Facilities' loaner cart: six decks on edge in their charging slots, each slot's
+## lamp red while PLANT CONTROL is dark. Once the power's back, each of the crew
+## takes their own (ItemDock: the host decides, every machine plays it out).
+func _build_deck_cart() -> void:
+	var at := DECK_CART_AT
+	var top := at.y + DECK_CART_SIZE.y
+	Greybox.box(geo, at + Vector3(0, DECK_CART_SIZE.y / 2, 0), DECK_CART_SIZE, Color(0.3, 0.32, 0.36), "DeckCart")
+	Greybox.label(geo, Vector3(at.x, at.y + 0.68, at.z + DECK_CART_SIZE.z / 2 + 0.01), TEXT.deck_cart, 24, Color(0.85, 0.85, 0.8), 0).name = "DeckCartLabel"
+	deck_cart = ItemDock.make(self, Vector3(at.x, top + 0.16, at.z), Vector3(1.1, 0.32, 0.5), TEXT.deck_take, "deck")
+	deck_cart.name = "DeckCartDecks"
+	deck_cart.already = TEXT.deck_have
+	for i in 6:
+		var x := (i - 2.5) * 0.15
+		var d := HandItem.deck()
+		d.rotation = Vector3(0, 0, PI / 2)  # on edge, in its slot
+		d.position = Vector3(x, 0.0, 0.0)
+		d.name = "Deck%d" % (i + 1)
+		deck_cart.add_child(d)
+		deck_cart.add_model(d)
+		var lamp := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.03, 0.015, 0.015)
+		lamp.mesh = bm
+		lamp.position = Vector3(x, -0.15, DECK_CART_SIZE.z / 2 - 0.02)
+		deck_cart.add_child(lamp)
+		_deck_lamps.append(lamp)
+	_deck_cart_power(power_back)
+
+
+## Every machine: the cart's locks follow PLANT CONTROL's power.
+func _deck_cart_power(on: bool) -> void:
+	deck_cart.enabled = on
+	for lamp in _deck_lamps:
+		lamp.material_override = Greybox.mat(Color(0.2, 1.0, 0.3) if on else Color(1.0, 0.25, 0.1), 2.0)
 
 
 ## The clipboard by the controller: the log's columns, the earlier jobs in a clerk's
@@ -1539,6 +1588,7 @@ func _restore_power() -> void:
 	db.run_silent("UPDATE lights SET is_on = 1, status = 'ok' WHERE id = 'L10-CTRL'")
 	db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'PLANT-CTRL'")
 	db.sync_world()
+	_deck_cart_power(true)
 	hud.notice(TEXT.power_back, 5.0)
 	gantry_puzzle.solved = true  # the door's open: the second way in isn't needed
 	if not alarm and not check_puzzle.solved:

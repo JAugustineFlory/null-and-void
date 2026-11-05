@@ -22,6 +22,15 @@ const LAB_CASE := "What's wrong with the lab door?"
 const LINE_GAP := 1.5  # a beat for a line that isn't recorded yet
 ## Once the crew is locked in: the radio call, then his monologue through the glass (docs/script).
 const FRAME_LINES := ["l2_frame", "l2_trap_2", "l2_gloat_1", "l2_gloat_2", "l2_gloat_3", "l2_gloat_4", "l2_gloat_5", "l2_gloat_6", "l2_trap_1"]
+## After he frames the crew on the radio, a few beats to let it land before everyone's
+## put off the terminal (Augustine, 2026-11-05: "Wait a few beats after we hear him
+## framing us"). Then every view turns to him at the lab door for FOCUS_TIME, and the
+## crew can move again while the monologue plays on.
+const FRAME_BEAT := 2.5
+const FOCUS_TIME := 3.0
+## How far into the last monologue line he means to be at the rear door: he sneaks
+## round while he's still talking, so it opens before he's done.
+const SNEAK_IN_BEFORE_END := 1.5
 ## Left down without cable, Rourke stays down this long before the crew's choice counts.
 const UNTIED_AFTER := 15.0
 const LOCKOUT := 10.0
@@ -82,6 +91,8 @@ var _stamps := []
 var guards := {}
 ## True while each machine keeps its own player inside the lab (_keep_crew_in).
 var _keeping_in := false
+## True while his monologue is still playing on this machine.
+var _talking := false
 
 var door_puzzle: Puzzle
 var log_puzzle := Puzzle.new("badge_log", "SELECT time, badge_id FROM badge_log ORDER BY time", ["time", "badge_id"], true, [
@@ -302,16 +313,23 @@ func run() -> void:
 	await _gate("trapped")
 	_keeping_in = false
 	_lock_in()
-	# On the radio, then through the glass: why, how long he knew, and goodbye.
-	for id in FRAME_LINES:
-		await _line(id)
-	# Round through the service passage to the rear door.
+	# On the radio first. A few beats for it to land, then nobody's at a terminal.
+	await _line(FRAME_LINES[0])
 	if sync.is_host():
-		_walk_path(ROUND_BACK, "round_back")
+		_after(FRAME_BEAT, "framed")
+	await _gate("framed")
+	await _off_terminals()
+	# Then through the glass: why, how long he knew, and goodbye. Every view turns to
+	# him at the door for a moment, then the crew can move while he talks; before he's
+	# done, he's round through the service passage to the rear door.
+	_monologue()
+	await _face(level.to_global(OUTSIDE) + Vector3.UP * 1.6, FOCUS_TIME)
 	await _gate("round_back")
 	_guard("SECLAB-B-REAR", true)
 	_keep_crew_in()
 	_set_door("SECLAB-B-REAR", false)
+	while _talking and is_inside_tree():
+		await get_tree().process_frame
 	await _line("l2_return")
 	if sync.is_host():
 		_walk_path([INSIDE_REAR], "in_rear")
@@ -414,6 +432,93 @@ func _walk_path(points: Array, key: String) -> void:
 		rourke.walk_to(level.to_global(p), true)
 		await rourke.arrived
 	_mark(key)
+
+
+## Host: mark `key` after `seconds`.
+func _after(seconds: float, key: String) -> void:
+	await get_tree().create_timer(seconds, false).timeout
+	_mark(key)
+
+
+## Every machine: the monologue through the glass, the lines after the radio call.
+## The host sends him round to the rear door partway through, timed to get there
+## just before the last line ends (on the last line at the latest, he sets off at once).
+func _monologue() -> void:
+	_talking = true
+	var lines := FRAME_LINES.slice(1)
+	var walk := _path_length(OUTSIDE, ROUND_BACK) / Rourke.WALK_SPEED
+	var sneaking := false
+	for i in lines.size():
+		var left := 0.0
+		for id in lines.slice(i):
+			left += line_time(id)
+		if level.sync.is_host() and not sneaking and left - SNEAK_IN_BEFORE_END <= walk + line_time(lines[i]):
+			sneaking = true
+			_sneak_round(maxf(0.0, left - SNEAK_IN_BEFORE_END - walk))
+		await _line(lines[i])
+	_talking = false
+
+
+## Host: wait `delay`, then round through the service passage to the rear door.
+func _sneak_round(delay: float) -> void:
+	if delay > 0.0:
+		await get_tree().create_timer(delay, false).timeout
+	_walk_path(ROUND_BACK, "round_back")
+
+
+## How long a line takes: its recording, or the time to read it.
+static func line_time(id: String) -> float:
+	var stream := Voice.stream_for(id)
+	if stream:
+		return stream.get_length()
+	var l := VoiceLines.get_line(id)
+	return Voice.read_time(l["text"]) if not l.is_empty() else LINE_GAP
+
+
+static func _path_length(from: Vector3, points: Array) -> float:
+	var total := 0.0
+	var at := from
+	for p in points:
+		total += at.distance_to(p)
+		at = p
+	return total
+
+
+## Every machine: this machine's player comes off any terminal, and its screen closes.
+func _off_terminals() -> void:
+	var p: Player = level.player
+	if not p:
+		return
+	if p.is_using_terminal():
+		p.leave_terminal()
+	var ui = level.get("terminal_ui")
+	if ui and ui.visible:
+		ui.close()
+	var t := 0.0
+	while p.is_using_terminal() and t < 2.0 and is_inside_tree():
+		t += get_physics_process_delta_time()
+		await get_tree().physics_frame
+
+
+## Every machine: this machine's player can't move or look away while their view
+## turns to `point` and holds there for `seconds`; then it's theirs again.
+func _face(point: Vector3, seconds: float) -> void:
+	var p: Player = level.player
+	if not p:
+		return
+	var was := p.input_locked
+	p.input_locked = true
+	var t := 0.0
+	while t < seconds and is_inside_tree() and is_instance_valid(p):
+		var d := point - p.head.global_position
+		var k := clampf(get_physics_process_delta_time() * 6.0, 0.0, 1.0)
+		p.rotation.y = lerp_angle(p.rotation.y, atan2(-d.x, -d.z), k)
+		var pitch := atan2(d.y, Vector2(d.x, d.z).length())
+		p.head.rotation.x = lerp_angle(p.head.rotation.x, clampf(pitch, -1.2, 1.2), k)
+		t += get_physics_process_delta_time()
+		await get_tree().physics_frame
+	if is_instance_valid(p):
+		p.input_locked = was
 
 
 ## A line, or a beat in its place if Voice hasn't recorded it yet.

@@ -101,6 +101,19 @@ func test_world_trips() -> void:
 	_check.call(r.extras == ["MercerSticky on 4", "FirstAidCabinet on 5"], "back up STAIR 1, the same sticky on 4 and cabinet on 5 (%s)" % [r.extras])
 	times.append(["G", "9", 9, r.secs])
 	_check.call(_game().completed_level == "level_4" and _game().next_level == "level_5", "floor 10 is complete, floor 9 is next")
+	# 9 down to B1: once 9 is locked up, B1 builds at the foot of STAIR 2.
+	for pz in [l5.passes_puzzle, l5.lockup_puzzle, l5.check_lockup_puzzle]:
+		pz.solved = true
+	l5._check_done()
+	await _frames(10)
+	var l6 = world.wings.get("level_6")
+	_check.call(l6 != null and world.stairs.is_linked(Stairwell.of(l5.stair_out)), "once 9 is locked up, B1 builds and STAIR 2 goes down to it")
+	_check.call(_plate(l5.stair_out, -1) == "8" and _plate(l6.stair_in, 1) == "G", "9's stairs go down past 8, and B1's up to G")
+	r = await _trip(world, p, l5.stair_out, l6.stair_in, true)
+	_check.call(r.ok and r.fade == 0.0 and world.current == l6 and l6.active, "9 down to B1: down the stairs and out into the cold store, no fade %s" % [r])
+	_check.call(r.passed == ["8", "7", "6", "5", "4", "3", "2", "1", "G"], "past every floor from 8 to G (%s)" % [r.passed])
+	times.append(["9", "B1", 10, r.secs])
+	_check.call(_game().completed_level == "level_5" and _game().next_level == "level_6" and root_net().profile.earned.has("achievement:floor_9"), "floor 9 is complete and earns its unlock, B1 is next")
 	for t in times:
 		print("    stairs %s to %s: %d storeys, %.1f s from the first step to the landing at walking pace" % t)
 	world.queue_free()
