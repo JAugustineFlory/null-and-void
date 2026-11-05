@@ -154,7 +154,6 @@ func _slot_row(parent: Control, slot: String) -> void:
 	list.name = "Item_" + slot
 	list.custom_minimum_size = Vector2(260, 40)
 	list.add_theme_font_size_override("font_size", 18)
-	list.focus_mode = Control.FOCUS_NONE
 	var profile: Profile = _net().profile
 	for it in Cosmetics.items_in(slot):
 		var owned := profile.has_item(Cosmetics.key(slot, it.item))
@@ -180,7 +179,6 @@ func _slot_row(parent: Control, slot: String) -> void:
 	color.name = "Color_" + slot
 	color.custom_minimum_size = Vector2(64, 40)
 	color.edit_alpha = false
-	color.focus_mode = Control.FOCUS_NONE
 	# The figure follows the picker as it moves; the pick is kept when it closes.
 	color.color_changed.connect(func(c): _show_look(Cosmetics.merge(my_look(), {slot: {"color": c}})))
 	color.popup_closed.connect(func(): _net().choose_look({slot: {"color": color.color}}))
@@ -192,7 +190,6 @@ func _swatch(button_name: String, change: Dictionary) -> Button:
 	var b := Button.new()
 	b.name = button_name
 	b.custom_minimum_size = Vector2(52, 44)
-	b.focus_mode = Control.FOCUS_NONE
 	b.pressed.connect(_net().choose_look.bind(change))
 	return b
 
@@ -228,7 +225,7 @@ func _paint(b: Button, color: Color, picked: bool) -> void:
 	style.set_corner_radius_all(4)
 	style.set_border_width_all(4 if picked else 0)
 	style.border_color = Color(0.95, 0.95, 0.9)
-	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+	for state in ["normal", "hover", "pressed", "disabled"]:  # not focus: the menu's outline shows where a controller is
 		b.add_theme_stylebox_override(state, style)
 
 

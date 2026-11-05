@@ -150,6 +150,7 @@ func _ready() -> void:
 		_status.text = _net().last_message
 		_net().last_message = ""
 	add_child(ThemeUtil.version_tag())  # last, so it's drawn over the panels
+	PadFocus.attach(self)
 	_refresh()
 
 
@@ -159,11 +160,11 @@ func _exit_tree() -> void:
 	_net().session_ended.disconnect(_on_session_ended)
 
 
-## A click or a key skips the opening.
+## A click, a key or a controller button skips the opening.
 func _input(event: InputEvent) -> void:
 	if stage.intro_done:
 		return
-	if (event is InputEventMouseButton or event is InputEventKey) and event.pressed:
+	if (event is InputEventMouseButton or event is InputEventKey or event is InputEventJoypadButton) and event.pressed:
 		stage.finish_intro()
 		get_viewport().set_input_as_handled()
 
@@ -173,6 +174,8 @@ func _on_intro_finished() -> void:
 	fade.tween_property(_welcome, "modulate:a", 0.0, 0.6)
 	_side.visible = true
 	_nav.visible = true
+	# Focus starts on Ready (the thing most people came to press), else the nav bar.
+	(_ready_btn if _ready_btn.is_visible_in_tree() else _solo_btn).grab_focus.call_deferred()
 
 
 ## The bar along the bottom: Back, then Single-player | Co-op, Levels, Customize.
