@@ -1,0 +1,1 @@
+- **Changed:** on B1, the IT cage's cradle talks back when a pairing script goes wrong, the listing at the IT cage leaves the crew's own entries out (the landing's reader punches you in on arrival), and the anteroom watchdog's first hint explains its GET.
