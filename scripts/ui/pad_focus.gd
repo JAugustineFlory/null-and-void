@@ -6,6 +6,7 @@ extends Node
 ## click took it, or the button that had it was hidden), the menu's first
 ## button takes it, so the press is never lost. Godot's ui_* actions do the rest:
 ## ui_up/down/left/right move between controls, ui_accept presses, ui_cancel goes back.
+## LB/RB (ui_tab_prev/next) turn the tabs of the menu's tabbed panel, if it has one.
 
 ## The outline round the focused control.
 const RING := Color(1.0, 0.75, 0.3)  # ThemeUtil.AMBER
@@ -113,7 +114,16 @@ func _on_focus_changed(c: Control) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not root or not root.is_visible_in_tree() or not _is_nav(event):
+	if not root or not root.is_visible_in_tree():
+		return
+	var step := _tab_step(event)
+	if step != 0:
+		var top := _top()
+		var tabs := _tabs_in(root)
+		if (top == null or top == self) and tabs and turn_tab(tabs, step):
+			get_viewport().set_input_as_handled()  # LB/RB are flashlight and sit in the world
+		return
+	if not _is_nav(event):
 		return
 	var owner := get_viewport().gui_get_focus_owner()
 	if owner and owner.is_visible_in_tree() and (root.is_ancestor_of(owner) or _outside_menu(owner)):
@@ -122,6 +132,44 @@ func _input(event: InputEvent) -> void:
 	if c:
 		c.grab_focus()
 		get_viewport().set_input_as_handled()  # this press lands the focus; the next one moves it
+
+
+## LB/RB in a menu: the next or previous tab of `tabs` (wrapping, skipping hidden
+## and disabled ones), with focus on its first control. False if there's nowhere to go.
+static func turn_tab(tabs: TabContainer, step: int) -> bool:
+	var n := tabs.get_tab_count()
+	var i := tabs.current_tab
+	for k in n - 1:
+		i = posmod(i + step, n)
+		if not tabs.is_tab_hidden(i) and not tabs.is_tab_disabled(i):
+			tabs.current_tab = i
+			focus_first(tabs.get_current_tab_control())
+			return true
+	return false
+
+
+## The first tabbed panel on screen in `menu`, or null.
+static func _tabs_in(menu: Node) -> TabContainer:
+	for c in menu.get_children():
+		if c is TabContainer and (c as Control).is_visible_in_tree():
+			return c
+		if c is CanvasItem and not (c as CanvasItem).visible:
+			continue
+		var inner := _tabs_in(c)
+		if inner:
+			return inner
+	return null
+
+
+## -1 for ui_tab_prev (LB), 1 for ui_tab_next (RB), else 0.
+static func _tab_step(event: InputEvent) -> int:
+	if event is InputEventMouse or not InputMap.has_action("ui_tab_next"):
+		return 0
+	if event.is_action_pressed("ui_tab_prev"):
+		return -1
+	if event.is_action_pressed("ui_tab_next"):
+		return 1
+	return 0
 
 
 ## Focus is on something that isn't part of this menu, e.g. a popup list it opened.

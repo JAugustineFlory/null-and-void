@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers", "garage"]
 
 
 func _run() -> void:
@@ -89,6 +89,12 @@ func _run_group(g: String) -> void:
 		"chapters": await _group_chapters()
 		"sound": await _group_sound()
 		"papers": await _group_papers()
+		"garage": await _group_garage()
+
+
+## The garage's secret: the corner door, its key and the back office's PC.
+func _group_garage() -> void:
+	await _run_file("res://tests/garage_office_tests.gd")
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -246,6 +252,7 @@ func _group_combat() -> void:
 ## Gamepad / Steam Deck: buttons, prompts, sticks, every crew member's moves on a pad.
 func _group_pad() -> void:
 	await _run_file("res://tests/pad_tests.gd")
+	await _run_file("res://tests/pad_screen_tests.gd")
 
 
 func _group_movement() -> void:

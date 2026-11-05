@@ -1,0 +1,1 @@
+- **Fixed:** The garage's punch bag keeps swinging back whenever you hit it, not just during the warm-up.

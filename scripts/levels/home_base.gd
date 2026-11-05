@@ -81,6 +81,12 @@ const SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait f
 const SPAR_BLOCKED := "Blocked! Your guard took the hit."
 const MOVE_NOTICE := "Space stands you up. WASD to walk, the mouse to look around"
 const MOVE_SECONDS := 5.0
+## The same lines on a gamepad, naming its buttons (InputGlyphs.of: "RT", or "R2" on a
+## Steam Deck). DRAFTS awaiting Augustine's word-for-word OK.
+const PAD_MOVE_NOTICE := "%s stands you up. Left stick to walk, right stick to look around"
+const PAD_SPAR_NOTICE := "Hit the bag with %s. It swings back at you: press %s just as it comes in to raise your guard and block it."
+const PAD_SPAR_MISS := "It hit you. Press %s just as it swings in to raise your guard."
+const PAD_SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait for the swing in, then press %s."
 ## Maddison's marks: where she stands for each beat, and the point she faces there.
 ## She comes in by the side door to the house; "board" is beside her whiteboard,
 ## facing the crew.
@@ -106,6 +112,8 @@ const BEAT := 1.2
 var fax: Interactable
 var book_bag: Interactable
 var van_door: Interactable
+## The locked side door, its hidden key and the back office behind it.
+var office: GarageOffice
 var van_relay: Interactable
 ## The van's front doors ({"w"/"e": {pivot, swing}}) and sliding door, built as
 ## Level 0's are, so the garage van is the same van parked at Halcyon.
@@ -192,7 +200,7 @@ func build() -> void:
 
 	_build_van(VAN)
 	_build_punch_bag(PUNCH_BAG)
-	Greybox.panel(geo, SIDE_DOOR + Vector3(0.0, 1.05, 0), Vector3(0.05, 2.1, 0.9), Color(0.5, 0.42, 0.32))  # the side door to the house
+	office = GarageOffice.build(self)  # the side door in the back corner, locked, and what's behind it
 	maddison = Node3D.new()
 	maddison.name = "Maddison"
 	maddison.position = MADDISON_MARKS.door[0]
@@ -483,6 +491,7 @@ func _build_punch_bag(at: Vector3) -> void:
 	punch_bag.name = "PunchBag"
 	punch_bag.position = at + Vector3(0, BAG_HOOK, 0)
 	add_child(punch_bag)
+	punch_bag.struck.connect(_on_bag_struck)  # host: a hit always swings it, drill or not
 	var chain := MeshInstance3D.new()
 	var cm := BoxMesh.new()
 	cm.size = Vector3(0.03, 0.55, 0.03)
@@ -573,7 +582,7 @@ func start() -> void:
 	await _say("l0_grab", "l0_grab_solo")
 	book_bag.enabled = true
 	hud.todo("Get the book from the shelf by the side door")
-	hud.notice(MOVE_NOTICE, 7.0)  # for whoever gets up for it first
+	hud.notice(move_notice(), 7.0)  # for whoever gets up for it first
 	await sync.gate("bag", book_bag.used)
 	maddison_to("board")
 	hud.todo("")
@@ -793,10 +802,10 @@ func _on_read_order(id: int) -> void:
 func _spar_drill(stand_up_first := false) -> void:
 	hud.todo(SPAR_TODO)
 	if stand_up_first:  # out of their seats: how to get up and over there, then how to block
-		hud.notice(MOVE_NOTICE, MOVE_SECONDS)
-		_notice_after(SPAR_NOTICE, 8.0, MOVE_SECONDS, MOVE_NOTICE)
+		hud.notice(move_notice(), MOVE_SECONDS)
+		_notice_after(spar_notice(), 8.0, MOVE_SECONDS, move_notice())
 	else:
-		hud.notice(SPAR_NOTICE, 8.0)
+		hud.notice(spar_notice(), 8.0)
 	_sparring = true
 	player.combat.guard_raised.connect(_on_guard_raised)
 	if sync.is_host():
@@ -807,29 +816,46 @@ func _spar_drill(stand_up_first := false) -> void:
 
 
 ## Show notice `text` in `delay` seconds, unless something has replaced `after` by then.
+## How to stand and walk, for the keyboard or the pad in use.
+static func move_notice() -> String:
+	return for_device(MOVE_NOTICE, PAD_MOVE_NOTICE, ["jump"])
+
+
+## How to hit and block the bag, for the keyboard or the pad in use.
+static func spar_notice() -> String:
+	return for_device(SPAR_NOTICE, PAD_SPAR_NOTICE, ["attack", "block"])
+
+
+## `keys` as written, or on a pad `pad_line` naming the pad buttons for `actions`.
+static func for_device(keys: String, pad_line: String, actions: Array) -> String:
+	if not InputGlyphs.pad:
+		return keys
+	return pad_line % actions.map(func(a): return InputGlyphs.of(a, true))
+
+
 func _notice_after(text: String, seconds: float, delay: float, after: String) -> void:
 	await get_tree().create_timer(delay, false).timeout
 	if is_inside_tree() and hud._notice.text == after:
 		hud.notice(text, seconds)
 
 
-## Host: until everyone has blocked it, a hit sends the bag back at whoever hit it.
+## Host: the drill runs until everyone has blocked the bag's swing back.
 func _run_bag() -> void:
 	crew.hit_blocked.connect(_on_hit_blocked)
-	punch_bag.struck.connect(_on_bag_struck)
 	while spar_blocked.size() < players.count():
 		await get_tree().create_timer(0.25, false).timeout
 		if not is_inside_tree():
 			return
-	punch_bag.struck.disconnect(_on_bag_struck)
 	crew.hit_blocked.disconnect(_on_hit_blocked)
 	crew_sparred.emit()
 
 
-## Host: someone hit the bag. Unless it's mid-swing, it swings back at them.
+## Host: someone hit the bag. Unless it's mid-swing, it swings back at them, any
+## time: in the drill, before it, and long after (Augustine 2026-11-05: it shouldn't
+## freeze once the tutorial's done). Only the drill counts blocks or says anything.
 func _on_bag_struck(by: Node) -> void:
 	var id := players.id_of(by)
-	if id == 0 or spar_target != 0 or spar_blocked.has(id):
+	if id == 0 or spar_target != 0:
 		return
 	sync.event("_swing_bag", [id])
 
@@ -875,7 +901,7 @@ func _bag_lands(id: int) -> void:
 	spar_target = 0
 	if body_is_mine(id) and _flat_distance(player.global_position, to_global(PUNCH_BAG)) < SPAR_REACH + 0.5:
 		if player.take_damage(0.0, "spar") == "hit" and _sparring:
-			hud.notice(SPAR_EARLY if _guard_at >= _swing_at else SPAR_MISS, 4.0)
+			hud.notice(for_device(SPAR_EARLY, PAD_SPAR_EARLY, ["block"]) if _guard_at >= _swing_at else for_device(SPAR_MISS, PAD_SPAR_MISS, ["block"]), 4.0)
 
 
 func body_is_mine(id: int) -> bool:
@@ -898,6 +924,16 @@ func _on_sparred(id: int) -> void:
 		# Done with the bag: straight to the van, without waiting on the others.
 		van_door.enabled = true
 		hud.todo("Get in the van")
+
+
+## Every machine: player `id` found the office's spare key.
+func _office_key(id: int) -> void:
+	office.take_key(id)
+
+
+## Every machine: the key's holder unlocked the office.
+func _office_open(_id: int) -> void:
+	office.open()
 
 
 ## Every machine: player `id` took the shop bag with the book in it.

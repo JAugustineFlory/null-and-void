@@ -61,6 +61,14 @@ var _home: Node
 ## terminal whose script it's showing.
 var _editor: ScriptEditorUI
 var _script_terminal: Node
+## With a gamepad: the line being picked for the notebook (X, then the d-pad), or -1.
+var picking := -1
+## The right stick scrolls the screen this fast at full push (pixels a second).
+const PAD_SCROLL := 900.0
+const FOOT := "Enter: run (a query ends with ;)    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away"
+## The foot line while a pad is in use (draft for Augustine's word-for-word OK).
+const PAD_FOOT := "%s: run    D-pad up/down: previous queries    %s: pick a line for your notebook    Right stick: scroll    %s: step away"
+const PAD_PICK_FOOT := "D-pad up/down: choose a line    %s: add it to your notebook    %s: back to typing"
 
 
 func _ready() -> void:
@@ -104,7 +112,7 @@ func _ready() -> void:
 	_output.add_theme_font_size_override("normal_font_size", 17)
 	_output.add_theme_font_size_override("bold_font_size", 17)
 	_output.add_theme_color_override("default_color", ThemeUtil.GREEN)
-	_output.mouse_exited.connect(func(): if not _chip_hovered(): _hover_line(-1))
+	_output.mouse_exited.connect(func(): if not _chip_hovered(): _hover_line(picking))
 	_output.gui_input.connect(_on_output_input)
 	vbox.add_child(_output)
 	_hover_band = ColorRect.new()
@@ -123,7 +131,7 @@ func _ready() -> void:
 	_add_chip.visible = false
 	_add_chip.pressed.connect(func(): _start_note(_hover_index))
 	_output.add_child(_add_chip)
-	_output.get_v_scroll_bar().value_changed.connect(func(_v): _hover_line(-1))
+	_output.get_v_scroll_bar().value_changed.connect(func(_v): _hover_line(picking))  # a pad's pick follows the scroll
 
 	# Naming a note before it goes in the notebook.
 	_note_label = LineEdit.new()
@@ -153,8 +161,10 @@ func _ready() -> void:
 	_others.visible = false
 	vbox.add_child(_others)
 
-	_foot = ThemeUtil.label("Enter: run (a query ends with ;)    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away", 15, ThemeUtil.DIM)
+	_foot = ThemeUtil.label(FOOT, 15, ThemeUtil.DIM)
 	vbox.add_child(_foot)
+	PadReader.attach(self, _on_pad, _on_stick)
+	InputGlyphs.watch(self).changed.connect(func(_pad): _show_foot())
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
@@ -179,6 +189,8 @@ func open(from_terminal: Node, by_player: Player) -> void:
 		mirror.seat(terminal, true)
 	_show_others()
 	_input.grab_focus()
+	_show_foot()
+	PadReader.show_keyboard(_input.text)
 
 
 ## Open on the terminal's own CRT (a TerminalScreen) instead of over the whole
@@ -246,7 +258,9 @@ func close() -> void:
 		return
 	visible = false
 	_input.release_focus()
+	_stop_picking()
 	_cancel_note()
+	PadReader.hide_keyboard()
 	if terminal and terminal.has_signal("screen_changed"):
 		if terminal.screen_changed.is_connected(_show_others):
 			terminal.screen_changed.disconnect(_show_others)
@@ -347,7 +361,7 @@ func _render(bbcode: String, kind: String = "") -> void:
 			_noteable.append({"kind": "row", "text": head + "\n" + _plain(rows[i]).strip_edges(), "from": from + i, "to": from + i + 1})
 	else:
 		_noteable.append({"kind": kind, "text": text, "from": from, "to": _output.get_paragraph_count() - 1})
-	_hover_line(-1)  # the screen may scroll under the pointer
+	_hover_line(picking)  # the screen may scroll under the pointer
 
 
 ## What on screen right now can be written into the notebook, oldest first.
@@ -396,6 +410,7 @@ func _start_note(index: int) -> void:
 	_note_label.text = ""
 	_note_label.visible = true
 	_note_label.grab_focus()
+	PadReader.show_keyboard("")
 
 
 ## Clicking the screen's text to select it takes the keyboard from the typing
@@ -538,20 +553,119 @@ func _on_input_key(event: InputEvent) -> void:
 		close()
 	elif (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER) and not event.shift_pressed:
 		_input.accept_event()
-		if is_complete(_input.text):
-			_submit()
-		else:
-			_continue_statement()
+		_enter()
 	elif event.keycode == KEY_UP and _input.get_caret_line() == 0 and not _history.is_empty():
 		_input.accept_event()
-		_history_i = clamp(_history_i - 1, 0, _history.size() - 1)
-		_input.text = _history[_history_i]
-		_typed()
+		_history_step(-1)
 	elif event.keycode == KEY_DOWN and _input.get_caret_line() == _input.get_line_count() - 1 and not _history.is_empty():
 		_input.accept_event()
-		_history_i = clamp(_history_i + 1, 0, _history.size())
-		_input.text = _history[_history_i] if _history_i < _history.size() else ""
-		_typed()
+		_history_step(1)
+
+
+## Enter: run what's typed if it's a whole statement, or carry on to the next line.
+func _enter() -> void:
+	if is_complete(_input.text):
+		_submit()
+	else:
+		_continue_statement()
+
+
+## Up (-1) or down (+1) through this terminal's earlier queries; past the newest, a blank line.
+func _history_step(step: int) -> void:
+	if _history.is_empty():
+		return
+	_history_i = clampi(_history_i + step, 0, _history.size() if step > 0 else _history.size() - 1)
+	_input.text = _history[_history_i] if _history_i < _history.size() else ""
+	_input.set_caret_line(_input.get_line_count() - 1)
+	_input.set_caret_column(_input.get_line(_input.get_line_count() - 1).length())
+	_typed()
+
+
+## A gamepad press while the screen is up (PadReader). Typing is the on-screen
+## keyboard's; the buttons do what the keys round it do: Y runs, the d-pad walks
+## the history, X picks a line for the notebook, B steps away (Menu too).
+func _on_pad(event: InputEvent) -> bool:
+	if not visible:
+		return false
+	if event is InputEventJoypadMotion:
+		return true  # the sticks are polled (scrolling); kept off the focus
+	if not event.is_pressed() or event.is_echo():
+		return false
+	if _note_label.visible:  # naming a note: Y writes it in, B leaves it
+		if event.is_action_pressed("alt_interact"):
+			_finish_note(_note_label.text)
+			return true
+		if event.is_action_pressed("ui_cancel"):
+			_cancel_note()
+			return true
+		return false
+	if picking >= 0:
+		if event.is_action_pressed("ui_up"):
+			_pick(picking - 1)
+		elif event.is_action_pressed("ui_down"):
+			_pick(picking + 1)
+		elif event.is_action_pressed("ui_accept") or event.is_action_pressed("alt_interact"):
+			var index := picking
+			_stop_picking()
+			_start_note(index)
+		elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("interact"):
+			_stop_picking()
+		else:
+			return false
+		return true
+	if event.is_action_pressed("alt_interact"):
+		_enter()
+	elif event.is_action_pressed("ui_up"):
+		_history_step(-1)
+	elif event.is_action_pressed("ui_down"):
+		_history_step(1)
+	elif event.is_action_pressed("interact"):
+		if not _noteable.is_empty():
+			_pick(_noteable.size() - 1)  # the newest line first
+	elif event.is_action_pressed("ui_cancel"):
+		close()
+	elif event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right") or event.is_action_pressed("ui_accept"):
+		pass  # keep the typing line focused
+	else:
+		return false
+	return true
+
+
+## The right stick scrolls the screen.
+func _on_stick(v: Vector2, delta: float) -> void:
+	if visible and v.y != 0.0:
+		var bar := _output.get_v_scroll_bar()
+		bar.value += v.y * PAD_SCROLL * delta
+
+
+## Light up noteable line `index` (clamped) to add with the pad, scrolled into view.
+func _pick(index: int) -> void:
+	if _noteable.is_empty():
+		return
+	picking = clampi(index, 0, _noteable.size() - 1)
+	_output.scroll_to_paragraph(_noteable[picking].from)
+	_hover_line(picking)
+	_show_foot()
+
+
+func _stop_picking() -> void:
+	if picking < 0:
+		return
+	picking = -1
+	_hover_line(-1)
+	_show_foot()
+
+
+## The foot line names the keys, or the pad's buttons while a pad is in use.
+func _show_foot() -> void:
+	if not _foot:
+		return
+	if not InputGlyphs.pad:
+		_foot.text = FOOT
+	elif picking >= 0:
+		_foot.text = PAD_PICK_FOOT % [InputGlyphs.of("ui_accept"), InputGlyphs.of("ui_cancel")]
+	else:
+		_foot.text = PAD_FOOT % [InputGlyphs.of("alt_interact"), InputGlyphs.of("interact"), InputGlyphs.of("ui_cancel")]
 
 
 ## A red ; at the end of what was typed, blinking for a couple of seconds.

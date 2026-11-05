@@ -9,7 +9,7 @@ extends RefCounted
 ##   A jump/vault/mantle/stand up, B crouch/slide/roll (hold), X use, Y other use
 ##   LT block, RT strike, LB flashlight, RB sit on the floor
 ##   D-pad up radio (hold), down mute, left inventory, right next hotbar item
-##   View notebook, Menu pause; in menus LB/RB turn tabs (ui_tab_prev/next)
+##   View notebook, Menu pause; in menus A picks, B goes back, LB/RB turn tabs (ui_tab_prev/next)
 
 const SETTINGS := "user://controls.cfg"
 
@@ -38,6 +38,8 @@ const BUTTONS := {
 	"hotbar_next": [JOY_BUTTON_DPAD_RIGHT],
 	"notebook": [JOY_BUTTON_BACK],
 	"pause": [JOY_BUTTON_START],
+	"ui_accept": [JOY_BUTTON_A],  # Godot gives these no pad buttons of its own
+	"ui_cancel": [JOY_BUTTON_B],
 	"ui_tab_prev": [JOY_BUTTON_LEFT_SHOULDER],
 	"ui_tab_next": [JOY_BUTTON_RIGHT_SHOULDER],
 }
