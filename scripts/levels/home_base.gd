@@ -491,6 +491,7 @@ func _build_punch_bag(at: Vector3) -> void:
 	punch_bag.name = "PunchBag"
 	punch_bag.position = at + Vector3(0, BAG_HOOK, 0)
 	add_child(punch_bag)
+	punch_bag.struck.connect(_on_bag_struck)  # host: a hit always swings it, drill or not
 	var chain := MeshInstance3D.new()
 	var cm := BoxMesh.new()
 	cm.size = Vector3(0.03, 0.55, 0.03)
@@ -838,23 +839,23 @@ func _notice_after(text: String, seconds: float, delay: float, after: String) ->
 		hud.notice(text, seconds)
 
 
-## Host: until everyone has blocked it, a hit sends the bag back at whoever hit it.
+## Host: the drill runs until everyone has blocked the bag's swing back.
 func _run_bag() -> void:
 	crew.hit_blocked.connect(_on_hit_blocked)
-	punch_bag.struck.connect(_on_bag_struck)
 	while spar_blocked.size() < players.count():
 		await get_tree().create_timer(0.25, false).timeout
 		if not is_inside_tree():
 			return
-	punch_bag.struck.disconnect(_on_bag_struck)
 	crew.hit_blocked.disconnect(_on_hit_blocked)
 	crew_sparred.emit()
 
 
-## Host: someone hit the bag. Unless it's mid-swing, it swings back at them.
+## Host: someone hit the bag. Unless it's mid-swing, it swings back at them, any
+## time: in the drill, before it, and long after (Augustine 2026-11-05: it shouldn't
+## freeze once the tutorial's done). Only the drill counts blocks or says anything.
 func _on_bag_struck(by: Node) -> void:
 	var id := players.id_of(by)
-	if id == 0 or spar_target != 0 or spar_blocked.has(id):
+	if id == 0 or spar_target != 0:
 		return
 	sync.event("_swing_bag", [id])
 
