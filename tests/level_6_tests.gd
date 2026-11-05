@@ -1,7 +1,9 @@
 extends RefCounted
 ## B1, the cold store (Level 6): its data across seeds; the time clock's IS NULL (and
 ## = NULL, IS NOT NULL, the rack); the first script pairing the earpieces (the dock
-## key's 403, no wait's 409, no count's endless loop, too few sets); the watchdog at
+## key's 403, no wait's 409, no count's endless loop, too few sets, and SYSOP's line
+## for each, from a script); the listing, warm, that leaves the crew's own entries
+## out (!== practised before the cold); the watchdog at
 ## the anteroom (two sweeps held; no if trips the relay guard; no wait stops the
 ## script) and at the deep freeze from a deck in the cold; the release from Vault C
 ## over the vaults' network (wired 403, the if forgotten closes the crew's own entry
@@ -155,6 +157,7 @@ func test_floor() -> void:
 
 func _case_open(level: Node) -> void:
 	var ui: TerminalUI = level.terminal_ui
+	check(level._open_crew_entry("VIS-01", "B1") > 0 and not level.unoccupied.has("B1"), "the landing's reader punched our own card in: one of the open entries is ours, and nothing hangs on it")
 	ui.open(level.office, level.player)
 	ui.run("SELECT * FROM freezer_log WHERE clock_out = NULL;")
 	await _frames(2)
@@ -187,23 +190,28 @@ func _case_pair(level: Node) -> void:
 	rt.printed.connect(func(text, _k): said.append(text))
 	await _until(func(): return not rt.is_running(), 120)
 	check(level.paired == 0 and said.has("403"), "the card's own key is the dock cradle's: 403, nothing pairs (%s)" % [said])
+	check(level.tips_sent.has("pair_key") and not level.tips_sent.has("pair_busy"), "and SYSOP says so on the cage's screen, for a script's request too")
 	# No wait: the cradle's busy, one set pairs.
 	level.crew_size = 3
 	rt = _run(it, level._pair_script(level.data.key, "3").replace("  await sleep(1000);\n", ""))
 	await _until(func(): return not rt.is_running(), 120)
 	check(level.paired == 1 and level.pair_409s >= 2 and not level.pair_puzzle.solved, "no wait in the loop: the cradle is busy (409) and one set pairs")
+	await _frames(3)
+	check(level.tips_sent.has("pair_busy") and not level.tips_sent.has("pair_short"), "SYSOP: wait inside the loop (and not \"too few\": the 409s were the trouble)")
 	# Too few: count 1 for a crew of three.
 	await _until(func(): return not level.pair_busy, 120)
 	rt = _run(it, level._pair_script(level.data.key, "1"))
 	await _until(func(): return not rt.is_running(), 200)
 	check(level.paired == 2 and not level.pair_puzzle.solved, "count too low: one more set, two of three, not done")
+	await _frames(3)
+	check(level.tips_sent.has("pair_short"), "SYSOP: 2 paired, and there are 3 of you")
 	# No count up: it never ends, and keeps asking (409s) until Stop.
 	rt = _run(it, level._pair_script(level.data.key, "3").replace("  paired = paired + 1;\n", ""))
 	await _until(func(): return level.paired >= 3, 400)
 	check(level.pair_puzzle.solved and _game().case_info("pair").solved and level.earpieces, "one set each and the case closes; the earpieces go in")
 	var asked: int = level.pair_requests
-	await _until(func(): return level.pair_requests > asked + 1, 400)
-	check(rt.is_running(), "without paired = paired + 1 the loop never ends: it keeps asking")
+	await _until(func(): return level.tips_sent.has("pair_endless"), 600)
+	check(rt.is_running() and level.pair_requests > asked + 1 and level.tips_sent.has("pair_endless"), "without paired = paired + 1 the loop never ends: it keeps asking, and SYSOP says count paired up")
 	rt.stop()
 	check(not rt.is_running(), "and Stop ends it")
 	level.crew_size = 0
@@ -217,7 +225,8 @@ func _case_list(level: Node) -> void:
 	var it: Terminal = level.it_terminal
 	var names: Array = level._open_names()
 	check(names.size() == 6 and not Books.chapter("js_each").is_empty(), "six open names to read, and a chapter to read them with")
-	check(level.list_puzzle.hints[0].contains("enter_condition") and level.list_puzzle.hints[0].contains("const"), "hint 1 leaves the query's test as enter_condition and explains for, const, db.query and the log")
+	check(level.list_puzzle.hints[0].contains("enter_condition") and level.list_puzzle.hints[0].contains("const") and level.list_puzzle.hints[0].contains("!=="), "hint 1 leaves the query's test as enter_condition and explains for, const, db.query, the if with !== and the log")
+	check(level._list_script("x").contains("!== \"VISITOR\""), "the listing's answer leaves ours out with !== on the name column: practised warm, before the release")
 	# The whole list in one line: not a name a line.
 	var rt := _run(it, "let open = await db.query(\"SELECT * FROM freezer_log WHERE clock_out IS NULL\");\nconsole.log(open);")
 	await _until(func(): return not rt.is_running(), 200)
@@ -230,17 +239,25 @@ func _case_list(level: Node) -> void:
 	rt = _run(it, level._list_script("clock_out IS NULL").replace("entry.name", "entry.card"))
 	await _until(func(): return not rt.is_running(), 200)
 	check(not level.list_puzzle.solved, "the cards aren't the names")
+	# No if: our own VISITOR line is logged with the six.
+	var no_if: String = level._list_script("clock_out IS NULL").replace("  if (entry.name !== \"VISITOR\") {\n    console.log(entry.name);\n  }\n", "  console.log(entry.name);\n")
+	check(not no_if.contains("if ("), "the loop without its if")
+	rt = _run(it, no_if)
+	await _until(func(): return not rt.is_running(), 200)
+	await _frames(3)
+	check(not level.list_puzzle.solved and level.tips_sent.has("list_ours"), "every name and VISITOR too isn't it: ours stay out, and SYSOP says an if around the log")
 	# The last hint's script: every open name, one a line, and the case closes.
 	var said := []
 	rt = _run(it, level.list_puzzle.hints[-1].get_slice("[color=#ffffff]", 1).get_slice("[/color]", 0))
 	rt.printed.connect(func(text, _k): said.append(text))
 	await _until(func(): return level.list_puzzle.solved, 200)
-	check(level.list_puzzle.solved and _game().case_info("list").solved and said.size() >= 6 and names.all(func(n): return said.has(n)), "every open name logged, one a line: the case closes (%s)" % [said])
+	check(level.list_puzzle.solved and _game().case_info("list").solved and said.size() >= 6 and names.all(func(n): return said.has(n)) and not said.has("VISITOR"), "every open name logged, one a line, none of ours: the case closes (%s)" % [said])
 	check(_game().case_info("list").how.contains(names[0]), "the board reads the names back")
 
 
 func _case_hold(level: Node) -> void:
 	check(_game().case_info("hold").get("open", false), "the doors' case opens once the names are read")
+	check(level.practice_puzzle.hints[0].contains("api.get(\"/doors/\" + door") and level.practice_puzzle.hints[0].contains("a GET has no body"), "practice's hint 1 has a line for the GET, like every other new word")
 	var ante: Terminal = level.ante_terminal
 	var door: String = level.data.doors.ante
 	# No if: needless writes to the open door trip the relay guard.
@@ -269,6 +286,11 @@ func _case_hold(level: Node) -> void:
 	await _frames(3)
 	check(level.deck_net[0] == "vault" and deck.get_meta("scripts", false), "a fitted deck in the corridor is on the vaults' network, and runs scripts")
 	check(level.find_children("RowLabel_*", "", true, false).size() == level.ROWS.size(), "every row has its label over the shelf, so a name in the log can be found at its row")
+	# The anteroom's watchdog again, on the deck: SYSOP says change door.
+	var same := _run(deck, level._watchdog(level.data.key, door))
+	await _until(func(): return level.tips_sent.has("same_door"), 200)
+	check(level.tips_sent.has("same_door"), "the same door twice, from the deck: SYSOP says the deep freeze is the other one")
+	same.stop()
 	var c_door: String = level.data.doors.vault_c
 	var hold := _run(deck, level._watchdog(level.data.key, c_door))
 	await _until(func(): return not level._door_locked(c_door), 200)

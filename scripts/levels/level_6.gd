@@ -41,7 +41,9 @@ extends LevelBase
 ## or hear is in plan/approvals/l6-text.md, approved by Augustine word for word on
 ## 2026-11-05 ("approve all"); a change here is a new draft until he OKs it. The
 ## echoes speak through VoiceLines (scene l6_echoes, so recordings play); ECHO_LINES
-## keeps the same words for the walkie's static and the subtitle-only fallback.
+## keeps the same words for the walkie's static and the subtitle-only fallback. DRAFT
+## since (Teaching's B1 walk, 2026-11-05, in l6-text.md): the listing skips the crew's
+## own entries (punched in at the landing), its words and tip, and practice's GET line.
 ##
 ## Layout (level space, north is -z):
 ##   landing      x -4..4,   z 4..8     STAIR 2 (east wall): down from 9, and on to B2
@@ -74,7 +76,7 @@ const TEXT := {
 	"case_pair": "That voice under the static. Get it off our radios",
 	"case_pair_do": "Pair an earpiece for each of us at the IT cage cradle",
 	"case_list": "Six names in the log. Say every one of them",
-	"case_list_do": "At the IT cage terminal, run a loop that logs the name on every entry still open",
+	"case_list_do": "At the IT cage terminal, run a loop that logs the name on every entry still open. Not ours",  # DRAFT
 	"case_hold": "The doors keep locking. Don't let them shut us out",
 	"case_hold_do": "Keep the deep freeze door open until everyone's in Vault C",
 	"case_release": "They never got to go home",
@@ -105,6 +107,7 @@ const TEXT := {
 	"guard": "The relay clicks over. %s is held shut.",
 	"guard_off": "The relay clicks back. %s answers again.",
 	"punch_in": "The vault reader beeps. %s punched in.",
+	"punch_floor": "The landing reader beeps. %s punched in.",  # DRAFT
 	"unoccupied": "The lights in %s die. The clock thinks nobody's in there.",
 	"occupied": "The lights in %s come back on.",
 	"slip": "The time clock chatters and prints a slip.",
@@ -132,6 +135,7 @@ const TEXT := {
 	"tip_list_try": "the service page's loop reads fine with only a log in it: console.log(entry.name), once for each open entry. try it here, where it's warm. nothing gets written.",
 	"tip_list_vault": "%d of %d names. that's vault A's query, off the page. the open entries are every vault's, as at the time office: drop the AND.",
 	"tip_list_row": "that's a whole row in one line. log entry.name: one name a line.",
+	"tip_list_ours": "VISITOR is us: VIS-01 and up, punched in at the landing. the names you want are the others. an if around the log keeps ours out: if (entry.name !== \"VISITOR\") { ... }",  # DRAFT
 	"tip_guard": "409: the relay guard. writing to a door that's already open counts against it. only PATCH it when the GET says it's locked: that's what if is for.",
 	"tip_steps": "the script ran too long without waiting. a loop that never ends needs await sleep(...) inside it.",
 	"tip_same_door": "the watchdog's running for %s, the anteroom. the deep freeze is %s. change door, save, run it again.",
@@ -417,7 +421,14 @@ var list_puzzle: RequestPuzzle
 ## The listing case: the open entries' names a script has logged, one a line, this
 ## run of it (host). The runtimes listened to for them.
 var listed := {}
+## One run of a script logged a VISITOR line: one of ours, which the listing skips.
+var listed_ours := false
 var _watched := {}
+## The cradle, by script: the screen of the last pair request, whether a run got a
+## 409 busy, and how many requests came after one set each (an endless loop).
+var _pair_from := ""
+var _pair_409_run := false
+var _pair_extra := 0
 var practice_puzzle: RequestPuzzle
 var hold_puzzle: RequestPuzzle
 var release_puzzle: RequestPuzzle
@@ -438,6 +449,8 @@ class NetLink:
 	var level: Node
 	var net := "wired"
 	var deck := -1
+	## Whose screen this is: office, it, ante, or deck<n> (SYSOP answers there).
+	var terminal := "ante"
 
 	func send(method: String, path: String, headers := {}, body := "") -> Dictionary:
 		var on := net
@@ -448,6 +461,7 @@ class NetLink:
 		level.net_now = on
 		var res: Dictionary = level.api.send(method, path, headers, body)
 		level.net_now = "wired"
+		level._on_sent(self, method, path, res)
 		return res
 
 
@@ -529,16 +543,21 @@ func build() -> void:
 	exit_trigger.require_all = true
 	exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
 	exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
-	for term in [office, it_terminal, ante_terminal]:
-		term.api = wired
+	# Each screen has its own link, so a script's mistakes are answered where they're made.
+	wired.terminal = "office"
+	office.api = wired
+	it_terminal.api = _link("wired", -1, "it")
+	ante_terminal.api = _link("wired", -1, "ante")
 
 
-## A link to the floor's services on one network (or a deck's, `deck` >= 0).
-func _link(net: String, deck := -1) -> NetLink:
+## A link to the floor's services on one network (or a deck's, `deck` >= 0), from
+## the screen `terminal`.
+func _link(net: String, deck := -1, terminal := "ante") -> NetLink:
 	var l := NetLink.new()
 	l.level = self
 	l.net = net
 	l.deck = deck
+	l.terminal = terminal
 	return l
 
 
@@ -818,7 +837,7 @@ func _make_decks() -> void:
 		d.terminal_name = "PORTABLE DECK"
 		d.db = db
 		d.ui = terminal_ui
-		d.api = _link("deck", i)
+		d.api = _link("deck", i, "deck%d" % i)
 		d.prompt = ""
 		d.enabled = false
 		d.boot_lines = ["HALCYON PORTABLE DECK  -  FIELD UNIT", "Network: follows you (jacks in the warm rooms, access points with a wireless card)."]
@@ -890,6 +909,11 @@ func start() -> void:
 	hud.todo(TEXT.todo_arrive)
 	hud.notice(TEXT.arrive, 5.0)
 	_lines(["l6_arrive_pa", "l6_arrive_tease"], 0.8)
+	# The landing's reader punches every visitor in to the floor: the crew's own cards
+	# are in the log from the start, so the listing has ours to leave out (DRAFT).
+	if _is_host():
+		for i in _crew_count():
+			sync.event("_punch_floor", ["VIS-%02d" % (i + 1)])
 	_after_story(6.0, func():
 		await _say("l6_ines_arrive")
 		await _say("l6_tomas_arrive"))
@@ -1301,6 +1325,8 @@ func _closed(row: Dictionary) -> void:
 
 ## Every machine: whether the clock thinks a vault with the crew in it is empty.
 func _occupancy(vault: String) -> void:
+	if not Level6Data.VAULTS.has(vault):
+		return  # the landing's entries: nothing hangs on them
 	var inside := crew_in.keys().filter(func(c): return crew_in[c] == vault)
 	var empty := not inside.is_empty() and inside.all(func(c): return _open_crew_entry(c, vault) == 0)
 	var room: String = Level6Data.VAULTS[vault]
@@ -1352,6 +1378,15 @@ func _punch(card: String, vault: String, entering: bool) -> void:
 	_occupancy(vault)
 
 
+## Every machine: a crew card punched in at the landing's reader, on arrival. The
+## entry is the floor's (vault B1): no lights or door hang on it.
+func _punch_floor(card: String) -> void:
+	if _open_crew_entry(card, "B1") == 0:
+		_add_entry(card, "B1")
+	if hud and is_inside_tree() and card == _card_of(multiplayer.get_unique_id()):
+		hud.notice(TEXT.punch_floor % card, 2.0)
+
+
 # --- The stations ----------------------------------------------------------------------
 
 func _make_puzzles() -> void:
@@ -1391,9 +1426,10 @@ func _make_puzzles() -> void:
 		"  let open = await db.query(\"SELECT ...\")   runs a query from the script. await waits for its answer, and open holds the rows it found, one for each\n" +
 		"  for (const entry of open) { ... }   once for each row in open, as entry. const is a box the loop fills fresh each time round\n" +
 		"  entry.name   that row's name column\n" +
+		"  if (entry.name !== \"VISITOR\") { ... }   only the rows that aren't ours. we punched in at the landing, on cards VIS-01 and up, name VISITOR. !== asks \"is it different?\"\n" +
 		"  console.log(entry.name)   writes it in the runner's log: one line a name\n" +
 		"enter_condition is the open visits, as at the time office. no key and no wait: this only reads. type .script to open the runner, then ^S saves and ^R runs it.",
-		"the service page by the time clock has the loop. its query is vault A's: the open visits are every vault's, as at the time office. log entry.name and nothing else; nothing gets written.",
+		"the service page by the time clock has the loop. its query is vault A's: the open visits are every vault's, as at the time office. it was written before visitors had cards: an if around the log keeps ours out. log entry.name and nothing else; nothing gets written.",
 		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _list_script("clock_out IS NULL"),
 	], list_ok)
 	list_puzzle.case_id = "list"
@@ -1403,6 +1439,7 @@ func _make_puzzles() -> void:
 		"    [color=#ffffff]%s[/color]\n" % _watchdog(key, "enter_door") +
 		"  while (true) { ... }   keep going until someone presses Stop (^T)\n" +
 		"  \"/doors/\" + door   + joins text: \"/doors/\" and what's in door make the path\n" +
+		"  let res = await api.get(\"/doors/\" + door, {\"X-Api-Key\": key})   the same GET you'd type, as one script line: the path, then the header (a GET has no body). res holds the door's answer\n" +
 		"  res.body.locked   the door's answer. body is the JSON you've seen on 9, and .locked is its locked field, true or false\n" +
 		"  if (res.body.locked) { ... }   only when the GET says it's locked. a write to an open door counts against the relay guard\n" +
 		"  await api.patch(\"/doors/\" + door, {\"locked\": false}, {\"X-Api-Key\": key})   the same PATCH you'd type: the path, the body and the header\n" +
@@ -1454,9 +1491,10 @@ static func _pair_script(key: String, count: String) -> String:
 	return "let key = \"%s\";\nlet count = %s;\nlet paired = 0;\nwhile (paired < count) {\n  let res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key});\n  console.log(res.status);\n  paired = paired + 1;\n  await sleep(1000);\n}" % [key, count]
 
 
-## The listing: the page's loop with only a log in it. `cond` is the query's test.
+## The listing: the page's loop with only a log in it, and an if that leaves the
+## crew's own entries out (DRAFT: !== practised warm). `cond` is the query's test.
 static func _list_script(cond: String) -> String:
-	return "let open = await db.query(\"SELECT * FROM freezer_log WHERE %s\");\nfor (const entry of open) {\n  console.log(entry.name);\n}" % cond
+	return "let open = await db.query(\"SELECT * FROM freezer_log WHERE %s\");\nfor (const entry of open) {\n  if (entry.name !== \"VISITOR\") {\n    console.log(entry.name);\n  }\n}" % cond
 
 
 static func _watchdog(key: String, door: String) -> String:
@@ -1496,7 +1534,7 @@ func _open_names() -> Array:
 ## Every open name logged, one a line, by one run of a script.
 func list_ok() -> bool:
 	var names := _open_names()
-	return not names.is_empty() and names.all(func(n): return listed.has(n))
+	return not names.is_empty() and not listed_ours and names.all(func(n): return listed.has(n))
 
 
 func practice_ok() -> bool:
@@ -1548,25 +1586,54 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 
 
 ## Host: a request typed at a terminal or deck. Its station checks; the services did
-## the rest already, on every machine.
-func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) -> void:
-	var path := _path_of(line)
-	if res.status == 403 and path.begins_with("/clock_"):
-		sync.event("_tip", ["wired", which])
-	elif res.status == 409 and path.begins_with("/clock_outs") and printing:
-		sync.event("_tip", ["printing", which])
+## the rest already, on every machine, and SYSOP answered from _on_sent.
+func _on_request(line: String, res: Dictionary, _ui: TerminalUI, _which: String) -> void:
 	if not stop_puzzle.solved and stop_puzzle.request_matches(line, res):
 		sync.event("_on_solved", ["stop"])
 
 
-## Every machine: a SYSOP tip on the screen it was earned at (once per run).
-func _tip(id: String, which: String) -> void:
+## Host: any request the floor's services answered, typed or from a script, from the
+## screen `link.terminal`. The mistakes SYSOP has a line for, answered there.
+func _on_sent(link: NetLink, method: String, path: String, res: Dictionary) -> void:
+	if not _is_host():
+		return
+	var which: String = link.terminal
+	method = method.to_upper()
+	var status := int(res.get("status", 0))
+	var error := str(res.get("body", {}).get("error", "")) if res.get("body") is Dictionary else ""
+	if method == "POST" and path.begins_with("/earpieces/pair"):
+		_pair_from = which
+		if status == 403:
+			sync.event("_tip", ["pair_key", which])
+		elif status == 409 and error.begins_with("Busy"):
+			_pair_409_run = true
+			sync.event("_tip", ["pair_busy", which])
+		if pair_puzzle.solved:
+			_pair_extra += 1
+			if _pair_extra >= 3:
+				sync.event("_tip", ["pair_endless", which])
+	elif path.begins_with("/clock_"):
+		if status == 403:
+			sync.event("_tip", ["wired", which])
+		elif status == 409 and path.begins_with("/clock_outs") and printing:
+			sync.event("_tip", ["printing", which])
+	elif method == "GET" and path.to_upper() == ("/doors/" + str(data.doors.ante)).to_upper() and which.begins_with("deck"):
+		if practice_puzzle.solved and not crossed:
+			sync.event("_tip", ["same_door", which, [data.doors.ante, data.doors.vault_c]])
+
+
+## Every machine: a SYSOP tip on the screen it was earned at (once per run). `args`
+## fill the line's blanks.
+func _tip(id: String, which: String, args := []) -> void:
 	if tips_sent.has(id):
 		return
 	tips_sent[id] = true
 	var term := _terminal(which)
 	if term and TEXT.has("tip_" + id):
-		term.print_line(TerminalUI.sysop(TEXT["tip_" + id]), "hint")
+		var text: String = TEXT["tip_" + id]
+		if not args.is_empty():
+			text = text % args
+		term.print_line(TerminalUI.sysop(text), "hint")
 
 
 ## A tip that comes from the services (scripts too): shown on every script screen.
@@ -1584,6 +1651,10 @@ func _terminal(which: String) -> Terminal:
 		"office": return office
 		"it": return it_terminal
 		"ante": return ante_terminal
+	if which.begins_with("deck") and which.length() > 4:
+		var i := int(which.trim_prefix("deck"))
+		if i >= 0 and i < decks.size():
+			return decks[i]
 	return ante_terminal
 
 
@@ -1687,11 +1758,11 @@ func _watch_scripts() -> void:
 			continue
 		_watched[rt] = true
 		rt.printed.connect(_on_script_printed)
-		rt.finished.connect(func(_ok, _err): _on_script_finished())
+		rt.finished.connect(func(ok, _err): _on_script_finished(t, ok))
 
 
 ## Host: a script logged a line. One open name on it counts; a whole row's worth of
-## them on one line doesn't (that isn't a name a line).
+## them on one line doesn't (that isn't a name a line); VISITOR is one of ours.
 func _on_script_printed(text: String, kind: String) -> void:
 	if not _is_host() or list_puzzle == null or list_puzzle.solved or kind != "log":
 		return
@@ -1699,22 +1770,41 @@ func _on_script_printed(text: String, kind: String) -> void:
 	var on_line: Array = names.filter(func(n): return text.contains(n))
 	if on_line.size() == 1:
 		listed[on_line[0]] = true
-		if list_ok():
-			sync.event("_on_solved", ["list"])
 	elif on_line.size() > 1:
 		sync.event("_tip", ["list_row", "it"])
+	elif text.contains("VISITOR"):
+		listed_ours = true
 
 
-## Host: a script ended. Some names but not all is the page's own query (vault A's).
-func _on_script_finished() -> void:
+## Host: a script on `term` ended (`ok`: on its own, not stopped or failed). The
+## listing is judged by the whole run: every open name, one a line, and none of
+## ours; some names but not all is the page's own query (vault A's). The cradle's:
+## too few sets, when the script that asked for them is done.
+func _on_script_finished(term: Node, ok: bool) -> void:
 	if not _is_host():
 		return
 	if list_puzzle and not list_puzzle.solved and not listed.is_empty():
 		var n := _open_names().size()
-		if listed.size() < n and not tips_sent.has("list_vault"):
-			tips_sent["list_vault"] = true
-			it_terminal.print_line(TerminalUI.sysop(TEXT.tip_list_vault % [listed.size(), n]), "hint")
+		if list_ok():
+			sync.event("_on_solved", ["list"])
+		elif listed_ours:
+			sync.event("_tip", ["list_ours", "it"])
+		elif listed.size() < n:
+			sync.event("_tip", ["list_vault", "it", [listed.size(), n]])
 	listed.clear()
+	listed_ours = false
+	var which := _which_of(term)
+	if ok and which == _pair_from and not _pair_409_run and not pair_puzzle.solved and paired > 0 and paired < _crew_count():
+		sync.event("_tip", ["pair_short", which, [paired, _crew_count()]])
+	if which == _pair_from:
+		_pair_409_run = false
+
+
+## The screen name of a terminal or deck (what its link says).
+func _which_of(term: Node) -> String:
+	if term and term.get("api") is NetLink:
+		return term.api.terminal
+	return "ante"
 
 
 # --- Earpieces and the walkie -----------------------------------------------------------
