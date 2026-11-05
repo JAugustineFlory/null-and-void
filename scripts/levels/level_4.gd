@@ -81,7 +81,10 @@ const TEXT := {
 	"bay_quiet": "Behind the bay door, the hum winds down.",
 	"power_back": "In the control room, the lights come on. Its door clunks open.",
 	"todo_down": "STAIR 1 is open. Everyone down the stairs",
-	"todo_up": "Back up STAIR 1. Everyone up the stairs",
+	# Draft (Augustine, 2026-11-05: task titles carry the story, the instruction goes
+	# in the details). The details show once the case board has a details line.
+	"todo_up": "Locked In!! The only way out is up!",
+	"todo_up_details": "Exit through Stair 1",
 	"case_main_doors": "What did main_doors open?",
 	"main_doors_done": "main_doors was never a fire exit. The notice was wrong, and the row said so: zone CONTAINMENT. Look at a row before you write to it.",
 	"accident": "Far below, something heavy unlocks. Then every light on the floor goes red.",

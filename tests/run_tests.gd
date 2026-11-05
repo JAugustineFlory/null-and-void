@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "scripting", "chapters", "sound", "papers"]
 
 
 func _run() -> void:
@@ -81,6 +81,7 @@ func _run_group(g: String) -> void:
 		"movement_hands": await _group_movement_hands()
 		"stairs": await _group_stairs()
 		"bodies": await _group_bodies()
+		"pad": await _group_pad()
 		"teaching": await _group_teaching()
 		"teaching_lab": await _group_teaching_lab()
 		"teaching_api": await _group_teaching_api()
@@ -121,6 +122,7 @@ func _group_core() -> void:
 	await test_pick_up_papers()
 	await _run_file("res://tests/art_tests.gd")
 	await _run_file("res://tests/huddle_tests.gd")
+	await _run_file("res://tests/pad_menu_tests.gd")
 
 
 ## Ground floor (Level 0) and Rourke's tour.
@@ -241,6 +243,11 @@ func _group_combat() -> void:
 
 
 ## Parkour: walking, sliding, mantling, vaulting, hanging, climbing, vents, ledges, shoulders.
+## Gamepad / Steam Deck: buttons, prompts, sticks, every crew member's moves on a pad.
+func _group_pad() -> void:
+	await _run_file("res://tests/pad_tests.gd")
+
+
 func _group_movement() -> void:
 	await _run_file("res://tests/movement_tests.gd", "moves")
 

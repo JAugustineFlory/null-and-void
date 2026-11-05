@@ -749,6 +749,8 @@ func _setup_input() -> void:
 		var right := InputEventMouseButton.new()
 		right.button_index = MOUSE_BUTTON_RIGHT
 		InputMap.action_add_event("block", right)
+	PadInput.bind()  # gamepad buttons for all of the above
+	InputGlyphs.watch(self)  # prompts follow the keyboard or pad, whichever was used last
 
 
 func _bind_keys(action: String, keys: Array) -> void:

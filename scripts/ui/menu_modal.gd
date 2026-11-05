@@ -9,6 +9,8 @@ extends Control
 
 ## Where the panel's contents go.
 var box: VBoxContainer
+## What had focus before the panel opened: it gets it back when the panel closes.
+var _opener: Control
 
 
 ## A panel over `parent`, empty and already on screen.
@@ -29,6 +31,14 @@ func _ready() -> void:
 	box.custom_minimum_size = Vector2(460, 0)
 	box.add_theme_constant_override("separation", 12)
 	column(self, box)
+	_opener = get_viewport().gui_get_focus_owner()
+	PadFocus.attach(self, true)
+	_focus_in.call_deferred()  # once whoever opened it has filled it
+
+
+func _focus_in() -> void:
+	if is_inside_tree():
+		PadFocus.focus_first(box)
 
 
 ## Puts `box` in the middle of `parent`, inside the window's margins, scrolling when
@@ -62,7 +72,9 @@ func add_back(text: String = "Back") -> Button:
 
 
 func close() -> void:
-	queue_free()
+	queue_free()  # first, so it's no longer the panel on top holding focus
+	if is_instance_valid(_opener) and _opener.is_visible_in_tree():
+		_opener.grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:

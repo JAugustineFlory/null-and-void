@@ -384,6 +384,7 @@ func _build_pause_menu() -> void:
 	exit_page.add_child(_pause_back())
 
 	_show_pause_page("main")
+	PadFocus.attach(_pause, true)
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	var catcher := PauseCatcher.new()
 	catcher.level = self
@@ -400,6 +401,13 @@ class PauseCatcher:
 				and not (level.inventory_screen and level.inventory_screen.is_open()):
 			# Esc steps back out of a settings page first, then closes the menu.
 			if level._pause.visible and level._pause_at != "main":
+				level._show_pause_page("main")
+			else:
+				level._toggle_pause()
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("ui_cancel") and level._pause.visible:
+			# A controller's B: back out of a page, then out of the menu, as Esc does.
+			if level._pause_at != "main":
 				level._show_pause_page("main")
 			else:
 				level._toggle_pause()
@@ -431,6 +439,8 @@ func _show_pause_page(id: String) -> void:
 	_pause_at = id
 	for key in _pause_pages:
 		_pause_pages[key].visible = key == id
+	if _pause.visible:
+		PadFocus.focus_first(_pause_pages[id])
 
 
 ## Start this run over from the top. Solo only: in co-op one player can't send
@@ -451,4 +461,6 @@ func _toggle_pause() -> void:
 	if p:
 		_pause_pages["main"].get_node("Restart").visible = not sync.is_online()
 		_show_pause_page("main")
+	else:
+		get_viewport().gui_release_focus()  # so a controller's A goes back to the game
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if p else Input.MOUSE_MODE_CAPTURED
