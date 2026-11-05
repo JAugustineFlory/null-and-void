@@ -245,6 +245,7 @@ func _group_combat() -> void:
 ## Gamepad / Steam Deck: buttons, prompts, sticks, every crew member's moves on a pad.
 func _group_pad() -> void:
 	await _run_file("res://tests/pad_tests.gd")
+	await _run_file("res://tests/pad_screen_tests.gd")
 
 
 func _group_movement() -> void:
