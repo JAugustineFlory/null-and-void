@@ -23,6 +23,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_endings_and_routes()
 	test_job_over()
 	test_chip()
+	test_task_titles()
 	test_paper_pieces()
 	test_growing_case()
 	test_hint_pieces()
@@ -198,6 +199,39 @@ func test_chip() -> void:
 	g.solve_case("memo", "done.")
 	check(not chip.chip.visible, "solved: nothing to count")
 	chip.free()
+
+
+## A task's title says how the crew feels; its details say what to do (Augustine,
+## 2026-11-05: plan/approvals/task-titles.md). The chip shows "Next: <title>" for a
+## moment; the notebook's checklist and the work order show the title, with the
+## details in pencil under it until it's ticked.
+func test_task_titles() -> void:
+	print("Case board: task titles and details")
+	var g := _game()
+	g.new_run(8)
+	var hud := HUD.new()
+	_tree.root.add_child(hud)
+	hud.todo("Our first big job", "Read the work order in your notebook")
+	check(g.current_todo() == "Read the work order in your notebook" and g.notebook_todo[-1].title == "Our first big job", "a task keeps its details as what to do, and its title")
+	var chip: CaseChip = hud.case_chip
+	check(chip.chip.visible and chip.next.visible and chip.next.text == CaseChip.NEXT % "Our first big job" and not chip.title.visible, "with no case open, the chip shows just \"Next:\" and the title for a moment")
+	chip._end_next(chip._next_turn)
+	check(not chip.chip.visible, "then it goes")
+	var form := NotebookPages.text_of(WorkOrderForm.build(g.ticket()))
+	check(form.contains("[  ]  Our first big job") and form.contains("Read the work order in your notebook"), "the work order's crew notes: the title, the details under it")
+	hud.todo("Showtime. Act like experts.", "Get in the van")
+	form = NotebookPages.text_of(WorkOrderForm.build(g.ticket()))
+	check(form.contains("[x]  Our first big job") and not form.contains("Read the work order in your notebook") and form.contains("Get in the van"), "ticked, it's just the title; the next one has its details")
+	hud.todo("Sit down with the book")
+	check(g.notebook_todo[-1].get("title", "") == "" and g.current_todo() == "Sit down with the book", "one string is a task with no title")
+	# Once the job's over, a task goes on the case's checklist: the title, then the details.
+	g.end_job()
+	g.open_case("lab", "Get out of the lab")
+	hud.todo("Still trapped. Think fast.", "Find out what's wrong with the lab door, at Dr. Vale's terminal")
+	check(g.case_next("lab") == "Still trapped. Think fast." and chip.next.text == CaseChip.NEXT % "Still trapped. Think fast.", "the case's next step is the task's title")
+	var lines: Array = g.case_checklist("lab")
+	check(lines[-1].title == "Still trapped. Think fast." and lines[-1].text.ends_with("at Dr. Vale's terminal"), "and its checklist line has both")
+	hud.free()
 
 
 func test_paper_pieces() -> void:

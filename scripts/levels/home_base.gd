@@ -74,7 +74,7 @@ const SPAR_TELL := 0.7
 const SPAR_SWING := 0.3
 ## Approved by Augustine word for word, 2026-10-22 01:13Z
 ## (plan/teaching/garage-playtest-2026-10-22.md, item 3).
-const SPAR_TODO := "Hit the punch bag, then block it"
+const SPAR_TODO := "Hit the punch bag, then block it when it swings back"
 const SPAR_NOTICE := "Hit the bag with left-click. It swings back at you: right-click just as it comes in to raise your guard and block it."
 const SPAR_MISS := "It hit you. Right-click just as it swings in to raise your guard."
 const SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait for the swing in, then right-click."
@@ -564,7 +564,7 @@ func start() -> void:
 
 	# The work order is already in everyone's notebook: each player pulls theirs out.
 	await _say("l0_workorder", "l0_workorder_solo")
-	hud.todo("Look at the work order in your notebook")
+	hud.todo("Our first big job", "Read the work order in your notebook")
 	hud.notice("Press Tab to pull out your notebook", 8.0)
 	notebook.opened.connect(_on_notebook_opened, CONNECT_ONE_SHOT)
 	await sync.gate("work_order", crew_read_order)
@@ -581,7 +581,7 @@ func start() -> void:
 	maddison_to("side")  # pointing the way to the shelf
 	await _say("l0_grab", "l0_grab_solo")
 	book_bag.enabled = true
-	hud.todo("Get the book from the shelf by the side door")
+	hud.todo("Homework", "Get the book from the shelf by the side door")
 	hud.notice(move_notice(), 7.0)  # for whoever gets up for it first
 	await sync.gate("bag", book_bag.used)
 	maddison_to("board")
@@ -800,7 +800,7 @@ func _on_read_order(id: int) -> void:
 ## hears the hit and starts the swing; every machine sees it, and each player's own
 ## machine decides their block.
 func _spar_drill(stand_up_first := false) -> void:
-	hud.todo(SPAR_TODO)
+	hud.todo("Shake off the nerves", SPAR_TODO)
 	if stand_up_first:  # out of their seats: how to get up and over there, then how to block
 		hud.notice(move_notice(), MOVE_SECONDS)
 		_notice_after(spar_notice(), 8.0, MOVE_SECONDS, move_notice())
@@ -923,7 +923,7 @@ func _on_sparred(id: int) -> void:
 		hud.notice(SPAR_BLOCKED, 2.5)
 		# Done with the bag: straight to the van, without waiting on the others.
 		van_door.enabled = true
-		hud.todo("Get in the van")
+		hud.todo("Showtime. Act like experts.", "Get in the van")
 
 
 ## Every machine: player `id` found the office's spare key.
@@ -950,13 +950,13 @@ func _on_bag(id: int) -> void:
 		held_book = _book(player.camera, HELD_BOOK.origin)
 		held_book.basis = HELD_BOOK.basis
 		held_book.add_to_group("carried")  # held in your own hands (FirstPersonBody)
-		hud.todo("Sit down with the book")
+		hud.todo("Cram session", "Sit down with the book")
 	else:
 		var body := players.puppet(id)
 		if body:
 			held_book = _book(body, Vector3(0, 1.1, -0.32))
 			held_book.rotation.x = 1.1
-		hud.todo("Wait for the book")
+		hud.todo("Someone's got the book", "Wait while a teammate reads the book")
 
 
 ## Every machine: the book's on Maddison's whiteboard now, out of their hands.

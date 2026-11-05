@@ -684,7 +684,7 @@ func start() -> void:
 	if not _intro_started:
 		await all_ready
 	await get_tree().create_timer(2.0, false).timeout
-	hud.todo("Meet our contact at the front doors")
+	hud.todo("Act like we've done this before", "Meet our contact at the front doors")
 	# Co-op: triggers and Rourke run on the host, so every machine waits on gates.
 	var approach := Trigger.create(self, Vector3(0, 1, 11.5), Vector3(16, 2, 2))
 	await sync.gate("approach", approach.entered)
@@ -702,7 +702,7 @@ func start() -> void:
 	# on to the desk, and a strip they've left wouldn't count them.
 	var inside := Trigger.create(self, Vector3(0, 1, 0), Vector3(15.6, 2, 13.6))
 	rourke.walk_to(Vector3(-0.5, 0, 0.6))
-	hud.todo("Follow Rourke to the front desk")
+	hud.todo("Our escort for the night", "Follow Rourke to the front desk")
 	inside.require_all = true
 	inside.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone to come inside (%d/%d)" % [n, total]))
 	await sync.gate("inside", inside.entered)
@@ -738,7 +738,7 @@ func start() -> void:
 	walkies.enabled = true
 	walkies.stock(players.count())
 	hud.lines(["l0_tour_1", "l0_tour_2", "l0_desk_1", "l0_desk_2"])
-	hud.todo(OBJ_MEMO)
+	hud.todo("Query?? Don't Panic.", OBJ_MEMO)
 	var game := get_node("/root/Game")
 	game.open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], OBJ_MEMO)
 	game.set_pieces("memo", MEMO_PEEK_PIECES, MEMO_PEEK_QUERY, MEMO_PEEK_STEPS)
@@ -792,13 +792,16 @@ func _checkin_todo() -> void:
 	var signed := visitor_log.has_taken(me)
 	var badged := badges.has_taken(me)
 	if signed and badged:
-		hud.todo("" if _checked_in_all() else "Wait for everyone to sign in and take a badge")
+		if _checked_in_all():
+			hud.todo("")
+		else:
+			hud.todo("Nobody walks in without a badge", "Wait for everyone to sign in and take a badge")
 	elif signed:
-		hud.todo("Take a visitor badge from the counter")
+		hud.todo("Make it official", "Take a visitor badge from the counter")
 	elif badged:
-		hud.todo("Sign the visitor log")
+		hud.todo("Make it official", "Sign the visitor log")
 	else:
-		hud.todo("Sign the visitor log and take a visitor badge")
+		hud.todo("Make it official", "Sign the visitor log and take a visitor badge")
 
 
 func _checkin_progress() -> void:
@@ -931,7 +934,7 @@ func _on_peek_solved() -> void:
 	desk_terminal.print_line("")
 	desk_terminal.print_line(TerminalUI.sysop("the scraps are out of order. one of the columns numbers them."))
 	desk_terminal.print_line(TerminalUI.sysop("add ORDER BY to the end of your query, then that column's name."))
-	hud.todo(OBJ_ORDER)
+	hud.todo("It reads like nonsense", OBJ_ORDER)
 
 
 ## The memo is up on the screen, so the first case is answered: file it, and the
@@ -1052,7 +1055,7 @@ static func caller_pieces(ext: int) -> Array:
 ## staff directory (or the mailroom's printout of it) has the name.
 func _ask_caller() -> void:
 	caller_asked = true
-	hud.todo(OBJ_CALLER % data.extension)
+	hud.todo("Who was on the phone?", OBJ_CALLER % data.extension)
 	var game := get_node("/root/Game")
 	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"], OBJ_CALLER % data.extension)
 	game.set_pieces("caller", caller_pieces(data.extension), CALLER_QUERY, CALLER_STEPS)
@@ -1225,7 +1228,7 @@ func _leave_lobby() -> void:
 	_watch_nearest()
 	await hud.line("l0_cover")
 	hud.line("l0_walkie")
-	hud.todo("Follow Rourke")
+	hud.todo("Stick with our escort", "Follow Rourke")
 	_walk_to_server_room()
 
 
@@ -1235,7 +1238,7 @@ func _walk_to_server_room() -> void:
 	await sync.gate("rourke_at_shutter", rourke.arrived)
 	_watch_nearest()
 	shutter.set_open(true)  # he badges it, and it opens like any other door
-	hud.todo("Follow Rourke to Server Room A")
+	hud.todo("Time to look like IT", "Follow Rourke down the hall")
 	var hall := Trigger.create(self, Vector3(8.2, 1, 3), Vector3(1.2, 2, 2))
 	await sync.gate("hall", hall.entered)
 	rourke.walk_to(Vector3(22.4, 0, 3))
@@ -1297,7 +1300,7 @@ func _on_reach_server_room(_b: Node) -> void:
 		await rourke.arrived)
 	_watch_nearest()
 	await hud.line("l0_elevator")
-	hud.todo("Follow Rourke to the elevator")
+	hud.todo("Going up", "Follow Rourke to the elevator")
 	# The door swings shut once the whole crew is past him and clear of its swing.
 	var past := Trigger.create(self, Vector3(28.1, 1, 3), Vector3(3.8, 2, 8))
 	past.require_all = true
@@ -1323,7 +1326,7 @@ func _on_crew_at_elevators() -> void:
 		await rourke.arrived)
 	_watch_nearest()
 	if not elevator.is_closing and not elevator.riding:
-		hud.todo("Everyone into the elevator, then press 14")
+		hud.todo("Nobody gets left in the lobby", "Get everyone into the elevator, then press 14")
 		hud.line("l0_lift_button")
 
 

@@ -630,10 +630,10 @@ func start() -> void:
 		if Game.rourke_fate == "tied":
 			await _escape_radio(0.0)
 	_book_check("easy_sql_10")  # the camera card, read on the way to the lab
-	hud.todo("Find a way out of the security wing")
+	hud.todo("Out of the frying pan", "Find a way out of the security wing")
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
-		hud.todo("Check the security booth terminal")
+		hud.todo("Security knows the way out", "Check the security booth terminal")
 		Game.open_case("cameras", CASES.cameras, ["cameras"])
 
 
@@ -843,7 +843,7 @@ func _on_cameras_found(which: String) -> void:
 		sysop(t, "pike's name is clear on the sign-in sheet. find his row with a pattern:")
 		t.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
 		t.print_line("      LIKE 'Pike%'   names that start with Pike. % = any letters after")
-		hud.todo("Look up Officer Pike's PIN")
+		hud.todo("Borrow a guard's PIN", "Look up Officer Pike's PIN")
 		Game.open_case("cameras", CASES.cameras, ["cameras"])
 		Game.solve_case("cameras", "CAM-2 reports motion in the security office. It's the only camera pointed at that room.")
 		Game.open_case("pin", CASES.pin, ["guards", "badge_log"])
@@ -945,7 +945,7 @@ func _on_pike_found(which: String) -> void:
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
 		sysop(t, "you need a night-shift guard who badged in tonight. the badge readers know who. so does the sign-in sheet, under the coffee.")
-		hud.todo("Find out who else has a working PIN")
+		hud.todo("That PIN's dead. Try another.", "Find out who else has a working PIN")
 		Game.add_clue("pin", "Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.", "WARDEN")
 		# The answer only leads to the next search: the book's review of that, before it hunts.
 		await _book_huddle("easy_sql_12")
@@ -966,7 +966,7 @@ func _on_har_found(which: String) -> void:
 		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Badged in 22:00. PIN on file.[/color]" % data.name)
 		sysop(t, "that PIN opens the office door, and the SEC-EXIT keypad past it.")
 		sysop(t, "[color=#ff6655]it's on the other side of that door. open it, and keep your eyes on it.[/color]")
-		hud.todo("Open the office door. Keep eyes on it")
+		hud.todo("Don't look away", "Open the office door. Keep your eyes on it")
 		Game.solve_case("pin", "%s, night shift, badged in 22:00. That PIN opens the office and the SEC-EXIT keypad." % data.name)
 		_set_loose()
 		_set_stage("window")
@@ -1086,7 +1086,7 @@ func open_office() -> void:
 	db.run_silent("UPDATE door_status SET sensor = 'open', note = 'normal' WHERE door_id = 'SEC-OFFICE'")
 	db.sync_world()
 	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-OFFICE: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
-	hud.todo("Get past it to the SEC-EXIT keypad. Keep eyes on it")
+	hud.todo("It moves when nobody's looking", "Get past it to the SEC-EXIT keypad. Keep your eyes on it the whole way")
 	wake_watcher()
 
 
@@ -1112,13 +1112,13 @@ func enter_pin() -> void:
 	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-EXIT: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
 	if _update_door():
 		return
-	hud.todo("Get through SEC-EXIT")
+	hud.todo("Almost out!", "Get through SEC-EXIT")
 	await hud.line("l2_door_ok")
 	await get_tree().create_timer(5.0).timeout
 	if not door_open and not door_checked:
 		_broadcast([TerminalUI.sysop("it didn't open. check the door's sensor at the vestibule panel:"), "    [color=#ffffff]GET /doors/SEC-EXIT[/color]"])
 		hud.notice(NEW_MESSAGE, 4.0)
-		hud.todo("Find out why SEC-EXIT is still shut")
+		hud.todo("Come on, open!", "Find out why SEC-EXIT is still shut, at the vestibule panel")
 		Game.open_case("door", CASES.door, ["door_status"])
 		door_asked = true
 		_book_check("easy_sql_13")
@@ -1135,7 +1135,7 @@ func _on_door_checked(which: String) -> void:
 	sysop(t, "keypad said OPENED. locked is false, so the request went through.")
 	sysop(t, "but sensor says 'closed' and actuator says 'fault'. the door never moved. read the note.")
 	sysop(t, "a request going through isn't the thing happening. check the sensor, not the request.")
-	hud.todo("Fix whatever jammed the door, then check it again")
+	hud.todo("Unjam it, and fast", "Read the door's note, fix what jammed it, then check the door again")
 	Game.open_case("door", CASES.door, ["door_status"])
 	Game.add_clue("door", "The keypad's request went through, but the sensor says closed and the actuator says fault. The note names a breaker.", "SYSOP")
 	hud.line("l2_door_fault")
@@ -1183,7 +1183,7 @@ func _update_door() -> bool:
 		door_puzzle.solved = true
 	if open and not door_open:
 		door_open = true
-		hud.todo("Take the stairs down. Lock SEC-EXIT behind us if we can")
+		hud.todo("Down, and lock it behind us", "Take the stairs down. Lock SEC-EXIT behind you if you can")
 		Game.open_case("door", CASES.door, ["door_status"])
 		Game.solve_case("door", "Breaker B-%d had tripped and jammed the door. Resetting it let the door open." % data.breaker)
 		stair_door.locked = false

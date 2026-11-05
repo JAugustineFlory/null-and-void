@@ -55,13 +55,13 @@ signal completed
 
 ## Player-facing lines, drafted for Augustine's approval: plan/approvals/l5-text.md.
 const TEXT := {
-	"todo_arrive": "HR keeps the badge log. Find where we really were tonight",
+	"todo_arrive": "Find HR's badge log and check where the crew's badges were tonight",
 	"todo_key": "Get the HR service to answer",
 	"todo_power": "Get payroll's lights and the cage lock back on",
 	"todo_air": "Get the air moving again",
 	"todo_radio": "Someone on the radio wants the loading door open. Find out who's really there",
-	"todo_people": "Find the two night-shifters, pass them out, lock every door behind us",
-	"todo_down": "STAIR 2 is open. Everyone down, both of them too",
+	"todo_people": "Find the two night-shifters, log an escort pass for each one, and lock every door behind you",
+	"todo_down": "Take STAIR 2 down, with both night-shifters",
 	"case_key": "How do we get the HR service to answer?",
 	"case_power": "Why is payroll dark?",
 	"case_air": "Why is the air off?",
@@ -111,6 +111,19 @@ const TEXT := {
 	"tip_off_site": "409: that badge left the building hours ago. the night shift is still here; the log says where.",
 	"tip_lockup": "both passes are logged. every door opened tonight goes back to locked, then gets read back. GET /doors shows which are still open.",
 }
+
+## Each task's title: how the crew feels and what's going on (Augustine, approved
+## 2026-11-05: plan/approvals/task-titles.md). Its details are TEXT under the same key.
+const TASK_TITLES := {
+	"todo_arrive": "Prove where we were",
+	"todo_key": "HR won't talk to us",
+	"todo_power": "Payroll's in the dark",
+	"todo_air": "Getting hard to breathe",
+	"todo_radio": "That sounds like one of us",
+	"todo_people": "Nobody gets left behind",
+	"todo_down": "Down we go",
+}
+
 ## The laminated desk sheet at the HR front desk: where the header is found. Its
 ## example asks for another floor's clerk with a blank where the key goes.
 const DESK_SHEET_LINES := [
@@ -813,7 +826,7 @@ func start() -> void:
 	seed_crew(players.count() if players else 1)
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
-	hud.todo(TEXT.todo_arrive)
+	_todo("todo_arrive")
 	hud.notice(TEXT.arrive, 5.0)
 	_warden(["l5_arrive_pa", "l5_arrive", "l5_arrive_tease"], 0.8)
 
@@ -1237,7 +1250,7 @@ func _on_solved(id: String) -> void:
 			Game.open_case("key", CASES.key)
 			Game.solve_case("key", TEXT.key_done)
 			if not power_back:
-				hud.todo(TEXT.todo_power)
+				_todo("todo_power")
 			if sync.is_host():
 				_lure_after(lure_delay_propped if propped else lure_delay)
 		"circuits":
@@ -1255,7 +1268,7 @@ func _on_solved(id: String) -> void:
 				Game.solve_case("radio", TEXT.radio_done_solo % lure_badge)
 			_warden(["l5_radio_checked", "l5_radio_checked_tease"])
 			if _todo_is(TEXT.todo_radio):
-				hud.todo(_next_todo())
+				_todo(_next_todo())
 		"passes":
 			if _lockup_ok():
 				_on_solved("lockup")  # every door opened tonight is already locked again
@@ -1278,15 +1291,15 @@ func _todo_is(text: String) -> bool:
 ## air, the people (once the procedure has been read), the stairs; or nothing.
 func _next_todo() -> String:
 	if not key_puzzle.solved:
-		return TEXT.todo_key if Game.case_info("key").get("open", false) else TEXT.todo_arrive
+		return "todo_key" if Game.case_info("key").get("open", false) else "todo_arrive"
 	if not power_back:
-		return TEXT.todo_power
+		return "todo_power"
 	if not (air_on or air_cleared):
-		return TEXT.todo_air
+		return "todo_air"
 	if released:
-		return TEXT.todo_down
+		return "todo_down"
 	if Game.case_info("people").get("open", false):
-		return TEXT.todo_people
+		return "todo_people"
 	return ""
 
 
@@ -1296,13 +1309,13 @@ func _ask(case_id: String) -> void:
 	match case_id:
 		"key":
 			if not key_puzzle.solved:
-				hud.todo(TEXT.todo_key)
+				_todo("todo_key")
 		"power":
 			if key_puzzle.solved and not power_back:
-				hud.todo(TEXT.todo_power)
+				_todo("todo_power")
 		"air":
 			if key_puzzle.solved and power_back and not air_on and not air_cleared:
-				hud.todo(TEXT.todo_air)
+				_todo("todo_air")
 		"people":
 			if passes_ladder == "":
 				# POST practised at the work order: the review ladder. Skipped (the stair
@@ -1310,7 +1323,7 @@ func _ask(case_id: String) -> void:
 				passes_ladder = "review" if _air_ok() else "a"
 				_passes_hints()
 			if key_puzzle.solved and not released and not _todo_is(TEXT.todo_radio):
-				hud.todo(TEXT.todo_people)
+				_todo("todo_people")
 
 
 ## Every machine: the staff were listed. Vale's row is in it, so her case opens.
@@ -1412,7 +1425,7 @@ func _circuits_changed(id: String) -> void:
 		hud.notice(TEXT.power_back, 5.0)
 		_warden(["l5_power_back", "l5_power_back_tease"])
 		if _todo_is(TEXT.todo_power):
-			hud.todo(_next_todo())
+			_todo(_next_todo())
 		_custodian_clock()
 
 
@@ -1467,7 +1480,7 @@ func _air_on() -> void:
 	hud.notice(TEXT.air_back, 5.0)
 	_warden(["l5_air_back", "l5_air_back_tease"])
 	if _todo_is(TEXT.todo_air):
-		hud.todo(_next_todo())
+		_todo(_next_todo())
 	_custodian_clock()
 
 
@@ -1523,7 +1536,7 @@ func _air_cleared() -> void:
 	air_cleared = true
 	hud.notice(TEXT.air_cleared, 5.0)
 	if _todo_is(TEXT.todo_air):
-		hud.todo(_next_todo())
+		_todo(_next_todo())
 	_custodian_clock()
 
 
@@ -1564,7 +1577,7 @@ func _lure(peer: int, badge: String, n: int) -> float:
 		_lure_hints()
 		Game.open_case("radio", CASES.radio)
 		if not released:
-			hud.todo(TEXT.todo_radio)
+			_todo("todo_radio")
 		_tip("lure", "hr")
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
@@ -1682,7 +1695,7 @@ func _check_done() -> void:
 	Game.open_case("people", CASES.people)
 	Game.solve_case("people", TEXT.people_done % [n[0].first, n[0].hide.place, n[1].first, n[1].hide.place])
 	hud.notice(TEXT.stairs_release, 4.0)
-	hud.todo(TEXT.todo_down)
+	_todo("todo_down")
 	_warden(["l5_secured", "l5_secured_tease"])
 
 
@@ -1780,3 +1793,11 @@ func _on_completed() -> void:
 
 func on_player_died() -> void:
 	player.respawn(spawn_point())
+
+
+## Put task `key` (a TEXT key) on the job: its title and its details. "" ticks off the current one.
+func _todo(key: String) -> void:
+	if key == "":
+		hud.todo("")
+	else:
+		hud.todo(TASK_TITLES[key], TEXT[key])

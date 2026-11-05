@@ -80,7 +80,7 @@ const TEXT := {
 	"bay_stirs": "Behind the charging bay's door, something powers up.",
 	"bay_quiet": "Behind the bay door, the hum winds down.",
 	"power_back": "In the control room, the lights come on. Its door clunks open.",
-	"todo_down": "STAIR 1 is open. Everyone down the stairs",
+	"todo_down": "Take STAIR 1 down, everyone together",
 	"case_main_doors": "What did main_doors open?",
 	"main_doors_done": "main_doors was never a fire exit. The notice was wrong, and the row said so: zone CONTAINMENT. Look at a row before you write to it.",
 	"accident": "Far below, something heavy unlocks. Then every light on the floor goes red.",
@@ -106,8 +106,8 @@ const TEXT := {
 	"manual_release": "Pull the manual release",
 	"released": "The door's manual release gives. It shoves open.",
 	"end_card": "To be continued.",
-	"todo_front": "Get out the way we came in: the front doors",
-	"todo_check_front": "The doors didn't open. Check the main entrance's row",
+	"todo_front": "Leave the way you came in, through the front doors",
+	"todo_check_front": "Check the main entrance's row at the front desk terminal",
 	"case_entrance": "Why didn't the front doors open?",
 	"entrance_done": "The terminal said 1 row changed and the latch clicked. Then the row said locked again: Epsilon put it back. Check it took.",
 	"latch": "At the front doors, the latch clicks.",
@@ -128,6 +128,21 @@ const TEXT := {
 	"tip_example_log": "that's the clerk's example: another contractor's job, so it's in the log twice now. your row is Byte-Right's: your own work order's number, and the time on the clock over the door.",
 	"tip_dock": "that's not the front doors, and its note says why it can't let you out: SELECT * FROM gates; the front doors are the card's last line.",
 }
+
+## Each task's title: how the crew feels and what's going on (Augustine, approved
+## 2026-11-05: plan/approvals/task-titles.md). Its details are TEXT under the same key.
+const TASK_TITLES := {
+	"todo_arrive": "Stairs shut. Again.",
+	"todo_power": "No power, no doors, no lift",
+	"todo_login": "Do it by the book",
+	"todo_login_read": "Did it stick?",
+	"todo_put_back": "Alarm! Undo it.",
+	"todo_check": "Trust, but check",
+	"todo_down": "Finally, a way down!",
+	"todo_front": "Home free. Almost.",
+	"todo_check_front": "Why won't they open?!",
+}
+
 ## Facilities' work order on the maintenance desk: where UPDATE ... SET ... WHERE is
 ## found. Its example is last month's job on another breaker, so copying it practises
 ## the shape without answering tonight's (the id is the player's own step).
@@ -732,7 +747,7 @@ func start() -> void:
 	_show_lamps()
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
-	hud.todo(TEXT.todo_arrive)
+	_todo("todo_arrive")
 	# The PA's tape, then WARDEN, who still waits politely for it to finish (2.4).
 	_warden(["l4_arrive_pa", "l4_arrive"], 0.5)
 
@@ -903,10 +918,10 @@ func _on_solved(id: String) -> void:
 			Game.open_case("power", CASES.power, ["breakers"])
 			Game.solve_case("power", TEXT.power_done % data.target)
 			if not logged_in:
-				hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
+				_todo("todo_login_read" if login_puzzle.solved else "todo_login")
 		"login":
 			Game.open_case("login", CASES.login, ["contractor_log"])
-			hud.todo(TEXT.todo_login_read)
+			_todo("todo_login_read")
 			_warden(["l4_signed_in"])
 		"login_read":
 			logged_in = true
@@ -927,14 +942,14 @@ func _on_solved(id: String) -> void:
 func _ask_power() -> void:
 	Game.open_case("power", CASES.power, ["breakers"])
 	if not power_back and not alarm:
-		hud.todo(TEXT.todo_power)
+		_todo("todo_power")
 
 
 ## Every machine: the contractor clipboard has been read.
 func _ask_login() -> void:
 	Game.open_case("login", CASES.login, ["contractor_log"])
 	if not logged_in and not alarm:
-		hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
+		_todo("todo_login_read" if login_puzzle.solved else "todo_login")
 
 
 ## Every machine: a paper brings back its chapter of Easy SQL, into the crew's book
@@ -1160,7 +1175,7 @@ func _accident() -> void:
 	Game.solve_case("main_doors", TEXT.main_doors_done)
 	hud.notice(TEXT.accident, 6.0, ThemeUtil.RED)
 	custodian.activate()
-	hud.todo(TEXT.todo_down)
+	_todo("todo_down")
 	_epsilon()
 
 
@@ -1313,7 +1328,7 @@ func _on_exit() -> void:
 	players.place_all(self)
 	if player:
 		player.input_locked = not up
-	hud.todo(TEXT.todo_front)
+	_todo("todo_front")
 	hud.fade(false, 0.8)
 	if sync.is_host() and not sealed and custodian.is_active():
 		_custodian_follows()
@@ -1351,7 +1366,7 @@ func _lie() -> void:
 	db.read_only = true  # for the rest of the game: the building's flag, not the floor's
 	prepare_next()  # floor 9 builds now, below the stairwell
 	hud.notice(TEXT.latch_again, 4.0)
-	hud.todo(TEXT.todo_check_front)
+	_todo("todo_check_front")
 	if not VoiceLines.get_line("l4_epsilon_db").is_empty():
 		hud.line("l4_epsilon_db")
 
@@ -1443,13 +1458,13 @@ func _breakers_changed() -> void:
 			alarm_line = line
 		hud.notice(line, 5.0, ThemeUtil.RED if alarm else ThemeUtil.AMBER)
 		if alarm:
-			hud.todo(TEXT.todo_put_back)
+			_todo("todo_put_back")
 		elif not reset_puzzle.solved:
-			hud.todo(TEXT.todo_power)
+			_todo("todo_power")
 		elif not check_puzzle.solved:
-			hud.todo(TEXT.todo_check)
+			_todo("todo_check")
 		elif not logged_in:
-			hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
+			_todo("todo_login_read" if login_puzzle.solved else "todo_login")
 		else:
 			hud.todo("")
 	if bay_on != bay_powered:
@@ -1507,8 +1522,16 @@ func _restore_power() -> void:
 	hud.notice(TEXT.power_back, 5.0)
 	gantry_puzzle.solved = true  # the door's open: the second way in isn't needed
 	if not alarm and not check_puzzle.solved:
-		hud.todo(TEXT.todo_check)
+		_todo("todo_check")
 
 
 func on_player_died() -> void:
 	player.respawn(spawn_point())
+
+
+## Put task `key` (a TEXT key) on the job: its title and its details. "" ticks off the current one.
+func _todo(key: String) -> void:
+	if key == "":
+		hud.todo("")
+	else:
+		hud.todo(TASK_TITLES[key], TEXT[key])

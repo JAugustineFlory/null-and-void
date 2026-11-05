@@ -265,7 +265,7 @@ func run() -> void:
 	phase = "lead"
 	_take_over_guide()
 	rourke.visible = true
-	hud.todo("Follow Rourke to Dr. Vale's lab")
+	hud.todo("Last stop: the lab", "Follow Rourke to Dr. Vale's lab")
 	if sync.is_host():
 		_walk_path(LEAD_PATH, "at_door")
 	await _gate("at_door")
@@ -275,7 +275,7 @@ func run() -> void:
 	await _line("l2_lab_badge_1")
 	phase = "badge"
 	reader.enabled = true
-	hud.todo("Badge in at the lab door")
+	hud.todo("Don't fail us now, badges", "Badge in at the lab door")
 	await _gate("badged")
 	reader.enabled = false
 	hud.todo("")
@@ -295,7 +295,7 @@ func run() -> void:
 	await _line("l2_lab_shock_1")
 	await _line("l2_lab_shock_2")
 	await _line("l2_lab_terminal")
-	hud.todo("Check Dr. Vale's terminal")
+	hud.todo("What's on her screen?", "Check Dr. Vale's terminal")
 	if sync.is_host():
 		_walk_path([Vector3(-11.5, 0, 0), Vector3(-9, 0, 0), OUTSIDE], "outside")
 	await _gate("outside")
@@ -491,7 +491,7 @@ func _lock_in() -> void:
 	terminal.locked = true
 	terminal.locked_message = "SESSION LOCKED BY USER ROURKE_D."
 	terminal.set_screen_color(Color(1.0, 0.25, 0.2))
-	level.hud.todo("Get out of the lab")
+	level.hud.todo("Locked in. This is no glitch.", "Get out of the lab")
 
 
 func _lab_lights(c: Color) -> void:
@@ -505,7 +505,7 @@ func _start_fight() -> void:
 	rourke.add_to_group(VoiceChat.INTERFERENCE_GROUP)
 	rourke.max_hits = Rourke.MAX_HITS + 2 * (level.players.count() - 1)
 	rourke.hits_left = rourke.max_hits
-	level.hud.todo("Deal with Rourke")
+	level.hud.todo("He set us up!", "Fight Rourke off, then decide what to do with him")
 	level.hud.notice(FIGHT_NOTICE, 6.0)
 	if level.sync.is_host():
 		if not level.crew.hit_blocked.is_connected(_on_blocked):
@@ -603,7 +603,7 @@ func _lockdown() -> void:
 	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
-	level.hud.todo("Find out what's wrong with the lab door")
+	level.hud.todo("Still trapped. Think fast.", "Find out what's wrong with the lab door, at Dr. Vale's terminal")
 	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
 	# The book's review, before the clock starts: same tools as the server floor.
 	await level._book_huddle("easy_sql_9")
@@ -702,7 +702,7 @@ func _caught() -> void:
 	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
-	level.hud.todo("Find out what's wrong with the lab door")
+	level.hud.todo("Still trapped. Think fast.", "Find out what's wrong with the lab door, at Dr. Vale's terminal")
 	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
 	_start_response()
 
@@ -721,7 +721,7 @@ func _door_found() -> void:
 	door_puzzle.solved = true
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the lab door's controller. zone %s, 'fault'. its switch is on the wall in there." % zone))
-	level.hud.todo("Reset the lab door's controller")
+	level.hud.todo("Same trick as the server floor", "Reset the lab door's controller at its switch on the lab wall")
 	_game().add_clue("lab_door", "%s is the lab door's controller: zone %s, 'fault'. Its reset switch is on the lab wall." % [data.lab_answer, zone], "SYSOP")
 
 

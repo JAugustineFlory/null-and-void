@@ -232,8 +232,9 @@ func case_objective(id: String) -> String:
 ## A new task on the job ticket; the one before it is ticked off. "" ticks off
 ## the current task and adds nothing. False if nothing changed. Once the job is
 ## over (end_job), a task is the current case's: it goes on that case's
-## checklist, not the void work order.
-func set_todo(text: String) -> bool:
+## checklist, not the void work order. `text` is what to do (the task's details);
+## `title`, if it has one, how the crew feels about it (HUD.todo).
+func set_todo(text: String, title := "") -> bool:
 	if text != "" and current_todo() == text:
 		return false
 	var changed := false
@@ -242,7 +243,7 @@ func set_todo(text: String) -> bool:
 			t.done = true
 			changed = true
 	if text != "":
-		notebook_todo.append({"text": text, "done": false, "filled": "", "case": current_case() if job_over else ""})
+		notebook_todo.append({"text": text, "title": title, "done": false, "filled": "", "case": current_case() if job_over else ""})
 		changed = true
 	if changed:
 		notebook_changed.emit()
@@ -614,7 +615,7 @@ func case_checklist(id: String) -> Array:
 		out.append({"text": st.text, "done": st.done})
 	for t in notebook_todo:
 		if t.get("case", "") == id and id != "":
-			out.append({"text": t.text, "done": t.done or c.get("solved", false)})
+			out.append({"text": t.text, "title": t.get("title", ""), "done": t.done or c.get("solved", false)})
 	return out
 
 
@@ -622,7 +623,7 @@ func case_checklist(id: String) -> Array:
 func case_next(id: String) -> String:
 	for line in case_checklist(id):
 		if not line.done:
-			return line.text
+			return line.get("title", "") if line.get("title", "") != "" else line.text
 	return ""
 
 
