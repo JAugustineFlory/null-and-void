@@ -258,12 +258,17 @@ func _case_release(level: Node) -> void:
 	check(level.crew_in.get("VIS-01", "") == "C" and level._open_crew_entry("VIS-01", "C") > 0, "Vault C's reader punched the crew in too")
 	var res := _req(office, _key(level, "POST /clock_outs", "{\"entry\": %d}" % level.data.echoes[0].entry))
 	check(res.status == 403, "a punch from the wired terminals is refused (403)")
-	# The if forgotten: the crew's own entry closes too, and Vault C goes dark.
 	var ms := int(level.punch_interval * 1000) + 300
+	check(level.release_puzzle.hints[2].contains("entry.name !== \"VISITOR\"") and not level.release_puzzle.hints[2].contains("startsWith"), "the release's last tier uses what the book teaches: !== on the name column, not startsWith")
+	# The release as the book teaches it: !== on the name column frees every echo and
+	# leaves our own entry open.
+	var good := _run(deck, level._release_script(level.data.key, "visitor", ms))
+	await _until(func(): return not good.is_running(), 2400)
+	check(level.all_free and not level.unoccupied.has("C") and level._open_crew_entry("VIS-01", "C") > 0, "the release with its if frees every echo and leaves our own entry open")
+	# The if forgotten: it closes our own entry too, and Vault C goes dark.
 	var no_if: String = level._release_script(level.data.key, "true", ms)
 	var rt := _run(deck, no_if)
 	await _until(func(): return not rt.is_running(), 2400)
-	check(level.all_free, "the release frees every echo")
 	check(level.unoccupied.has("C") and level._door_locked(level.data.doors.vault_c), "but without the if it closes our own entry: the clock thinks Vault C is empty, dark and latched")
 	res = _req(deck, _key(level, "PATCH /doors/" + level.data.doors.vault_c, "{\"locked\": false}"))
 	check(res.status == 409, "the watchdog can't unlatch an empty vault (409)")

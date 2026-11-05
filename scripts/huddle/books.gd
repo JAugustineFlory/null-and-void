@@ -741,7 +741,7 @@ const BOOKS := {
 				"pages": [
 					"while\n\nwhile does what's in its braces again and again, as long as its test is true.\n\nlet done = 0;\nwhile (done < 3) {\n  done = done + 1;\n}\n\nSomething inside has to change the test, or it never stops. while (true) never stops on its own: that's what Stop is for.",
 					"await sleep\n\nA script runs as fast as it can. await sleep(ms) makes it wait: 1000 is one second.\n\nawait sleep(1000);\n\nawait also waits for an answer: let res = await api.get(\"/jobs\");\n\nAnything that takes a moment (a reply, a printer, a van) needs a wait between tries. A loop without one asks a million times a second.",
-					"console.log\n\nconsole.log writes a line in the script's log, under the code, so you can see what it did.\n\nconsole.log(\"invoiced \" + job.client);\n\nLog what a loop does each time round. When a script goes wrong, the log is the first place to look.",
+					"console.log\n\nconsole.log writes a line in the script's log, under the code, so you can see what it did.\n\nconsole.log(\"invoiced \" + job.client);\n\n+ joins text: \"invoiced \" and the client's name make one line. Log what a loop does each time round. When a script goes wrong, the log is the first place to look.",
 				],
 				"quiz": [
 					{"word": "while", "q": "while (done < 3) { done = done + 1; } goes round...",

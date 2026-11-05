@@ -125,7 +125,7 @@ const TEXT := {
 	"tip_wired": "403: punches only go through on the vaults' own network. a deck with a wireless card, in a vault.",
 	"tip_printing": "409: still printing the last slip. wait longer between punches. GET /clock says how long a slip takes.",
 	"tip_visitor": "that was one of ours. the clock thinks they've left the vault. punch them back in: POST /clock_ins with their card and the vault.",
-	"tip_card_visitor": "the crew's cards are VIS-01 and up. VISITOR is what the name column says.",
+	"tip_card_visitor": "the crew's cards are VIS-01 and up. VISITOR is what the name column says: entry.name !== \"VISITOR\" keeps ours open.",
 	"tip_lockup": "every entry's closed. the watchdogs are still holding doors open. ^T stops a script; then PATCH the doors shut and GET them back.",
 }
 
@@ -1350,8 +1350,11 @@ func _make_puzzles() -> void:
 		"    [color=#ffffff]%s[/color]\n" % _pair_script("enter_key", "enter_count") +
 		"  let key = ...   a variable: a box with a name, holding the key\n" +
 		"  while (paired < count) { ... }   do what's in the braces again and again, while the test is true\n" +
+		"  let res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key})   the same POST you'd type, as one script line: the path, then the body ({} is empty), then the header. await waits for the cradle's answer, and res holds it\n" +
+		"  console.log(res.status)   writes the answer's code (201, 403, 409) in the runner's log, so you can see each try\n" +
 		"  paired = paired + 1   count one more, or the test never turns false\n" +
 		"  await sleep(1000)   wait a second (1000 ms) before the next\n" +
+		"enter_key is this cradle's own key. enter_count is how many sets: one for each of you.\n" +
 		"type .script to open the runner, then ^S saves and ^R runs it.",
 		"the card's script is for the dock cradle: its key is the dock's. this cradle's key is on the sticky on the bench. count is how many sets: one each.",
 		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(key, str(_crew_count())),
@@ -1362,7 +1365,10 @@ func _make_puzzles() -> void:
 		"the shape, with the door left as enter_door:\n" +
 		"    [color=#ffffff]%s[/color]\n" % _watchdog(key, "enter_door") +
 		"  while (true) { ... }   keep going until someone presses Stop (^T)\n" +
+		"  \"/doors/\" + door   + joins text: \"/doors/\" and what's in door make the path\n" +
+		"  res.body.locked   the door's answer. body is the JSON you've seen on 9, and .locked is its locked field, true or false\n" +
 		"  if (res.body.locked) { ... }   only when the GET says it's locked. a write to an open door counts against the relay guard\n" +
+		"  await api.patch(\"/doors/\" + door, {\"locked\": false}, {\"X-Api-Key\": key})   the same PATCH you'd type: the path, the body and the header\n" +
 		"  console.log(...)   a line in the runner's log, so you can see what it did\n" +
 		"enter_door is the anteroom's door id. it's on its sign, and in GET /doors.",
 		"the tech's note by this terminal is the whole watchdog. the door id is over the anteroom door.",
@@ -1379,15 +1385,17 @@ func _make_puzzles() -> void:
 	], func(): return crossed)
 	hold_puzzle.case_id = "hold"
 	# 4. The release, under pressure: ladder A, its loop line given.
-	release_puzzle = RequestPuzzle.new("release", _release_script(key, "card.startsWith", int(punch_interval) * 1000 + 1000), func(_l, _r): return all_free, [
+	release_puzzle = RequestPuzzle.new("release", _release_script(key, "visitor", int(punch_interval) * 1000 + 1000), func(_l, _r): return all_free, [
 		"the shape, with the blanks left as enter_ words:\n" +
 		"    [color=#ffffff]%s[/color]\n" % _release_shape() +
+		"  let open = await db.query(\"SELECT ...\")   runs a query from the script, and open holds the rows it found\n" +
 		"  for (const entry of open) { ... }   once for each row the query found, as entry\n" +
-		"  if (enter_check) { ... }   only the ones that aren't us: our cards are VIS-nn, and we're still inside\n" +
-		"  await sleep(enter_milliseconds)   the slip takes a while: GET /clock says how long\n" +
-		"enter_condition is the open visits, as at the time office. it has to run here, on the vaults' network: your deck, in Vault C.",
+		"  entry.id, entry.name   that row's id and name columns\n" +
+		"  if (enter_check) { ... }   only the rows that aren't ours: ours say VISITOR in the name column. !== asks \"is it different?\"\n" +
+		"  await sleep(enter_milliseconds)   GET /clock says slip_seconds. sleep counts in ms (1000 is one second), so wait a bit longer than slip_seconds x 1000\n" +
+		"enter_key is the IT key, on the sticky on the bench, as before. enter_condition is the open visits, as at the time office. it has to run here, on the vaults' network: your deck, in Vault C.",
 		"the service page by the time clock has most of it. it was written before visitors had cards: it closes everyone. the clock answers GET /clock with slip_seconds.",
-		"on your deck, in Vault C: .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _release_script(key, "!entry.card.startsWith(\"VIS-\")", int(punch_interval) * 1000 + 1000),
+		"on your deck, in Vault C: .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _release_script(key, "visitor", int(punch_interval) * 1000 + 1000),
 	], func(): return all_free)
 	release_puzzle.case_id = "release"
 	# 5. Stop what we started: stopping and PATCH are practised now, so the review ladder.
@@ -1395,7 +1403,7 @@ func _make_puzzles() -> void:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and stop_ok(), [
 		"the shape: ^T in each runner that's still going, then for each door:\n" +
 		"    [color=#ffffff]PATCH /doors/enter_door\nX-Api-Key: %s\n\n{\"locked\": true}[/color]\n" % key +
-		"then GET /doors reads them back.",
+		"enter_door is each of the two doors you held open, the anteroom's and the deep freeze's. GET /doors lists them. then GET /doors reads them back.",
 		"^T on every runner (the anteroom terminal's, every deck's), then type these, Enter twice after each:\n" +
 		"    [color=#ffffff]PATCH /doors/%s\nX-Api-Key: %s\n\n{\"locked\": true}[/color]\n" % [data.doors.vault_c, key] +
 		"    [color=#ffffff]PATCH /doors/%s\nX-Api-Key: %s\n\n{\"locked\": true}[/color]\n" % [data.doors.ante, key] +
@@ -1415,8 +1423,8 @@ static func _watchdog(key: String, door: String) -> String:
 
 ## The release script. `check` is the if's test; the loop line is given.
 static func _release_script(key: String, check: String, ms: int) -> String:
-	if check == "card.startsWith":
-		check = "!entry.card.startsWith(\"VIS-\")"
+	if check == "visitor":
+		check = "entry.name !== \"VISITOR\""
 	return "let key = \"%s\";\nlet open = await db.query(\"SELECT * FROM freezer_log WHERE clock_out IS NULL\");\nfor (const entry of open) {\n  if (%s) {\n    let res = await api.post(\"/clock_outs\", {\"entry\": entry.id}, {\"X-Api-Key\": key});\n    console.log(entry.name + \": \" + res.status);\n    await sleep(%d);\n  }\n}" % [key, check, ms]
 
 
