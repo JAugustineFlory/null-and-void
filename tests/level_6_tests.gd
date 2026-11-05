@@ -227,6 +227,7 @@ func _case_list(level: Node) -> void:
 	check(names.size() == 6 and not Books.chapter("js_each").is_empty(), "six open names to read, and a chapter to read them with")
 	check(level.list_puzzle.hints[0].contains("enter_condition") and level.list_puzzle.hints[0].contains("const") and level.list_puzzle.hints[0].contains("!=="), "hint 1 leaves the query's test as enter_condition and explains for, const, db.query, the if with !== and the log")
 	check(level._list_script("x").contains("!== \"VISITOR\""), "the listing's answer leaves ours out with !== on the name column: practised warm, before the release")
+	check(level.TEXT.tip_list_try.contains("if (entry.name !== \"VISITOR\")"), "SYSOP's line at the IT cage shows the if before any hint does: found in the world first")
 	# The whole list in one line: not a name a line.
 	var rt := _run(it, "let open = await db.query(\"SELECT * FROM freezer_log WHERE clock_out IS NULL\");\nconsole.log(open);")
 	await _until(func(): return not rt.is_running(), 200)
@@ -329,6 +330,7 @@ func _case_release(level: Node) -> void:
 	res = _req(deck, _key(level, "POST /clock_ins", "{\"card\": \"VIS-01\", \"vault\": \"C\"}"))
 	check(res.status == 201 and not level.unoccupied.has("C"), "punched back in from the deck: Vault C's lights come back")
 	check(_game().case_info("release").solved and level.stairs_open, "everyone's free: the case closes and STAIR 2's gate opens")
+	check(_game().current_todo() == level.TEXT.todo_down and level.TASK_TITLES.todo_down == "Let them rest", "the to-do says back to the landing and down, under its own title")
 	await _until(func(): return level.find_children("Left_*", "", true, false).size() == 6, 2400)
 	check(level.find_children("Left_*", "", true, false).size() == 6, "each one told their story and left a memory or a piece of evidence at their row")
 	await _until(func(): return level.find_children("Slip_*", "", true, false).size() >= 6, 600)

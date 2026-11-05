@@ -83,8 +83,8 @@ const TEXT := {
 	"case_release_do": "From inside Vault C, clock out every entry still open. Not ours",
 	"case_stop": "Leave it how we found it",
 	"case_stop_do": "Stop every script we started, lock the vault doors, read them back",
-	"todo_arrive": "Somebody's still down here. Find the time office",
-	"todo_down": "Let them rest. Everyone down STAIR 2",
+	"todo_arrive": "Find the time office, off the hall",
+	"todo_down": "Back to the landing, then STAIR 2 down, everyone together",
 	"open_done": "%d visits never closed, the oldest from %d. The rack says %d cards are IN. The log is the record.",
 	"pair_done": "%d earpiece sets paired. The walkie's static is gone; we hear each other in our ears now.",
 	"list_done": "%s. One line each, read off the log itself. Now we know who we're going in for.",
@@ -132,7 +132,7 @@ const TEXT := {
 	"tip_pair_busy": "409 busy: the cradle pairs one set at a time. wait inside the loop, after each request.",
 	"tip_pair_key": "403: that's the dock cradle's key, from the card. this cradle has its own.",
 	"tip_pair_short": "%d paired, and there are %d of you. one set each: count is how many sets.",
-	"tip_list_try": "the service page's loop reads fine with only a log in it: console.log(entry.name), once for each open entry. try it here, where it's warm. nothing gets written.",
+	"tip_list_try": "the service page's loop reads fine with only a log in it: console.log(entry.name), once for each open entry. we're in that log too, as VISITOR: if (entry.name !== \"VISITOR\") around the log keeps us out. try it here, where it's warm. nothing gets written.",  # DRAFT
 	"tip_list_vault": "%d of %d names. that's vault A's query, off the page. the open entries are every vault's, as at the time office: drop the AND.",
 	"tip_list_row": "that's a whole row in one line. log entry.name: one name a line.",
 	"tip_list_ours": "VISITOR is us: VIS-01 and up, punched in at the landing. the names you want are the others. an if around the log keeps ours out: if (entry.name !== \"VISITOR\") { ... }",  # DRAFT
@@ -144,6 +144,13 @@ const TEXT := {
 	"tip_visitor": "that was one of ours. the clock thinks they've left the vault. punch them back in: POST /clock_ins with their card and the vault.",
 	"tip_card_visitor": "the crew's cards are VIS-01 and up. VISITOR is what the name column says: entry.name !== \"VISITOR\" keeps ours open.",
 	"tip_lockup": "every entry's closed. the watchdogs are still holding doors open. ^T stops a script; then PATCH the doors shut and GET them back.",
+}
+
+## The to-dos' titles (the story and how the crew feels; TEXT has their details:
+## what to do). Approved by Augustine 2026-11-05 21:34Z, plan/approvals/task-titles.md.
+const TASK_TITLES := {
+	"todo_arrive": "Somebody's still down here",
+	"todo_down": "Let them rest",
 }
 
 ## The echoes' lines, approved 2026-11-05 (each about three lines: the loop they
@@ -906,7 +913,7 @@ func start() -> void:
 	if player and not player.inventory.selected.is_connected(_on_selected):
 		player.inventory.selected.connect(_on_selected)
 	pair_puzzle.hints[2] = "type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(data.key, str(_crew_count()))
-	hud.todo(TEXT.todo_arrive)
+	hud.todo(TASK_TITLES.todo_arrive, TEXT.todo_arrive)
 	hud.notice(TEXT.arrive, 5.0)
 	_lines(["l6_arrive_pa", "l6_arrive_tease"], 0.8)
 	# The landing's reader punches every visitor in to the floor: the crew's own cards
@@ -1684,6 +1691,9 @@ func _on_solved(id: String) -> void:
 			Game.solve_case("pair", TEXT.pair_done % paired)
 			_earpieces_in()
 			_next_case()
+			# The listing opens here, at the cage: SYSOP's warm try (and its if) on this
+			# screen now, whether or not the service page by the clock has been read yet.
+			_tip("list_try", "it")
 		"list":
 			_open_case("list")
 			Game.solve_case("list", TEXT.list_done % ", ".join(PackedStringArray(_open_names())))
@@ -1719,7 +1729,7 @@ func _next_case() -> void:
 			return
 	if all_free and not stop_puzzle.solved:
 		_open_case("stop")
-		hud.todo(TEXT.todo_down)
+		hud.todo(TASK_TITLES.todo_down, TEXT.todo_down)
 
 
 ## Every machine: a paper opened a case. Only in order: case 2 waits for case 1.
@@ -1966,7 +1976,7 @@ func _on_all_free() -> void:
 		stair_gate.set_open(true)
 		if hud and is_inside_tree():
 			hud.notice(TEXT.stairs_release, 4.0)
-			hud.todo(TEXT.todo_down)
+			hud.todo(TASK_TITLES.todo_down, TEXT.todo_down)
 	if all_free and _scripts_running():
 		_tip_all("lockup")
 	# Back on the landing, the night-shifters have a question.
