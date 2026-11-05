@@ -29,6 +29,8 @@ const ROUTE := [
 	{"key": "level_4", "scene": "res://scenes/level_4.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -140))},
 	# Floor 9, down STAIR 1 from 10 the same way.
 	{"key": "level_5", "scene": "res://scenes/level_5.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -210))},
+	# B1, the cold store, down STAIR 2 from 9 the same way.
+	{"key": "level_6", "scene": "res://scenes/level_6.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -280))},
 ]
 const FIELD_NOTES := "res://scenes/field_notes.tscn"
 

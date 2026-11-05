@@ -695,6 +695,77 @@ const BOOKS := {
 			},
 		],
 	},
+	# The third in the series, found under a mug on B1's IT bench (Level 6): the deck's
+	# first scripts, in JavaScript. Title is Augustine's (2026-11-05, call 7: "Journey
+	# through JavaScript!"). Its first two chapters land on B1; functions, lists and
+	# testing come on the floor below. Pages, questions and why lines are DRAFTS until
+	# he approves them word for word: plan/approvals/l6-text.md. The examples use the
+	# garage's own job board (/jobs, the same records as Easy SQL), never the building's.
+	"journey_js": {
+		"title": "JOURNEY THROUGH JAVASCRIPT!",
+		"name": "Journey through JavaScript!",
+		"chapters": [
+			{
+				"id": "js_if",
+				"title": "A box and a fork",
+				"when": "L6, cradle card or the tech's note",
+				"required": false,
+				"words": ["let", "if"],
+				"lines": ["l6_huddle_if_1", "l6_huddle_if_2"],
+				"pages": [
+					"let\n\nA variable is a box with a name. let makes one and puts something in it.\n\nlet fee = 80;\nlet town = \"Ashford\";\n\nFrom then on, fee means 80 wherever you write it. = puts something new in the box:\n\nfee = fee + 10;\n\nNow it holds 90. Text goes in double quotes; numbers don't.",
+					"if\n\nif is a fork in the road. The test goes in round brackets; what to do goes in braces, and only happens when the test is true.\n\nif (job.paid === false) {\n  console.log(job.client + \" still owes us\");\n}\n\n=== asks \"is it the same?\" and !== asks \"is it different?\". One = puts something in a box: never use it for a test.",
+				],
+				"quiz": [
+					{"word": "let", "q": "let fee = 80; makes...",
+						"options": ["a box called fee, holding 80", "a list of 80 fees", "a test: is fee 80?"], "answer": 0, "why": "let makes a variable, a box with a name, and puts the value in it."},
+					{"word": "let", "q": "After let jobs = 3; and jobs = jobs + 1; jobs holds...",
+						"options": ["3", "4", "jobs + 1"], "answer": 1, "why": "= puts the new value in the box: 3 + 1 is 4."},
+					{"word": "let", "q": "Which puts the town Ashford in a box?",
+						"options": ["let town = Ashford;", "let town = \"Ashford\";", "let \"town\" = Ashford;"], "answer": 1, "why": "Text goes in double quotes. The box's name doesn't."},
+					{"word": "if", "q": "if (job.fee > 100) { ... } runs what's in the braces...",
+						"options": ["every time", "only when the fee is over 100", "100 times"], "answer": 1, "why": "if only does what's in the braces when its test is true."},
+					{"word": "if", "q": "Which asks \"is the town Ashford?\"",
+						"options": ["if (town = \"Ashford\")", "if (town === \"Ashford\")", "if town is Ashford"], "answer": 1, "why": "=== compares. One = would put Ashford in the box, and the test would always pass."},
+					{"word": "if", "q": "To skip the jobs that are paid, the test is...",
+						"options": ["job.paid === true", "job.paid !== true", "job.paid = false"], "answer": 1, "why": "!== means different: only the jobs that aren't paid get through."},
+				],
+			},
+			{
+				"id": "js_loops",
+				"title": "Again, and wait",
+				"when": "L6, cradle card",
+				"required": false,
+				"words": ["while", "await sleep", "console.log"],
+				"lines": ["l6_huddle_loops_1", "l6_huddle_loops_2"],
+				"pages": [
+					"while\n\nwhile does what's in its braces again and again, as long as its test is true.\n\nlet done = 0;\nwhile (done < 3) {\n  done = done + 1;\n}\n\nSomething inside has to change the test, or it never stops. while (true) never stops on its own: that's what Stop is for.",
+					"await sleep\n\nA script runs as fast as it can. await sleep(ms) makes it wait: 1000 is one second.\n\nawait sleep(1000);\n\nawait also waits for an answer: let res = await api.get(\"/jobs\");\n\nAnything that takes a moment (a reply, a printer, a van) needs a wait between tries. A loop without one asks a million times a second.",
+					"console.log\n\nconsole.log writes a line in the script's log, under the code, so you can see what it did.\n\nconsole.log(\"invoiced \" + job.client);\n\nLog what a loop does each time round. When a script goes wrong, the log is the first place to look.",
+				],
+				"quiz": [
+					{"word": "while", "q": "while (done < 3) { done = done + 1; } goes round...",
+						"options": ["once", "three times", "for ever"], "answer": 1, "why": "done counts up 0, 1, 2; at 3 the test is false and it stops."},
+					{"word": "while", "q": "A while loop never stops. The likeliest reason?",
+						"options": ["nothing inside changes its test", "it has a wait in it", "it logs too much"], "answer": 0, "why": "If the test can never turn false, the loop goes on. Count something up inside it."},
+					{"word": "while", "q": "while (true) { ... } stops when...",
+						"options": ["it's done three times", "someone presses Stop", "the test runs out"], "answer": 1, "why": "true never turns false. It runs until it's stopped."},
+					{"word": "await sleep", "q": "await sleep(2000); waits...",
+						"options": ["2 seconds", "2000 seconds", "2 tries"], "answer": 0, "why": "It counts in milliseconds: 1000 is one second, so 2000 is two."},
+					{"word": "await sleep", "q": "Where does the wait go in a loop that asks the job board again and again?",
+						"options": ["before the loop", "inside the loop, after each ask", "after the loop"], "answer": 1, "why": "Inside, so there's a pause between every ask, not just once."},
+					{"word": "await sleep", "q": "let res = await api.get(\"/jobs\"); The await...",
+						"options": ["waits for the board to answer", "makes it slower on purpose", "repeats the request"], "answer": 0, "why": "await waits for the answer before the next line runs."},
+					{"word": "console.log", "q": "console.log(\"done\") puts done...",
+						"options": ["in the script's log", "on the job board", "in a box called done"], "answer": 0, "why": "console.log writes a line in the log, under the code."},
+					{"word": "console.log", "q": "A loop does nothing you can see. What helps you find out why?",
+						"options": ["a console.log inside it", "a longer wait", "deleting it"], "answer": 0, "why": "Log what it does each time round, then read the log."},
+					{"word": "console.log", "q": "console.log(\"fee \" + fee) with fee holding 80 writes...",
+						"options": ["fee fee", "fee 80", "\"fee \" + fee"], "answer": 1, "why": "The text, then what's in the box: fee 80."},
+				],
+			},
+		],
+	},
 }
 
 

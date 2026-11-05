@@ -125,7 +125,7 @@ static func relabel(holder: Node3D, k: int, floor_name: String) -> void:
 		var at := plate.position
 		var facing := plate.rotation_degrees.y
 		plate.free()
-		label.set_meta("plate", ArtKit.landing_number(holder, at, facing, 0 if floor_name == "G" else int(floor_name)))
+		label.set_meta("plate", ArtKit.landing_number(holder, at, facing, _floor_number(floor_name)))
 
 
 ## Number every landing as if the stairs were `by` storeys further up (-3: three
@@ -146,8 +146,13 @@ static func storeys_between(from_floor: String, to_floor: String) -> int:
 	return absi(_floor_number(from_floor) - _floor_number(to_floor))
 
 
+## G is 0; basements count down from it (B1 is -1).
 static func _floor_number(floor_label: String) -> int:
-	return 0 if floor_label == "G" else int(floor_label)
+	if floor_label == "G":
+		return 0
+	if floor_label.begins_with("B"):
+		return -int(floor_label.substr(1))
+	return int(floor_label)
 
 
 ## Where the `index`th of up to six arrivals stands on the landing (in the space
@@ -195,8 +200,8 @@ static func landing_box() -> AABB:
 static func _floor_name(floor_label: String, k: int) -> String:
 	if k == 0:
 		return floor_label
-	var n := _floor_number(floor_label)
-	return "G" if n + k == 0 else str(n + k)
+	var n := _floor_number(floor_label) + k
+	return "G" if n == 0 else ("B%d" % -n if n < 0 else str(n))
 
 
 static func _k_name(k: int) -> String:
