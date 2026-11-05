@@ -606,13 +606,13 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 **[ ] `l6_huddle_each_1_block.wav`**
 
-*Starting the chapter on for ... of and db.query, on B1, after someone reads the time clock's service page. Reading off the page, a finger keeping the place. Starting a chapter. Relieved there's no counting this time. DRAFT by the Level 6 thread (2026-11-05) for Voice to rewrite and Augustine to approve.*
+*Starting the chapter on for ... of and db.query, on B1, after someone reads the time clock's service page. Reading off the page, a finger keeping the place. Starting a chapter. Relieved there's no counting this time.*
 
 "For each. Give it a list and it goes down the list for you, once each, then stops. No counting."
 
 *1 second pause*
 
-*As you finish the chapter. Glancing toward the cold half of the floor. Wrapping up. Quieter: the floor's getting to you. DRAFT by the Level 6 thread (2026-11-05).*
+*As you finish the chapter. Glancing toward the cold half of the floor. Wrapping up. Quieter: the floor's getting to you.*
 
 "One loop, every row. Give it the names and it says them. All of them."
 

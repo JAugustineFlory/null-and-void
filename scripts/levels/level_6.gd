@@ -38,9 +38,9 @@ extends LevelBase
 ##               doors, and read them back.
 ## STAIR 2 down opens once every echo is free. Every station is checked by the state
 ## the building's services are left in, never by code text. Every line players read
-## or hear is a DRAFT in plan/approvals/l6-text.md until Augustine approves it word
-## for word; WARDEN and staffer lines are drafts in VoiceLines (Voice's to rewrite),
-## and the echoes' lines play as subtitles (ECHO_LINES) until Voice places them.
+## or hear is in plan/approvals/l6-text.md, approved by Augustine word for word on
+## 2026-11-05 ("approve all"); a change here is a new draft until he OKs it. The
+## echoes' lines play as subtitles (ECHO_LINES) until Voice places them.
 ##
 ## Layout (level space, north is -z):
 ##   landing      x -4..4,   z 4..8     STAIR 2 (east wall): down from 9, and on to B2
@@ -64,7 +64,7 @@ extends LevelBase
 ## Fired once the crew is on the stairs down: the floor is done.
 signal completed
 
-## Player-facing lines, DRAFTS for Augustine's approval: plan/approvals/l6-text.md.
+## Player-facing lines, approved by Augustine 2026-11-05: plan/approvals/l6-text.md.
 ## Case titles carry the story and how the crew feels; their details (the case's
 ## objective) say what to do (Augustine 2026-11-05).
 const TEXT := {
@@ -141,7 +141,7 @@ const TEXT := {
 	"tip_lockup": "every entry's closed. the watchdogs are still holding doors open. ^T stops a script; then PATCH the doors shut and GET them back.",
 }
 
-## The echoes' lines, DRAFTS for Voice (each about three lines: the loop they
+## The echoes' lines, approved 2026-11-05 (each about three lines: the loop they
 ## whisper at their row, their story while the slip prints, their last words) and
 ## what each leaves on the shelf. Augustine voices them.
 const ECHO_LINES := {
@@ -174,7 +174,7 @@ const ECHO_LINES := {
 		"Tell her the compressors are fine. Tell her I'm coming."],
 }
 ## What each leaves behind: a paper on the shelf at their row (a memory, or a piece
-## of evidence the crew can carry out). DRAFTS.
+## of evidence the crew can carry out). Approved 2026-11-05.
 const ECHO_LEAVES := {
 	"whitlow": {"title": "Box label", "lines": [{"text": "BOX 42  -  COMPLETE", "hand": true}, {"text": "A.W.", "hand": true}]},
 	"delacroix": {"title": "Goods-in docket", "lines": ["HALCYON GOODS-IN  -  RECEIVED IN GOOD ORDER", {"text": "signed F. Delacroix", "hand": true}]},

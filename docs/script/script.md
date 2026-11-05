@@ -1332,8 +1332,8 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **CREW** `l6_huddle_each_1_block.wav`  
 *Cue: Starting the chapter on for ... of and db.query, on B1, after someone reads the time clock's service page*  
-*(Reading off the page, a finger keeping the place)* "For each. Give it a list and it goes down the list for you, once each, then stops. No counting." *Starting a chapter. Relieved there's no counting this time. DRAFT by the Level 6 thread (2026-11-05) for Voice to rewrite and Augustine to approve.* `[l6_huddle_each_1]`  
-*(As you finish the chapter. Glancing toward the cold half of the floor)* "One loop, every row. Give it the names and it says them. All of them." *Wrapping up. Quieter: the floor's getting to you. DRAFT by the Level 6 thread (2026-11-05).* `[l6_huddle_each_2]`
+*(Reading off the page, a finger keeping the place)* "For each. Give it a list and it goes down the list for you, once each, then stops. No counting." *Starting a chapter. Relieved there's no counting this time.* `[l6_huddle_each_1]`  
+*(As you finish the chapter. Glancing toward the cold half of the floor)* "One loop, every row. Give it the names and it says them. All of them." *Wrapping up. Quieter: the floor's getting to you.* `[l6_huddle_each_2]`
 
 **CREW** `l6_huddle_functions_1_block.wav`  
 *Cue: Starting the chapter on functions, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
@@ -1354,7 +1354,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, basement B1, the sample and records cold store. Later that night.**
 
-*DRAFTS by the Level 6 thread (2026-11-05), for Voice to rewrite and Augustine to approve word for word (plan/approvals/l6-text.md). Augustine's call 2c: the echoes are staff whose entries never closed, and WARDEN says the records keep them. The arrive, guard, free and tidy lines play from level_6.gd; the records lines when the open entries are found.*
+*Approved by Augustine word for word 2026-11-05 (plan/approvals/l6-text.md). Augustine's call 2c: the echoes are staff whose entries never closed, and WARDEN says the records keep them. The arrive, guard, free and tidy lines play from level_6.gd; the records lines when the open entries are found.*
 
 **WARDEN** `l6_arrive_pa_block.wav`  
 *Cue: As the crew steps off the landing into the hall, the first lock drops down the corridor*  
@@ -1385,7 +1385,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, basement B1, the stair landing. Later that night.**
 
-*DRAFTS by the Level 6 thread (2026-11-05), for Voice to rewrite and Augustine to approve (plan/approvals/l6-text.md). Augustine's call 5b: the night-shifters wait on the landing, and Ines recognises Whitlow's initials when someone reads the card rack.*
+*Approved by Augustine word for word 2026-11-05 (plan/approvals/l6-text.md). Augustine's call 5b: the night-shifters wait on the landing, and Ines recognises Whitlow's initials when someone reads the card rack.*
 
 **INES** `l6_ines_arrive.wav`  
 *Cue: On the landing, as the crew arrives on B1 and before anyone goes into the cold store*  
