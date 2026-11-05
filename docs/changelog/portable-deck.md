@@ -1,0 +1,1 @@
+- **Added:** portable decks. Each of the crew can take one on floor 10 and carry it: it sits on your hotbar, and taking it out shows it in your hands.
