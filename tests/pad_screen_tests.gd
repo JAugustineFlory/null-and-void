@@ -27,6 +27,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	InputGlyphs.pad = false
 	level.queue_free()
 	await t.process_frame
+	await test_freed_screens()
 
 
 func check(cond: bool, name: String) -> void:
@@ -175,3 +176,28 @@ func test_notebook(level: Node, p: Node) -> void:
 	await tap(JOY_BUTTON_B)
 	await frames(5)
 	check(not nb.is_open(), "B puts the notebook away")
+
+
+## The device watcher outlives every level: a notebook or terminal that's gone
+## leaves nothing listening on it, so switching keyboard and pad afterwards is quiet.
+func test_freed_screens() -> void:
+	print("Controller: screens that are gone stop listening for the device")
+	await t.process_frame
+	var watch := InputGlyphs.watch(t.root)
+	var before := watch.changed.get_connections().size()
+	var pages := NotebookPages.new()
+	var ui := TerminalUI.new()
+	t.root.add_child(pages)
+	t.root.add_child(ui)
+	await t.process_frame
+	check(watch.changed.get_connections().size() == before + 2, "an open notebook and terminal each listen for the device")
+	pages.free()
+	ui.free()
+	check(watch.changed.get_connections().size() == before, "once they're gone, neither is still listening")
+	var pad_press := InputEventJoypadButton.new()
+	pad_press.pressed = true
+	var key_press := InputEventKey.new()
+	key_press.pressed = true
+	for e: InputEvent in [pad_press, key_press]:
+		InputGlyphs.saw(e)
+	check(not InputGlyphs.pad, "and switching to the pad and back after that raises no errors (see the SCRIPT ERROR check)")

@@ -89,6 +89,7 @@ var _pad_button: BaseButton
 var _pad_ring: Panel
 ## The corner hint; names the pad's button while a pad is in use.
 const CLOSE_HINT := "%s to close"
+var _close_hint: Label
 ## The co-op notes huddle; found from the level when left unset.
 var huddle: NotesHuddle
 ## On screen (the Notebook is open): an answer just found is written in when its
@@ -143,10 +144,17 @@ func _ready() -> void:
 		close_hint.name = "CloseHint"
 		close_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 		footer.add_child(close_hint)
-		var name_close := func(_pad := false): close_hint.text = CLOSE_HINT % InputGlyphs.of("notebook")
-		name_close.call()
-		InputGlyphs.watch(self).changed.connect(name_close)
+		_close_hint = close_hint
+		_name_close()
+		# A method, not a lambda: the watcher outlives the notebook, and a method's
+		# connection goes when the notebook does.
+		InputGlyphs.watch(self).changed.connect(_name_close)
 	refresh()
+
+
+func _name_close(_pad := false) -> void:
+	if is_instance_valid(_close_hint):
+		_close_hint.text = CLOSE_HINT % InputGlyphs.of("notebook")
 
 
 ## Spreads that aren't on the pages have no parent, so nothing else frees them.

@@ -15,9 +15,10 @@ extends Node
 ## Big entities can't be blocked: only causes marked "block" can.
 ##
 ## At 0 health you go down. With teammates you lie there until one helps you up
-## (E), or until you bleed out and come to at the checkpoint. If the whole crew
-## is down, the level decides what happens (CrewVitals). Solo, the crew is just
-## you, so going down is the same as the whole crew going down.
+## (E). Left down too long, you pass out: still on the floor, and a teammate can
+## still help you up, only it takes them longer (CrewVitals). If the whole crew is
+## down or out, the level decides what happens (CrewVitals). Solo, the crew is
+## just you, so going down is the same as the whole crew going down.
 
 signal blocked(cause: String)
 ## The guard went up (right mouse): for the first-person arms to raise. It stays
@@ -43,14 +44,19 @@ const REGEN_DELAY := 8.0
 const REGEN_RATE := 5.0
 ## What a teammate helping you up leaves you with.
 const REVIVE_HEALTH := 50.0
-## Down with nobody coming: you come to at the checkpoint after this long.
-const BLEED_OUT := 45.0
+## Down with nobody coming: you pass out after this long. Long enough for a
+## teammate a floor away to come back up the stairs for you (Augustine, 2026-11-05).
+const BLEED_OUT := 90.0
+## How dark it gets for you while you're passed out.
+const OUT_DIM := 0.82
 ## Eye height while you lie on the floor.
 const DOWN_EYE := 0.3
 ## How far up a throw sends you, on top of its push.
 const THROW_LIFT := 3.5
 ## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
 const DOWN_NOTICE := "You're down. Hang on for your crew."
+## DRAFT, waiting for Augustine's word-for-word approval.
+const OUT_NOTICE := "You've passed out. Your crew can still help you up."
 const BLOCK_NOTICE := "Blocked"
 ## Feeling a hit land (Augustine's garage playtest): the view shakes and you're
 ## pushed back a step. A block is the same, softer. Shake is 0..1 trauma; the
@@ -68,6 +74,8 @@ var player: Node  # the Player (untyped: tests load this script)
 var crew: Node
 var guard := Guard.new()
 var down := false
+## Down for longer than BLEED_OUT: passed out, still waiting for the crew.
+var unconscious := false
 var down_cause := ""
 var bleed_left := 0.0
 ## Whatever has hold of you (a Custodian), or null.
@@ -76,6 +84,9 @@ var grabbed_by: Node3D
 var thrown := false
 ## The "Blocked" flash under the crosshair (local player only).
 var bar: BlockFlash
+## Darkens your view while you're passed out (local player only).
+var _dim: ColorRect
+var _dim_tween: Tween
 
 var _clock := 0.0
 var _since_hurt := 100.0
@@ -190,13 +201,14 @@ func go_down(cause: String) -> void:
 		die()
 
 
-## A teammate helped you up.
-func revive() -> void:
+## A teammate helped you up, to `health` (a first-aid kit: MAX_HEALTH).
+func revive(health: float = REVIVE_HEALTH) -> void:
 	if not down:
 		return
 	down = false
 	down_cause = ""
-	player.health = REVIVE_HEALTH
+	_wake()
+	player.health = clampf(health, 1.0, MAX_HEALTH)
 	_since_hurt = 0.0
 	if player.has_method("get_up"):
 		player.get_up()
@@ -206,6 +218,16 @@ func revive() -> void:
 	got_up.emit()
 
 
+## Patched up (a first-aid kit on yourself): back to full health. Not while down:
+## a teammate has to bring you round (CrewVitals.revive).
+func heal_full() -> void:
+	if down:
+		return
+	player.health = MAX_HEALTH
+	if player.hud:
+		player.hud.damage_flash(player.health)
+
+
 ## Out for real: back to the checkpoint, through the level's usual death.
 func die() -> void:
 	var was_down := down
@@ -213,6 +235,7 @@ func die() -> void:
 	thrown = false
 	down = false
 	down_cause = ""
+	_wake()
 	player.health = 0.0
 	_lock(false)  # the level's own death fade locks and unlocks from here
 	if was_down and crew:
@@ -228,8 +251,52 @@ func reset() -> void:
 	down_cause = ""
 	_since_hurt = 100.0
 	shake = 0.0
+	_wake()
 	_lock(false)
 	guard = Guard.new()
+
+
+## Down too long: you pass out where you lie. Your crew can still help you up
+## (more slowly); if they're all down or out too, the level decides.
+func pass_out() -> void:
+	if not down or unconscious:
+		return
+	unconscious = true
+	bleed_left = 0.0
+	if player.hud:
+		player.hud.notice(OUT_NOTICE, 6.0)
+		_darken(true)
+	if crew:
+		crew.report_unconscious()
+
+
+func _wake() -> void:
+	unconscious = false
+	_darken(false)
+
+
+## The view goes dark while you're out (under the HUD's words, so the notice shows).
+func _darken(on: bool) -> void:
+	if not on and _dim == null:
+		return
+	var hud = player.get("hud")
+	if hud == null:
+		return
+	if _dim == null:
+		_dim = ColorRect.new()
+		_dim.name = "OutDim"
+		_dim.color = Color(0, 0, 0, 0)
+		_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var under = hud.get("_damage")
+		if under is Control:
+			under.add_sibling(_dim)
+		else:
+			hud.add_child(_dim)
+	if _dim_tween:
+		_dim_tween.kill()
+	_dim_tween = _dim.create_tween()
+	_dim_tween.tween_property(_dim, "color:a", OUT_DIM if on else 0.0, 2.0 if on else 0.4)
 
 
 ## Something big picked you up and threw you away from `from`: `damage` (can't be
@@ -328,10 +395,10 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_since_hurt += delta
 	if down:
-		if crew and crew.is_online():
+		if crew and crew.is_online() and not unconscious:
 			bleed_left -= delta
 			if bleed_left <= 0.0:
-				die()
+				pass_out()
 		return
 	if player.health > 0.0 and player.health < MAX_HEALTH and _since_hurt > REGEN_DELAY:
 		player.health = minf(MAX_HEALTH, player.health + REGEN_RATE * delta)
