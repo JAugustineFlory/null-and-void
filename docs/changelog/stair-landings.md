@@ -1,0 +1,1 @@
+- **Added:** A few landings on the long stair walks hold something worth stopping for, if you look around. One of them is a first-aid kit: one use, on yourself or on a teammate who's down.

@@ -167,15 +167,18 @@ func _host_revive(id: int, by: int, health: float = PlayerCombat.REVIVE_HEALTH, 
 	if unconscious.has(id) and not instant:
 		_run("_begin_revive", [id, by])
 	else:
-		_run("_revived", [id, health])
+		_run("_revived", [id, health, by if instant else 0])
 
 
-func _revived(id: int, health: float = PlayerCombat.REVIVE_HEALTH) -> void:
+## `kit_by`: who brought them round with a first-aid kit (0: a hand up).
+func _revived(id: int, health: float = PlayerCombat.REVIVE_HEALTH, kit_by: int = 0) -> void:
 	_set_down(id, false, "")  # (ends any revive in progress)
 	if id == my_id():
 		var c := _local_combat()
 		if c:
 			c.revive(health)
+	if kit_by != 0:
+		FirstAidCabinet.patched(self, id, kit_by)
 
 
 # --- Passing out --------------------------------------------------------------

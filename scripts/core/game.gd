@@ -37,6 +37,8 @@ var watcher_sealed := false
 ## Did the players lock the Custodian out in its bay on floor 10 (Level 4)? If not,
 ## it can come back on later floors.
 var custodian_sealed := false
+## STAIR 1's first-aid cabinet on landing 5 (FirstAidCabinet): "", "open" or "taken".
+var first_aid := ""
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
 var cam_lie_learned := false
 ## The level the Field Notes screen is summarizing, and where "Continue" goes.
@@ -125,6 +127,7 @@ func new_run(seed_value: int = -1) -> void:
 	visitor_badge_no = ""
 	watcher_sealed = false
 	custodian_sealed = false
+	first_aid = ""
 	cam_lie_learned = false
 	completed_level = ""
 	next_level = ""

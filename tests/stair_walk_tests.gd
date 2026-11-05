@@ -19,6 +19,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_coop_world()
 	await test_coop_downed()
 	await test_mantle_round_the_turn()
+	await test_landing_extras()
+	await test_first_aid_coop()
 
 
 func _game() -> Node:
@@ -64,6 +66,7 @@ func test_world_trips() -> void:
 	var r: Dictionary = await _trip(world, p, l2.stair_door, l3.stair_in, true)
 	_check.call(r.ok, "22 to 18: a real body opens 22's stair door, walks down the flights and out through 18's door %s" % [r])
 	_check.call(r.passed == ["21", "20", "19"], "on the way it walks past 21, 20 and 19, each landing numbered (%s)" % [r.passed])
+	_check.call(r.extras == ["TourCard on 20"], "on 20, a night guard's tour card lies on the landing (%s)" % [r.extras])
 	times.append(["22", "18", 4, r.secs])
 	_check.call(r.fade == 0.0 and r.handed and world.current == l3 and l3.active, "nothing fades, and the floor hands over once everyone's on 18's landing")
 	_check.call(_game().completed_level == "level_2" and _game().next_level == "level_3" and root_net().profile.earned.has("achievement:floor_22"), "floor 22 is complete and earns its unlock")
@@ -84,6 +87,7 @@ func test_world_trips() -> void:
 	r = await _trip(world, p, l4.stair_out, l4.g_stair, true)
 	_check.call(r.ok and r.fade == 0.0 and l4.on_ground and world.current == l4, "10 to G: down the stairs and out by the lifts on G, no fade %s" % [r])
 	_check.call(r.passed == ["9", "8", "7", "6", "5", "4", "3", "2", "1"], "past every floor from 9 to 1 (%s)" % [r.passed])
+	_check.call(r.extras == ["FirstAidCabinet on 5", "MercerSticky on 4"], "the first-aid cabinet on 5, and a sticky under 4's plate (%s)" % [r.extras])
 	times.append(["10", "G", 10, r.secs])
 	# G up to 9: locked in at the front, back up STAIR 1.
 	l4.prepare_next()
@@ -94,6 +98,7 @@ func test_world_trips() -> void:
 	r = await _trip(world, p, l4.g_stair, l5.stair_in, false)
 	_check.call(r.ok and r.fade == 0.0 and world.current == l5 and l5.active, "G up to 9: up the stairs and out on 9, no fade %s" % [r])
 	_check.call(r.passed == ["1", "2", "3", "4", "5", "6", "7", "8"], "past every floor from 1 to 8 (%s)" % [r.passed])
+	_check.call(r.extras == ["MercerSticky on 4", "FirstAidCabinet on 5"], "back up STAIR 1, the same sticky on 4 and cabinet on 5 (%s)" % [r.extras])
 	times.append(["G", "9", 9, r.secs])
 	_check.call(_game().completed_level == "level_4" and _game().next_level == "level_5", "floor 10 is complete, floor 9 is next")
 	for t in times:
@@ -356,3 +361,112 @@ func test_mantle_round_the_turn() -> void:
 	level.queue_free()
 	await _frames(5)
 
+
+
+## What's on landings 20, 5 and 4, word for word (plan/approvals/stair-landings.md),
+## and the first-aid cabinet: opened, the kit taken, empty on the next trip past,
+## and the kit patching up whoever holds it.
+func test_landing_extras() -> void:
+	print("Stairs: the tour card on 20, the first-aid cabinet on 5, the sticky on 4")
+	_game().new_run(25)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	_tree.root.add_child(level)
+	await _frames(20)
+	var p: Player = level.player
+	p.local_control = false
+	var well: Node3D = Stairwell.of(level.stair_out)
+	var card: Document = well.get_node("TourCard")
+	var text := card.plain_text()
+	var card_ok := true
+	for line in ["HALCYON TOWER SECURITY - NIGHT TOUR CARD",
+			"Punch the station clock at every stop on your round. Every stop, every hour. No punch, no round.",
+			"Officer: R. Devlin", "Badge: G-0127", "Date: WED 10/15", "Shift: nights",
+			"22  Lab corridor  19:02  20:01  21:03  22:04", "18  Stacks  19:21  20:22  21:24  ",
+			"IF FOUND, RETURN TO THE guards DESK, GROUND FLOOR.", "turn the radio DOWN in the stacks. trust me."]:
+		card_ok = card_ok and text.contains(line)
+	var hand: Array = card.lines().filter(func(l): return l.hand or l.has("filled")).map(func(l): return l.get("filled", l.text))
+	_check.call(card_ok and card.flat and hand == ["R. Devlin", "G-0127", "WED 10/15", "nights", "guards", "turn the radio DOWN in the stacks. trust me."], "the tour card reads as approved, printed with the blanks and the scribble in hand (%s)" % [hand])
+	var sticky: Document = well.get_node("MercerSticky")
+	_check.call(sticky.look == "sticky" and sticky.plain_text() == "MON 10/13. Stairs again. The lifts keep a log.\n- H.M." and sticky.lines().all(func(l): return l.hand), "Mercer's sticky: dated, signed H.M., in his hand")
+	# Landing 5: the landing below 10's, counted as 5.
+	var cab: FirstAidCabinet = well.get_node("FirstAidCabinet")
+	Stairwell.count_storeys(well, -4)
+	await _frames(2)
+	_check.call(cab.visible and Stairwell.landing_for(well, "5") == -1, "counted down to 5, the cabinet is on that landing")
+	_check.call(cab.get_prompt(p) == "[E] Open the first-aid cabinet" and cab._seal.visible and cab.find_child("Sticker", true, false).text == "FIRST AID.\nBREAK SEAL IN AN EMERGENCY.", "sealed, with its sticker: E opens it")
+	cab.interact(p)
+	await _frames(2)
+	_check.call(cab.get_prompt(p) == "[E] Take the first-aid kit" and not cab._seal.visible and cab._kit.visible and not p.inventory.has(FirstAidCabinet.ITEM), "open: the seal's broken and the kit's on the shelf")
+	cab.interact(p)
+	await _frames(2)
+	_check.call(p.inventory.has(FirstAidCabinet.ITEM) and Inventory.item_name(FirstAidCabinet.ITEM) == "First-aid kit" and Inventory.ITEMS[FirstAidCabinet.ITEM].about == "Bandages, gauze, smelling salts. One use: you, or a teammate who's down.", "E again takes the first-aid kit")
+	_check.call(cab.get_prompt(p) == "Empty. Someone's already taken the kit." and not cab._kit.visible, "and then it's empty")
+	# The way back up from G passes the same cabinet, on G's stairs.
+	var g_well: Node3D = Stairwell.of(level.g_stair)
+	var g_cab: FirstAidCabinet = g_well.get_node("FirstAidCabinet")
+	Stairwell.count_storeys(g_well, 4)
+	await _frames(2)
+	_check.call(g_cab.visible and g_cab.get_prompt(p) == "Empty. Someone's already taken the kit." and not g_cab._kit.visible and not g_cab._seal.visible, "on the way back up from G, it's the same cabinet: open and empty")
+	# The kit in your hands: attack patches you up, once.
+	_hold(p, FirstAidCabinet.ITEM)
+	p.health = PlayerCombat.MAX_HEALTH
+	_check.call(FirstAidCabinet.use_on_self(p) and p.inventory.has(FirstAidCabinet.ITEM), "unhurt, the kit stays in the bag")
+	p.health = 35.0
+	_check.call(FirstAidCabinet.use_on_self(p) and p.health == PlayerCombat.MAX_HEALTH and not p.inventory.has(FirstAidCabinet.ITEM) and p.inventory.active_item() == "", "hurt, it patches you up to full and it's gone")
+	_check.call(level.hud._notice.text == "Patched up. The kit's used up.", "\"Patched up. The kit's used up.\"")
+	_check.call(not FirstAidCabinet.use_on_self(p), "with empty hands, attack is a punch again")
+	level.queue_free()
+	await _frames(5)
+
+
+## Co-op: E on a downed teammate with the kit in your hands brings them round at
+## once, to full health, even passed out; both hear who patched up whom.
+func test_first_aid_coop() -> void:
+	print("Stairs: co-op, the first-aid kit on a teammate who's down")
+	_game().new_run(26)
+	var worlds: Array = await _tree._coop_worlds(1)
+	var machines: Array = await _tree._coop_load(worlds, "res://scenes/level_4.tscn")
+	var host = machines[0]
+	var client = machines[1]
+	var client_id: int = _tree.get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var hp: Player = host.player
+	var cp: Player = client.player
+	var crew: CrewVitals = CrewVitals.of(host)
+	await _frames(20)
+	# The client takes the kit (their press goes to the host).
+	var cab: FirstAidCabinet = Stairwell.of(client.stair_out).get_node("FirstAidCabinet")
+	cab.interact(cp)
+	_check.call(await _until(func(): return FirstAidCabinet.state() == FirstAidCabinet.OPENED, 120), "a client opens the cabinet, through the host")
+	cab.interact(cp)
+	_check.call(await _until(func(): return FirstAidCabinet.state() == FirstAidCabinet.TAKEN, 120), "and takes the kit")
+	var puppet: Node3D = host.players.puppet(client_id)
+	var downed := func():
+		cp.combat.go_down("test")
+		return await _until(func(): return crew.downed.has(client_id), 120)
+	_check.call(await downed.call(), "the client goes down")
+	hp.inventory.add(FirstAidCabinet.ITEM)
+	_hold(hp, "")
+	var usual: String = puppet.get_prompt(hp)
+	_hold(hp, FirstAidCabinet.ITEM)
+	_check.call(usual == "[E] Help them up" and puppet.get_prompt(hp) == "[E] Patch them up with the first-aid kit", "the usual hand up; with the kit in your hands, patch them up (%s)" % usual)
+	puppet.interact(hp)
+	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health == PlayerCombat.MAX_HEALTH, 120), "they're up, at full health")
+	var them: String = root_net().display_name(client_id)
+	var me: String = root_net().display_name(1)
+	_check.call(host.hud._notice.text == "You patched up %s. The kit's used up." % them and client.hud._notice.text == "%s patched you up." % me, "\"You patched up %s...\" for the host, \"%s patched you up.\" for them (%s / %s)" % [them, me, host.hud._notice.text, client.hud._notice.text])
+	_check.call(not hp.inventory.has(FirstAidCabinet.ITEM), "the kit's used up")
+	# Passed out: the kit brings them round at once, not after a long hand up.
+	_check.call(await downed.call(), "down again")
+	client.get_node("Crew").report_unconscious()
+	_check.call(await _until(func(): return crew.unconscious.has(client_id), 120), "and passed out")
+	hp.inventory.add(FirstAidCabinet.ITEM)
+	_hold(hp, FirstAidCabinet.ITEM)
+	puppet.interact(hp)
+	_check.call(await _until(func(): return not CrewVitals.is_down(cp), int(CrewVitals.OUT_REVIVE_TIME * 30)), "the kit brings them straight round, well inside a hand up's %d s" % int(CrewVitals.OUT_REVIVE_TIME))
+	await _tree._coop_close(worlds)
+
+
+## Put `item` in `p`'s hands ("" for empty hands).
+func _hold(p: Player, item: String) -> void:
+	if p.inventory.active_item() != item:
+		p.inventory.use_slot(p.inventory.hotbar.find(item) if item != "" else p.inventory.active)

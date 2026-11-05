@@ -89,7 +89,7 @@ static func build(level: Node3D, geo: Node3D, at: Vector3, yaw_deg: float, floor
 		if k != 0:
 			_copy_door(holder, y0)
 	if stair == "STAIR 1":
-		add_extra(holder, "13", _taped_plate())  # (Augustine, 2026-11-05: an oddity on 13)
+		_add_landing_extras(holder)
 
 	var door := Door.create(level, "%s-%s" % [stair.replace(" ", "-"), floor_label], holder.transform * Vector3(0, DOOR_H / 2.0, 0), Vector3(DOOR_W, DOOR_H, 0.08))
 	door.rotation_degrees.y = yaw_deg
@@ -147,11 +147,12 @@ static func count_storeys(holder: Node3D, by: int) -> void:
 ## Something that belongs on floor `floor_name`'s landing in this stairwell (a
 ## dropped card, a first-aid cabinet), built as if that landing were this floor's
 ## own (y 0): it stands on whichever landing is numbered `floor_name` right now
-## (count_storeys), and is put away while none is.
+## (count_storeys), and is put away while none is. `node` can already be in `holder`.
 static func add_extra(holder: Node3D, floor_name: String, node: Node3D) -> Node3D:
 	node.set_meta("extra_floor", floor_name)
 	node.set_meta("extra_y", node.position.y)
-	holder.add_child(node, true)
+	if node.get_parent() == null:
+		holder.add_child(node, true)
 	var extras: Array = holder.get_meta("extras", [])
 	extras.append(node)
 	holder.set_meta("extras", extras)
@@ -171,8 +172,8 @@ static func landing_for(holder: Node3D, floor_name: String) -> Variant:
 
 static func _place_extras(holder: Node3D) -> void:
 	for node in holder.get_meta("extras", []):
-		if not is_instance_valid(node):
-			continue
+		if not is_instance_valid(node) or node.get_parent() != holder:
+			continue  # (a paper someone has picked up goes where they go)
 		var k = landing_for(holder, node.get_meta("extra_floor"))
 		var here: bool = k != null
 		node.visible = here
@@ -349,6 +350,50 @@ static func _copy_door(holder: Node3D, y0: float) -> void:
 	led.material_override = red
 	led.position = Vector3(0, 0.04, -0.025)
 	reader.add_child(led)
+
+
+## What's on STAIR 1's landings, whichever floor's stairs they're walked on
+## (plan/approvals/stair-landings.md, approved by Augustine 2026-11-05, word for word).
+static func _add_landing_extras(holder: Node3D) -> void:
+	add_extra(holder, "20", _tour_card(holder))
+	add_extra(holder, "13", _taped_plate())  # (Augustine, 2026-11-05: an oddity on 13)
+	# The first-aid cabinet, on the wall across from the plate.
+	add_extra(holder, "5", FirstAidCabinet.make(Vector3(INNER - FirstAidCabinet.SIZE.z / 2.0, 1.45, -1.1), -90.0))
+	add_extra(holder, "4", _mercer_sticky(holder))
+
+
+## Landing 20 (22 down to 18): a night guard's tour card, dropped face up by the
+## door. His badge is the night patrol's on floor 18's door log.
+static func _tour_card(holder: Node3D) -> Node3D:
+	var card := Document.place(holder, Vector3(-0.95, 0.012, -0.55), 160.0, "Night tour card", [
+		"HALCYON TOWER SECURITY - NIGHT TOUR CARD",
+		"Punch the station clock at every stop on your round. Every stop, every hour. No punch, no round.",
+		{"before": "Officer: ", "filled": "R. Devlin"},
+		{"before": "Badge: ", "filled": "G-0127"},
+		{"before": "Date: ", "filled": "WED 10/15"},
+		{"before": "Shift: ", "filled": "nights"},
+		{"columns": ["Stop", "1st", "2nd", "3rd", "4th"], "widths": [3.0, 1.2, 1.2, 1.2, 1.2]},
+		{"row": ["22  Lab corridor", "19:02", "20:01", "21:03", "22:04"]},
+		{"row": ["20  Stair landing", "19:09", "20:08", "21:10", "22:11"]},
+		{"row": ["18  Records desk", "19:15", "20:14", "21:17", "22:19"]},
+		{"row": ["18  Stacks", "19:21", "20:22", "21:24", ""]},
+		{"before": "IF FOUND, RETURN TO THE ", "filled": "guards", "after": " DESK, GROUND FLOOR."},
+		{"text": "turn the radio DOWN in the stacks. trust me.", "hand": true},
+	], true, "paper")
+	card.name = "TourCard"
+	return card
+
+
+## Landing 4 (G up to 9): a yellow sticky stuck under the landing's number plate,
+## in Mercer's hand and signed like his note on 18.
+static func _mercer_sticky(holder: Node3D) -> Node3D:
+	# Just under the plate's bottom edge (ArtKit.landing_number, on the -x wall), facing +x.
+	var note := Document.place(holder, Vector3(-INNER + 0.015, 1.13, -0.86), 90.0, "Sticky note", [
+		{"text": "MON 10/13. Stairs again. The lifts keep a log.", "hand": true, "author": "mercer"},
+		{"text": "- H.M.", "hand": true, "author": "mercer"},
+	], false, "sticky")
+	note.name = "MercerSticky"
+	return note
 
 
 ## Floor 13's plate on STAIR 1, with masking tape over its number and "12A"
