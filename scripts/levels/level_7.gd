@@ -360,7 +360,7 @@ func _build_office(colors: Dictionary) -> void:
 	var sticky := Document.place(geo, Vector3(13.1, 1.003, -2.6), -90, "Key sticky", [{"text": KEY_STICKY % data.key, "hand": true}], true, "sticky")
 	sticky.name = "KeySticky"
 	sticky.clues = [{"case": "token", "text": "Under the admin's keyboard: B2's service key, %s (lights, lifts)." % data.key}]
-	var runbook := Document.place(geo, Vector3(13.88, 1.6, -1.6), -90, "Runbook page", _runbook(), false, "paper", Vector2(0.21, 0.3))
+	var runbook := Document.place(geo, Vector3(13.88, 1.6, -1.6), 90, "Runbook page", _runbook(), false, "paper", Vector2(0.21, 0.3))
 	runbook.name = "Runbook"
 	runbook.clues = [{"case": "token", "opens": TEXT.case_token, "text": "The runbook: POST /auth/token {\"key\": ...} trades the key for a token. Then every request sends Authorization: Bearer <token>. Tokens run out; the page's example is long dead."}]
 	runbook.read_by.connect(func(_p): sync.event("_ask", ["token"]))
@@ -395,7 +395,7 @@ func _build_office(colors: Dictionary) -> void:
 	card.name = "BenchCard"
 	card.clues = [{"case": "restore", "text": "The test bench mocks B2's lighting: the same paths and zone ids, its own fake floor, dark at the start of every run. It counts every assert() that passes."}]
 	card.read_by.connect(func(_p): sync.event("_book_huddle", ["js_testing"]))
-	var printout := Document.place(geo, Vector3(11.2, 1.6, -5.92), 0, "Admin's printout", _printout(), false, "paper", Vector2(0.21, 0.3))
+	var printout := Document.place(geo, Vector3(11.2, 1.6, -5.92), 180, "Admin's printout", _printout(), false, "paper", Vector2(0.21, 0.3))
 	printout.name = "Printout"
 	printout.clues = [{"case": "restore", "opens": TEXT.case_restore, "text": "The admin's function: async function restore(zone) GETs a zone and PATCHes it on if it's dark. It never hands its answer back, so the test after it fails."}]
 	printout.read_by.connect(func(_p):
@@ -442,7 +442,7 @@ func _build_ring() -> void:
 		{"wall": "s", "at": 0.0, "width": 1.2, "height": 2.2},
 	])
 	closet_door = add_door("B2-NETCL", Vector3(-8, 1.1, -9), Vector3(1.2, 2.2, 0.12))
-	Greybox.label(geo, Vector3(-8, 2.45, -8.88), "NETWORK CLOSET", 22, Color(0.8, 0.8, 0.75), 180)
+	Greybox.label(geo, Vector3(-8, 2.45, -8.88), "NETWORK CLOSET", 22, Color(0.8, 0.8, 0.75), 0)
 	for x in [-10.2, -9.2]:
 		Greybox.box(geo, Vector3(x, 1.0, -14.4), Vector3(0.8, 2.0, 0.8), Color(0.15, 0.16, 0.18), "PatchRack")
 	Greybox.box(geo, Vector3(-5.6, 1.2, -12.5), Vector3(0.4, 0.8, 1.0), Color(0.3, 0.3, 0.28), "LightingController")
