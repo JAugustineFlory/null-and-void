@@ -1,6 +1,6 @@
 # Recording list
 
-1250 recordings in all, 1577 lines.
+1268 recordings in all, 1604 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -305,6 +305,87 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l6_tomas_arrive` | "Twenty years in payroll and I've never been down here. Now I know why. Don't go in the freezers alone." | Flat, practical. You've heard the stories about this place. | Level 6 |
 | [ ] | `l6_tomas_whitlow` | "Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing." | Dry. You've seen the ledger line and never thought about it until now. | Level 6 |
 | [ ] | `l6_tomas_after` | "They're clocked out. All of them. First honest line in that ledger in twenty years." | Flat, then not quite flat. | Level 6 |
+
+## Agnes Whitlow (2 recordings, 3 lines)
+
+> Precise, a little fussy, kind. A woman who has never left a job half done. Whispered, as if not to disturb anyone. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_whitlow_loop` | "Box forty-one. No, forty-two. They'll want it by morning." | Counting under your breath, correcting yourself. On a loop. | Level 6 |
+| [ ] | `l6_echo_whitlow_story_block` | "They moved the old files down in eighty-two. I said I'd finish the boxes before I went home. The door was heavy, and the light went out, and I thought, I'll just finish this row." "I finished the row. I can go home now." | Quietly, telling it plainly for the first time. No self-pity. Relief. A little surprised it was that simple. | Level 6 |
+
+## Frank Delacroix (2 recordings, 3 lines)
+
+> Big, slow, tired voice. A man at the end of a long shift who only wants to sign off. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_delacroix_loop` | "Last trolley. Then I'm done. Last trolley." | Worn out, promising yourself. On a loop. | Level 6 |
+| [ ] | `l6_echo_delacroix_story_block` | "Nights on goods-in. Bring it down, sign it in, shut the door behind you. I signed it in. I don't remember the door." "Tell my brother I signed it in." | Steady, working it out as you say it. The last sentence slows down. Warm. The one thing that matters. | Level 6 |
+
+## Mary-Beth Cole (2 recordings, 3 lines)
+
+> Sharp, indignant, stubborn. Someone who checks her own work twice and won't be told it's wrong. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_cole_loop` | "That's not the label I wrote. That's not my label." | Angry under your breath, staring at it. On a loop. | Level 6 |
+| [ ] | `l6_echo_cole_story_block` | "The samples came back relabelled. Same jars, new numbers, new dates. I asked who changed them and they said nobody did. So I came down to check the originals." "The originals are in the third tray. Somebody should look." | Indignant, building. Still sure she's right. Urgent, then letting go. Handing it over. | Level 6 |
+
+## Osei Mensah (2 recordings, 3 lines)
+
+> Steady, proud, measured. A man who keeps his round to the minute and signs his name like it means something. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_mensah_loop` | "Round's at three. Round's at three. Round's at..." | Calm, a habit. Trails off each time. On a loop. | Level 6 |
+| [ ] | `l6_echo_mensah_story_block` | "Every night at three I walked the vaults and signed the sheet. One night the sheet was already signed. My name. My writing. I came down to see who'd done it." "It was a good round. It was always a good round." | Measured, then quieter at 'My name. My writing.' Proud, at peace. | Level 6 |
+
+## Ruth Abernathy (2 recordings, 3 lines)
+
+> Gentle, warm, wistful. Talks about film the way other people talk about family. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_abernathy_loop` | "Mind the reels. Mind the reels, they're old." | Soft, protective. On a loop. | Level 6 |
+| [ ] | `l6_echo_abernathy_story_block` | "Film has to be kept cold, or it eats itself. I loved that. Something you look after, so it can remember for you." "Run the old reels sometime. Somebody should see them." | Fond, smiling as you say it. Hopeful, a request between friends. | Level 6 |
+
+## Gene Tolliver (2 recordings, 3 lines)
+
+> Exasperated, practical, dry. A tradesman who has filled in the same form one time too many. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_tolliver_loop` | "Release handle's sticking. I've reported it. I have reported it." | Muttering, fed up. On a loop. | Level 6 |
+| [ ] | `l6_echo_tolliver_story_block` | "Three times I put the ticket in for the inside handle on Vault C. Three times they said next quarter. So I came in on a Sunday to fix it myself." "Next quarter. Tell them it's next quarter." | Dry, counting the times off. Not angry any more. Bitter, then almost a laugh. | Level 6 |
+
+## Lena Sorokina (2 recordings, 3 lines)
+
+> Quick, nervous, defensive. Someone who never asked questions because she was told not to. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_sorokina_loop` | "Sign here. And here. And here." | Hurried, holding out a clipboard. On a loop. | Level 6 |
+| [ ] | `l6_echo_sorokina_story_block` | "I carried the cases between floors. I never knew what was in them; they said it was better that way. That night the case was warm, and everything else was cold." "I never opened it. I want somebody to know I never opened it." | Quick at first, then slowing down at 'That night'. Pleading, then calm once it's said. | Level 6 |
+
+## Paul Fenner (2 recordings, 3 lines)
+
+> Young, eager, anxious. A temp in his first week who wants to get everything right. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_fenner_loop` | "First week. First week. Don't ask, just do it." | Muttering to keep yourself going. On a loop. | Level 6 |
+| [ ] | `l6_echo_fenner_story_block` | "I was a temp. First week. They told me to bring a box down and not to read it. I didn't read it. But my own name was on the side." "I'd only been here a week." | Earnest, then quiet at the last sentence. Small. Not complaining, just saying it. | Level 6 |
+
+## Yusuf Haddad (2 recordings, 3 lines)
+
+> Calm, quiet, fatherly. A man who keeps a machine steady the way he'd rock a baby to sleep. Record dry and close: the game adds the cold-store echo.
+
+| Done | File | Lines | Direction | Where |
+|---|---|---|---|---|
+| [ ] | `l6_echo_haddad_loop` | "Minus twenty-five. Hold it at minus twenty-five." | Calm, almost a lullaby. On a loop. | Level 6 |
+| [ ] | `l6_echo_haddad_story_block` | "The deep freeze was mine. You keep it steady, you keep it quiet. My daughter drew me the compressors. I kept it in my locker. I keep thinking she's waiting up." "Tell her the compressors are fine. Tell her I'm coming." | Warm, unhurried. The last sentence catches. Tender. Going home. | Level 6 |
 
 ## Crew barks (132 lines)
 

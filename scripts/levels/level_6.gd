@@ -40,7 +40,8 @@ extends LevelBase
 ## the building's services are left in, never by code text. Every line players read
 ## or hear is in plan/approvals/l6-text.md, approved by Augustine word for word on
 ## 2026-11-05 ("approve all"); a change here is a new draft until he OKs it. The
-## echoes' lines play as subtitles (ECHO_LINES) until Voice places them.
+## echoes speak through VoiceLines (scene l6_echoes, so recordings play); ECHO_LINES
+## keeps the same words for the walkie's static and the subtitle-only fallback.
 ##
 ## Layout (level space, north is -z):
 ##   landing      x -4..4,   z 4..8     STAIR 2 (east wall): down from 9, and on to B2
@@ -1811,7 +1812,7 @@ func _on_whisper(e: Echo) -> void:
 	if lines.is_empty() or not hud:
 		return
 	var id := "l6_echo_%s_loop" % e.echo_id
-	if not VoiceLines.get_line(id).is_empty():
+	if VoiceLines.ids_in_scene("l6_echoes").has(id):
 		hud.line(id)
 	else:
 		hud.say(e.echo_name.to_upper(), lines[0])
@@ -1839,7 +1840,7 @@ func _tell(id: String) -> void:
 	var who: String = str(echo.get("first", id)).to_upper()
 	for n in [1, 2]:
 		var vid := "l6_echo_%s_%s" % [id, "story" if n == 1 else "free"]
-		if not VoiceLines.get_line(vid).is_empty():
+		if VoiceLines.ids_in_scene("l6_echoes").has(vid):
 			await hud.line(vid)
 		elif n < lines.size():
 			await hud.say(who, lines[n])

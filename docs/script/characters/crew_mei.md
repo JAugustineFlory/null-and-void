@@ -566,7 +566,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
-> This floor isn't built yet. The plan puts this book in the basement cold store, next to the terminal where the crew first gets a way to write scripts. You find it under a coffee mug, the cover ringed and the page on loops dog-eared, and read it aloud on the spot. The first three chapters come on this floor and the last three on the floor below. You're tired of typing everything by hand, and this looks like help.
+> This book is in the basement cold store, in the IT cage where the crew first gets a way to write scripts. You find it under a coffee mug, the cover ringed and the page on loops dog-eared, and read it aloud on the spot. The first three chapters come on this floor and the last three on the floor below. You're tired of typing everything by hand, and this looks like help.
 
 **[ ] `l6_book_find_block.wav`**
 
