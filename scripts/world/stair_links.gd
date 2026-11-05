@@ -172,7 +172,8 @@ static func _shift(holder: Node3D, storeys: int) -> Transform3D:
 
 
 ## Same step, same way facing, same speed, on the other stairs. Where an NPC was
-## walking to on the stairs moves with it.
+## walking to on the stairs moves with it, and so does whatever a player is partway
+## through (a mantle or vault over the rail at the turn), or it would pull them back.
 func _move(body: Node3D, by: Transform3D, to: Node3D) -> void:
 	body.global_transform = by * body.global_transform
 	if body is CharacterBody3D:
@@ -182,5 +183,7 @@ func _move(body: Node3D, by: Transform3D, to: Node3D) -> void:
 	if route is Array:
 		for i in route.size():
 			route[i] = by * (route[i] as Vector3)
+	if body.has_method("carried_by"):
+		body.carried_by(by)
 	body.reset_physics_interpolation()
 	carried.emit(body, to)

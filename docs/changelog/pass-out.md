@@ -1,0 +1,1 @@
+- **Changed:** in co-op, a downed player now has 90 seconds before passing out, up from 45. Passing out no longer sends them back to the checkpoint: they stay where they fell, and a teammate can still help them up, though it takes longer.
