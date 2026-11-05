@@ -351,6 +351,9 @@ func solve_case(id: String, how: String) -> void:
 		st.done = true
 	c["fresh_solve"] = true  # the notebook shows it solved, once, before filing it
 	notebook_changed.emit()
+	var net := get_node_or_null("/root/Net")
+	if net and net.profile:
+		net.profile.close_case(id, c.title, how)  # for the garage's back-office PC
 
 
 ## Give case `id` a blank for its answer, under its question: "Ext. 4815 belongs

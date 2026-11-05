@@ -84,6 +84,11 @@ var _page: Page = Page.WORK_ORDER
 var _spread := 0
 var _spreads: Array = []  # [[left items], [right items]] per spread
 var _turn: Button
+## The button a gamepad has picked on the pages (the d-pad), outlined; A presses it.
+var _pad_button: BaseButton
+var _pad_ring: Panel
+## The corner hint; names the pad's button while a pad is in use.
+const CLOSE_HINT := "%s to close"
 ## The co-op notes huddle; found from the level when left unset.
 var huddle: NotesHuddle
 ## On screen (the Notebook is open): an answer just found is written in when its
@@ -134,9 +139,13 @@ func _ready() -> void:
 	if end_of_level:
 		_add_end_buttons(footer)
 	else:
-		var close_hint := NotebookArt.hand("Tab to close", 22, Color(0.9, 0.88, 0.8))
+		var close_hint := NotebookArt.hand(CLOSE_HINT % "Tab", 22, Color(0.9, 0.88, 0.8))
+		close_hint.name = "CloseHint"
 		close_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 		footer.add_child(close_hint)
+		var name_close := func(_pad := false): close_hint.text = CLOSE_HINT % InputGlyphs.of("notebook")
+		name_close.call()
+		InputGlyphs.watch(self).changed.connect(name_close)
 	refresh()
 
 
@@ -144,6 +153,8 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		_free_spreads()
+		if is_instance_valid(_pad_ring) and _pad_ring.get_parent() == null:
+			_pad_ring.free()
 
 
 func _free_spreads() -> void:
@@ -958,6 +969,7 @@ func _show_spread(index: int) -> void:
 			if item.get_parent():
 				item.get_parent().remove_child(item)
 			page.add_child(item)
+	pad_pick(null)  # a new spread: the d-pad starts again from its first button
 	_turn.visible = _spreads.size() > 1
 	_turn.text = "next page  >" if _spread < _spreads.size() - 1 else "back to start  >"
 	_place_turn()
@@ -1010,3 +1022,64 @@ func _button(text: String, action: Callable) -> Button:
 	b.custom_minimum_size = Vector2(260, 46)
 	b.pressed.connect(action)
 	return b
+
+
+## Turn the page on (1) or back (-1), as "next page" does, wrapping round.
+func turn(step: int) -> void:
+	if _spreads.size() < 2:
+		return
+	var to := (_spread + step + _spreads.size()) % _spreads.size()
+	book.turn_page(func(): _show_spread(to))
+
+
+## The buttons a gamepad can pick on the spread showing, in reading order:
+## down the left page, down the right, then "next page".
+func pad_buttons() -> Array[BaseButton]:
+	var out: Array[BaseButton] = []
+	for page in [book.left, book.right]:
+		for b in page.find_children("*", "BaseButton", true, false):
+			if b.is_visible_in_tree() and not b.disabled:
+				out.append(b)
+	if _turn.is_visible_in_tree():
+		out.append(_turn)
+	return out
+
+
+## Pick the next (1) or previous (-1) button on the spread; the first press picks the first.
+func pad_move(step: int) -> void:
+	var all := pad_buttons()
+	if all.is_empty():
+		pad_pick(null)
+		return
+	var at := all.find(_pad_button) if is_instance_valid(_pad_button) else -1
+	pad_pick(all[0] if at < 0 else all[(at + step + all.size()) % all.size()])
+
+
+## Press the picked button, as a click would.
+func pad_press() -> void:
+	if is_instance_valid(_pad_button) and _pad_button.is_visible_in_tree() and not _pad_button.disabled:
+		var b := _pad_button
+		pad_pick(null)  # what it does may rebuild the pages
+		b.pressed.emit()
+	else:
+		pad_move(1)
+
+
+## Outline `b` as the pad's pick (null: none). The buttons keep no focus of their
+## own, so typing elsewhere is never taken; the outline is PadFocus's ring.
+func pad_pick(b: BaseButton) -> void:
+	_pad_button = b
+	if not is_instance_valid(_pad_ring):
+		_pad_ring = Panel.new()
+		_pad_ring.name = "PadRing"
+		_pad_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_pad_ring.add_theme_stylebox_override("panel", PadFocus.theme().get_stylebox("focus", "Button"))
+	if _pad_ring.get_parent():
+		_pad_ring.get_parent().remove_child(_pad_ring)
+	if b:
+		b.add_child(_pad_ring)
+		_pad_ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+
+func picked_button() -> BaseButton:
+	return _pad_button if is_instance_valid(_pad_button) else null

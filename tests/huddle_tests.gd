@@ -410,6 +410,13 @@ func _spar(home, p) -> void:
 	_check.call(await _until(func(): return home.spar_blocked.size() == 1, 120), "right-clicking as it swings in blocks it")
 	_check.call(p.health == health, "blocking it costs nothing either")
 	_check.call(not net.profile.earned.has(CrewVitals.FIRST_BLOCK), "and it's practice: the punch bag never earns the High-tops")
+	_check.call(await _until(func(): return not home._sparring and home.spar_target == 0, 300), "the drill's done")
+	await _frames(60)  # it settles
+	var todo: String = home.hud.current_todo()
+	await _hit_bag(home, p)
+	_check.call(await _until(func(): return home.spar_target != 0, 120), "but the bag still swings when you hit it again, it doesn't freeze")
+	_check.call(await _until(func(): return home.spar_target == 0, 120) and p.health == health, "back at you, for practice, costing nothing")
+	_check.call(home.spar_blocked.size() == 1 and home.hud.current_todo() == todo, "and it counts nothing and changes no to-do")
 	net.profile = real_profile
 
 

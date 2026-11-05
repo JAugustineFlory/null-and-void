@@ -1,0 +1,1 @@
+- **Added:** The garage is hiding something. Look around before you leave.
