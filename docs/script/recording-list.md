@@ -1,6 +1,6 @@
 # Recording list
 
-1238 recordings in all, 1553 lines.
+1250 recordings in all, 1577 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -187,7 +187,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_news_1_block` | "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems." "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered." "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'" "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside." "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'" "Halcyon declined to comment. The crew has not been seen since." "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather." | Steady, mid-bulletin. No change in tone. A slight shift for the quote: reading it, not acting it. Even, a touch of interest. Reading the quote flat, not acting it. Then a beat. Neutral. A small pause after. Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
-## The crew (player characters) (81 recordings, 100 lines, recorded by each of the 12 crew members)
+## The crew (player characters) (82 recordings, 102 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
@@ -264,6 +264,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l6_book_find_block` | "Journey through JavaScript. Somebody's read this one to death." "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat." | Sliding it out from under a mug. The cover's stained and the pages are soft. Tired of typing. This sounds like rescue. | Level 6, later |
 | [ ] | `l6_huddle_if_1_block` | "A variable's a labelled box. If is a fork in the road. That's... honestly fine." "Box, fork. I can do box and fork." | Starting a chapter. Braced for hard; it isn't. Wrapping up, to yourself. | Level 6, later |
 | [ ] | `l6_huddle_loops_1_block` | "Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see." "Always put the wait in. Always log it. Writing that one down." | Starting a chapter. The 'million times a second' bit alarms you. Wrapping up, making a note. | Level 6, later |
+| [ ] | `l6_huddle_each_1_block` | "For each. Give it a list and it goes down the list for you, once each, then stops. No counting." "One loop, every row. Give it the names and it says them. All of them." | Starting a chapter. Relieved there's no counting this time. DRAFT by the Level 6 thread (2026-11-05) for Voice to rewrite and Augustine to approve. Wrapping up. Quieter: the floor's getting to you. DRAFT by the Level 6 thread (2026-11-05). | Level 6, later |
 | [ ] | `l6_huddle_functions_1_block` | "Functions. Write it once, give it a name, use it anywhere." "So a function's a recipe we can shout." | Starting a chapter, reading it out. Wrapping up. Pleased with that. | Level 6, later |
 | [ ] | `l6_huddle_lists_1_block` | "Lists. A whole line of things in one box. Loop over it and you've done them all." "One loop, every door. That's either brilliant or terrifying." | Starting a chapter. The penny drops halfway. Wrapping up. Genuinely unsure which. | Level 6, later |
 | [ ] | `l6_huddle_test_1_block` | "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't." "Test first. We've all learned that one the hard way tonight." | Starting the last chapter. Taking it seriously. Wrapping up. Rueful. | Level 6, later |

@@ -697,7 +697,7 @@ const BOOKS := {
 	},
 	# The third in the series, found under a mug on B1's IT bench (Level 6): the deck's
 	# first scripts, in JavaScript. Title is Augustine's (2026-11-05, call 7: "Journey
-	# through JavaScript"). Its first two chapters land on B1; functions, lists and
+	# through JavaScript"). Its first three chapters land on B1; functions, lists and
 	# testing come on the floor below. Pages, questions and why lines are DRAFTS until
 	# he approves them word for word: plan/approvals/l6-text.md. The examples use the
 	# garage's own job board (/jobs, the same records as Easy SQL), never the building's.
@@ -762,6 +762,32 @@ const BOOKS := {
 						"options": ["a console.log inside it", "a longer wait", "deleting it"], "answer": 0, "why": "Log what it does each time round, then read the log."},
 					{"word": "console.log", "q": "console.log(\"fee \" + fee) with fee holding 80 writes...",
 						"options": ["fee fee", "fee 80", "\"fee \" + fee"], "answer": 1, "why": "The text, then what's in the box: fee 80."},
+				],
+			},
+			{
+				"id": "js_each",
+				"title": "Once for each",
+				"when": "L6, the time clock's service page",
+				"required": false,
+				"words": ["for", "db.query"],
+				"lines": ["l6_huddle_each_1", "l6_huddle_each_2"],
+				"pages": [
+					"for\n\nfor ... of does what's in its braces once for each thing in a list, then stops by itself.\n\nfor (const job of jobs) {\n  console.log(job.client);\n}\n\nEach time round, job is the next one in jobs. const is a box the loop fills fresh each time, so it's the word to use here. Three jobs, three lines in the log, done: no count to keep, no wait.",
+					"db.query\n\ndb.query runs a query from a script and hands back the rows it found, as a list.\n\nlet unpaid = await db.query(\"SELECT * FROM jobs WHERE status = 'unpaid'\");\nfor (const job of unpaid) {\n  console.log(job.client + \" owes \" + job.fee);\n}\n\nIt takes a moment, so await. The query is the one you'd type at a terminal, in double quotes. A row's columns are read with a dot: job.client, job.fee.",
+				],
+				"quiz": [
+					{"word": "for", "q": "for (const job of jobs) { ... } runs what's in the braces...",
+						"options": ["while jobs is true", "once for each job in jobs", "until someone presses Stop"], "answer": 1, "why": "for ... of goes down the list once for each thing in it, then stops."},
+					{"word": "for", "q": "Each time round, job holds...",
+						"options": ["the next one in jobs", "how many jobs there are", "the whole list"], "answer": 0, "why": "The loop fills job with the next thing in the list each time round."},
+					{"word": "for", "q": "A for ... of loop over three jobs stops...",
+						"options": ["when a count reaches 3", "only when Stop is pressed", "by itself, after the third"], "answer": 2, "why": "It knows the list's length: after the last one it's done. No count, no Stop."},
+					{"word": "db.query", "q": "let open = await db.query(\"SELECT * FROM jobs\"); open holds...",
+						"options": ["the query's text", "the rows it found, as a list", "one row"], "answer": 1, "why": "db.query answers with every row the query found, one entry in the list each."},
+					{"word": "db.query", "q": "Why await in front of db.query?",
+						"options": ["the database takes a moment to answer", "it makes the query shorter", "every query needs two words"], "answer": 0, "why": "await waits for the answer, as it does for a request, before the next line runs."},
+					{"word": "db.query", "q": "With a row in job, its client column is...",
+						"options": ["client.job", "job(\"client\")", "job.client"], "answer": 2, "why": "A row's columns are read with a dot: the row, then the column's name."},
 				],
 			},
 		],

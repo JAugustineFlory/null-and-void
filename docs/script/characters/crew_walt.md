@@ -1,6 +1,6 @@
 # Walt Henley
 
-*Your script for Null & Void: 89 recordings.*
+*Your script for Null & Void: 90 recordings.*
 
 ## Who you are
 
@@ -566,7 +566,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
-> This floor isn't built yet. The plan puts this book in the basement cold store, next to the terminal where the crew first gets a way to write scripts. You find it under a coffee mug, the cover ringed and the page on loops dog-eared, and read it aloud on the spot. The first two chapters come on this floor and the last three on the floor below. You're tired of typing everything by hand, and this looks like help.
+> This floor isn't built yet. The plan puts this book in the basement cold store, next to the terminal where the crew first gets a way to write scripts. You find it under a coffee mug, the cover ringed and the page on loops dog-eared, and read it aloud on the spot. The first three chapters come on this floor and the last three on the floor below. You're tired of typing everything by hand, and this looks like help.
 
 **[ ] `l6_book_find_block.wav`**
 
@@ -603,6 +603,18 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *As you finish the chapter. Scribbling a note on the back of your hand. Wrapping up, making a note.*
 
 "Always put the wait in. Always log it. Writing that one down."
+
+**[ ] `l6_huddle_each_1_block.wav`**
+
+*Starting the chapter on for ... of and db.query, on B1, after someone reads the time clock's service page. Reading off the page, a finger keeping the place. Starting a chapter. Relieved there's no counting this time. DRAFT by the Level 6 thread (2026-11-05) for Voice to rewrite and Augustine to approve.*
+
+"For each. Give it a list and it goes down the list for you, once each, then stops. No counting."
+
+*1 second pause*
+
+*As you finish the chapter. Glancing toward the cold half of the floor. Wrapping up. Quieter: the floor's getting to you. DRAFT by the Level 6 thread (2026-11-05).*
+
+"One loop, every row. Give it the names and it says them. All of them."
 
 **[ ] `l6_huddle_functions_1_block.wav`**
 

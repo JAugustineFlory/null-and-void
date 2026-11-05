@@ -143,6 +143,7 @@ func test_floor() -> void:
 
 	await _case_open(level)
 	await _case_pair(level)
+	await _case_list(level)
 	await _case_hold(level)
 	await _case_release(level)
 	await _case_stop(level)
@@ -206,10 +207,40 @@ func _case_pair(level: Node) -> void:
 	rt.stop()
 	check(not rt.is_running(), "and Stop ends it")
 	level.crew_size = 0
+	check(_game().case_info("list").get("open", false) and not _game().case_info("hold").get("open", false), "then the listing opens, warm, before the doors")
+
+
+## The warm first use of for ... of and db.query (Teaching's audit, item 1): the
+## service page's loop with only a log in it, at the IT cage. Checked by what the
+## log says, never by the code.
+func _case_list(level: Node) -> void:
+	var it: Terminal = level.it_terminal
+	var names: Array = level._open_names()
+	check(names.size() == 6 and not Books.chapter("js_each").is_empty(), "six open names to read, and a chapter to read them with")
+	check(level.list_puzzle.hints[0].contains("enter_condition") and level.list_puzzle.hints[0].contains("const"), "hint 1 leaves the query's test as enter_condition and explains for, const, db.query and the log")
+	# The whole list in one line: not a name a line.
+	var rt := _run(it, "let open = await db.query(\"SELECT * FROM freezer_log WHERE clock_out IS NULL\");\nconsole.log(open);")
+	await _until(func(): return not rt.is_running(), 200)
+	check(not level.list_puzzle.solved and level.tips_sent.has("list_row"), "the whole list in one line isn't it, and SYSOP says one name a line")
+	# The page's own query: vault A's names only.
+	rt = _run(it, level._list_script("clock_out IS NULL AND vault = 'A'"))
+	await _until(func(): return not rt.is_running(), 200)
+	check(not level.list_puzzle.solved and level.tips_sent.has("list_vault"), "the page's query is vault A's: some names, not all, and SYSOP says drop the AND")
+	# The cards, not the names.
+	rt = _run(it, level._list_script("clock_out IS NULL").replace("entry.name", "entry.card"))
+	await _until(func(): return not rt.is_running(), 200)
+	check(not level.list_puzzle.solved, "the cards aren't the names")
+	# The last hint's script: every open name, one a line, and the case closes.
+	var said := []
+	rt = _run(it, level.list_puzzle.hints[-1].get_slice("[color=#ffffff]", 1).get_slice("[/color]", 0))
+	rt.printed.connect(func(text, _k): said.append(text))
+	await _until(func(): return level.list_puzzle.solved, 200)
+	check(level.list_puzzle.solved and _game().case_info("list").solved and said.size() >= 6 and names.all(func(n): return said.has(n)), "every open name logged, one a line: the case closes (%s)" % [said])
+	check(_game().case_info("list").how.contains(names[0]), "the board reads the names back")
 
 
 func _case_hold(level: Node) -> void:
-	check(_game().case_info("hold").get("open", false), "the doors' case opens once the earpieces are in")
+	check(_game().case_info("hold").get("open", false), "the doors' case opens once the names are read")
 	var ante: Terminal = level.ante_terminal
 	var door: String = level.data.doors.ante
 	# No if: needless writes to the open door trip the relay guard.

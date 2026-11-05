@@ -6,8 +6,9 @@ extends LevelBase
 ## with its first scripts.
 ##
 ## Stations (curriculum B: a variable (let), if, a loop (while), waiting (await
-## sleep), the log (console.log); IS NULL and the L5 requests reviewed). One case
-## at a time on the board, in order:
+## sleep), the log (console.log), once for each (for ... of, const) and a query from
+## a script (db.query); IS NULL and the L5 requests reviewed). One case at a time on
+## the board, in order:
 ##   1. open     the time office: who's still clocked in? SELECT ... FROM freezer_log
 ##               WHERE clock_out IS NULL (review). = NULL finds nothing; the rack and
 ##               the whiteboard disagree with the log ("the rack is not the record").
@@ -15,6 +16,11 @@ extends LevelBase
 ##               while, await sleep), from the cradle card. Safe here. No count up:
 ##               the loop never ends (Stop); no wait: the cradle's busy (409); the
 ##               card's key is the dock cradle's (403). The walkie's static goes.
+##   2b. list    the IT cage, warm: the clock's service page shows a loop over the
+##               open entries (db.query, for ... of). Run it with only a log in it:
+##               the name on every entry still open, one a line. Nothing is written.
+##               The page's query is vault A's: only some names; the whole row in
+##               one line isn't a name a line. (Teaching's audit, item 1.)
 ##   3. hold     doors that won't stay open. The anteroom door (Epsilon's sweep, which
 ##               WARDEN announces) is the practice, warm and with nothing at stake;
 ##               the deep freeze's door (its own safety timer, no WARDEN; Augustine's
@@ -66,6 +72,8 @@ const TEXT := {
 	"case_open_do": "Find every visit the time clock never closed",
 	"case_pair": "That voice under the static. Get it off our radios",
 	"case_pair_do": "Pair an earpiece for each of us at the IT cage cradle",
+	"case_list": "Six names in the log. Say every one of them",
+	"case_list_do": "At the IT cage terminal, run a loop that logs the name on every entry still open",
 	"case_hold": "The doors keep locking. Don't let them shut us out",
 	"case_hold_do": "Keep the deep freeze door open until everyone's in Vault C",
 	"case_release": "They never got to go home",
@@ -76,6 +84,7 @@ const TEXT := {
 	"todo_down": "Let them rest. Everyone down STAIR 2",
 	"open_done": "%d visits never closed, the oldest from %d. The rack says %d cards are IN. The log is the record.",
 	"pair_done": "%d earpiece sets paired. The walkie's static is gone; we hear each other in our ears now.",
+	"list_done": "%s. One line each, read off the log itself. Now we know who we're going in for.",
 	"hold_done": "Everyone's across into Vault C. The watchdog kept the door from latching.",
 	"hold_done_hand": "Everyone's across into Vault C, between the safety timer's latches.",
 	"release_done": "Every entry is closed. %s. They've all clocked out.",
@@ -119,6 +128,9 @@ const TEXT := {
 	"tip_pair_busy": "409 busy: the cradle pairs one set at a time. wait inside the loop, after each request.",
 	"tip_pair_key": "403: that's the dock cradle's key, from the card. this cradle has its own.",
 	"tip_pair_short": "%d paired, and there are %d of you. one set each: count is how many sets.",
+	"tip_list_try": "the service page's loop reads fine with only a log in it: console.log(entry.name), once for each open entry. try it here, where it's warm. nothing gets written.",
+	"tip_list_vault": "%d of %d names. that's vault A's query, off the page. the open entries are every vault's, as at the time office: drop the AND.",
+	"tip_list_row": "that's a whole row in one line. log entry.name: one name a line.",
 	"tip_guard": "409: the relay guard. writing to a door that's already open counts against it. only PATCH it when the GET says it's locked: that's what if is for.",
 	"tip_steps": "the script ran too long without waiting. a loop that never ends needs await sleep(...) inside it.",
 	"tip_same_door": "the watchdog's running for %s, the anteroom. the deep freeze is %s. change door, save, run it again.",
@@ -260,8 +272,10 @@ const AP_LINES := ["VAULT NETWORK  -  ACCESS POINT", "Wireless decks only. No ja
 ## The bench's sign.
 const BENCH_LINES := ["IT CAGE  -  DECK BENCH", "Loaner decks. Wireless cards and script runner chips in the drawer.", {"text": "fit both before you go in the cold. no jacks past the anteroom.", "hand": true}]
 
-const CASES := {"open": TEXT.case_open, "pair": TEXT.case_pair, "hold": TEXT.case_hold, "release": TEXT.case_release, "stop": TEXT.case_stop}
-const CASE_DO := {"open": TEXT.case_open_do, "pair": TEXT.case_pair_do, "hold": TEXT.case_hold_do, "release": TEXT.case_release_do, "stop": TEXT.case_stop_do}
+const CASES := {"open": TEXT.case_open, "pair": TEXT.case_pair, "list": TEXT.case_list, "hold": TEXT.case_hold, "release": TEXT.case_release, "stop": TEXT.case_stop}
+const CASE_DO := {"open": TEXT.case_open_do, "pair": TEXT.case_pair_do, "list": TEXT.case_list_do, "hold": TEXT.case_hold_do, "release": TEXT.case_release_do, "stop": TEXT.case_stop_do}
+## The cases, in the order they open (the last is optional).
+const CASE_ORDER := ["open", "pair", "list", "hold", "release"]
 
 const STAIR_AT := Vector3(4, 0, 6)
 const STAIR_YAW := -90.0
@@ -398,6 +412,11 @@ var _voice: Voice
 ## ladder for IS NULL (floor 18) and the requests (floor 9).
 var open_puzzle: Puzzle
 var pair_puzzle: RequestPuzzle
+var list_puzzle: RequestPuzzle
+## The listing case: the open entries' names a script has logged, one a line, this
+## run of it (host). The runtimes listened to for them.
+var listed := {}
+var _watched := {}
 var practice_puzzle: RequestPuzzle
 var hold_puzzle: RequestPuzzle
 var release_puzzle: RequestPuzzle
@@ -584,7 +603,10 @@ func _build_office(colors: Dictionary) -> void:
 	sign.read_by.connect(func(_p): sync.event("_ask", ["open"]))
 	var page := Document.place(geo, Vector3(-3.12, 1.6, -3.1), 90, "Clock service page", _service_page(), false, "paper", Vector2(0.21, 0.3))
 	page.name = "ServicePage"
-	page.clues = [{"case": "release", "text": "The clock's service page: POST /clock_outs with {\"entry\": id}, vault network only. Wait for each slip (GET /clock). Visitors are VIS-nn, name VISITOR: never close one who's still inside."}]
+	page.clues = [
+		{"case": "list", "opens": TEXT.case_list, "text": "The service page's loop: db.query runs the open-visits query from a script, and for (const entry of open) goes once for each row it found. Its query is vault A's."},
+		{"case": "release", "text": "The clock's service page: POST /clock_outs with {\"entry\": id}, vault network only. Wait for each slip (GET /clock). Visitors are VIS-nn, name VISITOR: never close one who's still inside."},
+	]
 	page.read_by.connect(func(_p): sync.event("_service_read"))
 	# The card rack on the north wall: the cards in its IN slots, as players see them.
 	Greybox.box(geo, Vector3(-7, 1.4, -7.8), Vector3(2.4, 1.6, 0.2), Color(0.5, 0.45, 0.35), "CardRack")
@@ -634,7 +656,7 @@ func _build_it_cage(colors: Dictionary) -> void:
 	it_terminal.name = "ITTerminal"
 	it_terminal.set_meta("scripts", true)
 	it_terminal.set_meta("ticked_elsewhere", true)
-	it_terminal.puzzles = [pair_puzzle]
+	it_terminal.puzzles = [pair_puzzle, list_puzzle]
 	it_terminal.boot_lines = [
 		"HALCYON IT  -  COLD STORE CAGE",
 		"Services: /earpieces  /doors  /clock      Scripts: .script",
@@ -1360,6 +1382,20 @@ func _make_puzzles() -> void:
 		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(key, str(_crew_count())),
 	], _pair_ok)
 	pair_puzzle.case_id = "pair"
+	# 2b. The listing, warm: for ... of and db.query are new, so ladder A. Checked by
+	# what the log says (every open name, one a line), never by the code.
+	list_puzzle = RequestPuzzle.new("list", _list_script("clock_out IS NULL"), func(_l, _r): return false, [
+		"the shape, with the query's test left as enter_condition:\n" +
+		"    [color=#ffffff]%s[/color]\n" % _list_script("enter_condition") +
+		"  let open = await db.query(\"SELECT ...\")   runs a query from the script. await waits for its answer, and open holds the rows it found, one for each\n" +
+		"  for (const entry of open) { ... }   once for each row in open, as entry. const is a box the loop fills fresh each time round\n" +
+		"  entry.name   that row's name column\n" +
+		"  console.log(entry.name)   writes it in the runner's log: one line a name\n" +
+		"enter_condition is the open visits, as at the time office. no key and no wait: this only reads. type .script to open the runner, then ^S saves and ^R runs it.",
+		"the service page by the time clock has the loop. its query is vault A's: the open visits are every vault's, as at the time office. log entry.name and nothing else; nothing gets written.",
+		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _list_script("clock_out IS NULL"),
+	], list_ok)
+	list_puzzle.case_id = "list"
 	# 3. The practice: the anteroom door held through two sweeps. if is new: ladder A.
 	practice_puzzle = RequestPuzzle.new("practice", _watchdog(key, data.doors.ante), func(_l, _r): return practice_ok(), [
 		"the shape, with the door left as enter_door:\n" +
@@ -1417,6 +1453,11 @@ static func _pair_script(key: String, count: String) -> String:
 	return "let key = \"%s\";\nlet count = %s;\nlet paired = 0;\nwhile (paired < count) {\n  let res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key});\n  console.log(res.status);\n  paired = paired + 1;\n  await sleep(1000);\n}" % [key, count]
 
 
+## The listing: the page's loop with only a log in it. `cond` is the query's test.
+static func _list_script(cond: String) -> String:
+	return "let open = await db.query(\"SELECT * FROM freezer_log WHERE %s\");\nfor (const entry of open) {\n  console.log(entry.name);\n}" % cond
+
+
 static func _watchdog(key: String, door: String) -> String:
 	return "let key = \"%s\";\nlet door = \"%s\";\nwhile (true) {\n  let res = await api.get(\"/doors/\" + door, {\"X-Api-Key\": key});\n  if (res.body.locked) {\n    await api.patch(\"/doors/\" + door, {\"locked\": false}, {\"X-Api-Key\": key});\n    console.log(door + \" opened\");\n  }\n  await sleep(1000);\n}" % [key, door]
 
@@ -1444,6 +1485,17 @@ func _crew_count() -> int:
 
 func _pair_ok() -> bool:
 	return paired >= _crew_count()
+
+
+## The names on the entries still open (the echoes', never the crew's VISITOR).
+func _open_names() -> Array:
+	return db.run_silent("SELECT name FROM freezer_log WHERE clock_out IS NULL AND name != 'VISITOR'").map(func(r): return str(r.name))
+
+
+## Every open name logged, one a line, by one run of a script.
+func list_ok() -> bool:
+	var names := _open_names()
+	return not names.is_empty() and names.all(func(n): return listed.has(n))
 
 
 func practice_ok() -> bool:
@@ -1479,7 +1531,7 @@ func _path_of(line: String) -> String:
 
 
 func puzzles() -> Array:
-	return [open_puzzle, pair_puzzle, practice_puzzle, hold_puzzle, release_puzzle, stop_puzzle]
+	return [open_puzzle, pair_puzzle, list_puzzle, practice_puzzle, hold_puzzle, release_puzzle, stop_puzzle]
 
 
 ## Host: a SQL read at the time office.
@@ -1560,6 +1612,10 @@ func _on_solved(id: String) -> void:
 			Game.solve_case("pair", TEXT.pair_done % paired)
 			_earpieces_in()
 			_next_case()
+		"list":
+			_open_case("list")
+			Game.solve_case("list", TEXT.list_done % ", ".join(PackedStringArray(_open_names())))
+			_next_case()
 		"practice":
 			_open_case("hold")
 		"hold":
@@ -1585,7 +1641,7 @@ func _open_case(id: String) -> void:
 ## One case at a time, in order (the case board): the next one opens when the last
 ## is done. Case 5 opens once everyone's free, and is optional.
 func _next_case() -> void:
-	for id in ["open", "pair", "hold", "release"]:
+	for id in CASE_ORDER:
 		if not Game.case_info(id).get("solved", false):
 			_open_case(id)
 			return
@@ -1596,10 +1652,9 @@ func _next_case() -> void:
 
 ## Every machine: a paper opened a case. Only in order: case 2 waits for case 1.
 func _ask(id: String) -> void:
-	var order := ["open", "pair", "hold", "release"]
-	var at := order.find(id)
+	var at := CASE_ORDER.find(id)
 	for i in at:
-		if not Game.case_info(order[i]).get("solved", false):
+		if not Game.case_info(CASE_ORDER[i]).get("solved", false):
 			return
 	_open_case(id)
 
@@ -1612,8 +1667,53 @@ func _rack_read() -> void:
 		_say("l6_tomas_whitlow")
 
 
+## Every machine: the service page's loop is the third chapter's, and a warm first
+## use of it (only a log) is a case of its own: SYSOP suggests it at the IT cage.
 func _service_read() -> void:
-	pass
+	_book_huddle("js_each")
+	_ask("list")
+	_tip("list_try", "it")
+
+
+# --- The listing (every script runner is listened to) --------------------------------------
+
+## Every frame: a runner that appeared (opened for the first time, or adopted online)
+## is listened to for what its script logs.
+func _watch_scripts() -> void:
+	for t in _script_terminals():
+		var rt = t.get_meta("script_runtime") if t and t.has_meta("script_runtime") else null
+		if rt == null or _watched.has(rt):
+			continue
+		_watched[rt] = true
+		rt.printed.connect(_on_script_printed)
+		rt.finished.connect(func(_ok, _err): _on_script_finished())
+
+
+## Host: a script logged a line. One open name on it counts; a whole row's worth of
+## them on one line doesn't (that isn't a name a line).
+func _on_script_printed(text: String, kind: String) -> void:
+	if not _is_host() or list_puzzle == null or list_puzzle.solved or kind != "log":
+		return
+	var names := _open_names()
+	var on_line: Array = names.filter(func(n): return text.contains(n))
+	if on_line.size() == 1:
+		listed[on_line[0]] = true
+		if list_ok():
+			sync.event("_on_solved", ["list"])
+	elif on_line.size() > 1:
+		sync.event("_tip", ["list_row", "it"])
+
+
+## Host: a script ended. Some names but not all is the page's own query (vault A's).
+func _on_script_finished() -> void:
+	if not _is_host():
+		return
+	if list_puzzle and not list_puzzle.solved and not listed.is_empty():
+		var n := _open_names().size()
+		if listed.size() < n and not tips_sent.has("list_vault"):
+			tips_sent["list_vault"] = true
+			it_terminal.print_line(TerminalUI.sysop(TEXT.tip_list_vault % [listed.size(), n]), "hint")
+	listed.clear()
 
 
 # --- Earpieces and the walkie -----------------------------------------------------------
@@ -1853,6 +1953,7 @@ func _process(delta: float) -> void:
 			if _custodian_clock >= CUSTODIAN_EVERY:
 				_custodian_clock = 0.0
 				sync.event("_custodian_heard")
+	_watch_scripts()
 	# Solo: B1's scripts keep running while you're away from their runner. (Online,
 	# ScriptHost runs them on the host.)
 	if sync == null or not sync.is_online():
