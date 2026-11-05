@@ -143,7 +143,10 @@ func _ready() -> void:
 		close_hint.name = "CloseHint"
 		close_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 		footer.add_child(close_hint)
-		var name_close := func(_pad := false): close_hint.text = CLOSE_HINT % InputGlyphs.of("notebook")
+		# (The device watcher outlives these pages: once they're gone, it does nothing.)
+		var name_close := func(_pad := false):
+			if is_instance_valid(close_hint):
+				close_hint.text = CLOSE_HINT % InputGlyphs.of("notebook")
 		name_close.call()
 		InputGlyphs.watch(self).changed.connect(name_close)
 	refresh()
