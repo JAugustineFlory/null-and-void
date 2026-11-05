@@ -4582,6 +4582,9 @@ func test_world() -> void:
 	var cold = world.current
 	check(cold != null and cold.wing_id == "level_6" and cold.active and world._field_notes == null, "after Personnel the route goes down to the cold store on B1")
 	world.wing_finished(cold)
+	var machine_room = world.current
+	check(machine_room != null and machine_room.wing_id == "level_7" and machine_room.active and world._field_notes == null, "after the cold store the route goes down to the machine room on B2")
+	world.wing_finished(machine_room)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
