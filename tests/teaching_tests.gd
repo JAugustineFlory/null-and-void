@@ -15,12 +15,27 @@ extends RefCounted
 ## stays green while the owning thread fixes them. When a gap is fixed, its check
 ## prints FIXED: move it to a normal check() then.
 
-const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS", "DISTINCT", "GROUP BY", "IS NULL", "UPDATE", "SET", "INSERT INTO", "VALUES", "PATCH", "POST"]
+## Journey through JavaScript's words (B1 on), and the calls a script makes.
+const JS_KEYWORDS := ["let", "const", "if", "while", "for", "await sleep", "console.log", "db.query", "api.get", "api.post", "api.patch", "!=="]
+const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "DESC", "LIKE", "LIMIT", "COUNT", "GET", ">", "COLUMNS", "DISTINCT", "GROUP BY", "IS NULL", "UPDATE", "SET", "INSERT INTO", "VALUES", "PATCH", "POST"] + JS_KEYWORDS
 ## Concepts that aren't one capitalised word: comparing a column with a value, and
-## picking columns instead of *.
+## picking columns instead of *. Script words match only as code ("let key =",
+## "if ("), so prose like "if you're stuck" never counts as having shown one.
 const KEYWORD_PATTERNS := {
 	">": "\\w\\s*>=?\\s*(['\\d?]|enter_)",
 	"COLUMNS": "\\bSELECT\\s+\\w+\\s*,",
+	"let": "\\blet\\s+\\w+\\s*=",
+	"const": "\\bconst\\s+\\w+",
+	"if": "\\bif\\s*\\(",
+	"while": "\\bwhile\\s*\\(",
+	"for": "\\bfor\\s*\\(",
+	"await sleep": "\\bawait\\s+sleep\\s*\\(",
+	"console.log": "\\bconsole\\.log\\s*\\(",
+	"db.query": "\\bdb\\.query\\s*\\(",
+	"api.get": "\\bapi\\.get\\s*\\(",
+	"api.post": "\\bapi\\.post\\s*\\(",
+	"api.patch": "\\bapi\\.patch\\s*\\(",
+	"!==": "!==",
 }
 
 var t: SceneTree
@@ -37,13 +52,16 @@ var taught := ""
 var first_use := {}
 ## keyword -> the puzzle that first needed it.
 var first_use_by := {}
+## The puzzles this part walked (a stale marker is only stale on a walked puzzle).
+var walked := {}
 var used_under_threat := {}
 
 
 ## `part` splits the walks across CI groups, since the paced walks are slow: "main"
 ## walks every floor up to 10 with lab seed 11 and runs the whole-game checks; "lab"
 ## walks Levels 0-1 again (the lab needs what they taught) and then lab seed 42; "api"
-## walks floor 9, whose services teach everything their stations need on the floor.
+## walks floor 9, whose services teach everything their stations need on the floor;
+## "scripts" walks B1, where the crew writes its first scripts.
 func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	t = tree
 	_check = check
@@ -51,7 +69,15 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	taught = ""
 	_jot_docs.clear()
 	first_use.clear()
+	walked.clear()
 	used_under_threat.clear()
+	if part == "scripts":
+		await walk_level_6(4242, true)
+		await walk_level_6(17, false)
+		check_teaching_order()
+		if gaps > 0:
+			print("  (%d known teaching gap%s, see tests/curriculum.gd)" % [gaps, "" if gaps == 1 else "s"])
+		return
 	if part == "api":
 		await walk_level_5(31, true)
 		await walk_level_5(12, false)
@@ -327,6 +353,7 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 	check_board(level, ui)
 	if pace:
 		await _spend(read_last / PACE_READ_CPS)
+	walked[puzzle.id] = true
 	for k in needed:
 		if not KEYWORDS.has(k):
 			continue
@@ -1651,6 +1678,351 @@ func _doc(level: Node, title: String) -> Node:
 	return null
 
 
+# --- B1: the first scripts (Journey through JavaScript) ----------------------
+
+## How long a script may run before the lost player gives up on it, in game seconds.
+const SCRIPT_WAIT := 90.0
+## A paper's stand-in for a value ("<the IT key>"), which a beginner can't run as it is.
+## A bare < is the less-than in a loop's test.
+const PLACEHOLDER := "<[A-Za-z][^<>\\n]*>"
+
+
+## The B1 walk: the open visits (SQL, the review), then the floor's scripts in order:
+## the earpieces and the names in the warm IT cage, the watchdog practised at the
+## anteroom, the deep freeze held from a deck in the cold, the release from inside
+## Vault C (at a first-timer's pace), and leaving it tidy. `paced` walks the release
+## at a first-timer's speed and prints how long the crew spends in Vault C.
+func walk_level_6(seed_value: int, paced_release: bool) -> void:
+	# Each seed is a new crew arriving on B1: what the last one read doesn't carry over.
+	taught = ""
+	_game().new_run(seed_value)
+	_game().custodian_sealed = true
+	var level = load("res://scenes/level_6.tscn").instantiate()
+	t.root.add_child(level)
+	skip_chapters(level)
+	for i in 20:
+		await t.physics_frame
+	var net: Node = t.root.get_node("/root/Net")
+	var earned: Array = net.profile.earned.duplicate()
+	_copied.clear()
+	var where := "cold store B1 (seed %d)" % seed_value
+	var ui: TerminalUI = level.terminal_ui
+	var p: Player = level.player
+	p.local_control = false
+
+	# Who's still clocked in: IS NULL, reviewed at the time office.
+	_b1_at(level, Vector3(-8.6, 0.1, 0.0))
+	ui.open(level.office, p)
+	var h := await solve(level, ui, level.open_puzzle, _cold_b1(level))
+	check(h <= rescue_tier(level.open_puzzle) and level.open_puzzle.solved, "%s: the visits the clock never closed, found at the time office (hints %d)" % [where, h])
+	ui.close()
+
+	# The IT cage, warm: the first script, then the names, one a line.
+	_b1_at(level, Vector3(5.2, 0.1, -5.5))
+	ui.open(level.it_terminal, p)
+	h = await solve_script(level, ui, level.pair_puzzle, _cold_b1(level))
+	check(h <= rescue_tier(level.pair_puzzle) and level.pair_puzzle.solved and level.earpieces, "%s: an earpiece set each, from the card's script and the ladder (hints %d)" % [where, h])
+	var key_said := "%s: the card's script, copied, gets the dock cradle's 403 and SYSOP says whose key it is" % where
+	var pair_spec: Dictionary = Curriculum.PUZZLES.get("pair", {})
+	if pair_spec.has("silent_copy"):
+		gap(_said(level.it_terminal, level.TEXT.tip_pair_key), "%s (%s)" % [key_said, pair_spec.silent_copy])
+	else:
+		check(_said(level.it_terminal, level.TEXT.tip_pair_key), key_said)
+	h = await solve_script(level, ui, level.list_puzzle, _cold_b1(level))
+	check(h <= rescue_tier(level.list_puzzle) and level.list_puzzle.solved, "%s: every open name logged, one a line (hints %d)" % [where, h])
+	ui.close()
+
+	# The anteroom, warm: the watchdog and its if, held through the sweeps.
+	_b1_at(level, Vector3(-1.0, 0.1, -6.0))
+	ui.open(level.ante_terminal, p)
+	Engine.time_scale = 4.0
+	h = await solve_script(level, ui, level.practice_puzzle, _cold_b1(level))
+	Engine.time_scale = 1.0
+	check(h <= rescue_tier(level.practice_puzzle) and level.practice_puzzle.solved and not level.guarded.has(level.data.doors.ante), "%s: the anteroom held through the sweeps, and the relay guard stays quiet (hints %d)" % [where, h])
+	ui.close()
+
+	# The deep freeze, from a deck fitted at the bench, in the cold corridor.
+	level._bench_used(1)
+	_b1_at(level, Vector3(10.0, 0.1, -14.0))
+	for i in 5:
+		await t.physics_frame
+	var deck: Terminal = level.decks[0]
+	check(level.deck_net.get(0, "") == "vault", "%s: a fitted deck in the corridor is on the vaults' network" % where)
+	ui.open(deck, p)
+	var c_door: String = level.data.doors.vault_c
+	var across := func():
+		if await _until(func(): return not level._door_locked(c_door), 15.0):
+			_b1_at(level, Vector3(25.0, 0.1, -14.0))
+			await _until(func(): return level.crossed, 15.0)
+	Engine.time_scale = 4.0
+	h = await solve_script(level, ui, level.hold_puzzle, _cold_b1(level), across)
+	Engine.time_scale = 1.0
+	check(h <= rescue_tier(level.hold_puzzle) and level.hold_puzzle.solved and level.crossed, "%s: the deep freeze held open from the deck, and the crew across into Vault C (hints %d)" % [where, h])
+
+	# The release, from inside Vault C: every echo clocked out, the crew's own entry kept.
+	Engine.time_scale = 4.0
+	paced = 0.0
+	var started := Time.get_ticks_msec()
+	# Each slip waits out the clock: a whole release is several slips long.
+	var release_wait: float = level.punch_interval * 10 + 60.0
+	h = await solve_script(level, ui, level.release_puzzle, _cold_b1(level), Callable(), 3, paced_release, release_wait)
+	var seconds := (Time.get_ticks_msec() - started) / 1000.0 * Engine.time_scale
+	Engine.time_scale = 1.0
+	if paced_release:
+		print("  INFO  release (seed %d): about %d s in Vault C at a first-timer's pace (%d s reading and typing, %d hint%s; slips %d s each)" % [seed_value, seconds, paced, h, "" if h == 1 else "s", level.punch_interval])
+	check(h <= rescue_tier(level.release_puzzle) and level.all_free and not level.unoccupied.has("C"), "%s: every echo clocked out, and the crew's own entry kept, so Vault C stays lit (hints %d)" % [where, h])
+	ui.close()
+
+	# Leave it tidy (optional): its to-do says stop every script first (^T in each
+	# runner), then the doors, from the deck back in the warm.
+	for term in level._script_terminals():
+		var rt = term.get_meta("script_runtime") if term.has_meta("script_runtime") else null
+		if rt and rt.is_running():
+			rt.stop()
+	_b1_at(level, Vector3(5.2, 0.1, -5.5))
+	for i in 5:
+		await t.physics_frame
+	ui.open(deck, p)
+	h = await solve(level, ui, level.stop_puzzle, _cold_b1(level))
+	check(h <= rescue_tier(level.stop_puzzle) and level.stop_puzzle.solved, "%s: every script stopped and both vault doors locked and read back (hints %d)" % [where, h])
+	ui.close()
+
+	var done := [false]
+	for c in level.completed.get_connections():
+		if c.callable.get_method() == "_on_completed":
+			level.completed.disconnect(c.callable)
+	level.completed.connect(func(): done[0] = true)
+	var holder: Node3D = Stairwell.of(level.stair_in)
+	Engine.time_scale = 4.0
+	await _until(func(): return level.stair_gate.is_open, 20.0)
+	p.global_position = holder.global_transform * (Stairwell.landing_box().get_center() - Vector3(0, Stairwell.STOREY - 0.2, 0))
+	check(await _until(func(): return done[0], 60.0), "%s: everyone a storey down STAIR 2, the floor ends" % where)
+	Engine.time_scale = 1.0
+	net.profile.earned = earned
+	board_verdict(where)
+	level.queue_free()
+	await t.process_frame
+
+
+## Puts the walk's player at `at` (B1's level space), standing still.
+func _b1_at(level: Node, at: Vector3) -> void:
+	level.player.global_position = level.to_global(at)
+	level.player.velocity = Vector3.ZERO
+
+
+## The cold is B1's threat: it drains stamina, then health (never below a floor). The
+## corridor and the vaults are cold; every other room is warm.
+func _cold_b1(level: Node) -> bool:
+	var at: Vector3 = level.to_local(level.player.global_position)
+	return [level.CORRIDOR, level.VAULT_A, level.VAULT_B, level.VAULT_C].any(func(r): return r.has_point(at))
+
+
+## Whole scripts written out on a paper or a screen, as a beginner copies them: from a
+## line that starts one (let, const, for, while) through the lines of code after it,
+## if its braces close. One line on its own ("let fee = 80;") isn't a script.
+func scripts_in(text: String) -> Array[String]:
+	var out: Array[String] = []
+	var lines := text.split("\n")
+	var opens := RegEx.create_from_string("^(let |const |for \\(|while \\()")
+	var code := RegEx.create_from_string("^\\s*(let |const |for \\(|while \\(|if \\(|await |console\\.log|\\}|[a-z_]+ = )")
+	var i := 0
+	while i < lines.size():
+		if not opens.search(lines[i].strip_edges()):
+			i += 1
+			continue
+		var block := []
+		var depth := 0
+		var j := i
+		while j < lines.size() and code.search(lines[j]):
+			block.append(lines[j])
+			depth += lines[j].count("{") - lines[j].count("}")
+			j += 1
+		if block.size() > 1 and depth == 0:
+			out.append("\n".join(block).strip_edges())
+		i = maxi(j, i + 1)
+	return out
+
+
+func _is_script(text: String) -> bool:
+	return text.contains("\n") and RegEx.create_from_string("^(let |const |for \\(|while \\()").search(text.strip_edges()) != null
+
+
+## The scripts the hints (and SYSOP's tips) have shown in white since line `from`.
+func hint_scripts(term: Node, from: int) -> Array[String]:
+	var out: Array[String] = []
+	for i in range(from, term.transcript.size()):
+		if i < term.transcript_kinds.size() and term.transcript_kinds[i] != "hint":
+			continue
+		for b in white_blocks(term.transcript[i]):
+			if not has_blank(b) and _is_script(b) and not out.has(b):
+				out.append(b)
+	return out
+
+
+## The whole script a station's last hint says to run.
+func _exact_script(p: Puzzle) -> String:
+	for b in white_blocks(p.hints[-1]):
+		if not has_blank(b) and _is_script(b):
+			return b
+	return ""
+
+
+## Runs `code` on `term`, as ^R does in its runner: a runner runs one script at a
+## time, so whatever it was running stops first (^T). The level ticks it from there.
+func run_script(term: Node, code: String) -> ScriptRuntime:
+	var old = term.get_meta("script_runtime") if term.has_meta("script_runtime") else null
+	if old and old.is_running():
+		old.stop()
+	var rt := ScriptRuntime.for_language("javascript")
+	term.set_meta("script_runtime", rt)
+	if rt.compile(code).ok:
+		rt.start(BuildingLibrary.new(term.api, term.db), 1)
+	return rt
+
+
+## A script station's ladder (option A or the review), like a query's: hint 1 is the
+## script's shape with each value a named blank and, under ladder A, a line for each
+## script word in it; the middle hints say where the values are; the last is the
+## whole script, and the walk runs it.
+func check_script_ladder(p: Puzzle) -> void:
+	var spec: Dictionary = Curriculum.PUZZLES.get(p.id, {})
+	var mode: String = spec.get("ladder", "")
+	var shape := ""
+	for b in white_blocks(p.hints[0]):
+		if has_blank(b) and _is_script(b):
+			shape = b
+	var exact := _exact_script(p)
+	check(shape != "", "%s: hint 1 is the script's shape with each value as a named blank (%s)" % [p.id, "review" if mode == "review" else "ladder A"])
+	check(exact != "", "%s: the last hint is a whole script to run as it is" % p.id)
+	if mode == "review":
+		check(p.hints.size() == 2, "%s: review: a reminder with the shape, then the whole script (two tiers)" % p.id)
+	else:
+		check(p.hints.size() >= 3, "%s: three tiers: shape, where the values are, the whole script" % p.id)
+	var m := _shape_match(shape, [exact])
+	check(m != null, "%s: hint 1's shape is the last hint's script with the values blanked" % p.id)
+	var first := _plain(p.hints[0])
+	if m:
+		for i in range(1, m.get_group_count() + 1):
+			var v := m.get_string(i).strip_edges()
+			if v.length() <= 1:
+				continue  # a one-digit count can't be told from the hint's other numbers
+			var given := RegEx.create_from_string("(?<![A-Za-z0-9_])" + _escape(v) + "(?![A-Za-z0-9_])").search(first) != null
+			check(not given, "%s: hint 1 doesn't give the value away (%s)" % [p.id, v])
+	if mode != "review" and shape != "":
+		# The words this station teaches each get a line; words a station before it
+		# taught were explained in that station's hint 1.
+		var shown := Array(shape.split("\n")).map(func(l): return l.strip_edges())
+		var lines := Array(first.split("\n")).map(func(l): return l.strip_edges()).filter(func(l): return not shown.has(l))
+		var teaches: Array = spec.get("teaches", [])
+		var missing := []
+		for k in keywords_in(shape):
+			if JS_KEYWORDS.has(k) and teaches.has(k) and not lines.any(func(l): return keywords_in(l).has(k)):
+				missing.append(k)
+		var said := "%s: hint 1 explains each new script word on a line of its own%s" % [p.id, "" if missing.is_empty() else " (missing %s)" % ", ".join(missing)]
+		# A row may own up to a line that's drafted but waits on approval ("hint_gap": why).
+		if spec.has("hint_gap"):
+			gap(missing.is_empty(), "%s (%s)" % [said, spec.hint_gap])
+		else:
+			check(missing.is_empty(), said)
+	for h in p.hints.slice(1, p.hints.size() - 1):
+		check(exact == "" or not _plain(h).contains(exact), "%s: the middle hints say where the values are, not the whole script" % p.id)
+
+
+## A script station as a lost player meets it. It runs a script written out in full on a
+## paper in the room (a beginner copies it), else asks .hint until a hint shows the whole
+## script in white, and runs that. `then` is what the player does while it runs (walk
+## through the door it holds open). Returns how many hints it took, or -1 if stuck.
+func solve_script(level: Node, ui: TerminalUI, p: Puzzle, threat: bool, then := Callable(), max_hints := 3, pace := false, wait := SCRIPT_WAIT) -> int:
+	check_script_ladder(p)
+	var spec: Dictionary = Curriculum.PUZZLES.get(p.id, {})
+	check(not spec.is_empty(), "%s: tests/curriculum.gd says what it teaches and needs" % p.id)
+	var needed: Array = spec.get("needs", [])
+	var missing := []
+	for k in keywords_in(_exact_script(p)):
+		if not needed.has(k):
+			missing.append(k)
+	check(missing.is_empty(), "%s: its curriculum needs list covers every keyword in the answer%s" % [p.id, "" if missing.is_empty() else " (add %s)" % ", ".join(missing)])
+	if spec.has("pressure"):
+		check(threat == spec.pressure, "%s: %s while it's typed, as tests/curriculum.gd says" % [p.id, "something can hurt the player" if spec.pressure else "nothing can hurt the player"])
+	var term: Terminal = ui.terminal
+	var hints_from: int = term.transcript.size()
+	var tried := {}
+	var hints := 0
+	var outside := []
+	var silent := []
+	var copies := 0
+	while not p.solved:
+		var read := remember(level, ui)
+		if pace:
+			await _spend(read / PACE_READ_CPS)
+		var papers := scripts_in(world_text(level, term))
+		var fresh: Array[String] = []
+		for s in papers + hint_scripts(term, hints_from):
+			if not tried.has(s) and not fresh.has(s) and RegEx.create_from_string(PLACEHOLDER).search(s) == null:
+				fresh.append(s)
+		if fresh.is_empty():
+			if hints == 0:
+				for k in needed:
+					if not has_item(taught, k):
+						outside.append(k)
+			if hints >= max_hints:
+				check(false, "%s: a lost player gets stuck even after %d hints" % [p.id, hints])
+				return -1
+			hints += 1
+			if pace:
+				await _spend(PACE_THINK + ".hint".length() / PACE_TYPE_CPS)
+			ui.run(".hint")
+			continue
+		for s in fresh:
+			tried[s] = true
+			if pace:
+				# Typed into the runner a character at a time, then ^S and ^R.
+				await _spend(PACE_THINK + s.length() / PACE_TYPE_CPS)
+			var from: int = term.transcript.size()
+			var rt := run_script(term, s)
+			if then.is_valid():
+				await then.call()
+			await _until(func(): return p.solved or not rt.is_running(), wait)
+			if papers.has(s) and not _copied.has(s):
+				_copied[s] = true
+				copies += 1
+				# A copied script that isn't the answer says why: a SYSOP line, or the
+				# runner's own error.
+				if not p.solved and not Array(term.transcript).slice(from).any(func(l): return str(l).contains("SYSOP")) and rt.state != ScriptRuntime.State.FAILED:
+					silent.append(s.get_slice("\n", 0) + " ...")
+			if p.solved:
+				break
+			if rt.is_running():
+				rt.stop()
+	remember(level, ui)
+	walked[p.id] = true
+	for k in needed:
+		if not KEYWORDS.has(k):
+			continue
+		if not first_use.has(k):
+			first_use[k] = "threat" if threat else "safe"
+			first_use_by[k] = p.id
+		if threat:
+			used_under_threat[k] = true
+	var said_taught := "%s: everything it needs was taught before any hint%s" % [p.id, "" if outside.is_empty() else " (never shown: %s)" % ", ".join(outside)]
+	if spec.has("known_gap"):
+		gap(outside.is_empty(), "%s (%s)" % [said_taught, spec.known_gap])
+	else:
+		check(outside.is_empty(), said_taught)
+	var unoffered := []
+	for k in spec.get("teaches", []):
+		if not has_item(taught, k):
+			unoffered.append(k)
+	check(unoffered.is_empty(), "%s: everything it teaches is on a terminal line or a paper, ready to write down%s" % [p.id, "" if unoffered.is_empty() else " (missing %s)" % ", ".join(unoffered)])
+	if copies > 0:
+		var said_why := "%s: a paper's script, copied when it isn't the answer, gets a reason%s" % [p.id, "" if silent.is_empty() else " (nothing said after %s)" % "; ".join(silent)]
+		if spec.has("silent_copy"):
+			gap(silent.is_empty(), "%s (%s)" % [said_why, spec.silent_copy])
+		else:
+			check(silent.is_empty(), said_why)
+	return hints
+
+
 # --- Found, practised safely, then used under pressure -----------------------
 
 func check_teaching_order() -> void:
@@ -1670,7 +2042,7 @@ func check_teaching_order() -> void:
 	# A row still owning up to a threat-first keyword that is now first used safely:
 	# the marker is stale, so it prints FIXED until the row drops it.
 	for id in Curriculum.PUZZLES:
-		if Curriculum.PUZZLES[id].has("threat_first") and not owned_up.has(id):
+		if Curriculum.PUZZLES[id].has("threat_first") and walked.has(id) and not owned_up.has(id):
 			gap(true, "%s: its threat_first marker is stale (nothing it needs is first used under threat any more)" % id)
 	var never := []
 	for k in first_use:
