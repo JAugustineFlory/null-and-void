@@ -697,13 +697,13 @@ const BOOKS := {
 	},
 	# The third in the series, found under a mug on B1's IT bench (Level 6): the deck's
 	# first scripts, in JavaScript. Title is Augustine's (2026-11-05, call 7: "Journey
-	# through JavaScript!"). Its first two chapters land on B1; functions, lists and
+	# through JavaScript"). Its first two chapters land on B1; functions, lists and
 	# testing come on the floor below. Pages, questions and why lines are DRAFTS until
 	# he approves them word for word: plan/approvals/l6-text.md. The examples use the
 	# garage's own job board (/jobs, the same records as Easy SQL), never the building's.
 	"journey_js": {
-		"title": "JOURNEY THROUGH JAVASCRIPT!",
-		"name": "Journey through JavaScript!",
+		"title": "JOURNEY THROUGH JAVASCRIPT",
+		"name": "Journey through JavaScript",
 		"chapters": [
 			{
 				"id": "js_if",

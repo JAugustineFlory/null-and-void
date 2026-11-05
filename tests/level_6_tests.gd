@@ -117,7 +117,7 @@ func test_data_every_seed() -> void:
 func test_guards() -> void:
 	var s: Script = load("res://scripts/levels/level_6.gd")
 	var consts := s.get_script_constant_map()
-	var text := JSON.stringify([consts.TEXT, consts.LINES, consts.ECHO_LINES, consts.ECHO_LEAVES, consts.CLOCK_SIGN_LINES, consts.SUPERVISOR_LINES,
+	var text := JSON.stringify([consts.TEXT, consts.ECHO_LINES, consts.ECHO_LEAVES, consts.CLOCK_SIGN_LINES, consts.SUPERVISOR_LINES,
 		consts.WHITEBOARD_LINES, consts.CRADLE_CARD, consts.TECH_NOTE, consts.VAULT_C_SIGN, consts.SERVICE_PAGE, consts.BENCH_LINES, Level6Data.POOL, Level6Data.STAFF])
 	var low := text.to_lower()
 	check(not low.contains("mercer") and not low.contains("vale") and not low.contains("h.m.") and not low.contains("iris"), "nothing on B1 names Mercer or Vale")

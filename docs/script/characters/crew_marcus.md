@@ -562,7 +562,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Change it, then look again. The front doors taught us that one."
 
-## Scene 6: Book huddles: Easy JavaScript
+## Scene 6: Book huddles: Journey through JavaScript
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
@@ -572,7 +572,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 *When someone finds the book under a coffee mug by the terminal on B1. This floor isn't built yet, so the exact moment isn't set. Holding it up for the crew to see. Sliding it out from under a mug. The cover's stained and the pages are soft.*
 
-"Easy JavaScript. Somebody's read this one to death."
+"Journey through JavaScript. Somebody's read this one to death."
 
 *1 second pause*
 

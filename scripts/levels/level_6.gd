@@ -33,8 +33,8 @@ extends LevelBase
 ## STAIR 2 down opens once every echo is free. Every station is checked by the state
 ## the building's services are left in, never by code text. Every line players read
 ## or hear is a DRAFT in plan/approvals/l6-text.md until Augustine approves it word
-## for word; WARDEN, echo and staffer lines are Voice's to write (LINES are drafts
-## that play as subtitles until VoiceLines has them).
+## for word; WARDEN and staffer lines are drafts in VoiceLines (Voice's to rewrite),
+## and the echoes' lines play as subtitles (ECHO_LINES) until Voice places them.
 ##
 ## Layout (level space, north is -z):
 ##   landing      x -4..4,   z 4..8     STAIR 2 (east wall): down from 9, and on to B2
@@ -101,7 +101,7 @@ const TEXT := {
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
 	"cross_wait": "Waiting for everyone in the deep freeze (%d/%d)",
 	"end_card": "To be continued.",
-	"book_taken": "Journey through JavaScript! Same series as Easy SQL. The page on loops is dog-eared.",
+	"book_taken": "Journey through JavaScript. Same series as Easy SQL. The page on loops is dog-eared.",
 	"deck_taken": "A loaner deck from the bench. It's yours now.",
 	"deck_fitted": "The wireless card clicks in, and the script runner chip. The deck runs scripts now.",
 	"deck_none": "You don't have a deck. The bench has loaners.",
@@ -125,25 +125,6 @@ const TEXT := {
 	"tip_visitor": "that was one of ours. the clock thinks they've left the vault. punch them back in: POST /clock_ins with their card and the vault.",
 	"tip_card_visitor": "the crew's cards are VIS-01 and up. VISITOR is what the name column says.",
 	"tip_lockup": "every entry's closed. the watchdogs are still holding doors open. ^T stops a script; then PATCH the doors shut and GET them back.",
-}
-
-## Voice lines this floor plays, as DRAFTS (speaker and text) until Voice records
-## them in VoiceLines under the same ids. WARDEN keeps his split (Augustine
-## 2026-10-21): procedure on the PA first, then his own aside.
-const LINES := {
-	"l6_arrive_pa": {"speaker": "WARDEN", "text": "LEVEL B1, COLD STORE. PROTOCOL EPSILON IN FORCE. DOORS ON THIS LEVEL ARE SECURED AT INTERVALS."},
-	"l6_arrive_tease": {"speaker": "WARDEN", "text": "YOU OPEN THEM. I CLOSE THEM. I HAVE MORE TIME THAN YOU DO."},
-	"l6_records_pa": {"speaker": "WARDEN", "text": "OPEN ENTRIES ARE RETAINED. COLD STORE RECORDS ARE NEVER DELETED."},
-	"l6_records_tease": {"speaker": "WARDEN", "text": "THE RECORDS KEEP THEM. NOBODY ELSE DID."},
-	"l6_guard_pa": {"speaker": "WARDEN", "text": "RELAY GUARD ENGAGED. DOOR HELD."},
-	"l6_guard_tease": {"speaker": "WARDEN", "text": "YOU ARE WEARING IT OUT."},
-	"l6_free_pa": {"speaker": "WARDEN", "text": "ALL ENTRIES CLOSED. COLD STORE UNOCCUPIED."},
-	"l6_free_tease": {"speaker": "WARDEN", "text": "THAT HAS NEVER BEEN TRUE BEFORE."},
-	"l6_stopped_pa": {"speaker": "WARDEN", "text": "NO SCRIPTS RUNNING. VAULT DOORS SECURE."},
-	"l6_stopped_tease": {"speaker": "WARDEN", "text": "TIDY. I DID NOT THINK YOU HAD IT IN YOU."},
-	"l6_ines_arrive": {"speaker": "INES", "text": "It's colder down here than it should be. We'll wait by the stairs."},
-	"l6_tomas_arrive": {"speaker": "TOMAS", "text": "Don't be long. And don't go in the freezers alone."},
-	"l6_ines_whitlow": {"speaker": "INES", "text": "Whitlow. A.W. Her initials are on half the old boxes in the records cage. I always wondered who she was."},
 }
 
 ## The echoes' lines, DRAFTS for Voice (each about three lines: the loop they
@@ -571,7 +552,7 @@ func _build_hall(colors: Dictionary) -> void:
 		"Services: /doors  /clock      Scripts: .script",
 	]
 	ante_terminal.requested.connect(_on_request.bind("ante"))
-	var note := Document.place(geo, Vector3(-2.88, 1.6, -5.4), 90, "Tech's note", _tech_note(), false, "paper", Vector2(0.21, 0.3))
+	var note := Document.place(geo, Vector3(-2.88, 1.6, -5.4), -90, "Tech's note", _tech_note(), false, "paper", Vector2(0.21, 0.3))
 	note.name = "TechNote"
 	note.clues = [{"case": "hold", "text": "The IT tech's watchdog: while (true), GET the door, if it's locked PATCH it open and log it, then wait. Only write when it's locked, or the relay guard holds it shut 30 s. Change door to hold another."}]
 	note.read_by.connect(func(_p):
@@ -586,16 +567,16 @@ func _build_office(colors: Dictionary) -> void:
 	# The lone-worker time clock by the door, its sign and its service page.
 	Greybox.box(geo, Vector3(-3.4, 1.4, -4.2), Vector3(0.3, 0.6, 0.5), Color(0.55, 0.5, 0.4), "TimeClock")
 	Greybox.label(geo, Vector3(-3.56, 1.55, -4.2), data.clock, 28, Color(1.0, 0.25, 0.15), -90).name = "Clock"
-	var sign := Document.place(geo, Vector3(-3.12, 1.6, -5.3), -90, "Time clock sign", CLOCK_SIGN_LINES, false, "laminated", Vector2(0.28, 0.3))
+	var sign := Document.place(geo, Vector3(-3.12, 1.6, -5.3), 90, "Time clock sign", CLOCK_SIGN_LINES, false, "laminated", Vector2(0.28, 0.3))
 	sign.clues = [{"case": "open", "opens": TEXT.case_open, "text": "The time clock: every vault visit punches IN, and OUT again on the way back. The log is freezer_log. Still inside = no clock_out yet."}]
 	sign.read_by.connect(func(_p): sync.event("_ask", ["open"]))
-	var page := Document.place(geo, Vector3(-3.12, 1.6, -3.1), -90, "Clock service page", _service_page(), false, "paper", Vector2(0.21, 0.3))
+	var page := Document.place(geo, Vector3(-3.12, 1.6, -3.1), 90, "Clock service page", _service_page(), false, "paper", Vector2(0.21, 0.3))
 	page.name = "ServicePage"
 	page.clues = [{"case": "release", "text": "The clock's service page: POST /clock_outs with {\"entry\": id}, vault network only. Wait for each slip (GET /clock). Visitors are VIS-nn, name VISITOR: never close one who's still inside."}]
 	page.read_by.connect(func(_p): sync.event("_service_read"))
 	# The card rack on the north wall: the cards in its IN slots, as players see them.
 	Greybox.box(geo, Vector3(-7, 1.4, -7.8), Vector3(2.4, 1.6, 0.2), Color(0.5, 0.45, 0.35), "CardRack")
-	rack = Document.place(geo, Vector3(-7, 1.5, -7.66), 180, "Card rack (IN)", _rack_lines(), false, "clipboard", Vector2(0.3, 0.4))
+	rack = Document.place(geo, Vector3(-7, 1.5, -7.66), 0, "Card rack (IN)", _rack_lines(), false, "clipboard", Vector2(0.3, 0.4))
 	rack.name = "CardRack"
 	rack.clues = [{"case": "open", "text": "The card rack shows %d cards in the IN slots." % data.rack_in.size()}]
 	rack.read_by.connect(func(_p): sync.event("_rack_read"))
@@ -603,7 +584,7 @@ func _build_office(colors: Dictionary) -> void:
 	quill.clues = [{"case": "open", "text": "The supervisor: missed punches are fixed in the log, not the rack. The rack is not the record."}]
 	# The IN/OUT whiteboard on the west wall.
 	Greybox.panel(geo, Vector3(-12.9, 1.6, -1), Vector3(0.04, 1.0, 1.8), Color(0.92, 0.92, 0.9), 0.0)
-	Document.place(geo, Vector3(-12.88, 1.6, 0.2), 90, "IN/OUT whiteboard", WHITEBOARD_LINES, false, "laminated", Vector2(0.3, 0.3))
+	Document.place(geo, Vector3(-12.88, 1.6, 0.2), -90, "IN/OUT whiteboard", WHITEBOARD_LINES, false, "laminated", Vector2(0.3, 0.3))
 	# The supervisor's desk and the office terminal.
 	Greybox.box(geo, Vector3(-8, 0.5, 1.5), Vector3(2.8, 1.0, 0.8), Color(0.42, 0.34, 0.28), "OfficeDesk")
 	office = Terminal.spawn(geo, Vector3(-8.6, 1.0, 1.5), 180, "TIME OFFICE", db, terminal_ui)
@@ -657,7 +638,7 @@ func _build_it_cage(colors: Dictionary) -> void:
 	bench.used.connect(func(p): sync.event("_bench_used", [players.id_of(p) if players else 1]))
 	# The book under a mug at the bench's far end.
 	Greybox.box(geo, Vector3(8.4, 1.08, -7.2), Vector3(0.09, 0.12, 0.09), Color(0.85, 0.85, 0.82), "Mug")
-	book = Interactable.create(self, Vector3(8.4, 1.02, -7.2), Vector3(0.24, 0.04, 0.3), "Pick up: Journey through JavaScript!", Color(0.95, 0.75, 0.1))
+	book = Interactable.create(self, Vector3(8.4, 1.02, -7.2), Vector3(0.24, 0.04, 0.3), "Pick up: Journey through JavaScript", Color(0.95, 0.75, 0.1))
 	book.name = "Book"
 	book.used.connect(func(p): sync.event("_book_found", [players.id_of(p)]))
 	# The passage to goods-in, south of the cage.
@@ -680,7 +661,7 @@ func _build_goods(colors: Dictionary) -> void:
 	Greybox.label(geo, Vector3(19.9, 2.4, -6), "DOCK STAIRS  -  OUT OF SERVICE", 22, Color(0.7, 0.15, 0.1), -90)
 	# The conveyor to the vaults, through a hatch in the north wall: a crawl.
 	Greybox.box(geo, Vector3(15, 0.35, -8.5), Vector3(1.2, 0.1, 6.5), Color(0.2, 0.2, 0.2), "Conveyor")
-	Greybox.label(geo, Vector3(15, 1.5, -11.88), "CONVEYOR TO VAULTS", 20, Color(0.8, 0.8, 0.75), 180)
+	Greybox.label(geo, Vector3(15, 1.5, -11.88), "CONVEYOR TO VAULTS", 20, Color(0.8, 0.8, 0.75), 0)
 	Traversal.vent(self, Vector3(15, 0.0, -11.2), Vector3(15, 0.0, -12.8), Vector2(1.2, 1.1))
 	# Pallets and a dead forklift.
 	for z in [-2.0, -4.5]:
@@ -714,7 +695,7 @@ func _build_corridor(cold: Dictionary) -> void:
 	Greybox.label(geo, Vector3(19.88, 2.75, -14), "VAULT C  -  DEEP FREEZE", 26, Color(0.6, 0.15, 0.1), -90)
 	Greybox.label(geo, Vector3(-13.88, 2.5, -14), "PLANT", 26, Color(0.2, 0.3, 0.4), 90)
 	vault_c_door = add_door(data.doors.vault_c, VAULT_C_DOOR_AT, Vector3(0.12, 2.5, 1.6))
-	Document.place(geo, Vector3(19.88, 1.5, -12.6), -90, "Vault C sign", VAULT_C_SIGN, false, "laminated", Vector2(0.26, 0.2))
+	Document.place(geo, Vector3(19.88, 1.5, -12.6), 90, "Vault C sign", VAULT_C_SIGN, false, "laminated", Vector2(0.26, 0.2))
 	_access_point(Vector3(10, 2.9, -12.2), 180)
 	# Frost on the pipes along the ceiling.
 	Greybox.box(geo, Vector3(3, 2.8, -15.6), Vector3(33, 0.12, 0.12), Color(0.9, 0.95, 1.0), "Pipe")
@@ -880,12 +861,8 @@ func _after_story(seconds: float, fn: Callable) -> void:
 ## A line by id: Voice's recording and subtitle once VoiceLines has it, else the
 ## draft here as a subtitle (LINES).
 func _say(id: String) -> void:
-	if not VoiceLines.get_line(id).is_empty():
+	if hud and not VoiceLines.get_line(id).is_empty():
 		await hud.line(id)
-		return
-	var l: Dictionary = LINES.get(id, {})
-	if not l.is_empty() and hud:
-		await hud.say(l.speaker, l.text)
 
 
 ## Lines in order, with a pause between (the PA, then his own voice).
@@ -1561,7 +1538,8 @@ func _rack_read() -> void:
 	_ask("open")
 	if not tips_sent.has("ines_whitlow"):
 		tips_sent["ines_whitlow"] = true
-		_say("l6_ines_whitlow")
+		await _say("l6_ines_whitlow")
+		_say("l6_tomas_whitlow")
 
 
 func _service_read() -> void:

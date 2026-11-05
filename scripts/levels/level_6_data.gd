@@ -30,7 +30,7 @@ const OPENED := 1978
 ## from 9 recognises her initials (call 5b).
 const POOL := [
 	{"id": "whitlow", "name": "Whitlow, Agnes", "first": "Agnes", "role": "Records clerk", "vault": "B", "row": "B-2",
-		"years": [1981, 1984], "leaves": "memory"},
+		"years": [1982, 1984], "leaves": "memory"},
 	{"id": "delacroix", "name": "Delacroix, Frank", "first": "Frank", "role": "Goods-in porter", "vault": "A", "row": "A-1",
 		"years": [1978, 1981], "leaves": "memory"},
 	{"id": "cole", "name": "Cole, Mary-Beth", "first": "Mary-Beth", "role": "Lab technician", "vault": "A", "row": "A-3",

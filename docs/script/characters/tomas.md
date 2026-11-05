@@ -1,6 +1,6 @@
 # Tomas Lindqvist
 
-*Your script for Null & Void: 1 recording.*
+*Your script for Null & Void: 3 recordings.*
 
 ## Who you are
 
@@ -45,3 +45,21 @@ Send the files back as they are. They go in `audio/voice/tomas/` in the game.
 *When the crew logs an escort pass for your badge. Your door may still be locked, or the crew may already have opened it. Crawling out from under a low shelf, stiff from the floor. Annoyed first, scared underneath.*
 
 "Finally. I've been under this shelf since the lights went out. There's something at my desk, and it isn't me."
+
+## Scene 2: The night shift, on B1's landing
+
+**Halcyon Tower, basement B1, the stair landing. Later that night.**
+
+> You came down the fire stairs from floor 9 with the crew that got you out. You are not going any further into the cold store than the landing. You know this basement a little: the records cage upstairs gets its old boxes from here.
+
+**[ ] `l6_tomas_arrive.wav`**
+
+*On the landing, right after Ines, as the crew heads into the hall. Leaning on the stair rail, not looking at the vault corridor. Flat, practical. You've heard the stories about this place.*
+
+"Twenty years in payroll and I've never been down here. Now I know why. Don't go in the freezers alone."
+
+**[ ] `l6_tomas_whitlow.wav`**
+
+*Right after Ines, when someone reads the card rack in the time office. Over the crew's earpiece, from the landing. Dry. You've seen the ledger line and never thought about it until now.*
+
+"Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing."

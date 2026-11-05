@@ -1309,7 +1309,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 6
 
-### Book huddles: Easy JavaScript
+### Book huddles: Journey through JavaScript
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
@@ -1317,7 +1317,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **CREW** `l6_book_find_block.wav`  
 *Cue: When someone finds the book under a coffee mug by the terminal on B1. This floor isn't built yet, so the exact moment isn't set*  
-*(Holding it up for the crew to see)* "Easy JavaScript. Somebody's read this one to death." *Sliding it out from under a mug. The cover's stained and the pages are soft.* `[l6_book_find]`  
+*(Holding it up for the crew to see)* "Journey through JavaScript. Somebody's read this one to death." *Sliding it out from under a mug. The cover's stained and the pages are soft.* `[l6_book_find]`  
 *(As you open it. Flicking through the pages, shaking out your typing hand)* "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat." *Tired of typing. This sounds like rescue.* `[l6_book_open]`
 
 **CREW** `l6_huddle_if_1_block.wav`  
@@ -1344,6 +1344,59 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: Starting the last chapter, on testing, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
 *(Holding the book steady, reading carefully)* "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't." *Starting the last chapter. Taking it seriously.* `[l6_huddle_test_1]`  
 *(As you finish the book. Closing the book and tucking it under your arm)* "Test first. We've all learned that one the hard way tonight." *Wrapping up. Rueful.* `[l6_huddle_test_2]`
+
+### B1: the cold store
+
+**Halcyon Tower, basement B1, the sample and records cold store. Later that night.**
+
+*DRAFTS by the Level 6 thread (2026-11-05), for Voice to rewrite and Augustine to approve word for word (plan/approvals/l6-text.md). Augustine's call 2c: the echoes are staff whose entries never closed, and WARDEN says the records keep them. The arrive, guard, free and tidy lines play from level_6.gd; the records lines when the open entries are found.*
+
+**WARDEN** `l6_arrive_pa_block.wav`  
+*Cue: As the crew steps off the landing into the hall, the first lock drops down the corridor*  
+*(Over the basement speakers, as the crew arrives)* "VISITORS ON LEVEL B1, COLD STORE. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, DOORS ON THIS LEVEL ARE RE-SECURED AT INTERVALS." *The announcement. Flat; a timetable.* `[l6_arrive_pa]`  
+*(Over the speakers, in your own dry voice)* "YOU OPEN THEM. I CLOSE THEM. I HAVE MORE TIME THAN YOU DO." *A separate beat, your own voice. Patient. True.* `[l6_arrive_tease]`
+
+**WARDEN** `l6_records_pa_block.wav`  
+*Cue: When the crew finds the time clock's entries that never closed, some of them twenty years old*  
+*(Over the time office speaker, as the open entries come up on screen)* "OPEN ENTRIES ARE RETAINED. COLD STORE RECORDS ARE NEVER DELETED." *The announcement. Policy.* `[l6_records_pa]`  
+*(Over the speaker, in your own voice. A little quieter)* "THE RECORDS KEEP THEM. NOBODY ELSE DID." *A separate beat. Not cruel. The nearest you come to pity.* `[l6_records_tease]`
+
+**WARDEN** `l6_guard_pa_block.wav`  
+*Cue: When a script keeps writing to a door that is already open and the relay guard trips, holding it shut*  
+*(Over the speakers, as a relay clicks over somewhere in the wall)* "RELAY GUARD ENGAGED. DOOR HELD SHUT FOR THIRTY SECONDS." *The announcement. Clipped.* `[l6_guard_pa]`  
+*(Over the speakers, in your own voice)* "YOU ARE WEARING IT OUT." *A separate beat. Mild, almost helpful.* `[l6_guard_tease]`
+
+**WARDEN** `l6_free_pa_block.wav`  
+*Cue: When the last open entry is closed and the last of them has gone. The gate on the stairs down opens*  
+*(Over the speakers, into a basement that has just gone quiet)* "ALL STAFF ENTRIES CLOSED. NO STAFF REMAIN ON LEVEL B1." *The announcement. Flat.* `[l6_free_pa]`  
+*(Over the speakers, in your own voice, after a pause)* "THAT HAS NEVER BEEN TRUE BEFORE." *A separate beat. Slow. You are stating a fact you have just noticed.* `[l6_free_tease]`
+
+**WARDEN** `l6_stopped_pa_block.wav`  
+*Cue: Optional: when the crew stops every script they started, locks the vault doors and reads them back*  
+*(Over the speakers, as the last door locks)* "NO SCRIPTS RUNNING. VAULT DOORS SECURE." *The announcement. Routine.* `[l6_stopped_pa]`  
+*(Over the speakers, in your own voice)* "TIDY. I DID NOT THINK YOU HAD IT IN YOU." *A separate beat. Dry; a compliment you don't mean to give.* `[l6_stopped_tease]`
+
+### The night shift, on B1's landing
+
+**Halcyon Tower, basement B1, the stair landing. Later that night.**
+
+*DRAFTS by the Level 6 thread (2026-11-05), for Voice to rewrite and Augustine to approve (plan/approvals/l6-text.md). Augustine's call 5b: the night-shifters wait on the landing, and Ines recognises Whitlow's initials when someone reads the card rack.*
+
+**INES** `l6_ines_arrive.wav`  
+*Cue: On the landing, as the crew arrives on B1 and before anyone goes into the cold store*  
+*(Stopping on the landing, looking down the hall and deciding against it)* "It's so cold down here. Colder than it should be. We'll wait by the stairs. Please don't be long." *Arms wrapped round yourself. Not going a step further.*
+
+**TOMAS** `l6_tomas_arrive.wav`  
+*Cue: On the landing, right after Ines, as the crew heads into the hall*  
+*(Leaning on the stair rail, not looking at the vault corridor)* "Twenty years in payroll and I've never been down here. Now I know why. Don't go in the freezers alone." *Flat, practical. You've heard the stories about this place.*
+
+**INES** `l6_ines_whitlow.wav`  
+*Cue: When someone reads the card rack in the time office and her name is on a card still in the IN slot*  
+*(Over the crew's earpiece, from the landing, having heard the name)* "Whitlow. A.W. Her initials are on half the old boxes in our records cage. I always wondered who she was." *Quiet. A name you've seen written a thousand times, and never on a person.*
+
+**TOMAS** `l6_tomas_whitlow.wav`  
+*Cue: Right after Ines, when someone reads the card rack in the time office*  
+*(Over the crew's earpiece, from the landing)* "Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing." *Dry. You've seen the ledger line and never thought about it until now.*
 
 ## Level 8
 
