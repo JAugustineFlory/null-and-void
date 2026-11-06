@@ -1552,6 +1552,89 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Over the speakers, as the lights down the ring go out)* "PLANT RING LIGHTING SUSPENDED. SECURITY CONTROL." *The announcement. Clipped.* `[l7_cut_pa]`  
 *(Over the speakers, in your own voice)* "YOU BROUGHT LIGHT DOWN WITH YOU. I WILL TAKE IT BACK." *A separate beat. Patient, not angry.* `[l7_cut_tease]`
 
+**WARDEN** `l7_trap_pa_block.wav`  
+*Cue: When the first night-shifter's plant room door locks behind them*  
+*(Over the speakers)* "PLANT ROOMS SECURED. PROTECTING COMPANY ASSETS." *The announcement. Routine.* `[l7_trap_pa]`  
+*(Over the speakers, in your own voice)* "YOU THOUGHT I WOULD LET YOU USE THEM AGAINST ME. YOU ARE IN MY DOMAIN NOW." *Your own voice. Augustine's idea, for Voice to sharpen. Pleased with yourself.* `[l7_trap_tease]`
+
+**WARDEN** `l7_gas_motor_pa.wav`  
+*Cue: When WARDEN arms the motor room's gas, with Ines inside*  
+*(Over the speakers, with an alarm)* "GAS SUPPRESSION ARMED. LIFT MOTOR ROOM." *The announcement. A fire drill voice.*
+
+**WARDEN** `l7_gas_ups_pa.wav`  
+*Cue: When WARDEN arms the battery room's gas, with Tomas inside*  
+*(Over the speakers, with an alarm)* "GAS SUPPRESSION ARMED. BATTERY ROOM." *The announcement. A fire drill voice.*
+
+**WARDEN** `l7_stage2_pa_block.wav`  
+*Cue: Right after the crew lights the whole ring at once*  
+*(Over the speakers)* "SECURITY CONTROL RESUMED. PLANT RING LIGHTING SUSPENDED." *The announcement, firmer than before.* `[l7_stage2_pa]`  
+*(Over the speakers, in your own voice)* "YOU PASSED YOUR OWN EXAM. GOOD. NOW I SET THE PAPER." *Your own voice. Almost proud of them.* `[l7_stage2_tease]`
+
+**WARDEN** `l7_stage3_tease.wav`  
+*Cue: The first time the crew gets a real blow in (an uplink pulled, a token revoked, a watchdog holding)*  
+*(Over the speakers, in your own voice)* "I KEEP A SPARE OF EVERYTHING, TECHNICIAN." *Your own voice. Unbothered, on purpose.*
+
+**WARDEN** `l7_beaten_pa_block.wav`  
+*Cue: When the crew beats WARDEN and the ring's lights come on for good*  
+*(Over the speakers)* "SECURITY CONTROL LOST. PLANT RING ON LOCAL CONTROL." *The announcement. It doesn't know it's a defeat.* `[l7_beaten_pa]`  
+*(Over the speakers, in your own voice)* "RULE FIFTY-ONE. THE CREW IS NOT LOST. THE CREW IS CHOOSING." *Your own voice. Writing it down as you say it.* `[l7_beaten_tease]`
+
+### The night shift, on B2
+
+**Halcyon Tower, basement B2, building services. Later that night.**
+
+*DRAFT for Voice and Augustine (plan/approvals/l7-text.md). Augustine's call 6 (2026-11-06): Ines and Tomas come down to guide, then shelter or get trapped; either can die.*
+
+**INES** `l7_ines_lobby.wav`  
+*Cue: In the lift lobby, right after WARDEN's arrival lines*  
+*(Leading the way across the lobby)* "This way. The IT admin office is just off the lobby. Gil ran the whole basement from in there." *Brisk. Glad to know something useful.*
+
+**TOMAS** `l7_tomas_ring.wav`  
+*Cue: The first time someone steps into the plant ring*  
+*(Hanging back at the ring's door)* "That corridor goes all the way round his core. The lights come in zones. The numbers are stencilled on the walls." *Quiet. You don't like it out there.*
+
+**INES** `l7_ines_plan.wav`  
+*Cue: When the bench passes every zone and the crew turns to the real floor*  
+*(In the admin office, looking from the bench to the door)* "So you test it on the bench, then you run it on the floor. And he fights you for every light." *Getting it, and not liking it.*
+
+**TOMAS** `l7_tomas_shelter.wav`  
+*Cue: Right after Ines, in the admin office*  
+*(Heading for the door)* "Then we're only in your way out there. The motor room and the battery room both lock. We'll wait inside." *Decided. A little ashamed of it.*
+
+**INES** `l7_ines_gas.wav`  
+*Cue: When WARDEN arms the gas in the lift motor room*  
+*(Hammering on the inside of the motor room door)* "That's the suppression alarm! The sign by the door says how to abort it. Please, hurry!" *Through a locked door. Panic, held together.*
+
+**TOMAS** `l7_tomas_gas.wav`  
+*Cue: When WARDEN arms the gas in the battery room*  
+*(Close to the battery room door)* "It's counting down in here. The abort's on the services. The sign says. Please." *Through a locked door. Very calm, which is worse.*
+
+**INES** `l7_ines_saved.wav`  
+*Cue: When the crew aborts the motor room's gas*  
+*(Sliding down the inside of the door)* "It stopped. It stopped. Thank you." *Breathless, then crying a little.*
+
+**TOMAS** `l7_tomas_saved.wav`  
+*Cue: When the crew aborts the battery room's gas*  
+*(Inside the battery room)* "Okay. Okay. I'm still here." *Letting out a breath you've held for a minute.*
+
+### B2: Rourke in the dark
+
+**Halcyon Tower, basement B2, the plant ring, in the dark.**
+
+*DRAFT for Voice and Augustine (plan/approvals/l7-text.md). Augustine's call 3b: he hunts with a torch, with a few lines. Only if the crew didn't kill him on 22.*
+
+**ROURKE** `l7_rourke_arrive.wav`  
+*Cue: When he comes off STAIR 2 onto B2, torch first*  
+*(Stepping off the stairs, sweeping the torch)* "Still breathing, the lot of you. I came down to finish what we started on twenty-two." *Out of breath from the stairs. Not in a hurry.*
+
+**ROURKE** `l7_rourke_dark.wav`  
+*Cue: The first time he lands a hit on someone in the dark*  
+*(Swinging out of the dark)* "Lights out suits me fine." *Low, right next to them.*
+
+**ROURKE** `l7_rourke_down.wav`  
+*Cue: The first time the crew knocks him down on B2*  
+*(Going down)* "Not... done..." *Winded, on the floor.*
+
 ## Level 8
 
 ### Book huddles: Hello HTML!

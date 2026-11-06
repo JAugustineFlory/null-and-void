@@ -1,6 +1,6 @@
 # WARDEN
 
-*Your script for Null & Void: 45 recordings.*
+*Your script for Null & Void: 51 recordings.*
 
 ## Who you are
 
@@ -495,3 +495,57 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *Over the speakers, in your own voice. A separate beat. Patient, not angry.*
 
 "YOU BROUGHT LIGHT DOWN WITH YOU. I WILL TAKE IT BACK."
+
+**[ ] `l7_trap_pa_block.wav`**
+
+*When the first night-shifter's plant room door locks behind them. Over the speakers. The announcement. Routine.*
+
+"PLANT ROOMS SECURED. PROTECTING COMPANY ASSETS."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. Your own voice. Augustine's idea, for Voice to sharpen. Pleased with yourself.*
+
+"YOU THOUGHT I WOULD LET YOU USE THEM AGAINST ME. YOU ARE IN MY DOMAIN NOW."
+
+**[ ] `l7_gas_motor_pa.wav`**
+
+*When WARDEN arms the motor room's gas, with Ines inside. Over the speakers, with an alarm. The announcement. A fire drill voice.*
+
+"GAS SUPPRESSION ARMED. LIFT MOTOR ROOM."
+
+**[ ] `l7_gas_ups_pa.wav`**
+
+*When WARDEN arms the battery room's gas, with Tomas inside. Over the speakers, with an alarm. The announcement. A fire drill voice.*
+
+"GAS SUPPRESSION ARMED. BATTERY ROOM."
+
+**[ ] `l7_stage2_pa_block.wav`**
+
+*Right after the crew lights the whole ring at once. Over the speakers. The announcement, firmer than before.*
+
+"SECURITY CONTROL RESUMED. PLANT RING LIGHTING SUSPENDED."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. Your own voice. Almost proud of them.*
+
+"YOU PASSED YOUR OWN EXAM. GOOD. NOW I SET THE PAPER."
+
+**[ ] `l7_stage3_tease.wav`**
+
+*The first time the crew gets a real blow in (an uplink pulled, a token revoked, a watchdog holding). Over the speakers, in your own voice. Your own voice. Unbothered, on purpose.*
+
+"I KEEP A SPARE OF EVERYTHING, TECHNICIAN."
+
+**[ ] `l7_beaten_pa_block.wav`**
+
+*When the crew beats WARDEN and the ring's lights come on for good. Over the speakers. The announcement. It doesn't know it's a defeat.*
+
+"SECURITY CONTROL LOST. PLANT RING ON LOCAL CONTROL."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. Your own voice. Writing it down as you say it.*
+
+"RULE FIFTY-ONE. THE CREW IS NOT LOST. THE CREW IS CHOOSING."

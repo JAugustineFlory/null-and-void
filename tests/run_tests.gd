@@ -220,6 +220,7 @@ func _group_floor_b1() -> void:
 
 func _group_floor_b2() -> void:
 	await _run_file("res://tests/level_7_tests.gd")
+	await _run_file("res://tests/level_7_fight_tests.gd")
 
 
 ## Papers: how they read in your hands, and that every floor's face their readers.

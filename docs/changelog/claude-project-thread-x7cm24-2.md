@@ -1,0 +1,3 @@
+- **Added:** the fight for the bottom floor's lights, in three stages, with three ways to win that each player picks for themselves.
+- **Added:** people to protect down there. Whether they make it is up to the crew, and the game remembers.
+- **Added:** the end of Act 2: get the lifts running and ride up.

@@ -1,6 +1,6 @@
 # Tomas Lindqvist
 
-*Your script for Null & Void: 4 recordings.*
+*Your script for Null & Void: 8 recordings.*
 
 ## Who you are
 
@@ -69,3 +69,33 @@ Send the files back as they are. They go in `audio/voice/tomas/` in the game.
 *Right after Ines, as the crew comes back onto the landing. Looking at the stairwell gate that's open now, not at the crew. Flat, then not quite flat.*
 
 "They're clocked out. All of them. First honest line in that ledger in twenty years."
+
+## Scene 3: The night shift, on B2
+
+**Halcyon Tower, basement B2, building services. Later that night.**
+
+> You came down the fire stairs from the cold store with the crew. You work here, so you know the way round the bottom of the building better than they do. Then you see what they're up against, and you get out of the way: you shelter in a plant room, and the building's computer locks you in and arms the room's gas suppression.
+
+**[ ] `l7_tomas_ring.wav`**
+
+*The first time someone steps into the plant ring. Hanging back at the ring's door. Quiet. You don't like it out there.*
+
+"That corridor goes all the way round his core. The lights come in zones. The numbers are stencilled on the walls."
+
+**[ ] `l7_tomas_shelter.wav`**
+
+*Right after Ines, in the admin office. Heading for the door. Decided. A little ashamed of it.*
+
+"Then we're only in your way out there. The motor room and the battery room both lock. We'll wait inside."
+
+**[ ] `l7_tomas_gas.wav`**
+
+*When WARDEN arms the gas in the battery room. Close to the battery room door. Through a locked door. Very calm, which is worse.*
+
+"It's counting down in here. The abort's on the services. The sign says. Please."
+
+**[ ] `l7_tomas_saved.wav`**
+
+*When the crew aborts the battery room's gas. Inside the battery room. Letting out a breath you've held for a minute.*
+
+"Okay. Okay. I'm still here."
