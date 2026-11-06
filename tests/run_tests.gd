@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage"]
 
 
 func _run() -> void:
@@ -76,6 +76,7 @@ func _run_group(g: String) -> void:
 		"floor_10": await _group_floor_10()
 		"floor_9": await _group_floor_9()
 		"floor_b1": await _group_floor_b1()
+		"floor_b2": await _group_floor_b2()
 		"coop": await _group_coop()
 		"combat": await _group_combat()
 		"movement": await _group_movement()
@@ -215,6 +216,10 @@ func _group_floor_9() -> void:
 ## B1, the cold store (Level 6).
 func _group_floor_b1() -> void:
 	await _run_file("res://tests/level_6_tests.gd")
+
+
+func _group_floor_b2() -> void:
+	await _run_file("res://tests/level_7_tests.gd")
 
 
 ## Papers: how they read in your hands, and that every floor's face their readers.
@@ -4577,6 +4582,9 @@ func test_world() -> void:
 	var cold = world.current
 	check(cold != null and cold.wing_id == "level_6" and cold.active and world._field_notes == null, "after Personnel the route goes down to the cold store on B1")
 	world.wing_finished(cold)
+	var machine_room = world.current
+	check(machine_room != null and machine_room.wing_id == "level_7" and machine_room.active and world._field_notes == null, "after the cold store the route goes down to the machine room on B2")
+	world.wing_finished(machine_room)
 	check(world._field_notes != null and world.player.input_locked, "the route ends at Field Notes, in the notebook")
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()

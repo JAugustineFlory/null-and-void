@@ -1,6 +1,6 @@
 # Recording list
 
-1268 recordings in all, 1604 lines.
+1270 recordings in all, 1608 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -70,7 +70,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l2_tied_1_block` | "You think a bit of cable holds me?" "WARDEN will eat you alive in here." "Run if you like. Every camera on this floor already thinks you killed her." | Tied up on the floor, grinning through it. Quieter. He means it. Smiling. The frame, said out loud. | Level 2, later |
 | [ ] | `l2_rourke_1_block` | "Still on channel one? Good. Thought you'd want to know I'm out." "Security office is the only way down from here. Say hi to the night guard for me." "Oh, he won't say much. Nobody's seen him since Tuesday." | Relaxed, enjoying himself again. Casual, like giving directions. Let it hang. Then the radio clicks off. | Level 2 |
 
-## WARDEN (43 recordings, 60 lines)
+## WARDEN (45 recordings, 64 lines)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
@@ -119,6 +119,8 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l6_guard_pa_block` | "RELAY GUARD ENGAGED. DOOR HELD SHUT FOR THIRTY SECONDS." "YOU ARE WEARING IT OUT." | The announcement. Clipped. A separate beat. Mild, almost helpful. | Level 6 |
 | [ ] | `l6_free_pa_block` | "ALL STAFF ENTRIES CLOSED. NO STAFF REMAIN ON LEVEL B1." "THAT HAS NEVER BEEN TRUE BEFORE." | The announcement. Flat. A separate beat. Slow. You are stating a fact you have just noticed. | Level 6 |
 | [ ] | `l6_stopped_pa_block` | "NO SCRIPTS RUNNING. VAULT DOORS SECURE." "TIDY. I DID NOT THINK YOU HAD IT IN YOU." | The announcement. Routine. A separate beat. Dry; a compliment you don't mean to give. | Level 6 |
+| [ ] | `l7_arrive_pa_block` | "VISITORS ON LEVEL B2, BUILDING SERVICES. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, LIGHTING ON THIS LEVEL IS UNDER SECURITY CONTROL." "YOU ARE BELOW EVERYTHING NOW. SO AM I." | The announcement. Flat; a notice on a door. A separate beat, your own voice. Close. You have never had visitors down here. | Level 7 |
+| [ ] | `l7_cut_pa_block` | "PLANT RING LIGHTING SUSPENDED. SECURITY CONTROL." "YOU BROUGHT LIGHT DOWN WITH YOU. I WILL TAKE IT BACK." | The announcement. Clipped. A separate beat. Patient, not angry. | Level 7 |
 
 ## WARDEN (PA tapes) (5 recordings, 6 lines)
 

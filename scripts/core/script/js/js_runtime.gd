@@ -68,6 +68,14 @@ func start(library: BuildingLibrary, seed_value := 0) -> void:
 	_vm.globals["api"] = _api_object()
 	_vm.globals["db"] = JSStdlib._host_obj({"query": func(vm: JSVM, a: Array): return _db_query(vm, a)})
 	_vm.printed.connect(func(text: String, kind: String): printed.emit(text, kind))
+	# On a test bench (Level 7) every assert that passes says so in the log, as a test
+	# runner does, so the bench (and the player) can see what was tested.
+	if library and library.api and library.api.test_bench:
+		_vm.globals["assert"] = JSVM.Native.new("assert", func(v: JSVM, a: Array):
+			if not JSVM.truthy(JSStdlib._a(a, 0)):
+				return v.fail("assert failed: %s" % (JSVM.to_str(a[1]) if a.size() > 1 else "the test was false"))
+			v.printed.emit("PASS  " + (JSVM.to_str(a[1]) if a.size() > 1 else "assert"), "pass")
+			return null)
 	_vm.start(_main, seed_value)
 	state = State.RUNNING
 	started.emit()

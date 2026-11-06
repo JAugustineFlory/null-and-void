@@ -17,11 +17,25 @@ extends RefCounted
 ## The checks run in the order real services use: is there such a route (404),
 ## does it take this method (405), who's asking (401, 403), is the body JSON (400),
 ## then the handler, which can still answer 400, 404 or 409 itself.
+##
+## Tokens (B2, Level 7): a route added with auth "token" takes a bearer token instead
+## of a key. enable_tokens() adds the auth service: trade a key for a token, which
+## runs out (the level expires it on its own clock, expire_token) or is revoked.
+##
+##   POST /auth/token {"key": "7f3a-22"}      -> 201 {"token": "tok_...", "expires_in": 180}
+##
+##   GET /lights
+##   Authorization: Bearer tok_...
+
+## A token was given out (POST /auth/token), good for `seconds`. The level that owns
+## the service decides when it runs out, on the host's clock, and calls expire_token.
+signal token_issued(token: String, seconds: float)
 
 const METHODS := ["GET", "POST", "PUT", "PATCH", "DELETE"]
 const KEY_HEADER := "x-api-key"
+const AUTH_HEADER := "authorization"
 const STATUS_TEXT := {200: "OK", 201: "Created", 204: "No Content", 400: "Bad Request",
-	401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 409: "Conflict", 503: "Service Unavailable"}
+	401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 409: "Conflict", 423: "Locked", 503: "Service Unavailable"}
 
 ## "METHOD /path" -> {handler, scope}. A path segment written as ":name" matches
 ## anything and is passed in params. The handler is either
@@ -32,11 +46,95 @@ const STATUS_TEXT := {200: "OK", 201: "Created", 204: "No Content", 400: "Bad Re
 var _routes := {}
 ## API key -> {key, scopes, label}.
 var _keys := {}
+## Bearer token -> {token, key (the key record it was traded for), state: "ok",
+## "expired" or "revoked"}.
+var _tokens := {}
+## How long a token lasts, in seconds (enable_tokens).
+var token_seconds := 0.0
+## Draws each new token's characters. Seeded by the level, so every machine in co-op,
+## running the same requests in the same order, hands out the same tokens.
+var _token_rng: RandomNumberGenerator
+## A test bench's copy of a floor's services (Level 7): scripts run against it count
+## their passing assert() lines out loud, so the bench can say what was tested.
+var test_bench := false
 
 
-## Adds a route. With `scope`, callers need an API key that has that scope.
-func route(method: String, path: String, handler: Callable, scope := "") -> void:
-	_routes["%s %s" % [method.to_upper(), path]] = {"handler": handler, "scope": scope}
+## Adds a route. With `scope`, callers need an API key that has that scope; with
+## `auth` "token", a bearer token traded for such a key instead (enable_tokens).
+func route(method: String, path: String, handler: Callable, scope := "", auth := "key") -> void:
+	_routes["%s %s" % [method.to_upper(), path]] = {"handler": handler, "scope": scope, "auth": auth}
+
+
+## Adds the auth service: POST /auth/token trades a valid key for a bearer token good
+## for `seconds`; POST /auth/revoke {"token": ...} ends one (its own, or any with a key
+## that has the "auth_admin" scope). Tokens are drawn from `seed_value`.
+func enable_tokens(seconds: float, seed_value: int) -> void:
+	token_seconds = seconds
+	_token_rng = RandomNumberGenerator.new()
+	_token_rng.seed = seed_value
+	route("POST", "/auth/token", func(_p, req): return _issue(req))
+	route("POST", "/auth/revoke", func(_p, req): return _revoke(req), "*", "token")
+
+
+## A token this service knows about, for papers and tests: `expired` makes it one that
+## has already run out (a runbook's example, say).
+func add_token(token: String, key: String, expired := false) -> void:
+	_tokens[token] = {"token": token, "key": _keys.get(key, {"key": key, "scopes": [], "label": ""}), "state": "expired" if expired else "ok"}
+
+
+## The token has run out (its owner's clock says so).
+func expire_token(token: String) -> void:
+	if _tokens.has(token) and _tokens[token].state == "ok":
+		_tokens[token].state = "expired"
+
+
+func revoke_token(token: String) -> void:
+	if _tokens.has(token):
+		_tokens[token].state = "revoked"
+
+
+## "ok", "expired", "revoked", or "" for a token this service never gave out.
+func token_state(token: String) -> String:
+	return _tokens[token].state if _tokens.has(token) else ""
+
+
+## The label of the key a token was traded for ("" if unknown).
+func token_label(token: String) -> String:
+	return str(_tokens[token].key.get("label", "")) if _tokens.has(token) else ""
+
+
+## The tokens given out so far, oldest first.
+func tokens() -> Array:
+	return _tokens.keys()
+
+
+func _issue(req: Dictionary) -> Dictionary:
+	var bad := check_fields(req.body, {"key": TYPE_STRING})
+	if bad != "":
+		return {"status": 400, "body": {"error": bad + " A token is asked for with the key: {\"key\": \"<your key>\"}"}}
+	var record = _keys.get(req.body.key)
+	if record == null:
+		return {"status": 401, "body": {"error": "That key isn't valid. Check it character by character."}}
+	var token := "tok_"
+	for i in 12:
+		token += "0123456789abcdef"[_token_rng.randi_range(0, 15)]
+	_tokens[token] = {"token": token, "key": record, "state": "ok"}
+	token_issued.emit(token, token_seconds)
+	return {"status": 201, "body": {"token": token, "type": "Bearer", "expires_in": int(token_seconds)}}
+
+
+func _revoke(req: Dictionary) -> Dictionary:
+	var bad := check_fields(req.body, {"token": TYPE_STRING})
+	if bad != "":
+		return {"status": 400, "body": {"error": bad}}
+	var target: String = req.body.token
+	if not _tokens.has(target):
+		return {"status": 404, "body": {"error": "No such token. Nothing to revoke."}}
+	var mine: bool = req.get("token", "") == target
+	if not mine and not "auth_admin" in req.key.scopes:
+		return {"status": 403, "body": {"error": "That token can only revoke itself."}}
+	revoke_token(target)
+	return {"status": 200, "body": {"token": target, "revoked": true}}
 
 
 ## Adds an API key that can call routes with any of `scopes`. `label` names
@@ -168,7 +266,16 @@ func _dispatch(method: String, path: String, headers: Dictionary, body: String) 
 
 func _call(r: Dictionary, params: Array, method: String, path: String, headers: Dictionary, body: String) -> Dictionary:
 	var key_record = null
-	if r.scope != "":
+	var token := ""
+	if r.get("auth", "key") == "token":
+		var checked := _check_token(headers)
+		if checked.has("status"):
+			return checked
+		token = checked.token
+		key_record = checked.key
+		if r.scope != "*" and r.scope != "" and not r.scope in key_record.scopes:
+			return {"status": 403, "body": {"error": "That token is valid, but it isn't allowed to do this."}}
+	elif r.scope != "":
 		if not headers.has(KEY_HEADER) or headers[KEY_HEADER] == "":
 			return {"status": 401, "body": {"error": "This service needs an API key, sent in a header: X-Api-Key: <key>"}}
 		key_record = _keys.get(headers[KEY_HEADER])
@@ -187,7 +294,28 @@ func _call(r: Dictionary, params: Array, method: String, path: String, headers: 
 	var handler: Callable = r.handler
 	if handler.get_argument_count() < 2:
 		return handler.call(params)
-	return handler.call(params, {"method": method, "path": path, "headers": headers, "body": parsed, "key": key_record})
+	return handler.call(params, {"method": method, "path": path, "headers": headers, "body": parsed, "key": key_record, "token": token})
+
+
+## Who's asking, on a token route: {token, key} for a good bearer token, else the 401
+## to answer with, saying what's wrong in words a beginner can act on.
+func _check_token(headers: Dictionary) -> Dictionary:
+	var auth := str(headers.get(AUTH_HEADER, "")).strip_edges()
+	if auth == "":
+		if headers.has(KEY_HEADER):
+			return {"status": 401, "body": {"error": "This service takes tokens, not keys. POST /auth/token with the key in the body, then send the token in a header: Authorization: Bearer <token>"}}
+		return {"status": 401, "body": {"error": "This service needs a token, sent in a header: Authorization: Bearer <token>. POST /auth/token gets one."}}
+	if not auth.to_lower().begins_with("bearer "):
+		return {"status": 401, "body": {"error": "Send the token after the word Bearer and a space: Authorization: Bearer <token>"}}
+	var token := auth.substr(7).strip_edges()
+	match token_state(token):
+		"ok":
+			return {"token": token, "key": _tokens[token].key}
+		"expired":
+			return {"status": 401, "body": {"error": "That token has expired. POST /auth/token for a fresh one.", "expired": true}}
+		"revoked":
+			return {"status": 401, "body": {"error": "That token was revoked. It won't work again.", "revoked": true}}
+	return {"status": 401, "body": {"error": "That token isn't one this service gave out. POST /auth/token for one of its own."}}
 
 
 func _has_writes() -> bool:

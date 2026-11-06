@@ -114,6 +114,19 @@ func test_world_trips() -> void:
 	_check.call(r.passed == ["8", "7", "6", "5", "4", "3", "2", "1", "G"], "past every floor from 8 to G (%s)" % [r.passed])
 	times.append(["9", "B1", 10, r.secs])
 	_check.call(_game().completed_level == "level_5" and _game().next_level == "level_6" and root_net().profile.earned.has("achievement:floor_9"), "floor 9 is complete and earns its unlock, B1 is next")
+	# B1 down to B2: once every entry's closed, STAIR 2's gate opens and B2 builds below.
+	l6.all_free = true
+	l6._on_all_free()
+	await _frames(10)
+	var l7 = world.wings.get("level_7")
+	_check.call(l7 != null and world.stairs.is_linked(Stairwell.of(l6.stair_in)) and l6.stair_gate.is_open, "once B1's echoes are free, its gate opens, B2 builds and STAIR 2 goes on down to it")
+	_check.call(_plate(l6.stair_in, -1) == "B2" and _plate(l7.stair_in, 1) == "B1", "B1's stairs go down to B2, and B2's up to B1")
+	r = await _trip(world, p, l6.stair_in, l7.stair_in, true)
+	_check.call(r.ok and r.fade == 0.0 and world.current == l7 and l7.active, "B1 down to B2: down the last flight and out into the machine room, no fade %s" % [r])
+	_check.call(r.passed.is_empty(), "no floors in between (%s)" % [r.passed])
+	times.append(["B1", "B2", 1, r.secs])
+	_check.call(_game().completed_level == "level_6" and _game().next_level == "level_7" and root_net().profile.earned.has("achievement:floor_b1"), "B1 is complete and earns its unlock, B2 is next")
+	_check.call(not l6.active and l7.active, "B1 stands down once the crew's on B2 (its deck, clocks and cold stay behind)")
 	for t in times:
 		print("    stairs %s to %s: %d storeys, %.1f s from the first step to the landing at walking pace" % t)
 	world.queue_free()

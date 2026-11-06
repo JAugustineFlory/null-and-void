@@ -1,7 +1,7 @@
 extends RefCounted
 ## Every floor's fire stairs (Augustine, v0.8 playtest): the door swings out of the
 ## stairwell from either side, nobody arrives behind it or in it, and the stairs
-## run a storey or two up and down (none down from G), room for anyone.
+## run a storey or two up and down (none down from G or B2), room for anyone.
 
 ## Bigger than any of the crew (CrewBody.largest() on release/v0.8 is about 0.35 m
 ## round and under 2 m tall), so a slot clear for this is clear for everyone.
@@ -69,12 +69,13 @@ func test_every_stairwell() -> void:
 			if was_open:
 				door.set_open(true, true)
 			# A real switchback, storeys of it: up from every landing, and down from
-			# every one but G's (and only to G from the floor over it).
+			# every one but G's and B2's, the bottom of the building (and only to G
+			# from the floor over it).
 			var below: int = holder.get_meta("below", -1)
 			var flights_a: Array = holder.find_children("StairA*", "StaticBody3D", false, false)
 			var flights_b: Array = holder.find_children("StairB*", "StaticBody3D", false, false)
 			var storeys := below + Stairwell.ABOVE + 1
-			if (below != 0) == (_floor_of(holder) == "G") or below > 2 or flights_a.size() != storeys * (Stairwell.RISERS - 1) or flights_b.size() != flights_a.size():
+			if (below != 0) == (_floor_of(holder) in ["G", "B2"]) or below > 2 or flights_a.size() != storeys * (Stairwell.RISERS - 1) or flights_b.size() != flights_a.size():
 				bad_down.append("%s: %d storeys down, %d+%d treads" % [where, below, flights_a.size(), flights_b.size()])
 			else:
 				for flight in [flights_a, flights_b]:
@@ -159,7 +160,7 @@ func test_every_stairwell() -> void:
 	_check.call(stairwells >= 10, "found the fire stairs on every floor (%d stairwells)" % stairwells)
 	_check.call(bad_swing.is_empty(), "every stair door swings out into the lobby, opened from either side %s" % [bad_swing])
 	_check.call(bad_leaf.is_empty(), "nothing in a lobby stands in a stair door's swing %s" % [bad_leaf])
-	_check.call(bad_down.is_empty(), "every stairwell runs storeys up and down in even steps, and none down from G %s" % [bad_down])
+	_check.call(bad_down.is_empty(), "every stairwell runs storeys up and down in even steps, and none down from G or B2 %s" % [bad_down])
 	_check.call(bad_well.is_empty(), "every stairwell's shaft, top to bottom, cuts into nothing on its floor %s" % [bad_well])
 	_check.call(bad_route.is_empty(), "someone bigger than any of the crew fits from each landing out through the open door, and up and down every flight %s" % [bad_route])
 	_check.call(bad_slots.is_empty(), "all six arrival spots on each landing stand clear of the door (shut or open), the flights and the walls, for a body bigger than any of the crew %s" % [bad_slots])
