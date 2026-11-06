@@ -2950,6 +2950,11 @@ func test_coop_unlocks() -> void:
 		# Floor 18's two (plan/approvals/l3-text.md, 2026-10-21 11:27Z).
 		["sticker/archive_label", "achievement:floor_18", "Archive box label", "Finish floor 18."],
 		["clip/mercer_floppy", "secret:mercer_floppy_1", "Mercer's floppy", ""],
+		# Floor B2's night shift (plan/approvals/l7-text.md, 2026-11-06; names DRAFT).
+		["terminal/microfiche", "achievement:b2_ines_only", "Microfiche", "Leave floor B2 with Ines, and only Ines."],
+		["terminal/greenbar", "achievement:b2_tomas_only", "Greenbar", "Leave floor B2 with Tomas, and only Tomas."],
+		["terminal/night_shift", "achievement:b2_both_saved", "Night shift", "Leave floor B2 with Ines and Tomas both."],
+		["notebook/haunted_past", "achievement:b2_both_lost", "Haunted Past", "Leave floor B2 without Ines or Tomas."],
 	]
 	var rows_ok := approved.all(func(r):
 		var it := Cosmetics.info(r[0].get_slice("/", 0), r[0].get_slice("/", 1))
