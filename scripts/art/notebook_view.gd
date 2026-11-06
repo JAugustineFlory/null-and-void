@@ -28,8 +28,11 @@ var cover := COVER:
 		cover = c
 		if book:
 			book.queue_redraw()
-## Printed cover art on top of the color: "" (plain pressboard) or "easy_sql"
-## (the crew's first book: an orange band and its title).
+## Printed cover art on top of the color: "" (plain pressboard) or one of
+## COVER_ARTS: "easy_sql" (the crew's first book: an orange band and its title),
+## "ledger" (Tomas's payroll ledger: a leather spine strip and a gilt label) or
+## "haunted_past" (B2's night shift, both lost: their names on the cover, struck out).
+const COVER_ARTS := ["easy_sql", "ledger", "haunted_past"]
 var cover_art := "":
 	set(a):
 		cover_art = a
@@ -239,10 +242,27 @@ class _BookDrawing extends Control:
 		var cover: Color = get_parent().cover if get_parent() is NotebookView else NotebookView.COVER
 		draw_rect(Rect2(Vector2.ZERO, bs), cover)
 		var inset := NotebookView.PAGE_INSET
-		if get_parent() is NotebookView and get_parent().cover_art == "easy_sql":
+		var art: String = get_parent().cover_art if get_parent() is NotebookView else ""
+		if art == "easy_sql":
 			# Easy SQL's orange band shows at the edges, and its title runs along the bottom.
 			draw_rect(Rect2(Vector2(0, bs.y * 0.16), Vector2(bs.x, 46)), Color(0.98, 0.55, 0.12))
 			draw_string(ThemeDB.fallback_font, Vector2(inset.x + 10, bs.y - 5), "Easy SQL  •  Learn databases in a weekend!", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.9))
+		elif art == "ledger":
+			# A payroll ledger: tan leather corners and a gilt label strip along the bottom.
+			var leather := Color(0.42, 0.27, 0.15)
+			for corner in [Vector2(0, 0), Vector2(bs.x - 60, 0), Vector2(0, bs.y - 60), Vector2(bs.x - 60, bs.y - 60)]:
+				draw_rect(Rect2(corner, Vector2(60, 60)), leather)
+			draw_rect(Rect2(Vector2(inset.x + 4, bs.y - 20), Vector2(bs.x / 2 - inset.x - 40, 16)), Color(0.82, 0.68, 0.3))
+			draw_string(ThemeDB.fallback_font, Vector2(inset.x + 12, bs.y - 6), "PAYROLL LEDGER  •  NIGHTS  •  1997", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.25, 0.17, 0.08))
+		elif art == "haunted_past":
+			# Two names written on the cover's bottom edge, each struck through.
+			var chalk := Color(0.85, 0.85, 0.82, 0.85)
+			var x := inset.x + 10
+			for who in ["I. Oyelaran", "T. Lindqvist"]:
+				var w := ThemeDB.fallback_font.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+				draw_string(ThemeDB.fallback_font, Vector2(x, bs.y - 5), who, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, chalk)
+				draw_line(Vector2(x - 2, bs.y - 10), Vector2(x + w + 2, bs.y - 11), Color(0.75, 0.12, 0.1, 0.95), 3.0)
+				x += w + 40
 		var half := (bs.x - NotebookView.SPINE) / 2.0
 		for side in 2:
 			var x0 := inset.x if side == 0 else bs.x / 2 + NotebookView.SPINE / 2

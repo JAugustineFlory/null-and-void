@@ -218,11 +218,33 @@ func _lifts(level: Node, deck: Terminal, achievement: String) -> void:
 	check(level.arrived_18 and level.car_rear.is_open and not level.car_door.is_open and level._car_floor.text == "18" and level.hello_book.enabled, "the ride up: B2 to 18, the back doors open, and a book behind the handrail")
 	level._book_taken(1)
 	check(level.book_found and not level.hello_book.visible, "Hello HTML! picked up")
+	t.root.get_node("/root/Net").profile = Profile.new()  # a fresh save: only this ending's rewards
 	check(level.night_shift_achievement() == achievement, "the night shift's ending earns %s" % achievement)
 	for c in level.completed.get_connections():
 		level.completed.disconnect(c.callable)
 	await level._act2_end()
 	check(_game().completed_level == "level_7" and _game().night_shift_alive == level.NIGHT_SHIFT.keys().filter(func(k): return level.shift_state[k] != "dead"), "End of Act 2: the level's done, and the game remembers who lived")
+	_check_rewards(achievement)
+
+
+## Each ending's rewards, on the profile of every machine present (Augustine, 2026-11-06):
+## a survivor alone gives their own terminal theme; both alive gives the combined
+## theme and one for every other tool slot, never the two individual themes.
+func _check_rewards(achievement: String) -> void:
+	var prof: Profile = t.root.get_node("/root/Net").profile
+	var own := {"achievement:b2_ines_only": ["terminal/microfiche"], "achievement:b2_tomas_only": ["terminal/greenbar"],
+		"achievement:b2_both_lost": ["notebook/haunted_past"],
+		"achievement:b2_both_saved": ["terminal/night_shift", "flashlight/night_shift", "walkie/night_shift", "notebook/ledger", "sticker/records_tab", "clip/pay_stub"]}
+	var every: Array = []
+	for k in own:
+		every.append_array(own[k])
+	check(prof.earned.has(achievement) and every.all(func(key): return prof.has_item(key) == (key in own[achievement])),
+		"%s unlocks its own items and no others (%s)" % [achievement, every.filter(func(key): return prof.has_item(key))])
+	if achievement == "achievement:b2_both_saved":
+		check(Cosmetics.TOOL_SLOTS.all(func(slot): return own[achievement].any(func(key): return key.begins_with(slot + "/"))),
+			"both alive: a theme for every tool slot")
+		check(not prof.has_item("terminal/microfiche") and not prof.has_item("terminal/greenbar"),
+			"but not Ines's or Tomas's own: play it again for those")
 
 
 ## Revoke: his token in the auth log, revoked; he mints more; the last hint's loop
@@ -248,6 +270,7 @@ func test_revoke() -> void:
 		level.gas[room] = "armed"
 		level._discharge(room)
 	check(level.night_shift_achievement() == "achievement:b2_both_lost", "both rooms discharged: Remember those left behind")
+	await _lifts(level, deck, "achievement:b2_both_lost")
 	await _free(level)
 
 
@@ -278,4 +301,5 @@ func test_watchdog() -> void:
 	for room in ["B2-MOTOR", "B2-UPS"]:
 		level._abort_gas(room, {"body": {}})
 	check(level.night_shift_achievement() == "achievement:b2_both_saved", "both rooms aborted: nobody left behind")
+	await _lifts(level, deck, "achievement:b2_both_saved")
 	await _free(level)

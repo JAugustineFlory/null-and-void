@@ -87,6 +87,29 @@ const ITEMS := [
 	# stuck on the notebook, and a 3.5" disk clipped to it, on any cover (11:44Z).
 	{"slot": "sticker", "item": "archive_label", "name": "Archive box label", "unlock": "achievement:floor_18", "hint": "Finish floor 18."},
 	{"slot": "clip", "item": "mercer_floppy", "name": "Mercer's floppy", "unlock": "secret:mercer_floppy_1"},
+	# B2's night shift (Augustine, 2026-11-06 17:47Z-17:49Z; plan/approvals/l7-text.md):
+	# everyone present earns them, since the crew beats the floor together. Ines
+	# (Records) and Tomas (Payroll) each give their terminal theme when they alone live;
+	# both alive gives a combined terminal theme and a theme for every other tool slot,
+	# never their own two (play it again for those); both lost gives Haunted Past.
+	{"slot": "terminal", "item": "microfiche", "name": "Microfiche", "unlock": "achievement:b2_ines_only",
+		"hint": "Leave floor B2 with Ines, and only Ines."},
+	{"slot": "terminal", "item": "greenbar", "name": "Greenbar", "unlock": "achievement:b2_tomas_only",
+		"hint": "Leave floor B2 with Tomas, and only Tomas."},
+	{"slot": "terminal", "item": "night_shift", "name": "Night shift", "unlock": "achievement:b2_both_saved",
+		"hint": "Leave floor B2 with Ines and Tomas both."},
+	{"slot": "flashlight", "item": "night_shift", "name": "Night-shift torch", "unlock": "achievement:b2_both_saved",
+		"hint": "Leave floor B2 with Ines and Tomas both."},
+	{"slot": "walkie", "item": "night_shift", "name": "Night-shift handset", "unlock": "achievement:b2_both_saved",
+		"hint": "Leave floor B2 with Ines and Tomas both."},
+	{"slot": "notebook", "item": "ledger", "name": "Payroll ledger", "unlock": "achievement:b2_both_saved",
+		"hint": "Leave floor B2 with Ines and Tomas both."},
+	{"slot": "sticker", "item": "records_tab", "name": "Records tab", "unlock": "achievement:b2_both_saved",
+		"hint": "Leave floor B2 with Ines and Tomas both."},
+	{"slot": "clip", "item": "pay_stub", "name": "Tomas's pay stub", "unlock": "achievement:b2_both_saved",
+		"hint": "Leave floor B2 with Ines and Tomas both."},
+	{"slot": "notebook", "item": "haunted_past", "name": "Haunted Past", "unlock": "achievement:b2_both_lost",
+		"hint": "Leave floor B2 without Ines or Tomas."},
 ]
 
 ## The catalogue in use: ITEMS, unless a test swaps in its own (reset() puts it back).

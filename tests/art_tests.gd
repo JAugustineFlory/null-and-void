@@ -1149,6 +1149,35 @@ func test_unlockable_items() -> void:
 		"the disk's shutter end peeks over the book's top edge, the rest behind the cover")
 	check(label != null and label.position.y + 0.015 > cover_top + 0.01 and label.position.z < 0.0,
 		"the label sticks up over the top edge like an index tab, from behind the cover")
+	# B2's night shift (plan/approvals/l7-text.md): every item draws, in its own finish.
+	for key in ["terminal/microfiche", "terminal/greenbar", "terminal/night_shift", "flashlight/night_shift", "walkie/night_shift",
+			"notebook/ledger", "sticker/records_tab", "clip/pay_stub", "notebook/haunted_past"]:
+		var parts: PackedStringArray = key.split("/")
+		check(parts[1] in CharacterLooks.TOOL_ITEMS.get(parts[0], []) and CharacterLooks.FIXED_COLORS.has(key), "%s can be drawn, as a finish of its own" % key)
+	var shift := CharacterLooks.outfit({})
+	shift.tools = {"walkie": {"item": "night_shift", "color": red}, "flashlight": {"item": "night_shift", "color": red},
+		"notebook": {"item": "ledger", "color": red}, "sticker": {"item": "records_tab"}, "clip": {"item": "pay_stub"},
+		"terminal": {"item": "night_shift", "color": red}}
+	check(CharacterLooks.terminal_skin(shift.tools.terminal) == CharacterLooks.FIXED_COLORS["terminal/night_shift"]
+		and CharacterLooks.terminal_skin({"item": "microfiche"}) == CharacterLooks.FIXED_COLORS["terminal/microfiche"]
+		and CharacterLooks.terminal_skin({"item": "greenbar"}) == CharacterLooks.FIXED_COLORS["terminal/greenbar"], "the night shift's terminals draw in their own phosphor")
+	var shift_held := HeldItems.attach(cam, shift)
+	check(shift_held.walkie.get_node_or_null("Band") != null and (shift_held.walkie.shell.material_override as StandardMaterial3D).albedo_color == CharacterLooks.FIXED_COLORS["walkie/night_shift"]
+		and (shift_held.flashlight._shell[0].material_override as StandardMaterial3D).albedo_color == CharacterLooks.FIXED_COLORS["flashlight/night_shift"],
+		"the night-shift handset wears a band and its slate, the torch their blue, whatever was picked")
+	var ledger := HeldNotebook.attach(cam, shift)
+	var ledger_view := NotebookView.new()
+	ledger.set_content(ledger_view)
+	check(ledger_view.cover_art == "ledger" and ledger_view.cover == CharacterLooks.FIXED_COLORS["notebook/ledger"], "the payroll ledger wears its green and its cover art")
+	var tab: Node3D = ledger.left_half.get_node_or_null("Sticker")
+	var stub: Node3D = ledger.right_half.get_node_or_null("Clip")
+	check(tab != null and tab.find_children("*", "Label3D", true, false).any(func(l): return l.text.contains("Oyelaran")), "Ines's records tab is an index tab with her name on it")
+	check(stub != null and stub.find_children("*", "Label3D", true, false).any(func(l): return l.text.contains("Lindqvist")) and ledger.right_half.get_node_or_null("BinderClip") != null,
+		"Tomas's pay stub is clipped to the back cover")
+	var haunted := HeldNotebook.attach(cam, {"tools": {"notebook": {"item": "haunted_past", "color": red}}})
+	var haunted_view := NotebookView.new()
+	haunted.set_content(haunted_view)
+	check(haunted_view.cover_art == "haunted_past" and haunted_view.cover == CharacterLooks.FIXED_COLORS["notebook/haunted_past"], "Haunted Past is a black cover with its own art, whatever was picked")
 	stage.free()
 
 

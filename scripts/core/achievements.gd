@@ -18,6 +18,11 @@ const LIST := [
 	{"id": "achievement:floor_14", "name": "Back Online"},
 	{"id": "achievement:floor_22", "name": "Shift Change"},
 	{"id": "achievement:floor_18", "name": "Filed under F"},
+	# Floor B2's night shift (DRAFT names, plan/approvals/l7-text.md; Augustine 2026-11-06).
+	{"id": "achievement:b2_ines_only", "name": "Records Kept"},
+	{"id": "achievement:b2_tomas_only", "name": "Paid in Full"},
+	{"id": "achievement:b2_both_saved", "name": "Nobody Left Behind"},
+	{"id": "achievement:b2_both_lost", "name": "Remember Those Left Behind"},
 	{"id": "secret:mercer_vent_tape", "name": "Mercer's Tape"},
 	{"id": "secret:mercer_floppy_1", "name": "Mercer's First Disk"},
 	{"id": "secret:roster_thu", "name": "Thursday, Apparently"},
