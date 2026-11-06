@@ -1,6 +1,6 @@
 # Ines Oyelaran
 
-*Your script for Null & Void: 4 recordings.*
+*Your script for Null & Void: 8 recordings.*
 
 ## Who you are
 
@@ -69,3 +69,33 @@ Send the files back as they are. They go in `audio/voice/ines/` in the game.
 *When the first of the crew comes back onto the landing after every entry is closed. Getting up off the bottom step as they come through the door. Quiet. You already know the answer from their faces.*
 
 "Was she there? Whitlow. Was she still there?"
+
+## Scene 3: The night shift, on B2
+
+**Halcyon Tower, basement B2, building services. Later that night.**
+
+> You came down the fire stairs from the cold store with the crew. You work here, so you know the way round the bottom of the building better than they do. Then you see what they're up against, and you get out of the way: you shelter in a plant room, and the building's computer locks you in and arms the room's gas suppression.
+
+**[ ] `l7_ines_lobby.wav`**
+
+*In the lift lobby, right after WARDEN's arrival lines. Leading the way across the lobby. Brisk. Glad to know something useful.*
+
+"This way. The IT admin office is just off the lobby. Gil ran the whole basement from in there."
+
+**[ ] `l7_ines_plan.wav`**
+
+*When the bench passes every zone and the crew turns to the real floor. In the admin office, looking from the bench to the door. Getting it, and not liking it.*
+
+"So you test it on the bench, then you run it on the floor. And he fights you for every light."
+
+**[ ] `l7_ines_gas.wav`**
+
+*When WARDEN arms the gas in the lift motor room. Hammering on the inside of the motor room door. Through a locked door. Panic, held together.*
+
+"That's the suppression alarm! The sign by the door says how to abort it. Please, hurry!"
+
+**[ ] `l7_ines_saved.wav`**
+
+*When the crew aborts the motor room's gas. Sliding down the inside of the door. Breathless, then crying a little.*
+
+"It stopped. It stopped. Thank you."

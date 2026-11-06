@@ -1,6 +1,6 @@
 # Recording list
 
-1270 recordings in all, 1608 lines.
+1287 recordings in all, 1628 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -20,7 +20,7 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 Recordings marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
 
-## Dale Rourke (43 recordings, 77 lines)
+## Dale Rourke (46 recordings, 80 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth. He laughs once, in the lab: the only time his warmth turns into real glee.
 
@@ -69,8 +69,11 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l2_downed` | "Wait... wait. You don't know what you're doing." | Out of breath. Genuinely scared for the first time. | Level 2, later |
 | [ ] | `l2_tied_1_block` | "You think a bit of cable holds me?" "WARDEN will eat you alive in here." "Run if you like. Every camera on this floor already thinks you killed her." | Tied up on the floor, grinning through it. Quieter. He means it. Smiling. The frame, said out loud. | Level 2, later |
 | [ ] | `l2_rourke_1_block` | "Still on channel one? Good. Thought you'd want to know I'm out." "Security office is the only way down from here. Say hi to the night guard for me." "Oh, he won't say much. Nobody's seen him since Tuesday." | Relaxed, enjoying himself again. Casual, like giving directions. Let it hang. Then the radio clicks off. | Level 2 |
+| [ ] | `l7_rourke_arrive` | "Still breathing, the lot of you. I came down to finish what we started on twenty-two." | Out of breath from the stairs. Not in a hurry. | Level 7 |
+| [ ] | `l7_rourke_dark` | "Lights out suits me fine." | Low, right next to them. | Level 7 |
+| [ ] | `l7_rourke_down` | "Not... done..." | Winded, on the floor. | Level 7 |
 
-## WARDEN (45 recordings, 64 lines)
+## WARDEN (51 recordings, 73 lines)
 
 > Calm, polite, flat. Customer-service cadence with even pauses. Two phases. While visitors have their escort it is neutral and procedural: courteous, policy-minded, like any building system. Once protocol is breached it turns cold and hostile: refusals, warnings and quiet threats. It never helps in either phase. The sarcasm is in the words, never the tone, and it never raises its voice. From Level 4 its fault lets its own personality leak out: some lines are the automatic announcement first, then a separate teasing beat in its own dry voice. Subtitles are in capitals because that is how WARDEN prints; say them at normal volume. Record dry: the game adds the PA speaker sound.
 
@@ -121,6 +124,12 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l6_stopped_pa_block` | "NO SCRIPTS RUNNING. VAULT DOORS SECURE." "TIDY. I DID NOT THINK YOU HAD IT IN YOU." | The announcement. Routine. A separate beat. Dry; a compliment you don't mean to give. | Level 6 |
 | [ ] | `l7_arrive_pa_block` | "VISITORS ON LEVEL B2, BUILDING SERVICES. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, LIGHTING ON THIS LEVEL IS UNDER SECURITY CONTROL." "YOU ARE BELOW EVERYTHING NOW. SO AM I." | The announcement. Flat; a notice on a door. A separate beat, your own voice. Close. You have never had visitors down here. | Level 7 |
 | [ ] | `l7_cut_pa_block` | "PLANT RING LIGHTING SUSPENDED. SECURITY CONTROL." "YOU BROUGHT LIGHT DOWN WITH YOU. I WILL TAKE IT BACK." | The announcement. Clipped. A separate beat. Patient, not angry. | Level 7 |
+| [ ] | `l7_trap_pa_block` | "PLANT ROOMS SECURED. PROTECTING COMPANY ASSETS." "YOU THOUGHT I WOULD LET YOU USE THEM AGAINST ME. YOU ARE IN MY DOMAIN NOW." | The announcement. Routine. Your own voice. Augustine's idea, for Voice to sharpen. Pleased with yourself. | Level 7 |
+| [ ] | `l7_gas_motor_pa` | "GAS SUPPRESSION ARMED. LIFT MOTOR ROOM." | The announcement. A fire drill voice. | Level 7 |
+| [ ] | `l7_gas_ups_pa` | "GAS SUPPRESSION ARMED. BATTERY ROOM." | The announcement. A fire drill voice. | Level 7 |
+| [ ] | `l7_stage2_pa_block` | "SECURITY CONTROL RESUMED. PLANT RING LIGHTING SUSPENDED." "YOU PASSED YOUR OWN EXAM. GOOD. NOW I SET THE PAPER." | The announcement, firmer than before. Your own voice. Almost proud of them. | Level 7 |
+| [ ] | `l7_stage3_tease` | "I KEEP A SPARE OF EVERYTHING, TECHNICIAN." | Your own voice. Unbothered, on purpose. | Level 7 |
+| [ ] | `l7_beaten_pa_block` | "SECURITY CONTROL LOST. PLANT RING ON LOCAL CONTROL." "RULE FIFTY-ONE. THE CREW IS NOT LOST. THE CREW IS CHOOSING." | The announcement. It doesn't know it's a defeat. Your own voice. Writing it down as you say it. | Level 7 |
 
 ## WARDEN (PA tapes) (5 recordings, 6 lines)
 
@@ -286,7 +295,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l0_tape_1_block` | "Harold Mercer. March of '94. My last day, apparently." "If you're hearing this, you crawled through a vent to get in here. Good. You don't trust doors." "Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out." "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter." "If it ever comes to that, look for my plans. The building's records remember more than people do." | Dry. Approving, a little smile. The one moment of anger, still controlled. Quiet, almost proud, then wry on the last sentence. Slow. | Level 0 |
 
-## Ines Oyelaran (4 recordings, 4 lines)
+## Ines Oyelaran (8 recordings, 8 lines)
 
 > Whispering, fast, trying not to cry and mostly managing. Relief breaks through when the pass comes. Heard from behind a door, then up close.
 
@@ -296,8 +305,12 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l6_ines_arrive` | "It's so cold down here. Colder than it should be. We'll wait by the stairs. Please don't be long." | Arms wrapped round yourself. Not going a step further. | Level 6 |
 | [ ] | `l6_ines_whitlow` | "Whitlow. A.W. Her initials are on half the old boxes in our records cage. I always wondered who she was." | Quiet. A name you've seen written a thousand times, and never on a person. | Level 6 |
 | [ ] | `l6_ines_after` | "Was she there? Whitlow. Was she still there?" | Quiet. You already know the answer from their faces. | Level 6 |
+| [ ] | `l7_ines_lobby` | "This way. The IT admin office is just off the lobby. Gil ran the whole basement from in there." | Brisk. Glad to know something useful. | Level 7 |
+| [ ] | `l7_ines_plan` | "So you test it on the bench, then you run it on the floor. And he fights you for every light." | Getting it, and not liking it. | Level 7 |
+| [ ] | `l7_ines_gas` | "That's the suppression alarm! The sign by the door says how to abort it. Please, hurry!" | Through a locked door. Panic, held together. | Level 7 |
+| [ ] | `l7_ines_saved` | "It stopped. It stopped. Thank you." | Breathless, then crying a little. | Level 7 |
 
-## Tomas Lindqvist (4 recordings, 4 lines)
+## Tomas Lindqvist (8 recordings, 8 lines)
 
 > Low, tired, dry. A man who has decided to be annoyed instead of frightened. Stiff from the floor.
 
@@ -307,6 +320,10 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l6_tomas_arrive` | "Twenty years in payroll and I've never been down here. Now I know why. Don't go in the freezers alone." | Flat, practical. You've heard the stories about this place. | Level 6 |
 | [ ] | `l6_tomas_whitlow` | "Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing." | Dry. You've seen the ledger line and never thought about it until now. | Level 6 |
 | [ ] | `l6_tomas_after` | "They're clocked out. All of them. First honest line in that ledger in twenty years." | Flat, then not quite flat. | Level 6 |
+| [ ] | `l7_tomas_ring` | "That corridor goes all the way round his core. The lights come in zones. The numbers are stencilled on the walls." | Quiet. You don't like it out there. | Level 7 |
+| [ ] | `l7_tomas_shelter` | "Then we're only in your way out there. The motor room and the battery room both lock. We'll wait inside." | Decided. A little ashamed of it. | Level 7 |
+| [ ] | `l7_tomas_gas` | "It's counting down in here. The abort's on the services. The sign says. Please." | Through a locked door. Very calm, which is worse. | Level 7 |
+| [ ] | `l7_tomas_saved` | "Okay. Okay. I'm still here." | Letting out a breath you've held for a minute. | Level 7 |
 
 ## Agnes Whitlow (2 recordings, 3 lines)
 

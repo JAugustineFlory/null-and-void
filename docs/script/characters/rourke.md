@@ -1,6 +1,6 @@
 # Dale Rourke
 
-*Your script for Null & Void: 43 recordings.*
+*Your script for Null & Void: 46 recordings.*
 
 ## Who you are
 
@@ -579,3 +579,27 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 *Smiling, thumb on the radio's switch. Let it hang. Then the radio clicks off.*
 
 "Oh, he won't say much. Nobody's seen him since Tuesday."
+
+## Scene 13: B2: Rourke in the dark
+
+**Halcyon Tower, basement B2, the plant ring, in the dark.**
+
+> The crew left you alive on twenty-two. You followed them down the fire stairs with a torch. Down here the lights are WARDEN's, and the dark suits you.
+
+**[ ] `l7_rourke_arrive.wav`**
+
+*When he comes off STAIR 2 onto B2, torch first. Stepping off the stairs, sweeping the torch. Out of breath from the stairs. Not in a hurry.*
+
+"Still breathing, the lot of you. I came down to finish what we started on twenty-two."
+
+**[ ] `l7_rourke_dark.wav`**
+
+*The first time he lands a hit on someone in the dark. Swinging out of the dark. Low, right next to them.*
+
+"Lights out suits me fine."
+
+**[ ] `l7_rourke_down.wav`**
+
+*The first time the crew knocks him down on B2. Going down. Winded, on the floor.*
+
+"Not... done..."

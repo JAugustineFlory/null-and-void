@@ -43,6 +43,10 @@ var custodian_sealed := false
 var first_aid := ""
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
 var cam_lie_learned := false
+## B2 (Level 7): how the crew beat WARDEN ("lockout", "revoke", "watchdog"; "" not
+## yet), which sets his later rules and lines; and which night-shifters lived.
+var warden_route := ""
+var night_shift_alive: Array[String] = []
 ## The level the Field Notes screen is summarizing, and where "Continue" goes.
 var completed_level := ""
 var next_level := ""
@@ -131,6 +135,8 @@ func new_run(seed_value: int = -1) -> void:
 	custodian_sealed = false
 	first_aid = ""
 	cam_lie_learned = false
+	warden_route = ""
+	night_shift_alive.clear()
 	completed_level = ""
 	next_level = ""
 	query_log.clear()

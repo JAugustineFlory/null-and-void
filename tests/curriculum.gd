@@ -482,4 +482,30 @@ const PUZZLES := {
 		"teaches": ["[", "length"],
 		"needs": ["let", "for", "const", "async function", "return", "assert", "[", "length", "/lights"],
 	},
+	# The fight (Augustine's calls 2026-11-06): the tested script, used under pressure,
+	# while WARDEN cuts the ring and the Watcher (and whoever else is loose) hunts.
+	"lights_out": {
+		"level": 7,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["let", "for", "const", "async function", "return", "assert", "[", "/auth/token", "Authorization: Bearer", "/lights"],
+	},
+	# Beat him: each player's route (an uplink and the controller, the auth log and a
+	# revoke, a watchdog loop with its assert). Each looked up in the world: the
+	# controller's plate, the runbook's access page.
+	"warden": {
+		"level": 7,
+		"pressure": true,
+		"teaches": ["/auth/log", "/auth/revoke", "/controller"],
+		"needs": ["while", "await sleep", "for", "if", "assert", "/auth/log", "/auth/revoke", "/controller", "Authorization: Bearer"],
+	},
+	# The lifts: a POST for each car, then a check that each is in service.
+	"lifts": {
+		"level": 7,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["POST", "GET", "/lifts", "for", "assert", "Authorization: Bearer"],
+	},
 }

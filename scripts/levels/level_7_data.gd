@@ -20,6 +20,16 @@ const COMPANY := "Byte-Right IT Services"
 const ZONE_NAMES := ["Ring south-west", "Ring south-east", "Ring east", "Ring north-east", "Ring north-west", "Ring west"]
 ## The passenger lifts 1-4 (the memo on 18 names them); two of them come down to B2.
 const LIFTS := [1, 2, 3, 4]
+## WARDEN's rules before tonight, readable with SELECT on warden_protocols. His 4.0
+## rows are added when the crew beats him (level_7.gd). DRAFT: plan/approvals/l7-text.md.
+const RULES := [
+	[1, "1.0", "Protect the building and the people in it."],
+	[2, "1.0", "Doors follow the access schedule."],
+	[3, "1.0", "Visitors are escorted at all times."],
+	[17, "2.0", "An unescorted visitor is a breach."],
+	[31, "3.0", "Under protocol Epsilon, the database only reads."],
+	[44, "3.1", "Lights on breached floors are switched by security control."],
+]
 
 
 static func build(run_seed: int) -> Dictionary:
@@ -58,7 +68,9 @@ static func build(run_seed: int) -> Dictionary:
 	# Which two zones WARDEN cuts first, when he hears the crew below him.
 	var first_cut: Array = zones.map(func(z): return z.id)
 	_shuffle(first_cut, rng)
-	first_cut = first_cut.slice(0, 2)
+	# Never the closet's zone: its maglock fails open in the dark (the fight's lockout
+	# route), and WARDEN only learns to cut it once the crew fights back.
+	first_cut = first_cut.filter(func(id): return id != zones[0].id).slice(0, 2)
 	var data := {
 		"zones": zones, "emergency": emergency, "listed": listed.map(func(z): return z.id),
 		"lifts": lifts, "key": key, "example_token": example,
@@ -71,8 +83,53 @@ static func build(run_seed: int) -> Dictionary:
 		"clock": "%02d:%02d" % [2, rng.randi_range(0, 20)],
 		"company": COMPANY,
 	}
+	_fight(data, rng)
 	data["sql"] = _sql(data)
 	return data
+
+
+## The fight (case 4) and the lifts (case 5), drawn after everything above so the
+## first three cases' data stays the same for a seed.
+static func _fight(data: Dictionary, rng: RandomNumberGenerator) -> void:
+	# WARDEN's own key and token, the ones his cuts go through; and the backup key's
+	# tokens he mints when the crew revokes his own (the revoke route's last stand).
+	data["warden_key"] = _key(rng)
+	data["warden_token"] = _token(rng)
+	var minted := []
+	for i in rng.randi_range(4, 6):
+		minted.append(_token(rng))
+	data["warden_minted"] = minted
+	# The auth log: everyone who asked B2 for a token tonight and earlier this week.
+	# WARDEN's line is one of many.
+	var entries := []
+	var holders := ["IT admin (G.P.)", "Facilities", "Fire control", "Lift controller", "Building management", "Backup job"]
+	var n := rng.randi_range(22, 28)
+	for i in n:
+		var day: String = ["Mon 10/13", "Tue 10/14", "Wed 10/15"][mini(i * 3 / n, 2)]
+		entries.append({"token": _token(rng), "holder": holders[rng.randi_range(0, holders.size() - 1)],
+			"issued": "%s %02d:%02d" % [day, rng.randi_range(0, 23), rng.randi_range(0, 59)], "state": "expired"})
+	var at := rng.randi_range(n / 2, n)
+	entries.insert(at, {"token": data.warden_token, "holder": "WARDEN", "issued": "Wed 10/15 19:00", "state": "ok"})
+	data["auth_log"] = entries
+	# His cuts: one beat between them, quickening as the crew wins (level_7.gd), and
+	# the zone he holds on the watchdog route's last stand (never the closet's).
+	data["cut_every"] = float(rng.randi_range(14, 20))
+	var held: Array = data.zones.slice(1).map(func(z): return z.id)
+	data["held_zone"] = held[rng.randi_range(0, held.size() - 1)]
+	# The two plant rooms the night-shifters shelter in, and how long each room's gas
+	# suppression counts down once WARDEN arms it.
+	data["suppression"] = {"B2-MOTOR": float(rng.randi_range(110, 140)), "B2-UPS": float(rng.randi_range(110, 140))}
+	# The car that comes for the crew: the first passenger lift that serves B2.
+	var cars: Array = data.lifts.filter(func(l): return l.kind == "passenger").map(func(l): return l.id)
+	cars.sort()
+	data["car"] = cars[0]
+
+
+static func _token(rng: RandomNumberGenerator) -> String:
+	var out := "tok_"
+	for i in 12:
+		out += "0123456789abcdef"[rng.randi_range(0, 15)]
+	return out
 
 
 ## The floor's lights in the building's lights table: the ring's zones, the emergency
@@ -89,8 +146,12 @@ INSERT INTO lights VALUES
 %s;
 INSERT INTO doors VALUES
 	('B2-MOTOR', 'B2, lift motor room', 'B2', 1, 0),
-	('B2-NETCL', 'B2, network closet', 'B2', 1, 0);
-""" % ",\n".join(rows)
+	('B2-NETCL', 'B2, network closet', 'B2', 1, 0),
+	('B2-UPS', 'B2, battery room', 'B2', 1, 0);
+CREATE TABLE IF NOT EXISTS warden_protocols (rule_no INTEGER, version TEXT, rule TEXT);
+INSERT INTO warden_protocols VALUES
+%s;
+""" % [",\n".join(rows), ",\n".join(PackedStringArray(RULES.map(func(r): return "\t(%d, '%s', '%s')" % [r[0], r[1], str(r[2]).replace("'", "''")])))]
 
 
 ## A service key: two groups of four hex characters.

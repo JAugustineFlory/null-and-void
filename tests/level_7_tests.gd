@@ -46,6 +46,10 @@ func _until(cond: Callable, frames: int) -> bool:
 	return cond.call()
 
 
+func _deck_said(term: Node, text: String) -> bool:
+	return term.transcript.any(func(l): return str(l).contains(text.left(30)))
+
+
 ## Runs `code` as a script on `term`, as the runner does (the level listens first, as
 ## it does once a runner is opened).
 func _run(level: Node, term: Node, code: String) -> ScriptRuntime:
@@ -335,7 +339,8 @@ func _case_zones(level: Node) -> void:
 	rt = _run(level, bench, code)
 	await _done(rt)
 	check(rt.state == ScriptRuntime.State.DONE and level.bench_lit() == 6 and level.bench_passes == 6, "the last hint's script lights all six on the bench, six tests passed")
-	check(level.zones_puzzle.solved and _game().case_info("zones").solved and _game().current_todo() == level.TEXT.todo_floor, "every zone, tested: the case closes, and the to-do points at the real floor")
+	check(level.zones_puzzle.solved and _game().case_info("zones").solved and level.fight_stage == 1 and not _game().case_info("lights_out").is_empty()
+		and _game().current_todo() == level.TEXT.case_lights_do, "every zone, tested: the case closes, and the fight opens: run it on the real floor")
 	check(level._bench_readout.text.contains("6 / 6") and level._bench_lamps[ids[0]].material_override == Greybox.mat(level.LAMP_ON, 2.0), "the mock panel shows every lamp lit")
 	rt = _run(level, bench, "console.log(\"again\");")
 	await _done(rt)
@@ -345,8 +350,20 @@ func _case_zones(level: Node) -> void:
 ## The script tested on the bench works on the floor: the same paths and zone ids.
 func _on_the_floor(level: Node) -> void:
 	var deck: Terminal = level.decks[0]
+	# WARDEN's answer to the plan: every token the crew held is revoked.
+	var old: String = level.api.tokens().filter(func(tk): return level.api.token_state(tk) == "revoked")[0]
+	var res := _req(deck, _bearer("GET /lights", old))
+	check(res.status == 401 and str(res.body.error).begins_with("That token was revoked") and _deck_said(deck, level.TEXT.tip_revoked), "WARDEN revoked the crew's tokens: an old one is 401 revoked, and SYSOP says get a fresh one")
+	check(level.watcher.active and level.fight_stage == 1, "the Watcher's loose")
+	res = _req(deck, _bearer("GET /auth/log", _token(deck, level.data.key)))
+	check(res.status == 200 and not res.body.entries.any(func(e): return e.holder == "WARDEN"), "the auth log doesn't list WARDEN yet: he works through security control")
+	check(_req(deck, _bearer("POST /auth/revoke", _token(deck, level.data.key), "{\"token\": \"%s\"}" % level.data.warden_token)).status == 404, "so his token can't be revoked yet")
 	var code: String = level.zones_puzzle.hints[-1].get_slice("[color=#ffffff]", 1).get_slice("[/color]", 0)
 	var rt := _run(level, deck, code)
 	await _done(rt)
 	check(rt.state == ScriptRuntime.State.DONE and level.data.zones.all(func(z): return level.zone_on(z.id)) and level.cut_zones.is_empty(), "the bench's script, run from a deck on the floor, lights every zone WARDEN cut")
 	check(level.bench_lit() == 0, "and the bench's mock is untouched")
+	check(level.fight_stage == 2 and _game().case_info("lights_out").solved and not _game().case_info("warden").is_empty() and level.gas["B2-MOTOR"] == "armed",
+		"the whole ring lit at once: he fights back (the next case), and arms the motor room's gas")
+	res = _req(deck, _bearer("GET /auth/log", _token(deck, level.data.key)))
+	check(res.status == 200 and res.body.entries.filter(func(e): return e.holder == "WARDEN" and e.state == "ok").size() == 1, "now his token is in the auth log")
