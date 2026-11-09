@@ -63,8 +63,8 @@ static func controls(on_in_world := Callable()) -> VBoxContainer:
 		if on_in_world.is_valid():
 			on_in_world.call(on))
 	box.add_child(in_world)
-	box.add_child(terminal_help())
 	box.add_child(ThemeUtil.label(InputGlyphs.deck_names(PAD_CONTROLS) if InputGlyphs.pad else CONTROLS, 17, Color(0.85, 0.85, 0.85)))
+	box.add_child(terminal_help())
 	box.add_child(pad_settings())
 	return box
 
@@ -88,19 +88,26 @@ static func terminal_help() -> VBoxContainer:
 	box.name = "TerminalHelp"
 	box.add_theme_constant_override("separation", 4)
 	box.add_child(ThemeUtil.label(HELP_TITLE, 20))
-	var pick := OptionButton.new()
-	pick.name = "Mode"
-	for m in HELP_MODES:
-		pick.add_item(HELP_MODES[m][0])
-	pick.selected = HELP_MODES.keys().find(KeywordHelp.mode)
 	var about := ThemeUtil.label(HELP_MODES[KeywordHelp.mode][1], 15, Color(0.8, 0.8, 0.8))
 	about.name = "About"
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pick.item_selected.connect(func(i: int):
-		KeywordHelp.mode = HELP_MODES.keys()[i]
-		KeywordHelp.save_settings()
-		about.text = HELP_MODES[KeywordHelp.mode][1])
-	box.add_child(pick)
+	var row := HBoxContainer.new()
+	row.name = "Mode"
+	var group := ButtonGroup.new()
+	for m in HELP_MODES:
+		var b := CheckBox.new()
+		b.name = HELP_MODES[m][0]
+		b.text = HELP_MODES[m][0]
+		b.button_group = group
+		b.button_pressed = KeywordHelp.mode == m
+		var mode: String = m
+		b.toggled.connect(func(on: bool):
+			if on:
+				KeywordHelp.mode = mode
+				KeywordHelp.save_settings()
+				about.text = HELP_MODES[mode][1])
+		row.add_child(b)
+	box.add_child(row)
 	box.add_child(about)
 	var pad := ThemeUtil.label(HELP_PAD, 15, Color(0.8, 0.8, 0.8))
 	pad.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
