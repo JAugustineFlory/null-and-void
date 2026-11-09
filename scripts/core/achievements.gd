@@ -23,6 +23,10 @@ const LIST := [
 	{"id": "achievement:b2_tomas_only", "name": "Paid in Full"},
 	{"id": "achievement:b2_both_saved", "name": "Nobody Left Behind"},
 	{"id": "achievement:b2_both_lost", "name": "Remember Those Left Behind"},
+	# The terminal's word buttons (names approved by Augustine 2026-11-05 00:43Z; how to
+	# earn them DRAFT, plan/approvals/keyword-buttons-text.md).
+	{"id": "achievement:no_training_wheels", "name": "No More Training Wheels", "hint": "Use a word enough that its button comes off."},
+	{"id": "achievement:look_no_buttons", "name": "Look, No Buttons"},
 	{"id": "secret:mercer_vent_tape", "name": "Mercer's Tape"},
 	{"id": "secret:mercer_floppy_1", "name": "Mercer's First Disk"},
 	{"id": "secret:roster_thu", "name": "Thursday, Apparently"},
@@ -44,11 +48,15 @@ static func is_secret(id: String) -> bool:
 	return id.begins_with("secret:")
 
 
-## How to earn `id`: the hint on the first item it unlocks ("" for secrets).
+## How to earn `id`: the hint on the first item it unlocks, or its own when it
+## unlocks none ("" for secrets).
 static func hint(id: String) -> String:
 	for it in Cosmetics.unlocked_by(id):
 		if it.has("hint"):
 			return it.hint
+	for a in LIST:
+		if a.id == id:
+			return str(a.get("hint", ""))
 	return ""
 
 

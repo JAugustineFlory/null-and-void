@@ -1,0 +1,4 @@
+- **New:** at a terminal, look down (Tab, or View on a controller) to see your notebook held below the screen: the case and your query so far, and buttons for the words that can come next, drawn only from what you've found. Look up and the screen is all yours again.
+- **Added:** a "Terminal help" setting (Easy or Normal). On Easy, each SQL word's button comes off once you've used it 3 times, and you type it yourself. With a controller, the buttons are always there.
+- **Added:** two achievements for typing your own SQL, and a terminal skin.
+- **Changed:** `.tables` writes only the tables' names in your notebook; a table's columns go in once `.schema` or a query shows them.

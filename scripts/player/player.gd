@@ -979,6 +979,14 @@ func leave_terminal() -> void:
 		terminal_amount = minf(terminal_amount, 2.0)
 
 
+## How far you've looked down from a terminal's screen at the notebook in your
+## hands (0 at the screen, 1 down; TerminalNotebook sets it): the view tips down
+## and leans back.
+var terminal_look := 0.0
+const TERMINAL_LOOK_DOWN := 22.0
+const TERMINAL_LEAN_BACK := 0.15
+
+
 func is_using_terminal() -> bool:
 	return state == Move.TERMINAL
 
@@ -1049,6 +1057,7 @@ func _end_terminal(announce: bool) -> void:
 			rotation.y = atan2(-look.x, -look.z)
 			head.rotation.x = clampf(asin(clampf(look.y, -1.0, 1.0)), -1.45, 1.45)
 	terminal_amount = 0.0
+	terminal_look = 0.0
 	_term_stand = null
 	_term_focus = null
 	_term_leaving = false
@@ -2053,6 +2062,9 @@ func _update_head(delta: float) -> void:
 		else:
 			var f := smoothstep(0.0, 1.0, terminal_amount - 1.0)
 			camera.global_transform = Transform3D(aim, head.global_position).interpolate_with(terminal_view(), f)
+			if terminal_look > 0.0:
+				camera.global_transform = camera.global_transform.translated_local(Vector3(0, 0, TERMINAL_LEAN_BACK * terminal_look)) \
+					.rotated_local(Vector3.RIGHT, deg_to_rad(-TERMINAL_LOOK_DOWN * terminal_look))
 	elif state == Move.ROLL:
 		camera.transform = Transform3D(Basis(Vector3.RIGHT, -TAU * (1.0 - clamp(_timer / ROLL_TIME, 0.0, 1.0))), Vector3.ZERO)
 	elif downed:

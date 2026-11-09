@@ -68,6 +68,15 @@ var book_words: Array[String] = []
 var before_book := false
 ## The chapters the crew has read this run, in order: they're in the notebook's book.
 var book_chapters: Array[String] = []
+## Words learned off a paper this run rather than from a chapter (IS NULL, off
+## Mercer's card): the terminal's buttons offer them (KeywordHelp).
+var learned_words: Array[String] = []
+## Queries this player's buttons have counted this run (KeywordHelp.same_query):
+## the exact same query again doesn't count.
+var counted_queries: Array[String] = []
+## Words that reached their uses at a terminal while its puzzle was open: word ->
+## that puzzle's case ("" none). Each comes off once its case is solved.
+var words_waiting := {}
 ## The notebook is held in your hands and terminals are used on their own screens.
 ## Off: both open full-screen over the view, as before (a setting in the pause menu).
 var diegetic_ui := true
@@ -127,6 +136,9 @@ func new_run(seed_value: int = -1) -> void:
 	open_at_home = false
 	book_words.clear()
 	book_chapters.clear()
+	learned_words.clear()
+	counted_queries.clear()
+	words_waiting.clear()
 	before_book = false
 	rourke_fate = "unknown"
 	has_walkie = false
@@ -176,11 +188,28 @@ func add_note(id: String) -> bool:
 	return true
 
 
-## Record a table and its columns on the notebook's Tables page.
+## Learn a word off a paper (KeywordHelp.PAPER_TOKENS): the terminal's buttons
+## offer it from now on, this run. True if it's new.
+func learn_word(word: String) -> bool:
+	if learned_words.has(word):
+		return false
+	learned_words.append(word)
+	return true
+
+
+## Record a table on the notebook's Tables page, and the columns seen so far
+## (all of them after .schema or SELECT *, a query's own result columns after
+## any other): `columns` adds to those already written down, never wipes them,
+## and empty lists only the table's name.
 func discover_table(table: String, columns: Array) -> void:
-	if notebook_tables.has(table) and notebook_tables[table] == columns:
+	var had: Array = notebook_tables.get(table, [])
+	var merged: Array = columns.duplicate() if had.all(func(c): return columns.has(c)) else had.duplicate()
+	for c in columns:
+		if not merged.has(c):
+			merged.append(c)
+	if notebook_tables.has(table) and had == merged:
 		return
-	notebook_tables[table] = columns
+	notebook_tables[table] = merged
 	_seen_tables()
 	notebook_changed.emit()
 
@@ -527,11 +556,15 @@ func has_piece(id: String, piece_id: String) -> bool:
 	return p.found if not p.is_empty() else c.get("early", {}).has(piece_id)
 
 
-## Pieces whose table has turned up on the Tables page are found.
+## Pieces whose table has turned up on the Tables page are found: a table piece
+## once its name is there, a column piece once that table's columns are.
 func _seen_tables() -> void:
 	for c in notebook_cases:
 		for p in c.get("pieces", []):
-			if not p.found and notebook_tables.has(p.get("seen_in", "")):
+			var t := str(p.get("seen_in", ""))
+			if p.found or not notebook_tables.has(t):
+				continue
+			if str(p.get("value", "")) == t or notebook_tables[t].has(p.get("value", "")):
 				collect_piece(c.id, p.id, "Tables page")
 
 

@@ -63,6 +63,14 @@ var _editor: ScriptEditorUI
 var _script_terminal: Node
 ## With a gamepad: the line being picked for the notebook (X, then the d-pad), or -1.
 var picking := -1
+## Your notebook below the screen, with the next-word buttons (TerminalNotebook).
+## It lives beside this window, never on the glass with it.
+var book: TerminalNotebook
+## Words written with the buttons since the last query was sent, and for each
+## query sent, whether it went with a pad and which words were tapped: on a pad,
+## tapped words don't count as uses (only typed ones do).
+var _tapped: Array = []
+var _sent := {}
 ## The right stick scrolls the screen this fast at full push (pixels a second).
 const PAD_SCROLL := 900.0
 const FOOT := "Enter: run (a query ends with ;)    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away"
@@ -164,7 +172,22 @@ func _ready() -> void:
 	_foot = ThemeUtil.label(FOOT, 15, ThemeUtil.DIM)
 	vbox.add_child(_foot)
 	PadReader.attach(self, _on_pad, _on_stick)
+	book = TerminalNotebook.new()
+	book.name = "TerminalNotebook"
+	if get_parent():
+		get_parent().add_child.call_deferred(book)
+	else:
+		add_child(book)
+	var game := get_node_or_null("/root/Game")
+	if game:
+		game.notebook_changed.connect(_words_check)
 	InputGlyphs.watch(self).changed.connect(_on_device_changed)  # a method: it goes when the screen does
+
+
+## The notebook below the screen lives beside this window, so it goes with it.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and book and is_instance_valid(book) and book.get_parent() != self:
+		book.queue_free()
 
 
 func open(from_terminal: Node, by_player: Player) -> void:
@@ -191,6 +214,9 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	_input.grab_focus()
 	_show_foot()
 	PadReader.show_keyboard(_input.text)
+	_tapped.clear()
+	if book and book.is_inside_tree():
+		book.open(self, player)
 
 
 ## Open on the terminal's own CRT (a TerminalScreen) instead of over the whole
@@ -260,6 +286,8 @@ func close() -> void:
 	_input.release_focus()
 	_stop_picking()
 	_cancel_note()
+	if book:
+		book.close()
 	PadReader.hide_keyboard()
 	if terminal and terminal.has_signal("screen_changed"):
 		if terminal.screen_changed.is_connected(_show_others):
@@ -321,7 +349,56 @@ func _typed() -> void:
 	var mirror := _mirror()
 	if mirror and visible:
 		mirror.typed(terminal, _input.text)
+	if book and visible:
+		book.refresh()
 
+
+## What's typed before the cursor: what the next-word buttons follow.
+func text_before_caret() -> String:
+	var line := _input.get_caret_line()
+	var lines := PackedStringArray()
+	for i in line:
+		lines.append(_input.get_line(i))
+	lines.append(_input.get_line(line).substr(0, _input.get_caret_column()))
+	return "\n".join(lines)
+
+
+## What the next-word buttons read: the text before the cursor, past a pair the
+## cursor sits inside once something's typed in it (KeywordHelp.past_pair).
+func button_text() -> String:
+	var before := text_before_caret()
+	return KeywordHelp.past_pair(before, _input.text.substr(before.length()))[0]
+
+
+## Write `word` in at the cursor, as if typed, over the `replace` characters
+## before it (a word half typed): a next-word button was picked.
+func insert_word(word: String, replace: int = 0) -> void:
+	var caret := text_before_caret()
+	var parts := KeywordHelp.past_pair(caret, _input.text.substr(caret.length()))
+	var before: String = parts[0]
+	var after: String = parts[1]
+	# A found value ('fault') picked in an empty pair of quotes brings its own.
+	if replace > 0 and before.substr(before.length() - replace).begins_with("'") and after.begins_with("'"):
+		after = after.substr(1)
+	var done := KeywordHelp.insert(before, word, replace)
+	var new_before: String = done[0]
+	_input.text = new_before + after
+	var at := new_before.length() - int(done[1])
+	var head := new_before.substr(0, at)
+	_input.set_caret_line(head.count("\n"))
+	_input.set_caret_column(head.length() - (head.rfind("\n") + 1))
+	_tapped.append(word)
+	_typed()
+	_input.grab_focus()
+
+
+## A full-screen terminal makes room for the notebook below it (TerminalNotebook):
+## `top` is how much of the screen's height the window keeps.
+func make_room(top: float) -> void:
+	if _panel == null or is_on_screen():
+		return
+	_panel.anchor_bottom = top
+	_panel.offset_bottom = -60.0 if top >= 1.0 else -6.0
 
 ## Name the other players at this terminal and show what they're typing.
 func _show_others() -> void:
@@ -551,6 +628,9 @@ func _on_input_key(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		_input.accept_event()
 		close()
+	elif event.keycode == KEY_TAB and book and book.is_open():
+		_input.accept_event()
+		book.toggle()
 	elif (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER) and not event.shift_pressed:
 		_input.accept_event()
 		_enter()
@@ -591,6 +671,8 @@ func _on_pad(event: InputEvent) -> bool:
 		return true  # the sticks are polled (scrolling); kept off the focus
 	if not event.is_pressed() or event.is_echo():
 		return false
+	if book and not _note_label.visible and picking < 0 and book.on_pad(event):
+		return true  # looked down at the notebook: the d-pad, A and LB/RB are its
 	if _note_label.visible:  # naming a note: Y writes it in, B leaves it
 		if event.is_action_pressed("alt_interact"):
 			_finish_note(_note_label.text)
@@ -779,6 +861,8 @@ func _submit() -> void:
 		_semicolon.visible = false
 	if sql == "":
 		return
+	_sent[KeywordHelp.same_query(sql)] = {"pad": InputGlyphs.pad, "tapped": _tapped.duplicate()}
+	_tapped.clear()
 	_history.append(sql)
 	_history_i = _history.size()
 	var mirror := _mirror()
@@ -867,7 +951,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	else:
 		if mine:
 			get_node("/root/Game").log_query(sql)
-			_note_tables(sql, on_terminal.db)
+			_note_tables(sql, on_terminal.db, "", result.get("columns", []))
+			count_words(sql, on_terminal)
 		else:
 			_note_tables(sql, on_terminal.db, QUERY_BY % who)
 		if result.rows.is_empty():
@@ -914,6 +999,8 @@ func show_request(on_terminal: Node, line: String, res: Dictionary, from_peer: i
 		return
 	if mine:
 		get_node("/root/Game").log_query(line)
+		if res.status < 400:
+			count_words(line, on_terminal)
 	var color := "#7dff8c" if res.status < 400 else "#ff6655"
 	on_terminal.print_line("[color=%s]HTTP/1.0 %d %s[/color]" % [color, res.status, FacilityAPI.status_text(res.status)])
 	on_terminal.print_line(_esc(res.text), "result")
@@ -945,8 +1032,11 @@ func _command(cmd: String) -> void:
 				print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
 				return
 			print_line("  ".join(db.table_names()))
+			# Only the names: a table's columns are written down once .schema or
+			# SELECT * shows them (Augustine, 2026-11-07).
 			for t in db.table_names():
-				_discover(t, db)
+				get_node("/root/Game").discover_table(t, [])
+			count_words(".tables", terminal)
 		".schema":
 			if terminal.is_locked():
 				print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
@@ -962,6 +1052,8 @@ func _command(cmd: String) -> void:
 					desc.append("%s %s" % [c["name"], c["type"]])
 				print_line("[color=%s]%s[/color](%s)" % [TABLE_HEAD, t, ", ".join(desc)], "schema")
 				_discover(t, db)
+				if parts.size() >= 2:
+					count_words(".schema " + t, terminal)
 		".hint":
 			var case_id: String = terminal.hint_case()
 			print_line(sysop(_noted_hint(case_id, terminal.next_hint())), "hint")
@@ -1038,17 +1130,22 @@ func _noted_hint(case_id: String, hint: String) -> String:
 	return hint
 
 
-## Tables a query read from go on the notebook's Tables page. A crewmate's
+## Tables a query read from go on the notebook's Tables page: with every column
+## after SELECT *, otherwise with the columns its result showed. A crewmate's
 ## (`by` says whose) only finds the case pieces seen in them.
-func _note_tables(sql: String, db: FacilityDB, by: String = "") -> void:
+func _note_tables(sql: String, db: FacilityDB, by: String = "", shown: Array = []) -> void:
 	var known: Array = db.table_names()
+	var star := RegEx.create_from_string("(?i)\\bSELECT\\s+(?:DISTINCT\\s+)?\\*").search(sql) != null
 	for m in RegEx.create_from_string("(?i)\\b(?:FROM|JOIN)\\s+([A-Za-z_][A-Za-z0-9_]*)").search_all(sql):
 		var t := m.get_string(1).to_lower()
 		for name in known:
 			if name.to_lower() == t and by != "":
 				get_node("/root/Game").see_table_pieces(name, by)
-			elif name.to_lower() == t:
+			elif name.to_lower() == t and star:
 				_discover(name, db)
+			elif name.to_lower() == t:
+				var cols: Array = db.table_schema(name).map(func(c): return c["name"])
+				get_node("/root/Game").discover_table(name, cols.filter(func(c): return shown.has(c)))
 
 
 func _discover(table: String, db: FacilityDB) -> void:
@@ -1115,3 +1212,85 @@ func _sql_highlighter() -> CodeHighlighter:
 		h.add_keyword_color(word.to_lower(), kw)
 	h.add_color_region("'", "'", Color(0.6, 1.0, 1.0))
 	return h
+
+
+# --- The next-word buttons' counts ----------------------------------------------------
+
+## A query or command of this player's ran without an error: each word in it
+## counts once toward its button coming off (KeywordHelp.USES), unless the exact
+## same query was counted already this run. Sent with a pad, tapped words don't
+## count: only typed ones do.
+func count_words(sql: String, on_terminal: Node = null) -> void:
+	var game := get_node_or_null("/root/Game")
+	var net := get_node_or_null("/root/Net")
+	if game == null or net == null or net.get("profile") == null or not KeywordHelp.counting:
+		return
+	var key := KeywordHelp.same_query(sql)
+	var how: Dictionary = _sent.get(key, {})
+	_sent.erase(key)
+	if game.counted_queries.has(key):
+		return
+	game.counted_queries.append(key)
+	var words := KeywordHelp.used_in(sql)
+	if how.get("pad", false):
+		var tapped: Array = how.get("tapped", [])
+		words = words.filter(func(w): return not tapped.has(w))
+	var case_id := ""
+	if on_terminal and on_terminal.has_method("hint_case"):
+		case_id = on_terminal.hint_case()
+	for w in net.profile.use_words(words):
+		if not game.words_waiting.has(w):
+			game.words_waiting[w] = case_id
+	_words_check.call_deferred()
+
+
+## Never in the middle of something (Augustine, 2026-11-05): a word that's been
+## used enough comes off once the puzzle it was used on is solved and no puzzle
+## under pressure is open. On a keyboard on Easy, its button goes, with the
+## notice; on a pad the buttons stay. Both achievements are checked here too.
+func _words_check() -> void:
+	var game := get_node_or_null("/root/Game")
+	var net := get_node_or_null("/root/Net")
+	if game == null or net == null or net.get("profile") == null:
+		return
+	for c in game.notebook_cases:
+		if c.get("open", false) and not c.get("solved", false) and not c.get("assemble", true):
+			return  # a puzzle under pressure
+	var profile: Profile = net.profile
+	var ready := []
+	for w in profile.word_uses:
+		if profile.uses_of(w) < KeywordHelp.USES:
+			continue
+		var on := str(game.words_waiting.get(w, ""))
+		if on != "" and game.case_info(on).get("open", false) and not game.case_info(on).get("solved", false):
+			continue
+		game.words_waiting.erase(w)
+		ready.append(w)
+	if ready.is_empty():
+		return
+	var lines := []
+	KeywordHelp.load_settings()
+	if not InputGlyphs.pad and KeywordHelp.mode == "easy":
+		var off := KeywordHelp.ORDER.filter(func(w): return ready.has(w) and not profile.words_off.has(w))
+		if not off.is_empty():
+			profile.words_off.append_array(off)
+			profile.save()
+			lines.append(KeywordHelp.off_notice(off))
+			if book:
+				book.refresh(true)
+	var earn := ["achievement:no_training_wheels"]
+	if KeywordHelp.easy_sql_tokens().all(func(w): return profile.uses_of(w) >= KeywordHelp.USES):
+		earn.append("achievement:look_no_buttons")
+	for id in earn:
+		var fresh := not profile.earned.has(id)
+		var got: Array = net.earn(id)
+		if fresh:
+			lines.append(Achievements.NOTICE % Achievements.name_of(id))
+		for k in got:
+			var slot: String = k.get_slice("/", 0)
+			var item: String = k.get_slice("/", 1)
+			if Cosmetics.drawable(slot, item):
+				lines.append("Unlocked: %s" % Cosmetics.info(slot, item).name)
+	var hud = _hud()
+	if hud and not lines.is_empty():
+		hud.notice("\n".join(lines), 4.0 + 1.5 * lines.size())
