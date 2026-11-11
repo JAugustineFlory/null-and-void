@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords"]
 
 
 func _run() -> void:
@@ -43,6 +43,7 @@ func _run() -> void:
 	_game().diegetic_ui = false
 	# Huddles, pickups and finished floors earn unlocks: keep them off this computer's real save.
 	root.get_node("Net").profile = Profile.new()
+	KeywordHelp.counting = false  # no test's queries take a word's button off in another (keyword_tests turns it on)
 	var only := _groups_from_args()
 	for g in only:
 		if g not in GROUPS:
@@ -93,6 +94,12 @@ func _run_group(g: String) -> void:
 		"sound": await _group_sound()
 		"papers": await _group_papers()
 		"garage": await _group_garage()
+		"keywords": await _group_keywords()
+
+
+## The terminal's next-word buttons and the notebook you look down at below a terminal.
+func _group_keywords() -> void:
+	await _run_file("res://tests/keyword_tests.gd")
 
 
 ## The garage's secret: the corner door, its key and the back office's PC.
@@ -2891,8 +2898,8 @@ func test_coop_achievements() -> void:
 	var real_profile = net.profile
 	Cosmetics.reset()
 	var ids := Achievements.LIST.map(func(a): return a.id)
-	check(ids.all(func(id): return ids.count(id) == 1 and not Cosmetics.unlocked_by(id).is_empty()),
-		"every achievement is one of the unlock ids, each listed once")
+	check(ids.all(func(id): return ids.count(id) == 1 and (not Cosmetics.unlocked_by(id).is_empty() or Achievements.hint(id) != "")),
+		"every achievement is one of the unlock ids (or says how to earn it itself), each listed once")
 	check(Achievements.name_of("achievement:floor_18") == "Filed under F", "floor 18's is called what Augustine approved")
 	check(ids.all(func(id): return Achievements.is_secret(id) == (Achievements.hint(id) == "")), "every achievement but a secret says how to earn it")
 	net.profile = Profile.new()

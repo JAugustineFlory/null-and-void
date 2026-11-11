@@ -61,6 +61,9 @@ var cover_color := NotebookView.COVER  # the player's notebook skin, on the boar
 var cover_art := ""  # printed cover art (NotebookView.cover_art), from the notebook skin's item
 var _player: Node  # whose filing to follow
 var _dip := 0.0  # the book lowers out of the way while a note comes in
+## Where it's held from where it's read (reading_transform), in the camera's
+## space: a terminal holds it lower, below the screen (TerminalNotebook).
+var hold_offset := Vector3.ZERO
 
 
 static func attach(camera: Camera3D, look: Dictionary = {}) -> HeldNotebook:
@@ -493,7 +496,7 @@ func _animate_and_signal(to: float, time: float, easing: Tween.EaseType, done: S
 ## 0: closed in the pocket (below the bottom-right of the screen); 1: open and readable.
 func _pose(t: float) -> void:
 	_open_t = t
-	var read := reading_transform()
+	var read := reading_transform().translated(hold_offset)
 	var pocket := Transform3D(Basis.from_euler(Vector3(deg_to_rad(-60), deg_to_rad(-20), deg_to_rad(35))), read.origin + Vector3(0.12, -0.2, 0.04))
 	var lift := clampf(t / 0.7, 0.0, 1.0)  # comes up first, then opens
 	var open := clampf((t - 0.45) / 0.55, 0.0, 1.0)

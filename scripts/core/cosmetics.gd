@@ -92,6 +92,10 @@ const ITEMS := [
 	# (Records) and Tomas (Payroll) each give their terminal theme when they alone live;
 	# both alive gives a combined terminal theme and a theme for every other tool slot,
 	# never their own two (play it again for those); both lost gives Haunted Past.
+	# The terminal's word buttons: every Easy SQL word typed 3 times (achievement name
+	# approved by Augustine 2026-11-05; the skin's name and hint DRAFT).
+	{"slot": "terminal", "item": "paper_white", "name": "Paper white", "unlock": "achievement:look_no_buttons",
+		"hint": "Type every word in Easy SQL yourself."},
 	{"slot": "terminal", "item": "microfiche", "name": "Microfiche", "unlock": "achievement:b2_ines_only",
 		"hint": "Leave floor B2 with Ines, and only Ines."},
 	{"slot": "terminal", "item": "greenbar", "name": "Greenbar", "unlock": "achievement:b2_tomas_only",

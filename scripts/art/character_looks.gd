@@ -142,7 +142,7 @@ const TOOL_ITEMS := {
 	"notebook": ["spiral", "easy_sql", "ledger", "haunted_past"],
 	"sticker": ["none", "archive_label", "records_tab"],
 	"clip": ["none", "mercer_floppy", "pay_stub"],
-	"terminal": ["phosphor", "amber", "microfiche", "greenbar", "night_shift"],
+	"terminal": ["phosphor", "amber", "paper_white", "microfiche", "greenbar", "night_shift"],
 }
 ## Tool items that are a finish, not a tint: they always draw in this color,
 ## whatever color the player picked.
@@ -150,6 +150,7 @@ const FIXED_COLORS := {
 	"walkie/gold": Color(0.95, 0.76, 0.33),
 	"notebook/easy_sql": Color(0.05, 0.55, 0.6),  # the book's teal (ArtKit.easy_sql_book)
 	"terminal/amber": Color(1.0, 0.68, 0.18),
+	"terminal/paper_white": Color(0.9, 0.92, 0.95),  # a white phosphor, for typing every word yourself
 	# B2's night shift: Ines Oyelaran (Records) and Tomas Lindqvist (Payroll).
 	"terminal/microfiche": Color(0.56, 0.82, 1.0),  # Ines: a fiche reader's cold blue-white
 	"terminal/greenbar": Color(0.93, 0.96, 0.84),  # Tomas: the payroll run's greenbar paper

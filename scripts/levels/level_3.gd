@@ -919,7 +919,8 @@ func _build_safe_room() -> void:
 	geo.add_child(lantern)
 	Greybox.panel(geo, lantern.position, Vector3(0.12, 0.2, 0.12), Color(1.0, 0.9, 0.7), 2.0)
 	# Mercer's SQL reference card, open at the page he dog-eared.
-	Document.place(geo, Vector3(c.x + back.x * 0.55, 0.77, c.z - 0.9), 0, "SQL pocket reference", CARD_LINES, true, "paper")
+	var card := Document.place(geo, Vector3(c.x + back.x * 0.55, 0.77, c.z - 0.9), 0, "SQL pocket reference", CARD_LINES, true, "paper")
+	card.words = ["IS NULL"]  # read, it's on the terminal's buttons
 	# His battery PC: off the network, with his own list on it. The safe practice for IS NULL.
 	pc = Terminal.spawn(geo, Vector3(c.x, 0.76, c.z - 1.2), 0, "MERCER (OFFLINE)", pc_db, terminal_ui)
 	pc.name = "MercerPC"

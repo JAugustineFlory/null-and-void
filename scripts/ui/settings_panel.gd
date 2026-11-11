@@ -64,7 +64,65 @@ static func controls(on_in_world := Callable()) -> VBoxContainer:
 			on_in_world.call(on))
 	box.add_child(in_world)
 	box.add_child(ThemeUtil.label(InputGlyphs.deck_names(PAD_CONTROLS) if InputGlyphs.pad else CONTROLS, 17, Color(0.85, 0.85, 0.85)))
+	box.add_child(terminal_help())
 	box.add_child(pad_settings())
+	return box
+
+
+## "Terminal help" (KeywordHelp.mode): Easy, the next-word buttons in your notebook
+## below a terminal's screen, or Normal; saved for next time. And putting the
+## training wheels back on. Text DRAFT (plan/approvals/keyword-buttons-text.md).
+const HELP_TITLE := "Terminal help"
+const HELP_MODES := {
+	"easy": ["Easy", "Buttons offer the words that can come next. Use one 3 times and you type it yourself."],
+	"normal": ["Normal", "No buttons. Your notebook shows the case's pattern, and you type."],
+}
+const HELP_PAD := "With a controller the buttons are always there. Normal hides the case's query."
+const RESET_WORDS := "Put the training wheels back on"
+const RESET_WORDS_NOTE := "Every word you've found becomes a button again."
+
+
+static func terminal_help() -> VBoxContainer:
+	KeywordHelp.load_settings()
+	var box := VBoxContainer.new()
+	box.name = "TerminalHelp"
+	box.add_theme_constant_override("separation", 4)
+	box.add_child(ThemeUtil.label(HELP_TITLE, 20))
+	var about := ThemeUtil.label(HELP_MODES[KeywordHelp.mode][1], 15, Color(0.8, 0.8, 0.8))
+	about.name = "About"
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var row := HBoxContainer.new()
+	row.name = "Mode"
+	var group := ButtonGroup.new()
+	for m in HELP_MODES:
+		var b := CheckBox.new()
+		b.name = HELP_MODES[m][0]
+		b.text = HELP_MODES[m][0]
+		b.button_group = group
+		b.button_pressed = KeywordHelp.mode == m
+		var mode: String = m
+		b.toggled.connect(func(on: bool):
+			if on:
+				KeywordHelp.mode = mode
+				KeywordHelp.save_settings()
+				about.text = HELP_MODES[mode][1])
+		row.add_child(b)
+	box.add_child(row)
+	box.add_child(about)
+	var pad := ThemeUtil.label(HELP_PAD, 15, Color(0.8, 0.8, 0.8))
+	pad.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(pad)
+	var reset := Button.new()
+	reset.name = "ResetWords"
+	reset.text = RESET_WORDS
+	reset.tooltip_text = RESET_WORDS_NOTE
+	reset.pressed.connect(func():
+		var loop := Engine.get_main_loop() as SceneTree
+		var net := loop.root.get_node_or_null("Net") if loop else null
+		if net and net.get("profile") != null:
+			net.profile.reset_words()
+		reset.text = RESET_WORDS_NOTE)
+	box.add_child(reset)
 	return box
 
 
