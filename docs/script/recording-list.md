@@ -79,15 +79,15 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2, later |
-| [ ] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2, later |
-| [ ] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2, later |
-| [ ] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2, later |
-| [ ] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2, later |
-| [ ] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2, later |
-| [ ] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2, later |
-| [ ] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2, later |
-| [ ] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2, later |
+| [x] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2, later |
+| [x] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2, later |
+| [x] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2, later |
+| [x] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2, later |
+| [x] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2, later |
+| [x] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2, later |
+| [x] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2, later |
+| [x] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2, later |
+| [x] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2, later |
 | [ ] | `l2_exit_open` | "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED." | Polite, and keeping score. | Level 2, later |
 | [ ] | `l2_lockdown_tied` | "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D." | Reading a log entry. | Level 2, later |
 | [ ] | `l2_sealed` | "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT." | The sign-off for the slice. Warm, like wishing them well. | Level 2, later |
