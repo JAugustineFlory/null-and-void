@@ -82,6 +82,7 @@ func _ready() -> void:
 	crew = CrewVitals.create(self, players)
 	player.combat.crew = crew
 	player.died.connect(_on_player_died)
+	FallNet.create(self, player)  # a fall out of the world puts you back on solid ground
 	voice = VoiceChat.create(self)
 	_build_pause_menu()
 	net_setup()
