@@ -372,6 +372,13 @@ func _build_pause_menu() -> void:
 
 	var exit_page := _pause_page("exit", box)
 	exit_page.add_child(SettingsPanel.heading("Leave the run?"))
+	# Co-op host: the run ends, and the whole crew goes back to the lobby together.
+	var to_lobby := SettingsPanel.button(get_node("/root/Net").TO_LOBBY)
+	to_lobby.name = "ToLobby"
+	to_lobby.pressed.connect(func():
+		get_tree().paused = false
+		get_node("/root/Net").end_run_to_lobby())
+	exit_page.add_child(to_lobby)
 	var to_menu := SettingsPanel.button("Quit to title screen")
 	to_menu.pressed.connect(func():
 		get_tree().paused = false
@@ -460,6 +467,7 @@ func _toggle_pause() -> void:
 	_pause.visible = p
 	if p:
 		_pause_pages["main"].get_node("Restart").visible = not sync.is_online()
+		_pause_pages["exit"].get_node("ToLobby").visible = sync.is_online() and multiplayer.is_server()
 		_show_pause_page("main")
 	else:
 		get_viewport().gui_release_focus()  # so a controller's A goes back to the game
