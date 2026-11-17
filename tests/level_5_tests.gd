@@ -659,7 +659,7 @@ func test_book_huddles() -> void:
 	check(await _until(func(): return level.book_found, 30) and not level.book.visible and net.profile.earned.has("achievement:acceptable_apis_pickup"), "picked up: it's gone from the shelf, and the find is the player's")
 	# After the crew's lines about the book, which wait their turn behind the arrival's.
 	check(await t._huddle_opens(level, "api_patch", 90.0), "the waiting chapter, Changing one thing, comes into the book")
-	check(Books.chapter("api_patch").book == "ACCEPTABLE API'S" and level.mimics.all(func(m): return m.is_physics_processing()), "from Acceptable API's; the Mimics keep going while it comes in")
+	check(h.is_busy() and h.chapter.book == "ACCEPTABLE API'S" and level.mimics.all(func(m): return m.is_physics_processing()), "from Acceptable API's; the Mimics keep going while it comes in")
 	await t._crew_reads([level])
 	await t._until(func(): return not h.is_busy(), 10.0)
 	check(h.done.has("api_patch") and level.mimics.all(func(m): return m.is_physics_processing()), "the chapter is in, and the Mimics are still going")

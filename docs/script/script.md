@@ -1095,16 +1095,41 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 5
 
-### Finding Acceptable API's
+### Book huddles: Acceptable API's
 
-**Halcyon Tower, floor 9, Personnel: the HR front. After midnight.**
+**Halcyon Tower, floor 9, Personnel: the HR front and payroll. After midnight.**
 
-*Found on the HR front's training shelf on floor 9, the same series as Easy SQL. Lines approved by Augustine 2026-10-21; the title is his (2026-10-22). Its chapters now land in the book quietly (Augustine, 2026-11-17).*
+*Found on the HR front's training shelf on floor 9, the same series as Easy SQL. The crew reads aloud themselves (no Maddison in the tower). Lines approved by Augustine 2026-10-21; the title is his (2026-10-22).*
 
 **CREW** `l5_book_find_block.wav`  
 *Cue: When a player picks the book up off the training shelf by the HR desk. Whoever picks it up says it*  
 *(Lifting it off the shelf, turning it over in your hands)* "No way. It's the same series. Somebody here bought the sequel." *Delighted, a little thrown.* `[l5_book_find]`  
 *(As you open it. Holding it up so the crew can see the cover)* "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly." *Reading the back cover, hopeful.* `[l5_book_open]`
+
+**CREW** `l5_huddle_post_1_block.wav`  
+*Cue: When the crew reads the carbon copy of a work order pinned up in payroll. If nobody has the book yet, this waits until someone picks it up*  
+*(Walking with the book open, reading as you go)* "Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers." *Starting a chapter, reading it out.* `[l5_huddle_post_1]`  
+*(As you finish the chapter. Keeping a finger in the page, looking up)* "So GET looks, POST makes. Got it." *Wrapping up, pleased it's simple.* `[l5_huddle_post_2]`
+
+**CREW** `l5_huddle_patch_1_block.wav`  
+*Cue: When the crew reads the facilities clipboard by payroll's panel. Waits for the book, if nobody has it yet*  
+*(Tilting the page toward what light there is)* "PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice." *Starting a chapter. Noticing how hard the book insists.* `[l5_huddle_patch_1]`  
+*(As you finish the chapter. Glancing up from the page, grinning at the crew)* "PATCH is UPDATE wearing a tie." *Wrapping up. Proud of the joke.* `[l5_huddle_patch_2]`
+
+**CREW** `l5_huddle_codes_1_block.wav`  
+*Cue: When the crew reads the request sheet on the HR front desk. Waits for the book, if nobody has it yet*  
+*(Standing at the HR desk, the book open beside the terminal)* "Every answer comes with a number. Book says read the number before you celebrate." *Starting a chapter. A little told off.* `[l5_huddle_codes_1]`  
+*(As you finish the chapter. Tapping the page as you go down it)* "Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs." *Wrapping up, counting it off.* `[l5_huddle_codes_2]`
+
+**CREW** `l5_huddle_keys_1_block.wav`  
+*Cue: Right after the chapter on numbers, called up by the same desk sheet*  
+*(Reading at the desk, glancing at the terminal screen)* "Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed." *Starting a chapter, working it out as you read.* `[l5_huddle_keys_1]`  
+*(As you finish the chapter. Tapping the page, then the terminal)* "So if it says 401, we forgot the badge." *Wrapping up. Got it.* `[l5_huddle_keys_2]`
+
+**CREW** `l5_huddle_check_1_block.wav`  
+*Cue: When the crew reads the after-hours procedure pinned behind the HR desk. Waits for the book, if nobody has it yet*  
+*(Reading by the wall where the procedure hangs)* "Short chapter. After you change something, ask again. Book says never trust the first answer." *Starting a short chapter. Knowing nod.* `[l5_huddle_check_1]`  
+*(As you finish the chapter. Closing the book, looking back toward the stairs)* "Change it, then look again. The front doors taught us that one." *Wrapping up. Wry; you've been burned before.* `[l5_huddle_check_2]`
 
 ### Floor 9: Personnel
 
@@ -1192,16 +1217,46 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 6
 
-### Finding Journey through JavaScript
+### Book huddles: Journey through JavaScript
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
-*Found on B1 next to where the deck's script editor arrives. Title approved by Augustine 2026-11-05: Journey through JavaScript. Lines approved by Augustine 2026-10-21. Its chapters now land in the book quietly (Augustine, 2026-11-17).*
+*Found on B1 next to where the deck's script editor arrives. Variables and loops are used on Level 6; functions, lists and testing on Level 7. Title approved by Augustine 2026-11-05: Journey through JavaScript. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
 
 **CREW** `l6_book_find_block.wav`  
-*Cue: When someone finds the book under a coffee mug by the terminal on B1*  
+*Cue: When someone finds the book under a coffee mug by the terminal on B1. This floor isn't built yet, so the exact moment isn't set*  
 *(Holding it up for the crew to see)* "Journey through JavaScript. Somebody's read this one to death." *Sliding it out from under a mug. The cover's stained and the pages are soft.* `[l6_book_find]`  
 *(As you open it. Flicking through the pages, shaking out your typing hand)* "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat." *Tired of typing. This sounds like rescue.* `[l6_book_open]`
+
+**CREW** `l6_huddle_if_1_block.wav`  
+*Cue: Starting the chapter on variables and if, on B1. This floor isn't built yet, so the exact moment isn't set*  
+*(Reading off the page, standing by the terminal)* "A variable's a labelled box. If is a fork in the road. That's... honestly fine." *Starting a chapter. Braced for hard; it isn't.* `[l6_huddle_if_1]`  
+*(As you finish the chapter. Tapping the page twice, nodding to yourself)* "Box, fork. I can do box and fork." *Wrapping up, to yourself.* `[l6_huddle_if_2]`
+
+**CREW** `l6_huddle_loops_1_block.wav`  
+*Cue: Starting the chapter on loops, on B1. The dog-eared page. This floor isn't built yet, so the exact moment isn't set*  
+*(Running a finger down the dog-eared page)* "Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see." *Starting a chapter. The 'million times a second' bit alarms you.* `[l6_huddle_loops_1]`  
+*(As you finish the chapter. Scribbling a note on the back of your hand)* "Always put the wait in. Always log it. Writing that one down." *Wrapping up, making a note.* `[l6_huddle_loops_2]`
+
+**CREW** `l6_huddle_each_1_block.wav`  
+*Cue: Starting the chapter on for ... of and db.query, on B1, after someone reads the time clock's service page*  
+*(Reading off the page, a finger keeping the place)* "For each. Give it a list and it goes down the list for you, once each, then stops. No counting." *Starting a chapter. Relieved there's no counting this time.* `[l6_huddle_each_1]`  
+*(As you finish the chapter. Glancing toward the cold half of the floor)* "One loop, every row. Give it the names and it says them. All of them." *Wrapping up. Quieter: the floor's getting to you.* `[l6_huddle_each_2]`
+
+**CREW** `l6_huddle_functions_1_block.wav`  
+*Cue: Starting the chapter on functions, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
+*(Walking with the book open, reading as you go)* "Functions. Write it once, give it a name, use it anywhere." *Starting a chapter, reading it out.* `[l6_huddle_functions_1]`  
+*(As you finish the chapter. Shutting the book on a finger, half smiling)* "So a function's a recipe we can shout." *Wrapping up. Pleased with that.* `[l6_huddle_functions_2]`
+
+**CREW** `l6_huddle_lists_1_block.wav`  
+*Cue: Starting the chapter on lists, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
+*(Reading close to the page in the dim light)* "Lists. A whole line of things in one box. Loop over it and you've done them all." *Starting a chapter. The penny drops halfway.* `[l6_huddle_lists_1]`  
+*(As you finish the chapter. Looking up from the book toward the nearest door)* "One loop, every door. That's either brilliant or terrifying." *Wrapping up. Genuinely unsure which.* `[l6_huddle_lists_2]`
+
+**CREW** `l6_huddle_test_1_block.wav`  
+*Cue: Starting the last chapter, on testing, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
+*(Holding the book steady, reading carefully)* "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't." *Starting the last chapter. Taking it seriously.* `[l6_huddle_test_1]`  
+*(As you finish the book. Closing the book and tucking it under your arm)* "Test first. We've all learned that one the hard way tonight." *Wrapping up. Rueful.* `[l6_huddle_test_2]`
 
 ### B1: the cold store
 

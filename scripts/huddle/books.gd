@@ -33,8 +33,9 @@ extends RefCounted
 ##
 ## Chapter: {id, title, when, required, words, lines, pages: [text], quiz, rounds?}
 ## `when` is where the huddle plays; `lines` are voice line ids heard as it comes in.
-## All empty since Augustine, 2026-11-17, removed Maddison's chapter lines ("Remove
-## all"): a chapter lands in the book with its notice and nothing is said. Each quiz question:
+## Augustine, 2026-11-17, removed Maddison's chapter lines ("Remove all"): her
+## chapters land in the book with their notice only. The crew's read-alouds of the
+## books they find on floor 9 and B1 stay. Each quiz question:
 ## {word, q, options, answer, why, also?}, three per word; `also` is extra text
 ## shown beside that question only. `answer` indexes `options` as
 ## written here; the quiz shuffles them per run. `why` ("" until written) shows
@@ -577,7 +578,7 @@ const BOOKS := {
 				"when": "L5, desk sheet (with Chapter 2)",
 				"required": false,
 				"words": ["status code", "4xx"],
-				"lines": [],
+				"lines": ["l5_huddle_codes_1", "l5_huddle_codes_2"],
 				"pages": [
 					"status code\n\nEvery answer starts with a number. 200 OK: here's what you asked for. 201 Created: made it. Two hundreds are good news.\n\nThe number comes before the answer. Read it first.",
 					"4xx\n\nFour hundreds mean the request was wrong, and each one says how.\n400: a field is missing or wrong (it names it). 401: no key, or a key it doesn't know. 403: a real key, not allowed to do this. 404: nothing at that path. 409: it can't, the way things are now (it says why).\n\nFive hundreds are the service's own fault. Try again later.",
@@ -603,7 +604,7 @@ const BOOKS := {
 				"when": "L5, desk sheet (with Chapter 1)",
 				"required": false,
 				"words": ["header", "X-Api-Key"],
-				"lines": [],
+				"lines": ["l5_huddle_keys_1", "l5_huddle_keys_2"],
 				"pages": [
 					"header\n\nA header is a line under the request: a label, a colon, a value. It's about the request, not part of what you're asking for.\n\nGET /jobs\nX-Api-Key: 1a2b-3c4d\n\nOn the terminal, Shift+Enter starts the header's line. An empty line sends it all.",
 					"X-Api-Key\n\nSome services only answer people with a key. The key goes in the X-Api-Key header, on every request.\n\nNo key: 401. A key it doesn't know: 401. The right key for the wrong job: 403.\n\nKeys are issued to people. Somebody's key is written down somewhere near where they sit.",
@@ -629,7 +630,7 @@ const BOOKS := {
 				"when": "L5, facilities clipboard (panel)",
 				"required": false,
 				"words": ["PATCH", "true / false"],
-				"lines": [],
+				"lines": ["l5_huddle_patch_1", "l5_huddle_patch_2"],
 				"pages": [
 					"PATCH\n\nPATCH changes one thing about one record, and leaves the rest alone. The record is in the path, the change is in the body.\n\nPATCH /van_kit/rope\n\n{\"qty\": 3}\n\nchanges the rope's qty to 3 and nothing else. Like UPDATE with its WHERE built in: the path says which one.",
 					"true / false\n\nSome fields are a switch: on or off, locked or not. Their values are true and false, with no quotes.\n\n{\"charged\": true}\n\n\"true\" in quotes is a word, not a switch, and the service says 400.",
@@ -655,7 +656,7 @@ const BOOKS := {
 				"when": "L5, carbon copy (work order)",
 				"required": false,
 				"words": ["POST", "body"],
-				"lines": [],
+				"lines": ["l5_huddle_post_1", "l5_huddle_post_2"],
 				"pages": [
 					"POST\n\nGET asks a service for what it has. POST asks it to make something new.\n\nPOST /jobs\n\nasks the job board to make a new job. The service answers 201 Created when it has, and tells you what it made.",
 					"body\n\nA POST carries the new thing in a body: after the headers, an empty line, then the fields in braces.\n\n{\"client\": \"Nash\", \"town\": \"Ashford\", \"fee\": 80}\n\nEvery field the service wants, every time. Words in \"double quotes\", numbers without. Leave one out and it answers 400 and names the field.",
@@ -681,7 +682,7 @@ const BOOKS := {
 				"when": "L5, escort procedure (lockup)",
 				"required": false,
 				"words": ["ask again"],
-				"lines": [],
+				"lines": ["l5_huddle_check_1", "l5_huddle_check_2"],
 				"pages": [
 					"ask again\n\n200 means the service took your change, just then. It doesn't promise it's still that way, or that the thing it's for has happened.\n\nAfter a PATCH or a POST, GET the record back and read it. If it says what you changed, it took. If it doesn't, something changed it back.",
 				],
@@ -712,7 +713,7 @@ const BOOKS := {
 				"when": "L6, cradle card or the tech's note",
 				"required": false,
 				"words": ["let", "if"],
-				"lines": [],
+				"lines": ["l6_huddle_if_1", "l6_huddle_if_2"],
 				"pages": [
 					"let\n\nA variable is a box with a name. let makes one and puts something in it.\n\nlet fee = 80;\nlet town = \"Ashford\";\n\nFrom then on, fee means 80 wherever you write it. = puts something new in the box:\n\nfee = fee + 10;\n\nNow it holds 90. Text goes in double quotes; numbers don't.",
 					"if\n\nif is a fork in the road. The test goes in round brackets; what to do goes in braces, and only happens when the test is true.\n\nif (job.paid === false) {\n  console.log(job.client + \" still owes us\");\n}\n\n=== asks \"is it the same?\" and !== asks \"is it different?\". One = puts something in a box: never use it for a test.",
@@ -738,7 +739,7 @@ const BOOKS := {
 				"when": "L6, cradle card",
 				"required": false,
 				"words": ["while", "await sleep", "console.log"],
-				"lines": [],
+				"lines": ["l6_huddle_loops_1", "l6_huddle_loops_2"],
 				"pages": [
 					"while\n\nwhile does what's in its braces again and again, as long as its test is true.\n\nlet done = 0;\nwhile (done < 3) {\n  done = done + 1;\n}\n\nSomething inside has to change the test, or it never stops. while (true) never stops on its own: that's what Stop is for.",
 					"await sleep\n\nA script runs as fast as it can. await sleep(ms) makes it wait: 1000 is one second.\n\nawait sleep(1000);\n\nawait also waits for an answer: let res = await api.get(\"/jobs\");\n\nAnything that takes a moment (a reply, a printer, a van) needs a wait between tries. A loop without one asks a million times a second.",
@@ -771,7 +772,7 @@ const BOOKS := {
 				"when": "L6, the time clock's service page",
 				"required": false,
 				"words": ["for", "db.query"],
-				"lines": [],
+				"lines": ["l6_huddle_each_1", "l6_huddle_each_2"],
 				"pages": [
 					"for\n\nfor ... of does what's in its braces once for each thing in a list, then stops by itself.\n\nfor (const job of jobs) {\n  console.log(job.client);\n}\n\nEach time round, job is the next one in jobs. const is a box the loop fills fresh each time, so it's the word to use here. Three jobs, three lines in the log, done: no count to keep, no wait.",
 					"db.query\n\ndb.query runs a query from a script and hands back the rows it found, as a list.\n\nlet unpaid = await db.query(\"SELECT * FROM jobs WHERE status = 'unpaid'\");\nfor (const job of unpaid) {\n  console.log(job.client + \" owes \" + job.fee);\n}\n\nIt takes a moment, so await. The query is the one you'd type at a terminal, in double quotes. A row's columns are read with a dot: job.client, job.fee.",

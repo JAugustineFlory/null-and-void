@@ -555,8 +555,10 @@ func test_lead_ins() -> void:
 	var said := _huddle_lines(await _subtitles(hud, func(): await h.run("easy_sql_1", remembered)))
 	_check.call(said.is_empty() and _game().book_chapters.has("easy_sql_1"), "up on a floor, the chapter lands in the book and nobody says anything %s" % [said])
 	_check.call(hud._notice.text.contains("Ch. 1"), "its notice still says it's in")
-	var with_lines: Array = Books.chapter_ids().filter(func(id): return not Books.chapter(id).get("lines", []).is_empty())
-	_check.call(with_lines.is_empty(), "no chapter has lines of Maddison's left to play %s" % [with_lines])
+	var hers: Array = Books.chapter_ids().filter(func(id): return Books.chapter(id).get("lines", []).any(func(l): return VoiceLines.get_line(l).get("speaker", "") == "MADDISON"))
+	_check.call(hers.is_empty(), "no chapter has lines of Maddison's left to play %s" % [hers])
+	var reads: Array = ["api_codes", "api_keys", "api_patch", "api_post", "api_check"].filter(func(id): return Books.chapter(id).get("lines", []).size() == 2)
+	_check.call(reads.size() == 5, "the crew still reads Acceptable API's aloud as its chapters come in %s" % [reads])
 	world.queue_free()
 	await _frames(2)
 
