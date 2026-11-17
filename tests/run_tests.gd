@@ -114,6 +114,7 @@ func _group_core() -> void:
 	test_facility_db_read_only()
 	test_facility_api()
 	test_voice_codec()
+	await test_voice_mic_bus()
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
@@ -585,11 +586,11 @@ func test_voice_codec() -> void:
 	print("Voice codec")
 	var tone := _tone(4800, 48000.0, 0.5)
 	var packet := VoiceCodec.encode(tone, 48000.0)
-	check(packet.size() == 1200, "48 kHz audio is cut to 12 kHz, one byte a sample (%d bytes)" % packet.size())
+	check(packet.size() == 1600, "48 kHz audio is cut to 16 kHz, one byte a sample (%d bytes)" % packet.size())
 	var back := VoiceCodec.decode(packet)
 	var worst := 0.0
 	for i in back.size():
-		worst = maxf(worst, absf(back[i].x - tone[i * 4].x))
+		worst = maxf(worst, absf(back[i].x - tone[i * 3].x))
 	check(worst < 0.03, "mu-law keeps the voice close to the original (worst error %.3f)" % worst)
 	check(VoiceCodec.rms(back) > 0.3 and VoiceCodec.rms(_tone(100, 48000.0, 0.0)) == 0.0, "loudness tells talking from silence")
 	check(VoiceCodec.mulaw_decode(VoiceCodec.mulaw_encode(-0.25)) < 0.0, "negative samples stay negative")
@@ -604,21 +605,117 @@ func test_voice_codec() -> void:
 		stream.append_array(VoiceCodec.decode(enc.encode(chunk, 44100.0)))
 		at += 735
 	var jump := 0.0
+	var off := 0.0
 	for i in range(1, stream.size()):
 		jump = maxf(jump, absf(stream[i].x - stream[i - 1].x))
-	check(absi(stream.size() - 12000) <= 2 and jump < 0.15, "a 44.1 kHz mic sent in chunks stays one smooth 12 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
-	var quiet := _tone(4800, 48000.0, 0.02)
-	var louder := VoiceCodec.amplify(quiet, 8.0)
+		off = maxf(off, absf(stream[i].x - sin(TAU * 440.0 * i / 16000.0) * 0.5))
+	check(absi(stream.size() - 16000) <= 2 and jump < 0.1, "a 44.1 kHz mic sent in chunks stays one smooth 16 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
+	check(off < 0.03, "and each sample lands at its exact time, so it doesn't wobble (worst error %.3f)" % off)
+
+	var lev := VoiceCodec.Leveler.new()
+	var quiet := PackedVector2Array()
+	for i in 20:
+		quiet = lev.process(_tone(800, 48000.0, 0.02), 48000.0, true)
+	check(VoiceCodec.rms(quiet) > 0.1, "a quiet mic is brought up to speaking level (%.3f)" % VoiceCodec.rms(quiet))
 	var peak := 0.0
-	for f in VoiceCodec.amplify(_tone(4800, 48000.0, 0.9), 8.0):
+	for f in lev.process(_tone(4800, 48000.0, 0.95), 48000.0, true):
 		peak = maxf(peak, absf(f.x))
-	check(VoiceCodec.rms(louder) > 0.1 and peak <= 1.0, "a quiet mic is brought up to speaking level, a loud one never clips (peak %.2f)" % peak)
+	check(peak <= VoiceCodec.Leveler.CEILING + 0.001, "a shout right after it never clips (peak %.2f)" % peak)
+	var plain := VoiceCodec.Leveler.new()
+	var level_out := VoiceCodec.rms(plain.process(_tone(4800, 48000.0, 0.3), 48000.0, true))
+	check(is_equal_approx(plain.gain, 1.0) and absf(level_out - 0.3 / sqrt(2.0)) < 0.01, "a voice already loud enough is left as it is")
+	var glide := VoiceCodec.Leveler.new()
+	var hum := func(v: float) -> PackedVector2Array:
+		var f := PackedVector2Array()
+		f.resize(800)
+		f.fill(Vector2(v, v))
+		return f
+	for i in 20:
+		glide.process(hum.call(0.02), 48000.0, true)
+	var before_gain := glide.gain
+	var ramp := glide.process(hum.call(0.04), 48000.0, true)
+	var biggest := 0.0
+	for i in range(1, ramp.size()):
+		biggest = maxf(biggest, absf(ramp[i].x - ramp[i - 1].x))
+	check(glide.gain < before_gain - 0.5 and absf(ramp[0].x - ramp[-1].x) > 0.02 and biggest < 0.001,
+		"when the gain changes it glides across the block, no click (gain %.1f to %.1f, biggest step %.4f)" % [before_gain, glide.gain, biggest])
+
+	var gate := VoiceCodec.Gate.new()
+	for i in 60:
+		gate.update(0.001, 1.0 / 60.0)  # a quiet room
+	check(gate.update(0.01, 1.0 / 60.0), "in a quiet room, soft speech opens the mic")
+	for i in 20:
+		gate.update(0.001, 1.0 / 60.0)
+	check(gate.open, "and it stays open through the gap between words")
+	for i in 20:
+		gate.update(0.001, 1.0 / 60.0)
+	check(not gate.open, "then closes")
+	var fan := VoiceCodec.Gate.new()
+	for i in 60 * 30:
+		fan.update(0.03, 1.0 / 60.0)  # a loud fan, all the time
+	check(not fan.open, "a noisy room alone doesn't hold the mic open (threshold %.3f)" % fan.threshold())
+	check(fan.update(0.12, 1.0 / 60.0), "but talking over it does")
+	var talker := VoiceCodec.Gate.new()
+	for i in 60 * 10:
+		talker.update(0.1 if i % 30 < 20 else 0.002, 1.0 / 60.0)  # ten seconds of talking, with pauses
+	check(talker.threshold() < 0.02, "talking for a while doesn't teach it that speech is noise (threshold %.3f)" % talker.threshold())
+	var vc := VoiceChat.new()
+	var sent := 0
+	for i in 30:
+		sent += vc.mic_block(_tone(735, 44100.0, 0.0005), 44100.0).size()
+	var first := vc.mic_block(_tone(735, 44100.0, 0.1), 44100.0)
+	check(sent == 0 and first.size() == 735 + int(44100 * VoiceCodec.Gate.PREROLL), "silence isn't sent, and when you start talking the moment before comes too, so the first sound isn't cut (%d frames)" % first.size())
+	check(vc.mic_block(_tone(735, 44100.0, 0.1), 44100.0).size() == 735, "then it's just what you say")
+	vc.free()
+
+
+## The microphone's bus cleans the voice before it's encoded: hiss the codec
+## can't carry is taken out instead of folding back down as noise.
+func test_voice_mic_bus() -> void:
+	print("Voice mic bus")
+	var fx := VoiceChat.mic_effects()
+	check(fx.back() is AudioEffectCapture, "the capture comes last, after the filters")
+	var loss := {}
+	for hz in [3000.0, 6000.0, 10000.0]:
+		var effects := VoiceChat.mic_effects()
+		AudioServer.add_bus()
+		var idx := AudioServer.bus_count - 1
+		AudioServer.set_bus_mute(idx, true)
+		for e in effects:
+			AudioServer.add_bus_effect(idx, e)
+		var cap: AudioEffectCapture = effects.back()
+		var p := AudioStreamPlayer.new()
+		var g := AudioStreamGenerator.new()
+		g.mix_rate = AudioServer.get_mix_rate()
+		g.buffer_length = 0.5
+		p.stream = g
+		p.bus = AudioServer.get_bus_name(idx)
+		get_root().add_child(p)
+		p.play()
+		await process_frame
+		var tone := PackedVector2Array()
+		for i in int(g.mix_rate * 0.3):
+			var v := sin(TAU * hz * i / g.mix_rate) * 0.2
+			tone.append(Vector2(v, v))
+		cap.clear_buffer()
+		p.get_stream_playback().push_buffer(tone)
+		var got := PackedVector2Array()
+		for i in 60:
+			await process_frame
+			got.append_array(cap.get_buffer(cap.get_frames_available()))
+			if got.size() > tone.size():
+				break
+		loss[hz] = 20.0 * log(maxf(VoiceCodec.rms(got.slice(2000)), 1e-6) / VoiceCodec.rms(tone)) / log(10.0)
+		p.queue_free()
+		AudioServer.remove_bus(idx)
+	check(absf(loss[3000.0]) < 2.0 and loss[6000.0] > -3.0, "speech up to 6 kHz goes through (3 kHz %.1f dB, 6 kHz %.1f dB)" % [loss[3000.0], loss[6000.0]])
+	check(loss[10000.0] < -25.0, "hiss at 10 kHz is taken out (%.1f dB)" % loss[10000.0])
 
 
 func test_radio_rules() -> void:
 	print("Radio rules")
-	check(Radio.signal_quality(10.0, 0.0) == 1.0, "clear at close range")
-	check(Radio.signal_quality(50.0, 0.0) < 1.0 and Radio.signal_quality(50.0, 0.0) > 0.0, "fades with distance")
+	check(Radio.signal_quality(10.0, 0.0) == 1.0 and Radio.signal_quality(55.0, 0.0) == 1.0, "clear at close range, and across a whole floor")
+	check(Radio.signal_quality(90.0, 0.0) < 1.0 and Radio.signal_quality(90.0, 0.0) > 0.0, "fades with distance")
 	check(Radio.signal_quality(Radio.MAX_RANGE + 1.0, 0.0) == 0.0, "nothing but static out of range")
 	var near_entity := Radio.interference_at(Vector3.ZERO, [Vector3(2, 0, 0)])
 	check(near_entity > 0.5 and Radio.interference_at(Vector3.ZERO, [Vector3(30, 0, 0)]) == 0.0, "entities nearby cause static, far ones don't")
@@ -1961,13 +2058,13 @@ func test_coop_level_0() -> void:
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
 	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
-	c2.player.global_position = Vector3(-17, 0.1, 4)
-	c1.player.global_position = Vector3(23, 0.1, 3)
+	c2.player.global_position = Vector3(-40, 0.1, 4)
+	c1.player.global_position = Vector3(45, 0.1, 3)
 	await _frames(30)
 	c1.voice.send_frames(tone, 48000.0, true)
 	await _frames(10)
 	check(c2.voice.heard.near == 1 and c2.voice.heard.radio == 1, "radio reaches a teammate too far away to hear directly")
-	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 40 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
+	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 85 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
 	# A flashback or cutscene: the view cuts far away and the player is held still.
 	# Teammates are still heard as if close, and the radio still keys.
 	var away := Camera3D.new()
@@ -1978,7 +2075,7 @@ func test_coop_level_0() -> void:
 	var heard_before: int = c2.voice.heard.near
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
-	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 40 m off is still heard")
+	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 85 m off is still heard")
 	check(c2.voice._keys_free(), "and the radio and mute keys still work while the scene holds you still")
 	away.queue_free()
 	c2.player.camera.make_current()
