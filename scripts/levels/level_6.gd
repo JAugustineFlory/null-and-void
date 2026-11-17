@@ -115,7 +115,6 @@ const TEXT := {
 	"stairs_release": "On the landing, STAIR 2's gate rattles open.",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
 	"cross_wait": "Waiting for everyone in the deep freeze (%d/%d)",
-	"end_card": "To be continued.",
 	"book_taken": "Journey through JavaScript. Same series as Easy SQL. The page on loops is dog-eared.",
 	"deck_taken": "A loaner deck from the bench. It's yours now.",
 	"deck_fitted": "The wireless card clicks in, and the script runner chip. The deck runs scripts now.",
@@ -2163,9 +2162,8 @@ func _on_exit() -> void:
 	await get_tree().create_timer(EXIT_HOLD, false).timeout
 	if not is_inside_tree():
 		return
-	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_6"
-	Game.next_level = ""
+	Game.next_level = "level_7"  # Field Notes' Continue: the next floor, in the building
 	completed.emit()
 
 

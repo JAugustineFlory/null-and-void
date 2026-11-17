@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels"]
 
 
 func _run() -> void:
@@ -95,6 +95,7 @@ func _run_group(g: String) -> void:
 		"papers": await _group_papers()
 		"garage": await _group_garage()
 		"keywords": await _group_keywords()
+		"levels": await _group_levels()
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -287,6 +288,11 @@ func _group_movement_hands() -> void:
 
 
 ## Walking the stairs from floor to floor, solo and co-op (StairLinks).
+## Floors picked from Levels play inside the building and carry on to the next.
+func _group_levels() -> void:
+	await _run_file("res://tests/levels_route_tests.gd")
+
+
 func _group_stairs() -> void:
 	await _run_file("res://tests/stair_walk_tests.gd")
 
@@ -3831,15 +3837,13 @@ func test_level_2_wall_controls() -> void:
 	await _frames(100)
 	root.get_node("Net").profile.earned.erase("achievement:floor_22")
 	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
-	await create_timer(6.0).timeout
-	var card: Node = level.get_node_or_null("EndCard")
-	check(card != null and card.find_children("*", "Label", true, false).any(func(l): return l.text == "To be continued."), "down the stairs, a black card reads \"To be continued.\"")
-	check(root.get_node("Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its achievement")
-	for i in 20:
+	for i in 30:
 		if done[0]:
 			break
 		await create_timer(0.5).timeout
-	check(done[0], "after the card, the wing is complete")
+	check(root.get_node("Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its achievement")
+	check(done[0] and level.get_node_or_null("EndCard") == null, "down the stairs, the wing is complete, with no \"To be continued.\" card")
+	check(_game().next_level == "level_3", "and Field Notes' Continue goes on to floor 18")
 	level.queue_free()
 	await process_frame
 
