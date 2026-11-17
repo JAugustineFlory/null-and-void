@@ -1,0 +1,3 @@
+- **Fixed:** The garage's driveway has a fence and gate, so nobody can wander off the edge of the world.
+- **Fixed:** You can no longer slip inside the parked van through a shut door by jumping and crouching.
+- **Added:** The garage van's doors open and shut with E.
