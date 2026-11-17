@@ -261,7 +261,7 @@ func test_garage_opening() -> void:
 	await _spar(home, p)
 	_check.call(home.van_door.enabled and home.hud.current_todo() == "Get in the van", "blocked, it's straight to the van")
 	_check.call(await _until(func(): return _at_mark(home, "van"), 300), "Maddison sees the crew off at the van door")
-	_check.call(home.van_doors.size() == 2 and home.side_door.find_child("SideDoor", true, false) != null, "the garage's van has the same doors as the van at Halcyon: two front doors and a sliding door")
+	_check.call(home.van_doors.has("w") and home.van_doors.has("e") and home.side_door.find_child("SideDoor", true, false) != null, "the garage's van has the same doors as the van at Halcyon: two front doors and a sliding door")
 	_check.call(await _until(func(): return home.side_door.position.distance_to(home.SIDE_DOOR_OPEN) < 0.05, 120), "its sliding door slides back to let the crew in")
 	home.van_door.interact(p)
 	await _frames(3)
