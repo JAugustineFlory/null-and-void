@@ -155,6 +155,13 @@ func net_setup() -> void:
 	pass
 
 
+## Override: true when this floor deals with falls itself (a drop it means to be
+## deadly, with its own way back), so the safety net under the floor (FallNet)
+## leaves them to it.
+func owns_falls() -> bool:
+	return false
+
+
 ## Override: what happens when the player dies.
 func on_player_died() -> void:
 	player.respawn(spawn_point())

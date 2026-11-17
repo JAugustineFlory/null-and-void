@@ -71,7 +71,8 @@ func _physics_process(delta: float) -> void:
 		return  # going up, or at the top of a jump
 	_fall_time += delta
 	if _fall_time >= LONGEST_FALL or (_fall_time >= NOTHING_BELOW_TIME and not _floor_below(pos)):
-		put_back()
+		if not _here().owns_falls():
+			put_back()
 
 
 ## Moves that place the body themselves (climbing, riding, at a terminal): not a fall.
@@ -92,11 +93,13 @@ func put_back() -> void:
 
 
 func _checkpoint() -> Transform3D:
-	var here: LevelBase = level
+	return _here().spawn_point()
+
+
+## The floor in play: the World's current wing, or the level itself.
+func _here() -> LevelBase:
 	var current = level.get("current")
-	if current is LevelBase:
-		here = current
-	return here.spawn_point()
+	return current if current is LevelBase else level
 
 
 func _space() -> PhysicsDirectSpaceState3D:
