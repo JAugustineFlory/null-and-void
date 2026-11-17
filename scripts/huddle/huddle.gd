@@ -2,7 +2,7 @@ class_name Huddle
 extends Node
 ## A new chapter of the crew's book. When the job needs a new word, the chapter
 ## goes into the book in every player's notebook (the Books tab, NotebookPages),
-## a notice says so, and any lines it has play (the crew reading a found book aloud). Nothing
+## a notice says so, and (in the garage only) Maddison's lines for it play. Nothing
 ## takes over the screen and nobody stops: the crew reads it when they like, and
 ## can test themselves on it there (BookQuiz). Augustine, 2026-10-22: the quick
 ## checks and the book popping up made co-op "almost unplayable".
@@ -21,10 +21,10 @@ signal idle
 ## Where a chapter used to be read. Callers can still say; it changes nothing.
 const FLASHBACK := "flashback"
 const HERE := "here"
-## Up on the floors Maddison isn't with the crew. Augustine, 2026-11-17, removed
-## her chapter lines and the crew's "Didn't Maddison say..." lead-ins, to give the
-## floors room: her chapters land in the book with their notice only. Callers still
-## say REMEMBERED; it changes nothing now.
+## Up on the floors Maddison isn't with the crew: the chapter lands in the book
+## with its notice and nothing is said. Augustine, 2026-11-17, removed the
+## remembered lines ("Didn't Maddison say...") and her lines for each chapter on
+## the floors, to give the floors room. Only the garage plays her lines.
 const REMEMBERED := "remembered"
 ## The notice as a chapter goes into the book (a draft for Augustine's word-for-word OK).
 const NOTICE := "New in %s: Ch. %d, %s. Press Tab, then Books, to read it."
@@ -75,7 +75,7 @@ func is_busy() -> bool:
 ## Put chapter `id` in the crew's book and wait while Maddison's lines for it
 ## play. The players keep moving the whole time. If one is already playing (two
 ## papers read close together), this one waits its turn.
-## `mode` is kept for callers (FLASHBACK, HERE, REMEMBERED); it changes nothing.
+## `mode` REMEMBERED: up on a floor, where she isn't: no lines, only the notice.
 func run(id: String, mode: String = FLASHBACK) -> void:
 	while _busy:
 		await idle
@@ -94,7 +94,7 @@ func run(id: String, mode: String = FLASHBACK) -> void:
 	# At least a frame, even with no lines: whatever else set this chapter off
 	# (one query solving two puzzles) has played out before the level carries on.
 	await get_tree().process_frame
-	if hud:
+	if hud and mode != REMEMBERED:
 		for line in chapter.lines:
 			await hud.line(line)
 	chapter = {}
