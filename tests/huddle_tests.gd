@@ -498,10 +498,10 @@ func test_chapter_in_building() -> void:
 	await _frames(2)
 
 
-## Every floor's chapters come in REMEMBERED; the garage's don't (Augustine,
-## 2026-10-27: up on the floors Maddison isn't there).
+## Every floor's chapters come in REMEMBERED (quietly); the garage's don't (Augustine,
+## 2026-10-27: up on the floors Maddison isn't there; 2026-11-17: nothing is said there).
 func test_lead_ins_wired() -> void:
-	print("Huddle: a crew lead-in before Maddison on every floor, never in the garage")
+	print("Huddle: every floor brings its chapters in quietly, the garage with Maddison")
 	var run_re := RegEx.create_from_string("Huddle\\.of\\([^)]*\\)\\.run\\(([^\\n]*)\\)")
 	var plain := []
 	for f in DirAccess.get_files_at("res://scripts/levels/"):
@@ -512,8 +512,6 @@ func test_lead_ins_wired() -> void:
 			if remembered == f.begins_with("home_base"):
 				plain.append("%s: run(%s)" % [f, m.get_string(1)])
 	_check.call(plain.is_empty(), "every floor level brings its chapters in remembered, and the garage doesn't %s" % [plain])
-	var lead_ins: Array = _huddle_class().LEAD_INS
-	_check.call(lead_ins.size() == 3 and lead_ins.all(func(id): return VoiceLines.get_line(id).get("speaker") == "CREW"), "three lead-ins, each a crew line every crew member records")
 
 
 func _huddle_class() -> Script:
@@ -536,41 +534,27 @@ func _subtitles(hud, run: Callable) -> Array:
 	return seen
 
 
-## Just the chapters' lines and their lead-ins, from `subtitles` (the van radio
-## can be talking at the same time).
+## Anything Maddison or a remembering crew member says, from `subtitles`.
 func _huddle_lines(subtitles: Array) -> Array:
-	var texts := []
-	for id in _huddle_class().LEAD_INS:
-		texts.append(VoiceLines.get_line(id).text)
-	for ch in Books.chapter_ids():
-		for id in Books.chapter(ch).lines:
-			texts.append(VoiceLines.get_line(id).text)
-	return subtitles.filter(func(t): return texts.any(func(x): return t.ends_with(": " + x)))
+	return subtitles.filter(func(t): return t.begins_with("MADDISON: ") or t.contains("Maddison said"))
 
 
+## Augustine, 2026-11-17 ("remove all"): up on a floor nobody remembers Maddison's
+## lines any more. The chapter lands in the book with its notice, and that's all.
 func test_lead_ins() -> void:
-	print("Huddle: up on a floor, one of the crew remembers Maddison's lines")
+	print("Huddle: a chapter lands quietly, with its notice")
 	_game().new_run(25)
 	var world = load("res://scenes/world.tscn").instantiate()
 	_tree.root.add_child(world)
 	await _frames(30)
 	var h = _huddle_of(world.current)
 	var hud = world.hud
-	var me: String = _net().display_name(world.multiplayer.get_unique_id())
 	var remembered: String = _huddle_class().REMEMBERED
 	var said := _huddle_lines(await _subtitles(hud, func(): await h.run("easy_sql_1", remembered)))
-	var lead: Dictionary = h.leads.get("easy_sql_1", {})
-	var first: String = VoiceLines.get_line(lead.get("line", "")).get("text", "?")
-	_check.call(said.size() == 3 and said[0] == "%s: %s" % [me, first], "a crew lead-in comes first, in the player's own name %s" % [said])
-	_check.call(said.size() == 3 and said[1].begins_with("MADDISON: Chapter one.") and said[2].begins_with("MADDISON: Book says"), "then both of her lines")
-	await h.run("easy_sql_2", remembered)
-	await h.run("easy_sql_5", remembered)
-	var used := ["easy_sql_1", "easy_sql_2", "easy_sql_5"].map(func(id): return h.leads.get(id, {}).get("line", ""))
-	_check.call(used[0] != used[1] and used[1] != used[2] and used[0] != used[2] and not used.has(""), "the three lead-ins take turns %s" % [used])
-	await h.run("api_codes", remembered)
-	_check.call(not h.leads.has("api_codes"), "a chapter without her lines (the crew reads Acceptable API's themselves) gets no lead-in")
-	said = _huddle_lines(await _subtitles(hud, func(): await h.run("easy_sql_7")))
-	_check.call(not h.leads.has("easy_sql_7") and said.size() == 2 and said.all(func(t): return t.begins_with("MADDISON: ")), "brought in as if she's there (the garage), her lines play with no lead-in")
+	_check.call(said.is_empty() and _game().book_chapters.has("easy_sql_1"), "up on a floor, the chapter lands in the book and nobody says anything %s" % [said])
+	_check.call(hud._notice.text.contains("Ch. 1"), "its notice still says it's in")
+	var with_lines: Array = Books.chapter_ids().filter(func(id): return not Books.chapter(id).get("lines", []).is_empty())
+	_check.call(with_lines.is_empty(), "no chapter has lines of Maddison's left to play %s" % [with_lines])
 	world.queue_free()
 	await _frames(2)
 
@@ -610,12 +594,10 @@ func test_coop_huddle() -> void:
 	_check.call([host.player.input_locked, client.player.input_locked] == held and hh.get_node_or_null("HuddleUI") == null, "no book pops up, and it holds nobody")
 	_check.call(await _until(func(): return runs[0] == 2, 1800), "and both machines carry on once Maddison's lines are over")
 	_check.call(net.profile.earned.has("chapter:easy_sql_0"), "the players have the chapter on their profiles")
-	_check.call(not hh.leads.has("easy_sql_0") and not hc.leads.has("easy_sql_0"), "in the garage, nobody says a lead-in")
 	var remembered: String = _huddle_class().REMEMBERED
 	for h in [hc, hh]:
 		h.run("easy_sql_1", remembered)
-	_check.call(await _until(func(): return hh.leads.has("easy_sql_1") and hc.leads.has("easy_sql_1"), 300), "up on a floor, both machines get the lead-in")
-	_check.call(hc.leads["easy_sql_1"] == hh.leads["easy_sql_1"] and hh.crew.has(hh.leads["easy_sql_1"].peer), "the same crew member says the same one on every machine")
+	_check.call(await _until(func(): return hh.done.has("easy_sql_1") and hc.done.has("easy_sql_1"), 300), "up on a floor, the chapter comes in on both machines")
 	await _until(func(): return not hh.is_busy() and not hc.is_busy(), 1800)
 	net.profile = test_profile
 	_tree._coop_close(worlds)

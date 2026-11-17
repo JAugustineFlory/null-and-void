@@ -13,8 +13,43 @@ var _crosshair: Label
 var _notice_tween: Tween
 var _line_id := 0
 var _voice: Voice
+
+## Lines take turns: one speaker on screen at a time, with a breath between them
+## (Augustine's v0.9-beta2 note, 2026-11-17: "a LOT of text and dialogue, without
+## much space between"; plan/text-spacing-proposal.md, Teaching's numbers).
+## NORMAL waits its turn in order. URGENT is a threat starting (a clock, WARDEN
+## turning, the cold): it plays at once and cuts across. CAN_WAIT (teases, banter,
+## crew barks) waits for a quiet moment, holds while someone is typing at a
+## terminal, and is dropped if it would play more than STALE_AFTER late.
+enum Turn { NORMAL, URGENT, CAN_WAIT }
+## The breath between two lines of one speaker, and between two speakers.
+const GAP_SAME := 0.6
+const GAP_CHANGE := 1.2
+## A line that can wait, held longer than this, is dropped (its notebook jot is kept).
+const STALE_AFTER := 15.0
+## Lines that can wait hold until the terminal's been quiet this long, or closes.
+const TYPING_QUIET := 3.0
+## A line has finished (or given up its turn).
+signal turn_over
+var _ticket := 0
+var _serving := 0
+var _urgent := 0
+var _last_speaker := ""
+## Game seconds (pause and time_scale aware), for the gaps and dropping stale lines.
+var _clock := 0.0
+var _last_end := -1000.0
+## STALE_AFTER, shortened by tests.
+var stale_after := STALE_AFTER
+## Lines that can wait and are waiting now (their ids, or speaker and text): the
+## same one asked again meanwhile is dropped, not queued twice.
+var _held := {}
 ## The main case and how many of its pieces are in, top right (CaseChip).
 var case_chip: CaseChip
+
+
+func _process(delta: float) -> void:
+	if not get_tree().paused:
+		_clock += delta
 
 
 func _ready() -> void:
@@ -128,8 +163,18 @@ func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) 
 ## Show one line of dialogue. Await it to wait until it has been read.
 ## For character lines use line(id) so the recording plays; this is for
 ## narration and other text nobody speaks.
-func say(speaker: String, text: String, seconds: float = -1.0) -> void:
+## `turn` is a Turn. `start`, if given, runs when the line's turn comes and returns
+## the length of the recording it started (0.0 for none), so a voice plays in step
+## with its subtitle (Commentary's crew barks).
+func say(speaker: String, text: String, seconds: float = -1.0, turn: int = Turn.NORMAL, start: Callable = Callable()) -> void:
+	if not await _take_turn(turn, speaker, speaker + ": " + text):
+		return
+	if start.is_valid():
+		var played: float = start.call()
+		if played > 0.0:
+			seconds = played
 	await _show(speaker, text, seconds if seconds > 0 else Voice.read_time(text))
+	_end_turn(turn, speaker)
 
 
 ## Play several unvoiced lines in order: [[speaker, text], ...]
@@ -182,21 +227,103 @@ func subtitles_clear_of_right(width: float) -> void:
 ## remembered = true plays it as a memory of the line, not someone saying it here (Voice.MEMORY_BUS).
 ## A crew line can name who says it (`who`, on the subtitle) and use their
 ## recordings (`voice_dir`, "crew_dana").
-func line(id: String, subtitle: bool = true, remembered := false, who: String = "", voice_dir: String = "") -> void:
+## It waits its turn (Turn): `turn` overrides the line's own (VoiceLines `turn`).
+## The notebook jot is written at once, even if the line is later dropped.
+func line(id: String, subtitle: bool = true, remembered := false, who: String = "", voice_dir: String = "", turn: int = -1) -> void:
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		push_warning("No voice line with id '%s'" % id)
 		return
 	if get_node("/root/Game").jot(VoiceLines.resolve(id), l):
 		notice("Notebook updated (Tab)", 3.0)
+	if turn < 0:
+		turn = turn_of(l)
+	var speaker: String = who if who != "" else str(l["speaker"])
+	if not await _take_turn(turn, speaker, id):
+		return
 	var dur := _voice.play(id, voice_dir, remembered)
 	var has_audio := dur > 0.0
 	if not has_audio:
 		dur = Voice.read_time(l["text"])
 	if subtitle:
-		await _show(who if who != "" else l["speaker"], l["text"], dur)
+		await _show(speaker, l["text"], dur)
 	elif has_audio:
 		await get_tree().create_timer(dur, false).timeout
+	_end_turn(turn, speaker)
+
+
+## A line's own turn, from its VoiceLines entry ("urgent", "can_wait", or normal).
+static func turn_of(l: Dictionary) -> int:
+	match str(l.get("turn", "")):
+		"urgent":
+			return Turn.URGENT
+		"can_wait":
+			return Turn.CAN_WAIT
+	return Turn.NORMAL
+
+
+## True while nobody's speaking or waiting to.
+func quiet() -> bool:
+	return _ticket == _serving and _urgent == 0
+
+
+## Wait for this line's turn. False: it was a line that could wait, and it waited
+## too long, or the same line (`key`) is already waiting (dropped).
+func _take_turn(turn: int, speaker: String, key: String = "") -> bool:
+	if turn == Turn.URGENT:
+		_urgent += 1
+		return true
+	if turn == Turn.CAN_WAIT:
+		if key != "" and _held.has(key):
+			return false
+		_held[key] = true
+		var since := _clock
+		while not (quiet() and _gap_left(speaker) <= 0.0 and not _typing()):
+			if _clock - since > stale_after or not is_inside_tree():
+				_held.erase(key)
+				return false
+			await get_tree().create_timer(0.2, false).timeout
+			if not is_inside_tree():
+				return false
+		_held.erase(key)
+		_ticket += 1  # nobody was waiting, so this ticket is the one being served
+		return true
+	var mine := _ticket
+	_ticket += 1
+	while true:
+		while mine != _serving or _urgent > 0:
+			await turn_over
+		var gap := _gap_left(speaker)
+		if gap <= 0.0:
+			break
+		await get_tree().create_timer(gap, false).timeout
+	return true
+
+
+## This line is over: the next one may go (after its breath).
+func _end_turn(turn: int, speaker: String) -> void:
+	if turn == Turn.URGENT:
+		_urgent = maxi(_urgent - 1, 0)
+	else:
+		_serving += 1
+	_last_speaker = speaker
+	_last_end = _clock
+	turn_over.emit()
+
+
+## Seconds still to wait before `speaker` may start.
+func _gap_left(speaker: String) -> float:
+	var gap := GAP_SAME if speaker == _last_speaker else GAP_CHANGE
+	return gap - (_clock - _last_end)
+
+
+## Someone on this machine is typing at a terminal (TerminalUI.last_typed_msec).
+func _typing() -> bool:
+	var level := get_parent()
+	var term = level.get("terminal_ui") if level else null
+	if term == null or not is_instance_valid(term) or not term.visible:
+		return false
+	return Time.get_ticks_msec() - int(term.get("last_typed_msec")) < TYPING_QUIET * 1000.0
 
 
 ## Speak several lines in order.

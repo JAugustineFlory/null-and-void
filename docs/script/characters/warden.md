@@ -40,7 +40,7 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 > Rourke is on the floor and can't get up. The crew stands over him and decides what to do: tie him up with network cable, finish him, or leave him there. Either way, they take his badge. Only one branch plays.
 
-**[X] `l2_killed.wav`**
+**[x] `l2_killed.wav`**
 
 *Only if the crew kills Rourke. Straight after. Over the lab's ceiling speakers, as the crew stands over him. Unbothered, like reading a stock price.*
 
@@ -52,13 +52,13 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 > The visitors in Secure Lab B no longer have their escort. The lab lights turn red. This is the first time you speak in your own live voice. You start your containment warning, and your own recorded PA tape cuts in over you. You wait politely for it to finish, then begin again.
 
-**[X] `l2_contain_1.wav`**
+**[x] `l2_contain_1.wav`**
 
 *The moment the visitors are left without their escort, and the red lockdown lights come on. Over the lab's ceiling speakers, to the visitors below. Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.*
 
 "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--"
 
-**[X] `l2_contain_2.wav`**
+**[x] `l2_contain_2.wav`**
 
 *About two seconds after your recorded tape about the shredders finishes. Over the same speakers, starting again from the top. From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.*
 
@@ -70,37 +70,37 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 > The visitors are shut in the lab. The door's controller is latched, and a security response is on its way, with a clock counting down over the door. They log in to the lab terminal on Rourke's badge and try to reset the door controller themselves. You watch every move and keep score. You never help.
 
-**[X] `l2_login.wav`**
+**[x] `l2_login.wav`**
 
 *The lab terminal unlocks on Rourke's badge, once the lockdown has started. Over the lab speakers, as the terminal screen turns green. The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.*
 
 "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE."
 
-**[X] `l2_selftest.wav`**
+**[x] `l2_selftest.wav`**
 
 *When the crew reads your self-test on the lab terminal. Over the lab speakers, while the crew reads the screen. The one line with a hint of a smirk.*
 
 "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM."
 
-**[X] `l2_found.wav`**
+**[x] `l2_found.wav`**
 
 *When the crew first looks up the door controllers on the lab terminal. Over the speakers, as the list prints on screen. Reading a rule it knows they're about to break. Cool.*
 
 "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY."
 
-**[X] `l2_no_badge.wav`**
+**[x] `l2_no_badge.wav`**
 
 *If someone tries a reset without a badge. Can repeat. Over the speakers, the instant the switch is pressed. Flat, instant.*
 
 "RESET REFUSED. BADGE REQUIRED."
 
-**[X] `l2_panel_ok.wav`**
+**[x] `l2_panel_ok.wav`**
 
 *When a player flips the reset switch of a controller that's working fine. Over the speakers, as the switch clicks and nothing happens. Patient, then a small dig.*
 
 "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?"
 
-**[X] `l2_panel_wrong.wav`**
+**[x] `l2_panel_wrong.wav`**
 
 *When a player flips the wrong faulted switch. The switches lock for a few seconds. Over the speakers, as the switch panel locks. The last sentence slightly slower.*
 

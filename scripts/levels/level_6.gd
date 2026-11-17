@@ -1915,7 +1915,7 @@ func _on_whisper(e: Echo) -> void:
 	if VoiceLines.ids_in_scene("l6_echoes").has(id):
 		hud.line(id)
 	else:
-		hud.say(e.echo_name.to_upper(), lines[0])
+		hud.say(e.echo_name.to_upper(), lines[0], -1.0, HUD.Turn.CAN_WAIT)
 
 
 ## Every machine: an echo's entry is closed. Their story plays while the slip prints;
@@ -2095,7 +2095,7 @@ func _static_whisper() -> void:
 	_static_turn += 1
 	var lines: Array = ECHO_LINES.get(e.id, [])
 	if not lines.is_empty():
-		hud.say("STATIC", "..." + str(lines[0]).to_lower() + "...", 4.0)
+		hud.say("STATIC", "..." + str(lines[0]).to_lower() + "...", 4.0, HUD.Turn.CAN_WAIT)
 
 
 ## This machine's player and the cold.

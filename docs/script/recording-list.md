@@ -1,6 +1,6 @@
 # Recording list
 
-1287 recordings in all, 1628 lines.
+1079 recordings in all, 1250 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -79,15 +79,15 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2, later |
-| [ ] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2, later |
-| [ ] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2, later |
-| [ ] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2, later |
-| [ ] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2, later |
-| [ ] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2, later |
-| [ ] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2, later |
-| [ ] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2, later |
-| [ ] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2, later |
+| [x] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2, later |
+| [x] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2, later |
+| [x] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2, later |
+| [x] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2, later |
+| [x] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2, later |
+| [x] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2, later |
+| [x] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2, later |
+| [x] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2, later |
+| [x] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2, later |
 | [ ] | `l2_exit_open` | "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED." | Polite, and keeping score. | Level 2, later |
 | [ ] | `l2_lockdown_tied` | "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D." | Reading a log entry. | Level 2, later |
 | [ ] | `l2_sealed` | "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT." | The sign-off for the slice. Warm, like wishing them well. | Level 2, later |
@@ -151,7 +151,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_vale_1_block` | "Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry." "If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it." "And please don't give your PIN to anyone. Not even Dale." | Beep before this. Hushed, fast. Urgent. A glance over her shoulder in the voice. Softer. | Level 2 |
 
-## Maddison Kowalski (32 recordings, 55 lines)
+## Maddison Kowalski (16 recordings, 25 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
@@ -169,23 +169,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l0_garage_5` | "Look at that. You're practically engineers. Take the book with you. Everybody in the van." | Genuinely thrilled. | Level 0 |
 | [ ] | `l0_garage_5_solo` | "Look at that. You're practically an engineer. Take the book with you. Into the van." | Genuinely thrilled. | Level 0 |
 | [ ] | `l0_garage_6` | "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio." | She stays behind. | Level 0 |
-| [ ] | `l0_huddle_select_1_block` | "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?" "Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon." | Disbelieving, delighted. Deadly serious about the one thing they're sure of. | Level 0 |
-| [ ] | `l0_huddle_order_1_block` | "Chapter two. 'Putting things in order.' Now that, I can get behind." "Smallest first. Always smallest first. Write that down. I'm writing it down." | Reading off the page. Scribbling. | Level 0 |
-| [ ] | `l0_huddle_columns_1_block` | "'Just the columns you need.' So no more star. The star was my favourite part." "Commas between the names, never after the last one. And dot schema when you can't remember what they're called. That one's for me." | Mock-wounded. Ticking them off. | Level 0 |
-| [ ] | `l0_huddle_desc_1_block` | "'Newest first.' DESC flips it. Biggest on top, latest on top. Like my inbox, if anyone ever emailed me." "And LIMIT at the very end, so you only get the top few. Newest three. Done." | Brightly, then a little sorry for herself. Snappy and pleased. | Level 0 |
 | [ ] | `l0_dispatch_1_block` | "Van three, you're on site at Halcyon Data Systems. After-hours callout." "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors." "Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out." | In the professional dispatcher voice. 'Van three' is a bluff: they own one van. Reading it off the ticket. Bored, reading the form. Signing off, already onto the next call. | Level 0 |
-| [ ] | `l1_huddle_where_1` | "WHERE. For finding one thing in a big pile. Like my car keys." | Patting pockets. | Level 1 |
-| [ ] | `l1_huddle_where_2` | "Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears." | Rueful. | Level 1 |
-| [ ] | `l1_huddle_compare_1_block` | "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number." "Okay. That's maths I actually remember from school." | Drawing one on the whiteboard, with teeth. Relieved. | Level 1 |
-| [ ] | `l1_huddle_or_1_block` | "'Either one will do.' OR. Finally, a word with no pressure on it." "AND needs both to be true. OR takes either one. I'm an OR person." | Relaxed. Decided. | Level 1 |
-| [ ] | `l1_huddle_count_1_block` | "'How many?' COUNT, star, in brackets. It doesn't show you the rows. It just counts them." "One number back. Like counting heads before the van leaves." | Reading slowly, getting the brackets right. Fond. | Level 1 |
-| [ ] | `l2_huddle_pressure_1_block` | "This page just says, 'Breathe.' So if it ever gets hairy in there, this is the one to read." "AND, ORDER BY, quotes round the words. You'll know all of it by then. Deep breath, then type." | Light. She thinks it's a joke. Warm and steady, a coach before a big game. | Level 2 |
-| [ ] | `l2_huddle_like_1_block` | "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'" "So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere." | Squinting at the page. Pleased to have found themself. | Level 2 |
-| [ ] | `l2_huddle_get_1_block` | "This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'" "So it's a SELECT for robots. Got it. Probably." | Flipping the book over to check the cover. Not convinced. | Level 2 |
-| [ ] | `l2_huddle_feeds_1_block` | "'One answer feeds the next.' So the answer isn't the answer. Most honest thing in this book." "Get the number, then put it in your next WHERE. A treasure hunt, with semicolons." | Dry. Liking it. | Level 2 |
-| [ ] | `l2_huddle_door_1_block` | "'One door's record.' Don't ask for the whole list. Put the one you want on the end of the path." "GET slash jobs slash fourteen. Job fourteen, nothing else. Robots are very literal." | Reading along, nodding. The book's own example, amused. | Level 2 |
-| [ ] | `l4_huddle_update_1_block` | "UPDATE. Changing things. The book's put this one in a red box, which I don't love." "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row." | Holding the page at arm's length. Suddenly serious, for once. | Level 4 |
-| [ ] | `l4_huddle_insert_1_block` | "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist." "Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford." | Reading the title, wistful, then perky again. Laughing at her own picture of it. | Level 4 |
 | [ ] | `l5_mimic_maddison_lure` | "Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you?" | Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth. | Level 5 |
 | [ ] | `l5_mimic_maddison_again` | "Crew, it's Maddison. Still at the loading door. It's freezing down here." | Second time. Patient. She is never patient. | Level 5 |
 | [ ] | `l5_mimic_maddison_last` | "You're leaving? I'm right here." | As the player leaves the floor. Quiet, flat, no breath. | Level 5 |
@@ -198,15 +182,12 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_news_1_block` | "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems." "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered." "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'" "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside." "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'" "Halcyon declined to comment. The crew has not been seen since." "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather." | Steady, mid-bulletin. No change in tone. A slight shift for the quote: reading it, not acting it. Even, a touch of interest. Reading the quote flat, not acting it. Then a beat. Neutral. A small pause after. Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
 
-## The crew (player characters) (82 recordings, 102 lines, recorded by each of the 12 crew members)
+## The crew (player characters) (66 recordings, 73 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_recall_1` | "I think Maddison said..." | Half to yourself, trying to remember. Trail off: her line follows. | Level 0 |
-| [ ] | `l0_recall_2` | "Didn't Maddison say..." | To the others, as it comes back to you. Trail off: her line follows. | Level 0 |
-| [ ] | `l0_recall_3` | "Maddison mentioned..." | Remembering, a little fond. Trail off: her line follows. | Level 0 |
 | [ ] | `cc_nudge2_first` | "That SYSOP on the screen seems to know this building. Maybe ask." | Stuck, before SYSOP has helped. Half a joke, half serious. | Level 0, later |
 | [ ] | `cc_nudge2` | "Whoever SYSOP is, they've been right so far. Maybe ask." | Stuck again. A little uneasy about trusting a stranger on a screen. | Level 0, later |
 | [ ] | `l0_cc_peek_card` | "Quick-start card for the scanner. Somebody's filled in the blanks." | Picked up a scanner's instruction card. Noticing handwriting on it. | Level 0, later |
@@ -263,22 +244,9 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l2_cc_pin_n1b` | "The last guard out had a badge number. Something up here matches those to names." | Stuck. Putting two things together. | Level 2, later |
 | [ ] | `l2_cc_pin_err` | "Wrong code. Is that the night lead, or just any guard?" | A second wrong PIN. Thinking. | Level 2, later |
 | [ ] | `l2_cc_pin_pay` | "That's the code. Let's not hang around." | Keypad accepted it. Nervous, wants to move. | Level 2, later |
-| [ ] | `l5_book_find_block` | "No way. It's the same series. Somebody here bought the sequel." "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly." | Delighted, a little thrown. Reading the back cover, hopeful. | Level 5 |
-| [ ] | `l5_huddle_post_1_block` | "Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers." "So GET looks, POST makes. Got it." | Starting a chapter, reading it out. Wrapping up, pleased it's simple. | Level 5 |
-| [ ] | `l5_huddle_patch_1_block` | "PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice." "PATCH is UPDATE wearing a tie." | Starting a chapter. Noticing how hard the book insists. Wrapping up. Proud of the joke. | Level 5 |
-| [ ] | `l5_huddle_codes_1_block` | "Every answer comes with a number. Book says read the number before you celebrate." "Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs." | Starting a chapter. A little told off. Wrapping up, counting it off. | Level 5 |
-| [ ] | `l5_huddle_keys_1_block` | "Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed." "So if it says 401, we forgot the badge." | Starting a chapter, working it out as you read. Wrapping up. Got it. | Level 5 |
-| [ ] | `l5_huddle_check_1_block` | "Short chapter. After you change something, ask again. Book says never trust the first answer." "Change it, then look again. The front doors taught us that one." | Starting a short chapter. Knowing nod. Wrapping up. Wry; you've been burned before. | Level 5 |
 | [ ] | `l5_mimic_lure` | "Hey, it's me. I'm down at the loading door, the dock side. It's shut behind me. Can you open it from the desk? Quick." | On the walkie, a little breathless. Your own voice, asking for something you never asked for. Record it straight: the horror is that it sounds like you. | Level 5 |
 | [ ] | `l5_mimic_again` | "Guys? Still here. Loading door. It's cold. Just open it, please." | Second time. Closer to the mic. Patient, which is the wrong note for you. | Level 5 |
 | [ ] | `l5_mimic_last` | "Where are you going? I'm still at the door." | As the crew leaves the floor. Quiet. No breath in it at all. | Level 5 |
-| [ ] | `l6_book_find_block` | "Journey through JavaScript. Somebody's read this one to death." "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat." | Sliding it out from under a mug. The cover's stained and the pages are soft. Tired of typing. This sounds like rescue. | Level 6, later |
-| [ ] | `l6_huddle_if_1_block` | "A variable's a labelled box. If is a fork in the road. That's... honestly fine." "Box, fork. I can do box and fork." | Starting a chapter. Braced for hard; it isn't. Wrapping up, to yourself. | Level 6, later |
-| [ ] | `l6_huddle_loops_1_block` | "Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see." "Always put the wait in. Always log it. Writing that one down." | Starting a chapter. The 'million times a second' bit alarms you. Wrapping up, making a note. | Level 6, later |
-| [ ] | `l6_huddle_each_1_block` | "For each. Give it a list and it goes down the list for you, once each, then stops. No counting." "One loop, every row. Give it the names and it says them. All of them." | Starting a chapter. Relieved there's no counting this time. Wrapping up. Quieter: the floor's getting to you. | Level 6, later |
-| [ ] | `l6_huddle_functions_1_block` | "Functions. Write it once, give it a name, use it anywhere." "So a function's a recipe we can shout." | Starting a chapter, reading it out. Wrapping up. Pleased with that. | Level 6, later |
-| [ ] | `l6_huddle_lists_1_block` | "Lists. A whole line of things in one box. Loop over it and you've done them all." "One loop, every door. That's either brilliant or terrifying." | Starting a chapter. The penny drops halfway. Wrapping up. Genuinely unsure which. | Level 6, later |
-| [ ] | `l6_huddle_test_1_block` | "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't." "Test first. We've all learned that one the hard way tonight." | Starting the last chapter. Taking it seriously. Wrapping up. Rueful. | Level 6, later |
 | [ ] | `l8_book_find_block` | "Hello HTML! Same series again. Who keeps leaving these?" "Book says everything on a screen is built from tags. And the building's been drawing things that aren't there. So... we fix the drawing." | Uneasy, half joking. Working it out as you go. The pause is the idea landing. | Level 8, later |
 | [ ] | `l8_huddle_elements_1_block` | "Tags. Angle brackets. You open one, you close one. Like a sandwich. The inspector shows you every one on the screen." "Everything's a sandwich. Okay." | Starting a chapter, reading it out. Wrapping up. Accepting it. | Level 8, later |
 | [ ] | `l8_huddle_hidden_1_block` | "Attributes. Little settings on a tag. Including one called hidden." "Hidden doesn't mean gone. Hidden means somebody hid it." | Starting a chapter. 'Hidden' catches your eye. Wrapping up. Quieter; that thought sticks. | Level 8, later |
