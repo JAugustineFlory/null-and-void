@@ -28,6 +28,10 @@ const SETTLE_TIME := 10.0
 ## The host's button (pause menu's Exit page, and Field Notes) that ends the run
 ## for everyone and takes the crew back to the lobby. Draft, awaiting Augustine's OK.
 const TO_LOBBY := "Take everyone to the lobby"
+## The pause menu's Restart page: the floor starts over. Drafts, awaiting Augustine's OK.
+const RESTART_FLOOR := "Restart this floor"
+const RESTART_FLOOR_NOTE := "Back to where you walked onto this floor. The building resets, and the answers you've worked out still hold."
+const RESTART_FLOOR_NOTE_COOP := "Everyone goes back to where you walked onto this floor. The building resets, and the answers you've worked out still hold."
 const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Harper", "Jo", "Kit", "Lane", "Morgan"]
 
 ## peer id -> player name, identical on every machine.
@@ -342,6 +346,33 @@ func _to_lobby() -> void:
 		lobby[id] = {"ready": false, "pose": lobby[id].pose}
 	set_patience(PATIENCE_LOBBY)
 	get_node("/root/Game").goto("lobby")
+
+
+## Host only (or solo): the floor everyone is on starts over, for everyone. The
+## crew goes back to where they walked onto it, the run as it stood then
+## (Game.floor_start), with the same run seed, so answers worked out still hold.
+## Hard mode's wipe restarts the floor this way too.
+func restart_floor() -> void:
+	if not is_host():
+		return
+	if is_online():
+		_restart_floor.rpc()
+	else:
+		_restart_floor()
+
+
+@rpc("authority", "call_local", "reliable")
+func _restart_floor() -> void:
+	if is_online():
+		set_patience(PATIENCE_LOADING)
+	var scene := get_tree().current_scene
+	var game := get_node("/root/Game")
+	if scene == null or not scene.has_method("enter_wing") or game.floor_start.is_empty():
+		get_tree().reload_current_scene()  # not the building: a stand-alone floor or the gym
+		return
+	var key: String = game.restore_floor_start()
+	game.open_at_home = key == "world"
+	game.goto(key)
 
 
 ## The building has loaded on every machine (LevelSync, once it begins): after
