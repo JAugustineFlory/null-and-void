@@ -1881,6 +1881,8 @@ func _crew_reads(levels: Array) -> void:
 	var quiet := 0
 	for f in 6000:
 		await physics_frame
+		if not hs.all(func(h): return is_instance_valid(h)):
+			return  # the test moved on and freed its levels (a call nobody awaited)
 		var busy: bool = hs.any(func(h): return h.is_busy())
 		seen = seen or busy
 		quiet = 0 if busy else quiet + 1
