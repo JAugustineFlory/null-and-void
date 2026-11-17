@@ -267,6 +267,7 @@ func _group_combat() -> void:
 	await _run_file("res://tests/custodian_tests.gd")
 	await test_coop_combat()
 	await test_coop_custodian()
+	await test_coop_npcs_unshoved()
 
 
 ## Parkour: walking, sliding, mantling, vaulting, hanging, climbing, vents, ledges, shoulders.
@@ -4239,6 +4240,78 @@ func test_coop_custodian() -> void:
 	check([hc, cc].map(func(c): return c.get_node("FightSounds").heard.size()) == clangs.map(func(n): return n + 1)
 		and [hc, cc].all(func(c): return c.get_node("FightSounds").heard.back() == "punch_metal"), "and both machines hear the punch land on it, once")
 	check(cc.strikes == hc.strikes and cc.wounds.shown() == hc.wounds.shown(), "and every machine shows the same wounds")
+	await _coop_close(worlds)
+
+
+## v0.9-beta2: a client walking into Rourke or the Custodian (held click and WASD)
+## dragged them about on the host, so for everyone, and the story stalled. A
+## teammate's body on the host goes where their machine says, so it mustn't push
+## the NPCs the host runs (LevelSync.SHOVE_PROOF).
+func test_coop_npcs_unshoved() -> void:
+	print("Co-op: a teammate can't shove an NPC about")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var client = levels[1]
+	var p: Player = client.player
+	host.player.global_position = Vector3(8, 0.1, 11.5)
+	host.rourke.state = host.rourke.State.IDLE
+	host.rourke.global_position = Vector3(-3, 0, 5)
+	await _frames(20)
+	p.local_control = false
+	p.global_position = Vector3(-3, 0.1, 6.2)
+	p.rotation.y = 0.0  # facing him
+	await _frames(3)
+	var start: Vector3 = host.rourke.global_position
+	var met := false
+	for f in 240:  # four seconds of walking into him while turning the view
+		p.controls.move = Vector2(0, -1)
+		p.rotation.y += 0.004
+		await physics_frame
+		met = met or p.global_position.distance_to(start) < 0.8
+	p.controls.move = Vector2.ZERO
+	check(met, "the client walks right up against Rourke")
+	check(host.rourke.global_position.distance_to(start) < 0.05 and client.rourke.global_position.distance_to(start) < 0.05,
+		"and can't push him about, on the host or their own screen (moved %.2f m)" % host.rourke.global_position.distance_to(start))
+	# Standing in his way doesn't hold up the story either: he walks on.
+	p.global_position = Vector3(-1.5, 0.1, 5.0)
+	await _frames(3)
+	var arrived := [false]
+	host.rourke.arrived.connect(func(): arrived[0] = true)
+	host.rourke.walk_to(Vector3(0.0, 0, 5.0), true)
+	for f in 240:
+		await physics_frame
+		if arrived[0]:
+			break
+	check(arrived[0] and host.rourke.global_position.distance_to(Vector3(0, 0, 5)) < 0.5, "a client standing in Rourke's way doesn't stop him getting where he's going")
+	p.local_control = true
+	await _coop_close(worlds)
+
+	_game().new_run(5)
+	worlds = await _coop_worlds(1)
+	levels = await _coop_load(worlds, "res://scenes/level_4.tscn")
+	host = levels[0]
+	client = levels[1]
+	await _frames(20)
+	var c: Node3D = host.custodian
+	start = c.global_position
+	p = client.player
+	p.local_control = false
+	p.global_position = start + Vector3(0.75, 0.1, 0)
+	p.look_at(start, Vector3.UP)
+	p.rotation.x = 0.0
+	p.rotation.z = 0.0
+	await _frames(3)
+	start = c.global_position
+	for f in 240:
+		p.controls.move = Vector2(0, -1)
+		p.rotation.y += 0.004
+		await physics_frame
+	p.controls.move = Vector2.ZERO
+	check(c.global_position.distance_to(start) < 0.05, "nor drag the Custodian about (moved %.2f m)" % c.global_position.distance_to(start))
+	p.local_control = true
 	await _coop_close(worlds)
 
 
