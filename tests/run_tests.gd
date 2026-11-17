@@ -120,6 +120,7 @@ func _group_core() -> void:
 	await test_commentary()
 	await test_pause_holds_subtitles()
 	await test_lines_take_turns()
+	await test_notices_take_turns()
 	await test_screens_fill_window()
 	await test_pause_menu()
 	await test_level_select()
@@ -1082,6 +1083,49 @@ func test_lines_take_turns() -> void:
 	check(hud._subtitle.text == "CREW: Quiet now.", "and plays at once when it's quiet")
 	check(Voice.read_time("x".repeat(150)) == 11.0 and Voice.read_time("Hi.") == 2.0,
 		"unvoiced lines stay up at 15 characters a second")
+	hud.queue_free()
+
+
+## Notices take turns too: one at a time, no repeats, "Notebook updated" last and
+## folded in (plan/text-spacing-proposal.md).
+func test_notices_take_turns() -> void:
+	print("Notices take turns")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice("Down the hall, a lock drops.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await process_frame
+	check(hud._notice.text == "CS-41 locks.", "the first notice goes up")
+	await create_timer(0.8).timeout
+	check(hud._notice.text == "CS-41 locks.", "the level's next news doesn't wipe it straight away")
+	await create_timer(1.0).timeout  # 1.8 s
+	check(hud._notice.text == "Down the hall, a lock drops.", "it gets its turn after")
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Down the hall, a lock drops.", "the same news again within 20 seconds is dropped")
+	hud.notice("Locked.", 2.0)
+	await process_frame
+	check(hud._notice.text == "Locked.", "the answer to something the player just did goes up at once")
+	hud.notice("A lock drops.", 2.0, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == "Locked." and not hud._notebook_tag.visible, "\"Notebook updated\" waits behind the other notices")
+	await create_timer(1.7).timeout
+	check(hud._notice.text == "A lock drops." and hud._notebook_tag.visible, "then folds in under the last one instead of wiping it")
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await create_timer(0.1).timeout
+	check(hud._notice.text == "A lock drops.", "and says it at most once every 10 seconds")
+	hud._notice.modulate.a = 0.0
+	hud._notebook_last = -1000.0
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == InputGlyphs.text(HUD.NOTEBOOK_NOTICE), "with nothing else up, it goes up on its own")
+	hud.stale_after = 0.5
+	hud.notice("Someone's at the door.", 3.0)
+	hud.notice("The lights hum.", 2.0, ThemeUtil.AMBER, HUD.Turn.CAN_WAIT)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Someone's at the door.", "news that can wait is dropped once it's stale")
 	hud.queue_free()
 
 

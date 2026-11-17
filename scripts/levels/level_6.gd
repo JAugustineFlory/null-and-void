@@ -1099,11 +1099,11 @@ func _set_locked(id: String, lock: bool) -> void:
 	db.sync_world()
 	if lock:
 		if hud and is_inside_tree():
-			hud.notice(TEXT.door_locks % _door_name(id), 2.5)
+			hud.notice(TEXT.door_locks % _door_name(id), 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)  # the vault's doors cycle: news, not spam
 		return
 	door_gen[id] = door_gen.get(id, 0) + 1
 	if hud and is_inside_tree():
-		hud.notice(TEXT.door_opens % _door_name(id), 2.5)
+		hud.notice(TEXT.door_opens % _door_name(id), 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)  # the vault's doors cycle: news, not spam
 	if id == data.doors.ante:
 		_on_ante_opened()
 	if id == data.doors.vault_c:

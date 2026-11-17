@@ -11,6 +11,23 @@ var _damage: ColorRect
 var _fade: ColorRect
 var _crosshair: Label
 var _notice_tween: Tween
+## Notices take turns too (plan/text-spacing-proposal.md): one at a time, each up at
+## least NOTICE_MIN_UP before the next replaces it, in the order they came.
+const NOTICE_MIN_UP := 1.5
+## The same notice again within this long is dropped (B1's doors locking and
+## unlocking show the first few times, then only make their sound).
+const NOTICE_REPEAT := 20.0
+## "Notebook updated" goes last, at most once every NOTEBOOK_EVERY seconds, and folds
+## in under the notice on screen instead of wiping it.
+const NOTEBOOK_NOTICE := "Notebook updated (Tab)"
+const NOTEBOOK_EVERY := 10.0
+var _notice_queue: Array[Dictionary] = []
+var _notice_since := -1000.0
+var _notice_seen := {}  # notice text -> when it last went up or in the queue
+var _notebook_due := false
+var _notebook_last := -1000.0
+## The folded-in "Notebook updated (Tab)", under the notice it came with.
+var _notebook_tag: Label
 var _line_id := 0
 var _voice: Voice
 
@@ -50,6 +67,8 @@ var case_chip: CaseChip
 func _process(delta: float) -> void:
 	if not get_tree().paused:
 		_clock += delta
+	if _notebook_due or not _notice_queue.is_empty():
+		_next_notice()
 
 
 func _ready() -> void:
@@ -93,6 +112,13 @@ func _ready() -> void:
 	_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_notice.position = Vector2(-600, 70)
 	root.add_child(_notice)
+	_notebook_tag = ThemeUtil.label(NOTEBOOK_NOTICE, 20, ThemeUtil.AMBER)
+	_notebook_tag.name = "NotebookTag"
+	_notebook_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_notebook_tag.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_notebook_tag.grow_vertical = Control.GROW_DIRECTION_END
+	_notebook_tag.visible = false
+	_notice.add_child(_notebook_tag)  # fades with the notice it's folded into
 
 	_keys = ThemeUtil.label("WASD move · Shift sprint · Ctrl crouch · Space jump · E use · F flashlight · Tab notebook · 1-4 items · I inventory · Esc menu and all controls", 17, Color(1, 1, 1, 0.7))
 	_keys.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -149,10 +175,67 @@ func set_objective(text: String) -> void:
 	todo(text)
 
 
-func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) -> void:
-	_notice.text = InputGlyphs.text(text)
+## A short notice across the top of the screen. `turn` is a Turn, as for lines:
+## URGENT (the default) is the answer to something the player just did, or a threat:
+## it goes up at once. NORMAL (the level's own news: a door down the hall, a teammate
+## waiting) waits until the notice on screen has been up NOTICE_MIN_UP, in order, and
+## the same text within NOTICE_REPEAT is dropped. CAN_WAIT is NORMAL, dropped if it
+## would go up more than stale_after late.
+func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER, turn: int = Turn.URGENT) -> void:
+	if text == NOTEBOOK_NOTICE:
+		_notebook_due = true
+		_next_notice()
+		return
+	var shown := InputGlyphs.text(text)
+	if turn == Turn.URGENT:
+		_put_up(shown, seconds, color)
+		return
+	if _clock - float(_notice_seen.get(shown, -1000.0)) < NOTICE_REPEAT:
+		return
+	_notice_seen[shown] = _clock
+	_notice_queue.append({"text": shown, "seconds": seconds, "color": color, "at": _clock, "turn": turn})
+	_next_notice()
+
+
+## Is a notice up on screen now?
+func notice_showing() -> bool:
+	return _notice.text != "" and _notice.modulate.a > 0.05
+
+
+## Put up the next notice once the one on screen has had its moment; then, with
+## nothing else waiting, "Notebook updated", folded under whatever is up.
+func _next_notice() -> void:
+	while not _notice_queue.is_empty() and _notice_queue[0].turn == Turn.CAN_WAIT and _clock - float(_notice_queue[0].at) > stale_after:
+		_notice_queue.pop_front()  # news that's gone stale waiting
+	if not _notice_queue.is_empty() and (not notice_showing() or _clock - _notice_since >= NOTICE_MIN_UP):
+		var n: Dictionary = _notice_queue.pop_front()
+		_put_up(n.text, n.seconds, n.color)
+	if not _notebook_due or not _notice_queue.is_empty():
+		return
+	_notebook_due = false
+	if _clock - _notebook_last < NOTEBOOK_EVERY:
+		return  # said a moment ago: once is enough
+	_notebook_last = _clock
+	if notice_showing() and _notice.text != NOTEBOOK_NOTICE:
+		_notebook_tag.text = InputGlyphs.text(NOTEBOOK_NOTICE)
+		_notebook_tag.visible = true
+		_notebook_tag.offset_top = 4.0
+		_notebook_tag.offset_bottom = 4.0
+		if _notice_tween:  # keep the pair up long enough to read the tag
+			_notice_tween.kill()
+		_notice_tween = create_tween()
+		_notice_tween.tween_interval(3.0)
+		_notice_tween.tween_property(_notice, "modulate:a", 0.0, 0.8)
+	else:
+		_put_up(InputGlyphs.text(NOTEBOOK_NOTICE), 3.0, ThemeUtil.AMBER)
+
+
+func _put_up(text: String, seconds: float, color: Color) -> void:
+	_notice.text = text
 	_notice.add_theme_color_override("font_color", color)
 	_notice.modulate.a = 1.0
+	_notebook_tag.visible = false
+	_notice_since = _clock
 	if _notice_tween:
 		_notice_tween.kill()
 	_notice_tween = create_tween()
