@@ -696,7 +696,7 @@ func start() -> void:
 	badges.enabled = true
 	badges.stock(players.count())
 	_watch_nearest()
-	await hud.lines(["l0_greet_1", "l0_greet_3", "l0_greet_4"])
+	await hud.lines(["l0_greet_1", "l0_greet_3"])
 	rourke.watch = null
 	# The whole lobby, not a strip by the door: whoever follows Rourke first walks
 	# on to the desk, and a strip they've left wouldn't count them.
@@ -722,7 +722,7 @@ func start() -> void:
 	_watch_nearest()
 	_checkin_todo()
 	if not _checked_in_all():
-		hud.lines(["l0_greet_2", "l0_signin", "l0_badges"])  # not awaited: the log works while he talks
+		hud.lines(["l0_signin", "l0_badges"])  # not awaited: the log works while he talks
 	await sync.gate("signed_in", func():
 		while not _checked_in_all():
 			await get_tree().create_timer(0.2, false).timeout)
@@ -773,8 +773,6 @@ func _checked_in_all() -> bool:
 
 ## Someone signed the visitor log: on every machine.
 func _on_signed(id: int) -> void:
-	if id == players.id_of(player):
-		hud.notice("Signed in: BYTE-RIGHT IT SERVICES, 23:04", 4.0)
 	_checkin_progress()
 
 
@@ -833,6 +831,8 @@ func _build_ground_floor() -> void:
 		if row[0] != "Office of the Director":
 			listing.append({"row": [row[0], row[2], str(row[3])]})
 	listing.append({"text": "Mercer's still on here?? - mailroom", "hand": true})
+	# The clerk's note at the top (text trims, Augustine 2026-11-17: Rourke no longer says it).
+	listing.insert(0, {"text": "Only up-to-date list in the building. LEAVE IT ON THE WALL.", "hand": true})
 	directory_printout = Document.place(geo, Vector3(-13.12, 1.5, -13.0), 90.0, "HALCYON STAFF DIRECTORY", listing, false, "paper", Vector2(0.5, 0.66))
 	directory_printout.clues = [{"case": "caller", "text": "The mailroom's printout of the staff directory lists everyone's extension."}]
 	var in_mailroom := Trigger.create(self, Vector3(-16.5, 1, -14), Vector3(6.6, 2, 7.6))
@@ -894,7 +894,7 @@ func _set_front_doors_locked(locked: bool) -> void:
 
 ## The van radio, until the crew is ready.
 func _dispatch_chatter() -> void:
-	for id in ["l0_dispatch_1", "l0_dispatch_2", "l0_dispatch_3"]:
+	for id in ["l0_dispatch_1", "l0_dispatch_3"]:
 		if _intro_started:
 			return
 		await hud.line(id)
@@ -982,7 +982,7 @@ func _after_memo() -> void:
 	_rourke_briefing = true
 	await get_tree().create_timer(0.6, false).timeout
 	_watch_nearest()
-	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_caller_1", "l0_caller_2", "l0_mailroom_1"])
+	await hud.lines(["l0_memo_flag", "l0_memo_1", "l0_caller_1"])
 	# He's asked who called: the book's chapter on naming columns, then the case opens.
 	await _book_huddle("easy_sql_3")
 	_rourke_briefing = false
@@ -993,9 +993,23 @@ func _after_memo() -> void:
 			await caller_found)
 	await get_tree().create_timer(0.6, false).timeout
 	_watch_nearest()
-	await hud.lines(["l0_caller_3", "l0_memo_2", "l0_memo_3", "l0_memo_4"])
+	await hud.lines(["l0_caller_3", "l0_memo_2"])
+	_arm_counter_hop()
 	_pa_after_memo()
 	_leave_lobby()
+
+
+## Whoever hops the counter first for the walkie-talkies hears Rourke about it
+## (text trims, Augustine 2026-11-17). Only the host's trigger fires.
+func _arm_counter_hop() -> void:
+	var behind := Trigger.create(self, Vector3(0, 1, -4.2), Vector3(9.6, 2, 5.4))
+	behind.name = "BehindTheDesk"
+	behind.entered.connect(func(_b): sync.event("_on_counter_hop"), CONNECT_ONE_SHOT)
+
+
+## Every machine: the first of the crew is over the counter.
+func _on_counter_hop() -> void:
+	hud.line("l0_memo_3")
 
 
 ## Who called, for a run whose work order shows extension `ext`. Hints follow

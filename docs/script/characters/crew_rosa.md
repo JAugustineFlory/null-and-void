@@ -1,6 +1,6 @@
 # Rosa Delgado
 
-*Your script for Null & Void: 74 recordings.*
+*Your script for Null & Void: 76 recordings.*
 
 ## Who you are
 
@@ -200,7 +200,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 *Only if the crew has been stuck for about a minute on who called, and nobody has read the mailroom's phone list. Turning to look down the back corridor. Stuck. Remembering what the escort said.*
 
-"Rourke said the mailroom has the only phone list that's right."
+"Mailrooms always have a phone list pinned up somewhere."
 
 **[ ] `l0_cc_caller_n1b.wav`**
 
@@ -460,7 +460,43 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "That's the code. Let's not hang around."
 
-## Scene 4: Book huddles: Hello HTML!
+## Scene 4: Finding Acceptable API's
+
+**Halcyon Tower, floor 9, Personnel: the HR front. After midnight.**
+
+> The crew is locked in the tower, and the database won't take changes any more. On a training shelf by the HR front desk, you find a book from the same beginner's series the crew learned from at the garage.
+
+**[ ] `l5_book_find_block.wav`**
+
+*When a player picks the book up off the training shelf by the HR desk. Whoever picks it up says it. Lifting it off the shelf, turning it over in your hands. Delighted, a little thrown.*
+
+"No way. It's the same series. Somebody here bought the sequel."
+
+*1 second pause*
+
+*As you open it. Holding it up so the crew can see the cover. Reading the back cover, hopeful.*
+
+"Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly."
+
+## Scene 5: Finding Journey through JavaScript
+
+**Halcyon Tower, basement B1, Cold Storage. Later that night.**
+
+> This book is in the basement cold store, in the IT cage where the crew first gets a way to write scripts. You find it under a coffee mug, the cover ringed and the page on loops dog-eared. You're tired of typing everything by hand, and this looks like help.
+
+**[ ] `l6_book_find_block.wav`**
+
+*When someone finds the book under a coffee mug by the terminal on B1. Holding it up for the crew to see. Sliding it out from under a mug. The cover's stained and the pages are soft.*
+
+"Journey through JavaScript. Somebody's read this one to death."
+
+*1 second pause*
+
+*As you open it. Flicking through the pages, shaking out your typing hand. Tired of typing. This sounds like rescue.*
+
+"Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat."
+
+## Scene 6: Book huddles: Hello HTML!
 
 **Halcyon Tower, in a lift riding up from the basements. Later that night.**
 

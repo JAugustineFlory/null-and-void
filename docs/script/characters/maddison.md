@@ -54,12 +54,6 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 *1 second pause*
 
-*Pacing a step or two in front of the whiteboard. Every 'maybe' a little grander, then the sign brings it back down to earth.*
-
-"So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off."
-
-*1 second pause*
-
 *Tapping the whiteboard with her marker. Building to it. She can't stand still for 'Ours.'*
 
 "Forget all that. We got Halcyon. The overnight database contract. Ours."
@@ -74,7 +68,7 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 *Once they're settled. Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
 
-"I put a copy of the work order in each of your notebooks. Pull it out and take a look."
+"Work order's in your notebooks. Take a look."
 
 **[ ] `l0_brief_1_solo.wav`**
 
@@ -86,7 +80,7 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 *Only when one player is playing alone. Plays instead of "I put a copy of the work order in each of your notebooks. Pull it out and take a look." Tapping her own notebook, then pointing at theirs. Pleased with herself for being organized.*
 
-"I put a copy of the work order in your notebook. Pull it out and take a look."
+"Work order's in your notebook. Take a look."
 
 **[ ] `l0_workorder_walk_block.wav`**
 
@@ -168,12 +162,6 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 *1 second pause*
 
-*If the crew has already climbed out, the radio has cut off. Leaning back in her desk chair, mic close. Reading it off the ticket.*
-
-"They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors."
-
-*1 second pause*
-
 *Unless the crew has already climbed out. Reaching for the next ticket, thumbing the mic off at the end. Bored, reading the form. Signing off, already onto the next call.*
 
-"Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out."
+"Work order's in your notebook, the usual. Hop out when you're ready. Dispatch out."

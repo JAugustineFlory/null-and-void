@@ -81,7 +81,6 @@ const TEXT := {
 	"token_done": "B2 answered: %d zones and the emergency circuit. The token lasts %d seconds.",
 	"restore_done": "%s lit on the bench, and the test says so. The function hands back its answer now.",
 	"zones_done": "All six zones lit on the bench, every one asserted. Tested before it touched the building.",
-	"arrive": "No windows. Low ceilings. Somewhere past the lobby, fans roar.",
 	"cut": "Down the ring, a zone goes dark.",
 	"bench_report": "BENCH: %d of %d zones lit. TESTS PASSED: %d.",
 	"bench_dark": "BENCH: still dark: %s",
@@ -851,7 +850,6 @@ func start() -> void:
 	if player and not player.inventory.selected.is_connected(_on_selected):
 		player.inventory.selected.connect(_on_selected)
 	hud.todo(TASK_TITLES.todo_arrive, TEXT.todo_arrive)
-	hud.notice(TEXT.arrive, 5.0)
 	_lines(["l7_arrive_pa", "l7_arrive_tease", "l7_ines_lobby"], 0.8)
 	# WARDEN hears the crew below him, and starts on the ring's lights.
 	_later(first_cut_after, "_cut", [data.first_cut])

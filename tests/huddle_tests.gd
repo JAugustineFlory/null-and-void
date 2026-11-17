@@ -534,9 +534,11 @@ func _subtitles(hud, run: Callable) -> Array:
 	return seen
 
 
-## Anything Maddison or a remembering crew member says, from `subtitles`.
+## Anything Maddison or a remembering crew member says, from `subtitles`, leaving
+## out the van radio (her dispatch can be talking at the same time).
 func _huddle_lines(subtitles: Array) -> Array:
-	return subtitles.filter(func(t): return t.begins_with("MADDISON: ") or t.contains("Maddison said"))
+	var van: Array = VoiceLines.ids_in_scene("l0_van").map(func(id): return VoiceLines.get_line(id).text)
+	return subtitles.filter(func(t): return (t.begins_with("MADDISON: ") or t.contains("Maddison said")) and not van.any(func(x): return t.ends_with(": " + x)))
 
 
 ## Augustine, 2026-11-17 ("remove all"): up on a floor nobody remembers Maddison's
