@@ -1,0 +1,1 @@
+- **Fixed:** If Rourke gets knocked off his path, wedged somewhere, or falls out of the building, he finds his way back and carries on, so the tour can no longer get stuck waiting on him.

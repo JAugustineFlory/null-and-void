@@ -149,6 +149,7 @@ func _group_floor_g() -> void:
 	await test_level_0_scene()
 	await test_ground_floor()
 	await test_rourke_leads_in()
+	await test_rourke_never_stuck()
 	await test_caller_answer()
 	await test_clue_papers_shine()
 
@@ -4602,6 +4603,44 @@ func test_world() -> void:
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
 	await process_frame
+
+
+## Shoved off his path, wedged, or out of the world: Rourke's escort never hangs.
+func test_rourke_never_stuck() -> void:
+	print("Rourke can't be left stuck")
+	_game().new_run(8)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var r: Rourke = level.rourke
+	r.visible = true
+	r.state = Rourke.State.IDLE
+	r.global_position = Vector3(-6.3, -40.0, 0.6)
+	r.velocity = Vector3.ZERO
+	check(await _until(func(): return r.is_on_floor() and r.global_position.y > -0.5, 6.0), "out of the world, he's put back on the floor (at %s)" % r.global_position)
+	# Walled in where the navigation can't see: he tries, then is put where he was going.
+	r.global_position = Vector3(-6.3, 0.05, 0.6)
+	var cage := StaticBody3D.new()
+	for side in [Vector3(0.9, 1, 0), Vector3(-0.9, 1, 0), Vector3(0, 1, 0.9), Vector3(0, 1, -0.9)]:
+		var cs := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(0.2, 2.0, 2.0) if side.x != 0.0 else Vector3(2.0, 2.0, 0.2)
+		cs.shape = box
+		cs.position = side
+		cage.add_child(cs)
+	cage.position = r.global_position
+	level.add_child(cage)
+	await _frames(5)
+	var goal := Vector3(0, 0, -8.5)
+	var arrived := [false]
+	r.arrived.connect(func(): arrived[0] = true, CONNECT_ONE_SHOT)
+	r.walk_to(goal)
+	await _frames(60)
+	check(not arrived[0] and r.global_position.distance_to(Vector3(-6.3, 0.05, 0.6)) < 1.0, "boxed in, he can't get far at first")
+	check(await _until(func(): return arrived[0], Rourke.STUCK_TIME * Rourke.GIVE_UP_AFTER + 4.0), "but the walk still finishes")
+	check(Vector2(r.global_position.x, r.global_position.z).distance_to(Vector2(goal.x, goal.z)) < 1.0, "with him where he was going (at %s)" % r.global_position)
+	level.queue_free()
+	await _frames(5)
 
 
 func test_rourke_leads_in() -> void:
