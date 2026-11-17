@@ -1606,7 +1606,7 @@ func _ledge_probe(dir: Vector3) -> Dictionary:
 		return {}
 	var target := face - n * (body.radius + 0.08)
 	target.y = top.position.y + 0.02
-	if not _fits(target, body.crawl):
+	if not _fits(target, body.crawl) or not _over_clear(face, n, top.position.y, target):
 		return {}
 	return {"normal": n, "face": face, "top": top.position.y, "height": height, "target": target}
 
@@ -1678,7 +1678,7 @@ func _try_vault() -> bool:
 	if floor_y == INF or floor_y > top - 0.35:
 		return false
 	land.y = floor_y + 0.02
-	if not _fits(over, body.crawl) or not _fits(land, body.stand):
+	if not _fits(over, body.crawl) or not _fits(land, body.stand) or not _over_clear(face, n, top, over):
 		return false
 	state = Move.VAULT
 	_timer = 0.0
@@ -1690,6 +1690,16 @@ func _try_vault() -> bool:
 	_grip = {"point": Vector3(face.x, top, face.z) - n * 0.1, "normal": n}
 	_noise(0.3)
 	return true
+
+
+## Nothing in the way going over the top: just above `top`, from just off the
+## wall's face (`n` points out of it) to `to`. A floor seen through a closed door
+## or thin wall (the garage van's cab, beta2 playtest) isn't a ledge to climb onto.
+func _over_clear(face: Vector3, n: Vector3, top: float, to: Vector3) -> bool:
+	var from := Vector3(face.x, top + 0.05, face.z) + n * 0.05
+	var end := Vector3(to.x, top + 0.05, to.z)
+	var q := PhysicsRayQueryParameters3D.create(from, end, collision_mask, _exclude())
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
 ## Height of the first upward-facing surface straight below `at` (from `from_y`,
