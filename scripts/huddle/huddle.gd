@@ -114,6 +114,9 @@ func _complete(id: String, ids: Array = []) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _finish(id: String, in_crew: Array) -> void:
+	var sync := LevelSync.of(self)
+	if sync:
+		sync.note(self, "_finish", [id, in_crew])  # someone joining later gets it too
 	crew = in_crew
 	var game := get_node("/root/Game")
 	for w in Books.chapter(id).get("words", []):

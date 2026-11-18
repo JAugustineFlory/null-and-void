@@ -34,6 +34,8 @@ const LIST := [
 	{"id": "achievement:hard_floor_all", "name": "All Accounted For", "hint": "Clear a floor on Hard with nobody dying."},
 	{"id": "achievement:hard_watch_only", "name": "Not a Word", "hint": "Clear a floor on Hard with the dead kept silent, and live through it."},
 	{"id": "achievement:hard_game", "name": "The Hard Way", "hint": "Finish the game on Hard, alive."},
+	# Co-op's: a dead player who leaves and comes back (name: Augustine, plan/hard-mode.md 10.3; hint approved 2026-11-18 01:28Z).
+	{"id": "achievement:nice_try", "name": "Nice Try", "hint": "Die on Hard, leave, and come back to watch."},
 	{"id": "secret:mercer_vent_tape", "name": "Mercer's Tape"},
 	{"id": "secret:mercer_floppy_1", "name": "Mercer's First Disk"},
 	{"id": "secret:roster_thu", "name": "Thursday, Apparently"},

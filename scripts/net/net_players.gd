@@ -4,12 +4,24 @@ extends Node
 ## for each other player. Sends this player's position to the others.
 
 const SEND_RATE := 20.0
+## Someone joined the game while it was going (approved by Augustine 2026-11-18 01:28Z).
+const JOINED := "%s joined the crew."
+## Died on a Hard floor, left, and came back to it (Augustine's name, 2026-11-18).
+const NICE_TRY := "achievement:nice_try"
 
 var level: Node
 var player: Node3D  # this machine's Player
 var _puppets := {}  # peer id -> PlayerPuppet
 var _send_t := 0.0
 var _live := false
+## Players who joined the game already going, waiting for their name and look.
+var _joining := {}
+## Host, Hard mode: the names of the dead who left, with the floor they died on.
+## Back on that floor they come in as a ghost (plan/hard-mode.md, 10.3).
+var _ghosts := {}
+## Watching a teammate while dead (Hard mode), or null.
+var spectate: Spectate
+var _crew: Node
 
 
 static func create(for_level: Node, local_player: Node3D) -> NetPlayers:
@@ -30,17 +42,80 @@ static func spawn_offset(index: int) -> Vector3:
 
 func _ready() -> void:
 	multiplayer.peer_disconnected.connect(_on_peer_left)
+	multiplayer.peer_connected.connect(_on_peer_joined)
+	if _session():
+		get_node("/root/Net").roster_changed.connect(_names_changed)
+	var net := get_node_or_null("/root/Net")
 	var ids := all_ids()
 	for i in ids.size():
 		var id: int = ids[i]
 		if id != multiplayer.get_unique_id():
-			var net := get_node_or_null("/root/Net")
 			var who: String = net.display_name(id) if net else "Player %d" % id
 			# Stand where that player spawns until their first update arrives.
 			var at: Transform3D = level.player_spawn(i)
 			var p := PlayerPuppet.create(self, id, who, look_for(self, id), at)
 			p.players = self
 			_puppets[id] = p
+	watch_crew.call_deferred()
+
+
+## Follow the crew's deaths (CrewVitals is made just after this): dead, you
+## watch a teammate; back, you see through your own eyes again.
+func watch_crew(crew: Node = null) -> void:
+	if crew == null:
+		crew = CrewVitals.of(level)
+	if crew == null or crew == _crew:
+		return
+	_crew = crew
+	if crew.has_signal("died"):
+		crew.died.connect(_on_died)
+	if crew.has_signal("passed_out"):
+		crew.passed_out.connect(_on_died)  # out cold: you watch until a kit brings you round
+	if crew.has_signal("came_back"):
+		crew.came_back.connect(_on_came_back)
+	if crew.has_signal("wiped"):
+		crew.wiped.connect(_on_came_back.bind(multiplayer.get_unique_id()))  # everyone down: watch it end from where you lie
+
+
+## Is player `id` dead (Hard mode)? The dead watch, and don't count for "everyone".
+func is_dead(id: int) -> bool:
+	var crew = _crew if is_instance_valid(_crew) else CrewVitals.of(level)
+	return crew != null and crew.has_method("is_dead") and crew.is_dead(id)
+
+
+## Counted as there for "everyone present": not dead, and not passed out (down
+## but awake still counts: a kit can reach them). CrewVitals.is_present.
+func is_present(id: int) -> bool:
+	var crew = _crew if is_instance_valid(_crew) else CrewVitals.of(level)
+	if crew != null and crew.has_method("is_present"):
+		return crew.is_present(id)
+	return not is_dead(id)
+
+
+## Dead or out cold (every machine): you watch a teammate, and nobody waits on you.
+func _on_died(id: int, _cause = "") -> void:
+	if id == multiplayer.get_unique_id() and spectate == null and _puppets.size() > 0:
+		spectate = Spectate.create(self)
+	_recheck_triggers()
+
+
+## Whoever was waiting on someone at a door or the stairs needn't any more.
+func _recheck_triggers() -> void:
+	for t in get_tree().get_nodes_in_group(Trigger.GROUP):
+		if t.get_viewport() == get_viewport():
+			t.recheck()
+
+
+func _on_came_back(id: int) -> void:
+	if id == multiplayer.get_unique_id():
+		stop_watching()
+
+
+## Back to your own eyes.
+func stop_watching() -> void:
+	if is_instance_valid(spectate):
+		spectate.stop()
+	spectate = null
 
 
 ## Start sending positions (after every machine has loaded the level).
@@ -189,11 +264,64 @@ func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: boo
 		p.set_fight(fight)
 
 
+## A player joined the game already going: once their name and look arrive
+## (the roster, just after they connect), they appear at the start of the floor
+## the crew is on, where their own machine puts them.
+func _on_peer_joined(id: int) -> void:
+	if _puppets.has(id) or id == multiplayer.get_unique_id():
+		return
+	if not _session():
+		_add_joiner(id, "Player %d" % id)  # no roster to wait for (tests, a session without Net)
+		return
+	_joining[id] = true
+	_names_changed()
+
+
+## This level's players are Net's session (not a test's own machines).
+func _session() -> bool:
+	var net := get_node_or_null("/root/Net")
+	return net != null and net.multiplayer == multiplayer
+
+
+func _names_changed() -> void:
+	var net := get_node("/root/Net")
+	for id in _joining.keys():
+		if net.roster.has(id) and net.looks.has(id):
+			_joining.erase(id)
+			_add_joiner(id, net.display_name(id))
+
+
+func _add_joiner(id: int, who: String) -> void:
+	if _puppets.has(id) or not multiplayer.get_peers().has(id):
+		return
+	var here: Node = level.get("current") if level.get("current") else level
+	var p := PlayerPuppet.create(self, id, who, look_for(self, id), here.player_spawn(all_ids().find(id)))
+	p.players = self
+	_puppets[id] = p
+	if level.get("hud"):
+		level.hud.notice(JOINED % who, 4.0)
+	if multiplayer.is_server() and _ghosts.get(who, "") == _floor_key():
+		# Died here, left, and came back: they watch, as before ("Nice Try").
+		_ghosts.erase(who)
+		if _crew and _crew.has_method("mark_dead"):
+			_crew.mark_dead(id)
+		var sync := LevelSync.of(self)
+		if sync:
+			sync.unlock_for([id], NICE_TRY)
+
+
+func _floor_key() -> String:
+	var game := get_node_or_null("/root/Game")
+	return str(game.floor_start.get("key", "")) if game else ""
+
+
 func _on_peer_left(id: int) -> void:
 	var p: PlayerPuppet = _puppets.get(id)
 	if p == null:
 		return
 	_puppets.erase(id)
+	if multiplayer.is_server() and is_dead(id):
+		_ghosts[p.display_name] = _floor_key()
 	if level.get("hud"):
 		level.hud.notice("%s lost contact." % p.display_name, 4.0)
 	p.queue_free()

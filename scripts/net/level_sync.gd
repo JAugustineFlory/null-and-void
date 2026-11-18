@@ -26,6 +26,16 @@ var _begun := false
 var _start_fn: Callable
 var _synchronizers: Array[MultiplayerSynchronizer] = []
 var _gates := {}
+## Host, on the World's (or a stand-alone level's) LevelSync: everything shared
+## that happened on this floor since the crew walked onto it, in order, so a
+## player who joins mid-run can catch up (replay_to). Each entry is
+## [path from this level to the LevelSync it ran on, kind, args].
+var history: Array = []
+## (On the top LevelSync) this machine is catching up on what happened before it
+## joined: story beats run quietly (no lines, no notices), to arrive where
+## everyone else is.
+var catching_up := false
+var _caught_up := {}
 ## Shares what's on each terminal's screen: seats, typed lines, commands.
 var mirror: TerminalMirror
 var huddle: NotesHuddle
@@ -106,6 +116,9 @@ func _client_ready() -> void:
 		s.set_visibility_for(id, true)
 	if _begun:
 		_begin_all.rpc_id(id)  # it missed the start; let it catch up
+		if top() == self and not _caught_up.has(id):
+			_caught_up[id] = true
+			replay_to(id)  # and on what's happened since (a late joiner)
 	_check_all_ready()
 
 
@@ -135,6 +148,83 @@ func _begin() -> void:
 		_start_fn.call()
 
 
+# --- Catching up a late joiner ----------------------------------------------
+
+## The LevelSync that keeps the floor's history: the World's, or a stand-alone level's own.
+func top() -> LevelSync:
+	var w = level.get("world")
+	return w.sync if w and w != level and w.get("sync") else self
+
+
+## Host: note something shared that just ran here, for anyone joining later.
+func _record(kind: String, args: Array) -> void:
+	if not is_host():
+		return
+	var t := top()
+	t.history.append([t.level.get_path_to(self), kind, args])
+
+
+## The crew walked onto a new floor (World.enter_wing): what happened before it
+## no longer matters to someone joining, who starts on this floor.
+func clear_history() -> void:
+	top().history.clear()
+
+
+## Host: send player `id` everything shared that happened on this floor so far.
+## Their machine replays it, quietly and in order, to be where everyone is.
+func replay_to(id: int) -> void:
+	if is_host():
+		_replay.rpc_id(id, top().history)
+
+
+## Something shared outside LevelSync's own calls (a call_local RPC on another
+## node, e.g. a chapter coming into the book) just ran: note it for late joiners,
+## who replay it as `node.method(args)`. Call it from inside that RPC; only the
+## host's call is kept.
+func note(node: Node, method: StringName, args: Array) -> void:
+	if is_host():
+		var t := top()
+		t.history.append([t.level.get_path_to(node), "call", [method, args]])
+
+
+## How long story code keeps running quietly after a catch-up, so beats that
+## were waiting on what was replayed play through instead of all being heard.
+const CATCH_UP_SETTLE := 2.0
+
+
+@rpc("authority", "reliable")
+func _replay(entries: Array) -> void:
+	catching_up = true
+	var hud = level.get("hud")
+	if hud:
+		hud.catching_up = true
+	for e in entries:
+		if e[1] == "call":
+			var target := level.get_node_or_null(e[0])
+			if target:
+				target.callv(e[2][0], e[2][1])
+			continue
+		var s := level.get_node_or_null(e[0]) as LevelSync
+		if s == null:
+			continue  # on a floor this machine never built
+		match e[1]:
+			"event": s._event.callv(e[2])
+			"run_on": s._run_on.callv(e[2])
+			"gate": s._open_gate.callv(e[2])
+			"query": s._show_query.callv(e[2])
+			"request": s._show_request.callv(e[2])
+			"reset_db": s._reset_db.callv(e[2])
+	await get_tree().create_timer(CATCH_UP_SETTLE).timeout
+	catching_up = false
+	if hud and is_instance_valid(hud):
+		hud.catching_up = false
+
+
+## This machine is catching up on an earlier part of the floor (late join).
+func is_catching_up() -> bool:
+	return top().catching_up
+
+
 # --- Events ------------------------------------------------------------------
 
 ## Host: run `level.method(args)` on every machine. Clients can't start events.
@@ -146,6 +236,7 @@ func event(method: StringName, args: Array = []) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _event(method: StringName, args: Array) -> void:
+	_record("event", [method, args])
 	level.callv(method, args)
 
 
@@ -158,6 +249,7 @@ func run_on(node: Node, method: StringName, args: Array = []) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _run_on(path: NodePath, method: StringName, args: Array) -> void:
+	_record("run_on", [path, method, args])
 	var node := level.get_node_or_null(path)
 	if node:
 		node.callv(method, args)
@@ -185,6 +277,7 @@ func _host_gate(key: String, waiter) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _open_gate(key: String) -> void:
+	_record("gate", [key])
 	_gates[key] = true
 	gate_opened.emit(key)
 
@@ -365,6 +458,7 @@ func _query_refused(path: NodePath) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _show_query(path: NodePath, sql: String, result: Dictionary, from_peer: int) -> void:
+	_record("query", [path, sql, result, from_peer])
 	var terminal := level.get_node_or_null(path)
 	if terminal == null:
 		return
@@ -407,6 +501,7 @@ func _host_request(path: NodePath, line: String, from_peer: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _show_request(path: NodePath, line: String, res: Dictionary, from_peer: int) -> void:
+	_record("request", [path, line, res, from_peer])
 	var terminal := level.get_node_or_null(path)
 	if terminal == null:
 		return
@@ -431,6 +526,7 @@ func _request_reset(path: NodePath) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _reset_db(path: NodePath) -> void:
+	_record("reset_db", [path])
 	var terminal := level.get_node_or_null(path)
 	if terminal:
 		terminal.db.reset()
