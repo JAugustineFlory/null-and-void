@@ -143,6 +143,8 @@ func send_frames(frames: PackedVector2Array, rate: float, on_radio: bool) -> voi
 		return
 	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return
+	if _muted_dead(multiplayer.get_unique_id()):
+		return
 	var packet := _encoder.encode(_leveler.process(frames, rate, _gate.speech), rate)
 	if not packet.is_empty():
 		_voice.rpc(on_radio, packet)
@@ -154,8 +156,18 @@ func _voice(on_radio: bool, data: PackedByteArray) -> void:
 	var body: Node3D = level.players.puppet(from)
 	if body == null or not is_instance_valid(level.player):
 		return
+	if _muted_dead(from):
+		return
 	var frames := VoiceCodec.decode(data)
 	var spk := _speaker(from)
+	if level.players.is_dead(from):
+		# Hard mode: the dead are heard on the radio only, clear, whoever holds
+		# a walkie (plan/hard-mode.md, 4B). Not from where their body lies.
+		heard.radio += 1
+		_push(spk.radio, frames)
+		_rx_name = body.get("display_name") if body.get("display_name") else "?"
+		_rx_t = 0.3
+		return
 	var dist := body.global_position.distance_to(level.player.global_position)
 	if not hearing_from_body():
 		# The camera is away (a flashback's garage): a voice from the world would
@@ -173,6 +185,12 @@ func _voice(on_radio: bool, data: PackedByteArray) -> void:
 		_push(spk.radio, Radio.degrade(frames, last_quality, _rng))
 		_rx_name = body.get("display_name") if body.get("display_name") else "?"
 		_rx_t = 0.3
+
+
+## Player `id` is dead and the run's rule is that the dead only watch (muted).
+func _muted_dead(id: int) -> bool:
+	var game := get_node_or_null("/root/Game")
+	return game != null and game.dead_watch_only and level.players != null and level.players.is_dead(id)
 
 
 @rpc("any_peer", "reliable", "call_remote", 2)

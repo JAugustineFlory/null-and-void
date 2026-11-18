@@ -105,6 +105,7 @@ func _group_coop_runs() -> void:
 	test_run_rules()
 	await test_restart_floor()
 	await test_coop_late_join()
+	await test_hard_dead_watch()
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -2216,6 +2217,139 @@ func test_coop_level_0() -> void:
 ## Late join (Augustine, hard mode call 10.3, Normal too): someone joins a game
 ## that's already going, comes in at the start of the floor, and their machine
 ## catches up on everything shared that happened there.
+## Hard mode's dead, on co-op's side: they watch a teammate, are heard on the
+## radio only (or not at all), don't hold up "everyone here", and a dead player
+## who leaves and comes back to the floor comes back as a ghost.
+func test_hard_dead_watch() -> void:
+	print("Co-op: the dead in Hard mode")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(2)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var c1 = levels[1]
+	var c2 = levels[2]
+	var crews := levels.map(_death_crew)
+	var id1: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var id2: int = get_multiplayer(worlds[2].get_path()).get_unique_id()
+
+	# Everyone present: two in, one outside. When the one outside dies, the living are all here.
+	var spot := Vector3(-4.5, 0.1, 7.4)
+	var gate := Trigger.create(host, spot + Vector3(0, 0.9, 0), Vector3(2.6, 2, 2.6))
+	gate.require_all = true
+	var fired := [0]
+	gate.entered.connect(func(_b): fired[0] += 1)
+	host.player.global_position = spot
+	c1.player.global_position = spot + Vector3(0.8, 0, 0)
+	c2.player.global_position = spot + Vector3(0, 0, 6)
+	await _frames(30)
+	check(fired[0] == 0, "\"everyone here\" waits for the one still outside")
+	for c in crews:
+		c._set_dead(id2, true)
+	await _frames(5)
+	check(fired[0] == 1, "once they're dead, the living are everyone, and it goes")
+
+	# Watching: over a living teammate's shoulder, never your own body or the dead.
+	var watch = c2.players.spectate
+	check(watch != null and worlds[2].get_camera_3d() == watch and watch.watching == 1, "dead, you watch the first living teammate")
+	check(watch._who.text == Spectate.WATCHING % c2.players.puppet(1).display_name, "and a line says who (%s)" % watch._who.text)
+	await _frames(5)
+	check(watch.global_position.distance_to(c2.players.puppet(1).global_position) < 4.0, "the camera is just behind them")
+	watch.cycle(1)
+	check(watch.watching == id1, "switching moves on to the next one alive")
+	watch.cycle(1)
+	check(watch.watching == 1, "and round again")
+	check(host.players.spectate == null and c1.players.spectate == null, "the living see through their own eyes")
+	for c in crews:
+		c._set_dead(id1, true)
+	await _frames(3)
+	check(c1.players.spectate != null and c1.players.spectate.watching == 1, "the next to die watches whoever's left")
+
+	# Voice: the dead are heard on the radio, clear, and never from where they lie.
+	var tone := _tone(4800, 48000.0, 0.5)
+	var near0: int = host.voice.heard.near
+	var radio0: int = host.voice.heard.radio
+	c2.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(host.voice.heard.near == near0 and host.voice.heard.radio == radio0 + 1, "a dead player's voice comes over the radio only")
+	_game().dead_watch_only = true
+	c2.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(host.voice.heard.radio == radio0 + 1 and host.voice.heard.near == near0, "with \"the dead can only watch\", they're not heard at all")
+	_game().dead_watch_only = false
+
+	# Back at the next floor: your own eyes again.
+	for c in crews:
+		c._set_dead(id2, false)
+	await _frames(2)
+	check(c2.players.spectate == null and worlds[2].get_camera_3d() == c2.player.camera, "back alive, you see through your own eyes")
+
+	# Dead, gone, and back on the same floor: a ghost, and "Nice Try".
+	_game().mark_floor_start("level_1")
+	var name1: String = host.players.puppet(id1).display_name
+	get_multiplayer(worlds[1].get_path()).multiplayer_peer.close()
+	c1.queue_free()  # their machine leaves the game
+	await _frames(20)
+	check(host.players.puppet(id1) == null and host.players._ghosts.get(name1, "") == "level_1", "a dead player who leaves is remembered by name")
+	# Joining again (the third machine stands in for them, under each name).
+	var net := root.get_node("Net")
+	var had_nice_try: bool = net.profile.earned.has(NetPlayers.NICE_TRY)
+	var rejoin := func(who: String) -> void:
+		var old: Node = host.players._puppets.get(id2)
+		host.players._puppets.erase(id2)
+		if old:
+			old.queue_free()
+		host.players._add_joiner(id2, who)
+	host.players._ghosts["Someone"] = "level_3"
+	rejoin.call("Someone")
+	check(not crews[0].is_dead(id2), "someone who died on another floor comes back alive")
+	host.players._ghosts["Ghost"] = "level_1"
+	rejoin.call("Ghost")
+	await _frames(5)
+	check(crews[0].is_dead(id2) and not host.players._ghosts.has("Ghost"), "back on the floor they died on, they come back dead, as a ghost")
+	check(net.profile.earned.has(NetPlayers.NICE_TRY), "and they get \"Nice Try\"")
+	if not had_nice_try:
+		net.profile.earned.erase(NetPlayers.NICE_TRY)
+	await _coop_close(worlds)
+	_game().floor_start = {}
+
+
+## A level's CrewVitals with Hard mode's deaths: Combat's own when it has them,
+## otherwise a stand-in with the same names (is_dead, died, came_back, mark_dead).
+func _death_crew(level: Node) -> Node:
+	var crew = level.crew
+	if crew.has_method("is_dead") and crew.has_method("_set_dead"):
+		return crew
+	var stub := GDScript.new()
+	stub.source_code = """extends CrewVitals
+signal died(peer_id: int, cause: String)
+signal came_back(peer_id: int)
+var dead := {}
+func is_dead(id: int) -> bool:
+	return dead.has(id)
+func mark_dead(id: int) -> void:
+	_set_dead(id, true)
+func _set_dead(id: int, on: bool) -> void:
+	if on:
+		dead[id] = "test"
+		died.emit(id, "test")
+	else:
+		dead.erase(id)
+		came_back.emit(id)
+"""
+	stub.reload()
+	var c = stub.new()
+	c.level = level
+	c.players = level.players
+	crew.name = "OldCrew"
+	crew.queue_free()
+	c.name = "Crew"
+	level.add_child(c)
+	level.crew = c
+	level.players.watch_crew(c)
+	return c
+
+
 func test_coop_late_join() -> void:
 	print("Co-op: joining a game already going")
 	_game().new_run(5)

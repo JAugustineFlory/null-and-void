@@ -27,6 +27,8 @@ const LIST := [
 	# earn them DRAFT, plan/approvals/keyword-buttons-text.md).
 	{"id": "achievement:no_training_wheels", "name": "No More Training Wheels", "hint": "Use a word enough that its button comes off."},
 	{"id": "achievement:look_no_buttons", "name": "Look, No Buttons"},
+	# Hard mode (name: Augustine 2026-11-18 00:04Z, plan/hard-mode.md 10.3; how to earn it DRAFT).
+	{"id": "achievement:nice_try", "name": "Nice Try", "hint": "Die on Hard, leave, and come back to watch."},
 	{"id": "secret:mercer_vent_tape", "name": "Mercer's Tape"},
 	{"id": "secret:mercer_floppy_1", "name": "Mercer's First Disk"},
 	{"id": "secret:roster_thu", "name": "Thursday, Apparently"},

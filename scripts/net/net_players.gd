@@ -6,6 +6,8 @@ extends Node
 const SEND_RATE := 20.0
 ## Someone joined the game while it was going. Draft, awaiting Augustine's OK.
 const JOINED := "%s joined the crew."
+## Died on a Hard floor, left, and came back to it (Augustine's name, 2026-11-18).
+const NICE_TRY := "achievement:nice_try"
 
 var level: Node
 var player: Node3D  # this machine's Player
@@ -14,6 +16,12 @@ var _send_t := 0.0
 var _live := false
 ## Players who joined the game already going, waiting for their name and look.
 var _joining := {}
+## Host, Hard mode: the names of the dead who left, with the floor they died on.
+## Back on that floor they come in as a ghost (plan/hard-mode.md, 10.3).
+var _ghosts := {}
+## Watching a teammate while dead (Hard mode), or null.
+var spectate: Spectate
+var _crew: Node
 
 
 static func create(for_level: Node, local_player: Node3D) -> NetPlayers:
@@ -48,6 +56,47 @@ func _ready() -> void:
 			var p := PlayerPuppet.create(self, id, who, look_for(self, id), at)
 			p.players = self
 			_puppets[id] = p
+	watch_crew.call_deferred()
+
+
+## Follow the crew's deaths (CrewVitals is made just after this): dead, you
+## watch a teammate; back, you see through your own eyes again.
+func watch_crew(crew: Node = null) -> void:
+	if crew == null:
+		crew = CrewVitals.of(level)
+	if crew == null or crew == _crew:
+		return
+	_crew = crew
+	if crew.has_signal("died"):
+		crew.died.connect(_on_died)
+	if crew.has_signal("came_back"):
+		crew.came_back.connect(_on_came_back)
+
+
+## Is player `id` dead (Hard mode)? The dead watch, and don't count for "everyone".
+func is_dead(id: int) -> bool:
+	var crew = _crew if is_instance_valid(_crew) else CrewVitals.of(level)
+	return crew != null and crew.has_method("is_dead") and crew.is_dead(id)
+
+
+## Everyone's bodies but the dead's.
+func living_players() -> Array:
+	return all_players().filter(func(p): return is_instance_valid(p) and not is_dead(id_of(p)))
+
+
+func _on_died(id: int, _cause = "") -> void:
+	if id == multiplayer.get_unique_id() and spectate == null and _puppets.size() > 0:
+		spectate = Spectate.create(self)
+	# Whoever was waiting on them at a door or the stairs needn't any more.
+	for t in get_tree().get_nodes_in_group(Trigger.GROUP):
+		if t.get_viewport() == get_viewport():
+			t.recheck()
+
+
+func _on_came_back(id: int) -> void:
+	if id == multiplayer.get_unique_id() and is_instance_valid(spectate):
+		spectate.stop()
+		spectate = null
 
 
 ## Start sending positions (after every machine has loaded the level).
@@ -232,6 +281,19 @@ func _add_joiner(id: int, who: String) -> void:
 	_puppets[id] = p
 	if level.get("hud"):
 		level.hud.notice(JOINED % who, 4.0)
+	if multiplayer.is_server() and _ghosts.get(who, "") == _floor_key():
+		# Died here, left, and came back: they watch, as before ("Nice Try").
+		_ghosts.erase(who)
+		if _crew and _crew.has_method("mark_dead"):
+			_crew.mark_dead(id)
+		var sync := LevelSync.of(self)
+		if sync:
+			sync.unlock_for([id], NICE_TRY)
+
+
+func _floor_key() -> String:
+	var game := get_node_or_null("/root/Game")
+	return str(game.floor_start.get("key", "")) if game else ""
 
 
 func _on_peer_left(id: int) -> void:
@@ -239,6 +301,8 @@ func _on_peer_left(id: int) -> void:
 	if p == null:
 		return
 	_puppets.erase(id)
+	if multiplayer.is_server() and is_dead(id):
+		_ghosts[p.display_name] = _floor_key()
 	if level.get("hud"):
 		level.hud.notice("%s lost contact." % p.display_name, 4.0)
 	p.queue_free()
