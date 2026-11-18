@@ -14,6 +14,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	_check = check
 	await test_hint_spots()
 	await test_commentary_hook()
+	await test_floor_g()
 
 
 func _game() -> Node:
@@ -92,12 +93,17 @@ func test_commentary_hook() -> void:
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	_tree.root.add_child(level)
 	await _frames(12)
-	check(level.commentary == null, "a floor has no commentary until it turns it on")
+	var first: Commentary = level.commentary
+	check(first != null and first.is_in_group(Commentary.GROUP) and level.start_commentary() == first, "the ground floor turns its commentary on, once")
+	# Started again with a case already solved, as on a floor reached with cases behind it.
+	first.queue_free()
+	level.commentary = null
+	await _tree.process_frame
 	g.open_case("memo", "Old case")
 	g.solve_case("memo", "done")
 	var c: Commentary = level.start_commentary()
-	check(c != null and c.is_in_group(Commentary.GROUP) and level.start_commentary() == c, "start_commentary makes one Commentary for the floor")
-	check(not c.played.has("l0_cc_memo_pay"), "a case solved before it started plays no payoff")
+	check(c != null and c != first and level.start_commentary() == c, "start_commentary makes one Commentary for the floor")
+	check(not _pay("peek").any(func(l): return c.played.has(l)), "a case solved before it started plays no payoff")
 	g.open_case("caller", "Who called?")
 	await _frames(1)
 	check(g.main_case() != "caller" or c.case_id == "caller", "it follows the case being worked on (%s)" % c.case_id)
@@ -118,6 +124,38 @@ func test_commentary_hook() -> void:
 	if on != "":
 		g.solve_case(on, "found")
 		check(_pay(on).all(func(l): return c.played.has(l)), "a case solved plays its payoff")
+	level.queue_free()
+	await _tree.process_frame
+
+
+## Floor G's hints start at its spots (G26-G30), and its commentary follows its
+## cases under the puzzles' own ids.
+func test_floor_g() -> void:
+	print("Floor G: hints start in the world, and the crew talks")
+	var g := _game()
+	g.new_run(23)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	_tree.root.add_child(level)
+	await _frames(12)
+	var k: Dictionary = level.get_script().get_script_constant_map()
+	var term: Node = level.desk_terminal
+	check(term.next_hint() == k.SPOT_CARD, "the first .hint on G sends the crew to the scanner's card (G26)")
+	var card: Document = null
+	for d in level.find_children("*", "Document", true, false):
+		if d.spot == "scan_card":
+			card = d
+	check(card != null, "the scanner's card is that spot")
+	if card:
+		card.report_open(level.player)
+	check(g.spot_found("scan_card") and term.next_hint() != k.SPOT_CARD, "once it's read, .hint goes on to the tiers")
+	check(level.caller_puzzle.spots[0].text == k.SPOT_SCHEMA and level.visitor_puzzle.spots[1].text == k.SPOT_NIGHT_DESK, "the caller and visitor cases start at .schema and the night desk's stickies (G29, G30)")
+	var c: Commentary = level.commentary
+	check(c != null, "G's commentary is on")
+	g.open_case("memo", "What does the memo say?", ["memo_fragments"], "Read it")
+	await _frames(1)
+	check(c.case_id == "peek", "the memo case is the commentary's peek (%s)" % c.case_id)
+	level.comment("memo_scraps")
+	check(c.played.has("l0_cc_memo_disc"), "the floor's own moments play their discovery lines")
 	level.queue_free()
 	await _tree.process_frame
 

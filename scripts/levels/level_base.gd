@@ -43,6 +43,8 @@ var voice: VoiceChat
 var stairs: StairLinks
 ## The crew thinking out loud (start_commentary), or null on a floor without it.
 var commentary: Commentary
+## The commentary's puzzle id (Commentary.NUDGES) for a case whose id differs.
+var commentary_ids := {}
 var _commented_case := ""
 var _commented_solved := {}
 var _pause: Control
@@ -183,13 +185,14 @@ func start_commentary() -> Commentary:
 	add_child(commentary)
 	commentary.watch_documents(self)
 	for t in find_children("*", "Terminal", true, false):
-		if t.has_signal("query_failed"):
+		if t.has_signal("query_failed") and not t.query_failed.is_connected(_on_query_failed):
 			t.query_failed.connect(_on_query_failed)
 	var game := get_node("/root/Game")
 	for c in game.notebook_cases:  # solved before this floor: no payoff now
 		if c.get("solved", false):
 			_commented_solved[c.id] = true
-	game.notebook_changed.connect(_follow_cases)
+	if not game.notebook_changed.is_connected(_follow_cases):
+		game.notebook_changed.connect(_follow_cases)
 	_follow_cases()
 	return commentary
 
@@ -202,11 +205,26 @@ func _follow_cases() -> void:
 	for c in game.notebook_cases:
 		if c.get("open", false) and c.get("solved", false) and not _commented_solved.has(c.id):
 			_commented_solved[c.id] = true
-			commentary.solved(c.id)
+			commentary.solved(commentary_ids.get(c.id, c.id))
 	var now: String = game.main_case()
+	if now == "":
+		now = game.current_case()  # a side case, with nothing else open
 	if now != _commented_case:
 		_commented_case = now
-		commentary.begin(now)
+		commentary.begin(commentary_ids.get(now, now))
+
+
+## The floor's commentary heard a moment of its own (Commentary.discover), on
+## the host.
+func comment(event: String) -> void:
+	if is_instance_valid(commentary) and (sync == null or sync.is_host()):
+		commentary.discover(event)
+
+
+## The floor's commentary heard a mistake of the floor's own kind ("backwards").
+func comment_mistake(kind: String) -> void:
+	if is_instance_valid(commentary) and (sync == null or sync.is_host()):
+		commentary.mistake(kind)
 
 
 func _on_query_failed(_sql: String, result: Dictionary) -> void:
