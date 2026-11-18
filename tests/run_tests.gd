@@ -2261,7 +2261,7 @@ func test_coop_late_join() -> void:
 			break
 	check(late.sync._begun, "the newcomer's game starts straight away, without waiting for anyone")
 	await _until(func(): return late.sync.catching_up, 2.0)
-	check(late.hud.quiet, "and plays what they missed through quietly, no lines or notices")
+	check(late.hud.catching_up, "and plays what they missed through quietly, no lines or notices")
 	await _until(func(): return not late.sync.catching_up, 5.0)
 	check(not late.terminal.locked and late.controller_puzzle.solved and late.doors["SRA-EXIT"].is_open,
 		"and catches up: the terminal open, the controller found, the door the crew opened open")
@@ -2271,7 +2271,7 @@ func test_coop_late_join() -> void:
 	check(host.players.puppet(late_id) != null and client.players.puppet(late_id) != null and late.players.count() == 3,
 		"everyone sees the newcomer, and the newcomer sees everyone")
 	check(late.player.global_position.distance_to(late.player_spawn(late.players.my_index()).origin) < 2.0, "they come in at the start of the floor")
-	check(not late.sync.catching_up and not late.hud.quiet, "and once caught up, play on as normal")
+	check(not late.sync.catching_up and not late.hud.catching_up, "and once caught up, play on as normal")
 	await _coop_close(worlds)
 
 	# In the building, what happened on the crew's floor is kept by its wing and

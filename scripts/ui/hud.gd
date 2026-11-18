@@ -65,7 +65,7 @@ var case_chip: CaseChip
 ## Catching up on a co-op game joined late (LevelSync): what already happened
 ## plays through without its lines or notices, straight to where everyone is.
 ## Lines still go in the notebook.
-var quiet := false
+var catching_up := false
 
 
 func _process(delta: float) -> void:
@@ -186,7 +186,7 @@ func set_objective(text: String) -> void:
 ## the same text within NOTICE_REPEAT is dropped. CAN_WAIT is NORMAL, dropped if it
 ## would go up more than stale_after late.
 func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER, turn: int = Turn.URGENT) -> void:
-	if quiet:
+	if catching_up:
 		return
 	if text == NOTEBOOK_NOTICE:
 		_notebook_due = true
@@ -325,7 +325,7 @@ func line(id: String, subtitle: bool = true, remembered := false, who: String = 
 		return
 	if get_node("/root/Game").jot(VoiceLines.resolve(id), l):
 		notice("Notebook updated (Tab)", 3.0)
-	if quiet:
+	if catching_up:
 		return
 	if turn < 0:
 		turn = turn_of(l)

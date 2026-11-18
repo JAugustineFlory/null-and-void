@@ -193,7 +193,7 @@ func _replay(entries: Array) -> void:
 	catching_up = true
 	var hud = level.get("hud")
 	if hud:
-		hud.quiet = true
+		hud.catching_up = true
 	for e in entries:
 		if e[1] == "call":
 			var target := level.get_node_or_null(e[0])
@@ -213,7 +213,7 @@ func _replay(entries: Array) -> void:
 	await get_tree().create_timer(CATCH_UP_SETTLE).timeout
 	catching_up = false
 	if hud and is_instance_valid(hud):
-		hud.quiet = false
+		hud.catching_up = false
 
 
 ## This machine is catching up on an earlier part of the floor (late join).
