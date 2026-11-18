@@ -1,0 +1,2 @@
+- **Fixed:** On floor 22, Secure Lab B's door controller query now finds just the lab's own controller in a full playthrough, instead of also picking up controllers left over from floor 14.
+- **Changed:** On floor 14, SYSOP's note about the doors that won't release now explains the main entrance too.
