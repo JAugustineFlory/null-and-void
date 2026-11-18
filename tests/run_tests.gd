@@ -3451,6 +3451,7 @@ func test_level_2_badge_route() -> void:
 	var l2 = load("res://scripts/levels/level_2.gd").new()
 	var pin: Puzzle = l2.har_puzzle
 	var ok := true
+	var har_like_ok := true
 	var unsorted_misleads := true
 	var badges := {}
 	for s in 50:
@@ -3465,6 +3466,16 @@ func test_level_2_badge_route() -> void:
 		ok = ok and pin.matches(d, d.execute("SELECT * FROM guards WHERE badge_id = '%s'" % data.badge))
 		ok = ok and pin.matches(d, d.execute("SELECT pin FROM guards WHERE name = '%s'" % data.name))
 		ok = ok and pin.matches(d, d.execute("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'"))
+		# SYSOP's nudge, the Har- search without the shift: it shows the lead's row, so it counts.
+		l2.data = data
+		var har_found: bool = l2.shows_lead(d.execute("SELECT * FROM guards WHERE name LIKE 'Har%'")) \
+			and l2.shows_lead(d.execute("SELECT NAME, PIN, shift FROM guards WHERE name LIKE 'har%' ORDER BY shift"))
+		var har_wrong: bool = l2.shows_lead(d.execute("SELECT * FROM guards")) \
+			or l2.shows_lead(d.execute("SELECT * FROM guards WHERE name LIKE '%Har%'")) \
+			or l2.shows_lead(d.execute("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'day'")) \
+			or l2.shows_lead(d.execute("SELECT pin FROM guards WHERE name LIKE 'Har%'"))
+		if not har_found or har_wrong:
+			har_like_ok = false
 		for wrong in data.decoy_badges:
 			ok = ok and wrong != data.badge and not pin.matches(d, d.execute("SELECT * FROM guards WHERE badge_id = '%s'" % wrong))
 			var g := d.run_silent("SELECT shift, note FROM guards WHERE badge_id = '%s'" % wrong)
@@ -3479,6 +3490,7 @@ func test_level_2_badge_route() -> void:
 	l2.free()
 	check(ok, "the last guard badge through SEC-EXIT is the night lead's, and guards finds their PIN by badge, by name or by Har, on every seed")
 	check(unsorted_misleads, "without ORDER BY, the last SEC-EXIT row stored is the wrong guard")
+	check(har_like_ok, "the Har- search SYSOP points at (LIKE 'Har%', any columns with name and PIN) finds the lead; every guard, '%Har%', the day shift or PINs alone don't")
 	check(badges.size() >= 10, "the lead's badge varies between runs (%d badges)" % badges.size())
 	# Vale's swipe matches the server floor's syslog: she was in her lab at 23:12.
 	var d2 := FacilityDB.new()

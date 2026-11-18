@@ -40,6 +40,9 @@ const ON := [
 const CLOCK_HOUR := 0
 ## The crew's company, as printed on its work order.
 const COMPANY := "Byte-Right IT Services"
+## The log takes any name that starts with this, any case: floor 22's report says
+## "Byte-Right IT", Maddison's card "Byte-Right Computer Services".
+const COMPANY_STARTS := "byte-right"
 
 
 static func build(run_seed: int, ticket: String) -> Dictionary:
