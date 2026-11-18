@@ -1180,6 +1180,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 		on_terminal.print_line(line[0], line[1])
 	if on_terminal.has_method("sound"):
 		on_terminal.sound("beep" if result.ok else "error")
+	if not result.ok and on_terminal.has_signal("query_failed"):
+		on_terminal.query_failed.emit(sql, result)
 
 
 func _echo(sql: String, who: String) -> String:
@@ -1254,11 +1256,16 @@ func _command(cmd: String) -> void:
 					desc.append("%s %s" % [c["name"], c["type"]])
 				print_line("[color=%s]%s[/color](%s)" % [TABLE_HEAD, t, ", ".join(desc)], "schema")
 				_discover(t, db)
+				var level := _level_of(terminal)
+				if level:
+					level.found_spot("schema:" + t)  # a hint spot for a table's columns
 				if parts.size() >= 2:
 					count_words(".schema " + t, terminal)
 		".hint":
 			var case_id: String = terminal.hint_case()
 			print_line(sysop(_noted_hint(case_id, terminal.next_hint())), "hint")
+			if is_inside_tree():
+				get_tree().call_group(Commentary.GROUP, "hinted")
 		".clear":
 			var mirror := _mirror()
 			if mirror:
@@ -1326,6 +1333,14 @@ func open_script_editor() -> ScriptEditorUI:
 
 
 ## Every hint asked for also goes on its puzzle's case page. Returns the hint.
+## The level `node` is in (one with found_spot), or null.
+static func _level_of(node: Node) -> Node:
+	var n := node
+	while n and not n.has_method("found_spot"):
+		n = n.get_parent()
+	return n
+
+
 func _noted_hint(case_id: String, hint: String) -> String:
 	if case_id != "":
 		get_node("/root/Game").add_clue(case_id, _plain(hint), "SYSOP hint")

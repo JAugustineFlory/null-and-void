@@ -1,0 +1,2 @@
+- **Added:** on the ground floor, `.hint` first points at where in the building to look, and only then starts spelling out the query.
+- **Added:** on the ground floor, the crew thinks out loud: when they find something, get stuck for a while, or make the same mistake twice.

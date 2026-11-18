@@ -317,6 +317,8 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 				gap(false, "%s: a lost player is stuck until its hint ladder is built" % puzzle.id)
 				stuck = true
 				break
+			if await follow_spot(level, ui, puzzle, pace):
+				continue  # .hint sent them somewhere in the building first: no tier used
 			if hints >= max_hints:
 				check(false, "%s: a lost player gets stuck even after %d hints" % [puzzle.id, hints])
 				return -1
@@ -475,6 +477,44 @@ func _answer_query(p: Puzzle) -> String:
 
 
 ## How many hints a player who only copies needs at most: the tier with the exact query.
+## `.hint` names a spot in the building before its tiers (Puzzle.spots): a lost
+## player asks, then goes where it says, reading the paper there or running
+## .schema. False when the hint has no spot left to send them to.
+func follow_spot(level: Node, ui: TerminalUI, puzzle: Puzzle, pace := false) -> bool:
+	var game := _game()
+	var text := puzzle.spot_hint(game)
+	if text == "":
+		return false
+	var id := ""
+	for s in puzzle.spots:
+		if str(s.text) == text and not game.spot_found(str(s.id)):
+			id = str(s.id)
+			break
+	if pace:
+		await _spend(PACE_THINK + ".hint".length() / PACE_TYPE_CPS)
+	ui.run(".hint")
+	check(TerminalUI._plain(ui.terminal.transcript[-1]).contains(text), "%s: .hint names the spot %s first" % [puzzle.id, id])
+	if id.begins_with("schema:"):
+		ui.run(".schema " + id.trim_prefix("schema:"))
+	else:
+		var paper: Document = null
+		for d in level.find_children("*", "Document", true, false):
+			if d.spot == id:
+				paper = d
+				break
+		check(paper != null, "%s: the spot %s .hint names is a paper in the building" % [puzzle.id, id])
+		if paper == null:
+			game.find_spot(id)
+		else:
+			if pace:
+				await _spend(PACE_THINK)  # over to it
+			paper.report_open(level.player)
+	check(game.spot_found(id), "%s: going where .hint said finds the spot %s" % [puzzle.id, id])
+	if not game.spot_found(id):
+		game.find_spot(id)
+	return true
+
+
 func rescue_tier(p: Puzzle) -> int:
 	if p.hints.is_empty():
 		return 0
@@ -743,9 +783,28 @@ func walk_level_0() -> void:
 	check(level.caller_puzzle.solved, "lobby: and that answers who called")
 	ui.open(level.desk_terminal, level.player)
 	# Optional: the visitor log newest first. Vale signed in and never left.
-	h = await solve(level, ui, level.visitor_puzzle, false)
+	# The visitor book, read once the caller's solved, opens its case (M3).
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "Visitor book":
+			d.report_open(level.player)
+	check(_game().case_info("last_visitor").get("open", false), "lobby: the visitor book, read after the caller, opens its case")
+	h = await solve(level, ui, level.visitor_puzzle, false, 3, "", false, func(): return level.visitor_listed)
 	check(h >= 0 and h <= rescue_tier(level.visitor_puzzle), "lobby: a lost player reads the visitor log newest first once a hint gives the query (hints %d)" % h)
 	check(screen(ui).contains("VALE, I."), "lobby: the newest visitors on screen include Vale")
+	# The answer is the name in the row below the crew's own (G15, G25).
+	var vale := [-1, -1]
+	var shown_lines: Array = ui.noteable_lines()
+	for i in shown_lines.size():
+		var cells: Array = shown_lines[i].get("cells", [])
+		for j in cells.size():
+			if cells[j].column == "name" and cells[j].value == "VALE, I.":
+				vale = [i, j]
+	check(vale[0] >= 0 and ui.use_cell(vale[0], vale[1]), "lobby: pointing at Vale's name goes in the visitor case's blank")
+	for i in 30:
+		if level.visitor_puzzle.solved:
+			break
+		await t.physics_frame
+	check(level.visitor_puzzle.solved, "lobby: and that answers who signed in before the crew")
 	ui.close()
 	board_verdict("lobby")
 	level.queue_free()
@@ -826,7 +885,7 @@ func _has_word(text: String, word: String) -> bool:
 ## Columns the Tables page may find though they aren't tables (case id -> piece ids).
 ## The caller's: the work order says "ext.", and no other column could hold it
 ## (Teaching audit of PR #206).
-const TABLES_PAGE_COLUMNS := {"caller": ["column"]}
+const TABLES_PAGE_COLUMNS := {"caller": ["column"], "last_visitor": ["column"]}
 ## What the case board showed this floor that the world hadn't: judged once a floor.
 var _board_bad: Array[String] = []
 ## Steps at which some case had pieces: 0 on a floor with no board yet.

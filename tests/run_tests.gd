@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints"]
 
 
 func _run() -> void:
@@ -99,6 +99,7 @@ func _run_group(g: String) -> void:
 		"route_data": await _run_file("res://tests/route_data_tests.gd")
 		"coop_runs": await _group_coop_runs()
 		"hard": await _group_hard()
+		"hints": await _group_hints()
 
 
 ## A run as a whole: its rules, restarting a floor or the run, and joining one
@@ -252,6 +253,11 @@ func _group_floor_b2() -> void:
 
 
 ## Papers: how they read in your hands, and that every floor's face their readers.
+## `.hint` starting in the world, and the crew's commentary hook.
+func _group_hints() -> void:
+	await _run_file("res://tests/hint_gate_tests.gd")
+
+
 func _group_papers() -> void:
 	await _run_file("res://tests/paper_fit_tests.gd")
 	await _run_file("res://tests/paper_facing_tests.gd")
@@ -447,6 +453,7 @@ func test_level_0_puzzles() -> void:
 	var exts := {}
 	var caller_ok := true
 	var visitor_ok := true
+	var front_ok := true
 	for seed_value in 30:
 		var data := Level0Data.build(seed_value)
 		var d := FacilityDB.new()
@@ -476,9 +483,16 @@ func test_level_0_puzzles() -> void:
 		# Stored oldest first, so these hold Vale's row too, but not at the top of the newest-first list.
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors LIMIT 5;"))
 		visitor_ok = visitor_ok and not visitor.matches(d, d.execute("SELECT * FROM visitors ORDER BY signed_in LIMIT 5;"))
-		visitor_ok = visitor_ok and d.run_silent("SELECT name FROM visitors LIMIT 5").any(func(r): return r["name"] == "VALE, I.")
+		# About a month of sign-ins, stored oldest first: the newest are off the first screen.
+		var ins: Array = d.run_silent("SELECT signed_in FROM visitors").map(func(r): return r.signed_in)
+		var sorted_ins := ins.duplicate()
+		sorted_ins.sort()
+		visitor_ok = visitor_ok and ins.size() > 60 and ins == sorted_ins and not d.run_silent("SELECT name FROM visitors LIMIT 20").any(func(r): return r["name"] == "VALE, I.")
+		visitor_ok = visitor_ok and d.run_silent("SELECT name FROM visitors WHERE signed_out IS NULL").size() == 2
+		front_ok = front_ok and data.front_desk != 1000 and d.run_silent("SELECT name FROM staff_directory WHERE extension = %d" % data.front_desk).size() == 1
 	check(caller_ok, "the caller's extension is Harold Mercer's, gone since '94; listing names beside extensions finds it, the department alone doesn't")
-	check(visitor_ok, "the visitor log newest first shows the crew, then Vale, never signed out; only DESC finds it, the whole list or any LIMIT of 2 or more; LIMIT 1 is the near miss")
+	check(visitor_ok, "the visitor log is a month of sign-ins; newest first shows the crew, then Vale, never signed out; only DESC finds it, the whole list or any LIMIT of 2 or more; LIMIT 1 is the near miss")
+	check(front_ok, "the front desk's extension, on its phone, is never the Director's 1000, and only the front desk has it")
 	check(exts.size() >= 10, "the caller's extension varies between runs (%d different)" % exts.size())
 
 
@@ -1485,7 +1499,7 @@ func test_level_0_scene() -> void:
 	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 1")
 	check(not level.visitor_puzzle.solved and TerminalUI._plain(level.desk_terminal.transcript[-1]).contains("one row further down"), "the visitor log cut to LIMIT 1 shows only the crew, and SYSOP says Vale is one row down")
 	level.terminal_ui.run("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 3")
-	check(level.visitor_puzzle.solved, "LIMIT 3 reaches Vale's row and solves the visitor log")
+	check(not level.visitor_puzzle.solved and level.visitor_puzzle.matches(level.db, level.db.execute("SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 3")), "LIMIT 3 reaches Vale's row; pointing at her name is what answers it (G15)")
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
 	_check_l0_documents(level)
 	# Walking into the west end of the counter vaults you over it, and back again.
@@ -1619,14 +1633,17 @@ func test_caller_answer() -> void:
 		check(c.has("blank") and c.blank.filled == "" and c.blank.prompt.contains(ext), "%s: the caller's case page has a blank for the name beside ext. %s" % [route, ext])
 		var page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
 		check(page.contains("Ext. %s belongs to:" % ext) and page.contains(NotebookPages.BLANK) and page.contains(NotebookPages.BLANK_HOW), "%s: the page shows the empty blank, and in pencil how to fill it" % route)
-		check(_game().main_case() == "caller" and _game().pieces_found("caller") == 2 and _game().pieces_total("caller") == 3 and not _game().has_piece("caller", "column"), "%s: the work order's number and SYSOP's table are in: 2 of 3 pieces, the column still to find" % route)
-		check(page.contains(NotebookPages.PIECES_COUNT % [2, 3]) and page.contains("ext. %s" % ext) and page.contains(NotebookPages.MAKE_QUERY) and page.contains("enter_column_name") and _game().case_query("caller") == "SELECT name, enter_column_name FROM staff_directory;" and page.contains("Type .schema staff_directory at the terminal"), "%s: the case page shows the pieces, the query so far with the missing column named as the hint names it, and where to look" % route)
+		check(_game().main_case() == "caller" and _game().pieces_found("caller") == 1 and not _game().has_piece("caller", "table") and page.contains("A note by the front desk phone"), "%s: only the work order's number is in: the table's on a note by the front desk phone (G4)" % route)
+		level.phone_note.report_open(p)  # the night desk's sticky by the phone (G2)
+		page = level.notebook.pages.section_text(NotebookPages.Page.CASES)
+		check(_game().main_case() == "caller" and _game().pieces_found("caller") == 2 and _game().pieces_total("caller") == 3 and not _game().has_piece("caller", "column"), "%s: the phone's sticky brings the table: 2 of 3 pieces, the column still to find" % route)
+		check(page.contains(NotebookPages.PIECES_COUNT % [2, 3]) and page.contains("ext. %s" % ext) and page.contains(NotebookPages.MAKE_QUERY) and page.contains("enter_column_name") and _game().case_query("caller") == "SELECT name, enter_column_name FROM staff_directory;" and page.contains("Type .schema and the table's name at the terminal"), "%s: the case page shows the pieces, the query so far with the missing column named as the hint names it, and where to look" % route)
 		var chip: CaseChip = level.hud.case_chip
 		check(chip.chip.visible and chip.count.text == "2/3" and chip.next.text == CaseChip.NEXT % "Find the column that holds extensions", "%s: the HUD counts 2/3 and says what's next" % route)
 		if route == "terminal":
 			var ui: TerminalUI = level.terminal_ui
 			ui.open(level.desk_terminal, p)
-			check(screen_text(ui).contains(".schema staff_directory"), "terminal: SYSOP says how to see the directory's column names")
+			check(screen_text(ui).contains("type .schema, a space and the table's name") and screen_text(ui).contains("the phone list is wide"), "terminal: SYSOP says how to see a table's column names (G6, G7)")
 			ui.run("SELECT name, enter_column_name FROM staff_directory;")
 			await process_frame
 			check(screen_text(ui).contains("enter_column_name is the blank from the hint"), "terminal: the hint's blank typed in as it is gets SYSOP's answer")
@@ -2166,6 +2183,10 @@ func test_coop_level_0() -> void:
 	c1.find_children("*", "DocumentReader", true, false)[0].close()
 	await _frames(2)
 	check(not c1.player.input_locked, "putting the document down gives the client their controls back")
+	# A hint spot a client finds (a .schema run, say) is found for the crew, through the host.
+	c1.found_spot("coop_test_spot")
+	await _frames(5)
+	check(_game().spot_found("coop_test_spot"), "a hint spot a client finds is found for the whole crew")
 
 	# Notebooks are per player: a loose sticky goes to whoever took it and is gone
 	# for everyone; one stuck to a terminal is copied by each player on their own.

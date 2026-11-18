@@ -40,6 +40,9 @@ var clues: Array = []
 ## shows the marker. A sticky is the exception: taking or copying it takes its
 ## pieces with it.
 var pieces: Array = []
+## The hint spot this paper is (Puzzle.spots): reading it, or taking it, unlocks
+## `.hint`'s next tier for the whole crew. "" for none.
+var spot := ""
 ## SQL words this paper teaches without a chapter (KeywordHelp.PAPER_TOKENS, like
 ## IS NULL on Mercer's card): reading it puts them on this player's terminal buttons.
 var words: Array = []
@@ -552,6 +555,12 @@ func report_open(player: Node) -> void:
 			s.run_on(self, "_open_cases")
 		else:
 			_open_cases()
+	if spot != "":
+		var level := _level()
+		if level and level.has_method("found_spot"):
+			level.found_spot(spot)
+		else:
+			_game_node().find_spot(spot)
 	read_by.emit(player)
 	if is_sticky() and flat and is_in_group("interactable"):
 		var sync := LevelSync.of(self)
@@ -559,6 +568,10 @@ func report_open(player: Node) -> void:
 			sync.run_on(self, "_take_away")
 		else:
 			_take_away()
+
+
+func _game_node() -> Node:
+	return (Engine.get_main_loop() as SceneTree).root.get_node("Game")
 
 
 ## The level this document is in. Duck-typed, like StickyNote, so the test

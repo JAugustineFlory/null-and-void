@@ -1,6 +1,6 @@
 class_name GroundFloor
 extends RefCounted
-## Floor G, as the crew walk in: the lobby with its reception desk, the hall to the
+## Floor G, as the crew walk in: the lobby with its front desk, the hall to the
 ## lift hall, the back corridor and the rooms off it, the dark east corridor, and
 ## the forgotten closet behind the air return. Level 0 builds it where it stands;
 ## Level 4 builds it again for the walk out at the end, so it's the same lobby
@@ -92,7 +92,7 @@ static func _lobby(geo: Node3D) -> void:
 	Greybox.box(geo, DESK, DESK_SIZE, Color(0.42, 0.3, 0.22), "Desk")
 	Greybox.box(geo, Vector3(-5.0, 1.1, -4.2), Vector3(0.15, 2.2, 5.6), Color(0.5, 0.55, 0.6), "PartitionW")
 	Greybox.box(geo, Vector3(5.0, 1.1, -4.2), Vector3(0.15, 2.2, 5.6), Color(0.5, 0.55, 0.6), "PartitionE")
-	Greybox.label(geo, Vector3(0, 1.3, -0.58), "RECEPTION", 64, Color(0.85, 0.8, 0.6))
+	Greybox.label(geo, Vector3(0, 1.3, -0.58), "FRONT DESK", 64, Color(0.85, 0.8, 0.6))
 	# A side table behind the desk (Level 0 keeps the walkie-talkies' dock on it).
 	Greybox.box(geo, Vector3(-2.5, 0.68, -5.5), Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
 	for leg in [Vector3(-0.55, 0, -0.25), Vector3(0.55, 0, -0.25), Vector3(-0.55, 0, 0.25), Vector3(0.55, 0, 0.25)]:

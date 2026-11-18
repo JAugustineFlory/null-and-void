@@ -1,0 +1,6 @@
+- **Changed:** the ground floor paces its story better: the job is explained on the way in, the book's first chapter arrives when you first sit at the terminal, and the walk down the hall has room to breathe.
+- **Added:** a phone on the front desk, with a note beside it about where the phone list lives.
+- **Changed:** on the ground floor, you answer the caller and the visitor log by pointing at the name in the result, and a pencil note says why when you point at the wrong thing.
+- **Changed:** the visitor log holds about a month of sign-ins, so sorting it newest first matters.
+- **Added:** SYSOP explains when the shredded memo comes back sorted by the wrong column.
+- **Fixed:** the ground floor's desk sign now reads FRONT DESK, as every hint calls it.

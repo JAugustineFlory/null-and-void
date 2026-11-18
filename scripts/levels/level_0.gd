@@ -60,7 +60,7 @@ var stair_door: Door
 ## The elevator's doorway, in the elevator bank's east wall.
 const LIFT_AT := GroundFloor.LIFT_AT
 ## The visitor book's case page, opened by reading the book (optional).
-const BOOK_CASE := "Who signed in last? The book's last page is gone."
+const BOOK_CASE := "Who signed in before us? The book's last page is gone."
 ## Each case's pieces (Game.set_pieces): what the crew finds on this floor to
 ## put its query together. Drafts for Augustine's word-for-word OK.
 ## A value piece's `blank` is its slot's name while it's missing, as its hint
@@ -86,25 +86,48 @@ const ORDER_STEPS := [{"id": "run", "text": "Run it at the front desk terminal"}
 const OBJ_MEMO := "Read what's left of Dr. Vale's memo on the front desk terminal"
 const OBJ_ORDER := "Put the memo's scraps back in the order they were written"
 const OBJ_CALLER := "Find out who called the office from ext. %d"
-const OBJ_VISITOR := "Find who signed in last, now the book's last page is gone"
+const OBJ_VISITOR := "Find who signed in before us, now the book's last page is gone"
 ## The ground floor teaches the case board itself, so the first case says how it
 ## works and the papers it needs shine until they've been read.
 const INTRO_CASE := "Your notebook keeps one case at a time. This is it: read it, find what it needs, then type the query at a terminal."
 const INTRO_HUNT := "The words you need are written down somewhere out here. Anything worth reading has a shine on it until you've read it."
 const INTRO_SHINE := "Press E to read it. Point at what your case needs and click it: it goes straight into your case."
+## Where `.hint` sends the crew first, for each case (G26-G30, approved
+## 2026-11-18): the first spot nobody's found whose piece isn't in hand yet.
+const SPOT_CARD := "The scanner came with a quick-start card. It's on the front desk, left of the keyboard."
+const SPOT_CARD_STEP := "Step 4 of the ScanRight card says what numbers each scrap."
+const SPOT_SCHEMA := "Type .schema, a space and the table's name, then press Enter: it lists the table's columns."
+const SPOT_NIGHT_DESK := "Whoever works the desk at night left reminders beside the visitor book."
+## The crew's commentary on G uses the puzzles' ids; two of the cases differ.
+const SPOT_PHONE := "There's a note by the front desk phone about the phone list."
+## The crew's commentary on G uses the puzzles' ids; two of the cases differ.
+const COMMENTARY_IDS := {"memo": "peek", "memo_order": "memo"}
+## The desk phone's label (G1) and the night desk's sticky beside it (G2, G3).
+const PHONE_LABEL := "FRONT DESK   ext. %d"
+const PHONE_NOTE := "The phone list is the table staff_directory."
+## SYSOP when the memo's sorted, but not by where each scrap sat (G18, G19).
+const MEMO_BY_SCAN := "close: that's the order they were scanned in, and two went in the same minute. sort by the number on each scrap."
+const MEMO_BY_OTHER := "sorted, but not by where each scrap sat on the page. one of the columns numbers them."
+## Pencil notes under a slot when the wrong cell is pointed at (G11, G16, G17).
+const CALLER_NUMBER := "That's the number. The blank wants the name beside it."
+const CALLER_OTHER := "Not that one: the blank wants whoever has ext. %d."
+const VISITOR_SLOT := "Signed in before us, never signed out:"
+const VISITOR_OURS := "That's our own sign-in. The blank wants whoever came before us."
+const VISITOR_LEFT := "They signed out. The blank wants whoever never did."
 ## This floor's queries are all typed at the front desk.
 const DESK_TERMINAL := "front desk terminal"
-const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's row and add it to your notebook"}]
+const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's name and add it to your notebook"}]
 const CALLER_QUERY := "SELECT name, {column} FROM {table};"
 const CALLER_ROUTES := [{"id": "printout", "name": "The mailroom's printout"}]
 const VISITOR_PIECES := [
 	{"id": "table", "label": "The table", "value": "visitors", "task": "Find where every visitor is logged", "where": "The visitor book, on the front desk", "seen_in": "visitors", "blank": "enter_table_name"},
+	{"id": "column", "label": "The column with the sign-in time", "value": "signed_in", "task": "Find the column that holds the sign-in time", "where": "Type .schema and the table's name at the terminal", "seen_in": "visitors", "blank": "enter_column_name"},
 	{"id": "desc", "label": "Newest first", "value": "DESC", "task": "Find how to put the newest first", "where": "A reminder beside the visitor book"},
 	{"id": "limit", "label": "Just the last few", "value": "LIMIT 5", "task": "Find how to keep only the last few", "where": "Another reminder beside the book"},
 ]
-## Which column to sort by is the step being taught (.schema visitors), so it
-## stays the hint's own blank.
-const VISITOR_QUERY := "SELECT * FROM {table} ORDER BY enter_column_name {desc} {limit};"
+## After the caller, the case names its columns (G22): each visitor's name, and
+## the sign-in time it's sorted by.
+const VISITOR_QUERY := "SELECT name, {column} FROM {table} ORDER BY {column} {desc} {limit};"
 var peek_puzzle := Puzzle.new("peek", "SELECT text FROM memo_fragments", ["text"], false, [
 	"The shape of it:\n" +
 	"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
@@ -142,6 +165,9 @@ var data := {}
 var caller_asked := false
 ## The caller's row (name and extension) has been on the desk terminal's screen.
 var caller_listed := false
+## Host: the visitor log, newest first, has reached Vale's row on the desk
+## terminal (her name is there to point at).
+var visitor_listed := false
 ## SYSOP has said why a wrong directory row didn't fill the blank (once per run).
 var caller_miss_said := false
 signal caller_found
@@ -150,6 +176,21 @@ signal caller_found
 var _clue_papers: Array = []
 ## INTRO_SHINE has been on screen.
 var _shine_told := false
+## Rourke's l0_tour_1 and l0_tour_2, on the way in, have played (M1).
+var _tour_told := false
+signal tour_told
+## Host: someone has sat at the desk terminal (chapter 1 comes in then, M2).
+var _first_sat := false
+## Host: the visitor book was read before the caller was solved: its case opens
+## once that's done (M3).
+var _book_waiting := false
+## Every machine: Rourke's exchange at the desk (l0_pa_2, l0_cover, l0_walkie) is
+## over, so Newest first can come in (M4).
+var _exchange_done := false
+## Host: the crew has walked halfway down the hall (M5).
+var _mid_hall := false
+## The night desk's sticky by the phone: the caller's table (G2).
+var phone_note: Document
 ## The staff directory printout in the mailroom: the walking route to the caller.
 var directory_printout: Document
 ## Host: Easy SQL chapters whose paper has been read: "found" waits for the puzzle
@@ -165,17 +206,30 @@ func build() -> void:
 	load_level_seed(data.sql)
 	caller_puzzle = caller_puzzle_for(data.extension)
 	visitor_puzzle = visitor_puzzle_for()
+	peek_puzzle.spots = [{"id": "scan_card", "text": SPOT_CARD, "piece": "table"}]
+	memo_puzzle.spots = [{"id": "scan_card", "text": SPOT_CARD_STEP, "piece": "column"}]
+	caller_puzzle.spots = [
+		{"id": "phone_note", "text": SPOT_PHONE, "piece": "table"},
+		{"id": "schema:staff_directory", "text": SPOT_SCHEMA, "piece": "column"},
+	]
+	visitor_puzzle.spots = [
+		{"id": "schema:visitors", "text": SPOT_SCHEMA, "piece": "column"},
+		{"id": "night_desk", "text": SPOT_NIGHT_DESK, "piece": "desc"},
+	]
 	visitor_top_one = visitor_top_one_for()
 	var game := get_node("/root/Game")
 	game.answer_found.connect(_on_answer_found)
 	game.line_noted.connect(_on_line_noted)
+	game.cell_missed.connect(_on_cell_missed)
 	# The ground floor's rooms, the same lobby Level 4 brings the crew back to.
 	GroundFloor.build(geo)
 	# Front doors: Rourke lets the crew in, then they lock behind them.
 	front_doors = GroundFloor.front_doors(self, "LOBBY-FRONT")
 	doors["LOBBY-FRONT"] = front_doors
 
-	desk_terminal = Terminal.spawn(geo, Vector3(1.5, 1.1, -1.0), 0, "FRONT DESK", db, terminal_ui)
+	# A receptionist's monitor, facing behind the desk until Rourke turns it round
+	# for the crew (_turn_monitor).
+	desk_terminal = Terminal.spawn(geo, Vector3(1.5, 1.1, -1.0), 180, "FRONT DESK", db, terminal_ui)
 	desk_terminal.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  FRONT DESK",
 		"Visitor session opened 23:04.",
@@ -194,6 +248,7 @@ func build() -> void:
 	desk_terminal.blanks = {"table_name": "table_name is a blank. the real name is handwritten on the ScanRight card."}
 	desk_terminal.enabled = false
 	desk_terminal.queried.connect(_on_desk_query)
+	desk_terminal.opened.connect(_on_desk_opened)
 	StickyNote.on_monitor(desk_terminal, "select_from")
 	# Someone's reminder to themselves, left on the desk.
 	var order_sticky := StickyNote.place(geo, Vector3(2.55, 1.102, -0.78), "order_by", false, 0.0, true)
@@ -217,13 +272,28 @@ func build() -> void:
 	], true, "brochure", Vector2(0.15, 0.21))
 	scan_card.pieces = [{"case": "memo", "piece": "table", "text": "memo_fragments", "kind": "table"},
 		{"case": "memo_order", "piece": "column", "text": "piece_no", "kind": "column"}]
+	scan_card.spot = "scan_card"
 	scan_card.clues = [
 		{"case": "memo", "text": "The scanner saves each scrap as one row in the table memo_fragments."},
 		{"case": "memo_order", "text": "piece_no numbers each scrap by where it sat on the page, starting at 1."},
 	]
+	# The front desk phone, with its own extension on it (G1), and the night desk's
+	# reminder beside it: which table the phone list is (G2, G3).
+	_mesh(geo, Vector3(3.4, 1.13, -1.0), Vector3(0.22, 0.06, 0.24), Color(0.16, 0.16, 0.17)).name = "DeskPhone"
+	_mesh(geo, Vector3(3.4, 1.18, -1.04), Vector3(0.2, 0.04, 0.06), Color(0.12, 0.12, 0.13)).name = "DeskPhoneHandset"
+	Greybox.label(geo, Vector3(3.4, 1.15, -0.875), PHONE_LABEL % data.front_desk, 12, Color(0.9, 0.9, 0.85), 0)
+	phone_note = Document.place(geo, Vector3(3.78, 1.102, -0.82), 6.0, "Sticky note", [
+		{"text": "Who's on what ext.?", "hand": true},
+		{"text": "Phone list is on the terminal:", "hand": true},
+		{"text": "staff_directory", "hand": true},
+		{"text": "  - N.F.", "hand": true},
+	], true, "sticky")
+	phone_note.clues = [{"case": "caller", "text": PHONE_NOTE}]
+	phone_note.pieces = [{"case": "caller", "piece": "table", "text": "staff_directory", "kind": "table"}]
+	phone_note.spot = "phone_note"
 	# This floor is also the game's lesson in reading the room: whatever carries a
 	# word the case in hand needs shines until this player has read it.
-	_clue_papers = [[scan_card, "memo"], [scan_card, "memo_order"], [order_sticky, "memo_order"], [order_note, "memo_order"]]
+	_clue_papers = [[scan_card, "memo"], [scan_card, "memo_order"], [order_sticky, "memo_order"], [order_note, "memo_order"], [phone_note, "caller"]]
 	game.notebook_changed.connect(_shine_clue_papers)
 	for pair in _clue_papers:
 		if not pair[0].shine_seen.is_connected(_on_shine_seen):
@@ -249,9 +319,13 @@ func build() -> void:
 		{"text": "Who tore the last page out?? - N.F.", "hand": true},
 	], true, "note", Vector2(0.15, 0.2))
 	game.set_pieces("last_visitor", VISITOR_PIECES, VISITOR_QUERY, [], true)
+	# Answered by pointing at Vale's name, the row below the crew's own (G15).
+	game.set_blank("last_visitor", VISITOR_SLOT, ["vale, i."], "VALE, I.", {"column": "name", "values": ["VALE, I."]})
 	book.pieces = [{"case": "last_visitor", "piece": "table", "text": "visitors", "kind": "table"}]
-	book.clues = [{"case": "last_visitor", "opens": BOOK_CASE, "tables": ["visitors"],
-		"text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
+	# Its case opens once the caller is solved (M3): read before that, its note
+	# waits in Floor notes.
+	book.clues = [{"case": "last_visitor", "text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
+	book.read_by.connect(func(_p): _on_book_read())
 	# The night desk's own reminder beside the book: DESC, found before it's needed.
 	var newest := Document.place(geo, Vector3(-2.62, 1.102, -0.95), 15.0, "Sticky note", [
 		{"text": "Newest first =", "hand": true},
@@ -260,6 +334,7 @@ func build() -> void:
 	], true, "sticky")
 	newest.clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
 	newest.pieces = [{"case": "last_visitor", "piece": "desc", "text": "DESC", "kind": "keyword"}]
+	newest.spot = "night_desk"
 	var last_few := Document.place(geo, Vector3(-2.95, 1.102, -1.15), -8.0, "Sticky note", [
 		{"text": "Just the last few?", "hand": true},
 		{"text": "...DESC LIMIT 5", "hand": true},
@@ -267,6 +342,7 @@ func build() -> void:
 	], true, "sticky")
 	last_few.clues = [{"case": "last_visitor", "text": "Just the last few? End the query with LIMIT 5: only the first 5 rows."}]
 	last_few.pieces = [{"case": "last_visitor", "piece": "limit", "text": "LIMIT 5", "kind": "keyword"}]
+	last_few.spot = "night_desk"
 	# The book or N.F.'s stickies bring back Newest first (DESC, LIMIT), once the memo
 	# has put ORDER BY to use.
 	for d in [book, newest, last_few]:
@@ -329,6 +405,9 @@ func build() -> void:
 	rourke.rotation.y = PI  # looking out at the lot
 	spawn = global_transform.affine_inverse() * van_seats[seat_for(0)].spawn  # the host's own van seat
 	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
+	# The crew thinking out loud: G's 19 approved lines (approvals/puzzle-flow-floor-g.md, part 3).
+	commentary_ids = COMMENTARY_IDS
+	start_commentary()
 
 
 func net_setup() -> void:
@@ -704,13 +783,17 @@ func start() -> void:
 	var inside := Trigger.create(self, Vector3(0, 1, 0), Vector3(15.6, 2, 13.6))
 	rourke.walk_to(Vector3(-0.5, 0, 0.6))
 	hud.todo("Our escort for the night", "Follow Rourke to the front desk")
+	_tell_tour()  # the job, while he leads the crew in (M1)
 	inside.require_all = true
 	inside.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone to come inside (%d/%d)" % [n, total]))
 	await sync.gate("inside", inside.entered)
 	spawn = Transform3D(Basis(), Vector3(0, 0.1, 5.6))
 	_checkin_todo()  # you're in: the next step goes up straight away
-	# The building's PA greets everyone who walks in, and Rourke apologises for it.
+	# The building's PA greets everyone who walks in, and Rourke apologises for it,
+	# once he's done telling them the job.
 	await get_tree().create_timer(0.8, false).timeout
+	if not _tour_told:
+		await tour_told
 	await hud.lines(["l0_pa_1", "l0_pa_2"])
 	await sync.gate("rourke_at_desk", func():
 		if rourke.state == Rourke.State.WALK:
@@ -731,14 +814,14 @@ func start() -> void:
 	visitor_log.enabled = false
 	badges.enabled = false
 	hud.todo("")
-	await Huddle.of(self).run("easy_sql_1", Huddle.REMEMBERED)  # the book's first query
-	# The terminal is ready at once: nobody waits on Rourke to finish talking.
+	# The terminal is ready at once: nobody waits on Rourke to finish talking. The
+	# book's first chapter comes in when someone first sits at it (M2).
 	desk_terminal.enabled = true
 	_rourke_free = true
 	# The walkie-talkies on the charger are there for whoever wants one.
 	walkies.enabled = true
 	walkies.stock(players.count())
-	hud.lines(["l0_tour_1", "l0_tour_2", "l0_desk_1", "l0_desk_2"])
+	hud.lines(["l0_desk_1", "l0_desk_2"])
 	hud.todo("Query?? Don't Panic.", OBJ_MEMO)
 	var game := get_node("/root/Game")
 	game.open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], OBJ_MEMO)
@@ -747,6 +830,33 @@ func start() -> void:
 	# which things are worth reading.
 	game.set_case_note("memo", INTRO_CASE, INTRO_HUNT, DESK_TERMINAL)
 	_shine_clue_papers()
+	_turn_monitor()
+
+
+## Every machine: Rourke's l0_tour_1 and l0_tour_2, the job, on the way in (M1).
+func _tell_tour() -> void:
+	await hud.lines(["l0_tour_1", "l0_tour_2"])
+	_tour_told = true
+	tour_told.emit()
+
+
+## Every machine: the first case is open, so Rourke turns the front desk's monitor
+## round to face the crew. No line: he just does it.
+func _turn_monitor() -> void:
+	if sync.is_host():
+		rourke.face(desk_terminal.global_position)
+	if is_equal_approx(desk_terminal.rotation_degrees.y, 0.0):
+		return
+	var t := create_tween()
+	t.tween_property(desk_terminal, "rotation_degrees:y", 0.0, 0.8).set_trans(Tween.TRANS_SINE)
+
+
+## Host: someone sat down at the front desk terminal. The first time, Easy SQL's
+## first chapter comes in beside the boot screen's SELECT * FROM (M2).
+func _on_desk_opened(_by: Node) -> void:
+	if not _first_sat:
+		_first_sat = true
+		sync.event("_book_huddle", ["easy_sql_1"])
 
 
 ## Whatever carries a word the case in hand still needs: it shines until this
@@ -903,18 +1013,64 @@ func _dispatch_chatter() -> void:
 
 ## Runs on the host. What the puzzle unlocks then plays out on every machine.
 func _on_desk_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
+	var peeked := peek_puzzle.solved
 	if not peek_puzzle.solved and peek_puzzle.matches(db, result):
 		sync.event("_on_peek_solved")
 	if not memo_puzzle.solved and memo_puzzle.matches(db, result):
 		sync.event("_on_memo_solved")
 	elif not memo_puzzle.solved and memo_backwards.matches(db, result):
 		sync.event("_on_memo_backwards")
+	elif not memo_puzzle.solved and peeked and memo_sort_kind(result) != "":
+		sync.event("_on_memo_sorted_wrong", [memo_sort_kind(result)])
 	if caller_asked and not caller_puzzle.solved and not caller_listed and _shows_caller(result):
 		sync.event("_on_caller_listed")
+	if caller_asked and not caller_puzzle.solved and result.get("ok", false) and result.get("columns", []).has("extension") \
+			and not get_node("/root/Game").has_piece("caller", "column"):
+		sync.event("_found_caller_column", ["your query"])
+	# The visitor log is answered by pointing at Vale's name (G15), not by the query.
 	if not visitor_puzzle.solved and visitor_puzzle.matches(db, result):
-		sync.event("_on_last_visitor")
+		visitor_listed = true
 	elif not visitor_puzzle.solved and visitor_top_one.matches(db, result):
 		sync.event("_on_visitor_top_one")
+
+
+## How the memo's scraps came back when they're sorted, but not by where each sat
+## on the page: "scan" by scanned_at (G18), "other" by another column (G19), or
+## "" (not every scrap, unsorted, or sorted by piece_no either way).
+func memo_sort_kind(result: Dictionary) -> String:
+	var by := {}
+	for r in db.run_silent("SELECT piece_no, text, scanned_at FROM memo_fragments"):
+		by[r.text] = r
+	if not result.get("ok", false) or result.rows.size() != by.size():
+		return ""
+	var seq := []
+	for r in result.rows:
+		if not by.has(r.get("text", null)):
+			return ""
+		seq.append(by[r.text])
+	if _sorted_by(seq, "piece_no", 1) or _sorted_by(seq, "piece_no", -1):
+		return ""
+	if _sorted_by(seq, "scanned_at", 1):
+		return "scan"
+	for col in ["scanned_at", "text"]:
+		for dir in [1, -1]:
+			if _sorted_by(seq, col, dir):
+				return "other"
+	return ""
+
+
+static func _sorted_by(rows: Array, col: String, dir: int) -> bool:
+	for i in range(1, rows.size()):
+		var a = rows[i - 1][col]
+		var b = rows[i][col]
+		if (dir > 0 and a > b) or (dir < 0 and a < b):
+			return false
+	return true
+
+
+## Every machine: the memo came back sorted, but by the wrong column.
+func _on_memo_sorted_wrong(kind: String) -> void:
+	desk_terminal.print_line(TerminalUI.sysop(MEMO_BY_SCAN if kind == "scan" else MEMO_BY_OTHER))
 
 
 ## LIMIT 1 shows only the crew's own sign-in; Vale is the row below it.
@@ -923,11 +1079,13 @@ func _on_visitor_top_one() -> void:
 
 
 func _on_memo_backwards() -> void:
+	comment_mistake("backwards")
 	desk_terminal.print_line(TerminalUI.sysop("that's the memo backwards. leave out DESC: smallest first."))
 
 
 func _on_peek_solved() -> void:
 	_file_memo_case()
+	comment("memo_scraps")  # every scrap's got a number
 	# The scraps came out of order: the book's ORDER BY chapter, round the garage bench.
 	await _book_huddle("easy_sql_2")
 	if memo_puzzle.solved:
@@ -996,7 +1154,6 @@ func _after_memo() -> void:
 	_watch_nearest()
 	await hud.lines(["l0_caller_3", "l0_memo_2"])
 	_arm_counter_hop()
-	_pa_after_memo()
 	_leave_lobby()
 
 
@@ -1027,7 +1184,7 @@ static func caller_puzzle_for(ext: int) -> Puzzle:
 		"Type .schema staff_directory and press Enter: it lists the table's columns. One of them holds the phone extensions.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT name, extension FROM staff_directory;[/color]\n" +
-		"Then find %d in the extension column, point at that row and click + add to notebook." % ext,
+		"Then find %d in the extension column, point at the name beside it and add it to your notebook." % ext,
 	])
 
 
@@ -1036,16 +1193,17 @@ static func caller_puzzle_for(ext: int) -> Puzzle:
 static func visitor_puzzle_for() -> Puzzle:
 	var p := Puzzle.new("last_visitor", "SELECT name, signed_in FROM visitors ORDER BY signed_in DESC", ["name", "signed_in"], true, [
 		"The shape of it:\n" +
-		"    [color=#ffffff]SELECT * FROM visitors ORDER BY enter_column_name DESC LIMIT 5;[/color]\n" +
-		"  SELECT *                    every column\n" +
-		"  FROM visitors               from the visitor log\n" +
-		"  ORDER BY enter_column_name  sorted by a column\n" +
-		"  DESC                        biggest (newest) first\n" +
-		"  LIMIT 5                     only the first 5 rows\n" +
-		"Replace enter_column_name with the column with the sign-in time.",
+		"    [color=#ffffff]SELECT name, enter_column_name FROM visitors ORDER BY enter_column_name DESC LIMIT 5;[/color]\n" +
+		"  SELECT name, enter_column_name  each visitor's name, and the column with the sign-in time\n" +
+		"  FROM visitors                   from the visitor log\n" +
+		"  ORDER BY enter_column_name      sorted by that column\n" +
+		"  DESC                            biggest (newest) first\n" +
+		"  LIMIT 5                         only the first 5 rows\n" +
+		"Replace enter_column_name with the column with the sign-in time, both times.",
 		".schema visitors lists its columns. One of them holds the sign-in time. LIMIT 5 keeps the first 5 rows, and with DESC those are the newest. The sticky on the desk shows where it goes.",
 		"Type this exactly and press Enter:\n" +
-		"    [color=#ffffff]SELECT * FROM visitors ORDER BY signed_in DESC LIMIT 5;[/color]",
+		"    [color=#ffffff]SELECT name, signed_in FROM visitors ORDER BY signed_in DESC LIMIT 5;[/color]\n" +
+		"Then point at the name in the row below yours and add it to your notebook.",
 	])
 	p.top_rows = 2
 	return p
@@ -1061,8 +1219,8 @@ static func visitor_top_one_for() -> Puzzle:
 static func caller_pieces(ext: int) -> Array:
 	return [
 		{"id": "ext", "label": "The number", "value": "ext. %d" % ext, "task": "Read the extension off the work order", "where": "The work order"},
-		{"id": "table", "label": "The table", "value": "staff_directory", "task": "Find the table of staff", "where": "Ask SYSOP at the front desk terminal", "seen_in": "staff_directory", "blank": "enter_table_name"},
-		{"id": "column", "label": "The column with extensions", "value": "extension", "task": "Find the column that holds extensions", "where": "Type .schema staff_directory at the terminal", "seen_in": "staff_directory", "blank": "enter_column_name"},
+		{"id": "table", "label": "The table", "value": "staff_directory", "task": "Find the table of staff", "where": "A note by the front desk phone", "seen_in": "staff_directory", "blank": "enter_table_name"},
+		{"id": "column", "label": "The column with extensions", "value": "extension", "task": "Find the column that holds extensions", "where": "Type .schema and the table's name at the terminal", "blank": "enter_column_name"},
 	]
 
 
@@ -1070,24 +1228,26 @@ static func caller_pieces(ext: int) -> Array:
 ## staff directory (or the mailroom's printout of it) has the name.
 func _ask_caller() -> void:
 	caller_asked = true
+	comment("work_order")  # its extension goes on the case
 	hud.todo("Who was on the phone?", OBJ_CALLER % data.extension)
 	var game := get_node("/root/Game")
 	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"], OBJ_CALLER % data.extension)
 	game.set_pieces("caller", caller_pieces(data.extension), CALLER_QUERY, CALLER_STEPS)
 	game.set_routes("caller", CALLER_ROUTES)
 	game.collect_piece("caller", "ext", "the work order")
-	game.collect_piece("caller", "table", "SYSOP")
+	if game.spot_found("phone_note"):
+		game.collect_piece("caller", "table", "Sticky note")  # the phone's, read before he asked
 	game.add_clue("caller", "The call came from ext. %d." % data.extension, "Work order")
 	# Solved by pointing at Mercer's name in a result (his row, if it shows the
 	# extension); the mailroom printout's line still answers it on paper.
 	game.set_blank("caller", "Ext. %d belongs to" % data.extension, ["harold mercer", str(data.extension)], "Harold Mercer",
 		{"column": "name", "values": ["Harold Mercer"], "rows": [{"extension": data.extension}]})
 	game.add_clue("caller", "Name just the columns you want, with commas between them: SELECT column, column FROM table_name;", "SYSOP")
-	game.add_clue("caller", "Column names: .schema staff_directory lists them.", "SYSOP")
+	game.add_clue("caller", "Column names: type .schema and the table's name.", "SYSOP")
 	desk_terminal.print_line("")
-	desk_terminal.print_line(TerminalUI.sysop("staff_directory is wide. Instead of *, name just the columns you want, with commas between them:"))
+	desk_terminal.print_line(TerminalUI.sysop("the phone list is wide. Instead of *, name just the columns you want, with commas between them:"))
 	desk_terminal.print_line("    [color=#ffffff]SELECT [i]column[/i], [i]column[/i] FROM [i]table_name[/i];[/color]")
-	desk_terminal.print_line(TerminalUI.sysop("don't know its column names? type [b].schema staff_directory[/b] and press Enter: it lists them."))
+	desk_terminal.print_line(TerminalUI.sysop("don't know a table's column names? type [b].schema[/b], a space and the table's name, then press Enter: it lists them."))
 
 
 func _on_mailroom_entered() -> void:
@@ -1113,6 +1273,8 @@ func _on_caller_listed() -> void:
 
 ## This player added a line that answers one of their cases: tell the host.
 func _on_answer_found(id: String) -> void:
+	if id == "last_visitor":
+		sync.report_answer(id)
 	if id == "caller":
 		var game := get_node("/root/Game")
 		if game.case_info("caller").blank.get("source", "") == "document":
@@ -1144,6 +1306,33 @@ func _on_line_noted(text: String, kind: String) -> void:
 	sync.report_answer("caller", cells[at])
 
 
+## This player pointed at a cell that answers no slot: if it's in a row the
+## caller's or the visitor log's slot is about, a pencil line under the blank says
+## why (G11, G16, G17; this player's notebook only).
+func _on_cell_missed(column: String, value: String, row: Dictionary) -> void:
+	var game := get_node("/root/Game")
+	var shown := {}
+	for k in row:
+		shown[str(k).to_lower()] = str(row[k])
+	if column.to_lower() not in shown:
+		shown[column.to_lower()] = value
+	var caller: Dictionary = game.case_info("caller")
+	if caller.get("open", false) and not caller.get("solved", false) and shown.has("extension"):
+		if shown.extension == str(data.extension):
+			game.blank_miss("caller", CALLER_NUMBER)
+		else:
+			game.blank_miss("caller", CALLER_OTHER % data.extension)
+	var visit: Dictionary = game.case_info("last_visitor")
+	if visit.get("open", false) and not visit.get("solved", false) and shown.has("name"):
+		var who := db.run_silent("SELECT company, signed_out FROM visitors WHERE name = '%s'" % shown.name.replace("'", "''"))
+		if who.is_empty():
+			return
+		if who.any(func(r): return r.company == "Byte-Right IT Services"):
+			game.blank_miss("last_visitor", VISITOR_OURS)
+		elif who.all(func(r): return r.signed_out != null):
+			game.blank_miss("last_visitor", VISITOR_LEFT)
+
+
 ## Host: a player noted ext. `missed`'s row instead of the caller's.
 func case_missed(id: String, _peer: int, missed: String) -> void:
 	if id == "caller" and caller_asked and not caller_puzzle.solved and not caller_miss_said:
@@ -1159,6 +1348,8 @@ func _on_caller_missed(missed: String) -> void:
 func case_answered(id: String, _peer: int) -> void:
 	if id == "caller" and caller_asked and not caller_puzzle.solved:
 		sync.event("_on_caller_found")
+	if id == "last_visitor" and not visitor_puzzle.solved:
+		sync.event("_on_last_visitor")
 
 
 func _on_caller_found() -> void:
@@ -1171,6 +1362,38 @@ func _on_caller_found() -> void:
 	get_node("/root/Game").ticket_fill(task, "ext. %d: Harold Mercer, Building Services (left 03/94)" % data.extension)
 	get_node("/root/Game").solve_case("caller", "ext. %d is Harold Mercer, Building Services. He left in 03/94." % data.extension)
 	caller_found.emit()
+	if sync.is_host() and _book_waiting:
+		sync.event("_open_visitor_case")  # the book was read before: its case now (M3)
+
+
+## Every machine: the directory's columns have been on screen since Rourke asked
+## (a query, or .schema staff_directory): the extension column is found. Its table
+## named on a paper isn't enough: the column is the thinking step (G29).
+func _found_caller_column(from: String) -> void:
+	get_node("/root/Game").collect_piece("caller", "column", from)
+
+
+func _crew_found_spot(id: String) -> void:
+	super(id)
+	if id == "schema:staff_directory" and caller_asked:
+		_found_caller_column(".schema staff_directory")
+
+
+## Host: someone read the visitor book. After the caller's solved, its case opens
+## (M3); before, it waits for that.
+func _on_book_read() -> void:
+	if caller_puzzle.solved:
+		sync.event("_open_visitor_case")
+	else:
+		_book_waiting = true
+
+
+## Every machine: the visitor log's case opens, and Newest first comes in once
+## Rourke's exchange at the desk is over (M4).
+func _open_visitor_case() -> void:
+	_book_waiting = false
+	get_node("/root/Game").open_case("last_visitor", BOOK_CASE, ["visitors"], OBJ_VISITOR)
+	_book_check("easy_sql_4")
 
 
 ## Host: a paper brings back chapter `id` of Easy SQL. Read before its puzzle is
@@ -1191,7 +1414,8 @@ func _book_check(id: String) -> void:
 func _book_ready(id: String) -> bool:
 	match id:
 		"easy_sql_4":
-			return memo_puzzle.solved and not _rourke_briefing  # DESC flips the memo's ORDER BY
+			# With the visitor log's case, after Rourke's exchange at the desk (M4).
+			return get_node("/root/Game").case_info("last_visitor").get("open", false) and _exchange_done
 	return true
 
 
@@ -1210,11 +1434,11 @@ func _huddles_over() -> void:
 
 ## Optional: the visitor log, newest first. Vale signed in tonight and never left.
 func _on_last_visitor() -> void:
+	if visitor_puzzle.solved:
+		return
 	visitor_puzzle.solved = true
-	get_node("/root/Game").open_case("last_visitor", BOOK_CASE, ["visitors"], OBJ_VISITOR)
+	get_node("/root/Game").fill_blank("last_visitor", false)  # the rest of the crew's pages too
 	get_node("/root/Game").solve_case("last_visitor", "VALE, I. signed in at %s tonight and never signed out." % str(data.vale_in).right(5))
-	get_node("/root/Game").write_note("Last visitor", "VALE, I. signed in %s tonight. Never signed out." % str(data.vale_in).right(5), "result")
-	hud.notice("Added to your notebook (Tab)", 3.0)
 
 
 ## Host: until nobody is at the desk terminal any more (or a while has passed,
@@ -1231,11 +1455,6 @@ func _crew_off_desk_terminal() -> void:
 		waited += 0.25
 
 
-func _pa_after_memo() -> void:
-	await get_tree().create_timer(2.5, false).timeout
-	hud.line("l0_sort_hint")
-
-
 ## The memo and the caller are done: Rourke takes the crew on. The walkie-talkies
 ## stay on the charger for anyone who still wants one.
 func _leave_lobby() -> void:
@@ -1248,6 +1467,9 @@ func _leave_lobby() -> void:
 	hud.line("l0_walkie")
 	hud.todo("Stick with our escort", "Follow Rourke")
 	_walk_to_server_room()
+	await get_tree().create_timer(0.1, false).timeout
+	_exchange_done = true
+	_book_check("easy_sql_4")
 
 
 ## Rourke walks the crew down the hall himself, making small talk. Nothing is wrong yet.
@@ -1261,7 +1483,17 @@ func _walk_to_server_room() -> void:
 	await sync.gate("hall", hall.entered)
 	rourke.walk_to(Vector3(22.4, 0, 3))
 	_face_crew_on_arrival()
-	await hud.lines(["l0_tour_3", "l0_tour_4", "l0_tour_5", "l0_tour_6"])
+	var mid := Trigger.create(self, Vector3(15.0, 1, 3), Vector3(1.2, 2, 2))
+	mid.name = "MidHall"
+	mid.entered.connect(func(_b): _mid_hall = true, CONNECT_ONE_SHOT)
+	# Two stops along the hall (M5), with the PA's shredder reminder between them
+	# (M6): Mercer and WARDEN first, then the safe room.
+	await hud.lines(["l0_tour_3", "l0_tour_4"])
+	await hud.line("l0_sort_hint")
+	await sync.gate("mid_hall", func():
+		while not _mid_hall:
+			await get_tree().create_timer(0.2, false).timeout)
+	await hud.lines(["l0_tour_5", "l0_tour_6"])
 	# Past the dark passage to the east corridor, he waves the hum away.
 	await hud.line("l0_hum")
 	await sync.gate("rourke_at_sra", func():

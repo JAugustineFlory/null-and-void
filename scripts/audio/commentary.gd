@@ -20,6 +20,9 @@ extends Node
 ## NUDGE2_FAILS failed queries or NUDGE2_S, at most MAX_NUDGES per puzzle and
 ## COOLDOWN_S between lines. Hints stay on demand; nothing here delays them.
 
+## Every Commentary node is in this group: `.hint` tells it SYSOP helped (hinted).
+const GROUP := "commentary"
+
 const NUDGE1_S := 60.0
 const NUDGE2_S := 120.0
 ## Under a timer Nudge 1 is skipped and Nudge 2 comes sooner.
@@ -162,6 +165,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	name = "Commentary"
+	add_to_group(GROUP)
 	_voice = Voice.new()
 	add_child(_voice)
 
