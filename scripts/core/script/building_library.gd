@@ -17,11 +17,14 @@ signal requested(method: String, path: String, headers: Dictionary, body: String
 
 var api: FacilityAPI
 var db: FacilityDB
+## A script at a terminal under the security policy follows it (TerminalPolicy).
+var policy := false
 
 
-func _init(p_api: FacilityAPI = null, p_db: FacilityDB = null) -> void:
+func _init(p_api: FacilityAPI = null, p_db: FacilityDB = null, p_policy := false) -> void:
 	api = p_api
 	db = p_db
+	policy = p_policy
 
 
 ## Sends a request to the building's services: {status, body}.
@@ -54,7 +57,13 @@ func query(sql: String, params := []) -> Dictionary:
 	if holes != params.size():
 		res.error = "The query has %d ? but %d value%s %s given." % [holes, params.size(), "" if params.size() == 1 else "s", "was" if params.size() == 1 else "were"]
 		return res
+	if policy and TerminalPolicy.refuses(text):
+		res.error = TerminalPolicy.REFUSAL
+		res["policy"] = "refused"
+		return res
 	var r := db.execute(text, params)
+	if policy:
+		r = TerminalPolicy.cap(r)
 	if not r.ok:
 		res.refused = db.read_only and r.error == db.read_only_error
 		res.error = r.error if res.refused else "%s. %s" % [r.error, FacilityDB.explain_error(r.error)]
