@@ -257,7 +257,6 @@ func _group_coop() -> void:
 	await test_coop_scripts()
 	await test_coop_pregame_lobby()
 	await test_coop_back_to_lobby()
-	await test_restart_floor()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -299,6 +298,7 @@ func _group_movement_hands() -> void:
 ## Floors picked from Levels play inside the building and carry on to the next.
 func _group_levels() -> void:
 	await _run_file("res://tests/levels_route_tests.gd")
+	await test_restart_floor()
 
 
 func _group_stairs() -> void:
@@ -2163,6 +2163,8 @@ func test_coop_level_0() -> void:
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
 	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
+	for l in [c1, c2]:  # out past the walls on purpose: no safety net putting them back
+		l.get_node("FallNet").set_physics_process(false)
 	c2.player.global_position = Vector3(-40, 0.1, 4)
 	c1.player.global_position = Vector3(45, 0.1, 3)
 	await _frames(30)
