@@ -24,6 +24,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_endings_and_routes()
 	test_job_over()
 	test_chip()
+	test_query_on_screen()
 	test_task_titles()
 	test_paper_pieces()
 	test_growing_case()
@@ -36,6 +37,13 @@ func run(tree: SceneTree, check: Callable) -> void:
 
 func _game() -> Node:
 	return _tree.root.get_node("Game")
+
+
+static func _click() -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = true
+	return e
 
 
 func test_pieces() -> void:
@@ -177,7 +185,13 @@ func test_chip() -> void:
 	check(chip.chip.visible and chip.count.text == "0/3" and chip.title.text == "What does the memo say?" and chip.bar.get_child_count() == 3, "the main case: its question, 0/3 and a segment per piece")
 	check(not chip.next.visible, "the next step isn't up until something happens")
 	g.collect_piece("memo", "order", "A sticky")
-	check(chip.count.text == "1/3" and chip.toast.visible and chip.toast_head.text == CaseChip.FOUND % [1, 3] and chip.toast_value.text == "The words that sort rows: ORDER BY", "a piece found: the count goes up and a card says what it was")
+	check(chip.count.text == "1/3" and chip.toast.visible and chip.toast_head.text == CaseChip.FOUND % [1, 3] and chip.toast_value.get_parsed_text() == "The words that sort rows: ORDER BY", "a piece found: the count goes up and it slides up, saying what it was")
+	check(chip.toast.anchor_top == 1.0 and chip.toast.anchor_left == 0.5, "it slides up at the screen's bottom edge")
+	check(chip.toast_value.text.contains(PieceKind.hex(PieceKind.KEYWORD)) and chip.toast_value.text.contains("[b]"), "in its kind's color and cue (ORDER BY is a keyword: bold)")
+	check(not chip.toast_by.visible, "this player's own find names no one")
+	var up_tween: Tween = chip._toast_tween
+	chip.toast.gui_input.emit(_click())
+	check(not up_tween.is_valid() and chip._toast_tween.is_running(), "a click on it starts sliding it back down")
 	check(chip.next.visible and chip.next.text == CaseChip.NEXT % "Find the table", "and the next step shows for a moment")
 	chip._end_next(chip._next_turn)
 	check(chip.chip.visible and not chip.next.visible and chip.count.text == "1/3", "then the chip is just the case and its count")
@@ -188,11 +202,11 @@ func test_chip() -> void:
 	check(chip.next.visible, "a newer brief show isn't cut short by an older one's time running out")
 	chip._end_next(chip._next_turn)
 	chip.set_allowed(false)
-	g.collect_piece("memo", "table")
-	check(chip.chip.visible and not chip.toast.visible and chip.chip.custom_minimum_size.x == CaseChip.NARROW, "at a terminal the case stays up, narrower, and the found card waits")
+	g.collect_piece("memo", "table", "", "Dana")
+	check(chip.chip.visible and chip.toast.visible and chip.chip.custom_minimum_size.x == CaseChip.NARROW, "at a terminal the case stays up, narrower, and a find still slides up: the terminal stays open")
+	check(chip.toast_head.text == CaseChip.FOUND % [2, 3] and chip.toast_by.visible and chip.toast_by.text == CaseChip.FOUND_BY % "Dana", "a crewmate's find says who found it (G21)")
 	chip.set_allowed(true)
 	check(chip.chip.custom_minimum_size.x == CaseChip.WIDE, "and it's full width again once the terminal's put away")
-	check(chip.chip.visible and chip.toast.visible and chip.toast_head.text == CaseChip.FOUND % [2, 3], "and the piece found meanwhile is said once it's back")
 	g.open_case("side", "A side case")
 	g.set_pieces("side", [PIECES[0]], "", [], true)
 	g.collect_piece("side", "table")
@@ -200,6 +214,62 @@ func test_chip() -> void:
 	g.solve_case("memo", "done.")
 	check(not chip.chip.visible, "solved: nothing to count")
 	chip.free()
+
+
+## The query with blanks under the case chip (puzzle-flow spec, section 5), the
+## answer's slide-up, the typing line's example (policy P8), and the kinds' colors.
+func test_query_on_screen() -> void:
+	print("Case board: the query on screen and the slide-up")
+	var g := _game()
+	g.new_run(8)
+	var chip := CaseChip.new()
+	_tree.root.add_child(chip)
+	var pieces: Array = PIECES.duplicate(true)
+	pieces[2]["blank"] = "enter_column_name"
+	g.open_case("memo", "What does the memo say?")
+	g.set_pieces("memo", pieces, "SELECT * FROM {table} {order} {column};")
+	check(g.case_selected() == "memo", "with nothing picked in the notebook, the selected case is the main one")
+	check(not chip.query_panel.visible, "the query isn't up on its own: the screen stays clear")
+	chip.hold_query(true)
+	check(chip.query_panel.visible and chip.query.get_parsed_text() == g.case_query("memo"), "a paper of the case in hand: its query is up, word for word the case page's (%s)" % chip.query.get_parsed_text())
+	check(chip.query.text.contains(PieceKind.hex(PieceKind.TABLE, true)) and chip.query.text.contains(PieceKind.hex(PieceKind.COLUMN, true)), "each blank in the faded color of what fits it")
+	chip.set_allowed(false)
+	check(not chip.query_panel.visible, "at a terminal it gives way to the one over the typing line")
+	chip.set_allowed(true)
+	check(chip.query_panel.visible, "and comes back after")
+	chip.hold_query(false)
+	check(not chip._query_on, "put down: it fades")
+	g.collect_piece("memo", "table")
+	check(chip.query_panel.visible and chip.query.get_parsed_text().contains("FROM memo_fragments") and chip._fresh_piece == "table", "a piece found: the query comes up with it written in")
+	chip._query_turn += 1  # as if its time ran out
+	chip._set_query(false)
+	g.selected_case = "nope"
+	check(g.case_selected() == "memo", "a pick that isn't an open case falls back to the main one")
+	g.selected_case = ""
+	# The answer slides up too, and a crewmate's says who.
+	g.set_blank("memo", "Who wrote it?", ["harold"], "Harold Mercer")
+	check(g.add_answer("Signed, Harold Mercer", "document") and chip.toast.visible and chip.toast_head.text == "Who wrote it?" and chip.toast_value.get_parsed_text() == "Harold Mercer" and not chip.toast_by.visible, "an answer slides up under its question")
+	g.answer_shared.emit("memo", "Kit")
+	check(chip.toast_by.visible and chip.toast_by.text == CaseChip.FOUND_BY % "Kit", "a crewmate's answer names them")
+	chip.free()
+	# The typing line: the selected case's shape, above it and as its grey example.
+	var ui := TerminalUI.new()
+	_tree.root.add_child(ui)
+	g.new_run(8)
+	ui.show_case_query()
+	check(ui._input.placeholder_text == TerminalUI.EXAMPLE and not ui._case_line.visible, "no case: the plain example, with no SELECT * in it (P8)")
+	check(not TerminalUI.EXAMPLE.contains("*"), "the example never shows the refused query")
+	g.open_case("memo", "What does the memo say?")
+	g.set_pieces("memo", PIECES, "SELECT * FROM {table} {order} {column};")
+	check(ui._input.placeholder_text == g.case_query("memo") and ui._case_line.visible and ui._case_line.get_parsed_text() == g.case_query("memo"), "a case: its query is the example and sits over the typing line")
+	ui.free()
+	# Kinds.
+	check(PieceKind.of_piece({"value": "visitors", "seen_in": "visitors"}) == PieceKind.TABLE and PieceKind.of_piece({"value": "extension", "seen_in": "staff_directory"}) == PieceKind.COLUMN, "a piece seen in a table is that table, or one of its columns")
+	check(PieceKind.of_piece({"value": "ORDER BY"}) == PieceKind.KEYWORD and PieceKind.of_piece({"value": "LIMIT 5"}) == PieceKind.KEYWORD and PieceKind.of_piece({"value": ">"}) == PieceKind.KEYWORD, "query words and signs are keywords")
+	check(PieceKind.of_piece({"value": "fault", "blank": "enter_status"}) == PieceKind.VALUE and PieceKind.of_piece({"value": "DC-7"}) == PieceKind.VALUE and PieceKind.of_piece({"value": "lights", "blank": "enter_table_name"}) == PieceKind.TABLE, "the rest are values; a blank's name says what it wants")
+	check(PieceKind.of_piece({"value": "x", "kind": "column"}) == PieceKind.COLUMN, "a piece can say its own kind")
+	var cues := [PieceKind.bbcode("a", PieceKind.KEYWORD), PieceKind.bbcode("a", PieceKind.TABLE), PieceKind.bbcode("a", PieceKind.COLUMN), PieceKind.bbcode("a", PieceKind.VALUE)]
+	check(cues[0].begins_with("[b]") and cues[1].begins_with("[bgcolor") and cues[2].begins_with("[u]") and cues[3].begins_with("[i]"), "each kind has a shape cue as well as a color")
 
 
 ## A task's title says how the crew feels; its details say what to do (Augustine,

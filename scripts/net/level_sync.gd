@@ -439,5 +439,11 @@ func _reset_db(path: NodePath) -> void:
 		terminal.print_line("Backup tape restored. Data is back to how it started.")
 
 
+## The peer id behind `body` (the local Player or a puppet), 0 if it's neither.
+func peer_of(body: Node) -> int:
+	var np := _players()
+	return np.id_of(body) if np and body else 0
+
+
 func _players() -> NetPlayers:
 	return level.players

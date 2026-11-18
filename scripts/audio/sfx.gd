@@ -51,6 +51,7 @@ const KINDS := {
 	"bag_hit": {"unit": 5.0, "pitch": 0.08},
 	"guard": {"unit": 2.0, "db": -8.0, "pitch": 0.1},
 	"body_fall": {"unit": 6.0, "pitch": 0.05},
+	"pencil": {"unit": 1.0, "db": -6.0, "pitch": 0.08},
 	"fluorescent_buzz": {"bus": AMBIENCE, "unit": 1.2, "db": -18.0, "max": 10.0},
 	"crt_whine": {"bus": AMBIENCE, "unit": 0.8, "db": -20.0, "max": 5.0},
 	"server_hum": {"bus": AMBIENCE, "unit": 3.0, "db": -10.0, "max": 18.0},

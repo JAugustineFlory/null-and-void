@@ -1620,7 +1620,7 @@ func test_caller_answer() -> void:
 			ui.run("SELECT name, extension FROM staff_directory WHERE extension != %s;" % ext)
 			await process_frame
 			check(_game().has_piece("caller", "column") and _game().case_query("caller") == "SELECT name, extension FROM staff_directory;" and chip.count.text == "3/3", "terminal: the directory's columns turn up, so the column piece is found: 3/3 and the query whole (%s)" % _game().case_query("caller"))
-			check(chip.toast.visible or not chip.waiting.is_empty(), "terminal: and a card says so (held until the terminal's put away, when it's on the glass)")
+			check(chip.toast.visible, "terminal: and it slides up, with the terminal still open")
 			check(not level.caller_listed and not screen_text(ui).contains("there it is"), "terminal: a list without the caller's row gets no \"there it is\" from SYSOP")
 			ui.run("SELECT name, extension FROM staff_directory;")
 			await process_frame
@@ -1666,7 +1666,7 @@ func test_caller_answer() -> void:
 			check(not ui.use_cell(wrong, lines[wrong].cells.map(func(x): return x.column).find("name")) and _game().case_info("caller").blank.filled == "", "terminal: nor someone else's name")
 			ui._cancel_note()
 			check(ui.use_cell(right, name_at), "terminal: Mercer's name, in his row, is")
-			check(not ui.visible and not ui._note_label.visible, "terminal: Mercer's name goes straight in, and you step back from the screen")
+			check(ui.visible and not ui._note_label.visible and level.hud.case_chip.toast.visible and level.hud.case_chip.toast_value.get_parsed_text() == "Harold Mercer", "terminal: Mercer's name goes straight in and slides up, and you stay at the screen")
 			check(c.blank.get("query", "") == "SELECT name, extension FROM staff_directory;", "terminal: the case keeps the query that found it (%s)" % c.blank.get("query", ""))
 		else:
 			var reader: DocumentReader = level.directory_printout.open_reader(p)
@@ -1684,11 +1684,9 @@ func test_caller_answer() -> void:
 			page = level.notebook.pages.section_text(NotebookPages.Page.CASES)
 			check(page.count(miss) == 1, "printout: once")
 			reader._start_note(at)
-			for i in 30:
-				if not is_instance_valid(reader):
-					break
-				await physics_frame
-			check(not is_instance_valid(reader), "printout: adding Mercer's line puts the printout down")
+			await physics_frame
+			check(is_instance_valid(reader) and level.hud.case_chip.toast.visible, "printout: adding Mercer's line slides it up, and the printout stays in your hands")
+			reader.close()
 		for i in 30:
 			if level.caller_puzzle.solved:
 				break
@@ -1698,12 +1696,16 @@ func test_caller_answer() -> void:
 		check(_game().pieces_found("caller") == 3 and _game().main_case() == "" and not level.hud.case_chip.chip.visible, "%s: solved, the board is complete and the HUD lets it go" % route)
 		var other_way: bool = c.routes.any(func(r): return r.id == "printout" and r.found)
 		check(other_way == (route == "printout"), "%s: the mailroom's printout counts as another way in only when it's what answered it" % route)
+		for i in 30:
+			await physics_frame
+		check(not level.notebook.is_open(), "%s: no look-down: the notebook stays put away" % route)
+		if level.terminal_ui.visible:
+			level.terminal_ui.close()
 		for i in 60:
-			if level.notebook.is_open():
+			if level.notebook.open(NotebookPages.Page.CASES) or level.notebook.is_open():
 				break
 			await physics_frame
-		check(level.notebook.is_open() and level.notebook.pages.current_page() == NotebookPages.Page.CASES, "%s: the notebook comes up at the case page" % route)
-		check(not c.blank.fresh and level.notebook.pages.book.book.get_node_or_null("Pen") != null, "%s: and the pen writes the name in as you watch" % route)
+		check(level.notebook.is_open() and not c.blank.fresh and level.notebook.pages.book.book.get_node_or_null("Pen") != null, "%s: opened at the case page, the pen writes the name in as you watch" % route)
 		check(not _game().notebook_written.any(func(w): return w.text.contains("Harold Mercer")), "%s: the answer goes in the blank, not as a loose note too" % route)
 		level.queue_free()
 		await process_frame
@@ -2158,6 +2160,8 @@ func test_coop_level_0() -> void:
 	c1.sync.report_answer("caller")
 	await _frames(10)
 	check(levels.all(func(l): return l.caller_puzzle.solved), "a client's answer settles who called for every machine")
+	var finder: String = root.get_node("Net").display_name(get_multiplayer(worlds[1].get_path()).get_unique_id())
+	check(str(_game().case_info("caller").blank.get("by", "")) == finder, "and the case remembers who found it, for the slide-up's credit (%s)" % finder)
 
 	c2.terminal_ui.terminal = c2.desk_terminal
 	c2.terminal_ui.run("INSERT INTO visitors (name) VALUES ('Intruder')")
