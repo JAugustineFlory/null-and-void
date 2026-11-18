@@ -52,22 +52,22 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l1_fixed_1_block` | "Would you look at that. Green across the board." "You lot are good. Director's going to want to hear about this." | Genuinely impressed. Warm. On a replay, the director hearing about them is the problem. | Level 1 |
 | [ ] | `l1_pivot_1_block` | "Hang on. That fault log... every reset this week came from Vale's login." "Her lab's up on the security floor. Secure Lab B." "Come on. If anyone can tell us what she was up to, it's her own terminal." | Curious, a little too quickly. Thinking out loud. Friendly, steering. | Level 1 |
 | [ ] | `l1_lift_button` | "Twenty-two. Security floor. Go on." | A little clipped now, eager to get there. | Level 1 |
-| [ ] | `l2_lab_arrive_block` | "Secure Lab B. Vale practically lived in here." "Badge in for me, each of you. Visitor log. Security floor's fussy about it." | Fond, a little sad. Routine. The frame happens in plain sight. | Level 2, later |
-| [ ] | `l2_lab_badge_2` | "Thanks. Paperwork keeps everybody honest." | Once everyone has badged. | Level 2, later |
-| [ ] | `l2_lab_shock_1_block` | "Oh, no. No, no. Iris?" "That's her coat. She never leaves without her coat." "Her terminal's still logged in. Check it, see what she was working on. I'll call this in." | Fake shock. Good enough to fool them the first time, a beat too rehearsed on a replay. Quiet, staring at it. Backing toward the door, already reaching for his radio. | Level 2, later |
-| [ ] | `l2_frame_block` | "Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale." "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself." "You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language." "Then I saw the book in your van. Easy SQL. Still had the price sticker on it." "Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend." "I should've reported you. Then it hit me. No... this is perfect." "A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha!" "A garage with a van, calling itself a company. Your badges on her door. It writes itself." | To WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance. Tired, explaining a chore. Almost fond. The friendly tour voice, which is what makes it awful. Shaking his head, smiling. Enjoying himself. Slower. Savouring it. The only time he laughs in the game: real delight, loud and sudden, then it stops dead. Flat again, tired. Back to normal. | Level 2, later |
-| [ ] | `l2_trap_1` | "Sorry about this. Nothing personal." | Quiet. | Level 2, later |
-| [ ] | `l2_return` | "Should've checked the other door." | Calm. | Level 2, later |
-| [ ] | `l2_hit_prints` | "Go on, touch everything. Your prints are all over her desk now." | Taunting. Can repeat. | Level 2, later |
-| [ ] | `l2_hit_1` | "Stay down!" | Swinging. | Level 2, later |
-| [ ] | `l2_hit_2` | "Should've stayed in the van." | Breathing hard. | Level 2, later |
-| [ ] | `l2_hit_3` | "Nobody's coming for you." | Low. | Level 2, later |
-| [ ] | `l2_hit_4` | "Hold still!" | Frustrated. | Level 2, later |
-| [ ] | `l2_hurt_1` | "Agh!" | Just a grunt of pain. | Level 2, later |
-| [ ] | `l2_hurt_2` | "Okay. Okay, that one hurt." | Winded, almost laughing. | Level 2, later |
-| [ ] | `l2_hurt_3` | "Lucky." | Spat out. | Level 2, later |
-| [ ] | `l2_downed` | "Wait... wait. You don't know what you're doing." | Out of breath. Genuinely scared for the first time. | Level 2, later |
-| [ ] | `l2_tied_1_block` | "You think a bit of cable holds me?" "WARDEN will eat you alive in here." "Run if you like. Every camera on this floor already thinks you killed her." | Tied up on the floor, grinning through it. Quieter. He means it. Smiling. The frame, said out loud. | Level 2, later |
+| [ ] | `l2_lab_arrive_block` | "Secure Lab B. Vale practically lived in here." "Badge in for me, each of you. Visitor log. Security floor's fussy about it." | Fond, a little sad. Routine. The frame happens in plain sight. | Level 2 |
+| [ ] | `l2_lab_badge_2` | "Thanks. Paperwork keeps everybody honest." | Once everyone has badged. | Level 2 |
+| [ ] | `l2_lab_shock_1_block` | "Oh, no. No, no. Iris?" "That's her coat. She never leaves without her coat." "Her terminal's still logged in. Check it, see what she was working on. I'll call this in." | Fake shock. Good enough to fool them the first time, a beat too rehearsed on a replay. Quiet, staring at it. Backing toward the door, already reaching for his radio. | Level 2 |
+| [ ] | `l2_frame_block` | "Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale." "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself." "You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language." "Then I saw the book in your van. Easy SQL. Still had the price sticker on it." "Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend." "I should've reported you. Then it hit me. No... this is perfect." "A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha!" "A garage with a van, calling itself a company. Your badges on her door. It writes itself." | To WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance. Tired, explaining a chore. Almost fond. The friendly tour voice, which is what makes it awful. Shaking his head, smiling. Enjoying himself. Slower. Savouring it. The only time he laughs in the game: real delight, loud and sudden, then it stops dead. Flat again, tired. Back to normal. | Level 2 |
+| [ ] | `l2_trap_1` | "Sorry about this. Nothing personal." | Quiet. | Level 2 |
+| [ ] | `l2_return` | "Should've checked the other door." | Calm. | Level 2 |
+| [ ] | `l2_hit_prints` | "Go on, touch everything. Your prints are all over her desk now." | Taunting. Can repeat. | Level 2 |
+| [ ] | `l2_hit_1` | "Stay down!" | Swinging. | Level 2 |
+| [ ] | `l2_hit_2` | "Should've stayed in the van." | Breathing hard. | Level 2 |
+| [ ] | `l2_hit_3` | "Nobody's coming for you." | Low. | Level 2 |
+| [ ] | `l2_hit_4` | "Hold still!" | Frustrated. | Level 2 |
+| [ ] | `l2_hurt_1` | "Agh!" | Just a grunt of pain. | Level 2 |
+| [ ] | `l2_hurt_2` | "Okay. Okay, that one hurt." | Winded, almost laughing. | Level 2 |
+| [ ] | `l2_hurt_3` | "Lucky." | Spat out. | Level 2 |
+| [ ] | `l2_downed` | "Wait... wait. You don't know what you're doing." | Out of breath. Genuinely scared for the first time. | Level 2 |
+| [ ] | `l2_tied_1_block` | "You think a bit of cable holds me?" "WARDEN will eat you alive in here." "Run if you like. Every camera on this floor already thinks you killed her." | Tied up on the floor, grinning through it. Quieter. He means it. Smiling. The frame, said out loud. | Level 2 |
 | [ ] | `l2_rourke_1_block` | "Still on channel one? Good. Thought you'd want to know I'm out." "Security office is the only way down from here. Say hi to the night guard for me." "Oh, he won't say much. Nobody's seen him since Tuesday." | Relaxed, enjoying himself again. Casual, like giving directions. Let it hang. Then the radio clicks off. | Level 2 |
 | [ ] | `l7_rourke_arrive` | "Still breathing, the lot of you. I came down to finish what we started on twenty-two." | Out of breath from the stairs. Not in a hurry. | Level 7 |
 | [ ] | `l7_rourke_dark` | "Lights out suits me fine." | Low, right next to them. | Level 7 |
@@ -79,18 +79,18 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [x] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2, later |
-| [x] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2, later |
-| [x] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2, later |
-| [x] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2, later |
-| [x] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2, later |
-| [x] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2, later |
-| [x] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2, later |
-| [x] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2, later |
-| [x] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2, later |
-| [ ] | `l2_exit_open` | "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED." | Polite, and keeping score. | Level 2, later |
-| [ ] | `l2_lockdown_tied` | "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D." | Reading a log entry. | Level 2, later |
-| [ ] | `l2_sealed` | "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT." | The sign-off for the slice. Warm, like wishing them well. | Level 2, later |
+| [x] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2 |
+| [x] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2 |
+| [x] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2 |
+| [x] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2 |
+| [x] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2 |
+| [x] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2 |
+| [x] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2 |
+| [x] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2 |
+| [x] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2 |
+| [ ] | `l2_exit_open` | "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED." | Polite, and keeping score. | Level 2 |
+| [ ] | `l2_lockdown_tied` | "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D." | Reading a log entry. | Level 2 |
+| [ ] | `l2_sealed` | "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT." | The sign-off for the slice. Warm, like wishing them well. | Level 2 |
 | [ ] | `l2_arrive_block` | "SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE." "CAMERA FEEDS ARE RESTRICTED TO SECURITY STAFF. YOU ARE NOT SECURITY STAFF." | Reassuring tone. It is not reassuring. Small pause before the second sentence. | Level 2 |
 | [ ] | `l2_smudged` | "TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU." | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | "DOOR COMMAND ACCEPTED. DOOR OPENED." | Confident. It is wrong. | Level 2 |
@@ -180,7 +180,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l2_news_1_block` | "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems." "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered." "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'" "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside." "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'" "Halcyon declined to comment. The crew has not been seen since." "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather." | Steady, mid-bulletin. No change in tone. A slight shift for the quote: reading it, not acting it. Even, a touch of interest. Reading the quote flat, not acting it. Then a beat. Neutral. A small pause after. Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
+| [ ] | `l2_news_1_block` | "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems." "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered." "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'" "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside." "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'" "Halcyon declined to comment. The crew has not been seen since." "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather." | Steady, mid-bulletin. No change in tone. A slight shift for the quote: reading it, not acting it. Even, a touch of interest. Reading the quote flat, not acting it. Then a beat. Neutral. A small pause after. Brightening for the weather. The game cuts the audio on 'weather'. | Level 2 |
 
 ## The crew (player characters) (68 recordings, 77 lines, recorded by each of the 12 crew members)
 

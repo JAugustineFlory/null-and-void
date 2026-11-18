@@ -1,0 +1,2 @@
+- **Added:** the building's security system now speaks the recorded lines it was missing on the security floor. It greets whoever logs in at a locked-down terminal, reacts to each reset switch, and comments as you leave.
+- **Fixed:** one ending's radio report now plays all the way through, instead of stopping partway.

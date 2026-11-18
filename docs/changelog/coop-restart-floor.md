@@ -1,0 +1,1 @@
+- **Added:** Restart this floor, in the pause menu: back to where you walked onto the floor, with the same answers. In co-op the host restarts it for everyone.
