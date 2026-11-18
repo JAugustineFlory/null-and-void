@@ -109,7 +109,6 @@ const TEXT := {
 	"deck_have": "You already have a deck.",
 	"deck_cart": "FACILITIES  -  LOANER DECKS",
 	"released": "The door's manual release gives. It shoves open.",
-	"end_card": "To be continued.",
 	"todo_front": "Leave the way you came in, through the front doors",
 	"todo_check_front": "Check the main entrance's row at the front desk terminal",
 	"case_entrance": "Why didn't the front doors open?",
@@ -1487,9 +1486,8 @@ func _finish() -> void:
 		player.input_locked = was_locked or player.health <= 0.0
 		_todo("todo_up")
 		return
-	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_4"
-	Game.next_level = ""
+	Game.next_level = "level_5"  # Field Notes' Continue: the next floor, in the building
 	completed.emit()
 
 

@@ -52,7 +52,6 @@ const TEXT := {
 	"key": "A brass key ring: STAIR 1 / 18.",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
 	"case_room": "Which room did someone keep going back to tonight?",
-	"end_card": "To be continued.",
 	"shredder_wakes": "North of here, the machines stop. Something heavy gets up.",
 	"shredder_wakes_near": "The machines stop. Something heavy gets up.",
 	"todo_key_box": "At the records desk terminal, find which box on the returns cart was never checked back in. Mercer's key is in it",
@@ -424,7 +423,7 @@ func build() -> void:
 	stair_out.name = "Door_STAIR-OUT"
 	exit_door = stair_out
 	if not world:
-		# On its own, everyone on the stairs ends the slice. In the World the crew
+		# On its own, everyone on the stairs ends the floor. In the World the crew
 		# walks down them to 10 (_on_key_taken).
 		exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
 		exit_trigger.name = "StairsDown"
@@ -1234,7 +1233,7 @@ func _on_key_taken(peer_id: int) -> void:
 # --- The way down -------------------------------------------------------------------
 
 ## Everyone is down the stairs: in the World, on 10's landing, and play moves to
-## floor 10; on its own, on 18's stairs, and the slice ends here.
+## floor 10; on its own, on 18's stairs, and Field Notes leads on to 10.
 func _on_exit() -> void:
 	get_node("/root/Net").earn("achievement:floor_18", hud)
 	if not player:
@@ -1250,9 +1249,8 @@ func _on_exit() -> void:
 		return
 	player.input_locked = true
 	await get_tree().create_timer(1.0).timeout
-	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_3"
-	Game.next_level = ""
+	Game.next_level = "level_4"  # Field Notes' Continue: the next floor, in the building
 	completed.emit()
 
 
