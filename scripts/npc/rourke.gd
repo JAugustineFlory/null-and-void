@@ -23,6 +23,16 @@ const MAX_HITS := 4
 const DOWN_TIME := 12.0
 ## A blocked swing knocks him off balance this long: a free hit for whoever's close.
 const RECOIL_TIME := 0.8
+## Walking the navigation mesh without getting this much closer for this long, he
+## is stuck (shoved off his path, wedged on something): he steps back onto the mesh
+## and tries again; still stuck after a few tries, he's put where he was going, so
+## the story never waits on a walk that can't finish.
+const STUCK_TIME := 4.0
+const STUCK_GAIN := 0.3
+## Stuck this many times in a row: he's put where he was going.
+const GIVE_UP_AFTER := 3
+## Off the floor this long, he has fallen out of the world: back onto the mesh.
+const FALL_TIME := 2.0
 
 var state := State.IDLE
 var target: Node3D
@@ -45,6 +55,10 @@ var _walk_target := Vector3.ZERO
 var _walk_direct := false
 var _walk_time := 0.0
 var _retarget := 0.0
+var _best_dist := INF
+var _stuck := 0.0
+var _unstucks := 0
+var _air := 0.0
 ## While standing (IDLE), he turns to keep facing this: the crew he's talking to.
 var watch: Node3D
 ## What the fight has done to him, for everyone to see.
@@ -94,6 +108,9 @@ func walk_to(pos: Vector3, direct: bool = false) -> void:
 	_walk_target = pos
 	_walk_direct = direct
 	_walk_time = 0.0
+	_best_dist = INF
+	_stuck = 0.0
+	_unstucks = 0
 	_agent.target_position = pos
 	state = State.WALK
 
@@ -127,8 +144,12 @@ func _process(_delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
+		_air += delta
+		if _air > FALL_TIME and _onto_mesh(global_position):
+			_air = 0.0
 	else:
 		velocity.y = 0.0
+		_air = 0.0
 	_attack_cd = max(0.0, _attack_cd - delta)
 	match state:
 		State.WALK:
@@ -143,6 +164,8 @@ func _physics_process(delta: float) -> void:
 			var nav_done := not _walk_direct and _walk_time > 0.5 and _agent.is_navigation_finished()
 			# A scripted step someone is standing in the way of mustn't hang the story.
 			var gave_up := _walk_direct and _walk_time > 8.0
+			if not _walk_direct and _unstuck(flat.length(), delta):
+				gave_up = true
 			if flat.length() < (0.25 if _walk_direct else 0.7) or nav_done or gave_up:
 				velocity.x = 0
 				velocity.z = 0
@@ -168,6 +191,40 @@ func _physics_process(delta: float) -> void:
 			if state == State.IDLE and watch and is_instance_valid(watch):
 				_turn_toward(watch.global_position, delta)
 	move_and_slide()
+
+
+## Walking the mesh: true once he's given up getting there on foot and been put
+## at the end of his walk instead.
+func _unstuck(dist: float, delta: float) -> bool:
+	if dist < _best_dist - STUCK_GAIN:
+		_best_dist = dist
+		_stuck = 0.0
+		_unstucks = 0
+		return false
+	_stuck += delta
+	if _stuck < STUCK_TIME:
+		return false
+	_stuck = 0.0
+	_unstucks += 1
+	if _unstucks < GIVE_UP_AFTER:
+		_onto_mesh(global_position)
+		_agent.target_position = _walk_target  # a fresh path from where he stands now
+		return false
+	_onto_mesh(_walk_target)
+	return true
+
+
+## Put him on the nearest walkable floor to `near`, if he isn't on it already.
+## False if there's no mesh to put him on.
+func _onto_mesh(near: Vector3) -> bool:
+	var map := _agent.get_navigation_map()
+	if not map.is_valid() or NavigationServer3D.map_get_regions(map).is_empty():
+		return false
+	var at := NavigationServer3D.map_get_closest_point(map, near)
+	if at.distance_to(global_position) > 0.3:
+		global_position = at
+	velocity = Vector3.ZERO
+	return true
 
 
 func _move_straight(speed: float) -> void:

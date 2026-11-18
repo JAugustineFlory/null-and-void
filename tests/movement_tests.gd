@@ -784,6 +784,50 @@ func test_shoulders() -> void:
 	check(climber.state == Player.Move.WALK and climber.is_on_floor(), "jumping off with nothing to grab lands you back on the floor")
 	await done(a)
 
+	# Floor 14's lift (Augustine, v0.9-beta2: "players can clip through the elevator"):
+	# a shoulder stand put the rider's head through the car's roof, and stepping down
+	# behind a teammate with their back to the wall put you through the wall.
+	a = arena()
+	var car := Elevator.create(a, a, Vector3.ZERO, 0.0, "14")
+	car.open(true)
+	base = spawn(a, car.to_global(Vector3(0, 0.05, 1.2)))
+	climber = spawn(a, car.to_global(Vector3(0.7, 0.05, 1.2)))
+	await frames(10)
+	check(not base.can_carry(climber) and base.get_prompt(climber) == "", "no shoulder stand inside a lift car: no room over their shoulders")
+	await done(a)
+
+	a = arena()
+	Greybox.box(a, Vector3(0, 1.5, 0.05), Vector3(6, 3, 0.1), Color.DIM_GRAY)  # a thin wall at z = 0
+	base = spawn(a, Vector3(0, 0.05, -0.45))  # back to the wall, facing -Z
+	climber = spawn(a, Vector3(0, 0.05, -1.4))
+	await frames(10)
+	base.interact(climber)
+	await frames(5)
+	climber.controls.crouch = true
+	await frames(10)
+	climber.controls.crouch = false
+	await frames(10)
+	check(climber.state == Player.Move.WALK and climber.global_position.z < 0.0, "stepping down with their back to a wall puts you beside them, not through it (z %.2f)" % climber.global_position.z)
+	await done(a)
+
+	a = arena()
+	Greybox.box(a, Vector3(0, 3.0, -4.0), Vector3(6, 0.2, 4), Color.DIM_GRAY)  # a ceiling 2.9 m up, from z -2 to -6
+	base = spawn(a, Vector3(0, 0.05, 0))
+	climber = spawn(a, Vector3(0, 0.05, 1))
+	await frames(10)
+	base.interact(climber)
+	forward(base)
+	var highest := 0.0
+	for i in 240:
+		await frames(1)
+		if climber.global_position.z < -2.0 - climber.body.radius:  # under it
+			highest = maxf(highest, climber.global_position.y + climber.stance_height)
+		if base.global_position.z < -3.5:
+			break
+	stop(base)
+	check(highest < 2.9 + 0.05 and base.global_position.z < -3.5, "carried under a low ceiling, the rider ducks or steps down, never through it (top %.2f m)" % highest)
+	await done(a)
+
 
 func test_notebook_hold() -> void:
 	var a := arena()

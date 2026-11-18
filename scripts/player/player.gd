@@ -1354,6 +1354,10 @@ func can_carry(other: Player) -> bool:
 		return false
 	if crouching or not (state == Move.RIDE or (state == Move.WALK and is_on_floor())):
 		return false
+	# Room over my shoulders for them, at least crouched: no climbing up into a
+	# ceiling (a lift car, a low corridor), where their head would go through it.
+	if not other._fits(shoulder_point(), other.body.crouch):
+		return false
 	return stack_height() + 1 <= MAX_STACK
 
 
@@ -1381,6 +1385,26 @@ func mount(base: Player) -> void:
 	_noise(0.2)
 
 
+const INF_SPOT := Vector3(INF, INF, INF)
+
+
+## Where to step down off `base`'s shoulders: behind them, else to a side, else in
+## front: the first spot with room to stand that isn't through a wall from them.
+## INF_SPOT if there's none.
+func _step_down_spot(base: Player) -> Vector3:
+	var reach := body.radius + base.body.radius + 0.15
+	var back := -base._forward()
+	var side := back.cross(Vector3.UP).normalized()
+	var space := get_world_3d().direct_space_state
+	var from := base.global_position + Vector3.UP * 0.6
+	for dir in [back, side, -side, -back]:
+		var spot: Vector3 = base.global_position + dir * reach
+		var ray := PhysicsRayQueryParameters3D.create(from, spot + Vector3.UP * 0.6 + dir * body.radius, collision_mask, _exclude())
+		if space.intersect_ray(ray).is_empty() and _fits(spot, body.stand):
+			return spot
+	return INF_SPOT
+
+
 func _leave_carrier() -> void:
 	if carrier and is_instance_valid(carrier):
 		carrier.rider = null
@@ -1398,12 +1422,20 @@ func _step_ride(jump_pressed: bool, crouch_pressed: bool) -> void:
 	var base := carrier
 	global_position = base.shoulder_point()
 	velocity = base.velocity
+	# Carried under something lower: duck as far as it needs, and step down if
+	# there's no room up there at all, rather than poke through it.
+	var room := body.stand if _fits(global_position, body.stand) else _room(global_position)
+	if room <= 0.0:
+		crouch_pressed = true
+	elif absf(room - _height) > 0.01:
+		_set_stance(room)
 	if crouch_pressed:
-		# Step down behind them.
-		_leave_carrier()
-		global_position = base.global_position - base._forward() * (body.radius + base.body.radius + 0.15)
-		velocity = Vector3.ZERO
-		return
+		var down := _step_down_spot(base)
+		if down != INF_SPOT:
+			_leave_carrier()
+			global_position = down
+			velocity = Vector3.ZERO
+			return
 	if jump_pressed:
 		_leave_carrier()
 		if _try_ledge(true):

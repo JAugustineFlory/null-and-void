@@ -329,13 +329,15 @@ func play_line(id: String, peer: int) -> void:
 		push_warning("No crew line with id '%s'" % id)
 		return
 	_speaking = true
-	var dur: float = _voice.play(id, voice_dir_of.call(peer)) if _voice else 0.0
-	if dur <= 0.0:
-		dur = Voice.read_time(l["text"])
+	var dir: String = voice_dir_of.call(peer)
 	if hud and hud.has_method("say"):
-		await hud.say(name_of.call(peer), l["text"], dur)
+		# A bark can wait for a quiet moment, and is dropped if it would come late
+		# (HUD.Turn.CAN_WAIT). Its recording starts when its subtitle does.
+		await hud.say(name_of.call(peer), l["text"], -1.0, HUD.Turn.CAN_WAIT,
+			func() -> float: return _voice.play(id, dir) if _voice else 0.0)
 	else:
-		await get_tree().create_timer(dur, false).timeout
+		var dur: float = _voice.play(id, dir) if _voice else 0.0
+		await get_tree().create_timer(dur if dur > 0.0 else Voice.read_time(l["text"]), false).timeout
 	_speaking = false
 	_play_queued()
 

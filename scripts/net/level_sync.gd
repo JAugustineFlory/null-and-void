@@ -15,6 +15,10 @@ signal gate_opened(key: String)
 ## Methods a client may ask the host to call on a world node on its behalf.
 const FORWARDABLE := ["interact", "interact_alt", "take_hit", "report_open"]
 const READY_TIMEOUT := 20.0
+## Host: the NPCs it simulates for everyone. Teammates' bodies here (PlayerPuppet)
+## don't push them: a puppet is only placed where its player's machine says, so a
+## client walking into an NPC would shove it on the host (and so for everyone).
+const SHOVE_PROOF := "shove_proof_npc"
 
 var level: Node
 var _ready_peers := {}
@@ -194,7 +198,7 @@ func team_notice(text: String, seconds: float = 3.0) -> void:
 @rpc("authority", "call_local", "reliable")
 func _team_notice(text: String, seconds: float) -> void:
 	if level.hud:
-		level.hud.notice(text, seconds)
+		level.hud.notice(text, seconds, ThemeUtil.AMBER, HUD.Turn.NORMAL)  # news, not an answer: it waits its turn
 
 
 ## Host only: every player here earns `source` ("achievement:floor_g"...), owns
@@ -293,6 +297,18 @@ func replicate(node: Node, properties: Array) -> void:
 	node.tree_exiting.connect(_drop_synchronizer.bind(s))
 	if not is_host():
 		node.set_physics_process(false)
+	elif node is PhysicsBody3D:
+		node.add_to_group(SHOVE_PROOF)
+		for p in get_tree().get_nodes_in_group("puppet"):
+			LevelSync.keep_apart(node, p)
+
+
+## `npc` (one the host simulates) moves as if `puppet` (a teammate's body on
+## this machine) weren't there, if they share a world.
+static func keep_apart(npc: Node, puppet: Node) -> void:
+	if npc is PhysicsBody3D and puppet is PhysicsBody3D and npc.is_inside_tree() and puppet.is_inside_tree() \
+			and npc.get_viewport() == puppet.get_viewport():
+		npc.add_collision_exception_with(puppet)
 
 
 ## The node is going away: stop sending it to everyone before freeing the

@@ -1,6 +1,6 @@
 # Recording list
 
-1287 recordings in all, 1628 lines.
+1103 recordings in all, 1290 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -20,18 +20,19 @@ Returned files go in `audio/voice/<character>/` (for example `audio/voice/rourke
 
 Recordings marked **later** are written ahead for a level that isn't built yet. Record them whenever, or wait until the level is in.
 
-## Dale Rourke (46 recordings, 80 lines)
+## Dale Rourke (46 recordings, 74 lines)
 
 > Warm, folksy, a little too friendly: a tour guide who has given this speech a hundred times. At the betrayal the warmth drains out but he never shouts; he sounds tired, not evil. In the fight: short, winded, through his teeth. He laughs once, in the lab: the only time his warmth turns into real glee.
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_greet_1_block` | "There you are. Dale Rourke, facilities. I'll be your escort tonight." "Badge rules after hours. You don't go anywhere I don't take you." "Come on in. I'll sign you in at the front desk." | Friendly, a handshake in the voice. Still smiling. Should sound like a joke the first time and a threat on replay. Holding the door, waving them through. | Level 0 |
-| [ ] | `l0_greet_2_block` | "Sorry about that. The company loves its PA system." "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me." "Visitor badges. Keep them on you. Doors upstairs won't let you through without one." | Chuckling. Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) Routine. Helpful, a little bored. | Level 0 |
-| [ ] | `l0_tour_1_block` | "Here's the job. Dr. Vale, our lead engineer, went missing three nights ago." "Her systems are a mess and the director wants them recovered by morning. Quietly." "The front desk scanner ate one of Vale's memos. The scraps went into a table." "Director wants to know what it said. Go ahead, terminal's on the desk." | Matter-of-fact, the way you'd mention the weather. Small beat before "Quietly." Getting down to business. Casual, but he wants to know too. | Level 0 |
-| [ ] | `l0_memo_flag_block` | "Nice work. I'll make sure that goes straight to the director." "...Huh. She always was dramatic." "One thing on your paperwork. It says I called you in. I didn't. That call came from building services." "Want to know who? The staff directory's on that terminal." "Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it." | Pleased, before he's even read it. Warm; on a replay it's the worst thing he says all night. A beat too long before he speaks. Covering. Mild, a little puzzled. Not suspicious yet. Helpful, easygoing. Amused, a little fond. | Level 0 |
-| [ ] | `l0_caller_3_block` | "Mercer? Huh. That line's been dead for years. Somebody's having fun with the phones. Anyway." "Grab the walkie-talkies from lost and found, back behind the desk." "And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either." "Grab one and I'll take you to the server room." | A beat of real surprise, then he brushes it off and moves on. Back to friendly, changing the subject. Amused, he's said this to every visitor. A little eye-roll at corporate. Friendly. | Level 0 |
-| [ ] | `l0_walkie` | "Channel one. Keep them on. Reception's lousy once we're past the shutter. This way." | Offhand. | Level 0 |
+| [ ] | `l0_greet_1_block` | "There you are. Dale Rourke, facilities. I'll be your escort tonight." "Badge rules after hours. You don't go anywhere I don't take you." | Friendly, a handshake in the voice. Still smiling. Should sound like a joke the first time and a threat on replay. | Level 0 |
+| [ ] | `l0_signin_block` | "Doors lock themselves after hours. Don't worry, I've got the badge." "Visitor badges. Doors upstairs won't let you through without one." | Casual, reassuring. Nothing to worry about. (On a replay it lands differently.) Routine. Helpful, a little bored. | Level 0 |
+| [ ] | `l0_tour_1_block` | "Here's the job. Dr. Vale, our lead engineer, went missing three nights ago." "Her systems are a mess and the director wants them recovered by morning. Quietly." "The front desk scanner ate one of Vale's memos. The scraps went into a table." "Director wants to know what it said." | Matter-of-fact, the way you'd mention the weather. Small beat before "Quietly." Getting down to business. Casual, but he wants to know too. | Level 0 |
+| [ ] | `l0_memo_flag_block` | "Nice work. I'll make sure that goes straight to the director." "...Huh. She always was dramatic." "One thing on your paperwork. It says I called you in. I didn't. That call came from building services." | Pleased, before he's even read it. Warm; on a replay it's the worst thing he says all night. A beat too long before he speaks. Covering. Mild, a little puzzled. Not suspicious yet. | Level 0 |
+| [ ] | `l0_caller_3_block` | "Mercer? Huh. That line's been dead for years. Somebody's having fun with the phones. Anyway." "Grab the walkie-talkies from lost and found, back behind the desk." | A beat of real surprise, then he brushes it off and moves on. Back to friendly, changing the subject. | Level 0 |
+| [ ] | `l0_memo_3` | "Yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either." | Amused, he's said this to every visitor. A little eye-roll at corporate. | Level 0 |
+| [ ] | `l0_walkie` | "Channel one. Keep them on. This way." | Offhand. | Level 0 |
 | [ ] | `l0_mailroom_2` | "Don't touch the outgoing tray. Last guy who did got a memo about it." | Mock-serious. | Level 0 |
 | [ ] | `l0_coffee` | "Machine's been eating quarters since '94. Watch. ... There. Coffee's on me. Don't tell facilities." | Proud of the trick. | Level 0 |
 | [ ] | `l0_boost_1` | "Panel's stuck up top? Here, step on my hands. I've got you." | Easy, practised. | Level 0 |
@@ -42,32 +43,31 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l0_lift_button` | "Press fourteen for me, would you? Server floor." | Easy, polite. | Level 0 |
 | [ ] | `l0_tour_3_block` | "Fun fact, while we walk: the man who founded this place, Harold Mercer, hated computers running buildings." "Board fired him when they installed WARDEN. That's the AI that runs the campus now." "Old-timers say Mercer built himself a safe room somewhere in here. Off the grid. Unhackable." "Ghost stories. Anyway." | Tour-guide mode, enjoying himself. Still chatting to the crew, a little proud of the trivia. Spooky-campfire voice, playing it up. Dropping it fast. He doesn't want them thinking about it. | Level 0 |
 | [ ] | `l0_sra` | "Here we are. Server Room A." | Pleasant, like the end of a tour. | Level 0 |
-| [ ] | `l1_enter` | "In you come. Terminal's just over here." | Calling back over his shoulder, inside the room. | Level 1 |
 | [ ] | `l1_terminal` | "Here's our database problem. One of the door controllers on this floor keeps faulting, and half the doors up here won't open till it's reset. Hopefully it's a quick fix." | Mundane, a facilities guy with a real problem. Hopeful. | Level 1 |
 | [ ] | `l1_noc_1` | "That's the NOC. Network operations. Night shift logs everything in there. Every alarm, every coffee break." | Easy, tour-guide tone. | Level 1 |
 | [ ] | `l1_noc_2` | "Night shift's not in tonight. Their log's still on the desk, though. They write it all down, whether anyone reads it or not." | Only if a player goes into the NOC. Leaning in the doorway. | Level 1 |
 | [ ] | `l1_waiting` | "Take your time. I've been staring at that rack for a week." | Patient. | Level 1 |
 | [ ] | `l1_badge_help` | "Reset wants a badge? Here, use mine." | Helpful, no hesitation. | Level 1 |
 | [ ] | `l1_wrong_panel` | "Nope, panel's not having it. Try another?" | No blame. | Level 1 |
-| [ ] | `l1_fixed_1_block` | "Would you look at that. Green across the board. Six months I've been filing tickets on that thing." "You lot are good. Director's going to want to hear about this." | Genuinely impressed. Warm. On a replay, the director hearing about them is the problem. | Level 1 |
-| [ ] | `l1_pivot_1_block` | "Hang on. That fault log... every reset this week came from Vale's login." "Her lab's up on the security floor. Secure Lab B." "Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you." | Curious, a little too quickly. Thinking out loud. Friendly, steering. | Level 1 |
+| [ ] | `l1_fixed_1_block` | "Would you look at that. Green across the board." "You lot are good. Director's going to want to hear about this." | Genuinely impressed. Warm. On a replay, the director hearing about them is the problem. | Level 1 |
+| [ ] | `l1_pivot_1_block` | "Hang on. That fault log... every reset this week came from Vale's login." "Her lab's up on the security floor. Secure Lab B." "Come on. If anyone can tell us what she was up to, it's her own terminal." | Curious, a little too quickly. Thinking out loud. Friendly, steering. | Level 1 |
 | [ ] | `l1_lift_button` | "Twenty-two. Security floor. Go on." | A little clipped now, eager to get there. | Level 1 |
-| [ ] | `l2_lab_arrive_block` | "Secure Lab B. Vale practically lived in here." "Badge in for me, each of you. Visitor log. Security floor's fussy about it." | Fond, a little sad. Routine. The frame happens in plain sight. | Level 2, later |
-| [ ] | `l2_lab_badge_2` | "Thanks. Paperwork keeps everybody honest." | Once everyone has badged. | Level 2, later |
-| [ ] | `l2_lab_shock_1_block` | "Oh, no. No, no. Iris?" "That's her coat. She never leaves without her coat." "Her terminal's still logged in. Check it, see what she was working on. I'll call this in." | Fake shock. Good enough to fool them the first time, a beat too rehearsed on a replay. Quiet, staring at it. Backing toward the door, already reaching for his radio. | Level 2, later |
-| [ ] | `l2_frame_block` | "Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale." "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself." "You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language." "Then I saw the book in your van. Easy SQL. Still had the price sticker on it." "Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend." "I should've reported you. Then it hit me. No... this is perfect." "A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha!" "A garage with a van, calling itself a company. Your badges on her door. It writes itself." | To WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance. Tired, explaining a chore. Almost fond. The friendly tour voice, which is what makes it awful. Shaking his head, smiling. Enjoying himself. Slower. Savouring it. The only time he laughs in the game: real delight, loud and sudden, then it stops dead. Flat again, tired. Back to normal. | Level 2, later |
-| [ ] | `l2_trap_1` | "Sorry about this. Nothing personal." | Quiet. | Level 2, later |
-| [ ] | `l2_return` | "Should've checked the other door." | Calm. | Level 2, later |
-| [ ] | `l2_hit_prints` | "Go on, touch everything. Your prints are all over her desk now." | Taunting. Can repeat. | Level 2, later |
-| [ ] | `l2_hit_1` | "Stay down!" | Swinging. | Level 2, later |
-| [ ] | `l2_hit_2` | "Should've stayed in the van." | Breathing hard. | Level 2, later |
-| [ ] | `l2_hit_3` | "Nobody's coming for you." | Low. | Level 2, later |
-| [ ] | `l2_hit_4` | "Hold still!" | Frustrated. | Level 2, later |
-| [ ] | `l2_hurt_1` | "Agh!" | Just a grunt of pain. | Level 2, later |
-| [ ] | `l2_hurt_2` | "Okay. Okay, that one hurt." | Winded, almost laughing. | Level 2, later |
-| [ ] | `l2_hurt_3` | "Lucky." | Spat out. | Level 2, later |
-| [ ] | `l2_downed` | "Wait... wait. You don't know what you're doing." | Out of breath. Genuinely scared for the first time. | Level 2, later |
-| [ ] | `l2_tied_1_block` | "You think a bit of cable holds me?" "WARDEN will eat you alive in here." "Run if you like. Every camera on this floor already thinks you killed her." | Tied up on the floor, grinning through it. Quieter. He means it. Smiling. The frame, said out loud. | Level 2, later |
+| [ ] | `l2_lab_arrive_block` | "Secure Lab B. Vale practically lived in here." "Badge in for me, each of you. Visitor log. Security floor's fussy about it." | Fond, a little sad. Routine. The frame happens in plain sight. | Level 2 |
+| [ ] | `l2_lab_badge_2` | "Thanks. Paperwork keeps everybody honest." | Once everyone has badged. | Level 2 |
+| [ ] | `l2_lab_shock_1_block` | "Oh, no. No, no. Iris?" "That's her coat. She never leaves without her coat." "Her terminal's still logged in. Check it, see what she was working on. I'll call this in." | Fake shock. Good enough to fool them the first time, a beat too rehearsed on a replay. Quiet, staring at it. Backing toward the door, already reaching for his radio. | Level 2 |
+| [ ] | `l2_frame_block` | "Intruders in Secure Lab B. Contractors. They've hurt Dr. Vale." "Director needs someone to blame for Vale. Contractors break in, Vale goes missing... it writes itself." "You want to know when I knew? The front desk. You read that terminal like a menu in a foreign language." "Then I saw the book in your van. Easy SQL. Still had the price sticker on it." "Some outfit nobody's heard of underbids every firm in the city, and sends a crew who learned databases last weekend." "I should've reported you. Then it hit me. No... this is perfect." "A group of idiots posing as IT comes in and accidentally kills Vale! Hahaha!" "A garage with a van, calling itself a company. Your badges on her door. It writes itself." | To WARDEN, heard through the door and on the crew's walkies. Urgent and breathless: a perfect performance. Tired, explaining a chore. Almost fond. The friendly tour voice, which is what makes it awful. Shaking his head, smiling. Enjoying himself. Slower. Savouring it. The only time he laughs in the game: real delight, loud and sudden, then it stops dead. Flat again, tired. Back to normal. | Level 2 |
+| [ ] | `l2_trap_1` | "Sorry about this. Nothing personal." | Quiet. | Level 2 |
+| [ ] | `l2_return` | "Should've checked the other door." | Calm. | Level 2 |
+| [ ] | `l2_hit_prints` | "Go on, touch everything. Your prints are all over her desk now." | Taunting. Can repeat. | Level 2 |
+| [ ] | `l2_hit_1` | "Stay down!" | Swinging. | Level 2 |
+| [ ] | `l2_hit_2` | "Should've stayed in the van." | Breathing hard. | Level 2 |
+| [ ] | `l2_hit_3` | "Nobody's coming for you." | Low. | Level 2 |
+| [ ] | `l2_hit_4` | "Hold still!" | Frustrated. | Level 2 |
+| [ ] | `l2_hurt_1` | "Agh!" | Just a grunt of pain. | Level 2 |
+| [ ] | `l2_hurt_2` | "Okay. Okay, that one hurt." | Winded, almost laughing. | Level 2 |
+| [ ] | `l2_hurt_3` | "Lucky." | Spat out. | Level 2 |
+| [ ] | `l2_downed` | "Wait... wait. You don't know what you're doing." | Out of breath. Genuinely scared for the first time. | Level 2 |
+| [ ] | `l2_tied_1_block` | "You think a bit of cable holds me?" "WARDEN will eat you alive in here." "Run if you like. Every camera on this floor already thinks you killed her." | Tied up on the floor, grinning through it. Quieter. He means it. Smiling. The frame, said out loud. | Level 2 |
 | [ ] | `l2_rourke_1_block` | "Still on channel one? Good. Thought you'd want to know I'm out." "Security office is the only way down from here. Say hi to the night guard for me." "Oh, he won't say much. Nobody's seen him since Tuesday." | Relaxed, enjoying himself again. Casual, like giving directions. Let it hang. Then the radio clicks off. | Level 2 |
 | [ ] | `l7_rourke_arrive` | "Still breathing, the lot of you. I came down to finish what we started on twenty-two." | Out of breath from the stairs. Not in a hurry. | Level 7 |
 | [ ] | `l7_rourke_dark` | "Lights out suits me fine." | Low, right next to them. | Level 7 |
@@ -79,18 +79,18 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [x] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2, later |
-| [x] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2, later |
-| [x] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2, later |
-| [x] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2, later |
-| [x] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2, later |
-| [x] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2, later |
-| [x] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2, later |
-| [x] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2, later |
-| [x] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2, later |
-| [ ] | `l2_exit_open` | "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED." | Polite, and keeping score. | Level 2, later |
-| [ ] | `l2_lockdown_tied` | "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D." | Reading a log entry. | Level 2, later |
-| [ ] | `l2_sealed` | "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT." | The sign-off for the slice. Warm, like wishing them well. | Level 2, later |
+| [x] | `l2_killed` | "ESCORT R-0117: VITAL SIGNAL LOST. INITIATING FACILITY LOCKDOWN." | Unbothered, like reading a stock price. | Level 2 |
+| [x] | `l2_contain_1` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--" | Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off. | Level 2 |
+| [x] | `l2_contain_2` | "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW BEGIN. PLEASE REMAIN WHERE YOU ARE." | From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later. | Level 2 |
+| [x] | `l2_login` | "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE." | The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant. | Level 2 |
+| [x] | `l2_selftest` | "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM." | The one line with a hint of a smirk. | Level 2 |
+| [x] | `l2_found` | "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY." | Reading a rule it knows they're about to break. Cool. | Level 2 |
+| [x] | `l2_no_badge` | "RESET REFUSED. BADGE REQUIRED." | Flat, instant. | Level 2 |
+| [x] | `l2_panel_ok` | "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?" | Patient, then a small dig. | Level 2 |
+| [x] | `l2_panel_wrong` | "UNAUTHORIZED RESET ATTEMPT. PANELS LOCKED. PLEASE STOP TOUCHING THINGS." | The last sentence slightly slower. | Level 2 |
+| [ ] | `l2_exit_open` | "CONTROLLER RESET. EXIT UNLOCKED. THIS HAS BEEN NOTED." | Polite, and keeping score. | Level 2 |
+| [ ] | `l2_lockdown_tied` | "LOCKDOWN PROTOCOL ENGAGED. AUTHORIZED BY: ROURKE, D." | Reading a log entry. | Level 2 |
+| [ ] | `l2_sealed` | "ALL EXITS SEALED. HAVE A PRODUCTIVE NIGHT." | The sign-off for the slice. Warm, like wishing them well. | Level 2 |
 | [ ] | `l2_arrive_block` | "SECURITY OFFICE. CAMERA COVERAGE IN THIS AREA IS EXCELLENT. YOU ARE NEVER ALONE." "CAMERA FEEDS ARE RESTRICTED TO SECURITY STAFF. YOU ARE NOT SECURITY STAFF." | Reassuring tone. It is not reassuring. Small pause before the second sentence. | Level 2 |
 | [ ] | `l2_smudged` | "TONIGHT'S SIGN-IN SHEET IS ILLEGIBLE. HOW UNFORTUNATE FOR YOU." | Not unfortunate for WARDEN. | Level 2 |
 | [ ] | `l2_door_ok` | "DOOR COMMAND ACCEPTED. DOOR OPENED." | Confident. It is wrong. | Level 2 |
@@ -151,15 +151,15 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_vale_1_block` | "Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry." "If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it." "And please don't give your PIN to anyone. Not even Dale." | Beep before this. Hushed, fast. Urgent. A glance over her shoulder in the voice. Softer. | Level 2 |
 
-## Maddison Kowalski (32 recordings, 55 lines)
+## Maddison Kowalski (16 recordings, 23 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_brief_1_block` | "Okay! Everybody comfy? Look at you. My whole company, in one garage." "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change." "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off." "Forget all that. We got Halcyon. The overnight database contract. Ours." "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock." "I put a copy of the work order in each of your notebooks. Pull it out and take a look." | Big, warm, delighted to have an audience. Cheerful, as if it's good news. Every 'maybe' a little grander, then the sign brings it back down to earth. Building to it. She can't stand still for 'Ours.' Quickly, before anyone can ask. Pleased with herself for being organized. | Level 0 |
+| [ ] | `l0_brief_1_block` | "Okay! Everybody comfy? Look at you. My whole company, in one garage." "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change." "Forget all that. We got Halcyon. The overnight database contract. Ours." "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock." "Work order's in your notebooks. Take a look." | Big, warm, delighted to have an audience. Cheerful, as if it's good news. Building to it. She can't stand still for 'Ours.' Quickly, before anyone can ask. Pleased with herself for being organized. | Level 0 |
 | [ ] | `l0_brief_1_solo` | "Okay! Look at you. My whole company, in one seat." | The same joke, a little teasing. | Level 0 |
-| [ ] | `l0_workorder_solo` | "I put a copy of the work order in your notebook. Pull it out and take a look." | Pleased with herself for being organized. | Level 0 |
+| [ ] | `l0_workorder_solo` | "Work order's in your notebook. Take a look." | Pleased with herself for being organized. | Level 0 |
 | [ ] | `l0_workorder_walk_block` | "Sign in at reception, then wait for their facilities guy, Rourke. He walks us in." "Small problem. It says database. And unless one of you secretly knows SQL..." | Going down her copy line by line, easy and organized. The smile stays on. She leaves the sentence hanging and waits. Nobody does. | Level 0 |
 | [ ] | `l0_book_catch_solo` | "Small problem. It says database. And unless you secretly know SQL..." | The smile stays on. She leaves the sentence hanging and waits. | Level 0 |
 | [ ] | `l0_bookstore_block` | "...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven." "It's in the shop bag on the shelf by the side door. One of you go grab it." | Proud of this. Pointing at the side door to the house. | Level 0 |
@@ -169,23 +169,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l0_garage_5` | "Look at that. You're practically engineers. Take the book with you. Everybody in the van." | Genuinely thrilled. | Level 0 |
 | [ ] | `l0_garage_5_solo` | "Look at that. You're practically an engineer. Take the book with you. Into the van." | Genuinely thrilled. | Level 0 |
 | [ ] | `l0_garage_6` | "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio." | She stays behind. | Level 0 |
-| [ ] | `l0_huddle_select_1_block` | "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?" "Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon." | Disbelieving, delighted. Deadly serious about the one thing they're sure of. | Level 0 |
-| [ ] | `l0_huddle_order_1_block` | "Chapter two. 'Putting things in order.' Now that, I can get behind." "Smallest first. Always smallest first. Write that down. I'm writing it down." | Reading off the page. Scribbling. | Level 0 |
-| [ ] | `l0_huddle_columns_1_block` | "'Just the columns you need.' So no more star. The star was my favourite part." "Commas between the names, never after the last one. And dot schema when you can't remember what they're called. That one's for me." | Mock-wounded. Ticking them off. | Level 0 |
-| [ ] | `l0_huddle_desc_1_block` | "'Newest first.' DESC flips it. Biggest on top, latest on top. Like my inbox, if anyone ever emailed me." "And LIMIT at the very end, so you only get the top few. Newest three. Done." | Brightly, then a little sorry for herself. Snappy and pleased. | Level 0 |
-| [ ] | `l0_dispatch_1_block` | "Van three, you're on site at Halcyon Data Systems. After-hours callout." "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors." "Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out." | In the professional dispatcher voice. 'Van three' is a bluff: they own one van. Reading it off the ticket. Bored, reading the form. Signing off, already onto the next call. | Level 0 |
-| [ ] | `l1_huddle_where_1` | "WHERE. For finding one thing in a big pile. Like my car keys." | Patting pockets. | Level 1 |
-| [ ] | `l1_huddle_where_2` | "Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears." | Rueful. | Level 1 |
-| [ ] | `l1_huddle_compare_1_block` | "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number." "Okay. That's maths I actually remember from school." | Drawing one on the whiteboard, with teeth. Relieved. | Level 1 |
-| [ ] | `l1_huddle_or_1_block` | "'Either one will do.' OR. Finally, a word with no pressure on it." "AND needs both to be true. OR takes either one. I'm an OR person." | Relaxed. Decided. | Level 1 |
-| [ ] | `l1_huddle_count_1_block` | "'How many?' COUNT, star, in brackets. It doesn't show you the rows. It just counts them." "One number back. Like counting heads before the van leaves." | Reading slowly, getting the brackets right. Fond. | Level 1 |
-| [ ] | `l2_huddle_pressure_1_block` | "This page just says, 'Breathe.' So if it ever gets hairy in there, this is the one to read." "AND, ORDER BY, quotes round the words. You'll know all of it by then. Deep breath, then type." | Light. She thinks it's a joke. Warm and steady, a coach before a big game. | Level 2 |
-| [ ] | `l2_huddle_like_1_block` | "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'" "So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere." | Squinting at the page. Pleased to have found themself. | Level 2 |
-| [ ] | `l2_huddle_get_1_block` | "This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'" "So it's a SELECT for robots. Got it. Probably." | Flipping the book over to check the cover. Not convinced. | Level 2 |
-| [ ] | `l2_huddle_feeds_1_block` | "'One answer feeds the next.' So the answer isn't the answer. Most honest thing in this book." "Get the number, then put it in your next WHERE. A treasure hunt, with semicolons." | Dry. Liking it. | Level 2 |
-| [ ] | `l2_huddle_door_1_block` | "'One door's record.' Don't ask for the whole list. Put the one you want on the end of the path." "GET slash jobs slash fourteen. Job fourteen, nothing else. Robots are very literal." | Reading along, nodding. The book's own example, amused. | Level 2 |
-| [ ] | `l4_huddle_update_1_block` | "UPDATE. Changing things. The book's put this one in a red box, which I don't love." "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row." | Holding the page at arm's length. Suddenly serious, for once. | Level 4 |
-| [ ] | `l4_huddle_insert_1_block` | "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist." "Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford." | Reading the title, wistful, then perky again. Laughing at her own picture of it. | Level 4 |
+| [ ] | `l0_dispatch_1_block` | "Van three, you're on site at Halcyon Data Systems. After-hours callout." "Work order's in your notebook, the usual. Hop out when you're ready. Dispatch out." | In the professional dispatcher voice. 'Van three' is a bluff: they own one van. Bored, reading the form. Signing off, already onto the next call. | Level 0 |
 | [ ] | `l5_mimic_maddison_lure` | "Maddison here. I came in behind you, they gave me the next badge in the book. I'm at the loading door on nine. Open it from the desk, would you?" | Solo runs only: the voice is Maddison's, who is in the garage. Her dispatcher voice, nearly right. A beat too smooth. | Level 5 |
 | [ ] | `l5_mimic_maddison_again` | "Crew, it's Maddison. Still at the loading door. It's freezing down here." | Second time. Patient. She is never patient. | Level 5 |
 | [ ] | `l5_mimic_maddison_last` | "You're leaving? I'm right here." | As the player leaves the floor. Quiet, flat, no breath. | Level 5 |
@@ -196,17 +180,14 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l2_news_1_block` | "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems." "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered." "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'" "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside." "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'" "Halcyon declined to comment. The crew has not been seen since." "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather." | Steady, mid-bulletin. No change in tone. A slight shift for the quote: reading it, not acting it. Even, a touch of interest. Reading the quote flat, not acting it. Then a beat. Neutral. A small pause after. Brightening for the weather. The game cuts the audio on 'weather'. | Level 2, later |
+| [ ] | `l2_news_1_block` | "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems." "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered." "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'" "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside." "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'" "Halcyon declined to comment. The crew has not been seen since." "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather." | Steady, mid-bulletin. No change in tone. A slight shift for the quote: reading it, not acting it. Even, a touch of interest. Reading the quote flat, not acting it. Then a beat. Neutral. A small pause after. Brightening for the weather. The game cuts the audio on 'weather'. | Level 2 |
 
-## The crew (player characters) (82 recordings, 102 lines, recorded by each of the 12 crew members)
+## The crew (player characters) (68 recordings, 77 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_recall_1` | "I think Maddison said..." | Half to yourself, trying to remember. Trail off: her line follows. | Level 0 |
-| [ ] | `l0_recall_2` | "Didn't Maddison say..." | To the others, as it comes back to you. Trail off: her line follows. | Level 0 |
-| [ ] | `l0_recall_3` | "Maddison mentioned..." | Remembering, a little fond. Trail off: her line follows. | Level 0 |
 | [ ] | `cc_nudge2_first` | "That SYSOP on the screen seems to know this building. Maybe ask." | Stuck, before SYSOP has helped. Half a joke, half serious. | Level 0, later |
 | [ ] | `cc_nudge2` | "Whoever SYSOP is, they've been right so far. Maybe ask." | Stuck again. A little uneasy about trusting a stranger on a screen. | Level 0, later |
 | [ ] | `l0_cc_peek_card` | "Quick-start card for the scanner. Somebody's filled in the blanks." | Picked up a scanner's instruction card. Noticing handwriting on it. | Level 0, later |
@@ -221,7 +202,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l0_cc_memo_pay` | "...Don't look at him. Just don't look at him." | Whispered. The memo warns about the man standing right next to you. | Level 0, later |
 | [ ] | `l0_cc_caller_order` | "Work order's got a callback extension on it." | Reading the work order. Noticing a detail. | Level 0, later |
 | [ ] | `l0_cc_caller_list` | "A phone list. With extensions." | Finding a staff phone list. | Level 0, later |
-| [ ] | `l0_cc_caller_n1a` | "Rourke said the mailroom has the only phone list that's right." | Stuck. Remembering what the escort said. | Level 0, later |
+| [ ] | `l0_cc_caller_n1a` | "Mailrooms always have a phone list pinned up somewhere." | Stuck. Remembering what the escort said. | Level 0, later |
 | [ ] | `l0_cc_caller_n1b` | "That phone list in the mailroom had everybody's extension." | Stuck. Remembering the list. | Level 0, later |
 | [ ] | `l0_cc_caller_err` | "Is that what the column's actually called?" | The same column name wrong twice. Gentle doubt. | Level 0, later |
 | [ ] | `l0_cc_caller_pay` | "So that's who called us. Weird." | Uneasy. That isn't who you expected. | Level 0, later |
@@ -264,21 +245,10 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l2_cc_pin_err` | "Wrong code. Is that the night lead, or just any guard?" | A second wrong PIN. Thinking. | Level 2, later |
 | [ ] | `l2_cc_pin_pay` | "That's the code. Let's not hang around." | Keypad accepted it. Nervous, wants to move. | Level 2, later |
 | [ ] | `l5_book_find_block` | "No way. It's the same series. Somebody here bought the sequel." "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly." | Delighted, a little thrown. Reading the back cover, hopeful. | Level 5 |
-| [ ] | `l5_huddle_post_1_block` | "Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers." "So GET looks, POST makes. Got it." | Starting a chapter, reading it out. Wrapping up, pleased it's simple. | Level 5 |
-| [ ] | `l5_huddle_patch_1_block` | "PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice." "PATCH is UPDATE wearing a tie." | Starting a chapter. Noticing how hard the book insists. Wrapping up. Proud of the joke. | Level 5 |
-| [ ] | `l5_huddle_codes_1_block` | "Every answer comes with a number. Book says read the number before you celebrate." "Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs." | Starting a chapter. A little told off. Wrapping up, counting it off. | Level 5 |
-| [ ] | `l5_huddle_keys_1_block` | "Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed." "So if it says 401, we forgot the badge." | Starting a chapter, working it out as you read. Wrapping up. Got it. | Level 5 |
-| [ ] | `l5_huddle_check_1_block` | "Short chapter. After you change something, ask again. Book says never trust the first answer." "Change it, then look again. The front doors taught us that one." | Starting a short chapter. Knowing nod. Wrapping up. Wry; you've been burned before. | Level 5 |
 | [ ] | `l5_mimic_lure` | "Hey, it's me. I'm down at the loading door, the dock side. It's shut behind me. Can you open it from the desk? Quick." | On the walkie, a little breathless. Your own voice, asking for something you never asked for. Record it straight: the horror is that it sounds like you. | Level 5 |
 | [ ] | `l5_mimic_again` | "Guys? Still here. Loading door. It's cold. Just open it, please." | Second time. Closer to the mic. Patient, which is the wrong note for you. | Level 5 |
 | [ ] | `l5_mimic_last` | "Where are you going? I'm still at the door." | As the crew leaves the floor. Quiet. No breath in it at all. | Level 5 |
-| [ ] | `l6_book_find_block` | "Journey through JavaScript. Somebody's read this one to death." "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat." | Sliding it out from under a mug. The cover's stained and the pages are soft. Tired of typing. This sounds like rescue. | Level 6, later |
-| [ ] | `l6_huddle_if_1_block` | "A variable's a labelled box. If is a fork in the road. That's... honestly fine." "Box, fork. I can do box and fork." | Starting a chapter. Braced for hard; it isn't. Wrapping up, to yourself. | Level 6, later |
-| [ ] | `l6_huddle_loops_1_block` | "Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see." "Always put the wait in. Always log it. Writing that one down." | Starting a chapter. The 'million times a second' bit alarms you. Wrapping up, making a note. | Level 6, later |
-| [ ] | `l6_huddle_each_1_block` | "For each. Give it a list and it goes down the list for you, once each, then stops. No counting." "One loop, every row. Give it the names and it says them. All of them." | Starting a chapter. Relieved there's no counting this time. Wrapping up. Quieter: the floor's getting to you. | Level 6, later |
-| [ ] | `l6_huddle_functions_1_block` | "Functions. Write it once, give it a name, use it anywhere." "So a function's a recipe we can shout." | Starting a chapter, reading it out. Wrapping up. Pleased with that. | Level 6, later |
-| [ ] | `l6_huddle_lists_1_block` | "Lists. A whole line of things in one box. Loop over it and you've done them all." "One loop, every door. That's either brilliant or terrifying." | Starting a chapter. The penny drops halfway. Wrapping up. Genuinely unsure which. | Level 6, later |
-| [ ] | `l6_huddle_test_1_block` | "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't." "Test first. We've all learned that one the hard way tonight." | Starting the last chapter. Taking it seriously. Wrapping up. Rueful. | Level 6, later |
+| [ ] | `l6_book_find_block` | "Journey through JavaScript. Somebody's read this one to death." "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat." | Sliding it out from under a mug. The cover's stained and the pages are soft. Tired of typing. This sounds like rescue. | Level 6 |
 | [ ] | `l8_book_find_block` | "Hello HTML! Same series again. Who keeps leaving these?" "Book says everything on a screen is built from tags. And the building's been drawing things that aren't there. So... we fix the drawing." | Uneasy, half joking. Working it out as you go. The pause is the idea landing. | Level 8, later |
 | [ ] | `l8_huddle_elements_1_block` | "Tags. Angle brackets. You open one, you close one. Like a sandwich. The inspector shows you every one on the screen." "Everything's a sandwich. Okay." | Starting a chapter, reading it out. Wrapping up. Accepting it. | Level 8, later |
 | [ ] | `l8_huddle_hidden_1_block` | "Attributes. Little settings on a tag. Including one called hidden." "Hidden doesn't mean gone. Hidden means somebody hid it." | Starting a chapter. 'Hidden' catches your eye. Wrapping up. Quieter; that thought sticks. | Level 8, later |
@@ -302,10 +272,10 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
 | [ ] | `l5_ines_passed` | "That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face." | Whispered. Relief and warning in the same breath. | Level 5 |
-| [ ] | `l6_ines_arrive` | "It's so cold down here. Colder than it should be. We'll wait by the stairs. Please don't be long." | Arms wrapped round yourself. Not going a step further. | Level 6 |
+| [ ] | `l6_ines_arrive` | "It's so cold down here. We'll wait by the stairs. Please don't be long." | Arms wrapped round yourself. Not going a step further. | Level 6 |
 | [ ] | `l6_ines_whitlow` | "Whitlow. A.W. Her initials are on half the old boxes in our records cage. I always wondered who she was." | Quiet. A name you've seen written a thousand times, and never on a person. | Level 6 |
 | [ ] | `l6_ines_after` | "Was she there? Whitlow. Was she still there?" | Quiet. You already know the answer from their faces. | Level 6 |
-| [ ] | `l7_ines_lobby` | "This way. The IT admin office is just off the lobby. Gil ran the whole basement from in there." | Brisk. Glad to know something useful. | Level 7 |
+| [ ] | `l7_ines_lobby` | "This way. Gil ran the whole basement from the admin office." | Brisk. Glad to know something useful. | Level 7 |
 | [ ] | `l7_ines_plan` | "So you test it on the bench, then you run it on the floor. And he fights you for every light." | Getting it, and not liking it. | Level 7 |
 | [ ] | `l7_ines_gas` | "That's the suppression alarm! The sign by the door says how to abort it. Please, hurry!" | Through a locked door. Panic, held together. | Level 7 |
 | [ ] | `l7_ines_saved` | "It stopped. It stopped. Thank you." | Breathless, then crying a little. | Level 7 |

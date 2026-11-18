@@ -26,6 +26,8 @@ const LEVELS := {
 	"menu": "res://scenes/main_menu.tscn",
 	"lobby": "res://scenes/lobby.tscn",
 }
+## The building's floors in play order: World.ROUTE's keys.
+const WINGS := ["level_0", "level_1", "level_2", "level_3", "level_4", "level_5", "level_6", "level_7"]
 
 ## How the escort's story went: "unknown", "killed", "tied".
 var rourke_fate := "unknown"
@@ -61,6 +63,9 @@ var run_seed := 0
 var van_seating: Array[int] = []
 ## A new game opens in the crew's garage before the van (the World reads this).
 var open_at_home := false
+## Otherwise the World opens at this floor of its route (World.ROUTE): a floor picked
+## from Levels is played inside the building, so its stairs lead on to the next one.
+var open_at_wing := 0
 ## Words the crew has learned from its books, in order (see Huddle).
 var book_words: Array[String] = []
 ## The crew hasn't got the book yet this run (the garage, before the shop bag):
@@ -124,6 +129,12 @@ var notebook_jotted: Array[String] = []
 var job_over := false
 ## What a missing piece shows on its case page and in the query so far.
 const PIECE_MISSING := "????"
+## Where the crew last walked onto a floor (a LEVELS key; "world" is the garage),
+## and the run as it stood then: {"key", "state"}. Restarting the floor puts it
+## back (restore_floor_start, Net.restart_floor).
+var floor_start := {}
+## Not part of a run's progress, so a floor restart leaves them alone.
+const _KEPT_ON_RESTART := ["run_seed", "open_at_home", "open_at_wing", "diegetic_ui", "floor_start"]
 
 
 func _ready() -> void:
@@ -134,6 +145,8 @@ func _ready() -> void:
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	open_at_home = false
+	open_at_wing = 0
+	floor_start = {}
 	book_words.clear()
 	book_chapters.clear()
 	learned_words.clear()
@@ -165,9 +178,45 @@ func new_run(seed_value: int = -1) -> void:
 	van_seating.clear()
 
 
+## The crew has just walked onto floor `key` (World.enter_wing, or the garage):
+## remember the run as it stands, for a restart of this floor.
+func mark_floor_start(key: String) -> void:
+	var state := {}
+	for p in get_script().get_script_property_list():
+		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and not _KEPT_ON_RESTART.has(p.name):
+			var v = get(p.name)
+			state[p.name] = v.to_dict() if v is Inventory else (v.duplicate(true) if v is Array or v is Dictionary else v)
+	floor_start = {"key": key, "state": state}
+
+
+## The run back to how it was when the crew walked onto the floor they're on
+## (mark_floor_start). Returns that floor's key ("" if none was marked).
+func restore_floor_start() -> String:
+	var state: Dictionary = floor_start.get("state", {})
+	for name in state:
+		if name == "inventory":
+			inventory.load_dict(state[name])
+		elif state[name] is Array or state[name] is Dictionary:
+			set(name, state[name].duplicate(true))
+		else:
+			set(name, state[name])
+	return floor_start.get("key", "")
+
+
 func goto(level_key: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	get_tree().change_scene_to_file(LEVELS[level_key])
+	get_tree().change_scene_to_file(LEVELS[open_for(level_key)])
+
+
+## The scene `level_key` opens in. A floor of the building opens the World at that
+## floor (open_at_wing), so it carries on into the next one like a full run does.
+func open_for(level_key: String) -> String:
+	var wing := WINGS.find(level_key)
+	if wing < 0:
+		return level_key
+	open_at_home = false
+	open_at_wing = wing
+	return "world"
 
 
 func log_query(sql: String) -> void:

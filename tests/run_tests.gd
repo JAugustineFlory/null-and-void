@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data"]
 
 
 func _run() -> void:
@@ -95,6 +95,8 @@ func _run_group(g: String) -> void:
 		"papers": await _group_papers()
 		"garage": await _group_garage()
 		"keywords": await _group_keywords()
+		"levels": await _group_levels()
+		"route_data": await _run_file("res://tests/route_data_tests.gd")
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -114,12 +116,15 @@ func _group_core() -> void:
 	test_facility_db_read_only()
 	test_facility_api()
 	test_voice_codec()
+	await test_voice_mic_bus()
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
 	test_voice_split()
 	await test_commentary()
 	await test_pause_holds_subtitles()
+	await test_lines_take_turns()
+	await test_notices_take_turns()
 	await test_screens_fill_window()
 	await test_pause_menu()
 	await test_level_select()
@@ -150,6 +155,7 @@ func _group_floor_g() -> void:
 	await test_level_0_scene()
 	await test_ground_floor()
 	await test_rourke_leads_in()
+	await test_rourke_never_stuck()
 	await test_caller_answer()
 	await test_clue_papers_shine()
 
@@ -193,6 +199,7 @@ func _group_floor_22_lab() -> void:
 	test_level_2_lab_data_every_seed()
 	for outcome in ["killed", "tied", "untied"]:
 		await test_level_2_lab(outcome)
+	await test_news_ending_lines()
 
 
 ## Floor 18, the Records Archive (Level 3): its data, the floor, Mercer's room, the
@@ -251,6 +258,7 @@ func _group_coop() -> void:
 	await test_coop_achievements()
 	await test_coop_scripts()
 	await test_coop_pregame_lobby()
+	await test_coop_back_to_lobby()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -267,6 +275,7 @@ func _group_combat() -> void:
 	await _run_file("res://tests/custodian_tests.gd")
 	await test_coop_combat()
 	await test_coop_custodian()
+	await test_coop_npcs_unshoved()
 
 
 ## Parkour: walking, sliding, mantling, vaulting, hanging, climbing, vents, ledges, shoulders.
@@ -288,6 +297,12 @@ func _group_movement_hands() -> void:
 
 
 ## Walking the stairs from floor to floor, solo and co-op (StairLinks).
+## Floors picked from Levels play inside the building and carry on to the next.
+func _group_levels() -> void:
+	await _run_file("res://tests/levels_route_tests.gd")
+	await test_restart_floor()
+
+
 func _group_stairs() -> void:
 	await _run_file("res://tests/stair_walk_tests.gd")
 
@@ -585,11 +600,11 @@ func test_voice_codec() -> void:
 	print("Voice codec")
 	var tone := _tone(4800, 48000.0, 0.5)
 	var packet := VoiceCodec.encode(tone, 48000.0)
-	check(packet.size() == 1200, "48 kHz audio is cut to 12 kHz, one byte a sample (%d bytes)" % packet.size())
+	check(packet.size() == 1600, "48 kHz audio is cut to 16 kHz, one byte a sample (%d bytes)" % packet.size())
 	var back := VoiceCodec.decode(packet)
 	var worst := 0.0
 	for i in back.size():
-		worst = maxf(worst, absf(back[i].x - tone[i * 4].x))
+		worst = maxf(worst, absf(back[i].x - tone[i * 3].x))
 	check(worst < 0.03, "mu-law keeps the voice close to the original (worst error %.3f)" % worst)
 	check(VoiceCodec.rms(back) > 0.3 and VoiceCodec.rms(_tone(100, 48000.0, 0.0)) == 0.0, "loudness tells talking from silence")
 	check(VoiceCodec.mulaw_decode(VoiceCodec.mulaw_encode(-0.25)) < 0.0, "negative samples stay negative")
@@ -604,21 +619,117 @@ func test_voice_codec() -> void:
 		stream.append_array(VoiceCodec.decode(enc.encode(chunk, 44100.0)))
 		at += 735
 	var jump := 0.0
+	var off := 0.0
 	for i in range(1, stream.size()):
 		jump = maxf(jump, absf(stream[i].x - stream[i - 1].x))
-	check(absi(stream.size() - 12000) <= 2 and jump < 0.15, "a 44.1 kHz mic sent in chunks stays one smooth 12 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
-	var quiet := _tone(4800, 48000.0, 0.02)
-	var louder := VoiceCodec.amplify(quiet, 8.0)
+		off = maxf(off, absf(stream[i].x - sin(TAU * 440.0 * i / 16000.0) * 0.5))
+	check(absi(stream.size() - 16000) <= 2 and jump < 0.1, "a 44.1 kHz mic sent in chunks stays one smooth 16 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
+	check(off < 0.03, "and each sample lands at its exact time, so it doesn't wobble (worst error %.3f)" % off)
+
+	var lev := VoiceCodec.Leveler.new()
+	var quiet := PackedVector2Array()
+	for i in 20:
+		quiet = lev.process(_tone(800, 48000.0, 0.02), 48000.0, true)
+	check(VoiceCodec.rms(quiet) > 0.1, "a quiet mic is brought up to speaking level (%.3f)" % VoiceCodec.rms(quiet))
 	var peak := 0.0
-	for f in VoiceCodec.amplify(_tone(4800, 48000.0, 0.9), 8.0):
+	for f in lev.process(_tone(4800, 48000.0, 0.95), 48000.0, true):
 		peak = maxf(peak, absf(f.x))
-	check(VoiceCodec.rms(louder) > 0.1 and peak <= 1.0, "a quiet mic is brought up to speaking level, a loud one never clips (peak %.2f)" % peak)
+	check(peak <= VoiceCodec.Leveler.CEILING + 0.001, "a shout right after it never clips (peak %.2f)" % peak)
+	var plain := VoiceCodec.Leveler.new()
+	var level_out := VoiceCodec.rms(plain.process(_tone(4800, 48000.0, 0.3), 48000.0, true))
+	check(is_equal_approx(plain.gain, 1.0) and absf(level_out - 0.3 / sqrt(2.0)) < 0.01, "a voice already loud enough is left as it is")
+	var glide := VoiceCodec.Leveler.new()
+	var hum := func(v: float) -> PackedVector2Array:
+		var f := PackedVector2Array()
+		f.resize(800)
+		f.fill(Vector2(v, v))
+		return f
+	for i in 20:
+		glide.process(hum.call(0.02), 48000.0, true)
+	var before_gain := glide.gain
+	var ramp := glide.process(hum.call(0.04), 48000.0, true)
+	var biggest := 0.0
+	for i in range(1, ramp.size()):
+		biggest = maxf(biggest, absf(ramp[i].x - ramp[i - 1].x))
+	check(glide.gain < before_gain - 0.5 and absf(ramp[0].x - ramp[-1].x) > 0.02 and biggest < 0.001,
+		"when the gain changes it glides across the block, no click (gain %.1f to %.1f, biggest step %.4f)" % [before_gain, glide.gain, biggest])
+
+	var gate := VoiceCodec.Gate.new()
+	for i in 60:
+		gate.update(0.001, 1.0 / 60.0)  # a quiet room
+	check(gate.update(0.01, 1.0 / 60.0), "in a quiet room, soft speech opens the mic")
+	for i in 20:
+		gate.update(0.001, 1.0 / 60.0)
+	check(gate.open, "and it stays open through the gap between words")
+	for i in 20:
+		gate.update(0.001, 1.0 / 60.0)
+	check(not gate.open, "then closes")
+	var fan := VoiceCodec.Gate.new()
+	for i in 60 * 30:
+		fan.update(0.03, 1.0 / 60.0)  # a loud fan, all the time
+	check(not fan.open, "a noisy room alone doesn't hold the mic open (threshold %.3f)" % fan.threshold())
+	check(fan.update(0.12, 1.0 / 60.0), "but talking over it does")
+	var talker := VoiceCodec.Gate.new()
+	for i in 60 * 10:
+		talker.update(0.1 if i % 30 < 20 else 0.002, 1.0 / 60.0)  # ten seconds of talking, with pauses
+	check(talker.threshold() < 0.02, "talking for a while doesn't teach it that speech is noise (threshold %.3f)" % talker.threshold())
+	var vc := VoiceChat.new()
+	var sent := 0
+	for i in 30:
+		sent += vc.mic_block(_tone(735, 44100.0, 0.0005), 44100.0).size()
+	var first := vc.mic_block(_tone(735, 44100.0, 0.1), 44100.0)
+	check(sent == 0 and first.size() == 735 + int(44100 * VoiceCodec.Gate.PREROLL), "silence isn't sent, and when you start talking the moment before comes too, so the first sound isn't cut (%d frames)" % first.size())
+	check(vc.mic_block(_tone(735, 44100.0, 0.1), 44100.0).size() == 735, "then it's just what you say")
+	vc.free()
+
+
+## The microphone's bus cleans the voice before it's encoded: hiss the codec
+## can't carry is taken out instead of folding back down as noise.
+func test_voice_mic_bus() -> void:
+	print("Voice mic bus")
+	var fx := VoiceChat.mic_effects()
+	check(fx.back() is AudioEffectCapture, "the capture comes last, after the filters")
+	var loss := {}
+	for hz in [3000.0, 6000.0, 10000.0]:
+		var effects := VoiceChat.mic_effects()
+		AudioServer.add_bus()
+		var idx := AudioServer.bus_count - 1
+		AudioServer.set_bus_mute(idx, true)
+		for e in effects:
+			AudioServer.add_bus_effect(idx, e)
+		var cap: AudioEffectCapture = effects.back()
+		var p := AudioStreamPlayer.new()
+		var g := AudioStreamGenerator.new()
+		g.mix_rate = AudioServer.get_mix_rate()
+		g.buffer_length = 0.5
+		p.stream = g
+		p.bus = AudioServer.get_bus_name(idx)
+		get_root().add_child(p)
+		p.play()
+		await process_frame
+		var tone := PackedVector2Array()
+		for i in int(g.mix_rate * 0.3):
+			var v := sin(TAU * hz * i / g.mix_rate) * 0.2
+			tone.append(Vector2(v, v))
+		cap.clear_buffer()
+		p.get_stream_playback().push_buffer(tone)
+		var got := PackedVector2Array()
+		for i in 60:
+			await process_frame
+			got.append_array(cap.get_buffer(cap.get_frames_available()))
+			if got.size() > tone.size():
+				break
+		loss[hz] = 20.0 * log(maxf(VoiceCodec.rms(got.slice(2000)), 1e-6) / VoiceCodec.rms(tone)) / log(10.0)
+		p.queue_free()
+		AudioServer.remove_bus(idx)
+	check(absf(loss[3000.0]) < 2.0 and loss[6000.0] > -3.0, "speech up to 6 kHz goes through (3 kHz %.1f dB, 6 kHz %.1f dB)" % [loss[3000.0], loss[6000.0]])
+	check(loss[10000.0] < -25.0, "hiss at 10 kHz is taken out (%.1f dB)" % loss[10000.0])
 
 
 func test_radio_rules() -> void:
 	print("Radio rules")
-	check(Radio.signal_quality(10.0, 0.0) == 1.0, "clear at close range")
-	check(Radio.signal_quality(50.0, 0.0) < 1.0 and Radio.signal_quality(50.0, 0.0) > 0.0, "fades with distance")
+	check(Radio.signal_quality(10.0, 0.0) == 1.0 and Radio.signal_quality(55.0, 0.0) == 1.0, "clear at close range, and across a whole floor")
+	check(Radio.signal_quality(90.0, 0.0) < 1.0 and Radio.signal_quality(90.0, 0.0) > 0.0, "fades with distance")
 	check(Radio.signal_quality(Radio.MAX_RANGE + 1.0, 0.0) == 0.0, "nothing but static out of range")
 	var near_entity := Radio.interference_at(Vector3.ZERO, [Vector3(2, 0, 0)])
 	check(near_entity > 0.5 and Radio.interference_at(Vector3.ZERO, [Vector3(30, 0, 0)]) == 0.0, "entities nearby cause static, far ones don't")
@@ -686,7 +797,7 @@ func test_voice_script() -> void:
 	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
 	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
 	var sources := []
-	for dir in ["res://scripts/levels/", "res://scripts/huddle/"]:  # huddle: the book's chapter lines
+	for dir in ["res://scripts/levels/", "res://scripts/huddle/", "res://scripts/combat/"]:  # huddle: the book's chapter lines; combat: the news ending
 		for f in DirAccess.get_files_at(dir):
 			if f.ends_with(".gd"):
 				sources.append(dir + f)
@@ -712,6 +823,15 @@ func test_voice_script() -> void:
 		if VoiceLines.scene(VoiceLines.LINES[id]["scene"]).get("wired", false) and not used.has(id):
 			unused.append(id)
 	check(unused.is_empty(), "every line marked as in the game is played by a level %s" % [unused])
+	# Every recording Augustine made has somewhere in the game that plays it.
+	var unplayed := []
+	for dir in DirAccess.get_directories_at(Voice.folder):
+		for f in DirAccess.get_files_at(Voice.folder.path_join(dir)):
+			if f.ends_with(".wav"):
+				var id := f.get_basename()
+				if VoiceLines.has_line(id) and not used.has(VoiceLines.resolve(id)):
+					unplayed.append(id)
+	check(unplayed.is_empty(), "every recorded line has a play site %s" % [unplayed])
 
 	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
 		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
@@ -799,7 +919,9 @@ func test_voice_script() -> void:
 class FakeHud extends Node:
 	var said: Array = []
 
-	func say(speaker: String, text: String, _seconds: float = -1.0) -> void:
+	func say(speaker: String, text: String, _seconds: float = -1.0, _turn: int = 0, start: Callable = Callable()) -> void:
+		if start.is_valid():
+			start.call()
 		said.append([speaker, text])
 
 
@@ -1035,6 +1157,94 @@ func test_pause_holds_subtitles() -> void:
 	paused = false
 	await create_timer(0.6).timeout
 	check(hud._subtitle.text == "", "and clears once its time has run after unpausing")
+	hud.queue_free()
+
+
+## Augustine's v0.9-beta2 note: lines must not pile on top of each other
+## (plan/text-spacing-proposal.md).
+func test_lines_take_turns() -> void:
+	print("Lines take turns")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.say("ROURKE", "First.", 0.4)
+	hud.say("INES", "Second.", 0.4)
+	await create_timer(0.1).timeout
+	check(hud._subtitle.text == "ROURKE: First.", "the first line plays")
+	await create_timer(0.6).timeout  # 0.7 s: the first ended at 0.4, and the next speaker waits 1.2 s
+	check(hud._subtitle.text == "", "a breath between two speakers, nothing on top")
+	await create_timer(1.1).timeout  # 1.8 s
+	check(hud._subtitle.text == "INES: Second.", "then the second line, in order")
+	await create_timer(0.5).timeout
+	check(hud.quiet(), "and the queue is empty after")
+
+	await create_timer(1.3).timeout
+	hud.say("ROURKE", "A long speech about the front desk.", 1.0)
+	await create_timer(0.2).timeout
+	hud.say("WARDEN", "LOCKDOWN.", 0.4, HUD.Turn.URGENT)
+	await process_frame
+	check(hud._subtitle.text == "WARDEN: LOCKDOWN.", "a threat starting cuts across")
+	await create_timer(1.6).timeout
+
+	hud.stale_after = 0.3
+	hud.say("ROURKE", "Still talking.", 1.0)
+	var said := [false]
+	var bark := func():
+		await hud.say("CREW", "Nice.", 0.3, HUD.Turn.CAN_WAIT, func() -> float:
+			said[0] = true
+			return 0.0)
+	bark.call()
+	await create_timer(1.5).timeout
+	check(not said[0] and hud._subtitle.text != "CREW: Nice.", "a line that can wait is dropped rather than played late")
+	await create_timer(1.3).timeout
+	hud.say("CREW", "Quiet now.", 0.3, HUD.Turn.CAN_WAIT)
+	await create_timer(0.1).timeout
+	check(hud._subtitle.text == "CREW: Quiet now.", "and plays at once when it's quiet")
+	check(Voice.read_time("x".repeat(150)) == 11.0 and Voice.read_time("Hi.") == 2.0,
+		"unvoiced lines stay up at 15 characters a second")
+	hud.queue_free()
+
+
+## Notices take turns too: one at a time, no repeats, "Notebook updated" last and
+## folded in (plan/text-spacing-proposal.md).
+func test_notices_take_turns() -> void:
+	print("Notices take turns")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice("Down the hall, a lock drops.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await process_frame
+	check(hud._notice.text == "CS-41 locks.", "the first notice goes up")
+	await create_timer(0.8).timeout
+	check(hud._notice.text == "CS-41 locks.", "the level's next news doesn't wipe it straight away")
+	await create_timer(1.0).timeout  # 1.8 s
+	check(hud._notice.text == "Down the hall, a lock drops.", "it gets its turn after")
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Down the hall, a lock drops.", "the same news again within 20 seconds is dropped")
+	hud.notice("Locked.", 2.0)
+	await process_frame
+	check(hud._notice.text == "Locked.", "the answer to something the player just did goes up at once")
+	hud.notice("A lock drops.", 2.0, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == "Locked." and not hud._notebook_tag.visible, "\"Notebook updated\" waits behind the other notices")
+	await create_timer(1.7).timeout
+	check(hud._notice.text == "A lock drops." and hud._notebook_tag.visible, "then folds in under the last one instead of wiping it")
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await create_timer(0.1).timeout
+	check(hud._notice.text == "A lock drops.", "and says it at most once every 10 seconds")
+	hud._notice.modulate.a = 0.0
+	hud._notebook_last = -1000.0
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == InputGlyphs.text(HUD.NOTEBOOK_NOTICE), "with nothing else up, it goes up on its own")
+	hud.stale_after = 0.5
+	hud.notice("Someone's at the door.", 3.0)
+	hud.notice("The lights hum.", 2.0, ThemeUtil.AMBER, HUD.Turn.CAN_WAIT)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Someone's at the door.", "news that can wait is dropped once it's stale")
 	hud.queue_free()
 
 
@@ -1306,7 +1516,7 @@ func test_level_0_scene() -> void:
 	check(level.walkies.get_prompt(level.player) == "You already have a walkie-talkie.", "and you can't take a second")
 	var panel: Node3D = level.elevator.art.get_node("ButtonPanel") if level.elevator.art else null
 	check(panel == null or level.elevator.button.global_position.distance_to(panel.global_position) < 0.35, "the elevator's button is pressed where its panel is drawn")
-	for i in 1500:  # the PA's escort tape and Rourke's cover come first
+	for i in 4000:  # the PA's escort tape and Rourke's cover come first, after any lines still waiting their turn
 		if level.shutter.is_open:
 			break
 		await physics_frame
@@ -1711,8 +1921,9 @@ func test_level_1_scene() -> void:
 		await physics_frame
 	check(not level.vault_back.locked and level.hot_rack_puzzle.solved, "reseating the hot rack's tray releases the interlock")
 
-	# Rourke heads for the elevator; it opens once the crew is with him.
-	for i in 2400:
+	# Rourke heads for the elevator; it opens once the crew is with him (after his
+	# lines, which take their turns: this test solves the floor faster than he talks).
+	for i in 6000:
 		if level.sync._gates.has("rourke_at_lift"):
 			break
 		await physics_frame
@@ -1833,6 +2044,8 @@ func _crew_reads(levels: Array) -> void:
 	var quiet := 0
 	for f in 6000:
 		await physics_frame
+		if not hs.all(func(h): return is_instance_valid(h)):
+			return  # the test moved on and freed its levels (a call nobody awaited)
 		var busy: bool = hs.any(func(h): return h.is_busy())
 		seen = seen or busy
 		quiet = 0 if busy else quiet + 1
@@ -1961,13 +2174,15 @@ func test_coop_level_0() -> void:
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
 	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
-	c2.player.global_position = Vector3(-17, 0.1, 4)
-	c1.player.global_position = Vector3(23, 0.1, 3)
+	for l in [c1, c2]:  # out past the walls on purpose: no safety net putting them back
+		l.get_node("FallNet").set_physics_process(false)
+	c2.player.global_position = Vector3(-40, 0.1, 4)
+	c1.player.global_position = Vector3(45, 0.1, 3)
 	await _frames(30)
 	c1.voice.send_frames(tone, 48000.0, true)
 	await _frames(10)
 	check(c2.voice.heard.near == 1 and c2.voice.heard.radio == 1, "radio reaches a teammate too far away to hear directly")
-	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 40 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
+	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 85 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
 	# A flashback or cutscene: the view cuts far away and the player is held still.
 	# Teammates are still heard as if close, and the radio still keys.
 	var away := Camera3D.new()
@@ -1978,7 +2193,7 @@ func test_coop_level_0() -> void:
 	var heard_before: int = c2.voice.heard.near
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
-	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 40 m off is still heard")
+	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 85 m off is still heard")
 	check(c2.voice._keys_free(), "and the radio and mute keys still work while the scene holds you still")
 	away.queue_free()
 	c2.player.camera.make_current()
@@ -1986,6 +2201,18 @@ func test_coop_level_0() -> void:
 	check(c2.voice.hearing_from_body() and not c2.voice._keys_free(), "back in your own eyes, voices come from where people stand, and a locked player's keys stay locked (terminal, notebook)")
 	c2.player.input_locked = false
 	_game().has_walkie = false
+
+	host._toggle_pause()
+	c1._toggle_pause()
+	check(host._pause_pages["exit"].get_node("ToLobby").visible and not c1._pause_pages["exit"].get_node("ToLobby").visible,
+		"in co-op only the host's Exit page can take everyone back to the lobby")
+	var host_restart: Control = host._pause_pages["restart"]
+	check(host._pause_pages["main"].get_node("Restart").visible and not c1._pause_pages["main"].get_node("Restart").visible
+		and host_restart.get_node("RestartFloor").visible and not host_restart.get_node("StartAgain").visible
+		and host_restart.get_node("FloorNote").text == root.get_node("Net").RESTART_FLOOR_NOTE_COOP,
+		"and only the host can restart the floor, for everyone (a whole new run starts from the lobby)")
+	host._toggle_pause()
+	c1._toggle_pause()
 
 	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
 	await _frames(30)
@@ -2542,6 +2769,116 @@ func test_coop_looks() -> void:
 ## Deck scripts in co-op (S4): the host runs them, everyone sees the same run,
 ## anyone can stop one, and what a script changes reaches every copy.
 ## The pre-game lobby in front of the garage: walk in, pose, customize, ready up.
+## Restart this floor (the pause menu; the co-op host's, for everyone): back to
+## where the crew walked onto it, the run as it was then, the same run seed.
+func test_restart_floor() -> void:
+	print("Restart this floor")
+	var game := _game()
+	game.new_run(4242)
+	game.rourke_fate = "tied"
+	game.inventory.add("radio")
+	game.notebook_notes.append("before")
+	game.mark_floor_start("level_3")
+	game.rourke_fate = "killed"
+	game.has_walkie = true
+	game.inventory.add("keycard")
+	game.notebook_notes.append("during")
+	game.next_level = "level_4"
+	check(game.restore_floor_start() == "level_3" and game.run_seed == 4242 and game.rourke_fate == "tied" and not game.has_walkie
+		and game.inventory.has("radio") and not game.inventory.has("keycard") and game.notebook_notes == ["before"] and game.next_level == "",
+		"the run goes back to how it was on walking onto the floor, with the same seed")
+	game.notebook_notes.append("again")
+	check(game.floor_start.state.notebook_notes == ["before"], "and the remembered start isn't touched by playing on")
+
+	# For real: the building opens on floor 18, the crew plays a bit, and restarts.
+	var stale := current_scene  # whatever an earlier test left open
+	game.new_run(777)
+	game.goto("level_3")
+	var world: Node = null
+	for f in 600:
+		await process_frame
+		if current_scene != stale and _on_floor(current_scene, "level_3"):
+			world = current_scene
+			break
+	check(world != null and game.floor_start.get("key") == "level_3", "walking onto a floor remembers it")
+	if world:
+		game.notebook_notes.append("found on 18")
+		var net := root.get_node("Net")
+		net.restart_floor()
+		var again: Node = null
+		for f in 600:
+			await process_frame
+			if current_scene != world and _on_floor(current_scene, "level_3"):
+				again = current_scene
+				break
+		check(again != null and game.run_seed == 777 and not game.notebook_notes.has("found on 18"),
+			"Restart this floor opens the building on the same floor, same seed, as it was when you walked onto it")
+		if again:
+			await _frames(10)
+			check(again.player.global_position.distance_to(again.current.player_spawn(0).origin) < 1.5, "with the crew at the floor's start")
+	unload_current_scene()
+	await process_frame
+	game.new_run()
+
+
+## `scene` is the building (World, not named here: it would load at parse time) with floor `key` in play.
+func _on_floor(scene: Node, key: String) -> bool:
+	return scene != null and scene.has_method("enter_wing") and scene.current != null and scene.current.wing_id == key
+
+
+## Co-op is one continuous session: when the host ends the run, the whole crew
+## goes back to the host's lobby together, still connected.
+func test_coop_back_to_lobby() -> void:
+	print("Co-op: back to the lobby together")
+	var net := root.get_node("Net")
+	net.roster = {1: "Host", 55: "Ana", 77: "Bo"}
+	net.looks = {}
+	net.lobby = {1: {"ready": true, "pose": 3}, 55: {"ready": true, "pose": 1}, 77: {"ready": true, "pose": 2}}
+	net.in_game = true
+	net._to_lobby()
+	check(not net.in_game and net.roster.size() == 3 and net.lobby.values().all(func(l): return not l.ready) and net.lobby_of(1).pose == 3,
+		"the run ends for everyone: the crew is still together, nobody is ready yet, and everyone stands as they did")
+	var lobby: Control = null
+	for f in 30:
+		await process_frame
+		if current_scene and current_scene.name == "Lobby":
+			lobby = current_scene
+			break
+	check(lobby != null, "everyone's screen goes to the lobby")
+	if lobby:
+		var stage: LobbyStage = lobby.stage
+		check(stage.intro_done and lobby._side.visible and not lobby.find_child("Welcome", true, false).visible, "straight to the garage front, no opening shot")
+		check(lobby._coop_view and lobby.find_child("Ready", true, false).is_visible_in_tree() and not lobby.find_child("Host", true, false).is_visible_in_tree()
+			and lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (0/3)", "on the Co-op tab, in the session, waiting for everyone to get ready again")
+		check(stage.figures.size() == 3 and stage.figures.keys().all(func(id): return stage.figures[id].position.is_equal_approx(stage.mark(net.lobby_index(id))))
+			and stage.figures[1].get_node("Rig").action == net.lobby_action(1), "the crew is already on their marks, in their poses")
+		check(not net.back_from_run, "the next visit to the lobby opens as usual")
+	unload_current_scene()
+	await process_frame
+
+	# The host quits mid-run instead: you're back in your own garage, on the Co-op tab.
+	var link := ENetMultiplayerPeer.new()
+	link.create_client("127.0.0.1", 65000)  # a session with a host who's about to vanish
+	net.multiplayer.multiplayer_peer = link
+	net.roster = {1: "Host", 55: "You"}
+	net.in_game = true
+	net._on_server_disconnected()
+	lobby = null
+	for f in 30:
+		await process_frame
+		if current_scene and current_scene.name == "Lobby":
+			lobby = current_scene
+			break
+	check(lobby != null and net.solo_lobby and net.roster.keys() == [net.my_id()], "when the host quits mid-run, you land in your own garage, not the title screen")
+	if lobby:
+		check(lobby._coop_view and lobby.find_child("Host", true, false).is_visible_in_tree() and lobby._status.text == "The host closed the game.",
+			"on the Co-op tab, saying why, ready to host or join the next one")
+	unload_current_scene()
+	await process_frame
+	net.leave(false)
+	net.last_message = ""
+
+
 func test_coop_pregame_lobby() -> void:
 	print("Co-op: the pre-game lobby")
 	var net := root.get_node("Net")
@@ -3451,6 +3788,7 @@ func test_level_2_badge_route() -> void:
 	var l2 = load("res://scripts/levels/level_2.gd").new()
 	var pin: Puzzle = l2.har_puzzle
 	var ok := true
+	var har_like_ok := true
 	var unsorted_misleads := true
 	var badges := {}
 	for s in 50:
@@ -3465,6 +3803,16 @@ func test_level_2_badge_route() -> void:
 		ok = ok and pin.matches(d, d.execute("SELECT * FROM guards WHERE badge_id = '%s'" % data.badge))
 		ok = ok and pin.matches(d, d.execute("SELECT pin FROM guards WHERE name = '%s'" % data.name))
 		ok = ok and pin.matches(d, d.execute("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'night'"))
+		# SYSOP's nudge, the Har- search without the shift: it shows the lead's row, so it counts.
+		l2.data = data
+		var har_found: bool = l2.shows_lead(d.execute("SELECT * FROM guards WHERE name LIKE 'Har%'")) \
+			and l2.shows_lead(d.execute("SELECT NAME, PIN, shift FROM guards WHERE name LIKE 'har%' ORDER BY shift"))
+		var har_wrong: bool = l2.shows_lead(d.execute("SELECT * FROM guards")) \
+			or l2.shows_lead(d.execute("SELECT * FROM guards WHERE name LIKE '%Har%'")) \
+			or l2.shows_lead(d.execute("SELECT * FROM guards WHERE name LIKE 'Har%' AND shift = 'day'")) \
+			or l2.shows_lead(d.execute("SELECT pin FROM guards WHERE name LIKE 'Har%'"))
+		if not har_found or har_wrong:
+			har_like_ok = false
 		for wrong in data.decoy_badges:
 			ok = ok and wrong != data.badge and not pin.matches(d, d.execute("SELECT * FROM guards WHERE badge_id = '%s'" % wrong))
 			var g := d.run_silent("SELECT shift, note FROM guards WHERE badge_id = '%s'" % wrong)
@@ -3479,6 +3827,7 @@ func test_level_2_badge_route() -> void:
 	l2.free()
 	check(ok, "the last guard badge through SEC-EXIT is the night lead's, and guards finds their PIN by badge, by name or by Har, on every seed")
 	check(unsorted_misleads, "without ORDER BY, the last SEC-EXIT row stored is the wrong guard")
+	check(har_like_ok, "the Har- search SYSOP points at (LIKE 'Har%', any columns with name and PIN) finds the lead; every guard, '%Har%', the day shift or PINs alone don't")
 	check(badges.size() >= 10, "the lead's badge varies between runs (%d badges)" % badges.size())
 	# Vale's swipe matches the server floor's syslog: she was in her lab at 23:12.
 	var d2 := FacilityDB.new()
@@ -3564,6 +3913,12 @@ func test_level_2_scene() -> void:
 	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
 	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
 	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
+	var twice := []
+	for g in level.db.run_silent("SELECT name, shift, pin FROM guards WHERE pin != '%s'" % level.data.pin):
+		var said: String = level.check_pin(g["pin"]).message
+		if said.contains("%s shift. %s shift" % [g["shift"], g["shift"]]) or not said.contains("%s shift" % g["shift"]):
+			twice.append(said.replace("\n", " / "))
+	check(twice.is_empty(), "a refused PIN names the guard's shift once (%s)" % ", ".join(twice))
 	# Open the office from the east end of the corridor, then look away.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(3, 0.1, 4.6))
 	level.type_pin("office", level.data.pin)
@@ -3630,8 +3985,8 @@ func test_level_2_scene() -> void:
 		await physics_frame
 	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
 	level.completed.disconnect(level._on_completed)
-	for i in 20:  # let WARDEN's line about the jammed door finish first
-		if level.hud._subtitle.text == "":
+	for i in 60:  # let WARDEN's lines about the cameras and the jammed door finish first (they take turns)
+		if level.hud.quiet() and level.hud._subtitle.text == "":
 			break
 		await create_timer(0.5).timeout
 	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
@@ -3832,15 +4187,13 @@ func test_level_2_wall_controls() -> void:
 	await _frames(100)
 	root.get_node("Net").profile.earned.erase("achievement:floor_22")
 	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
-	await create_timer(6.0).timeout
-	var card: Node = level.get_node_or_null("EndCard")
-	check(card != null and card.find_children("*", "Label", true, false).any(func(l): return l.text == "To be continued."), "down the stairs, a black card reads \"To be continued.\"")
-	check(root.get_node("Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its achievement")
-	for i in 20:
+	for i in 30:
 		if done[0]:
 			break
 		await create_timer(0.5).timeout
-	check(done[0], "after the card, the wing is complete")
+	check(root.get_node("Net").profile.earned.has("achievement:floor_22"), "finishing floor 22 earns its achievement")
+	check(done[0] and level.get_node_or_null("EndCard") == null, "down the stairs, the wing is complete, with no \"To be continued.\" card")
+	check(_game().next_level == "level_3", "and Field Notes' Continue goes on to floor 18")
 	level.queue_free()
 	await process_frame
 
@@ -4117,6 +4470,20 @@ func test_level_2_lab(outcome: String) -> void:
 	check(screen_text.contains("[lb]SYSOP[rb]: two conditions?"), "the two-conditions tip is SYSOP's, not the system's")
 	check(lab.response_left > Level2Lab.RESPONSE_TIME - 5.0 and lab.clock.text.begins_with("RESPONSE  "), "WARDEN sends a security response, and the clock over the door counts down")
 	check(_game().current_case() == "lab_door" and _game().case_info("lab_door").title == Level2Lab.LAB_CASE, "the lockdown opens the lab door's case page")
+	# WARDEN's recorded lines, at the moments on their cards.
+	var heard: Array[String] = level.hud.heard
+	check(not lab.logged_in, "her terminal hasn't taken Rourke's badge until someone uses it")
+	lab.switches[level.data.lab_answer].interact(p)
+	check(await _until(func(): return heard.has("l2_no_badge"), 30.0) and not level.doors["SECLAB-B"].is_open, "a switch pressed before anyone logs in: WARDEN refuses, badge required")
+	var refusals := heard.count("l2_no_badge")
+	lab.switches[level.data.lab_answer].interact(p)
+	await _frames(10)
+	check(heard.count("l2_no_badge") == refusals and not level.doors["SECLAB-B"].is_open, "pressed again straight away, it doesn't say it twice")
+	lab.terminal.interact(p)
+	check(await _until(func(): return lab.logged_in, 5.0), "sitting down at her terminal logs it in on Rourke's badge")
+	check(await _until(func(): return heard.has("l2_login") and heard.has("l2_selftest"), 40.0) and heard.find("l2_login") < heard.find("l2_selftest"),
+		"WARDEN greets Mr. Rourke, then reads out its self-test")
+	level.terminal_ui.close()
 	if outcome == "killed":
 		# Too slow: the response arrives, and the lab's controllers are re-keyed.
 		var old_zone: String = level.data.lab_zone
@@ -4141,21 +4508,29 @@ func test_level_2_lab(outcome: String) -> void:
 	level.terminal_ui.terminal = lab.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
 	check(not lab.door_puzzle.solved, "the zone alone isn't enough")
+	check(await _until(func(): return heard.has("l2_found"), 40.0) and heard.count("l2_found") == 1, "the first look at the door controllers: WARDEN logs the query, once")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % level.data.lab_zone)
 	check(lab.door_puzzle.solved, "zone AND status finds the lab door's controller")
 	check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains(level.data.lab_answer)), "SYSOP's answer goes on the lab door's page")
 	level.terminal_ui.run("SELECT * FROM badge_log ORDER BY time")
 	check(lab.log_puzzle.solved, "ORDER BY time lays out the visitor log")
-	var wrong: String = lab.switches.keys().filter(func(k): return k != level.data.lab_answer)[0]
-	lab.switches[wrong].interact(p)
-	await _frames(3)
-	check(not level.doors["SECLAB-B"].is_open, "the wrong switch doesn't open the door")
-	lab.switches_locked_until = 0.0
+	for wrong in lab.switches.keys().filter(func(k): return k != level.data.lab_answer):
+		var ok_row: bool = level.db.run_silent("SELECT status FROM door_controllers WHERE id = '%s'" % wrong)[0]["status"] == "ok"
+		lab.switches[wrong].interact(p)
+		await _frames(3)
+		check(not level.doors["SECLAB-B"].is_open, "the wrong switch doesn't open the door")
+		var said := "l2_panel_ok" if ok_row else "l2_panel_wrong"
+		check(await _until(func(): return heard.has(said), 40.0), "WARDEN on %s %s: %s" % ["a working controller's switch" if ok_row else "the wrong faulted switch", wrong, said])
+		lab.switches_locked_until = 0.0
 	lab.switches[level.data.lab_answer].interact(p)
 	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "the right switch resets it, and the door opens")
+	check(await _until(func(): return heard.has("l2_exit_open"), 40.0), "and WARDEN notes the exit unlocked")
 	check(_game().case_info("lab_door").solved and _game().case_info("lab_door").how.contains(level.data.lab_answer), "and the lab door's case is solved")
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-3, 0.1, 4.0)))
 	check(await _until(func(): return lab.phase == "done" and not level.booth.locked, 20.0), "out of the lab, it's over, and the night desk terminal works")
+	check(await _until(func(): return heard.has("l2_sealed"), 40.0), "WARDEN seals the floor as the crew steps out")
+	check(heard.has("l2_lockdown_tied") == (outcome == "tied") and (outcome != "tied" or heard.find("l2_lockdown_tied") < heard.find("l2_sealed")),
+		"and only if Rourke was left tied, the lockdown is signed by him first (%s)" % outcome)
 	check(not level.watcher.active, "the Watcher stays still: it's quiet until Pike")
 	if outcome == "untied":
 		check(await _until(func(): return not r.visible, 30.0), "left untied, he's gone soon after")
@@ -4164,6 +4539,30 @@ func test_level_2_lab(outcome: String) -> void:
 		check(r.visible == (outcome == "killed" or outcome == "tied"), "tied or dead, he's still lying there for now")
 	Engine.time_scale = 1.0
 	level.queue_free()
+	await process_frame
+
+
+## The news ending reads the script's whole l2_news scene, in its order: the arrest,
+## Maddison's "They were framed!", then the weather.
+func test_news_ending_lines() -> void:
+	print("Level 2 lab: the news ending reads the whole report")
+	var news := NewsEnding.new()
+	root.add_child(news)
+	Engine.time_scale = 8.0
+	var done := [false]
+	news.finished.connect(func(): done[0] = true)
+	news.run()
+	check(await _until(func(): return news.retry.visible, 150.0), "the radio report plays to the end")
+	news.skip()
+	Engine.time_scale = 1.0
+	var want := VoiceLines.ids_in_scene("l2_news")
+	check(news.heard == want, "every line of the script's news scene, in the script's order %s" % [news.heard])
+	check(want.size() == 7 and want.has("l2_news_6") and want.has("l2_news_7") and want.back() == "l2_news_5", "all seven, with the weather last")
+	check(VoiceLines.get_line("l2_news_4")["text"].contains("arrested") and VoiceLines.get_line("l2_news_6")["text"].contains("framed"),
+		"Maddison's arrest, and her \"They were framed!\", are on the air")
+	check(not load("res://scripts/combat/news_ending.gd").get_script_constant_map().has("RADIO"), "the ending keeps no copy of its own lines")
+	await _until(func(): return done[0], 5.0)
+	news.queue_free()
 	await process_frame
 
 
@@ -4239,6 +4638,78 @@ func test_coop_custodian() -> void:
 	check([hc, cc].map(func(c): return c.get_node("FightSounds").heard.size()) == clangs.map(func(n): return n + 1)
 		and [hc, cc].all(func(c): return c.get_node("FightSounds").heard.back() == "punch_metal"), "and both machines hear the punch land on it, once")
 	check(cc.strikes == hc.strikes and cc.wounds.shown() == hc.wounds.shown(), "and every machine shows the same wounds")
+	await _coop_close(worlds)
+
+
+## v0.9-beta2: a client walking into Rourke or the Custodian (held click and WASD)
+## dragged them about on the host, so for everyone, and the story stalled. A
+## teammate's body on the host goes where their machine says, so it mustn't push
+## the NPCs the host runs (LevelSync.SHOVE_PROOF).
+func test_coop_npcs_unshoved() -> void:
+	print("Co-op: a teammate can't shove an NPC about")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var client = levels[1]
+	var p: Player = client.player
+	host.player.global_position = Vector3(8, 0.1, 11.5)
+	host.rourke.state = host.rourke.State.IDLE
+	host.rourke.global_position = Vector3(-3, 0, 5)
+	await _frames(20)
+	p.local_control = false
+	p.global_position = Vector3(-3, 0.1, 6.2)
+	p.rotation.y = 0.0  # facing him
+	await _frames(3)
+	var start: Vector3 = host.rourke.global_position
+	var met := false
+	for f in 240:  # four seconds of walking into him while turning the view
+		p.controls.move = Vector2(0, -1)
+		p.rotation.y += 0.004
+		await physics_frame
+		met = met or p.global_position.distance_to(start) < 0.8
+	p.controls.move = Vector2.ZERO
+	check(met, "the client walks right up against Rourke")
+	check(host.rourke.global_position.distance_to(start) < 0.05 and client.rourke.global_position.distance_to(start) < 0.05,
+		"and can't push him about, on the host or their own screen (moved %.2f m)" % host.rourke.global_position.distance_to(start))
+	# Standing in his way doesn't hold up the story either: he walks on.
+	p.global_position = Vector3(-1.5, 0.1, 5.0)
+	await _frames(3)
+	var arrived := [false]
+	host.rourke.arrived.connect(func(): arrived[0] = true)
+	host.rourke.walk_to(Vector3(0.0, 0, 5.0), true)
+	for f in 240:
+		await physics_frame
+		if arrived[0]:
+			break
+	check(arrived[0] and host.rourke.global_position.distance_to(Vector3(0, 0, 5)) < 0.5, "a client standing in Rourke's way doesn't stop him getting where he's going")
+	p.local_control = true
+	await _coop_close(worlds)
+
+	_game().new_run(5)
+	worlds = await _coop_worlds(1)
+	levels = await _coop_load(worlds, "res://scenes/level_4.tscn")
+	host = levels[0]
+	client = levels[1]
+	await _frames(20)
+	var c: Node3D = host.custodian
+	start = c.global_position
+	p = client.player
+	p.local_control = false
+	p.global_position = start + Vector3(0.75, 0.1, 0)
+	p.look_at(start, Vector3.UP)
+	p.rotation.x = 0.0
+	p.rotation.z = 0.0
+	await _frames(3)
+	start = c.global_position
+	for f in 240:
+		p.controls.move = Vector2(0, -1)
+		p.rotation.y += 0.004
+		await physics_frame
+	p.controls.move = Vector2.ZERO
+	check(c.global_position.distance_to(start) < 0.05, "nor drag the Custodian about (moved %.2f m)" % c.global_position.distance_to(start))
+	p.local_control = true
 	await _coop_close(worlds)
 
 
@@ -4605,6 +5076,44 @@ func test_world() -> void:
 	await process_frame
 
 
+## Shoved off his path, wedged, or out of the world: Rourke's escort never hangs.
+func test_rourke_never_stuck() -> void:
+	print("Rourke can't be left stuck")
+	_game().new_run(8)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var r: Rourke = level.rourke
+	r.visible = true
+	r.state = Rourke.State.IDLE
+	r.global_position = Vector3(-6.3, -40.0, 0.6)
+	r.velocity = Vector3.ZERO
+	check(await _until(func(): return r.is_on_floor() and r.global_position.y > -0.5, 6.0), "out of the world, he's put back on the floor (at %s)" % r.global_position)
+	# Walled in where the navigation can't see: he tries, then is put where he was going.
+	r.global_position = Vector3(-6.3, 0.05, 0.6)
+	var cage := StaticBody3D.new()
+	for side in [Vector3(0.9, 1, 0), Vector3(-0.9, 1, 0), Vector3(0, 1, 0.9), Vector3(0, 1, -0.9)]:
+		var cs := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(0.2, 2.0, 2.0) if side.x != 0.0 else Vector3(2.0, 2.0, 0.2)
+		cs.shape = box
+		cs.position = side
+		cage.add_child(cs)
+	cage.position = r.global_position
+	level.add_child(cage)
+	await _frames(5)
+	var goal := Vector3(0, 0, -8.5)
+	var arrived := [false]
+	r.arrived.connect(func(): arrived[0] = true, CONNECT_ONE_SHOT)
+	r.walk_to(goal)
+	await _frames(60)
+	check(not arrived[0] and r.global_position.distance_to(Vector3(-6.3, 0.05, 0.6)) < 1.0, "boxed in, he can't get far at first")
+	check(await _until(func(): return arrived[0], Rourke.STUCK_TIME * Rourke.GIVE_UP_AFTER + 4.0), "but the walk still finishes")
+	check(Vector2(r.global_position.x, r.global_position.z).distance_to(Vector2(goal.x, goal.z)) < 1.0, "with him where he was going (at %s)" % r.global_position)
+	level.queue_free()
+	await _frames(5)
+
+
 func test_rourke_leads_in() -> void:
 	print("Rourke leads the crew up to Server Room A")
 	_game().new_run(8)
@@ -4638,7 +5147,7 @@ func test_rourke_leads_in() -> void:
 		await physics_frame
 	check(lobby.exit_door.is_open, "the door stays open while anyone is still in its swing")
 	p.global_position = Vector3(28.0, 0.2, 1.5)  # past him, clear of the swing
-	for i in 400:
+	for i in 1200:  # his elevator line waits its turn first
 		if not lobby.exit_door.is_open:
 			break
 		await physics_frame
@@ -4890,8 +5399,8 @@ func test_level_2_book_huddles() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	var h := _huddle_of(level)
-	var opens := func(id: String) -> bool:
-		return await _until(func(): return h.done.has(id) and not p.input_locked, 10.0)
+	var opens := func(id: String) -> bool:  # WARDEN's lines before some of them wait their turn
+		return await _until(func(): return h.done.has(id) and not p.input_locked, 40.0)
 	_doc(level, "Camera system card").open_reader(p).close()
 	check(await opens.call("easy_sql_10"), "reading the camera card brings back Asking a server, the GET chapter")
 	await _crew_reads([level])

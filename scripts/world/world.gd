@@ -47,13 +47,15 @@ var home: HomeBase
 var _field_notes: CanvasLayer
 
 
-## A new game opens in the garage; otherwise (tests, debugging) in the van at Halcyon.
+## A new game opens in the garage; a floor picked from Levels opens on that floor;
+## otherwise (tests, debugging) in the van at Halcyon.
 func start() -> void:
 	MusicDirector.follow(self)  # the score follows the floor's danger from here on
-	if get_node("/root/Game").open_at_home:
+	var game := get_node("/root/Game")
+	if game.open_at_home:
 		enter_home()
 	else:
-		enter_wing(0)
+		enter_wing(clampi(game.open_at_wing, 0, ROUTE.size() - 1))
 
 
 ## Start in the crew's garage, with the ground floor built ahead for when the van arrives.
@@ -62,6 +64,7 @@ func enter_home() -> void:
 	home.visible = true
 	load_wing(0)
 	current = home
+	get_node("/root/Game").mark_floor_start("world")
 	players.place_all(home)
 	home.activate()
 	wing_entered.emit(home)
@@ -105,8 +108,10 @@ func load_next(wing: LevelBase) -> void:
 
 ## Hand play to a wing: its lighting mood and story take over.
 func enter_wing(index: int) -> void:
+	var arriving := current == null  # the building opens here: nobody walked in
 	current = load_wing(index)
-	if index == 0:
+	get_node("/root/Game").mark_floor_start(ROUTE[index].key)  # where a restart of this floor goes back to
+	if index == 0 or arriving:
 		players.place_all(current)
 	current.activate()
 	_unload_behind(index)

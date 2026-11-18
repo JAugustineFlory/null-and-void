@@ -39,6 +39,9 @@ const RESPONSE_TIME := 240.0
 ## When WARDEN's PA calls out the time left.
 const RESPONSE_CALLS := [60.0, 30.0]
 const RED := Color(1.0, 0.18, 0.12)
+const SCREEN_GREEN := Color(0.2, 0.9, 0.35)
+## WARDEN doesn't repeat a reaction (a refused switch) within this many seconds.
+const WARDEN_REPEAT := 6.0
 const WHITE := Color(0.92, 0.95, 1.0)
 const FIGHT_BARKS := ["l2_hit_1", "l2_hit_2", "l2_hit_3", "l2_hit_4", "l2_hit_prints"]
 const HURT_BARKS := ["l2_hurt_1", "l2_hurt_2", "l2_hurt_3"]
@@ -75,6 +78,13 @@ var badged := {}  # peer id -> true
 var cable_holders := {}  # peer id -> true: who carried cable up from the server floor
 var fate := ""
 var switches_locked_until := 0.0
+## Her terminal has taken Rourke's badge: someone sat down at it, or ran a query,
+## once the lockdown started. Until then the switches refuse ("badge required").
+var logged_in := false
+## Host: WARDEN's one-time reactions already said ("found").
+var _reacted := {}
+## When each WARDEN reaction last played on this machine.
+var _warden_at := {}
 var _steps := {}
 var _last_bark := -100.0
 var _down_for := 0.0
@@ -168,6 +178,7 @@ func _build() -> void:
 		"  Someone is editing the records after I sign them.",
 	]
 	terminal.queried.connect(_on_query)
+	terminal.opened.connect(_on_opened)
 	# The struggle: blood on the desk's edge and on the floor, the chair on its side, the coat.
 	Greybox.panel(geo, Vector3(-12.3, 0.81, -2.78), Vector3(0.35, 0.01, 0.08), Color(0.35, 0.02, 0.02))
 	Greybox.panel(geo, Vector3(-12.1, 0.005, -2.2), Vector3(0.6, 0.01, 0.4), Color(0.3, 0.02, 0.02))
@@ -343,6 +354,11 @@ func run() -> void:
 	await _lockdown()
 	await _gate("door_reset")
 	await _gate("crew_out")
+	# WARDEN seals the floor around them. Tied up, Rourke has cut himself loose and
+	# signed the lockdown himself (they hear him on the radio later).
+	if fate == "tied":
+		level.hud.line("l2_lockdown_tied")
+	level.hud.line("l2_sealed")
 	phase = "done"
 
 
@@ -451,7 +467,7 @@ func _monologue() -> void:
 	for i in lines.size():
 		var left := 0.0
 		for id in lines.slice(i):
-			left += line_time(id)
+			left += line_time(id) + HUD.GAP_SAME  # each line waits its breath after the last (HUD)
 		if level.sync.is_host() and not sneaking and left - SNEAK_IN_BEFORE_END <= walk + line_time(lines[i]):
 			sneaking = true
 			_sneak_round(maxf(0.0, left - SNEAK_IN_BEFORE_END - walk))
@@ -703,8 +719,8 @@ func _lockdown() -> void:
 	await level.hud.line("l0_sort_hint")
 	await get_tree().create_timer(2.0, false).timeout
 	await _line("l2_contain_2")
+	# Unlocked, but still red: it turns green when someone sits down on Rourke's badge.
 	terminal.locked = false
-	terminal.set_screen_color(Color(0.2, 0.9, 0.35))
 	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
@@ -814,8 +830,44 @@ func _caught() -> void:
 
 # --- The way out -------------------------------------------------------------
 
+## Host: someone sat down at her terminal.
+func _on_opened(_by: Node) -> void:
+	if phase == "escape" and not logged_in:
+		level.sync.run_on(self, "_log_in")
+
+
+## Every machine: Rourke's badge logs her terminal in. WARDEN greets him, and the
+## crew reads its self-test: two faults on the floor, neither its problem.
+func _log_in() -> void:
+	if logged_in:
+		return
+	logged_in = true
+	terminal.set_screen_color(SCREEN_GREEN)
+	level.hud.line("l2_login")
+	level.hud.line("l2_selftest")
+
+
+## Does this result show door controllers (any of their ids, or their zone and status)?
+func _shows_controllers(result: Dictionary) -> bool:
+	if not result.get("ok", false) or result.get("rows", []).is_empty():
+		return false
+	var cols: Array = result.get("columns", [])
+	if cols.has("zone") and cols.has("status"):
+		return true
+	var ids := {}
+	for r in level.db.run_silent("SELECT id FROM door_controllers"):
+		ids[str(r["id"])] = true
+	return result.rows.any(func(row): return row.values().any(func(v): return ids.has(str(v))))
+
+
 ## Host: a query ran at her terminal.
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
+	if phase == "escape":
+		if not logged_in:
+			level.sync.run_on(self, "_log_in")
+		if not _reacted.has("found") and _shows_controllers(result):
+			_reacted["found"] = true
+			level.sync.run_on(self, "_say", ["l2_found"])
 	if not door_puzzle.solved and phase == "escape" and door_puzzle.matches(level.db, result):
 		level.sync.run_on(self, "_door_found")
 	if not log_puzzle.solved and log_puzzle.matches(level.db, result):
@@ -841,6 +893,9 @@ func _log_read() -> void:
 func _on_switch(_p: Node, id: String) -> void:
 	if phase != "escape" or _steps.has("door_reset"):
 		return
+	if not logged_in:
+		level.sync.run_on(self, "_switch_result", [id, "no_badge", 0.0])
+		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < switches_locked_until:
 		level.sync.run_on(self, "_switch_result", [id, "locked", switches_locked_until - now])
@@ -856,16 +911,21 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	var row: Dictionary = level.db.run_silent("SELECT status, zone, location, note FROM door_controllers WHERE id = '%s'" % id)[0]
 	match outcome:
+		"no_badge":
+			_warden("l2_no_badge")
+			return
 		"locked":
 			switches_locked_until = now + seconds
 			level.hud.notice("SWITCHES LOCKED: tamper lockout, %d s" % int(seconds), 2.0, ThemeUtil.RED)
 			return
 		"healthy":
 			level.hud.notice("> %s: %s, OK. NOTHING TO RESET." % [id, row["location"]], 4.0)
+			_warden("l2_panel_ok")
 			return
 		"wrong":
 			switches_locked_until = now + seconds
 			level.hud.notice("> %s: %s, '%s': %s\n> RESET REFUSED. SWITCHES LOCKED: %d s" % [id, row["location"], row["status"], row["note"], int(seconds)], 6.0, ThemeUtil.RED)
+			_warden("l2_panel_wrong")
 			return
 	level.db.run_silent("UPDATE door_controllers SET status = 'ok', last_reset = '1997-10-16 %s' WHERE id = '%s'" % [level.server_time().left(5), id])
 	_set_door("SECLAB-B", false)
@@ -876,10 +936,20 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	# The alarm ends. Whatever comes next, it's quiet for a while.
 	level.set_all_lights_color(WHITE)
 	level.hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SECLAB-B: OPENED" % id, 4.0, ThemeUtil.GREEN)
+	level.hud.line("l2_exit_open")
 	_game().solve_case("lab_door", "%s, reset by hand at its switch. The lab door opened." % id)
 	_mark_everywhere("door_reset")
 	if level.sync.is_host():
 		_mark("door_reset")
+
+
+## WARDEN reacting to a switch, unless it just said the same thing.
+func _warden(id: String) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _warden_at.get(id, -100.0) < WARDEN_REPEAT:
+		return
+	_warden_at[id] = now
+	level.hud.line(id)
 
 
 ## Where someone who dies in the lab comes to.

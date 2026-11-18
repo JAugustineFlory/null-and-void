@@ -17,6 +17,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_data_every_seed()
 	await test_scene()
 	await test_right_first_time()
+	await test_reset_capitals_elsewhere()
 	await test_deck_cart()
 	await test_accident()
 	await test_gantry()
@@ -87,6 +88,7 @@ func test_data_every_seed() -> void:
 	var ok_no_where := true
 	var ok_wrong_row := true
 	var ok_login := true
+	var ok_short_names := true
 	var ok_wrong_insert := true
 	var ok_hints := true
 	var ok_doors := true
@@ -141,6 +143,17 @@ func test_data_every_seed() -> void:
 		ok_login = ok_login and lvl.login_puzzle.matches(db5, r)
 		var db6 := _fresh_db(data)
 		ok_login = ok_login and lvl.login_puzzle.matches(db6, db6.execute(_last_hint_query(lvl.login_puzzle)))
+		# The name as floor 22's report spells it, or shorter, and the clock's time without its zero.
+		for name in ["Byte-Right", "Byte-Right IT", "BYTE-RIGHT IT SERVICES", "Byte-Right Computer Services"]:
+			for time in [data.time_in, data.time_in.trim_prefix("0")]:
+				var dbn := _fresh_db(data)
+				r = dbn.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % [name, data.ticket, time])
+				ok_short_names = ok_short_names and r.ok and lvl.login_puzzle.matches(dbn, r) and lvl._reads_login(dbn.execute("SELECT * FROM contractor_log"))
+		var dbx := _fresh_db(data)
+		r = dbx.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('Byte', '%s', '%s')" % [data.ticket, data.time_in])
+		ok_short_names = ok_short_names and r.ok and not lvl.login_puzzle.matches(dbx, r)
+		r = dbx.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '0:%s')" % [data.company, data.ticket, data.time_in])
+		ok_short_names = ok_short_names and r.ok and not lvl.login_puzzle.matches(dbx, r)
 		# Wrong order, no quotes, the wrong table, the clipboard's example copied, no column list.
 		var db7 := _fresh_db(data)
 		r = db7.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % [data.ticket, data.company, data.time_in])
@@ -192,6 +205,7 @@ func test_data_every_seed() -> void:
 	check(ok_no_where, "no WHERE flips all twelve and doesn't pass; putting the others back does")
 	check(ok_wrong_row, "the bay's breaker, the circuit name as the id, and the example's CB-03 don't pass")
 	check(ok_login, "the crew's own log row passes, and so does the last hint, across 60 seeds")
+	check(ok_short_names, "the log takes any name starting Byte-Right (floor 22's report's, Maddison's card's, the full one), and the time with or without its leading zero; 'Byte' or a garbled time doesn't")
 	check(ok_wrong_insert, "wrong column order, an unquoted value, the wrong table, the clipboard's example, no column list and a plain read don't pass")
 	check(ok_doors, "main_doors's row says CONTAINMENT; another door or a read doesn't open it, the last hint does")
 	check(ok_gantry and hatch_bays.size() == 2, "the gantry parks at one end and the panel's bay is the other (both ways round over 60 runs); only moving it there passes")
@@ -332,6 +346,29 @@ func test_right_first_time() -> void:
 	check(Array(level.maint.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_verify)) and not level.check_puzzle.solved, "SYSOP asks whether it took; the sign-off is still open")
 	ui.run(_last_hint_query(level.check_puzzle))
 	check(level.check_puzzle.solved, "the last hint's read-back signs it off")
+	level.queue_free()
+	await t.process_frame
+
+
+## The reset as the panel prints it ('ON'), typed at the controller instead: the
+## breaker's on, the station passes, and the read-back at the plant terminal signs it off.
+func test_reset_capitals_elsewhere() -> void:
+	print("Floor 10: the reset in capitals, at the controller")
+	_game().new_run(9)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(20)
+	_chapters_read([level])
+	var ui: TerminalUI = level.terminal_ui
+	ui.terminal = level.controller
+	ui.run("UPDATE breakers SET state = 'ON' WHERE id = '%s';" % level.data.target)
+	await _frames(3)
+	var state: String = level.db.run_silent("SELECT state FROM breakers WHERE id = '%s'" % level.data.target)[0]["state"]
+	check(level.reset_puzzle.solved and level.power_back and not level.alarm and state == "on", "'ON' in capitals, typed at the controller: the breaker's on, the reset passes and the power's back")
+	ui.terminal = level.maint
+	ui.run(_last_hint_query(level.check_puzzle))
+	await _frames(2)
+	check(level.check_puzzle.solved, "and the read-back at the plant terminal signs it off")
 	level.queue_free()
 	await t.process_frame
 
@@ -492,9 +529,9 @@ func test_accident() -> void:
 	check(await _until(func(): return docked[0], 900), "left alone, it drags them all the way to its bay (state %s)" % cust.state)
 	await _frames(120)
 	check(p.combat.grabbed_by == null and p.health > 0.0 and LANDING_BOX.has_point(level.to_local(p.global_position)), "they go down, and come to on the landing")
-	check(await _until(func(): return level.adapted, 900), "out of the control room after the accident, WARDEN's upgrade plays")
+	check(await _until(func(): return level.adapted, 2400), "out of the control room after the accident, WARDEN's upgrade plays")
 	var loop_text: String = VoiceLines.get_line("l4_epsilon_loop").get("text", "")
-	check(await _until(func(): return level.hud._subtitle.text.contains(loop_text), 900), "Epsilon's reminder comes over the PA every so often")
+	check(await _until(func(): return level.hud._subtitle.text.contains(loop_text), 2400), "Epsilon's reminder comes over the PA every so often")
 	level.reminder_every = 1000.0
 	# The lockout: logged on the controller, read back at the bay's panel in time.
 	level.lockout_window = 0.5
@@ -559,7 +596,7 @@ func test_accident() -> void:
 	ui.run("SELECT * FROM gates")
 	await _frames(2)
 	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own SELECT shows the lie: main_entrance locked again (the whole table counts, as the panel did upstairs)")
-	check(await _until(func(): return done[0], 1500) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
+	check(await _until(func(): return done[0], 3600) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
 	net.profile.earned = had
 	level.queue_free()
 	await t.process_frame
