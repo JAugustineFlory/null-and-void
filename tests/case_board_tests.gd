@@ -32,6 +32,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_floor_g_memo()
 	test_one_case_at_a_time()
 	test_book_before_bag()
+	await test_notebook_tabs()
 	_game().new_run(1)
 
 
@@ -470,10 +471,7 @@ func test_one_case_at_a_time() -> void:
 	text = _case_text(g)
 	check(g.current_case() == "first" and text.contains("What does the memo say?") and not text.contains("Find who signed in last"),
 		"a side case doesn't take the page")
-	var side_items := pages._case_items(g)
-	check(side_items.any(func(i): return i is Button and i.text == NotebookPages.ALSO % "Who signed in last?"), "it's one line under the case instead, which opens it")
-	for i in side_items:
-		i.free()
+	check(pages.bookmarks(g).any(func(m): return m.id == "side" and m.state == "side"), "it has a bookmark of its own instead, in the side cases' color")
 	g.solve_case("first", "the scraps are in memo_fragments.")
 	g.open_case("second", "Which scrap comes first?", [], "Put the scraps in order")
 	g.set_pieces("second", [PIECES[2]], "SELECT * FROM memo_fragments ORDER BY {column};", [])
@@ -517,6 +515,78 @@ func test_book_before_bag() -> void:
 
 
 ## The Cases tab's text for the current case.
+## Three tabs (Work order, Cases, Books). On Cases, each case on the floor is a
+## bookmark in the order it opened, then Floor notes; picking one selects that
+## case. A case page shows its tables; a filled blank says how it was found
+## (plan/teaching/puzzle-flow-v0.10.md section 6).
+func test_notebook_tabs() -> void:
+	print("Notebook: three tabs, bookmarks, Floor notes")
+	var g := _game()
+	g.new_run(16)
+	g.mark_floor_start("level_0")
+	check(NotebookPages.TAB_NAMES == ["Work order", "Cases", "Books"], "the notebook has three tabs: Work order, Cases and Books")
+	var pages := NotebookPages.new()
+	_tree.root.add_child(pages)
+	await _tree.process_frame
+	check(pages.book.bookmarks.get_child_count() == 0 and not pages.book.bookmarks.visible, "the work order has no bookmarks")
+	var link: Button = null
+	for i in pages.book.right.find_children("*", "Button", true, false) + pages.book.left.find_children("*", "Button", true, false):
+		if i.name == "FieldNotesLink":
+			link = i
+	check(link != null and link.text == NotebookPages.FIELD_NOTES_LINK, "the work order links to Field Notes")
+	if link:
+		link.pressed.emit()
+		await _tree.process_frame
+		check(pages.current_page() == NotebookPages.Page.FIELD_NOTES and pages.current_tab() == 0, "which opens under the work order's tab")
+	g.discover_table("visitors", ["name", "signed_in"])
+	g.discover_table("doors", ["zone"])
+	g.add_note("order_by")
+	g.note_aside("PA", "The lobby closes at seven.", "voice")
+	g.open_case("first", "Who called?", ["visitors"], "Find the caller")
+	g.open_case("second", "Who signed in last?", [], "Find the last visitor")
+	g.open_case("side", "Why is the break room dark?", [], "Look into the dark break room")
+	g.set_pieces("side", [PIECES[0]], "SELECT * FROM {table};", [], true)
+	g.set_blank("first", "The caller", ["hardy"], "HARDY", {"column": "name", "values": ["HARDY"]})
+	pages.show_page(NotebookPages.Page.CASES)
+	var marks: Array = pages.bookmarks(g)
+	check(marks.map(func(m): return m.id) == ["first", "second", "side", NotebookPages.NOTES_MARK], "each case is a bookmark in the order it opened, then Floor notes last")
+	check(marks[0].state == "open" and marks[2].state == "side" and marks[3].label == NotebookPages.FLOOR_NOTES, "a side case and Floor notes have their own look")
+	check(pages.book.bookmarks.visible and pages.book.bookmarks.get_child_count() == 4, "they show down the left edge of the Cases tab")
+	var shown: Button = pages.book.bookmarks.get_node("Mark_" + g.current_case())
+	check(shown.get_meta("selected"), "the tab opens on the case being worked on, its bookmark picked")
+	pages.book.bookmarks.get_node("Mark_first").pressed.emit()
+	check(g.selected_case == "first" and g.case_selected() == "first", "picking a bookmark selects its case (the query on screen follows it)")
+	var text := NotebookPages.text_of(pages.book.left.get_children() + pages.book.right.get_children())
+	check(pages.book.bookmarks.get_node("Mark_first").get_meta("selected") and text.contains("Find the caller"), "and turns to its page")
+	check(text.contains("visitors") and text.contains("signed_in") and not text.contains("zone"), "a case page shows the tables it needs, with their columns, and no others")
+	check(not text.contains("The lobby closes at seven."), "a note with no case isn't on the case page")
+	g.write_note("", "HARDY rang at 9", "mine")
+	check(g.notebook_written[-1].case == "first", "a note written now goes on the selected case")
+	pages.book.bookmarks.get_node("Mark_" + NotebookPages.NOTES_MARK).pressed.emit()
+	text = NotebookPages.text_of(pages.book.left.get_children() + pages.book.right.get_children())
+	check(text.contains(NotebookPages.FLOOR_NOTES) and text.contains("The lobby closes at seven.") and text.contains("Sticky notes") and text.contains("doors"), "Floor notes holds the notes with no case, the sticky notes and every table found")
+	check(g.selected_case == "first", "and leaves the selected case as it was")
+	pages.show_page(NotebookPages.Page.TABLES)
+	check(pages.current_page() == NotebookPages.Page.CASES and pages.mark == NotebookPages.NOTES_MARK, "what opened the old Tables tab opens Floor notes")
+	# A cell found fills the blank, with the query that found it.
+	check(g.add_cell("name", "HARDY", {"name": "HARDY"}, "SELECT name FROM visitors WHERE signed_in > 9;"), "the caller's cell fills the blank")
+	g.case_info("first").blank["by"] = "Sam"
+	pages.mark = "first"
+	pages.refresh()
+	text = NotebookPages.text_of(pages.book.left.get_children() + pages.book.right.get_children())
+	check(text.contains(NotebookPages.FOUND_WITH % "SELECT name FROM visitors WHERE signed_in > 9;"), "the filled blank says the query that found it")
+	check(text.contains(NotebookPages.FOUND_BY % "Sam"), "and in co-op, who found it")
+	g.solve_case("first", "HARDY")
+	g.case_info("first").erase("fresh_solve")
+	pages.mark = ""
+	pages.refresh()
+	marks = pages.bookmarks(g)
+	check(marks.any(func(m): return m.id == "first" and m.state == "solved") and g.case_selected() != "first", "a solved case keeps its bookmark for the floor, ticked, and is no longer the selected one")
+	g.mark_floor_start("level_1")
+	check(not pages.bookmarks(g).any(func(m): return m.id == "first"), "on the next floor it's only in the archive")
+	pages.free()
+
+
 func _case_text(g: Node) -> String:
 	var pages := NotebookPages.new()
 	var items := pages._case_items(g)

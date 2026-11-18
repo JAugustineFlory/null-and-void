@@ -597,6 +597,25 @@ func test_first_person_notebook_and_vents() -> void:
 		"the thumb holds the front of the page, under the tabs (%.3f m under the lowest)" % (lowest - thumb.y))
 	var covered := _thumbs_on_writing(held, book, bone_at)
 	check(covered.is_empty(), "the thumbs hold the book by its outer margins, off the writing on both pages (%s)" % [covered])
+	# The Cases tab's bookmarks run down the left page's margin: clear of that thumb.
+	var marks := []
+	for i in 6:
+		marks.append({"id": "c%d" % i, "label": "Who signed in last at the desk?", "state": "open"})
+	marks.append({"id": "floor_notes", "label": "Floor notes", "state": "notes"})
+	book.set_bookmarks(marks, "c0")
+	await _frames(2)
+	var thumb_px := 0.009 / HeldNotebook.BOOK_WIDTH * NotebookView.BOOK_SIZE.x
+	var under := []
+	for b: Button in book.bookmarks.get_children():
+		var r := b.get_global_rect().grow(thumb_px)
+		for bone in ["thumb_02_l", "thumb_03_l", "thumb_04_leaf_l"]:
+			var at: Vector3 = bone_at.call(bone)
+			if held.left_half.to_local(at).z > -0.005 and r.has_point(held.world_to_page(at)):
+				under.append("%s on %s" % [bone, b.name])
+	var bottom: float = book.bookmarks.get_global_rect().end.y
+	print("    bookmarks: 7 run down to %.0f px of %.0f; left thumb at %s px" % [bottom, NotebookView.BOOK_SIZE.y, held.world_to_page(bone_at.call("thumb_04_leaf_l"))])
+	check(under.is_empty(), "the left thumb stays off the Cases tab's bookmarks, seven of them (%s)" % [under])
+	book.set_bookmarks([], "")
 	var poking := []
 	for finger in ["index", "middle", "ring", "pinky"]:
 		for side in ["r", "l"]:

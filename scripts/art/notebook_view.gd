@@ -12,6 +12,8 @@ extends Control
 ##   book.show_book()
 
 signal tab_pressed(tab_name: String)
+## A bookmark down the left edge was picked (set_bookmarks): its id.
+signal bookmark_pressed(id: String)
 
 const BOOK_SIZE := Vector2(1240, 780)  # design size; scaled to fit the screen
 const PAGE_INSET := Vector2(26, 22)
@@ -43,6 +45,16 @@ var right: VBoxContainer
 var book: Control  # everything that moves when the book opens or a page turns
 var _tabs: VBoxContainer
 var _tab_buttons := {}
+## The Cases tab's bookmarks, down the left edge inside the cover (so they stay
+## on the page held in your hands too).
+var bookmarks: VBoxContainer
+## Bookmark colors: an open case, a side case, a solved one, and Floor notes.
+const MARK_OPEN := Color(0.91, 0.69, 0.29)
+const MARK_SIDE := Color(0.62, 0.78, 0.9)
+const MARK_SOLVED := Color(0.72, 0.7, 0.64)
+const MARK_NOTES := Color(0.98, 0.9, 0.55)
+const MARK_WIDTH := 82.0
+const MARK_HEIGHT := 50.0
 ## Drawn into HeldNotebook's SubViewport instead of over the screen: no dimming,
 ## no scaling, and HeldNotebook animates it in and out.
 var embedded := false:
@@ -78,6 +90,12 @@ func _init() -> void:
 	_tabs.position = Vector2(BOOK_SIZE.x - 6, 90)
 	_tabs.add_theme_constant_override("separation", 6)
 	book.add_child(_tabs)
+	bookmarks = VBoxContainer.new()
+	bookmarks.name = "Bookmarks"
+	bookmarks.position = Vector2(8, 70)
+	bookmarks.size.x = MARK_WIDTH
+	bookmarks.add_theme_constant_override("separation", 5)
+	book.add_child(bookmarks)
 	resized.connect(_fit)
 
 
@@ -134,6 +152,61 @@ func select_tab(tab_name: String) -> void:
 		b.custom_minimum_size.x = 0
 		if n == tab_name:
 			b.custom_minimum_size.x = b.get_combined_minimum_size().x + 22
+
+
+## The bookmarks down the left edge, in the left page's margin: [{id, label,
+## state ("open", "side", "solved" or "notes"), tooltip}]. `selected`'s is
+## brighter and edged in ink. None hides them.
+func set_bookmarks(marks: Array, selected: String) -> void:
+	for c in bookmarks.get_children():
+		bookmarks.remove_child(c)
+		c.queue_free()
+	for m in marks:
+		var b := Button.new()
+		b.name = "Mark_" + str(m.id)
+		b.tooltip_text = str(m.get("tooltip", m.label))
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(MARK_WIDTH, MARK_HEIGHT)
+		# Its name on two lines at most, so every bookmark is the same height and
+		# seven fit above the thumb holding the book.
+		var l := Label.new()
+		l.name = "Label"
+		l.text = str(m.label)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.max_lines_visible = 2
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.add_theme_font_override("font", NotebookArt.hand_font())
+		l.add_theme_font_size_override("font_size", 15)
+		l.add_theme_color_override("font_color", NotebookArt.INK)
+		l.add_theme_constant_override("line_spacing", -2)
+		b.add_child(l)
+		l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		l.offset_left = 8
+		l.offset_right = -4
+		var out: bool = m.id == selected
+		b.set_meta("selected", out)
+		var col: Color = {"side": MARK_SIDE, "solved": MARK_SOLVED, "notes": MARK_NOTES}.get(str(m.get("state", "open")), MARK_OPEN)
+		for state in ["normal", "hover", "pressed", "focus"]:
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = col.lightened(0.18) if state == "hover" or out else col
+			sb.corner_radius_top_left = 8
+			sb.corner_radius_bottom_left = 8
+			sb.content_margin_left = 8
+			sb.content_margin_right = 4
+			sb.content_margin_top = 3
+			sb.content_margin_bottom = 3
+			sb.border_color = NotebookArt.INK
+			sb.border_width_left = 4 if out else 0
+			sb.shadow_color = Color(0, 0, 0, 0.25)
+			sb.shadow_size = 3 if out else 1
+			b.add_theme_stylebox_override(state, sb)
+		var id := str(m.id)
+		b.pressed.connect(func(): bookmark_pressed.emit(id))
+		bookmarks.add_child(b)
+	bookmarks.visible = not marks.is_empty()
 
 
 ## Empties both pages (before showing another section).
@@ -202,14 +275,21 @@ func write_in(item: Control, duration: float = 0.8) -> Tween:
 	book.add_child(pen)
 	var span := {"x": 0.0, "w": 0.0, "y": 0.0}
 	var t := create_tween()
+	var ref: WeakRef = weakref(item)  # the pages may be rebuilt before it's laid out
 	t.tween_interval(0.03)  # let the page lay the item out first
 	t.tween_callback(func():
-		var at := book.get_global_transform().affine_inverse() * item.global_position
+		var it: Control = ref.get_ref()
+		if it == null or not it.is_inside_tree():
+			cover.queue_free()
+			pen.queue_free()
+			t.kill()
+			return
+		var at := book.get_global_transform().affine_inverse() * it.global_position
 		span.x = at.x - 2
-		span.w = item.size.x + 6
-		span.y = at.y + item.size.y * 0.7
+		span.w = it.size.x + 6
+		span.y = at.y + it.size.y * 0.7
 		cover.position = Vector2(span.x, at.y - 2)
-		cover.size = Vector2(span.w, item.size.y + 4)
+		cover.size = Vector2(span.w, it.size.y + 4)
 		pen.visible = true)
 	t.tween_method(func(k: float):
 		cover.position.x = span.x + span.w * k
