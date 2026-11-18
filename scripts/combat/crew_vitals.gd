@@ -455,7 +455,11 @@ func _restart() -> void:
 	if net and new_run and net.has_method("restart_run"):
 		net.restart_run()
 	elif net and net.has_method("restart_floor"):
-		net.restart_floor(true)
+		# Notebooks kept (plan 6A), once Co-op's restart takes that flag.
+		if net.get_method_argument_count("restart_floor") > 0:
+			net.call("restart_floor", true)
+		else:
+			net.restart_floor()
 	else:
 		# No restart to call yet (Co-op's lands separately): back to the checkpoint.
 		_run("_back_after_wipe", [])

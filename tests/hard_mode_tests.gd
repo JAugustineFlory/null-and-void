@@ -219,6 +219,7 @@ func test_coop() -> void:
 	var crew: CrewVitals = host.crew
 	var restarts := []
 	crew.restart_with = func(new_run): restarts.append(new_run)
+	await _until(func(): return host.players.puppet(client_id) != null, 240)  # the teammate has arrived on the host
 	var puppet = host.players.puppet(client_id)
 	var deaths := []
 	client.crew.died.connect(func(id, cause): deaths.append([id, cause]))
