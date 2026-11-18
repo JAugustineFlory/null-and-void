@@ -15,6 +15,9 @@ const PREVIEW_TURN := 30.0
 
 ## Show the turning figure. Set before adding the picker.
 var with_preview := true
+## Show the Crew tab. Off in a garage locker: who you play (your body and voice)
+## is set in the lobby. Set before adding the picker.
+var with_crew := true
 
 var _name: LineEdit
 ## One per CharacterLooks.SKIN_TONES.
@@ -77,6 +80,25 @@ func _build_tabs(parent: Control) -> void:
 	tabs.name = "Customize"
 	tabs.add_theme_font_size_override("font_size", 20)
 	parent.add_child(tabs)
+	if with_crew:
+		_crew_tab(tabs)
+	var look := _tab(tabs, "Look")
+	var skins := _row(look, "Skin")
+	for i in CharacterLooks.SKIN_TONES.size():
+		var b := _swatch("Skin%d" % (i + 1), {"skin": i})
+		b.custom_minimum_size = Vector2(40, 40)
+		_skin_buttons.append(b)
+		skins.add_child(b)
+	for slot in Cosmetics.WORN_SLOTS:
+		_slot_row(look, slot)
+	var gear := _tab(tabs, "Gear")
+	for slot in Cosmetics.TOOL_SLOTS:
+		_slot_row(gear, slot)
+	_achievements_tab(tabs)
+
+
+## Who you play: the crew, by body type.
+func _crew_tab(tabs: TabContainer) -> void:
 	var crew := _tab(tabs, "Crew")
 	for body in [1, 2]:
 		crew.add_child(ThemeUtil.label("Body %d" % body, 20))
@@ -91,19 +113,6 @@ func _build_tabs(parent: Control) -> void:
 			b.add_theme_font_size_override("font_size", 17)
 			_crew_buttons[slug] = b
 			row.add_child(b)
-	var look := _tab(tabs, "Look")
-	var skins := _row(look, "Skin")
-	for i in CharacterLooks.SKIN_TONES.size():
-		var b := _swatch("Skin%d" % (i + 1), {"skin": i})
-		b.custom_minimum_size = Vector2(40, 40)
-		_skin_buttons.append(b)
-		skins.add_child(b)
-	for slot in Cosmetics.WORN_SLOTS:
-		_slot_row(look, slot)
-	var gear := _tab(tabs, "Gear")
-	for slot in Cosmetics.TOOL_SLOTS:
-		_slot_row(gear, slot)
-	_achievements_tab(tabs)
 
 
 ## What you've earned, and how to earn the rest. Secrets show once found.

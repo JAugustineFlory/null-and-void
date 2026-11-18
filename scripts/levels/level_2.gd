@@ -304,6 +304,7 @@ func _build_booth() -> void:
 	booth.opened.connect(func(_p): _book_found("easy_sql_10"))
 	# The clues are on the booth's own paperwork: found in the world first.
 	StickyNote.on_monitor(booth, "like")
+	_masking_tape()
 	# Guards badge in at the reader by the booth; it logs them in the guards table.
 	# The night lead also keeps a paper sheet, in case the reader goes down.
 	# Laid out along the wall so nothing overlaps (the poster at x -1 is Graphics'):
@@ -376,6 +377,30 @@ func _build_booth() -> void:
 	Greybox.label(geo, Vector3(2.62, 1.82, 9.4), "MAINTENANCE\nBREAK GLASS", 26, Color(0.95, 0.95, 0.9), 90)
 	# Low outside window at the east end, onto the ledge. Plain glass: it breaks.
 	ledge_glass = _glass_pane(Vector3(6.0, 0.5, 4.0), Vector3(0.05, 1.0, 1.1), true, "LedgeGlass")
+
+
+## An old strip of masking tape on the east side of the booth's monitor, where
+## you only see it if you look around the screen: Mercer's own word on why the
+## terminal never refuses .tables and .schema (Augustine, 2026-11-18,
+## approvals/mercer-back-doors.md). The policy card is the official version;
+## this is the why, from the month of his tape.
+func _masking_tape() -> Document:
+	# The monitor's case (TerminalScreen) is 0.5 m wide, so its east side is at x -2.75;
+	# the case runs z 5.27 to 5.57 and 0.95 to 1.35 m up, behind the screen facing -z.
+	var tape := Document.place(geo, Vector3(-2.745, 1.17, 5.42), -90, "Masking tape", [
+		{"text": ".tables and .schema stay on. H.M.'s orders. 3/94", "hand": true, "author": "mercer"},
+	], false, "note", Vector2(0.26, 0.09))
+	tape.name = "MaskingTape"
+	var paper := tape.find_child("Paper", true, false) as MeshInstance3D
+	if paper:
+		paper.material_override = Greybox.mat(Color(0.86, 0.8, 0.62), 0.0, 0.9)  # yellowed tape, like 13's on STAIR 1
+	# It sits against the monitor, inside the terminal's own box, so its aim box
+	# stands out from the side, where you look at it from.
+	for c in tape.get_children():
+		if c is CollisionShape3D:
+			(c.shape as BoxShape3D).size = Vector3(0.2, 0.1, 0.12)
+			c.position = Vector3(0, 0, -0.07)
+	return tape
 
 
 func _build_panel() -> void:

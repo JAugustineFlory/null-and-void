@@ -114,6 +114,12 @@ const ITEMS := [
 		"hint": "Leave floor B2 with Ines and Tomas both."},
 	{"slot": "notebook", "item": "haunted_past", "name": "Haunted Past", "unlock": "achievement:b2_both_lost",
 		"hint": "Leave floor B2 without Ines or Tomas."},
+	# The Hard Way: finish the game on Hard, alive (Augustine, 2026-11-18 15:25Z: "torn
+	# clothes and a knight's helmet"); names approved 15:35Z (the clothes are "The Hard Way").
+	{"slot": "head", "item": "knight_helm", "name": "Knight's Helmet", "unlock": "achievement:hard_game",
+		"hint": "Finish the game on Hard, alive."},
+	{"slot": "top", "item": "torn_clothes", "name": "The Hard Way", "unlock": "achievement:hard_game",
+		"hint": "Finish the game on Hard, alive."},
 ]
 
 ## The catalogue in use: ITEMS, unless a test swaps in its own (reset() puts it back).

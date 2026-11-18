@@ -1,0 +1,1 @@
+- **Added:** finish the game on Hard and stay alive to earn a knight's helmet and a set of torn clothes, in any colors you like.

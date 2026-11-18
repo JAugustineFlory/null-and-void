@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard"]
 
 
 func _run() -> void:
@@ -97,6 +97,17 @@ func _run_group(g: String) -> void:
 		"keywords": await _group_keywords()
 		"levels": await _group_levels()
 		"route_data": await _run_file("res://tests/route_data_tests.gd")
+		"coop_runs": await _group_coop_runs()
+		"hard": await _group_hard()
+
+
+## A run as a whole: its rules, restarting a floor or the run, and joining one
+## that's already going.
+func _group_coop_runs() -> void:
+	test_run_rules()
+	await test_restart_floor()
+	await test_coop_late_join()
+	await test_hard_dead_watch()
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -104,10 +115,11 @@ func _group_keywords() -> void:
 	await _run_file("res://tests/keyword_tests.gd")
 
 
-## The garage's secret: the corner door, its key and the back office's PC.
+## The garage: the corner door, its key and the back office's PC; the driveway and van; the lab.
 func _group_garage() -> void:
 	await _run_file("res://tests/garage_office_tests.gd")
 	await _run_file("res://tests/garage_bounds_tests.gd")
+	await _run_file("res://tests/garage_lab_tests.gd")
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
@@ -151,6 +163,7 @@ func _group_core() -> void:
 func _group_floor_g() -> void:
 	test_level_0_puzzles()
 	await test_mercer_tape_secret()
+	await test_mercer_back_doors()
 	test_first_hints_show_working_queries()
 	await test_level_0_scene()
 	await test_ground_floor()
@@ -270,6 +283,10 @@ func _group_coop() -> void:
 
 
 ## Fights: health, blocking, the entities' grabs and throws, solo and co-op.
+func _group_hard() -> void:
+	await _run_file("res://tests/hard_mode_tests.gd")
+
+
 func _group_combat() -> void:
 	await _run_file("res://tests/combat_tests.gd")
 	await _run_file("res://tests/custodian_tests.gd")
@@ -300,7 +317,6 @@ func _group_movement_hands() -> void:
 ## Floors picked from Levels play inside the building and carry on to the next.
 func _group_levels() -> void:
 	await _run_file("res://tests/levels_route_tests.gd")
-	await test_restart_floor()
 
 
 func _group_stairs() -> void:
@@ -2234,6 +2250,244 @@ func test_coop_level_0() -> void:
 	await _coop_close(worlds)
 
 
+## Late join (Augustine, hard mode call 10.3, Normal too): someone joins a game
+## that's already going, comes in at the start of the floor, and their machine
+## catches up on everything shared that happened there.
+## Hard mode's dead, on co-op's side: they watch a teammate, are heard on the
+## radio only (or not at all), don't hold up "everyone here", and a dead player
+## who leaves and comes back to the floor comes back as a ghost.
+func test_hard_dead_watch() -> void:
+	print("Co-op: the dead in Hard mode")
+	_game().new_run(6)
+	_game().hard_mode = false  # (death here comes from the test; on Hard, falling out of the map kills)
+	var worlds := await _coop_worlds(2)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var c1 = levels[1]
+	var c2 = levels[2]
+	var crews := levels.map(func(l): return l.crew)
+	var id1: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	var id2: int = get_multiplayer(worlds[2].get_path()).get_unique_id()
+
+	# Everyone present: two in, one outside. When the one outside dies, the living are all here.
+	var spot := Vector3(-4.5, 0.1, 7.4)
+	var gate := Trigger.create(host, spot + Vector3(0, 0.9, 0), Vector3(2.6, 2, 2.6))
+	gate.require_all = true
+	var fired := [0]
+	gate.entered.connect(func(_b): fired[0] += 1)
+	host.player.global_position = spot
+	c1.player.global_position = spot + Vector3(0.8, 0, 0)
+	c2.player.global_position = spot + Vector3(0, 0, 6)
+	await _frames(30)
+	check(fired[0] == 0, "\"everyone here\" waits for the one still outside")
+	crews[0]._run("_set_down", [id2, true, "test"])
+	await _frames(5)
+	check(fired[0] == 0, "and for them while they're down but awake: a kit can still reach them")
+	crews[0]._host_unconscious(id2)
+	await _frames(5)
+	check(fired[0] == 1, "out cold, they don't hold the crew there, and it goes")
+	var cold = c2.players.spectate
+	check(cold != null and worlds[2].get_camera_3d() == cold and cold._who.text == Spectate.WATCHING_OUT_COLD % c2.players.puppet(1).display_name,
+		"out cold, you watch a teammate too (%s)" % (cold._who.text if cold else "no camera"))
+	crews[0]._run("_set_down", [id2, false, ""])
+	await _frames(5)
+	check(c2.players.spectate == null and worlds[2].get_camera_3d() == c2.player.camera, "brought round (a kit), you see through your own eyes again")
+	var gate2 := Trigger.create(host, spot + Vector3(0, 0.9, 0), Vector3(2.6, 2, 2.6))
+	gate2.require_all = true
+	gate2.entered.connect(func(_b): fired[0] += 1)
+	await _frames(10)
+	check(fired[0] == 1, "back up and outside, they're waited on again")
+	crews[0].mark_dead(id2, "test")
+	await _frames(5)
+	check(fired[0] == 2, "once they're dead, the living are everyone, and it goes")
+
+	# Watching: over a living teammate's shoulder, never your own body or the dead.
+	var watch = c2.players.spectate
+	check(watch != null and worlds[2].get_camera_3d() == watch and watch.watching == 1, "dead, you watch the first living teammate")
+	check(watch._who.text == Spectate.WATCHING % c2.players.puppet(1).display_name, "and a line says who (%s)" % watch._who.text)
+	await _frames(5)
+	check(watch.global_position.distance_to(c2.players.puppet(1).global_position) < 4.0, "the camera is just behind them")
+	watch.cycle(1)
+	check(watch.watching == id1, "switching moves on to the next one alive")
+	watch.cycle(1)
+	check(watch.watching == 1, "and round again")
+	check(host.players.spectate == null and c1.players.spectate == null, "the living see through their own eyes")
+	crews[0].mark_dead(id1, "test")
+	await _frames(5)
+	check(c1.players.spectate != null and c1.players.spectate.watching == 1, "the next to die watches whoever's left")
+
+	# Voice: the dead are heard on the radio, clear, and never from where they lie.
+	var tone := _tone(4800, 48000.0, 0.5)
+	var near0: int = host.voice.heard.near
+	var radio0: int = host.voice.heard.radio
+	c2.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(host.voice.heard.near == near0 and host.voice.heard.radio == radio0 + 1, "a dead player's voice comes over the radio only")
+	_game().dead_watch_only = true
+	c2.voice.send_frames(tone, 48000.0, false)
+	await _frames(10)
+	check(host.voice.heard.radio == radio0 + 1 and host.voice.heard.near == near0, "with \"the dead can only watch\", they're not heard at all")
+	_game().dead_watch_only = false
+
+	# Back at the next floor: your own eyes again.
+	for c in crews:
+		c._came_back(id2)
+	await _frames(2)
+	check(c2.players.spectate == null and worlds[2].get_camera_3d() == c2.player.camera, "back alive, you see through your own eyes")
+
+	# Dead, gone, and back on the same floor: a ghost, and "Nice Try".
+	_game().mark_floor_start("level_1")
+	var name1: String = host.players.puppet(id1).display_name
+	get_multiplayer(worlds[1].get_path()).multiplayer_peer.close()
+	c1.queue_free()  # their machine leaves the game
+	await _frames(20)
+	check(host.players.puppet(id1) == null and host.players._ghosts.get(name1, "") == "level_1", "a dead player who leaves is remembered by name")
+	# Joining again (the third machine stands in for them, under each name).
+	var net := root.get_node("Net")
+	var had_nice_try: bool = net.profile.earned.has(NetPlayers.NICE_TRY)
+	var rejoin := func(who: String) -> void:
+		var old: Node = host.players._puppets.get(id2)
+		host.players._puppets.erase(id2)
+		if old:
+			old.queue_free()
+		host.players._add_joiner(id2, who)
+	host.players._ghosts["Someone"] = "level_3"
+	rejoin.call("Someone")
+	check(not crews[0].is_dead(id2), "someone who died on another floor comes back alive")
+	host.players._ghosts["Ghost"] = "level_1"
+	rejoin.call("Ghost")
+	await _frames(5)
+	check(crews[0].is_dead(id2) and not host.players._ghosts.has("Ghost"), "back on the floor they died on, they come back dead, as a ghost")
+	check(net.profile.earned.has(NetPlayers.NICE_TRY), "and they get \"Nice Try\"")
+	if not had_nice_try:
+		net.profile.earned.erase(NetPlayers.NICE_TRY)
+	await _coop_close(worlds)
+	_game().floor_start = {}
+
+
+func test_coop_late_join() -> void:
+	print("Co-op: joining a game already going")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var client = levels[1]
+	host.sync.event("_on_asked")
+	await _frames(20)
+	client.player.global_position = Vector3(-4.5, 0.1, 7.4)
+	client.terminal_ui.terminal = client.terminal
+	client.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % host.zone)
+	await _frames(10)
+	client.terminal_ui.terminal = client.terminal
+	client.terminal_ui.run("UPDATE doors SET locked = 0, actuator_fault = 0 WHERE id = 'SRA-EXIT'")
+	await _frames(10)
+	check(host.controller_puzzle.solved and host.doors["SRA-EXIT"].is_open and not host.sync.history.is_empty(),
+		"the host keeps what's happened on the floor (%d things)" % host.sync.history.size())
+
+	# A third player joins now.
+	var vp := SubViewport.new()
+	vp.name = "Machine2"
+	vp.own_world_3d = true
+	vp.size = Vector2i(320, 180)
+	root.add_child(vp)
+	var mp := SceneMultiplayer.new()
+	set_multiplayer(mp, vp.get_path())
+	var peer := ENetMultiplayerPeer.new()
+	peer.create_client("127.0.0.1", _next_port)
+	mp.multiplayer_peer = peer
+	worlds.append(vp)
+	for f in 300:
+		await process_frame
+		if get_multiplayer(worlds[0].get_path()).get_peers().size() == 2 and mp.get_peers().size() == 2:
+			break
+	var late = load("res://scenes/level_1.tscn").instantiate()
+	vp.add_child(late)
+	_lower_chapters_read([late])  # as the others did: about catching up, not the book
+	for f in 300:
+		await physics_frame
+		if late.sync._begun:
+			break
+	check(late.sync._begun, "the newcomer's game starts straight away, without waiting for anyone")
+	await _until(func(): return late.sync.catching_up, 2.0)
+	check(late.hud.catching_up, "and plays what they missed through quietly, no lines or notices")
+	await _until(func(): return not late.sync.catching_up, 5.0)
+	check(not late.terminal.locked and late.controller_puzzle.solved and late.doors["SRA-EXIT"].is_open,
+		"and catches up: the terminal open, the controller found, the door the crew opened open")
+	var dump := "SELECT * FROM doors ORDER BY id"
+	check(late.db.run_silent(dump) == host.db.run_silent(dump), "their copy of the building matches everyone's")
+	var late_id: int = mp.get_unique_id()
+	check(host.players.puppet(late_id) != null and client.players.puppet(late_id) != null and late.players.count() == 3,
+		"everyone sees the newcomer, and the newcomer sees everyone")
+	check(late.player.global_position.distance_to(late.player_spawn(late.players.my_index()).origin) < 2.0, "they come in at the start of the floor")
+	check(not late.sync.catching_up and not late.hud.catching_up, "and once caught up, play on as normal")
+	await _coop_close(worlds)
+
+	# In the building, what happened on the crew's floor is kept by its wing and
+	# replayed into the newcomer's copy of that wing.
+	_game().new_run(8)
+	_game().open_for("level_3")
+	worlds = await _coop_worlds(1)
+	var built := await _coop_load(worlds, "res://scenes/world.tscn")
+	var on_18 = built[0].current
+	on_18.sync._open_gate.rpc("test_beat")
+	await _frames(5)
+	check(built[1].current.sync._gates.has("test_beat") and built[0].sync.history.size() == 1, "the building keeps the floor's history (%d)" % built[0].sync.history.size())
+	vp = SubViewport.new()
+	vp.name = "Machine2"
+	vp.own_world_3d = true
+	vp.size = Vector2i(320, 180)
+	root.add_child(vp)
+	mp = SceneMultiplayer.new()
+	set_multiplayer(mp, vp.get_path())
+	peer = ENetMultiplayerPeer.new()
+	peer.create_client("127.0.0.1", _next_port)
+	mp.multiplayer_peer = peer
+	worlds.append(vp)
+	for f in 300:
+		await process_frame
+		if mp.get_peers().size() == 2:
+			break
+	_game().open_for("level_3")
+	var late_world = load("res://scenes/world.tscn").instantiate()
+	vp.add_child(late_world)
+	await _until(func(): return late_world.sync._begun and late_world.current != null, 10.0)
+	await _until(func(): return late_world.current.sync._gates.has("test_beat"), 5.0)
+	check(late_world.current.wing_id == "level_3" and late_world.current.sync._gates.has("test_beat"),
+		"a newcomer to the building opens on the crew's floor and catches up on it")
+	await _until(func(): return not late_world.sync.catching_up, 5.0)
+	await _coop_close(worlds)
+
+	# Joining the building: the newcomer's machine opens it at the crew's floor, with
+	# the run as it was when they walked onto it, and none of the host's own kit.
+	var game := _game()
+	var net := root.get_node("Net")
+	game.new_run(31)
+	game.notebook_notes.append("a note from 22")
+	game.inventory.add("keycard")
+	game.mark_floor_start("level_3")
+	var snap: Dictionary = game.floor_start.duplicate(true)  # what the host sends
+	game.new_run(1)  # the newcomer's own machine, fresh from the lobby
+	var stale := current_scene
+	net._join_run(31, {1: "Host", 9: "You"}, {}, {"mode": "hard"}, snap, "")
+	check(net.in_game and net.is_hard() and game.run_seed == 31, "joining a game already going takes on its run and its rules")
+	var world: Node = null
+	for f in 600:
+		await process_frame
+		if current_scene != stale and _on_floor(current_scene, "level_3"):
+			world = current_scene
+			break
+	check(world != null and game.notebook_notes == ["a note from 22"] and not game.inventory.has("keycard"),
+		"and opens the building on the crew's floor, with what the run knew then, but not the host's own kit")
+	unload_current_scene()
+	await process_frame
+	net.leave(false)
+	net.rules = net.RULES.duplicate()
+	game.hard_mode = false
+	game.new_run()
+
+
 func test_coop_level_1() -> void:
 	print("Co-op: Level 1 with a host and a client")
 	_game().new_run(5)
@@ -2783,6 +3037,23 @@ func test_coop_looks() -> void:
 ## Deck scripts in co-op (S4): the host runs them, everyone sees the same run,
 ## anyone can stop one, and what a script changes reaches every copy.
 ## The pre-game lobby in front of the garage: walk in, pose, customize, ready up.
+## How the host sets up a run (hard mode): the same on every machine, junk ignored.
+func test_run_rules() -> void:
+	print("Run rules")
+	var net := root.get_node("Net")
+	net.rules = net.RULES.duplicate()
+	check(net.rules == {"mode": "normal", "dead_muted": false, "wipe_new_seed": false} and not net.is_hard(), "a run is Normal unless the host picks Hard")
+	net.set_rules({"mode": "hard", "dead_muted": true})
+	check(net.is_hard() and net.rules.dead_muted and not net.rules.wipe_new_seed, "the host picks Hard, and that the dead can only watch")
+	net._apply_rules()
+	check(_game().hard_mode and _game().dead_watch_only and not _game().wipe_new_run, "and the run's Game takes it on")
+	net.set_rules({"mode": "nightmare", "wipe_new_seed": "yes", "cheats": true})
+	check(net.rules == {"mode": "hard", "dead_muted": true, "wipe_new_seed": false}, "anything that isn't a real choice is ignored")
+	check(net.clean_rules({}) == net.RULES, "a start from an older lobby is Normal")
+	net.rules = net.RULES.duplicate()
+	net._apply_rules()
+
+
 ## Restart this floor (the pause menu; the co-op host's, for everyone): back to
 ## where the crew walked onto it, the run as it was then, the same run seed.
 func test_restart_floor() -> void:
@@ -2803,6 +3074,13 @@ func test_restart_floor() -> void:
 		"the run goes back to how it was on walking onto the floor, with the same seed")
 	game.notebook_notes.append("again")
 	check(game.floor_start.state.notebook_notes == ["before"], "and the remembered start isn't touched by playing on")
+	game.rourke_fate = "killed"
+	check(game.restore_floor_start(true) == "level_3" and game.rourke_fate == "tied" and game.notebook_notes == ["before", "again"],
+		"a restart that keeps the notebook (hard mode's wipe) puts the floor back but leaves what you wrote")
+	game.first_aid = "taken"
+	game.first_aid_kits["test_cabinet"] = "taken"
+	game.restore_floor_start(true)
+	check(game.first_aid == "" and game.first_aid_kits.is_empty(), "and the first-aid kits are back in their cabinets")
 
 	# For real: the building opens on floor 18, the crew plays a bit, and restarts.
 	var stale := current_scene  # whatever an earlier test left open
@@ -2830,6 +3108,16 @@ func test_restart_floor() -> void:
 		if again:
 			await _frames(10)
 			check(again.player.global_position.distance_to(again.current.player_spawn(0).origin) < 1.5, "with the crew at the floor's start")
+			check(game.run_start == "level_3", "the run remembers where it started (%s)" % game.run_start)
+			net.restart_run()
+			var fresh: Node = null
+			for f in 600:
+				await process_frame
+				if current_scene != again and _on_floor(current_scene, "level_3"):
+					fresh = current_scene
+					break
+			check(fresh != null and game.run_seed != 777 and game.floor_start.get("key") == "level_3",
+				"starting the whole run over (hard mode's other wipe) goes back to where it started, with new data")
 	unload_current_scene()
 	await process_frame
 	game.new_run()
@@ -4070,6 +4358,22 @@ func test_level_2_routes() -> void:
 			label = on_wall.get_node("Print")
 		return label.global_basis.z.z  # Label3D and the print read from their +Z side
 	check(facing.call("NIGHT SHIFT SIGN-IN      DATE: 10/15") < -0.9 and facing.call("Lockdown PIN policy") > 0.9, "wall papers face into the corridor, not into the wall")
+	# Mercer's masking tape on the side of the booth's monitor (approvals/mercer-back-doors.md):
+	# out of sight from the chair, there for whoever looks round the screen.
+	check(titles.has("Masking tape"), "there's a strip of masking tape at the booth")
+	if titles.has("Masking tape"):
+		var tape: Document = docs[titles.find("Masking tape")]
+		check(tape.lines().size() == 1 and tape.lines()[0].hand and tape.plain_text().strip_edges() == ".tables and .schema stay on. H.M.'s orders. 3/94",
+			"it's handwritten, word for word as approved %s" % [tape.plain_text()])
+		check(not tape.plain_text().to_lower().contains("byte-right"), "and it's not Byte-Right's (they had no contract in 1994)")
+		var tape_face: Vector3 = tape.get_node("WallSheet").find_child("Line0", false, false).global_basis.z
+		var screen_face: Vector3 = level.booth.global_basis.z
+		var off: Vector3 = tape.global_position - level.booth.global_position
+		check(Vector2(off.x, off.z).length() < 0.35 and off.y > 0.05 and off.y < 0.45, "it's on the monitor itself")
+		check(absf(tape_face.dot(screen_face)) < 0.1 and tape_face.dot(Vector3(off.x, 0, off.z)) > 0.0, "on its side, facing out, not toward whoever sits at the screen")
+		var from := tape.global_position + tape_face * 0.9
+		var hit: Dictionary = level.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, tape.global_position))
+		check(not hit.is_empty() and hit.collider == tape, "looking at it from the side picks out the tape, not the terminal")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
@@ -4778,10 +5082,18 @@ func test_coop_combat() -> void:
 	check(machines.all(func(l): return l.crew.downed.has(client_id)), "every machine knows")
 	check(host.players.puppet(client_id).downed, "the host sees them lying there")
 	check(client.player.get_node("FightSounds").heard.back() == "body_fall" and mate_sounds.heard.back() == "body_fall", "and both machines hear them hit the floor")
-	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "and can help them up")
+	# No free hand-ups (Augustine, 2026-11-18): only a first-aid kit gets them up.
+	host.player.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
+	await _frames(5)
+	check(puppet.get_prompt(host.player) == "", "with empty hands, there's no helping them up")
 	puppet.interact(host.player)
-	await _frames(10)
-	check(not client.player.downed and not client.player.input_locked and client.player.health == PlayerCombat.REVIVE_HEALTH, "helped up, the client is back on their feet")
+	await _frames(20)
+	check(client.player.downed and host.crew.reviving.is_empty(), "pressing E does nothing")
+	_kit_in_hands(host.player)
+	check(puppet.get_prompt(host.player) == FirstAidCabinet.PATCH_PROMPT, "with a first-aid kit in your hands, you can patch them up")
+	puppet.interact(host.player)
+	check(await _until(func(): return not client.player.downed, CrewVitals.KIT_TIME + 2.0) and not client.player.input_locked and client.player.health == PlayerCombat.MAX_HEALTH,
+		"patched up, the client is back on their feet")
 	check(machines.all(func(l): return l.crew.downed.is_empty()), "and nobody is down anywhere")
 	var downs := []
 	for l in machines:
@@ -4805,32 +5117,40 @@ func test_coop_combat() -> void:
 	check(client.player.downed and client.player.combat.unconscious and client.player.health == 0.0 and machines.all(func(l): return l.crew.downed.has(client_id)),
 		"but you're still lying there: no trip back to the checkpoint")
 	check(client.hud._notice.text == PlayerCombat.OUT_NOTICE, "and you're told your crew can still help you up")
-	# The host comes over to help: it takes a while, standing by them.
-	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	var out_dim: ColorRect = client.hud.find_child("OutDim", true, false)
+	check(out_dim != null and (out_dim.color.a < 0.05 if client.player.combat.watching() else out_dim.color.a > 0.05),
+		"the view goes dark while you're out, unless you're watching a teammate (Co-op's spectate camera)")
+	check(machines.all(func(l): return not l.crew.is_present(client_id) and l.crew.present_ids() == [host_id]), "out cold, you no longer hold the crew up: the rest can go on")
+	# The host comes over with a kit: it takes a while, standing by them.
+	host.player.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
 	await _frames(5)
-	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "a teammate can still help them up")
+	_kit_in_hands(host.player)
+	check(puppet.get_prompt(host.player) == FirstAidCabinet.PATCH_PROMPT, "a teammate with a kit can still bring them round")
 	puppet.interact(host.player)
 	await _frames(20)
 	check(client.player.downed and machines.all(func(l): return l.crew.reviving.has(client_id)), "but it takes a moment")
 	check(host.crew._revive_bar != null and host.crew._revive_bar.visible and host.crew._revive_bar.value > 0.0, "with a bar filling for the one helping")
 	check(puppet.get_prompt(host.player) == "", "and no prompt while they're at it")
-	host.player.global_position = puppet.global_position + Vector3(CrewVitals.REVIVE_RANGE + 2.0, 0.3, 0)
+	host.player.global_position = puppet.global_position + Vector3(-CrewVitals.REVIVE_RANGE - 2.0, 0.1, 0)
 	check(await _until(func(): return machines.all(func(l): return not l.crew.reviving.has(client_id)), 2.0), "walk off and it stops")
 	check(client.player.downed and not host.crew._revive_bar.visible, "they stay out, and the bar goes")
-	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	check(host.player.inventory.has(FirstAidCabinet.ITEM), "and they keep the kit")
+	host.player.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
 	await _frames(5)
 	puppet.interact(host.player)
-	check(await _until(func(): return not client.player.downed, CrewVitals.OUT_REVIVE_TIME + 2.0), "stay with them, and they come round")
-	check(client.player.health == PlayerCombat.REVIVE_HEALTH and not client.player.combat.unconscious and not client.player.input_locked, "back on their feet")
+	check(await _until(func(): return not client.player.downed, CrewVitals.KIT_TIME + 2.0), "stay with them, and they come round")
+	check(client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious and not client.player.input_locked, "back on their feet, at full health")
 	check(machines.all(func(l): return l.crew.downed.is_empty() and l.crew.unconscious.is_empty()), "and nobody is down or out anywhere (host is %d)" % host_id)
-	# A first-aid kit brings round even someone who's passed out, at once, to full.
+	# With no kit, out cold stays out cold until the next floor.
 	puppet.take_damage(1000.0, "watcher")
 	await _frames(10)
 	client.player.combat.bleed_left = 0.05
-	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again")
-	host.crew.revive(client_id, PlayerCombat.MAX_HEALTH, true)
+	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again, and no kit left")
+	for l in machines:
+		l.crew._on_floor_entered(l)
 	await _frames(10)
-	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious, "a first-aid kit brings them round at once, to full health")
+	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.input_locked and machines.all(func(l): return l.crew.downed.is_empty() and l.crew.unconscious.is_empty()),
+		"at the next floor, they come to on their feet")
 	# Everyone down or out: the crew is beaten.
 	downs.clear()
 	puppet.take_damage(1000.0, "watcher")
@@ -4843,6 +5163,12 @@ func test_coop_combat() -> void:
 	check(await _until(func(): return not host.player.downed and not client.player.downed and not client.player.combat.unconscious, 10.0),
 		"and everyone comes to at the checkpoint")
 	await _coop_close(worlds)
+
+
+## A first-aid kit in `p`'s hands.
+func _kit_in_hands(p: Player) -> void:
+	p.inventory.add(FirstAidCabinet.ITEM)
+	p.inventory.use_slot(p.inventory.hotbar.find(FirstAidCabinet.ITEM))
 
 
 ## Co-op in Vale's lab: everyone has to badge in, and the cable is held by whoever carried it up.
@@ -5242,6 +5568,37 @@ func test_visitor_badge() -> void:
 
 
 ## Every lift lobby has emergency stairs beside it, signed, and locked after hours.
+## Mercer's back doors (Augustine, 2026-11-18, approvals/mercer-back-doors.md): one
+## more line on the vent closet's tape, after the board and before the room, in the
+## same take, and it goes in the notebook.
+func test_mercer_back_doors() -> void:
+	print("Mercer's tape: the back doors")
+	var ids := VoiceLines.ids_in_scene("l0_tape")
+	var at := ids.find("l0_tape_backdoors")
+	check(at == ids.find("l0_tape_3") + 1 and at + 1 == ids.find("l0_tape_4"), "the back-doors line comes after the board and before the room %s" % [ids])
+	var l := VoiceLines.get_line("l0_tape_backdoors")
+	check(l.speaker == "MERCER" and l.text == "I set up a few back-door protocols it can never shut off, like .tables to show the available tables and .schema to show all the columns.",
+		"word for word as approved")
+	check(l.get("with_previous", false) and not l.get("secret", false), "in the same take, and everyone who hears the tape hears it")
+	check(VoiceLines.blocks("l0_tape").any(func(b): return b.id == "l0_tape_1_block" and b.lines.has("l0_tape_backdoors")), "recorded with the rest of the tape")
+	_game().new_run(3)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
+	await physics_frame
+	level.player.global_position = level.to_global(Vector3(-17.5, 0.1, 4))
+	Engine.time_scale = 8.0
+	level._on_tape()
+	var heard: Array = level.hud.heard
+	check(await _until(func(): return heard.has("l0_tape_5"), 150.0), "the tape plays to the end")
+	Engine.time_scale = 1.0
+	check(heard.filter(func(id): return id.begins_with("l0_tape")) == Array(ids), "every line of it, in order %s" % [heard])
+	check(_game().notebook_written.any(func(w): return w.text == "Mercer's tape: his back doors, .tables and .schema, always work." and w.case == ""),
+		"the notebook keeps it under Other notes, so it can be found again")
+	level.queue_free()
+	await process_frame
+
+
 func test_mercer_tape_secret() -> void:
 	print("Mercer's tape")
 	_game().new_run(3)

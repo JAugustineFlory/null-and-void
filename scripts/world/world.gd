@@ -111,6 +111,7 @@ func enter_wing(index: int) -> void:
 	var arriving := current == null  # the building opens here: nobody walked in
 	current = load_wing(index)
 	get_node("/root/Game").mark_floor_start(ROUTE[index].key)  # where a restart of this floor goes back to
+	sync.clear_history()  # someone joining from here starts on this floor
 	if index == 0 or arriving:
 		players.place_all(current)
 	current.activate()

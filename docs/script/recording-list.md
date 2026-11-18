@@ -1,6 +1,6 @@
 # Recording list
 
-1115 recordings in all, 1302 lines.
+1115 recordings in all, 1303 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -258,13 +258,13 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l8_huddle_layers_1_block` | "Things on a screen stack up, like papers on a desk. A number decides which one's on top." "So the thing in our way might just be lying on top." | Starting a chapter, picturing it. Wrapping up. An idea forming. | Level 8, later |
 | [ ] | `l8_huddle_forms_1_block` | "Forms. Boxes you type in, and a button that sends it. Every login screen tonight was one of these." "A form's just boxes and a button. Somebody built it, so we can rebuild it." | Starting the last chapter. Recognising it. Wrapping up. Quietly determined. | Level 8, later |
 
-## Harold Mercer (1 recordings, 5 lines)
+## Harold Mercer (1 recordings, 6 lines)
 
 > Gravelly, wry, unhurried. An old engineer talking into a cassette recorder at his desk on his last day. Amused more than angry.
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
-| [ ] | `l0_tape_1_block` | "Harold Mercer. March of '94. My last day, apparently." "If you're hearing this, you crawled through a vent to get in here. Good. You don't trust doors." "Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out." "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter." "If it ever comes to that, look for my plans. The building's records remember more than people do." | Dry. Approving, a little smile. The one moment of anger, still controlled. Quiet, almost proud, then wry on the last sentence. Slow. | Level 0 |
+| [ ] | `l0_tape_1_block` | "Harold Mercer. March of '94. My last day, apparently." "If you're hearing this, you crawled through a vent to get in here. Good. You don't trust doors." "Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out." "I set up a few back-door protocols it can never shut off, like .tables to show the available tables and .schema to show all the columns." "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter." "If it ever comes to that, look for my plans. The building's records remember more than people do." | Dry. Approving, a little smile. The one moment of anger, still controlled. A little pleased with himself; the one moment he gets to win. He says the commands like dictating, "dot tables" and "dot schema" ("skee-ma"). Quiet, almost proud, then wry on the last sentence. Slow. | Level 0 |
 
 ## Ines Oyelaran (8 recordings, 8 lines)
 

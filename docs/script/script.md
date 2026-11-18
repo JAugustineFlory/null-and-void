@@ -400,6 +400,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Clicking record on the cassette recorder, then leaning in)* "Harold Mercer. March of '94. My last day, apparently." *Dry.* `[l0_tape_1]`  
 *(Sitting back in his chair, recorder in hand)* "If you're hearing this, you crawled through a vent to get in here. Good. You don't trust doors." *Approving, a little smile.* `[l0_tape_2]`  
 *(Gripping the edge of his desk)* "Tomorrow a machine runs the locks, the lights and the air. I told the board you don't hand the keys to something that can't be locked out." *The one moment of anger, still controlled.* `[l0_tape_3]`  
+*(Tapping the terminal on his desk)* "I set up a few back-door protocols it can never shut off, like .tables to show the available tables and .schema to show all the columns." *A little pleased with himself; the one moment he gets to win. He says the commands like dictating, "dot tables" and "dot schema" ("skee-ma").* `[l0_tape_backdoors]`  
 *(Glancing down at drawings spread across his desk)* "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter." *Quiet, almost proud, then wry on the last sentence.* `[l0_tape_4]`  
 *(The end of the tape. Leaning close to the recorder, then clicking stop)* "If it ever comes to that, look for my plans. The building's records remember more than people do." *Slow.* `[l0_tape_5]`
 

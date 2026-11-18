@@ -41,8 +41,17 @@ var watcher_sealed := false
 ## Did the players lock the Custodian out in its bay on floor 10 (Level 4)? If not,
 ## it can come back on later floors.
 var custodian_sealed := false
+## Hard mode (plan/hard-mode.md; Augustine 2026-11-18), set by the host in the lobby
+## for the whole run: left down too long you die and watch; if everyone's down, the
+## floor starts over. `dead_watch_only`: the dead can't talk (an extra reward).
+## `wipe_new_run`: a wipe starts the whole run over with a new seed instead.
+var hard_mode := false
+var dead_watch_only := false
+var wipe_new_run := false
 ## STAIR 1's first-aid cabinet on landing 5 (FirstAidCabinet): "", "open" or "taken".
 var first_aid := ""
+## Each floor's own first-aid cabinets (KitCabinets): cabinet id -> "", "open" or "taken".
+var first_aid_kits := {}
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
 var cam_lie_learned := false
 ## B2 (Level 7): how the crew beat WARDEN ("lockout", "revoke", "watchdog"; "" not
@@ -137,8 +146,14 @@ const PIECE_MISSING := "????"
 ## and the run as it stood then: {"key", "state"}. Restarting the floor puts it
 ## back (restore_floor_start, Net.restart_floor).
 var floor_start := {}
+## Where this run started (a LEVELS key: "world" from the garage, or a floor
+## picked from Levels), for starting the whole run over (Net.restart_run).
+var run_start := "world"
+var _run_fresh := true
+## The notebook's pages: kept through a floor restart that keeps the notebook.
+const NOTEBOOK_STATE := ["notebook_notes", "notebook_tables", "notebook_written", "notebook_todo", "notebook_cases", "notebook_jotted", "ticket_marks"]
 ## Not part of a run's progress, so a floor restart leaves them alone.
-const _KEPT_ON_RESTART := ["run_seed", "open_at_home", "open_at_wing", "diegetic_ui", "floor_start"]
+const _KEPT_ON_RESTART := ["run_seed", "open_at_home", "open_at_wing", "diegetic_ui", "floor_start", "run_start", "_run_fresh", "hard_mode", "dead_watch_only", "wipe_new_run"]
 
 
 func _ready() -> void:
@@ -151,6 +166,7 @@ func new_run(seed_value: int = -1) -> void:
 	open_at_home = false
 	open_at_wing = 0
 	floor_start = {}
+	_run_fresh = true
 	book_words.clear()
 	book_chapters.clear()
 	learned_words.clear()
@@ -163,6 +179,7 @@ func new_run(seed_value: int = -1) -> void:
 	watcher_sealed = false
 	custodian_sealed = false
 	first_aid = ""
+	first_aid_kits.clear()
 	cam_lie_learned = false
 	warden_route = ""
 	night_shift_alive.clear()
@@ -197,9 +214,13 @@ func mark_floor_start(key: String) -> void:
 
 ## The run back to how it was when the crew walked onto the floor they're on
 ## (mark_floor_start). Returns that floor's key ("" if none was marked).
-func restore_floor_start() -> String:
+## `keep_notebook`: the notebook keeps what was written in it since (hard mode's
+## wipe: the floor starts over, your notes don't).
+func restore_floor_start(keep_notebook := false) -> String:
 	var state: Dictionary = floor_start.get("state", {})
 	for name in state:
+		if keep_notebook and NOTEBOOK_STATE.has(name):
+			continue
 		if name == "inventory":
 			inventory.load_dict(state[name])
 		elif state[name] is Array or state[name] is Dictionary:
@@ -210,6 +231,9 @@ func restore_floor_start() -> String:
 
 
 func goto(level_key: String) -> void:
+	if _run_fresh and (level_key == "world" or WINGS.has(level_key)):
+		run_start = level_key  # the first place a new run opens
+		_run_fresh = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().change_scene_to_file(LEVELS[open_for(level_key)])
 

@@ -1,0 +1,2 @@
+- **Added:** first-aid cabinets on the walls of every floor, each with one kit inside.
+- **Changed:** a teammate who's down can only be brought round with a first-aid kit now, and you have to stand by them for a few seconds while you patch them up. Patching yourself up takes a few seconds too, and a hit stops it (you keep the kit). Anyone who passes out with no kit to hand comes to at the start of the next floor, and the rest of the crew can go on without them.
