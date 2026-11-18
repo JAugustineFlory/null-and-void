@@ -5,6 +5,9 @@ shader_type spatial;
 // far down the arm (0 shoulder, 1 fingertips; 0 off the arms). Vertex colour:
 // red darkens the face's detail, green marks the lips, and the eyes carry their
 // own colour with alpha 0. SkinnedBody sets the colours and lengths.
+// Blue is where torn clothes are ripped (0 whole, past 0.5 a hole): with `torn`
+// on, the shirt and trousers show what's under them there (the trousers under
+// the shirt's hem, else skin), each hole edged with frayed, dirtier cloth.
 uniform vec4 skin_color : source_color = vec4(0.87, 0.68, 0.55, 1.0);
 uniform vec4 top_color : source_color = vec4(0.3, 0.4, 0.7, 1.0);
 uniform vec4 pants_color : source_color = vec4(0.2, 0.2, 0.25, 1.0);
@@ -20,6 +23,8 @@ uniform float waist = 0.985;
 // where the jacket bends with the arms. jacket_hem is where the jacket ends.
 uniform float tuck = 0.0;
 uniform float jacket_hem = 0.8;
+uniform float torn = 0.0;
+const float FRAY = 0.38;  // from here up to 0.5, the frayed edge round a hole
 // Your own body in first person, pulled up to an edge or a pipe: what isn't
 // arm and is this close to your eyes (the collar, the back of the shoulders) is
 // left out, so you see your arms reach past your face (FirstPersonBody). A
@@ -56,16 +61,26 @@ void fragment() {
 		vec3 c = skin_color.rgb;
 		float rough = 0.75;
 		bool legs = place.y < 0.01;
+		bool top = place.x > hem && place.x < neckline && place.y < sleeve;
+		// Torn: how ripped the cloth is here (the trousers only below the shirt).
+		float rip = torn > 0.5 ? COLOR.b : 0.0;
+		bool pants = legs && place.x >= shoe_top && place.x < waist && !(place.x <= hem && rip > 0.5);
 		if (legs && place.x < shoe_top) {
 			c = place.x < 0.012 ? shoe_color.rgb * 0.45 : shoe_color.rgb;  // a darker sole
 			rough = 0.7;
-		} else if (legs && place.x < waist) {
+		} else if (pants) {
 			c = pants_color.rgb;
 			rough = 0.9;
 		}
-		if (place.x > hem && place.x < neckline && place.y < sleeve) {
+		if (top && rip > 0.5) {
+			top = false;  // a hole: what's under the shirt shows
+		} else if (top) {
 			c = top_color.rgb;
 			rough = 0.9;
+		}
+		if (torn > 0.5 && (top || (pants && place.x <= hem))) {
+			// Worn through: grubby all over, darker still where it frays.
+			c *= rip > FRAY ? 0.55 : 0.88;
 		}
 		// Lipstick replaces the lips' own tone; without it they keep a little colour.
 		vec3 lips = mix(c * vec3(0.92, 0.72, 0.72), lip_color.rgb, lip_amount);

@@ -19,7 +19,8 @@ What happens to the pack's model:
   shoulder, 1 at the fingertips; shirt sleeves end there).
 - Face detail from the texture is baked into the vertex colour: red darkens
   the skin, green marks the lips. The eyes are joined to the body with their
-  colours baked in (alpha 0 marks them).
+  colours baked in (alpha 0 marks them). Blue is where torn clothes are
+  ripped (tear_field): 0 whole, past 0.5 a hole down to the skin.
 - Muscles are smoothed away where clothes cover them, and the feet are
   rounded into shoes, so nobody looks like they're in a bodysuit.
 - Jackets, collars, badges, lanyards and radios are fitted to the body here.
@@ -475,12 +476,96 @@ def bake_face(body):
     return out
 
 
+def noise(p, scale):
+    """Smooth value noise in 0..1 at `p` (metres), features about `scale` apart."""
+    def h(i, j, k):
+        n = (i * 73856093) ^ (j * 19349663) ^ (k * 83492791)
+        n = (n ^ (n >> 13)) * 1274126177 & 0xFFFFFFFF
+        return (n & 0xFFFF) / 65535.0
+    x, y, z = p.x / scale, p.y / scale, p.z / scale
+    i, j, k = math.floor(x), math.floor(y), math.floor(z)
+    fx, fy, fz = x - i, y - j, z - k
+    fx, fy, fz = [f * f * (3 - 2 * f) for f in (fx, fy, fz)]
+    def lerp(a, b, t):
+        return a + (b - a) * t
+    return lerp(
+        lerp(lerp(h(i, j, k), h(i + 1, j, k), fx), lerp(h(i, j + 1, k), h(i + 1, j + 1, k), fx), fy),
+        lerp(lerp(h(i, j, k + 1), h(i + 1, j, k + 1), fx), lerp(h(i, j + 1, k + 1), h(i + 1, j + 1, k + 1), fx), fy),
+        fz)
+
+
+def ragged(p):
+    """0..1, ragged at two sizes: a torn edge's wander and its frayed teeth."""
+    return 0.65 * noise(p, 0.045) + 0.35 * noise(p, 0.016)
+
+
+# Where torn clothes are ripped, as ellipses on the surface: (part, angle round it
+# from the front in radians (+ to the character's right), rig height, half-width and
+# half-height in metres, tilt in degrees). "torso", or a leg ("r", "l").
+RIPS = [
+    ("torso", -0.55, 1.37, 0.07, 0.018, 25),  # a gash under the left collarbone, clear of the chest
+    ("torso", 1.35, 1.03, 0.04, 0.035, 0),  # a hole at the right side, over the ribs
+    ("torso", math.pi - 0.55, 1.2, 0.022, 0.075, -10),  # a tear down the back
+    ("r", 0.1, RIG_KNEE + 0.01, 0.045, 0.04, 0),  # through at the right knee
+    ("l", -0.45, 0.66, 0.065, 0.017, 15),  # a slash across the left thigh
+    ("l", 0.2, 0.3, 0.03, 0.025, 0),  # a small hole on the left shin
+]
+TORN_SLEEVE = 0.17  # torn sleeves end about here down the arm (a short one is 0.33)
+TORN_HEM = 0.9  # the shirt's ragged hem, about here (it ends at 0.86)
+TORN_CUFF = 0.2  # the trousers' ragged cuffs, about here, over bare shins
+
+
+def tear_field(body, ob, fields):
+    """How torn each vertex is, for torn clothes: past 0.5 the cloth is gone and
+    the skin shows; just under it is the frayed edge. Ragged sleeves, hem and
+    cuffs, and the RIPS, all at rest, so they ride with the body as it moves."""
+    mw = ob.matrix_world
+    torso_y = body.bone["spine_02"].y
+    legs = {s: body.bone["calf_" + s] for s in ("r", "l")}
+    sharp = 10.0  # how fast a torn edge goes from cloth to skin (per metre over a rip's size)
+    out = []
+    for v, (h, a) in zip(ob.data.vertices, fields):
+        p = mw @ v.co
+        n = ragged(p) - 0.5
+        if a > 0.0:
+            # Down the arm: a sleeve torn off short and ragged.
+            out.append(min(1.0, max(0.0, 0.5 + (a - TORN_SLEEVE - 0.12 * n) * 12.0)))
+            continue
+        t = 0.0
+        if h > RIG_HIP:
+            t = 0.5 + (TORN_HEM + 0.07 * n - h) * 14.0  # the hem, torn ragged
+            part, cx, cy = "torso", 0.0, torso_y
+        else:
+            t = 0.5 + (TORN_CUFF + 0.08 * n - h) * 12.0  # the cuffs, torn off above the shoes
+            part = "r" if p.x > 0 else "l"
+            cx, cy = legs[part].x, legs[part].y
+        dx, dy = p.x - cx, p.y - cy
+        angle = math.atan2(dx, dy)
+        reach = math.hypot(dx, dy)
+        for where, at, rh, hw, hh, tilt in RIPS:
+            if where != part:
+                continue
+            d = (angle - at + math.pi) % (2 * math.pi) - math.pi
+            u = d * reach  # along the surface, round the body
+            w = p.z - body.pack_height(rh)
+            c, s_ = math.cos(math.radians(tilt)), math.sin(math.radians(tilt))
+            u, w = u * c + w * s_, -u * s_ + w * c
+            e = math.hypot(u / hw, w / hh)
+            t = max(t, 0.5 + (1.0 - e + 0.9 * n) * 1.6)
+        out.append(min(1.0, max(0.0, t)))
+    torn = sum(1 for t in out if t > 0.5)
+    print("  torn verts", torn, "of", len(out))
+    return out
+
+
 def make_body(body):
     """The body with the eyes joined in: one draw for skin, clothes, shoes and eyes."""
     colors = bake_face(body)
     smooth_under_clothes(body)
-    set_fields(body.mesh, paint_fields(body, body.mesh))
-    set_colors(body.mesh, colors)
+    fields = paint_fields(body, body.mesh)
+    set_fields(body.mesh, fields)
+    tears = tear_field(body, body.mesh, fields)
+    set_colors(body.mesh, [(c[0], c[1], t, c[3]) for c, t in zip(colors, tears)])
     eye_cols = baked_colors(body.eyes, texture_of(body.eyes))
     set_fields(body.eyes, [(2.0, 0.0)] * len(body.eyes.data.vertices))  # above any neckline: never painted
     set_colors(body.eyes, [(c[0] ** 2.2, c[1] ** 2.2, c[2] ** 2.2, 0.0) for c in eye_cols])  # the texture is sRGB; colours are linear
@@ -1012,6 +1097,24 @@ def make_headwear(body, skin):
     dome = head_shell("Dome", lambda c: c.z > top - 0.005, 0.03)
     rim = shade(cylinder("Rim", (0, 0.01, top), 0.155, 0.012, 18, (1.0, 1.1, 1.0)), 0.95)
     out["Head_hard_hat"] = join("Head_hard_hat", [dome, rim])
+    # The knight's helmet: a closed great helm, a steel drum from the jaw to over the
+    # crown with a low dome on top, a dark slit to see out of, and a riveted strap
+    # down the front from the slit to the chin. It hides the face and hair.
+    rx, ry = A_HEAD_R.x + 0.032, A_HEAD_R.y + 0.032
+    low, high = hc.z - A_HEAD_R.z * 0.88, hc.z + 0.1
+    drum = shade(cylinder("Drum", (0, 0, (low + high) / 2), 1.0, high - low, 24, (rx, ry, 1.0)), 1.0)
+    delete_faces(drum, lambda c: c.z < low + 0.001)  # open underneath, round the neck
+    crown3 = blob("HelmCrown", (0, 0, high), (rx, ry, 0.05), 24, 10)
+    delete_faces(crown3, lambda c: c.z < high)
+    crown3 = shade(crown3, 1.0)
+    eye = hc.z + (body.eye_c.z - body.head_c.z) * A_HEAD_R.z / body.head_r.z
+    slit = cylinder("Slit", (0, 0, eye), 1.0, 0.018, 24, (rx + 0.003, ry + 0.003, 1.0))
+    delete_faces(slit, lambda c: c.y < ry * 0.45 or abs(c.z - eye) > 0.008)  # the front, its rim only
+    slit = shade(slit, 0.08)
+    strap = shade(box("Strap", (0, ry + 0.002, (low + eye - 0.009) / 2), (0.026, 0.008, eye - 0.009 - low)), 0.82)
+    rivets = [shade(blob("Rivet", (0, ry + 0.007, z), (0.005, 0.004, 0.005), 6, 4), 0.7)
+              for z in (low + 0.02, (low + eye) / 2)]
+    out["Head_knight_helm"] = join("Head_knight_helm", [drum, crown3, slit, strap] + rivets)
     for name, ob in out.items():
         to_head(ob, body, 0.006)  # room for the buzz cut worn under a hat
         ob.name = name
