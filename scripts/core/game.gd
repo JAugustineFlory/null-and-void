@@ -39,6 +39,13 @@ var watcher_sealed := false
 ## Did the players lock the Custodian out in its bay on floor 10 (Level 4)? If not,
 ## it can come back on later floors.
 var custodian_sealed := false
+## Hard mode (plan/hard-mode.md; Augustine 2026-11-18), set by the host in the lobby
+## for the whole run: left down too long you die and watch; if everyone's down, the
+## floor starts over. `dead_watch_only`: the dead can't talk (an extra reward).
+## `wipe_new_run`: a wipe starts the whole run over with a new seed instead.
+var hard_mode := false
+var dead_watch_only := false
+var wipe_new_run := false
 ## STAIR 1's first-aid cabinet on landing 5 (FirstAidCabinet): "", "open" or "taken".
 var first_aid := ""
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?

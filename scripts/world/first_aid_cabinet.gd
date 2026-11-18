@@ -3,7 +3,7 @@ extends Interactable
 ## The first-aid cabinet on STAIR 1's landing 5 (plan/approvals/stair-landings.md,
 ## C): sealed shut, E breaks the seal and opens it, E again takes the one kit in
 ## it. Whoever takes the kit carries it (Inventory "first_aid_kit"); in their hands,
-## it patches them up (attack) or brings a downed teammate straight round (E on
+## it patches them up (attack) or brings a downed teammate round (E on
 ## them, see teammate_prompt and patch).
 ##
 ## It's the same cabinet whichever trip passes landing 5 (down from 10, up from G),
@@ -187,34 +187,36 @@ static func holding(player: Node) -> bool:
 	return inv != null and inv.active_item() == ITEM
 
 
-## Attack with the kit in your hands: patch yourself up. True if the kit was in
-## your hands (it does nothing else, even at full health: no swinging it at people).
+## Attack with the kit in your hands: patch yourself up, holding still for
+## CrewVitals.KIT_TIME (a hit stops it, and you keep the kit). True if the kit was
+## in your hands (it does nothing else, even at full health: no swinging it at people).
 static func use_on_self(player: Node) -> bool:
 	if not holding(player):
 		return false
 	var combat: PlayerCombat = player.get("combat")
 	if combat == null or combat.down or float(player.get("health")) >= PlayerCombat.MAX_HEALTH:
 		return true
-	combat.heal_full()
-	player.inventory.remove(ITEM)
-	var hud: Node = player.get("hud")
-	if hud:
-		hud.notice(PATCHED_SELF, 3.0)
+	combat.patch_self(func():
+		player.inventory.remove(ITEM)
+		var hud: Node = player.get("hud")
+		if hud:
+			hud.notice(PATCHED_SELF, 3.0))
 	return true
 
 
 ## E on downed teammate `id`, with the kit in `by`'s hands: the kit's prompt in
 ## place of the usual hand up (one key can't do both); otherwise the usual.
 static func teammate_prompt(by: Node, crew: CrewVitals, id: int) -> String:
-	if holding(by) and crew.downed.has(id) and not CrewVitals.is_down(by):
+	if holding(by) and crew.can_help(id) and not crew.reviving.has(id) and not CrewVitals.is_down(by):
 		return PATCH_PROMPT
 	return crew.revive_prompt(id)
 
 
-## E on downed teammate `id` with the kit in `by`'s hands: up at once, to full
-## health, even if they've passed out. False (do the usual) without the kit.
+## E on downed teammate `id` with the kit in `by`'s hands: up in
+## CrewVitals.KIT_TIME standing by them, to full health, even if they've passed
+## out (in hard mode, the only way up). False (do the usual) without the kit.
 static func patch(by: Node, crew: CrewVitals, id: int) -> bool:
-	if not holding(by) or not crew.downed.has(id):
+	if not holding(by) or not crew.can_help(id):
 		return false
 	crew.revive(id, PlayerCombat.MAX_HEALTH, true)
 	return true

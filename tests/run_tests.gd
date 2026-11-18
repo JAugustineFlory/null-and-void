@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "hard"]
 
 
 func _run() -> void:
@@ -95,6 +95,7 @@ func _run_group(g: String) -> void:
 		"papers": await _group_papers()
 		"garage": await _group_garage()
 		"keywords": await _group_keywords()
+		"hard": await _group_hard()
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -262,6 +263,10 @@ func _group_coop() -> void:
 
 
 ## Fights: health, blocking, the entities' grabs and throws, solo and co-op.
+func _group_hard() -> void:
+	await _run_file("res://tests/hard_mode_tests.gd")
+
+
 func _group_combat() -> void:
 	await _run_file("res://tests/combat_tests.gd")
 	await _run_file("res://tests/custodian_tests.gd")
@@ -4344,8 +4349,8 @@ func test_coop_combat() -> void:
 	client.player.combat.bleed_left = 0.05
 	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again")
 	host.crew.revive(client_id, PlayerCombat.MAX_HEALTH, true)
-	await _frames(10)
-	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious, "a first-aid kit brings them round at once, to full health")
+	check(await _until(func(): return not client.player.downed, CrewVitals.KIT_TIME + 2.0) and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious,
+		"a first-aid kit brings them round in a few seconds, to full health")
 	# Everyone down or out: the crew is beaten.
 	downs.clear()
 	puppet.take_damage(1000.0, "watcher")
