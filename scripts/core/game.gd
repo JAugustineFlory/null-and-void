@@ -19,11 +19,15 @@ const LEVELS := {
 	"level_3": "res://scenes/level_3.tscn",
 	"level_4": "res://scenes/level_4.tscn",
 	"level_5": "res://scenes/level_5.tscn",
+	"level_6": "res://scenes/level_6.tscn",
+	"level_7": "res://scenes/level_7.tscn",
 	"movement_gym": "res://scenes/movement_gym.tscn",
 	"field_notes": "res://scenes/field_notes.tscn",
 	"menu": "res://scenes/main_menu.tscn",
 	"lobby": "res://scenes/lobby.tscn",
 }
+## The building's floors in play order: World.ROUTE's keys.
+const WINGS := ["level_0", "level_1", "level_2", "level_3", "level_4", "level_5", "level_6", "level_7"]
 
 ## How the escort's story went: "unknown", "killed", "tied".
 var rourke_fate := "unknown"
@@ -37,8 +41,14 @@ var watcher_sealed := false
 ## Did the players lock the Custodian out in its bay on floor 10 (Level 4)? If not,
 ## it can come back on later floors.
 var custodian_sealed := false
+## STAIR 1's first-aid cabinet on landing 5 (FirstAidCabinet): "", "open" or "taken".
+var first_aid := ""
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
 var cam_lie_learned := false
+## B2 (Level 7): how the crew beat WARDEN ("lockout", "revoke", "watchdog"; "" not
+## yet), which sets his later rules and lines; and which night-shifters lived.
+var warden_route := ""
+var night_shift_alive: Array[String] = []
 ## The level the Field Notes screen is summarizing, and where "Continue" goes.
 var completed_level := ""
 var next_level := ""
@@ -53,6 +63,9 @@ var run_seed := 0
 var van_seating: Array[int] = []
 ## A new game opens in the crew's garage before the van (the World reads this).
 var open_at_home := false
+## Otherwise the World opens at this floor of its route (World.ROUTE): a floor picked
+## from Levels is played inside the building, so its stairs lead on to the next one.
+var open_at_wing := 0
 ## Words the crew has learned from its books, in order (see Huddle).
 var book_words: Array[String] = []
 ## The crew hasn't got the book yet this run (the garage, before the shop bag):
@@ -60,6 +73,15 @@ var book_words: Array[String] = []
 var before_book := false
 ## The chapters the crew has read this run, in order: they're in the notebook's book.
 var book_chapters: Array[String] = []
+## Words learned off a paper this run rather than from a chapter (IS NULL, off
+## Mercer's card): the terminal's buttons offer them (KeywordHelp).
+var learned_words: Array[String] = []
+## Queries this player's buttons have counted this run (KeywordHelp.same_query):
+## the exact same query again doesn't count.
+var counted_queries: Array[String] = []
+## Words that reached their uses at a terminal while its puzzle was open: word ->
+## that puzzle's case ("" none). Each comes off once its case is solved.
+var words_waiting := {}
 ## The notebook is held in your hands and terminals are used on their own screens.
 ## Off: both open full-screen over the view, as before (a setting in the pause menu).
 var diegetic_ui := true
@@ -107,6 +129,12 @@ var notebook_jotted: Array[String] = []
 var job_over := false
 ## What a missing piece shows on its case page and in the query so far.
 const PIECE_MISSING := "????"
+## Where the crew last walked onto a floor (a LEVELS key; "world" is the garage),
+## and the run as it stood then: {"key", "state"}. Restarting the floor puts it
+## back (restore_floor_start, Net.restart_floor).
+var floor_start := {}
+## Not part of a run's progress, so a floor restart leaves them alone.
+const _KEPT_ON_RESTART := ["run_seed", "open_at_home", "open_at_wing", "diegetic_ui", "floor_start"]
 
 
 func _ready() -> void:
@@ -117,15 +145,23 @@ func _ready() -> void:
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	open_at_home = false
+	open_at_wing = 0
+	floor_start = {}
 	book_words.clear()
 	book_chapters.clear()
+	learned_words.clear()
+	counted_queries.clear()
+	words_waiting.clear()
 	before_book = false
 	rourke_fate = "unknown"
 	has_walkie = false
 	visitor_badge_no = ""
 	watcher_sealed = false
 	custodian_sealed = false
+	first_aid = ""
 	cam_lie_learned = false
+	warden_route = ""
+	night_shift_alive.clear()
 	completed_level = ""
 	next_level = ""
 	query_log.clear()
@@ -142,9 +178,45 @@ func new_run(seed_value: int = -1) -> void:
 	van_seating.clear()
 
 
+## The crew has just walked onto floor `key` (World.enter_wing, or the garage):
+## remember the run as it stands, for a restart of this floor.
+func mark_floor_start(key: String) -> void:
+	var state := {}
+	for p in get_script().get_script_property_list():
+		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and not _KEPT_ON_RESTART.has(p.name):
+			var v = get(p.name)
+			state[p.name] = v.to_dict() if v is Inventory else (v.duplicate(true) if v is Array or v is Dictionary else v)
+	floor_start = {"key": key, "state": state}
+
+
+## The run back to how it was when the crew walked onto the floor they're on
+## (mark_floor_start). Returns that floor's key ("" if none was marked).
+func restore_floor_start() -> String:
+	var state: Dictionary = floor_start.get("state", {})
+	for name in state:
+		if name == "inventory":
+			inventory.load_dict(state[name])
+		elif state[name] is Array or state[name] is Dictionary:
+			set(name, state[name].duplicate(true))
+		else:
+			set(name, state[name])
+	return floor_start.get("key", "")
+
+
 func goto(level_key: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	get_tree().change_scene_to_file(LEVELS[level_key])
+	get_tree().change_scene_to_file(LEVELS[open_for(level_key)])
+
+
+## The scene `level_key` opens in. A floor of the building opens the World at that
+## floor (open_at_wing), so it carries on into the next one like a full run does.
+func open_for(level_key: String) -> String:
+	var wing := WINGS.find(level_key)
+	if wing < 0:
+		return level_key
+	open_at_home = false
+	open_at_wing = wing
+	return "world"
 
 
 func log_query(sql: String) -> void:
@@ -165,11 +237,28 @@ func add_note(id: String) -> bool:
 	return true
 
 
-## Record a table and its columns on the notebook's Tables page.
+## Learn a word off a paper (KeywordHelp.PAPER_TOKENS): the terminal's buttons
+## offer it from now on, this run. True if it's new.
+func learn_word(word: String) -> bool:
+	if learned_words.has(word):
+		return false
+	learned_words.append(word)
+	return true
+
+
+## Record a table on the notebook's Tables page, and the columns seen so far
+## (all of them after .schema or SELECT *, a query's own result columns after
+## any other): `columns` adds to those already written down, never wipes them,
+## and empty lists only the table's name.
 func discover_table(table: String, columns: Array) -> void:
-	if notebook_tables.has(table) and notebook_tables[table] == columns:
+	var had: Array = notebook_tables.get(table, [])
+	var merged: Array = columns.duplicate() if had.all(func(c): return columns.has(c)) else had.duplicate()
+	for c in columns:
+		if not merged.has(c):
+			merged.append(c)
+	if notebook_tables.has(table) and had == merged:
 		return
-	notebook_tables[table] = columns
+	notebook_tables[table] = merged
 	_seen_tables()
 	notebook_changed.emit()
 
@@ -232,8 +321,9 @@ func case_objective(id: String) -> String:
 ## A new task on the job ticket; the one before it is ticked off. "" ticks off
 ## the current task and adds nothing. False if nothing changed. Once the job is
 ## over (end_job), a task is the current case's: it goes on that case's
-## checklist, not the void work order.
-func set_todo(text: String) -> bool:
+## checklist, not the void work order. `text` is what to do (the task's details);
+## `title`, if it has one, how the crew feels about it (HUD.todo).
+func set_todo(text: String, title := "") -> bool:
 	if text != "" and current_todo() == text:
 		return false
 	var changed := false
@@ -242,7 +332,7 @@ func set_todo(text: String) -> bool:
 			t.done = true
 			changed = true
 	if text != "":
-		notebook_todo.append({"text": text, "done": false, "filled": "", "case": current_case() if job_over else ""})
+		notebook_todo.append({"text": text, "title": title, "done": false, "filled": "", "case": current_case() if job_over else ""})
 		changed = true
 	if changed:
 		notebook_changed.emit()
@@ -350,6 +440,9 @@ func solve_case(id: String, how: String) -> void:
 		st.done = true
 	c["fresh_solve"] = true  # the notebook shows it solved, once, before filing it
 	notebook_changed.emit()
+	var net := get_node_or_null("/root/Net")
+	if net and net.profile:
+		net.profile.close_case(id, c.title, how)  # for the garage's back-office PC
 
 
 ## Give case `id` a blank for its answer, under its question: "Ext. 4815 belongs
@@ -512,11 +605,15 @@ func has_piece(id: String, piece_id: String) -> bool:
 	return p.found if not p.is_empty() else c.get("early", {}).has(piece_id)
 
 
-## Pieces whose table has turned up on the Tables page are found.
+## Pieces whose table has turned up on the Tables page are found: a table piece
+## once its name is there, a column piece once that table's columns are.
 func _seen_tables() -> void:
 	for c in notebook_cases:
 		for p in c.get("pieces", []):
-			if not p.found and notebook_tables.has(p.get("seen_in", "")):
+			var t := str(p.get("seen_in", ""))
+			if p.found or not notebook_tables.has(t):
+				continue
+			if str(p.get("value", "")) == t or notebook_tables[t].has(p.get("value", "")):
 				collect_piece(c.id, p.id, "Tables page")
 
 
@@ -611,7 +708,7 @@ func case_checklist(id: String) -> Array:
 		out.append({"text": st.text, "done": st.done})
 	for t in notebook_todo:
 		if t.get("case", "") == id and id != "":
-			out.append({"text": t.text, "done": t.done or c.get("solved", false)})
+			out.append({"text": t.text, "title": t.get("title", ""), "done": t.done or c.get("solved", false)})
 	return out
 
 
@@ -619,7 +716,7 @@ func case_checklist(id: String) -> Array:
 func case_next(id: String) -> String:
 	for line in case_checklist(id):
 		if not line.done:
-			return line.text
+			return line.get("title", "") if line.get("title", "") != "" else line.text
 	return ""
 
 
@@ -749,6 +846,8 @@ func _setup_input() -> void:
 		var right := InputEventMouseButton.new()
 		right.button_index = MOUSE_BUTTON_RIGHT
 		InputMap.action_add_event("block", right)
+	PadInput.bind()  # gamepad buttons for all of the above
+	InputGlyphs.watch(self)  # prompts follow the keyboard or pad, whichever was used last
 
 
 func _bind_keys(action: String, keys: Array) -> void:

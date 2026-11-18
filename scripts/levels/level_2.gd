@@ -99,6 +99,7 @@ var exit_lift: Elevator
 var stair_door: Door
 ## The stair door, in the lift lobby's east wall.
 const STAIR_DOOR_AT := Vector3(2, 0, -14.5)
+const STAIRS_WAIT := "Waiting for everyone on the stairs (%d/%d)"
 var key_glass: Level2Glass
 ## The floor's case pages in the notebook (Cases tab), by id.
 const CASES := {
@@ -224,12 +225,17 @@ func build() -> void:
 	exit_lift.hud = hud
 	exit_lift.button.enabled = false
 	stair_door = Stairwell.build(self, geo, STAIR_DOOR_AT, -90.0, "22")
-	# Everyone on the stairs, and the wing is done.
 	var down := Trigger.create(self, STAIR_DOOR_AT + Vector3(2.5, 1, 0), Vector3(2.8, 2, 3.2))
 	down.name = "StairsDown"
-	down.require_all = true
-	down.waiting.connect(func(n, total): sync.team_notice("Waiting for everyone on the stairs (%d/%d)" % [n, total]))
-	down.entered.connect(func(_b): sync.event("_on_exit", [null]), CONNECT_ONE_SHOT)
+	if world:
+		# The first of the crew on the stairs hears it: one tap on the metal, from
+		# behind SEC-EXIT. The wing is done once they're all down on 18 (walk_stairs).
+		down.entered.connect(func(_b): sync.event("_tap"), CONNECT_ONE_SHOT)
+	else:
+		# On its own: everyone on the stairs, and the floor is done.
+		down.require_all = true
+		down.waiting.connect(func(n, total): sync.team_notice(STAIRS_WAIT % [n, total]))
+		down.entered.connect(func(_b): sync.event("_on_exit", [null]), CONNECT_ONE_SHOT)
 	# Server Room A's elevator links to this car and opens it at the end of the ride.
 	arrival_lift = Elevator.create(self, geo, Vector3(5.5, 0, 8), 90, "22", ["22", "14", "G", "B1"], "22")
 	arrival_lift.name = "ArrivalElevator"
@@ -630,10 +636,10 @@ func start() -> void:
 		if Game.rourke_fate == "tied":
 			await _escape_radio(0.0)
 	_book_check("easy_sql_10")  # the camera card, read on the way to the lab
-	hud.todo("Find a way out of the security wing")
+	hud.todo("Out of the frying pan", "Find a way out of the security wing")
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
-		hud.todo("Check the security booth terminal")
+		hud.todo("Security knows the way out", "Check the security booth terminal")
 		Game.open_case("cameras", CASES.cameras, ["cameras"])
 
 
@@ -680,6 +686,12 @@ func _crew_reaches_corridor() -> void:
 
 func _anyone_in_booth_corridor() -> bool:
 	return players.all_players().any(func(p): return _booth_corridor.has_point(to_local(p.global_position) + Vector3.UP * 0.5))
+
+
+## The ledge is 80 m up: a fall from here kills you (_process), with its own notice,
+## rather than being caught by the safety net.
+func owns_falls() -> bool:
+	return true
 
 
 func _process(delta: float) -> void:
@@ -843,7 +855,7 @@ func _on_cameras_found(which: String) -> void:
 		sysop(t, "pike's name is clear on the sign-in sheet. find his row with a pattern:")
 		t.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
 		t.print_line("      LIKE 'Pike%'   names that start with Pike. % = any letters after")
-		hud.todo("Look up Officer Pike's PIN")
+		hud.todo("Borrow a guard's PIN", "Look up Officer Pike's PIN")
 		Game.open_case("cameras", CASES.cameras, ["cameras"])
 		Game.solve_case("cameras", "CAM-2 reports motion in the security office. It's the only camera pointed at that room.")
 		Game.open_case("pin", CASES.pin, ["guards", "badge_log"])
@@ -922,6 +934,25 @@ func _book_ready(id: String) -> bool:
 	return true
 
 
+## The Har- search, narrowed to Har- names (LIKE 'Har%', with or without the shift):
+## a result whose rows are all Har- guards and that shows the night lead's name and
+## PIN has found him, as the sign-in sheet's smudge says to look. Listing every guard,
+## or LIKE '%Har%' (RICHARDS, SHARPE...), still hasn't.
+func shows_lead(result: Dictionary) -> bool:
+	if not result.get("ok", false) or result.rows.is_empty():
+		return false
+	var lead := false
+	for row in result.rows:
+		var cells := {}
+		for k in row:
+			cells[str(k).to_lower()] = str(row[k])
+		var name: String = cells.get("name", "")
+		if not name.to_upper().begins_with("HAR"):
+			return false
+		lead = lead or (name == data.name and cells.get("pin", "") == str(data.pin))
+	return lead
+
+
 ## Every machine: a chapter of Easy SQL comes into the crew's book (once per run).
 ## Nothing stops for it, the Watcher included.
 func _book_huddle(id: String) -> void:
@@ -932,7 +963,7 @@ func _book_huddle(id: String) -> void:
 func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
 	if not pike_puzzle.solved and pike_puzzle.matches(db, result):
 		sync.event("_on_pike_found", [which])
-	if not har_puzzle.solved and har_puzzle.matches(db, result):
+	if not har_puzzle.solved and (har_puzzle.matches(db, result) or shows_lead(result)):
 		sync.event("_on_har_found", [which])
 	if sql.to_lower().contains("door_status") and not result.rows.is_empty() and pin_entered and not door_checked and not door_open:
 		sync.event("_on_door_checked", [which])
@@ -945,7 +976,7 @@ func _on_pike_found(which: String) -> void:
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
 		sysop(t, "you need a night-shift guard who badged in tonight. the badge readers know who. so does the sign-in sheet, under the coffee.")
-		hud.todo("Find out who else has a working PIN")
+		hud.todo("That PIN's dead. Try another.", "Find out who else has a working PIN")
 		Game.add_clue("pin", "Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.", "WARDEN")
 		# The answer only leads to the next search: the book's review of that, before it hunts.
 		await _book_huddle("easy_sql_12")
@@ -966,7 +997,7 @@ func _on_har_found(which: String) -> void:
 		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Badged in 22:00. PIN on file.[/color]" % data.name)
 		sysop(t, "that PIN opens the office door, and the SEC-EXIT keypad past it.")
 		sysop(t, "[color=#ff6655]it's on the other side of that door. open it, and keep your eyes on it.[/color]")
-		hud.todo("Open the office door. Keep eyes on it")
+		hud.todo("Don't look away", "Open the office door. Keep your eyes on it")
 		Game.solve_case("pin", "%s, night shift, badged in 22:00. That PIN opens the office and the SEC-EXIT keypad." % data.name)
 		_set_loose()
 		_set_stage("window")
@@ -1086,7 +1117,7 @@ func open_office() -> void:
 	db.run_silent("UPDATE door_status SET sensor = 'open', note = 'normal' WHERE door_id = 'SEC-OFFICE'")
 	db.sync_world()
 	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-OFFICE: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
-	hud.todo("Get past it to the SEC-EXIT keypad. Keep eyes on it")
+	hud.todo("It moves when nobody's looking", "Get past it to the SEC-EXIT keypad. Keep your eyes on it the whole way")
 	wake_watcher()
 
 
@@ -1100,7 +1131,11 @@ func check_pin(pin: String) -> Dictionary:
 	if rows.is_empty():
 		return {"ok": false, "message": "PIN NOT RECOGNIZED"}
 	var g: Dictionary = rows[0]
-	return {"ok": false, "message": "REFUSED: %s\n%s shift. %s\nLOCKDOWN: NIGHT SHIFT, BADGED IN" % [g["name"], g["shift"], g["note"]]}
+	# Most notes already start with the shift ("day shift. Clocked out 18:00"): say it once.
+	var why: String = g["note"]
+	if not why.begins_with("%s shift" % g["shift"]):
+		why = "%s shift. %s" % [g["shift"], why]
+	return {"ok": false, "message": "REFUSED: %s\n%s\nLOCKDOWN: NIGHT SHIFT, BADGED IN" % [g["name"], why]}
 
 
 ## The right PIN unlocks the door in the database. If the actuator is still
@@ -1112,13 +1147,13 @@ func enter_pin() -> void:
 	hud.notice("> PIN ACCEPTED: %s\n> DOOR SEC-EXIT: OPENED" % data.name, 4.0, ThemeUtil.GREEN)
 	if _update_door():
 		return
-	hud.todo("Get through SEC-EXIT")
+	hud.todo("Almost out!", "Get through SEC-EXIT")
 	await hud.line("l2_door_ok")
 	await get_tree().create_timer(5.0).timeout
 	if not door_open and not door_checked:
 		_broadcast([TerminalUI.sysop("it didn't open. check the door's sensor at the vestibule panel:"), "    [color=#ffffff]GET /doors/SEC-EXIT[/color]"])
 		hud.notice(NEW_MESSAGE, 4.0)
-		hud.todo("Find out why SEC-EXIT is still shut")
+		hud.todo("Come on, open!", "Find out why SEC-EXIT is still shut, at the vestibule panel")
 		Game.open_case("door", CASES.door, ["door_status"])
 		door_asked = true
 		_book_check("easy_sql_13")
@@ -1135,7 +1170,7 @@ func _on_door_checked(which: String) -> void:
 	sysop(t, "keypad said OPENED. locked is false, so the request went through.")
 	sysop(t, "but sensor says 'closed' and actuator says 'fault'. the door never moved. read the note.")
 	sysop(t, "a request going through isn't the thing happening. check the sensor, not the request.")
-	hud.todo("Fix whatever jammed the door, then check it again")
+	hud.todo("Unjam it, and fast", "Read the door's note, fix what jammed it, then check the door again")
 	Game.open_case("door", CASES.door, ["door_status"])
 	Game.add_clue("door", "The keypad's request went through, but the sensor says closed and the actuator says fault. The note names a breaker.", "SYSOP")
 	hud.line("l2_door_fault")
@@ -1183,11 +1218,14 @@ func _update_door() -> bool:
 		door_puzzle.solved = true
 	if open and not door_open:
 		door_open = true
-		hud.todo("Take the stairs down. Lock SEC-EXIT behind us if we can")
+		hud.todo("Down, and lock it behind us", "Take the stairs down. Lock SEC-EXIT behind you if you can")
 		Game.open_case("door", CASES.door, ["door_status"])
 		Game.solve_case("door", "Breaker B-%d had tripped and jammed the door. Resetting it let the door open." % data.breaker)
 		stair_door.locked = false
-		prepare_next()  # floor 18 builds now, behind the stairwell
+		prepare_next()  # floor 18 builds now, at the foot of the stairs
+		var next: Node = world.wings.get("level_3") if world else null
+		if next:
+			walk_stairs(stair_door, next.stair_in, true, "_on_exit", STAIRS_WAIT, [null])
 	return open
 
 
@@ -1201,40 +1239,35 @@ func seal_exit() -> void:
 	Level2FX.sound(geo, SEC_EXIT_FRAME, "clunk")
 
 
-## Everyone is on the stairs. In the World the crew heads down to floor 18 (Level 3);
-## on its own, the slice ends here.
+## Everyone is down the stairs: in the World, on 18's landing, and play moves to
+## floor 18 (Level 3); on its own, on 22's stairs, and Field Notes leads on to 18.
 func _on_exit(_b: Node) -> void:
 	# Everyone here finished the floor, downed or not.
 	get_node("/root/Net").earn("achievement:floor_22", hud)
 	if not player:
 		return
-	# A downed player on the stairs goes down to 18 with everyone else (the trigger
-	# counted them), and stays down there until revived: only the card is for the living.
-	var up := player.health > 0.0
-	var was_locked := player.input_locked
-	player.input_locked = true
-	# No words: one tap on the metal, from behind SEC-EXIT.
-	await get_tree().create_timer(1.0).timeout
-	Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
-	await get_tree().create_timer(1.2).timeout
 	var next: Node = world.wings.get("level_3") if world else null
-	if next and next.has_method("arrive_by_stairs"):
-		# Four flights down behind a fade: everyone steps onto 18's landing.
-		await hud.fade(true, 1.2)
+	if next:
+		stairs.seal(Stairwell.of(stair_door))
 		Game.completed_level = "level_2"
 		Game.next_level = "level_3"
-		next.arrive_by_stairs()
 		finish_level("level_3")
-		player.input_locked = was_locked if not up else false
-		hud.fade(false, 0.8)
 		return
-	if not up:
-		player.input_locked = was_locked
+	if player.health <= 0.0:
 		return
-	await Level2FX.end_card(self, "To be continued.")
+	player.input_locked = true
+	await _tap()
+	await get_tree().create_timer(1.2).timeout
 	Game.completed_level = "level_2"
-	Game.next_level = ""  # the end of the playable slice, for now
+	Game.next_level = "level_3"  # Field Notes' Continue: floor 18, in the building
 	completed.emit()
+
+
+## Every machine: no words, one tap on the metal, from behind SEC-EXIT.
+func _tap() -> void:
+	await get_tree().create_timer(1.0).timeout
+	if is_inside_tree():
+		Level2FX.sound(geo, SEC_EXIT_FRAME, "tap")
 
 
 ## The end of the route: Field Notes, over the live World or as its own scene.

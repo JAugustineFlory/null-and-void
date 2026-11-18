@@ -296,6 +296,10 @@ var _notebook_held := false
 var notebook_drift := Vector2.ZERO
 ## The paper or card you're holding up to read (pick_up), or null. Read-only.
 var held_prop: Node3D
+## The hotbar item you've taken out, as you see it in your hands (HandItem), or
+## null for one with no model or empty hands. Read-only.
+var hand_item: Node3D
+var _hand_item_id := ""
 var _prop_home := {}  # where it came from: parent, local transform, collision
 var _prop_read := Transform3D()  # camera-local reading pose
 var _prop_size := Vector2.ZERO  # what pick_up was given: its readable face and where it points
@@ -463,6 +467,26 @@ func _edge_look(delta: float) -> void:
 		_turn_view(turn.x * delta, turn.y * delta)
 
 
+## The right stick turns the view (PadInput: look speed, dead zone, invert).
+## Reading the notebook or a paper, it scrolls the page instead (the notebook's job).
+func _pad_look(delta: float) -> void:
+	if not local_control or input_locked or state == Move.TERMINAL or downed or _reading():
+		return
+	var turn := PadInput.look_turn(delta)
+	if turn != Vector2.ZERO:
+		_turn_view(turn.x, turn.y)
+
+
+## D-pad right: take out the next thing on the hotbar; past the last, put it away.
+func _next_hotbar_item() -> void:
+	for slot in range(inventory.active + 1, Inventory.HOTBAR_SIZE):
+		if inventory.hotbar[slot] != "":
+			inventory.use_slot(slot)
+			return
+	if inventory.active >= 0:
+		inventory.use_slot(inventory.active)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if input_locked or not local_control:
 		return
@@ -484,13 +508,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		var target := _look_target()
 		if target and target.has_method("interact_alt"):
 			target.interact_alt(self)
-	elif event.is_action_pressed("block") and not _reading() and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	elif event.is_action_pressed("hotbar_next") and not _reading():
+		_next_hotbar_item()
+	elif event.is_action_pressed("block") and not _reading() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or _from_pad(event)):
 		combat.raise_guard()
 	elif event.is_action_pressed("attack") and not _hands_full():
-		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _from_pad(event):
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		else:
+		elif not FirstAidCabinet.use_on_self(self):  # (the kit in your hands patches you up)
 			_strike()
+
+
+static func _from_pad(event: InputEvent) -> bool:
+	return event is InputEventJoypadButton or event is InputEventJoypadMotion
 
 
 func _physics_process(delta: float) -> void:
@@ -534,7 +564,7 @@ func step(delta: float) -> void:
 		Move.DOWN:
 			_step_down(delta)
 		_:
-			if sit_pressed and sit():
+			if sit_pressed and not _notebook_held and sit():  # RB turns the held notebook's tabs
 				return
 			_step_ground(delta, jump_pressed, crouch_pressed)
 
@@ -794,6 +824,23 @@ func _reading() -> bool:
 	return _notebook_held or is_holding_prop()
 
 
+## The hotbar item you've taken out, in your hands in first person. It's put away
+## (hidden) while your hands are busy: climbing, fighting, reading, typing, down.
+func _show_hand_item() -> void:
+	if not local_control or camera == null:
+		return
+	var want := inventory.active_item() if inventory else ""
+	if want != _hand_item_id:
+		_hand_item_id = want
+		if hand_item:
+			hand_item.queue_free()
+		hand_item = HandItem.make(want, camera)
+	if hand_item:
+		var fp := get_node_or_null("FirstPersonBody")
+		var free: bool = fp.current_action() in ["idle", "sit", "sit_floor"] if fp else state == Move.WALK
+		hand_item.visible = free and not _reading() and not downed
+
+
 ## Something in your hands: no sprinting, jumping or climbing.
 func _hands_full() -> bool:
 	return _notebook_held or held_prop != null or not _filing.is_empty()
@@ -932,6 +979,14 @@ func leave_terminal() -> void:
 		terminal_amount = minf(terminal_amount, 2.0)
 
 
+## How far you've looked down from a terminal's screen at the notebook in your
+## hands (0 at the screen, 1 down; TerminalNotebook sets it): the view tips down
+## and leans back.
+var terminal_look := 0.0
+const TERMINAL_LOOK_DOWN := 22.0
+const TERMINAL_LEAN_BACK := 0.15
+
+
 func is_using_terminal() -> bool:
 	return state == Move.TERMINAL
 
@@ -1002,6 +1057,7 @@ func _end_terminal(announce: bool) -> void:
 			rotation.y = atan2(-look.x, -look.z)
 			head.rotation.x = clampf(asin(clampf(look.y, -1.0, 1.0)), -1.45, 1.45)
 	terminal_amount = 0.0
+	terminal_look = 0.0
 	_term_stand = null
 	_term_focus = null
 	_term_leaving = false
@@ -1014,6 +1070,8 @@ func _end_terminal(announce: bool) -> void:
 
 func _process(delta: float) -> void:
 	_edge_look(delta)
+	_pad_look(delta)
+	_show_hand_item()
 	_animate_prop(delta)
 	_animate_filing(delta)
 	_pose_notebook()
@@ -1218,6 +1276,19 @@ func get_up() -> void:
 	_end_down()
 
 
+## Moved by `by` all at once, as the stairs carry you a storey (StairLinks): the
+## places a mantle, vault, chair or terminal is moving you between move with you.
+func carried_by(by: Transform3D) -> void:
+	for i in _mantle_path.size():
+		_mantle_path[i] = by * _mantle_path[i]
+	if _grip.has("point"):
+		_grip.point = by * (_grip.point as Vector3)
+		_grip.normal = by.basis * (_grip.normal as Vector3)
+	_sit_from = by * _sit_from
+	_sit_to = by * _sit_to
+	_term_from = by * _term_from
+
+
 func is_down() -> bool:
 	return state == Move.DOWN
 
@@ -1281,6 +1352,10 @@ func can_carry(other: Player) -> bool:
 		return false
 	if crouching or not (state == Move.RIDE or (state == Move.WALK and is_on_floor())):
 		return false
+	# Room over my shoulders for them, at least crouched: no climbing up into a
+	# ceiling (a lift car, a low corridor), where their head would go through it.
+	if not other._fits(shoulder_point(), other.body.crouch):
+		return false
 	return stack_height() + 1 <= MAX_STACK
 
 
@@ -1308,6 +1383,26 @@ func mount(base: Player) -> void:
 	_noise(0.2)
 
 
+const INF_SPOT := Vector3(INF, INF, INF)
+
+
+## Where to step down off `base`'s shoulders: behind them, else to a side, else in
+## front: the first spot with room to stand that isn't through a wall from them.
+## INF_SPOT if there's none.
+func _step_down_spot(base: Player) -> Vector3:
+	var reach := body.radius + base.body.radius + 0.15
+	var back := -base._forward()
+	var side := back.cross(Vector3.UP).normalized()
+	var space := get_world_3d().direct_space_state
+	var from := base.global_position + Vector3.UP * 0.6
+	for dir in [back, side, -side, -back]:
+		var spot: Vector3 = base.global_position + dir * reach
+		var ray := PhysicsRayQueryParameters3D.create(from, spot + Vector3.UP * 0.6 + dir * body.radius, collision_mask, _exclude())
+		if space.intersect_ray(ray).is_empty() and _fits(spot, body.stand):
+			return spot
+	return INF_SPOT
+
+
 func _leave_carrier() -> void:
 	if carrier and is_instance_valid(carrier):
 		carrier.rider = null
@@ -1325,12 +1420,20 @@ func _step_ride(jump_pressed: bool, crouch_pressed: bool) -> void:
 	var base := carrier
 	global_position = base.shoulder_point()
 	velocity = base.velocity
+	# Carried under something lower: duck as far as it needs, and step down if
+	# there's no room up there at all, rather than poke through it.
+	var room := body.stand if _fits(global_position, body.stand) else _room(global_position)
+	if room <= 0.0:
+		crouch_pressed = true
+	elif absf(room - _height) > 0.01:
+		_set_stance(room)
 	if crouch_pressed:
-		# Step down behind them.
-		_leave_carrier()
-		global_position = base.global_position - base._forward() * (body.radius + base.body.radius + 0.15)
-		velocity = Vector3.ZERO
-		return
+		var down := _step_down_spot(base)
+		if down != INF_SPOT:
+			_leave_carrier()
+			global_position = down
+			velocity = Vector3.ZERO
+			return
 	if jump_pressed:
 		_leave_carrier()
 		if _try_ledge(true):
@@ -1535,7 +1638,7 @@ func _ledge_probe(dir: Vector3) -> Dictionary:
 		return {}
 	var target := face - n * (body.radius + 0.08)
 	target.y = top.position.y + 0.02
-	if not _fits(target, body.crawl):
+	if not _fits(target, body.crawl) or not _over_clear(face, n, top.position.y, target):
 		return {}
 	return {"normal": n, "face": face, "top": top.position.y, "height": height, "target": target}
 
@@ -1607,7 +1710,7 @@ func _try_vault() -> bool:
 	if floor_y == INF or floor_y > top - 0.35:
 		return false
 	land.y = floor_y + 0.02
-	if not _fits(over, body.crawl) or not _fits(land, body.stand):
+	if not _fits(over, body.crawl) or not _fits(land, body.stand) or not _over_clear(face, n, top, over):
 		return false
 	state = Move.VAULT
 	_timer = 0.0
@@ -1619,6 +1722,16 @@ func _try_vault() -> bool:
 	_grip = {"point": Vector3(face.x, top, face.z) - n * 0.1, "normal": n}
 	_noise(0.3)
 	return true
+
+
+## Nothing in the way going over the top: just above `top`, from just off the
+## wall's face (`n` points out of it) to `to`. A floor seen through a closed door
+## or thin wall (the garage van's cab, beta2 playtest) isn't a ledge to climb onto.
+func _over_clear(face: Vector3, n: Vector3, top: float, to: Vector3) -> bool:
+	var from := Vector3(face.x, top + 0.05, face.z) + n * 0.05
+	var end := Vector3(to.x, top + 0.05, to.z)
+	var q := PhysicsRayQueryParameters3D.create(from, end, collision_mask, _exclude())
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
 ## Height of the first upward-facing surface straight below `at` (from `from_y`,
@@ -1991,6 +2104,9 @@ func _update_head(delta: float) -> void:
 		else:
 			var f := smoothstep(0.0, 1.0, terminal_amount - 1.0)
 			camera.global_transform = Transform3D(aim, head.global_position).interpolate_with(terminal_view(), f)
+			if terminal_look > 0.0:
+				camera.global_transform = camera.global_transform.translated_local(Vector3(0, 0, TERMINAL_LEAN_BACK * terminal_look)) \
+					.rotated_local(Vector3.RIGHT, deg_to_rad(-TERMINAL_LOOK_DOWN * terminal_look))
 	elif state == Move.ROLL:
 		camera.transform = Transform3D(Basis(Vector3.RIGHT, -TAU * (1.0 - clamp(_timer / ROLL_TIME, 0.0, 1.0))), Vector3.ZERO)
 	elif downed:

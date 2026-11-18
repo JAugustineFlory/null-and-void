@@ -1,6 +1,6 @@
 # Dale Rourke
 
-*Your script for Null & Void: 43 recordings.*
+*Your script for Null & Void: 46 recordings.*
 
 ## Who you are
 
@@ -52,13 +52,7 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Badge rules after hours. You don't go anywhere I don't take you."
 
-*1 second pause*
-
-*Swiping his badge at the front door and pulling it open. Holding the door, waving them through.*
-
-"Come on in. I'll sign you in at the front desk."
-
-**[ ] `l0_greet_2_block.wav`**
+**[ ] `l0_signin_block.wav`**
 
 **Lead-in**
 
@@ -66,21 +60,15 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 **Begin**
 
-*Right after the PA finishes. You're at the front desk now. (If the crew has already signed in and taken badges by now, this whole recording is skipped.) Behind the front desk, waving a hand at the ceiling speaker. Chuckling.*
+*The crew is all inside, and the front doors lock behind them. As the front doors lock behind the crew. Sliding the visitor log and a pen across the counter. Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)*
 
-"Sorry about that. The company loves its PA system."
-
-*1 second pause*
-
-*As the front doors lock behind the crew. Sliding the visitor log and a pen across the counter. Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)*
-
-"Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me."
+"Doors lock themselves after hours. Don't worry, I've got the badge."
 
 *1 second pause*
 
 *While the crew signs in. Holding visitor badges out across the desk. Routine. Helpful, a little bored.*
 
-"Visitor badges. Keep them on you. Doors upstairs won't let you through without one."
+"Visitor badges. Doors upstairs won't let you through without one."
 
 ## Scene 2: The tour
 
@@ -110,7 +98,7 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 *Stepping back from the terminal to let them at it. Casual, but he wants to know too.*
 
-"Director wants to know what it said. Go ahead, terminal's on the desk."
+"Director wants to know what it said."
 
 ## Scene 3: Vale's shredded memo
 
@@ -142,18 +130,6 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "One thing on your paperwork. It says I called you in. I didn't. That call came from building services."
 
-*1 second pause*
-
-*Nodding toward the terminal on the desk. Helpful, easygoing.*
-
-"Want to know who? The staff directory's on that terminal."
-
-*1 second pause*
-
-*Nodding down the back corridor toward the mailroom. Amused, a little fond.*
-
-"Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it."
-
 **[ ] `l0_caller_3_block.wav`**
 
 *The crew finds out whose extension placed the call: Harold Mercer's. Leaning in to read the name, then straightening up. A beat of real surprise, then he brushes it off and moves on.*
@@ -166,23 +142,17 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 "Grab the walkie-talkies from lost and found, back behind the desk."
 
-*1 second pause*
+**[ ] `l0_memo_3.wav`**
 
-*Patting the top of the counter with his palm. Amused, he's said this to every visitor. A little eye-roll at corporate.*
+*The first of the crew hops the counter to get to the lost and found. Patting the top of the counter with his palm. Amused, he's said this to every visitor. A little eye-roll at corporate.*
 
-"And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either."
-
-*1 second pause*
-
-*Turning toward the hall, already a step away. Friendly.*
-
-"Grab one and I'll take you to the server room."
+"Yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either."
 
 **[ ] `l0_walkie.wav`**
 
 *Just after you've covered for the crew with the PA, as you lead them toward the hall. Walking off toward the hall, waving them after him. Offhand.*
 
-"Channel one. Keep them on. Reception's lousy once we're past the shutter. This way."
+"Channel one. Keep them on. This way."
 
 ## Scene 4: Around the ground floor
 
@@ -280,12 +250,6 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 > You've ridden up from the lobby with the IT crew. The floor is quiet and the night shift isn't in. You walk them past the NOC to Server Room A, where the terminal is. You want the faulting door controller fixed tonight, and you want the crew to like you.
 
-**[ ] `l1_enter.wav`**
-
-*You've just reached Server Room A's door. You lead the crew inside. Leading them in, heading for the terminal desk. Calling back over his shoulder, inside the room.*
-
-"In you come. Terminal's just over here."
-
 **[ ] `l1_terminal.wav`**
 
 *You've reached the terminal desk, and the crew has caught up with you. Standing by the terminal desk, turning to whoever is closest. Mundane, a facilities guy with a real problem. Hopeful.*
@@ -332,7 +296,7 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 *Right after your badge goes through. The rack reads OK, and the stuck doors and the elevator come back. Stepping back from the rack, staring at it. Genuinely impressed.*
 
-"Would you look at that. Green across the board. Six months I've been filing tickets on that thing."
+"Would you look at that. Green across the board."
 
 *1 second pause*
 
@@ -362,7 +326,7 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 
 *Heading for the door, waving them along. Friendly, steering.*
 
-"Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you."
+"Come on. If anyone can tell us what she was up to, it's her own terminal."
 
 **[ ] `l1_lift_button.wav`**
 
@@ -579,3 +543,27 @@ Send the files back as they are. They go in `audio/voice/rourke/` in the game.
 *Smiling, thumb on the radio's switch. Let it hang. Then the radio clicks off.*
 
 "Oh, he won't say much. Nobody's seen him since Tuesday."
+
+## Scene 13: B2: Rourke in the dark
+
+**Halcyon Tower, basement B2, the plant ring, in the dark.**
+
+> The crew left you alive on twenty-two. You followed them down the fire stairs with a torch. Down here the lights are WARDEN's, and the dark suits you.
+
+**[ ] `l7_rourke_arrive.wav`**
+
+*When he comes off STAIR 2 onto B2, torch first. Stepping off the stairs, sweeping the torch. Out of breath from the stairs. Not in a hurry.*
+
+"Still breathing, the lot of you. I came down to finish what we started on twenty-two."
+
+**[ ] `l7_rourke_dark.wav`**
+
+*The first time he lands a hit on someone in the dark. Swinging out of the dark. Low, right next to them.*
+
+"Lights out suits me fine."
+
+**[ ] `l7_rourke_down.wav`**
+
+*The first time the crew knocks him down on B2. Going down. Winded, on the floor.*
+
+"Not... done..."

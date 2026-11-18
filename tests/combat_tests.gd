@@ -154,6 +154,9 @@ func test_regen() -> void:
 	check(is_equal_approx(p.health, 60.0), "health doesn't come back while you're still in it")
 	check(await until(func(): return p.health > 70.0, int((PlayerCombat.REGEN_DELAY + 4.0) * 60 / 4.0)), "a while after the last hit, it creeps back (%.1f)" % p.health)
 	Engine.time_scale = 1.0
+	p.take_damage(30.0, "rourke")
+	p.combat.heal_full()
+	check(p.health == PlayerCombat.MAX_HEALTH, "a first-aid kit puts you back to full")
 	await done(a)
 
 

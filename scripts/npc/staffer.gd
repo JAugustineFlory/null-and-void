@@ -64,7 +64,7 @@ func _part(mesh: PrimitiveMesh, pos: Vector3, color: Color, scale_v: Vector3) ->
 
 
 func sync_properties() -> Array:
-	return [".:position", ".:rotation", ".:state", "Body:position"]
+	return [".:position", ".:rotation", ".:state", "Body:position", "Body:rotation"]
 
 
 func get_prompt(_player: Node) -> String:
@@ -92,6 +92,24 @@ func rescue(to: Vector3) -> void:
 	state = "walking"
 	_crouch(false)
 	_agent.target_position = to
+
+
+## Walk somewhere, from wherever they are (B2: guiding the crew, then to shelter).
+func walk_to(to: Vector3) -> void:
+	if state == "dead":
+		return
+	goal = to
+	state = "walking"
+	_crouch(false)
+	_agent.target_position = to
+
+
+## Gone (B2: the gas in the room they sheltered in). They lie where they fell.
+func die() -> void:
+	state = "dead"
+	velocity = Vector3.ZERO
+	_body.rotation.x = -PI / 2
+	_body.position.y = 0.2
 
 
 func _crouch(down: bool) -> void:

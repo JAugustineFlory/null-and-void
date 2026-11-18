@@ -45,17 +45,16 @@ signal noise(at: Vector3, loudness: float)
 ## Player-facing lines, drafted for Augustine's approval: plan/approvals/l3-text.md.
 const TEXT := {
 	"todo_arrive": "Find a way down from 18",
-	"todo_key": "Mercer's key opens the stairs. Everyone to the lobby",
-	"todo_room": "One room on 18 kept its reader busy tonight. Find it",
+	"todo_key": "Mercer's key opens the stairs. Get everyone to the stair lobby",
+	"todo_room": "Find the room on 18 whose door reader stayed busy tonight, at the records desk terminal",
 	"found_room": "A hidden room. No network jack, no grid power. The building can't see in here.",
 	"floppy": "A 3.5\" floppy, hand-labelled. The first thing in this building that isn't on its network.",
 	"key": "A brass key ring: STAIR 1 / 18.",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
 	"case_room": "Which room did someone keep going back to tonight?",
-	"end_card": "To be continued.",
 	"shredder_wakes": "North of here, the machines stop. Something heavy gets up.",
 	"shredder_wakes_near": "The machines stop. Something heavy gets up.",
-	"todo_key_box": "Mercer's key is in the box nobody checked back in. Ask the desk which",
+	"todo_key_box": "At the records desk terminal, find which box on the returns cart was never checked back in. Mercer's key is in it",
 	"case_duties": "What did the night clerk leave undone?",
 	"case_key": "Which box on the returns cart is the stair key in?",
 	"duties_done": "Counted, listed and tallied: the night clerk's list is done.",
@@ -73,6 +72,16 @@ const TEXT := {
 	"lock_wrong": "NO",
 	"lock_open": "OPEN",
 }
+
+## Each task's title: how the crew feels and what's going on (Augustine, approved
+## 2026-11-05: plan/approvals/task-titles.md). Its details are TEXT under the same key.
+const TASK_TITLES := {
+	"todo_arrive": "Dead end. Keep it down.",
+	"todo_room": "Somebody was here tonight",
+	"todo_key_box": "A key nobody brought back",
+	"todo_key": "Out, quietly",
+}
+
 ## The laminated sheet on the records desk that says where push-button codes come
 ## from. The code gate on Mercer's door: every route in needs the keyholder's badge
 ## number, which only the readers' log has.
@@ -400,11 +409,10 @@ func build() -> void:
 		"Stair doors lock at 19:00. Do not prop them.",
 		"- Facilities, ext. 2200",
 	], false, "paper").clues = []
-	# Stairs in from 22, on the lobby's west wall. Day staff wedged it open, memo or no memo.
+	# Stairs in from 22, on the lobby's west wall: the crew comes down them and opens
+	# the door once they're all on the landing (start()).
 	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, 90.0, "18")
 	stair_in.name = "Door_STAIR-IN"
-	stair_in.locked = false
-	Greybox.box(geo, STAIR_IN_AT + Vector3(0.1, 0.03, 0.55), Vector3(0.12, 0.06, 0.2), Color(0.6, 0.45, 0.2), "DoorWedge")
 	Document.place(geo, STAIR_IN_AT + Vector3(0.12, 1.75, -0.9), -90.0, "Door sign", [
 		"FIRE DOOR",
 		"KEEP CLOSED",
@@ -414,11 +422,14 @@ func build() -> void:
 	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, -90.0, "18")
 	stair_out.name = "Door_STAIR-OUT"
 	exit_door = stair_out
-	exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
-	exit_trigger.name = "StairsDown"
-	exit_trigger.require_all = true
-	exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
-	exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
+	if not world:
+		# On its own, everyone on the stairs ends the floor. In the World the crew
+		# walks down them to 10 (_on_key_taken).
+		exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
+		exit_trigger.name = "StairsDown"
+		exit_trigger.require_all = true
+		exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
+		exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
 
 	_build_reading_room(colors)
 	_build_stacks(colors)
@@ -472,12 +483,6 @@ func player_spawn(index: int) -> Transform3D:
 	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
 	var slot := Stairwell.landing_slot(STAIR_IN_AT, 90.0, index)
 	return global_transform * Transform3D(spawn.basis, slot)
-
-
-## Level 2 calls this (through the World) as the crew heads down STAIR 1: everyone
-## is placed on 18's landing before play moves here. Runs on every machine.
-func arrive_by_stairs() -> void:
-	players.place_all(self)
 
 
 func _build_reading_room(colors: Dictionary) -> void:
@@ -913,7 +918,8 @@ func _build_safe_room() -> void:
 	geo.add_child(lantern)
 	Greybox.panel(geo, lantern.position, Vector3(0.12, 0.2, 0.12), Color(1.0, 0.9, 0.7), 2.0)
 	# Mercer's SQL reference card, open at the page he dog-eared.
-	Document.place(geo, Vector3(c.x + back.x * 0.55, 0.77, c.z - 0.9), 0, "SQL pocket reference", CARD_LINES, true, "paper")
+	var card := Document.place(geo, Vector3(c.x + back.x * 0.55, 0.77, c.z - 0.9), 0, "SQL pocket reference", CARD_LINES, true, "paper")
+	card.words = ["IS NULL"]  # read, it's on the terminal's buttons
 	# His battery PC: off the network, with his own list on it. The safe practice for IS NULL.
 	pc = Terminal.spawn(geo, Vector3(c.x, 0.76, c.z - 1.2), 0, "MERCER (OFFLINE)", pc_db, terminal_ui)
 	pc.name = "MercerPC"
@@ -955,11 +961,11 @@ func net_setup() -> void:
 func start() -> void:
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
-	stair_in.set_open(true, true)  # wedged open by day staff
+	stair_in.locked = false  # the crew's all here: out of the stairwell, onto 18
 	floppy.stock(1)
 	key_dock.stock(1)
 	pc.ensure_booted()
-	hud.todo(TEXT.todo_arrive)
+	_todo("todo_arrive")
 
 
 # --- Terminals -------------------------------------------------------------------
@@ -1076,7 +1082,7 @@ func _ask_room() -> void:
 	if room_asked:
 		return
 	room_asked = true
-	hud.todo(TEXT.todo_room)
+	_todo("todo_room")
 	_order_hints()
 
 
@@ -1084,7 +1090,7 @@ func _ask_room() -> void:
 func _note_read() -> void:
 	note_read = true
 	if not key_taken:
-		hud.todo(TEXT.todo_key_box)
+		_todo("todo_key_box")
 	_update_cart()
 	_order_hints()
 
@@ -1215,42 +1221,36 @@ func _on_key_taken(peer_id: int) -> void:
 	key_taken = true
 	key_dock.enabled = false
 	stair_out.locked = false
-	prepare_next()  # floor 10 builds now, below the stairwell
+	prepare_next()  # floor 10 builds now, at the foot of the stairs
+	var next: Node = world.wings.get("level_4") if world else null
+	if next:
+		walk_stairs(stair_out, next.stair_in, true, "_on_exit", TEXT.stairs_wait)
 	if peer_id == players.id_of(player):
 		hud.notice(TEXT.key, 5.0)
-	hud.todo(TEXT.todo_key)
+	_todo("todo_key")
 
 
 # --- The way down -------------------------------------------------------------------
 
-## Everyone is on the stairs. In the World, eight flights down behind a fade to
-## floor 10; on its own, the slice ends here.
+## Everyone is down the stairs: in the World, on 10's landing, and play moves to
+## floor 10; on its own, on 18's stairs, and Field Notes leads on to 10.
 func _on_exit() -> void:
 	get_node("/root/Net").earn("achievement:floor_18", hud)
 	if not player:
 		return
 	var next: Node = world.wings.get("level_4") if world else null
-	if next and next.has_method("arrive_by_stairs"):
-		# A downed player goes down with everyone (the trigger counted them) and stays
-		# down there until revived.
-		var up := player.health > 0.0
-		var was_locked := player.input_locked
-		player.input_locked = true
-		await hud.fade(true, 1.2)
+	if next:
+		stairs.seal(Stairwell.of(stair_out))
 		Game.completed_level = "level_3"
 		Game.next_level = "level_4"
-		next.arrive_by_stairs()
 		finish_level("level_4")
-		player.input_locked = was_locked if not up else false
-		hud.fade(false, 0.8)
 		return
 	if player.health <= 0.0:
 		return
 	player.input_locked = true
 	await get_tree().create_timer(1.0).timeout
-	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_3"
-	Game.next_level = ""
+	Game.next_level = "level_4"  # Field Notes' Continue: the next floor, in the building
 	completed.emit()
 
 
@@ -1266,3 +1266,11 @@ func on_player_died() -> void:
 		player.respawn(global_transform * Transform3D(Basis(), Vector3(c.x, 0.1, c.z + 1.0)))
 	else:
 		player.respawn(spawn_point())
+
+
+## Put task `key` (a TEXT key) on the job: its title and its details. "" ticks off the current one.
+func _todo(key: String) -> void:
+	if key == "":
+		hud.todo("")
+	else:
+		hud.todo(TASK_TITLES[key], TEXT[key])

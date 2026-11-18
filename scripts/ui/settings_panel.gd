@@ -18,6 +18,19 @@ V (hold)  talk on the radio, once you have one
 B  mute your open mic
 Esc  the pause menu"""
 
+## The same list on a gamepad (PadInput; a Steam Deck's LB RB LT RT are L1 R1 L2 R2).
+const PAD_CONTROLS := """Left stick  move     Right stick  look     L3  sprint
+B (hold)  crouch, slide, roll
+A  jump     stick forward + A  vault, mantle, grab a ledge or pipe
+RB  sit on the floor (X at a chair sits on it)     A or RB  stand up
+X  use, boost a teammate     Y  other use
+LB  flashlight     RT  strike     LT  block
+View  your notebook (LB/RB turn its tabs)
+D-pad right  take out the next hotbar item     D-pad left  inventory
+D-pad up (hold)  talk on the radio, once you have one
+D-pad down  mute your open mic
+Menu  the pause menu"""
+
 
 ## Master, music, effects, ambience and voices, each saved for next time.
 static func audio() -> VBoxContainer:
@@ -50,7 +63,101 @@ static func controls(on_in_world := Callable()) -> VBoxContainer:
 		if on_in_world.is_valid():
 			on_in_world.call(on))
 	box.add_child(in_world)
-	box.add_child(ThemeUtil.label(CONTROLS, 17, Color(0.85, 0.85, 0.85)))
+	box.add_child(ThemeUtil.label(InputGlyphs.deck_names(PAD_CONTROLS) if InputGlyphs.pad else CONTROLS, 17, Color(0.85, 0.85, 0.85)))
+	box.add_child(terminal_help())
+	box.add_child(pad_settings())
+	return box
+
+
+## "Terminal help" (KeywordHelp.mode): Easy, the next-word buttons in your notebook
+## below a terminal's screen, or Normal; saved for next time. And putting the
+## training wheels back on. Text DRAFT (plan/approvals/keyword-buttons-text.md).
+const HELP_TITLE := "Terminal help"
+const HELP_MODES := {
+	"easy": ["Easy", "Buttons offer the words that can come next. Use one 3 times and you type it yourself."],
+	"normal": ["Normal", "No buttons. Your notebook shows the case's pattern, and you type."],
+}
+const HELP_PAD := "With a controller the buttons are always there. Normal hides the case's query."
+const RESET_WORDS := "Put the training wheels back on"
+const RESET_WORDS_NOTE := "Every word you've found becomes a button again."
+
+
+static func terminal_help() -> VBoxContainer:
+	KeywordHelp.load_settings()
+	var box := VBoxContainer.new()
+	box.name = "TerminalHelp"
+	box.add_theme_constant_override("separation", 4)
+	box.add_child(ThemeUtil.label(HELP_TITLE, 20))
+	var about := ThemeUtil.label(HELP_MODES[KeywordHelp.mode][1], 15, Color(0.8, 0.8, 0.8))
+	about.name = "About"
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var row := HBoxContainer.new()
+	row.name = "Mode"
+	var group := ButtonGroup.new()
+	for m in HELP_MODES:
+		var b := CheckBox.new()
+		b.name = HELP_MODES[m][0]
+		b.text = HELP_MODES[m][0]
+		b.button_group = group
+		b.button_pressed = KeywordHelp.mode == m
+		var mode: String = m
+		b.toggled.connect(func(on: bool):
+			if on:
+				KeywordHelp.mode = mode
+				KeywordHelp.save_settings()
+				about.text = HELP_MODES[mode][1])
+		row.add_child(b)
+	box.add_child(row)
+	box.add_child(about)
+	var pad := ThemeUtil.label(HELP_PAD, 15, Color(0.8, 0.8, 0.8))
+	pad.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(pad)
+	var reset := Button.new()
+	reset.name = "ResetWords"
+	reset.text = RESET_WORDS
+	reset.tooltip_text = RESET_WORDS_NOTE
+	reset.pressed.connect(func():
+		var loop := Engine.get_main_loop() as SceneTree
+		var net := loop.root.get_node_or_null("Net") if loop else null
+		if net and net.get("profile") != null:
+			net.profile.reset_words()
+		reset.text = RESET_WORDS_NOTE)
+	box.add_child(reset)
+	return box
+
+
+## Gamepad look speed, stick dead zone and invert look, saved for next time.
+static func pad_settings() -> VBoxContainer:
+	PadInput.load_settings()
+	var box := VBoxContainer.new()
+	box.name = "PadSettings"
+	box.add_theme_constant_override("separation", 4)
+	box.add_child(ThemeUtil.label("Controller", 20))
+	for row in [["LookSpeed", "Look speed", 0.25, 2.5, PadInput.look_speed], ["DeadZone", "Stick dead zone", 0.05, 0.4, PadInput.dead_zone]]:
+		box.add_child(ThemeUtil.label(row[1], 16))
+		var s := HSlider.new()
+		s.name = row[0]
+		s.min_value = row[2]
+		s.max_value = row[3]
+		s.step = 0.05
+		s.value = row[4]
+		s.custom_minimum_size = Vector2(300, 20)
+		var key: String = row[0]
+		s.value_changed.connect(func(v: float):
+			if key == "LookSpeed":
+				PadInput.look_speed = v
+			else:
+				PadInput.dead_zone = v
+			PadInput.save_settings())
+		box.add_child(s)
+	var invert := CheckButton.new()
+	invert.name = "InvertLook"
+	invert.text = "Invert look up and down"
+	invert.button_pressed = PadInput.invert_look
+	invert.toggled.connect(func(on: bool):
+		PadInput.invert_look = on
+		PadInput.save_settings())
+	box.add_child(invert)
 	return box
 
 

@@ -37,6 +37,10 @@ const CREW_SEATS := [Vector3(-4.55, 0.45, 0.0), Vector3(-4.55, 0.45, -1.0), Vect
 const FRONT_DOOR := Vector3(DOOR_AT, 0, -SIZE.z / 2)
 const APRON_CENTER := Vector3(3.6, 0, -11.0)
 const APRON_SIZE := Vector3(24, 0.2, 10)
+## The driveway's fence and gate: what you see, and the unseen wall behind it,
+## taller than any crew member can jump, mantle or hang to (CrewBody.largest()).
+const FENCE_HEIGHT := 1.8
+const FENCE_WALL := 5.0
 ## Co-op's pre-game lobby holds this shot of the garage front (garage-local), and
 ## the World's garage opens on it, so the cut between them doesn't show.
 const LOBBY_CAMERA := Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -0.05), Vector3(3.6, 1.7, -12.2))
@@ -54,6 +58,10 @@ const LOBBY_SPOTS := [
 const LOBBY_ENTRY_SIDE := 9.5
 const BENCH := Vector3(0.5, 0, 3.6)
 const VAN := Vector3(4.6, 0, -0.6)
+## The prompts on the van's doors. "Open the door" is approved (garage office,
+## 2026-11-05); "Close the door" is a DRAFT awaiting Augustine's word-for-word OK.
+const VAN_DOOR_OPEN := "Open the door"
+const VAN_DOOR_SHUT := "Close the door"
 ## Where the van's sliding door sits once it's open: back along its side.
 const SIDE_DOOR_OPEN := VAN + Vector3(-1.45, 0.5, 1.4)
 ## The office desk with the fax and the radio, in the north-west corner.
@@ -74,13 +82,19 @@ const SPAR_TELL := 0.7
 const SPAR_SWING := 0.3
 ## Approved by Augustine word for word, 2026-10-22 01:13Z
 ## (plan/teaching/garage-playtest-2026-10-22.md, item 3).
-const SPAR_TODO := "Hit the punch bag, then block it"
+const SPAR_TODO := "Hit the punch bag, then block it when it swings back"
 const SPAR_NOTICE := "Hit the bag with left-click. It swings back at you: right-click just as it comes in to raise your guard and block it."
 const SPAR_MISS := "It hit you. Right-click just as it swings in to raise your guard."
 const SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait for the swing in, then right-click."
 const SPAR_BLOCKED := "Blocked! Your guard took the hit."
 const MOVE_NOTICE := "Space stands you up. WASD to walk, the mouse to look around"
 const MOVE_SECONDS := 5.0
+## The same lines on a gamepad, naming its buttons (InputGlyphs.of: "RT", or "R2" on a
+## Steam Deck). DRAFTS awaiting Augustine's word-for-word OK.
+const PAD_MOVE_NOTICE := "%s stands you up. Left stick to walk, right stick to look around"
+const PAD_SPAR_NOTICE := "Hit the bag with %s. It swings back at you: press %s just as it comes in to raise your guard and block it."
+const PAD_SPAR_MISS := "It hit you. Press %s just as it swings in to raise your guard."
+const PAD_SPAR_EARLY := "Too early: your guard dropped before it reached you. Wait for the swing in, then press %s."
 ## Maddison's marks: where she stands for each beat, and the point she faces there.
 ## She comes in by the side door to the house; "board" is beside her whiteboard,
 ## facing the crew.
@@ -106,10 +120,15 @@ const BEAT := 1.2
 var fax: Interactable
 var book_bag: Interactable
 var van_door: Interactable
+## The locked side door, its hidden key and the back office behind it.
+var office: GarageOffice
 var van_relay: Interactable
 ## The van's front doors ({"w"/"e": {pivot, swing}}) and sliding door, built as
 ## Level 0's are, so the garage van is the same van parked at Halcyon.
+## The van's doors: "w" and "e" (the front doors) and "side" (the sliding door),
+## each with its pivot and its panel; van_open says which are open.
 var van_doors := {}
+var van_open := {}
 var side_door: Node3D
 ## The seats facing the whiteboard, as CREW_SEATS.
 var crew_seats: Array[Seat] = []
@@ -192,7 +211,7 @@ func build() -> void:
 
 	_build_van(VAN)
 	_build_punch_bag(PUNCH_BAG)
-	Greybox.panel(geo, SIDE_DOOR + Vector3(0.0, 1.05, 0), Vector3(0.05, 2.1, 0.9), Color(0.5, 0.42, 0.32))  # the side door to the house
+	office = GarageOffice.build(self)  # the side door in the back corner, locked, and what's behind it
 	maddison = Node3D.new()
 	maddison.name = "Maddison"
 	maddison.position = MADDISON_MARKS.door[0]
@@ -289,6 +308,7 @@ static func _build_shell(solid: Node3D, door_parent: Node3D) -> AnimatableBody3D
 	street.material_override = Greybox.mat(Color(0.12, 0.12, 0.13))
 	street.position = APRON_CENTER + Vector3(0, -0.21, 0)
 	solid.add_child(street)
+	_build_driveway_fence(solid)
 	Greybox.label(solid, Vector3(DOOR_AT, 4.6, -SIZE.z / 2 - 0.12), "BYTE-RIGHT IT", 140, Color(0.1, 0.3, 0.6), 180)  # over the roll-up door
 	for x in [DOOR_AT - 2.8, DOOR_AT + 2.8]:
 		var lamp := OmniLight3D.new()
@@ -299,6 +319,58 @@ static func _build_shell(solid: Node3D, door_parent: Node3D) -> AnimatableBody3D
 		lamp.omni_range = 7.0
 		solid.add_child(lamp)
 	return _build_roll_up_door(door_parent)
+
+
+## Round the driveway's open sides (beta2 playtest: players walked off its ends and
+## fell out of the world): a chain-link fence down each end and past the garage's
+## east side, and a shut gate across the street end. Each run is backed by a wall
+## nobody can see, FENCE_WALL tall, past any jump, mantle or hang.
+static func _build_driveway_fence(solid: Node3D) -> void:
+	var lo := APRON_CENTER - APRON_SIZE / 2 + Vector3(0.1, 0, 0.1)  # the apron's corners, just inside
+	var hi := APRON_CENTER + APRON_SIZE / 2 - Vector3(0.1, 0, 0.1)
+	var garage_e := SIZE.x / 2 + 0.1
+	var front := -SIZE.z / 2
+	var runs := [  # [from, to, name], garage-local, at ground level
+		[Vector3(lo.x, 0, lo.z), Vector3(lo.x, 0, front + 0.1), "FenceW"],
+		[Vector3(hi.x, 0, lo.z), Vector3(hi.x, 0, front - 0.1), "FenceE"],
+		[Vector3(garage_e, 0, front - 0.1), Vector3(hi.x, 0, front - 0.1), "FenceBeside"],
+		[Vector3(lo.x, 0, lo.z), Vector3(hi.x, 0, lo.z), "DrivewayGate"],
+	]
+	for r in runs:
+		_fence_run(solid, r[0], r[1], r[2], r[2] == "DrivewayGate")
+
+
+## One straight run of fence (or gate) from `a` to `b`, with its unseen wall.
+static func _fence_run(solid: Node3D, a: Vector3, b: Vector3, run_name: String, gate: bool) -> void:
+	var steel := Color(0.35, 0.36, 0.38)
+	var mesh_c := Color(0.5, 0.52, 0.54) if not gate else Color(0.3, 0.32, 0.34)
+	var along := b - a
+	var length := along.length()
+	var on_x := absf(along.x) > absf(along.z)
+	var mid := (a + b) / 2
+	var flat := func(len_: float, h: float, t: float) -> Vector3:
+		return Vector3(len_, h, t) if on_x else Vector3(t, h, len_)
+	var wall := StaticBody3D.new()  # the unseen wall
+	wall.name = run_name
+	wall.position = mid + Vector3.UP * FENCE_WALL / 2
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = flat.call(length + 0.3, FENCE_WALL, 0.3)
+	shape.shape = box
+	wall.add_child(shape)
+	solid.add_child(wall)
+	# What you see: posts, a top rail, and the mesh (bars, on the gate) between.
+	var posts := maxi(2, ceili(length / 2.5) + 1)
+	for i in posts:
+		var at := a.lerp(b, float(i) / (posts - 1))
+		Greybox.panel(wall, at - wall.position + Vector3.UP * FENCE_HEIGHT / 2, Vector3(0.08, FENCE_HEIGHT, 0.08), steel)
+	Greybox.panel(wall, Vector3.UP * (FENCE_HEIGHT - FENCE_WALL / 2 - 0.03), flat.call(length, 0.05, 0.05), steel)
+	Greybox.panel(wall, Vector3.UP * (FENCE_HEIGHT / 2 - FENCE_WALL / 2), flat.call(length, FENCE_HEIGHT - 0.1, 0.02), mesh_c)
+	if gate:  # upright bars, so it reads as a gate across the drive
+		var bars := ceili(length / 0.3)
+		for i in bars:
+			var at := a.lerp(b, (i + 0.5) / bars)
+			Greybox.panel(wall, at - wall.position + Vector3.UP * FENCE_HEIGHT / 2, Vector3(0.03, FENCE_HEIGHT - 0.1, 0.03), steel)
 
 
 ## The roll-up door, shut: a panel filling the doorway, slats and all.
@@ -368,17 +440,24 @@ func _build_van(center: Vector3) -> void:
 	Greybox.panel(geo, cab + Vector3(0, 0.75, -2.05), Vector3(2.4, 0.2, 0.3), Color(0.12, 0.12, 0.13))
 	# Front doors hinge at their front edge; the sliding door runs back along the
 	# outside when the crew gets in. Off geo: they move.
+	# Every door opens and shuts with E (beta2 playtest), for the whole crew.
 	for side in [-1.0, 1.0]:
+		var key := "w" if side < 0 else "e"
 		var pivot := Node3D.new()
 		pivot.position = cab + Vector3(1.3 * side, 0, -1.95)
 		add_child(pivot)
-		Greybox.box(pivot, Vector3(0, 0.95, 0.45), Vector3(0.1, 1.9, 0.9), white, "VanDoor")
-		van_doors["w" if side < 0 else "e"] = {"pivot": pivot, "swing": deg_to_rad(90.0 * side)}
+		var panel := Interactable.create(pivot, Vector3(0, 0.95, 0.45), Vector3(0.1, 1.9, 0.9), VAN_DOOR_OPEN, white)
+		panel.name = "VanDoor" + key.to_upper()
+		panel.used.connect(_on_van_panel.bind(key))
+		van_doors[key] = {"pivot": pivot, "swing": deg_to_rad(90.0 * side), "panel": panel}
 	side_door = Node3D.new()
 	side_door.name = "SlidingDoor"
 	side_door.position = cab + Vector3(-1.3, 0, 0.1)
 	add_child(side_door)
-	Greybox.box(side_door, Vector3(0, 0.95, 0), Vector3(0.1, 1.9, 1.3), white, "SideDoor")
+	var slider := Interactable.create(side_door, Vector3(0, 0.95, 0), Vector3(0.1, 1.9, 1.3), VAN_DOOR_OPEN, white)
+	slider.name = "SideDoor"
+	slider.used.connect(_on_van_panel.bind("side"))
+	van_doors["side"] = {"pivot": side_door, "shut": side_door.position, "panel": slider}
 	van_door = Interactable.create(self, cab + Vector3(-1.25, 0.95, 0.1), Vector3(0.1, 1.9, 1.3), "Get in the van", white, false)
 	van_door.name = "VanDoor"
 	van_door.enabled = false
@@ -483,6 +562,7 @@ func _build_punch_bag(at: Vector3) -> void:
 	punch_bag.name = "PunchBag"
 	punch_bag.position = at + Vector3(0, BAG_HOOK, 0)
 	add_child(punch_bag)
+	punch_bag.struck.connect(_on_bag_struck)  # host: a hit always swings it, drill or not
 	var chain := MeshInstance3D.new()
 	var cm := BoxMesh.new()
 	cm.size = Vector3(0.03, 0.55, 0.03)
@@ -548,14 +628,14 @@ func start() -> void:
 	await _beat(1.5)
 	await _say("l0_brief_1", "l0_brief_1_solo")
 	await _beat(0.5)
-	await hud.lines(["l0_brief_2", "l0_brief_3"])
+	await hud.line("l0_brief_2")
 	await _beat(0.5)
 	await hud.lines(["l0_brief_4", "l0_brief_5"])
 	await _beat()
 
 	# The work order is already in everyone's notebook: each player pulls theirs out.
 	await _say("l0_workorder", "l0_workorder_solo")
-	hud.todo("Look at the work order in your notebook")
+	hud.todo("Our first big job", "Read the work order in your notebook")
 	hud.notice("Press Tab to pull out your notebook", 8.0)
 	notebook.opened.connect(_on_notebook_opened, CONNECT_ONE_SHOT)
 	await sync.gate("work_order", crew_read_order)
@@ -572,8 +652,8 @@ func start() -> void:
 	maddison_to("side")  # pointing the way to the shelf
 	await _say("l0_grab", "l0_grab_solo")
 	book_bag.enabled = true
-	hud.todo("Get the book from the shelf by the side door")
-	hud.notice(MOVE_NOTICE, 7.0)  # for whoever gets up for it first
+	hud.todo("Homework", "Get the book from the shelf by the side door")
+	hud.notice(move_notice(), 7.0)  # for whoever gets up for it first
 	await sync.gate("bag", book_bag.used)
 	maddison_to("board")
 	hud.todo("")
@@ -791,12 +871,12 @@ func _on_read_order(id: int) -> void:
 ## hears the hit and starts the swing; every machine sees it, and each player's own
 ## machine decides their block.
 func _spar_drill(stand_up_first := false) -> void:
-	hud.todo(SPAR_TODO)
+	hud.todo("Shake off the nerves", SPAR_TODO)
 	if stand_up_first:  # out of their seats: how to get up and over there, then how to block
-		hud.notice(MOVE_NOTICE, MOVE_SECONDS)
-		_notice_after(SPAR_NOTICE, 8.0, MOVE_SECONDS, MOVE_NOTICE)
+		hud.notice(move_notice(), MOVE_SECONDS)
+		_notice_after(spar_notice(), 8.0, MOVE_SECONDS, move_notice())
 	else:
-		hud.notice(SPAR_NOTICE, 8.0)
+		hud.notice(spar_notice(), 8.0)
 	_sparring = true
 	player.combat.guard_raised.connect(_on_guard_raised)
 	if sync.is_host():
@@ -807,29 +887,46 @@ func _spar_drill(stand_up_first := false) -> void:
 
 
 ## Show notice `text` in `delay` seconds, unless something has replaced `after` by then.
+## How to stand and walk, for the keyboard or the pad in use.
+static func move_notice() -> String:
+	return for_device(MOVE_NOTICE, PAD_MOVE_NOTICE, ["jump"])
+
+
+## How to hit and block the bag, for the keyboard or the pad in use.
+static func spar_notice() -> String:
+	return for_device(SPAR_NOTICE, PAD_SPAR_NOTICE, ["attack", "block"])
+
+
+## `keys` as written, or on a pad `pad_line` naming the pad buttons for `actions`.
+static func for_device(keys: String, pad_line: String, actions: Array) -> String:
+	if not InputGlyphs.pad:
+		return keys
+	return pad_line % actions.map(func(a): return InputGlyphs.of(a, true))
+
+
 func _notice_after(text: String, seconds: float, delay: float, after: String) -> void:
 	await get_tree().create_timer(delay, false).timeout
 	if is_inside_tree() and hud._notice.text == after:
 		hud.notice(text, seconds)
 
 
-## Host: until everyone has blocked it, a hit sends the bag back at whoever hit it.
+## Host: the drill runs until everyone has blocked the bag's swing back.
 func _run_bag() -> void:
 	crew.hit_blocked.connect(_on_hit_blocked)
-	punch_bag.struck.connect(_on_bag_struck)
 	while spar_blocked.size() < players.count():
 		await get_tree().create_timer(0.25, false).timeout
 		if not is_inside_tree():
 			return
-	punch_bag.struck.disconnect(_on_bag_struck)
 	crew.hit_blocked.disconnect(_on_hit_blocked)
 	crew_sparred.emit()
 
 
-## Host: someone hit the bag. Unless it's mid-swing, it swings back at them.
+## Host: someone hit the bag. Unless it's mid-swing, it swings back at them, any
+## time: in the drill, before it, and long after (Augustine 2026-11-05: it shouldn't
+## freeze once the tutorial's done). Only the drill counts blocks or says anything.
 func _on_bag_struck(by: Node) -> void:
 	var id := players.id_of(by)
-	if id == 0 or spar_target != 0 or spar_blocked.has(id):
+	if id == 0 or spar_target != 0:
 		return
 	sync.event("_swing_bag", [id])
 
@@ -875,7 +972,7 @@ func _bag_lands(id: int) -> void:
 	spar_target = 0
 	if body_is_mine(id) and _flat_distance(player.global_position, to_global(PUNCH_BAG)) < SPAR_REACH + 0.5:
 		if player.take_damage(0.0, "spar") == "hit" and _sparring:
-			hud.notice(SPAR_EARLY if _guard_at >= _swing_at else SPAR_MISS, 4.0)
+			hud.notice(for_device(SPAR_EARLY, PAD_SPAR_EARLY, ["block"]) if _guard_at >= _swing_at else for_device(SPAR_MISS, PAD_SPAR_MISS, ["block"]), 4.0)
 
 
 func body_is_mine(id: int) -> bool:
@@ -897,7 +994,17 @@ func _on_sparred(id: int) -> void:
 		hud.notice(SPAR_BLOCKED, 2.5)
 		# Done with the bag: straight to the van, without waiting on the others.
 		van_door.enabled = true
-		hud.todo("Get in the van")
+		hud.todo("Showtime. Act like experts.", "Get in the van")
+
+
+## Every machine: player `id` found the office's spare key.
+func _office_key(id: int) -> void:
+	office.take_key(id)
+
+
+## Every machine: the key's holder unlocked the office.
+func _office_open(_id: int) -> void:
+	office.open()
 
 
 ## Every machine: player `id` took the shop bag with the book in it.
@@ -914,13 +1021,13 @@ func _on_bag(id: int) -> void:
 		held_book = _book(player.camera, HELD_BOOK.origin)
 		held_book.basis = HELD_BOOK.basis
 		held_book.add_to_group("carried")  # held in your own hands (FirstPersonBody)
-		hud.todo("Sit down with the book")
+		hud.todo("Cram session", "Sit down with the book")
 	else:
 		var body := players.puppet(id)
 		if body:
 			held_book = _book(body, Vector3(0, 1.1, -0.32))
 			held_book.rotation.x = 1.1
-		hud.todo("Wait for the book")
+		hud.todo("Someone's got the book", "Wait while a teammate reads the book")
 
 
 ## Every machine: the book's on Maddison's whiteboard now, out of their hands.
@@ -932,7 +1039,24 @@ func _put_book_down() -> void:
 
 ## The sliding door runs back along the van, out of the way of the crew climbing in.
 func _open_side_door() -> void:
-	create_tween().tween_property(side_door, "position", SIDE_DOOR_OPEN, 0.7).set_trans(Tween.TRANS_QUAD)
+	_van_door("side", true)
+
+
+## Host: someone pressed E on one of the van's doors (`key`: "w", "e" or "side").
+func _on_van_panel(_p: Node, key: String) -> void:
+	sync.event("_van_door", [key, not van_open.get(key, false)])
+
+
+## Every machine: van door `key` opens or shuts.
+func _van_door(key: String, open: bool) -> void:
+	van_open[key] = open
+	var door: Dictionary = van_doors[key]
+	(door.panel as Interactable).prompt = VAN_DOOR_SHUT if open else VAN_DOOR_OPEN
+	var t := create_tween().set_trans(Tween.TRANS_QUAD)
+	if key == "side":
+		t.tween_property(door.pivot, "position", SIDE_DOOR_OPEN if open else door.shut, 0.7)
+	else:
+		t.tween_property(door.pivot, "rotation:y", door.swing if open else 0.0, 0.4)
 
 
 ## Host: a player climbs into the van, once they've blocked the bag. Everyone sees

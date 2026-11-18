@@ -55,13 +55,13 @@ signal completed
 
 ## Player-facing lines, drafted for Augustine's approval: plan/approvals/l5-text.md.
 const TEXT := {
-	"todo_arrive": "HR keeps the badge log. Find where we really were tonight",
+	"todo_arrive": "Find HR's badge log and check where the crew's badges were tonight",
 	"todo_key": "Get the HR service to answer",
 	"todo_power": "Get payroll's lights and the cage lock back on",
 	"todo_air": "Get the air moving again",
 	"todo_radio": "Someone on the radio wants the loading door open. Find out who's really there",
-	"todo_people": "Find the two night-shifters, pass them out, lock every door behind us",
-	"todo_down": "STAIR 2 is open. Everyone down, both of them too",
+	"todo_people": "Find the two night-shifters, log an escort pass for each one, and lock every door behind you",
+	"todo_down": "Take STAIR 2 down, with both night-shifters",
 	"case_key": "How do we get the HR service to answer?",
 	"case_power": "Why is payroll dark?",
 	"case_air": "Why is the air off?",
@@ -95,7 +95,6 @@ const TEXT := {
 	"staffer_passed": "%s gets up and heads for the stairs.",
 	"stairs_release": "Out by the lifts, STAIR 2's lock clacks open.",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
-	"end_card": "To be continued.",
 	"book_taken": "Acceptable API's. Same series as Easy SQL, with a Halcyon asset sticker on the spine.",
 	"mimic_leaves": "It gets up and walks away without looking at you.",
 	# SYSOP tips (text only, never lies; each fires once per run).
@@ -111,6 +110,19 @@ const TEXT := {
 	"tip_off_site": "409: that badge left the building hours ago. the night shift is still here; the log says where.",
 	"tip_lockup": "both passes are logged. every door opened tonight goes back to locked, then gets read back. GET /doors shows which are still open.",
 }
+
+## Each task's title: how the crew feels and what's going on (Augustine, approved
+## 2026-11-05: plan/approvals/task-titles.md). Its details are TEXT under the same key.
+const TASK_TITLES := {
+	"todo_arrive": "Prove where we were",
+	"todo_key": "HR won't talk to us",
+	"todo_power": "Payroll's in the dark",
+	"todo_air": "Getting hard to breathe",
+	"todo_radio": "That sounds like one of us",
+	"todo_people": "Nobody gets left behind",
+	"todo_down": "Down we go",
+}
+
 ## The laminated desk sheet at the HR front desk: where the header is found. Its
 ## example asks for another floor's clerk with a blank where the key goes.
 const DESK_SHEET_LINES := [
@@ -364,9 +376,8 @@ func build() -> void:
 	for x in [-1.5, 1.5]:
 		Greybox.panel(geo, Vector3(x, 1.1, 7.88), Vector3(1.3, 2.2, 0.04), Color(0.5, 0.52, 0.55), 0.0)
 		Greybox.label(geo, Vector3(x, 2.5, 7.86), "ELEVATOR  9", 32, Color(1.0, 0.45, 0.1), 180)
-	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, -90.0, "9")
-	stair_in.name = "Door_STAIR-IN"
-	stair_in.locked = false
+	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, -90.0, "9", "STAIR 1", 1)  # up from G, nothing under it
+	stair_in.name = "Door_STAIR-IN"  # the crew opens it once they're all up (start())
 	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, 90.0, "9", "STAIR 2")
 	stair_out.name = "Door_STAIR-OUT"
 	exit_door = stair_out
@@ -509,7 +520,7 @@ func _make_puzzles() -> void:
 	lockup_puzzle.case_id = "people"
 	_lockup_hints()
 	check_lockup_puzzle = RequestPuzzle.new("check_lockup", "GET /doors\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
-		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and _lockup_ok() and _shows_locked(res.body), [
+		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and _shows_locked(res.body) and _lockup_ok(), [
 		"the shape: read the doors back, with the service left as enter_service:\n" +
 		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
 		"enter_service is the service whose doors you just locked.",
@@ -539,12 +550,6 @@ func player_spawn(index: int) -> Transform3D:
 	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
 	var slot := Stairwell.landing_slot(STAIR_IN_AT, -90.0, index)
 	return global_transform * Transform3D(spawn.basis, slot)
-
-
-## Level 4 calls this (through the World) as the crew heads up STAIR 1 from the
-## lobby: everyone is placed on 9's landing before play moves here. Every machine.
-func arrive_by_stairs() -> void:
-	players.place_all(self)
 
 
 # --- The rooms ------------------------------------------------------------------------
@@ -804,7 +809,7 @@ func apply_environment(env: Environment) -> void:
 
 func start() -> void:
 	_started_msec = Time.get_ticks_msec()
-	stair_in.set_open(true, true)  # the crew came up through it
+	stair_in.locked = false  # the crew's all up: out of the stairwell, onto 9
 	hr.ensure_booted()
 	panel.ensure_booted()
 	_radio_voice = Voice.new()
@@ -813,7 +818,7 @@ func start() -> void:
 	seed_crew(players.count() if players else 1)
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
-	hud.todo(TEXT.todo_arrive)
+	_todo("todo_arrive")
 	hud.notice(TEXT.arrive, 5.0)
 	_warden(["l5_arrive_pa", "l5_arrive", "l5_arrive_tease"], 0.8)
 
@@ -1206,7 +1211,8 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, _which: String) -> void:
 	if not result.get("ok", false) or not check_lockup_puzzle or check_lockup_puzzle.solved or lockup_puzzle == null:
 		return
-	if lockup_puzzle.solved and sql.to_lower().contains("doors") and _shows_locked({"doors": result.get("rows", []).map(func(r): return {"id": str(r.get("id", "")), "locked": int(r.get("locked", 0)) == 1})}):
+	# Read-backs count as they come, a door at a time, before the lockup is done.
+	if sql.to_lower().contains("doors") and _shows_locked({"doors": result.get("rows", []).map(func(r): return {"id": str(r.get("id", "")), "locked": int(r.get("locked", 0)) == 1})}) and lockup_puzzle.solved:
 		sync.event("_on_solved", ["check_lockup"])
 
 
@@ -1237,7 +1243,7 @@ func _on_solved(id: String) -> void:
 			Game.open_case("key", CASES.key)
 			Game.solve_case("key", TEXT.key_done)
 			if not power_back:
-				hud.todo(TEXT.todo_power)
+				_todo("todo_power")
 			if sync.is_host():
 				_lure_after(lure_delay_propped if propped else lure_delay)
 		"circuits":
@@ -1255,7 +1261,7 @@ func _on_solved(id: String) -> void:
 				Game.solve_case("radio", TEXT.radio_done_solo % lure_badge)
 			_warden(["l5_radio_checked", "l5_radio_checked_tease"])
 			if _todo_is(TEXT.todo_radio):
-				hud.todo(_next_todo())
+				_todo(_next_todo())
 		"passes":
 			if _lockup_ok():
 				_on_solved("lockup")  # every door opened tonight is already locked again
@@ -1278,15 +1284,15 @@ func _todo_is(text: String) -> bool:
 ## air, the people (once the procedure has been read), the stairs; or nothing.
 func _next_todo() -> String:
 	if not key_puzzle.solved:
-		return TEXT.todo_key if Game.case_info("key").get("open", false) else TEXT.todo_arrive
+		return "todo_key" if Game.case_info("key").get("open", false) else "todo_arrive"
 	if not power_back:
-		return TEXT.todo_power
+		return "todo_power"
 	if not (air_on or air_cleared):
-		return TEXT.todo_air
+		return "todo_air"
 	if released:
-		return TEXT.todo_down
+		return "todo_down"
 	if Game.case_info("people").get("open", false):
-		return TEXT.todo_people
+		return "todo_people"
 	return ""
 
 
@@ -1296,13 +1302,13 @@ func _ask(case_id: String) -> void:
 	match case_id:
 		"key":
 			if not key_puzzle.solved:
-				hud.todo(TEXT.todo_key)
+				_todo("todo_key")
 		"power":
 			if key_puzzle.solved and not power_back:
-				hud.todo(TEXT.todo_power)
+				_todo("todo_power")
 		"air":
 			if key_puzzle.solved and power_back and not air_on and not air_cleared:
-				hud.todo(TEXT.todo_air)
+				_todo("todo_air")
 		"people":
 			if passes_ladder == "":
 				# POST practised at the work order: the review ladder. Skipped (the stair
@@ -1310,7 +1316,7 @@ func _ask(case_id: String) -> void:
 				passes_ladder = "review" if _air_ok() else "a"
 				_passes_hints()
 			if key_puzzle.solved and not released and not _todo_is(TEXT.todo_radio):
-				hud.todo(TEXT.todo_people)
+				_todo("todo_people")
 
 
 ## Every machine: the staff were listed. Vale's row is in it, so her case opens.
@@ -1369,8 +1375,10 @@ func _crew_line(id: String, peer_id: int) -> void:
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		return
-	var dur: float = _radio_voice.play(id, _voice_dir(peer_id)) if _radio_voice else 0.0
-	await hud.say(_name_of(peer_id), l.text, dur if dur > 0.0 else Voice.read_time(l.text))
+	var dir := _voice_dir(peer_id)
+	# Waits its turn like any line (HUD.Turn); the voice starts with the subtitle.
+	await hud.say(_name_of(peer_id), l.text, -1.0, HUD.Turn.NORMAL,
+		func() -> float: return _radio_voice.play(id, dir) if _radio_voice else 0.0)
 
 
 ## A peer's name as the roster has it (the local player's too).
@@ -1412,7 +1420,7 @@ func _circuits_changed(id: String) -> void:
 		hud.notice(TEXT.power_back, 5.0)
 		_warden(["l5_power_back", "l5_power_back_tease"])
 		if _todo_is(TEXT.todo_power):
-			hud.todo(_next_todo())
+			_todo(_next_todo())
 		_custodian_clock()
 
 
@@ -1467,7 +1475,7 @@ func _air_on() -> void:
 	hud.notice(TEXT.air_back, 5.0)
 	_warden(["l5_air_back", "l5_air_back_tease"])
 	if _todo_is(TEXT.todo_air):
-		hud.todo(_next_todo())
+		_todo(_next_todo())
 	_custodian_clock()
 
 
@@ -1508,6 +1516,7 @@ func _propped() -> void:
 		return
 	propped = true
 	prop.enabled = false
+	stair_in.set_open(true)  # propped open, if it wasn't already
 	hud.notice(TEXT.propped, 3.0)
 	if sync.is_host():
 		_clear_after(prop_time)
@@ -1523,7 +1532,7 @@ func _air_cleared() -> void:
 	air_cleared = true
 	hud.notice(TEXT.air_cleared, 5.0)
 	if _todo_is(TEXT.todo_air):
-		hud.todo(_next_todo())
+		_todo(_next_todo())
 	_custodian_clock()
 
 
@@ -1564,7 +1573,7 @@ func _lure(peer: int, badge: String, n: int) -> float:
 		_lure_hints()
 		Game.open_case("radio", CASES.radio)
 		if not released:
-			hud.todo(TEXT.todo_radio)
+			_todo("todo_radio")
 		_tip("lure", "hr")
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
@@ -1573,7 +1582,7 @@ func _lure(peer: int, badge: String, n: int) -> float:
 	var dur: float = _radio_voice.play(id, _voice_dir(peer) if peer > 0 else "") if _radio_voice else 0.0
 	if dur <= 0.0:
 		dur = Voice.read_time(l.text)
-	hud.say(who, l.text, dur)
+	hud.say(who, l.text, dur, HUD.Turn.URGENT)  # a threat starting: it cuts across (HUD.Turn)
 	return dur
 
 
@@ -1678,11 +1687,18 @@ func _check_done() -> void:
 		return
 	released = true
 	stair_out.locked = false
+	# In the World, B1 builds now at the foot of STAIR 2, and the crew walks down
+	# to it; on its own the floor ends on the stairs.
+	prepare_next()
+	var next: Node = world.wings.get("level_6") if world else null
+	if next:
+		exit_trigger.monitoring = false
+		walk_stairs(stair_out, next.stair_in, true, "_down_to_b1", TEXT.stairs_wait)
 	var n: Array = data.night
 	Game.open_case("people", CASES.people)
 	Game.solve_case("people", TEXT.people_done % [n[0].first, n[0].hide.place, n[1].first, n[1].hide.place])
 	hud.notice(TEXT.stairs_release, 4.0)
-	hud.todo(TEXT.todo_down)
+	_todo("todo_down")
 	_warden(["l5_secured", "l5_secured_tease"])
 
 
@@ -1767,10 +1783,21 @@ func _on_exit() -> void:
 	await get_tree().create_timer(exit_hold, false).timeout
 	if not is_inside_tree():
 		return
-	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_5"
-	Game.next_level = ""
+	Game.next_level = "level_6"  # Field Notes' Continue: the next floor, in the building
 	completed.emit()
+
+
+## Every machine: everyone is down STAIR 2 on B1's landing. The radio crackles once
+## more on the way, and play moves to the cold store.
+func _down_to_b1() -> void:
+	get_node("/root/Net").earn("achievement:floor_9", hud)
+	if lures > 0:
+		_lure(lure_peer, lure_badge, 3)
+	stairs.seal(Stairwell.of(stair_out))
+	Game.completed_level = "level_5"
+	Game.next_level = "level_6"
+	finish_level("level_6")
 
 
 func _on_completed() -> void:
@@ -1780,3 +1807,11 @@ func _on_completed() -> void:
 
 func on_player_died() -> void:
 	player.respawn(spawn_point())
+
+
+## Put task `key` (a TEXT key) on the job: its title and its details. "" ticks off the current one.
+func _todo(key: String) -> void:
+	if key == "":
+		hud.todo("")
+	else:
+		hud.todo(TASK_TITLES[key], TEXT[key])

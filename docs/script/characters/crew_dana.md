@@ -1,6 +1,6 @@
 # Dana Okafor
 
-*Your script for Null & Void: 89 recordings.*
+*Your script for Null & Void: 76 recordings.*
 
 ## Who you are
 
@@ -106,31 +106,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Shh. Something's here."
 
-## Scene 1: Remembering what Maddison said
-
-**Halcyon Tower, any floor. During the job.**
-
-> Maddison read the book with the crew in the garage before the job. Now, in the tower, a new chapter has just turned up in the crew's notebooks, and you remember she had something to say about it. You say this, then her line from the garage plays.
-
-**[ ] `l0_recall_1.wav`**
-
-*A new chapter of the book has just turned up in the crew's notebooks. Flipping to the new page in your notebook. Half to yourself, trying to remember. Trail off: her line follows.*
-
-"I think Maddison said..."
-
-**[ ] `l0_recall_2.wav`**
-
-*A new chapter of the book has just turned up in the crew's notebooks. Looking up from the new page at the others. To the others, as it comes back to you. Trail off: her line follows.*
-
-"Didn't Maddison say..."
-
-**[ ] `l0_recall_3.wav`**
-
-*A new chapter of the book has just turned up in the crew's notebooks. Tapping the new page in your notebook. Remembering, a little fond. Trail off: her line follows.*
-
-"Maddison mentioned..."
-
-## Scene 2: Crew commentary: ground floor
+## Scene 1: Crew commentary: ground floor
 
 **Halcyon Tower, ground floor: the front desk, the lobby and the mailroom. Around 11:05 p.m.**
 
@@ -224,7 +200,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 *Only if the crew has been stuck for about a minute on who called, and nobody has read the mailroom's phone list. Turning to look down the back corridor. Stuck. Remembering what the escort said.*
 
-"Rourke said the mailroom has the only phone list that's right."
+"Mailrooms always have a phone list pinned up somewhere."
 
 **[ ] `l0_cc_caller_n1b.wav`**
 
@@ -262,7 +238,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Vale signed in. And never signed out."
 
-## Scene 3: Crew commentary: server floor
+## Scene 2: Crew commentary: server floor
 
 **Halcyon Tower, floor 14, the server floor. Late at night.**
 
@@ -346,7 +322,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "That one's cooking. No wonder it's loud."
 
-## Scene 4: Crew commentary: security floor
+## Scene 3: Crew commentary: security floor
 
 **Halcyon Tower, floor 22, the security floor. Past midnight.**
 
@@ -484,11 +460,11 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "That's the code. Let's not hang around."
 
-## Scene 5: Book huddles: Acceptable API's
+## Scene 4: Finding Acceptable API's
 
-**Halcyon Tower, floor 9, Personnel: the HR front and payroll. After midnight.**
+**Halcyon Tower, floor 9, Personnel: the HR front. After midnight.**
 
-> The crew is locked in the tower, and the database won't take changes any more. On a training shelf by the HR front desk, you find a book from the same beginner's series the crew learned from at the garage. You read it aloud on the spot, a chapter at a time, whenever a paper on the floor calls for one. Nobody stops to read: you're walking, working and keeping an eye out.
+> The crew is locked in the tower, and the database won't take changes any more. On a training shelf by the HR front desk, you find a book from the same beginner's series the crew learned from at the garage.
 
 **[ ] `l5_book_find_block.wav`**
 
@@ -502,77 +478,17 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly."
 
-**[ ] `l5_huddle_post_1_block.wav`**
-
-*When the crew reads the carbon copy of a work order pinned up in payroll. If nobody has the book yet, this waits until someone picks it up. Walking with the book open, reading as you go. Starting a chapter, reading it out.*
-
-"Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers."
-
-*1 second pause*
-
-*As you finish the chapter. Keeping a finger in the page, looking up. Wrapping up, pleased it's simple.*
-
-"So GET looks, POST makes. Got it."
-
-**[ ] `l5_huddle_patch_1_block.wav`**
-
-*When the crew reads the facilities clipboard by payroll's panel. Waits for the book, if nobody has it yet. Tilting the page toward what light there is. Starting a chapter. Noticing how hard the book insists.*
-
-"PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice."
-
-*1 second pause*
-
-*As you finish the chapter. Glancing up from the page, grinning at the crew. Wrapping up. Proud of the joke.*
-
-"PATCH is UPDATE wearing a tie."
-
-**[ ] `l5_huddle_codes_1_block.wav`**
-
-*When the crew reads the request sheet on the HR front desk. Waits for the book, if nobody has it yet. Standing at the HR desk, the book open beside the terminal. Starting a chapter. A little told off.*
-
-"Every answer comes with a number. Book says read the number before you celebrate."
-
-*1 second pause*
-
-*As you finish the chapter. Tapping the page as you go down it. Wrapping up, counting it off.*
-
-"Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs."
-
-**[ ] `l5_huddle_keys_1_block.wav`**
-
-*Right after the chapter on numbers, called up by the same desk sheet. Reading at the desk, glancing at the terminal screen. Starting a chapter, working it out as you read.*
-
-"Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed."
-
-*1 second pause*
-
-*As you finish the chapter. Tapping the page, then the terminal. Wrapping up. Got it.*
-
-"So if it says 401, we forgot the badge."
-
-**[ ] `l5_huddle_check_1_block.wav`**
-
-*When the crew reads the after-hours procedure pinned behind the HR desk. Waits for the book, if nobody has it yet. Reading by the wall where the procedure hangs. Starting a short chapter. Knowing nod.*
-
-"Short chapter. After you change something, ask again. Book says never trust the first answer."
-
-*1 second pause*
-
-*As you finish the chapter. Closing the book, looking back toward the stairs. Wrapping up. Wry; you've been burned before.*
-
-"Change it, then look again. The front doors taught us that one."
-
-## Scene 6: Book huddles: Easy JavaScript
+## Scene 5: Finding Journey through JavaScript
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
-> This floor isn't built yet. The plan puts this book in the basement cold store, next to the terminal where the crew first gets a way to write scripts. You find it under a coffee mug, the cover ringed and the page on loops dog-eared, and read it aloud on the spot. The first two chapters come on this floor and the last three on the floor below. You're tired of typing everything by hand, and this looks like help.
+> This book is in the basement cold store, in the IT cage where the crew first gets a way to write scripts. You find it under a coffee mug, the cover ringed and the page on loops dog-eared. You're tired of typing everything by hand, and this looks like help.
 
 **[ ] `l6_book_find_block.wav`**
 
-*When someone finds the book under a coffee mug by the terminal on B1. This floor isn't built yet, so the exact moment isn't set. Holding it up for the crew to see. Sliding it out from under a mug. The cover's stained and the pages are soft.*
+*When someone finds the book under a coffee mug by the terminal on B1. Holding it up for the crew to see. Sliding it out from under a mug. The cover's stained and the pages are soft.*
 
-"Easy JavaScript. Somebody's read this one to death."
+"Journey through JavaScript. Somebody's read this one to death."
 
 *1 second pause*
 
@@ -580,67 +496,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat."
 
-**[ ] `l6_huddle_if_1_block.wav`**
-
-*Starting the chapter on variables and if, on B1. This floor isn't built yet, so the exact moment isn't set. Reading off the page, standing by the terminal. Starting a chapter. Braced for hard; it isn't.*
-
-"A variable's a labelled box. If is a fork in the road. That's... honestly fine."
-
-*1 second pause*
-
-*As you finish the chapter. Tapping the page twice, nodding to yourself. Wrapping up, to yourself.*
-
-"Box, fork. I can do box and fork."
-
-**[ ] `l6_huddle_loops_1_block.wav`**
-
-*Starting the chapter on loops, on B1. The dog-eared page. This floor isn't built yet, so the exact moment isn't set. Running a finger down the dog-eared page. Starting a chapter. The 'million times a second' bit alarms you.*
-
-"Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see."
-
-*1 second pause*
-
-*As you finish the chapter. Scribbling a note on the back of your hand. Wrapping up, making a note.*
-
-"Always put the wait in. Always log it. Writing that one down."
-
-**[ ] `l6_huddle_functions_1_block.wav`**
-
-*Starting the chapter on functions, on the floor below B1. This floor isn't built yet, so the exact moment isn't set. Walking with the book open, reading as you go. Starting a chapter, reading it out.*
-
-"Functions. Write it once, give it a name, use it anywhere."
-
-*1 second pause*
-
-*As you finish the chapter. Shutting the book on a finger, half smiling. Wrapping up. Pleased with that.*
-
-"So a function's a recipe we can shout."
-
-**[ ] `l6_huddle_lists_1_block.wav`**
-
-*Starting the chapter on lists, on the floor below B1. This floor isn't built yet, so the exact moment isn't set. Reading close to the page in the dim light. Starting a chapter. The penny drops halfway.*
-
-"Lists. A whole line of things in one box. Loop over it and you've done them all."
-
-*1 second pause*
-
-*As you finish the chapter. Looking up from the book toward the nearest door. Wrapping up. Genuinely unsure which.*
-
-"One loop, every door. That's either brilliant or terrifying."
-
-**[ ] `l6_huddle_test_1_block.wav`**
-
-*Starting the last chapter, on testing, on the floor below B1. This floor isn't built yet, so the exact moment isn't set. Holding the book steady, reading carefully. Starting the last chapter. Taking it seriously.*
-
-"Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't."
-
-*1 second pause*
-
-*As you finish the book. Closing the book and tucking it under your arm. Wrapping up. Rueful.*
-
-"Test first. We've all learned that one the hard way tonight."
-
-## Scene 7: Book huddles: Hello HTML!
+## Scene 6: Book huddles: Hello HTML!
 
 **Halcyon Tower, in a lift riding up from the basements. Later that night.**
 

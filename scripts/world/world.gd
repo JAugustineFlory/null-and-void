@@ -21,14 +21,18 @@ const ROUTE := [
 	{"key": "level_0", "scene": "res://scenes/level_0.tscn", "at": Transform3D.IDENTITY},
 	{"key": "level_1", "scene": "res://scenes/level_1.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(38, 0, 63))},
 	{"key": "level_2", "scene": "res://scenes/level_2.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -1))},
-	# Floor 18 is reached by the stairs down from 22: the crew is carried into its
-	# stairwell behind a fade, so it sits apart like the other floors.
+	# Floor 18 is reached by the stairs down from 22. It sits apart like the other
+	# floors: StairLinks makes 22's stairwell and 18's one flight of stairs.
 	{"key": "level_3", "scene": "res://scenes/level_3.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -70))},
 	# Floor 10, down STAIR 1 from 18 the same way. Its ground-floor beat is built inside
 	# it, where Level 0 stands.
 	{"key": "level_4", "scene": "res://scenes/level_4.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -140))},
 	# Floor 9, down STAIR 1 from 10 the same way.
 	{"key": "level_5", "scene": "res://scenes/level_5.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -210))},
+	# B1, the cold store, down STAIR 2 from 9 the same way.
+	{"key": "level_6", "scene": "res://scenes/level_6.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -280))},
+	# B2, the machine room, down STAIR 2 from B1 the same way.
+	{"key": "level_7", "scene": "res://scenes/level_7.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -360))},
 ]
 const FIELD_NOTES := "res://scenes/field_notes.tscn"
 
@@ -43,13 +47,15 @@ var home: HomeBase
 var _field_notes: CanvasLayer
 
 
-## A new game opens in the garage; otherwise (tests, debugging) in the van at Halcyon.
+## A new game opens in the garage; a floor picked from Levels opens on that floor;
+## otherwise (tests, debugging) in the van at Halcyon.
 func start() -> void:
 	MusicDirector.follow(self)  # the score follows the floor's danger from here on
-	if get_node("/root/Game").open_at_home:
+	var game := get_node("/root/Game")
+	if game.open_at_home:
 		enter_home()
 	else:
-		enter_wing(0)
+		enter_wing(clampi(game.open_at_wing, 0, ROUTE.size() - 1))
 
 
 ## Start in the crew's garage, with the ground floor built ahead for when the van arrives.
@@ -58,6 +64,7 @@ func enter_home() -> void:
 	home.visible = true
 	load_wing(0)
 	current = home
+	get_node("/root/Game").mark_floor_start("world")
 	players.place_all(home)
 	home.activate()
 	wing_entered.emit(home)
@@ -101,8 +108,10 @@ func load_next(wing: LevelBase) -> void:
 
 ## Hand play to a wing: its lighting mood and story take over.
 func enter_wing(index: int) -> void:
+	var arriving := current == null  # the building opens here: nobody walked in
 	current = load_wing(index)
-	if index == 0:
+	get_node("/root/Game").mark_floor_start(ROUTE[index].key)  # where a restart of this floor goes back to
+	if index == 0 or arriving:
 		players.place_all(current)
 	current.activate()
 	_unload_behind(index)

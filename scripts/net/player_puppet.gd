@@ -76,6 +76,11 @@ static func create(parent: Node, id: int, player_name: String, look: Dictionary,
 	return p
 
 
+func _ready() -> void:
+	for npc in get_tree().get_nodes_in_group(LevelSync.SHOVE_PROOF):
+		LevelSync.keep_apart(npc, self)  # (see LevelSync.SHOVE_PROOF)
+
+
 func _build(look: Dictionary) -> void:
 	add_to_group("player")
 	add_to_group("puppet")
@@ -235,14 +240,14 @@ func _crew() -> Node:
 func get_prompt(_by: Node) -> String:
 	if downed:
 		var c := _crew()
-		return c.revive_prompt(peer_id) if c else ""
+		return FirstAidCabinet.teammate_prompt(_by, c, peer_id) if c else ""
 	return _huddle_prompt()
 
 
 func interact(_by: Node) -> void:
 	if downed:
 		var c := _crew()
-		if c:
+		if c and not FirstAidCabinet.patch(_by, c, peer_id):  # (a first-aid kit in your hands)
 			c.revive(peer_id)
 	elif _huddle_prompt() != "":
 		_huddle().huddle_with(peer_id)

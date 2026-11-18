@@ -21,6 +21,8 @@ var _open := false
 ## How long an answer waits for your hands to be free to show the notebook.
 const ANSWER_WAIT_FRAMES := 300
 var _was_locked := false
+## The right stick turned a page and hasn't come back to the middle yet.
+var _stick_turned := false
 
 
 func _ready() -> void:
@@ -30,6 +32,7 @@ func _ready() -> void:
 		if _open:
 			pages.refresh())
 	get_node("/root/Game").answer_found.connect(_show_answer)
+	PadReader.attach(self, _on_pad, _on_stick)
 
 
 ## Held or full-screen, as Game.diegetic_ui says. Call again after changing it.
@@ -137,6 +140,7 @@ func close() -> void:
 
 func _set_closed() -> void:
 	_open = false
+	pages.pad_pick(null)
 	pages.showing = false
 	pages.file_solved()
 	pages.book.hide_book().finished.connect(func():
@@ -181,6 +185,7 @@ func start_writing() -> void:
 		player.input_locked = true  # typing doesn't walk you around
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	writer.grab_focus()
+	PadReader.show_keyboard("")
 
 
 func is_writing() -> bool:
@@ -200,6 +205,7 @@ func stop_writing() -> void:
 		return
 	writer.visible = false
 	writer.release_focus()
+	PadReader.hide_keyboard()
 	if player:
 		player.input_locked = _was_locked
 		if held:
@@ -228,3 +234,46 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif _open and event.is_action_pressed("pause"):
 		close()
 		get_viewport().set_input_as_handled()
+
+
+## A gamepad press while the notebook is up (PadReader): LB and RB turn the
+## tabs, Y writes a note, the d-pad (left, right) picks a button on the pages and
+## A presses it, B puts the notebook away (View too, as Tab does). Up and down
+## stay the radio's.
+func _on_pad(event: InputEvent) -> bool:
+	if not _open or event is InputEventJoypadMotion or not event.is_pressed() or event.is_echo():
+		return false
+	if is_writing():
+		if event.is_action_pressed("alt_interact"):
+			finish_writing(writer.text)
+			return true
+		return false  # B is ui_cancel: the writer puts the pen down
+	if event.is_action_pressed("ui_tab_prev") or event.is_action_pressed("ui_tab_next"):
+		var step := -1 if event.is_action_pressed("ui_tab_prev") else 1
+		var n := NotebookPages.TAB_NAMES.size()
+		pages.show_page((pages.current_page() + step + n) % n)
+	elif event.is_action_pressed("alt_interact"):
+		start_writing()
+	elif event.is_action_pressed("ui_left"):
+		pages.pad_move(-1)
+	elif event.is_action_pressed("ui_right"):
+		pages.pad_move(1)
+	elif event.is_action_pressed("ui_accept"):
+		pages.pad_press()
+	elif event.is_action_pressed("ui_cancel"):
+		close()
+	else:
+		return false
+	return true
+
+
+## The right stick pushed left or right turns the page back or on, once a push.
+func _on_stick(v: Vector2, _delta: float) -> void:
+	if not _open or is_writing():
+		_stick_turned = false
+		return
+	if absf(v.x) < 0.3:
+		_stick_turned = false
+	elif absf(v.x) > 0.6 and not _stick_turned:
+		_stick_turned = true
+		pages.turn(1 if v.x > 0.0 else -1)

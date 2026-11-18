@@ -19,6 +19,9 @@ extends RefCounted
 ## shape (the value as a named blank, enter_...) and then the exact query. Every other puzzle uses hint ladder A.
 ## `"shape_gap"` says why a request ladder's hint 1 still names the value its shape
 ## leaves blank; it prints as GAP until the owner fixes it.
+## `"hint_gap"` says why a script ladder's hint 1 still lacks a line for a script word the
+## station teaches; it prints as GAP until the line is approved and in.
+## `"threat_first"` says why a keyword is first needed under threat; it prints as GAP.
 ## Keywords include two patterns (tests/teaching_tests.gd KEYWORD_PATTERNS): ">" is a
 ## comparison with a value, and "COLUMNS" is SELECT naming columns instead of *.
 
@@ -396,5 +399,113 @@ const PUZZLES := {
 		"ladder": "review",
 		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/staff"],
+	},
+	# Level 6: B1, the cold store (plan/approvals/l6-text.md). The crew's first scripts,
+	# from Journey through JavaScript: let, if, while, await sleep and console.log, then
+	# for ... of and db.query ("Once for each"). The cold is the threat: the corridor and
+	# the vaults drain stamina, then health. Warm rooms are safe.
+	# Who's still clocked in: IS NULL, practised on 18, so the review ladder.
+	"open": {
+		"level": 6,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": ["freezer_log", "clock_out"],
+		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+	},
+	# The first script, at the IT cage: the cradle card's loop with this cradle's key.
+	"pair": {
+		"level": 6,
+		"pressure": false,
+		"teaches": ["let", "while", "await sleep", "console.log", "api.post", "/earpieces/pair"],
+		"needs": ["let", "while", "await sleep", "console.log", "api.post", "X-Api-Key", "/earpieces/pair"],
+	},
+	# The names, one a line, still at the IT cage: the warm first use of for and db.query
+	# (Teaching's B1 audit, item 1).
+	"list": {
+		"level": 6,
+		"pressure": false,
+		"teaches": ["for", "const", "db.query"],
+		"needs": ["let", "for", "const", "if", "!==", "db.query", "console.log", "SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+	},
+	# The watchdog, practised at the anteroom, warm: if is new.
+	"practice": {
+		"level": 6,
+		"pressure": false,
+		"teaches": ["if", "api.get", "api.patch", "res.body"],
+		"needs": ["let", "while", "if", "await sleep", "console.log", "api.get", "api.patch", "X-Api-Key", "/doors"],
+	},
+	# The same watchdog for the deep freeze, from a deck in the cold corridor.
+	"hold": {
+		"level": 6,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["let", "while", "if", "await sleep", "console.log", "api.get", "api.patch", "X-Api-Key", "/doors"],
+	},
+	# The release, from inside Vault C: every open entry but ours, a slip at a time.
+	"release": {
+		"level": 6,
+		"pressure": true,
+		"teaches": ["/clock_outs"],
+		"needs": ["let", "for", "const", "if", "!==", "await sleep", "console.log", "db.query", "api.post", "X-Api-Key", "/clock_outs", "SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+	},
+	# Optional: leave it tidy, every script stopped and both vault doors locked and read back.
+	"stop": {
+		"level": 6,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["PATCH", "GET", "X-Api-Key", "/doors"],
+	},
+	# Level 7: B2, the machine room (plan/approvals/l7-text.md, DRAFT). Journey through
+	# JavaScript's last three chapters: a function (function, return, async), a list
+	# ([ ], length) and testing (the test bench, assert). Tokens are looked up off the
+	# admin's runbook, with no chapter. Nothing hunts on the bench; the dark comes next.
+	# A token: trade the key for one, then send it as a header.
+	"token": {
+		"level": 7,
+		"pressure": false,
+		"teaches": ["/auth/token", "Authorization: Bearer"],
+		"needs": ["POST", "GET", "/auth/token", "Authorization: Bearer", "/lights"],
+	},
+	# One zone on the bench: the admin's function, finished with return, and tested.
+	"restore": {
+		"level": 7,
+		"pressure": false,
+		"teaches": ["async function", "return", "assert"],
+		"needs": ["let", "if", "!==", "async function", "return", "assert", "api.get", "api.patch", "api.post", "/auth/token", "Authorization: Bearer", "/lights"],
+	},
+	# Every zone on the bench, from a list, each asserted.
+	"zones": {
+		"level": 7,
+		"pressure": false,
+		"teaches": ["[", "length"],
+		"needs": ["let", "for", "const", "async function", "return", "assert", "[", "length", "/lights"],
+	},
+	# The fight (Augustine's calls 2026-11-06): the tested script, used under pressure,
+	# while WARDEN cuts the ring and the Watcher (and whoever else is loose) hunts.
+	"lights_out": {
+		"level": 7,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["let", "for", "const", "async function", "return", "assert", "[", "/auth/token", "Authorization: Bearer", "/lights"],
+	},
+	# Beat him: each player's route (an uplink and the controller, the auth log and a
+	# revoke, a watchdog loop with its assert). Each looked up in the world: the
+	# controller's plate, the runbook's access page.
+	"warden": {
+		"level": 7,
+		"pressure": true,
+		"teaches": ["/auth/log", "/auth/revoke", "/controller"],
+		"needs": ["while", "await sleep", "for", "if", "assert", "/auth/log", "/auth/revoke", "/controller", "Authorization: Bearer"],
+	},
+	# The lifts: a POST for each car, then a check that each is in service.
+	"lifts": {
+		"level": 7,
+		"pressure": true,
+		"ladder": "review",
+		"teaches": [],
+		"needs": ["POST", "GET", "/lifts", "for", "assert", "Authorization: Bearer"],
 	},
 }

@@ -11,10 +11,66 @@ var _damage: ColorRect
 var _fade: ColorRect
 var _crosshair: Label
 var _notice_tween: Tween
+## Notices take turns too (plan/text-spacing-proposal.md): one at a time, each up at
+## least NOTICE_MIN_UP before the next replaces it, in the order they came.
+const NOTICE_MIN_UP := 1.5
+## The same notice again within this long is dropped (B1's doors locking and
+## unlocking show the first few times, then only make their sound).
+const NOTICE_REPEAT := 20.0
+## "Notebook updated" goes last, at most once every NOTEBOOK_EVERY seconds, and folds
+## in under the notice on screen instead of wiping it.
+const NOTEBOOK_NOTICE := "Notebook updated (Tab)"
+const NOTEBOOK_EVERY := 10.0
+var _notice_queue: Array[Dictionary] = []
+var _notice_since := -1000.0
+var _notice_seen := {}  # notice text -> when it last went up or in the queue
+var _notebook_due := false
+var _notebook_last := -1000.0
+## The folded-in "Notebook updated (Tab)", under the notice it came with.
+var _notebook_tag: Label
 var _line_id := 0
+## Every line id this HUD has played (taken its turn), in order. Tests read it.
+var heard: Array[String] = []
 var _voice: Voice
+
+## Lines take turns: one speaker on screen at a time, with a breath between them
+## (Augustine's v0.9-beta2 note, 2026-11-17: "a LOT of text and dialogue, without
+## much space between"; plan/text-spacing-proposal.md, Teaching's numbers).
+## NORMAL waits its turn in order. URGENT is a threat starting (a clock, WARDEN
+## turning, the cold): it plays at once and cuts across. CAN_WAIT (teases, banter,
+## crew barks) waits for a quiet moment, holds while someone is typing at a
+## terminal, and is dropped if it would play more than STALE_AFTER late.
+enum Turn { NORMAL, URGENT, CAN_WAIT }
+## The breath between two lines of one speaker, and between two speakers.
+const GAP_SAME := 0.6
+const GAP_CHANGE := 1.2
+## A line that can wait, held longer than this, is dropped (its notebook jot is kept).
+const STALE_AFTER := 15.0
+## Lines that can wait hold until the terminal's been quiet this long, or closes.
+const TYPING_QUIET := 3.0
+## A line has finished (or given up its turn).
+signal turn_over
+var _ticket := 0
+var _serving := 0
+var _urgent := 0
+var _last_speaker := ""
+## Game seconds (pause and time_scale aware), for the gaps and dropping stale lines.
+var _clock := 0.0
+var _last_end := -1000.0
+## STALE_AFTER, shortened by tests.
+var stale_after := STALE_AFTER
+## Lines that can wait and are waiting now (their ids, or speaker and text): the
+## same one asked again meanwhile is dropped, not queued twice.
+var _held := {}
 ## The main case and how many of its pieces are in, top right (CaseChip).
 var case_chip: CaseChip
+
+
+func _process(delta: float) -> void:
+	if not get_tree().paused:
+		_clock += delta
+	if _notebook_due or not _notice_queue.is_empty():
+		_next_notice()
 
 
 func _ready() -> void:
@@ -58,6 +114,13 @@ func _ready() -> void:
 	_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_notice.position = Vector2(-600, 70)
 	root.add_child(_notice)
+	_notebook_tag = ThemeUtil.label(NOTEBOOK_NOTICE, 20, ThemeUtil.AMBER)
+	_notebook_tag.name = "NotebookTag"
+	_notebook_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_notebook_tag.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_notebook_tag.grow_vertical = Control.GROW_DIRECTION_END
+	_notebook_tag.visible = false
+	_notice.add_child(_notebook_tag)  # fades with the notice it's folded into
 
 	_keys = ThemeUtil.label("WASD move · Shift sprint · Ctrl crouch · Space jump · E use · F flashlight · Tab notebook · 1-4 items · I inventory · Esc menu and all controls", 17, Color(1, 1, 1, 0.7))
 	_keys.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -85,15 +148,23 @@ func set_crosshair(on: bool) -> void:
 
 
 func set_prompt(text: String) -> void:
-	_prompt.text = text
+	_prompt.text = InputGlyphs.text(text)  # [E] reads [X] on a gamepad
 
 
 ## Write a task on the player's to-do list in the notebook (it ticks off the one
-## before). The screen only flashes that the notebook changed. "" ticks off the
-## current task. Never name an answer here: it's what the character would jot down.
-func todo(text: String) -> void:
-	if get_node("/root/Game").set_todo(text) and text != "":
+## before): its `title`, how the crew feels and what's going on, and its `details`,
+## what to do (Augustine's rule, 2026-11-05). One string is a task without a title.
+## The screen flashes that the notebook changed and, briefly, "Next: <title>". ""
+## ticks off the current task. Never name an answer here: it's what the character
+## would jot down.
+func todo(title: String, details := "") -> void:
+	# One string is a task with no title of its own (or "", ticking off the current one).
+	var text := details if details != "" else title
+	var named := title if details != "" else ""
+	if get_node("/root/Game").set_todo(text, named) and text != "":
 		notice("Notebook updated (Tab)", 3.0)
+		if named != "" and case_chip:
+			case_chip.brief_task(named)
 
 
 ## The task on top of the to-do list, or "".
@@ -106,10 +177,67 @@ func set_objective(text: String) -> void:
 	todo(text)
 
 
-func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) -> void:
+## A short notice across the top of the screen. `turn` is a Turn, as for lines:
+## URGENT (the default) is the answer to something the player just did, or a threat:
+## it goes up at once. NORMAL (the level's own news: a door down the hall, a teammate
+## waiting) waits until the notice on screen has been up NOTICE_MIN_UP, in order, and
+## the same text within NOTICE_REPEAT is dropped. CAN_WAIT is NORMAL, dropped if it
+## would go up more than stale_after late.
+func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER, turn: int = Turn.URGENT) -> void:
+	if text == NOTEBOOK_NOTICE:
+		_notebook_due = true
+		_next_notice()
+		return
+	var shown := InputGlyphs.text(text)
+	if turn == Turn.URGENT:
+		_put_up(shown, seconds, color)
+		return
+	if _clock - float(_notice_seen.get(shown, -1000.0)) < NOTICE_REPEAT:
+		return
+	_notice_seen[shown] = _clock
+	_notice_queue.append({"text": shown, "seconds": seconds, "color": color, "at": _clock, "turn": turn})
+	_next_notice()
+
+
+## Is a notice up on screen now?
+func notice_showing() -> bool:
+	return _notice.text != "" and _notice.modulate.a > 0.05
+
+
+## Put up the next notice once the one on screen has had its moment; then, with
+## nothing else waiting, "Notebook updated", folded under whatever is up.
+func _next_notice() -> void:
+	while not _notice_queue.is_empty() and _notice_queue[0].turn == Turn.CAN_WAIT and _clock - float(_notice_queue[0].at) > stale_after:
+		_notice_queue.pop_front()  # news that's gone stale waiting
+	if not _notice_queue.is_empty() and (not notice_showing() or _clock - _notice_since >= NOTICE_MIN_UP):
+		var n: Dictionary = _notice_queue.pop_front()
+		_put_up(n.text, n.seconds, n.color)
+	if not _notebook_due or not _notice_queue.is_empty():
+		return
+	_notebook_due = false
+	if _clock - _notebook_last < NOTEBOOK_EVERY:
+		return  # said a moment ago: once is enough
+	_notebook_last = _clock
+	if notice_showing() and _notice.text != NOTEBOOK_NOTICE:
+		_notebook_tag.text = InputGlyphs.text(NOTEBOOK_NOTICE)
+		_notebook_tag.visible = true
+		_notebook_tag.offset_top = 4.0
+		_notebook_tag.offset_bottom = 4.0
+		if _notice_tween:  # keep the pair up long enough to read the tag
+			_notice_tween.kill()
+		_notice_tween = create_tween()
+		_notice_tween.tween_interval(3.0)
+		_notice_tween.tween_property(_notice, "modulate:a", 0.0, 0.8)
+	else:
+		_put_up(InputGlyphs.text(NOTEBOOK_NOTICE), 3.0, ThemeUtil.AMBER)
+
+
+func _put_up(text: String, seconds: float, color: Color) -> void:
 	_notice.text = text
 	_notice.add_theme_color_override("font_color", color)
 	_notice.modulate.a = 1.0
+	_notebook_tag.visible = false
+	_notice_since = _clock
 	if _notice_tween:
 		_notice_tween.kill()
 	_notice_tween = create_tween()
@@ -120,8 +248,18 @@ func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) 
 ## Show one line of dialogue. Await it to wait until it has been read.
 ## For character lines use line(id) so the recording plays; this is for
 ## narration and other text nobody speaks.
-func say(speaker: String, text: String, seconds: float = -1.0) -> void:
+## `turn` is a Turn. `start`, if given, runs when the line's turn comes and returns
+## the length of the recording it started (0.0 for none), so a voice plays in step
+## with its subtitle (Commentary's crew barks).
+func say(speaker: String, text: String, seconds: float = -1.0, turn: int = Turn.NORMAL, start: Callable = Callable()) -> void:
+	if not await _take_turn(turn, speaker, speaker + ": " + text):
+		return
+	if start.is_valid():
+		var played: float = start.call()
+		if played > 0.0:
+			seconds = played
 	await _show(speaker, text, seconds if seconds > 0 else Voice.read_time(text))
+	_end_turn(turn, speaker)
 
 
 ## Play several unvoiced lines in order: [[speaker, text], ...]
@@ -174,21 +312,104 @@ func subtitles_clear_of_right(width: float) -> void:
 ## remembered = true plays it as a memory of the line, not someone saying it here (Voice.MEMORY_BUS).
 ## A crew line can name who says it (`who`, on the subtitle) and use their
 ## recordings (`voice_dir`, "crew_dana").
-func line(id: String, subtitle: bool = true, remembered := false, who: String = "", voice_dir: String = "") -> void:
+## It waits its turn (Turn): `turn` overrides the line's own (VoiceLines `turn`).
+## The notebook jot is written at once, even if the line is later dropped.
+func line(id: String, subtitle: bool = true, remembered := false, who: String = "", voice_dir: String = "", turn: int = -1) -> void:
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		push_warning("No voice line with id '%s'" % id)
 		return
 	if get_node("/root/Game").jot(VoiceLines.resolve(id), l):
 		notice("Notebook updated (Tab)", 3.0)
+	if turn < 0:
+		turn = turn_of(l)
+	var speaker: String = who if who != "" else str(l["speaker"])
+	if not await _take_turn(turn, speaker, id):
+		return
+	heard.append(id)
 	var dur := _voice.play(id, voice_dir, remembered)
 	var has_audio := dur > 0.0
 	if not has_audio:
 		dur = Voice.read_time(l["text"])
 	if subtitle:
-		await _show(who if who != "" else l["speaker"], l["text"], dur)
+		await _show(speaker, l["text"], dur)
 	elif has_audio:
 		await get_tree().create_timer(dur, false).timeout
+	_end_turn(turn, speaker)
+
+
+## A line's own turn, from its VoiceLines entry ("urgent", "can_wait", or normal).
+static func turn_of(l: Dictionary) -> int:
+	match str(l.get("turn", "")):
+		"urgent":
+			return Turn.URGENT
+		"can_wait":
+			return Turn.CAN_WAIT
+	return Turn.NORMAL
+
+
+## True while nobody's speaking or waiting to.
+func quiet() -> bool:
+	return _ticket == _serving and _urgent == 0
+
+
+## Wait for this line's turn. False: it was a line that could wait, and it waited
+## too long, or the same line (`key`) is already waiting (dropped).
+func _take_turn(turn: int, speaker: String, key: String = "") -> bool:
+	if turn == Turn.URGENT:
+		_urgent += 1
+		return true
+	if turn == Turn.CAN_WAIT:
+		if key != "" and _held.has(key):
+			return false
+		_held[key] = true
+		var since := _clock
+		while not (quiet() and _gap_left(speaker) <= 0.0 and not _typing()):
+			if _clock - since > stale_after or not is_inside_tree():
+				_held.erase(key)
+				return false
+			await get_tree().create_timer(0.2, false).timeout
+			if not is_inside_tree():
+				return false
+		_held.erase(key)
+		_ticket += 1  # nobody was waiting, so this ticket is the one being served
+		return true
+	var mine := _ticket
+	_ticket += 1
+	while true:
+		while mine != _serving or _urgent > 0:
+			await turn_over
+		var gap := _gap_left(speaker)
+		if gap <= 0.0:
+			break
+		await get_tree().create_timer(gap, false).timeout
+	return true
+
+
+## This line is over: the next one may go (after its breath).
+func _end_turn(turn: int, speaker: String) -> void:
+	if turn == Turn.URGENT:
+		_urgent = maxi(_urgent - 1, 0)
+	else:
+		_serving += 1
+	_last_speaker = speaker
+	_last_end = _clock
+	turn_over.emit()
+
+
+## Seconds still to wait before `speaker` may start.
+func _gap_left(speaker: String) -> float:
+	var gap := GAP_SAME if speaker == _last_speaker else GAP_CHANGE
+	return gap - (_clock - _last_end)
+
+
+## Someone on this machine is typing at a terminal (TerminalUI.last_typed_msec).
+func _typing() -> bool:
+	var level := get_parent()
+	var term = level.get("terminal_ui") if level else null
+	if term == null or not is_instance_valid(term) or not term.visible:
+		return false
+	return Time.get_ticks_msec() - int(term.get("last_typed_msec")) < TYPING_QUIET * 1000.0
 
 
 ## Speak several lines in order.

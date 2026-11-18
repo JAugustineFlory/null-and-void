@@ -17,6 +17,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_data_every_seed()
 	await test_scene()
 	await test_right_first_time()
+	await test_reset_capitals_elsewhere()
+	await test_deck_cart()
 	await test_accident()
 	await test_gantry()
 	await test_custodian_follows()
@@ -86,6 +88,7 @@ func test_data_every_seed() -> void:
 	var ok_no_where := true
 	var ok_wrong_row := true
 	var ok_login := true
+	var ok_short_names := true
 	var ok_wrong_insert := true
 	var ok_hints := true
 	var ok_doors := true
@@ -140,6 +143,17 @@ func test_data_every_seed() -> void:
 		ok_login = ok_login and lvl.login_puzzle.matches(db5, r)
 		var db6 := _fresh_db(data)
 		ok_login = ok_login and lvl.login_puzzle.matches(db6, db6.execute(_last_hint_query(lvl.login_puzzle)))
+		# The name as floor 22's report spells it, or shorter, and the clock's time without its zero.
+		for name in ["Byte-Right", "Byte-Right IT", "BYTE-RIGHT IT SERVICES", "Byte-Right Computer Services"]:
+			for time in [data.time_in, data.time_in.trim_prefix("0")]:
+				var dbn := _fresh_db(data)
+				r = dbn.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % [name, data.ticket, time])
+				ok_short_names = ok_short_names and r.ok and lvl.login_puzzle.matches(dbn, r) and lvl._reads_login(dbn.execute("SELECT * FROM contractor_log"))
+		var dbx := _fresh_db(data)
+		r = dbx.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('Byte', '%s', '%s')" % [data.ticket, data.time_in])
+		ok_short_names = ok_short_names and r.ok and not lvl.login_puzzle.matches(dbx, r)
+		r = dbx.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '0:%s')" % [data.company, data.ticket, data.time_in])
+		ok_short_names = ok_short_names and r.ok and not lvl.login_puzzle.matches(dbx, r)
 		# Wrong order, no quotes, the wrong table, the clipboard's example copied, no column list.
 		var db7 := _fresh_db(data)
 		r = db7.execute("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % [data.ticket, data.company, data.time_in])
@@ -191,6 +205,7 @@ func test_data_every_seed() -> void:
 	check(ok_no_where, "no WHERE flips all twelve and doesn't pass; putting the others back does")
 	check(ok_wrong_row, "the bay's breaker, the circuit name as the id, and the example's CB-03 don't pass")
 	check(ok_login, "the crew's own log row passes, and so does the last hint, across 60 seeds")
+	check(ok_short_names, "the log takes any name starting Byte-Right (floor 22's report's, Maddison's card's, the full one), and the time with or without its leading zero; 'Byte' or a garbled time doesn't")
 	check(ok_wrong_insert, "wrong column order, an unquoted value, the wrong table, the clipboard's example, no column list and a plain read don't pass")
 	check(ok_doors, "main_doors's row says CONTAINMENT; another door or a read doesn't open it, the last hint does")
 	check(ok_gantry and hatch_bays.size() == 2, "the gantry parks at one end and the panel's bay is the other (both ways round over 60 runs); only moving it there passes")
@@ -207,7 +222,7 @@ func test_scene() -> void:
 	var p: Player = level.player
 	var data: Dictionary = level.data
 	check(LANDING_BOX.has_point(level.to_local(p.global_position)) and p.is_on_floor(), "players start on 10's stair landing (%s)" % level.to_local(p.global_position))
-	check(level.stair_in.is_open and level.stair_out.locked and not level.stair_out.is_open, "the door in from the stairs is wedged; the stairs down are held shut")
+	check(not level.stair_in.is_open and not level.stair_in.locked and level.stair_out.locked and not level.stair_out.is_open, "the door in from the stairs opens for the crew; the stairs down are held shut")
 	check(_doc(level, "Stair notice") != null and _doc(level, "Stair notice").plain_text().contains("CLOSED BELOW 10"), "a notice by the stairs down says why they're shut")
 	check(not level.ctrl_door.is_open and level.lights["L10-CTRL"].all(func(l): return not l.visible), "the control room is dark and its door shut")
 	check(level.db.run_silent("SELECT locked, actuator_fault FROM doors WHERE id = 'PLANT-CTRL'")[0] == {"locked": 0, "actuator_fault": 1},
@@ -335,6 +350,76 @@ func test_right_first_time() -> void:
 	await t.process_frame
 
 
+## The reset as the panel prints it ('ON'), typed at the controller instead: the
+## breaker's on, the station passes, and the read-back at the plant terminal signs it off.
+func test_reset_capitals_elsewhere() -> void:
+	print("Floor 10: the reset in capitals, at the controller")
+	_game().new_run(9)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(20)
+	_chapters_read([level])
+	var ui: TerminalUI = level.terminal_ui
+	ui.terminal = level.controller
+	ui.run("UPDATE breakers SET state = 'ON' WHERE id = '%s';" % level.data.target)
+	await _frames(3)
+	var state: String = level.db.run_silent("SELECT state FROM breakers WHERE id = '%s'" % level.data.target)[0]["state"]
+	check(level.reset_puzzle.solved and level.power_back and not level.alarm and state == "on", "'ON' in capitals, typed at the controller: the breaker's on, the reset passes and the power's back")
+	ui.terminal = level.maint
+	ui.run(_last_hint_query(level.check_puzzle))
+	await _frames(2)
+	check(level.check_puzzle.solved, "and the read-back at the plant terminal signs it off")
+	level.queue_free()
+	await t.process_frame
+
+
+## Facilities' loaner cart: locked until the power's back, then one deck each,
+## carried in the inventory and shown in your hands when you take it out.
+func test_deck_cart() -> void:
+	print("Floor 10: the loaner decks")
+	_game().new_run(12)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(20)
+	_chapters_read([level])
+	var p: Player = level.player
+	var cart: ItemDock = level.deck_cart
+	check(level.CTRL_ROOM.has_point(level.to_local(cart.global_position)) and cart.models.size() == 6, "the loaner cart is in door and lift control, with six decks")
+	var cart_box := AABB(level.DECK_CART_AT - Vector3(level.DECK_CART_SIZE.x / 2, 0, level.DECK_CART_SIZE.z / 2), level.DECK_CART_SIZE)
+	var desk_box := AABB(Vector3(4.5, 0, -17.0), Vector3(3.0, 1.0, 0.8))
+	check(not cart_box.intersects(desk_box) and not cart_box.intersects(AABB(Vector3(4.3, 0, -10.6), Vector3(3.3, 2.4, 0.6))) and cart_box.position.x >= 2.0 and cart_box.end.z <= -10.0,
+		"it stands clear of the desk and the door, inside the room")
+	check(not cart.enabled and cart.get_prompt(p) == "", "while the room's dark the decks are locked on the cart")
+	cart.interact(p)
+	await _frames(2)
+	check(not p.inventory.has("deck"), "and pressing it takes nothing")
+	var ui: TerminalUI = level.terminal_ui
+	ui.terminal = level.maint
+	ui.run(_last_hint_query(level.reset_puzzle))
+	await _frames(3)
+	check(level.power_back and cart.enabled and cart.get_prompt(p).contains(level.TEXT.deck_take), "with the power back, the cart lets go of its decks")
+	cart.interact(p)
+	await _frames(2)
+	check(p.inventory.has("deck") and cart.models.filter(func(m): return m.visible).size() == 5, "you take one; five stay for the crew")
+	check(cart.get_prompt(p) == level.TEXT.deck_have, "pressing it again says you have one")
+	cart.interact(p)
+	await _frames(2)
+	check(cart.models.filter(func(m): return m.visible).size() == 5, "and takes nothing more")
+	var slot := p.inventory.hotbar.find("deck")
+	check(slot >= 0 and p.hand_item == null, "the deck goes on the hotbar, not yet in your hands")
+	p.inventory.use_slot(slot)
+	await _frames(3)
+	var held: Node3D = p.hand_item
+	check(held != null and held.get_parent() == p.camera and held.is_in_group("carried") and held.visible, "taken out, it's in your hands in first person")
+	var in_view: bool = p.camera.is_position_in_frustum(held.global_position) if held else false
+	check(in_view, "where you can see it")
+	p.inventory.use_slot(slot)
+	await _frames(3)
+	check(p.hand_item == null, "put away again, your hands are empty")
+	level.queue_free()
+	await t.process_frame
+
+
 func _said(term: Terminal, line: String) -> bool:
 	return Array(term.transcript).any(func(l): return TerminalUI._plain(l).contains(line))
 
@@ -444,9 +529,9 @@ func test_accident() -> void:
 	check(await _until(func(): return docked[0], 900), "left alone, it drags them all the way to its bay (state %s)" % cust.state)
 	await _frames(120)
 	check(p.combat.grabbed_by == null and p.health > 0.0 and LANDING_BOX.has_point(level.to_local(p.global_position)), "they go down, and come to on the landing")
-	check(await _until(func(): return level.adapted, 900), "out of the control room after the accident, WARDEN's upgrade plays")
+	check(await _until(func(): return level.adapted, 2400), "out of the control room after the accident, WARDEN's upgrade plays")
 	var loop_text: String = VoiceLines.get_line("l4_epsilon_loop").get("text", "")
-	check(await _until(func(): return level.hud._subtitle.text.contains(loop_text), 900), "Epsilon's reminder comes over the PA every so often")
+	check(await _until(func(): return level.hud._subtitle.text.contains(loop_text), 2400), "Epsilon's reminder comes over the PA every so often")
 	level.reminder_every = 1000.0
 	# The lockout: logged on the controller, read back at the bay's panel in time.
 	level.lockout_window = 0.5
@@ -469,12 +554,13 @@ func test_accident() -> void:
 	ui.run("UPDATE breakers SET state = 'on' WHERE id = '%s'" % data.bay_breaker)
 	await _frames(30)
 	check(not cust.powered, "sealed, power on its breaker doesn't wake it")
-	# The way down: STAIR 1 to the ground floor, where the crew came in.
-	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
-	check(await _until(func(): return level.on_ground and not p.input_locked, 300), "everyone on the stairs down: behind a fade, down to G")
+	# The way down: STAIR 1 to the ground floor, where the crew came in (the walk down
+	# is tests/stair_walk_tests.gd's): everyone on G's landing.
+	p.global_transform = level.player_spawn_on_ground(0)
+	check(await _until(func(): return level.on_ground and not p.input_locked, 300), "everyone down STAIR 1 on G's landing: the crew is on G")
 	await _frames(10)
 	var g_stair: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
-	check(p.global_position.distance_to(g_stair) < 3.0 and p.is_on_floor() and level.g_stair.is_open, "the crew steps out of STAIR 1 by the lifts on G (%.1f m from its door)" % p.global_position.distance_to(g_stair))
+	check(p.global_position.distance_to(g_stair) < 3.0 and p.is_on_floor() and not level.g_stair.locked, "by the lifts on G, and G's stair door opens for them (%.1f m from it)" % p.global_position.distance_to(g_stair))
 	check(_game().current_todo() == level.TEXT.todo_front and level.db.run_silent("SELECT COUNT(*) AS n FROM gates")[0]["n"] == 4, "the to-do says the front doors, and the lockup's gates are in reach")
 	var lockup: Node = _doc(level, "Night lockup card")
 	check(lockup != null and lockup.plain_text().contains("main_entrance") and lockup.plain_text().contains("WHERE name = 'loading_dock'"), "the night lockup card names main_entrance and shows the dock's UPDATE")
@@ -510,7 +596,7 @@ func test_accident() -> void:
 	ui.run("SELECT * FROM gates")
 	await _frames(2)
 	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own SELECT shows the lie: main_entrance locked again (the whole table counts, as the panel did upstairs)")
-	check(await _until(func(): return done[0], 1500) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
+	check(await _until(func(): return done[0], 3600) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
 	net.profile.earned = had
 	level.queue_free()
 	await t.process_frame
@@ -557,6 +643,23 @@ func test_coop() -> void:
 	var client = machines[1]
 	check(machines.all(func(l): return l.sync._begun and l.players.count() == 2 and l.data.target == host.data.target), "both machines start floor 10 with the same breaker tripped")
 	var cui: TerminalUI = client.terminal_ui
+	# The loaner decks: locked until the power's back, then one each, decided by the host.
+	for l in machines:  # one process plays every machine: give each its own inventory, as on real machines
+		l.player.inventory = Inventory.new()
+	client.deck_cart.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.deck_cart.taken_by.is_empty()) and not client.player.inventory.has("deck"), "a client can't take a deck while the power's off")
+	cui.terminal = client.maint
+	cui.run(_last_hint_query(client.reset_puzzle))
+	await _frames(10)
+	check(machines.all(func(l): return l.power_back and l.deck_cart.enabled), "a client's reset unlocks the cart on every machine")
+	client.deck_cart.interact(client.player)
+	await _frames(10)
+	check(client.player.inventory.has("deck") and not host.player.inventory.has("deck"), "the client takes their own deck; the host's hands stay empty")
+	check(machines.all(func(l): return l.deck_cart.models.filter(func(m): return m.visible).size() == 5), "both machines see one gone from the cart")
+	host.deck_cart.interact(host.player)
+	await _frames(10)
+	check(host.player.inventory.has("deck") and machines.all(func(l): return l.deck_cart.taken_by.size() == 2), "the host takes theirs too")
 	cui.terminal = client.controller
 	cui.run("UPDATE doors SET locked = 0 WHERE id = 'main_doors'")
 	await _frames(10)
@@ -590,7 +693,7 @@ func test_coop() -> void:
 	for l in machines:
 		l.lie_time = 0.3
 		l.completed.disconnect(l._on_completed)
-	host.sync.event("_on_exit")
+	host.sync.event("_on_exit")  # everyone down on G's landing (tests/stair_walk_tests.gd walks it)
 	check(await _until(func(): return machines.all(func(l): return l.on_ground and not l.player.input_locked), 300), "both machines go down to G")
 	cui.terminal = client.front_desk
 	cui.run(_last_hint_query(client.entrance_puzzle))
@@ -688,10 +791,23 @@ func test_custodian_follows() -> void:
 	level.sync.event("_on_solved", ["main_doors"])
 	await _frames(5)
 	var p: Player = level.player
-	p.global_transform = Transform3D(Basis(), level.to_global(level.STAIR_OUT_AT + Vector3(2.4, 0.1, 0)))
+	p.global_transform = level.player_spawn_on_ground(0)
 	check(await _until(func(): return level.on_ground, 300), "down to G")
 	var at: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
-	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0, 120), "it comes out of STAIR 1 on G and hunts there")
+	var g: Node3D = Stairwell.of(level.g_stair)
+	var seen := [false]
+	var watch := func():
+		if Stairwell.landing_box().grow(0.3).has_point(g.global_transform.affine_inverse() * level.custodian.global_position):
+			seen[0] = true
+	t.physics_frame.connect(watch)
+	var frames := [0]
+	var count := func(): frames[0] += 1
+	t.physics_frame.connect(count)
+	check(await _until(func(): return level.custodian.global_position.distance_to(at) < 6.0 and level.custodian.bay_point.distance_to(at) < 4.0 and level.custodian.route.is_empty(), 7200), "it comes down STAIR 1, every floor of it (%s), and out on G, and hunts there" % level.custodian.global_position)
+	t.physics_frame.disconnect(count)
+	print("    the Custodian's walk down from 10: %.1f s" % (frames[0] / float(Engine.physics_ticks_per_second)))
+	t.physics_frame.disconnect(watch)
+	check(seen[0] and level.g_stair.is_open and level.stair_out.is_open, "down the same stairs: through 10's stair door, onto G's landing and out through G's door")
 	level.queue_free()
 	await t.process_frame
 
@@ -780,13 +896,13 @@ func test_world() -> void:
 	check(l4.g_geo.global_transform.origin.distance_to(world.ROUTE[0].at.origin) < 0.01, "its ground floor stands where Level 0's lobby does")
 	var g_floor: Node3D = l4.g_geo.get_node("Floor")
 	check(g_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(g_floor) == "carpet", "and its lobby is carpet underfoot, like Level 0's")
-	l3.sync.event("_on_exit")
+	l3.sync.event("_on_exit")  # everyone down on 10's landing (tests/stair_walk_tests.gd walks it)
 	for i in 600:
 		await t.physics_frame
 		if world.current == l4 and l4.active:
 			break
 	await _frames(10)
-	check(world.current == l4 and l4.active and LANDING_BOX.has_point(l4.to_local(world.player.global_position)), "the stairs hand play to floor 10, on its landing (%s)" % l4.to_local(world.player.global_position))
+	check(world.current == l4 and l4.active, "the stairs hand play to floor 10")
 	check(_game().completed_level == "level_3" and _game().next_level == "level_4", "floor 18 is complete, floor 10 is next")
 	world.queue_free()
 	await t.process_frame

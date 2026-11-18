@@ -1,6 +1,6 @@
 # Ines Oyelaran
 
-*Your script for Null & Void: 1 recording.*
+*Your script for Null & Void: 8 recordings.*
 
 ## Who you are
 
@@ -45,3 +45,57 @@ Send the files back as they are. They go in `audio/voice/ines/` in the game.
 *When the crew logs an escort pass for your badge. Your door may still be locked, or the crew may already have opened it. Pressed against the door, then stepping out into the room. Whispered. Relief and warning in the same breath.*
 
 "That's a pass? Okay. Okay. I'm coming out. Don't talk to the one wearing my face."
+
+## Scene 2: The night shift, on B1's landing
+
+**Halcyon Tower, basement B1, the stair landing. Later that night.**
+
+> You came down the fire stairs from floor 9 with the crew that got you out. You are not going any further into the cold store than the landing. You know this basement a little: the records cage upstairs gets its old boxes from here.
+
+**[ ] `l6_ines_arrive.wav`**
+
+*On the landing, as the crew arrives on B1 and before anyone goes into the cold store. Stopping on the landing, looking down the hall and deciding against it. Arms wrapped round yourself. Not going a step further.*
+
+"It's so cold down here. We'll wait by the stairs. Please don't be long."
+
+**[ ] `l6_ines_whitlow.wav`**
+
+*When someone reads the card rack in the time office and her name is on a card still in the IN slot. Over the crew's earpiece, from the landing, having heard the name. Quiet. A name you've seen written a thousand times, and never on a person.*
+
+"Whitlow. A.W. Her initials are on half the old boxes in our records cage. I always wondered who she was."
+
+**[ ] `l6_ines_after.wav`**
+
+*When the first of the crew comes back onto the landing after every entry is closed. Getting up off the bottom step as they come through the door. Quiet. You already know the answer from their faces.*
+
+"Was she there? Whitlow. Was she still there?"
+
+## Scene 3: The night shift, on B2
+
+**Halcyon Tower, basement B2, building services. Later that night.**
+
+> You came down the fire stairs from the cold store with the crew. You work here, so you know the way round the bottom of the building better than they do. Then you see what they're up against, and you get out of the way: you shelter in a plant room, and the building's computer locks you in and arms the room's gas suppression.
+
+**[ ] `l7_ines_lobby.wav`**
+
+*In the lift lobby, right after WARDEN's arrival lines. Leading the way across the lobby. Brisk. Glad to know something useful.*
+
+"This way. Gil ran the whole basement from the admin office."
+
+**[ ] `l7_ines_plan.wav`**
+
+*When the bench passes every zone and the crew turns to the real floor. In the admin office, looking from the bench to the door. Getting it, and not liking it.*
+
+"So you test it on the bench, then you run it on the floor. And he fights you for every light."
+
+**[ ] `l7_ines_gas.wav`**
+
+*When WARDEN arms the gas in the lift motor room. Hammering on the inside of the motor room door. Through a locked door. Panic, held together.*
+
+"That's the suppression alarm! The sign by the door says how to abort it. Please, hurry!"
+
+**[ ] `l7_ines_saved.wav`**
+
+*When the crew aborts the motor room's gas. Sliding down the inside of the door. Breathless, then crying a little.*
+
+"It stopped. It stopped. Thank you."

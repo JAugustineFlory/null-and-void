@@ -4,9 +4,9 @@ extends RefCounted
 ## a battery, and heavy static near entities. Pure logic, so it can be tested.
 
 ## Clear reception up to this distance (meters)...
-const CLEAR_RANGE := 35.0
+const CLEAR_RANGE := 60.0
 ## ...fading to nothing but static here.
-const MAX_RANGE := 70.0
+const MAX_RANGE := 120.0
 ## Entities closer than this to either radio drown it in static.
 const INTERFERENCE_RANGE := 12.0
 ## Seconds of talk time on a full battery.

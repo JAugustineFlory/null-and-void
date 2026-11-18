@@ -4,9 +4,9 @@ extends CanvasLayer
 ## Black, then the next morning's paper on a kitchen table while the radio reads
 ## the story, then "try again" (back into the fight).
 ##
-## Words: Voice's draft, script/drafts/news-ending.md, waiting for Augustine's
-## word-for-word approval. The radio lines play from VoiceLines once Voice wires
-## them (l2_news_1..5); until then their draft text shows, timed for reading.
+## The radio report is the script's l2_news scene (VoiceLines), every line in the
+## script's order: the recording where there is one, otherwise its text, timed for
+## reading.
 
 signal finished
 
@@ -18,14 +18,6 @@ const SUBHEAD := "Byte-Right crew vanished after overnight call; badge records p
 const TEASER := "Facilities manager hurt trying to stop them · Page 3"
 const RETRY := "Press E to try again"
 const SPEAKER := "RADIO"
-## The radio report, in order, with Voice's draft text for lines not wired yet.
-const RADIO := [
-	["l2_news_1", "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems."],
-	["l2_news_2", "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered."],
-	["l2_news_3", "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'"],
-	["l2_news_4", "Byte-Right's only office, a rented garage, was found empty. The crew has not been seen since."],
-	["l2_news_5", "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather."],
-]
 const PAPER := Color(0.9, 0.87, 0.78)
 const INK := Color(0.12, 0.11, 0.1)
 const TABLE := Color(0.24, 0.16, 0.1)
@@ -38,6 +30,8 @@ var radio: Label
 var retry: Label
 var _black: ColorRect
 var _waiting := false
+## The radio lines shown so far, in order (tests read it).
+var heard: Array[String] = []
 var _skip := false
 
 
@@ -153,10 +147,10 @@ func run() -> void:
 	t.tween_interval(0.8)
 	t.tween_property(paper, "modulate:a", 1.0, 1.2)
 	await t.finished
-	for line in RADIO:
+	for id in VoiceLines.ids_in_scene("l2_news"):
 		if _skip:
 			break
-		await _radio(line[0], line[1])
+		await _radio(id)
 	radio.text = ""
 	retry.visible = true
 	_waiting = not _skip
@@ -168,13 +162,13 @@ func run() -> void:
 	finished.emit()
 
 
-## One radio line: the recording if Voice has wired it, otherwise its draft text,
-## held at least long enough to read.
-func _radio(id: String, draft: String) -> void:
+## One radio line: the recording where there is one, held at least long enough to read.
+func _radio(id: String) -> void:
 	var l := VoiceLines.get_line(id)
-	radio.text = "%s: %s" % [SPEAKER, l.get("text", draft)]
+	radio.text = "%s: %s" % [SPEAKER, l["text"]]
+	heard.append(id)
 	var dur := Voice.read_time(radio.text)
-	var voice: Node = hud.get("_voice") if hud and not l.is_empty() else null
+	var voice: Node = hud.get("_voice") if hud else null
 	if voice:
 		dur = maxf(dur, voice.play(id))
 	var left := dur

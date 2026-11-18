@@ -38,6 +38,9 @@ var players: NetPlayers
 ## Who's down, and what entities do to players on other machines (scripts/combat/).
 var crew: CrewVitals
 var voice: VoiceChat
+## Joins floors' stairwells into one flight of stairs (StairLinks): the World's, in
+## the World.
+var stairs: StairLinks
 var _pause: Control
 
 
@@ -58,6 +61,7 @@ func _ready() -> void:
 	db.light_changed.connect(_on_light_changed)
 	sync = LevelSync.create(self)
 	Huddle.create(self)  # the crew's book huddles (scripts/huddle/)
+	stairs = StairLinks.create(self)
 
 	build()
 	_bake_navigation()
@@ -78,6 +82,7 @@ func _ready() -> void:
 	crew = CrewVitals.create(self, players)
 	player.combat.crew = crew
 	player.died.connect(_on_player_died)
+	FallNet.create(self, player)  # a fall out of the world puts you back on solid ground
 	voice = VoiceChat.create(self)
 	_build_pause_menu()
 	net_setup()
@@ -112,6 +117,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	players = host.players
 	crew = host.crew
 	voice = host.voice
+	stairs = host.stairs
 	environment = host.environment
 	sync = LevelSync.create(self)
 	geo = NavigationRegion3D.new()
@@ -147,6 +153,13 @@ func start() -> void:
 ## e.g. `sync.replicate(npc, [...])`. Runs after node names are fixed.
 func net_setup() -> void:
 	pass
+
+
+## Override: true when this floor deals with falls itself (a drop it means to be
+## deadly, with its own way back), so the safety net under the floor (FallNet)
+## leaves them to it.
+func owns_falls() -> bool:
+	return false
 
 
 ## Override: what happens when the player dies.
@@ -201,6 +214,32 @@ func finish_level(next_key: String) -> void:
 		world.wing_finished(self)
 	else:
 		Game.goto(next_key)
+
+
+## The crew walks from `from`'s stairs to `to`'s (two stair doors' stairwells,
+## Stairwell.build), down if `down`, else up: StairLinks makes them one flight, and
+## the landings between say which floors they are. Once the whole crew stands on
+## `to`'s landing (downed players too: whoever's down on the stairs is revived
+## there, and walked down after), `method` runs on this level on every machine.
+## Runs on every machine.
+func walk_stairs(from: Door, to: Door, down: bool, method: String, waiting: String, args := []) -> Trigger:
+	var a := Stairwell.of(from)
+	var b := Stairwell.of(to)
+	var storeys := Stairwell.storeys_between(a.get_meta("floor"), b.get_meta("floor"))
+	if down:
+		stairs.link(a, b, storeys, true)
+	else:
+		stairs.link(b, a, storeys, false)
+	var old := b.get_node_or_null("Arrival")
+	if old:
+		old.free()
+	var box := Stairwell.landing_box()
+	var t := Trigger.create(b, box.get_center(), box.size)
+	t.name = "Arrival"
+	t.require_all = true
+	t.waiting.connect(func(n, total): sync.team_notice(waiting % [n, total]))
+	t.entered.connect(func(_b): sync.event(method, args), CONNECT_ONE_SHOT)
+	return t
 
 
 func add_door(id: String, pos: Vector3, size: Vector3) -> Door:
@@ -333,14 +372,37 @@ func _build_pause_menu() -> void:
 
 	var restart_page := _pause_page("restart", box)
 	restart_page.add_child(SettingsPanel.heading("Start again?"))
-	restart_page.add_child(ThemeUtil.label("This run goes back to the beginning. Anything you've worked out is lost.", 17, Color(0.85, 0.85, 0.85)))
+	# This floor over again (solo, or the co-op host for everyone).
+	var net := get_node("/root/Net")
+	var floor_note := ThemeUtil.label(net.RESTART_FLOOR_NOTE, 17, Color(0.85, 0.85, 0.85))
+	floor_note.name = "FloorNote"
+	floor_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	restart_page.add_child(floor_note)
+	var floor_again := SettingsPanel.button(net.RESTART_FLOOR)
+	floor_again.name = "RestartFloor"
+	floor_again.pressed.connect(func():
+		get_tree().paused = false
+		get_node("/root/Net").restart_floor())
+	restart_page.add_child(floor_again)
+	# The whole run over, with new data: solo only, since co-op starts runs from the lobby.
+	var run_note := ThemeUtil.label("This run goes back to the beginning. Anything you've worked out is lost.", 17, Color(0.85, 0.85, 0.85))
+	run_note.name = "RunNote"
+	restart_page.add_child(run_note)
 	var again := SettingsPanel.button("Start again")
+	again.name = "StartAgain"
 	again.pressed.connect(_restart_run)
 	restart_page.add_child(again)
 	restart_page.add_child(_pause_back())
 
 	var exit_page := _pause_page("exit", box)
 	exit_page.add_child(SettingsPanel.heading("Leave the run?"))
+	# Co-op host: the run ends, and the whole crew goes back to the lobby together.
+	var to_lobby := SettingsPanel.button(get_node("/root/Net").TO_LOBBY)
+	to_lobby.name = "ToLobby"
+	to_lobby.pressed.connect(func():
+		get_tree().paused = false
+		get_node("/root/Net").end_run_to_lobby())
+	exit_page.add_child(to_lobby)
 	var to_menu := SettingsPanel.button("Quit to title screen")
 	to_menu.pressed.connect(func():
 		get_tree().paused = false
@@ -353,6 +415,7 @@ func _build_pause_menu() -> void:
 	exit_page.add_child(_pause_back())
 
 	_show_pause_page("main")
+	PadFocus.attach(_pause, true)
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	var catcher := PauseCatcher.new()
 	catcher.level = self
@@ -369,6 +432,13 @@ class PauseCatcher:
 				and not (level.inventory_screen and level.inventory_screen.is_open()):
 			# Esc steps back out of a settings page first, then closes the menu.
 			if level._pause.visible and level._pause_at != "main":
+				level._show_pause_page("main")
+			else:
+				level._toggle_pause()
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("ui_cancel") and level._pause.visible:
+			# A controller's B: back out of a page, then out of the menu, as Esc does.
+			if level._pause_at != "main":
 				level._show_pause_page("main")
 			else:
 				level._toggle_pause()
@@ -400,6 +470,8 @@ func _show_pause_page(id: String) -> void:
 	_pause_at = id
 	for key in _pause_pages:
 		_pause_pages[key].visible = key == id
+	if _pause.visible:
+		PadFocus.focus_first(_pause_pages[id])
 
 
 ## Start this run over from the top. Solo only: in co-op one player can't send
@@ -418,6 +490,14 @@ func _toggle_pause() -> void:
 	player.input_locked = p
 	_pause.visible = p
 	if p:
-		_pause_pages["main"].get_node("Restart").visible = not sync.is_online()
+		var online := sync.is_online()
+		var restart_page: Control = _pause_pages["restart"]
+		_pause_pages["main"].get_node("Restart").visible = not online or multiplayer.is_server()
+		restart_page.get_node("FloorNote").text = get_node("/root/Net").RESTART_FLOOR_NOTE_COOP if online else get_node("/root/Net").RESTART_FLOOR_NOTE
+		restart_page.get_node("RunNote").visible = not online
+		restart_page.get_node("StartAgain").visible = not online
+		_pause_pages["exit"].get_node("ToLobby").visible = sync.is_online() and multiplayer.is_server()
 		_show_pause_page("main")
+	else:
+		get_viewport().gui_release_focus()  # so a controller's A goes back to the game
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if p else Input.MOUSE_MODE_CAPTURED

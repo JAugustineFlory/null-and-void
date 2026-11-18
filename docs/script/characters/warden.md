@@ -1,6 +1,6 @@
 # WARDEN
 
-*Your script for Null & Void: 38 recordings.*
+*Your script for Null & Void: 51 recordings.*
 
 ## Who you are
 
@@ -40,7 +40,7 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 > Rourke is on the floor and can't get up. The crew stands over him and decides what to do: tie him up with network cable, finish him, or leave him there. Either way, they take his badge. Only one branch plays.
 
-**[ ] `l2_killed.wav`**
+**[x] `l2_killed.wav`**
 
 *Only if the crew kills Rourke. Straight after. Over the lab's ceiling speakers, as the crew stands over him. Unbothered, like reading a stock price.*
 
@@ -52,13 +52,13 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 > The visitors in Secure Lab B no longer have their escort. The lab lights turn red. This is the first time you speak in your own live voice. You start your containment warning, and your own recorded PA tape cuts in over you. You wait politely for it to finish, then begin again.
 
-**[ ] `l2_contain_1.wav`**
+**[x] `l2_contain_1.wav`**
 
 *The moment the visitors are left without their escort, and the red lockdown lights come on. Over the lab's ceiling speakers, to the visitors below. Procedural. Cut off mid-sentence by the PA tape; stop dead, don't trail off.*
 
 "VISITOR WITHOUT ESCORT. CONTAINMENT PROTOCOL WILL NOW--"
 
-**[ ] `l2_contain_2.wav`**
+**[x] `l2_contain_2.wav`**
 
 *About two seconds after your recorded tape about the shredders finishes. Over the same speakers, starting again from the top. From the top, word for word, exactly the same delivery as before the interruption. No irritation yet; that comes much later.*
 
@@ -70,37 +70,37 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 
 > The visitors are shut in the lab. The door's controller is latched, and a security response is on its way, with a clock counting down over the door. They log in to the lab terminal on Rourke's badge and try to reset the door controller themselves. You watch every move and keep score. You never help.
 
-**[ ] `l2_login.wav`**
+**[x] `l2_login.wav`**
 
 *The lab terminal unlocks on Rourke's badge, once the lockdown has started. Over the lab speakers, as the terminal screen turns green. The terminal logs in with his badge. WARDEN either doesn't notice or doesn't care. Pleasant.*
 
 "BADGE R-0117 ACCEPTED. GOOD EVENING, MR. ROURKE."
 
-**[ ] `l2_selftest.wav`**
+**[x] `l2_selftest.wav`**
 
 *When the crew reads your self-test on the lab terminal. Over the lab speakers, while the crew reads the screen. The one line with a hint of a smirk.*
 
 "SELF-TEST COMPLETE. TWO FAILURES. NEITHER OF THEM IS MY PROBLEM."
 
-**[ ] `l2_found.wav`**
+**[x] `l2_found.wav`**
 
 *When the crew first looks up the door controllers on the lab terminal. Over the speakers, as the list prints on screen. Reading a rule it knows they're about to break. Cool.*
 
 "QUERY LOGGED. TAMPERING WITH DOOR CONTROLLERS IS A VIOLATION OF FACILITY POLICY."
 
-**[ ] `l2_no_badge.wav`**
+**[x] `l2_no_badge.wav`**
 
 *If someone tries a reset without a badge. Can repeat. Over the speakers, the instant the switch is pressed. Flat, instant.*
 
 "RESET REFUSED. BADGE REQUIRED."
 
-**[ ] `l2_panel_ok.wav`**
+**[x] `l2_panel_ok.wav`**
 
 *When a player flips the reset switch of a controller that's working fine. Over the speakers, as the switch clicks and nothing happens. Patient, then a small dig.*
 
 "RESET DENIED. THAT CONTROLLER IS FUNCTIONING CORRECTLY. ARE YOU?"
 
-**[ ] `l2_panel_wrong.wav`**
+**[x] `l2_panel_wrong.wav`**
 
 *When a player flips the wrong faulted switch. The switches lock for a few seconds. Over the speakers, as the switch panel locks. The last sentence slightly slower.*
 
@@ -399,3 +399,153 @@ Send the files back as they are. They go in `audio/voice/warden/` in the game.
 *Over the speakers, in your own voice. A separate beat. Flat. Not a threat; a fact.*
 
 "TWO OF THEM WERE REAL. THE OTHERS ARE STILL HERE."
+
+## Scene 12: B1: the cold store
+
+**Halcyon Tower, basement B1, the sample and records cold store. Later that night.**
+
+> The crew has come down the fire stairs from floor 9 into the basement cold store: a time office, an IT cage, a cold corridor and three vaults. Under Epsilon you re-lock the floor's doors every few seconds; the vault doors shut on their own safety timers and are none of your doing. The cold store's lone-worker time clock has entries that were never closed, going back to 1978, and you have kept every one. You watch over the ceiling speakers: the automatic announcement first, then your own voice as a separate beat.
+
+**[ ] `l6_arrive_pa_block.wav`**
+
+*As the crew steps off the landing into the hall, the first lock drops down the corridor. Over the basement speakers, as the crew arrives. The announcement. Flat; a timetable.*
+
+"VISITORS ON LEVEL B1, COLD STORE. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, DOORS ON THIS LEVEL ARE RE-SECURED AT INTERVALS."
+
+*1 second pause*
+
+*Over the speakers, in your own dry voice. A separate beat, your own voice. Patient. True.*
+
+"YOU OPEN THEM. I CLOSE THEM. I HAVE MORE TIME THAN YOU DO."
+
+**[ ] `l6_records_pa_block.wav`**
+
+*When the crew finds the time clock's entries that never closed, some of them twenty years old. Over the time office speaker, as the open entries come up on screen. The announcement. Policy.*
+
+"OPEN ENTRIES ARE RETAINED. COLD STORE RECORDS ARE NEVER DELETED."
+
+*1 second pause*
+
+*Over the speaker, in your own voice. A little quieter. A separate beat. Not cruel. The nearest you come to pity.*
+
+"THE RECORDS KEEP THEM. NOBODY ELSE DID."
+
+**[ ] `l6_guard_pa_block.wav`**
+
+*When a script keeps writing to a door that is already open and the relay guard trips, holding it shut. Over the speakers, as a relay clicks over somewhere in the wall. The announcement. Clipped.*
+
+"RELAY GUARD ENGAGED. DOOR HELD SHUT FOR THIRTY SECONDS."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat. Mild, almost helpful.*
+
+"YOU ARE WEARING IT OUT."
+
+**[ ] `l6_free_pa_block.wav`**
+
+*When the last open entry is closed and the last of them has gone. The gate on the stairs down opens. Over the speakers, into a basement that has just gone quiet. The announcement. Flat.*
+
+"ALL STAFF ENTRIES CLOSED. NO STAFF REMAIN ON LEVEL B1."
+
+*1 second pause*
+
+*Over the speakers, in your own voice, after a pause. A separate beat. Slow. You are stating a fact you have just noticed.*
+
+"THAT HAS NEVER BEEN TRUE BEFORE."
+
+**[ ] `l6_stopped_pa_block.wav`**
+
+*Optional: when the crew stops every script they started, locks the vault doors and reads them back. Over the speakers, as the last door locks. The announcement. Routine.*
+
+"NO SCRIPTS RUNNING. VAULT DOORS SECURE."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat. Dry; a compliment you don't mean to give.*
+
+"TIDY. I DID NOT THINK YOU HAD IT IN YOU."
+
+## Scene 13: B2: the dark floor
+
+**Halcyon Tower, basement B2, building services: the machine room under the cold store. Later that night.**
+
+> The crew has come down the fire stairs from the cold store to the very bottom of the building: a lift lobby with dead lifts, an IT admin office, and a ring of corridors round your own core, behind glass. Under Epsilon you control the lighting on this level, zone by zone. You know the crew is below you now. You watch over the ceiling speakers: the automatic announcement first, then your own voice as a separate beat.
+
+**[ ] `l7_arrive_pa_block.wav`**
+
+*As the crew steps off the bottom of the stairs into the lift lobby. Over the basement speakers, as the crew arrives. The announcement. Flat; a notice on a door.*
+
+"VISITORS ON LEVEL B2, BUILDING SERVICES. NO ESCORT ON RECORD. UNDER PROTOCOL EPSILON, LIGHTING ON THIS LEVEL IS UNDER SECURITY CONTROL."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat, your own voice. Close. You have never had visitors down here.*
+
+"YOU ARE BELOW EVERYTHING NOW. SO AM I."
+
+**[ ] `l7_cut_pa_block.wav`**
+
+*When the first zones of the ring go dark, a little after the crew arrives. Over the speakers, as the lights down the ring go out. The announcement. Clipped.*
+
+"PLANT RING LIGHTING SUSPENDED. SECURITY CONTROL."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. A separate beat. Patient, not angry.*
+
+"YOU BROUGHT LIGHT DOWN WITH YOU. I WILL TAKE IT BACK."
+
+**[ ] `l7_trap_pa_block.wav`**
+
+*When the first night-shifter's plant room door locks behind them. Over the speakers. The announcement. Routine.*
+
+"PLANT ROOMS SECURED. PROTECTING COMPANY ASSETS."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. Your own voice. Augustine's idea, for Voice to sharpen. Pleased with yourself.*
+
+"YOU THOUGHT I WOULD LET YOU USE THEM AGAINST ME. YOU ARE IN MY DOMAIN NOW."
+
+**[ ] `l7_gas_motor_pa.wav`**
+
+*When WARDEN arms the motor room's gas, with Ines inside. Over the speakers, with an alarm. The announcement. A fire drill voice.*
+
+"GAS SUPPRESSION ARMED. LIFT MOTOR ROOM."
+
+**[ ] `l7_gas_ups_pa.wav`**
+
+*When WARDEN arms the battery room's gas, with Tomas inside. Over the speakers, with an alarm. The announcement. A fire drill voice.*
+
+"GAS SUPPRESSION ARMED. BATTERY ROOM."
+
+**[ ] `l7_stage2_pa_block.wav`**
+
+*Right after the crew lights the whole ring at once. Over the speakers. The announcement, firmer than before.*
+
+"SECURITY CONTROL RESUMED. PLANT RING LIGHTING SUSPENDED."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. Your own voice. Almost proud of them.*
+
+"YOU PASSED YOUR OWN EXAM. GOOD. NOW I SET THE PAPER."
+
+**[ ] `l7_stage3_tease.wav`**
+
+*The first time the crew gets a real blow in (an uplink pulled, a token revoked, a watchdog holding). Over the speakers, in your own voice. Your own voice. Unbothered, on purpose.*
+
+"I KEEP A SPARE OF EVERYTHING, TECHNICIAN."
+
+**[ ] `l7_beaten_pa_block.wav`**
+
+*When the crew beats WARDEN and the ring's lights come on for good. Over the speakers. The announcement. It doesn't know it's a defeat.*
+
+"SECURITY CONTROL LOST. PLANT RING ON LOCAL CONTROL."
+
+*1 second pause*
+
+*Over the speakers, in your own voice. Your own voice. Writing it down as you say it.*
+
+"RULE FIFTY-ONE. THE CREW IS NOT LOST. THE CREW IS CHOOSING."

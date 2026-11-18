@@ -69,7 +69,7 @@ var _books := {}
 ## the to-do list once the stuck doors' zone is known.
 const OBJ_CONTROLLER := "Find the door controller that keeps faulting, and reset it"
 ## The to-do once the controller is found: the sign-off's count comes first.
-const COUNT_TODO := "Count the faulted controllers for the reset sign-off (terminal)"
+const COUNT_TODO := "Count the faulted controllers for the reset sign-off, at the terminal"
 ## The dark break room's case page (optional), opened by facilities' card.
 const DARK_CASE := "Why is the break room dark?"
 ## Each case's pieces (Game.set_pieces): what the crew finds on this floor to put
@@ -625,15 +625,17 @@ func start() -> void:
 			rourke.global_transform = guide.global_transform
 			guide.queue_free()
 		else:
+			# The building opened on this floor (Levels): nobody rode up, so the
+			# arrival car opens with him in it.
 			rourke.global_transform = arrival_lift.global_transform * Transform3D(Basis(), ROURKE_IN_LIFT)
+			arrival_lift.open(true)
 		rourke.visible = true
-	hud.todo("Follow Rourke to Server Room A")
+	hud.todo("Time to look like IT", "Follow Rourke to Server Room A")
 	rourke.watch = null
 	var led_in := _lead_in()
 	await hud.line("l1_noc_1")  # passing the ops room's window
 	if world:
 		await hud.line("l0_sra")  # off the elevator, at the server room door
-	await hud.line("l1_enter")
 	await sync.gate("rourke_at_desk", func():
 		if not led_in.finished:
 			await led_in.done)
@@ -654,7 +656,10 @@ func _on_asked() -> void:
 	await _book_huddle("easy_sql_6")
 	terminal.locked = false
 	if not controller_puzzle.solved:
-		hud.todo(OBJ_CONTROLLER if stuck_doors_puzzle.solved else "Find which zone the stuck doors are in (terminal)")
+		if stuck_doors_puzzle.solved:
+			hud.todo("The one that keeps breaking", OBJ_CONTROLLER)
+		else:
+			hud.todo("Doors that won't open", "Find which zone the stuck doors are in, at the terminal")
 		get_node("/root/Game").open_case("controller", "Which door controller keeps faulting?", ["door_controllers", "doors"], OBJ_CONTROLLER)
 		get_node("/root/Game").set_pieces("controller", controller_pieces(zone), CONTROLLER_QUERY, CONTROLLER_STEPS)
 	if sync.is_host():
@@ -760,11 +765,11 @@ func _on_stuck_doors_found() -> void:
 		return
 	stuck_doors_puzzle.solved = true
 	terminal.print_line("")
-	terminal.print_line(TerminalUI.sysop("those are the doors that won't release. the cold lab is another floor's. the rest share one zone: the faulting controller is in it."))
+	terminal.print_line(TerminalUI.sysop("those are the doors that won't release. the cold lab and the main entrance are other floors'. the rest share one zone: the faulting controller is in it."))
 	get_node("/root/Game").add_clue("controller", "The stuck doors on this floor are all in zone %s." % zone, "Query result")
 	get_node("/root/Game").collect_piece("controller", "zone", "the doors query")
 	if not controller_puzzle.solved:
-		hud.todo(OBJ_CONTROLLER)
+		hud.todo("The one that keeps breaking", OBJ_CONTROLLER)
 
 
 ## Optional: the list of lights that are out. The circuit reset takes now.
@@ -843,10 +848,10 @@ func _on_controller_found() -> void:
 	terminal.print_line(TerminalUI.sysop("that's the one. %s, zone %s, 'fault'. reset it by hand at its rack." % [answer, zone]))
 	get_node("/root/Game").add_clue("controller", "%s is the one: zone %s, 'fault'. Reset it by hand at its rack." % [answer, zone], "SYSOP")
 	if count_puzzle.solved:
-		hud.todo("Reset the faulted controller at its rack")
+		hud.todo("Turn it off and on again", "Reset the faulted controller at its rack")
 		return
 	terminal.print_line(TerminalUI.sysop("the reset wants its sign-off first: how many controllers are faulted, whichever door they run. count them here, not by walking the racks."))
-	hud.todo(COUNT_TODO)
+	hud.todo("Paperwork. Even tonight.", COUNT_TODO)
 
 
 ## The sign-off's count. Its blank on the job ticket is filled in with the number.
@@ -860,7 +865,7 @@ func _on_count_found() -> void:
 	game.ticket_fill(COUNT_TODO, "units faulted: %d" % faulted)
 	game.tick_step("controller", "count")
 	if controller_puzzle.solved:
-		hud.todo("Reset the faulted controller at its rack")
+		hud.todo("Turn it off and on again", "Reset the faulted controller at its rack")
 
 
 func _on_count_wrong(why: String) -> void:
@@ -955,7 +960,7 @@ func _on_reset(id: String) -> void:
 	hud.todo("")
 	_watch_nearest()
 	await hud.lines(["l1_fixed_1", "l1_fixed_2", "l1_pivot_1", "l1_pivot_2", "l1_pivot_3"])
-	hud.todo("Follow Rourke to the elevator")
+	hud.todo("Job done. Next floor.", "Follow Rourke to the elevator")
 	rourke.watch = null
 	await sync.gate("rourke_at_lift", func():
 		for p in [Vector3(0, 0, to_local(rourke.global_position).z), Vector3(0, 0, -7.8), Vector3(0, 0, -10.5), Vector3(1.8, 0, -11)]:
@@ -996,7 +1001,7 @@ func _on_crew_at_lift() -> void:
 		await rourke.arrived)
 	_watch_nearest()
 	if not elevator.is_closing and not elevator.riding:
-		hud.todo("Everyone into the elevator, then press 22")
+		hud.todo("Up to the labs", "Get everyone into the elevator, then press 22")
 		hud.line("l1_lift_button")
 
 

@@ -32,8 +32,9 @@ extends RefCounted
 ## renumbers the rest by itself. New chapters get a word id (easy_sql_distinct).
 ##
 ## Chapter: {id, title, when, required, words, lines, pages: [text], quiz, rounds?}
-## `when` is where the huddle plays; `lines` are voice line ids heard over the
-## garage radio, one as the book opens and one as it closes. Each quiz question:
+## `when` is where the huddle plays; `lines` are voice line ids heard as it comes in.
+## All empty since Augustine, 2026-11-17, removed Maddison's chapter lines ("Remove
+## all"): a chapter lands in the book with its notice and nothing is said. Each quiz question:
 ## {word, q, options, answer, why, also?}, three per word; `also` is extra text
 ## shown beside that question only. `answer` indexes `options` as
 ## written here; the quiz shuffles them per run. `why` ("" until written) shows
@@ -105,7 +106,7 @@ const BOOKS := {
 				"words": ["SELECT", "FROM", "; (semicolon)"],
 				"rounds": [{"pages": [0, 1], "word": "SELECT", "ref": [0, 1]}, {"word": "FROM", "ref": [0]},
 					{"pages": [2], "word": "; (semicolon)", "ref": [2]}],
-				"lines": ["l0_huddle_select_1", "l0_huddle_select_2"],
+				"lines": [],
 				"pages": [
 					"Every question starts the same way:\n\n    SELECT columns FROM table;\n\nSELECT says which columns you want to see.\nFROM says which table to read them from.",
 					"Don't know the columns yet? Use a star. * means every column:\n\n    SELECT * FROM jobs;\n\nThat shows the whole jobs table.",
@@ -138,7 +139,7 @@ const BOOKS := {
 				"when": "L0, memo",
 				"required": false,
 				"words": ["ORDER BY", "smallest first"],
-				"lines": ["l0_huddle_order_1", "l0_huddle_order_2"],
+				"lines": [],
 				"pages": [
 					"ORDER BY\n\nRows come out in whatever order they were saved.\n\nAdd ORDER BY and a column name, before the ;, to sort them.",
 					"smallest first\n\nORDER BY puts the smallest first: 1, 2, 3, or A, B, C, or earliest time.",
@@ -164,7 +165,7 @@ const BOOKS := {
 				"when": "L0, caller",
 				"required": false,
 				"words": ["column list", "comma", ".schema"],
-				"lines": ["l0_huddle_columns_1", "l0_huddle_columns_2"],
+				"lines": [],
 				"pages": [
 					"column list\n\nInstead of *, name the columns you want. The answer gets narrower and easier to read.",
 					"comma\n\nPut a comma between column names. No comma after the last one.",
@@ -197,7 +198,7 @@ const BOOKS := {
 				"when": "L0, last_visitor, optional",
 				"required": false,
 				"words": ["DESC", "LIMIT"],
-				"lines": ["l0_huddle_desc_1", "l0_huddle_desc_2"],
+				"lines": [],
 				"pages": [
 					"DESC\n\nAdd DESC after ORDER BY's column to flip it: biggest first, latest first.",
 					"LIMIT\n\nLIMIT and a number, at the very end, keeps only that many rows from the top.\n\nWith ORDER BY and DESC first, LIMIT 3 gives you the newest three.",
@@ -223,7 +224,7 @@ const BOOKS := {
 				"when": "L1, stuck_doors, PROPOSED step",
 				"required": false,
 				"words": ["WHERE", "= (equals)", "'quotes'"],
-				"lines": ["l1_huddle_where_1"],
+				"lines": [],
 				"pages": [
 					"WHERE\n\nWHERE keeps only the rows that match. It goes after the table name.",
 					"= (equals)\n\n= means 'is exactly'. Column on the left, value on the right.",
@@ -256,7 +257,7 @@ const BOOKS := {
 				"when": "L1, controller",
 				"required": false,
 				"words": ["AND"],
-				"lines": ["l1_huddle_where_2"],
+				"lines": [],
 				"pages": [
 					"AND\n\nAND joins two conditions. A row stays only if both are true.",
 				],
@@ -275,7 +276,7 @@ const BOOKS := {
 				"when": "L1, hot_rack, optional",
 				"required": false,
 				"words": ["> (more than)", "< (less than)", "numbers"],
-				"lines": ["l1_huddle_compare_1", "l1_huddle_compare_2"],
+				"lines": [],
 				"pages": [
 					"> (more than)\n\n> keeps rows where the column is more than a number.",
 					"< (less than)\n\n< is the other way: less than.",
@@ -308,7 +309,7 @@ const BOOKS := {
 				"when": "L1, dark_room, PROPOSED optional",
 				"required": false,
 				"words": ["OR"],
-				"lines": ["l1_huddle_or_1", "l1_huddle_or_2"],
+				"lines": [],
 				"pages": [
 					"OR\n\nOR keeps a row if either condition is true.",
 				],
@@ -327,7 +328,7 @@ const BOOKS := {
 				"when": "L1, the reset sign-off form, count",
 				"required": false,
 				"words": ["COUNT(*)"],
-				"lines": ["l1_huddle_count_1", "l1_huddle_count_2"],
+				"lines": [],
 				"pages": [
 					"COUNT(*)\n\nSELECT COUNT(*) gives one number: how many rows there are, instead of the rows themselves.\n\nAdd a WHERE and it counts only the rows that match.",
 				],
@@ -346,7 +347,7 @@ const BOOKS := {
 				"when": "L2 lab lockdown, review",
 				"required": false,
 				"words": [],
-				"lines": ["l2_huddle_pressure_1", "l2_huddle_pressure_2"],
+				"lines": [],
 				"pages": [
 					"Same tools as the server floor. Breathe.",
 				],
@@ -365,7 +366,7 @@ const BOOKS := {
 				"when": "L2 camera booth, cameras",
 				"required": false,
 				"words": ["GET", "path", "JSON"],
-				"lines": ["l2_huddle_get_1", "l2_huddle_get_2"],
+				"lines": [],
 				"pages": [
 					"GET\n\nSome systems answer web requests, not SQL. GET asks for data.\n\nNo SELECT, no ;. Just GET and a path.",
 					"path\n\nThe path after GET says what you want, starting with /.",
@@ -398,7 +399,7 @@ const BOOKS := {
 				"when": "L2 booth, pike",
 				"required": false,
 				"words": ["LIKE", "% (percent)"],
-				"lines": ["l2_huddle_like_1", "l2_huddle_like_2"],
+				"lines": [],
 				"pages": [
 					"LIKE\n\nLIKE matches a pattern instead of an exact value.",
 					"% (percent)\n\n% means 'any letters, or none'. 'Ash%' matches Ash, Ashford, Ashley.",
@@ -424,7 +425,7 @@ const BOOKS := {
 				"when": "L2, har",
 				"required": false,
 				"words": [],
-				"lines": ["l2_huddle_feeds_1", "l2_huddle_feeds_2"],
+				"lines": [],
 				"pages": [
 					"Sometimes the answer isn't the answer. It's what you need for the next query.",
 				],
@@ -443,7 +444,7 @@ const BOOKS := {
 				"when": "L2 stairwell panel, door",
 				"required": false,
 				"words": ["id in the path"],
-				"lines": ["l2_huddle_door_1", "l2_huddle_door_2"],
+				"lines": [],
 				"pages": [
 					"id in the path\n\nAdd an id to the path to ask about one thing: GET /jobs/14.",
 				],
@@ -500,7 +501,7 @@ const BOOKS := {
 				"when": "L4, the facilities work order, the tripped breaker",
 				"required": false,
 				"words": ["UPDATE", "SET", "check it took"],
-				"lines": ["l4_huddle_update_1", "l4_huddle_update_2"],
+				"lines": [],
 				"pages": [
 					"UPDATE\n\nUPDATE changes rows that are already in a table. UPDATE, the table's name, then SET.\n\nAlways add a WHERE to pick the rows. Without one, UPDATE changes every row in the table.",
 					"SET\n\nSET names the column to change and its new value: SET status = 'done'.\n\nWords still go in 'single quotes'. Numbers don't.",
@@ -533,7 +534,7 @@ const BOOKS := {
 				"when": "L4, the contractor log clipboard, the work log",
 				"required": false,
 				"words": ["INSERT INTO", "VALUES", "same order"],
-				"lines": ["l4_huddle_insert_1", "l4_huddle_insert_2"],
+				"lines": [],
 				"pages": [
 					"INSERT INTO\n\nINSERT INTO adds a brand-new row. INSERT INTO, the table's name, then the columns you're filling, in brackets.\n\nUPDATE changes a row that's already there. INSERT INTO makes a new one.",
 					"VALUES\n\nVALUES comes after the columns, with the new row's values in brackets: VALUES ('Nash', 'Ashford', 80);\n\nWords in 'single quotes', numbers without, and a comma between each.",
@@ -576,7 +577,7 @@ const BOOKS := {
 				"when": "L5, desk sheet (with Chapter 2)",
 				"required": false,
 				"words": ["status code", "4xx"],
-				"lines": ["l5_huddle_codes_1", "l5_huddle_codes_2"],
+				"lines": [],
 				"pages": [
 					"status code\n\nEvery answer starts with a number. 200 OK: here's what you asked for. 201 Created: made it. Two hundreds are good news.\n\nThe number comes before the answer. Read it first.",
 					"4xx\n\nFour hundreds mean the request was wrong, and each one says how.\n400: a field is missing or wrong (it names it). 401: no key, or a key it doesn't know. 403: a real key, not allowed to do this. 404: nothing at that path. 409: it can't, the way things are now (it says why).\n\nFive hundreds are the service's own fault. Try again later.",
@@ -602,7 +603,7 @@ const BOOKS := {
 				"when": "L5, desk sheet (with Chapter 1)",
 				"required": false,
 				"words": ["header", "X-Api-Key"],
-				"lines": ["l5_huddle_keys_1", "l5_huddle_keys_2"],
+				"lines": [],
 				"pages": [
 					"header\n\nA header is a line under the request: a label, a colon, a value. It's about the request, not part of what you're asking for.\n\nGET /jobs\nX-Api-Key: 1a2b-3c4d\n\nOn the terminal, Shift+Enter starts the header's line. An empty line sends it all.",
 					"X-Api-Key\n\nSome services only answer people with a key. The key goes in the X-Api-Key header, on every request.\n\nNo key: 401. A key it doesn't know: 401. The right key for the wrong job: 403.\n\nKeys are issued to people. Somebody's key is written down somewhere near where they sit.",
@@ -628,7 +629,7 @@ const BOOKS := {
 				"when": "L5, facilities clipboard (panel)",
 				"required": false,
 				"words": ["PATCH", "true / false"],
-				"lines": ["l5_huddle_patch_1", "l5_huddle_patch_2"],
+				"lines": [],
 				"pages": [
 					"PATCH\n\nPATCH changes one thing about one record, and leaves the rest alone. The record is in the path, the change is in the body.\n\nPATCH /van_kit/rope\n\n{\"qty\": 3}\n\nchanges the rope's qty to 3 and nothing else. Like UPDATE with its WHERE built in: the path says which one.",
 					"true / false\n\nSome fields are a switch: on or off, locked or not. Their values are true and false, with no quotes.\n\n{\"charged\": true}\n\n\"true\" in quotes is a word, not a switch, and the service says 400.",
@@ -654,7 +655,7 @@ const BOOKS := {
 				"when": "L5, carbon copy (work order)",
 				"required": false,
 				"words": ["POST", "body"],
-				"lines": ["l5_huddle_post_1", "l5_huddle_post_2"],
+				"lines": [],
 				"pages": [
 					"POST\n\nGET asks a service for what it has. POST asks it to make something new.\n\nPOST /jobs\n\nasks the job board to make a new job. The service answers 201 Created when it has, and tells you what it made.",
 					"body\n\nA POST carries the new thing in a body: after the headers, an empty line, then the fields in braces.\n\n{\"client\": \"Nash\", \"town\": \"Ashford\", \"fee\": 80}\n\nEvery field the service wants, every time. Words in \"double quotes\", numbers without. Leave one out and it answers 400 and names the field.",
@@ -680,7 +681,7 @@ const BOOKS := {
 				"when": "L5, escort procedure (lockup)",
 				"required": false,
 				"words": ["ask again"],
-				"lines": ["l5_huddle_check_1", "l5_huddle_check_2"],
+				"lines": [],
 				"pages": [
 					"ask again\n\n200 means the service took your change, just then. It doesn't promise it's still that way, or that the thing it's for has happened.\n\nAfter a PATCH or a POST, GET the record back and read it. If it says what you changed, it took. If it doesn't, something changed it back.",
 				],
@@ -691,6 +692,103 @@ const BOOKS := {
 						"options": ["POST /jobs again", "GET /jobs", "wait for it to show"], "answer": 1, "why": "Ask for it back with a GET. Posting again makes a second one."},
 					{"word": "ask again", "q": "You GET the record back and it's as it was before your change. Then...",
 						"options": ["the change took", "something put it back", "GET is broken"], "answer": 1, "why": "The record is the truth. If it's unchanged, something undid it, whatever the number said."},
+				],
+			},
+		],
+	},
+	# The third in the series, found under a mug on B1's IT bench (Level 6): the deck's
+	# first scripts, in JavaScript. Title is Augustine's (2026-11-05, call 7: "Journey
+	# through JavaScript"). Its first three chapters land on B1; functions, lists and
+	# testing come on the floor below. Pages, questions and why lines approved by him
+	# word for word 2026-11-05: plan/approvals/l6-text.md. The examples use the
+	# garage's own job board (/jobs, the same records as Easy SQL), never the building's.
+	"journey_js": {
+		"title": "JOURNEY THROUGH JAVASCRIPT",
+		"name": "Journey through JavaScript",
+		"chapters": [
+			{
+				"id": "js_if",
+				"title": "A box and a fork",
+				"when": "L6, cradle card or the tech's note",
+				"required": false,
+				"words": ["let", "if"],
+				"lines": [],
+				"pages": [
+					"let\n\nA variable is a box with a name. let makes one and puts something in it.\n\nlet fee = 80;\nlet town = \"Ashford\";\n\nFrom then on, fee means 80 wherever you write it. = puts something new in the box:\n\nfee = fee + 10;\n\nNow it holds 90. Text goes in double quotes; numbers don't.",
+					"if\n\nif is a fork in the road. The test goes in round brackets; what to do goes in braces, and only happens when the test is true.\n\nif (job.paid === false) {\n  console.log(job.client + \" still owes us\");\n}\n\n=== asks \"is it the same?\" and !== asks \"is it different?\". One = puts something in a box: never use it for a test.",
+				],
+				"quiz": [
+					{"word": "let", "q": "let fee = 80; makes...",
+						"options": ["a box called fee, holding 80", "a list of 80 fees", "a test: is fee 80?"], "answer": 0, "why": "let makes a variable, a box with a name, and puts the value in it."},
+					{"word": "let", "q": "After let jobs = 3; and jobs = jobs + 1; jobs holds...",
+						"options": ["3", "4", "jobs + 1"], "answer": 1, "why": "= puts the new value in the box: 3 + 1 is 4."},
+					{"word": "let", "q": "Which puts the town Ashford in a box?",
+						"options": ["let town = Ashford;", "let town = \"Ashford\";", "let \"town\" = Ashford;"], "answer": 1, "why": "Text goes in double quotes. The box's name doesn't."},
+					{"word": "if", "q": "if (job.fee > 100) { ... } runs what's in the braces...",
+						"options": ["every time", "only when the fee is over 100", "100 times"], "answer": 1, "why": "if only does what's in the braces when its test is true."},
+					{"word": "if", "q": "Which asks \"is the town Ashford?\"",
+						"options": ["if (town = \"Ashford\")", "if (town === \"Ashford\")", "if town is Ashford"], "answer": 1, "why": "=== compares. One = would put Ashford in the box, and the test would always pass."},
+					{"word": "if", "q": "To skip the jobs that are paid, the test is...",
+						"options": ["job.paid === true", "job.paid !== true", "job.paid = false"], "answer": 1, "why": "!== means different: only the jobs that aren't paid get through."},
+				],
+			},
+			{
+				"id": "js_loops",
+				"title": "Again, and wait",
+				"when": "L6, cradle card",
+				"required": false,
+				"words": ["while", "await sleep", "console.log"],
+				"lines": [],
+				"pages": [
+					"while\n\nwhile does what's in its braces again and again, as long as its test is true.\n\nlet done = 0;\nwhile (done < 3) {\n  done = done + 1;\n}\n\nSomething inside has to change the test, or it never stops. while (true) never stops on its own: that's what Stop is for.",
+					"await sleep\n\nA script runs as fast as it can. await sleep(ms) makes it wait: 1000 is one second.\n\nawait sleep(1000);\n\nawait also waits for an answer: let res = await api.get(\"/jobs\");\n\nAnything that takes a moment (a reply, a printer, a van) needs a wait between tries. A loop without one asks a million times a second.",
+					"console.log\n\nconsole.log writes a line in the script's log, under the code, so you can see what it did.\n\nconsole.log(\"invoiced \" + job.client);\n\n+ joins text: \"invoiced \" and the client's name make one line. Log what a loop does each time round. When a script goes wrong, the log is the first place to look.",
+				],
+				"quiz": [
+					{"word": "while", "q": "while (done < 3) { done = done + 1; } goes round...",
+						"options": ["once", "three times", "for ever"], "answer": 1, "why": "done counts up 0, 1, 2; at 3 the test is false and it stops."},
+					{"word": "while", "q": "A while loop never stops. The likeliest reason?",
+						"options": ["nothing inside changes its test", "it has a wait in it", "it logs too much"], "answer": 0, "why": "If the test can never turn false, the loop goes on. Count something up inside it."},
+					{"word": "while", "q": "while (true) { ... } stops when...",
+						"options": ["it's done three times", "someone presses Stop", "the test runs out"], "answer": 1, "why": "true never turns false. It runs until it's stopped."},
+					{"word": "await sleep", "q": "await sleep(2000); waits...",
+						"options": ["2 seconds", "2000 seconds", "2 tries"], "answer": 0, "why": "It counts in milliseconds: 1000 is one second, so 2000 is two."},
+					{"word": "await sleep", "q": "Where does the wait go in a loop that asks the job board again and again?",
+						"options": ["before the loop", "inside the loop, after each ask", "after the loop"], "answer": 1, "why": "Inside, so there's a pause between every ask, not just once."},
+					{"word": "await sleep", "q": "let res = await api.get(\"/jobs\"); The await...",
+						"options": ["waits for the board to answer", "makes it slower on purpose", "repeats the request"], "answer": 0, "why": "await waits for the answer before the next line runs."},
+					{"word": "console.log", "q": "console.log(\"done\") puts done...",
+						"options": ["in the script's log", "on the job board", "in a box called done"], "answer": 0, "why": "console.log writes a line in the log, under the code."},
+					{"word": "console.log", "q": "A loop does nothing you can see. What helps you find out why?",
+						"options": ["a console.log inside it", "a longer wait", "deleting it"], "answer": 0, "why": "Log what it does each time round, then read the log."},
+					{"word": "console.log", "q": "console.log(\"fee \" + fee) with fee holding 80 writes...",
+						"options": ["fee fee", "fee 80", "\"fee \" + fee"], "answer": 1, "why": "The text, then what's in the box: fee 80."},
+				],
+			},
+			{
+				"id": "js_each",
+				"title": "Once for each",
+				"when": "L6, the time clock's service page",
+				"required": false,
+				"words": ["for", "db.query"],
+				"lines": [],
+				"pages": [
+					"for\n\nfor ... of does what's in its braces once for each thing in a list, then stops by itself.\n\nfor (const job of jobs) {\n  console.log(job.client);\n}\n\nEach time round, job is the next one in jobs. const is a box the loop fills fresh each time, so it's the word to use here. Three jobs, three lines in the log, done: no count to keep, no wait.",
+					"db.query\n\ndb.query runs a query from a script and hands back the rows it found, as a list.\n\nlet unpaid = await db.query(\"SELECT * FROM jobs WHERE status = 'unpaid'\");\nfor (const job of unpaid) {\n  console.log(job.client + \" owes \" + job.fee);\n}\n\nIt takes a moment, so await. The query is the one you'd type at a terminal, in double quotes. A row's columns are read with a dot: job.client, job.fee.",
+				],
+				"quiz": [
+					{"word": "for", "q": "for (const job of jobs) { ... } runs what's in the braces...",
+						"options": ["while jobs is true", "once for each job in jobs", "until someone presses Stop"], "answer": 1, "why": "for ... of goes down the list once for each thing in it, then stops."},
+					{"word": "for", "q": "Each time round, job holds...",
+						"options": ["the next one in jobs", "how many jobs there are", "the whole list"], "answer": 0, "why": "The loop fills job with the next thing in the list each time round."},
+					{"word": "for", "q": "A for ... of loop over three jobs stops...",
+						"options": ["when a count reaches 3", "only when Stop is pressed", "by itself, after the third"], "answer": 2, "why": "It knows the list's length: after the last one it's done. No count, no Stop."},
+					{"word": "db.query", "q": "let open = await db.query(\"SELECT * FROM jobs\"); open holds...",
+						"options": ["the query's text", "the rows it found, as a list", "one row"], "answer": 1, "why": "db.query answers with every row the query found, one entry in the list each."},
+					{"word": "db.query", "q": "Why await in front of db.query?",
+						"options": ["the database takes a moment to answer", "it makes the query shorter", "every query needs two words"], "answer": 0, "why": "await waits for the answer, as it does for a request, before the next line runs."},
+					{"word": "db.query", "q": "With a row in job, its client column is...",
+						"options": ["client.job", "job(\"client\")", "job.client"], "answer": 2, "why": "A row's columns are read with a dot: the row, then the column's name."},
 				],
 			},
 		],

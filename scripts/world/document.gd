@@ -36,6 +36,9 @@ var clues: Array = []
 ## Pieces of cases it holds: [{case, piece}] (see Game.collect_piece). Reading
 ## it puts them into their cases. Anyone finding them finds them for the whole crew.
 var pieces: Array = []
+## SQL words this paper teaches without a chapter (KeywordHelp.PAPER_TOKENS, like
+## IS NULL on Mercer's card): reading it puts them on this player's terminal buttons.
+var words: Array = []
 ## Lying on a desk rather than up on a wall or a monitor.
 var flat := false
 ## A sticky this player has already copied into their notebook.
@@ -420,6 +423,10 @@ func _note_clues(quiet: bool = false) -> void:
 
 ## Tell the host this was read (a story step may wait on a paper being found).
 func _report_read(player: Node) -> void:
+	var game := get_node_or_null("/root/Game")
+	if game and game.has_method("learn_word"):
+		for w in words:
+			game.learn_word(w)
 	shine(false)  # this player has read it, so it stops asking to be read
 	var sync := LevelSync.of(self)
 	if sync == null or not sync.forward(self, "report_open"):

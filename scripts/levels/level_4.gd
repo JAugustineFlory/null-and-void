@@ -80,7 +80,8 @@ const TEXT := {
 	"bay_stirs": "Behind the charging bay's door, something powers up.",
 	"bay_quiet": "Behind the bay door, the hum winds down.",
 	"power_back": "In the control room, the lights come on. Its door clunks open.",
-	"todo_down": "STAIR 1 is open. Everyone down the stairs",
+	"todo_down": "Take STAIR 1 down, everyone together",
+	"todo_up": "Exit through Stair 1",
 	"case_main_doors": "What did main_doors open?",
 	"main_doors_done": "main_doors was never a fire exit. The notice was wrong, and the row said so: zone CONTAINMENT. Look at a row before you write to it.",
 	"accident": "Far below, something heavy unlocks. Then every light on the floor goes red.",
@@ -104,10 +105,12 @@ const TEXT := {
 	"gantry_no_bay": "GANTRY 10: NO SUCH POSITION. bay IS 1 TO 4. raised IS 0 (DOWN) OR 1 (UP).",
 	"gantry_bolted": "GANTRY 10: GA-1 IS BOLTED TO THE RAIL. IT CAN'T BE REMOVED.",
 	"manual_release": "Pull the manual release",
+	"deck_take": "Take a portable deck",
+	"deck_have": "You already have a deck.",
+	"deck_cart": "FACILITIES  -  LOANER DECKS",
 	"released": "The door's manual release gives. It shoves open.",
-	"end_card": "To be continued.",
-	"todo_front": "Get out the way we came in: the front doors",
-	"todo_check_front": "The doors didn't open. Check the main entrance's row",
+	"todo_front": "Leave the way you came in, through the front doors",
+	"todo_check_front": "Check the main entrance's row at the front desk terminal",
 	"case_entrance": "Why didn't the front doors open?",
 	"entrance_done": "The terminal said 1 row changed and the latch clicked. Then the row said locked again: Epsilon put it back. Check it took.",
 	"latch": "At the front doors, the latch clicks.",
@@ -128,6 +131,22 @@ const TEXT := {
 	"tip_example_log": "that's the clerk's example: another contractor's job, so it's in the log twice now. your row is Byte-Right's: your own work order's number, and the time on the clock over the door.",
 	"tip_dock": "that's not the front doors, and its note says why it can't let you out: SELECT * FROM gates; the front doors are the card's last line.",
 }
+
+## Each task's title: how the crew feels and what's going on (Augustine, approved
+## 2026-11-05: plan/approvals/task-titles.md). Its details are TEXT under the same key.
+const TASK_TITLES := {
+	"todo_arrive": "Stairs shut. Again.",
+	"todo_power": "No power, no doors, no lift",
+	"todo_login": "Do it by the book",
+	"todo_login_read": "Did it stick?",
+	"todo_put_back": "Alarm! Undo it.",
+	"todo_check": "Trust, but check",
+	"todo_down": "Finally, a way down!",
+	"todo_front": "Home free. Almost.",
+	"todo_check_front": "Why won't they open?!",
+	"todo_up": "Locked In!! The only way out is up!",
+}
+
 ## Facilities' work order on the maintenance desk: where UPDATE ... SET ... WHERE is
 ## found. Its example is last month's job on another breaker, so copying it practises
 ## the shape without answering tonight's (the id is the player's own step).
@@ -243,6 +262,11 @@ const BAY_DOOR_AT := Vector3(-5, 1.4, -10)
 ## The control room and the bay, for tests and the art pass.
 const CTRL_ROOM := AABB(Vector3(2, -0.5, -18), Vector3(8, 3.5, 8))
 const BAY_ROOM := AABB(Vector3(-10, -0.5, -18), Vector3(10, 4, 8))
+## Facilities' loaner cart in the control room's north-west corner (level space, on
+## the floor): a portable deck for each of the crew, locked on its charger until
+## PLANT CONTROL has power again. B1's IT bench fits them for scripts (Level 6).
+const DECK_CART_AT := Vector3(3.0, 0, -17.35)
+const DECK_CART_SIZE := Vector3(1.2, 0.9, 0.6)
 ## The Custodian's cradle in the bay (level space): where it drags people.
 const CUSTODIAN_HOME := Vector3(-5, 0, -15.8)
 
@@ -255,6 +279,10 @@ var ctrl_door: Door
 var bay_door: Door
 ## The breaker boxes on the panel, by id: their state lamps follow the table.
 var lamps := {}
+## The loaner cart's decks, one each (enabled once the power's back), and the
+## charge lamp over each slot.
+var deck_cart: ItemDock
+var _deck_lamps: Array[MeshInstance3D] = []
 ## The alarm is going: some breaker other than tonight's is not as the panel had it.
 var alarm := false
 ## The charging bay's breaker is on: the thing inside is awake behind its door.
@@ -336,11 +364,10 @@ func build() -> void:
 	for x in [-1.5, 1.5]:
 		Greybox.panel(geo, Vector3(x, 1.1, 7.88), Vector3(1.3, 2.2, 0.04), Color(0.5, 0.52, 0.55), 0.0)
 		Greybox.label(geo, Vector3(x, 2.5, 7.86), "ELEVATOR  10", 32, Color(1.0, 0.45, 0.1), 180)
-	# Stairs in from 18, on the west wall: Facilities wedged it for the plant work.
+	# Stairs in from 18, on the west wall: the crew comes down them and opens the door
+	# once they're all on the landing (start()).
 	stair_in = Stairwell.build(self, geo, STAIR_IN_AT, 90.0, "10")
 	stair_in.name = "Door_STAIR-IN"
-	stair_in.locked = false
-	Greybox.box(geo, STAIR_IN_AT + Vector3(0.1, 0.03, 0.55), Vector3(0.12, 0.06, 0.2), Color(0.6, 0.45, 0.2), "DoorWedge")
 	# Stairs down toward G, on the east wall: held shut for the night.
 	stair_out = Stairwell.build(self, geo, STAIR_OUT_AT, -90.0, "10")
 	stair_out.name = "Door_STAIR-OUT"
@@ -362,11 +389,9 @@ func build() -> void:
 	add_light("L10-BAY", Vector3(-5, 3.5, -14), 7.0, 0.6, Color(0.6, 0.8, 1.0))
 
 	spawn = _stair_landing(STAIR_IN_AT, 90.0)
-	exit_trigger = Trigger.create(self, STAIR_OUT_AT + Vector3(2.4, 1, 0), Vector3(2.8, 2, 3.2))
-	exit_trigger.name = "StairsDown"
-	exit_trigger.require_all = true
-	exit_trigger.waiting.connect(func(n, total): sync.team_notice(TEXT.stairs_wait % [n, total]))
-	exit_trigger.entered.connect(func(_b): sync.event("_on_exit"), CONNECT_ONE_SHOT)
+	# STAIR 1 down to G is one flight of stairs with G's (both floors are this level's):
+	# once everyone's down on G's landing, _on_exit.
+	exit_trigger = walk_stairs(stair_out, g_stair, true, "_on_exit", TEXT.stairs_wait)
 
 	custodian = Custodian.new()
 	custodian.name = "Custodian"
@@ -436,7 +461,7 @@ func _make_puzzles() -> void:
 	check_puzzle.case_id = "power"
 	var who := "('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in]
 	login_puzzle = StatePuzzle.new("login", "INSERT INTO contractor_log (company, job, time_in) VALUES %s" % who,
-		"SELECT COUNT(*) > 0 AS logged FROM contractor_log WHERE lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s' AND trim(time_in) = '%s'" % [data.company, data.ticket, data.time_in],
+		"SELECT COUNT(*) > 0 AS logged FROM contractor_log WHERE %s AND upper(trim(job)) = '%s' AND trim(time_in) IN ('%s', '%s')" % [_company_is(), data.ticket, data.time_in, data.time_in.trim_prefix("0")],
 		"SELECT 1 AS logged", ["logged"], [
 		"the shape, with your job and the time left blank:\n" +
 		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', 'enter_job_number', 'enter_time');[/color]\n" % data.company +
@@ -475,7 +500,7 @@ func _make_puzzles() -> void:
 	main_doors_puzzle.case_id = "main_doors"
 	var lock_row := "('%s', '%s', '%s')" % [data.bay_breaker, data.company, data.ticket]
 	lockout_puzzle = StatePuzzle.new("lockout", "INSERT INTO lockouts (breaker, company, job) VALUES %s" % lock_row,
-		"SELECT COUNT(*) > 0 AS locked_out FROM lockouts WHERE upper(trim(breaker)) = '%s' AND lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s'" % [data.bay_breaker, data.company, data.ticket],
+		"SELECT COUNT(*) > 0 AS locked_out FROM lockouts WHERE upper(trim(breaker)) = '%s' AND %s AND upper(trim(job)) = '%s'" % [data.bay_breaker, _company_is(), data.ticket],
 		"SELECT 1 AS locked_out", ["locked_out"], [
 		"the shape, with the breaker and your job left blank:\n" +
 		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES ('enter_breaker_id', '%s', 'enter_job_number');[/color]\n" % data.company +
@@ -553,18 +578,17 @@ func _stair_landing(at: Vector3, yaw_deg: float) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, deg_to_rad(yaw_deg + 180.0)), holder * Vector3(-0.8, 0.1, -1.3))
 
 
+## Where player `index` stands on G's stair landing, as on_ground spawns them.
+func player_spawn_on_ground(index: int) -> Transform3D:
+	var at := g_geo.transform * _stair_landing(G_STAIR_AT, 180.0)
+	return global_transform * Transform3D(at.basis, g_geo.transform * Stairwell.landing_slot(G_STAIR_AT, 180.0, index))
+
+
 func player_spawn(index: int) -> Transform3D:
-	# Six people fit on the landing, two abreast beside the flight up, clear of the door.
-	var slot := Stairwell.landing_slot(STAIR_IN_AT, 90.0, index)
 	if on_ground:
-		slot = g_geo.transform * Stairwell.landing_slot(G_STAIR_AT, 180.0, index)
-	return global_transform * Transform3D(spawn.basis, slot)
-
-
-## Level 3 calls this (through the World) as the crew heads down STAIR 1: everyone
-## is placed on 10's landing before play moves here. Runs on every machine.
-func arrive_by_stairs() -> void:
-	players.place_all(self)
+		return player_spawn_on_ground(index)
+	# Six people fit on the landing, three abreast in two rows, clear of the door.
+	return global_transform * Transform3D(spawn.basis, Stairwell.landing_slot(STAIR_IN_AT, 90.0, index))
 
 
 func _build_hall(colors: Dictionary) -> void:
@@ -663,6 +687,43 @@ func _build_control_room(colors: Dictionary) -> void:
 	# Lift controller cabinets along the east wall.
 	for z in [-16.5, -14.5, -12.5]:
 		Greybox.box(geo, Vector3(9.5, 1.1, z), Vector3(0.8, 2.2, 1.6), Color(0.32, 0.34, 0.38), "LiftController")
+	_build_deck_cart()
+
+
+## Facilities' loaner cart: six decks on edge in their charging slots, each slot's
+## lamp red while PLANT CONTROL is dark. Once the power's back, each of the crew
+## takes their own (ItemDock: the host decides, every machine plays it out).
+func _build_deck_cart() -> void:
+	var at := DECK_CART_AT
+	var top := at.y + DECK_CART_SIZE.y
+	Greybox.box(geo, at + Vector3(0, DECK_CART_SIZE.y / 2, 0), DECK_CART_SIZE, Color(0.3, 0.32, 0.36), "DeckCart")
+	Greybox.label(geo, Vector3(at.x, at.y + 0.68, at.z + DECK_CART_SIZE.z / 2 + 0.01), TEXT.deck_cart, 24, Color(0.85, 0.85, 0.8), 0).name = "DeckCartLabel"
+	deck_cart = ItemDock.make(self, Vector3(at.x, top + 0.16, at.z), Vector3(1.1, 0.32, 0.5), TEXT.deck_take, "deck")
+	deck_cart.name = "DeckCartDecks"
+	deck_cart.already = TEXT.deck_have
+	for i in 6:
+		var x := (i - 2.5) * 0.15
+		var d := HandItem.deck()
+		d.rotation = Vector3(0, 0, PI / 2)  # on edge, in its slot
+		d.position = Vector3(x, 0.0, 0.0)
+		d.name = "Deck%d" % (i + 1)
+		deck_cart.add_child(d)
+		deck_cart.add_model(d)
+		var lamp := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.03, 0.015, 0.015)
+		lamp.mesh = bm
+		lamp.position = Vector3(x, -0.15, DECK_CART_SIZE.z / 2 - 0.02)
+		deck_cart.add_child(lamp)
+		_deck_lamps.append(lamp)
+	_deck_cart_power(power_back)
+
+
+## Every machine: the cart's locks follow PLANT CONTROL's power.
+func _deck_cart_power(on: bool) -> void:
+	deck_cart.enabled = on
+	for lamp in _deck_lamps:
+		lamp.material_override = Greybox.mat(Color(0.2, 1.0, 0.3) if on else Color(1.0, 0.25, 0.1), 2.0)
 
 
 ## The clipboard by the controller: the log's columns, the earlier jobs in a clerk's
@@ -724,7 +785,7 @@ func apply_environment(env: Environment) -> void:
 
 
 func start() -> void:
-	stair_in.set_open(true, true)  # wedged open for the plant work
+	stair_in.locked = false  # the crew's all here: out of the stairwell, onto 10
 	maint.ensure_booted()
 	controller.ensure_booted()
 	bay_terminal.ensure_booted()
@@ -732,7 +793,7 @@ func start() -> void:
 	_show_lamps()
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
-	hud.todo(TEXT.todo_arrive)
+	_todo("todo_arrive")
 	# The PA's tape, then WARDEN, who still waits politely for it to finish (2.4).
 	_warden(["l4_arrive_pa", "l4_arrive"], 0.5)
 
@@ -834,12 +895,17 @@ func _reads_target_on(result: Dictionary) -> bool:
 	return false
 
 
+## SQL: the row's company is the crew's, by any name the log takes for it.
+static func _company_is() -> String:
+	return "lower(trim(company)) LIKE '%s%%'" % Level4Data.COMPANY_STARTS
+
+
 ## A read of the log that shows the crew's own row: the log-in read back.
 func _reads_login(result: Dictionary) -> bool:
 	if not result.get("ok", false):
 		return false
 	for row in result.get("rows", []):
-		if str(row.get("job", "")).strip_edges().to_upper() == data.ticket and str(row.get("company", "")).strip_edges().to_lower() == data.company.to_lower():
+		if str(row.get("job", "")).strip_edges().to_upper() == data.ticket and str(row.get("company", "")).strip_edges().to_lower().begins_with(Level4Data.COMPANY_STARTS):
 			return true
 	return false
 
@@ -903,10 +969,10 @@ func _on_solved(id: String) -> void:
 			Game.open_case("power", CASES.power, ["breakers"])
 			Game.solve_case("power", TEXT.power_done % data.target)
 			if not logged_in:
-				hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
+				_todo("todo_login_read" if login_puzzle.solved else "todo_login")
 		"login":
 			Game.open_case("login", CASES.login, ["contractor_log"])
-			hud.todo(TEXT.todo_login_read)
+			_todo("todo_login_read")
 			_warden(["l4_signed_in"])
 		"login_read":
 			logged_in = true
@@ -927,14 +993,14 @@ func _on_solved(id: String) -> void:
 func _ask_power() -> void:
 	Game.open_case("power", CASES.power, ["breakers"])
 	if not power_back and not alarm:
-		hud.todo(TEXT.todo_power)
+		_todo("todo_power")
 
 
 ## Every machine: the contractor clipboard has been read.
 func _ask_login() -> void:
 	Game.open_case("login", CASES.login, ["contractor_log"])
 	if not logged_in and not alarm:
-		hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
+		_todo("todo_login_read" if login_puzzle.solved else "todo_login")
 
 
 ## Every machine: a paper brings back its chapter of Easy SQL, into the crew's book
@@ -962,7 +1028,7 @@ func _build_ground() -> void:
 	# The same rooms Level 0 built: the lobby the crew walked in through.
 	GroundFloor.build(g_geo)
 	Greybox.label(g_geo, Vector3(27, 2.75, -0.88), "G   LOBBY", 56, Color(0.75, 0.75, 0.7))
-	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G", "STAIR 1", false)
+	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G", "STAIR 1", 0)
 	g_stair.name = "Door_STAIR-G"
 	# The lift's doors, shut for the night.
 	Greybox.box(g_geo, GroundFloor.LIFT_AT + Vector3(0, Elevator.DOOR_H / 2.0, 0), Vector3(0.12, Elevator.DOOR_H, Elevator.DOORWAY), Color(0.55, 0.56, 0.58), "LiftDoors")
@@ -1160,7 +1226,7 @@ func _accident() -> void:
 	Game.solve_case("main_doors", TEXT.main_doors_done)
 	hud.notice(TEXT.accident, 6.0, ThemeUtil.RED)
 	custodian.activate()
-	hud.todo(TEXT.todo_down)
+	_todo("todo_down")
 	_epsilon()
 
 
@@ -1295,44 +1361,74 @@ func _restore_bay() -> void:
 
 # --- The way down ----------------------------------------------------------------------
 
-## Every machine: everyone is on the stairs down. Ten flights behind a fade, and the
-## crew steps out on the ground floor by the lifts, where it came in.
+## Every machine: everyone is down STAIR 1 on G's landing, by the lifts, where the
+## crew came in. The door up to 10 locks behind them, as stair doors do at night.
 func _on_exit() -> void:
 	if on_ground:
 		return
 	on_ground = true
+	stairs.seal(Stairwell.of(stair_out))
 	# The ground floor's lockup system comes into reach at the front desk.
 	db.run_silent(data.gates_sql)
-	var up := player != null and player.health > 0.0
-	if player:
-		player.input_locked = true
-	await hud.fade(true, 1.2)
 	spawn = g_geo.transform * _stair_landing(G_STAIR_AT, 180.0)
 	g_stair.locked = false
-	g_stair.set_open(true, true)
-	players.place_all(self)
-	if player:
-		player.input_locked = not up
-	hud.todo(TEXT.todo_front)
-	hud.fade(false, 0.8)
+	_todo("todo_front")
 	if sync.is_host() and not sealed and custodian.is_active():
 		_custodian_follows()
 
 
-## Host: not locked out, the Custodian comes down after them.
+## Host: not locked out, the Custodian comes down the stairs after them.
 func _custodian_follows() -> void:
 	await get_tree().create_timer(follow_time, false).timeout
 	if is_inside_tree() and not sealed:
+		sync.event("_custodian_down")
+
+
+## Every machine: it shoulders 10's stair door open and comes down STAIR 1, the
+## way the crew went: down every flight and round every turn, past each floor's
+## landing, to G's (StairLinks carries it storey by storey, then onto G's stairs),
+## then out.
+func _custodian_down() -> void:
+	hud.notice(TEXT.custodian_follows, 4.0)
+	stair_out.set_open(true)
+	if not sync.is_host():
+		return
+	var up := Stairwell.of(stair_out).global_transform
+	var flight := Stairwell.HALF_Z - 0.6
+	# Through each doorway square on, on the open side of the leaf (hung at -x): it
+	# is barely wider than the Custodian.
+	var door := Stairwell.DOOR_W / 2.0 - Stairwell.CORE / 2.0 - 0.5
+	var route := [up * Vector3(door, 0, 2.2), up * Vector3(door, 0, 1.2), up * Vector3(door, 0, -0.9)]
+	# Each storey: down a flight, round the half-landing, down the next to a landing.
+	# The points are where they'd be if the stairs were stacked: StairLinks moves
+	# the ones still ahead as it carries the Custodian.
+	var storeys := Stairwell.storeys_between("10", "G")
+	for m in storeys:
+		var y := -m * Stairwell.STOREY
+		if m > 0:
+			route.append(up * Vector3(-0.9, y, -1.0))  # across the landing, clear of the middle wall's end
+		var foot := -1.7 if m == storeys - 1 else -1.0
+		route.append_array([up * Vector3(-0.9, y, -1.7), up * Vector3(-0.9, y, flight), up * Vector3(0.9, y, flight),
+			up * Vector3(0.9, y - Stairwell.STOREY, foot)])
+	var bottom := -storeys * Stairwell.STOREY
+	route.append_array([up * Vector3(door, bottom, -0.9), up * Vector3(door, bottom, 1.4)])  # out through G's door
+	custodian.route = route
+	stairs.carry(custodian)
+	if not stairs.carried.is_connected(_on_carried):
+		stairs.carried.connect(_on_carried)
+
+
+## Host: the Custodian's on G's stairs.
+func _on_carried(body: Node3D, to: Node3D) -> void:
+	if body == custodian and to == Stairwell.of(g_stair):
 		sync.event("_custodian_on_ground")
 
 
-## Every machine: it's on the ground floor now, out of the stairwell.
+## Every machine: it's on G's stairs, and out through the door; G is its floor now.
 func _custodian_on_ground() -> void:
-	hud.notice(TEXT.custodian_follows, 4.0)
-	if not sync.is_host():
-		return
-	custodian.set_bay(g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -3)))
-	custodian.global_position = g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -1.5))
+	g_stair.set_open(true)
+	if sync.is_host():
+		custodian.set_bay(g_geo.global_transform * (G_STAIR_AT + Vector3(0, 0, -3)))
 
 
 ## Every machine: the main entrance's row says open. The latch clicks; a moment later
@@ -1351,7 +1447,7 @@ func _lie() -> void:
 	db.read_only = true  # for the rest of the game: the building's flag, not the floor's
 	prepare_next()  # floor 9 builds now, below the stairwell
 	hud.notice(TEXT.latch_again, 4.0)
-	hud.todo(TEXT.todo_check_front)
+	_todo("todo_check_front")
 	if not VoiceLines.get_line("l4_epsilon_db").is_empty():
 		hud.line("l4_epsilon_db")
 
@@ -1381,27 +1477,31 @@ func _finish() -> void:
 	get_node("/root/Net").earn("achievement:floor_10", hud)
 	if not player:
 		return
+	var was_locked := player.input_locked
 	player.input_locked = true
 	# Locked in at the front, the crew turns back for the stairs.
 	await _warden(["l4_stairs", "l4_stairs_tease"])
 	if not is_inside_tree():
 		return
 	var next: Node = world.wings.get("level_5") if world else null
-	if next and next.has_method("arrive_by_stairs"):
-		# Back up STAIR 1 and down to 9, behind a fade, as 18 handed over to 10.
-		var up := player.health > 0.0
-		await hud.fade(true, 1.2)
-		Game.completed_level = "level_4"
-		Game.next_level = "level_5"
-		next.arrive_by_stairs()
-		finish_level("level_5")
-		player.input_locked = not up
-		hud.fade(false, 0.8)
+	if next:
+		# Back up STAIR 1, which goes up to 9 now: once everyone's on 9's landing,
+		# play moves there.
+		walk_stairs(g_stair, next.stair_in, false, "_up_to_9", TEXT.stairs_wait)
+		player.input_locked = was_locked or player.health <= 0.0
+		_todo("todo_up")
 		return
-	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_4"
-	Game.next_level = ""
+	Game.next_level = "level_5"  # Field Notes' Continue: the next floor, in the building
 	completed.emit()
+
+
+## Every machine: everyone is up STAIR 1 on 9's landing.
+func _up_to_9() -> void:
+	stairs.seal(Stairwell.of(g_stair))
+	Game.completed_level = "level_4"
+	Game.next_level = "level_5"
+	finish_level("level_5")
 
 
 func _on_completed() -> void:
@@ -1413,6 +1513,8 @@ func _on_completed() -> void:
 ## other than tonight's breaker that isn't as the panel had it sets the alarm off
 ## (no WHERE flips the lot), and the charging bay's breaker wakes what's in the bay.
 func _breakers_changed() -> void:
+	# The panel prints states in capitals: a breaker set to 'ON' is on.
+	db.run_silent("UPDATE breakers SET state = lower(trim(state)) WHERE state != lower(trim(state))")
 	_show_lamps()
 	if accident:
 		# Loose, the Custodian runs on the bay's circuit: cutting it drops it.
@@ -1443,13 +1545,13 @@ func _breakers_changed() -> void:
 			alarm_line = line
 		hud.notice(line, 5.0, ThemeUtil.RED if alarm else ThemeUtil.AMBER)
 		if alarm:
-			hud.todo(TEXT.todo_put_back)
+			_todo("todo_put_back")
 		elif not reset_puzzle.solved:
-			hud.todo(TEXT.todo_power)
+			_todo("todo_power")
 		elif not check_puzzle.solved:
-			hud.todo(TEXT.todo_check)
+			_todo("todo_check")
 		elif not logged_in:
-			hud.todo(TEXT.todo_login_read if login_puzzle.solved else TEXT.todo_login)
+			_todo("todo_login_read" if login_puzzle.solved else "todo_login")
 		else:
 			hud.todo("")
 	if bay_on != bay_powered:
@@ -1461,6 +1563,10 @@ func _breakers_changed() -> void:
 	# power; the station passes once the rest are back as well.
 	if not power_back and not db.run_silent("SELECT 1 FROM breakers WHERE id = '%s' AND state = 'on'" % data.target).is_empty():
 		_restore_power()
+	# Reset from any terminal (the controller's too), the station passes, so the
+	# read-back that follows it counts.
+	if not reset_puzzle.solved and reset_puzzle.state_ok(db):
+		_on_solved("reset")
 
 
 ## The put-back station's ladder, kept up to date with the panel: its last tier is the
@@ -1504,11 +1610,20 @@ func _restore_power() -> void:
 	db.run_silent("UPDATE lights SET is_on = 1, status = 'ok' WHERE id = 'L10-CTRL'")
 	db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'PLANT-CTRL'")
 	db.sync_world()
+	_deck_cart_power(true)
 	hud.notice(TEXT.power_back, 5.0)
 	gantry_puzzle.solved = true  # the door's open: the second way in isn't needed
 	if not alarm and not check_puzzle.solved:
-		hud.todo(TEXT.todo_check)
+		_todo("todo_check")
 
 
 func on_player_died() -> void:
 	player.respawn(spawn_point())
+
+
+## Put task `key` (a TEXT key) on the job: its title and its details. "" ticks off the current one.
+func _todo(key: String) -> void:
+	if key == "":
+		hud.todo("")
+	else:
+		hud.todo(TASK_TITLES[key], TEXT[key])

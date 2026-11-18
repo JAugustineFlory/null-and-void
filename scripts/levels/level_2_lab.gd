@@ -22,6 +22,15 @@ const LAB_CASE := "What's wrong with the lab door?"
 const LINE_GAP := 1.5  # a beat for a line that isn't recorded yet
 ## Once the crew is locked in: the radio call, then his monologue through the glass (docs/script).
 const FRAME_LINES := ["l2_frame", "l2_trap_2", "l2_gloat_1", "l2_gloat_2", "l2_gloat_3", "l2_gloat_4", "l2_gloat_5", "l2_gloat_6", "l2_trap_1"]
+## After he frames the crew on the radio, a few beats to let it land before everyone's
+## put off the terminal (Augustine, 2026-11-05: "Wait a few beats after we hear him
+## framing us"). Then every view turns to him at the lab door for FOCUS_TIME, and the
+## crew can move again while the monologue plays on.
+const FRAME_BEAT := 2.5
+const FOCUS_TIME := 3.0
+## How far into the last monologue line he means to be at the rear door: he sneaks
+## round while he's still talking, so it opens before he's done.
+const SNEAK_IN_BEFORE_END := 1.5
 ## Left down without cable, Rourke stays down this long before the crew's choice counts.
 const UNTIED_AFTER := 15.0
 const LOCKOUT := 10.0
@@ -30,6 +39,9 @@ const RESPONSE_TIME := 240.0
 ## When WARDEN's PA calls out the time left.
 const RESPONSE_CALLS := [60.0, 30.0]
 const RED := Color(1.0, 0.18, 0.12)
+const SCREEN_GREEN := Color(0.2, 0.9, 0.35)
+## WARDEN doesn't repeat a reaction (a refused switch) within this many seconds.
+const WARDEN_REPEAT := 6.0
 const WHITE := Color(0.92, 0.95, 1.0)
 const FIGHT_BARKS := ["l2_hit_1", "l2_hit_2", "l2_hit_3", "l2_hit_4", "l2_hit_prints"]
 const HURT_BARKS := ["l2_hurt_1", "l2_hurt_2", "l2_hurt_3"]
@@ -66,6 +78,13 @@ var badged := {}  # peer id -> true
 var cable_holders := {}  # peer id -> true: who carried cable up from the server floor
 var fate := ""
 var switches_locked_until := 0.0
+## Her terminal has taken Rourke's badge: someone sat down at it, or ran a query,
+## once the lockdown started. Until then the switches refuse ("badge required").
+var logged_in := false
+## Host: WARDEN's one-time reactions already said ("found").
+var _reacted := {}
+## When each WARDEN reaction last played on this machine.
+var _warden_at := {}
 var _steps := {}
 var _last_bark := -100.0
 var _down_for := 0.0
@@ -82,6 +101,8 @@ var _stamps := []
 var guards := {}
 ## True while each machine keeps its own player inside the lab (_keep_crew_in).
 var _keeping_in := false
+## True while his monologue is still playing on this machine.
+var _talking := false
 
 var door_puzzle: Puzzle
 var log_puzzle := Puzzle.new("badge_log", "SELECT time, badge_id FROM badge_log ORDER BY time", ["time", "badge_id"], true, [
@@ -157,6 +178,7 @@ func _build() -> void:
 		"  Someone is editing the records after I sign them.",
 	]
 	terminal.queried.connect(_on_query)
+	terminal.opened.connect(_on_opened)
 	# The struggle: blood on the desk's edge and on the floor, the chair on its side, the coat.
 	Greybox.panel(geo, Vector3(-12.3, 0.81, -2.78), Vector3(0.35, 0.01, 0.08), Color(0.35, 0.02, 0.02))
 	Greybox.panel(geo, Vector3(-12.1, 0.005, -2.2), Vector3(0.6, 0.01, 0.4), Color(0.3, 0.02, 0.02))
@@ -265,7 +287,7 @@ func run() -> void:
 	phase = "lead"
 	_take_over_guide()
 	rourke.visible = true
-	hud.todo("Follow Rourke to Dr. Vale's lab")
+	hud.todo("Last stop: the lab", "Follow Rourke to Dr. Vale's lab")
 	if sync.is_host():
 		_walk_path(LEAD_PATH, "at_door")
 	await _gate("at_door")
@@ -275,7 +297,7 @@ func run() -> void:
 	await _line("l2_lab_badge_1")
 	phase = "badge"
 	reader.enabled = true
-	hud.todo("Badge in at the lab door")
+	hud.todo("Don't fail us now, badges", "Badge in at the lab door")
 	await _gate("badged")
 	reader.enabled = false
 	hud.todo("")
@@ -295,23 +317,30 @@ func run() -> void:
 	await _line("l2_lab_shock_1")
 	await _line("l2_lab_shock_2")
 	await _line("l2_lab_terminal")
-	hud.todo("Check Dr. Vale's terminal")
+	hud.todo("What's on her screen?", "Check Dr. Vale's terminal")
 	if sync.is_host():
 		_walk_path([Vector3(-11.5, 0, 0), Vector3(-9, 0, 0), OUTSIDE], "outside")
 	await _gate("outside")
 	await _gate("trapped")
 	_keeping_in = false
 	_lock_in()
-	# On the radio, then through the glass: why, how long he knew, and goodbye.
-	for id in FRAME_LINES:
-		await _line(id)
-	# Round through the service passage to the rear door.
+	# On the radio first. A few beats for it to land, then nobody's at a terminal.
+	await _line(FRAME_LINES[0])
 	if sync.is_host():
-		_walk_path(ROUND_BACK, "round_back")
+		_after(FRAME_BEAT, "framed")
+	await _gate("framed")
+	await _off_terminals()
+	# Then through the glass: why, how long he knew, and goodbye. Every view turns to
+	# him at the door for a moment, then the crew can move while he talks; before he's
+	# done, he's round through the service passage to the rear door.
+	_monologue()
+	await _face(level.to_global(OUTSIDE) + Vector3.UP * 1.6, FOCUS_TIME)
 	await _gate("round_back")
 	_guard("SECLAB-B-REAR", true)
 	_keep_crew_in()
 	_set_door("SECLAB-B-REAR", false)
+	while _talking and is_inside_tree():
+		await get_tree().process_frame
 	await _line("l2_return")
 	if sync.is_host():
 		_walk_path([INSIDE_REAR], "in_rear")
@@ -325,6 +354,11 @@ func run() -> void:
 	await _lockdown()
 	await _gate("door_reset")
 	await _gate("crew_out")
+	# WARDEN seals the floor around them. Tied up, Rourke has cut himself loose and
+	# signed the lockdown himself (they hear him on the radio later).
+	if fate == "tied":
+		level.hud.line("l2_lockdown_tied")
+	level.hud.line("l2_sealed")
 	phase = "done"
 
 
@@ -416,6 +450,93 @@ func _walk_path(points: Array, key: String) -> void:
 	_mark(key)
 
 
+## Host: mark `key` after `seconds`.
+func _after(seconds: float, key: String) -> void:
+	await get_tree().create_timer(seconds, false).timeout
+	_mark(key)
+
+
+## Every machine: the monologue through the glass, the lines after the radio call.
+## The host sends him round to the rear door partway through, timed to get there
+## just before the last line ends (on the last line at the latest, he sets off at once).
+func _monologue() -> void:
+	_talking = true
+	var lines := FRAME_LINES.slice(1)
+	var walk := _path_length(OUTSIDE, ROUND_BACK) / Rourke.WALK_SPEED
+	var sneaking := false
+	for i in lines.size():
+		var left := 0.0
+		for id in lines.slice(i):
+			left += line_time(id) + HUD.GAP_SAME  # each line waits its breath after the last (HUD)
+		if level.sync.is_host() and not sneaking and left - SNEAK_IN_BEFORE_END <= walk + line_time(lines[i]):
+			sneaking = true
+			_sneak_round(maxf(0.0, left - SNEAK_IN_BEFORE_END - walk))
+		await _line(lines[i])
+	_talking = false
+
+
+## Host: wait `delay`, then round through the service passage to the rear door.
+func _sneak_round(delay: float) -> void:
+	if delay > 0.0:
+		await get_tree().create_timer(delay, false).timeout
+	_walk_path(ROUND_BACK, "round_back")
+
+
+## How long a line takes: its recording, or the time to read it.
+static func line_time(id: String) -> float:
+	var stream := Voice.stream_for(id)
+	if stream:
+		return stream.get_length()
+	var l := VoiceLines.get_line(id)
+	return Voice.read_time(l["text"]) if not l.is_empty() else LINE_GAP
+
+
+static func _path_length(from: Vector3, points: Array) -> float:
+	var total := 0.0
+	var at := from
+	for p in points:
+		total += at.distance_to(p)
+		at = p
+	return total
+
+
+## Every machine: this machine's player comes off any terminal, and its screen closes.
+func _off_terminals() -> void:
+	var p: Player = level.player
+	if not p:
+		return
+	if p.is_using_terminal():
+		p.leave_terminal()
+	var ui = level.get("terminal_ui")
+	if ui and ui.visible:
+		ui.close()
+	var t := 0.0
+	while p.is_using_terminal() and t < 2.0 and is_inside_tree():
+		t += get_physics_process_delta_time()
+		await get_tree().physics_frame
+
+
+## Every machine: this machine's player can't move or look away while their view
+## turns to `point` and holds there for `seconds`; then it's theirs again.
+func _face(point: Vector3, seconds: float) -> void:
+	var p: Player = level.player
+	if not p:
+		return
+	var was := p.input_locked
+	p.input_locked = true
+	var t := 0.0
+	while t < seconds and is_inside_tree() and is_instance_valid(p):
+		var d := point - p.head.global_position
+		var k := clampf(get_physics_process_delta_time() * 6.0, 0.0, 1.0)
+		p.rotation.y = lerp_angle(p.rotation.y, atan2(-d.x, -d.z), k)
+		var pitch := atan2(d.y, Vector2(d.x, d.z).length())
+		p.head.rotation.x = lerp_angle(p.head.rotation.x, clampf(pitch, -1.2, 1.2), k)
+		t += get_physics_process_delta_time()
+		await get_tree().physics_frame
+	if is_instance_valid(p):
+		p.input_locked = was
+
+
 ## A line, or a beat in its place if Voice hasn't recorded it yet.
 func _line(id: String) -> void:
 	if VoiceLines.get_line(id).is_empty():
@@ -491,7 +612,7 @@ func _lock_in() -> void:
 	terminal.locked = true
 	terminal.locked_message = "SESSION LOCKED BY USER ROURKE_D."
 	terminal.set_screen_color(Color(1.0, 0.25, 0.2))
-	level.hud.todo("Get out of the lab")
+	level.hud.todo("Locked in. This is no glitch.", "Get out of the lab")
 
 
 func _lab_lights(c: Color) -> void:
@@ -505,7 +626,7 @@ func _start_fight() -> void:
 	rourke.add_to_group(VoiceChat.INTERFERENCE_GROUP)
 	rourke.max_hits = Rourke.MAX_HITS + 2 * (level.players.count() - 1)
 	rourke.hits_left = rourke.max_hits
-	level.hud.todo("Deal with Rourke")
+	level.hud.todo("He set us up!", "Fight Rourke off, then decide what to do with him")
 	level.hud.notice(FIGHT_NOTICE, 6.0)
 	if level.sync.is_host():
 		if not level.crew.hit_blocked.is_connected(_on_blocked):
@@ -598,12 +719,12 @@ func _lockdown() -> void:
 	await level.hud.line("l0_sort_hint")
 	await get_tree().create_timer(2.0, false).timeout
 	await _line("l2_contain_2")
+	# Unlocked, but still red: it turns green when someone sits down on Rourke's badge.
 	terminal.locked = false
-	terminal.set_screen_color(Color(0.2, 0.9, 0.35))
 	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
-	level.hud.todo("Find out what's wrong with the lab door")
+	level.hud.todo("Still trapped. Think fast.", "Find out what's wrong with the lab door, at Dr. Vale's terminal")
 	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
 	# The book's review, before the clock starts: same tools as the server floor.
 	await level._book_huddle("easy_sql_9")
@@ -702,15 +823,51 @@ func _caught() -> void:
 	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
-	level.hud.todo("Find out what's wrong with the lab door")
+	level.hud.todo("Still trapped. Think fast.", "Find out what's wrong with the lab door, at Dr. Vale's terminal")
 	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
 	_start_response()
 
 
 # --- The way out -------------------------------------------------------------
 
+## Host: someone sat down at her terminal.
+func _on_opened(_by: Node) -> void:
+	if phase == "escape" and not logged_in:
+		level.sync.run_on(self, "_log_in")
+
+
+## Every machine: Rourke's badge logs her terminal in. WARDEN greets him, and the
+## crew reads its self-test: two faults on the floor, neither its problem.
+func _log_in() -> void:
+	if logged_in:
+		return
+	logged_in = true
+	terminal.set_screen_color(SCREEN_GREEN)
+	level.hud.line("l2_login")
+	level.hud.line("l2_selftest")
+
+
+## Does this result show door controllers (any of their ids, or their zone and status)?
+func _shows_controllers(result: Dictionary) -> bool:
+	if not result.get("ok", false) or result.get("rows", []).is_empty():
+		return false
+	var cols: Array = result.get("columns", [])
+	if cols.has("zone") and cols.has("status"):
+		return true
+	var ids := {}
+	for r in level.db.run_silent("SELECT id FROM door_controllers"):
+		ids[str(r["id"])] = true
+	return result.rows.any(func(row): return row.values().any(func(v): return ids.has(str(v))))
+
+
 ## Host: a query ran at her terminal.
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
+	if phase == "escape":
+		if not logged_in:
+			level.sync.run_on(self, "_log_in")
+		if not _reacted.has("found") and _shows_controllers(result):
+			_reacted["found"] = true
+			level.sync.run_on(self, "_say", ["l2_found"])
 	if not door_puzzle.solved and phase == "escape" and door_puzzle.matches(level.db, result):
 		level.sync.run_on(self, "_door_found")
 	if not log_puzzle.solved and log_puzzle.matches(level.db, result):
@@ -721,7 +878,7 @@ func _door_found() -> void:
 	door_puzzle.solved = true
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the lab door's controller. zone %s, 'fault'. its switch is on the wall in there." % zone))
-	level.hud.todo("Reset the lab door's controller")
+	level.hud.todo("Same trick as the server floor", "Reset the lab door's controller at its switch on the lab wall")
 	_game().add_clue("lab_door", "%s is the lab door's controller: zone %s, 'fault'. Its reset switch is on the lab wall." % [data.lab_answer, zone], "SYSOP")
 
 
@@ -735,6 +892,9 @@ func _log_read() -> void:
 ## Host: someone pressed a reset switch. The host decides; everyone sees it.
 func _on_switch(_p: Node, id: String) -> void:
 	if phase != "escape" or _steps.has("door_reset"):
+		return
+	if not logged_in:
+		level.sync.run_on(self, "_switch_result", [id, "no_badge", 0.0])
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < switches_locked_until:
@@ -751,16 +911,21 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	var row: Dictionary = level.db.run_silent("SELECT status, zone, location, note FROM door_controllers WHERE id = '%s'" % id)[0]
 	match outcome:
+		"no_badge":
+			_warden("l2_no_badge")
+			return
 		"locked":
 			switches_locked_until = now + seconds
 			level.hud.notice("SWITCHES LOCKED: tamper lockout, %d s" % int(seconds), 2.0, ThemeUtil.RED)
 			return
 		"healthy":
 			level.hud.notice("> %s: %s, OK. NOTHING TO RESET." % [id, row["location"]], 4.0)
+			_warden("l2_panel_ok")
 			return
 		"wrong":
 			switches_locked_until = now + seconds
 			level.hud.notice("> %s: %s, '%s': %s\n> RESET REFUSED. SWITCHES LOCKED: %d s" % [id, row["location"], row["status"], row["note"], int(seconds)], 6.0, ThemeUtil.RED)
+			_warden("l2_panel_wrong")
 			return
 	level.db.run_silent("UPDATE door_controllers SET status = 'ok', last_reset = '1997-10-16 %s' WHERE id = '%s'" % [level.server_time().left(5), id])
 	_set_door("SECLAB-B", false)
@@ -771,10 +936,20 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	# The alarm ends. Whatever comes next, it's quiet for a while.
 	level.set_all_lights_color(WHITE)
 	level.hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SECLAB-B: OPENED" % id, 4.0, ThemeUtil.GREEN)
+	level.hud.line("l2_exit_open")
 	_game().solve_case("lab_door", "%s, reset by hand at its switch. The lab door opened." % id)
 	_mark_everywhere("door_reset")
 	if level.sync.is_host():
 		_mark("door_reset")
+
+
+## WARDEN reacting to a switch, unless it just said the same thing.
+func _warden(id: String) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _warden_at.get(id, -100.0) < WARDEN_REPEAT:
+		return
+	_warden_at[id] = now
+	level.hud.line(id)
 
 
 ## Where someone who dies in the lab comes to.

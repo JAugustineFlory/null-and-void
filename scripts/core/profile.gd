@@ -18,6 +18,15 @@ var loadout := {}
 var earned: Array = []
 ## Items granted one by one (Cosmetics.key ids).
 var owned: Array = []
+## Cases this player has solved, on any run: id -> {title, how} (Game.solve_case).
+## The garage's back-office PC lists them (ArchiveTerminal).
+var cases := {}
+## The terminal's word buttons (KeywordHelp): how many times this player has used
+## each SQL word in a query that ran (word -> n), the words whose button has come
+## off, and whether the first-time tip about the buttons has shown.
+var word_uses := {}
+var words_off: Array = []
+var buttons_tip := false
 
 
 static func open(at: String = PATH) -> Profile:
@@ -32,6 +41,16 @@ static func open(at: String = PATH) -> Profile:
 	p.earned = e.filter(func(x): return x is String) if e is Array else []
 	var o = cfg.get_value("unlocks", "owned", [])
 	p.owned = o.filter(func(x): return x is String) if o is Array else []
+	var c = cfg.get_value("cases", "closed", {})
+	p.cases = c if c is Dictionary else {}
+	var u = cfg.get_value("terminal", "word_uses", {})
+	if u is Dictionary:
+		for k in u:
+			if k is String and (u[k] is int or u[k] is float):
+				p.word_uses[k] = int(u[k])
+	var w = cfg.get_value("terminal", "words_off", [])
+	p.words_off = w.filter(func(x): return x is String) if w is Array else []
+	p.buttons_tip = bool(cfg.get_value("terminal", "buttons_tip", false))
 	var l = cfg.get_value("player", "loadout", {})
 	p.loadout = Cosmetics.trim(l, p) if l is Dictionary else {}
 	return p
@@ -45,6 +64,10 @@ func save() -> void:
 	cfg.set_value("player", "loadout", loadout)
 	cfg.set_value("unlocks", "earned", earned)
 	cfg.set_value("unlocks", "owned", owned)
+	cfg.set_value("cases", "closed", cases)
+	cfg.set_value("terminal", "word_uses", word_uses)
+	cfg.set_value("terminal", "words_off", words_off)
+	cfg.set_value("terminal", "buttons_tip", buttons_tip)
 	cfg.save(path)
 
 
@@ -68,6 +91,15 @@ func earn(source: String) -> Array:
 		func(it): return Cosmetics.key(it.slot, it.item))
 
 
+## Record a solved case. False if it was already on the list.
+func close_case(id: String, title: String, how: String) -> bool:
+	if cases.has(id):
+		return false
+	cases[id] = {"title": title, "how": how}
+	save()
+	return true
+
+
 ## Own one item outright. False if they already had it.
 func grant(item_key: String) -> bool:
 	if has_item(item_key) or not item_key.contains("/") or Cosmetics.info(item_key.get_slice("/", 0), item_key.get_slice("/", 1)).is_empty():
@@ -75,3 +107,28 @@ func grant(item_key: String) -> bool:
 	owned.append(item_key)
 	save()
 	return true
+
+
+## Count one use of each of `words` (KeywordHelp.used_in). Returns the ones that
+## just reached KeywordHelp.USES.
+func use_words(words: Array) -> Array:
+	var reached := []
+	for w in words:
+		var n: int = int(word_uses.get(w, 0)) + 1
+		word_uses[w] = n
+		if n == KeywordHelp.USES:
+			reached.append(w)
+	if not words.is_empty():
+		save()
+	return reached
+
+
+func uses_of(word: String) -> int:
+	return int(word_uses.get(word, 0))
+
+
+## "Put the training wheels back on": every word is a button again.
+func reset_words() -> void:
+	word_uses.clear()
+	words_off.clear()
+	save()

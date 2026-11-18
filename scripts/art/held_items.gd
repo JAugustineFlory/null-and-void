@@ -59,6 +59,17 @@ func _make(look_in: Dictionary) -> void:
 	walkie.rotation_degrees = Vector3(10, 25, 0)
 	if CharacterLooks.tool_color(look, "walkie") is Color:
 		walkie.set_skin(CharacterLooks.tool_color(look, "walkie"), 0.5 if CharacterLooks.tool_item(look, "walkie") == "gold" else 0.0)
+	if CharacterLooks.tool_item(look, "walkie") == "night_shift":
+		# The night shift's: slate, with a cream band round it like their badge lanyards.
+		var band := MeshInstance3D.new()
+		band.name = "Band"
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.062, 0.012, 0.032)
+		band.mesh = bm
+		band.position = Vector3(0, 0.082, 0)
+		band.material_override = ArtPalette.flat(Color(0.9, 0.9, 0.85), 0.8)
+		band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		walkie.add_child(band)
 
 
 func _arm(hand: Node3D, skin: Material, sleeve: Material) -> void:

@@ -1,6 +1,6 @@
 # Tomas Lindqvist
 
-*Your script for Null & Void: 1 recording.*
+*Your script for Null & Void: 8 recordings.*
 
 ## Who you are
 
@@ -45,3 +45,57 @@ Send the files back as they are. They go in `audio/voice/tomas/` in the game.
 *When the crew logs an escort pass for your badge. Your door may still be locked, or the crew may already have opened it. Crawling out from under a low shelf, stiff from the floor. Annoyed first, scared underneath.*
 
 "Finally. I've been under this shelf since the lights went out. There's something at my desk, and it isn't me."
+
+## Scene 2: The night shift, on B1's landing
+
+**Halcyon Tower, basement B1, the stair landing. Later that night.**
+
+> You came down the fire stairs from floor 9 with the crew that got you out. You are not going any further into the cold store than the landing. You know this basement a little: the records cage upstairs gets its old boxes from here.
+
+**[ ] `l6_tomas_arrive.wav`**
+
+*On the landing, right after Ines, as the crew heads into the hall. Leaning on the stair rail, not looking at the vault corridor. Flat, practical. You've heard the stories about this place.*
+
+"Twenty years in payroll and I've never been down here. Now I know why. Don't go in the freezers alone."
+
+**[ ] `l6_tomas_whitlow.wav`**
+
+*Right after Ines, when someone reads the card rack in the time office. Over the crew's earpiece, from the landing. Dry. You've seen the ledger line and never thought about it until now.*
+
+"Whitlow. She's in the old payroll ledgers. Her pay just stops. No leaving date. Nothing."
+
+**[ ] `l6_tomas_after.wav`**
+
+*Right after Ines, as the crew comes back onto the landing. Looking at the stairwell gate that's open now, not at the crew. Flat, then not quite flat.*
+
+"They're clocked out. All of them. First honest line in that ledger in twenty years."
+
+## Scene 3: The night shift, on B2
+
+**Halcyon Tower, basement B2, building services. Later that night.**
+
+> You came down the fire stairs from the cold store with the crew. You work here, so you know the way round the bottom of the building better than they do. Then you see what they're up against, and you get out of the way: you shelter in a plant room, and the building's computer locks you in and arms the room's gas suppression.
+
+**[ ] `l7_tomas_ring.wav`**
+
+*The first time someone steps into the plant ring. Hanging back at the ring's door. Quiet. You don't like it out there.*
+
+"That corridor goes all the way round his core. The lights come in zones. The numbers are stencilled on the walls."
+
+**[ ] `l7_tomas_shelter.wav`**
+
+*Right after Ines, in the admin office. Heading for the door. Decided. A little ashamed of it.*
+
+"Then we're only in your way out there. The motor room and the battery room both lock. We'll wait inside."
+
+**[ ] `l7_tomas_gas.wav`**
+
+*When WARDEN arms the gas in the battery room. Close to the battery room door. Through a locked door. Very calm, which is worse.*
+
+"It's counting down in here. The abort's on the services. The sign says. Please."
+
+**[ ] `l7_tomas_saved.wav`**
+
+*When the crew aborts the battery room's gas. Inside the battery room. Letting out a breath you've held for a minute.*
+
+"Okay. Okay. I'm still here."
