@@ -127,6 +127,7 @@ func test_data_every_seed() -> void:
 	var ok_escorts := true
 	var ok_hints := true
 	var ok_vale := true
+	var ok_door_by_door := true
 	var hides := {}
 	var keys := {}
 	var badges := {}
@@ -280,9 +281,19 @@ func test_data_every_seed() -> void:
 		var fixes := _hint_queries(fresh.lockup_puzzle.hints[-1])
 		ok_hints = ok_hints and fixes.size() == 3 and fixes.slice(0, 2).all(func(q): return q.begins_with("PATCH /doors/") and q.contains("\"locked\": true")) \
 			and fixes[2].begins_with("GET /doors\n")
-		for q in fixes.slice(0, 2):
-			r = _ask(fresh, fresh.lockup_puzzle, q)
-		ok_hints = ok_hints and r.passes and _ask(fresh, fresh.check_lockup_puzzle, fixes[2]).passes
+		if s % 2 == 0:
+			for q in fixes.slice(0, 2):
+				r = _ask(fresh, fresh.lockup_puzzle, q)
+			ok_hints = ok_hints and r.passes and _ask(fresh, fresh.check_lockup_puzzle, fixes[2]).passes
+		else:
+			# The procedure's way: lock a door, read that door back, then the next.
+			var first_door: String = fixes[0].split("\n")[0].trim_prefix("PATCH /doors/")
+			var second_door: String = fixes[1].split("\n")[0].trim_prefix("PATCH /doors/")
+			_ask(fresh, fresh.lockup_puzzle, fixes[0])
+			var early: bool = _ask(fresh, fresh.check_lockup_puzzle, _key(fresh, "GET /doors/%s" % first_door)).passes
+			r = _ask(fresh, fresh.lockup_puzzle, fixes[1])
+			var last: bool = _ask(fresh, fresh.check_lockup_puzzle, _key(fresh, "GET /doors/%s" % second_door)).passes
+			ok_door_by_door = ok_door_by_door and not early and fresh.read_back.has(first_door) and r.passes and last
 		ok_hints = ok_hints and _ask(fresh, fresh.vale_puzzle, _last_hint_query(fresh.vale_puzzle)).passes
 		fresh.lures = 1
 		fresh.lure_badge = "VIS-02"
@@ -299,6 +310,7 @@ func test_data_every_seed() -> void:
 	check(ok_swipes, "the log puts each night-shifter at their hiding place, the crew's badges in Vale's lab, a Mimic's badge nowhere, and an unissued badge is 404; the voice's badge read back exposes it")
 	check(ok_escorts, "a Mimic's badge is 401, an off-site badge 409, a made-up escort 400, a missing field 400, an unknown badge 404; each real night-shifter passes once (409 twice); both passed before any door opened isn't a dead end: the station passes once both doors have opened (the cage's after its lock has power)")
 	check(ok_vale, "Vale's record says deceased, last edited the night after by EXEC-30; nobody else's carries an edit")
+	check(ok_door_by_door, "the lockup read back a door at a time, each right after it's locked, passes on the last door; the first read-back is remembered though the lockup wasn't done yet")
 	check(ok_hints, "every station's last hint does what it wants, across 60 seeds: the passes' types both door unlocks and both passes (on the review ladder and ladder A), the lockup's every lock and the read-back")
 
 

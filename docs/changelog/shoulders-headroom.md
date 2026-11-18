@@ -1,1 +1,0 @@
-- **Fixed:** Standing on a teammate's shoulders inside the floor 14 elevator (or under any low ceiling) no longer pushes your head through the roof and drops you out of the world: there's no shoulder stand without headroom, a carried teammate ducks under low ceilings, and stepping down never puts you through a wall.

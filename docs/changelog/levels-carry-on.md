@@ -1,1 +1,0 @@
-- **Fixed:** A floor picked from Levels is now played inside the building, so when you finish it the stairs or elevator take you on to the next floor, instead of stopping on a "To be continued." card.

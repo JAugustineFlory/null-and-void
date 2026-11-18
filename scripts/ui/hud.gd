@@ -29,6 +29,8 @@ var _notebook_last := -1000.0
 ## The folded-in "Notebook updated (Tab)", under the notice it came with.
 var _notebook_tag: Label
 var _line_id := 0
+## Every line id this HUD has played (taken its turn), in order. Tests read it.
+var heard: Array[String] = []
 var _voice: Voice
 
 ## Lines take turns: one speaker on screen at a time, with a breath between them
@@ -332,6 +334,7 @@ func line(id: String, subtitle: bool = true, remembered := false, who: String = 
 	var speaker: String = who if who != "" else str(l["speaker"])
 	if not await _take_turn(turn, speaker, id):
 		return
+	heard.append(id)
 	var dur := _voice.play(id, voice_dir, remembered)
 	var has_audio := dur > 0.0
 	if not has_audio:
