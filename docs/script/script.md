@@ -671,7 +671,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, floor 22, the corridor outside Secure Lab B. 12:41 a.m.**
 
-*Rourke has every player badge in 'for the visitor log', so the log puts the crew at the scene. Inside: a struggle, a tipped chair, blood on the desk edge, Vale's coat on the hook. He fakes shock, sends them to her terminal, locks them in and radios WARDEN that contractors hurt Dr. Vale, then admits it through the glass.* *(Written ahead: not in the game yet.)*
+*Rourke has every player badge in 'for the visitor log', so the log puts the crew at the scene. Inside: a struggle, a tipped chair, blood on the desk edge, Vale's coat on the hook. He fakes shock, sends them to her terminal, locks them in and radios WARDEN that contractors hurt Dr. Vale, then admits it through the glass.*
 
 **ROURKE** `l2_lab_arrive_block.wav`  
 *Cue: You've walked the crew from the elevator to the lab door, and stopped just past it*  
@@ -707,7 +707,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **A kitchen, Friday morning, 17 October 1997. A radio is on.**
 
-*Plays only if Rourke downs the whole crew in the Level 2 fight: a newspaper on a kitchen table the next morning ('IT CONTRACTORS SOUGHT IN DEATH OF HALCYON SCIENTIST') with this radio report. The frame worked; Rourke hid the bodies, so the world thinks the crew ran. Maddison is arrested trying to get into the tower, insisting they were framed.* *(Written ahead: not in the game yet.)*
+*Plays only if Rourke downs the whole crew in the Level 2 fight: a newspaper on a kitchen table the next morning ('IT CONTRACTORS SOUGHT IN DEATH OF HALCYON SCIENTIST') with this radio report. The frame worked; Rourke hid the bodies, so the world thinks the crew ran. Maddison is arrested trying to get into the tower, insisting they were framed.*
 
 **NEWSREADER** `l2_news_1_block.wav`  
 *Cue: Only if the whole crew is knocked out on the security floor. The screen goes black, a newspaper fades in on a kitchen table, and the radio begins*  
@@ -723,7 +723,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, floor 22, Secure Lab B, at the rear door. Minutes later.**
 
-*Rourke comes back in through the lab's second door or the vent. Short lines played at random during the fight: when he lands a hit, when he takes one, and when he goes down.* *(Written ahead: not in the game yet.)*
+*Rourke comes back in through the lab's second door or the vent. Short lines played at random during the fight: when he lands a hit, when he takes one, and when he goes down.*
 
 **ROURKE** `l2_return.wav`  
 *Cue: The lab's rear door unlocks for you. The crew turns and sees you in the doorway*  
@@ -769,7 +769,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, floor 22, Secure Lab B. Right after the fight.**
 
-*Rourke is down. If the crew kills him, his badge's dead-man switch fires and WARDEN starts the lockdown. If they tie him up, he taunts them and says the frame out loud. Either way they take his badge.* *(Written ahead: not in the game yet.)*
+*Rourke is down. If the crew kills him, his badge's dead-man switch fires and WARDEN starts the lockdown. If they tie him up, he taunts them and says the frame out loud. Either way they take his badge.*
 
 **WARDEN** `l2_killed.wav`  
 *Cue: Only if the crew kills Rourke. Straight after*  
@@ -785,7 +785,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, floor 22, Secure Lab B. Moments later.**
 
-*Right after the fate scene, in both branches: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.* *(Written ahead: not in the game yet.)*
+*Right after the fate scene, in both branches: the first time WARDEN's live voice speaks (version 2.0, Containment). It starts a warning, its own PA tape (the l0_sort_hint recording, reused) cuts in, it waits about two seconds after the tape ends, then repeats the warning from the top word for word.*
 
 **WARDEN** `l2_contain_1.wav`  
 *Cue: The moment the visitors are left without their escort, and the red lockdown lights come on*  
@@ -799,7 +799,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, floor 22, Secure Lab B. The lockdown.**
 
-*The lab door is on a faulted controller. The crew logs in with Rourke's badge, reads WARDEN's self-test, queries door_controllers and resets the right one: the task they practised on the server floor, now under pressure. These lines are WARDEN reacting.* *(Written ahead: not in the game yet.)*
+*The lab door is on a faulted controller. The crew logs in with Rourke's badge, reads WARDEN's self-test, queries door_controllers and resets the right one: the task they practised on the server floor, now under pressure. These lines are WARDEN reacting.*
 
 **WARDEN** `l2_login.wav`  
 *Cue: The lab terminal unlocks on Rourke's badge, once the lockdown has started*  
@@ -833,7 +833,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **Halcyon Tower, floor 22, outside Secure Lab B.**
 
-*The crew gets out of the lab. If Rourke was tied up, he has cut himself loose and authorized the lockdown himself.* *(Written ahead: not in the game yet.)*
+*The crew gets out of the lab. If Rourke was tied up, he has cut himself loose and authorized the lockdown himself.*
 
 **WARDEN** `l2_lockdown_tied.wav`  
 *Cue: Only if the crew left Rourke tied up in the lab. As the crew steps out of the lab*  
