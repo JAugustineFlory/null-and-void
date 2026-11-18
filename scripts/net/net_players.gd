@@ -4,7 +4,7 @@ extends Node
 ## for each other player. Sends this player's position to the others.
 
 const SEND_RATE := 20.0
-## Someone joined the game while it was going. Draft, awaiting Augustine's OK.
+## Someone joined the game while it was going (approved by Augustine 2026-11-18 01:28Z).
 const JOINED := "%s joined the crew."
 ## Died on a Hard floor, left, and came back to it (Augustine's name, 2026-11-18).
 const NICE_TRY := "achievement:nice_try"
