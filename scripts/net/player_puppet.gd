@@ -242,7 +242,9 @@ func get_prompt(_by: Node) -> String:
 func interact(_by: Node) -> void:
 	if downed:
 		var c := _crew()
-		if c and not FirstAidCabinet.patch(_by, c, peer_id):  # (a first-aid kit in your hands)
+		# A first-aid kit in your hands; a bare-handed help-up only where the
+		# crew's rules still offer one (its prompt says so).
+		if c and not FirstAidCabinet.patch(_by, c, peer_id) and c.revive_prompt(peer_id) != "":
 			c.revive(peer_id)
 	elif _huddle_prompt() != "":
 		_huddle().huddle_with(peer_id)
