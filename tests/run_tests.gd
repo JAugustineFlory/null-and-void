@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "coop_runs", "levels"]
 
 
 func _run() -> void:
@@ -96,6 +96,15 @@ func _run_group(g: String) -> void:
 		"garage": await _group_garage()
 		"keywords": await _group_keywords()
 		"levels": await _group_levels()
+		"coop_runs": await _group_coop_runs()
+
+
+## A run as a whole: its rules, restarting a floor or the run, and joining one
+## that's already going.
+func _group_coop_runs() -> void:
+	test_run_rules()
+	await test_restart_floor()
+	await test_coop_late_join()
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -253,9 +262,6 @@ func _group_coop() -> void:
 	await test_coop_scripts()
 	await test_coop_pregame_lobby()
 	await test_coop_back_to_lobby()
-	await test_coop_late_join()
-	test_run_rules()
-	await test_restart_floor()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -2074,6 +2080,41 @@ func test_coop_late_join() -> void:
 		"everyone sees the newcomer, and the newcomer sees everyone")
 	check(late.player.global_position.distance_to(late.player_spawn(late.players.my_index()).origin) < 2.0, "they come in at the start of the floor")
 	check(not late.sync.catching_up and not late.hud.quiet, "and once caught up, play on as normal")
+	await _coop_close(worlds)
+
+	# In the building, what happened on the crew's floor is kept by its wing and
+	# replayed into the newcomer's copy of that wing.
+	_game().new_run(8)
+	_game().open_for("level_3")
+	worlds = await _coop_worlds(1)
+	var built := await _coop_load(worlds, "res://scenes/world.tscn")
+	var on_18 = built[0].current
+	on_18.sync._open_gate.rpc("test_beat")
+	await _frames(5)
+	check(built[1].current.sync._gates.has("test_beat") and built[0].sync.history.size() == 1, "the building keeps the floor's history (%d)" % built[0].sync.history.size())
+	vp = SubViewport.new()
+	vp.name = "Machine2"
+	vp.own_world_3d = true
+	vp.size = Vector2i(320, 180)
+	root.add_child(vp)
+	mp = SceneMultiplayer.new()
+	set_multiplayer(mp, vp.get_path())
+	peer = ENetMultiplayerPeer.new()
+	peer.create_client("127.0.0.1", _next_port)
+	mp.multiplayer_peer = peer
+	worlds.append(vp)
+	for f in 300:
+		await process_frame
+		if mp.get_peers().size() == 2:
+			break
+	_game().open_for("level_3")
+	var late_world = load("res://scenes/world.tscn").instantiate()
+	vp.add_child(late_world)
+	await _until(func(): return late_world.sync._begun and late_world.current != null, 10.0)
+	await _until(func(): return late_world.current.sync._gates.has("test_beat"), 5.0)
+	check(late_world.current.wing_id == "level_3" and late_world.current.sync._gates.has("test_beat"),
+		"a newcomer to the building opens on the crew's floor and catches up on it")
+	await _until(func(): return not late_world.sync.catching_up, 5.0)
 	await _coop_close(worlds)
 
 	# Joining the building: the newcomer's machine opens it at the crew's floor, with
