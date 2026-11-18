@@ -27,6 +27,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_crew_bodies()
 	await test_feet()
 	test_unlockable_items()
+	test_hard_way_outfit()
 	await test_props()
 	test_kits()
 	await test_held_items()
@@ -1081,6 +1082,51 @@ func test_outfits() -> void:
 			if CharacterLooks.outfit({slot: {"item": item}}) == plain_look:
 				same.append("%s/%s" % [slot, item])
 	check(same.is_empty(), "every item changes how the player looks (same as the default: %s)" % [same])
+
+
+## The Hard Way's reward (finish the game on Hard, alive): a knight's helmet and
+## torn clothes, on every body.
+func test_hard_way_outfit() -> void:
+	var steel := Color(0.5, 0.52, 0.55)
+	var knight := CharacterLooks.outfit({"hair": {"item": "long"}, "face": {"item": "glasses"}, "ears": {"item": "studs"},
+		"head": {"item": "knight_helm", "color": steel}})
+	var worn := SkinnedBody.wears(knight)
+	check(knight.headwear == "knight_helm" and worn.get("Head_knight_helm") == steel, "the knight's helmet is a hat of its own, in the picked color")
+	check(not worn.has("Hair_long") and not worn.has("Face_glasses") and not worn.has("Ears_studs") and worn.has("Hair_buzzed"),
+		"it's a closed helm: no long hair, glasses or earrings poke out of it (%s)" % [worn.keys()])
+	var red := Color(0.7, 0.15, 0.1)
+	var torn := CharacterLooks.outfit({"top": {"item": "torn_clothes", "color": red}, "legs": {"item": "pants", "color": steel}})
+	var body: Dictionary = SkinnedBody.wears(torn).Body
+	check(torn.torn and torn.shirt == red and torn.pants == steel and torn.logo == null and body.get("torn") == 1.0,
+		"torn clothes rip the shirt and trousers, each still in its picked color, with no logo left")
+	check(not SkinnedBody.wears(CharacterLooks.outfit({})).Body.has("torn"), "other clothes are whole")
+	for b in CharacterLooks.BODY_TYPES:
+		var model: Node3D = ArtModels.scene(SkinnedBody.MODELS[b]).instantiate()
+		var mesh_of := func(part: String) -> MeshInstance3D:
+			return model.find_child(part, true, false) as MeshInstance3D
+		# The helm closes over the head: the hair and the glasses' frames are inside it.
+		var helm: AABB = mesh_of.call("Head_knight_helm").get_aabb()
+		var inside := ["Hair_buzzed", "Face_glasses", "Face_mustache", "Face_reading_glasses"].filter(func(part): return not helm.encloses(mesh_of.call(part).get_aabb()))
+		check(inside.is_empty(), "body %d: the knight's helmet covers the whole head (sticking out: %s)" % [b, inside])
+		# Ripped, but still clothes: some of the shirt is gone, most of it isn't, and the
+		# sleeves are still on at the shoulder.
+		var arrays: Array = (mesh_of.call("Body") as MeshInstance3D).mesh.surface_get_arrays(0)
+		var shirt := 0
+		var holes := 0
+		var shoulders_bare := 0
+		for i in arrays[Mesh.ARRAY_TEX_UV].size():
+			var place: Vector2 = arrays[Mesh.ARRAY_TEX_UV][i]
+			place.y = 1.0 - place.y
+			var rip: float = arrays[Mesh.ARRAY_COLOR][i].b
+			if place.y < 0.01 and place.x > 0.92 and place.x < 1.42:
+				shirt += 1
+				holes += 1 if rip > 0.5 else 0
+			elif place.y > 0.0 and place.y < 0.08 and rip > 0.5:
+				shoulders_bare += 1
+		var share := float(holes) / maxi(shirt, 1)
+		check(share > 0.01 and share < 0.25 and shoulders_bare == 0,
+			"body %d: torn clothes are ripped through in places (%.1f%% of the shirt), the sleeves still on at the shoulders" % [b, share * 100.0])
+		model.free()
 
 
 func test_unlockable_items() -> void:

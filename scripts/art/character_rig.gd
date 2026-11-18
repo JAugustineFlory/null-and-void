@@ -738,8 +738,14 @@ func _make_hair(head: Node3D) -> void:
 			_part(head, "box", Vector3(0.18, 0.015, 0.1), Vector3(0, 0.165, -0.15), hair)
 
 
-## A hat replaces the top of the hair; long hair and bobs still show below it.
+## A hat replaces the top of the hair; long hair and bobs still show below it
+## (not under a closed helm).
 func _make_headwear(head: Node3D, hair: StandardMaterial3D) -> void:
+	if look.headwear == "knight_helm":
+		# A great helm over the whole head, the eye slit dark across the front.
+		_part(head, "cyl", Vector3(0.14, 0.27, 0), Vector3(0, 0.1, 0.0), ArtPalette.flat(look.headwear_color, 0.45, 0.7))
+		_part(head, "box", Vector3(0.17, 0.016, 0.03), Vector3(0, 0.13, -0.128), ArtPalette.flat(Color(0.03, 0.03, 0.03), 0.9))
+		return
 	match look.hair_style:
 		"long":
 			_part(head, "box", Vector3(0.22, 0.28, 0.08), Vector3(0, 0.0, 0.08), hair)
