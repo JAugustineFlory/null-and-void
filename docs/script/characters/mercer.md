@@ -60,6 +60,12 @@ Send the files back as they are. They go in `audio/voice/mercer/` in the game.
 
 *1 second pause*
 
+*Tapping the terminal on his desk. A little pleased with himself; the one moment he gets to win. He says the commands like dictating, "dot tables" and "dot schema" ("skee-ma").*
+
+"I set up a few back-door protocols it can never shut off, like .tables to show the available tables and .schema to show all the columns."
+
+*1 second pause*
+
 *Glancing down at drawings spread across his desk. Quiet, almost proud, then wry on the last sentence.*
 
 "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter."

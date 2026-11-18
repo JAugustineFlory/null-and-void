@@ -151,6 +151,7 @@ func _group_core() -> void:
 func _group_floor_g() -> void:
 	test_level_0_puzzles()
 	await test_mercer_tape_secret()
+	await test_mercer_back_doors()
 	test_first_hints_show_working_queries()
 	await test_level_0_scene()
 	await test_ground_floor()
@@ -4056,6 +4057,22 @@ func test_level_2_routes() -> void:
 			label = on_wall.get_node("Print")
 		return label.global_basis.z.z  # Label3D and the print read from their +Z side
 	check(facing.call("NIGHT SHIFT SIGN-IN      DATE: 10/15") < -0.9 and facing.call("Lockdown PIN policy") > 0.9, "wall papers face into the corridor, not into the wall")
+	# Mercer's masking tape on the side of the booth's monitor (approvals/mercer-back-doors.md):
+	# out of sight from the chair, there for whoever looks round the screen.
+	check(titles.has("Masking tape"), "there's a strip of masking tape at the booth")
+	if titles.has("Masking tape"):
+		var tape: Document = docs[titles.find("Masking tape")]
+		check(tape.lines().size() == 1 and tape.lines()[0].hand and tape.plain_text().strip_edges() == ".tables and .schema stay on. H.M.'s orders. 3/94",
+			"it's handwritten, word for word as approved %s" % [tape.plain_text()])
+		check(not tape.plain_text().to_lower().contains("byte-right"), "and it's not Byte-Right's (they had no contract in 1994)")
+		var tape_face: Vector3 = tape.get_node("WallSheet").find_child("Line0", false, false).global_basis.z
+		var screen_face: Vector3 = level.booth.global_basis.z
+		var off: Vector3 = tape.global_position - level.booth.global_position
+		check(Vector2(off.x, off.z).length() < 0.35 and off.y > 0.05 and off.y < 0.45, "it's on the monitor itself")
+		check(absf(tape_face.dot(screen_face)) < 0.1 and tape_face.dot(Vector3(off.x, 0, off.z)) > 0.0, "on its side, facing out, not toward whoever sits at the screen")
+		var from := tape.global_position + tape_face * 0.9
+		var hit: Dictionary = level.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, tape.global_position))
+		check(not hit.is_empty() and hit.collider == tape, "looking at it from the side picks out the tape, not the terminal")
 	# The break-glass box on the landing: the safe place to learn both.
 	check(level.key_glass.get_prompt(p).contains("Strike") and level.ledge_glass.get_prompt(p).contains("Strike"), "breakable glass says to strike it")
 	check(level.spawn_point().origin.distance_to(level.key_glass.global_position) < 5.0, "the first breakable glass is on the landing, by the arrival elevator")
@@ -5228,6 +5245,37 @@ func test_visitor_badge() -> void:
 
 
 ## Every lift lobby has emergency stairs beside it, signed, and locked after hours.
+## Mercer's back doors (Augustine, 2026-11-18, approvals/mercer-back-doors.md): one
+## more line on the vent closet's tape, after the board and before the room, in the
+## same take, and it goes in the notebook.
+func test_mercer_back_doors() -> void:
+	print("Mercer's tape: the back doors")
+	var ids := VoiceLines.ids_in_scene("l0_tape")
+	var at := ids.find("l0_tape_backdoors")
+	check(at == ids.find("l0_tape_3") + 1 and at + 1 == ids.find("l0_tape_4"), "the back-doors line comes after the board and before the room %s" % [ids])
+	var l := VoiceLines.get_line("l0_tape_backdoors")
+	check(l.speaker == "MERCER" and l.text == "I set up a few back-door protocols it can never shut off, like .tables to show the available tables and .schema to show all the columns.",
+		"word for word as approved")
+	check(l.get("with_previous", false) and not l.get("secret", false), "in the same take, and everyone who hears the tape hears it")
+	check(VoiceLines.blocks("l0_tape").any(func(b): return b.id == "l0_tape_1_block" and b.lines.has("l0_tape_backdoors")), "recorded with the rest of the tape")
+	_game().new_run(3)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	_lower_chapters_read([level])  # about something else: no huddle cuts in
+	await physics_frame
+	level.player.global_position = level.to_global(Vector3(-17.5, 0.1, 4))
+	Engine.time_scale = 8.0
+	level._on_tape()
+	var heard: Array = level.hud.heard
+	check(await _until(func(): return heard.has("l0_tape_5"), 150.0), "the tape plays to the end")
+	Engine.time_scale = 1.0
+	check(heard.filter(func(id): return id.begins_with("l0_tape")) == Array(ids), "every line of it, in order %s" % [heard])
+	check(_game().notebook_written.any(func(w): return w.text == "Mercer's tape: his back doors, .tables and .schema, always work." and w.case == ""),
+		"the notebook keeps it under Other notes, so it can be found again")
+	level.queue_free()
+	await process_frame
+
+
 func test_mercer_tape_secret() -> void:
 	print("Mercer's tape")
 	_game().new_run(3)
