@@ -210,9 +210,12 @@ func test_coop_downed() -> void:
 	var climb: Array = route.slice(route.find(turn), -1)
 	climb.reverse()
 	climb.append(Vector3(-0.5, downed_at.y, -4.9))
-	for w in climb:
-		back = back and await _walk(hp, func(): return host.stairs.place(hp, up, w))
 	var puppet: Node3D = host.players.puppet(client_id)
+	for w in climb:
+		# They lie on the half-landing's turn: where their body is in the way, up
+		# against them will do.
+		var got: bool = await _walk(hp, func(): return host.stairs.place(hp, up, w))
+		back = back and (got or hp.global_position.distance_to(puppet.global_position) < 1.0)
 	_check.call(back and hp.global_position.distance_to(puppet.global_position) < 1.6, "the host walks back up onto 10's stairs, counting back up past 1, and reaches them (%.1f m, %s)" % [hp.global_position.distance_to(puppet.global_position), host.stairs.progress(hp, up)])
 	puppet.interact(hp)
 	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health > 0.0, 120), "and helps them up")
