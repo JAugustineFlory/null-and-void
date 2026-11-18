@@ -1,0 +1,6 @@
+- **Changed:** characters take turns talking. A new line waits for the one before it, with a short breath in between, and only a sudden danger cuts in.
+- **Changed:** chatter that can wait (taunts, fight barks, whispers) holds while a scene plays or someone is typing at a terminal, and is skipped if it waits too long.
+- **Changed:** text with no voice recording stays on screen longer, so first-time players can finish reading it.
+- **Changed:** new book chapters arrive quietly in the notebook up in the tower, with just their notice.
+- **Changed:** fewer, shorter lines on the ground floor, in the garage briefing and van, on the server floor, and on arrival in the basements.
+- **Changed:** Notices take turns too: news from around the floor waits for the one on screen instead of wiping it, repeats are dropped, and "Notebook updated" no longer covers other messages.

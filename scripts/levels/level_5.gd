@@ -95,7 +95,6 @@ const TEXT := {
 	"staffer_passed": "%s gets up and heads for the stairs.",
 	"stairs_release": "Out by the lifts, STAIR 2's lock clacks open.",
 	"stairs_wait": "Waiting for everyone on the stairs (%d/%d)",
-	"end_card": "To be continued.",
 	"book_taken": "Acceptable API's. Same series as Easy SQL, with a Halcyon asset sticker on the spine.",
 	"mimic_leaves": "It gets up and walks away without looking at you.",
 	# SYSOP tips (text only, never lies; each fires once per run).
@@ -1376,8 +1375,10 @@ func _crew_line(id: String, peer_id: int) -> void:
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		return
-	var dur: float = _radio_voice.play(id, _voice_dir(peer_id)) if _radio_voice else 0.0
-	await hud.say(_name_of(peer_id), l.text, dur if dur > 0.0 else Voice.read_time(l.text))
+	var dir := _voice_dir(peer_id)
+	# Waits its turn like any line (HUD.Turn); the voice starts with the subtitle.
+	await hud.say(_name_of(peer_id), l.text, -1.0, HUD.Turn.NORMAL,
+		func() -> float: return _radio_voice.play(id, dir) if _radio_voice else 0.0)
 
 
 ## A peer's name as the roster has it (the local player's too).
@@ -1581,7 +1582,7 @@ func _lure(peer: int, badge: String, n: int) -> float:
 	var dur: float = _radio_voice.play(id, _voice_dir(peer) if peer > 0 else "") if _radio_voice else 0.0
 	if dur <= 0.0:
 		dur = Voice.read_time(l.text)
-	hud.say(who, l.text, dur)
+	hud.say(who, l.text, dur, HUD.Turn.URGENT)  # a threat starting: it cuts across (HUD.Turn)
 	return dur
 
 
@@ -1782,9 +1783,8 @@ func _on_exit() -> void:
 	await get_tree().create_timer(exit_hold, false).timeout
 	if not is_inside_tree():
 		return
-	await Level2FX.end_card(self, TEXT.end_card)
 	Game.completed_level = "level_5"
-	Game.next_level = ""
+	Game.next_level = "level_6"  # Field Notes' Continue: the next floor, in the building
 	completed.emit()
 
 

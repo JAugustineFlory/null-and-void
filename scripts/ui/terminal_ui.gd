@@ -23,6 +23,8 @@ const KEYWORD := "#ffcc59"
 const KEYWORDS := ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "ORDER", "BY", "ASC", "DESC", "LIMIT", "LIKE", "IN", "IS", "NULL", "AS", "DISTINCT", "COUNT", "GROUP", "HAVING", "JOIN", "ON", "UPDATE", "SET", "INSERT", "INTO", "VALUES", "DELETE", "BEGIN", "COMMIT", "ROLLBACK", "GET", "POST", "PATCH"]
 
 var terminal: Node  # the Terminal in the world that opened this
+## When this player last typed here (the HUD holds lines that can wait meanwhile).
+var last_typed_msec := -1000000
 var player: Player
 var _output: RichTextLabel
 var _input: TextEdit
@@ -344,6 +346,7 @@ func _mirror() -> TerminalMirror:
 
 ## The input line changed: show it on everyone's copy of the screen.
 func _typed() -> void:
+	last_typed_msec = Time.get_ticks_msec()
 	if visible and terminal and terminal.has_method("sound"):
 		terminal.sound("key")
 	var mirror := _mirror()

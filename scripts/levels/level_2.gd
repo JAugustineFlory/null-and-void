@@ -232,7 +232,7 @@ func build() -> void:
 		# behind SEC-EXIT. The wing is done once they're all down on 18 (walk_stairs).
 		down.entered.connect(func(_b): sync.event("_tap"), CONNECT_ONE_SHOT)
 	else:
-		# On its own: everyone on the stairs, and the slice is done.
+		# On its own: everyone on the stairs, and the floor is done.
 		down.require_all = true
 		down.waiting.connect(func(n, total): sync.team_notice(STAIRS_WAIT % [n, total]))
 		down.entered.connect(func(_b): sync.event("_on_exit", [null]), CONNECT_ONE_SHOT)
@@ -686,6 +686,12 @@ func _crew_reaches_corridor() -> void:
 
 func _anyone_in_booth_corridor() -> bool:
 	return players.all_players().any(func(p): return _booth_corridor.has_point(to_local(p.global_position) + Vector3.UP * 0.5))
+
+
+## The ledge is 80 m up: a fall from here kills you (_process), with its own notice,
+## rather than being caught by the safety net.
+func owns_falls() -> bool:
+	return true
 
 
 func _process(delta: float) -> void:
@@ -1230,7 +1236,7 @@ func seal_exit() -> void:
 
 
 ## Everyone is down the stairs: in the World, on 18's landing, and play moves to
-## floor 18 (Level 3); on its own, on 22's stairs, and the slice ends here.
+## floor 18 (Level 3); on its own, on 22's stairs, and Field Notes leads on to 18.
 func _on_exit(_b: Node) -> void:
 	# Everyone here finished the floor, downed or not.
 	get_node("/root/Net").earn("achievement:floor_22", hud)
@@ -1248,9 +1254,8 @@ func _on_exit(_b: Node) -> void:
 	player.input_locked = true
 	await _tap()
 	await get_tree().create_timer(1.2).timeout
-	await Level2FX.end_card(self, "To be continued.")
 	Game.completed_level = "level_2"
-	Game.next_level = ""  # the end of the playable slice, for now
+	Game.next_level = "level_3"  # Field Notes' Continue: floor 18, in the building
 	completed.emit()
 
 

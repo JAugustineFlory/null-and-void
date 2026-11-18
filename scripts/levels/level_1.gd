@@ -625,7 +625,10 @@ func start() -> void:
 			rourke.global_transform = guide.global_transform
 			guide.queue_free()
 		else:
+			# The building opened on this floor (Levels): nobody rode up, so the
+			# arrival car opens with him in it.
 			rourke.global_transform = arrival_lift.global_transform * Transform3D(Basis(), ROURKE_IN_LIFT)
+			arrival_lift.open(true)
 		rourke.visible = true
 	hud.todo("Time to look like IT", "Follow Rourke to Server Room A")
 	rourke.watch = null
@@ -633,7 +636,6 @@ func start() -> void:
 	await hud.line("l1_noc_1")  # passing the ops room's window
 	if world:
 		await hud.line("l0_sra")  # off the elevator, at the server room door
-	await hud.line("l1_enter")
 	await sync.gate("rourke_at_desk", func():
 		if not led_in.finished:
 			await led_in.done)

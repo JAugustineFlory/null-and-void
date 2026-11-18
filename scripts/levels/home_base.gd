@@ -628,7 +628,7 @@ func start() -> void:
 	await _beat(1.5)
 	await _say("l0_brief_1", "l0_brief_1_solo")
 	await _beat(0.5)
-	await hud.lines(["l0_brief_2", "l0_brief_3"])
+	await hud.line("l0_brief_2")
 	await _beat(0.5)
 	await hud.lines(["l0_brief_4", "l0_brief_5"])
 	await _beat()

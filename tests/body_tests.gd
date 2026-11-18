@@ -370,8 +370,43 @@ func test_floor_fits(scene: String) -> void:
 		if _fits(space, skip, feet, std.radius, std.stand) and not _fits(space, skip, feet, big.radius, big.stand):
 			tight.append("door %s" % d.name)
 	check(tight.is_empty(), "%s: every vent, shutter, ledge, climb and doorway fits the largest crew body (%s)" % [scene, str(tight.slice(0, 8))])
+	await _fall_out_of_world(level, scene, bounds)
 	level.queue_free()
 	await frames(2)
+
+
+## The safety net (FallNet) on this floor: a player who drops below everything
+## built here comes back to where they last stood, on solid ground, unhurt.
+func _fall_out_of_world(level: LevelBase, scene: String, bounds: AABB) -> void:
+	var p: Player = level.player
+	p.local_control = false
+	p.input_locked = true
+	var net: FallNet = level.get_node_or_null("FallNet")
+	if p.seated or p.state == Player.Move.SIT:
+		# Out of the van seat and on your feet (the ground floor opens belted in).
+		p.process_mode = Node.PROCESS_MODE_INHERIT
+		p.seated = false
+		p.sit_held = false
+		p.respawn(level.spawn_point())
+	var stood := false
+	for i in 120:
+		await t.physics_frame
+		if p.is_on_floor() and net and net.has_safe_spot:
+			stood = true
+			break
+	var home := p.global_position
+	var health := p.health
+	p.global_position = Vector3(home.x, bounds.position.y - 30.0, home.z)
+	p.velocity = Vector3.ZERO
+	var back := false
+	for i in 120:
+		await t.physics_frame
+		if p.global_position.distance_to(home) < 1.0:
+			back = true
+			break
+	await frames(20)
+	check(net != null and stood and back and p.is_on_floor() and p.health == health,
+		"%s: a player who falls out of the world is put back where they stood, on the floor, unhurt (stood %s, back %s, now %s)" % [scene, stood, back, p.global_position - home])
 
 
 ## The grid spots (Vector3i: column x, column z, which floor) a body `radius`
