@@ -317,6 +317,8 @@ func solve(level: Node, ui: TerminalUI, puzzle: Puzzle, threat: bool, max_hints:
 				gap(false, "%s: a lost player is stuck until its hint ladder is built" % puzzle.id)
 				stuck = true
 				break
+			if await follow_spot(level, ui, puzzle, pace):
+				continue  # .hint sent them somewhere in the building first: no tier used
 			if hints >= max_hints:
 				check(false, "%s: a lost player gets stuck even after %d hints" % [puzzle.id, hints])
 				return -1
@@ -475,6 +477,44 @@ func _answer_query(p: Puzzle) -> String:
 
 
 ## How many hints a player who only copies needs at most: the tier with the exact query.
+## `.hint` names a spot in the building before its tiers (Puzzle.spots): a lost
+## player asks, then goes where it says, reading the paper there or running
+## .schema. False when the hint has no spot left to send them to.
+func follow_spot(level: Node, ui: TerminalUI, puzzle: Puzzle, pace := false) -> bool:
+	var game := _game()
+	var text := puzzle.spot_hint(game)
+	if text == "":
+		return false
+	var id := ""
+	for s in puzzle.spots:
+		if str(s.text) == text and not game.spot_found(str(s.id)):
+			id = str(s.id)
+			break
+	if pace:
+		await _spend(PACE_THINK + ".hint".length() / PACE_TYPE_CPS)
+	ui.run(".hint")
+	check(TerminalUI._plain(ui.terminal.transcript[-1]).contains(text), "%s: .hint names the spot %s first" % [puzzle.id, id])
+	if id.begins_with("schema:"):
+		ui.run(".schema " + id.trim_prefix("schema:"))
+	else:
+		var paper: Document = null
+		for d in level.find_children("*", "Document", true, false):
+			if d.spot == id:
+				paper = d
+				break
+		check(paper != null, "%s: the spot %s .hint names is a paper in the building" % [puzzle.id, id])
+		if paper == null:
+			game.find_spot(id)
+		else:
+			if pace:
+				await _spend(PACE_THINK)  # over to it
+			paper.report_open(level.player)
+	check(game.spot_found(id), "%s: going where .hint said finds the spot %s" % [puzzle.id, id])
+	if not game.spot_found(id):
+		game.find_spot(id)
+	return true
+
+
 func rescue_tier(p: Puzzle) -> int:
 	if p.hints.is_empty():
 		return 0
