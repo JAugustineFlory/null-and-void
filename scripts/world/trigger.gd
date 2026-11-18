@@ -2,7 +2,8 @@ class_name Trigger
 extends Area3D
 ## Fires `entered` once when the player walks in. In co-op only the host's
 ## copy fires (it sees everyone), and `require_all` waits for every player
-## still alive (in Hard mode the dead only watch, plan/hard-mode.md 5A).
+## who's present: not dead (Hard mode) and not passed out (CrewVitals.is_present),
+## or one teammate out cold with no kit near would hold the crew there for good.
 
 const GROUP := "triggers"
 
@@ -32,7 +33,7 @@ static func create(parent: Node, center: Vector3, size: Vector3, fire_once: bool
 	return t
 
 
-## Look again at who's inside (someone waited on just died).
+## Look again at who's inside (someone waited on just died or passed out).
 func recheck() -> void:
 	if not require_all or (once and _fired) or not multiplayer.is_server():
 		return
@@ -42,12 +43,12 @@ func recheck() -> void:
 			return
 
 
-## Not dead (Hard mode). Downed players still count: they can be helped up.
+## Counted for "everyone": not dead or out cold. Down but awake still counts.
 func _living(body: Node) -> bool:
 	var crew = CrewVitals.of(self)
-	if crew == null or not crew.has_method("is_dead") or crew.players == null:
+	if crew == null or not crew.has_method("is_present") or crew.players == null:
 		return true
-	return not crew.is_dead(crew.players.id_of(body))
+	return crew.is_present(crew.players.id_of(body))
 
 
 func _on_body_entered(body: Node) -> void:

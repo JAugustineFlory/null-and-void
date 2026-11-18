@@ -1,9 +1,10 @@
 class_name Spectate
 extends Camera3D
-## Hard mode, dead: you watch a living teammate from over their shoulder
-## (plan/hard-mode.md, call 4). LB / RB, or the mouse buttons, switch who. You
-## can't touch anything; your body stays lying where you died. NetPlayers starts
-## and stops it when CrewVitals says you died or came back.
+## Dead (Hard mode): you watch a teammate who's still up, from over their
+## shoulder (plan/hard-mode.md, call 4). LB / RB, or the mouse buttons, switch
+## who. You can't touch anything; your body stays lying where it fell.
+## NetPlayers starts it when CrewVitals says you died; it ends when you're back
+## (the next floor) or the floor starts over.
 
 ## Approved word for word by Augustine, 2026-11-18 00:04Z (plan/hard-mode.md, 12).
 const WATCHING := "You're dead. Watching %s."
@@ -68,7 +69,7 @@ func _label(font_size: int, color: Color, text := "") -> Label:
 ## Who can be watched: everyone else still alive, in player order.
 func candidates() -> Array:
 	var me := multiplayer.get_unique_id()
-	return players.all_ids().filter(func(id): return id != me and players.puppet(id) != null and not players.is_dead(id))
+	return players.all_ids().filter(func(id): return id != me and players.puppet(id) != null and players.is_present(id))
 
 
 func _first() -> int:
@@ -123,9 +124,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if players.is_present(multiplayer.get_unique_id()):
+		players.stop_watching()  # brought round
+		return
 	var body: Node3D = players.puppet(watching) if watching != 0 else null
-	if body == null or players.is_dead(watching):
-		cycle(1)  # they died or left: on to someone still standing
+	if body == null or not players.is_present(watching):
+		cycle(1)  # they died, passed out or left: on to someone still up
 		body = players.puppet(watching) if watching != 0 else null
 		if body == null:
 			return

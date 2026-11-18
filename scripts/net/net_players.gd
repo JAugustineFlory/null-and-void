@@ -69,6 +69,8 @@ func watch_crew(crew: Node = null) -> void:
 	_crew = crew
 	if crew.has_signal("died"):
 		crew.died.connect(_on_died)
+	if crew.has_signal("passed_out"):
+		crew.passed_out.connect(_recheck_triggers.unbind(1))  # out cold: nobody waits on them
 	if crew.has_signal("came_back"):
 		crew.came_back.connect(_on_came_back)
 	if crew.has_signal("wiped"):
@@ -81,24 +83,39 @@ func is_dead(id: int) -> bool:
 	return crew != null and crew.has_method("is_dead") and crew.is_dead(id)
 
 
-## Everyone's bodies but the dead's.
-func living_players() -> Array:
-	return all_players().filter(func(p): return is_instance_valid(p) and not is_dead(id_of(p)))
+## Counted as there for "everyone present": not dead, and not passed out (down
+## but awake still counts: a kit can reach them). CrewVitals.is_present.
+func is_present(id: int) -> bool:
+	var crew = _crew if is_instance_valid(_crew) else CrewVitals.of(level)
+	if crew != null and crew.has_method("is_present"):
+		return crew.is_present(id)
+	return not is_dead(id)
 
 
+## Dead (every machine): you watch a teammate, and nobody waits on you.
 func _on_died(id: int, _cause = "") -> void:
 	if id == multiplayer.get_unique_id() and spectate == null and _puppets.size() > 0:
 		spectate = Spectate.create(self)
-	# Whoever was waiting on them at a door or the stairs needn't any more.
+	_recheck_triggers()
+
+
+## Whoever was waiting on someone at a door or the stairs needn't any more.
+func _recheck_triggers() -> void:
 	for t in get_tree().get_nodes_in_group(Trigger.GROUP):
 		if t.get_viewport() == get_viewport():
 			t.recheck()
 
 
 func _on_came_back(id: int) -> void:
-	if id == multiplayer.get_unique_id() and is_instance_valid(spectate):
+	if id == multiplayer.get_unique_id():
+		stop_watching()
+
+
+## Back to your own eyes.
+func stop_watching() -> void:
+	if is_instance_valid(spectate):
 		spectate.stop()
-		spectate = null
+	spectate = null
 
 
 ## Start sending positions (after every machine has loaded the level).

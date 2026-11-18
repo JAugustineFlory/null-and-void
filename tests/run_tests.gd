@@ -2249,9 +2249,22 @@ func test_hard_dead_watch() -> void:
 	c2.player.global_position = spot + Vector3(0, 0, 6)
 	await _frames(30)
 	check(fired[0] == 0, "\"everyone here\" waits for the one still outside")
+	crews[0]._run("_set_down", [id2, true, "test"])
+	await _frames(5)
+	check(fired[0] == 0, "and for them while they're down but awake: a kit can still reach them")
+	crews[0]._host_unconscious(id2)
+	await _frames(5)
+	check(fired[0] == 1, "out cold, they don't hold the crew there, and it goes")
+	crews[0]._run("_set_down", [id2, false, ""])
+	await _frames(5)
+	var gate2 := Trigger.create(host, spot + Vector3(0, 0.9, 0), Vector3(2.6, 2, 2.6))
+	gate2.require_all = true
+	gate2.entered.connect(func(_b): fired[0] += 1)
+	await _frames(10)
+	check(fired[0] == 1, "back up and outside, they're waited on again")
 	crews[0].mark_dead(id2, "test")
 	await _frames(5)
-	check(fired[0] == 1, "once they're dead, the living are everyone, and it goes")
+	check(fired[0] == 2, "once they're dead, the living are everyone, and it goes")
 
 	# Watching: over a living teammate's shoulder, never your own body or the dead.
 	var watch = c2.players.spectate
