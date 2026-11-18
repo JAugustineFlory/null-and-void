@@ -636,7 +636,6 @@ func start() -> void:
 	await hud.line("l1_noc_1")  # passing the ops room's window
 	if world:
 		await hud.line("l0_sra")  # off the elevator, at the server room door
-	await hud.line("l1_enter")
 	await sync.gate("rourke_at_desk", func():
 		if not led_in.finished:
 			await led_in.done)

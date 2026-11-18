@@ -92,7 +92,6 @@ const TEXT := {
 	"hold_done_hand": "Everyone's across into Vault C, between the safety timer's latches.",
 	"release_done": "Every entry is closed. %s. They've all clocked out.",
 	"stop_done": "Every script stopped, both vault doors locked and read back. B1 is as we found it, minus six.",
-	"arrive": "Your breath shows, even here. Somewhere below, compressors hum.",
 	"cold_first": "The cold bites. You won't last long in here.",
 	"cold_numb": "You can't feel your hands. Get somewhere warm.",
 	"warm": "Warm air. Feeling comes back into your fingers.",
@@ -913,7 +912,6 @@ func start() -> void:
 		player.inventory.selected.connect(_on_selected)
 	pair_puzzle.hints[2] = "type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(data.key, str(_crew_count()))
 	hud.todo(TASK_TITLES.todo_arrive, TEXT.todo_arrive)
-	hud.notice(TEXT.arrive, 5.0)
 	_lines(["l6_arrive_pa", "l6_arrive_tease"], 0.8)
 	# The landing's reader punches every visitor in to the floor: the crew's own cards
 	# are in the log from the start, so the listing has ours to leave out (DRAFT).
@@ -1100,11 +1098,11 @@ func _set_locked(id: String, lock: bool) -> void:
 	db.sync_world()
 	if lock:
 		if hud and is_inside_tree():
-			hud.notice(TEXT.door_locks % _door_name(id), 2.5)
+			hud.notice(TEXT.door_locks % _door_name(id), 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)  # the vault's doors cycle: news, not spam
 		return
 	door_gen[id] = door_gen.get(id, 0) + 1
 	if hud and is_inside_tree():
-		hud.notice(TEXT.door_opens % _door_name(id), 2.5)
+		hud.notice(TEXT.door_opens % _door_name(id), 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)  # the vault's doors cycle: news, not spam
 	if id == data.doors.ante:
 		_on_ante_opened()
 	if id == data.doors.vault_c:
@@ -1914,7 +1912,7 @@ func _on_whisper(e: Echo) -> void:
 	if VoiceLines.ids_in_scene("l6_echoes").has(id):
 		hud.line(id)
 	else:
-		hud.say(e.echo_name.to_upper(), lines[0])
+		hud.say(e.echo_name.to_upper(), lines[0], -1.0, HUD.Turn.CAN_WAIT)
 
 
 ## Every machine: an echo's entry is closed. Their story plays while the slip prints;
@@ -2094,7 +2092,7 @@ func _static_whisper() -> void:
 	_static_turn += 1
 	var lines: Array = ECHO_LINES.get(e.id, [])
 	if not lines.is_empty():
-		hud.say("STATIC", "..." + str(lines[0]).to_lower() + "...", 4.0)
+		hud.say("STATIC", "..." + str(lines[0]).to_lower() + "...", 4.0, HUD.Turn.CAN_WAIT)
 
 
 ## This machine's player and the cold.

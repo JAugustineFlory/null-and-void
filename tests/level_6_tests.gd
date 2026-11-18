@@ -331,7 +331,10 @@ func _case_release(level: Node) -> void:
 	check(res.status == 201 and not level.unoccupied.has("C"), "punched back in from the deck: Vault C's lights come back")
 	check(_game().case_info("release").solved and level.stairs_open, "everyone's free: the case closes and STAIR 2's gate opens")
 	check(_game().current_todo() == level.TEXT.todo_down and level.TASK_TITLES.todo_down == "Let them rest", "the to-do says back to the landing and down, under its own title")
-	await _until(func(): return level.find_children("Left_*", "", true, false).size() == 6, 2400)
+	# They tell their stories one at a time now (HUD turns), so this takes a couple of minutes.
+	Engine.time_scale = 4.0
+	await _until(func(): return level.find_children("Left_*", "", true, false).size() == 6, 12000)
+	Engine.time_scale = 1.0
 	check(level.find_children("Left_*", "", true, false).size() == 6, "each one told their story and left a memory or a piece of evidence at their row")
 	await _until(func(): return level.find_children("Slip_*", "", true, false).size() >= 6, 600)
 	var slips: Array = level.find_children("Slip_*", "", true, false)

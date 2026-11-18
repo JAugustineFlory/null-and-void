@@ -78,9 +78,10 @@ func play_bark(slug: String, bark: String) -> float:
 	return play(VoiceLines.bark_id(bark), VoiceLines.crew_dir(slug))
 
 
-## How long a subtitle stays up when there is no recording.
+## How long an unvoiced line stays up: 15 characters a second, the pace the teaching
+## walks give a first-time reader (Teaching, 2026-11-17), up to 12 seconds.
 static func read_time(text: String) -> float:
-	return clamp(1.2 + text.length() * 0.055, 2.0, 9.0)
+	return clamp(1.0 + text.length() / 15.0, 2.0, 12.0)
 
 
 ## Start this line's recording, cutting off whatever was playing.

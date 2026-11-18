@@ -124,12 +124,15 @@ func _group_core() -> void:
 	test_facility_db_read_only()
 	test_facility_api()
 	test_voice_codec()
+	await test_voice_mic_bus()
 	test_radio_rules()
 	test_voice_script()
 	await test_voice_playback()
 	test_voice_split()
 	await test_commentary()
 	await test_pause_holds_subtitles()
+	await test_lines_take_turns()
+	await test_notices_take_turns()
 	await test_screens_fill_window()
 	await test_pause_menu()
 	await test_level_select()
@@ -601,11 +604,11 @@ func test_voice_codec() -> void:
 	print("Voice codec")
 	var tone := _tone(4800, 48000.0, 0.5)
 	var packet := VoiceCodec.encode(tone, 48000.0)
-	check(packet.size() == 1200, "48 kHz audio is cut to 12 kHz, one byte a sample (%d bytes)" % packet.size())
+	check(packet.size() == 1600, "48 kHz audio is cut to 16 kHz, one byte a sample (%d bytes)" % packet.size())
 	var back := VoiceCodec.decode(packet)
 	var worst := 0.0
 	for i in back.size():
-		worst = maxf(worst, absf(back[i].x - tone[i * 4].x))
+		worst = maxf(worst, absf(back[i].x - tone[i * 3].x))
 	check(worst < 0.03, "mu-law keeps the voice close to the original (worst error %.3f)" % worst)
 	check(VoiceCodec.rms(back) > 0.3 and VoiceCodec.rms(_tone(100, 48000.0, 0.0)) == 0.0, "loudness tells talking from silence")
 	check(VoiceCodec.mulaw_decode(VoiceCodec.mulaw_encode(-0.25)) < 0.0, "negative samples stay negative")
@@ -620,21 +623,117 @@ func test_voice_codec() -> void:
 		stream.append_array(VoiceCodec.decode(enc.encode(chunk, 44100.0)))
 		at += 735
 	var jump := 0.0
+	var off := 0.0
 	for i in range(1, stream.size()):
 		jump = maxf(jump, absf(stream[i].x - stream[i - 1].x))
-	check(absi(stream.size() - 12000) <= 2 and jump < 0.15, "a 44.1 kHz mic sent in chunks stays one smooth 12 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
-	var quiet := _tone(4800, 48000.0, 0.02)
-	var louder := VoiceCodec.amplify(quiet, 8.0)
+		off = maxf(off, absf(stream[i].x - sin(TAU * 440.0 * i / 16000.0) * 0.5))
+	check(absi(stream.size() - 16000) <= 2 and jump < 0.1, "a 44.1 kHz mic sent in chunks stays one smooth 16 kHz wave (%d samples, biggest step %.3f)" % [stream.size(), jump])
+	check(off < 0.03, "and each sample lands at its exact time, so it doesn't wobble (worst error %.3f)" % off)
+
+	var lev := VoiceCodec.Leveler.new()
+	var quiet := PackedVector2Array()
+	for i in 20:
+		quiet = lev.process(_tone(800, 48000.0, 0.02), 48000.0, true)
+	check(VoiceCodec.rms(quiet) > 0.1, "a quiet mic is brought up to speaking level (%.3f)" % VoiceCodec.rms(quiet))
 	var peak := 0.0
-	for f in VoiceCodec.amplify(_tone(4800, 48000.0, 0.9), 8.0):
+	for f in lev.process(_tone(4800, 48000.0, 0.95), 48000.0, true):
 		peak = maxf(peak, absf(f.x))
-	check(VoiceCodec.rms(louder) > 0.1 and peak <= 1.0, "a quiet mic is brought up to speaking level, a loud one never clips (peak %.2f)" % peak)
+	check(peak <= VoiceCodec.Leveler.CEILING + 0.001, "a shout right after it never clips (peak %.2f)" % peak)
+	var plain := VoiceCodec.Leveler.new()
+	var level_out := VoiceCodec.rms(plain.process(_tone(4800, 48000.0, 0.3), 48000.0, true))
+	check(is_equal_approx(plain.gain, 1.0) and absf(level_out - 0.3 / sqrt(2.0)) < 0.01, "a voice already loud enough is left as it is")
+	var glide := VoiceCodec.Leveler.new()
+	var hum := func(v: float) -> PackedVector2Array:
+		var f := PackedVector2Array()
+		f.resize(800)
+		f.fill(Vector2(v, v))
+		return f
+	for i in 20:
+		glide.process(hum.call(0.02), 48000.0, true)
+	var before_gain := glide.gain
+	var ramp := glide.process(hum.call(0.04), 48000.0, true)
+	var biggest := 0.0
+	for i in range(1, ramp.size()):
+		biggest = maxf(biggest, absf(ramp[i].x - ramp[i - 1].x))
+	check(glide.gain < before_gain - 0.5 and absf(ramp[0].x - ramp[-1].x) > 0.02 and biggest < 0.001,
+		"when the gain changes it glides across the block, no click (gain %.1f to %.1f, biggest step %.4f)" % [before_gain, glide.gain, biggest])
+
+	var gate := VoiceCodec.Gate.new()
+	for i in 60:
+		gate.update(0.001, 1.0 / 60.0)  # a quiet room
+	check(gate.update(0.01, 1.0 / 60.0), "in a quiet room, soft speech opens the mic")
+	for i in 20:
+		gate.update(0.001, 1.0 / 60.0)
+	check(gate.open, "and it stays open through the gap between words")
+	for i in 20:
+		gate.update(0.001, 1.0 / 60.0)
+	check(not gate.open, "then closes")
+	var fan := VoiceCodec.Gate.new()
+	for i in 60 * 30:
+		fan.update(0.03, 1.0 / 60.0)  # a loud fan, all the time
+	check(not fan.open, "a noisy room alone doesn't hold the mic open (threshold %.3f)" % fan.threshold())
+	check(fan.update(0.12, 1.0 / 60.0), "but talking over it does")
+	var talker := VoiceCodec.Gate.new()
+	for i in 60 * 10:
+		talker.update(0.1 if i % 30 < 20 else 0.002, 1.0 / 60.0)  # ten seconds of talking, with pauses
+	check(talker.threshold() < 0.02, "talking for a while doesn't teach it that speech is noise (threshold %.3f)" % talker.threshold())
+	var vc := VoiceChat.new()
+	var sent := 0
+	for i in 30:
+		sent += vc.mic_block(_tone(735, 44100.0, 0.0005), 44100.0).size()
+	var first := vc.mic_block(_tone(735, 44100.0, 0.1), 44100.0)
+	check(sent == 0 and first.size() == 735 + int(44100 * VoiceCodec.Gate.PREROLL), "silence isn't sent, and when you start talking the moment before comes too, so the first sound isn't cut (%d frames)" % first.size())
+	check(vc.mic_block(_tone(735, 44100.0, 0.1), 44100.0).size() == 735, "then it's just what you say")
+	vc.free()
+
+
+## The microphone's bus cleans the voice before it's encoded: hiss the codec
+## can't carry is taken out instead of folding back down as noise.
+func test_voice_mic_bus() -> void:
+	print("Voice mic bus")
+	var fx := VoiceChat.mic_effects()
+	check(fx.back() is AudioEffectCapture, "the capture comes last, after the filters")
+	var loss := {}
+	for hz in [3000.0, 6000.0, 10000.0]:
+		var effects := VoiceChat.mic_effects()
+		AudioServer.add_bus()
+		var idx := AudioServer.bus_count - 1
+		AudioServer.set_bus_mute(idx, true)
+		for e in effects:
+			AudioServer.add_bus_effect(idx, e)
+		var cap: AudioEffectCapture = effects.back()
+		var p := AudioStreamPlayer.new()
+		var g := AudioStreamGenerator.new()
+		g.mix_rate = AudioServer.get_mix_rate()
+		g.buffer_length = 0.5
+		p.stream = g
+		p.bus = AudioServer.get_bus_name(idx)
+		get_root().add_child(p)
+		p.play()
+		await process_frame
+		var tone := PackedVector2Array()
+		for i in int(g.mix_rate * 0.3):
+			var v := sin(TAU * hz * i / g.mix_rate) * 0.2
+			tone.append(Vector2(v, v))
+		cap.clear_buffer()
+		p.get_stream_playback().push_buffer(tone)
+		var got := PackedVector2Array()
+		for i in 60:
+			await process_frame
+			got.append_array(cap.get_buffer(cap.get_frames_available()))
+			if got.size() > tone.size():
+				break
+		loss[hz] = 20.0 * log(maxf(VoiceCodec.rms(got.slice(2000)), 1e-6) / VoiceCodec.rms(tone)) / log(10.0)
+		p.queue_free()
+		AudioServer.remove_bus(idx)
+	check(absf(loss[3000.0]) < 2.0 and loss[6000.0] > -3.0, "speech up to 6 kHz goes through (3 kHz %.1f dB, 6 kHz %.1f dB)" % [loss[3000.0], loss[6000.0]])
+	check(loss[10000.0] < -25.0, "hiss at 10 kHz is taken out (%.1f dB)" % loss[10000.0])
 
 
 func test_radio_rules() -> void:
 	print("Radio rules")
-	check(Radio.signal_quality(10.0, 0.0) == 1.0, "clear at close range")
-	check(Radio.signal_quality(50.0, 0.0) < 1.0 and Radio.signal_quality(50.0, 0.0) > 0.0, "fades with distance")
+	check(Radio.signal_quality(10.0, 0.0) == 1.0 and Radio.signal_quality(55.0, 0.0) == 1.0, "clear at close range, and across a whole floor")
+	check(Radio.signal_quality(90.0, 0.0) < 1.0 and Radio.signal_quality(90.0, 0.0) > 0.0, "fades with distance")
 	check(Radio.signal_quality(Radio.MAX_RANGE + 1.0, 0.0) == 0.0, "nothing but static out of range")
 	var near_entity := Radio.interference_at(Vector3.ZERO, [Vector3(2, 0, 0)])
 	check(near_entity > 0.5 and Radio.interference_at(Vector3.ZERO, [Vector3(30, 0, 0)]) == 0.0, "entities nearby cause static, far ones don't")
@@ -815,7 +914,9 @@ func test_voice_script() -> void:
 class FakeHud extends Node:
 	var said: Array = []
 
-	func say(speaker: String, text: String, _seconds: float = -1.0) -> void:
+	func say(speaker: String, text: String, _seconds: float = -1.0, _turn: int = 0, start: Callable = Callable()) -> void:
+		if start.is_valid():
+			start.call()
 		said.append([speaker, text])
 
 
@@ -1051,6 +1152,94 @@ func test_pause_holds_subtitles() -> void:
 	paused = false
 	await create_timer(0.6).timeout
 	check(hud._subtitle.text == "", "and clears once its time has run after unpausing")
+	hud.queue_free()
+
+
+## Augustine's v0.9-beta2 note: lines must not pile on top of each other
+## (plan/text-spacing-proposal.md).
+func test_lines_take_turns() -> void:
+	print("Lines take turns")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.say("ROURKE", "First.", 0.4)
+	hud.say("INES", "Second.", 0.4)
+	await create_timer(0.1).timeout
+	check(hud._subtitle.text == "ROURKE: First.", "the first line plays")
+	await create_timer(0.6).timeout  # 0.7 s: the first ended at 0.4, and the next speaker waits 1.2 s
+	check(hud._subtitle.text == "", "a breath between two speakers, nothing on top")
+	await create_timer(1.1).timeout  # 1.8 s
+	check(hud._subtitle.text == "INES: Second.", "then the second line, in order")
+	await create_timer(0.5).timeout
+	check(hud.quiet(), "and the queue is empty after")
+
+	await create_timer(1.3).timeout
+	hud.say("ROURKE", "A long speech about the front desk.", 1.0)
+	await create_timer(0.2).timeout
+	hud.say("WARDEN", "LOCKDOWN.", 0.4, HUD.Turn.URGENT)
+	await process_frame
+	check(hud._subtitle.text == "WARDEN: LOCKDOWN.", "a threat starting cuts across")
+	await create_timer(1.6).timeout
+
+	hud.stale_after = 0.3
+	hud.say("ROURKE", "Still talking.", 1.0)
+	var said := [false]
+	var bark := func():
+		await hud.say("CREW", "Nice.", 0.3, HUD.Turn.CAN_WAIT, func() -> float:
+			said[0] = true
+			return 0.0)
+	bark.call()
+	await create_timer(1.5).timeout
+	check(not said[0] and hud._subtitle.text != "CREW: Nice.", "a line that can wait is dropped rather than played late")
+	await create_timer(1.3).timeout
+	hud.say("CREW", "Quiet now.", 0.3, HUD.Turn.CAN_WAIT)
+	await create_timer(0.1).timeout
+	check(hud._subtitle.text == "CREW: Quiet now.", "and plays at once when it's quiet")
+	check(Voice.read_time("x".repeat(150)) == 11.0 and Voice.read_time("Hi.") == 2.0,
+		"unvoiced lines stay up at 15 characters a second")
+	hud.queue_free()
+
+
+## Notices take turns too: one at a time, no repeats, "Notebook updated" last and
+## folded in (plan/text-spacing-proposal.md).
+func test_notices_take_turns() -> void:
+	print("Notices take turns")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice("Down the hall, a lock drops.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await process_frame
+	check(hud._notice.text == "CS-41 locks.", "the first notice goes up")
+	await create_timer(0.8).timeout
+	check(hud._notice.text == "CS-41 locks.", "the level's next news doesn't wipe it straight away")
+	await create_timer(1.0).timeout  # 1.8 s
+	check(hud._notice.text == "Down the hall, a lock drops.", "it gets its turn after")
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Down the hall, a lock drops.", "the same news again within 20 seconds is dropped")
+	hud.notice("Locked.", 2.0)
+	await process_frame
+	check(hud._notice.text == "Locked.", "the answer to something the player just did goes up at once")
+	hud.notice("A lock drops.", 2.0, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == "Locked." and not hud._notebook_tag.visible, "\"Notebook updated\" waits behind the other notices")
+	await create_timer(1.7).timeout
+	check(hud._notice.text == "A lock drops." and hud._notebook_tag.visible, "then folds in under the last one instead of wiping it")
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await create_timer(0.1).timeout
+	check(hud._notice.text == "A lock drops.", "and says it at most once every 10 seconds")
+	hud._notice.modulate.a = 0.0
+	hud._notebook_last = -1000.0
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == InputGlyphs.text(HUD.NOTEBOOK_NOTICE), "with nothing else up, it goes up on its own")
+	hud.stale_after = 0.5
+	hud.notice("Someone's at the door.", 3.0)
+	hud.notice("The lights hum.", 2.0, ThemeUtil.AMBER, HUD.Turn.CAN_WAIT)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Someone's at the door.", "news that can wait is dropped once it's stale")
 	hud.queue_free()
 
 
@@ -1322,7 +1511,7 @@ func test_level_0_scene() -> void:
 	check(level.walkies.get_prompt(level.player) == "You already have a walkie-talkie.", "and you can't take a second")
 	var panel: Node3D = level.elevator.art.get_node("ButtonPanel") if level.elevator.art else null
 	check(panel == null or level.elevator.button.global_position.distance_to(panel.global_position) < 0.35, "the elevator's button is pressed where its panel is drawn")
-	for i in 1500:  # the PA's escort tape and Rourke's cover come first
+	for i in 4000:  # the PA's escort tape and Rourke's cover come first, after any lines still waiting their turn
 		if level.shutter.is_open:
 			break
 		await physics_frame
@@ -1727,8 +1916,9 @@ func test_level_1_scene() -> void:
 		await physics_frame
 	check(not level.vault_back.locked and level.hot_rack_puzzle.solved, "reseating the hot rack's tray releases the interlock")
 
-	# Rourke heads for the elevator; it opens once the crew is with him.
-	for i in 2400:
+	# Rourke heads for the elevator; it opens once the crew is with him (after his
+	# lines, which take their turns: this test solves the floor faster than he talks).
+	for i in 6000:
 		if level.sync._gates.has("rourke_at_lift"):
 			break
 		await physics_frame
@@ -1849,6 +2039,8 @@ func _crew_reads(levels: Array) -> void:
 	var quiet := 0
 	for f in 6000:
 		await physics_frame
+		if not hs.all(func(h): return is_instance_valid(h)):
+			return  # the test moved on and freed its levels (a call nobody awaited)
 		var busy: bool = hs.any(func(h): return h.is_busy())
 		seen = seen or busy
 		quiet = 0 if busy else quiet + 1
@@ -1977,13 +2169,13 @@ func test_coop_level_0() -> void:
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
 	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
-	c2.player.global_position = Vector3(-17, 0.1, 4)
-	c1.player.global_position = Vector3(23, 0.1, 3)
+	c2.player.global_position = Vector3(-40, 0.1, 4)
+	c1.player.global_position = Vector3(45, 0.1, 3)
 	await _frames(30)
 	c1.voice.send_frames(tone, 48000.0, true)
 	await _frames(10)
 	check(c2.voice.heard.near == 1 and c2.voice.heard.radio == 1, "radio reaches a teammate too far away to hear directly")
-	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 40 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
+	check(c2.voice.last_quality > 0.0 and c2.voice.last_quality < 1.0, "at 85 m the radio is crackly (quality %.2f)" % c2.voice.last_quality)
 	# A flashback or cutscene: the view cuts far away and the player is held still.
 	# Teammates are still heard as if close, and the radio still keys.
 	var away := Camera3D.new()
@@ -1994,7 +2186,7 @@ func test_coop_level_0() -> void:
 	var heard_before: int = c2.voice.heard.near
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
-	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 40 m off is still heard")
+	check(not c2.voice.hearing_from_body() and c2.voice.heard.near == heard_before + 1, "with the view cut away, a teammate 85 m off is still heard")
 	check(c2.voice._keys_free(), "and the radio and mute keys still work while the scene holds you still")
 	away.queue_free()
 	c2.player.camera.make_current()
@@ -3922,8 +4114,8 @@ func test_level_2_scene() -> void:
 		await physics_frame
 	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
 	level.completed.disconnect(level._on_completed)
-	for i in 20:  # let WARDEN's line about the jammed door finish first
-		if level.hud._subtitle.text == "":
+	for i in 60:  # let WARDEN's lines about the cameras and the jammed door finish first (they take turns)
+		if level.hud.quiet() and level.hud._subtitle.text == "":
 			break
 		await create_timer(0.5).timeout
 	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
@@ -4928,7 +5120,7 @@ func test_rourke_leads_in() -> void:
 		await physics_frame
 	check(lobby.exit_door.is_open, "the door stays open while anyone is still in its swing")
 	p.global_position = Vector3(28.0, 0.2, 1.5)  # past him, clear of the swing
-	for i in 400:
+	for i in 1200:  # his elevator line waits its turn first
 		if not lobby.exit_door.is_open:
 			break
 		await physics_frame
@@ -5180,8 +5372,8 @@ func test_level_2_book_huddles() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	var h := _huddle_of(level)
-	var opens := func(id: String) -> bool:
-		return await _until(func(): return h.done.has(id) and not p.input_locked, 10.0)
+	var opens := func(id: String) -> bool:  # WARDEN's lines before some of them wait their turn
+		return await _until(func(): return h.done.has(id) and not p.input_locked, 40.0)
 	_doc(level, "Camera system card").open_reader(p).close()
 	check(await opens.call("easy_sql_10"), "reading the camera card brings back Asking a server, the GET chapter")
 	await _crew_reads([level])

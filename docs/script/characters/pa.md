@@ -44,7 +44,7 @@ Send the files back as they are. They go in `audio/voice/pa/` in the game.
 
 **Lead-in**
 
-> ROURKE: "Come on in. I'll sign you in at the front desk."
+> ROURKE: "Badge rules after hours. You don't go anywhere I don't take you."
 
 **Begin**
 
