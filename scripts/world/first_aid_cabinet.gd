@@ -225,8 +225,8 @@ static func use_on_self(player: Node) -> bool:
 	return true
 
 
-## E on downed teammate `id`, with the kit in `by`'s hands: the kit's prompt in
-## place of the usual hand up (one key can't do both); otherwise the usual.
+## E on downed teammate `id`, with the kit in `by`'s hands: patch them up. With
+## empty hands there's no prompt: only a kit gets anyone up (Augustine, 2026-11-18).
 static func teammate_prompt(by: Node, crew: CrewVitals, id: int) -> String:
 	if holding(by) and crew.can_help(id) and not crew.reviving.has(id) and not CrewVitals.is_down(by):
 		return PATCH_PROMPT

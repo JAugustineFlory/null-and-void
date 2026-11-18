@@ -14,11 +14,12 @@ extends Node
 ##   ""           anything else: can't be blocked, puts you down at 0
 ## Big entities can't be blocked: only causes marked "block" can.
 ##
-## At 0 health you go down. With teammates you lie there until one helps you up
-## (E). Left down too long, you pass out: still on the floor, and a teammate can
-## still help you up, only it takes them longer (CrewVitals). If the whole crew is
-## down or out, the level decides what happens (CrewVitals). Solo, the crew is
-## just you, so going down is the same as the whole crew going down.
+## At 0 health you go down. With teammates you lie there until one patches you up
+## with a first-aid kit (there are no free hand-ups). Left down too long, you pass
+## out: still on the floor, a kit still brings you round, and otherwise you come to
+## at the next floor (CrewVitals). If the whole crew is down or out, the level
+## decides what happens (CrewVitals). Solo, the crew is just you, so going down is
+## the same as the whole crew going down.
 ##
 ## Hard mode (CrewVitals.hard_mode()): left down for BLEED_OUT_HARD you die instead
 ## (`dead`: you stay lying there while Co-op's camera lets you watch), and a fatal
@@ -285,8 +286,8 @@ func reset() -> void:
 	guard = Guard.new()
 
 
-## Down too long: you pass out where you lie. Your crew can still help you up
-## (more slowly); if they're all down or out too, the level decides.
+## Down too long: you pass out where you lie. A teammate's kit can still bring you
+## round; if they're all down or out too, the level decides.
 func pass_out() -> void:
 	if not down or unconscious:
 		return

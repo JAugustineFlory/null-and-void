@@ -10,10 +10,13 @@ extends Node
 ## every machine (by default, everyone comes to at the checkpoint).
 ## Solo, the crew is one player, so going down is the whole crew going down.
 ##
-## Hard mode (Game.hard_mode, plan/hard-mode.md): left down too long you die
-## (`dead`; you stay lying there and watch), nobody can help you up without a
-## first-aid kit, and when everyone's down or dead the floor starts over. The dead
-## come back at the next floor.
+## Only a first-aid kit gets anyone up (Augustine, 2026-11-18: "No more free
+## revives"): a teammate with one in their hands stands by you for KIT_TIME. Left
+## down too long you pass out (Normal) or die (hard mode, Game.hard_mode,
+## plan/hard-mode.md): either way you're no longer counted as there (`is_present`),
+## so the rest of the crew can go on without you, and you come to at the start of
+## the next floor. When everyone's down or out, the floor's rule applies: back to
+## the checkpoint on Normal, the floor over again in hard mode.
 ##
 ## Entities run on the host. To hurt, throw or grab a player, they go through
 ## here (or the player's take_damage), and it reaches the machine that owns them.
@@ -25,23 +28,22 @@ signal hit_blocked(peer_id: int, cause: String)
 ## Every machine, hard mode: `peer_id` died (or rejoined dead: cause "ghost"). They
 ## stay in `downed` and `dead` until the next floor.
 signal died(peer_id: int, cause: String)
-## Every machine, hard mode: the dead came back alive at the start of a new floor.
+## Every machine: someone left down too long passed out (Normal). Like the dead,
+## they're no longer counted as there until a kit or the next floor.
+signal passed_out(peer_id: int)
+## Every machine: someone dead or out cold came to at the start of a new floor.
 signal came_back(peer_id: int)
 ## Every machine, hard mode: everyone's down; the floor's about to start over.
 signal wiped
 
-## Lines for Augustine's approval: see plan/approvals/combat-strings.md.
-const REVIVE_PROMPT := "[E] Help them up"
-## Helping up someone who's passed out takes this long, standing by them.
-const OUT_REVIVE_TIME := 4.0
 ## Patching someone up with a first-aid kit takes this long, standing by them
 ## (and patching yourself up, holding still): Augustine 2026-11-18.
 const KIT_TIME := 4.0
 ## Walk further than this from them and you stop.
 const REVIVE_RANGE := 2.5
-## Hard mode, everyone down: approved by Augustine 2026-11-18, word for word (his
-## spelling). Then the screen fades and the floor starts over.
-const WIPE_NOTICE := "Everyone's down. Dejavu?"
+## Hard mode, everyone down: approved by Augustine 2026-11-18, word for word
+## (spelled so at his ask, 01:23Z). Then the screen fades and the floor starts over.
+const WIPE_NOTICE := "Everyone's down. Déjà vu?"
 const WIPE_FADE := 3.0
 ## Hard mode unlocks (names DRAFT, plan/hard-mode.md): a floor cleared, for whoever's
 ## still alive; cleared with nobody dead, for everyone; cleared with the dead kept
@@ -117,6 +119,16 @@ func living_ids() -> Array:
 ## Down, and not dead: someone can still bring them round.
 func can_help(id: int) -> bool:
 	return downed.has(id) and not dead.has(id)
+
+
+## Counted as there, for "everyone present" (stairs, exits, traps): not dead and
+## not passed out. Down but still awake counts: a kit can still reach them.
+func is_present(id: int) -> bool:
+	return not dead.has(id) and not unconscious.has(id)
+
+
+func present_ids() -> Array:
+	return players.all_ids().filter(is_present) if players else []
 
 
 ## The CrewVitals of the level `node` is in, or null.
@@ -210,16 +222,15 @@ func send_everyone_back() -> void:
 		c.die()
 
 
-## The prompt on a teammate's body (none while someone's already helping them up;
-## none in hard mode, where only a first-aid kit brings anyone round).
-func revive_prompt(id: int) -> String:
-	if hard_mode():
-		return ""
-	return REVIVE_PROMPT if can_help(id) and not reviving.has(id) and not CrewVitals.is_down(players.player) else ""
+## The prompt on a downed teammate's body with empty hands: none. Only a first-aid
+## kit brings anyone round (FirstAidCabinet.teammate_prompt).
+func revive_prompt(_id: int) -> String:
+	return ""
 
 
-## The local player helps teammate `id` up, to `health`. `instant` (a first-aid
-## kit) brings round even someone who's passed out, in KIT_TIME, to full health.
+## The local player patches teammate `id` up with a first-aid kit (`instant`):
+## KIT_TIME standing by them, even if they've passed out, to full health. Without
+## a kit nothing happens.
 func revive(id: int, health: float = PlayerCombat.REVIVE_HEALTH, instant: bool = false) -> void:
 	if CrewVitals.is_down(players.player):
 		return
@@ -235,23 +246,16 @@ func _ask_revive(id: int, health: float, instant: bool) -> void:
 		_host_revive(id, multiplayer.get_remote_sender_id(), health, instant)
 
 
-## Host: someone who's down gets straight up; someone who's passed out takes
-## OUT_REVIVE_TIME of `by` standing by them. A first-aid kit (`instant`) takes
-## KIT_TIME for anyone down. In hard mode only a kit will do, and the dead stay dead.
-func _host_revive(id: int, by: int, health: float = PlayerCombat.REVIVE_HEALTH, instant: bool = false) -> void:
-	if not can_help(id) or reviving.has(id):
+## Host: a first-aid kit (`instant`) takes KIT_TIME of `by` standing by them; the
+## dead stay dead, and without a kit nothing happens.
+func _host_revive(id: int, by: int, _health: float = PlayerCombat.REVIVE_HEALTH, instant: bool = false) -> void:
+	if not instant or not can_help(id) or reviving.has(id):
 		return
-	if instant:
-		_run("_begin_revive", [id, by, true])
-	elif hard_mode():
-		return
-	elif unconscious.has(id):
-		_run("_begin_revive", [id, by])
-	else:
-		_run("_revived", [id, health])
+	_run("_begin_revive", [id, by, true])
 
 
-## `kit_by`: who brought them round with a first-aid kit (0: a hand up).
+## `kit_by`: who brought them round with their first-aid kit (0: nobody's, as when
+## the stairs bring round whoever's down on them).
 func _revived(id: int, health: float = PlayerCombat.REVIVE_HEALTH, kit_by: int = 0) -> void:
 	_set_down(id, false, "")  # (ends any revive in progress)
 	if id == my_id():
@@ -285,11 +289,11 @@ func _host_unconscious(id: int) -> void:
 
 func _set_unconscious(id: int) -> void:
 	unconscious[id] = true
+	passed_out.emit(id)
 
 
-func _begin_revive(id: int, by: int, kit: bool = false) -> void:
-	var t := KIT_TIME if kit else OUT_REVIVE_TIME
-	reviving[id] = {"by": by, "left": t, "total": t, "kit": kit}
+func _begin_revive(id: int, by: int, kit: bool = true) -> void:
+	reviving[id] = {"by": by, "left": KIT_TIME, "total": KIT_TIME, "kit": kit}
 	if by == my_id():
 		_show_revive_bar(true)
 
@@ -330,10 +334,7 @@ func _physics_process(delta: float) -> void:
 				or helper.global_position.distance_to(body.global_position) > REVIVE_RANGE:
 			_run("_stop_revive", [id])
 		elif r.left <= 0.0:
-			if r.kit:
-				_run("_revived", [id, PlayerCombat.MAX_HEALTH, r.by])
-			else:
-				_run("_revived", [id])
+			_run("_revived", [id, PlayerCombat.MAX_HEALTH, r.by])
 
 
 ## A bar under the crosshair while you help someone up (no words).
@@ -411,7 +412,7 @@ func _set_dead(id: int, cause: String) -> void:
 	died.emit(id, cause)
 
 
-## Hard mode, everyone's down (every machine): "Everyone's down. Dejavu?", the
+## Hard mode, everyone's down (every machine): "Everyone's down. Déjà vu?", the
 ## screen fades, and the host starts the floor over (or the whole run, if the
 ## lobby said so).
 func wipe() -> void:
@@ -495,9 +496,10 @@ func _unlock(ids: Array, source: String) -> void:
 		_earn_for(id, source)
 
 
-## Every machine: the crew's on a new floor, and the dead come back alive at its start.
+## Every machine: the crew's on a new floor, and anyone still down, out cold or
+## dead comes to at its start.
 func _on_floor_entered(wing: Node) -> void:
-	for id in dead.keys():
+	for id in downed.keys():
 		_came_back(id, wing)
 
 
