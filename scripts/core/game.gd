@@ -48,6 +48,8 @@ var dead_watch_only := false
 var wipe_new_run := false
 ## STAIR 1's first-aid cabinet on landing 5 (FirstAidCabinet): "", "open" or "taken".
 var first_aid := ""
+## Each floor's own first-aid cabinets (KitCabinets): cabinet id -> "", "open" or "taken".
+var first_aid_kits := {}
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
 var cam_lie_learned := false
 ## B2 (Level 7): how the crew beat WARDEN ("lockout", "revoke", "watchdog"; "" not
@@ -153,6 +155,7 @@ func new_run(seed_value: int = -1) -> void:
 	watcher_sealed = false
 	custodian_sealed = false
 	first_aid = ""
+	first_aid_kits.clear()
 	cam_lie_learned = false
 	warden_route = ""
 	night_shift_alive.clear()

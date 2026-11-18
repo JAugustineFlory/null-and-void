@@ -12,6 +12,7 @@ var _check: Callable
 func run(tree: SceneTree, check: Callable) -> void:
 	_tree = tree
 	_check = check
+	await test_kit_cabinets()
 	await test_kit_on_yourself()
 	await test_solo()
 	await test_coop()
@@ -59,6 +60,55 @@ func _solo_level() -> Node:
 	await _frames(30)
 	level.watcher.active = false
 	return level
+
+
+## Every floor has first-aid cabinets on its walls, where the crew can get to them:
+## twice as many on Normal as on Hard, and one each opens and gives up a kit.
+func test_kit_cabinets() -> void:
+	print("Hard mode: first-aid cabinets on every floor")
+	for hard in [false, true]:
+		_hard(hard)
+		for k in 8:
+			_game().new_run(43 + k)
+			var level = load("res://scenes/level_%d.tscn" % k).instantiate()
+			_tree.root.add_child(level)
+			await _frames(3)
+			var cabs: Array = level.find_children("KitCabinet*", "FirstAidCabinet", false, false)
+			var area := KitCabinets._area(KitCabinets.floor_nav(level, level.geo))
+			var want := KitCabinets.count_for(area, hard)
+			_check.call(cabs.size() == want, "%s, %s: %d cabinets for %d m² of floor (want %d)" % ["Hard" if hard else "Normal", level.name, cabs.size(), int(area), want])
+			if not hard:
+				# Nothing in front of any of them: from where you'd stand, you see the cabinet itself.
+				var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
+				var hidden := []
+				for c in cabs:
+					var q := PhysicsRayQueryParameters3D.create(c.global_transform * Vector3(0, 0.1, 1.0), c.global_position)
+					q.collide_with_areas = true
+					var hit := space.intersect_ray(q)
+					if hit.is_empty() or hit.collider != c:
+						hidden.append(c.cabinet_id)
+				_check.call(hidden.is_empty(), "%s: every cabinet is out in the open, on a wall you can walk up to (%s)" % [level.name, hidden])
+				var ids: Array = cabs.map(func(c): return c.cabinet_id)
+				_check.call(ids.size() == cabs.size() and ids.all(func(i): return ids.count(i) == 1), "each with an id of its own")
+			level.queue_free()
+			await _frames(3)
+	_hard(false)
+	# Opening one leaves the others sealed, and taking its kit is this run's.
+	_game().new_run(50)
+	var level = await _solo_level()
+	var cabs: Array = level.find_children("KitCabinet*", "FirstAidCabinet", false, false)
+	var p: Player = level.player
+	var c: FirstAidCabinet = cabs[0]
+	c.interact(p)
+	await _frames(3)
+	c.interact(p)
+	await _frames(3)
+	_check.call(c.my_state() == FirstAidCabinet.TAKEN and p.inventory.has(FirstAidCabinet.ITEM) and cabs[1].my_state() == FirstAidCabinet.SEALED,
+		"open one and take its kit: the others stay sealed")
+	_check.call(FirstAidCabinet.state() == FirstAidCabinet.SEALED and cabs[1].get_prompt(p) == "[E] Open the first-aid cabinet", "and STAIR 1's cabinet is its own")
+	p.inventory.remove(FirstAidCabinet.ITEM)
+	level.queue_free()
+	await _frames(5)
 
 
 ## Both modes: a kit on yourself takes a few seconds, holding still; a hit stops it.

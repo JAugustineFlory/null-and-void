@@ -8,6 +8,8 @@ extends Interactable
 ##
 ## It's the same cabinet whichever trip passes landing 5 (down from 10, up from G),
 ## so what's happened to it belongs to the run (Game.first_aid), not to this node.
+## Each floor's own cabinets (KitCabinets) carry a `cabinet_id`, and keep theirs in
+## Game.first_aid_kits.
 ## Co-op: the host decides, every machine plays it out, and only the taker gets the kit.
 
 const ITEM := "first_aid_kit"
@@ -26,6 +28,8 @@ const OPENED := "open"
 const TAKEN := "taken"
 const SIZE := Vector3(0.42, 0.52, 0.15)
 
+## "" for STAIR 1's cabinet; a floor's own cabinets have an id of their own.
+var cabinet_id := ""
 var _door: Node3D
 var _seal: Node3D
 var _kit: Node3D
@@ -121,9 +125,26 @@ static func _set_state(s: String) -> void:
 		g.set("first_aid", s)
 
 
+## What's happened to this cabinet this run.
+func my_state() -> String:
+	if cabinet_id == "":
+		return state()
+	var g := _game()
+	return str(g.first_aid_kits.get(cabinet_id, SEALED)) if g else SEALED
+
+
+func _set_my_state(s: String) -> void:
+	if cabinet_id == "":
+		_set_state(s)
+		return
+	var g := _game()
+	if g:
+		g.first_aid_kits[cabinet_id] = s
+
+
 ## Door, seal and kit as the run has left them (the other trip may have opened it).
 func refresh() -> void:
-	var s := state()
+	var s := my_state()
 	if _door:
 		_door.rotation_degrees.y = 0.0 if s == SEALED else -105.0
 		_seal.visible = s == SEALED
@@ -136,7 +157,7 @@ func _notification(what: int) -> void:
 
 
 func get_prompt(_player: Node) -> String:
-	match state():
+	match my_state():
 		SEALED:
 			return "[E] " + OPEN_PROMPT
 		OPENED:
@@ -145,7 +166,7 @@ func get_prompt(_player: Node) -> String:
 
 
 func interact(player: Node) -> void:
-	if state() != TAKEN:
+	if my_state() != TAKEN:
 		super.interact(player)
 
 
@@ -153,7 +174,7 @@ func interact(player: Node) -> void:
 func _on_used(player: Node) -> void:
 	var lvl := _level()
 	var id: int = lvl.players.id_of(player) if lvl else 0
-	var next := OPENED if state() == SEALED else TAKEN
+	var next := OPENED if my_state() == SEALED else TAKEN
 	var sync := LevelSync.of(self)
 	if sync:
 		sync.run_on(self, "advance", [id, next])
@@ -163,7 +184,7 @@ func _on_used(player: Node) -> void:
 
 ## On every machine: `peer_id` opened it (`next` OPENED) or took the kit (TAKEN).
 func advance(peer_id: int, next: String) -> void:
-	_set_state(next)
+	_set_my_state(next)
 	if next == TAKEN:
 		var lvl := _level()
 		if lvl and lvl.player and peer_id == lvl.players.id_of(lvl.player):
