@@ -91,6 +91,7 @@ static func desk_terminal(level: Node, d: Node3D) -> Node3D:
 func test_papers_face_their_readers() -> void:
 	print("Papers face whoever reads them, and lift without flipping")
 	var wrong: Array[String] = []
+	var unplaced: Array[String] = []
 	var papers := 0
 	var floors := {}
 	for s in SEEDS:
@@ -106,6 +107,10 @@ func test_papers_face_their_readers() -> void:
 					continue
 				papers += 1
 				floors[i] = true
+				for at in d.piece_lines():
+					var miss := "level %d \"%s\": %s's %s" % [i, d.title, at.case, at.piece]
+					if at.line < 0 and miss not in unplaced:
+						unplaced.append(miss)
 				var why := _wrong(level, d)
 				if why != "":
 					var line := "level %d \"%s\" at %s: %s" % [i, d.title, d.global_position.snapped(Vector3.ONE * 0.01), why]
@@ -115,6 +120,7 @@ func test_papers_face_their_readers() -> void:
 			await _tree.process_frame
 			i += 1
 	_check.call(floors.size() >= 6 and papers >= 150, "checked every paper on every floor (%d floors, %d papers over %d seeds)" % [floors.size(), papers, SEEDS.size()])
+	_check.call(unplaced.is_empty(), "every piece on a paper sits on a line of it, so it can be clicked (Document.pieces' text)%s" % ("" if unplaced.is_empty() else " (not:\n  %s)" % "\n  ".join(unplaced)))
 	_check.call(wrong.is_empty(), "every paper shows its printed side, upright, to where you'd stand to read it, and lifts without flipping%s" % ("" if wrong.is_empty() else " (not:\n  %s)" % "\n  ".join(wrong)))
 
 

@@ -1,0 +1,2 @@
+- **Changed:** reading a paper no longer files its pieces for you: point at what your case needs and click it. The line under the pointer lights up in its kind's color.
+- **Added:** a paper that matters to the case you're on shows a marker tab at its corner when you pick it up.

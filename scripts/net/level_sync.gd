@@ -14,6 +14,8 @@ signal gate_opened(key: String)
 
 ## Methods a client may ask the host to call on a world node on its behalf.
 const FORWARDABLE := ["interact", "interact_alt", "take_hit", "report_open"]
+## The same, with arguments after the player (forward_args).
+const FORWARDABLE_ARGS := ["report_take"]
 const READY_TIMEOUT := 20.0
 ## Host: the NPCs it simulates for everyone. Teammates' bodies here (PlayerPuppet)
 ## don't push them: a puppet is only placed where its player's machine says, so a
@@ -334,6 +336,25 @@ func forward(node: Node, method: String) -> bool:
 		return false
 	_remote_call.rpc_id(1, level.get_path_to(node), method)
 	return true
+
+
+## forward() with arguments, for the methods in FORWARDABLE_ARGS: the host calls
+## node.method(who, ...args).
+func forward_args(node: Node, method: String, args: Array) -> bool:
+	if is_host():
+		return false
+	_remote_call_args.rpc_id(1, level.get_path_to(node), method, args)
+	return true
+
+
+@rpc("any_peer", "reliable")
+func _remote_call_args(path: NodePath, method: String, args: Array) -> void:
+	if not is_host() or not FORWARDABLE_ARGS.has(method):
+		return
+	var node := level.get_node_or_null(path)
+	var who: Node = _players().puppet(multiplayer.get_remote_sender_id())
+	if node and who and node.has_method(method):
+		node.callv(method, [who] + args)
 
 
 @rpc("any_peer", "reliable")

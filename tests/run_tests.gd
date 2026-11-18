@@ -1854,7 +1854,9 @@ func test_level_1_scene() -> void:
 	check(_game().main_case() == "controller" and _game().pieces_total("controller") == 3 and not _game().has_piece("controller", "zone") and not _game().has_piece("controller", "status"), "the controller case asks for 3 pieces; the zone and the status are still to find")
 	var reminders: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Reminders")[0]
 	reminders._on_used(level.player)
-	check(_game().has_piece("controller", "status") and _game().case_info("controller").clues.any(func(k): return k.from == "Reminders"), "E on Mercer's reminders notes the status piece, and its clues go on the case page too")
+	check(not _game().has_piece("controller", "status"), "reading Mercer's reminders doesn't take the status piece on its own")
+	reminders.take_line(level.player, reminders.piece_lines()[0].line)
+	check(_game().has_piece("controller", "status") and _game().case_info("controller").clues.any(func(k): return k.from == "Reminders"), "clicking its 'fault' line takes the status piece, and its clues go on the case page too")
 	check(level.terminal.hint_case() == "controller" and level.terminal.puzzles[0] == level.stuck_doors_puzzle, "the first hints are for the stuck doors, on the controller's case page")
 	for bad in ["SELECT name, zone FROM doors", "SELECT name, zone FROM doors WHERE locked = 0", "SELECT name FROM doors WHERE locked = 1"]:
 		level.terminal_ui.run(bad)
@@ -2152,9 +2154,15 @@ func test_coop_level_0() -> void:
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
 	brochures[1].interact(c1.player)
 	await _frames(5)
-	check(_game().has_piece("memo", "table"), "a client's E on a paper with pieces picks it up to read, and that puts its pieces in")
+	check(not _game().has_piece("memo", "table"), "a client's E on a paper with pieces picks it up to read, which doesn't take them on its own")
 	check(c1.find_children("*", "DocumentReader", true, false).size() == 1 and host.find_children("*", "DocumentReader", true, false).is_empty() \
 		and c2.find_children("*", "DocumentReader", true, false).is_empty(), "a client reading a document opens it on their screen only")
+	var at: Array = brochures[1].piece_lines().filter(func(a): return a.case == "memo")
+	check(c1.find_children("*", "DocumentReader", true, false)[0].take(at[0].line), "the client clicks the line with the table on it")
+	await _frames(5)
+	var piece: Dictionary = _game().case_info("memo").pieces.filter(func(p): return p.id == "table")[0] if _game().pieces_total("memo") > 0 else {}
+	check(_game().has_piece("memo", "table"), "and the host puts the piece in, for the whole crew")
+	check(piece.is_empty() or str(piece.get("by", "")) == root.get_node("Net").display_name(c1_id), "credited to the client who clicked it (%s)" % str(piece.get("by", "")))
 	c1.find_children("*", "DocumentReader", true, false)[0].close()
 	await _frames(2)
 	check(not c1.player.input_locked, "putting the document down gives the client their controls back")
@@ -6205,7 +6213,10 @@ func test_pick_up_papers() -> void:
 	card._on_used(p)
 	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
 	check(reader.held and p.held_prop == card and not p.input_locked and not reader.view.visible, "E lifts the card off the desk into your hands, with no full-screen page and no freezing in place")
-	check(_game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "reading it puts the card's pieces into their cases")
+	check(not _game().has_piece("memo", "table") and not _game().has_piece("memo_order", "column"), "reading it doesn't take the card's pieces on its own")
+	var at := card.piece_lines()
+	check(at.size() == 2 and at.all(func(a): return a.line >= 0) and reader.page_viewport != null, "each of the card's pieces is on a line of it, before its case has said what it needs")
+	check(reader.take(at[0].line) and reader.take(at[1].line) and _game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "clicking those lines puts the card's pieces into their cases")
 	for i in 120:
 		if p.is_holding_prop() and p._prop_t >= 1.0:
 			break
