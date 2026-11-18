@@ -1,2 +1,0 @@
-- **Added:** in co-op, the host can take everyone back to the lobby, from the pause menu or at the end of the run. The crew stays together, ready to go again.
-- **Changed:** if the host quits mid-run, you land in your own garage on the Co-op tab, not the title screen.

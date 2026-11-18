@@ -1,0 +1,4 @@
+- **Added:** in Hard mode, when you die you watch a teammate from over their shoulder (LB / RB or the mouse buttons switch who). The dead are heard over the radio only, or not at all if the host picked "the dead can only watch".
+- **Added:** passed out with no first-aid kit to hand, you watch a teammate until someone patches you up, instead of a dark screen.
+- **Added:** friends can join a co-op game that's already going. They come in at the start of the floor the crew is on, caught up on what's happened there.
+- **Changed:** stairs, exits and anything else that waits for the whole crew only waits for those still on their feet or down but awake.
