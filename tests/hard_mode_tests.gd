@@ -1,7 +1,7 @@
 extends RefCounted
 ## Hard mode (plan/hard-mode.md; Augustine 2026-11-18): left down too long you die
 ## and stay lying there; only a first-aid kit brings anyone round; when everyone's
-## down, "Everyone's down. Dejavu?", a fade, and the floor starts over. Solo, going
+## down, "Everyone's down. Déjà vu?", a fade, and the floor starts over. Solo, going
 ## down starts the floor over. No safety net: falling out of the world kills you.
 ## The dead come back at the next floor; the living get the floor's reward.
 
@@ -146,7 +146,7 @@ func test_solo() -> void:
 	p.take_damage(1000.0, "watcher")
 	await _frames(5)
 	_check.call(crew.wiping and p.combat.down and p.input_locked, "solo, going down is the end of the floor")
-	_check.call(level.hud._notice.text == "Everyone's down. Dejavu?", "\"Everyone's down. Dejavu?\"")
+	_check.call(level.hud._notice.text == "Everyone's down. Déjà vu?", "\"Everyone's down. Déjà vu?\"")
 	var fade: ColorRect = level.hud.find_child("WipeFade", true, false)
 	await _frames(60)
 	_check.call(fade != null and fade.color.a > 0.1 and restarts.is_empty(), "the screen fades out first")
@@ -249,7 +249,7 @@ func test_coop() -> void:
 	_check.call(await _until(func(): return machines.all(func(l): return l.crew.is_dead(client_id)), 120), "a fatal fall kills you outright")
 	hp.take_damage(1000.0, "watcher")
 	_check.call(await _until(func(): return machines.all(func(l): return l.crew.wiping), 60), "the last one standing goes down: everyone's down, on every machine")
-	_check.call(host.hud._notice.text == CrewVitals.WIPE_NOTICE and client.hud._notice.text == CrewVitals.WIPE_NOTICE, "\"Everyone's down. Dejavu?\" for everyone")
+	_check.call(host.hud._notice.text == CrewVitals.WIPE_NOTICE and client.hud._notice.text == CrewVitals.WIPE_NOTICE, "\"Everyone's down. Déjà vu?\" for everyone")
 	_check.call(await _until(func(): return restarts == [false], int((CrewVitals.WIPE_FADE + 1.0) * 60)), "and the host starts the floor over, once")
 	_hard(false)
 	await _tree._coop_close(worlds)

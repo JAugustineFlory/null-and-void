@@ -214,8 +214,10 @@ func test_coop_downed() -> void:
 		back = back and await _walk(hp, func(): return host.stairs.place(hp, up, w))
 	var puppet: Node3D = host.players.puppet(client_id)
 	_check.call(back and hp.global_position.distance_to(puppet.global_position) < 1.6, "the host walks back up onto 10's stairs, counting back up past 1, and reaches them (%.1f m, %s)" % [hp.global_position.distance_to(puppet.global_position), host.stairs.progress(hp, up)])
+	hp.inventory.add(FirstAidCabinet.ITEM)
+	_hold(hp, FirstAidCabinet.ITEM)
 	puppet.interact(hp)
-	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health > 0.0, 120), "and helps them up")
+	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health > 0.0, int((CrewVitals.KIT_TIME + 1.0) * 60)), "and patches them up with a first-aid kit")
 	# Both down to G's landing.
 	var done := [false, false]
 	var where := ["", ""]
@@ -475,7 +477,7 @@ func test_first_aid_coop() -> void:
 	_hold(hp, "")
 	var usual: String = puppet.get_prompt(hp)
 	_hold(hp, FirstAidCabinet.ITEM)
-	_check.call(usual == "[E] Help them up" and puppet.get_prompt(hp) == "[E] Patch them up with the first-aid kit", "the usual hand up; with the kit in your hands, patch them up (%s)" % usual)
+	_check.call(usual == "" and puppet.get_prompt(hp) == "[E] Patch them up with the first-aid kit", "no hand up with empty hands; with the kit in your hands, patch them up (%s)" % usual)
 	hp.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
 	await _frames(5)
 	puppet.interact(hp)
