@@ -199,6 +199,7 @@ func _group_floor_22_lab() -> void:
 	test_level_2_lab_data_every_seed()
 	for outcome in ["killed", "tied", "untied"]:
 		await test_level_2_lab(outcome)
+	await test_news_ending_lines()
 
 
 ## Floor 18, the Records Archive (Level 3): its data, the floor, Mercer's room, the
@@ -257,6 +258,7 @@ func _group_coop() -> void:
 	await test_coop_achievements()
 	await test_coop_scripts()
 	await test_coop_pregame_lobby()
+	await test_coop_back_to_lobby()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -298,6 +300,7 @@ func _group_movement_hands() -> void:
 ## Floors picked from Levels play inside the building and carry on to the next.
 func _group_levels() -> void:
 	await _run_file("res://tests/levels_route_tests.gd")
+	await test_restart_floor()
 
 
 func _group_stairs() -> void:
@@ -794,7 +797,7 @@ func test_voice_script() -> void:
 	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
 	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
 	var sources := []
-	for dir in ["res://scripts/levels/", "res://scripts/huddle/"]:  # huddle: the book's chapter lines
+	for dir in ["res://scripts/levels/", "res://scripts/huddle/", "res://scripts/combat/"]:  # huddle: the book's chapter lines; combat: the news ending
 		for f in DirAccess.get_files_at(dir):
 			if f.ends_with(".gd"):
 				sources.append(dir + f)
@@ -820,6 +823,15 @@ func test_voice_script() -> void:
 		if VoiceLines.scene(VoiceLines.LINES[id]["scene"]).get("wired", false) and not used.has(id):
 			unused.append(id)
 	check(unused.is_empty(), "every line marked as in the game is played by a level %s" % [unused])
+	# Every recording Augustine made has somewhere in the game that plays it.
+	var unplayed := []
+	for dir in DirAccess.get_directories_at(Voice.folder):
+		for f in DirAccess.get_files_at(Voice.folder.path_join(dir)):
+			if f.ends_with(".wav"):
+				var id := f.get_basename()
+				if VoiceLines.has_line(id) and not used.has(VoiceLines.resolve(id)):
+					unplayed.append(id)
+	check(unplayed.is_empty(), "every recorded line has a play site %s" % [unplayed])
 
 	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
 		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
@@ -2190,6 +2202,18 @@ func test_coop_level_0() -> void:
 	c2.player.input_locked = false
 	_game().has_walkie = false
 
+	host._toggle_pause()
+	c1._toggle_pause()
+	check(host._pause_pages["exit"].get_node("ToLobby").visible and not c1._pause_pages["exit"].get_node("ToLobby").visible,
+		"in co-op only the host's Exit page can take everyone back to the lobby")
+	var host_restart: Control = host._pause_pages["restart"]
+	check(host._pause_pages["main"].get_node("Restart").visible and not c1._pause_pages["main"].get_node("Restart").visible
+		and host_restart.get_node("RestartFloor").visible and not host_restart.get_node("StartAgain").visible
+		and host_restart.get_node("FloorNote").text == root.get_node("Net").RESTART_FLOOR_NOTE_COOP,
+		"and only the host can restart the floor, for everyone (a whole new run starts from the lobby)")
+	host._toggle_pause()
+	c1._toggle_pause()
+
 	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
 	await _frames(30)
 	check(host.players.count() == 2 and c1.players.count() == 2, "a player who drops out disappears for the others")
@@ -2745,6 +2769,116 @@ func test_coop_looks() -> void:
 ## Deck scripts in co-op (S4): the host runs them, everyone sees the same run,
 ## anyone can stop one, and what a script changes reaches every copy.
 ## The pre-game lobby in front of the garage: walk in, pose, customize, ready up.
+## Restart this floor (the pause menu; the co-op host's, for everyone): back to
+## where the crew walked onto it, the run as it was then, the same run seed.
+func test_restart_floor() -> void:
+	print("Restart this floor")
+	var game := _game()
+	game.new_run(4242)
+	game.rourke_fate = "tied"
+	game.inventory.add("radio")
+	game.notebook_notes.append("before")
+	game.mark_floor_start("level_3")
+	game.rourke_fate = "killed"
+	game.has_walkie = true
+	game.inventory.add("keycard")
+	game.notebook_notes.append("during")
+	game.next_level = "level_4"
+	check(game.restore_floor_start() == "level_3" and game.run_seed == 4242 and game.rourke_fate == "tied" and not game.has_walkie
+		and game.inventory.has("radio") and not game.inventory.has("keycard") and game.notebook_notes == ["before"] and game.next_level == "",
+		"the run goes back to how it was on walking onto the floor, with the same seed")
+	game.notebook_notes.append("again")
+	check(game.floor_start.state.notebook_notes == ["before"], "and the remembered start isn't touched by playing on")
+
+	# For real: the building opens on floor 18, the crew plays a bit, and restarts.
+	var stale := current_scene  # whatever an earlier test left open
+	game.new_run(777)
+	game.goto("level_3")
+	var world: Node = null
+	for f in 600:
+		await process_frame
+		if current_scene != stale and _on_floor(current_scene, "level_3"):
+			world = current_scene
+			break
+	check(world != null and game.floor_start.get("key") == "level_3", "walking onto a floor remembers it")
+	if world:
+		game.notebook_notes.append("found on 18")
+		var net := root.get_node("Net")
+		net.restart_floor()
+		var again: Node = null
+		for f in 600:
+			await process_frame
+			if current_scene != world and _on_floor(current_scene, "level_3"):
+				again = current_scene
+				break
+		check(again != null and game.run_seed == 777 and not game.notebook_notes.has("found on 18"),
+			"Restart this floor opens the building on the same floor, same seed, as it was when you walked onto it")
+		if again:
+			await _frames(10)
+			check(again.player.global_position.distance_to(again.current.player_spawn(0).origin) < 1.5, "with the crew at the floor's start")
+	unload_current_scene()
+	await process_frame
+	game.new_run()
+
+
+## `scene` is the building (World, not named here: it would load at parse time) with floor `key` in play.
+func _on_floor(scene: Node, key: String) -> bool:
+	return scene != null and scene.has_method("enter_wing") and scene.current != null and scene.current.wing_id == key
+
+
+## Co-op is one continuous session: when the host ends the run, the whole crew
+## goes back to the host's lobby together, still connected.
+func test_coop_back_to_lobby() -> void:
+	print("Co-op: back to the lobby together")
+	var net := root.get_node("Net")
+	net.roster = {1: "Host", 55: "Ana", 77: "Bo"}
+	net.looks = {}
+	net.lobby = {1: {"ready": true, "pose": 3}, 55: {"ready": true, "pose": 1}, 77: {"ready": true, "pose": 2}}
+	net.in_game = true
+	net._to_lobby()
+	check(not net.in_game and net.roster.size() == 3 and net.lobby.values().all(func(l): return not l.ready) and net.lobby_of(1).pose == 3,
+		"the run ends for everyone: the crew is still together, nobody is ready yet, and everyone stands as they did")
+	var lobby: Control = null
+	for f in 30:
+		await process_frame
+		if current_scene and current_scene.name == "Lobby":
+			lobby = current_scene
+			break
+	check(lobby != null, "everyone's screen goes to the lobby")
+	if lobby:
+		var stage: LobbyStage = lobby.stage
+		check(stage.intro_done and lobby._side.visible and not lobby.find_child("Welcome", true, false).visible, "straight to the garage front, no opening shot")
+		check(lobby._coop_view and lobby.find_child("Ready", true, false).is_visible_in_tree() and not lobby.find_child("Host", true, false).is_visible_in_tree()
+			and lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (0/3)", "on the Co-op tab, in the session, waiting for everyone to get ready again")
+		check(stage.figures.size() == 3 and stage.figures.keys().all(func(id): return stage.figures[id].position.is_equal_approx(stage.mark(net.lobby_index(id))))
+			and stage.figures[1].get_node("Rig").action == net.lobby_action(1), "the crew is already on their marks, in their poses")
+		check(not net.back_from_run, "the next visit to the lobby opens as usual")
+	unload_current_scene()
+	await process_frame
+
+	# The host quits mid-run instead: you're back in your own garage, on the Co-op tab.
+	var link := ENetMultiplayerPeer.new()
+	link.create_client("127.0.0.1", 65000)  # a session with a host who's about to vanish
+	net.multiplayer.multiplayer_peer = link
+	net.roster = {1: "Host", 55: "You"}
+	net.in_game = true
+	net._on_server_disconnected()
+	lobby = null
+	for f in 30:
+		await process_frame
+		if current_scene and current_scene.name == "Lobby":
+			lobby = current_scene
+			break
+	check(lobby != null and net.solo_lobby and net.roster.keys() == [net.my_id()], "when the host quits mid-run, you land in your own garage, not the title screen")
+	if lobby:
+		check(lobby._coop_view and lobby.find_child("Host", true, false).is_visible_in_tree() and lobby._status.text == "The host closed the game.",
+			"on the Co-op tab, saying why, ready to host or join the next one")
+	unload_current_scene()
+	await process_frame
+	net.leave(false)
+	net.last_message = ""
+
+
 func test_coop_pregame_lobby() -> void:
 	print("Co-op: the pre-game lobby")
 	var net := root.get_node("Net")
@@ -4324,6 +4458,20 @@ func test_level_2_lab(outcome: String) -> void:
 	check(screen_text.contains("[lb]SYSOP[rb]: two conditions?"), "the two-conditions tip is SYSOP's, not the system's")
 	check(lab.response_left > Level2Lab.RESPONSE_TIME - 5.0 and lab.clock.text.begins_with("RESPONSE  "), "WARDEN sends a security response, and the clock over the door counts down")
 	check(_game().current_case() == "lab_door" and _game().case_info("lab_door").title == Level2Lab.LAB_CASE, "the lockdown opens the lab door's case page")
+	# WARDEN's recorded lines, at the moments on their cards.
+	var heard: Array[String] = level.hud.heard
+	check(not lab.logged_in, "her terminal hasn't taken Rourke's badge until someone uses it")
+	lab.switches[level.data.lab_answer].interact(p)
+	check(await _until(func(): return heard.has("l2_no_badge"), 30.0) and not level.doors["SECLAB-B"].is_open, "a switch pressed before anyone logs in: WARDEN refuses, badge required")
+	var refusals := heard.count("l2_no_badge")
+	lab.switches[level.data.lab_answer].interact(p)
+	await _frames(10)
+	check(heard.count("l2_no_badge") == refusals and not level.doors["SECLAB-B"].is_open, "pressed again straight away, it doesn't say it twice")
+	lab.terminal.interact(p)
+	check(await _until(func(): return lab.logged_in, 5.0), "sitting down at her terminal logs it in on Rourke's badge")
+	check(await _until(func(): return heard.has("l2_login") and heard.has("l2_selftest"), 40.0) and heard.find("l2_login") < heard.find("l2_selftest"),
+		"WARDEN greets Mr. Rourke, then reads out its self-test")
+	level.terminal_ui.close()
 	if outcome == "killed":
 		# Too slow: the response arrives, and the lab's controllers are re-keyed.
 		var old_zone: String = level.data.lab_zone
@@ -4348,21 +4496,29 @@ func test_level_2_lab(outcome: String) -> void:
 	level.terminal_ui.terminal = lab.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
 	check(not lab.door_puzzle.solved, "the zone alone isn't enough")
+	check(await _until(func(): return heard.has("l2_found"), 40.0) and heard.count("l2_found") == 1, "the first look at the door controllers: WARDEN logs the query, once")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % level.data.lab_zone)
 	check(lab.door_puzzle.solved, "zone AND status finds the lab door's controller")
 	check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains(level.data.lab_answer)), "SYSOP's answer goes on the lab door's page")
 	level.terminal_ui.run("SELECT * FROM badge_log ORDER BY time")
 	check(lab.log_puzzle.solved, "ORDER BY time lays out the visitor log")
-	var wrong: String = lab.switches.keys().filter(func(k): return k != level.data.lab_answer)[0]
-	lab.switches[wrong].interact(p)
-	await _frames(3)
-	check(not level.doors["SECLAB-B"].is_open, "the wrong switch doesn't open the door")
-	lab.switches_locked_until = 0.0
+	for wrong in lab.switches.keys().filter(func(k): return k != level.data.lab_answer):
+		var ok_row: bool = level.db.run_silent("SELECT status FROM door_controllers WHERE id = '%s'" % wrong)[0]["status"] == "ok"
+		lab.switches[wrong].interact(p)
+		await _frames(3)
+		check(not level.doors["SECLAB-B"].is_open, "the wrong switch doesn't open the door")
+		var said := "l2_panel_ok" if ok_row else "l2_panel_wrong"
+		check(await _until(func(): return heard.has(said), 40.0), "WARDEN on %s %s: %s" % ["a working controller's switch" if ok_row else "the wrong faulted switch", wrong, said])
+		lab.switches_locked_until = 0.0
 	lab.switches[level.data.lab_answer].interact(p)
 	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "the right switch resets it, and the door opens")
+	check(await _until(func(): return heard.has("l2_exit_open"), 40.0), "and WARDEN notes the exit unlocked")
 	check(_game().case_info("lab_door").solved and _game().case_info("lab_door").how.contains(level.data.lab_answer), "and the lab door's case is solved")
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-3, 0.1, 4.0)))
 	check(await _until(func(): return lab.phase == "done" and not level.booth.locked, 20.0), "out of the lab, it's over, and the night desk terminal works")
+	check(await _until(func(): return heard.has("l2_sealed"), 40.0), "WARDEN seals the floor as the crew steps out")
+	check(heard.has("l2_lockdown_tied") == (outcome == "tied") and (outcome != "tied" or heard.find("l2_lockdown_tied") < heard.find("l2_sealed")),
+		"and only if Rourke was left tied, the lockdown is signed by him first (%s)" % outcome)
 	check(not level.watcher.active, "the Watcher stays still: it's quiet until Pike")
 	if outcome == "untied":
 		check(await _until(func(): return not r.visible, 30.0), "left untied, he's gone soon after")
@@ -4371,6 +4527,30 @@ func test_level_2_lab(outcome: String) -> void:
 		check(r.visible == (outcome == "killed" or outcome == "tied"), "tied or dead, he's still lying there for now")
 	Engine.time_scale = 1.0
 	level.queue_free()
+	await process_frame
+
+
+## The news ending reads the script's whole l2_news scene, in its order: the arrest,
+## Maddison's "They were framed!", then the weather.
+func test_news_ending_lines() -> void:
+	print("Level 2 lab: the news ending reads the whole report")
+	var news := NewsEnding.new()
+	root.add_child(news)
+	Engine.time_scale = 8.0
+	var done := [false]
+	news.finished.connect(func(): done[0] = true)
+	news.run()
+	check(await _until(func(): return news.retry.visible, 150.0), "the radio report plays to the end")
+	news.skip()
+	Engine.time_scale = 1.0
+	var want := VoiceLines.ids_in_scene("l2_news")
+	check(news.heard == want, "every line of the script's news scene, in the script's order %s" % [news.heard])
+	check(want.size() == 7 and want.has("l2_news_6") and want.has("l2_news_7") and want.back() == "l2_news_5", "all seven, with the weather last")
+	check(VoiceLines.get_line("l2_news_4")["text"].contains("arrested") and VoiceLines.get_line("l2_news_6")["text"].contains("framed"),
+		"Maddison's arrest, and her \"They were framed!\", are on the air")
+	check(not load("res://scripts/combat/news_ending.gd").get_script_constant_map().has("RADIO"), "the ending keeps no copy of its own lines")
+	await _until(func(): return done[0], 5.0)
+	news.queue_free()
 	await process_frame
 
 
