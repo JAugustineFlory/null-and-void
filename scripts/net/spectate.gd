@@ -1,14 +1,17 @@
 class_name Spectate
 extends Camera3D
-## Dead (Hard mode): you watch a teammate who's still up, from over their
-## shoulder (plan/hard-mode.md, call 4). LB / RB, or the mouse buttons, switch
-## who. You can't touch anything; your body stays lying where it fell.
-## NetPlayers starts it when CrewVitals says you died; it ends when you're back
-## (the next floor) or the floor starts over.
+## Dead (Hard mode) or out cold (passed out, either mode): you watch a teammate
+## who's still up, from over their shoulder (plan/hard-mode.md, call 4). LB / RB,
+## or the mouse buttons, switch who. You can't touch anything; your body stays
+## lying where it fell. NetPlayers starts it when CrewVitals says you died or
+## passed out; it ends when you're back (a first-aid kit, the next floor) or the
+## floor starts over.
 
 ## Approved word for word by Augustine, 2026-11-18 00:04Z (plan/hard-mode.md, 12).
 const WATCHING := "You're dead. Watching %s."
 const SWITCH := "LB / RB to switch"
+## Out cold, not dead (approved word for word by Augustine, 2026-11-18 15:26Z).
+const WATCHING_OUT_COLD := "You're out cold. Watching %s."
 ## Over the shoulder: this far behind their head, to the right, and above it.
 const BACK := 2.2
 const SIDE := 0.45
@@ -83,8 +86,14 @@ func watch(id: int) -> void:
 		return
 	watching = id
 	_snap = true
-	var body: Node = players.puppet(id) if id != 0 else null
-	_who.text = WATCHING % body.get("display_name") if body else ""
+	_show_who()
+
+
+## Who you're watching, and whether you're dead or only out cold.
+func _show_who() -> void:
+	var body: Node = players.puppet(watching) if watching != 0 else null
+	var line := WATCHING if players.is_dead(multiplayer.get_unique_id()) else WATCHING_OUT_COLD
+	_who.text = line % body.get("display_name") if body else ""
 
 
 ## Next (1) or previous (-1) living teammate.
@@ -127,6 +136,8 @@ func _process(delta: float) -> void:
 	if players.is_present(multiplayer.get_unique_id()):
 		players.stop_watching()  # brought round
 		return
+	if _who.text != "" and _who.text.begins_with("You're out cold") == players.is_dead(multiplayer.get_unique_id()):
+		_show_who()  # out cold, then dead (Hard)
 	var body: Node3D = players.puppet(watching) if watching != 0 else null
 	if body == null or not players.is_present(watching):
 		cycle(1)  # they died, passed out or left: on to someone still up

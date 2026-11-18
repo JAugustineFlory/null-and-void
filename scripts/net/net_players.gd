@@ -70,7 +70,7 @@ func watch_crew(crew: Node = null) -> void:
 	if crew.has_signal("died"):
 		crew.died.connect(_on_died)
 	if crew.has_signal("passed_out"):
-		crew.passed_out.connect(_recheck_triggers.unbind(1))  # out cold: nobody waits on them
+		crew.passed_out.connect(_on_died)  # out cold: you watch until a kit brings you round
 	if crew.has_signal("came_back"):
 		crew.came_back.connect(_on_came_back)
 	if crew.has_signal("wiped"):
@@ -92,7 +92,7 @@ func is_present(id: int) -> bool:
 	return not is_dead(id)
 
 
-## Dead (every machine): you watch a teammate, and nobody waits on you.
+## Dead or out cold (every machine): you watch a teammate, and nobody waits on you.
 func _on_died(id: int, _cause = "") -> void:
 	if id == multiplayer.get_unique_id() and spectate == null and _puppets.size() > 0:
 		spectate = Spectate.create(self)

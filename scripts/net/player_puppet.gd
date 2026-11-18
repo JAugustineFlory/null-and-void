@@ -76,6 +76,11 @@ static func create(parent: Node, id: int, player_name: String, look: Dictionary,
 	return p
 
 
+func _ready() -> void:
+	for npc in get_tree().get_nodes_in_group(LevelSync.SHOVE_PROOF):
+		LevelSync.keep_apart(npc, self)  # (see LevelSync.SHOVE_PROOF)
+
+
 func _build(look: Dictionary) -> void:
 	add_to_group("player")
 	add_to_group("puppet")

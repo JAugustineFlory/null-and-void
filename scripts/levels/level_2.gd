@@ -688,6 +688,12 @@ func _anyone_in_booth_corridor() -> bool:
 	return players.all_players().any(func(p): return _booth_corridor.has_point(to_local(p.global_position) + Vector3.UP * 0.5))
 
 
+## The ledge is 80 m up: a fall from here kills you (_process), with its own notice,
+## rather than being caught by the safety net.
+func owns_falls() -> bool:
+	return true
+
+
 func _process(delta: float) -> void:
 	if not active:
 		return  # built behind Server Room A's exit, waiting for players

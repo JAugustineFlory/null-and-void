@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_kit_cabinets()
 	await test_kit_on_yourself()
 	await test_solo()
+	await test_fall_net()
 	await test_coop()
 
 
@@ -154,7 +155,7 @@ func test_solo() -> void:
 	_check.call(p.global_position.distance_to(at) < 0.5, "with no trip back to the checkpoint on the way")
 	# Without Co-op's restart, the old way back stands in.
 	crew._back_after_wipe()
-	await _frames(10)
+	await _until(func(): return p.health > 0.0, 400)  # the level's own fade back to the checkpoint
 	_check.call(not crew.wiping and not p.combat.down and crew.downed.is_empty(), "(the stand-in: back on your feet at the checkpoint)")
 	# Fall out of the world: no net in hard mode.
 	var real_profile = _net().profile
@@ -163,9 +164,37 @@ func test_solo() -> void:
 	_check.call(p.combat.fell_out() and _net().profile.earned.has(PlayerCombat.WAY_OUT), "fall out of the world: \"I think I found the way out!\"")
 	_check.call(await _until(func(): return restarts == [false], int((CrewVitals.WIPE_FADE + 1.0) * 60)), "and you're dead: the floor starts over")
 	crew._back_after_wipe()
-	await _frames(10)
+	await _until(func(): return p.health > 0.0, 400)  # the level's own fade back to the checkpoint
 	_hard(false)
 	_check.call(not p.combat.fell_out() and not p.combat.down, "on Normal, the safety net catches you as usual")
+	_net().profile = real_profile
+	level.queue_free()
+	await _frames(5)
+
+
+## The floor's own safety net (FallNet) asks hard mode first: no put-back, you die.
+func test_fall_net() -> void:
+	print("Hard mode: no safety net")
+	_hard(true)
+	_game().new_run(41)
+	var level = load("res://scenes/level_3.tscn").instantiate()
+	_tree.root.add_child(level)
+	_tree._books_read([level])
+	var p: Player = level.player
+	var crew: CrewVitals = level.crew
+	var net: FallNet = level.get_node_or_null("FallNet")
+	var restarts := []
+	crew.restart_with = func(new_run): restarts.append(new_run)
+	var real_profile = _net().profile
+	_net().profile = Profile.new()
+	await _until(func(): return p.is_on_floor() and net != null and net.has_safe_spot, 240)
+	var home := p.global_position
+	p.global_position = home + Vector3.DOWN * 200.0
+	p.velocity = Vector3.ZERO
+	_check.call(net != null and await _until(func(): return p.combat.dead, 120), "falling out of the world in hard mode: you die")
+	_check.call(p.global_position.distance_to(home) > 150.0 and _net().profile.earned.has(PlayerCombat.WAY_OUT), "with no put-back, and \"I think I found the way out!\"")
+	_check.call(await _until(func(): return restarts == [false], int((CrewVitals.WIPE_FADE + 1.0) * 60)), "and the floor starts over")
+	_hard(false)
 	_net().profile = real_profile
 	level.queue_free()
 	await _frames(5)

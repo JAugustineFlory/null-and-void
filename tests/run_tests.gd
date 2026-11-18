@@ -165,6 +165,7 @@ func _group_floor_g() -> void:
 	await test_level_0_scene()
 	await test_ground_floor()
 	await test_rourke_leads_in()
+	await test_rourke_never_stuck()
 	await test_caller_answer()
 	await test_clue_papers_shine()
 
@@ -287,6 +288,7 @@ func _group_combat() -> void:
 	await _run_file("res://tests/custodian_tests.gd")
 	await test_coop_combat()
 	await test_coop_custodian()
+	await test_coop_npcs_unshoved()
 
 
 ## Parkour: walking, sliding, mantling, vaulting, hanging, climbing, vents, ledges, shoulders.
@@ -2175,6 +2177,8 @@ func test_coop_level_0() -> void:
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
 	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
+	for l in [c1, c2]:  # out past the walls on purpose: no safety net putting them back
+		l.get_node("FallNet").set_physics_process(false)
 	c2.player.global_position = Vector3(-40, 0.1, 4)
 	c1.player.global_position = Vector3(45, 0.1, 3)
 	await _frames(30)
@@ -2228,6 +2232,7 @@ func test_coop_level_0() -> void:
 func test_hard_dead_watch() -> void:
 	print("Co-op: the dead in Hard mode")
 	_game().new_run(6)
+	_game().hard_mode = false  # (death here comes from the test; on Hard, falling out of the map kills)
 	var worlds := await _coop_worlds(2)
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
 	_lower_chapters_read(levels)
@@ -2255,8 +2260,12 @@ func test_hard_dead_watch() -> void:
 	crews[0]._host_unconscious(id2)
 	await _frames(5)
 	check(fired[0] == 1, "out cold, they don't hold the crew there, and it goes")
+	var cold = c2.players.spectate
+	check(cold != null and worlds[2].get_camera_3d() == cold and cold._who.text == Spectate.WATCHING_OUT_COLD % c2.players.puppet(1).display_name,
+		"out cold, you watch a teammate too (%s)" % (cold._who.text if cold else "no camera"))
 	crews[0]._run("_set_down", [id2, false, ""])
 	await _frames(5)
+	check(c2.players.spectate == null and worlds[2].get_camera_3d() == c2.player.camera, "brought round (a kit), you see through your own eyes again")
 	var gate2 := Trigger.create(host, spot + Vector3(0, 0.9, 0), Vector3(2.6, 2, 2.6))
 	gate2.require_all = true
 	gate2.entered.connect(func(_b): fired[0] += 1)
@@ -2448,6 +2457,7 @@ func test_coop_late_join() -> void:
 	await process_frame
 	net.leave(false)
 	net.rules = net.RULES.duplicate()
+	game.hard_mode = false
 	game.new_run()
 
 
@@ -4842,6 +4852,78 @@ func test_coop_custodian() -> void:
 	await _coop_close(worlds)
 
 
+## v0.9-beta2: a client walking into Rourke or the Custodian (held click and WASD)
+## dragged them about on the host, so for everyone, and the story stalled. A
+## teammate's body on the host goes where their machine says, so it mustn't push
+## the NPCs the host runs (LevelSync.SHOVE_PROOF).
+func test_coop_npcs_unshoved() -> void:
+	print("Co-op: a teammate can't shove an NPC about")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var client = levels[1]
+	var p: Player = client.player
+	host.player.global_position = Vector3(8, 0.1, 11.5)
+	host.rourke.state = host.rourke.State.IDLE
+	host.rourke.global_position = Vector3(-3, 0, 5)
+	await _frames(20)
+	p.local_control = false
+	p.global_position = Vector3(-3, 0.1, 6.2)
+	p.rotation.y = 0.0  # facing him
+	await _frames(3)
+	var start: Vector3 = host.rourke.global_position
+	var met := false
+	for f in 240:  # four seconds of walking into him while turning the view
+		p.controls.move = Vector2(0, -1)
+		p.rotation.y += 0.004
+		await physics_frame
+		met = met or p.global_position.distance_to(start) < 0.8
+	p.controls.move = Vector2.ZERO
+	check(met, "the client walks right up against Rourke")
+	check(host.rourke.global_position.distance_to(start) < 0.05 and client.rourke.global_position.distance_to(start) < 0.05,
+		"and can't push him about, on the host or their own screen (moved %.2f m)" % host.rourke.global_position.distance_to(start))
+	# Standing in his way doesn't hold up the story either: he walks on.
+	p.global_position = Vector3(-1.5, 0.1, 5.0)
+	await _frames(3)
+	var arrived := [false]
+	host.rourke.arrived.connect(func(): arrived[0] = true)
+	host.rourke.walk_to(Vector3(0.0, 0, 5.0), true)
+	for f in 240:
+		await physics_frame
+		if arrived[0]:
+			break
+	check(arrived[0] and host.rourke.global_position.distance_to(Vector3(0, 0, 5)) < 0.5, "a client standing in Rourke's way doesn't stop him getting where he's going")
+	p.local_control = true
+	await _coop_close(worlds)
+
+	_game().new_run(5)
+	worlds = await _coop_worlds(1)
+	levels = await _coop_load(worlds, "res://scenes/level_4.tscn")
+	host = levels[0]
+	client = levels[1]
+	await _frames(20)
+	var c: Node3D = host.custodian
+	start = c.global_position
+	p = client.player
+	p.local_control = false
+	p.global_position = start + Vector3(0.75, 0.1, 0)
+	p.look_at(start, Vector3.UP)
+	p.rotation.x = 0.0
+	p.rotation.z = 0.0
+	await _frames(3)
+	start = c.global_position
+	for f in 240:
+		p.controls.move = Vector2(0, -1)
+		p.rotation.y += 0.004
+		await physics_frame
+	p.controls.move = Vector2.ZERO
+	check(c.global_position.distance_to(start) < 0.05, "nor drag the Custodian about (moved %.2f m)" % c.global_position.distance_to(start))
+	p.local_control = true
+	await _coop_close(worlds)
+
+
 func test_coop_combat() -> void:
 	print("Co-op: blocking, going down and helping each other up")
 	_game().new_run(3)
@@ -5222,6 +5304,44 @@ func test_world() -> void:
 	check(world._field_notes.find_children("*", "NotebookView", true, false).size() == 1, "Field Notes is the notebook's page")
 	world.queue_free()
 	await process_frame
+
+
+## Shoved off his path, wedged, or out of the world: Rourke's escort never hangs.
+func test_rourke_never_stuck() -> void:
+	print("Rourke can't be left stuck")
+	_game().new_run(8)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	root.add_child(level)
+	await _frames(30)
+	var r: Rourke = level.rourke
+	r.visible = true
+	r.state = Rourke.State.IDLE
+	r.global_position = Vector3(-6.3, -40.0, 0.6)
+	r.velocity = Vector3.ZERO
+	check(await _until(func(): return r.is_on_floor() and r.global_position.y > -0.5, 6.0), "out of the world, he's put back on the floor (at %s)" % r.global_position)
+	# Walled in where the navigation can't see: he tries, then is put where he was going.
+	r.global_position = Vector3(-6.3, 0.05, 0.6)
+	var cage := StaticBody3D.new()
+	for side in [Vector3(0.9, 1, 0), Vector3(-0.9, 1, 0), Vector3(0, 1, 0.9), Vector3(0, 1, -0.9)]:
+		var cs := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(0.2, 2.0, 2.0) if side.x != 0.0 else Vector3(2.0, 2.0, 0.2)
+		cs.shape = box
+		cs.position = side
+		cage.add_child(cs)
+	cage.position = r.global_position
+	level.add_child(cage)
+	await _frames(5)
+	var goal := Vector3(0, 0, -8.5)
+	var arrived := [false]
+	r.arrived.connect(func(): arrived[0] = true, CONNECT_ONE_SHOT)
+	r.walk_to(goal)
+	await _frames(60)
+	check(not arrived[0] and r.global_position.distance_to(Vector3(-6.3, 0.05, 0.6)) < 1.0, "boxed in, he can't get far at first")
+	check(await _until(func(): return arrived[0], Rourke.STUCK_TIME * Rourke.GIVE_UP_AFTER + 4.0), "but the walk still finishes")
+	check(Vector2(r.global_position.x, r.global_position.z).distance_to(Vector2(goal.x, goal.z)) < 1.0, "with him where he was going (at %s)" % r.global_position)
+	level.queue_free()
+	await _frames(5)
 
 
 func test_rourke_leads_in() -> void:
