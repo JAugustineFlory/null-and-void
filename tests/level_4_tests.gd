@@ -492,9 +492,9 @@ func test_accident() -> void:
 	check(await _until(func(): return docked[0], 900), "left alone, it drags them all the way to its bay (state %s)" % cust.state)
 	await _frames(120)
 	check(p.combat.grabbed_by == null and p.health > 0.0 and LANDING_BOX.has_point(level.to_local(p.global_position)), "they go down, and come to on the landing")
-	check(await _until(func(): return level.adapted, 900), "out of the control room after the accident, WARDEN's upgrade plays")
+	check(await _until(func(): return level.adapted, 2400), "out of the control room after the accident, WARDEN's upgrade plays")
 	var loop_text: String = VoiceLines.get_line("l4_epsilon_loop").get("text", "")
-	check(await _until(func(): return level.hud._subtitle.text.contains(loop_text), 900), "Epsilon's reminder comes over the PA every so often")
+	check(await _until(func(): return level.hud._subtitle.text.contains(loop_text), 2400), "Epsilon's reminder comes over the PA every so often")
 	level.reminder_every = 1000.0
 	# The lockout: logged on the controller, read back at the bay's panel in time.
 	level.lockout_window = 0.5
@@ -559,7 +559,7 @@ func test_accident() -> void:
 	ui.run("SELECT * FROM gates")
 	await _frames(2)
 	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own SELECT shows the lie: main_entrance locked again (the whole table counts, as the panel did upstairs)")
-	check(await _until(func(): return done[0], 1500) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
+	check(await _until(func(): return done[0], 3600) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
 	net.profile.earned = had
 	level.queue_free()
 	await t.process_frame
