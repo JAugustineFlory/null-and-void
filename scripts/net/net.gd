@@ -32,6 +32,12 @@ const TO_LOBBY := "Take everyone to the lobby"
 const RESTART_FLOOR := "Restart this floor"
 const RESTART_FLOOR_NOTE := "Back to where you walked onto this floor. The building resets, and the answers you've worked out still hold."
 const RESTART_FLOOR_NOTE_COOP := "Everyone goes back to where you walked onto this floor. The building resets, and the answers you've worked out still hold."
+## The host's choices for a run, and their defaults. "mode": "normal" or "hard".
+## "dead_muted": in hard mode, the dead can only watch (not even the radio).
+## "wipe_new_seed": in hard mode, a wipe starts the whole run over with new data
+## instead of restarting the floor.
+const RULES := {"mode": "normal", "dead_muted": false, "wipe_new_seed": false}
+const MODES := ["normal", "hard"]
 const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Harper", "Jo", "Kit", "Lane", "Morgan"]
 
 ## peer id -> player name, identical on every machine.
@@ -51,6 +57,9 @@ var wanted_look := {}
 var profile: Profile
 var player_name := ""
 var in_game := false
+## How the host set up the run, the same on every machine (sent with the roster
+## and with the start): see RULES.
+var rules := RULES.duplicate()
 ## Coming back from a run, still together (or after the host left mid-run): the
 ## lobby opens straight on the Co-op tab, with no opening shot. The lobby clears it.
 var back_from_run := false
@@ -106,10 +115,13 @@ func terminal_color(peer: int) -> Color:
 	return CharacterLooks.terminal_skin(look_of(peer, maxi(player_ids().find(peer), 0)).terminal)
 
 
-## Change part of this player's loadout in the lobby, e.g. {"skin": 2},
+## Change part of this player's loadout in the lobby (or at a garage locker), e.g. {"skin": 2},
 ## {"crew": "dana"} or {"top": {"color": Color.RED}}. Saved to their profile.
 ## Teammates can pick the same as each other.
 func choose_look(change: Dictionary) -> void:
+	if in_game:  # mid-run (a garage locker): what you wear, never who you are
+		change = change.duplicate()
+		change.erase("crew")
 	wanted_look = Cosmetics.trim(Cosmetics.merge(wanted_look, change), profile)
 	profile.loadout = wanted_look.duplicate(true)
 	profile.save()
@@ -137,6 +149,7 @@ func start_solo_game() -> void:
 	solo_lobby = false
 	var game := get_node("/root/Game")
 	game.new_run()
+	_apply_rules()
 	game.open_at_home = true
 	game.goto("world")
 
@@ -202,8 +215,44 @@ func _assign_lobby(peer: int, change: Dictionary) -> void:
 	if change.get("pose") is int:
 		state.pose = posmod(change.pose, LOBBY_POSES.size())
 	lobby[peer] = state
-	_set_roster.rpc(roster, looks, lobby)
+	_set_roster.rpc(roster, looks, lobby, rules)
 	roster_changed.emit()
+
+
+## Host (or solo): change how the run is set up, e.g. {"mode": "hard"}. Junk is
+## ignored. Everyone sees it in the lobby; it goes into the run at the start.
+func set_rules(change: Dictionary) -> void:
+	if not is_host() or in_game:
+		return
+	rules = clean_rules(change, rules)
+	if is_online():
+		_set_roster.rpc(roster, looks, lobby, rules)
+	roster_changed.emit()
+
+
+## `how` with anything unknown or the wrong type dropped; what it leaves out
+## comes from `base` (the defaults, unless given).
+static func clean_rules(how: Dictionary, base := RULES) -> Dictionary:
+	var out := base.duplicate()
+	if how.get("mode") in MODES:
+		out.mode = how.mode
+	for k in ["dead_muted", "wipe_new_seed"]:
+		if how.get(k) is bool:
+			out[k] = how[k]
+	return out
+
+
+## The run is on Hard.
+func is_hard() -> bool:
+	return rules.mode == "hard"
+
+
+## This machine's Game takes on the run's rules (Combat reads them there).
+func _apply_rules() -> void:
+	var game := get_node("/root/Game")
+	game.hard_mode = is_hard()
+	game.dead_watch_only = is_hard() and rules.dead_muted
+	game.wipe_new_run = is_hard() and rules.wipe_new_seed
 
 
 ## The name teammates see, saved to the profile. In the lobby it changes for
@@ -231,7 +280,7 @@ func _request_name(wanted: String) -> void:
 
 func _assign_name(peer: int, wanted: String) -> void:
 	roster[peer] = _unique_name(wanted.strip_edges().left(16), peer)
-	_set_roster.rpc(roster, looks, lobby)
+	_set_roster.rpc(roster, looks, lobby, rules)
 	roster_changed.emit()
 
 
@@ -258,15 +307,20 @@ func earn(source: String, hud: Node = null) -> Array:
 
 @rpc("any_peer", "reliable")
 func _request_look(choice: Dictionary) -> void:
-	if is_host() and not in_game and roster.has(multiplayer.get_remote_sender_id()):
-		_assign_look(multiplayer.get_remote_sender_id(), choice)
+	var id := multiplayer.get_remote_sender_id()
+	if not is_host() or not roster.has(id):
+		return
+	if in_game and looks.has(id):  # mid-run (a garage locker): the same crew member
+		choice = choice.duplicate()
+		choice.crew = looks[id].crew
+	_assign_look(id, choice)
 
 
 ## The host checks a loadout against the catalogue (it trusts what they own)
 ## and tells everyone.
 func _assign_look(peer: int, choice: Dictionary) -> void:
 	looks[peer] = Cosmetics.clean(choice, maxi(roster.keys().find(peer), 0))
-	_set_roster.rpc(roster, looks, lobby)
+	_set_roster.rpc(roster, looks, lobby, rules)
 	roster_changed.emit()
 
 
@@ -314,17 +368,19 @@ func leave(notify: bool = true, reason: String = "") -> void:
 func start_game(level := "world") -> void:
 	if not is_host():
 		return
-	_start.rpc(randi(), roster, looks, level)
+	_start.rpc(randi(), roster, looks, level, rules)
 
 
 @rpc("authority", "call_local", "reliable")
-func _start(seed_value: int, names: Dictionary, picked: Dictionary, level := "world") -> void:
+func _start(seed_value: int, names: Dictionary, picked: Dictionary, level := "world", how := {}) -> void:
 	roster = names
 	looks = picked
+	rules = clean_rules(how)
 	in_game = true
 	set_patience(PATIENCE_LOADING)
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
+	_apply_rules()
 	var key: String = level if game.LEVELS.has(level) else "world"
 	game.open_at_home = key == "world"
 	game.goto(key)
@@ -352,17 +408,32 @@ func _to_lobby() -> void:
 ## crew goes back to where they walked onto it, the run as it stood then
 ## (Game.floor_start), with the same run seed, so answers worked out still hold.
 ## Hard mode's wipe restarts the floor this way too.
-func restart_floor() -> void:
+## `keep_notebook`: the notebook keeps what was written since (hard mode's wipe).
+func restart_floor(keep_notebook := false) -> void:
 	if not is_host():
 		return
 	if is_online():
-		_restart_floor.rpc()
+		_restart_floor.rpc(keep_notebook)
 	else:
-		_restart_floor()
+		_restart_floor(keep_notebook)
+
+
+## Host (or solo): the whole run starts over with new data, from where it started
+## (hard mode's wipe, when the host chose that in the lobby).
+func restart_run() -> void:
+	if not is_host():
+		return
+	var game := get_node("/root/Game")
+	if is_online():
+		_start.rpc(randi(), roster, looks, game.run_start, rules)
+		return
+	game.new_run()
+	game.open_at_home = game.run_start == "world"
+	game.goto(game.run_start)
 
 
 @rpc("authority", "call_local", "reliable")
-func _restart_floor() -> void:
+func _restart_floor(keep_notebook := false) -> void:
 	if is_online():
 		set_patience(PATIENCE_LOADING)
 	var scene := get_tree().current_scene
@@ -370,9 +441,50 @@ func _restart_floor() -> void:
 	if scene == null or not scene.has_method("enter_wing") or game.floor_start.is_empty():
 		get_tree().reload_current_scene()  # not the building: a stand-alone floor or the gym
 		return
-	var key: String = game.restore_floor_start()
+	var key: String = game.restore_floor_start(keep_notebook)
 	game.open_at_home = key == "world"
 	game.goto(key)
+
+
+## Joining a game already going: open the building at the floor the crew is on,
+## with the run as it stood when they walked onto it (`start`, Game.floor_start).
+## The host's LevelSync then replays what has happened there since.
+@rpc("authority", "reliable")
+func _join_run(seed_value: int, names: Dictionary, picked: Dictionary, how: Dictionary, start: Dictionary, scene_key: String) -> void:
+	roster = names
+	looks = picked
+	rules = clean_rules(how)
+	in_game = true
+	solo_lobby = false
+	set_patience(PATIENCE_LOADING)
+	var game := get_node("/root/Game")
+	game.new_run(seed_value)
+	_apply_rules()
+	game.floor_start = start.duplicate(true)
+	var key: String = game.restore_floor_start()
+	game.inventory.clear()  # what the others carry is theirs; you start with your own kit
+	game.floor_start = start.duplicate(true)
+	if key == "":
+		key = scene_key  # not the building (a stand-alone floor): the same scene
+	game.open_at_home = key == "world"
+	game.goto(key)
+
+
+## The Game.LEVELS key of the scene this machine is in ("" if it isn't one).
+func _scene_key() -> String:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return ""
+	var game := get_node("/root/Game")
+	for k in game.LEVELS:
+		if game.LEVELS[k] == scene.scene_file_path:
+			return k
+	return ""
+
+
+func _link(id: int) -> ENetPacketPeer:
+	var peer := multiplayer.multiplayer_peer
+	return peer.get_peer(id) if peer is ENetMultiplayerPeer else null
 
 
 ## The building has loaded on every machine (LevelSync, once it begins): after
@@ -442,23 +554,27 @@ func _register(wanted: String, look: Dictionary) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
-	if in_game:
-		_refused.rpc_id(id, "That game has already started.")
-		return
 	if roster.size() >= MAX_PLAYERS:
 		_refused.rpc_id(id, "That lobby is full (%d players)." % MAX_PLAYERS)
 		return
 	roster[id] = _unique_name(wanted.strip_edges().left(16), id)
 	_assign_look(id, look)
 	roster_changed.emit()
+	if in_game:
+		# A game that's already going: they come in at the start of the floor the
+		# crew is on, and catch up on what's happened there (LevelSync.replay_to).
+		var game := get_node("/root/Game")
+		patient(_link(id), PATIENCE_LOADING)
+		_join_run.rpc_id(id, game.run_seed, roster, looks, rules, game.floor_start, _scene_key())
 
 
 @rpc("authority", "reliable")
-func _set_roster(names: Dictionary, picked: Dictionary, waiting := {}) -> void:
+func _set_roster(names: Dictionary, picked: Dictionary, waiting := {}, how := {}) -> void:
 	var first := roster.is_empty()
 	roster = names
 	looks = picked
 	lobby = waiting
+	rules = clean_rules(how)
 	roster_changed.emit()
 	if first:
 		joined.emit()
@@ -489,7 +605,7 @@ func _on_peer_disconnected(id: int) -> void:
 	lobby.erase(id)
 	roster_changed.emit()
 	if is_host():
-		_set_roster.rpc(roster, looks, lobby)
+		_set_roster.rpc(roster, looks, lobby, rules)
 
 
 func _on_connection_failed() -> void:

@@ -32,7 +32,8 @@ static func base() -> Dictionary:
 		"earrings": null,  # a Color adds small stud earrings
 		"shoulder_pads": false,  # with a jacket: squarer 90s shoulders
 		"collar": false,  # a shirt collar (polo, blouse); hidden under a jacket
-		"headwear": null,  # cap, beanie, hard_hat or mercer_cap; drawn over the hair
+		"headwear": null,  # cap, beanie, hard_hat, mercer_cap or knight_helm; drawn over the hair
+		"torn": false,  # torn clothes: the shirt and trousers ripped, sleeves, hem and cuffs ragged
 		"readers": null,  # a Color adds half-moon reading glasses, low on the nose
 		"jacket_closed": false,  # with a jacket: zipped up over the shirt
 		"jacket_badge": null,  # with a jacket: a Color adds a metal shield on the chest (security)
@@ -122,8 +123,8 @@ const CREW_BODIES := {
 ## The first id in each list is the default; "none" leaves the slot empty.
 const SLOTS := {
 	"hair": ["short", "long", "bob", "bald"],
-	"head": ["none", "cap", "beanie", "hard_hat", "mercer_cap"],
-	"top": ["polo", "tee", "longsleeve", "blouse", "byte_right_polo"],
+	"head": ["none", "cap", "beanie", "hard_hat", "mercer_cap", "knight_helm"],
+	"top": ["polo", "tee", "longsleeve", "blouse", "byte_right_polo", "torn_clothes"],
 	"jacket": ["none", "jacket", "blazer", "coat", "security", "press"],
 	"legs": ["pants"],
 	"feet": ["shoes", "high_tops"],
@@ -166,6 +167,8 @@ const FIXED_COLORS := {
 ## it); items not listed start in SLOT_COLORS.
 const ITEM_COLORS := {
 	"head/mercer_cap": Color(0.36, 0.38, 0.27),  # faded olive
+	"head/knight_helm": Color(0.6, 0.62, 0.64),  # plain steel
+	"top/torn_clothes": Color(0.6, 0.55, 0.46),  # what's left of a work shirt
 	"top/byte_right_polo": Color(0.93, 0.93, 0.9),
 	"jacket/security": Color(0.2, 0.24, 0.32),
 	"jacket/press": Color(0.55, 0.48, 0.34),  # khaki field jacket
@@ -242,6 +245,9 @@ static func outfit(slots: Dictionary) -> Dictionary:
 	look.collar = top[0] in ["polo", "blouse", "byte_right_polo"]
 	if top[0] == "byte_right_polo":
 		look.logo = ArtPalette.BYTERIGHT_BLUE
+	look.torn = top[0] == "torn_clothes"  # the trousers go with it, in their own color
+	if look.torn:
+		look.logo = null  # whatever shirt it was, its patch is long gone
 	var jacket: Array = pick.call("jacket")
 	if jacket[0] != "none":
 		look.jacket = jacket[1]

@@ -14,11 +14,17 @@ extends Node
 ##   ""           anything else: can't be blocked, puts you down at 0
 ## Big entities can't be blocked: only causes marked "block" can.
 ##
-## At 0 health you go down. With teammates you lie there until one helps you up
-## (E). Left down too long, you pass out: still on the floor, and a teammate can
-## still help you up, only it takes them longer (CrewVitals). If the whole crew is
-## down or out, the level decides what happens (CrewVitals). Solo, the crew is
-## just you, so going down is the same as the whole crew going down.
+## At 0 health you go down. With teammates you lie there until one patches you up
+## with a first-aid kit (there are no free hand-ups). Left down too long, you pass
+## out: still on the floor, a kit still brings you round, and otherwise you come to
+## at the next floor (CrewVitals). If the whole crew is down or out, the level
+## decides what happens (CrewVitals). Solo, the crew is just you, so going down is
+## the same as the whole crew going down.
+##
+## Hard mode (CrewVitals.hard_mode()): left down for BLEED_OUT_HARD you die instead
+## (`dead`: you stay lying there while Co-op's camera lets you watch), and a fatal
+## fall or falling out of the world kills you too. If that leaves nobody standing,
+## the floor starts over.
 
 signal blocked(cause: String)
 ## The guard went up (right mouse): for the first-person arms to raise. It stays
@@ -29,6 +35,9 @@ signal swung
 signal hurt(amount: float, cause: String)
 signal went_down(cause: String)
 signal got_up
+## Patching yourself up with a first-aid kit: started (true), or over (false): for
+## the first-person arms. It takes CrewVitals.KIT_TIME, holding still.
+signal patching(on: bool)
 
 const MAX_HEALTH := 100.0
 const CAUSES := {
@@ -47,6 +56,9 @@ const REVIVE_HEALTH := 50.0
 ## Down with nobody coming: you pass out after this long. Long enough for a
 ## teammate a floor away to come back up the stairs for you (Augustine, 2026-11-05).
 const BLEED_OUT := 90.0
+## Hard mode: down this long with nobody bringing you round, and you're dead
+## (Augustine, 2026-11-18).
+const BLEED_OUT_HARD := 45.0
 ## How dark it gets for you while you're passed out.
 const OUT_DIM := 0.82
 ## Eye height while you lie on the floor.
@@ -58,6 +70,8 @@ const DOWN_NOTICE := "You're down. Hang on for your crew."
 ## DRAFT, waiting for Augustine's word-for-word approval.
 const OUT_NOTICE := "You've passed out. Your crew can still help you up."
 const BLOCK_NOTICE := "Blocked"
+## Falling out of the world in hard mode (name approved by Augustine 2026-11-18).
+const WAY_OUT := "achievement:way_out"
 ## Feeling a hit land (Augustine's garage playtest): the view shakes and you're
 ## pushed back a step. A block is the same, softer. Shake is 0..1 trauma; the
 ## view's offset goes with its square, so it settles quickly.
@@ -76,6 +90,11 @@ var guard := Guard.new()
 var down := false
 ## Down for longer than BLEED_OUT: passed out, still waiting for the crew.
 var unconscious := false
+## Hard mode: dead, watching, until the next floor (or the floor starts over).
+var dead := false
+## Seconds left patching yourself up with a kit (0: not at it).
+var patch_left := 0.0
+var _patch_done: Callable
 var down_cause := ""
 var bleed_left := 0.0
 ## Whatever has hold of you (a Custodian), or null.
@@ -87,6 +106,7 @@ var bar: BlockFlash
 ## Darkens your view while you're passed out (local player only).
 var _dim: ColorRect
 var _dim_tween: Tween
+var _dim_on := false
 
 var _clock := 0.0
 var _since_hurt := 100.0
@@ -151,7 +171,7 @@ static func lethal(cause: String) -> bool:
 ## A hit for `amount` from `cause`. Returns what came of it:
 ## "blocked", "hit", "down", "dead" or "ignored" (already down).
 func take_damage(amount: float, cause: String = "") -> String:
-	if down and not lethal(cause):
+	if dead or (down and not lethal(cause)):
 		return "ignored"
 	if blockable(cause) and guard.catch_hit(_clock):
 		blocked.emit(cause)
@@ -163,12 +183,18 @@ func take_damage(amount: float, cause: String = "") -> String:
 		return "blocked"
 	player.health = maxf(0.0, player.health - amount)
 	_since_hurt = 0.0
+	stop_patching()
 	if player.hud:
 		player.hud.damage_flash(player.health)
 	hurt.emit(amount, cause)
 	if player.health > 0.0:
 		_jolt(HIT_SHAKE, HIT_PUSH)
 		return "hit"
+	if lethal(cause) and crew and CrewVitals.hard_mode():
+		if not down:
+			go_down(cause)
+		perish(cause)
+		return "dead"
 	if lethal(cause) or crew == null:
 		die()
 		return "dead"
@@ -179,12 +205,13 @@ func take_damage(amount: float, cause: String = "") -> String:
 ## Health to 0 and on the floor. The crew hears about it; if nobody is left
 ## standing, the level decides what happens next.
 func go_down(cause: String) -> void:
+	stop_patching()
 	release()
 	thrown = false
 	player.health = 0.0
 	down = true
 	down_cause = cause
-	bleed_left = BLEED_OUT
+	bleed_left = BLEED_OUT_HARD if CrewVitals.hard_mode() else BLEED_OUT
 	_lock(true)
 	player.lower_notebook(true)
 	player.put_down(true)
@@ -203,7 +230,7 @@ func go_down(cause: String) -> void:
 
 ## A teammate helped you up, to `health` (a first-aid kit: MAX_HEALTH).
 func revive(health: float = REVIVE_HEALTH) -> void:
-	if not down:
+	if not down or dead:
 		return
 	down = false
 	down_cause = ""
@@ -231,9 +258,11 @@ func heal_full() -> void:
 ## Out for real: back to the checkpoint, through the level's usual death.
 func die() -> void:
 	var was_down := down
+	stop_patching()
 	release()
 	thrown = false
 	down = false
+	dead = false
 	down_cause = ""
 	_wake()
 	player.health = 0.0
@@ -245,9 +274,11 @@ func die() -> void:
 
 ## Respawned at a checkpoint: a clean slate.
 func reset() -> void:
+	stop_patching()
 	release()
 	thrown = false
 	down = false
+	dead = false
 	down_cause = ""
 	_since_hurt = 100.0
 	shake = 0.0
@@ -256,8 +287,8 @@ func reset() -> void:
 	guard = Guard.new()
 
 
-## Down too long: you pass out where you lie. Your crew can still help you up
-## (more slowly); if they're all down or out too, the level decides.
+## Down too long: you pass out where you lie. A teammate's kit can still bring you
+## round; if they're all down or out too, the level decides.
 func pass_out() -> void:
 	if not down or unconscious:
 		return
@@ -265,9 +296,66 @@ func pass_out() -> void:
 	bleed_left = 0.0
 	if player.hud:
 		player.hud.notice(OUT_NOTICE, 6.0)
-		_darken(true)
+		_darken(not watching())
 	if crew:
 		crew.report_unconscious()
+
+
+## Hard mode: down too long, or a fatal fall. You stay lying where you are (your
+## crew can't bring you back) until the next floor; if nobody's left standing, the
+## floor starts over.
+func perish(cause: String) -> void:
+	if dead:
+		return
+	dead = true
+	unconscious = false
+	bleed_left = 0.0
+	_darken(false)
+	if crew:
+		crew.report_dead(cause)
+
+
+## Fell out of the world (Playtest's safety net asks first). In hard mode there's
+## no net: you're dead, and you've found "the way out". True if that's handled;
+## false, and the net catches you as usual.
+func fell_out() -> bool:
+	if crew == null or not CrewVitals.hard_mode():
+		return false
+	if not dead:
+		var net := get_node_or_null("/root/Net")
+		if net:
+			net.earn(WAY_OUT, player.get("hud"))
+		take_damage(MAX_HEALTH * 10.0, "fall")
+	return true
+
+
+## A first-aid kit on yourself: KIT_TIME holding still, then `done` (full health).
+## A hit stops it. False if you can't now (down, or already at it).
+func patch_self(done: Callable) -> bool:
+	if down or patch_left > 0.0:
+		return false
+	patch_left = CrewVitals.KIT_TIME
+	_patch_done = done
+	_lock(true)
+	_patch_bar(true, 0.0)
+	patching.emit(true)
+	return true
+
+
+func stop_patching() -> void:
+	if patch_left <= 0.0:
+		return
+	patch_left = 0.0
+	_patch_done = Callable()
+	_patch_bar(false)
+	if not down and not _held and not thrown:
+		_lock(false)
+	patching.emit(false)
+
+
+func _patch_bar(on: bool, progress: float = 0.0) -> void:
+	if crew and crew.has_method("_show_revive_bar"):
+		crew._show_revive_bar(on, progress)
 
 
 func _wake() -> void:
@@ -275,8 +363,18 @@ func _wake() -> void:
 	_darken(false)
 
 
+## Out cold and watching a teammate through Co-op's spectate camera
+## (NetPlayers.spectate): the view stays clear for that.
+func watching() -> bool:
+	if crew == null or crew.players == null:
+		return false
+	var cam = crew.players.get("spectate")
+	return cam != null and is_instance_valid(cam)
+
+
 ## The view goes dark while you're out (under the HUD's words, so the notice shows).
 func _darken(on: bool) -> void:
+	_dim_on = on
 	if not on and _dim == null:
 		return
 	var hud = player.get("hud")
@@ -395,11 +493,26 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_since_hurt += delta
 	if down:
-		if crew and crew.is_online() and not unconscious:
+		if unconscious and _dim_on == watching():
+			_darken(not watching())  # out cold: dark, unless you're watching a teammate
+		if crew and crew.is_online() and not unconscious and not dead:
 			bleed_left -= delta
 			if bleed_left <= 0.0:
-				pass_out()
+				if CrewVitals.hard_mode():
+					perish(down_cause)
+				else:
+					pass_out()
 		return
+	if patch_left > 0.0:
+		patch_left = maxf(0.0, patch_left - delta)
+		_patch_bar(true, 1.0 - patch_left / CrewVitals.KIT_TIME)
+		if patch_left <= 0.0:
+			var done := _patch_done
+			patch_left = 0.01  # so stop_patching tidies up
+			stop_patching()
+			heal_full()
+			if done.is_valid():
+				done.call()
 	if player.health > 0.0 and player.health < MAX_HEALTH and _since_hurt > REGEN_DELAY:
 		player.health = minf(MAX_HEALTH, player.health + REGEN_RATE * delta)
 	if _held:

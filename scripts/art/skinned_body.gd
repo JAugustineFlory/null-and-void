@@ -244,6 +244,8 @@ static func wears(look: Dictionary) -> Dictionary:
 		"lip_color": look.lips if look.lips is Color else look.skin,
 		"lip_amount": 1.0 if look.lips is Color else 0.0,
 	}
+	if look.get("torn", false):
+		out["Body"].torn = 1.0  # ripped, ragged sleeves, hem and cuffs (the model's blue)
 	var jacket = look.jacket
 	if jacket is Color:
 		var cut := "Jacket_open"
@@ -280,11 +282,14 @@ static func wears(look: Dictionary) -> Dictionary:
 		style = "short"
 	elif hat is String:
 		out["Head_" + hat] = look.headwear_color
+	var closed: bool = hat == "knight_helm"  # a closed helm: no hair or face shows
 	if not style in ["short", "long", "bald", "bob"]:
 		style = "short"
-	if hat is String and style in ["short", "bob"]:
+	if hat is String and (style in ["short", "bob"] or closed and style == "long"):
 		style = "buzzed"  # cropped under a hat, so the hat fits the head
 	out["Hair_" + style] = look.hair
+	if closed:
+		return out
 	if look.glasses:
 		out["Face_glasses"] = look.glasses if look.glasses is Color else Color(0.12, 0.1, 0.1)
 	elif look.readers is Color:
@@ -315,6 +320,9 @@ static func _material(part: String, tint) -> Material:
 	var c: Color = tint
 	var metal := 0.8 if part in ["Jacket_badge", "Ears_studs"] else 0.0
 	var rough := 0.35 if part in ["Face_glasses", "Face_reading_glasses", "Belt_radio"] else 0.85
+	if part == "Head_knight_helm":
+		metal = 0.7  # worn steel
+		rough = 0.55
 	var key := "%s|%.3f|%.3f" % [c.to_html(), metal, rough]
 	if _materials.has(key):
 		return _materials[key]

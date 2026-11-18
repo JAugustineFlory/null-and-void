@@ -72,7 +72,10 @@ func _physics_process(delta: float) -> void:
 	_fall_time += delta
 	if _fall_time >= LONGEST_FALL or (_fall_time >= NOTHING_BELOW_TIME and not _floor_below(pos)):
 		if not _here().owns_falls():
-			put_back()
+			_fall_time = 0.0
+			# Hard mode has no net: falling out of the building is death (PlayerCombat.fell_out).
+			if not player.combat.fell_out():
+				put_back()
 
 
 ## Moves that place the body themselves (climbing, riding, at a terminal): not a fall.

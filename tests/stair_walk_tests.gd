@@ -214,8 +214,10 @@ func test_coop_downed() -> void:
 		back = back and await _walk(hp, func(): return host.stairs.place(hp, up, w))
 	var puppet: Node3D = host.players.puppet(client_id)
 	_check.call(back and hp.global_position.distance_to(puppet.global_position) < 1.6, "the host walks back up onto 10's stairs, counting back up past 1, and reaches them (%.1f m, %s)" % [hp.global_position.distance_to(puppet.global_position), host.stairs.progress(hp, up)])
+	hp.inventory.add(FirstAidCabinet.ITEM)
+	_hold(hp, FirstAidCabinet.ITEM)
 	puppet.interact(hp)
-	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health > 0.0, 120), "and helps them up")
+	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health > 0.0, int((CrewVitals.KIT_TIME + 1.0) * 60)), "and patches them up with a first-aid kit")
 	# Both down to G's landing.
 	var done := [false, false]
 	var where := ["", ""]
@@ -438,15 +440,16 @@ func test_landing_extras() -> void:
 	p.health = PlayerCombat.MAX_HEALTH
 	_check.call(FirstAidCabinet.use_on_self(p) and p.inventory.has(FirstAidCabinet.ITEM), "unhurt, the kit stays in the bag")
 	p.health = 35.0
-	_check.call(FirstAidCabinet.use_on_self(p) and p.health == PlayerCombat.MAX_HEALTH and not p.inventory.has(FirstAidCabinet.ITEM) and p.inventory.active_item() == "", "hurt, it patches you up to full and it's gone")
+	_check.call(FirstAidCabinet.use_on_self(p) and p.combat.patch_left > 0.0, "hurt, you start patching yourself up")
+	_check.call(await _until(func(): return p.health == PlayerCombat.MAX_HEALTH, int((CrewVitals.KIT_TIME + 1.0) * 60)) and not p.inventory.has(FirstAidCabinet.ITEM) and p.inventory.active_item() == "", "a few seconds later you're at full health, and the kit's gone")
 	_check.call(level.hud._notice.text == "Patched up. The kit's used up.", "\"Patched up. The kit's used up.\"")
 	_check.call(not FirstAidCabinet.use_on_self(p), "with empty hands, attack is a punch again")
 	level.queue_free()
 	await _frames(5)
 
 
-## Co-op: E on a downed teammate with the kit in your hands brings them round at
-## once, to full health, even passed out; both hear who patched up whom.
+## Co-op: E on a downed teammate with the kit in your hands brings them round in
+## CrewVitals.KIT_TIME, to full health, even passed out; both hear who patched up whom.
 func test_first_aid_coop() -> void:
 	print("Stairs: co-op, the first-aid kit on a teammate who's down")
 	_game().new_run(26)
@@ -474,9 +477,11 @@ func test_first_aid_coop() -> void:
 	_hold(hp, "")
 	var usual: String = puppet.get_prompt(hp)
 	_hold(hp, FirstAidCabinet.ITEM)
-	_check.call(usual == "[E] Help them up" and puppet.get_prompt(hp) == "[E] Patch them up with the first-aid kit", "the usual hand up; with the kit in your hands, patch them up (%s)" % usual)
+	_check.call(usual == "" and puppet.get_prompt(hp) == "[E] Patch them up with the first-aid kit", "no hand up with empty hands; with the kit in your hands, patch them up (%s)" % usual)
+	hp.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
+	await _frames(5)
 	puppet.interact(hp)
-	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health == PlayerCombat.MAX_HEALTH, 120), "they're up, at full health")
+	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health == PlayerCombat.MAX_HEALTH, int((CrewVitals.KIT_TIME + 1.0) * 60)), "standing by them a few seconds, they're up, at full health")
 	var them: String = root_net().display_name(client_id)
 	var me: String = root_net().display_name(1)
 	_check.call(host.hud._notice.text == "You patched up %s. The kit's used up." % them and client.hud._notice.text == "%s patched you up." % me, "\"You patched up %s...\" for the host, \"%s patched you up.\" for them (%s / %s)" % [them, me, host.hud._notice.text, client.hud._notice.text])
@@ -487,8 +492,10 @@ func test_first_aid_coop() -> void:
 	_check.call(await _until(func(): return crew.unconscious.has(client_id), 120), "and passed out")
 	hp.inventory.add(FirstAidCabinet.ITEM)
 	_hold(hp, FirstAidCabinet.ITEM)
+	hp.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
+	await _frames(5)
 	puppet.interact(hp)
-	_check.call(await _until(func(): return not CrewVitals.is_down(cp), int(CrewVitals.OUT_REVIVE_TIME * 30)), "the kit brings them straight round, well inside a hand up's %d s" % int(CrewVitals.OUT_REVIVE_TIME))
+	_check.call(await _until(func(): return not CrewVitals.is_down(cp) and cp.health == PlayerCombat.MAX_HEALTH, int((CrewVitals.KIT_TIME + 1.0) * 60)), "the kit brings them round too, to full health")
 	await _tree._coop_close(worlds)
 
 

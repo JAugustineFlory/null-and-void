@@ -179,6 +179,25 @@ func _physics_process(delta: float) -> void:
 	rig.twist = turned
 
 
+## They changed what they wear mid-run (a garage locker, GarageLab): the same
+## body in the new look, held in the pose it was in. Who they play doesn't
+## change mid-run, so neither does their size.
+func restyle(look: Dictionary) -> void:
+	var old := rig
+	_body.remove_child(old)
+	old.queue_free()
+	rig = CharacterRig.build(_body, look)
+	rig.stance_height = stance_height
+	if downed:
+		rig.play("down")
+	elif sitting != Sit.NONE:
+		rig.play(["idle", "sit", "sit_floor"][sitting])
+	else:
+		rig.play(fighting if fighting != "" else "idle")
+	var torch = look.get("tools", {}).get("flashlight", {}).get("color")
+	(_head.get_node("Lamp") as MeshInstance3D).material_override = Greybox.mat(torch if torch is Color else Color(0.1, 0.1, 0.1))
+
+
 ## They sat down at `terminal` (null: stood up). `seat` is their place in
 ## the queue there; neighbours lean in from opposite sides.
 func sit_at(terminal: Node3D, seat: int = 0) -> void:
@@ -247,7 +266,9 @@ func get_prompt(_by: Node) -> String:
 func interact(_by: Node) -> void:
 	if downed:
 		var c := _crew()
-		if c and not FirstAidCabinet.patch(_by, c, peer_id):  # (a first-aid kit in your hands)
+		# A first-aid kit in your hands; a bare-handed help-up only where the
+		# crew's rules still offer one (its prompt says so).
+		if c and not FirstAidCabinet.patch(_by, c, peer_id) and c.revive_prompt(peer_id) != "":
 			c.revive(peer_id)
 	elif _huddle_prompt() != "":
 		_huddle().huddle_with(peer_id)

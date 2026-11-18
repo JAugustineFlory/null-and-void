@@ -65,6 +65,7 @@ func _ready() -> void:
 
 	build()
 	_bake_navigation()
+	_place_kits()
 	db.sync_world()
 	LevelSync.name_nodes(self)
 
@@ -127,6 +128,7 @@ func _ready_as_wing(host: LevelBase) -> void:
 	db.light_changed.connect(_on_light_changed)
 	build()
 	_bake_navigation()
+	_place_kits()
 	db.sync_world()
 	LevelSync.name_nodes(self)
 	net_setup()
@@ -313,6 +315,13 @@ func _environment() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+
+
+## Each floor of the building gets first-aid cabinets on its walls (KitCabinets).
+func _place_kits() -> void:
+	var key := scene_file_path.get_file().get_basename()
+	if key.begins_with("level_") and key.trim_prefix("level_").is_valid_int():
+		KitCabinets.place(self, key)
 
 
 func _bake_navigation() -> void:
