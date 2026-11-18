@@ -451,7 +451,7 @@ func _monologue() -> void:
 	for i in lines.size():
 		var left := 0.0
 		for id in lines.slice(i):
-			left += line_time(id)
+			left += line_time(id) + HUD.GAP_SAME  # each line waits its breath after the last (HUD)
 		if level.sync.is_host() and not sneaking and left - SNEAK_IN_BEFORE_END <= walk + line_time(lines[i]):
 			sneaking = true
 			_sneak_round(maxf(0.0, left - SNEAK_IN_BEFORE_END - walk))

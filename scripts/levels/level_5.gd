@@ -1375,8 +1375,10 @@ func _crew_line(id: String, peer_id: int) -> void:
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		return
-	var dur: float = _radio_voice.play(id, _voice_dir(peer_id)) if _radio_voice else 0.0
-	await hud.say(_name_of(peer_id), l.text, dur if dur > 0.0 else Voice.read_time(l.text))
+	var dir := _voice_dir(peer_id)
+	# Waits its turn like any line (HUD.Turn); the voice starts with the subtitle.
+	await hud.say(_name_of(peer_id), l.text, -1.0, HUD.Turn.NORMAL,
+		func() -> float: return _radio_voice.play(id, dir) if _radio_voice else 0.0)
 
 
 ## A peer's name as the roster has it (the local player's too).
@@ -1580,7 +1582,7 @@ func _lure(peer: int, badge: String, n: int) -> float:
 	var dur: float = _radio_voice.play(id, _voice_dir(peer) if peer > 0 else "") if _radio_voice else 0.0
 	if dur <= 0.0:
 		dur = Voice.read_time(l.text)
-	hud.say(who, l.text, dur)
+	hud.say(who, l.text, dur, HUD.Turn.URGENT)  # a threat starting: it cuts across (HUD.Turn)
 	return dur
 
 

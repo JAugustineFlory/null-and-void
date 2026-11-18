@@ -21,7 +21,7 @@ Each speech is one recording, named after the speaker; lines under the same name
 
 > Quick and precise, frightened but holding it together. Heard on an answering machine, so a little close to the mic and hushed, like someone might be listening.
 
-**Maddison Kowalski** (MADDISON). Byte-Right's CEO and founder. Mature, attractive, confident and upbeat. On screen in the garage opening and in every book huddle. She stays behind at the garage, so she's tonight's dispatch on the van radio.
+**Maddison Kowalski** (MADDISON). Byte-Right's CEO and founder. Mature, attractive, confident and upbeat. On screen in the garage opening and briefing. She stays behind at the garage, so she's tonight's dispatch on the van radio.
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
@@ -265,10 +265,9 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: The crew has just walked in and sat down facing your whiteboard. You come in from the house*  
 *(Striding in from the house door to her whiteboard, arms wide)* "Okay! Everybody comfy? Look at you. My whole company, in one garage." *Big, warm, delighted to have an audience.* `[l0_brief_1]`  
 *(Standing at the whiteboard, counting it off on her fingers)* "Where we stand. Rent's due Friday, the van's held together with tape, and our best client is a library that pays in exact change." *Cheerful, as if it's good news.* `[l0_brief_2]`  
-*(Pacing a step or two in front of the whiteboard)* "So this year's goal was simple. Stay open. Maybe a second van. Maybe a sign that doesn't fall off." *Every 'maybe' a little grander, then the sign brings it back down to earth.* `[l0_brief_3]`  
 *(Tapping the whiteboard with her marker)* "Forget all that. We got Halcyon. The overnight database contract. Ours." *Building to it. She can't stand still for 'Ours.'* `[l0_brief_4]`  
 *(Waving a hand to brush off the question)* "How? I underbid everybody. By a lot. Don't ask how much. Job's tonight, eleven o'clock." *Quickly, before anyone can ask.* `[l0_brief_5]`  
-*(Once they're settled. Tapping her own notebook, then pointing at theirs)* "I put a copy of the work order in each of your notebooks. Pull it out and take a look." *Pleased with herself for being organized.* `[l0_workorder]`
+*(Once they're settled. Tapping her own notebook, then pointing at theirs)* "Work order's in your notebooks. Take a look." *Pleased with herself for being organized.* `[l0_workorder]`
 
 **MADDISON** `l0_brief_1_solo.wav`  
 *Cue: Only when one player is playing alone. Plays instead of "Okay! Everybody comfy? Look at you. My whole company, in one garage."*  
@@ -276,7 +275,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **MADDISON** `l0_workorder_solo.wav`  
 *Cue: Only when one player is playing alone. Plays instead of "I put a copy of the work order in each of your notebooks. Pull it out and take a look."*  
-*(Tapping her own notebook, then pointing at theirs)* "I put a copy of the work order in your notebook. Pull it out and take a look." *Pleased with herself for being organized.*
+*(Tapping her own notebook, then pointing at theirs)* "Work order's in your notebook. Take a look." *Pleased with herself for being organized.*
 
 **MADDISON** `l0_workorder_walk_block.wav`  
 *Cue: Everyone has the work order open in their notebook*  
@@ -316,50 +315,6 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: The whole crew has climbed into the van. You're at the door to see them off*  
 *(Leaning in at the van door, counting rules on her fingers)* "Rules for tonight. Nod a lot. Anything you don't know, you need to check the logs. And if anyone asks, we've got a fleet. You're van three. I'll be on the radio." *She stays behind.*
 
-### Book huddles: SELECT and ORDER BY
-
-**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
-
-*Maddison's lines from reading Easy SQL with the crew at the garage bench before the job. In the tower they play when a chapter lands in the crew's notebooks, after a crew lead-in (l0_recall): Augustine 2026-10-27, she isn't in the building. Never gives the night's answers.*
-
-**MADDISON** `l0_huddle_select_1_block.wav`  
-*Cue: At the bench, you open the chapter 'Ask for a table'*  
-*(Sitting on the bench, your copy of the book open on your knees)* "Chapter one. SELECT, FROM, and a semicolon. That's it? That's a whole language?" *Disbelieving, delighted.* `[l0_huddle_select_1]`  
-*(Tapping the page twice with one finger)* "Book says never forget the semicolon. Says it twice. So I'm saying it twice. Semicolon." *Deadly serious about the one thing they're sure of.* `[l0_huddle_select_2]`
-
-**MADDISON** `l0_huddle_order_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Putting things in order'*  
-*(Leaning on the bench, the book open in front of you)* "Chapter two. 'Putting things in order.' Now that, I can get behind." *Reading off the page.* `[l0_huddle_order_1]`  
-*(Writing on the back of a receipt from your pocket)* "Smallest first. Always smallest first. Write that down. I'm writing it down." *Scribbling.* `[l0_huddle_order_2]`
-
-**MADDISON** `l0_huddle_columns_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Just the columns you need'*  
-*(Pressing a hand to your heart over the open page)* "'Just the columns you need.' So no more star. The star was my favourite part." *Mock-wounded.* `[l0_huddle_columns_1]`  
-*(Counting the rules off on your fingers)* "Commas between the names, never after the last one. And dot schema when you can't remember what they're called. That one's for me." *Ticking them off.* `[l0_huddle_columns_2]`
-
-**MADDISON** `l0_huddle_desc_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Newest first'*  
-*(Flipping the book upside down to show it, then back)* "'Newest first.' DESC flips it. Biggest on top, latest on top. Like my inbox, if anyone ever emailed me." *Brightly, then a little sorry for herself.* `[l0_huddle_desc_1]`  
-*(Snapping the book shut on one finger)* "And LIMIT at the very end, so you only get the top few. Newest three. Done." *Snappy and pleased.* `[l0_huddle_desc_2]`
-
-### Remembering what Maddison said
-
-**Halcyon Tower, any floor. During the job.**
-
-*Augustine, 2026-10-27: Maddison isn't in the tower, so before each of her chapter lines on a floor a crew member says one of these, then her line plays as a memory. One of the three, picked by the game. His own words, approved as written.*
-
-**CREW** `l0_recall_1.wav`  
-*Cue: A new chapter of the book has just turned up in the crew's notebooks*  
-*(Flipping to the new page in your notebook)* "I think Maddison said..." *Half to yourself, trying to remember. Trail off: her line follows.*
-
-**CREW** `l0_recall_2.wav`  
-*Cue: A new chapter of the book has just turned up in the crew's notebooks*  
-*(Looking up from the new page at the others)* "Didn't Maddison say..." *To the others, as it comes back to you. Trail off: her line follows.*
-
-**CREW** `l0_recall_3.wav`  
-*Cue: A new chapter of the book has just turned up in the crew's notebooks*  
-*(Tapping the new page in your notebook)* "Maddison mentioned..." *Remembering, a little fond. Trail off: her line follows.*
-
 ### The IT van
 
 **Byte-Right's garage desk, on the radio to the IT van in the Halcyon Data Systems car park. 11:02 p.m.**
@@ -369,8 +324,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 **MADDISON** `l0_dispatch_1_block.wav`  
 *Cue: The van has just parked in the Halcyon car park. The crew is still belted in*  
 *(At the garage desk, radio mic in hand)* "Van three, you're on site at Halcyon Data Systems. After-hours callout." *In the professional dispatcher voice. 'Van three' is a bluff: they own one van.* `[l0_dispatch_1]`  
-*(If the crew has already climbed out, the radio has cut off. Leaning back in her desk chair, mic close)* "They've got a database problem. Contact is Dale Rourke, facilities. He'll meet you at the front doors." *Reading it off the ticket.* `[l0_dispatch_2]`  
-*(Unless the crew has already climbed out. Reaching for the next ticket, thumbing the mic off at the end)* "Work order's in your notebook, the usual: diagnose, tidy up whatever tables they point you at, get a sign-off. Hop out when you're ready. Dispatch out." *Bored, reading the form. Signing off, already onto the next call.* `[l0_dispatch_3]`
+*(Unless the crew has already climbed out. Reaching for the next ticket, thumbing the mic off at the end)* "Work order's in your notebook, the usual. Hop out when you're ready. Dispatch out." *Bored, reading the form. Signing off, already onto the next call.* `[l0_dispatch_3]`
 
 ### The front doors, 11 p.m.
 
@@ -381,19 +335,17 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 **ROURKE** `l0_greet_1_block.wav`  
 *Cue: The crew walks up from the van to the front steps*  
 *(Standing on the front steps, hand out for a shake)* "There you are. Dale Rourke, facilities. I'll be your escort tonight." *Friendly, a handshake in the voice.* `[l0_greet_1]`  
-*(Tapping the badge clipped to his belt)* "Badge rules after hours. You don't go anywhere I don't take you." *Still smiling. Should sound like a joke the first time and a threat on replay.* `[l0_greet_3]`  
-*(Swiping his badge at the front door and pulling it open)* "Come on in. I'll sign you in at the front desk." *Holding the door, waving them through.* `[l0_greet_4]`
+*(Tapping the badge clipped to his belt)* "Badge rules after hours. You don't go anywhere I don't take you." *Still smiling. Should sound like a joke the first time and a threat on replay.* `[l0_greet_3]`
 
 **PA** `l0_pa_1_block.wav`  
 *Cue: The crew steps inside the lobby*  
 *(Over the lobby's ceiling speakers, a recording on a loop)* "Good evening! Halcyon Data Systems is now closed." *Pleasant, like a store closing announcement.* `[l0_pa_1]`  
 *(The same recording plays again later, as the crew finishes at the front desk. Over the lobby's ceiling speakers, the same recording continuing)* "Visitors must remain with their escort at all times. Thank you for your cooperation!" *Same announcement, continuing.* `[l0_pa_2]`
 
-**ROURKE** `l0_greet_2_block.wav`  
-*Cue: Right after the PA finishes. You're at the front desk now. (If the crew has already signed in and taken badges by now, this whole recording is skipped.)*  
-*(Behind the front desk, waving a hand at the ceiling speaker)* "Sorry about that. The company loves its PA system." *Chuckling.* `[l0_greet_2]`  
-*(As the front doors lock behind the crew. Sliding the visitor log and a pen across the counter)* "Doors lock themselves after hours. Don't worry, I've got the badge. Sign the visitor log for me." *Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)* `[l0_signin]`  
-*(While the crew signs in. Holding visitor badges out across the desk)* "Visitor badges. Keep them on you. Doors upstairs won't let you through without one." *Routine. Helpful, a little bored.* `[l0_badges]`
+**ROURKE** `l0_signin_block.wav`  
+*Cue: The crew is all inside, and the front doors lock behind them*  
+*(As the front doors lock behind the crew. Sliding the visitor log and a pen across the counter)* "Doors lock themselves after hours. Don't worry, I've got the badge." *Casual, reassuring. Nothing to worry about. (On a replay it lands differently.)* `[l0_signin]`  
+*(While the crew signs in. Holding visitor badges out across the desk)* "Visitor badges. Doors upstairs won't let you through without one." *Routine. Helpful, a little bored.* `[l0_badges]`
 
 ### The tour
 
@@ -406,7 +358,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Leaning on the front desk, arms folded)* "Here's the job. Dr. Vale, our lead engineer, went missing three nights ago." *Matter-of-fact, the way you'd mention the weather.* `[l0_tour_1]`  
 *(Glancing toward the hall, lowering his voice a touch)* "Her systems are a mess and the director wants them recovered by morning. Quietly." *Small beat before "Quietly."* `[l0_tour_2]`  
 *(Pointing at the scanner and the terminal on the desk)* "The front desk scanner ate one of Vale's memos. The scraps went into a table." *Getting down to business.* `[l0_desk_1]`  
-*(Stepping back from the terminal to let them at it)* "Director wants to know what it said. Go ahead, terminal's on the desk." *Casual, but he wants to know too.* `[l0_desk_2]`
+*(Stepping back from the terminal to let them at it)* "Director wants to know what it said." *Casual, but he wants to know too.* `[l0_desk_2]`
 
 ### Vale's shredded memo
 
@@ -422,20 +374,20 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: The crew gets the memo reading in order on the screen and steps back from the terminal*  
 *(Scribbling on his clipboard without looking at the screen)* "Nice work. I'll make sure that goes straight to the director." *Pleased, before he's even read it. Warm; on a replay it's the worst thing he says all night.* `[l0_memo_flag]`  
 *(Now you actually read the memo. Reading the screen over someone's shoulder, then looking away)* "...Huh. She always was dramatic." *A beat too long before he speaks. Covering.* `[l0_memo_1]`  
-*(Your eye falls on the crew's work order. Tapping the work order with one finger)* "One thing on your paperwork. It says I called you in. I didn't. That call came from building services." *Mild, a little puzzled. Not suspicious yet.* `[l0_caller_1]`  
-*(Nodding toward the terminal on the desk)* "Want to know who? The staff directory's on that terminal." *Helpful, easygoing.* `[l0_caller_2]`  
-*(Nodding down the back corridor toward the mailroom)* "Mailroom. Clerk's got the only phone list in this building that's actually up to date. She pinned it to the wall so nobody walks off with it." *Amused, a little fond.* `[l0_mailroom_1]`
+*(Your eye falls on the crew's work order. Tapping the work order with one finger)* "One thing on your paperwork. It says I called you in. I didn't. That call came from building services." *Mild, a little puzzled. Not suspicious yet.* `[l0_caller_1]`
 
 **ROURKE** `l0_caller_3_block.wav`  
 *Cue: The crew finds out whose extension placed the call: Harold Mercer's*  
 *(Leaning in to read the name, then straightening up)* "Mercer? Huh. That line's been dead for years. Somebody's having fun with the phones. Anyway." *A beat of real surprise, then he brushes it off and moves on.* `[l0_caller_3]`  
-*(Thumbing over his shoulder at the lost and found behind the desk)* "Grab the walkie-talkies from lost and found, back behind the desk." *Back to friendly, changing the subject.* `[l0_memo_2]`  
-*(Patting the top of the counter with his palm)* "And yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either." *Amused, he's said this to every visitor. A little eye-roll at corporate.* `[l0_memo_3]`  
-*(Turning toward the hall, already a step away)* "Grab one and I'll take you to the server room." *Friendly.* `[l0_memo_4]`
+*(Thumbing over his shoulder at the lost and found behind the desk)* "Grab the walkie-talkies from lost and found, back behind the desk." *Back to friendly, changing the subject.* `[l0_memo_2]`
+
+**ROURKE** `l0_memo_3.wav`  
+*Cue: The first of the crew hops the counter to get to the lost and found*  
+*(Patting the top of the counter with his palm)* "Yes, you hop the counter. Company's big on fitness, so there's no gate. Means nobody sneaks back there either." *Amused, he's said this to every visitor. A little eye-roll at corporate.*
 
 **ROURKE** `l0_walkie.wav`  
 *Cue: Just after you've covered for the crew with the PA, as you lead them toward the hall*  
-*(Walking off toward the hall, waving them after him)* "Channel one. Keep them on. Reception's lousy once we're past the shutter. This way." *Offhand.*
+*(Walking off toward the hall, waving them after him)* "Channel one. Keep them on. This way." *Offhand.*
 
 ### Mercer's cassette (optional)
 
@@ -570,7 +522,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **CREW** `l0_cc_caller_n1a.wav`  
 *Cue: Only if the crew has been stuck for about a minute on who called, and nobody has read the mailroom's phone list*  
-*(Turning to look down the back corridor)* "Rourke said the mailroom has the only phone list that's right." *Stuck. Remembering what the escort said.*
+*(Turning to look down the back corridor)* "Mailrooms always have a phone list pinned up somewhere." *Stuck. Remembering what the escort said.*
 
 **CREW** `l0_cc_caller_n1b.wav`  
 *Cue: The same stuck moment, but the crew has already read the mailroom's phone list*  
@@ -598,44 +550,11 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 1
 
-### Book huddles: WHERE and comparisons
-
-**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
-
-*Garage flashback huddles for the WHERE / AND and comparison chapters.*
-
-**MADDISON** `l1_huddle_where_1.wav`  
-*Cue: At the bench, you turn to the chapter 'Keeping only some rows'*  
-*(Standing by the whiteboard, the open book in one hand)* "WHERE. For finding one thing in a big pile. Like my car keys." *Patting pockets.*
-
-**MADDISON** `l1_huddle_where_2.wav`  
-*Cue: A few pages on, you reach the chapter 'Both must be true'*  
-*(Holding up two fingers, then pressing them together)* "Two conditions, you glue them together with AND. Both have to be true. Like payday AND the cheque clears." *Rueful.*
-
-**MADDISON** `l1_huddle_compare_1_block.wav`  
-*Cue: At the bench, you reach the chapter 'More than, less than'. (In the game it only plays if the crew goes after the overheating rack.)*  
-*(Uncapping a marker and turning to the whiteboard behind you)* "Bigger than, smaller than. The little alligator signs. Mouth eats the bigger number." *Drawing one on the whiteboard, with teeth.* `[l1_huddle_compare_1]`  
-*(Capping the marker and stepping back from the board)* "Okay. That's maths I actually remember from school." *Relieved.* `[l1_huddle_compare_2]`
-
-**MADDISON** `l1_huddle_or_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Either one will do'*  
-*(Leaning back against the bench, book on your knee)* "'Either one will do.' OR. Finally, a word with no pressure on it." *Relaxed.* `[l1_huddle_or_1]`  
-*(Holding up one hand, then the other)* "AND needs both to be true. OR takes either one. I'm an OR person." *Decided.* `[l1_huddle_or_2]`
-
-**MADDISON** `l1_huddle_count_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'How many?'*  
-*(Tracing the brackets on the page with a finger)* "'How many?' COUNT, star, in brackets. It doesn't show you the rows. It just counts them." *Reading slowly, getting the brackets right.* `[l1_huddle_count_1]`  
-*(Glancing round the garage at the crew, counting heads)* "One number back. Like counting heads before the van leaves." *Fond.* `[l1_huddle_count_2]`
-
 ### The database problem
 
 **Halcyon Tower, floor 14, the server floor. Late at night, before midnight.**
 
 *Rourke walks the crew into Server Room A on the server floor and gives them the real job: find and reset a faulting door controller. Level 1 is all trust; nothing hints at foul play.*
-
-**ROURKE** `l1_enter.wav`  
-*Cue: You've just reached Server Room A's door. You lead the crew inside*  
-*(Leading them in, heading for the terminal desk)* "In you come. Terminal's just over here." *Calling back over his shoulder, inside the room.*
 
 **ROURKE** `l1_terminal.wav`  
 *Cue: You've reached the terminal desk, and the crew has caught up with you*  
@@ -669,7 +588,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **ROURKE** `l1_fixed_1_block.wav`  
 *Cue: Right after your badge goes through. The rack reads OK, and the stuck doors and the elevator come back*  
-*(Stepping back from the rack, staring at it)* "Would you look at that. Green across the board. Six months I've been filing tickets on that thing." *Genuinely impressed.* `[l1_fixed_1]`  
+*(Stepping back from the rack, staring at it)* "Would you look at that. Green across the board." *Genuinely impressed.* `[l1_fixed_1]`  
 *(Turning to the crew with a grin)* "You lot are good. Director's going to want to hear about this." *Warm. On a replay, the director hearing about them is the problem.* `[l1_fixed_2]`
 
 ### Vale's login
@@ -682,7 +601,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: Straight after you praise the crew. The controller's fault log comes up on the terminal*  
 *(Leaning over a teammate's shoulder, reading the screen)* "Hang on. That fault log... every reset this week came from Vale's login." *Curious, a little too quickly.* `[l1_pivot_1]`  
 *(Straightening up, eyes still on the screen)* "Her lab's up on the security floor. Secure Lab B." *Thinking out loud.* `[l1_pivot_2]`  
-*(Heading for the door, waving them along)* "Come on. If anyone can tell us what she was up to, it's her own terminal. Elevator works now, thanks to you." *Friendly, steering.* `[l1_pivot_3]`
+*(Heading for the door, waving them along)* "Come on. If anyone can tell us what she was up to, it's her own terminal." *Friendly, steering.* `[l1_pivot_3]`
 
 **ROURKE** `l1_lift_button.wav`  
 *Cue: The whole crew has caught up with you at the elevator, and you've stepped into the car*  
@@ -971,37 +890,6 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Turning toward the wall, receiver pressed close)* "If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it." *Urgent. A glance over her shoulder in the voice.* `[l2_vale_2]`  
 *(Lowering her voice, then putting the phone down)* "And please don't give your PIN to anyone. Not even Dale." *Softer.* `[l2_vale_3]`
 
-### Book huddles: LIKE and GET
-
-**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
-
-*Garage flashback huddles for the LIKE and GET chapters.*
-
-**MADDISON** `l2_huddle_pressure_1_block.wav`  
-*Cue: At the bench, you flip ahead to the chapter 'Under pressure'*  
-*(Holding up the almost empty page)* "This page just says, 'Breathe.' So if it ever gets hairy in there, this is the one to read." *Light. She thinks it's a joke.* `[l2_huddle_pressure_1]`  
-*(Closing the book and looking round at the crew)* "AND, ORDER BY, quotes round the words. You'll know all of it by then. Deep breath, then type." *Warm and steady, a coach before a big game.* `[l2_huddle_pressure_2]`
-
-**MADDISON** `l2_huddle_like_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Half a name'*  
-*(Holding the book close to the work lamp)* "LIKE. For when you only know part of a word. The percent sign means 'anything goes here.'" *Squinting at the page.* `[l2_huddle_like_1]`  
-*(Tapping your own name in the example)* "So 'Mad' and a percent gets you Maddison, Madison, Madeline... I'm in there somewhere." *Pleased to have found themself.* `[l2_huddle_like_2]`
-
-**MADDISON** `l2_huddle_get_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Asking a server'*  
-*(Holding the book at arm's length, frowning at the chapter title)* "This chapter isn't even SQL. 'Asking a server.' GET means 'show me.'" *Flipping the book over to check the cover.* `[l2_huddle_get_1]`  
-*(Closing the book with a shrug)* "So it's a SELECT for robots. Got it. Probably." *Not convinced.* `[l2_huddle_get_2]`
-
-**MADDISON** `l2_huddle_feeds_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'One answer feeds the next'*  
-*(Raising an eyebrow at the chapter title)* "'One answer feeds the next.' So the answer isn't the answer. Most honest thing in this book." *Dry.* `[l2_huddle_feeds_1]`  
-*(Tapping the page, then an imaginary second page)* "Get the number, then put it in your next WHERE. A treasure hunt, with semicolons." *Liking it.* `[l2_huddle_feeds_2]`
-
-**MADDISON** `l2_huddle_door_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'One door's record'*  
-*(Following the line with a finger)* "'One door's record.' Don't ask for the whole list. Put the one you want on the end of the path." *Reading along, nodding.* `[l2_huddle_door_1]`  
-*(Reading the example off the page)* "GET slash jobs slash fourteen. Job fourteen, nothing else. Robots are very literal." *The book's own example, amused.* `[l2_huddle_door_2]`
-
 ### Crew commentary: security floor
 
 **Halcyon Tower, floor 22, the security floor. Past midnight.**
@@ -1097,22 +985,6 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Backing away from the keypad, checking behind you)* "That's the code. Let's not hang around." *Keypad accepted it. Nervous, wants to move.*
 
 ## Level 4
-
-### Book huddles: UPDATE and INSERT
-
-**Byte-Right's garage, at the workbench with the crew and your copy of Easy SQL. Earlier that evening, before the job.**
-
-*Garage flashback huddles for the UPDATE chapter ('Never forget the WHERE', the lesson the main_doors accident teaches) and the INSERT chapter (Adding a row).*
-
-**MADDISON** `l4_huddle_update_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Changing a row'*  
-*(Frowning at a red box on the page)* "UPDATE. Changing things. The book's put this one in a red box, which I don't love." *Holding the page at arm's length.* `[l4_huddle_update_1]`  
-*(Lowering the book and looking round at the crew)* "Big red letters: 'Never forget the WHERE.' Otherwise it changes every row. Every. Row." *Suddenly serious, for once.* `[l4_huddle_update_2]`
-
-**MADDISON** `l4_huddle_insert_1_block.wav`  
-*Cue: At the bench, you turn to the chapter 'Adding a row'*  
-*(Flipping to the next chapter, leaning on the bench)* "INSERT INTO. A brand-new row. Like a brand-new client. I've heard those exist." *Reading the title, wistful, then perky again.* `[l4_huddle_insert_1]`  
-*(Turning to the whiteboard and writing SAME ORDER in big letters)* "Values go in the same order as the columns. Otherwise you've got a client called eighty who lives in Ashford." *Laughing at her own picture of it.* `[l4_huddle_insert_2]`
 
 ### Containment protocol Epsilon
 
@@ -1223,41 +1095,16 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 5
 
-### Book huddles: Acceptable API's
+### Finding Acceptable API's
 
-**Halcyon Tower, floor 9, Personnel: the HR front and payroll. After midnight.**
+**Halcyon Tower, floor 9, Personnel: the HR front. After midnight.**
 
-*Found on the HR front's training shelf on floor 9, the same series as Easy SQL. The crew reads aloud themselves (no Maddison in the tower). Lines approved by Augustine 2026-10-21; the title is his (2026-10-22).*
+*Found on the HR front's training shelf on floor 9, the same series as Easy SQL. Lines approved by Augustine 2026-10-21; the title is his (2026-10-22). Its chapters now land in the book quietly (Augustine, 2026-11-17).*
 
 **CREW** `l5_book_find_block.wav`  
 *Cue: When a player picks the book up off the training shelf by the HR desk. Whoever picks it up says it*  
 *(Lifting it off the shelf, turning it over in your hands)* "No way. It's the same series. Somebody here bought the sequel." *Delighted, a little thrown.* `[l5_book_find]`  
 *(As you open it. Holding it up so the crew can see the cover)* "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly." *Reading the back cover, hopeful.* `[l5_book_open]`
-
-**CREW** `l5_huddle_post_1_block.wav`  
-*Cue: When the crew reads the carbon copy of a work order pinned up in payroll. If nobody has the book yet, this waits until someone picks it up*  
-*(Walking with the book open, reading as you go)* "Chapter four. POST. You send it something, it makes something. Like a suggestion box that answers." *Starting a chapter, reading it out.* `[l5_huddle_post_1]`  
-*(As you finish the chapter. Keeping a finger in the page, looking up)* "So GET looks, POST makes. Got it." *Wrapping up, pleased it's simple.* `[l5_huddle_post_2]`
-
-**CREW** `l5_huddle_patch_1_block.wav`  
-*Cue: When the crew reads the facilities clipboard by payroll's panel. Waits for the book, if nobody has it yet*  
-*(Tilting the page toward what light there is)* "PATCH. For changing one thing and leaving the rest alone. Says 'one thing' in bold. Twice." *Starting a chapter. Noticing how hard the book insists.* `[l5_huddle_patch_1]`  
-*(As you finish the chapter. Glancing up from the page, grinning at the crew)* "PATCH is UPDATE wearing a tie." *Wrapping up. Proud of the joke.* `[l5_huddle_patch_2]`
-
-**CREW** `l5_huddle_codes_1_block.wav`  
-*Cue: When the crew reads the request sheet on the HR front desk. Waits for the book, if nobody has it yet*  
-*(Standing at the HR desk, the book open beside the terminal)* "Every answer comes with a number. Book says read the number before you celebrate." *Starting a chapter. A little told off.* `[l5_huddle_codes_1]`  
-*(As you finish the chapter. Tapping the page as you go down it)* "Two hundreds, good. Four hundreds, our fault. Five hundreds, theirs." *Wrapping up, counting it off.* `[l5_huddle_codes_2]`
-
-**CREW** `l5_huddle_keys_1_block.wav`  
-*Cue: Right after the chapter on numbers, called up by the same desk sheet*  
-*(Reading at the desk, glancing at the terminal screen)* "Some services want a key with every request. It goes in the header, a little label on top. Like a badge, but typed." *Starting a chapter, working it out as you read.* `[l5_huddle_keys_1]`  
-*(As you finish the chapter. Tapping the page, then the terminal)* "So if it says 401, we forgot the badge." *Wrapping up. Got it.* `[l5_huddle_keys_2]`
-
-**CREW** `l5_huddle_check_1_block.wav`  
-*Cue: When the crew reads the after-hours procedure pinned behind the HR desk. Waits for the book, if nobody has it yet*  
-*(Reading by the wall where the procedure hangs)* "Short chapter. After you change something, ask again. Book says never trust the first answer." *Starting a short chapter. Knowing nod.* `[l5_huddle_check_1]`  
-*(As you finish the chapter. Closing the book, looking back toward the stairs)* "Change it, then look again. The front doors taught us that one." *Wrapping up. Wry; you've been burned before.* `[l5_huddle_check_2]`
 
 ### Floor 9: Personnel
 
@@ -1345,46 +1192,16 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 ## Level 6
 
-### Book huddles: Journey through JavaScript
+### Finding Journey through JavaScript
 
 **Halcyon Tower, basement B1, Cold Storage. Later that night.**
 
-*Found on B1 next to where the deck's script editor arrives. Variables and loops are used on Level 6; functions, lists and testing on Level 7. Title approved by Augustine 2026-11-05: Journey through JavaScript. Approved by Augustine 2026-10-21.* *(Written ahead: not in the game yet.)*
+*Found on B1 next to where the deck's script editor arrives. Title approved by Augustine 2026-11-05: Journey through JavaScript. Lines approved by Augustine 2026-10-21. Its chapters now land in the book quietly (Augustine, 2026-11-17).*
 
 **CREW** `l6_book_find_block.wav`  
-*Cue: When someone finds the book under a coffee mug by the terminal on B1. This floor isn't built yet, so the exact moment isn't set*  
+*Cue: When someone finds the book under a coffee mug by the terminal on B1*  
 *(Holding it up for the crew to see)* "Journey through JavaScript. Somebody's read this one to death." *Sliding it out from under a mug. The cover's stained and the pages are soft.* `[l6_book_find]`  
 *(As you open it. Flicking through the pages, shaking out your typing hand)* "Typing every request by hand is going to get us killed. Book says a script does it for you. On repeat." *Tired of typing. This sounds like rescue.* `[l6_book_open]`
-
-**CREW** `l6_huddle_if_1_block.wav`  
-*Cue: Starting the chapter on variables and if, on B1. This floor isn't built yet, so the exact moment isn't set*  
-*(Reading off the page, standing by the terminal)* "A variable's a labelled box. If is a fork in the road. That's... honestly fine." *Starting a chapter. Braced for hard; it isn't.* `[l6_huddle_if_1]`  
-*(As you finish the chapter. Tapping the page twice, nodding to yourself)* "Box, fork. I can do box and fork." *Wrapping up, to yourself.* `[l6_huddle_if_2]`
-
-**CREW** `l6_huddle_loops_1_block.wav`  
-*Cue: Starting the chapter on loops, on B1. The dog-eared page. This floor isn't built yet, so the exact moment isn't set*  
-*(Running a finger down the dog-eared page)* "Loops. Do the same thing again and again. Book says put a wait in, or it does it a million times a second. And log what it did, so you can see." *Starting a chapter. The 'million times a second' bit alarms you.* `[l6_huddle_loops_1]`  
-*(As you finish the chapter. Scribbling a note on the back of your hand)* "Always put the wait in. Always log it. Writing that one down." *Wrapping up, making a note.* `[l6_huddle_loops_2]`
-
-**CREW** `l6_huddle_each_1_block.wav`  
-*Cue: Starting the chapter on for ... of and db.query, on B1, after someone reads the time clock's service page*  
-*(Reading off the page, a finger keeping the place)* "For each. Give it a list and it goes down the list for you, once each, then stops. No counting." *Starting a chapter. Relieved there's no counting this time.* `[l6_huddle_each_1]`  
-*(As you finish the chapter. Glancing toward the cold half of the floor)* "One loop, every row. Give it the names and it says them. All of them." *Wrapping up. Quieter: the floor's getting to you.* `[l6_huddle_each_2]`
-
-**CREW** `l6_huddle_functions_1_block.wav`  
-*Cue: Starting the chapter on functions, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
-*(Walking with the book open, reading as you go)* "Functions. Write it once, give it a name, use it anywhere." *Starting a chapter, reading it out.* `[l6_huddle_functions_1]`  
-*(As you finish the chapter. Shutting the book on a finger, half smiling)* "So a function's a recipe we can shout." *Wrapping up. Pleased with that.* `[l6_huddle_functions_2]`
-
-**CREW** `l6_huddle_lists_1_block.wav`  
-*Cue: Starting the chapter on lists, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
-*(Reading close to the page in the dim light)* "Lists. A whole line of things in one box. Loop over it and you've done them all." *Starting a chapter. The penny drops halfway.* `[l6_huddle_lists_1]`  
-*(As you finish the chapter. Looking up from the book toward the nearest door)* "One loop, every door. That's either brilliant or terrifying." *Wrapping up. Genuinely unsure which.* `[l6_huddle_lists_2]`
-
-**CREW** `l6_huddle_test_1_block.wav`  
-*Cue: Starting the last chapter, on testing, on the floor below B1. This floor isn't built yet, so the exact moment isn't set*  
-*(Holding the book steady, reading carefully)* "Last chapter: run it on the test bench first. And write an assertion: a line that says what should be true, and shouts if it isn't." *Starting the last chapter. Taking it seriously.* `[l6_huddle_test_1]`  
-*(As you finish the book. Closing the book and tucking it under your arm)* "Test first. We've all learned that one the hard way tonight." *Wrapping up. Rueful.* `[l6_huddle_test_2]`
 
 ### B1: the cold store
 
@@ -1425,7 +1242,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **INES** `l6_ines_arrive.wav`  
 *Cue: On the landing, as the crew arrives on B1 and before anyone goes into the cold store*  
-*(Stopping on the landing, looking down the hall and deciding against it)* "It's so cold down here. Colder than it should be. We'll wait by the stairs. Please don't be long." *Arms wrapped round yourself. Not going a step further.*
+*(Stopping on the landing, looking down the hall and deciding against it)* "It's so cold down here. We'll wait by the stairs. Please don't be long." *Arms wrapped round yourself. Not going a step further.*
 
 **TOMAS** `l6_tomas_arrive.wav`  
 *Cue: On the landing, right after Ines, as the crew heads into the hall*  
@@ -1587,7 +1404,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **INES** `l7_ines_lobby.wav`  
 *Cue: In the lift lobby, right after WARDEN's arrival lines*  
-*(Leading the way across the lobby)* "This way. The IT admin office is just off the lobby. Gil ran the whole basement from in there." *Brisk. Glad to know something useful.*
+*(Leading the way across the lobby)* "This way. Gil ran the whole basement from the admin office." *Brisk. Glad to know something useful.*
 
 **TOMAS** `l7_tomas_ring.wav`  
 *Cue: The first time someone steps into the plant ring*  

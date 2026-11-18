@@ -1497,7 +1497,7 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	check(h <= rescue_tier(level.verify_puzzle) and _game().case_info("entrance").get("solved", false), "%s: reading the row back shows the lie (hints %d)" % [where, h])
 	ui.close()
 	Engine.time_scale = 4.0
-	check(await _until(func(): return done[0], 40.0), "%s: locked in, the floor ends" % where)
+	check(await _until(func(): return done[0], 120.0), "%s: locked in, the floor ends" % where)
 	Engine.time_scale = 1.0
 	net.profile.earned = earned
 	board_verdict(where)

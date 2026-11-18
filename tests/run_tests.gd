@@ -120,6 +120,8 @@ func _group_core() -> void:
 	test_voice_split()
 	await test_commentary()
 	await test_pause_holds_subtitles()
+	await test_lines_take_turns()
+	await test_notices_take_turns()
 	await test_screens_fill_window()
 	await test_pause_menu()
 	await test_level_select()
@@ -799,7 +801,9 @@ func test_voice_script() -> void:
 class FakeHud extends Node:
 	var said: Array = []
 
-	func say(speaker: String, text: String, _seconds: float = -1.0) -> void:
+	func say(speaker: String, text: String, _seconds: float = -1.0, _turn: int = 0, start: Callable = Callable()) -> void:
+		if start.is_valid():
+			start.call()
 		said.append([speaker, text])
 
 
@@ -1035,6 +1039,94 @@ func test_pause_holds_subtitles() -> void:
 	paused = false
 	await create_timer(0.6).timeout
 	check(hud._subtitle.text == "", "and clears once its time has run after unpausing")
+	hud.queue_free()
+
+
+## Augustine's v0.9-beta2 note: lines must not pile on top of each other
+## (plan/text-spacing-proposal.md).
+func test_lines_take_turns() -> void:
+	print("Lines take turns")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.say("ROURKE", "First.", 0.4)
+	hud.say("INES", "Second.", 0.4)
+	await create_timer(0.1).timeout
+	check(hud._subtitle.text == "ROURKE: First.", "the first line plays")
+	await create_timer(0.6).timeout  # 0.7 s: the first ended at 0.4, and the next speaker waits 1.2 s
+	check(hud._subtitle.text == "", "a breath between two speakers, nothing on top")
+	await create_timer(1.1).timeout  # 1.8 s
+	check(hud._subtitle.text == "INES: Second.", "then the second line, in order")
+	await create_timer(0.5).timeout
+	check(hud.quiet(), "and the queue is empty after")
+
+	await create_timer(1.3).timeout
+	hud.say("ROURKE", "A long speech about the front desk.", 1.0)
+	await create_timer(0.2).timeout
+	hud.say("WARDEN", "LOCKDOWN.", 0.4, HUD.Turn.URGENT)
+	await process_frame
+	check(hud._subtitle.text == "WARDEN: LOCKDOWN.", "a threat starting cuts across")
+	await create_timer(1.6).timeout
+
+	hud.stale_after = 0.3
+	hud.say("ROURKE", "Still talking.", 1.0)
+	var said := [false]
+	var bark := func():
+		await hud.say("CREW", "Nice.", 0.3, HUD.Turn.CAN_WAIT, func() -> float:
+			said[0] = true
+			return 0.0)
+	bark.call()
+	await create_timer(1.5).timeout
+	check(not said[0] and hud._subtitle.text != "CREW: Nice.", "a line that can wait is dropped rather than played late")
+	await create_timer(1.3).timeout
+	hud.say("CREW", "Quiet now.", 0.3, HUD.Turn.CAN_WAIT)
+	await create_timer(0.1).timeout
+	check(hud._subtitle.text == "CREW: Quiet now.", "and plays at once when it's quiet")
+	check(Voice.read_time("x".repeat(150)) == 11.0 and Voice.read_time("Hi.") == 2.0,
+		"unvoiced lines stay up at 15 characters a second")
+	hud.queue_free()
+
+
+## Notices take turns too: one at a time, no repeats, "Notebook updated" last and
+## folded in (plan/text-spacing-proposal.md).
+func test_notices_take_turns() -> void:
+	print("Notices take turns")
+	var hud := HUD.new()
+	root.add_child(hud)
+	await process_frame
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice("Down the hall, a lock drops.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await process_frame
+	check(hud._notice.text == "CS-41 locks.", "the first notice goes up")
+	await create_timer(0.8).timeout
+	check(hud._notice.text == "CS-41 locks.", "the level's next news doesn't wipe it straight away")
+	await create_timer(1.0).timeout  # 1.8 s
+	check(hud._notice.text == "Down the hall, a lock drops.", "it gets its turn after")
+	hud.notice("CS-41 locks.", 2.5, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Down the hall, a lock drops.", "the same news again within 20 seconds is dropped")
+	hud.notice("Locked.", 2.0)
+	await process_frame
+	check(hud._notice.text == "Locked.", "the answer to something the player just did goes up at once")
+	hud.notice("A lock drops.", 2.0, ThemeUtil.AMBER, HUD.Turn.NORMAL)
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == "Locked." and not hud._notebook_tag.visible, "\"Notebook updated\" waits behind the other notices")
+	await create_timer(1.7).timeout
+	check(hud._notice.text == "A lock drops." and hud._notebook_tag.visible, "then folds in under the last one instead of wiping it")
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await create_timer(0.1).timeout
+	check(hud._notice.text == "A lock drops.", "and says it at most once every 10 seconds")
+	hud._notice.modulate.a = 0.0
+	hud._notebook_last = -1000.0
+	hud.notice(HUD.NOTEBOOK_NOTICE, 3.0)
+	await process_frame
+	check(hud._notice.text == InputGlyphs.text(HUD.NOTEBOOK_NOTICE), "with nothing else up, it goes up on its own")
+	hud.stale_after = 0.5
+	hud.notice("Someone's at the door.", 3.0)
+	hud.notice("The lights hum.", 2.0, ThemeUtil.AMBER, HUD.Turn.CAN_WAIT)
+	await create_timer(1.8).timeout
+	check(hud._notice.text == "Someone's at the door.", "news that can wait is dropped once it's stale")
 	hud.queue_free()
 
 
@@ -1306,7 +1398,7 @@ func test_level_0_scene() -> void:
 	check(level.walkies.get_prompt(level.player) == "You already have a walkie-talkie.", "and you can't take a second")
 	var panel: Node3D = level.elevator.art.get_node("ButtonPanel") if level.elevator.art else null
 	check(panel == null or level.elevator.button.global_position.distance_to(panel.global_position) < 0.35, "the elevator's button is pressed where its panel is drawn")
-	for i in 1500:  # the PA's escort tape and Rourke's cover come first
+	for i in 4000:  # the PA's escort tape and Rourke's cover come first, after any lines still waiting their turn
 		if level.shutter.is_open:
 			break
 		await physics_frame
@@ -1711,8 +1803,9 @@ func test_level_1_scene() -> void:
 		await physics_frame
 	check(not level.vault_back.locked and level.hot_rack_puzzle.solved, "reseating the hot rack's tray releases the interlock")
 
-	# Rourke heads for the elevator; it opens once the crew is with him.
-	for i in 2400:
+	# Rourke heads for the elevator; it opens once the crew is with him (after his
+	# lines, which take their turns: this test solves the floor faster than he talks).
+	for i in 6000:
 		if level.sync._gates.has("rourke_at_lift"):
 			break
 		await physics_frame
@@ -1833,6 +1926,8 @@ func _crew_reads(levels: Array) -> void:
 	var quiet := 0
 	for f in 6000:
 		await physics_frame
+		if not hs.all(func(h): return is_instance_valid(h)):
+			return  # the test moved on and freed its levels (a call nobody awaited)
 		var busy: bool = hs.any(func(h): return h.is_busy())
 		seen = seen or busy
 		quiet = 0 if busy else quiet + 1
@@ -3630,8 +3725,8 @@ func test_level_2_scene() -> void:
 		await physics_frame
 	check(not level.doors["SEC-EXIT"].is_open and _game().watcher_sealed, "the PIN locks it behind you")
 	level.completed.disconnect(level._on_completed)
-	for i in 20:  # let WARDEN's line about the jammed door finish first
-		if level.hud._subtitle.text == "":
+	for i in 60:  # let WARDEN's lines about the cameras and the jammed door finish first (they take turns)
+		if level.hud.quiet() and level.hud._subtitle.text == "":
 			break
 		await create_timer(0.5).timeout
 	p.global_transform = Transform3D(Basis(), level.to_global(STAIRS))
@@ -4638,7 +4733,7 @@ func test_rourke_leads_in() -> void:
 		await physics_frame
 	check(lobby.exit_door.is_open, "the door stays open while anyone is still in its swing")
 	p.global_position = Vector3(28.0, 0.2, 1.5)  # past him, clear of the swing
-	for i in 400:
+	for i in 1200:  # his elevator line waits its turn first
 		if not lobby.exit_door.is_open:
 			break
 		await physics_frame
@@ -4890,8 +4985,8 @@ func test_level_2_book_huddles() -> void:
 	level.watcher.active = false
 	var p: Player = level.player
 	var h := _huddle_of(level)
-	var opens := func(id: String) -> bool:
-		return await _until(func(): return h.done.has(id) and not p.input_locked, 10.0)
+	var opens := func(id: String) -> bool:  # WARDEN's lines before some of them wait their turn
+		return await _until(func(): return h.done.has(id) and not p.input_locked, 40.0)
 	_doc(level, "Camera system card").open_reader(p).close()
 	check(await opens.call("easy_sql_10"), "reading the camera card brings back Asking a server, the GET chapter")
 	await _crew_reads([level])

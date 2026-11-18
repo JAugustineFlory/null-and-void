@@ -194,7 +194,7 @@ func team_notice(text: String, seconds: float = 3.0) -> void:
 @rpc("authority", "call_local", "reliable")
 func _team_notice(text: String, seconds: float) -> void:
 	if level.hud:
-		level.hud.notice(text, seconds)
+		level.hud.notice(text, seconds, ThemeUtil.AMBER, HUD.Turn.NORMAL)  # news, not an answer: it waits its turn
 
 
 ## Host only: every player here earns `source` ("achievement:floor_g"...), owns

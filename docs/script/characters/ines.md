@@ -56,7 +56,7 @@ Send the files back as they are. They go in `audio/voice/ines/` in the game.
 
 *On the landing, as the crew arrives on B1 and before anyone goes into the cold store. Stopping on the landing, looking down the hall and deciding against it. Arms wrapped round yourself. Not going a step further.*
 
-"It's so cold down here. Colder than it should be. We'll wait by the stairs. Please don't be long."
+"It's so cold down here. We'll wait by the stairs. Please don't be long."
 
 **[ ] `l6_ines_whitlow.wav`**
 
@@ -80,7 +80,7 @@ Send the files back as they are. They go in `audio/voice/ines/` in the game.
 
 *In the lift lobby, right after WARDEN's arrival lines. Leading the way across the lobby. Brisk. Glad to know something useful.*
 
-"This way. The IT admin office is just off the lobby. Gil ran the whole basement from in there."
+"This way. Gil ran the whole basement from the admin office."
 
 **[ ] `l7_ines_plan.wav`**
 
