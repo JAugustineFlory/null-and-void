@@ -104,10 +104,11 @@ func _group_keywords() -> void:
 	await _run_file("res://tests/keyword_tests.gd")
 
 
-## The garage's secret: the corner door, its key and the back office's PC.
+## The garage: the corner door, its key and the back office's PC; the driveway and van; the lab.
 func _group_garage() -> void:
 	await _run_file("res://tests/garage_office_tests.gd")
 	await _run_file("res://tests/garage_bounds_tests.gd")
+	await _run_file("res://tests/garage_lab_tests.gd")
 
 
 ## Shared systems: database, voice, notebook, world streaming, UI, combat, art, garage huddles.
