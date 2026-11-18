@@ -195,6 +195,7 @@ func _group_floor_22_lab() -> void:
 	test_level_2_lab_data_every_seed()
 	for outcome in ["killed", "tied", "untied"]:
 		await test_level_2_lab(outcome)
+	await test_news_ending_lines()
 
 
 ## Floor 18, the Records Archive (Level 3): its data, the floor, Mercer's room, the
@@ -688,7 +689,7 @@ func test_voice_script() -> void:
 	var scene_re := RegEx.create_from_string("ids_in_scene\\(\"([a-z0-9_]+)\"\\)")
 	var say_re := RegEx.create_from_string("say\\(\"(ROURKE|WARDEN|VALE|MERCER)\"")
 	var sources := []
-	for dir in ["res://scripts/levels/", "res://scripts/huddle/"]:  # huddle: the book's chapter lines
+	for dir in ["res://scripts/levels/", "res://scripts/huddle/", "res://scripts/combat/"]:  # huddle: the book's chapter lines; combat: the news ending
 		for f in DirAccess.get_files_at(dir):
 			if f.ends_with(".gd"):
 				sources.append(dir + f)
@@ -714,6 +715,15 @@ func test_voice_script() -> void:
 		if VoiceLines.scene(VoiceLines.LINES[id]["scene"]).get("wired", false) and not used.has(id):
 			unused.append(id)
 	check(unused.is_empty(), "every line marked as in the game is played by a level %s" % [unused])
+	# Every recording Augustine made has somewhere in the game that plays it.
+	var unplayed := []
+	for dir in DirAccess.get_directories_at(Voice.folder):
+		for f in DirAccess.get_files_at(Voice.folder.path_join(dir)):
+			if f.ends_with(".wav"):
+				var id := f.get_basename()
+				if VoiceLines.has_line(id) and not used.has(VoiceLines.resolve(id)):
+					unplayed.append(id)
+	check(unplayed.is_empty(), "every recorded line has a play site %s" % [unplayed])
 
 	var in_sync := FileAccess.get_file_as_string(ScriptDocs.SCRIPT_PATH) == ScriptDocs.script_markdown() \
 		and FileAccess.get_file_as_string(ScriptDocs.RECORDING_LIST_PATH) == ScriptDocs.recording_list_markdown()
@@ -4212,6 +4222,20 @@ func test_level_2_lab(outcome: String) -> void:
 	check(screen_text.contains("[lb]SYSOP[rb]: two conditions?"), "the two-conditions tip is SYSOP's, not the system's")
 	check(lab.response_left > Level2Lab.RESPONSE_TIME - 5.0 and lab.clock.text.begins_with("RESPONSE  "), "WARDEN sends a security response, and the clock over the door counts down")
 	check(_game().current_case() == "lab_door" and _game().case_info("lab_door").title == Level2Lab.LAB_CASE, "the lockdown opens the lab door's case page")
+	# WARDEN's recorded lines, at the moments on their cards.
+	var heard: Array[String] = level.hud.heard
+	check(not lab.logged_in, "her terminal hasn't taken Rourke's badge until someone uses it")
+	lab.switches[level.data.lab_answer].interact(p)
+	check(await _until(func(): return heard.has("l2_no_badge"), 30.0) and not level.doors["SECLAB-B"].is_open, "a switch pressed before anyone logs in: WARDEN refuses, badge required")
+	var refusals := heard.count("l2_no_badge")
+	lab.switches[level.data.lab_answer].interact(p)
+	await _frames(10)
+	check(heard.count("l2_no_badge") == refusals and not level.doors["SECLAB-B"].is_open, "pressed again straight away, it doesn't say it twice")
+	lab.terminal.interact(p)
+	check(await _until(func(): return lab.logged_in, 5.0), "sitting down at her terminal logs it in on Rourke's badge")
+	check(await _until(func(): return heard.has("l2_login") and heard.has("l2_selftest"), 40.0) and heard.find("l2_login") < heard.find("l2_selftest"),
+		"WARDEN greets Mr. Rourke, then reads out its self-test")
+	level.terminal_ui.close()
 	if outcome == "killed":
 		# Too slow: the response arrives, and the lab's controllers are re-keyed.
 		var old_zone: String = level.data.lab_zone
@@ -4236,21 +4260,29 @@ func test_level_2_lab(outcome: String) -> void:
 	level.terminal_ui.terminal = lab.terminal
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s'" % level.data.lab_zone)
 	check(not lab.door_puzzle.solved, "the zone alone isn't enough")
+	check(await _until(func(): return heard.has("l2_found"), 40.0) and heard.count("l2_found") == 1, "the first look at the door controllers: WARDEN logs the query, once")
 	level.terminal_ui.run("SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % level.data.lab_zone)
 	check(lab.door_puzzle.solved, "zone AND status finds the lab door's controller")
 	check(_game().case_info("lab_door").clues.any(func(k): return k.text.contains(level.data.lab_answer)), "SYSOP's answer goes on the lab door's page")
 	level.terminal_ui.run("SELECT * FROM badge_log ORDER BY time")
 	check(lab.log_puzzle.solved, "ORDER BY time lays out the visitor log")
-	var wrong: String = lab.switches.keys().filter(func(k): return k != level.data.lab_answer)[0]
-	lab.switches[wrong].interact(p)
-	await _frames(3)
-	check(not level.doors["SECLAB-B"].is_open, "the wrong switch doesn't open the door")
-	lab.switches_locked_until = 0.0
+	for wrong in lab.switches.keys().filter(func(k): return k != level.data.lab_answer):
+		var ok_row: bool = level.db.run_silent("SELECT status FROM door_controllers WHERE id = '%s'" % wrong)[0]["status"] == "ok"
+		lab.switches[wrong].interact(p)
+		await _frames(3)
+		check(not level.doors["SECLAB-B"].is_open, "the wrong switch doesn't open the door")
+		var said := "l2_panel_ok" if ok_row else "l2_panel_wrong"
+		check(await _until(func(): return heard.has(said), 40.0), "WARDEN on %s %s: %s" % ["a working controller's switch" if ok_row else "the wrong faulted switch", wrong, said])
+		lab.switches_locked_until = 0.0
 	lab.switches[level.data.lab_answer].interact(p)
 	check(await _until(func(): return level.doors["SECLAB-B"].is_open, 5.0), "the right switch resets it, and the door opens")
+	check(await _until(func(): return heard.has("l2_exit_open"), 40.0), "and WARDEN notes the exit unlocked")
 	check(_game().case_info("lab_door").solved and _game().case_info("lab_door").how.contains(level.data.lab_answer), "and the lab door's case is solved")
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-3, 0.1, 4.0)))
 	check(await _until(func(): return lab.phase == "done" and not level.booth.locked, 20.0), "out of the lab, it's over, and the night desk terminal works")
+	check(await _until(func(): return heard.has("l2_sealed"), 40.0), "WARDEN seals the floor as the crew steps out")
+	check(heard.has("l2_lockdown_tied") == (outcome == "tied") and (outcome != "tied" or heard.find("l2_lockdown_tied") < heard.find("l2_sealed")),
+		"and only if Rourke was left tied, the lockdown is signed by him first (%s)" % outcome)
 	check(not level.watcher.active, "the Watcher stays still: it's quiet until Pike")
 	if outcome == "untied":
 		check(await _until(func(): return not r.visible, 30.0), "left untied, he's gone soon after")
@@ -4259,6 +4291,30 @@ func test_level_2_lab(outcome: String) -> void:
 		check(r.visible == (outcome == "killed" or outcome == "tied"), "tied or dead, he's still lying there for now")
 	Engine.time_scale = 1.0
 	level.queue_free()
+	await process_frame
+
+
+## The news ending reads the script's whole l2_news scene, in its order: the arrest,
+## Maddison's "They were framed!", then the weather.
+func test_news_ending_lines() -> void:
+	print("Level 2 lab: the news ending reads the whole report")
+	var news := NewsEnding.new()
+	root.add_child(news)
+	Engine.time_scale = 8.0
+	var done := [false]
+	news.finished.connect(func(): done[0] = true)
+	news.run()
+	check(await _until(func(): return news.retry.visible, 150.0), "the radio report plays to the end")
+	news.skip()
+	Engine.time_scale = 1.0
+	var want := VoiceLines.ids_in_scene("l2_news")
+	check(news.heard == want, "every line of the script's news scene, in the script's order %s" % [news.heard])
+	check(want.size() == 7 and want.has("l2_news_6") and want.has("l2_news_7") and want.back() == "l2_news_5", "all seven, with the weather last")
+	check(VoiceLines.get_line("l2_news_4")["text"].contains("arrested") and VoiceLines.get_line("l2_news_6")["text"].contains("framed"),
+		"Maddison's arrest, and her \"They were framed!\", are on the air")
+	check(not load("res://scripts/combat/news_ending.gd").get_script_constant_map().has("RADIO"), "the ending keeps no copy of its own lines")
+	await _until(func(): return done[0], 5.0)
+	news.queue_free()
 	await process_frame
 
 
