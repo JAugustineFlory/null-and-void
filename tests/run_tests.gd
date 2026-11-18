@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "coop_runs", "levels"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "coop_runs", "levels", "hard"]
 
 
 func _run() -> void:
@@ -97,6 +97,7 @@ func _run_group(g: String) -> void:
 		"keywords": await _group_keywords()
 		"levels": await _group_levels()
 		"coop_runs": await _group_coop_runs()
+		"hard": await _group_hard()
 
 
 ## A run as a whole: its rules, restarting a floor or the run, and joining one
@@ -277,6 +278,10 @@ func _group_coop() -> void:
 
 
 ## Fights: health, blocking, the entities' grabs and throws, solo and co-op.
+func _group_hard() -> void:
+	await _run_file("res://tests/hard_mode_tests.gd")
+
+
 func _group_combat() -> void:
 	await _run_file("res://tests/combat_tests.gd")
 	await _run_file("res://tests/custodian_tests.gd")
@@ -2229,7 +2234,7 @@ func test_hard_dead_watch() -> void:
 	var host = levels[0]
 	var c1 = levels[1]
 	var c2 = levels[2]
-	var crews := levels.map(_death_crew)
+	var crews := levels.map(func(l): return l.crew)
 	var id1: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
 	var id2: int = get_multiplayer(worlds[2].get_path()).get_unique_id()
 
@@ -2244,8 +2249,7 @@ func test_hard_dead_watch() -> void:
 	c2.player.global_position = spot + Vector3(0, 0, 6)
 	await _frames(30)
 	check(fired[0] == 0, "\"everyone here\" waits for the one still outside")
-	for c in crews:
-		c._set_dead(id2, true)
+	crews[0].mark_dead(id2, "test")
 	await _frames(5)
 	check(fired[0] == 1, "once they're dead, the living are everyone, and it goes")
 
@@ -2260,9 +2264,8 @@ func test_hard_dead_watch() -> void:
 	watch.cycle(1)
 	check(watch.watching == 1, "and round again")
 	check(host.players.spectate == null and c1.players.spectate == null, "the living see through their own eyes")
-	for c in crews:
-		c._set_dead(id1, true)
-	await _frames(3)
+	crews[0].mark_dead(id1, "test")
+	await _frames(5)
 	check(c1.players.spectate != null and c1.players.spectate.watching == 1, "the next to die watches whoever's left")
 
 	# Voice: the dead are heard on the radio, clear, and never from where they lie.
@@ -2280,7 +2283,7 @@ func test_hard_dead_watch() -> void:
 
 	# Back at the next floor: your own eyes again.
 	for c in crews:
-		c._set_dead(id2, false)
+		c._came_back(id2)
 	await _frames(2)
 	check(c2.players.spectate == null and worlds[2].get_camera_3d() == c2.player.camera, "back alive, you see through your own eyes")
 
@@ -2312,42 +2315,6 @@ func test_hard_dead_watch() -> void:
 		net.profile.earned.erase(NetPlayers.NICE_TRY)
 	await _coop_close(worlds)
 	_game().floor_start = {}
-
-
-## A level's CrewVitals with Hard mode's deaths: Combat's own when it has them,
-## otherwise a stand-in with the same names (is_dead, died, came_back, mark_dead).
-func _death_crew(level: Node) -> Node:
-	var crew = level.crew
-	if crew.has_method("is_dead") and crew.has_method("_set_dead"):
-		return crew
-	var stub := GDScript.new()
-	stub.source_code = """extends CrewVitals
-signal died(peer_id: int, cause: String)
-signal came_back(peer_id: int)
-var dead := {}
-func is_dead(id: int) -> bool:
-	return dead.has(id)
-func mark_dead(id: int) -> void:
-	_set_dead(id, true)
-func _set_dead(id: int, on: bool) -> void:
-	if on:
-		dead[id] = "test"
-		died.emit(id, "test")
-	else:
-		dead.erase(id)
-		came_back.emit(id)
-"""
-	stub.reload()
-	var c = stub.new()
-	c.level = level
-	c.players = level.players
-	crew.name = "OldCrew"
-	crew.queue_free()
-	c.name = "Crew"
-	level.add_child(c)
-	level.crew = c
-	level.players.watch_crew(c)
-	return c
 
 
 func test_coop_late_join() -> void:
@@ -3060,6 +3027,10 @@ func test_restart_floor() -> void:
 	game.rourke_fate = "killed"
 	check(game.restore_floor_start(true) == "level_3" and game.rourke_fate == "tied" and game.notebook_notes == ["before", "again"],
 		"a restart that keeps the notebook (hard mode's wipe) puts the floor back but leaves what you wrote")
+	game.first_aid = "taken"
+	game.first_aid_kits["test_cabinet"] = "taken"
+	game.restore_floor_start(true)
+	check(game.first_aid == "" and game.first_aid_kits.is_empty(), "and the first-aid kits are back in their cabinets")
 
 	# For real: the building opens on floor 18, the crew plays a bit, and restarts.
 	var stale := current_scene  # whatever an earlier test left open
@@ -4960,8 +4931,8 @@ func test_coop_combat() -> void:
 	client.player.combat.bleed_left = 0.05
 	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again")
 	host.crew.revive(client_id, PlayerCombat.MAX_HEALTH, true)
-	await _frames(10)
-	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious, "a first-aid kit brings them round at once, to full health")
+	check(await _until(func(): return not client.player.downed, CrewVitals.KIT_TIME + 2.0) and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious,
+		"a first-aid kit brings them round in a few seconds, to full health")
 	# Everyone down or out: the crew is beaten.
 	downs.clear()
 	puppet.take_damage(1000.0, "watcher")

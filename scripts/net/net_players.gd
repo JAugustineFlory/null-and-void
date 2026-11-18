@@ -71,6 +71,8 @@ func watch_crew(crew: Node = null) -> void:
 		crew.died.connect(_on_died)
 	if crew.has_signal("came_back"):
 		crew.came_back.connect(_on_came_back)
+	if crew.has_signal("wiped"):
+		crew.wiped.connect(_on_came_back.bind(multiplayer.get_unique_id()))  # everyone down: watch it end from where you lie
 
 
 ## Is player `id` dead (Hard mode)? The dead watch, and don't count for "everyone".

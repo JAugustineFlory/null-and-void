@@ -3,11 +3,13 @@ extends Interactable
 ## The first-aid cabinet on STAIR 1's landing 5 (plan/approvals/stair-landings.md,
 ## C): sealed shut, E breaks the seal and opens it, E again takes the one kit in
 ## it. Whoever takes the kit carries it (Inventory "first_aid_kit"); in their hands,
-## it patches them up (attack) or brings a downed teammate straight round (E on
+## it patches them up (attack) or brings a downed teammate round (E on
 ## them, see teammate_prompt and patch).
 ##
 ## It's the same cabinet whichever trip passes landing 5 (down from 10, up from G),
 ## so what's happened to it belongs to the run (Game.first_aid), not to this node.
+## Each floor's own cabinets (KitCabinets) carry a `cabinet_id`, and keep theirs in
+## Game.first_aid_kits.
 ## Co-op: the host decides, every machine plays it out, and only the taker gets the kit.
 
 const ITEM := "first_aid_kit"
@@ -26,6 +28,8 @@ const OPENED := "open"
 const TAKEN := "taken"
 const SIZE := Vector3(0.42, 0.52, 0.15)
 
+## "" for STAIR 1's cabinet; a floor's own cabinets have an id of their own.
+var cabinet_id := ""
 var _door: Node3D
 var _seal: Node3D
 var _kit: Node3D
@@ -121,9 +125,26 @@ static func _set_state(s: String) -> void:
 		g.set("first_aid", s)
 
 
+## What's happened to this cabinet this run.
+func my_state() -> String:
+	if cabinet_id == "":
+		return state()
+	var g := _game()
+	return str(g.first_aid_kits.get(cabinet_id, SEALED)) if g else SEALED
+
+
+func _set_my_state(s: String) -> void:
+	if cabinet_id == "":
+		_set_state(s)
+		return
+	var g := _game()
+	if g:
+		g.first_aid_kits[cabinet_id] = s
+
+
 ## Door, seal and kit as the run has left them (the other trip may have opened it).
 func refresh() -> void:
-	var s := state()
+	var s := my_state()
 	if _door:
 		_door.rotation_degrees.y = 0.0 if s == SEALED else -105.0
 		_seal.visible = s == SEALED
@@ -136,7 +157,7 @@ func _notification(what: int) -> void:
 
 
 func get_prompt(_player: Node) -> String:
-	match state():
+	match my_state():
 		SEALED:
 			return "[E] " + OPEN_PROMPT
 		OPENED:
@@ -145,7 +166,7 @@ func get_prompt(_player: Node) -> String:
 
 
 func interact(player: Node) -> void:
-	if state() != TAKEN:
+	if my_state() != TAKEN:
 		super.interact(player)
 
 
@@ -153,7 +174,7 @@ func interact(player: Node) -> void:
 func _on_used(player: Node) -> void:
 	var lvl := _level()
 	var id: int = lvl.players.id_of(player) if lvl else 0
-	var next := OPENED if state() == SEALED else TAKEN
+	var next := OPENED if my_state() == SEALED else TAKEN
 	var sync := LevelSync.of(self)
 	if sync:
 		sync.run_on(self, "advance", [id, next])
@@ -163,7 +184,7 @@ func _on_used(player: Node) -> void:
 
 ## On every machine: `peer_id` opened it (`next` OPENED) or took the kit (TAKEN).
 func advance(peer_id: int, next: String) -> void:
-	_set_state(next)
+	_set_my_state(next)
 	if next == TAKEN:
 		var lvl := _level()
 		if lvl and lvl.player and peer_id == lvl.players.id_of(lvl.player):
@@ -187,34 +208,36 @@ static func holding(player: Node) -> bool:
 	return inv != null and inv.active_item() == ITEM
 
 
-## Attack with the kit in your hands: patch yourself up. True if the kit was in
-## your hands (it does nothing else, even at full health: no swinging it at people).
+## Attack with the kit in your hands: patch yourself up, holding still for
+## CrewVitals.KIT_TIME (a hit stops it, and you keep the kit). True if the kit was
+## in your hands (it does nothing else, even at full health: no swinging it at people).
 static func use_on_self(player: Node) -> bool:
 	if not holding(player):
 		return false
 	var combat: PlayerCombat = player.get("combat")
 	if combat == null or combat.down or float(player.get("health")) >= PlayerCombat.MAX_HEALTH:
 		return true
-	combat.heal_full()
-	player.inventory.remove(ITEM)
-	var hud: Node = player.get("hud")
-	if hud:
-		hud.notice(PATCHED_SELF, 3.0)
+	combat.patch_self(func():
+		player.inventory.remove(ITEM)
+		var hud: Node = player.get("hud")
+		if hud:
+			hud.notice(PATCHED_SELF, 3.0))
 	return true
 
 
 ## E on downed teammate `id`, with the kit in `by`'s hands: the kit's prompt in
 ## place of the usual hand up (one key can't do both); otherwise the usual.
 static func teammate_prompt(by: Node, crew: CrewVitals, id: int) -> String:
-	if holding(by) and crew.downed.has(id) and not CrewVitals.is_down(by):
+	if holding(by) and crew.can_help(id) and not crew.reviving.has(id) and not CrewVitals.is_down(by):
 		return PATCH_PROMPT
 	return crew.revive_prompt(id)
 
 
-## E on downed teammate `id` with the kit in `by`'s hands: up at once, to full
-## health, even if they've passed out. False (do the usual) without the kit.
+## E on downed teammate `id` with the kit in `by`'s hands: up in
+## CrewVitals.KIT_TIME standing by them, to full health, even if they've passed
+## out (in hard mode, the only way up). False (do the usual) without the kit.
 static func patch(by: Node, crew: CrewVitals, id: int) -> bool:
-	if not holding(by) or not crew.downed.has(id):
+	if not holding(by) or not crew.can_help(id):
 		return false
 	crew.revive(id, PlayerCombat.MAX_HEALTH, true)
 	return true

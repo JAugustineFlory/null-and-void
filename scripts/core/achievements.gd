@@ -27,7 +27,14 @@ const LIST := [
 	# earn them DRAFT, plan/approvals/keyword-buttons-text.md).
 	{"id": "achievement:no_training_wheels", "name": "No More Training Wheels", "hint": "Use a word enough that its button comes off."},
 	{"id": "achievement:look_no_buttons", "name": "Look, No Buttons"},
-	# Hard mode (name: Augustine 2026-11-18 00:04Z, plan/hard-mode.md 10.3; how to earn it DRAFT).
+	# Hard mode (plan/hard-mode.md; Augustine 2026-11-18). "I think I found the way
+	# out!" is his own; the other names, and every hint, are DRAFT, waiting for his OK.
+	{"id": "achievement:way_out", "name": "I think I found the way out!", "hint": "On Hard, fall out of the building."},
+	{"id": "achievement:hard_floor", "name": "Still Breathing", "hint": "Clear a floor on Hard and live through it."},
+	{"id": "achievement:hard_floor_all", "name": "All Accounted For", "hint": "Clear a floor on Hard with nobody dying."},
+	{"id": "achievement:hard_watch_only", "name": "Not a Word", "hint": "Clear a floor on Hard with the dead kept silent, and live through it."},
+	{"id": "achievement:hard_game", "name": "The Hard Way", "hint": "Finish the game on Hard, alive."},
+	# Co-op's: a dead player who leaves and comes back (name: Augustine, plan/hard-mode.md 10.3).
 	{"id": "achievement:nice_try", "name": "Nice Try", "hint": "Die on Hard, leave, and come back to watch."},
 	{"id": "secret:mercer_vent_tape", "name": "Mercer's Tape"},
 	{"id": "secret:mercer_floppy_1", "name": "Mercer's First Disk"},

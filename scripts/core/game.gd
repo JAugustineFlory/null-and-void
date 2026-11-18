@@ -41,8 +41,17 @@ var watcher_sealed := false
 ## Did the players lock the Custodian out in its bay on floor 10 (Level 4)? If not,
 ## it can come back on later floors.
 var custodian_sealed := false
+## Hard mode (plan/hard-mode.md; Augustine 2026-11-18), set by the host in the lobby
+## for the whole run: left down too long you die and watch; if everyone's down, the
+## floor starts over. `dead_watch_only`: the dead can't talk (an extra reward).
+## `wipe_new_run`: a wipe starts the whole run over with a new seed instead.
+var hard_mode := false
+var dead_watch_only := false
+var wipe_new_run := false
 ## STAIR 1's first-aid cabinet on landing 5 (FirstAidCabinet): "", "open" or "taken".
 var first_aid := ""
+## Each floor's own first-aid cabinets (KitCabinets): cabinet id -> "", "open" or "taken".
+var first_aid_kits := {}
 ## Did the players learn (or get told) that CAM-2's 'live' picture was frozen?
 var cam_lie_learned := false
 ## B2 (Level 7): how the crew beat WARDEN ("lockout", "revoke", "watchdog"; "" not
@@ -133,12 +142,6 @@ const PIECE_MISSING := "????"
 ## and the run as it stood then: {"key", "state"}. Restarting the floor puts it
 ## back (restore_floor_start, Net.restart_floor).
 var floor_start := {}
-## How the host set this run up (Net.rules, put here on every machine as the run
-## starts): Hard; on Hard, the dead can only watch; on Hard, a wipe starts the
-## whole run over with new data.
-var hard_mode := false
-var dead_watch_only := false
-var wipe_new_run := false
 ## Where this run started (a LEVELS key: "world" from the garage, or a floor
 ## picked from Levels), for starting the whole run over (Net.restart_run).
 var run_start := "world"
@@ -172,6 +175,7 @@ func new_run(seed_value: int = -1) -> void:
 	watcher_sealed = false
 	custodian_sealed = false
 	first_aid = ""
+	first_aid_kits.clear()
 	cam_lie_learned = false
 	warden_route = ""
 	night_shift_alive.clear()
