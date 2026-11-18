@@ -106,6 +106,7 @@ var bar: BlockFlash
 ## Darkens your view while you're passed out (local player only).
 var _dim: ColorRect
 var _dim_tween: Tween
+var _dim_on := false
 
 var _clock := 0.0
 var _since_hurt := 100.0
@@ -295,7 +296,7 @@ func pass_out() -> void:
 	bleed_left = 0.0
 	if player.hud:
 		player.hud.notice(OUT_NOTICE, 6.0)
-		_darken(true)
+		_darken(not watching())
 	if crew:
 		crew.report_unconscious()
 
@@ -362,8 +363,18 @@ func _wake() -> void:
 	_darken(false)
 
 
+## Out cold and watching a teammate through Co-op's spectate camera
+## (NetPlayers.spectate): the view stays clear for that.
+func watching() -> bool:
+	if crew == null or crew.players == null:
+		return false
+	var cam = crew.players.get("spectate")
+	return cam != null and is_instance_valid(cam)
+
+
 ## The view goes dark while you're out (under the HUD's words, so the notice shows).
 func _darken(on: bool) -> void:
+	_dim_on = on
 	if not on and _dim == null:
 		return
 	var hud = player.get("hud")
@@ -482,6 +493,8 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_since_hurt += delta
 	if down:
+		if unconscious and _dim_on == watching():
+			_darken(not watching())  # out cold: dark, unless you're watching a teammate
 		if crew and crew.is_online() and not unconscious and not dead:
 			bleed_left -= delta
 			if bleed_left <= 0.0:
