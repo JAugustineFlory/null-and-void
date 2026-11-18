@@ -1112,7 +1112,11 @@ func check_pin(pin: String) -> Dictionary:
 	if rows.is_empty():
 		return {"ok": false, "message": "PIN NOT RECOGNIZED"}
 	var g: Dictionary = rows[0]
-	return {"ok": false, "message": "REFUSED: %s\n%s shift. %s\nLOCKDOWN: NIGHT SHIFT, BADGED IN" % [g["name"], g["shift"], g["note"]]}
+	# Most notes already start with the shift ("day shift. Clocked out 18:00"): say it once.
+	var why: String = g["note"]
+	if not why.begins_with("%s shift" % g["shift"]):
+		why = "%s shift. %s" % [g["shift"], why]
+	return {"ok": false, "message": "REFUSED: %s\n%s\nLOCKDOWN: NIGHT SHIFT, BADGED IN" % [g["name"], why]}
 
 
 ## The right PIN unlocks the door in the database. If the actuator is still

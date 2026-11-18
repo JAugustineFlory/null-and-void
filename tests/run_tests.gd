@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data"]
 
 
 func _run() -> void:
@@ -96,6 +96,7 @@ func _run_group(g: String) -> void:
 		"garage": await _group_garage()
 		"keywords": await _group_keywords()
 		"levels": await _group_levels()
+		"route_data": await _run_file("res://tests/route_data_tests.gd")
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -3900,6 +3901,12 @@ func test_level_2_scene() -> void:
 	check(not level.check_pin("12a4").ok and not level.check_pin(level.data.pike_pin).ok, "letters and Pike's suspended PIN are refused")
 	check(level.check_pin(level.data.pike_pin).message.contains("suspended"), "a wrong guard's PIN says why it was refused")
 	check(level.check_pin(level.data.pin).ok, "the night-shift Har- guard's PIN is accepted")
+	var twice := []
+	for g in level.db.run_silent("SELECT name, shift, pin FROM guards WHERE pin != '%s'" % level.data.pin):
+		var said: String = level.check_pin(g["pin"]).message
+		if said.contains("%s shift. %s shift" % [g["shift"], g["shift"]]) or not said.contains("%s shift" % g["shift"]):
+			twice.append(said.replace("\n", " / "))
+	check(twice.is_empty(), "a refused PIN names the guard's shift once (%s)" % ", ".join(twice))
 	# Open the office from the east end of the corridor, then look away.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(3, 0.1, 4.6))
 	level.type_pin("office", level.data.pin)

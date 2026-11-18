@@ -765,7 +765,7 @@ func _on_stuck_doors_found() -> void:
 		return
 	stuck_doors_puzzle.solved = true
 	terminal.print_line("")
-	terminal.print_line(TerminalUI.sysop("those are the doors that won't release. the cold lab is another floor's. the rest share one zone: the faulting controller is in it."))
+	terminal.print_line(TerminalUI.sysop("those are the doors that won't release. the cold lab and the main entrance are other floors'. the rest share one zone: the faulting controller is in it."))
 	get_node("/root/Game").add_clue("controller", "The stuck doors on this floor are all in zone %s." % zone, "Query result")
 	get_node("/root/Game").collect_piece("controller", "zone", "the doors query")
 	if not controller_puzzle.solved:
