@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "hard"]
 
 
 func _run() -> void:
@@ -97,6 +97,7 @@ func _run_group(g: String) -> void:
 		"keywords": await _group_keywords()
 		"levels": await _group_levels()
 		"route_data": await _run_file("res://tests/route_data_tests.gd")
+		"hard": await _group_hard()
 
 
 ## The terminal's next-word buttons and the notebook you look down at below a terminal.
@@ -270,6 +271,10 @@ func _group_coop() -> void:
 
 
 ## Fights: health, blocking, the entities' grabs and throws, solo and co-op.
+func _group_hard() -> void:
+	await _run_file("res://tests/hard_mode_tests.gd")
+
+
 func _group_combat() -> void:
 	await _run_file("res://tests/combat_tests.gd")
 	await _run_file("res://tests/custodian_tests.gd")
@@ -4764,10 +4769,18 @@ func test_coop_combat() -> void:
 	check(machines.all(func(l): return l.crew.downed.has(client_id)), "every machine knows")
 	check(host.players.puppet(client_id).downed, "the host sees them lying there")
 	check(client.player.get_node("FightSounds").heard.back() == "body_fall" and mate_sounds.heard.back() == "body_fall", "and both machines hear them hit the floor")
-	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "and can help them up")
+	# No free hand-ups (Augustine, 2026-11-18): only a first-aid kit gets them up.
+	host.player.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
+	await _frames(5)
+	check(puppet.get_prompt(host.player) == "", "with empty hands, there's no helping them up")
 	puppet.interact(host.player)
-	await _frames(10)
-	check(not client.player.downed and not client.player.input_locked and client.player.health == PlayerCombat.REVIVE_HEALTH, "helped up, the client is back on their feet")
+	await _frames(20)
+	check(client.player.downed and host.crew.reviving.is_empty(), "pressing E does nothing")
+	_kit_in_hands(host.player)
+	check(puppet.get_prompt(host.player) == FirstAidCabinet.PATCH_PROMPT, "with a first-aid kit in your hands, you can patch them up")
+	puppet.interact(host.player)
+	check(await _until(func(): return not client.player.downed, CrewVitals.KIT_TIME + 2.0) and not client.player.input_locked and client.player.health == PlayerCombat.MAX_HEALTH,
+		"patched up, the client is back on their feet")
 	check(machines.all(func(l): return l.crew.downed.is_empty()), "and nobody is down anywhere")
 	var downs := []
 	for l in machines:
@@ -4791,32 +4804,40 @@ func test_coop_combat() -> void:
 	check(client.player.downed and client.player.combat.unconscious and client.player.health == 0.0 and machines.all(func(l): return l.crew.downed.has(client_id)),
 		"but you're still lying there: no trip back to the checkpoint")
 	check(client.hud._notice.text == PlayerCombat.OUT_NOTICE, "and you're told your crew can still help you up")
-	# The host comes over to help: it takes a while, standing by them.
-	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	var out_dim: ColorRect = client.hud.find_child("OutDim", true, false)
+	check(out_dim != null and (out_dim.color.a < 0.05 if client.player.combat.watching() else out_dim.color.a > 0.05),
+		"the view goes dark while you're out, unless you're watching a teammate (Co-op's spectate camera)")
+	check(machines.all(func(l): return not l.crew.is_present(client_id) and l.crew.present_ids() == [host_id]), "out cold, you no longer hold the crew up: the rest can go on")
+	# The host comes over with a kit: it takes a while, standing by them.
+	host.player.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
 	await _frames(5)
-	check(puppet.get_prompt(host.player) == CrewVitals.REVIVE_PROMPT, "a teammate can still help them up")
+	_kit_in_hands(host.player)
+	check(puppet.get_prompt(host.player) == FirstAidCabinet.PATCH_PROMPT, "a teammate with a kit can still bring them round")
 	puppet.interact(host.player)
 	await _frames(20)
 	check(client.player.downed and machines.all(func(l): return l.crew.reviving.has(client_id)), "but it takes a moment")
 	check(host.crew._revive_bar != null and host.crew._revive_bar.visible and host.crew._revive_bar.value > 0.0, "with a bar filling for the one helping")
 	check(puppet.get_prompt(host.player) == "", "and no prompt while they're at it")
-	host.player.global_position = puppet.global_position + Vector3(CrewVitals.REVIVE_RANGE + 2.0, 0.3, 0)
+	host.player.global_position = puppet.global_position + Vector3(-CrewVitals.REVIVE_RANGE - 2.0, 0.1, 0)
 	check(await _until(func(): return machines.all(func(l): return not l.crew.reviving.has(client_id)), 2.0), "walk off and it stops")
 	check(client.player.downed and not host.crew._revive_bar.visible, "they stay out, and the bar goes")
-	host.player.global_position = puppet.global_position + Vector3(0.8, 0.3, 0)
+	check(host.player.inventory.has(FirstAidCabinet.ITEM), "and they keep the kit")
+	host.player.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
 	await _frames(5)
 	puppet.interact(host.player)
-	check(await _until(func(): return not client.player.downed, CrewVitals.OUT_REVIVE_TIME + 2.0), "stay with them, and they come round")
-	check(client.player.health == PlayerCombat.REVIVE_HEALTH and not client.player.combat.unconscious and not client.player.input_locked, "back on their feet")
+	check(await _until(func(): return not client.player.downed, CrewVitals.KIT_TIME + 2.0), "stay with them, and they come round")
+	check(client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious and not client.player.input_locked, "back on their feet, at full health")
 	check(machines.all(func(l): return l.crew.downed.is_empty() and l.crew.unconscious.is_empty()), "and nobody is down or out anywhere (host is %d)" % host_id)
-	# A first-aid kit brings round even someone who's passed out, at once, to full.
+	# With no kit, out cold stays out cold until the next floor.
 	puppet.take_damage(1000.0, "watcher")
 	await _frames(10)
 	client.player.combat.bleed_left = 0.05
-	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again")
-	host.crew.revive(client_id, PlayerCombat.MAX_HEALTH, true)
+	check(await _until(func(): return host.crew.unconscious.has(client_id), 5.0), "out cold again, and no kit left")
+	for l in machines:
+		l.crew._on_floor_entered(l)
 	await _frames(10)
-	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.combat.unconscious, "a first-aid kit brings them round at once, to full health")
+	check(not client.player.downed and client.player.health == PlayerCombat.MAX_HEALTH and not client.player.input_locked and machines.all(func(l): return l.crew.downed.is_empty() and l.crew.unconscious.is_empty()),
+		"at the next floor, they come to on their feet")
 	# Everyone down or out: the crew is beaten.
 	downs.clear()
 	puppet.take_damage(1000.0, "watcher")
@@ -4829,6 +4850,12 @@ func test_coop_combat() -> void:
 	check(await _until(func(): return not host.player.downed and not client.player.downed and not client.player.combat.unconscious, 10.0),
 		"and everyone comes to at the checkpoint")
 	await _coop_close(worlds)
+
+
+## A first-aid kit in `p`'s hands.
+func _kit_in_hands(p: Player) -> void:
+	p.inventory.add(FirstAidCabinet.ITEM)
+	p.inventory.use_slot(p.inventory.hotbar.find(FirstAidCabinet.ITEM))
 
 
 ## Co-op in Vale's lab: everyone has to badge in, and the cable is held by whoever carried it up.
