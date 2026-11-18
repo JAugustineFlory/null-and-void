@@ -887,6 +887,13 @@ const LINES := {
 		"note": "The one moment of anger, still controlled.",
 		"with_previous": true,
 		"action": "Gripping the edge of his desk."},
+	# Approved word for word, Augustine 2026-11-18 (approvals/mercer-back-doors.md):
+	# why the v0.10 terminal policy never refuses .tables and .schema.
+	"l0_tape_backdoors": {"scene": "l0_tape", "speaker": "MERCER", "text": "I set up a few back-door protocols it can never shut off, like .tables to show the available tables and .schema to show all the columns.",
+		"note": "A little pleased with himself; the one moment he gets to win. He says the commands like dictating, \"dot tables\" and \"dot schema\" (\"skee-ma\").",
+		"with_previous": true,
+		"action": "Tapping the terminal on his desk.",
+		"jot": "Mercer's tape: his back doors, .tables and .schema, always work."},
 	"l0_tape_4": {"scene": "l0_tape", "speaker": "MERCER", "text": "So I've drawn up a room it can't get into. No wires in, no wires out. Whether I ever get to build it is another matter.",
 		"note": "Quiet, almost proud, then wry on the last sentence.",
 		"with_previous": true,
