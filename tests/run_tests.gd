@@ -253,6 +253,7 @@ func _group_coop() -> void:
 	await test_coop_scripts()
 	await test_coop_pregame_lobby()
 	await test_coop_back_to_lobby()
+	test_run_rules()
 	await test_restart_floor()
 	await test_coop_tape_secret()
 	await test_coop_world()
@@ -2562,6 +2563,20 @@ func test_coop_looks() -> void:
 ## Deck scripts in co-op (S4): the host runs them, everyone sees the same run,
 ## anyone can stop one, and what a script changes reaches every copy.
 ## The pre-game lobby in front of the garage: walk in, pose, customize, ready up.
+## How the host sets up a run (hard mode): the same on every machine, junk ignored.
+func test_run_rules() -> void:
+	print("Run rules")
+	var net := root.get_node("Net")
+	net.rules = net.RULES.duplicate()
+	check(net.rules == {"mode": "normal", "dead_muted": false, "wipe_new_seed": false} and not net.is_hard(), "a run is Normal unless the host picks Hard")
+	net.set_rules({"mode": "hard", "dead_muted": true})
+	check(net.is_hard() and net.rules.dead_muted and not net.rules.wipe_new_seed, "the host picks Hard, and that the dead can only watch")
+	net.set_rules({"mode": "nightmare", "wipe_new_seed": "yes", "cheats": true})
+	check(net.rules == {"mode": "hard", "dead_muted": true, "wipe_new_seed": false}, "anything that isn't a real choice is ignored")
+	check(net.clean_rules({}) == net.RULES, "a start from an older lobby is Normal")
+	net.rules = net.RULES.duplicate()
+
+
 ## Restart this floor (the pause menu; the co-op host's, for everyone): back to
 ## where the crew walked onto it, the run as it was then, the same run seed.
 func test_restart_floor() -> void:
@@ -2582,6 +2597,9 @@ func test_restart_floor() -> void:
 		"the run goes back to how it was on walking onto the floor, with the same seed")
 	game.notebook_notes.append("again")
 	check(game.floor_start.state.notebook_notes == ["before"], "and the remembered start isn't touched by playing on")
+	game.rourke_fate = "killed"
+	check(game.restore_floor_start(true) == "level_3" and game.rourke_fate == "tied" and game.notebook_notes == ["before", "again"],
+		"a restart that keeps the notebook (hard mode's wipe) puts the floor back but leaves what you wrote")
 
 	# For real: the building opens on floor 18, the crew plays a bit, and restarts.
 	var stale := current_scene  # whatever an earlier test left open
@@ -2609,6 +2627,16 @@ func test_restart_floor() -> void:
 		if again:
 			await _frames(10)
 			check(again.player.global_position.distance_to(again.current.player_spawn(0).origin) < 1.5, "with the crew at the floor's start")
+			check(game.run_start == "level_3", "the run remembers where it started (%s)" % game.run_start)
+			net.restart_run()
+			var fresh: Node = null
+			for f in 600:
+				await process_frame
+				if current_scene != again and _on_floor(current_scene, "level_3"):
+					fresh = current_scene
+					break
+			check(fresh != null and game.run_seed != 777 and game.floor_start.get("key") == "level_3",
+				"starting the whole run over (hard mode's other wipe) goes back to where it started, with new data")
 	unload_current_scene()
 	await process_frame
 	game.new_run()
