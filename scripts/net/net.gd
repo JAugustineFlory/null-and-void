@@ -115,10 +115,13 @@ func terminal_color(peer: int) -> Color:
 	return CharacterLooks.terminal_skin(look_of(peer, maxi(player_ids().find(peer), 0)).terminal)
 
 
-## Change part of this player's loadout in the lobby, e.g. {"skin": 2},
+## Change part of this player's loadout in the lobby (or at a garage locker), e.g. {"skin": 2},
 ## {"crew": "dana"} or {"top": {"color": Color.RED}}. Saved to their profile.
 ## Teammates can pick the same as each other.
 func choose_look(change: Dictionary) -> void:
+	if in_game:  # mid-run (a garage locker): what you wear, never who you are
+		change = change.duplicate()
+		change.erase("crew")
 	wanted_look = Cosmetics.trim(Cosmetics.merge(wanted_look, change), profile)
 	profile.loadout = wanted_look.duplicate(true)
 	profile.save()
@@ -304,8 +307,13 @@ func earn(source: String, hud: Node = null) -> Array:
 
 @rpc("any_peer", "reliable")
 func _request_look(choice: Dictionary) -> void:
-	if is_host() and not in_game and roster.has(multiplayer.get_remote_sender_id()):
-		_assign_look(multiplayer.get_remote_sender_id(), choice)
+	var id := multiplayer.get_remote_sender_id()
+	if not is_host() or not roster.has(id):
+		return
+	if in_game and looks.has(id):  # mid-run (a garage locker): the same crew member
+		choice = choice.duplicate()
+		choice.crew = looks[id].crew
+	_assign_look(id, choice)
 
 
 ## The host checks a loadout against the catalogue (it trusts what they own)

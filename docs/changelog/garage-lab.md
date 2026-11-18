@@ -1,0 +1,2 @@
+- **Added:** a lab off the garage, behind Maddison's desk, with a computer for each of the crew.
+- **Added:** a locker for each player in the garage lab, with your name on it: open it to change your clothes, colors and gear mid-run, and the crew sees it straight away.

@@ -122,6 +122,8 @@ var book_bag: Interactable
 var van_door: Interactable
 ## The locked side door, its hidden key and the back office behind it.
 var office: GarageOffice
+## The lab through the west wall: the crew's computers and lockers.
+var lab: GarageLab
 var van_relay: Interactable
 ## The van's front doors ({"w"/"e": {pivot, swing}}) and sliding door, built as
 ## Level 0's are, so the garage van is the same van parked at Halcyon.
@@ -212,6 +214,7 @@ func build() -> void:
 	_build_van(VAN)
 	_build_punch_bag(PUNCH_BAG)
 	office = GarageOffice.build(self)  # the side door in the back corner, locked, and what's behind it
+	lab = GarageLab.build(self)  # through the west wall: the computers and the lockers
 	maddison = Node3D.new()
 	maddison.name = "Maddison"
 	maddison.position = MADDISON_MARKS.door[0]
@@ -297,7 +300,9 @@ static func _build_shell(solid: Node3D, door_parent: Node3D) -> AnimatableBody3D
 	Greybox.room(solid, Vector3.ZERO, SIZE, {"floor": concrete, "wall": block, "ceiling": Color(0.85, 0.84, 0.8)}, [
 		{"wall": "n", "at": DOOR_AT, "width": DOOR_SIZE.x, "height": DOOR_SIZE.y},
 		{"wall": "w", "at": SIDE_DOOR.z, "width": 0.9, "height": 2.1},
+		{"wall": "w", "at": GarageLab.DOOR_Z, "width": GarageLab.DOOR_SIZE.x, "height": GarageLab.DOOR_SIZE.y},
 	])
+	GarageLab.build_shell(solid)  # the lab's lean-to, behind the desk corner
 	# The driveway out front, wide enough for the crew to walk in from either side.
 	Greybox.box(solid, APRON_CENTER + Vector3(0, -0.1, 0), APRON_SIZE, Color(0.4, 0.4, 0.4), "Driveway")
 	var street := MeshInstance3D.new()  # the dark street the driveway meets
@@ -609,6 +614,11 @@ static func _book(parent: Node3D, at: Vector3) -> Node3D:
 	title.position = Vector3(0, 0.017, 0)
 	book.add_child(title)
 	return book
+
+
+## Once the crew is known: whose locker is whose.
+func net_setup() -> void:
+	lab.assign()
 
 
 func apply_environment(env: Environment) -> void:
