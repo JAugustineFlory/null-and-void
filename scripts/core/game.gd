@@ -133,6 +133,12 @@ const PIECE_MISSING := "????"
 ## and the run as it stood then: {"key", "state"}. Restarting the floor puts it
 ## back (restore_floor_start, Net.restart_floor).
 var floor_start := {}
+## How the host set this run up (Net.rules, put here on every machine as the run
+## starts): Hard; on Hard, the dead can only watch; on Hard, a wipe starts the
+## whole run over with new data.
+var hard_mode := false
+var dead_watch_only := false
+var wipe_new_run := false
 ## Where this run started (a LEVELS key: "world" from the garage, or a floor
 ## picked from Levels), for starting the whole run over (Net.restart_run).
 var run_start := "world"
@@ -140,7 +146,7 @@ var _run_fresh := true
 ## The notebook's pages: kept through a floor restart that keeps the notebook.
 const NOTEBOOK_STATE := ["notebook_notes", "notebook_tables", "notebook_written", "notebook_todo", "notebook_cases", "notebook_jotted", "ticket_marks"]
 ## Not part of a run's progress, so a floor restart leaves them alone.
-const _KEPT_ON_RESTART := ["run_seed", "open_at_home", "open_at_wing", "diegetic_ui", "floor_start", "run_start", "_run_fresh"]
+const _KEPT_ON_RESTART := ["run_seed", "open_at_home", "open_at_wing", "diegetic_ui", "floor_start", "run_start", "_run_fresh", "hard_mode", "dead_watch_only", "wipe_new_run"]
 
 
 func _ready() -> void:

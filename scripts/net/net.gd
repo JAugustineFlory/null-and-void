@@ -146,6 +146,7 @@ func start_solo_game() -> void:
 	solo_lobby = false
 	var game := get_node("/root/Game")
 	game.new_run()
+	_apply_rules()
 	game.open_at_home = true
 	game.goto("world")
 
@@ -241,6 +242,14 @@ static func clean_rules(how: Dictionary, base := RULES) -> Dictionary:
 ## The run is on Hard.
 func is_hard() -> bool:
 	return rules.mode == "hard"
+
+
+## This machine's Game takes on the run's rules (Combat reads them there).
+func _apply_rules() -> void:
+	var game := get_node("/root/Game")
+	game.hard_mode = is_hard()
+	game.dead_watch_only = is_hard() and rules.dead_muted
+	game.wipe_new_run = is_hard() and rules.wipe_new_seed
 
 
 ## The name teammates see, saved to the profile. In the lobby it changes for
@@ -363,6 +372,7 @@ func _start(seed_value: int, names: Dictionary, picked: Dictionary, level := "wo
 	set_patience(PATIENCE_LOADING)
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
+	_apply_rules()
 	var key: String = level if game.LEVELS.has(level) else "world"
 	game.open_at_home = key == "world"
 	game.goto(key)
@@ -441,6 +451,7 @@ func _join_run(seed_value: int, names: Dictionary, picked: Dictionary, how: Dict
 	set_patience(PATIENCE_LOADING)
 	var game := get_node("/root/Game")
 	game.new_run(seed_value)
+	_apply_rules()
 	game.floor_start = start.duplicate(true)
 	var key: String = game.restore_floor_start()
 	game.inventory.clear()  # what the others carry is theirs; you start with your own kit

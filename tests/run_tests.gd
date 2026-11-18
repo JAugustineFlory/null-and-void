@@ -2702,10 +2702,13 @@ func test_run_rules() -> void:
 	check(net.rules == {"mode": "normal", "dead_muted": false, "wipe_new_seed": false} and not net.is_hard(), "a run is Normal unless the host picks Hard")
 	net.set_rules({"mode": "hard", "dead_muted": true})
 	check(net.is_hard() and net.rules.dead_muted and not net.rules.wipe_new_seed, "the host picks Hard, and that the dead can only watch")
+	net._apply_rules()
+	check(_game().hard_mode and _game().dead_watch_only and not _game().wipe_new_run, "and the run's Game takes it on")
 	net.set_rules({"mode": "nightmare", "wipe_new_seed": "yes", "cheats": true})
 	check(net.rules == {"mode": "hard", "dead_muted": true, "wipe_new_seed": false}, "anything that isn't a real choice is ignored")
 	check(net.clean_rules({}) == net.RULES, "a start from an older lobby is Normal")
 	net.rules = net.RULES.duplicate()
+	net._apply_rules()
 
 
 ## Restart this floor (the pause menu; the co-op host's, for everyone): back to
