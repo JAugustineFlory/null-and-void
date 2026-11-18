@@ -64,6 +64,7 @@ func enter_home() -> void:
 	home.visible = true
 	load_wing(0)
 	current = home
+	get_node("/root/Game").mark_floor_start("world")
 	players.place_all(home)
 	home.activate()
 	wing_entered.emit(home)
@@ -109,6 +110,7 @@ func load_next(wing: LevelBase) -> void:
 func enter_wing(index: int) -> void:
 	var arriving := current == null  # the building opens here: nobody walked in
 	current = load_wing(index)
+	get_node("/root/Game").mark_floor_start(ROUTE[index].key)  # where a restart of this floor goes back to
 	if index == 0 or arriving:
 		players.place_all(current)
 	current.activate()

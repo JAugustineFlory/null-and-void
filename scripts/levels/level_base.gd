@@ -372,14 +372,37 @@ func _build_pause_menu() -> void:
 
 	var restart_page := _pause_page("restart", box)
 	restart_page.add_child(SettingsPanel.heading("Start again?"))
-	restart_page.add_child(ThemeUtil.label("This run goes back to the beginning. Anything you've worked out is lost.", 17, Color(0.85, 0.85, 0.85)))
+	# This floor over again (solo, or the co-op host for everyone).
+	var net := get_node("/root/Net")
+	var floor_note := ThemeUtil.label(net.RESTART_FLOOR_NOTE, 17, Color(0.85, 0.85, 0.85))
+	floor_note.name = "FloorNote"
+	floor_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	restart_page.add_child(floor_note)
+	var floor_again := SettingsPanel.button(net.RESTART_FLOOR)
+	floor_again.name = "RestartFloor"
+	floor_again.pressed.connect(func():
+		get_tree().paused = false
+		get_node("/root/Net").restart_floor())
+	restart_page.add_child(floor_again)
+	# The whole run over, with new data: solo only, since co-op starts runs from the lobby.
+	var run_note := ThemeUtil.label("This run goes back to the beginning. Anything you've worked out is lost.", 17, Color(0.85, 0.85, 0.85))
+	run_note.name = "RunNote"
+	restart_page.add_child(run_note)
 	var again := SettingsPanel.button("Start again")
+	again.name = "StartAgain"
 	again.pressed.connect(_restart_run)
 	restart_page.add_child(again)
 	restart_page.add_child(_pause_back())
 
 	var exit_page := _pause_page("exit", box)
 	exit_page.add_child(SettingsPanel.heading("Leave the run?"))
+	# Co-op host: the run ends, and the whole crew goes back to the lobby together.
+	var to_lobby := SettingsPanel.button(get_node("/root/Net").TO_LOBBY)
+	to_lobby.name = "ToLobby"
+	to_lobby.pressed.connect(func():
+		get_tree().paused = false
+		get_node("/root/Net").end_run_to_lobby())
+	exit_page.add_child(to_lobby)
 	var to_menu := SettingsPanel.button("Quit to title screen")
 	to_menu.pressed.connect(func():
 		get_tree().paused = false
@@ -467,7 +490,13 @@ func _toggle_pause() -> void:
 	player.input_locked = p
 	_pause.visible = p
 	if p:
-		_pause_pages["main"].get_node("Restart").visible = not sync.is_online()
+		var online := sync.is_online()
+		var restart_page: Control = _pause_pages["restart"]
+		_pause_pages["main"].get_node("Restart").visible = not online or multiplayer.is_server()
+		restart_page.get_node("FloorNote").text = get_node("/root/Net").RESTART_FLOOR_NOTE_COOP if online else get_node("/root/Net").RESTART_FLOOR_NOTE
+		restart_page.get_node("RunNote").visible = not online
+		restart_page.get_node("StartAgain").visible = not online
+		_pause_pages["exit"].get_node("ToLobby").visible = sync.is_online() and multiplayer.is_server()
 		_show_pause_page("main")
 	else:
 		get_viewport().gui_release_focus()  # so a controller's A goes back to the game

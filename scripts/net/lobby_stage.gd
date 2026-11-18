@@ -164,6 +164,18 @@ func walk_off(id: int) -> void:
 	fig.set_meta("walk", walk)
 
 
+## Everyone straight onto their mark, striking their pose: the crew is back
+## from a run, already standing where they were.
+func settle() -> void:
+	for fig in figures.values():
+		var walk: Tween = fig.get_meta("walk") if fig.has_meta("walk") else null
+		if walk and walk.is_valid():
+			walk.kill()
+		fig.position = fig.get_meta("mark", fig.position)
+		fig.set_meta("arrived", true)
+		_strike(fig)
+
+
 ## Someone still walking off the shot.
 func is_leaving() -> bool:
 	return not _leaving.is_empty()

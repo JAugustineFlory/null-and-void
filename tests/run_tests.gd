@@ -256,6 +256,7 @@ func _group_coop() -> void:
 	await test_coop_achievements()
 	await test_coop_scripts()
 	await test_coop_pregame_lobby()
+	await test_coop_back_to_lobby()
 	await test_coop_tape_secret()
 	await test_coop_world()
 	await test_coop_lobby_walk_in()
@@ -297,6 +298,7 @@ func _group_movement_hands() -> void:
 ## Floors picked from Levels play inside the building and carry on to the next.
 func _group_levels() -> void:
 	await _run_file("res://tests/levels_route_tests.gd")
+	await test_restart_floor()
 
 
 func _group_stairs() -> void:
@@ -2161,6 +2163,8 @@ func test_coop_level_0() -> void:
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
 	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
+	for l in [c1, c2]:  # out past the walls on purpose: no safety net putting them back
+		l.get_node("FallNet").set_physics_process(false)
 	c2.player.global_position = Vector3(-40, 0.1, 4)
 	c1.player.global_position = Vector3(45, 0.1, 3)
 	await _frames(30)
@@ -2186,6 +2190,18 @@ func test_coop_level_0() -> void:
 	check(c2.voice.hearing_from_body() and not c2.voice._keys_free(), "back in your own eyes, voices come from where people stand, and a locked player's keys stay locked (terminal, notebook)")
 	c2.player.input_locked = false
 	_game().has_walkie = false
+
+	host._toggle_pause()
+	c1._toggle_pause()
+	check(host._pause_pages["exit"].get_node("ToLobby").visible and not c1._pause_pages["exit"].get_node("ToLobby").visible,
+		"in co-op only the host's Exit page can take everyone back to the lobby")
+	var host_restart: Control = host._pause_pages["restart"]
+	check(host._pause_pages["main"].get_node("Restart").visible and not c1._pause_pages["main"].get_node("Restart").visible
+		and host_restart.get_node("RestartFloor").visible and not host_restart.get_node("StartAgain").visible
+		and host_restart.get_node("FloorNote").text == root.get_node("Net").RESTART_FLOOR_NOTE_COOP,
+		"and only the host can restart the floor, for everyone (a whole new run starts from the lobby)")
+	host._toggle_pause()
+	c1._toggle_pause()
 
 	get_multiplayer(worlds[2].get_path()).multiplayer_peer.close()
 	await _frames(30)
@@ -2742,6 +2758,116 @@ func test_coop_looks() -> void:
 ## Deck scripts in co-op (S4): the host runs them, everyone sees the same run,
 ## anyone can stop one, and what a script changes reaches every copy.
 ## The pre-game lobby in front of the garage: walk in, pose, customize, ready up.
+## Restart this floor (the pause menu; the co-op host's, for everyone): back to
+## where the crew walked onto it, the run as it was then, the same run seed.
+func test_restart_floor() -> void:
+	print("Restart this floor")
+	var game := _game()
+	game.new_run(4242)
+	game.rourke_fate = "tied"
+	game.inventory.add("radio")
+	game.notebook_notes.append("before")
+	game.mark_floor_start("level_3")
+	game.rourke_fate = "killed"
+	game.has_walkie = true
+	game.inventory.add("keycard")
+	game.notebook_notes.append("during")
+	game.next_level = "level_4"
+	check(game.restore_floor_start() == "level_3" and game.run_seed == 4242 and game.rourke_fate == "tied" and not game.has_walkie
+		and game.inventory.has("radio") and not game.inventory.has("keycard") and game.notebook_notes == ["before"] and game.next_level == "",
+		"the run goes back to how it was on walking onto the floor, with the same seed")
+	game.notebook_notes.append("again")
+	check(game.floor_start.state.notebook_notes == ["before"], "and the remembered start isn't touched by playing on")
+
+	# For real: the building opens on floor 18, the crew plays a bit, and restarts.
+	var stale := current_scene  # whatever an earlier test left open
+	game.new_run(777)
+	game.goto("level_3")
+	var world: Node = null
+	for f in 600:
+		await process_frame
+		if current_scene != stale and _on_floor(current_scene, "level_3"):
+			world = current_scene
+			break
+	check(world != null and game.floor_start.get("key") == "level_3", "walking onto a floor remembers it")
+	if world:
+		game.notebook_notes.append("found on 18")
+		var net := root.get_node("Net")
+		net.restart_floor()
+		var again: Node = null
+		for f in 600:
+			await process_frame
+			if current_scene != world and _on_floor(current_scene, "level_3"):
+				again = current_scene
+				break
+		check(again != null and game.run_seed == 777 and not game.notebook_notes.has("found on 18"),
+			"Restart this floor opens the building on the same floor, same seed, as it was when you walked onto it")
+		if again:
+			await _frames(10)
+			check(again.player.global_position.distance_to(again.current.player_spawn(0).origin) < 1.5, "with the crew at the floor's start")
+	unload_current_scene()
+	await process_frame
+	game.new_run()
+
+
+## `scene` is the building (World, not named here: it would load at parse time) with floor `key` in play.
+func _on_floor(scene: Node, key: String) -> bool:
+	return scene != null and scene.has_method("enter_wing") and scene.current != null and scene.current.wing_id == key
+
+
+## Co-op is one continuous session: when the host ends the run, the whole crew
+## goes back to the host's lobby together, still connected.
+func test_coop_back_to_lobby() -> void:
+	print("Co-op: back to the lobby together")
+	var net := root.get_node("Net")
+	net.roster = {1: "Host", 55: "Ana", 77: "Bo"}
+	net.looks = {}
+	net.lobby = {1: {"ready": true, "pose": 3}, 55: {"ready": true, "pose": 1}, 77: {"ready": true, "pose": 2}}
+	net.in_game = true
+	net._to_lobby()
+	check(not net.in_game and net.roster.size() == 3 and net.lobby.values().all(func(l): return not l.ready) and net.lobby_of(1).pose == 3,
+		"the run ends for everyone: the crew is still together, nobody is ready yet, and everyone stands as they did")
+	var lobby: Control = null
+	for f in 30:
+		await process_frame
+		if current_scene and current_scene.name == "Lobby":
+			lobby = current_scene
+			break
+	check(lobby != null, "everyone's screen goes to the lobby")
+	if lobby:
+		var stage: LobbyStage = lobby.stage
+		check(stage.intro_done and lobby._side.visible and not lobby.find_child("Welcome", true, false).visible, "straight to the garage front, no opening shot")
+		check(lobby._coop_view and lobby.find_child("Ready", true, false).is_visible_in_tree() and not lobby.find_child("Host", true, false).is_visible_in_tree()
+			and lobby.find_child("Waiting", true, false).text == "Waiting for everyone to get ready (0/3)", "on the Co-op tab, in the session, waiting for everyone to get ready again")
+		check(stage.figures.size() == 3 and stage.figures.keys().all(func(id): return stage.figures[id].position.is_equal_approx(stage.mark(net.lobby_index(id))))
+			and stage.figures[1].get_node("Rig").action == net.lobby_action(1), "the crew is already on their marks, in their poses")
+		check(not net.back_from_run, "the next visit to the lobby opens as usual")
+	unload_current_scene()
+	await process_frame
+
+	# The host quits mid-run instead: you're back in your own garage, on the Co-op tab.
+	var link := ENetMultiplayerPeer.new()
+	link.create_client("127.0.0.1", 65000)  # a session with a host who's about to vanish
+	net.multiplayer.multiplayer_peer = link
+	net.roster = {1: "Host", 55: "You"}
+	net.in_game = true
+	net._on_server_disconnected()
+	lobby = null
+	for f in 30:
+		await process_frame
+		if current_scene and current_scene.name == "Lobby":
+			lobby = current_scene
+			break
+	check(lobby != null and net.solo_lobby and net.roster.keys() == [net.my_id()], "when the host quits mid-run, you land in your own garage, not the title screen")
+	if lobby:
+		check(lobby._coop_view and lobby.find_child("Host", true, false).is_visible_in_tree() and lobby._status.text == "The host closed the game.",
+			"on the Co-op tab, saying why, ready to host or join the next one")
+	unload_current_scene()
+	await process_frame
+	net.leave(false)
+	net.last_message = ""
+
+
 func test_coop_pregame_lobby() -> void:
 	print("Co-op: the pre-game lobby")
 	var net := root.get_node("Net")
