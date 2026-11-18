@@ -2162,6 +2162,8 @@ func test_coop_level_0() -> void:
 	c1.voice.send_frames(tone, 48000.0, false)
 	await _frames(10)
 	check(host.voice.heard.near == 1 and c2.voice.heard.near == 1, "open-mic voice reaches players nearby")
+	for l in [c1, c2]:  # out past the walls on purpose: no safety net putting them back
+		l.get_node("FallNet").set_physics_process(false)
 	c2.player.global_position = Vector3(-40, 0.1, 4)
 	c1.player.global_position = Vector3(45, 0.1, 3)
 	await _frames(30)
