@@ -428,6 +428,46 @@ func _restart_floor(keep_notebook := false) -> void:
 	game.goto(key)
 
 
+## Joining a game already going: open the building at the floor the crew is on,
+## with the run as it stood when they walked onto it (`start`, Game.floor_start).
+## The host's LevelSync then replays what has happened there since.
+@rpc("authority", "reliable")
+func _join_run(seed_value: int, names: Dictionary, picked: Dictionary, how: Dictionary, start: Dictionary, scene_key: String) -> void:
+	roster = names
+	looks = picked
+	rules = clean_rules(how)
+	in_game = true
+	solo_lobby = false
+	set_patience(PATIENCE_LOADING)
+	var game := get_node("/root/Game")
+	game.new_run(seed_value)
+	game.floor_start = start.duplicate(true)
+	var key: String = game.restore_floor_start()
+	game.inventory.clear()  # what the others carry is theirs; you start with your own kit
+	game.floor_start = start.duplicate(true)
+	if key == "":
+		key = scene_key  # not the building (a stand-alone floor): the same scene
+	game.open_at_home = key == "world"
+	game.goto(key)
+
+
+## The Game.LEVELS key of the scene this machine is in ("" if it isn't one).
+func _scene_key() -> String:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return ""
+	var game := get_node("/root/Game")
+	for k in game.LEVELS:
+		if game.LEVELS[k] == scene.scene_file_path:
+			return k
+	return ""
+
+
+func _link(id: int) -> ENetPacketPeer:
+	var peer := multiplayer.multiplayer_peer
+	return peer.get_peer(id) if peer is ENetMultiplayerPeer else null
+
+
 ## The building has loaded on every machine (LevelSync, once it begins): after
 ## the first frames have drawn, back to the patience for playing.
 func world_began() -> void:
@@ -495,15 +535,18 @@ func _register(wanted: String, look: Dictionary) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
-	if in_game:
-		_refused.rpc_id(id, "That game has already started.")
-		return
 	if roster.size() >= MAX_PLAYERS:
 		_refused.rpc_id(id, "That lobby is full (%d players)." % MAX_PLAYERS)
 		return
 	roster[id] = _unique_name(wanted.strip_edges().left(16), id)
 	_assign_look(id, look)
 	roster_changed.emit()
+	if in_game:
+		# A game that's already going: they come in at the start of the floor the
+		# crew is on, and catch up on what's happened there (LevelSync.replay_to).
+		var game := get_node("/root/Game")
+		patient(_link(id), PATIENCE_LOADING)
+		_join_run.rpc_id(id, game.run_seed, roster, looks, rules, game.floor_start, _scene_key())
 
 
 @rpc("authority", "reliable")

@@ -253,6 +253,7 @@ func _group_coop() -> void:
 	await test_coop_scripts()
 	await test_coop_pregame_lobby()
 	await test_coop_back_to_lobby()
+	await test_coop_late_join()
 	test_run_rules()
 	await test_restart_floor()
 	await test_coop_tape_secret()
@@ -2012,6 +2013,95 @@ func test_coop_level_0() -> void:
 	await _frames(30)
 	check(host.players.count() == 2 and c1.players.count() == 2, "a player who drops out disappears for the others")
 	await _coop_close(worlds)
+
+
+## Late join (Augustine, hard mode call 10.3, Normal too): someone joins a game
+## that's already going, comes in at the start of the floor, and their machine
+## catches up on everything shared that happened there.
+func test_coop_late_join() -> void:
+	print("Co-op: joining a game already going")
+	_game().new_run(5)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	_lower_chapters_read(levels)
+	var host = levels[0]
+	var client = levels[1]
+	host.sync.event("_on_asked")
+	await _frames(20)
+	client.player.global_position = Vector3(-4.5, 0.1, 7.4)
+	client.terminal_ui.terminal = client.terminal
+	client.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % host.zone)
+	await _frames(10)
+	client.terminal_ui.terminal = client.terminal
+	client.terminal_ui.run("UPDATE doors SET locked = 0, actuator_fault = 0 WHERE id = 'SRA-EXIT'")
+	await _frames(10)
+	check(host.controller_puzzle.solved and host.doors["SRA-EXIT"].is_open and not host.sync.history.is_empty(),
+		"the host keeps what's happened on the floor (%d things)" % host.sync.history.size())
+
+	# A third player joins now.
+	var vp := SubViewport.new()
+	vp.name = "Machine2"
+	vp.own_world_3d = true
+	vp.size = Vector2i(320, 180)
+	root.add_child(vp)
+	var mp := SceneMultiplayer.new()
+	set_multiplayer(mp, vp.get_path())
+	var peer := ENetMultiplayerPeer.new()
+	peer.create_client("127.0.0.1", _next_port)
+	mp.multiplayer_peer = peer
+	worlds.append(vp)
+	for f in 300:
+		await process_frame
+		if get_multiplayer(worlds[0].get_path()).get_peers().size() == 2 and mp.get_peers().size() == 2:
+			break
+	var late = load("res://scenes/level_1.tscn").instantiate()
+	vp.add_child(late)
+	_lower_chapters_read([late])  # as the others did: about catching up, not the book
+	for f in 300:
+		await physics_frame
+		if late.sync._begun:
+			break
+	check(late.sync._begun, "the newcomer's game starts straight away, without waiting for anyone")
+	await _until(func(): return late.sync.catching_up, 2.0)
+	check(late.hud.quiet, "and plays what they missed through quietly, no lines or notices")
+	await _until(func(): return not late.sync.catching_up, 5.0)
+	check(not late.terminal.locked and late.controller_puzzle.solved and late.doors["SRA-EXIT"].is_open,
+		"and catches up: the terminal open, the controller found, the door the crew opened open")
+	var dump := "SELECT * FROM doors ORDER BY id"
+	check(late.db.run_silent(dump) == host.db.run_silent(dump), "their copy of the building matches everyone's")
+	var late_id: int = mp.get_unique_id()
+	check(host.players.puppet(late_id) != null and client.players.puppet(late_id) != null and late.players.count() == 3,
+		"everyone sees the newcomer, and the newcomer sees everyone")
+	check(late.player.global_position.distance_to(late.player_spawn(late.players.my_index()).origin) < 2.0, "they come in at the start of the floor")
+	check(not late.sync.catching_up and not late.hud.quiet, "and once caught up, play on as normal")
+	await _coop_close(worlds)
+
+	# Joining the building: the newcomer's machine opens it at the crew's floor, with
+	# the run as it was when they walked onto it, and none of the host's own kit.
+	var game := _game()
+	var net := root.get_node("Net")
+	game.new_run(31)
+	game.notebook_notes.append("a note from 22")
+	game.inventory.add("keycard")
+	game.mark_floor_start("level_3")
+	var snap: Dictionary = game.floor_start.duplicate(true)  # what the host sends
+	game.new_run(1)  # the newcomer's own machine, fresh from the lobby
+	var stale := current_scene
+	net._join_run(31, {1: "Host", 9: "You"}, {}, {"mode": "hard"}, snap, "")
+	check(net.in_game and net.is_hard() and game.run_seed == 31, "joining a game already going takes on its run and its rules")
+	var world: Node = null
+	for f in 600:
+		await process_frame
+		if current_scene != stale and _on_floor(current_scene, "level_3"):
+			world = current_scene
+			break
+	check(world != null and game.notebook_notes == ["a note from 22"] and not game.inventory.has("keycard"),
+		"and opens the building on the crew's floor, with what the run knew then, but not the host's own kit")
+	unload_current_scene()
+	await process_frame
+	net.leave(false)
+	net.rules = net.RULES.duplicate()
+	game.new_run()
 
 
 func test_coop_level_1() -> void:

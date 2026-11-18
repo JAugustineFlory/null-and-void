@@ -127,6 +127,9 @@ func _complete(id: String, ids: Array = [], remembered: bool = false) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _finish(id: String, in_crew: Array, lead: Dictionary) -> void:
+	var sync := LevelSync.of(self)
+	if sync:
+		sync.note(self, "_finish", [id, in_crew, lead])  # someone joining later gets it too
 	crew = in_crew
 	if not lead.is_empty():
 		leads[id] = lead

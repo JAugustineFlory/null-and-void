@@ -15,6 +15,10 @@ var _line_id := 0
 var _voice: Voice
 ## The main case and how many of its pieces are in, top right (CaseChip).
 var case_chip: CaseChip
+## Catching up on a co-op game joined late (LevelSync): what already happened
+## plays through without its lines or notices, straight to where everyone is.
+## Lines still go in the notebook.
+var quiet := false
 
 
 func _ready() -> void:
@@ -115,6 +119,8 @@ func set_objective(text: String) -> void:
 
 
 func notice(text: String, seconds: float = 4.0, color: Color = ThemeUtil.AMBER) -> void:
+	if quiet:
+		return
 	_notice.text = InputGlyphs.text(text)
 	_notice.add_theme_color_override("font_color", color)
 	_notice.modulate.a = 1.0
@@ -189,6 +195,8 @@ func line(id: String, subtitle: bool = true, remembered := false, who: String = 
 		return
 	if get_node("/root/Game").jot(VoiceLines.resolve(id), l):
 		notice("Notebook updated (Tab)", 3.0)
+	if quiet:
+		return
 	var dur := _voice.play(id, voice_dir, remembered)
 	var has_audio := dur > 0.0
 	if not has_audio:

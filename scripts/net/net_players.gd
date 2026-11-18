@@ -4,12 +4,16 @@ extends Node
 ## for each other player. Sends this player's position to the others.
 
 const SEND_RATE := 20.0
+## Someone joined the game while it was going. Draft, awaiting Augustine's OK.
+const JOINED := "%s joined the crew."
 
 var level: Node
 var player: Node3D  # this machine's Player
 var _puppets := {}  # peer id -> PlayerPuppet
 var _send_t := 0.0
 var _live := false
+## Players who joined the game already going, waiting for their name and look.
+var _joining := {}
 
 
 static func create(for_level: Node, local_player: Node3D) -> NetPlayers:
@@ -30,11 +34,14 @@ static func spawn_offset(index: int) -> Vector3:
 
 func _ready() -> void:
 	multiplayer.peer_disconnected.connect(_on_peer_left)
+	multiplayer.peer_connected.connect(_on_peer_joined)
+	if _session():
+		get_node("/root/Net").roster_changed.connect(_names_changed)
+	var net := get_node_or_null("/root/Net")
 	var ids := all_ids()
 	for i in ids.size():
 		var id: int = ids[i]
 		if id != multiplayer.get_unique_id():
-			var net := get_node_or_null("/root/Net")
 			var who: String = net.display_name(id) if net else "Player %d" % id
 			# Stand where that player spawns until their first update arrives.
 			var at: Transform3D = level.player_spawn(i)
@@ -187,6 +194,44 @@ func _state(pos: Vector3, yaw: float, pitch: float, height: float, light_on: boo
 	if p:
 		p.apply_state(pos, yaw, pitch, height, light_on, sit)
 		p.set_fight(fight)
+
+
+## A player joined the game already going: once their name and look arrive
+## (the roster, just after they connect), they appear at the start of the floor
+## the crew is on, where their own machine puts them.
+func _on_peer_joined(id: int) -> void:
+	if _puppets.has(id) or id == multiplayer.get_unique_id():
+		return
+	if not _session():
+		_add_joiner(id, "Player %d" % id)  # no roster to wait for (tests, a session without Net)
+		return
+	_joining[id] = true
+	_names_changed()
+
+
+## This level's players are Net's session (not a test's own machines).
+func _session() -> bool:
+	var net := get_node_or_null("/root/Net")
+	return net != null and net.multiplayer == multiplayer
+
+
+func _names_changed() -> void:
+	var net := get_node("/root/Net")
+	for id in _joining.keys():
+		if net.roster.has(id) and net.looks.has(id):
+			_joining.erase(id)
+			_add_joiner(id, net.display_name(id))
+
+
+func _add_joiner(id: int, who: String) -> void:
+	if _puppets.has(id) or not multiplayer.get_peers().has(id):
+		return
+	var here: Node = level.get("current") if level.get("current") else level
+	var p := PlayerPuppet.create(self, id, who, look_for(self, id), here.player_spawn(all_ids().find(id)))
+	p.players = self
+	_puppets[id] = p
+	if level.get("hud"):
+		level.hud.notice(JOINED % who, 4.0)
 
 
 func _on_peer_left(id: int) -> void:
