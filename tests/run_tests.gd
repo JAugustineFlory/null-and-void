@@ -4605,6 +4605,9 @@ func test_coop_combat() -> void:
 	check(client.player.downed and client.player.combat.unconscious and client.player.health == 0.0 and machines.all(func(l): return l.crew.downed.has(client_id)),
 		"but you're still lying there: no trip back to the checkpoint")
 	check(client.hud._notice.text == PlayerCombat.OUT_NOTICE, "and you're told your crew can still help you up")
+	var out_dim: ColorRect = client.hud.find_child("OutDim", true, false)
+	check(out_dim != null and (out_dim.color.a < 0.05 if client.player.combat.watching() else out_dim.color.a > 0.05),
+		"the view goes dark while you're out, unless you're watching a teammate (Co-op's spectate camera)")
 	check(machines.all(func(l): return not l.crew.is_present(client_id) and l.crew.present_ids() == [host_id]), "out cold, you no longer hold the crew up: the rest can go on")
 	# The host comes over with a kit: it takes a while, standing by them.
 	host.player.global_position = puppet.global_position + Vector3(-0.8, 0.1, 0)
