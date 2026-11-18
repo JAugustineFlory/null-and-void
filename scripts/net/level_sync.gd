@@ -346,6 +346,21 @@ func _remote_call(path: NodePath, method: String) -> void:
 		node.call(method, who)
 
 
+## This player found hint spot `id` (LevelBase.found_spot): the host marks it
+## on every machine.
+func report_spot(id: String) -> void:
+	if is_host():
+		event("_crew_found_spot", [id])
+	else:
+		_request_spot.rpc_id(1, id)
+
+
+@rpc("any_peer", "reliable")
+func _request_spot(id: String) -> void:
+	if is_host() and level.has_method("_crew_found_spot"):
+		event("_crew_found_spot", [id])
+
+
 ## This player answered case `id` (Game.answer_found): the host's level hears who
 ## (level.case_answered(id, peer_id)) and decides what happens next. With `missed`,
 ## they added a line that doesn't answer it, and the level hears what it held

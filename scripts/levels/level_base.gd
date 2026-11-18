@@ -41,6 +41,10 @@ var voice: VoiceChat
 ## Joins floors' stairwells into one flight of stairs (StairLinks): the World's, in
 ## the World.
 var stairs: StairLinks
+## The crew thinking out loud (start_commentary), or null on a floor without it.
+var commentary: Commentary
+var _commented_case := ""
+var _commented_solved := {}
 var _pause: Control
 
 
@@ -162,6 +166,77 @@ func net_setup() -> void:
 ## leaves them to it.
 func owns_falls() -> bool:
 	return false
+
+
+## Turn on the crew's commentary (Commentary) for this floor, once its lines are
+## approved: call it from build(). It follows the case being worked on (begin,
+## and the payoff when it's solved), hears every paper read and every failed
+## query at this floor's terminals, and `.hint`. Discovery moments of the floor's
+## own (commentary.discover("memo_scraps")) are the level's to call.
+func start_commentary() -> Commentary:
+	if commentary:
+		return commentary
+	commentary = Commentary.new()
+	commentary.hud = hud
+	commentary.sync = sync
+	commentary.voice_dir_of = _crew_voice_dir
+	add_child(commentary)
+	commentary.watch_documents(self)
+	for t in find_children("*", "Terminal", true, false):
+		if t.has_signal("query_failed"):
+			t.query_failed.connect(_on_query_failed)
+	var game := get_node("/root/Game")
+	for c in game.notebook_cases:  # solved before this floor: no payoff now
+		if c.get("solved", false):
+			_commented_solved[c.id] = true
+	game.notebook_changed.connect(_follow_cases)
+	_follow_cases()
+	return commentary
+
+
+## The case being worked on changed, or one was solved: tell the commentary.
+func _follow_cases() -> void:
+	if not is_instance_valid(commentary):
+		return
+	var game := get_node("/root/Game")
+	for c in game.notebook_cases:
+		if c.get("open", false) and c.get("solved", false) and not _commented_solved.has(c.id):
+			_commented_solved[c.id] = true
+			commentary.solved(c.id)
+	var now: String = game.main_case()
+	if now != _commented_case:
+		_commented_case = now
+		commentary.begin(now)
+
+
+func _on_query_failed(_sql: String, result: Dictionary) -> void:
+	if is_instance_valid(commentary) and (sync == null or sync.is_host()):
+		commentary.mistake(Commentary.kind_of(result))
+
+
+## The recordings folder for a peer's crew member ("crew_dana"), or "" for none.
+func _crew_voice_dir(peer_id: int) -> String:
+	var net := get_node_or_null("/root/Net")
+	if net == null or not net.has_method("look_of"):
+		return ""
+	var slug := str(net.look_of(peer_id, maxi(NetPlayers.index_of(peer_id, multiplayer), 0)).get("crew", ""))
+	return VoiceLines.crew_dir(slug) if slug != "" else ""
+
+
+## Someone in the crew found hint spot `id` (a paper read, a .schema run): every
+## machine marks it (Game.find_spot), so `.hint`'s next tier unlocks for all.
+## Call it on the machine where it happened.
+func found_spot(id: String) -> void:
+	if id == "":
+		return
+	if sync and sync.is_online():
+		sync.report_spot(id)
+	else:
+		_crew_found_spot(id)
+
+
+func _crew_found_spot(id: String) -> void:
+	get_node("/root/Game").find_spot(id)
 
 
 ## Override: what happens when the player dies.

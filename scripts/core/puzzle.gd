@@ -11,6 +11,12 @@ var ordered: bool
 ## Three hint tiers: a nudge, a concept, then a near-answer.
 var hints: Array
 var hint_index := 0
+## Where in the world the crew finds what it needs, in the order the pieces are
+## needed: [{id, text, piece?}] (spec G2). `.hint` gives the first one the crew
+## hasn't found (Game.find_spot) whose piece isn't in hand yet, before its tiers;
+## once every spot is found, the tiers go on as before. `text` names the place the
+## way the floor's signs do, and never gives this run's value.
+var spots: Array = []
 var solved := false
 ## The notebook case page this puzzle belongs to (its own id unless set).
 var case_id := ""
@@ -109,6 +115,19 @@ func _unique(rows: Array) -> Array:
 	for r in rows:
 		seen[r] = true
 	return seen.keys()
+
+
+## The world's tier: the first spot the crew still needs, or "" when every one is
+## found. `game` is the Game autoload.
+func spot_hint(game: Node) -> String:
+	for s in spots:
+		if game.spot_found(str(s.id)):
+			continue
+		var piece := str(s.get("piece", ""))
+		if piece != "" and game.has_piece(case_id, piece):
+			continue
+		return str(s.text)
+	return ""
 
 
 func next_hint() -> String:

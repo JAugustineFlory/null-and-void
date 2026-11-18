@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints"]
 
 
 func _run() -> void:
@@ -99,6 +99,7 @@ func _run_group(g: String) -> void:
 		"route_data": await _run_file("res://tests/route_data_tests.gd")
 		"coop_runs": await _group_coop_runs()
 		"hard": await _group_hard()
+		"hints": await _group_hints()
 
 
 ## A run as a whole: its rules, restarting a floor or the run, and joining one
@@ -252,6 +253,11 @@ func _group_floor_b2() -> void:
 
 
 ## Papers: how they read in your hands, and that every floor's face their readers.
+## `.hint` starting in the world, and the crew's commentary hook.
+func _group_hints() -> void:
+	await _run_file("res://tests/hint_gate_tests.gd")
+
+
 func _group_papers() -> void:
 	await _run_file("res://tests/paper_fit_tests.gd")
 	await _run_file("res://tests/paper_facing_tests.gd")
@@ -2142,6 +2148,10 @@ func test_coop_level_0() -> void:
 	c1.find_children("*", "DocumentReader", true, false)[0].close()
 	await _frames(2)
 	check(not c1.player.input_locked, "putting the document down gives the client their controls back")
+	# A hint spot a client finds (a .schema run, say) is found for the crew, through the host.
+	c1.found_spot("coop_test_spot")
+	await _frames(5)
+	check(_game().spot_found("coop_test_spot"), "a hint spot a client finds is found for the whole crew")
 
 	# Notebooks are per player: a loose sticky goes to whoever took it and is gone
 	# for everyone; one stuck to a terminal is copied by each player on their own.

@@ -133,6 +133,10 @@ var notebook_todo: Array[Dictionary] = []
 var notebook_cases: Array[Dictionary] = []
 ## Voice line ids already jotted down this run, so a replayed line isn't jotted twice.
 var notebook_jotted: Array[String] = []
+## Hint spots someone in the crew has found this run (find_spot): a paper read, a
+## .schema run. `.hint` sends the crew to the first spot not found yet before its
+## own tiers (Puzzle.spots, Terminal.next_hint).
+var spots_found: Array = []
 ## The job the crew was hired for is over (end_job): the work order is void, and
 ## tasks from then on go on the case they're for.
 var job_over := false
@@ -159,6 +163,7 @@ func _ready() -> void:
 
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
+	spots_found.clear()
 	open_at_home = false
 	open_at_wing = 0
 	floor_start = {}
@@ -435,6 +440,19 @@ func open_case(id: String, title: String, tables: Array = [], objective: String 
 	notebook_cases.insert(0, c)
 	notebook_changed.emit()
 	return true
+
+
+## Someone in the crew found hint spot `id` (LevelBase.found_spot keeps every
+## machine the same). True if new.
+func find_spot(id: String) -> bool:
+	if id == "" or spots_found.has(id):
+		return false
+	spots_found.append(id)
+	return true
+
+
+func spot_found(id: String) -> bool:
+	return spots_found.has(id)
 
 
 ## Note a clue on a case page (once). `from` says where it was read. True if new.
