@@ -1,2 +1,0 @@
-- **Changed:** co-op voice chat is clearer: crisper voices, no crackle when someone gets loud, and the start of a sentence isn't cut off.
-- **Changed:** in co-op, your crew's voices carry farther, and walkie-talkies reach much farther before they break up.

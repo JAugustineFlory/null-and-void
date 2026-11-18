@@ -1,2 +1,0 @@
-- **Fixed:** If Rourke gets knocked off his path, wedged somewhere, or falls out of the building, he finds his way back and carries on, so the tour can no longer get stuck waiting on him.
-- **Fixed:** In co-op, players who joined a game can no longer push or drag Rourke, the Custodian or any other character around by walking into them.

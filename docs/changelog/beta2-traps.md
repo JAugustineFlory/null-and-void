@@ -1,3 +1,0 @@
-- **Fixed:** On floor 22, searching the guards for the Har- name SYSOP points you to now finds the night lead, whatever columns you pick.
-- **Fixed:** On floor 9, reading the doors back one at a time, each right after locking it, now counts.
-- **Fixed:** On floor 10, a breaker set to 'ON' in capitals, or reset from the controller terminal, now counts, and the log-in takes the company name as floor 22's report spells it and the time without its leading zero.
