@@ -83,6 +83,7 @@ func _ready() -> void:
 	crew = CrewVitals.create(self, players)
 	player.combat.crew = crew
 	player.died.connect(_on_player_died)
+	FallNet.create(self, player)  # a fall out of the world puts you back on solid ground
 	voice = VoiceChat.create(self)
 	_build_pause_menu()
 	net_setup()
@@ -154,6 +155,13 @@ func start() -> void:
 ## e.g. `sync.replicate(npc, [...])`. Runs after node names are fixed.
 func net_setup() -> void:
 	pass
+
+
+## Override: true when this floor deals with falls itself (a drop it means to be
+## deadly, with its own way back), so the safety net under the floor (FallNet)
+## leaves them to it.
+func owns_falls() -> bool:
+	return false
 
 
 ## Override: what happens when the player dies.

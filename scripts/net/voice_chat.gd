@@ -12,16 +12,22 @@ extends Node
 
 const MIC_BUS := "VoiceMic"
 const RADIO_BUS := "Radio"
-const NEAR_RANGE := 25.0
-const OPEN_MIC_THRESHOLD := 0.015
-const OPEN_MIC_HANG := 0.5
-## Automatic gain: bring each talker up to about this loudness (RMS)...
-const VOICE_LEVEL := 0.12
-## ...but never boost a microphone more than this, so room noise stays down.
-const MAX_GAIN := 8.0
+## Teammates' voices (near and radio) mix here, through a limiter, so several
+## people talking at once never crackle.
+const CREW_BUS := "CrewVoice"
+## Open-mic voice carries this far (meters)...
+const NEAR_RANGE := 40.0
+## ...at full volume out to this distance, fading after it (AudioStreamPlayer3D.unit_size).
+const NEAR_FULL := 8.0
+## How loud a teammate right next to you is (dB). The CrewVoice limiter catches the peaks.
+const VOICE_DB := 4.0
+## The microphone is cleaned up before it's sent: rumble below this goes (Hz)...
+const MIC_HIGH_PASS := 100.0
+## ...and hiss above this, which the 16 kHz codec can't carry.
+const MIC_LOW_PASS := 7000.0
 ## Audio held back before a voice starts playing, so a late packet doesn't
 ## leave a gap (seconds).
-const JITTER_CUSHION := 0.08
+const JITTER_CUSHION := 0.1
 ## Tag nodes with this group to make radios crackle near them.
 const INTERFERENCE_GROUP := "radio_interference"
 
@@ -37,13 +43,15 @@ var _mic: AudioStreamPlayer
 ## peer id -> {"radio": AudioStreamPlayer, "near": AudioStreamPlayer3D, "flat": AudioStreamPlayer}
 var _speakers := {}
 var _rng := RandomNumberGenerator.new()
-var _open_mic_t := 0.0
 var _was_transmitting := false
 var _rx_name := ""
 var _rx_t := 0.0
 var _hud: Label
 var _encoder := VoiceCodec.Encoder.new()
-var _gain := 1.0
+var _gate := VoiceCodec.Gate.new()
+var _leveler := VoiceCodec.Leveler.new()
+## While the mic is closed, its last moment of audio, sent when it opens.
+var _preroll := PackedVector2Array()
 
 
 static func create(for_level: Node) -> VoiceChat:
@@ -84,16 +92,31 @@ func _process(delta: float) -> void:
 	if _capture:
 		var n := _capture.get_frames_available()
 		if n > 0:
-			var frames := _capture.get_buffer(n)
-			var level_rms := VoiceCodec.rms(frames)
-			if level_rms > OPEN_MIC_THRESHOLD:
-				_open_mic_t = OPEN_MIC_HANG
-				_gain = lerpf(_gain, clampf(VOICE_LEVEL / level_rms, 1.0, MAX_GAIN), 0.2)
-			_open_mic_t -= delta
-			if radio.transmitting or (_open_mic_t > 0.0 and not mic_muted):
-				send_frames(frames, AudioServer.get_mix_rate(), radio.transmitting)
+			var rate := AudioServer.get_mix_rate()
+			var out := mic_block(_capture.get_buffer(n), rate)
+			if not out.is_empty():
+				send_frames(out, rate, radio.transmitting)
 	_rx_t -= delta
 	_update_hud()
+
+
+## One block of microphone audio in; what to send (nothing while the mic is
+## closed). When it opens, the moment just before comes too, so the first sound
+## of a word isn't cut off.
+func mic_block(frames: PackedVector2Array, rate: float) -> PackedVector2Array:
+	var open := _gate.update(VoiceCodec.rms(frames), frames.size() / rate)
+	if radio.transmitting or (open and not mic_muted):
+		if _preroll.is_empty():
+			return frames
+		_preroll.append_array(frames)
+		var out := _preroll
+		_preroll = PackedVector2Array()
+		return out
+	_preroll.append_array(frames)
+	var keep := int(rate * VoiceCodec.Gate.PREROLL)
+	if _preroll.size() > keep:
+		_preroll = _preroll.slice(_preroll.size() - keep)
+	return PackedVector2Array()
 
 
 ## V and B work while the player can move, and while a flashback or cutscene
@@ -120,7 +143,7 @@ func send_frames(frames: PackedVector2Array, rate: float, on_radio: bool) -> voi
 		return
 	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return
-	var packet := _encoder.encode(VoiceCodec.amplify(frames, _gain), rate)
+	var packet := _encoder.encode(_leveler.process(frames, rate, _gate.speech), rate)
 	if not packet.is_empty():
 		_voice.rpc(on_radio, packet)
 
@@ -174,22 +197,26 @@ func _speaker(id: int) -> Dictionary:
 	var r := AudioStreamPlayer.new()
 	r.stream = _generator()
 	r.bus = RADIO_BUS
-	r.volume_db = 3.0
+	r.volume_db = VOICE_DB
 	add_child(r)
 	r.play()
 	var near := AudioStreamPlayer3D.new()
 	near.stream = _generator()
+	near.bus = CREW_BUS
 	near.max_distance = NEAR_RANGE
-	# Full volume within a few meters, still clear across a room.
-	near.unit_size = 6.0
-	near.volume_db = 6.0
-	near.max_db = 6.0
+	# Full volume within a few meters, still clear across a big room.
+	near.unit_size = NEAR_FULL
+	near.volume_db = VOICE_DB
+	near.max_db = VOICE_DB
+	# Distance makes a voice quieter, not muffled: keep every word clear.
+	near.attenuation_filter_cutoff_hz = 20500.0
 	var body: Node = level.players.puppet(id)
 	(body if body else self).add_child(near)
 	near.position.y = 1.6
 	near.play()
 	var flat := AudioStreamPlayer.new()
 	flat.stream = _generator()
+	flat.bus = CREW_BUS
 	flat.volume_db = near.volume_db  # as loud as someone standing next to you
 	add_child(flat)
 	flat.play()
@@ -235,8 +262,9 @@ func _start_mic() -> void:
 		idx = AudioServer.bus_count - 1
 		AudioServer.set_bus_name(idx, MIC_BUS)
 		AudioServer.set_bus_mute(idx, true)  # capture it, but don't play yourself back
-		AudioServer.add_bus_effect(idx, AudioEffectCapture.new())
-	_capture = AudioServer.get_bus_effect(idx, 0)
+		for fx in mic_effects():
+			AudioServer.add_bus_effect(idx, fx)
+	_capture = AudioServer.get_bus_effect(idx, AudioServer.get_bus_effect_count(idx) - 1)
 	_capture.clear_buffer()
 	_mic = AudioStreamPlayer.new()
 	_mic.stream = AudioStreamMicrophone.new()
@@ -245,23 +273,43 @@ func _start_mic() -> void:
 	_mic.play()
 
 
-## A tinny, band-limited bus for radio voices.
+## The microphone bus, in order: rumble out, hiss out, then the capture the
+## game reads (last). Public so tests can run audio through the same chain.
+static func mic_effects() -> Array[AudioEffect]:
+	var hp := AudioEffectHighPassFilter.new()
+	hp.cutoff_hz = MIC_HIGH_PASS
+	var lp := AudioEffectLowPassFilter.new()
+	lp.cutoff_hz = MIC_LOW_PASS
+	lp.db = AudioEffectFilter.FILTER_24DB
+	lp.resonance = 0.85  # flat (within 2 dB) up to 6 kHz
+	var capture := AudioEffectCapture.new()
+	capture.buffer_length = 0.5  # rides out a slow frame without losing audio
+	return [hp, lp, capture]
+
+
+## Teammates' voices, then a band-limited walkie-talkie bus that feeds into it.
+## (A bus can only send to one before it, so CrewVoice comes first.)
 static func _setup_radio_bus() -> void:
+	if AudioServer.get_bus_index(CREW_BUS) == -1:
+		AudioServer.add_bus()
+		var crew := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(crew, CREW_BUS)
+		var limiter := AudioEffectHardLimiter.new()
+		limiter.ceiling_db = -1.0
+		AudioServer.add_bus_effect(crew, limiter)
 	if AudioServer.get_bus_index(RADIO_BUS) != -1:
 		return
 	AudioServer.add_bus()
 	var idx := AudioServer.bus_count - 1
 	AudioServer.set_bus_name(idx, RADIO_BUS)
+	AudioServer.set_bus_send(idx, CREW_BUS)
+	# A real walkie-talkie's narrow band, but wide enough to understand every word.
 	var hp := AudioEffectHighPassFilter.new()
-	hp.cutoff_hz = 500
+	hp.cutoff_hz = 300
 	AudioServer.add_bus_effect(idx, hp)
 	var lp := AudioEffectLowPassFilter.new()
-	lp.cutoff_hz = 3200
+	lp.cutoff_hz = 4500
 	AudioServer.add_bus_effect(idx, lp)
-	var dist := AudioEffectDistortion.new()
-	dist.mode = AudioEffectDistortion.MODE_OVERDRIVE
-	dist.drive = 0.2
-	AudioServer.add_bus_effect(idx, dist)
 
 
 func _build_hud() -> void:
