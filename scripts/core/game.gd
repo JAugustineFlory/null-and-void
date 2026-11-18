@@ -138,6 +138,12 @@ var notebook_jotted: Array[String] = []
 var job_over := false
 ## What a missing piece shows on its case page and in the query so far.
 const PIECE_MISSING := "????"
+## Where the crew last walked onto a floor (a LEVELS key; "world" is the garage),
+## and the run as it stood then: {"key", "state"}. Restarting the floor puts it
+## back (restore_floor_start, Net.restart_floor).
+var floor_start := {}
+## Not part of a run's progress, so a floor restart leaves them alone.
+const _KEPT_ON_RESTART := ["run_seed", "open_at_home", "open_at_wing", "diegetic_ui", "floor_start"]
 
 
 func _ready() -> void:
@@ -149,6 +155,7 @@ func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	open_at_home = false
 	open_at_wing = 0
+	floor_start = {}
 	book_words.clear()
 	book_chapters.clear()
 	learned_words.clear()
@@ -179,6 +186,31 @@ func new_run(seed_value: int = -1) -> void:
 	job_over = false
 	inventory.clear()
 	van_seating.clear()
+
+
+## The crew has just walked onto floor `key` (World.enter_wing, or the garage):
+## remember the run as it stands, for a restart of this floor.
+func mark_floor_start(key: String) -> void:
+	var state := {}
+	for p in get_script().get_script_property_list():
+		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and not _KEPT_ON_RESTART.has(p.name):
+			var v = get(p.name)
+			state[p.name] = v.to_dict() if v is Inventory else (v.duplicate(true) if v is Array or v is Dictionary else v)
+	floor_start = {"key": key, "state": state}
+
+
+## The run back to how it was when the crew walked onto the floor they're on
+## (mark_floor_start). Returns that floor's key ("" if none was marked).
+func restore_floor_start() -> String:
+	var state: Dictionary = floor_start.get("state", {})
+	for name in state:
+		if name == "inventory":
+			inventory.load_dict(state[name])
+		elif state[name] is Array or state[name] is Dictionary:
+			set(name, state[name].duplicate(true))
+		else:
+			set(name, state[name])
+	return floor_start.get("key", "")
 
 
 func goto(level_key: String) -> void:

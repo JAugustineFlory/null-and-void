@@ -151,6 +151,15 @@ func _ready() -> void:
 		_net().last_message = ""
 	add_child(ThemeUtil.version_tag())  # last, so it's drawn over the panels
 	PadFocus.attach(self)
+	if _net().back_from_run:
+		# Back from a run: the Co-op tab, everyone already on their mark, no opening shot.
+		_net().back_from_run = false
+		_coop_view = true
+		_welcome.visible = false
+		_refresh()
+		stage.settle()
+		stage.finish_intro()
+		return
 	_refresh()
 
 

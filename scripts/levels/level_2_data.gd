@@ -137,7 +137,11 @@ INSERT INTO door_status VALUES
 ## The lab's zone changes per run, and its door is the one controller in that zone
 ## with status 'fault'. Another zone on this floor has a fault too, and the lab's
 ## zone has an offline and an ok one, so both WHERE conditions matter.
-const LAB_ZONES := ["D", "E", "F", "H"]
+## In the whole building, door_controllers already holds floor 14's DC-1 to DC-15
+## in zones A to F, so the lab's zones and ids are ones no other floor uses: the
+## lab's query must find its one row whichever floors came first.
+const LAB_ZONES := ["G", "H", "J", "K"]
+const LAB_IDS_FROM := 21  # DC-21 to DC-26
 const VISITOR_BADGES := 6
 
 
@@ -230,10 +234,10 @@ UPDATE doors SET zone = '%s' WHERE id IN ('SECLAB-B', 'SECLAB-B-REAR');
 	return {"sql": sql, "zone": zone, "answer": c.answer, "switches": c.switches}
 
 
-## The six controllers DC-13 to DC-18: three in the lab's zone, three in zone S.
+## The six controllers DC-21 to DC-26: three in the lab's zone, three in zone S.
 static func _lab_controllers(zone: String, rng: RandomNumberGenerator) -> Dictionary:
 	var ids := []
-	for i in range(13, 19):
+	for i in range(LAB_IDS_FROM, LAB_IDS_FROM + 6):
 		ids.append("DC-%d" % i)
 	_shuffle(ids, rng)
 	# [zone, status, location, note]

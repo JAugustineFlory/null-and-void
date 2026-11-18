@@ -1029,6 +1029,9 @@ func _add_end_buttons(footer: HBoxContainer) -> void:
 			else:
 				game.new_run()
 				game.goto("world")))
+	if online and leads:
+		# The whole crew goes back to the host's lobby together, still connected.
+		footer.add_child(_button(net.TO_LOBBY, func(): net.end_run_to_lobby()))
 	footer.add_child(_button("Main menu", func():
 		if net:
 			net.leave(false)

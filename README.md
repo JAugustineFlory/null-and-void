@@ -100,7 +100,7 @@ Download it for Windows, Mac or Linux from [the download page](https://jaugustin
 The full design is in [docs/game-plan.md](docs/game-plan.md).
 
 
-Playable now: **six floors of Halcyon Tower** (the ground floor and floors 9, 10, 14, 18 and 22), solo or co-op
+Playable now: **all of Act 2, eight floors of Halcyon Tower** (the ground floor, basements B1 and B2, and floors 9, 10, 14, 18 and 22), solo or co-op
 (1 to 6 players), starting from the crew's garage.
 
 ## Changelog
@@ -109,6 +109,66 @@ Newest first, one release per drop-down, with its fix builds inside. Click a ver
 floor number. Changes that have merged but aren't listed here yet are in [docs/changelog/](docs/changelog/).
 
 <details open>
+<summary><b>v0.9 - 2026-11-18</b></summary>
+
+- **New:** Walk the fire stairs between floors. Open the stair door, take the flights down (or up), past every floor in between, to the next floor's landing, and open its door: no fade, nothing loads. The next floor starts once the whole crew is on its landing, and anyone who goes down on the way can still be reached and helped up.
+- **New:** At a terminal, look down (Tab, or View on a controller) to see your notebook held below the screen: the case and your query so far, and buttons for the words that can come next, drawn only from what you've found. Look up and the screen is all yours again.
+- **New:** Level 6, the cold store on B1 ("The Ones Who Never Left"): down STAIR 2 from floor 9. A lone-worker time clock, vaults that are as cold as they look, doors that won't stay open, and the crew's first scripts: a new book, *Journey through JavaScript*, and a portable deck that goes where the terminals can't.
+- **Added:** A "Terminal help" setting (Easy or Normal). On Easy, each SQL word's button comes off once you've used it 3 times, and you type it yourself. With a controller, the buttons are always there.
+- **Added:** Two achievements for typing your own SQL, and a terminal skin.
+- **Added:** A new floor's rewards: an unlock for the book, one for leaving the floor tidy, and one for the floor itself.
+- **Added:** A new floor below the cold store, reached by walking down the stairs, with its own lights to fight for.
+- **Added:** Service tokens: some of the building's services now want a token traded for your key, and tokens run out.
+- **Added:** A test bench where scripts are tried on a fake copy of the floor before they touch the real one, with passing checks counted as you go.
+- **Added:** The fight for the bottom floor's lights, in three stages, with three ways to win that each player picks for themselves.
+- **Added:** People to protect down there. Whether they make it is up to the crew, and the game remembers.
+- **Added:** The end of Act 2: get the lifts running and ride up.
+- **Added:** Four achievements for how the bottom floor ends, each with its own gear: terminal themes, a notebook or two, and a full night-shift set for the best ending.
+- **Added:** Play with a gamepad or a Steam Deck: the left stick moves, the right stick looks, and every move works with the buttons. On-screen prompts name the gamepad's buttons while you're using it. Look speed, stick dead zone and invert look are in Settings > Controls.
+- **Added:** The title screen, the garage lobby, Levels, Customize, Settings and the pause menu work with a controller: the d-pad moves, A picks, B goes back, and whatever is picked has a clear outline.
+- **Added:** On a controller, Start opens and closes the pause menu, LB and RB turn the tabs in Customize, and the garage's how-to tips name the controller's buttons.
+- **Added:** The terminal works on a controller: Y runs, the d-pad brings back earlier queries, the right stick scrolls, and X picks a line to add to your notebook; type with the on-screen keyboard.
+- **Added:** The notebook works on a controller: LB and RB turn the tabs, the d-pad and A press the buttons on its pages, Y writes a note, and the right stick turns the page.
+- **Added:** The building's security system now speaks the recorded lines it was missing on the security floor. It greets whoever logs in at a locked-down terminal, reacts to each reset switch, and comments as you leave.
+- **Added:** In co-op, the host can take everyone back to the lobby, from the pause menu or at the end of the run. The crew stays together, ready to go again.
+- **Added:** Restart this floor, in the pause menu: back to where you walked onto the floor, with the same answers. In co-op the host restarts it for everyone.
+- **Added:** The garage van's doors open and shut with E.
+- **Added:** The garage is hiding something. Look around before you leave.
+- **Added:** Portable decks. Each of the crew can take one on floor 10 and carry it: it sits on your hotbar, and taking it out shows it in your hands.
+- **Added:** A few landings on the long stair walks hold something worth stopping for, if you look around. One of them is a first-aid kit: one use, on yourself or on a teammate who's down.
+- **Changed:** The fire stairs are real switchback stairwells, with landings for the floors above and below, and their doors are a little wider.
+- **Changed:** `.tables` writes only the tables' names in your notebook; a table's columns go in once `.schema` or a query shows them.
+- **Changed:** On B1, the IT cage's cradle talks back when a pairing script goes wrong, the listing at the IT cage leaves the crew's own entries out (the landing's reader punches you in on arrival), and the anteroom watchdog's first hint explains its GET.
+- **Changed:** Characters take turns talking. A new line waits for the one before it, with a short breath in between, and only a sudden danger cuts in.
+- **Changed:** Chatter that can wait (taunts, fight barks, whispers) holds while a scene plays or someone is typing at a terminal, and is skipped if it waits too long.
+- **Changed:** Text with no voice recording stays on screen longer, so first-time players can finish reading it.
+- **Changed:** New book chapters arrive quietly in the notebook up in the tower, with just their notice.
+- **Changed:** Fewer, shorter lines on the ground floor, in the garage briefing and van, on the server floor, and on arrival in the basements.
+- **Changed:** Notices take turns too: news from around the floor waits for the one on screen instead of wiping it, repeats are dropped, and "Notebook updated" no longer covers other messages.
+- **Changed:** Co-op voice chat is clearer: crisper voices, no crackle when someone gets loud, and the start of a sentence isn't cut off.
+- **Changed:** In co-op, your crew's voices carry farther, and walkie-talkies reach much farther before they break up.
+- **Changed:** If the host quits mid-run, you land in your own garage on the Co-op tab, not the title screen.
+- **Changed:** On floor 14, SYSOP's note about the doors that won't release now explains the main entrance too.
+- **Changed:** In co-op, a downed player now has 90 seconds before passing out, up from 45. Passing out no longer sends them back to the checkpoint: they stay where they fell, and a teammate can still help them up, though it takes longer.
+- **Changed:** Floor 22's turning point in the lab no longer rushes past: you're pulled away from the screen, every view turns to the door for a moment, and what comes next doesn't wait until you're ready.
+- **Changed:** Every task now has a title in the crew's own words, shown on screen as "Next:" when it changes, with what to do written in pencil under it in the notebook and on the work order.
+- **Fixed:** On floor 22, searching the guards for the Har- name SYSOP points you to now finds the night lead, whatever columns you pick.
+- **Fixed:** On floor 9, reading the doors back one at a time, each right after locking it, now counts.
+- **Fixed:** On floor 10, a breaker set to 'ON' in capitals, or reset from the controller terminal, now counts, and the log-in takes the company name as floor 22's report spells it and the time without its leading zero.
+- **Fixed:** One ending's radio report now plays all the way through, instead of stopping partway.
+- **Fixed:** On floor 22, Secure Lab B's door controller query now finds just the lab's own controller in a full playthrough, instead of also picking up controllers left over from floor 14.
+- **Fixed:** If Rourke gets knocked off his path, wedged somewhere, or falls out of the building, he finds his way back and carries on, so the tour can no longer get stuck waiting on him.
+- **Fixed:** In co-op, players who joined a game can no longer push or drag Rourke, the Custodian or any other character around by walking into them.
+- **Fixed:** The garage's driveway has a fence and gate, so nobody can wander off the edge of the world.
+- **Fixed:** You can no longer slip inside the parked van through a shut door by jumping and crouching.
+- **Fixed:** A floor picked from Levels is now played inside the building, so when you finish it the stairs or elevator take you on to the next floor, instead of stopping on a "To be continued." card.
+- **Fixed:** Falling out of the world on any floor (off the end of the garage driveway, through a gap in a wall) now puts you straight back where you last stood on solid ground, unhurt, instead of falling forever.
+- **Fixed:** The garage's punch bag keeps swinging back whenever you hit it, not just during the warm-up.
+- **Fixed:** Standing on a teammate's shoulders inside the floor 14 elevator (or under any low ceiling) no longer pushes your head through the roof and drops you out of the world: there's no shoulder stand without headroom, a carried teammate ducks under low ceilings, and stepping down never puts you through a wall.
+
+</details>
+
+<details>
 <summary><b>v0.8 - 2026-11-04</b></summary>
 
 - **Added:** Each of the twelve crew has their own body now: their own height, build and posture, from the big mover to the tiny kiosk tech. Your colours, clothes and name are still yours.
@@ -334,7 +394,7 @@ floor number. Changes that have merged but aren't listed here yet are in [docs/c
 | Foundations | Engine, co-op, movement, terminals, notebook | Done |
 | First three floors | Ground floor, floors 14 and 22 | Done |
 | Playtest and polish | Home base opening, crew characters, combat tuning, hints | Now |
-| Act 2 | More floors of the tower, and new database skills (changing data, not just reading it) | Next |
+| Act 2 | More floors of the tower, and new database skills (changing data, not just reading it) | Done |
 | Act 3 | Deeper floors and new skills beyond SQL (HTTP, JavaScript, HTML/CSS) | Later |
 | Finale | The last floors and the way out | Later |
 | Ship | Steam lobbies, final art and recorded voices | Later |

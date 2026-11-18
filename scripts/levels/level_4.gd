@@ -461,7 +461,7 @@ func _make_puzzles() -> void:
 	check_puzzle.case_id = "power"
 	var who := "('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in]
 	login_puzzle = StatePuzzle.new("login", "INSERT INTO contractor_log (company, job, time_in) VALUES %s" % who,
-		"SELECT COUNT(*) > 0 AS logged FROM contractor_log WHERE lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s' AND trim(time_in) = '%s'" % [data.company, data.ticket, data.time_in],
+		"SELECT COUNT(*) > 0 AS logged FROM contractor_log WHERE %s AND upper(trim(job)) = '%s' AND trim(time_in) IN ('%s', '%s')" % [_company_is(), data.ticket, data.time_in, data.time_in.trim_prefix("0")],
 		"SELECT 1 AS logged", ["logged"], [
 		"the shape, with your job and the time left blank:\n" +
 		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', 'enter_job_number', 'enter_time');[/color]\n" % data.company +
@@ -500,7 +500,7 @@ func _make_puzzles() -> void:
 	main_doors_puzzle.case_id = "main_doors"
 	var lock_row := "('%s', '%s', '%s')" % [data.bay_breaker, data.company, data.ticket]
 	lockout_puzzle = StatePuzzle.new("lockout", "INSERT INTO lockouts (breaker, company, job) VALUES %s" % lock_row,
-		"SELECT COUNT(*) > 0 AS locked_out FROM lockouts WHERE upper(trim(breaker)) = '%s' AND lower(trim(company)) = lower('%s') AND upper(trim(job)) = '%s'" % [data.bay_breaker, data.company, data.ticket],
+		"SELECT COUNT(*) > 0 AS locked_out FROM lockouts WHERE upper(trim(breaker)) = '%s' AND %s AND upper(trim(job)) = '%s'" % [data.bay_breaker, _company_is(), data.ticket],
 		"SELECT 1 AS locked_out", ["locked_out"], [
 		"the shape, with the breaker and your job left blank:\n" +
 		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES ('enter_breaker_id', '%s', 'enter_job_number');[/color]\n" % data.company +
@@ -895,12 +895,17 @@ func _reads_target_on(result: Dictionary) -> bool:
 	return false
 
 
+## SQL: the row's company is the crew's, by any name the log takes for it.
+static func _company_is() -> String:
+	return "lower(trim(company)) LIKE '%s%%'" % Level4Data.COMPANY_STARTS
+
+
 ## A read of the log that shows the crew's own row: the log-in read back.
 func _reads_login(result: Dictionary) -> bool:
 	if not result.get("ok", false):
 		return false
 	for row in result.get("rows", []):
-		if str(row.get("job", "")).strip_edges().to_upper() == data.ticket and str(row.get("company", "")).strip_edges().to_lower() == data.company.to_lower():
+		if str(row.get("job", "")).strip_edges().to_upper() == data.ticket and str(row.get("company", "")).strip_edges().to_lower().begins_with(Level4Data.COMPANY_STARTS):
 			return true
 	return false
 
@@ -1508,6 +1513,8 @@ func _on_completed() -> void:
 ## other than tonight's breaker that isn't as the panel had it sets the alarm off
 ## (no WHERE flips the lot), and the charging bay's breaker wakes what's in the bay.
 func _breakers_changed() -> void:
+	# The panel prints states in capitals: a breaker set to 'ON' is on.
+	db.run_silent("UPDATE breakers SET state = lower(trim(state)) WHERE state != lower(trim(state))")
 	_show_lamps()
 	if accident:
 		# Loose, the Custodian runs on the bay's circuit: cutting it drops it.
@@ -1556,6 +1563,10 @@ func _breakers_changed() -> void:
 	# power; the station passes once the rest are back as well.
 	if not power_back and not db.run_silent("SELECT 1 FROM breakers WHERE id = '%s' AND state = 'on'" % data.target).is_empty():
 		_restore_power()
+	# Reset from any terminal (the controller's too), the station passes, so the
+	# read-back that follows it counts.
+	if not reset_puzzle.solved and reset_puzzle.state_ok(db):
+		_on_solved("reset")
 
 
 ## The put-back station's ladder, kept up to date with the panel: its last tier is the

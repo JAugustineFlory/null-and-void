@@ -1,1 +1,0 @@
-- **Fixed:** Falling out of the world on any floor (off the end of the garage driveway, through a gap in a wall) now puts you straight back where you last stood on solid ground, unhurt, instead of falling forever.

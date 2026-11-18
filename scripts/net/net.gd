@@ -25,6 +25,13 @@ const PATIENCE_LOADING := [32, 20000, 45000]
 const PATIENCE_PLAYING := [32, 8000, 20000]
 ## How long after everyone has loaded the building the loading patience lasts.
 const SETTLE_TIME := 10.0
+## The host's button (pause menu's Exit page, and Field Notes) that ends the run
+## for everyone and takes the crew back to the lobby. Draft, awaiting Augustine's OK.
+const TO_LOBBY := "Take everyone to the lobby"
+## The pause menu's Restart page: the floor starts over. Drafts, awaiting Augustine's OK.
+const RESTART_FLOOR := "Restart this floor"
+const RESTART_FLOOR_NOTE := "Back to where you walked onto this floor. The building resets, and the answers you've worked out still hold."
+const RESTART_FLOOR_NOTE_COOP := "Everyone goes back to where you walked onto this floor. The building resets, and the answers you've worked out still hold."
 const NAMES := ["Ash", "Briggs", "Cole", "Dana", "Ellis", "Frankie", "Gray", "Harper", "Jo", "Kit", "Lane", "Morgan"]
 
 ## peer id -> player name, identical on every machine.
@@ -44,6 +51,9 @@ var wanted_look := {}
 var profile: Profile
 var player_name := ""
 var in_game := false
+## Coming back from a run, still together (or after the host left mid-run): the
+## lobby opens straight on the Co-op tab, with no opening shot. The lobby clears it.
+var back_from_run := false
 ## The pre-game lobby is for one player: no session, Ready starts a solo game.
 var solo_lobby := false
 ## Why the last session ended, for the menu to show.
@@ -320,6 +330,51 @@ func _start(seed_value: int, names: Dictionary, picked: Dictionary, level := "wo
 	game.goto(key)
 
 
+## Host only: the run ends for everyone, and the whole crew goes back to the
+## host's lobby together, still connected, to pick a floor or go again.
+func end_run_to_lobby() -> void:
+	if is_host() and is_online() and in_game:
+		_to_lobby.rpc()
+
+
+@rpc("authority", "call_local", "reliable")
+func _to_lobby() -> void:
+	in_game = false
+	back_from_run = true
+	# Everyone gets ready again before the next start; poses stay as they were.
+	for id in lobby:
+		lobby[id] = {"ready": false, "pose": lobby[id].pose}
+	set_patience(PATIENCE_LOBBY)
+	get_node("/root/Game").goto("lobby")
+
+
+## Host only (or solo): the floor everyone is on starts over, for everyone. The
+## crew goes back to where they walked onto it, the run as it stood then
+## (Game.floor_start), with the same run seed, so answers worked out still hold.
+## Hard mode's wipe restarts the floor this way too.
+func restart_floor() -> void:
+	if not is_host():
+		return
+	if is_online():
+		_restart_floor.rpc()
+	else:
+		_restart_floor()
+
+
+@rpc("authority", "call_local", "reliable")
+func _restart_floor() -> void:
+	if is_online():
+		set_patience(PATIENCE_LOADING)
+	var scene := get_tree().current_scene
+	var game := get_node("/root/Game")
+	if scene == null or not scene.has_method("enter_wing") or game.floor_start.is_empty():
+		get_tree().reload_current_scene()  # not the building: a stand-alone floor or the gym
+		return
+	var key: String = game.restore_floor_start()
+	game.open_at_home = key == "world"
+	game.goto(key)
+
+
 ## The building has loaded on every machine (LevelSync, once it begins): after
 ## the first frames have drawn, back to the patience for playing.
 func world_began() -> void:
@@ -445,7 +500,10 @@ func _on_server_disconnected() -> void:
 	var was_in_game := in_game
 	leave(true, "The host closed the game.")
 	if was_in_game:
-		get_node("/root/Game").goto("menu")
+		# Back to your own garage on the Co-op tab, to host or join the next one.
+		begin_solo_lobby()
+		back_from_run = true
+		get_node("/root/Game").goto("lobby")
 
 
 func _bind_key(action: String, key: Key) -> void:
