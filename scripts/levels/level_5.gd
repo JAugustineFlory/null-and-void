@@ -520,7 +520,7 @@ func _make_puzzles() -> void:
 	lockup_puzzle.case_id = "people"
 	_lockup_hints()
 	check_lockup_puzzle = RequestPuzzle.new("check_lockup", "GET /doors\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
-		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and _lockup_ok() and _shows_locked(res.body), [
+		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and _shows_locked(res.body) and _lockup_ok(), [
 		"the shape: read the doors back, with the service left as enter_service:\n" +
 		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
 		"enter_service is the service whose doors you just locked.",
@@ -1211,7 +1211,8 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, _which: String) -> void:
 	if not result.get("ok", false) or not check_lockup_puzzle or check_lockup_puzzle.solved or lockup_puzzle == null:
 		return
-	if lockup_puzzle.solved and sql.to_lower().contains("doors") and _shows_locked({"doors": result.get("rows", []).map(func(r): return {"id": str(r.get("id", "")), "locked": int(r.get("locked", 0)) == 1})}):
+	# Read-backs count as they come, a door at a time, before the lockup is done.
+	if sql.to_lower().contains("doors") and _shows_locked({"doors": result.get("rows", []).map(func(r): return {"id": str(r.get("id", "")), "locked": int(r.get("locked", 0)) == 1})}) and lockup_puzzle.solved:
 		sync.event("_on_solved", ["check_lockup"])
 
 
