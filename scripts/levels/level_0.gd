@@ -1077,7 +1077,10 @@ func _ask_caller() -> void:
 	game.collect_piece("caller", "ext", "the work order")
 	game.collect_piece("caller", "table", "SYSOP")
 	game.add_clue("caller", "The call came from ext. %d." % data.extension, "Work order")
-	game.set_blank("caller", "Ext. %d belongs to" % data.extension, ["harold mercer", str(data.extension)], "Harold Mercer")
+	# Solved by pointing at Mercer's name in a result (his row, if it shows the
+	# extension); the mailroom printout's line still answers it on paper.
+	game.set_blank("caller", "Ext. %d belongs to" % data.extension, ["harold mercer", str(data.extension)], "Harold Mercer",
+		{"column": "name", "values": ["Harold Mercer"], "rows": [{"extension": data.extension}]})
 	game.add_clue("caller", "Name just the columns you want, with commas between them: SELECT column, column FROM table_name;", "SYSOP")
 	game.add_clue("caller", "Column names: .schema staff_directory lists them.", "SYSOP")
 	desk_terminal.print_line("")

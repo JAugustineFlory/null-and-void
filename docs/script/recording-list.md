@@ -1,6 +1,6 @@
 # Recording list
 
-1103 recordings in all, 1290 lines.
+1115 recordings in all, 1302 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -182,13 +182,14 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_news_1_block` | "Police are searching for the crew of Byte-Right IT Services, a small firm hired for overnight repairs at Halcyon Data Systems." "Badge records place the crew inside the laboratory of Dr. Iris Vale, who police now believe was murdered." "A facilities manager who tried to stop them described the crew as, quote, 'nice enough. Nervous. Not who they said they were.'" "Byte-Right's chief executive, Maddison Kowalski, was arrested at the Halcyon tower before dawn, trying to force her way inside." "Ms. Kowalski told officers, quote, 'They were framed! They didn't do it!'" "Halcyon declined to comment. The crew has not been seen since." "Halcyon says the building is safe, and will reopen as normal on Monday. And now, the weather." | Steady, mid-bulletin. No change in tone. A slight shift for the quote: reading it, not acting it. Even, a touch of interest. Reading the quote flat, not acting it. Then a beat. Neutral. A small pause after. Brightening for the weather. The game cuts the audio on 'weather'. | Level 2 |
 
-## The crew (player characters) (68 recordings, 77 lines, recorded by each of the 12 crew members)
+## The crew (player characters) (69 recordings, 78 lines, recorded by each of the 12 crew members)
 
 > Yourself, as your character: muttering to the crew, not performing. Quick and natural. Never sounds like a hint; it's somebody remembering where they saw something.
 
 | Done | File | Lines | Direction | Where |
 |---|---|---|---|---|
 | [ ] | `cc_nudge2_first` | "That SYSOP on the screen seems to know this building. Maybe ask." | Stuck, before SYSOP has helped. Half a joke, half serious. | Level 0, later |
+| [ ] | `cc_point_at_it` | "If it's on the screen, point at it and add it to your notebook." | The answer's been sitting on the screen and nobody's grabbed it. Helpful, a little impatient. | Level 0, later |
 | [ ] | `cc_nudge2` | "Whoever SYSOP is, they've been right so far. Maybe ask." | Stuck again. A little uneasy about trusting a stranger on a screen. | Level 0, later |
 | [ ] | `l0_cc_peek_card` | "Quick-start card for the scanner. Somebody's filled in the blanks." | Picked up a scanner's instruction card. Noticing handwriting on it. | Level 0, later |
 | [ ] | `l0_cc_peek_n1a` | "Scanners always come with instructions. Check round the keyboard." | Stuck for a minute. A practical thought. | Level 0, later |

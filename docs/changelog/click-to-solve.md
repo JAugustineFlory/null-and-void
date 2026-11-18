@@ -1,0 +1,2 @@
+- **Added:** click the answer in a terminal result (a name, a number, a count) to write it straight into the open case in your notebook.
+- **Added:** in co-op, a found answer fills everyone's case page and remembers who found it.
