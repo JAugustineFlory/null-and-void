@@ -851,6 +851,12 @@ func _turn_monitor() -> void:
 	t.tween_property(desk_terminal, "rotation_degrees:y", 0.0, 0.8).set_trans(Tween.TRANS_SINE)
 
 
+## The lobby as it is by the time its papers are read: the monitor turned round
+## to the crew (for tests of where the papers face).
+func reading_layout() -> void:
+	desk_terminal.rotation_degrees.y = 0.0
+
+
 ## Host: someone sat down at the front desk terminal. The first time, Easy SQL's
 ## first chapter comes in beside the boot screen's SELECT * FROM (M2).
 func _on_desk_opened(_by: Node) -> void:

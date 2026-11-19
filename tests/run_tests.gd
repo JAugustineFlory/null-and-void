@@ -7329,11 +7329,15 @@ func test_level_0_book_huddles() -> void:
 	check(await _until(nudged, 5.0), "then SYSOP nudges toward ORDER BY")
 	level.terminal_ui.terminal = level.desk_terminal
 	level.terminal_ui.run("SELECT * FROM memo_fragments ORDER BY piece_no;")
-	check(await _huddle_opens(level, "easy_sql_4"), "with the memo sorted, the visitor book's Newest first comes back")
-	await _crew_reads([level])
 	check(await _lands_before(level, "easy_sql_3", func(): return level.caller_asked, 90.0), "Rourke asks who called, and Just the columns you need comes back before the case opens")
 	await _crew_reads([level])
-	check(await _until(func(): return level.caller_asked, 10.0) and h.done.has("easy_sql_3") and h.done.has("easy_sql_4"), "then the caller case opens")
+	check(await _until(func(): return level.caller_asked, 10.0) and h.done.has("easy_sql_3") and not h.done.has("easy_sql_4"), "then the caller case opens, and Newest first still waits for the visitor case (M4)")
+	# The caller answered: the book read earlier opens its case, and Newest first
+	# comes back after Rourke's exchange at the desk.
+	level.sync.event("_on_caller_found")
+	check(await _until(func(): return _game().case_info("last_visitor").get("open", false), 10.0), "the caller solved, the visitor book read earlier opens its case (M3)")
+	check(not h.done.has("easy_sql_4") and await _huddle_opens(level, "easy_sql_4", 90.0) and level._exchange_done, "Newest first comes back once Rourke's exchange at the desk is over (M4)")
+	await _crew_reads([level])
 	level.queue_free()
 	await process_frame
 	# Sorted straight off, without the peek: ORDER BY's chapter still comes, once,
