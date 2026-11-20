@@ -135,7 +135,8 @@ const SLOTS := {
 ## Skins for things the player holds rather than wears (applied by HeldItems
 ## and the terminal, not the rig).
 ## "sticker" and "clip" are add-ons on the notebook's cover, shown with any cover.
-const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "sticker", "clip", "terminal"]
+## "screen" is the glass behind the terminal's text (TerminalLook.SCREENS).
+const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "sticker", "clip", "terminal", "screen"]
 ## The tool items Graphics can draw, the default first.
 const TOOL_ITEMS := {
 	"flashlight": ["standard", "night_shift"],
@@ -143,7 +144,8 @@ const TOOL_ITEMS := {
 	"notebook": ["spiral", "easy_sql", "ledger", "haunted_past"],
 	"sticker": ["none", "archive_label", "records_tab"],
 	"clip": ["none", "mercer_floppy", "pay_stub"],
-	"terminal": ["phosphor", "amber", "paper_white", "microfiche", "greenbar", "night_shift"],
+	"terminal": ["phosphor", "amber", "paper_white", "microfiche", "greenbar", "night_shift", "highlighter", "blueprint"],
+	"screen": ["black", "graphite", "deep_blue", "oxblood", "paper", "night_shift"],
 }
 ## Tool items that are a finish, not a tint: they always draw in this color,
 ## whatever color the player picked.
@@ -156,6 +158,15 @@ const FIXED_COLORS := {
 	"terminal/microfiche": Color(0.56, 0.82, 1.0),  # Ines: a fiche reader's cold blue-white
 	"terminal/greenbar": Color(0.93, 0.96, 0.84),  # Tomas: the payroll run's greenbar paper
 	"terminal/night_shift": Color(0.76, 0.68, 1.0),  # both: the lavender of the small hours
+	# Text themes and screens (TerminalLook): each draws its own colors.
+	"terminal/highlighter": Color(0.9, 0.9, 0.9),
+	"terminal/blueprint": Color(0.86, 0.91, 1.0),
+	"screen/black": Color(0.015, 0.04, 0.02),
+	"screen/graphite": Color(0.1, 0.1, 0.11),
+	"screen/deep_blue": Color(0.02, 0.06, 0.2),
+	"screen/oxblood": Color(0.16, 0.03, 0.04),
+	"screen/paper": Color(0.9, 0.89, 0.84),
+	"screen/night_shift": Color(0.06, 0.04, 0.13),
 	"flashlight/night_shift": Color(0.45, 0.55, 0.7),  # their staff shirts' blue
 	"walkie/night_shift": Color(0.25, 0.26, 0.31),  # their slate slacks, a cream band (HeldItems)
 	"notebook/ledger": Color(0.13, 0.29, 0.21),  # Tomas's bottle-green payroll ledger
