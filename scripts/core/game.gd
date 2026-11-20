@@ -133,6 +133,10 @@ var notebook_todo: Array[Dictionary] = []
 var notebook_cases: Array[Dictionary] = []
 ## Voice line ids already jotted down this run, so a replayed line isn't jotted twice.
 var notebook_jotted: Array[String] = []
+## Every result cell pointed at on this floor, newest last: {column, value, row,
+## query}. One that answers a case's slot before the case opens fills it when the
+## slot is set (set_blank). A new floor starts it empty (mark_floor_start).
+var found_cells: Array = []
 ## The job the crew was hired for is over (end_job): the work order is void, and
 ## tasks from then on go on the case they're for.
 var job_over := false
@@ -190,6 +194,7 @@ func new_run(seed_value: int = -1) -> void:
 	ticket_marks.clear()
 	notebook_cases.clear()
 	notebook_jotted.clear()
+	found_cells.clear()
 	job_over = false
 	inventory.clear()
 	van_seating.clear()
@@ -198,6 +203,7 @@ func new_run(seed_value: int = -1) -> void:
 ## The crew has just walked onto floor `key` (World.enter_wing, or the garage):
 ## remember the run as it stands, for a restart of this floor.
 func mark_floor_start(key: String) -> void:
+	found_cells.clear()
 	var state := {}
 	for p in get_script().get_script_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and not _KEPT_ON_RESTART.has(p.name):
@@ -434,6 +440,13 @@ func open_case(id: String, title: String, tables: Array = [], objective: String 
 	notebook_cases.erase(c)
 	notebook_cases.insert(0, c)
 	notebook_changed.emit()
+	# Its slot was set before it opened: a cell pointed at earlier answers it now.
+	var b: Dictionary = c.get("blank", {})
+	if b.has("cell") and b.filled == "":
+		for f in found_cells:
+			if _fills_cell(b.cell, f.column, f.value, f.row):
+				_fill_from_cell(id, f)
+				break
 	return true
 
 
@@ -471,20 +484,107 @@ func solve_case(id: String, how: String) -> void:
 
 ## Give case `id` a blank for its answer, under its question: "Ext. 4815 belongs
 ## to: ______". It's filled by adding the line that answers it to the notebook (a
-## terminal row, a line on a paper) with every one of `needles` in it; `value` is
-## what's written in.
-func set_blank(id: String, prompt: String, needles: Array, value: String) -> void:
+## line on a paper, or an old-style terminal line) with every one of `needles` in
+## it; `value` is what's written in.
+## `cell` makes it a find step solved by pointing at a result cell (add_cell):
+## {column, values, rows}, as Puzzle.answer_slot builds it. The cell must be in
+## `column` and hold one of `values` (whole, any case); if its row also shows a
+## naming column that `rows` has (an id, a name), the row must be an answer row.
+## A count is {column "" (any name: COUNT(*), n), values, only: true}: the cell
+## must be its result's only one.
+## A cell pointed at before this (on this floor) fills it now.
+func set_blank(id: String, prompt: String, needles: Array, value: String, cell: Dictionary = {}) -> void:
 	var c := _case(id)
 	c["blank"] = {"prompt": prompt, "needles": needles.map(func(n): return str(n).to_lower()), "value": value, "filled": "", "fresh": false}
+	if not cell.is_empty():
+		c.blank["cell"] = {
+			"column": str(cell.get("column", "")).to_lower(),
+			"only": cell.get("only", false),
+			"values": cell.get("values", [value]).map(func(v): return _norm(v)),
+			"rows": cell.get("rows", []).map(func(r: Dictionary):
+				var out := {}
+				for k in r:
+					out[str(k).to_lower()] = _norm(r[k])
+				return out),
+		}
 	if c.open:
 		notebook_changed.emit()
+	if c.blank.has("cell"):
+		for f in found_cells:
+			if _fills_cell(c.blank.cell, f.column, f.value, f.row):
+				_fill_from_cell(id, f)
+				break
 
 
-## The open, unsolved case whose empty blank `text` answers, or "".
-func answers(text: String) -> String:
+static func _norm(v: Variant) -> String:
+	return ("NULL" if v == null else str(v)).strip_edges().to_lower()
+
+
+## Whether a cell in `column` holding `value`, in a row showing `row` (column ->
+## value), answers slot `cell` (set_blank).
+static func _fills_cell(cell: Dictionary, column: String, value: String, row: Dictionary) -> bool:
+	if (cell.column != "" and _norm(column) != cell.column) or not cell.values.has(_norm(value)):
+		return false
+	if cell.get("only", false) and row.size() > 1:
+		return false  # a count: the result's only cell, not a number in a wider row
+	if cell.rows.is_empty():
+		return true
+	var shown := {}
+	for k in row:
+		shown[_norm(k)] = _norm(row[k])
+	# Only the naming columns this row shows count: SELECT zone FROM doors names none.
+	var names: Array = cell.rows[0].keys().filter(func(k): return shown.has(k))
+	if names.is_empty():
+		return true
+	return cell.rows.any(func(r: Dictionary): return names.all(func(k): return r.get(k) == shown[k]))
+
+
+## The crew points at a result cell: `value`, in `column`, in a row showing `row`
+## (column -> value), put on screen by `query`. If it answers an open case's slot,
+## it's written in there and answer_found fires (true). Either way it's kept for
+## this floor: a case whose slot it answers that opens later takes it then.
+func add_cell(column: String, value: String, row: Dictionary = {}, query: String = "", source: String = "terminal") -> bool:
+	var f := {"column": column, "value": value, "row": row.duplicate(), "query": query.strip_edges(), "source": source}
+	found_cells.append(f)
+	for c in notebook_cases:
+		var b: Dictionary = c.get("blank", {})
+		if c.open and not c.solved and b.has("cell") and b.filled == "" and _fills_cell(b.cell, column, value, row):
+			return _fill_from_cell(c.id, f)
+	return false
+
+
+## The open, unsolved case `id`'s slot is answered by found cell `f`: write the
+## value in, with the query that found it, and fire answer_found.
+func _fill_from_cell(id: String, f: Dictionary) -> bool:
+	var c := case_info(id)
+	if not c.get("open", false) or c.get("solved", false) or not fill_blank(id):
+		return false
+	c.blank["source"] = f.source
+	if f.query != "":
+		c.blank["query"] = f.query
+	answer_found.emit(id)
+	return true
+
+
+## Whether `value` in `column` (in a row showing `row`) is the answer to an open
+## case's slot: the screen nudges a crew that leaves it there (TerminalUI).
+func answers_cell(column: String, value: String, row: Dictionary = {}) -> String:
+	for c in notebook_cases:
+		var b: Dictionary = c.get("blank", {})
+		if c.open and not c.solved and b.has("cell") and b.filled == "" and _fills_cell(b.cell, column, value, row):
+			return c.id
+	return ""
+
+
+## The open, unsolved case whose empty blank `text` answers, or "". A slot solved
+## by pointing at a cell (set_blank's `cell`) isn't answered by a whole terminal
+## line (`source` "terminal"): the cell is the answer, not the row around it.
+func answers(text: String, source: String = "") -> String:
 	var low := text.to_lower()
 	for c in notebook_cases:
 		var b: Dictionary = c.get("blank", {})
+		if source == "terminal" and b.has("cell"):
+			continue
 		if c.open and not c.solved and not b.is_empty() and b.filled == "" and b.needles.all(func(n): return low.contains(n)):
 			return c.id
 	return ""
@@ -518,7 +618,7 @@ func blank_miss(id: String, text: String) -> bool:
 ## `source` says where the line was ("document", "terminal"): a level can tell
 ## which way the crew found it (find_route).
 func add_answer(text: String, source: String = "") -> bool:
-	var id := answers(text)
+	var id := answers(text, source)
 	if id == "" or not fill_blank(id):
 		return false
 	case_info(id).blank["source"] = source

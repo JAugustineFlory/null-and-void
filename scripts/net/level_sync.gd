@@ -364,6 +364,8 @@ func _request_answer(id: String, missed: String) -> void:
 
 
 func _host_answer(id: String, peer: int, missed: String) -> void:
+	if missed == "":
+		event("_crew_answered", [id, peer])  # the answer goes in everyone's slot
 	if missed == "" and level.has_method("case_answered"):
 		level.case_answered(id, peer)
 	elif missed != "" and level.has_method("case_missed"):

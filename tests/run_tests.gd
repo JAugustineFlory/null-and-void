@@ -981,7 +981,7 @@ func test_commentary() -> void:
 	var bad_ids := []
 	var bad_docs := []
 	var bad_puzzles := []
-	var used := {Commentary.NUDGE2_FIRST: true, Commentary.NUDGE2: true}
+	var used := {Commentary.NUDGE2_FIRST: true, Commentary.NUDGE2: true, TerminalUI.NUDGE_LINE: true}  # (the screen plays that one)
 	for pid in Commentary.NUDGES:
 		var d: Dictionary = Commentary.NUDGES[pid]
 		if not levels_src.contains('Puzzle.new("%s"' % pid):
@@ -1699,8 +1699,22 @@ func test_caller_answer() -> void:
 			ui._finish_note("")
 			await process_frame
 			check(screen_text(ui).count("the blank wants whoever") == 1, "terminal: once per run")
+			# Click to solve: the name cell in Mercer's row is the answer; the row's
+			# other cells, and a name in another row, are ordinary notes.
+			var cells: Array = lines[right].cells
+			var name_at: int = cells.map(func(x): return x.column).find("name")
+			var ext_at: int = cells.map(func(x): return x.column).find("extension")
+			check(name_at >= 0 and ext_at >= 0 and cells[name_at].value == "Harold Mercer" and cells[ext_at].value == ext, "terminal: Mercer's row is read as cells, by its header's columns")
 			ui._start_note(right)
-			check(not ui.visible and not ui._note_label.visible, "terminal: Mercer's row goes straight in, and you step back from the screen")
+			check(ui._note_label.visible and _game().case_info("caller").blank.filled == "", "terminal: the whole row isn't the answer: it's an ordinary note")
+			ui._cancel_note()
+			check(not ui.use_cell(right, ext_at) and _game().case_info("caller").blank.filled == "", "terminal: nor is the row's extension")
+			ui._cancel_note()
+			check(not ui.use_cell(wrong, lines[wrong].cells.map(func(x): return x.column).find("name")) and _game().case_info("caller").blank.filled == "", "terminal: nor someone else's name")
+			ui._cancel_note()
+			check(ui.use_cell(right, name_at), "terminal: Mercer's name, in his row, is")
+			check(not ui.visible and not ui._note_label.visible, "terminal: Mercer's name goes straight in, and you step back from the screen")
+			check(c.blank.get("query", "") == "SELECT name, extension FROM staff_directory;", "terminal: the case keeps the query that found it (%s)" % c.blank.get("query", ""))
 		else:
 			var reader: DocumentReader = level.directory_printout.open_reader(p)
 			var at: int = level.directory_printout.lines().map(func(l): return l.text).find(level.directory_printout.lines().filter(func(l): return l.text.contains("Harold Mercer"))[0].text)
