@@ -173,6 +173,19 @@ func _touch(peer_id: int) -> void:
 	SfxTouch.play(self)
 
 
+## The machine that decided: `sound` (Sfx.KINDS) plays from here on every machine,
+## e.g. a reader turning down the badge only the presser's machine can see.
+func sound_everywhere(sound: String) -> void:
+	if is_inside_tree():
+		_sound.rpc(sound)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _sound(sound: String) -> void:
+	if get_parent() and Sfx.KINDS.has(sound):
+		Sfx.play(get_parent(), sound, position)
+
+
 func _forwarded(method: String) -> bool:
 	if local_only:
 		return false
