@@ -34,7 +34,7 @@ func test_every_paper_fits() -> void:
 	var p: Player = level.player
 	level._release_camera(p)
 	p.seated = false
-	p.global_position = Vector3(1.0, 0.1, -1.9)
+	p.global_position = GroundFloor.by_desk(1.0, -0.9, 0.1)
 	p.rotation.y = 0.0
 	for i in 10:
 		await _tree.physics_frame
