@@ -1076,6 +1076,13 @@ func test_pry_doors() -> void:
 	doors.grips[0].interact(q)
 	await frames(3)
 	check(p.gripping == doors.grips[0] and q.gripping == null and doors.grips[0].get_prompt(q) == "", "one pair of hands to each door")
+	doors.enabled = false
+	await frames(3)
+	check(p.gripping == null and doors.holders == [0, 0] and doors.grips[1].get_prompt(q) == "", "switched off (the car's moving again), nobody's holding and there's nothing to hold")
+	doors.enabled = true
+	p.controls.use = true
+	doors.grips[0].interact(p)
+	await frames(3)
 	var at := p.global_position
 	p.controls.move = Vector2(0, 1)
 	await frames(30)

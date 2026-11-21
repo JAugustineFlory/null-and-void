@@ -28,6 +28,17 @@ var holders := [0, 0]
 ## The host says the pair on it now can open it.
 var able := false
 var opened := false
+## Off (the car isn't stuck), its grips offer nothing. ElevatorStall sets it.
+var enabled := true:
+	set(value):
+		enabled = value
+		for g in grips:
+			g.enabled = value and not opened
+		if not value and not opened and (holders[0] != 0 or holders[1] != 0):
+			var sync := LevelSync.of(self) if is_inside_tree() else null
+			if sync == null or sync.is_host():
+				_crowbar.clear()
+				_publish([0, 0])
 var grips: Array[PryGrip] = []
 ## Host: each holder's say on what they carry ({peer: has a crowbar}).
 var _crowbar := {}
@@ -171,7 +182,7 @@ func _physics_process(delta: float) -> void:
 	var sync := LevelSync.of(self)
 	if sync and not sync.is_host():
 		return
-	_t = _t + delta if able and holders[0] != 0 and holders[1] != 0 else 0.0
+	_t = _t + delta if enabled and able and holders[0] != 0 and holders[1] != 0 else 0.0
 	if _t >= PRY_TIME:
 		_t = 0.0
 		if sync:
