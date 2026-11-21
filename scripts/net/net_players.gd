@@ -22,6 +22,8 @@ var _ghosts := {}
 ## Watching a teammate while dead (Hard mode), or null.
 var spectate: Spectate
 var _crew: Node
+## Host: when each braced player is free to give the next leg-up (peer id -> msec).
+var _leg_ups := {}
 
 
 static func create(for_level: Node, local_player: Node3D) -> NetPlayers:
@@ -227,6 +229,44 @@ func hurt(id: int, amount: float, cause: String = "") -> void:
 @rpc("authority", "reliable")
 func _hurt(amount: float, cause: String) -> void:
 	player.take_damage(amount, cause)
+
+
+## E on a braced teammate (Player.brace_of): ask for a leg-up off player
+## `base_id`. The host decides, one climber at a time off each of them; then the
+## climber goes up on their own machine and the braced one holds still on theirs.
+func ask_leg_up(base_id: int) -> void:
+	if multiplayer.is_server():
+		_host_leg_up(multiplayer.get_unique_id(), base_id)
+	else:
+		_ask_leg_up.rpc_id(1, base_id)
+
+
+@rpc("any_peer", "reliable")
+func _ask_leg_up(base_id: int) -> void:
+	if multiplayer.is_server():
+		_host_leg_up(multiplayer.get_remote_sender_id(), base_id)
+
+
+func _host_leg_up(climber_id: int, base_id: int) -> void:
+	var now := Time.get_ticks_msec()
+	var base := puppet(base_id)
+	if climber_id == base_id or base == null or puppet(climber_id) == null or int(_leg_ups.get(base_id, 0)) > now:
+		return
+	if not player.has_method("brace_of") or player.brace_of(base).is_empty():
+		return  # not braced, as the host sees them
+	_leg_ups[base_id] = now + int(Player.LEG_UP_TIME * 1000.0) + 300
+	_leg_up.rpc(climber_id, base_id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _leg_up(climber_id: int, base_id: int) -> void:
+	var me := multiplayer.get_unique_id()
+	if climber_id == me:
+		var base := puppet(base_id)
+		if base:
+			player.leg_up(base)
+	elif base_id == me:
+		player.give_leg_up()
 
 
 func _physics_process(delta: float) -> void:

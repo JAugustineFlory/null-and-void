@@ -35,7 +35,7 @@ signal stood_up
 signal knocked_down
 signal got_up
 
-enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT, DOWN }
+enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT, DOWN, LIFT }
 
 ## Walking pace, m/s (v0.10: 25% slower than the 3.8 it was, Augustine 2026-11-17;
 ## sprint is unchanged). Sprint, footstep and slide thresholds hang off it.
@@ -112,6 +112,25 @@ const LEDGE_SPEED := 1.1
 ## Upward kick when jumping off a teammate's shoulders.
 const BOOST_VELOCITY := 5.0
 const MAX_STACK := 3
+## Leg-up: hold crouch on the floor right up against a wall, facing it, and you're
+## braced. A teammate presses E on you and steps up off your hands and back to an
+## edge high over you. The wall is within BRACE_REACH (metres) of your body, and
+## you face it within BRACE_FACING.
+const BRACE_REACH := 0.5
+const BRACE_FACING := deg_to_rad(40.0)
+## A leg-up lifts the climber over LEG_UP_TIME (seconds) until their feet are
+## LEG_UP_LIFT (times the braced one's size) over the floor; there they mantle
+## the edge, or catch it and pull themselves up if it's higher.
+const LEG_UP_LIFT := 1.8
+const LEG_UP_TIME := 0.55
+## How high an edge is over the floor, in metres, for where you can get up it:
+## alone, a running jump catches edges up to about SOLO_REACH; a leg-up from a
+## braced teammate (any size) reaches LEG_UP_REACH. An edge only teamwork gets
+## you up sits between them.
+const SOLO_REACH := 3.2
+const LEG_UP_REACH := 3.75
+## What you see on a braced teammate. New words, waiting on Augustine's OK.
+const LEG_UP_PROMPT := "[E] Take a leg-up"
 ## Falling faster than this lands loudly, unless you roll.
 const HARD_LANDING := 7.0
 const STRIKE_RANGE := 2.0
@@ -223,6 +242,13 @@ var local_control := true
 ## Who this player stands on, and who stands on this player.
 var carrier: Player = null
 var rider: Player = null
+## Taking a leg-up: the teammate (a Player or PlayerPuppet) lifting you, the way
+## to the wall, and where you set off from.
+var _lift_base: Node3D = null
+var _lift_dir := Vector3.ZERO
+var _lift_from := Vector3.ZERO
+## Giving one: seconds left holding still while they go up off you.
+var _lifting := 0.0
 
 var _volumes: Array[MovementVolume] = []
 var _timer := 0.0
@@ -542,6 +568,9 @@ func step(delta: float) -> void:
 	var sit_pressed := controls.sit
 	controls.sit = false
 	_tick_stamina(delta)
+	_lifting = maxf(0.0, _lifting - delta)
+	if _lifting > 0.0:
+		jump_pressed = false  # braced under a teammate going up off you
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
 	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB, Move.VAULT]:
@@ -553,6 +582,8 @@ func step(delta: float) -> void:
 			_step_vault(delta)
 		Move.RIDE:
 			_step_ride(jump_pressed, crouch_pressed)
+		Move.LIFT:
+			_step_lift(delta)
 		Move.HANG:
 			_step_hang(delta, jump_pressed, crouch_pressed)
 		Move.CLIMB:
@@ -1327,10 +1358,11 @@ func _let_go() -> void:
 	if rider:
 		rider._leave_carrier()
 	_leave_carrier()
+	_end_lift()
 	lower_notebook()
 	put_down()
 	_end_filing()
-	if state in [Move.HANG, Move.CLIMB, Move.LEDGE, Move.MANTLE, Move.VAULT, Move.SLIDE, Move.ROLL]:
+	if state in [Move.HANG, Move.CLIMB, Move.LEDGE, Move.MANTLE, Move.VAULT, Move.SLIDE, Move.ROLL, Move.LIFT]:
 		state = Move.WALK
 	_climb = null
 	_ledge = null
@@ -1364,13 +1396,18 @@ func can_carry(other: Player) -> bool:
 
 
 func get_prompt(other: Node) -> String:
+	if other is Player and other.can_leg_up(self):
+		return LEG_UP_PROMPT
 	if other is Player and can_carry(other):
 		return "[E] Climb on shoulders"
 	return ""
 
 
 func interact(other: Node) -> void:
-	if other is Player and can_carry(other):
+	if other is Player and other.can_leg_up(self):
+		other.leg_up(self)
+		give_leg_up()
+	elif other is Player and can_carry(other):
 		other.mount(self)
 
 
@@ -1446,6 +1483,152 @@ func _step_ride(jump_pressed: bool, crouch_pressed: bool) -> void:
 		_was_on_floor = false
 
 
+# --- Leg-up ----------------------------------------------------------------
+
+## The wall `who` (a Player, or a teammate's PlayerPuppet here) is braced
+## against: {"normal": out of the wall toward them, "point": on it}; {} if they
+## aren't braced (crouched on their feet, close up and facing it).
+func brace_of(who: Node3D) -> Dictionary:
+	if who == null or not is_instance_valid(who) or not who.is_inside_tree() or who.get("downed"):
+		return {}
+	var radius := RADIUS
+	if who is Player:
+		var p := who as Player
+		if p.state != Move.WALK or not p.crouching or p.crawling or not p.is_on_floor() or p.rider or p.carrier or p._lifting > 0.0:
+			return {}
+		radius = p.body.radius
+	else:
+		if not who.get("crouching") or who.get("crawling") or who.get("sitting") or who.get("at_terminal"):
+			return {}
+		radius = RADIUS * float(who.get("size") if who.get("size") != null else 1.0)
+	var fwd := -who.global_transform.basis.z
+	fwd.y = 0.0
+	if fwd.length() < 0.1:
+		return {}
+	fwd = fwd.normalized()
+	var from := who.global_position + Vector3.UP * 0.5
+	var exclude: Array[RID] = [get_rid()]
+	if who is CollisionObject3D:
+		exclude.append((who as CollisionObject3D).get_rid())
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + fwd * (radius + BRACE_REACH), collision_mask, exclude))
+	if hit.is_empty() or absf(hit.normal.y) > 0.3:
+		return {}
+	var n := Vector3(hit.normal.x, 0, hit.normal.z).normalized()
+	if fwd.dot(-n) < cos(BRACE_FACING):
+		return {}
+	return {"normal": n, "point": hit.position}
+
+
+## How tall `who` stands at full height: their body's size times a standard body.
+static func _size_of(who: Node3D) -> float:
+	if who is Player:
+		return (who as Player).body.size
+	var s = who.get("size")
+	return float(s) if s != null else 1.0
+
+
+## Where a leg-up off `base` puts your feet.
+func leg_up_feet(base: Node3D) -> Vector3:
+	return base.global_position + Vector3.UP * (LEG_UP_LIFT * _size_of(base) + 0.02)
+
+
+## The edge a leg-up off braced `base` gets you to (a _ledge_probe), or {} if
+## they aren't braced, there's no room over them, or nothing's in reach up there.
+func leg_up_ledge(base: Node3D) -> Dictionary:
+	var brace := brace_of(base)
+	if brace.is_empty():
+		return {}
+	var feet := leg_up_feet(base)
+	if not _fits(feet, body.crouch):
+		return {}
+	var was: Node3D = _lift_base
+	_lift_base = base  # they're under you: not the wall, not in the way
+	var p := _ledge_probe(-brace.normal, feet)
+	_lift_base = was
+	if p.is_empty() or p.height > HANG_REACH:
+		return {}
+	return p
+
+
+## Can you take a leg-up off `base` right now? You on your feet with your hands
+## free, next to them, and an edge in reach from where it puts you.
+func can_leg_up(base: Node3D) -> bool:
+	if base == null or base == self or downed or state != Move.WALK or not is_on_floor() or crawling:
+		return false
+	if rider or carrier or _hands_full() or _lifting > 0.0:
+		return false
+	var flat := base.global_position - global_position
+	flat.y = 0.0
+	if flat.length() > 1.6 or absf(base.global_position.y - global_position.y) > 0.4:
+		return false
+	return not leg_up_ledge(base).is_empty()
+
+
+## Step up off braced `base`: you're lifted up the wall, then mantle the edge or
+## catch it. False if they aren't braced (any more).
+func leg_up(base: Node3D) -> bool:
+	var brace := brace_of(base)
+	if brace.is_empty() or state != Move.WALK:
+		return false
+	lower_notebook()
+	_lift_base = base
+	_lift_dir = -brace.normal
+	_lift_from = global_position
+	if base is PhysicsBody3D:
+		add_collision_exception_with(base)
+	if _can_stand():
+		_set_stance(body.stand)
+	state = Move.LIFT
+	_timer = 0.0
+	velocity = Vector3.ZERO
+	_roll_queued = false
+	_noise(0.25)
+	return true
+
+
+## Give a teammate a leg-up: you hold still, braced, while they go up off you.
+func give_leg_up() -> void:
+	_lifting = LEG_UP_TIME + 0.15
+	velocity = Vector3(0, velocity.y, 0)
+
+
+func _step_lift(delta: float) -> void:
+	var base := _lift_base
+	if base == null or not is_instance_valid(base):
+		_end_lift()
+		state = Move.WALK
+		return
+	_timer += delta
+	var t := clampf(_timer / LEG_UP_TIME, 0.0, 1.0)
+	var to := leg_up_feet(base)
+	# Up first (off their hands), then in over them as they straighten.
+	var up := ease(t, -1.6)
+	var over := ease(t, 2.0)
+	global_position = Vector3(lerpf(_lift_from.x, to.x, over), lerpf(_lift_from.y, to.y, up), lerpf(_lift_from.z, to.z, over))
+	velocity = Vector3.ZERO
+	if t < 1.0:
+		return
+	state = Move.WALK
+	var dir := _lift_dir
+	_end_lift()
+	if _try_ledge(true, dir):
+		_hang_jump = state == Move.HANG  # caught it: straight on up
+		return
+	# Nothing to grab after all: back down behind them.
+	velocity = -dir * 1.5
+	_was_on_floor = false
+
+
+func _end_lift() -> void:
+	if _lift_base and is_instance_valid(_lift_base) and _lift_base is PhysicsBody3D:
+		remove_collision_exception_with(_lift_base)
+	_lift_base = null
+
+
+func is_lifting() -> bool:
+	return _lifting > 0.0
+
+
 # --- Volumes ---------------------------------------------------------------
 
 func enter_volume(v: MovementVolume) -> void:
@@ -1496,6 +1679,8 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			state = Move.WALK  # stance settles next tick, as high as there's room for
 	else:
 		var dir := (transform.basis * Vector3(controls.move.x, 0, controls.move.y)).normalized()
+		if _lifting > 0.0:
+			dir = Vector3.ZERO
 		var speed := WALK_SPEED
 		if rider:
 			speed = CARRY_SPEED
@@ -1613,9 +1798,10 @@ func _noise(loudness: float) -> void:
 
 ## Looks for a ledge straight ahead along `dir`: a wall, a flat top within
 ## reach, and room to crouch on it.
-func _ledge_probe(dir: Vector3) -> Dictionary:
+func _ledge_probe(dir: Vector3, feet := INF_SPOT) -> Dictionary:
 	var space := get_world_3d().direct_space_state
-	var feet := global_position
+	if feet == INF_SPOT:
+		feet = global_position
 	var wall := {}
 	for h in [0.5, 1.1, 1.7]:
 		var from: Vector3 = feet + Vector3.UP * h
@@ -1968,6 +2154,8 @@ func _exclude() -> Array[RID]:
 		out.append(carrier.get_rid())
 	if rider:
 		out.append(rider.get_rid())
+	if _lift_base and is_instance_valid(_lift_base):
+		out.append(_lift_base.get_rid())
 	return out
 
 

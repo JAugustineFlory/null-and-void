@@ -304,6 +304,7 @@ func _group_coop() -> void:
 	await test_coop_terminal_screens()
 	await test_coop_shared_history()
 	await test_coop_notes_huddle()
+	await test_coop_leg_up()
 	await test_coop_looks()
 	await test_coop_sitting()
 	await test_coop_unlocks()
@@ -3013,6 +3014,53 @@ func test_coop_notes_huddle() -> void:
 	pages.queue_free()
 	await _coop_close(worlds)
 	_game().new_run(6)
+
+
+## E1 (environment play): a leg-up off a teammate braced at a wall, decided by
+## the host (one climber at a time off each of them) and played out on the
+## climber's own machine.
+func test_coop_leg_up() -> void:
+	print("Co-op: a leg-up")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(2)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)
+	await _out_of_van(levels)
+	var ids: Array = worlds.map(func(w): return get_multiplayer(w.get_path()).get_unique_id())
+	# The same yard and wall on every machine, away from the floor's own rooms.
+	var yard := Vector3(300, 0, 300)
+	for l in levels:
+		Greybox.box(l, yard + Vector3(0, -0.1, 0), Vector3(12, 0.2, 12), Color.GRAY)
+		Greybox.box(l, yard + Vector3(0, 1.75, -3), Vector3(6, 3.5, 2), Color.DIM_GRAY)  # face at z = -2
+	var spots := [yard + Vector3(0, 0.05, -1.5), yard + Vector3(-0.3, 0.05, -0.5), yard + Vector3(0.6, 0.05, -0.6)]
+	for i in levels.size():
+		var p: Player = levels[i].player
+		p.local_control = false  # driven by the test, not the keyboard
+		p.velocity = Vector3.ZERO
+		p.global_position = spots[i]
+		p.rotation.y = 0.0
+	levels[0].player.controls.crouch = true  # the host braces at the wall
+	await _frames(40)
+	var base_c1: PlayerPuppet = levels[1].players.puppet(ids[0])
+	var base_c2: PlayerPuppet = levels[2].players.puppet(ids[0])
+	check(base_c1.get_prompt(levels[1].player) == Player.LEG_UP_PROMPT and base_c2.get_prompt(levels[2].player) == Player.LEG_UP_PROMPT,
+		"a teammate crouched at the wall, facing it, offers everyone a leg-up")
+	# Both press E at once: the host lets one go up.
+	base_c1.interact(levels[1].player)
+	base_c2.interact(levels[2].player)
+	await _frames(6)
+	var lifted: Array = [levels[1].player.state == Player.Move.LIFT, levels[2].player.state == Player.Move.LIFT]
+	check(lifted.count(true) == 1 and levels[0].player.is_lifting(), "two press E at once: one goes up, and the one braced holds still")
+	var climber: Player = levels[1].player if lifted[0] else levels[2].player
+	var up := await _until(func(): return climber.state == Player.Move.WALK and climber.is_on_floor() and climber.global_position.y > yard.y + 3.4, 8.0)
+	check(up, "up off them and over the 3.5 m edge, on their own machine (y %.2f)" % climber.global_position.y)
+	var seen: Node3D = levels[0].players.puppet(ids[1] if lifted[0] else ids[2])
+	await _frames(20)
+	check(seen.global_position.y > yard.y + 3.3, "and everyone sees them up there")
+	for l in levels:
+		l.player.controls.crouch = false
+		l.player.local_control = true
+	await _coop_close(worlds)
 
 
 func test_coop_looks() -> void:
