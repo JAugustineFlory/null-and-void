@@ -30,6 +30,9 @@ var puzzles: Array = []
 ## player types one literally.
 var blanks := {}
 var locked := false
+## Under the terminal security policy (TerminalPolicy): set by the level, the
+## same on every machine. Bare SELECT * is refused and results are capped.
+var policy := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
@@ -219,9 +222,13 @@ func ensure_booted() -> void:
 
 
 func boot_text() -> Array:
-	if not boot_lines.is_empty():
-		return boot_lines
-	return ["HALCYON DATA SYSTEMS  -  WARDEN v3.1", "Type .help for commands."]
+	var lines: Array = boot_lines if not boot_lines.is_empty() else ["HALCYON DATA SYSTEMS  -  WARDEN v3.1", "Type .help for commands."]
+	return TerminalPolicy.boot_with_line(lines) if policy else lines
+
+
+## Run a query here: under the policy (TerminalPolicy.run) if it's on.
+func query(sql: String) -> Dictionary:
+	return TerminalPolicy.run(db, sql) if policy else db.execute(sql)
 
 
 ## Replace the boot text and wipe the screen the next time it is opened.
