@@ -19,6 +19,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	_tree = tree
 	_check = check
 	test_pieces()
+	test_cell_slots()
 	test_board_page()
 	test_endings_and_routes()
 	test_job_over()
@@ -430,3 +431,66 @@ func _case_text(g: Node) -> String:
 
 func check(cond: bool, name: String) -> void:
 	_check.call(cond, name)
+
+
+## Click to solve: a find step's slot is filled by pointing at the cell that holds
+## its answer, in the column the case asks about, whatever query put it on screen.
+func test_cell_slots() -> void:
+	print("Case board: click the answer's cell")
+	var g := _game()
+	g.new_run(41)
+	var db := FacilityDB.new()
+	db.run_silent("CREATE TABLE ctl (id TEXT, zone TEXT, status TEXT)")
+	db.run_silent("INSERT INTO ctl VALUES ('DC-1', 'A', 'ok'), ('DC-15', 'C', 'fault'), ('DC-7', 'C', 'ok'), ('DC-2', 'B', 'fault')")
+	var p := Puzzle.new("ctl", "SELECT id, zone FROM ctl WHERE status = 'fault' AND zone = 'C'", ["id"], false)
+	var slot := p.answer_slot(db, "id")
+	check(slot.values == ["DC-15"] and slot.rows.is_empty(), "the slot is read from the solution on this run's data: the id DC-15 (%s)" % [slot])
+	g.open_case("ctl", "Which controller is faulting?")
+	g.set_blank("ctl", "The faulting controller", [], "DC-15", slot)
+	check(not g.add_cell("id", "DC-1", {"id": "DC-1", "zone": "A"}) and g.case_info("ctl").blank.filled == "", "DC-1 isn't DC-15: values match whole, not as part of another")
+	check(not g.add_cell("zone", "C", {"id": "DC-15", "zone": "C"}), "the right row's other cell isn't it")
+	check(g.add_cell("ID", "dc-15", {"ID": "dc-15"}, "SELECT * FROM ctl WHERE status = 'fault';"), "the id cell holding DC-15 is, in any case and from any query")
+	var b: Dictionary = g.case_info("ctl").blank
+	check(b.filled == "DC-15" and b.query == "SELECT * FROM ctl WHERE status = 'fault';" and b.source == "terminal", "it's written in, with the query that found it")
+
+	# A value a set shares (the zone of a stuck door): any answer row's zone cell, but
+	# not the same value in a row that isn't one; with no naming column shown, the value's enough.
+	var zp := Puzzle.new("zone", "SELECT id, zone FROM ctl WHERE zone = 'C'", ["zone"], false)
+	var zs := zp.answer_slot(db, "zone")
+	check(zs.values == ["C"] and zs.rows.size() == 2 and zs.rows[0].has("id") and not zs.rows[0].has("zone"), "a set's slot holds the shared value and names each answer row by its id")
+	g.found_cells.clear()  # (the zone cell pointed at above would fill it straight away)
+	g.open_case("zone", "Which zone?")
+	g.set_blank("zone", "The zone", [], "C", zs)
+	check(not g.add_cell("zone", "C", {"id": "DC-2", "zone": "C"}), "the value in a row that isn't an answer row doesn't count")
+	check(g.add_cell("zone", "c", {"zone": "C"}), "a result with no naming column: the column and value are enough")
+
+	# A count: the result's only cell, under whatever name the query gave it.
+	g.open_case("count", "How many?")
+	g.set_blank("count", "Faulted", [], "2", {"column": "", "values": ["2"], "only": true})
+	check(not g.add_cell("n", "2", {"id": "DC-2", "n": "2"}), "a 2 in a wider row isn't the count")
+	check(g.add_cell("COUNT(*)", "2", {"COUNT(*)": "2"}), "the count on its own is")
+
+	# Pointed at before the case opens: kept for the floor, it fills the slot when it's set.
+	g.add_cell("name", "Harold Mercer", {"name": "Harold Mercer", "extension": "4815"}, "SELECT name, extension FROM staff;")
+	g.open_case("caller", "Who called?")
+	g.set_blank("caller", "Ext. 4815 belongs to", [], "Harold Mercer", {"column": "name", "values": ["Harold Mercer"], "rows": [{"extension": 4815}]})
+	check(g.case_info("caller").blank.filled == "Harold Mercer" and g.case_info("caller").blank.query == "SELECT name, extension FROM staff;", "a cell found before its case opened fills the slot once it's set")
+	g.add_cell("name", "Dana Price", {"name": "Dana Price"})
+	g.set_blank("later", "Who?", [], "Dana Price", {"column": "name", "values": ["Dana Price"]})
+	check(g.case_info("later").blank.filled == "", "set before its case opens, a slot waits")
+	g.open_case("later", "Who?")
+	check(g.case_info("later").blank.filled == "Dana Price", "and fills when the case opens")
+	g.mark_floor_start("level_1")
+	check(g.found_cells.is_empty(), "a new floor starts with nothing pointed at")
+
+	# A terminal line isn't a cell slot's answer, a paper's line still is.
+	g.open_case("paper", "Who?")
+	g.set_blank("paper", "Who?", ["vale"], "Vale", {"column": "name", "values": ["Vale"]})
+	check(not g.add_answer("name | Vale", "terminal") and g.add_answer("Dr. Vale, Secure Lab B", "document"), "a whole terminal line doesn't fill a cell's slot; a line on a paper still does")
+
+	# Reading cells off the screen.
+	var cells := TerminalUI.row_cells("id    | zone | status", "DC-15 | C    | fault")
+	check(cells.map(func(x): return [x.column, x.value]) == [["id", "DC-15"], ["zone", "C"], ["status", "fault"]] and cells[1].start == 8 and cells[1].end == 12, "a result row's cells come from its header's columns (%s)" % [cells])
+	var f := TerminalUI.json_field('  "edited_by": "EXEC-30",')
+	check(f.column == "edited_by" and f.value == "EXEC-30" and TerminalUI.json_field('  "doors": [').is_empty() and TerminalUI.json_field('  "locked": null').value == "NULL", "a request's field line is a cell: its key and value")
+

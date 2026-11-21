@@ -1,0 +1,2 @@
+- **Added:** terminals have a screen color and a text theme, picked separately in Gear. Text themes color each kind of word in a query and its results their own way, and new ones unlock as you play.
+- **Changed:** every query typed at a terminal shows with its keywords, numbers and quoted text colored.

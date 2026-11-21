@@ -50,6 +50,17 @@ var _note_index := -1
 var _hover_band: ColorRect
 var _add_chip: Button
 var _hover_index := -1
+## The cell lit up in that line (an index into its "cells"), or -1 for the line.
+## A result row's cells are its columns; a request's answer has one per field line.
+var _hover_cell := -1
+## The query (or request) behind the lines printed after it: what found a cell.
+var _last_query := ""
+## How long an open case's answer has sat on this screen with nobody pointing at
+## it, and the cases already nudged about that (TerminalUI.NUDGE_AFTER).
+var _unclicked := 0.0
+var _nudged: Array[String] = []
+var _answer_now := ""
+var _check_in := 0.0
 ## Who else is at this terminal, and what they're typing.
 var _others: Label
 var _foot: Label
@@ -57,6 +68,10 @@ var _foot: Label
 ## no dimmed backdrop, no margin. `_home` is where it goes back to afterwards.
 var _dim: ColorRect
 var _panel: PanelContainer
+## The look the screen is drawn in now (TerminalLook.of; the terminal's, set by
+## whoever sat down first).
+var _look := {}
+var _style: StyleBoxFlat
 var _screen: Node
 var _home: Node
 ## The script runner (.script), made the first time it's needed, and the
@@ -75,6 +90,10 @@ var _tapped: Array = []
 var _sent := {}
 ## The right stick scrolls the screen this fast at full push (pixels a second).
 const PAD_SCROLL := 900.0
+## An open case's answer left on the screen this long with nobody pointing at it:
+## the crew says to point at it (NUDGE_LINE), once per case.
+const NUDGE_AFTER := 20.0
+const NUDGE_LINE := "cc_point_at_it"
 const FOOT := "Enter: run (a query ends with ;)    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away"
 ## The foot line while a pad is in use (draft for Augustine's word-for-word OK).
 const PAD_FOOT := "%s: run    D-pad up/down: previous queries    %s: pick a line for your notebook    Right stick: scroll    %s: step away"
@@ -94,6 +113,7 @@ func _ready() -> void:
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_set_hosted(false)
 	var style := StyleBoxFlat.new()
+	_style = style
 	style.bg_color = Color(0.02, 0.05, 0.03)
 	style.border_color = Color(0.2, 0.45, 0.25)
 	style.set_border_width_all(3)
@@ -139,9 +159,9 @@ func _ready() -> void:
 	_add_chip.add_theme_color_override("font_color", Color(ThemeUtil.GREEN, 0.75))
 	_add_chip.add_theme_color_override("font_hover_color", Color(0.98, 0.9, 0.42))
 	_add_chip.visible = false
-	_add_chip.pressed.connect(func(): _start_note(_hover_index))
+	_add_chip.pressed.connect(func(): use_cell(_hover_index, _hover_cell))
 	_output.add_child(_add_chip)
-	_output.get_v_scroll_bar().value_changed.connect(func(_v): _hover_line(picking))  # a pad's pick follows the scroll
+	_output.get_v_scroll_bar().value_changed.connect(func(_v): _hover_line(picking, _hover_cell if picking >= 0 else -1))  # a pad's pick follows the scroll
 
 	# Naming a note before it goes in the notebook.
 	_note_label = LineEdit.new()
@@ -204,9 +224,9 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	visible = true
 	# Each terminal keeps its own screen; in co-op it shows everyone's queries.
 	terminal.ensure_booted()
-	_clear_output()
-	for i in terminal.transcript.size():
-		_render(terminal.transcript[i], terminal.transcript_kinds[i] if i < terminal.transcript_kinds.size() else "")
+	_look = {}
+	_apply_look()
+	_show_transcript()
 	if not terminal.screen_changed.is_connected(_show_others):
 		terminal.screen_changed.connect(_show_others)
 	var mirror := _mirror()
@@ -407,6 +427,8 @@ func make_room(top: float) -> void:
 func _show_others() -> void:
 	if terminal == null or not visible:
 		return
+	if _apply_look():
+		_show_transcript()  # whoever sat first has a look of their own: redraw in it
 	var me := multiplayer.get_unique_id()
 	var net := get_node_or_null("/root/Net")
 	var lines := PackedStringArray()
@@ -423,30 +445,150 @@ func _show_others() -> void:
 ## Put a line on this machine's screen. Every non-blank line can be pointed at
 ## and added to this player's own notebook; "none" lines can't.
 func _render(bbcode: String, kind: String = "") -> void:
+	if not _look.is_empty():
+		bbcode = TerminalLook.recolor(bbcode, _look)
 	var text := _plain(bbcode).strip_edges()
 	if text == "" or kind == "none":
 		_output.append_text(bbcode + "\n")
 		return
 	if kind == "":
 		kind = "error" if text.begins_with("ERROR") else ("hint" if text.begins_with("[SYSOP]") else "info")
+	if kind == "echo":
+		_last_query = text.substr(text.find(">") + 1).strip_edges() if text.contains(">") else text
 	var from := _output.get_paragraph_count() - 1
 	_output.append_text(bbcode + "\n")
-	if kind == "result" and bbcode.count("\n") >= 3:
+	if kind == "result" and (text.begins_with("{") or text.begins_with("[")):
+		# A request's answer: the whole of it from its first line, and each field
+		# line ("edited_by": "EXEC-30") a cell of its own.
+		var lines := bbcode.split("\n")
+		_noteable.append({"kind": kind, "text": text, "from": from, "to": from + 1})
+		for i in range(1, lines.size()):
+			var field := json_field(_plain(lines[i]))
+			if not field.is_empty():
+				_noteable.append({"kind": "field", "text": _plain(lines[i]).strip_edges(), "from": from + i, "to": from + i + 1,
+					"cells": [field], "query": _last_query})
+	elif kind == "result" and bbcode.count("\n") >= 3:
 		# A table: its header line copies the whole result, and each row (under
 		# the rule, above the row count) is a line of its own, copied with the header.
+		# Each of a row's cells can be pointed at on its own.
 		var rows := bbcode.split("\n")
 		_noteable.append({"kind": kind, "text": text, "from": from, "to": from + 1})
-		var head := _plain(rows[0]).strip_edges()
+		var head_line := _plain(rows[0])
+		var head := head_line.strip_edges()
 		for i in range(2, rows.size() - 1):
-			_noteable.append({"kind": "row", "text": head + "\n" + _plain(rows[i]).strip_edges(), "from": from + i, "to": from + i + 1})
+			_noteable.append({"kind": "row", "text": head + "\n" + _plain(rows[i]).strip_edges(), "from": from + i, "to": from + i + 1,
+				"cells": row_cells(head_line, _plain(rows[i])), "query": _last_query})
 	else:
 		_noteable.append({"kind": kind, "text": text, "from": from, "to": _output.get_paragraph_count() - 1})
-	_hover_line(picking)  # the screen may scroll under the pointer
+	_hover_line(picking, _hover_cell if picking >= 0 else -1)  # the screen may scroll under the pointer
+
+
+func _process(delta: float) -> void:
+	if not visible or terminal == null or not is_instance_valid(terminal):
+		_unclicked = 0.0
+		return
+	_check_in -= delta
+	if _check_in <= 0.0:
+		_check_in = 0.5
+		_answer_now = answer_on_screen()
+	if _answer_now == "" or _answer_now in _nudged:
+		_unclicked = 0.0
+		return
+	_unclicked += delta
+	if _unclicked < NUDGE_AFTER:
+		return
+	_nudged.append(_answer_now)
+	_unclicked = 0.0
+	var hud = _hud()
+	var line := VoiceLines.get_line(NUDGE_LINE)
+	if hud and hud.has_method("say") and not line.is_empty():
+		var net := get_node_or_null("/root/Net")
+		var me: String = net.display_name(multiplayer.get_unique_id()) if net and net.has_method("display_name") else ""
+		hud.say(me if me != "" else "You", line.text, -1.0, HUD.Turn.CAN_WAIT)
+
+
+## The open case whose answer is in a cell on screen right now, or "". The nudge
+## clock (_unclicked) restarts whenever nothing on screen answers anything.
+func answer_on_screen() -> String:
+	if _output == null:
+		return ""
+	var game := get_node("/root/Game")
+	var top := _output.get_v_scroll_bar().value
+	var bottom := top + _output.size.y
+	for i in range(_noteable.size() - 1, -1, -1):
+		var e: Dictionary = _noteable[i]
+		if not e.has("cells"):
+			continue
+		var y := _para_top(e.from)
+		if y > bottom:
+			continue
+		if y + _line_height() < top:
+			break
+		var row := _row_of(i)
+		for c in e.cells:
+			var id: String = game.answers_cell(c.column, c.value, row)
+			if id != "":
+				return id
+	return ""
 
 
 ## What on screen right now can be written into the notebook, oldest first.
 func noteable_lines() -> Array[Dictionary]:
 	return _noteable.duplicate(true)
+
+
+## A result row's cells, read off its line by the header's columns (the table is
+## fixed-width): [{column, value, start, end}], start and end in characters.
+static func row_cells(header: String, row: String) -> Array:
+	var cells := []
+	var at := 0
+	var names := header.split(" | ")
+	for i in names.size():
+		var width: int = names[i].length() if i < names.size() - 1 else maxi(names[i].length(), row.length() - at)
+		cells.append({"column": names[i].strip_edges(), "value": row.substr(at, width).strip_edges(), "start": at, "end": at + width})
+		at += width + 3
+	return cells
+
+
+## A request's field line as a cell: "edited_by": "EXEC-30", gives {column
+## edited_by, value EXEC-30}. A line that opens an object or a list isn't one.
+static func json_field(line: String) -> Dictionary:
+	var re := RegEx.create_from_string('^(\\s*)"([^"]+)"\\s*:\\s*(.*?),?\\s*$')
+	var m := re.search(line)
+	if m == null:
+		return {}
+	var raw := m.get_string(3)
+	if raw.begins_with("{") or raw.begins_with("["):
+		return {}
+	var value := raw.trim_prefix('"').trim_suffix('"') if raw.begins_with('"') else raw
+	return {"column": m.get_string(2), "value": "NULL" if raw == "null" else value, "start": m.get_string(1).length(), "end": line.rstrip(", ").length()}
+
+
+## The row behind line `index`'s cells, column -> value: what names the row.
+func _row_of(index: int) -> Dictionary:
+	var row := {}
+	for c in _noteable[index].get("cells", []):
+		row[c.column] = c.value
+	return row
+
+
+## Point at cell `cell` of line `index`: if it answers a case's slot it's written
+## in there (Game.add_cell). Otherwise the line is noted, as any line can be.
+func use_cell(index: int, cell: int) -> bool:
+	if index < 0 or index >= _noteable.size():
+		return false
+	var cells: Array = _noteable[index].get("cells", [])
+	if cell < 0 or cell >= cells.size():
+		_start_note(index)
+		return false
+	var c: Dictionary = cells[cell]
+	if get_node("/root/Game").add_cell(c.column, c.value, _row_of(index), _noteable[index].get("query", ""), "terminal"):
+		_render("[color=#7fa88a]Written in your notebook.[/color]", "none")
+		if visible:
+			close()
+		return true
+	_start_note(index)
+	return false
 
 
 ## Copy line `index` into this player's notebook, with an optional label. A line
@@ -499,7 +641,11 @@ func _start_note(index: int) -> void:
 ## select-all, stay with the text.)
 func _on_output_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
-		_hover_line(_line_at(event.position.y))
+		var index := _line_at(event.position.y)
+		_hover_line(index, _cell_at(index, event.position.x))
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed \
+			and _hover_index >= 0 and _hover_cell >= 0 and _output.get_selected_text() == "":
+		use_cell(_hover_index, _hover_cell)  # a click on a cell, not a drag to select
 	elif event is InputEventKey and event.pressed:
 		if event.is_action("ui_copy", true):
 			_input.grab_focus.call_deferred()
@@ -520,10 +666,12 @@ func _line_at(y: float) -> int:
 	return -1
 
 
-## Light up line `index` (-1 for none) and put the add chip at its right end.
-func _hover_line(index: int) -> void:
+## Light up line `index` (-1 for none), or just its cell `cell`, and put the add
+## chip at the line's right end.
+func _hover_line(index: int, cell: int = -1) -> void:
 	_hover_index = index
 	var on := index >= 0 and index < _noteable.size()
+	_hover_cell = cell if on and cell < _noteable[index].get("cells", []).size() else -1
 	_hover_band.visible = on
 	_add_chip.visible = on
 	if not on:
@@ -534,8 +682,41 @@ func _hover_line(index: int) -> void:
 	var bottom := _para_top(_noteable[index].to) - scroll
 	_hover_band.position = Vector2(0, top)
 	_hover_band.size = Vector2(_output.size.x, maxf(bottom - top, 4.0))
+	if _hover_cell >= 0:
+		var c: Dictionary = _noteable[index].cells[_hover_cell]
+		var w := _char_width()
+		_hover_band.position.x = _text_left() + c.start * w - 3.0
+		_hover_band.size.x = (c.end - c.start) * w + 6.0
 	_add_chip.reset_size()
 	_add_chip.position = Vector2(_output.size.x - _add_chip.size.x - 18, top + (bottom - top - _add_chip.size.y) / 2.0)
+
+
+## Which cell of line `index` is at `x` in the output, or -1 (no cells, between
+## them, or a line long enough to wrap, where columns don't line up).
+func _cell_at(index: int, x: float) -> int:
+	if index < 0 or index >= _noteable.size() or not _noteable[index].has("cells"):
+		return -1
+	var e: Dictionary = _noteable[index]
+	if _para_top(e.to) - _para_top(e.from) > _line_height() * 1.5:
+		return -1
+	var at := (x - _text_left()) / _char_width()
+	for i in e.cells.size():
+		if at >= e.cells[i].start and at < e.cells[i].end:
+			return i
+	return -1
+
+
+func _char_width() -> float:
+	return ThemeUtil.mono().get_char_size("M".unicode_at(0), _output.get_theme_font_size("normal_font_size")).x
+
+
+func _line_height() -> float:
+	return ThemeUtil.mono().get_height(_output.get_theme_font_size("normal_font_size"))
+
+
+func _text_left() -> float:
+	var box := _output.get_theme_stylebox("normal")
+	return box.get_margin(SIDE_LEFT) if box else 0.0
 
 
 ## Where paragraph `p` starts in the output's content. Asking for the content
@@ -565,6 +746,30 @@ func _on_note_key(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_note_label.accept_event()
 		_cancel_note()
+
+
+## Everything on the open terminal's screen so far, drawn afresh.
+func _show_transcript() -> void:
+	_clear_output()
+	for i in terminal.transcript.size():
+		_render(terminal.transcript[i], terminal.transcript_kinds[i] if i < terminal.transcript_kinds.size() else "")
+
+
+## Draw in the open terminal's look (its text theme and screen). True if it changed.
+func _apply_look() -> bool:
+	var l: Dictionary = terminal.look if terminal and terminal.get("look") is Dictionary and not terminal.look.is_empty() else TerminalLook.standard()
+	if l == _look:
+		return false
+	_look = l
+	_style.bg_color = l.bg
+	_style.border_color = l.rule
+	_output.add_theme_color_override("default_color", l.text)
+	_hover_band.color = Color(l.text, 0.12)
+	_add_chip.add_theme_color_override("font_color", Color(l.text, 0.75))
+	_input.add_theme_color_override("font_color", l.row)
+	_input.add_theme_color_override("background_color", l.bg.lerp(l.text, 0.06))
+	_input.syntax_highlighter = _sql_highlighter()
+	return true
 
 
 func _clear_output() -> void:
@@ -685,14 +890,20 @@ func _on_pad(event: InputEvent) -> bool:
 			return true
 		return false
 	if picking >= 0:
+		var cells: int = _noteable[picking].get("cells", []).size()
 		if event.is_action_pressed("ui_up"):
 			_pick(picking - 1)
 		elif event.is_action_pressed("ui_down"):
 			_pick(picking + 1)
+		elif event.is_action_pressed("ui_left") and cells > 0:
+			_hover_line(picking, maxi(_hover_cell - 1, 0))
+		elif event.is_action_pressed("ui_right") and cells > 0:
+			_hover_line(picking, mini(_hover_cell + 1, cells - 1))
 		elif event.is_action_pressed("ui_accept") or event.is_action_pressed("alt_interact"):
 			var index := picking
+			var cell := _hover_cell
 			_stop_picking()
-			_start_note(index)
+			use_cell(index, cell)
 		elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("interact"):
 			_stop_picking()
 		else:
@@ -729,7 +940,7 @@ func _pick(index: int) -> void:
 		return
 	picking = clampi(index, 0, _noteable.size() - 1)
 	_output.scroll_to_paragraph(_noteable[picking].from)
-	_hover_line(picking)
+	_hover_line(picking, _hover_cell if picking >= 0 else -1)
 	_show_foot()
 
 
@@ -1219,16 +1430,17 @@ func _esc(s: String) -> String:
 
 
 func _sql_highlighter() -> CodeHighlighter:
+	var l: Dictionary = _look if not _look.is_empty() else TerminalLook.standard()
 	var h := CodeHighlighter.new()
-	h.number_color = Color(0.7, 0.85, 1.0)
-	h.symbol_color = Color(0.8, 0.9, 0.8)
-	h.function_color = Color(0.85, 1.0, 0.85)
-	h.member_variable_color = Color(0.85, 1.0, 0.85)
-	var kw := Color(KEYWORD)
+	h.number_color = l.number
+	h.symbol_color = l.row.lerp(l.text, 0.3)
+	h.function_color = l.row
+	h.member_variable_color = l.row
+	var kw: Color = l.keyword
 	for word in KEYWORDS:
 		h.add_keyword_color(word, kw)
 		h.add_keyword_color(word.to_lower(), kw)
-	h.add_color_region("'", "'", Color(0.6, 1.0, 1.0))
+	h.add_color_region("'", "'", l.string)
 	return h
 
 
