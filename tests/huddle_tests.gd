@@ -14,6 +14,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	var net := _tree.root.get_node("Net")
 	var real_profile = net.profile
 	net.profile = Profile.new()  # in memory, so tests never touch a real save
+	net.profile.tutorial_done = true  # the lab's practice is skipped here; garage_lab_tests plays it
 	test_book_unlocks()
 	test_garage_front()
 	Engine.time_scale = 4.0
@@ -252,6 +253,8 @@ func test_garage_opening() -> void:
 	_check.call(_game().book_words.has("row"), "its words are learned")
 	_check.call(prof.earned.has("chapter:easy_sql_0") and not prof.earned.has("achievement:easy_sql_half"), "the chapter is remembered on the profile; one chapter isn't half the book")
 	await _test_yourself(world)
+	_check.call(await _until(func(): return home.lab.tutorial.finished, 2400) and home.lab.computers.all(func(c): return c.enabled) and _game().case_info("lab_kit").is_empty(),
+		"someone who's done the lab's practice before skips it, and the lab's open")
 	_check.call(await _until(func(): return home.hud.current_todo() == home.SPAR_TODO, 2400), "last, before the van, she sends the crew to the punch bag")
 	_check.call(home.hud._notice.text == home.MOVE_NOTICE and not home.van_door.enabled, "everyone's told again how to stand and walk, and the van isn't open yet")
 	_check.call(await _until(func(): return home.hud._notice.text == home.SPAR_NOTICE, 600), "then how to block it")
@@ -508,7 +511,7 @@ func test_lead_ins_wired() -> void:
 			continue
 		for m in run_re.search_all(FileAccess.get_file_as_string("res://scripts/levels/" + f)):
 			var remembered := m.get_string(1).contains("REMEMBERED")
-			if remembered == f.begins_with("home_base"):
+			if remembered == (f.begins_with("home_base") or f.begins_with("garage_")):
 				plain.append("%s: run(%s)" % [f, m.get_string(1)])
 	_check.call(plain.is_empty(), "every floor level brings its chapters in remembered, and the garage doesn't %s" % [plain])
 
