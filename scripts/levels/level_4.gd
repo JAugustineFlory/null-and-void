@@ -232,7 +232,7 @@ const CASES := {"power": TEXT.case_power, "login": TEXT.case_login, "main_doors"
 const G_STAIR_AT := GroundFloor.STAIR_AT
 const G_FRONT_AT := GroundFloor.FRONT_AT
 ## The reception desk's middle, at floor level.
-const G_DESK_AT := Vector3(0, 0, -1.0)
+const G_DESK_AT := Vector3(GroundFloor.DESK.x, 0, GroundFloor.DESK.z)
 const G_LOBBY := AABB(Vector3(-8, -0.5, -7), Vector3(16, 4.5, 14))
 ## Run on its own, the ground floor sits this far under floor 10 (level space).
 const G_OFFSET := Vector3(0, -40, 0)

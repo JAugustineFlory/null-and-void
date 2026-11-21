@@ -851,7 +851,7 @@ func test_same_ground_floor() -> void:
 	var g: Transform3D = level.g_geo.global_transform
 	var from: Vector3 = g * (level.G_STAIR_AT + Vector3(0, 0, -1.5))
 	var routes_ok := true
-	for to in [g * Vector3(1.5, 0, 0.2), g * Vector3(0, 0, 6.0)]:
+	for to in [g * (level.G_DESK_AT + Vector3(1.5, 0, 1.2)), g * Vector3(level.G_FRONT_AT.x, 0, level.G_FRONT_AT.z - 0.95)]:
 		var path := NavigationServer3D.map_get_path(map, from, to, true)
 		routes_ok = routes_ok and not path.is_empty() and path[path.size() - 1].distance_to(to) < 0.8 and path[0].distance_to(from) < 0.8
 	check(routes_ok, "from STAIR 1 the crew can walk to the front desk and the front doors")

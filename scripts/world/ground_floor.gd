@@ -129,10 +129,15 @@ static func at(room: Rect2, east: float, y: float, south: float) -> Vector3:
 	return Vector3(room.position.x + east, y, room.position.y + south)
 
 
-## A point on the front desk's top: `along` metres east of its middle, `toward`
-## metres toward the front doors from its centre line, `lift` above the top.
+## A point by the front desk: `along` metres east of its middle, `toward` metres
+## toward the front doors from its centre line (minus is behind it), at height `y`.
+static func by_desk(along: float, toward: float, y: float = 0.0) -> Vector3:
+	return Vector3(DESK.x + along, y, DESK.z + toward)
+
+
+## A point on the front desk's top: the same, `lift` above the top.
 static func on_desk(along: float, toward: float = 0.0, lift: float = 0.0) -> Vector3:
-	return Vector3(DESK.x + along, DESK_SIZE.y + lift, DESK.z + toward)
+	return by_desk(along, toward, DESK_SIZE.y + lift)
 
 
 ## `room` as a box from `below` its floor to `above` its ceiling, grown by
@@ -293,6 +298,8 @@ const CAFE_TABLES_X := [-4.0, 0.0, 4.0]
 const CAFE_TABLES_Z := [-12.5, -15.0]
 const VENDING_AT := Vector3(7.4, 0.9, -12.0)
 const IT_CRATE := Vector3(10.8, 0.3, -13.4)
+## The IT closet's ceiling access panel (Level 0's leg-up).
+const IT_HATCH := Vector3(10.2, 2.97, -12.6)
 
 
 ## The lift hall, through the door at the end of the hall, with STAIR 1 in its

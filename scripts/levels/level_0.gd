@@ -977,7 +977,7 @@ func _build_ground_floor() -> void:
 	vending = Interactable.create(geo, GroundFloor.VENDING_AT + Vector3(-0.48, 0.1, 0), Vector3(0.06, 0.6, 0.6), "Buy a coffee", Color.WHITE, false)
 	vending.used.connect(_on_vending)
 	# The IT closet's ceiling access panel sticks: out of reach without a leg up.
-	ceiling_hatch = Interactable.create(self, GroundFloor.at(GroundFloor.IT_CLOSET, 2.2, GroundFloor.BACK_H - 0.03, 1.4), Vector3(0.7, 0.04, 0.7), "Push the ceiling panel", Color(0.78, 0.78, 0.74))
+	ceiling_hatch = Interactable.create(self, GroundFloor.IT_HATCH, Vector3(0.7, 0.04, 0.7), "Push the ceiling panel", Color(0.78, 0.78, 0.74))
 	ceiling_hatch.used.connect(_on_hatch)
 
 	# The dark east corridor is where the Hum lives.
