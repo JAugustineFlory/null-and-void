@@ -15,7 +15,7 @@ const SILENT := ["none", "terminal"]
 ## What a prompt's words say a thing is, checked in order (lower case). The first
 ## that the prompt contains wins.
 const BY_PROMPT := [
-	["vent", "vent_panel"], ["grate", "vent_panel"], ["hatch", "vent_panel"], ["ceiling panel", "vent_panel"],
+	["vent", "vent_panel"], ["grate", "vent_panel"], ["hatch", "vent_panel"], ["ceiling panel", "ceiling_tile"],
 	["locker", "locker"], ["reset", "switch"], ["breaker", "switch"], ["lighting circuit", "switch"],
 	["crank", "crank"], ["buckle", "buckle"], ["badge in", "card"], ["swipe", "card"], ["key card", "card"],
 	["stair door", "push_bar"], ["push bar", "push_bar"], ["pull", "lever"], ["lock", "lock"],
@@ -57,6 +57,13 @@ static func sound_of(kind: String) -> String:
 	if kind == "" or kind in SILENT:
 		return ""
 	return SOUND_OF.get(kind, kind)
+
+
+## Every machine: a badge reader (any node at the reader) answers a swipe: two chirps
+## for yes, three blats for no. Nothing if the reader isn't there.
+static func reader(at: Node, ok: bool) -> void:
+	if at is Node3D and at.get_parent():
+		Sfx.play(at.get_parent(), "reader_ok" if ok else "reader_no", at.position)
 
 
 ## Every machine: someone used `it`; it sounds where it is.

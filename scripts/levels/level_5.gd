@@ -1768,6 +1768,7 @@ func _on_reader(body: Node, reader: String) -> void:
 ## Every machine: a swipe goes in the log.
 func _swipe(badge: String, reader: String, time: String) -> void:
 	swipes.append({"badge": badge, "reader": reader, "dir": "IN", "time": time})
+	SfxTouch.reader(get_node_or_null("Reader_" + reader), true)
 
 
 ## Every machine: everyone is on STAIR 2. The radio crackles once more, then down.

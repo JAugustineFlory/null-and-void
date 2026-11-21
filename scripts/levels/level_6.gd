@@ -1367,6 +1367,7 @@ func _card_of(peer_id: int) -> String:
 
 ## Every machine: a crew card punched at a vault's reader.
 func _punch(card: String, vault: String, entering: bool) -> void:
+	SfxTouch.reader(get_node_or_null("Reader_" + vault), true)
 	if entering:
 		crew_in[card] = vault
 		if _open_crew_entry(card, vault) == 0:

@@ -602,6 +602,7 @@ const DENIED_NOT_AUTHORIZED := "> ACCESS DENIED: NOT AUTHORIZED"
 func _on_reader(p: Node) -> void:
 	if not p.inventory.has("visitor_badge"):
 		level.hud.notice(DENIED_NO_BADGE, 2.5, ThemeUtil.RED)
+		reader.sound_everywhere("reader_no")
 		return
 	reader_relay.interact(p)
 
@@ -627,6 +628,7 @@ func _badged(id: int, badge: String) -> void:
 	if badged.has(id):
 		return
 	badged[id] = true
+	SfxTouch.reader(reader, true)
 	_log_swipe(badge, "BYTE-RIGHT IT (VISITOR)")
 	level.hud.notice("> BADGE %s: VISITOR LOGGED, SECLAB-B" % badge, 2.5, ThemeUtil.GREEN)
 	if level.sync.is_host() and badged.size() >= level.players.count():
