@@ -140,6 +140,10 @@ var notebook_jotted: Array[String] = []
 ## query}. One that answers a case's slot before the case opens fills it when the
 ## slot is set (set_blank). A new floor starts it empty (mark_floor_start).
 var found_cells: Array = []
+## Hint spots someone in the crew has found this run (find_spot): a paper read, a
+## .schema run. `.hint` sends the crew to the first spot not found yet before its
+## own tiers (Puzzle.spots, Terminal.next_hint).
+var spots_found: Array = []
 ## The case this player picked in the notebook ("" for the main one): see
 ## case_selected. The query on screen and the typing line's example follow it.
 var selected_case := ""
@@ -169,6 +173,7 @@ func _ready() -> void:
 
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
+	spots_found.clear()
 	open_at_home = false
 	open_at_wing = 0
 	floor_start = {}
@@ -469,6 +474,19 @@ func open_case(id: String, title: String, tables: Array = [], objective: String 
 				_fill_from_cell(id, f)
 				break
 	return true
+
+
+## Someone in the crew found hint spot `id` (LevelBase.found_spot keeps every
+## machine the same). True if new.
+func find_spot(id: String) -> bool:
+	if id == "" or spots_found.has(id):
+		return false
+	spots_found.append(id)
+	return true
+
+
+func spot_found(id: String) -> bool:
+	return spots_found.has(id)
 
 
 ## Note a clue on a case page (once). `from` says where it was read. True if new.

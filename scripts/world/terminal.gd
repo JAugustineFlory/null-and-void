@@ -4,6 +4,9 @@ extends Interactable
 
 signal queried(sql: String, result: Dictionary, ui: TerminalUI)
 signal requested(line: String, response: Dictionary, ui: TerminalUI)
+## A query here failed (on every machine that shows it): the crew's commentary
+## hears the kind of mistake (Commentary.kind_of).
+signal query_failed(sql: String, result: Dictionary)
 ## Someone sat down at this terminal. Fires on the host (in co-op a client's
 ## opening is reported there), so story code can react to it.
 signal opened(by: Node)
@@ -270,5 +273,6 @@ func next_hint() -> String:
 		return "This terminal is locked. Find a way to authorize it."
 	for p in puzzles:
 		if not p.solved:
-			return p.next_hint()
+			var spot: String = p.spot_hint(get_node("/root/Game"))
+			return spot if spot != "" else p.next_hint()
 	return "Nothing left to solve here. Keep moving."
