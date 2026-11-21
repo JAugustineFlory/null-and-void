@@ -294,6 +294,7 @@ func _group_hints() -> void:
 func _group_papers() -> void:
 	await _run_file("res://tests/paper_fit_tests.gd")
 	await _run_file("res://tests/paper_facing_tests.gd")
+	await _run_file("res://tests/facing_tests.gd")
 
 
 ## Co-op: several machines in one process.
