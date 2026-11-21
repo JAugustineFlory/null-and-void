@@ -29,6 +29,7 @@ const HALL := Rect2(8, 2, 16, 2)
 const HALL_H := 3.0
 ## The back corridor behind the lobby, and the rooms along its north side.
 const CORRIDOR := Rect2(-20, -10, 32, 3)
+const CORRIDOR_Z := CORRIDOR.position.y + CORRIDOR.size.y / 2.0  # its centre line
 const MAILROOM := Rect2(-20, -18, 7, 8)
 const MENS := Rect2(-13, -18, 3, 8)
 const WOMENS := Rect2(-10, -18, 3, 8)
@@ -219,11 +220,10 @@ static func _back(geo: Node3D) -> void:
 	var lino := Color(0.3, 0.31, 0.3)
 	var tile := Color(0.75, 0.76, 0.74)
 	var sign_z := CORRIDOR.position.y + 0.12  # on the corridor's north wall
-	var mid_z := mid(CORRIDOR).z
 	Greybox.room(geo, mid(CORRIDOR), span(CORRIDOR, BACK_H), {"floor": lino, "wall": WALL}, [
 		gap(CORRIDOR, "s", -AISLE_X, 1.6, 2.6),  # lobby, west of the desk
 		gap(CORRIDOR, "s", AISLE_X, 1.6, 2.6),  # lobby, east of the desk
-		gap(CORRIDOR, "e", mid_z, 2.8, 3.0),  # into the dark east corridor
+		gap(CORRIDOR, "e", CORRIDOR_Z, 2.8, 3.0),  # into the dark east corridor
 		gap(CORRIDOR, "n", MAILROOM_DOOR_X, 1.4, 2.2),
 		gap(CORRIDOR, "n", MENS_DOOR_X, 1.4, 2.2),
 		gap(CORRIDOR, "n", WOMENS_DOOR_X, 1.4, 2.2),
@@ -277,7 +277,7 @@ static func _back(geo: Node3D) -> void:
 
 	# The dark east corridor, then a passage south to the hall. No working lights.
 	Greybox.room(geo, mid(DARK), span(DARK, BACK_H), {"floor": lino.darkened(0.2), "wall": WALL.darkened(0.3)}, [
-		gap(DARK, "w", mid_z, 2.8, 3.0),
+		gap(DARK, "w", CORRIDOR_Z, 2.8, 3.0),
 		gap(DARK, "s", PASSAGE_X, 2.0, 2.6),
 	])
 	Greybox.room(geo, mid(PASSAGE), span(PASSAGE, BACK_H), {"floor": lino.darkened(0.2), "wall": WALL.darkened(0.3)}, [
