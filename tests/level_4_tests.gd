@@ -821,6 +821,7 @@ func test_same_ground_floor() -> void:
 	t.root.add_child(l0)
 	await _frames(5)
 	var plan0 := _floor_plan(l0.geo)
+	l0.reading_layout()  # the monitor turned round to the lobby, as Rourke leaves it (M1)
 	var desk0: Transform3D = l0.desk_terminal.transform
 	var doors0 := {}
 	for d in GroundFloor.DOORS:
