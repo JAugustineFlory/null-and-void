@@ -14,9 +14,9 @@ const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "k
 	"door_motor", "swing", "body_fall", "pencil", "keypad", "card", "crank", "tape_tear", "sticky", "rattle",
 	"unscrew", "panel_off", "hinge", "ceiling_tile", "duct_crawl", "reader_ok", "reader_no",
 	"lift_ding", "lift_thunk", "cable_creak", "lift_ride",
-	"fluorescent_buzz", "crt_whine", "server_hum"]
+	"fluorescent_buzz", "crt_whine", "server_hum", "gears"]
 ## The ones that loop (seamlessly).
-const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum", "lift_ride"]
+const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum", "lift_ride", "gears"]
 
 
 ## The sound called `kind`, or null if there's no such sound.
@@ -26,6 +26,7 @@ static func make(kind: String) -> AudioStreamWAV:
 		"crt_whine": return _crt()
 		"server_hum": return _server()
 		"lift_ride": return _lift()
+		"gears": return _gears()
 	if kind not in KINDS:
 		return null
 	var rng := RandomNumberGenerator.new()
@@ -252,6 +253,20 @@ static func _lift() -> AudioStreamWAV:
 		var swell := 0.75 + 0.25 * sin(TAU * 0.5 * t)
 		wind[i] = wind[i] * 2.4 * swell + sin(TAU * 50 * t) * 0.16 + sin(TAU * 100 * t) * 0.1 + sin(TAU * 150 * t) * 0.04 + rattle[i] * 0.015 * (0.5 + 0.5 * sin(TAU * 3.0 * t))
 	return _loop(_wav(wind, rate))
+
+
+## Open gears turning (GearTrain): a low motor drone under the tick of each tooth
+## meeting the next, 16 a second. Two seconds that loop with no seam.
+static func _gears() -> AudioStreamWAV:
+	var n := RATE * 2
+	var grind := _noise("gears", n, 0.3)
+	var drone := _noise("gears_drone", n, 0.02)
+	for i in n:
+		var t := float(i) / RATE
+		var tooth := fmod(t, 0.0625)
+		var tick := (1.0 - exp(-tooth * 900.0)) * exp(-tooth * 90.0) * (0.8 if int(t / 0.0625) % 2 == 0 else 0.55)
+		grind[i] = grind[i] * tick * 0.9 + drone[i] * 2.0 + sin(TAU * 50 * t) * 0.12
+	return _loop(_wav(grind, RATE))
 
 
 ## Mains buzz: 120 Hz and its odd-sounding harmonics, slightly clipped like a ballast.
