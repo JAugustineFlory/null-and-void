@@ -517,8 +517,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("attack") and not _hands_full():
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _from_pad(event):
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		elif not FirstAidCabinet.use_on_self(self):  # (the kit in your hands patches you up)
+		elif not FirstAidCabinet.use_on_self(self) and not _counter_blast():  # (the kit in your hands patches you up)
 			_strike()
+
+
+## A fire extinguisher in your hands: a blast instead of a punch (Counterplay).
+func _counter_blast() -> bool:
+	if inventory == null or inventory.active_item() != Counterplay.EXTINGUISHER:
+		return false
+	var c := Counterplay.of(self)
+	if c:
+		c.blast()
+	return true
 
 
 static func _from_pad(event: InputEvent) -> bool:
@@ -2247,7 +2257,11 @@ func _update_prompt() -> void:
 		if target and target.has_method("get_prompt"):
 			text = target.get_prompt(self)
 		if text == "" and state == Move.SIT and not _sit_leaving:
-			text = "" if sit_held else "[Space] Stand up"
+			var leave = seat.get("leave_prompt") if is_instance_valid(seat) else null
+			text = "" if sit_held else (leave if leave is String else "[Space] Stand up")
+		if text == "" and state != Move.SIT:
+			var c := Counterplay.of(self)
+			text = c.prompt_for(self) if c else ""  # throw what's in your hands; the strobe's hint
 	hud.set_prompt(text)
 	if hud.has_method("set_crosshair"):
 		hud.set_crosshair(not notebook_cursor)  # reading, the mouse pointer is the one to aim with
