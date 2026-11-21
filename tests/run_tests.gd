@@ -195,6 +195,35 @@ func _group_chapters() -> void:
 ## Sound effects, buses and ambience.
 func _group_sound() -> void:
 	await _run_file("res://tests/sound_tests.gd")
+	await test_coop_touch_sounds()
+
+
+## Co-op: a teammate using something is heard on every machine, and every machine is
+## told who used it (Interactable.touched), so their hands can move too.
+func test_coop_touch_sounds() -> void:
+	_game().new_run(3)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
+	var host = levels[0]
+	var client = levels[1]
+	var heard := [[], []]
+	var lockers := []
+	for i in 2:
+		var it := Interactable.create(levels[i], Vector3(3, 1, 3), Vector3(0.5, 1.8, 0.5), "Open your locker")
+		it.name = "TouchTestLocker"
+		it.touched.connect(func(id): heard[i].append(id))
+		lockers.append(it)
+	await _frames(2)
+	var kinds := func(l): return l.get_meta("sounds_played", []).filter(func(x): return x.kind == "locker").size()
+	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
+	lockers[1].interact(client.player)
+	await _until(func(): return heard[0].size() == 1 and heard[1].size() == 1, 3.0)
+	check(heard[0] == [client_id] and heard[1] == [client_id] and kinds.call(host) == 1 and kinds.call(client) == 1,
+		"a teammate opens a locker: both machines hear it once, and know who (%s, %s)" % [heard[0], heard[1]])
+	lockers[0].interact(host.player)
+	await _until(func(): return heard[1].size() == 2, 3.0)
+	check(heard[1].size() == 2 and heard[1][1] == 1 and kinds.call(client) == 2, "and the host's, on the client")
+	await _coop_close(worlds)
 
 
 ## Floor 22, the security floor (Level 2), outside the lab.

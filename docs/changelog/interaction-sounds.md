@@ -1,0 +1,2 @@
+- **Added:** everything you can use makes its own sound, heard by the whole crew: papers and sticky notes, your notebook opening, closing and turning pages, lockers, buttons, keypads, card readers, breakers and switches, levers, cranks, grates, seats, seat belts, keys, tape, first aid cabinets and the van's doors.
+- **Changed:** doors sound like what they are: a handle turning on office doors, a push bar on stair doors, and a rattle when one is locked.

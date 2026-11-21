@@ -253,6 +253,7 @@ func hide_book() -> Tween:
 
 ## A quick page turn: squash, swap content in `between`, spring back.
 func turn_page(between: Callable = Callable()) -> Tween:
+	Sfx.play_flat(self, "paper")
 	var t := create_tween().set_trans(Tween.TRANS_SINE)
 	t.tween_property(book, "scale:x", book.scale.x * 0.96, 0.08)
 	if between.is_valid():
