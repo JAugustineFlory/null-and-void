@@ -249,6 +249,8 @@ var _lift_dir := Vector3.ZERO
 var _lift_from := Vector3.ZERO
 ## Giving one: seconds left holding still while they go up off you.
 var _lifting := 0.0
+## The crate in your hands (Crate), if you're carrying one: both hands, slowly.
+var carrying: Crate = null
 
 var _volumes: Array[MovementVolume] = []
 var _timer := 0.0
@@ -529,6 +531,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			and event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
 		inventory.use_slot(event.physical_keycode - KEY_1)  # reading, 1-4 turn the notebook's tabs
 	elif event.is_action_pressed("interact"):
+		if carrying:
+			carrying.set_down(self)  # E with a crate in your hands sets it down
+			return
 		var target := _look_target()
 		if target and target.has_method("interact"):
 			target.interact(self)
@@ -883,12 +888,12 @@ func _show_hand_item() -> void:
 	if hand_item:
 		var fp := get_node_or_null("FirstPersonBody")
 		var free: bool = fp.current_action() in ["idle", "sit", "sit_floor"] if fp else state == Move.WALK
-		hand_item.visible = free and not _reading() and not downed
+		hand_item.visible = free and not _reading() and not downed and carrying == null
 
 
 ## Something in your hands: no sprinting, jumping or climbing.
 func _hands_full() -> bool:
-	return _notebook_held or held_prop != null or not _filing.is_empty()
+	return _notebook_held or held_prop != null or not _filing.is_empty() or carrying != null
 
 
 func _animate_prop(delta: float) -> void:
@@ -1369,6 +1374,8 @@ func _let_go() -> void:
 		rider._leave_carrier()
 	_leave_carrier()
 	_end_lift()
+	if carrying:
+		carrying.drop_here()
 	lower_notebook()
 	put_down()
 	_end_filing()
@@ -1836,11 +1843,14 @@ func _ledge_probe(dir: Vector3, feet := INF_SPOT) -> Dictionary:
 	var height: float = top.position.y - feet.y
 	if height < 0.35:
 		return {}
-	var target := face - n * (body.radius + 0.08)
-	target.y = top.position.y + 0.02
-	if not _fits(target, body.crawl) or not _over_clear(face, n, top.position.y, target):
-		return {}
-	return {"normal": n, "face": face, "top": top.position.y, "height": height, "target": target}
+	# Onto the top just past the edge; on a narrow top (a crate against a wall),
+	# as close to the edge as you can stand.
+	for inset: float in [body.radius + 0.08, body.radius, 0.2]:
+		var target: Vector3 = face - n * inset
+		target.y = top.position.y + 0.02
+		if _fits(target, body.crawl) and _over_clear(face, n, top.position.y, target):
+			return {"normal": n, "face": face, "top": top.position.y, "height": height, "target": target}
+	return {}
 
 
 ## Mantle onto a ledge ahead, or catch it and hang if it's higher.
@@ -2442,7 +2452,9 @@ func _update_prompt() -> void:
 	var text := ""
 	if not input_locked:
 		var target := _look_target()
-		if target and target.has_method("get_prompt"):
+		if carrying:
+			text = Crate.SET_DOWN if carrying.set_down_spot(self).x != INF else ""
+		elif target and target.has_method("get_prompt"):
 			text = target.get_prompt(self)
 		if text == "" and state == Move.SIT and not _sit_leaving:
 			var leave = seat.get("leave_prompt") if is_instance_valid(seat) else null

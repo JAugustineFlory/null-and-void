@@ -312,6 +312,7 @@ func _group_coop() -> void:
 	await test_coop_shared_history()
 	await test_coop_notes_huddle()
 	await test_coop_leg_up()
+	await test_coop_crate()
 	await test_coop_looks()
 	await test_coop_sitting()
 	await test_coop_unlocks()
@@ -3066,6 +3067,51 @@ func test_coop_leg_up() -> void:
 	check(seen.global_position.y > yard.y + 3.3, "and everyone sees them up there")
 	for l in levels:
 		l.player.controls.crouch = false
+		l.player.local_control = true
+	await _coop_close(worlds)
+
+
+## E1's crates in co-op: the host decides who has one and where it goes down;
+## every machine sees it carried and stacked in the same place.
+func test_coop_crate() -> void:
+	print("Co-op: carrying and stacking crates")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)
+	await _out_of_van(levels)
+	var ids: Array = worlds.map(func(w): return get_multiplayer(w.get_path()).get_unique_id())
+	var yard := Vector3(300, 0, 300)
+	var crates := []
+	for l in levels:
+		Greybox.box(l, yard + Vector3(0, -0.1, 0), Vector3(12, 0.2, 12), Color.GRAY)
+		Greybox.box(l, yard + Vector3(0, 1.7, -3), Vector3(6, 3.4, 2), Color.DIM_GRAY)  # face at z = -2
+		crates.append([Crate.make(l, yard + Vector3(1.5, 0, -1.7), 0.0, "a"), Crate.make(l, yard + Vector3(-1.5, 0, -1.7), 0.0, "b")])
+	var cp: Player = levels[1].player
+	var hp: Player = levels[0].player
+	for p in [hp, cp]:
+		p.local_control = false
+		p.velocity = Vector3.ZERO
+		p.rotation.y = 0.0
+	hp.global_position = yard + Vector3(2.5, 0.05, 0.5)
+	cp.global_position = yard + Vector3(-1.5, 0.05, -0.85)
+	await _frames(30)
+	var b_client: Crate = crates[1][1]
+	b_client.interact(cp)  # the client picks up b
+	await _frames(10)
+	var b_host: Crate = crates[0][1]
+	check(cp.carrying == b_client and b_host.carrier_id == ids[1] and b_client.carrier_id == ids[1], "the client picks up a crate: every machine knows who has it")
+	cp.global_position = yard + Vector3(1.5, 0.05, -0.85)  # in front of crate a
+	await _frames(15)
+	var ahead: Vector3 = b_host.global_position - levels[0].players.puppet(ids[1]).global_position
+	check(Vector2(ahead.x, ahead.z).length() > 0.4 and ahead.y > 0.5, "and the host sees it in their hands")
+	check(b_client.set_down(cp), "they set it down on crate a")
+	await _frames(10)
+	check(cp.carrying == null and b_host.carrier_id == 0 and b_host.global_position.distance_to(b_client.global_position) < 0.01
+		and absf(b_host.global_position.y - (yard.y + Crate.SIZE * 1.5)) < 0.02 and absf(b_host.global_position.x - (yard.x + 1.5)) < 0.01,
+		"stacked on it, in the same place on every machine (%s)" % b_host.global_position)
+	check(crates[0][0].get_prompt(hp) == "" and crates[1][0].get_prompt(cp) == "", "and nobody can pull the bottom one out")
+	for l in levels:
 		l.player.local_control = true
 	await _coop_close(worlds)
 
