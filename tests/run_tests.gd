@@ -105,6 +105,7 @@ func _run_group(g: String) -> void:
 ## that's already going.
 func _group_coop_runs() -> void:
 	test_run_rules()
+	await test_lobby_rules()
 	await test_restart_floor()
 	await test_coop_late_join()
 	await test_hard_dead_watch()
@@ -3085,6 +3086,53 @@ func test_run_rules() -> void:
 	check(net.clean_rules({}) == net.RULES, "a start from an older lobby is Normal")
 	net.rules = net.RULES.duplicate()
 	net._apply_rules()
+
+
+## The lobby's Normal / Hard switch: the host picks, everyone sees it.
+func test_lobby_rules() -> void:
+	print("Lobby: Normal or Hard")
+	var net := root.get_node("Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()
+	net.rules = net.RULES.duplicate()
+	net.begin_solo_lobby()
+	var lobby: Control = load("res://scenes/lobby.tscn").instantiate()
+	root.add_child(lobby)
+	await process_frame
+	lobby.stage.finish_intro()
+	await process_frame
+	var normal: Button = lobby.find_child("ModeNormal", true, false)
+	var hard: Button = lobby.find_child("ModeHard", true, false)
+	var hard_box: Control = lobby.find_child("HardRules", true, false)
+	check(normal != null and hard != null and normal.text == "Normal" and hard.text == "Hard" and normal.is_visible_in_tree() and normal.button_pressed and not hard_box.visible,
+		"next to Ready: Normal or Hard, on Normal, with nothing more to say")
+	hard.button_pressed = true
+	await process_frame
+	var note: Label = hard_box.get_node("HardNote")
+	var muted: CheckBox = hard_box.get_node("Rule_dead_muted")
+	var wipe: CheckBox = hard_box.get_node("Rule_wipe_new_seed")
+	check(net.is_hard() and hard_box.visible and note.text == "If you die, you watch. If everyone dies, the floor starts over." and not normal.button_pressed,
+		"picking Hard sets the run's rules, and says what it means")
+	check(wipe.visible and wipe.text == "If everyone dies, the whole run starts over" and not muted.visible, "on your own: the whole-run option, not the silent one (nobody to talk to)")
+	wipe.button_pressed = true
+	await process_frame
+	check(net.rules == {"mode": "hard", "dead_muted": false, "wipe_new_seed": true}, "ticking it sets the rule")
+	# In co-op: the host can change it all; a client sees the host's pick and can't.
+	net.rules = {"mode": "hard", "dead_muted": true, "wipe_new_seed": false}
+	lobby._refresh_rules(true, false)
+	check(muted.visible and muted.text == "The dead watch in silence" and muted.button_pressed and not wipe.button_pressed and not muted.disabled,
+		"a crew's host sees both options, as the rules stand")
+	lobby._refresh_rules(false, false)
+	check(hard.button_pressed and hard.disabled and normal.disabled and muted.disabled and wipe.disabled, "a teammate sees the host's pick, greyed out")
+	lobby._refresh_rules(true, true)
+	normal.button_pressed = true
+	await process_frame
+	check(not net.is_hard() and not hard_box.visible, "and back to Normal")
+	lobby.queue_free()
+	net.leave(false)
+	await process_frame
+	net.rules = net.RULES.duplicate()
+	net.profile = real_profile
 
 
 ## Restart this floor (the pause menu; the co-op host's, for everyone): back to
