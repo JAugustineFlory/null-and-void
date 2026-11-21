@@ -95,6 +95,7 @@ func is_open() -> bool:
 ## Pulls the notebook out of the pocket and opens it in front of you.
 func open_book() -> Tween:
 	_open = true
+	Sfx.play_flat(self, "notebook_open")
 	visible = true
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	if view:
@@ -105,6 +106,7 @@ func open_book() -> Tween:
 ## Closes it and puts it back in the pocket.
 func close_book() -> Tween:
 	_open = false
+	Sfx.play_flat(self, "notebook_close")
 	return _animate_and_signal(0.0, 0.3, Tween.EASE_IN, closed)
 
 

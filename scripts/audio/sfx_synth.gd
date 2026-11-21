@@ -1,8 +1,9 @@
 class_name SfxSynth
 ## Sounds made in code: the building's electrical noises (tube buzz, flicker crackle,
 ## CRT whine, server hum, beeps, key clicks, door motors), the security wing's
-## knocks and breaks, and a fight's whooshes and falls. Tiny, and nothing to license. Sfx uses these whenever
-## audio/sfx/ has no recorded file of the same name.
+## knocks and breaks, things you use (keypads, card readers, cranks, tape, grates)
+## and a fight's whooshes and falls. Tiny, and nothing to license. Sfx uses these
+## whenever audio/sfx/ has no recorded file of the same name.
 
 const RATE := 22050
 ## The CRT whine sits near 15.7 kHz, above what RATE can hold.
@@ -10,7 +11,8 @@ const HI_RATE := 44100
 
 ## Every sound this file can make.
 const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "key", "flicker",
-	"door_motor", "swing", "body_fall", "pencil", "fluorescent_buzz", "crt_whine", "server_hum"]
+	"door_motor", "swing", "body_fall", "pencil", "keypad", "card", "crank", "tape_tear", "sticky", "rattle",
+	"fluorescent_buzz", "crt_whine", "server_hum"]
 ## The ones that loop (seamlessly).
 const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum"]
 
@@ -27,7 +29,8 @@ static func make(kind: String) -> AudioStreamWAV:
 	rng.seed = hash(kind)
 	var secs: float = {"glass": 0.6, "clunk": 0.35, "click": 0.06, "clatter": 0.7, "tap": 0.9,
 		"beep": 0.14, "error": 0.42, "key": 0.05, "flicker": 0.22, "door_motor": 1.1,
-		"swing": 0.28, "body_fall": 0.7, "pencil": 0.34}.get(kind, 0.3)
+		"swing": 0.28, "body_fall": 0.7, "pencil": 0.34, "keypad": 0.13, "card": 0.32, "crank": 0.5,
+		"tape_tear": 0.45, "sticky": 0.2, "rattle": 0.3}.get(kind, 0.3)
 	var n := int(secs * RATE)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -102,6 +105,39 @@ static func make(kind: String) -> AudioStreamWAV:
 				low = lerpf(low, rng.randf_range(-1, 1), 0.06)
 				var cloth := rng.randf_range(-1, 1) * 0.08 * exp(-absf(t - 0.25) * 9.0)
 				v = (low * 2.0 + sin(TAU * 70 * t) * 0.5) * hit + cloth
+			"keypad":
+				# A rubber key going down, and the panel's short chirp back.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.2)
+				var chirp := sin(TAU * 1250 * t) * 0.3 * _edges(t - 0.02, 0.07, 0.004) if t > 0.02 else 0.0
+				v = low * exp(-t * 90.0) * 1.2 + chirp
+			"card":
+				# A card dragged through a reader's slot, then its beep.
+				low = lerpf(low, rng.randf_range(-1, 1), lerpf(0.15, 0.45, minf(t / 0.18, 1.0)))
+				lower = lerpf(lower, low, 0.05)
+				var drag := sin(PI * minf(t / 0.18, 1.0)) if t < 0.18 else 0.0
+				var ok := sin(TAU * 1800 * t) * 0.25 * _edges(t - 0.22, 0.08, 0.004) if t > 0.22 else 0.0
+				v = (low - lower) * 1.4 * drag + ok
+			"crank":
+				# A ratchet handle wound round: clicks, each with a little ring of steel.
+				var tick := fmod(t, 0.075)
+				var ring := sin(TAU * 2300 * tick) * 0.3 + sin(TAU * 3700 * tick) * 0.15
+				v = (rng.randf_range(-1, 1) * 0.5 + ring) * exp(-tick * 160.0) * (1.0 - t / secs * 0.4)
+			"tape_tear":
+				# Packing tape pulled off cardboard: a rising rip of little crackles.
+				low = lerpf(low, rng.randf_range(-1, 1), lerpf(0.2, 0.6, t / secs))
+				var crackle := 1.0 if rng.randf() > 0.8 else 0.35
+				v = low * crackle * sin(PI * t / secs) * 1.1
+			"sticky":
+				# A sticky note peeled off: a soft, short tear.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.35)
+				lower = lerpf(lower, low, 0.08)
+				v = (low - lower) * sin(PI * t / secs) ** 2 * (0.7 + 0.3 * rng.randf()) * 1.4
+			"rattle":
+				# A loose grate tugged in its frame: a few quick, tinny knocks of sheet metal.
+				for h in [0.0, 0.055, 0.1, 0.18]:
+					if t >= h:
+						var d: float = t - h
+						v += (rng.randf_range(-1, 1) * 0.5 + sin(TAU * 1870 * d) * 0.3 + sin(TAU * 2950 * d) * 0.2) * exp(-d * 55.0) * (1.0 - h * 2.5)
 		out[i] = v
 	return _wav(out, RATE)
 
