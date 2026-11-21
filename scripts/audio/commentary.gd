@@ -71,12 +71,18 @@ const NUDGES := {
 		"pay": ["l0_cc_book_pay"],
 	},
 	# Server floor
+	# The controller case's first step, the stuck doors' zone (approvals/puzzle-flow-floor-14.md, part 3):
+	# its payoff plays when the zone's found.
+	"stuck_doors": {
+		"disc": {"read:NOC SHIFT LOG": "l1_cc_log", "read:SERVER ROOM A - DOOR CONTROLLERS": "l1_cc_sheet"},
+		"n1": {"unseen": "l1_cc_nudge1_a", "seen": "l1_cc_nudge1_b", "doc": "NOC SHIFT LOG"},
+		"pay": ["l1_cc_payoff_1"],
+	},
+	# The rest of it: "the sheet" is the controllers' card, so its table line is this step's only.
 	"controller": {
 		"disc": {"read:NOC SHIFT LOG": "l1_cc_log", "read:SERVER ROOM A - DOOR CONTROLLERS": "l1_cc_sheet",
 			"right_rack": "l1_cc_payoff_2"},
-		"n1": {"unseen": "l1_cc_nudge1_a", "seen": "l1_cc_nudge1_b", "doc": "NOC SHIFT LOG"},
 		"errors": {"table": "l1_cc_err_table", "reset": "l1_cc_err_reset"},
-		"pay": ["l1_cc_payoff_1"],
 	},
 	"hot_rack": {
 		"disc": {"read:Fire interlock": "l1_cc_hot_plate"},

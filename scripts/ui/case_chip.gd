@@ -311,8 +311,8 @@ func show_answer(id: String, by: String = "") -> void:
 	var game := get_node_or_null("/root/Game")
 	if game == null:
 		return
-	var b: Dictionary = game.case_info(id).get("blank", {})
-	if b.is_empty() or str(b.get("filled", "")) == "":
+	var b: Dictionary = game.last_answer(id)
+	if b.is_empty():
 		return
 	_slide_up(str(b.get("prompt", "")), PieceKind.bbcode(str(b.filled), PieceKind.VALUE), by)
 

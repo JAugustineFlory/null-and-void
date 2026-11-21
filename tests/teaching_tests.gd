@@ -139,6 +139,13 @@ func world_text(level: Node, at: Node3D = null) -> String:
 	for d in level.find_children("*", "Document", true, false):
 		if in_room(d, at):
 			parts.append(d.plain_text())
+	# A sticky note shows its label; read (E), the rest of it, tip and all.
+	for n in level.find_children("*", "StickyNote", true, false):
+		if in_room(n, at):
+			var note: Dictionary = StickyNotes.get_note(n.note_id)
+			for k in ["what", "syntax", "example", "tip"]:
+				if note.has(k):
+					parts.append(str(note[k]))
 	parts.append(level.hud.current_todo())
 	return "\n".join(parts)
 
@@ -513,6 +520,20 @@ func follow_spot(level: Node, ui: TerminalUI, puzzle: Puzzle, pace := false) -> 
 	if not game.spot_found(id):
 		game.find_spot(id)
 	return true
+
+
+## Point at the newest cell on screen in `column` (any, if "") holding `value`,
+## in a row whose text has `row_has` (click to solve). True if it filled a slot.
+func point_cell(ui: TerminalUI, column: String, value: String, row_has: String = "") -> bool:
+	var lines: Array = ui.noteable_lines()
+	for i in range(lines.size() - 1, -1, -1):
+		if row_has != "" and not str(lines[i].text).contains(row_has):
+			continue
+		var cells: Array = lines[i].get("cells", [])
+		for j in cells.size():
+			if (column == "" or str(cells[j].column).to_lower() == column.to_lower()) and str(cells[j].value) == value:
+				return ui.use_cell(i, j)
+	return false
 
 
 func rescue_tier(p: Puzzle) -> int:
@@ -1052,6 +1073,7 @@ func walk_level_1(seed_value: int) -> void:
 	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
+	level.pace_s = 0.0  # a side case's paper opens it at once (M5's minute is tested in hints)
 	level._on_asked()  # Rourke has asked the crew to find the fault
 	check_case_clues(level, "server floor (seed %d)" % seed_value)
 	check_jots(level, "server floor (seed %d)" % seed_value)
@@ -1061,23 +1083,26 @@ func walk_level_1(seed_value: int) -> void:
 	ui.open(level.terminal, level.player)
 	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone comes from the doors query, not the boot screen")
 	# First step: the stuck doors, and the zone they share (only the doors table has it).
-	# The controller's board waits for that query to write the zone in.
-	check(_game().case_query("controller").contains("enter_zone"), "server room: before the doors query, the controller's board leaves the zone as the hint's blank (%s)" % _game().case_query("controller"))
-	var h := await solve(level, ui, level.stuck_doors_puzzle, false)
-	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player finds the stuck doors once a hint gives the query (hints %d)" % h)
-	check(_game().case_query("controller").contains("zone = '%s'" % level.zone), "server room: once the doors query shows their zone, the controller's board writes it in (%s)" % _game().case_query("controller"))
+	# The case's query is the doors query until their zone is pointed at (S7).
+	check(_game().case_query("controller").begins_with("SELECT name, zone FROM") and not _game().case_query("controller").contains("door_controllers"), "server room: the case's first query is the doors one (%s)" % _game().case_query("controller"))
+	var h := await solve(level, ui, level.stuck_doors_puzzle, false, 3, "", false, func(): return level.stuck_listed)
+	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player lists the stuck doors once a hint gives the query (hints %d)" % h)
 	var stuck := last_table(screen(ui)).filter(func(r): return ["Server Room A rear exit", "Server Room C", "Lift 1, server floor"].has(r.get("name", "")))
 	check(stuck.size() == 3 and stuck.all(func(r): return r.get("zone", "") == level.zone), "server room: the shift log's stuck doors share one zone in the result")
-	h = await solve(level, ui, level.controller_puzzle, false)
+	check(point_cell(ui, "zone", level.zone, "Server Room C") and await _until(func(): return level.stuck_doors_puzzle.solved, 2.0), "server room: pointing at a stuck door's zone answers the first step")
+	check(_game().case_query("controller").contains("zone = '%s'" % level.zone), "server room: with the zone found, the controller's query writes it in (%s)" % _game().case_query("controller"))
+	h = await solve(level, ui, level.controller_puzzle, false, 3, "", false, func(): return level.controller_listed)
 	check(h >= 0 and h <= rescue_tier(level.controller_puzzle), "server room: a lost player finds the controller once a hint gives the query (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
 	var rows := last_table(screen(ui))
 	var id: String = rows[0].get("id", "") if rows.size() == 1 else ""
 	check(id != "" and has_world_label(level, id), "server room: the result names one controller, and a rack is labelled %s" % id)
+	check(point_cell(ui, "id", id) and await _until(func(): return level.controller_puzzle.solved, 2.0), "server room: pointing at its id answers the controller's step")
 	# Then the reset's sign-off: how many controllers are faulted, floor-wide.
 	check(_game().current_todo() == level.COUNT_TODO, "server room: once the controller is found, the to-do asks for the sign-off's count")
-	h = await solve(level, ui, level.count_puzzle, false)
+	h = await solve(level, ui, level.count_puzzle, false, 3, "", false, func(): return level.counted)
 	check(h >= 0 and h <= rescue_tier(level.count_puzzle), "server room: a lost player counts the faulted controllers once a hint gives the query (hints %d)" % h)
+	check(point_cell(ui, "", str(level.faulted)) and await _until(func(): return level.count_puzzle.solved, 2.0), "server room: pointing at the number logs the count")
 	ui.close()
 	var panel := find_interactable(level, "Reset controller " + id)
 	check(panel != null, "server room: that rack has a reset panel the player can press")
@@ -1090,12 +1115,20 @@ func walk_level_1(seed_value: int) -> void:
 	check(level.doors["SRA-EXIT"].is_open and not level.room_c_door.locked, "server room: resetting the controller read off the screen frees the floor's stuck doors")
 	# Optional: the overheating rack, comparison with > practised safely. The query
 	# only finds the rack; reseating its fan tray in Server Room B solves it.
+	# The sealed back door's plate opens the case.
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "Fire interlock":
+			d.report_open(level.player)
+	check(await _until(func(): return _game().case_info("hot_rack").get("open", false), 2.0), "server floor: the fire interlock plate opens the hot rack's case")
+	# What counts as too hot is on the monitoring card in Server Room B, by the trays (M4).
+	read_paper(level, "SERVER ROOM B - RACK MONITORING")
 	ui.open(level.terminal, level.player)
 	var hot: String = level.hot_rack
 	h = await solve(level, ui, level.hot_rack_puzzle, false, 3, "", false, func():
 		var r := last_table(screen(ui))
 		return r.size() == 1 and r[0].get("id", "") == hot)
 	check(h >= 0 and h <= rescue_tier(level.hot_rack_puzzle), "server floor: a lost player finds the hot rack once a hint gives the query (hints %d)" % h)
+	check(point_cell(ui, "id", hot) and await _until(func(): return level.hot_rack_found, 2.0), "server floor: pointing at the hot rack's id finds it")
 	ui.close()
 	var tray := find_interactable(level, "Reseat the fan tray (%s)" % hot)
 	check(tray != null, "server floor: the rack the query names has a fan tray to reseat")
@@ -1103,7 +1136,13 @@ func walk_level_1(seed_value: int) -> void:
 		tray.interact(level.player)
 	check(await _until(func(): return not level.vault_back.locked, 6.0), "server floor: reseating the hot rack's tray releases the cable vault's back door")
 	# Optional: the dark break room, OR practised safely. The query lists the lights
-	# that are out; the circuit reset by the break room door fixes them.
+	# that are out; the circuit reset by the break room door fixes them. Facilities'
+	# card by the break room opens the case and names the two statuses (M4).
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "FACILITIES - LIGHTING CIRCUITS":
+			d.report_open(level.player)
+	read_paper(level, "FACILITIES - LIGHTING CIRCUITS")
+	check(await _until(func(): return _game().case_info("dark_room").get("open", false), 2.0), "server floor: facilities' card opens the dark room's case")
 	ui.open(level.terminal, level.player)
 	h = await solve(level, ui, level.dark_room_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.dark_room_puzzle), "server floor: a lost player lists the lights that are out once a hint gives the query (hints %d)" % h)

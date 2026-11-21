@@ -220,7 +220,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l1_cc_payoff_2` | "Same zone, still faulting. That was our guy." | At the right rack. Satisfied. | Level 1, later |
 | [ ] | `l1_cc_hot_plate` | "Fire interlock. There's a temperature limit on it." | Reading a warning plate on a door. | Level 1, later |
 | [ ] | `l1_cc_hot_n1a` | "Server Room B's loud. Some of those racks are working way too hard." | Stuck. Raising your voice over the fans. | Level 1, later |
-| [ ] | `l1_cc_hot_n1b` | "That monitoring card by the terminal said what counts as too hot." | Stuck. Remembering a card. | Level 1, later |
+| [ ] | `l1_cc_hot_n1b` | "That monitoring card in Server Room B said what counts as too hot." | Stuck. Remembering a card. | Level 1, later |
 | [ ] | `l1_cc_hot_err` | "We want the hot ones, not the cool ones, right?" | The comparison the wrong way round, twice. Checking. | Level 1, later |
 | [ ] | `l1_cc_hot_pay` | "That one's cooking. No wonder it's loud." | Found the hot rack. Impressed. | Level 1, later |
 | [ ] | `l2_cc_reader_card` | "Every door up here logs who swipes in." | Noting it. | Level 2, later |

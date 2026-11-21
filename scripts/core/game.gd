@@ -538,8 +538,15 @@ func solve_case(id: String, how: String) -> void:
 ## A count is {column "" (any name: COUNT(*), n), values, only: true}: the cell
 ## must be its result's only one.
 ## A cell pointed at before this (on this floor) fills it now.
+## A case whose steps each have an answer sets its next slot once the last is
+## filled: the filled one is kept (case "answered") and still shows on its page.
 func set_blank(id: String, prompt: String, needles: Array, value: String, cell: Dictionary = {}) -> void:
 	var c := _case(id)
+	var was: Dictionary = c.get("blank", {})
+	if not was.is_empty() and str(was.filled) != "":
+		if not c.has("answered"):
+			c["answered"] = []
+		c.answered.append(was)
 	c["blank"] = {"prompt": prompt, "needles": needles.map(func(n): return str(n).to_lower()), "value": value, "filled": "", "fresh": false}
 	if not cell.is_empty():
 		c.blank["cell"] = {
@@ -671,6 +678,17 @@ func add_answer(text: String, source: String = "") -> bool:
 	case_info(id).blank["source"] = source
 	answer_found.emit(id)
 	return true
+
+
+## Case `id`'s slot answered last: its slot now if that's filled, else the one
+## before it (set_blank moved on). {} if none is.
+func last_answer(id: String) -> Dictionary:
+	var c := case_info(id)
+	var b: Dictionary = c.get("blank", {})
+	if not b.is_empty() and str(b.filled) != "":
+		return b
+	var done: Array = c.get("answered", [])
+	return done[-1] if not done.is_empty() else {}
 
 
 func case_info(id: String) -> Dictionary:
