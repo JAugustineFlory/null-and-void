@@ -13,9 +13,10 @@ const HI_RATE := 44100
 const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "key", "flicker",
 	"door_motor", "swing", "body_fall", "pencil", "keypad", "card", "crank", "tape_tear", "sticky", "rattle",
 	"unscrew", "panel_off", "hinge", "ceiling_tile", "duct_crawl", "reader_ok", "reader_no",
+	"lift_ding", "lift_thunk", "cable_creak", "lift_ride",
 	"fluorescent_buzz", "crt_whine", "server_hum"]
 ## The ones that loop (seamlessly).
-const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum"]
+const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum", "lift_ride"]
 
 
 ## The sound called `kind`, or null if there's no such sound.
@@ -24,6 +25,7 @@ static func make(kind: String) -> AudioStreamWAV:
 		"fluorescent_buzz": return _buzz()
 		"crt_whine": return _crt()
 		"server_hum": return _server()
+		"lift_ride": return _lift()
 	if kind not in KINDS:
 		return null
 	var rng := RandomNumberGenerator.new()
@@ -32,7 +34,8 @@ static func make(kind: String) -> AudioStreamWAV:
 		"beep": 0.14, "error": 0.42, "key": 0.05, "flicker": 0.22, "door_motor": 1.1,
 		"swing": 0.28, "body_fall": 0.7, "pencil": 0.34, "keypad": 0.13, "card": 0.2, "crank": 0.5,
 		"tape_tear": 0.45, "sticky": 0.2, "rattle": 0.3, "unscrew": 0.42,
-		"panel_off": 0.55, "hinge": 0.6, "ceiling_tile": 0.5, "duct_crawl": 0.32, "reader_ok": 0.22, "reader_no": 0.34}.get(kind, 0.3)
+		"panel_off": 0.55, "hinge": 0.6, "ceiling_tile": 0.5, "duct_crawl": 0.32, "reader_ok": 0.22, "reader_no": 0.34,
+		"lift_ding": 1.3, "lift_thunk": 0.5, "cable_creak": 0.6}.get(kind, 0.3)
 	var n := int(secs * RATE)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -186,6 +189,20 @@ static func make(kind: String) -> AudioStreamWAV:
 				# A badge reader turning a card down: three flat, low blats.
 				var k := fmod(t, 0.12)
 				v = (signf(sin(TAU * 400 * t)) * 0.22 + sin(TAU * 200 * t) * 0.15) * _edges(k, 0.08, 0.004)
+			"lift_ding":
+				# The car's arrival bell: one soft strike, its overtones dying first.
+				var f := 1046.5
+				v = (sin(TAU * f * t) * 0.4 + sin(TAU * f * 2.76 * t) * 0.12 * exp(-t * 6.0) + sin(TAU * f * 5.4 * t) * 0.05 * exp(-t * 12.0)) * exp(-t * 2.6) * minf(t / 0.003, 1.0)
+			"lift_thunk":
+				# The car's brake catching: a deep thud through the floor and a rattle of the panels.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.04)
+				var rattle := rng.randf_range(-1, 1) * 0.12 * exp(-absf(t - 0.08) * 30.0)
+				v = (low * 1.8 + sin(TAU * (55.0 - 15.0 * t) * t) * 0.7) * exp(-t * 9.0) + rattle
+			"cable_creak":
+				# A steel cable taking the strain: a low, slow stick-slip groan.
+				phase += TAU * (150.0 + 40.0 * sin(TAU * 1.3 * t) + rng.randf_range(-15, 15)) / RATE
+				var slip := 0.5 + 0.5 * signf(sin(TAU * 19.0 * t + 2.0 * sin(TAU * 2.0 * t)))
+				v = (sin(phase) * 0.35 + sin(phase * 2.0) * 0.2 + sin(phase * 3.0) * 0.12) * slip * sin(PI * t / secs) ** 2
 		out[i] = v
 	return _wav(out, RATE)
 
@@ -220,6 +237,21 @@ static func _server() -> AudioStreamWAV:
 		var beat := 0.8 + 0.2 * sin(TAU * 0.5 * t)
 		rush[i] = (rush[i] * 0.35 + deep[i] * 2.5) * beat + sin(TAU * 60 * t) * 0.15 + sin(TAU * 180 * t) * 0.05
 	return _loop(_wav(rush, RATE))
+
+
+## Riding the lift: the hoist motor's hum, the car's faint rattle and air rushing
+## past in the shaft, swelling and easing. Two seconds that loop with no seam, at
+## half rate: there's nothing high in it.
+static func _lift() -> AudioStreamWAV:
+	var rate := RATE / 2
+	var n := rate * 2
+	var wind := _noise("lift_wind", n, 0.06)
+	var rattle := _noise("lift_rattle", n, 0.8)
+	for i in n:
+		var t := float(i) / rate
+		var swell := 0.75 + 0.25 * sin(TAU * 0.5 * t)
+		wind[i] = wind[i] * 2.4 * swell + sin(TAU * 50 * t) * 0.16 + sin(TAU * 100 * t) * 0.1 + sin(TAU * 150 * t) * 0.04 + rattle[i] * 0.015 * (0.5 + 0.5 * sin(TAU * 3.0 * t))
+	return _loop(_wav(wind, rate))
 
 
 ## Mains buzz: 120 Hz and its odd-sounding harmonics, slightly clipped like a ballast.

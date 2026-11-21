@@ -19,6 +19,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hum_on_ambience()
 	await test_terminal_sounds()
 	await test_door_sounds()
+	await test_elevator_sounds()
 	test_touch_kinds()
 	await test_touch()
 	await test_every_interactable_sounds()
@@ -238,6 +239,40 @@ func test_door_sounds() -> void:
 	room.queue_free()
 	await t.process_frame
 
+
+## An elevator: the bell and doors as it opens, the doors meeting as it shuts, the brake
+## letting go and the hoist humming through the ride, and the brake catching at the floor.
+func test_elevator_sounds() -> void:
+	var room := Node3D.new()
+	t.root.add_child(room)
+	var lift := Elevator.create(room, room, Vector3(0, 0, 0), 0.0, "G", ["14", "G"], "14")
+	var kinds := func(): return lift.get_meta("sounds_played", []).map(func(x): return x.kind)
+	await t.process_frame
+	lift.open()
+	await t.process_frame
+	await t.process_frame
+	check(kinds.call() == ["lift_ding", "door_motor"], "the car's bell rings as its doors part, over their motor (%s)" % [kinds.call()])
+	await t.create_timer(Elevator.OPEN_TIME + 0.2).timeout
+	lift.close()
+	await t.create_timer(Elevator.CLOSE_TIME + 0.2).timeout
+	check(kinds.call().slice(2) == ["door_motor", "clunk"], "closing: the motor, then the doors meet (%s)" % [kinds.call().slice(2)])
+	lift.ride(2.5)
+	await t.process_frame
+	await t.process_frame
+	var sounds: SfxElevator = lift.get_node("Sounds")
+	check(kinds.call().back() == "lift_thunk" and is_instance_valid(sounds.ride_loop) and sounds.ride_loop.playing,
+		"the brake lets go and the hoist hums up the shaft")
+	await t.create_timer(2.7).timeout
+	check(kinds.call().has("cable_creak"), "the cables groan now and then on the way")
+	check(kinds.call().back() == "lift_thunk" and sounds.ride_loop == null and not lift.riding, "and the brake catches at the floor; the hum stops")
+	var n: int = kinds.call().size()
+	var other := Elevator.create(room, room, Vector3(6, 0, 0), 0.0, "14", ["14", "G"], "G")
+	other.open(true)
+	await t.process_frame
+	await t.process_frame
+	check(other.get_meta("sounds_played", []).is_empty() and kinds.call().size() == n, "a car already open when a floor loads makes no sound")
+	room.queue_free()
+	await t.process_frame
 
 ## What each thing you can use sounds like, from what it is and what its prompt says.
 func test_touch_kinds() -> void:
