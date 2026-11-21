@@ -1,0 +1,2 @@
+- **Added:** hold your flashlight on the Custodian up close to strobe it and buy a moment to run.
+- **Added:** crouch in the dark with your light off, and the Custodian has to be almost on top of you to see you.

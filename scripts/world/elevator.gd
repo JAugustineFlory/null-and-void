@@ -63,6 +63,7 @@ static func create(parent: Node3D, geo: Node3D, pos: Vector3, facing_deg: float,
 	e.to_floor = to if to != "" else str(floors[floors.size() - 1])
 	parent.add_child(e)
 	e._build(geo, floors)
+	SfxElevator.attach(e)  # its bell, doors, brake and ride
 	return e
 
 

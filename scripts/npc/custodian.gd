@@ -12,6 +12,13 @@ extends CharacterBody3D
 ##     it drops whoever it holds and stands dead until powered again.
 ## It can't be destroyed. Every strike shows on it (scorch marks and sparks, slower).
 ##
+## Counterplay (E7, Counterplay): a fire extinguisher's blast fogs its optics and the
+## flashlight's strobe dazzles them (a stun, and it drops whoever it holds); a thrown
+## thing makes it flinch. It can't open doors, so a shut one stops it. Lured back to
+## its bay, it can be caged there (set_caged). It doesn't see anyone hiding, or
+## crouched in the dark with their light off from further than Counterplay.DARK_SIGHT;
+## seen getting into hiding, it goes and pulls them out.
+##
 ## Co-op: simulated on the host (sync.replicate(custodian, custodian.sync_properties())
 ## in the level's net_setup). The grab goes through CrewVitals, so it lands on the
 ## machine that owns the player; a client's strike is forwarded to the host.
@@ -21,7 +28,8 @@ extends CharacterBody3D
 signal activated
 ## It has hold of someone (host).
 signal caught(player: Node)
-## It let go of someone before reaching the bay: "struck", "power" or "down" (host).
+## It let go of someone before reaching the bay: "struck", "power", "down" or
+## "stunned" (an extinguisher or a strobe) (host).
 signal freed(player: Node, how: String)
 ## It got someone back to its bay (host).
 signal docked(player: Node)
@@ -48,8 +56,11 @@ const STRIKES_TO_WRECK := 12
 const BAY_REACH := 1.2
 ## After docking someone, it stands in the bay this long before it hunts again.
 const RECHARGE_TIME := 4.0
+## Counterplay stuns: an extinguisher's blast, the flashlight's strobe.
+const BLAST_STUN := 3.0
+const STROBE_STUN := 1.5
 
-## In its bay | hunting | dragging | stunned | recharging | off
+## In its bay | hunting | dragging | stunned | recharging | off | caged
 var state := "bay"
 ## Powered: it moves. The level cuts and restores this by code.
 var powered := true
@@ -78,6 +89,8 @@ var _bay_set := false
 ## it when it carries it from one floor's stairs to another's.
 var route: Array = []
 var _on_route := false
+## A hiding place it saw someone get into: it goes and looks (host).
+var _search: Node3D
 
 
 func _ready() -> void:
@@ -159,6 +172,56 @@ func is_active() -> bool:
 	return state != "bay"
 
 
+## Caged in its bay (the level shuts the cage on it, or opens it). Shared state:
+## call it on every machine (from a sync.event handler). Caged, it drops whoever it
+## holds and stays put until let out.
+func set_caged(on: bool) -> void:
+	if on == (state == "caged"):
+		return
+	if on:
+		_let_go("power")
+		target = null
+		_search = null
+		state = "caged"
+		_stand()
+		_pose_arms(0.35)
+	else:
+		state = "hunting"
+		_pose_arms(0.0)
+
+
+## Close enough to its bay for a cage there to hold it.
+func in_bay() -> bool:
+	var flat := Vector3(bay_point.x - global_position.x, 0, bay_point.z - global_position.z)
+	return flat.length() < BAY_REACH * 1.5
+
+
+## Counterplay (host): an extinguisher's blast or the strobe stuns it and makes it
+## drop whoever it holds; something thrown is a flinch, like a punch.
+func counter(how: String, _from: Vector3) -> void:
+	if not powered or state in ["bay", "caged", "off"]:
+		return
+	match how:
+		"extinguisher", "strobe":
+			_let_go("stunned")
+			_stun(Counterplay.stun_time(self, BLAST_STUN if how == "extinguisher" else STROBE_STUN))
+		"thrown":
+			if state == "hunting":
+				_stun(Counterplay.stun_time(self, FLINCH_TIME))
+
+
+## Counterplay (host): did it see `body` get into hiding just now?
+func counter_saw(body: Node3D) -> bool:
+	return powered and state in ["hunting", "dragging", "stunned", "recharging"] \
+		and Counterplay.can_see(global_position, body, SIGHT_RANGE) and _can_see(body)
+
+
+## Counterplay (host): it saw someone get in there; it goes and looks.
+func counter_search(spot: Node3D) -> void:
+	if spot:
+		_search = spot
+
+
 ## Cut or restore its power. Shared state: call it on every machine (from a
 ## sync.event handler). Cut, it drops whoever it holds and stands dead.
 func set_powered(on: bool) -> void:
@@ -212,7 +275,7 @@ func _physics_process(delta: float) -> void:
 		_stand()
 		move_and_slide()
 		return
-	if not powered or state == "bay":
+	if not powered or state in ["bay", "caged"]:
 		_stand()
 		move_and_slide()
 		return
@@ -236,6 +299,14 @@ func _hunt() -> void:
 		return
 	if target == null or not _can_chase(target):
 		target = _nearest_visible()
+	if target == null and is_instance_valid(_search):
+		# Someone got into hiding in front of it: it goes and looks in there.
+		if _walk_to(_search.global_position, SPEED * _limp(), CATCH_RANGE):
+			var c := Counterplay.of(self)
+			if c:
+				c.pull_out(_search)
+			_search = null
+		return
 	if target == null:
 		# Nobody in sight: back to the bay to wait.
 		if _walk_to(bay_point, SPEED * _limp()):
@@ -368,7 +439,7 @@ func _show_power() -> void:
 
 func _can_chase(p: Node3D) -> bool:
 	return is_instance_valid(p) and p.is_inside_tree() and not CrewVitals.is_down(p) and not _held_elsewhere(p) \
-		and global_position.distance_to(p.global_position) < SIGHT_RANGE * 1.5
+		and global_position.distance_to(p.global_position) < SIGHT_RANGE * 1.5 and Counterplay.hidden_in(p) == null
 
 
 ## Someone already being held (by another Custodian) or thrown isn't a target.
@@ -384,16 +455,19 @@ func _nearest_visible() -> Node3D:
 		if CrewVitals.is_down(p) or _held_elsewhere(p):
 			continue
 		var d := global_position.distance_to(p.global_position)
-		if d < best_d and _can_see(p):
+		if d < best_d and Counterplay.can_see(global_position, p, SIGHT_RANGE) and _can_see(p):
 			best = p
 			best_d = d
 	return best
 
 
-## Nothing solid between it and them: a shut door keeps them safe.
+## Nothing solid between it and them: a shut door keeps them safe (and so does an
+## extinguisher's cloud).
 func _can_see(p: Node3D) -> bool:
-	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 1.9, p.global_position + Vector3.UP * 1.0, 0xFFFFFFFF, [get_rid(), p.get_rid()])
-	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+	var eye := global_position + Vector3.UP * 1.9
+	var at := p.global_position + Vector3.UP * 1.0
+	var q := PhysicsRayQueryParameters3D.create(eye, at, 0xFFFFFFFF, [get_rid(), p.get_rid()])
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty() and not SightCloud.blocks(self, eye, at)
 
 
 ## Walk toward `to`; true once within `reach`.
