@@ -1,0 +1,9 @@
+- **Changed:** on floor 22 each case takes you one step at a time: the query on screen follows the step you're on, and you answer by pointing at the answer in the result.
+- **Added:** on floor 22, a pencil note says why when you point at the wrong cell.
+- **Changed:** the lab's reset switches only get power once the terminal has found the stuck controller, and the response clock starts at your first query.
+- **Changed:** the lab's terminal screen is shorter, and the book's review chapter comes on the walk up instead of in the middle of the lockdown.
+- **Added:** an optional case at the interview room, once the lab door is open.
+- **Added:** the security booth's terminals, and the lab's once its door is open, run under a security policy, with its card on the booth's desk.
+- **Added:** a shift-change notice by the security booth's badge reader, and a couple of notes from the night shift.
+- **Changed:** `.hint` on floor 22 first says where to look on the floor.
+- **Added:** the crew thinks out loud on floor 22.

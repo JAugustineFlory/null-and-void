@@ -18,8 +18,11 @@ const OTHER_NAMES := [
 	"NOLAN", "OKAFOR", "OWENS", "PATEL", "QUINN", "REYES", "ROSS", "SALAZAR", "SLOAN", "STONE",
 	"TATE", "TOBIN", "UPTON", "VANCE", "WADE", "WEBB", "YATES", "ZIMMER", "BOWEN", "CROSS",
 	"DUNN", "EATON", "FRYE", "GOODE", "KEMP", "LYONS", "MOSS", "PRICE", "SUTTON", "WELLS",
+	"ROWE",
 ]
 const INITIALS := "ABCDEFGJKLMNRSTW"
+## The terminal policy's cap (TerminalPolicy.CAP): rows a query shows at most.
+const CAP_ROWS := 20
 
 
 static func build(run_seed: int) -> Dictionary:
@@ -60,6 +63,29 @@ static func build(run_seed: int) -> Dictionary:
 		guards.append([_full(n, rng), shift, _pin(rng, used_pins), note])
 
 	_shuffle(guards, rng)
+	# The policy shows 20 rows at most: Pike's and the night lead's rows come after
+	# the first 20 as stored, so only a search finds them (v0.10 floor 22 package).
+	# The lead goes past row 20, but among the first 20 night-shift rows, so
+	# WHERE shift = 'night' and the notes are a route (layout and data).
+	var lead_row = guards.filter(func(g): return g[0] == answer_name)[0]
+	guards.erase(lead_row)
+	var spots := []
+	var nights := 0
+	for i in guards.size() + 1:
+		if i >= CAP_ROWS and nights < CAP_ROWS:
+			spots.append(i)
+		if i < guards.size() and guards[i][1] == "night":
+			nights += 1
+	guards.insert(spots[rng.randi_range(0, spots.size() - 1)], lead_row)
+	# Then Pike, by a swap that never moves the lead.
+	var pike_at := guards.find(guards.filter(func(g): return g[0] == "PIKE, H.")[0])
+	if pike_at < CAP_ROWS:
+		var to := rng.randi_range(CAP_ROWS, guards.size() - 1)
+		while guards[to][0] == answer_name:
+			to = rng.randi_range(CAP_ROWS, guards.size() - 1)
+		var tmp = guards[pike_at]
+		guards[pike_at] = guards[to]
+		guards[to] = tmp
 	# Which breaker tripped the stairwell door's actuator (the first terminal lie).
 	var breaker := rng.randi_range(1, 4)
 	var badge_of := {}  # name -> badge id
@@ -126,7 +152,7 @@ INSERT INTO door_status VALUES
 	('SEC-OFFICE', 'closed', 'ok', 'lockdown: guard PIN required'),
 	('SEC-EXIT', 'closed', 'fault', 'actuator breaker B-%d tripped 00:12. Reset it at the breaker box by the door');
 """ % [",\n\t".join(rows), breaker]
-	var lab := _lab(run_seed, swipes)
+	var lab := _lab(run_seed, swipes, _day_swipes(guards, badge_of, swing, rng))
 	return {"sql": sql + lab.sql, "pin": answer_pin, "name": answer_name, "pike_pin": pike_pin, "breaker": breaker,
 		"badge": badge_of[answer_name], "badge_time": "22:00", "decoy_badges": swipes.slice(0, 3).map(func(w): return w[1]),
 		"roster": roster, "lab_zone": lab.zone, "lab_answer": lab.answer, "lab_switches": lab.switches}
@@ -145,8 +171,35 @@ const LAB_IDS_FROM := 21  # DC-21 to DC-26
 const VISITOR_BADGES := 6
 
 
+## The rest of the day at the floor's readers, before tonight: the day guards in
+## through SEC-EXIT at the start of their shift and the swing guards at theirs,
+## rounds at the office door, Vale at her lab, and Rourke in for the night. Every
+## one is before the swing guards leave (21:52), so the only guard swipe after
+## 21:57 is still the night lead's 22:00, and `ORDER BY time` doesn't reach
+## tonight in 20 rows. [time, badge, holder, door].
+static func _day_swipes(guards: Array, badge_of: Dictionary, swing: Array, rng: RandomNumberGenerator) -> Array:
+	var out := []
+	var day := guards.filter(func(g): return g[1] == "day" and not str(g[3]).contains("vacation"))
+	for i in mini(4, day.size()):
+		out.append(["1997-10-15 05:%02d" % (48 + i * 3), badge_of[day[i][0]], "SECURITY STAFF", "SEC-EXIT"])
+		for h in [9, 12, 15]:
+			if (i + h) % 2 == 0:
+				out.append(["1997-10-15 %02d:%02d" % [h, rng.randi_range(0, 59)], badge_of[day[i][0]], "SECURITY STAFF", "SEC-OFFICE"])
+	for i in mini(2, swing.size()):  # the two who badge out at 21:52 and 21:57
+		out.append(["1997-10-15 13:%02d" % (50 + i * 4), badge_of[swing[i][0]], "SECURITY STAFF", "SEC-EXIT"])
+		out.append(["1997-10-15 %02d:%02d" % [17 + i * 2, rng.randi_range(0, 59)], badge_of[swing[i][0]], "SECURITY STAFF", "SEC-OFFICE"])
+	out.append(["1997-10-15 07:56", "V-0042", "VALE, I.", "SEC-EXIT"])
+	out.append(["1997-10-15 08:03", "V-0042", "VALE, I.", "SECLAB-B"])
+	out.append(["1997-10-15 13:12", "V-0042", "VALE, I.", "SECLAB-B"])
+	out.append(["1997-10-15 19:40", "V-0042", "VALE, I.", "SECLAB-B"])
+	out.append(["1997-10-15 21:20", "R-0117", "ROURKE, D.", "SEC-EXIT"])
+	out.append(["1997-10-15 21:24", "R-0117", "ROURKE, D.", "NIGHT DESK"])
+	return out
+
+
 ## `guard_swipes` are [time, badge] pairs through SEC-EXIT; the last is the night lead's.
-static func _lab(run_seed: int, guard_swipes: Array) -> Dictionary:
+## `day` is the rest of the day's swipes (_day_swipes), stored in among tonight's.
+static func _lab(run_seed: int, guard_swipes: Array, day: Array = []) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed * 7919 + 2
 	var zone: String = LAB_ZONES[rng.randi_range(0, LAB_ZONES.size() - 1)]
@@ -162,6 +215,7 @@ static func _lab(run_seed: int, guard_swipes: Array) -> Dictionary:
 	]
 	for w in guard_swipes:
 		log.append([w[0], w[1], "SECURITY STAFF", "SEC-EXIT"])
+	log.append_array(day)
 	_shuffle(log, rng)
 	# Stored out of time order, and the last SEC-EXIT row stored isn't the latest,
 	# so reading the table as it comes gives the wrong guard. ORDER BY time doesn't.

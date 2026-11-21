@@ -91,7 +91,7 @@ const NUDGES := {
 		"pay": ["l1_cc_hot_pay"],
 	},
 	# Security floor
-	"badge_log": {
+	"statement": {
 		"disc": {"read:Badge reader card": "l2_cc_reader_card"},
 		"n1": {"seen": "l2_cc_log_n1", "doc": "Badge reader card"},
 		"pay": ["l2_cc_log_pay"],

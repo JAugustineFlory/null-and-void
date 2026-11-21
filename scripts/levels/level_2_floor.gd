@@ -55,7 +55,7 @@ static func build(level: Node3D) -> void:
 	Greybox.panel(geo, Vector3(-13, 1.6, 7.88), Vector3(2.0, 1.0, 0.03), Color(0.08, 0.09, 0.1), 0.2)  # the one-way glass
 	# Rourke wrote his statement before the crew had even badged in: the time is blank.
 	# badge_log fills it in, and says where he really was at 23:40.
-	Document.place(geo, Vector3(-13.5, 0.76, 6.1), 90, "Incident statement", [
+	var statement := Document.place(geo, Vector3(-13.5, 0.76, 6.1), 90, "Incident statement", [
 		"HALCYON DATA SYSTEMS  -  SECURITY INCIDENT STATEMENT",
 		"Reporting officer: ROURKE, D.   Badge R-0117",
 		"Location: Secure Lab B",
@@ -64,6 +64,11 @@ static func build(level: Node3D) -> void:
 		{"text": "I was at the night desk all evening.", "hand": true},
 		"Signed: ____________",
 	], true, "clipboard")
+	# His badge number is a piece of his statement's own case (M5), which opens
+	# once the lab door is open.
+	statement.pieces = [{"case": "statement", "piece": "badge", "text": "R-0117", "kind": "value"}]
+	if level.has_method("_on_statement_read"):
+		statement.read_by.connect(level._on_statement_read)
 	_room(level, "Briefing", Vector3(-13, 0, -7), Vector3(6, 3.2, 6))
 	Greybox.box(geo, Vector3(-13.2, 0.38, -7), Vector3(1.2, 0.76, 3.6), Color(0.36, 0.3, 0.25), "BriefingTable")
 	Greybox.panel(geo, Vector3(-15.88, 1.5, -7), Vector3(0.03, 1.1, 2.2), Color(0.9, 0.9, 0.88))  # whiteboard

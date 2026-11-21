@@ -975,11 +975,11 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 
 **CREW** `l2_cc_pin_n1a.wav`  
 *Cue: After the crew has been stuck finding a working PIN for about a minute, if nobody has read the roster yet*  
-*(Pacing the corridor, thinking it through)* "The badge readers log every swipe. Who left this floor last?" *Stuck. Thinking it through.*
+*(Pacing the corridor, thinking it through)* "The badge readers log every swipe. Who came through SEC-EXIT last?" *Stuck. Thinking it through.*
 
 **CREW** `l2_cc_pin_n1b.wav`  
 *Cue: Same moment, stuck for about a minute, but someone has read the roster*  
-*(Glancing back toward the briefing room)* "The last guard out had a badge number. Something up here matches those to names." *Stuck. Putting two things together.*
+*(Glancing back toward the briefing room)* "The last guard through SEC-EXIT had a badge number. Something up here matches those to names." *Stuck. Putting two things together.*
 
 **CREW** `l2_cc_pin_err.wav`  
 *Cue: When a keypad refuses a wrong PIN for the second time*  

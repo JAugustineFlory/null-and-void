@@ -680,6 +680,24 @@ func add_answer(text: String, source: String = "") -> bool:
 	return true
 
 
+## Case `id` starts a step over: pieces `piece_ids` are missing again, and its
+## slot is empty (not kept as answered). Floor 22's re-keyed lab.
+func forget(id: String, piece_ids: Array) -> void:
+	var c := _case(id)
+	for p in c.get("pieces", []):
+		if piece_ids.has(p.id):
+			p.found = false
+			p.erase("from")
+			p.erase("by")
+	for k in piece_ids:
+		c.get("early", {}).erase(k)
+	var b: Dictionary = c.get("blank", {})
+	if not b.is_empty():
+		b.filled = ""
+		b.erase("miss")
+	notebook_changed.emit()
+
+
 ## Case `id`'s slot answered last: its slot now if that's filled, else the one
 ## before it (set_blank moved on). {} if none is.
 func last_answer(id: String) -> Dictionary:

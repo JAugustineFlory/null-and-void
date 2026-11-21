@@ -203,7 +203,9 @@ func keywords_in(text: String) -> Array:
 ## Returns how many characters were new: what the player had to read.
 func remember(level: Node, ui: TerminalUI) -> int:
 	var read := 0
-	for line in (screen(ui) + "\n" + world_text(level, ui.terminal)).split("\n"):
+	# The case's query under the case chip is on screen too (v0.10): its words are read.
+	var case_line: String = ui._case_line.get_parsed_text() if ui._case_line and ui._case_line.visible else ""
+	for line in (screen(ui) + "\n" + case_line + "\n" + world_text(level, ui.terminal)).split("\n"):
 		if line.strip_edges() != "" and not taught.contains(line):
 			taught += line + "\n"
 			read += line.length()
@@ -599,7 +601,9 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 				var given := RegEx.create_from_string("(?i)(?<![A-Za-z0-9_])" + _escape(v) + "(?![A-Za-z0-9_])").search(first) != null
 				check(not given, "%s: hint 1 doesn't give the value away (%s)" % [p.id, v])
 		if mode != "review":
-			check(p.hints.size() >= 3, "%s: three tiers: shape, how to find the value, exact query" % p.id)
+			# A spot tier (.hint names where in the building to look) counts as the
+			# tier on how to find the value (floor G's rule, v0.10).
+			check(p.hints.size() + mini(p.spots.size(), 1) >= 3, "%s: three tiers: shape, how to find the value, exact query" % p.id)
 		for h in p.hints.slice(1, p.hints.size() - 1):
 			check(not _plain(h).contains(q), "%s: the middle hints say how to find the value, not the query" % p.id)
 	var real := true
@@ -1203,22 +1207,23 @@ func walk_lab(seed_value: int) -> void:
 	ui.open(lab.terminal, p)
 	var near: String = world_text(level, lab.terminal)
 	check(near.contains("zone " + level.data.lab_zone) or near.contains("ZONE " + level.data.lab_zone), "lab: a card inside the lab gives its controller zone (the door plate is outside the locked door)")
-	var hunted: bool = level.watcher.active or (lab.rourke.visible and lab.rourke.state != Rourke.State.DOWN) or lab.response_left > 0.0
+	# The response clock starts at the first query (M2): from then on it's under pressure.
+	var hunted: bool = level.watcher.active or (lab.rourke.visible and lab.rourke.state != Rourke.State.DOWN) or lab.response_left > 0.0 or lab.clock_waiting
 	# The response clock, measured: game time passes as a first-time player reads,
 	# thinks and types (PACE_*), so the clock and any re-key run for real.
 	paced = 0.0
-	var clock_from: float = lab.response_left
+	var clock_from: float = Level2Lab.RESPONSE_TIME
 	var zone: String = level.data.lab_zone
-	var h := await solve(level, ui, lab.door_puzzle, hunted, 3, "", true)
-	check(h >= 0 and h <= rescue_tier(lab.door_puzzle), "lab: a lost player finds the lab door's controller once a hint gives the query (hints %d)" % h)
+	var h := await solve(level, ui, lab.door_puzzle, hunted, 3, "", true, func(): return lab.door_listed)
+	check(h >= 0 and h <= rescue_tier(lab.door_puzzle), "lab: a lost player lists the lab door's controller once a hint gives the query (hints %d)" % h)
+	var shown := last_table(screen(ui))
+	var id: String = shown[0].get("id", "") if shown.size() == 1 else ""
+	check(point_cell(ui, "id", id) and await _until(func(): return lab.door_puzzle.solved and lab.powered, 2.0), "lab: pointing at the id it gives finds the controller, and the switches get power")
 	check(not _game().current_todo().contains(level.data.lab_answer), "lab: the to-do doesn't name the controller")
 	await _spend(10.0)  # across the lab to the switch wall
 	var used: float = clock_from - lab.response_left
 	print("  INFO  lab clock (seed %d): a first-time player reaches the switch after %d s of %d (%d hint%s)" % [seed_value, used, Level2Lab.RESPONSE_TIME, h, "" if h == 1 else "s"])
 	check(lab.response_left > 0.0 and level.data.lab_zone == zone, "lab: a first-time player who reads the hints reaches the switch before the security response re-keys the zone (%d s left)" % lab.response_left)
-	# The badge log is optional here: read unpaced, so its time isn't on the clock.
-	await solve(level, ui, lab.log_puzzle, hunted, 3)
-	check(screen(ui).contains("VIS-"), "lab: the sorted badge_log shows the crew's own badges at her door")
 	ui.close()
 	var sw: Interactable = find_interactable(level, "Reset " + level.data.lab_answer)
 	check(sw != null, "lab: a switch on the wall carries the id the query gave")
@@ -1245,23 +1250,33 @@ func walk_level_2(seed_value: int) -> void:
 	var p: Player = level.player
 	p.local_control = false
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))  # at the booth
+	await _until(func(): return _game().case_info("cameras").has("blank"), 30.0)  # the crew's arrival lines first
 	ui.open(level.booth, p)
-	var h := await solve(level, ui, level.cameras_puzzle, level.loose)
+	var h := await solve(level, ui, level.cameras_puzzle, level.loose, 3, "", false, func(): return level.cams_listed)
 	check(h == 0, "security: the boot screen gets a new player through GET /cameras (hints %d)" % h)
-	h = await solve(level, ui, level.pike_puzzle, level.loose)
-	check(h == 0, "security: LIKE is practised on Pike from the query on screen, safely (hints %d)" % h)
-	check(level.loose, "security: finding Pike freezes CAM-2 (the pressure starts)")
-	# Pressure means the Watcher can actually hunt: it wakes when the office opens.
+	check(point_cell(ui, "motion", "true") and await _until(func(): return level.cameras_puzzle.solved, 2.0), "security: pointing at the camera whose motion is true answers it")
+	h = await solve(level, ui, level.pike_puzzle, level.loose, 3, "", false, func(): return level.pike_listed)
+	check(h >= 0 and h <= rescue_tier(level.pike_puzzle), "security: LIKE is practised on Pike, safely, from the case's query and the papers (hints %d)" % h)
+	var pike_rows := last_table(screen(ui)).filter(func(r): return r.get("name", "").begins_with("PIKE"))
+	check(pike_rows.size() == 1 and point_cell(ui, "pin", pike_rows[0].get("pin", "")) and await _until(func(): return level.pike_puzzle.solved, 2.0), "security: pointing at Pike's PIN finds him")
+	check(not level.loose, "security: Pike's PIN doesn't wake it yet (M7)")
+	# Step 2, calmly: the last guard badge through SEC-EXIT, from the sorted log.
+	h = await solve(level, ui, level.last_puzzle, level.loose, 3, "", false, func(): return level.last_listed)
+	check(h >= 0 and h <= rescue_tier(level.last_puzzle), "security: a lost player lists the SEC-EXIT swipes in time order once a hint gives the query (hints %d)" % h)
+	var swipes := last_table(screen(ui)).filter(func(r): return r.get("badge_id", "").begins_with("G-"))
+	var badge: String = swipes[-1].get("badge_id", "") if not swipes.is_empty() else ""
+	check(point_cell(ui, "badge_id", badge) and await _until(func(): return level.last_puzzle.solved, 2.0), "security: pointing at the last G- badge in the list answers step 2")
+	check(level.loose, "security: the night lead's badge found, CAM-2 freezes (the pressure starts)")
+	# Pressure means the Watcher can actually hunt.
 	var hunting: bool = level.watcher.active
 	level.watcher.active = false  # keep the walkthrough deterministic from here
-	# The Har query isn't written out: the player builds it from LIKE plus AND, both
-	# taught by now (the solve() check enforces it). A lost player who can't gets it
-	# from the hint that gives the query.
-	h = await solve(level, ui, level.har_puzzle, hunting)
-	check(h >= 0 and h <= rescue_tier(level.har_puzzle), "security: a lost player finds the PIN once a hint gives the query (hints %d)" % h)
+	# Step 3: the case's query names the badge already. A lost player who can't
+	# build it gets it from the hint that gives the query.
+	h = await solve(level, ui, level.har_puzzle, hunting, 3, "", false, func(): return level.lead_listed)
+	check(h >= 0 and h <= rescue_tier(level.har_puzzle), "security: a lost player lists the night lead's PIN once a hint gives the query (hints %d)" % h)
 	var rows := last_table(screen(ui))
 	var pin: String = rows[0].get("pin", "") if rows.size() == 1 else ""
-	check(pin.length() == 4, "security: the result shows one guard and their PIN")
+	check(pin.length() == 4 and point_cell(ui, "pin", pin) and await _until(func(): return level.har_puzzle.solved, 2.0), "security: the result shows one guard, and pointing at their PIN finds it")
 	ui.close()
 
 	# Curious players check the door panel before the PIN: its boot text invites it.

@@ -446,13 +446,13 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 *After the crew has been stuck finding a working PIN for about a minute, if nobody has read the roster yet. Pacing the corridor, thinking it through. Stuck. Thinking it through.*
 
-"The badge readers log every swipe. Who left this floor last?"
+"The badge readers log every swipe. Who came through SEC-EXIT last?"
 
 **[ ] `l2_cc_pin_n1b.wav`**
 
 *Same moment, stuck for about a minute, but someone has read the roster. Glancing back toward the briefing room. Stuck. Putting two things together.*
 
-"The last guard out had a badge number. Something up here matches those to names."
+"The last guard through SEC-EXIT had a badge number. Something up here matches those to names."
 
 **[ ] `l2_cc_pin_err.wav`**
 
