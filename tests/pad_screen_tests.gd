@@ -134,11 +134,11 @@ func test_notebook(level: Node, p: Node) -> void:
 	var close_hint: Label = pages.find_child("CloseHint", true, false)
 	check(close_hint != null and close_hint.text == "View to close", "its corner says View closes it (%s)" % (close_hint.text if close_hint else "none"))
 	var light: bool = p.flashlight.visible
-	var at := pages.current_page()
+	var at := pages.current_tab()
 	await tap(JOY_BUTTON_RIGHT_SHOULDER)
-	check(pages.current_page() == (at + 1) % NotebookPages.TAB_NAMES.size(), "RB turns to the next tab")
+	check(pages.current_tab() == (at + 1) % NotebookPages.TAB_NAMES.size(), "RB turns to the next tab")
 	await tap(JOY_BUTTON_LEFT_SHOULDER)
-	check(pages.current_page() == at and p.flashlight.visible == light, "LB back to the one before, and the flashlight stays as it was")
+	check(pages.current_tab() == at and p.flashlight.visible == light, "LB back to the one before, and the flashlight stays as it was")
 	await frames(5)
 	check(p.seat == null and p.state == p.Move.WALK, "RB doesn't sit you down while you read")
 	# A button on the pages, picked and pressed with the d-pad and A.

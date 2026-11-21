@@ -1,0 +1,1 @@
+- **Added:** pick Normal or Hard in the lobby before you start. In co-op the host picks and everyone sees it, with two extra Hard options: the dead watch in silence, or a wipe restarts the whole run.

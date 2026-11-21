@@ -14,6 +14,8 @@ signal gate_opened(key: String)
 
 ## Methods a client may ask the host to call on a world node on its behalf.
 const FORWARDABLE := ["interact", "interact_alt", "take_hit", "report_open"]
+## The same, with arguments after the player (forward_args).
+const FORWARDABLE_ARGS := ["report_take"]
 const READY_TIMEOUT := 20.0
 ## Host: the NPCs it simulates for everyone. Teammates' bodies here (PlayerPuppet)
 ## don't push them: a puppet is only placed where its player's machine says, so a
@@ -336,6 +338,25 @@ func forward(node: Node, method: String) -> bool:
 	return true
 
 
+## forward() with arguments, for the methods in FORWARDABLE_ARGS: the host calls
+## node.method(who, ...args).
+func forward_args(node: Node, method: String, args: Array) -> bool:
+	if is_host():
+		return false
+	_remote_call_args.rpc_id(1, level.get_path_to(node), method, args)
+	return true
+
+
+@rpc("any_peer", "reliable")
+func _remote_call_args(path: NodePath, method: String, args: Array) -> void:
+	if not is_host() or not FORWARDABLE_ARGS.has(method):
+		return
+	var node := level.get_node_or_null(path)
+	var who: Node = _players().puppet(multiplayer.get_remote_sender_id())
+	if node and who and node.has_method(method):
+		node.callv(method, [who] + args)
+
+
 @rpc("any_peer", "reliable")
 func _remote_call(path: NodePath, method: String) -> void:
 	if not is_host() or not FORWARDABLE.has(method):
@@ -344,6 +365,21 @@ func _remote_call(path: NodePath, method: String) -> void:
 	var who: Node = _players().puppet(multiplayer.get_remote_sender_id())
 	if node and who and node.has_method(method):
 		node.call(method, who)
+
+
+## This player found hint spot `id` (LevelBase.found_spot): the host marks it
+## on every machine.
+func report_spot(id: String) -> void:
+	if is_host():
+		event("_crew_found_spot", [id])
+	else:
+		_request_spot.rpc_id(1, id)
+
+
+@rpc("any_peer", "reliable")
+func _request_spot(id: String) -> void:
+	if is_host() and level.has_method("_crew_found_spot"):
+		event("_crew_found_spot", [id])
 
 
 ## This player answered case `id` (Game.answer_found): the host's level hears who
@@ -445,7 +481,7 @@ func _host_query(path: NodePath, sql: String, from_peer: int) -> void:
 		else:
 			_query_refused.rpc_id(from_peer, path)
 		return
-	var result: Dictionary = terminal.db.execute(sql)
+	var result: Dictionary = terminal.query(sql) if terminal.has_method("query") else terminal.db.execute(sql)
 	_show_query.rpc(path, sql, result, from_peer)
 	if result.ok:
 		terminal.on_query(sql, result, level.terminal_ui)
@@ -533,6 +569,12 @@ func _reset_db(path: NodePath) -> void:
 	if terminal:
 		terminal.db.reset()
 		terminal.print_line("Backup tape restored. Data is back to how it started.")
+
+
+## The peer id behind `body` (the local Player or a puppet), 0 if it's neither.
+func peer_of(body: Node) -> int:
+	var np := _players()
+	return np.id_of(body) if np and body else 0
 
 
 func _players() -> NetPlayers:

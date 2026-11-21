@@ -283,7 +283,7 @@ func _test_yourself(world) -> void:
 	var nb = world.notebook
 	_check.call(nb.open(), "the notebook opens after the huddle")
 	var pages = nb.pages
-	pages.show_page(pages.TAB_NAMES.find("Books"))
+	pages.show_tab(pages.TAB_NAMES.find("Books"))
 	await _frames(2)
 	var chap: Button = _book_item(pages, "Chapter_easy_sql_0")
 	_check.call(chap != null and _game().book_chapters == ["easy_sql_0"], "the chapter is in the notebook's Books tab")

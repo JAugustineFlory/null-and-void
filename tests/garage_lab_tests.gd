@@ -57,6 +57,24 @@ func _to_the_lab(home, p: Player) -> bool:
 	return true
 
 
+## Read `doc` and click the line showing `words`, as a player would.
+func _take(doc: Document, p: Player, words: String) -> bool:
+	var reader: DocumentReader = doc.open_reader(p)
+	await _frames(2)
+	var line := -1
+	for i in doc.doc_lines.size():
+		if Document._shows(str(doc.doc_lines[i].text), words):
+			line = i
+			break
+	var took := reader != null and reader.take(line)
+	await _frames(2)
+	if is_instance_valid(reader):
+		reader.close()
+	await _frames(2)
+	p.input_locked = false
+	return took
+
+
 ## A query typed at a lab computer, the screen open on it.
 func _type(ui: TerminalUI, sql: String) -> void:
 	ui._input.text = sql
@@ -214,17 +232,13 @@ func test_tutorial() -> void:
 	_check.call(kit.get("note", "") == GarageTutorial.INTRO_CASE, "its page says how a case works")
 	_check.call(not g.book_chapters.has("easy_sql_1"), "chapter 1 waits for the table's name")
 	_check.call(pc.hint_case() == "lab_kit" and pc.next_hint() == GarageTutorial.KIT_HINTS[0], "the computer's first hint points at the crate's label")
-	tut.kit_puzzle.hint_index = 0
 	ui.close()
 	await _frames(2)
 
-	tut.label.interact(p)
-	await _frames(3)
-	for r in _tree.root.find_children("*", "DocumentReader", true, false):
-		r.queue_free()
-	p.input_locked = false
-	_check.call(await _until(func(): return g.has_piece("lab_kit", "table"), 120), "reading the crate's label finds the table's name")
-	_check.call(tut.kit_puzzle.hint_index >= 1, "and the hints skip past where to look")
+	_check.call(tut.label._shine != null, "the crate's label shines")
+	_check.call(await _take(tut.label, p, "van_kit"), "clicking the table's name on the crate's label takes it")
+	_check.call(await _until(func(): return g.has_piece("lab_kit", "table"), 120), "and the table's name is in the case")
+	_check.call(pc.next_hint() == GarageTutorial.KIT_HINTS[1], "the hints go on past where to look: the shape of the query")
 	_check.call(await _until(func(): return g.book_chapters.has("easy_sql_1"), 2400), "then chapter 1 comes in, the book's first query")
 
 	var select_before := prof.uses_of("SELECT")
@@ -248,12 +262,10 @@ func test_tutorial() -> void:
 	# The second case: no shape on the page, the table on the job board.
 	_check.call(await _until(func(): return g.case_info("lab_jobs").get("open", false), 1200), "then the jobs' case")
 	_check.call(g.case_info("lab_jobs").get("query", "x") == "" and home.hud.current_todo() == GarageTutorial.JOBS_OBJ, "with no query to fill in this time")
-	tut.board.interact(p)
-	await _frames(3)
-	for r in _tree.root.find_children("*", "DocumentReader", true, false):
-		r.queue_free()
-	p.input_locked = false
-	_check.call(await _until(func(): return g.has_piece("lab_jobs", "table"), 120), "the job board gives the table's name")
+	# The jobs table was already listed (the wrong table, above): its name is in hand,
+	# so the board has nothing left to give and .hint goes straight to the shape.
+	_check.call(g.has_piece("lab_jobs", "table") and pc.next_hint() == GarageTutorial.JOBS_HINTS[1], "a table already listed is in hand, and the hints skip the job board")
+	_check.call(not await _take(tut.board, p, "jobs"), "so clicking it on the board takes nothing new")
 	ui.open(pc, p)
 	await _frames(2)
 	await _type(ui, "SELECT * FROM jobs;")

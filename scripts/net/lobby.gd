@@ -29,6 +29,14 @@ const NAV_LEVELS := "Levels"
 const NAV_CUSTOMIZE := "Customize"
 const NAV_BACK := "Back"
 const FLOOR_PICKED := "Starting on %s once everyone's ready."
+## How hard the run is: the host's pick, before Start (plan/hard-mode.md). Approved
+## word for word: the modes and the line under Hard (2026-11-17), the two
+## options (2026-11-20 23:57Z, plan/approvals/v0.10-small-strings.md).
+const MODE_NORMAL := "Normal"
+const MODE_HARD := "Hard"
+const HARD_NOTE := "If you die, you watch. If everyone dies, the floor starts over."
+const DEAD_MUTED := "The dead watch in silence"
+const WIPE_NEW_SEED := "If everyone dies, the whole run starts over"
 
 var stage: LobbyStage
 var picker: LookPicker
@@ -54,6 +62,12 @@ var _ready_btn: Button
 var _pose_btn: Button
 var _waiting: Label
 var _floor_note: Label
+## The run's rules: Normal or Hard, and Hard's two options. Only the host can
+## change them; everyone sees them.
+var _rules_box: Control
+var _mode_btns := {}
+var _hard_box: Control
+var _rule_checks := {}
 var _all_ready_for := 0.0
 ## Joining from your own garage (solo lobby): if it doesn't work out, or the
 ## host leaves, you walk back into it.
@@ -124,6 +138,7 @@ func _ready() -> void:
 	_pose_btn.name = "ChangePose"
 	_pose_btn.pressed.connect(func(): _net().next_pose())
 	_session_box.add_child(_pose_btn)
+	_build_rules(_session_box)
 	_ready_btn = _button(READY)
 	_ready_btn.name = "Ready"
 	_ready_btn.toggle_mode = true
@@ -347,6 +362,66 @@ func _refresh() -> void:
 	var ready_count: int = net.roster.keys().filter(func(id): return net.lobby_of(id).ready).size()
 	_waiting.text = WAITING % [ready_count, net.roster.size()] if in_session and not net.solo_lobby else ""
 	_ready_btn.set_pressed_no_signal(net.lobby_of(net.my_id()).ready)
+	_refresh_rules(net.is_host(), not online)
+
+
+## Normal or Hard, side by side, and under Hard what it means and its two options.
+func _build_rules(parent: Control) -> void:
+	_rules_box = VBoxContainer.new()
+	_rules_box.name = "Rules"
+	_rules_box.add_theme_constant_override("separation", 8)
+	parent.add_child(_rules_box)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_rules_box.add_child(row)
+	var group := ButtonGroup.new()
+	for mode in [["normal", MODE_NORMAL], ["hard", MODE_HARD]]:
+		var b := _button(mode[1])
+		b.name = "Mode" + mode[1]
+		b.toggle_mode = true
+		b.button_group = group
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.toggled.connect(_pick_mode.bind(mode[0]))
+		row.add_child(b)
+		_mode_btns[mode[0]] = b
+	_hard_box = VBoxContainer.new()
+	_hard_box.name = "HardRules"
+	_hard_box.add_theme_constant_override("separation", 4)
+	_rules_box.add_child(_hard_box)
+	var note := ThemeUtil.label(HARD_NOTE, 18, ThemeUtil.DIM)
+	note.name = "HardNote"
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hard_box.add_child(note)
+	for rule in [["dead_muted", DEAD_MUTED], ["wipe_new_seed", WIPE_NEW_SEED]]:
+		var c := CheckBox.new()
+		c.name = "Rule_" + rule[0]
+		c.text = rule[1]
+		c.add_theme_font_size_override("font_size", 18)
+		c.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		c.toggled.connect(func(on): _net().set_rules({rule[0]: on}))
+		_hard_box.add_child(c)
+		_rule_checks[rule[0]] = c
+
+
+func _pick_mode(on: bool, mode: String) -> void:
+	if on:
+		_net().set_rules({"mode": mode})
+
+
+## Show the run's rules as they stand. The host can change them; everyone else
+## sees the host's pick. On your own there's nobody to talk to, so no silence option.
+func _refresh_rules(host: bool, solo: bool) -> void:
+	var rules: Dictionary = _net().rules
+	for mode in _mode_btns:
+		var b: Button = _mode_btns[mode]
+		b.set_pressed_no_signal(rules.mode == mode)
+		b.disabled = not host
+	_hard_box.visible = rules.mode == "hard"
+	for k in _rule_checks:
+		var c: CheckBox = _rule_checks[k]
+		c.set_pressed_no_signal(bool(rules[k]))
+		c.disabled = not host
+	_rule_checks.dead_muted.visible = not solo
 
 
 ## This player's whole loadout now (LookPicker.my_look).

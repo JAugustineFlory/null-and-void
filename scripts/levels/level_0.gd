@@ -91,7 +91,15 @@ const OBJ_VISITOR := "Find who signed in last, now the book's last page is gone"
 ## works and the papers it needs shine until they've been read.
 const INTRO_CASE := "Your notebook keeps one case at a time. This is it: read it, find what it needs, then type the query at a terminal."
 const INTRO_HUNT := "The words you need are written down somewhere out here. Anything worth reading has a shine on it until you've read it."
-const INTRO_SHINE := "Press E to read it. What it tells you goes straight into your case."
+const INTRO_SHINE := "Press E to read it. Point at what your case needs and click it: it goes straight into your case."
+## Where `.hint` sends the crew first, for each case (G26-G30, approved
+## 2026-11-18): the first spot nobody's found whose piece isn't in hand yet.
+const SPOT_CARD := "The scanner came with a quick-start card. It's on the front desk, left of the keyboard."
+const SPOT_CARD_STEP := "Step 4 of the ScanRight card says what numbers each scrap."
+const SPOT_SCHEMA := "Type .schema, a space and the table's name, then press Enter: it lists the table's columns."
+const SPOT_NIGHT_DESK := "Whoever works the desk at night left reminders beside the visitor book."
+## The crew's commentary on G uses the puzzles' ids; two of the cases differ.
+const COMMENTARY_IDS := {"memo": "peek", "memo_order": "memo"}
 ## This floor's queries are all typed at the front desk.
 const DESK_TERMINAL := "front desk terminal"
 const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's row and add it to your notebook"}]
@@ -165,6 +173,13 @@ func build() -> void:
 	load_level_seed(data.sql)
 	caller_puzzle = caller_puzzle_for(data.extension)
 	visitor_puzzle = visitor_puzzle_for()
+	peek_puzzle.spots = [{"id": "scan_card", "text": SPOT_CARD, "piece": "table"}]
+	memo_puzzle.spots = [{"id": "scan_card", "text": SPOT_CARD_STEP, "piece": "column"}]
+	caller_puzzle.spots = [{"id": "schema:staff_directory", "text": SPOT_SCHEMA, "piece": "column"}]
+	visitor_puzzle.spots = [
+		{"id": "schema:visitors", "text": SPOT_SCHEMA},
+		{"id": "night_desk", "text": SPOT_NIGHT_DESK, "piece": "desc"},
+	]
 	visitor_top_one = visitor_top_one_for()
 	var game := get_node("/root/Game")
 	game.answer_found.connect(_on_answer_found)
@@ -215,7 +230,9 @@ func build() -> void:
 		"",
 		{"text": "Front desk scanner. Don't feed it staples!! - IT", "hand": true},
 	], true, "brochure", Vector2(0.15, 0.21))
-	scan_card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo_order", "piece": "column"}]
+	scan_card.pieces = [{"case": "memo", "piece": "table", "text": "memo_fragments", "kind": "table"},
+		{"case": "memo_order", "piece": "column", "text": "piece_no", "kind": "column"}]
+	scan_card.spot = "scan_card"
 	scan_card.clues = [
 		{"case": "memo", "text": "The scanner saves each scrap as one row in the table memo_fragments."},
 		{"case": "memo_order", "text": "piece_no numbers each scrap by where it sat on the page, starting at 1."},
@@ -248,7 +265,7 @@ func build() -> void:
 		{"text": "Who tore the last page out?? - N.F.", "hand": true},
 	], true, "note", Vector2(0.15, 0.2))
 	game.set_pieces("last_visitor", VISITOR_PIECES, VISITOR_QUERY, [], true)
-	book.pieces = [{"case": "last_visitor", "piece": "table"}]
+	book.pieces = [{"case": "last_visitor", "piece": "table", "text": "visitors", "kind": "table"}]
 	book.clues = [{"case": "last_visitor", "opens": BOOK_CASE, "tables": ["visitors"],
 		"text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
 	# The night desk's own reminder beside the book: DESC, found before it's needed.
@@ -258,14 +275,16 @@ func build() -> void:
 		{"text": "  - N.F.", "hand": true},
 	], true, "sticky")
 	newest.clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
-	newest.pieces = [{"case": "last_visitor", "piece": "desc"}]
+	newest.pieces = [{"case": "last_visitor", "piece": "desc", "text": "DESC", "kind": "keyword"}]
+	newest.spot = "night_desk"
 	var last_few := Document.place(geo, Vector3(-2.95, 1.102, -1.15), -8.0, "Sticky note", [
 		{"text": "Just the last few?", "hand": true},
 		{"text": "...DESC LIMIT 5", "hand": true},
 		{"text": "  - N.F.", "hand": true},
 	], true, "sticky")
 	last_few.clues = [{"case": "last_visitor", "text": "Just the last few? End the query with LIMIT 5: only the first 5 rows."}]
-	last_few.pieces = [{"case": "last_visitor", "piece": "limit"}]
+	last_few.pieces = [{"case": "last_visitor", "piece": "limit", "text": "LIMIT 5", "kind": "keyword"}]
+	last_few.spot = "night_desk"
 	# The book or N.F.'s stickies bring back Newest first (DESC, LIMIT), once the memo
 	# has put ORDER BY to use.
 	for d in [book, newest, last_few]:
@@ -328,6 +347,9 @@ func build() -> void:
 	rourke.rotation.y = PI  # looking out at the lot
 	spawn = global_transform.affine_inverse() * van_seats[seat_for(0)].spawn  # the host's own van seat
 	DressLevel0.apply(self)  # furniture and materials (Graphics thread)
+	# The crew thinking out loud: G's 19 approved lines (approvals/puzzle-flow-floor-g.md, part 3).
+	commentary_ids = COMMENTARY_IDS
+	start_commentary()
 
 
 func net_setup() -> void:
@@ -923,11 +945,13 @@ func _on_visitor_top_one() -> void:
 
 
 func _on_memo_backwards() -> void:
+	comment_mistake("backwards")
 	desk_terminal.print_line(TerminalUI.sysop("that's the memo backwards. leave out DESC: smallest first."))
 
 
 func _on_peek_solved() -> void:
 	_file_memo_case()
+	comment("memo_scraps")  # every scrap's got a number
 	# The scraps came out of order: the book's ORDER BY chapter, round the garage bench.
 	await _book_huddle("easy_sql_2")
 	if memo_puzzle.solved:
@@ -1070,6 +1094,7 @@ static func caller_pieces(ext: int) -> Array:
 ## staff directory (or the mailroom's printout of it) has the name.
 func _ask_caller() -> void:
 	caller_asked = true
+	comment("work_order")  # its extension goes on the case
 	hud.todo("Who was on the phone?", OBJ_CALLER % data.extension)
 	var game := get_node("/root/Game")
 	game.open_case("caller", "Who called from ext. %d?" % data.extension, ["staff_directory"], OBJ_CALLER % data.extension)

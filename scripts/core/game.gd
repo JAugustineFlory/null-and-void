@@ -13,6 +13,9 @@ signal cell_added(column: String, value: String, row: Dictionary, answered: bool
 signal line_noted(text: String, kind: String)
 ## One of a case's pieces was found (collect_piece): the HUD shows it.
 signal piece_found(case_id: String, piece_id: String)
+## A crewmate's answer just went into this player's slot for case `case_id` too
+## (LevelBase._crew_answered): `by` is their name. The HUD slides it up.
+signal answer_shared(case_id: String, by: String)
 
 const LEVELS := {
 	"world": "res://scenes/world.tscn",
@@ -143,6 +146,16 @@ var notebook_jotted: Array[String] = []
 ## query}. One that answers a case's slot before the case opens fills it when the
 ## slot is set (set_blank). A new floor starts it empty (mark_floor_start).
 var found_cells: Array = []
+## Hint spots someone in the crew has found this run (find_spot): a paper read, a
+## .schema run. `.hint` sends the crew to the first spot not found yet before its
+## own tiers (Puzzle.spots, Terminal.next_hint).
+var spots_found: Array = []
+## The floor (floor_start's key) where SYSOP last explained the security policy
+## after a refusal (P9b): once a floor.
+var policy_explained := ""
+## The case this player picked in the notebook ("" for the main one): see
+## case_selected. The query on screen and the typing line's example follow it.
+var selected_case := ""
 ## The job the crew was hired for is over (end_job): the work order is void, and
 ## tasks from then on go on the case they're for.
 var job_over := false
@@ -169,6 +182,8 @@ func _ready() -> void:
 
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
+	spots_found.clear()
+	policy_explained = ""
 	open_at_home = false
 	open_at_wing = 0
 	floor_start = {}
@@ -202,6 +217,7 @@ func new_run(seed_value: int = -1) -> void:
 	notebook_cases.clear()
 	notebook_jotted.clear()
 	found_cells.clear()
+	selected_case = ""
 	job_over = false
 	inventory.clear()
 	van_seating.clear()
@@ -211,6 +227,7 @@ func new_run(seed_value: int = -1) -> void:
 ## remember the run as it stands, for a restart of this floor.
 func mark_floor_start(key: String) -> void:
 	found_cells.clear()
+	selected_case = ""
 	var state := {}
 	for p in get_script().get_script_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and not _KEPT_ON_RESTART.has(p.name):
@@ -302,10 +319,12 @@ func discover_table(table: String, columns: Array) -> void:
 
 ## Write a terminal line into the notebook, under the player's own label. It goes
 ## on `case_id`'s page (at a terminal: the case its hints are for), else on the
-## case being worked on (current_case), or under Other notes.
+## case this player has selected in the notebook, else the case being worked on
+## (current_case), or on Floor notes.
 func write_note(label: String, text: String, kind: String, case_id: String = "") -> void:
 	if case_id == "" or not case_info(case_id).get("open", false):
-		case_id = current_case()
+		var picked := case_info(selected_case)
+		case_id = selected_case if picked.get("open", false) and not picked.get("solved", false) else current_case()
 	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
 	notebook_changed.emit()
 	line_noted.emit(text, kind)
@@ -329,6 +348,16 @@ func current_case() -> String:
 		if c.open and not c.solved:
 			return c.id
 	return ""
+
+
+## The case this player has selected: the one they picked in the notebook while
+## it's open and unsolved, else the main case (main_case). "" for none.
+func case_selected() -> String:
+	if selected_case != "":
+		var c := case_info(selected_case)
+		if c.get("open", false) and not c.get("solved", false):
+			return selected_case
+	return main_case()
 
 
 ## Side cases open alongside the current one, newest first: optional ones the crew
@@ -442,6 +471,7 @@ func open_case(id: String, title: String, tables: Array = [], objective: String 
 	c.title = title
 	c.open = true
 	c.objective = objective
+	c["floor"] = str(floor_start.get("key", ""))  # its bookmark is on this floor's Cases tab
 	c.tables = tables.duplicate()
 	# The newest open case goes on top.
 	notebook_cases.erase(c)
@@ -455,6 +485,19 @@ func open_case(id: String, title: String, tables: Array = [], objective: String 
 				_fill_from_cell(id, f)
 				break
 	return true
+
+
+## Someone in the crew found hint spot `id` (LevelBase.found_spot keeps every
+## machine the same). True if new.
+func find_spot(id: String) -> bool:
+	if id == "" or spots_found.has(id):
+		return false
+	spots_found.append(id)
+	return true
+
+
+func spot_found(id: String) -> bool:
+	return spots_found.has(id)
 
 
 ## Note a clue on a case page (once). `from` says where it was read. True if new.
@@ -704,9 +747,10 @@ func set_pieces(id: String, pieces: Array, query: String = "", steps: Array = []
 	notebook_changed.emit()
 
 
-## Case `id`'s piece `piece_id` is found; `from` says where. One found before its
-## case says what pieces it has is kept for then. True if it's newly found.
-func collect_piece(id: String, piece_id: String, from: String = "") -> bool:
+## Case `id`'s piece `piece_id` is found; `from` says where, and `by` names the
+## crewmate who found it (co-op; "" for this player or no one). One found before
+## its case says what pieces it has is kept for then. True if it's newly found.
+func collect_piece(id: String, piece_id: String, from: String = "", by: String = "") -> bool:
 	var c := _case(id)
 	var p := _piece(c, piece_id)
 	if p.is_empty():
@@ -718,6 +762,7 @@ func collect_piece(id: String, piece_id: String, from: String = "") -> bool:
 		return false
 	p.found = true
 	p.from = from
+	p.by = by
 	notebook_changed.emit()
 	piece_found.emit(id, piece_id)
 	return true

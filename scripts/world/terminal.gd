@@ -4,6 +4,9 @@ extends Interactable
 
 signal queried(sql: String, result: Dictionary, ui: TerminalUI)
 signal requested(line: String, response: Dictionary, ui: TerminalUI)
+## A query here failed (on every machine that shows it): the crew's commentary
+## hears the kind of mistake (Commentary.kind_of).
+signal query_failed(sql: String, result: Dictionary)
 ## Someone sat down at this terminal. Fires on the host (in co-op a client's
 ## opening is reported there), so story code can react to it.
 signal opened(by: Node)
@@ -30,6 +33,9 @@ var locked := false
 ## A practice terminal (the garage lab's): what's typed here doesn't count
 ## towards retiring a word's button.
 var practice := false
+## Under the terminal security policy (TerminalPolicy): set by the level, the
+## same on every machine. Bare SELECT * is refused and results are capped.
+var policy := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
@@ -219,9 +225,13 @@ func ensure_booted() -> void:
 
 
 func boot_text() -> Array:
-	if not boot_lines.is_empty():
-		return boot_lines
-	return ["HALCYON DATA SYSTEMS  -  WARDEN v3.1", "Type .help for commands."]
+	var lines: Array = boot_lines if not boot_lines.is_empty() else ["HALCYON DATA SYSTEMS  -  WARDEN v3.1", "Type .help for commands."]
+	return TerminalPolicy.boot_with_line(lines) if policy else lines
+
+
+## Run a query here: under the policy (TerminalPolicy.run) if it's on.
+func query(sql: String) -> Dictionary:
+	return TerminalPolicy.run(db, sql) if policy else db.execute(sql)
 
 
 ## Replace the boot text and wipe the screen the next time it is opened.
@@ -273,5 +283,6 @@ func next_hint() -> String:
 		return "This terminal is locked. Find a way to authorize it."
 	for p in puzzles:
 		if not p.solved:
-			return p.next_hint()
+			var spot: String = p.spot_hint(get_node("/root/Game"))
+			return spot if spot != "" else p.next_hint()
 	return "Nothing left to solve here. Keep moving."

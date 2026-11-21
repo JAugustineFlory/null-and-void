@@ -106,13 +106,18 @@ const BOARD_AT := Vector3(-11.2, 1.5, 2.28)
 ## How long the host waits to hear whether each player has done the practice
 ## before (a machine that never says is counted as new to it).
 const ASK_TIMEOUT := 5.0
+## The label's and the board's hint spots.
+const KIT_SPOT := "lab_kit_label"
+const BOARD_SPOT := "lab_job_board"
 
 var lab: GarageLab
 var home: Node3D
 var label: Document
 var board: Document
-var kit_puzzle := Puzzle.new("lab_kit", "SELECT item, qty FROM van_kit", ["item", "qty"], false, KIT_HINTS)
-var jobs_puzzle := Puzzle.new("lab_jobs", "SELECT client, status FROM jobs", ["client", "status"], false, JOBS_HINTS)
+## Each case's first tier (L14, L29) is a hint spot (Puzzle.spots): `.hint` sends
+## the crew to the label or the board until it's read or its table is in hand.
+var kit_puzzle := Puzzle.new("lab_kit", "SELECT item, qty FROM van_kit", ["item", "qty"], false, KIT_HINTS.slice(1))
+var jobs_puzzle := Puzzle.new("lab_jobs", "SELECT client, status FROM jobs", ["client", "status"], false, JOBS_HINTS.slice(1))
 ## Peer ids of the players new to the practice: each step waits for them.
 var learners: Array = []
 ## Whether the practice is running, and whether it has run (or been skipped).
@@ -152,15 +157,20 @@ func _build() -> void:
 	var geo: Node3D = home.geo
 	kit_puzzle.case_id = "lab_kit"
 	jobs_puzzle.case_id = "lab_jobs"
+	kit_puzzle.spots = [{"id": KIT_SPOT, "text": KIT_HINTS[0], "piece": "table"}]
+	jobs_puzzle.spots = [{"id": BOARD_SPOT, "text": JOBS_HINTS[0], "piece": "table"}]
 	Greybox.box(geo, CRATE + Vector3(0, CRATE_SIZE.y / 2, 0), CRATE_SIZE, Color(0.42, 0.34, 0.22), "KitCrate")
 	label = Document.place(geo, CRATE + Vector3(0, CRATE_SIZE.y + 0.002, 0), -90.0, KIT_LABEL_TITLE, KIT_LABEL, true, "laminated")
 	label.name = "KitLabel"
 	label.pieces = [{"case": "lab_kit", "piece": "table"}]
 	label.clues = [{"case": "lab_kit", "text": KIT_CLUE}]
+	label.spot = KIT_SPOT
+	label.shine_seen.connect(_on_shine_seen)
 	board = Document.place(geo, BOARD_AT, 0.0, BOARD_TITLE, BOARD)
 	board.name = "JobBoard"
 	board.pieces = [{"case": "lab_jobs", "piece": "table"}]
 	board.clues = [{"case": "lab_jobs", "text": BOARD_CLUE}]
+	board.spot = BOARD_SPOT
 	for pc in lab.computers:
 		pc.puzzles = [kit_puzzle, jobs_puzzle]
 		pc.opened.connect(_on_sat)
@@ -168,7 +178,6 @@ func _build() -> void:
 	var game := _game()
 	game.cell_added.connect(_on_cell)
 	game.answer_found.connect(_on_answer_found)
-	game.piece_found.connect(_on_piece)
 
 
 ## Every machine, in the garage's story (HomeBase.start): the practice, or, for a
@@ -296,8 +305,7 @@ func _open_kit() -> void:
 	game.set_pieces("lab_kit", KIT_PIECES, KIT_QUERY, KIT_STEPS)
 	game.set_case_note("lab_kit", INTRO_CASE, "", PC_NAME)
 	game.set_blank("lab_kit", KIT_SLOT, ["duct tape"], "duct tape", {"column": "item", "values": ["duct tape"], "rows": [{"qty": 0}]})
-	if game.has_piece("lab_kit", "table"):
-		_skip_first_hint(kit_puzzle)
+	label.shine()  # the crew's first paper with a piece on it: what to do with one (_on_shine_seen)
 
 
 func _open_jobs() -> void:
@@ -307,8 +315,6 @@ func _open_jobs() -> void:
 	game.set_pieces("lab_jobs", JOBS_PIECES, "", JOBS_STEPS)  # no shape this time: they type it all
 	game.set_case_note("lab_jobs", "", "", PC_NAME)
 	game.set_blank("lab_jobs", JOBS_SLOT, ["zebulon"], OPEN_JOB, {"column": "client", "values": [OPEN_JOB], "rows": [{"status": "open"}]})
-	if game.has_piece("lab_jobs", "table"):
-		_skip_first_hint(jobs_puzzle)
 
 
 ## Every machine: case `id` is solved, on everyone's page.
@@ -319,18 +325,10 @@ func _solve(id: String, puzzle: Puzzle, how: String) -> void:
 	game.solve_case(id, how)
 
 
-## The first hint points at where the table's name is: once it's found, skip it.
-func _skip_first_hint(puzzle: Puzzle) -> void:
-	puzzle.hint_index = maxi(puzzle.hint_index, 1)
-
-
-func _on_piece(case_id: String, piece_id: String) -> void:
-	if piece_id != "table":
-		return
-	if case_id == "lab_kit":
-		_skip_first_hint(kit_puzzle)
-	elif case_id == "lab_jobs":
-		_skip_first_hint(jobs_puzzle)
+## This player looked at the shining label: floor G's words for what a shine is
+## and how a piece is taken off a paper (approved there; G says it again).
+func _on_shine_seen(_player: Node) -> void:
+	home.hud.notice(load("res://scripts/levels/level_0.gd").INTRO_SHINE, 8.0)
 
 
 ## This player found a practice answer: tell the host.
