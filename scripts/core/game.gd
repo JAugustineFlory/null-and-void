@@ -145,6 +145,11 @@ var notebook_jotted: Array[String] = []
 var found_cells: Array = []
 ## The found cell that last filled a slot (add_cell reads it after a miss).
 var _filled_by: Dictionary = {}
+## A level's own say on a cell its slot's rule matched (floor 10: a read-back
+## counts only in a result of one row, or at the bay's panel): called with the
+## case's id and the found cell {column, value, row, query, source}; false keeps
+## it out of the slot, and cell_missed fires instead. Unset, every match counts.
+var cell_rule: Callable
 ## The case this player picked in the notebook ("" for the main one): see
 ## case_selected. The query on screen and the typing line's example follow it.
 var selected_case := ""
@@ -182,6 +187,7 @@ func _ready() -> void:
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	spots_found.clear()
+	cell_rule = Callable()
 	policy_explained = ""
 	open_at_home = false
 	open_at_wing = 0
@@ -479,7 +485,7 @@ func open_case(id: String, title: String, tables: Array = [], objective: String 
 	var b: Dictionary = c.get("blank", {})
 	if b.has("cell") and b.filled == "":
 		for f in found_cells:
-			if _fills_cell(b.cell, f.column, f.value, f.row):
+			if _cell_counts(id, b.cell, f):
 				_fill_from_cell(id, f)
 				break
 	return true
@@ -568,7 +574,7 @@ func set_blank(id: String, prompt: String, needles: Array, value: String, cell: 
 		notebook_changed.emit()
 	if c.blank.has("cell"):
 		for f in found_cells:
-			if _fills_cell(c.blank.cell, f.column, f.value, f.row):
+			if _cell_counts(id, c.blank.cell, f):
 				_fill_from_cell(id, f)
 				break
 
@@ -599,6 +605,14 @@ static func _fills_cell(cell: Dictionary, column: String, value: String, row: Di
 	return cell.rows.any(func(r: Dictionary): return names.all(func(k): return r.get(k) == shown[k]))
 
 
+## Found cell `f` answers case `id`'s slot `cell`: its rule matches, and the
+## level's cell_rule (if any) agrees.
+func _cell_counts(id: String, cell: Dictionary, f: Dictionary) -> bool:
+	if not _fills_cell(cell, f.column, f.value, f.row):
+		return false
+	return not cell_rule.is_valid() or cell_rule.call(id, f)
+
+
 ## The crew points at a result cell: `value`, in `column`, in a row showing `row`
 ## (column -> value), put on screen by `query`. If it answers an open case's slot,
 ## it's written in there and answer_found fires (true). Either way it's kept for
@@ -608,7 +622,7 @@ func add_cell(column: String, value: String, row: Dictionary = {}, query: String
 	found_cells.append(f)
 	for c in notebook_cases:
 		var b: Dictionary = c.get("blank", {})
-		if c.open and not c.solved and b.has("cell") and b.filled == "" and _fills_cell(b.cell, column, value, row):
+		if c.open and not c.solved and b.has("cell") and b.filled == "" and _cell_counts(c.id, b.cell, f):
 			return _fill_from_cell(c.id, f)
 	# A level may take a cell no slot's rule matches as its answer after all
 	# (floor 18: a room in a list of Mercer's boxes): then it's in.

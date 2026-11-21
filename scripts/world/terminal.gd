@@ -33,6 +33,12 @@ var locked := false
 ## Under the terminal security policy (TerminalPolicy): set by the level, the
 ## same on every machine. Bare SELECT * is refused and results are capped.
 var policy := false
+## Under the policy, this terminal's cap is its own row in the building's
+## terminal_policy table (TerminalPolicy.cap_of): floor 10's four, which a crew
+## can lift. Every other terminal keeps the policy's 20.
+var reads_cap := false
+## Who typed the query being handled now (host): its peer id (on_query).
+var last_peer := 0
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
@@ -228,7 +234,12 @@ func boot_text() -> Array:
 
 ## Run a query here: under the policy (TerminalPolicy.run) if it's on.
 func query(sql: String) -> Dictionary:
-	return TerminalPolicy.run(db, sql) if policy else db.execute(sql)
+	return TerminalPolicy.run(db, sql, policy_cap()) if policy else db.execute(sql)
+
+
+## How many rows the policy lets this terminal show.
+func policy_cap() -> int:
+	return TerminalPolicy.cap_of(db, terminal_name) if reads_cap else TerminalPolicy.CAP
 
 
 ## Replace the boot text and wipe the screen the next time it is opened.
@@ -257,7 +268,8 @@ func sound(kind: String) -> void:
 	Sfx.play(self, kind, focus_point.position)
 
 
-func on_query(sql: String, result: Dictionary, terminal_ui: TerminalUI) -> void:
+func on_query(sql: String, result: Dictionary, terminal_ui: TerminalUI, from_peer := 0) -> void:
+	last_peer = from_peer
 	queried.emit(sql, result, terminal_ui)
 
 

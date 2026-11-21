@@ -99,6 +99,7 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 		await walk_level_3(run[0], run[1])
 	await walk_level_4(31, true)
 	await walk_level_4(12, false)
+	await check_limit_lift()
 	check_teaching_order()
 	check_jot_rules()
 	if gaps > 0:
@@ -1562,8 +1563,9 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	var h := await solve(level, ui, level.reset_puzzle, _hunted(level))
 	check(h <= rescue_tier(level.reset_puzzle) and level.reset_puzzle.solved and not level.alarm, "%s: tonight's breaker is reset from the work order's shape and the panel, with no alarm (hints %d)" % [where, h])
 	check(_said(level.maint, level.TEXT.tip_example), "%s: the work order's own UPDATE, copied, gets SYSOP's why" % where)
-	h = await solve(level, ui, level.check_puzzle, _hunted(level))
-	check(h == 0 and level.check_puzzle.solved and _game().case_info("power").get("solved", false), "%s: SYSOP asks whether it took, the panel's SELECT is on the screen, and reading it back signs off the work order (hints %d)" % [where, h])
+	h = await solve(level, ui, level.check_puzzle, _hunted(level), 3, "", false, func(): return level.check_listed)
+	check(h <= rescue_tier(level.check_puzzle) and level.check_listed, "%s: SYSOP asks whether it took, and the read-back is on the screen, from the case's query or the ladder (hints %d)" % [where, h])
+	check(point_cell(ui, "state", "on") and await _until(func(): return level.check_puzzle.solved and _game().case_info("power").get("solved", false), 2.0), "%s: pointing at tonight's breaker's state signs off the work order" % where)
 	ui.close()
 	# A query's answer is what the panel shows now, with tonight's breaker on.
 	check_case_clues(level, where)
@@ -1576,8 +1578,9 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	ui.open(level.controller, p)
 	h = await solve(level, ui, level.login_puzzle, _hunted(level))
 	check(h <= rescue_tier(level.login_puzzle) and level.login_puzzle.solved and not level.logged_in, "%s: the crew's own row goes in, from the crib's shape, the notebook's number and the clock, or the ladder (hints %d)" % [where, h])
-	h = await solve(level, ui, level.login_read_puzzle, _hunted(level))
-	check(h <= rescue_tier(level.login_read_puzzle) and level.logged_in, "%s: read back, the log-in counts (hints %d)" % [where, h])
+	h = await solve(level, ui, level.login_read_puzzle, _hunted(level), 3, "", false, func(): return level.login_listed)
+	check(h <= rescue_tier(level.login_read_puzzle) and level.login_listed, "%s: the log is read back (hints %d)" % [where, h])
+	check(point_cell(ui, "job", level.data.ticket) and await _until(func(): return level.logged_in, 2.0), "%s: pointing at our own job number in it, the log-in counts" % where)
 	# Facilities' notice names the fire exit. Its row would have said CONTAINMENT.
 	h = await solve(level, ui, level.main_doors_puzzle, _hunted(level))
 	check(h <= rescue_tier(level.main_doors_puzzle) and level.accident, "%s: main_doors, opened by the notice's name, is the accident (hints %d)" % [where, h])
@@ -1608,7 +1611,14 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 			h = await solve(level, ui, level.readback_puzzle, _hunted(level), 3, "", true, func():
 				if ended[0] < 0.0 and (level.sealed or level.lockout_until == 0):
 					ended[0] = paced
-				return ended[0] >= 0.0)
+				return ended[0] >= 0.0 or level.readback_listed)
+			if level.readback_listed and level.lockout_until > 0:
+				# Found it on the screen: a moment to find the breaker and click it.
+				await _spend(PACE_THINK)
+				point_cell(ui, "breaker", level.data.bay_breaker)
+				await _until(func(): return level.sealed or level.lockout_until == 0, 2.0)
+			if ended[0] < 0.0:
+				ended[0] = paced
 			ui.close()
 			Engine.time_scale = 1.0
 			print("  INFO  lockout read-back (seed %d, try %d): %s %d s after the lockout went in, of %d (%d hint%s)" % [seed_value, tries, "sealed" if level.sealed else "lapsed", ended[0], level.LOCKOUT_WINDOW, h, "" if h == 1 else "s"])
@@ -1632,8 +1642,10 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	check(await _until(func(): return level.db.read_only, 5.0), "%s: then Epsilon puts the row back" % where)
 	var done := [false]
 	level.completed.connect(func(): done[0] = true)
-	h = await solve(level, ui, level.verify_puzzle, _hunted(level), 3, calm)
-	check(h <= rescue_tier(level.verify_puzzle) and _game().case_info("entrance").get("solved", false), "%s: reading the row back shows the lie (hints %d)" % [where, h])
+	h = await solve(level, ui, level.verify_puzzle, _hunted(level), 3, calm, false, func(): return level.verify_listed)
+	check(h <= rescue_tier(level.verify_puzzle) and level.verify_listed, "%s: the front doors' row is read back (hints %d)" % [where, h])
+	check(point_cell(ui, "unlocked", "0", "main_entrance") or point_cell(ui, "unlocked", "0"), "%s: its unlocked is pointed at" % where)
+	check(await _until(func(): return _game().case_info("entrance").get("solved", false), 2.0), "%s: reading the row back shows the lie" % where)
 	ui.close()
 	Engine.time_scale = 4.0
 	check(await _until(func(): return done[0], 120.0), "%s: locked in, the floor ends" % where)
@@ -1642,6 +1654,65 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	board_verdict(where)
 	level.queue_free()
 	await t.process_frame
+
+
+## Floor 10's hidden secret: an UPDATE on terminal_policy lifts a terminal's row
+## cap, with a WHERE on one, without one on all four. It stops there: floors 9, B1
+## and B2 keep 20, a bare SELECT * is still refused, and only whoever typed it
+## gets the secret.
+func check_limit_lift() -> void:
+	_game().new_run(5)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	skip_chapters(level)
+	for i in 20:
+		await t.physics_frame
+	var net: Node = t.root.get_node("/root/Net")
+	var earned: Array = net.profile.earned.duplicate()
+	net.profile.earned.erase(level.LIFT_SECRET)
+	level.db.execute("CREATE TABLE big_log (n INTEGER)")
+	for i in 70:
+		level.db.execute("INSERT INTO big_log VALUES (%d)" % i)
+	# A crewmate on another machine lifts the bay's: the secret's theirs, not ours.
+	level.db.execute("UPDATE terminal_policy SET max_rows = 30 WHERE terminal = 'BAY 10 PANEL'")
+	level.bay_terminal.last_peer = 99
+	level._policy_changed(1, "bay")
+	await t.physics_frame
+	check(level.bay_terminal.policy_cap() == 30 and _said(level.bay_terminal, level.TEXT.tip_lifted) and not net.profile.earned.has(level.LIFT_SECRET),
+		"limit lift: raised past 20 by a crewmate, the bay's panel shows 30 rows and SYSOP says so (U70), but the secret goes to them, not us")
+	var ui: TerminalUI = level.terminal_ui
+	ui.open(level.maint, level.player)
+	ui.run("UPDATE terminal_policy SET max_rows = 500 WHERE terminal = 'PLANT MAINT'")
+	await t.physics_frame
+	check(net.profile.earned.has(level.LIFT_SECRET), "limit lift: typed with a WHERE on one listed terminal, the typer gets Security Through Obscurity")
+	ui.run("SELECT n FROM big_log")
+	check(level.maint.policy_cap() == TerminalPolicy.MOST and level.maint.query("SELECT n FROM big_log").rows.size() == TerminalPolicy.MOST and _said(level.maint, TerminalPolicy.capped_line(TerminalPolicy.MOST)),
+		"limit lift: set past 60, the plant terminal shows 60 rows and its footer says 60")
+	check(level.controller.query("SELECT n FROM big_log").rows.size() == TerminalPolicy.CAP and level.front_desk.policy_cap() == TerminalPolicy.CAP, "limit lift: the terminals it didn't name keep 20")
+	ui.run("SELECT * FROM big_log")
+	check(TerminalUI._plain(level.maint.transcript[-1]) == TerminalPolicy.REFUSAL, "limit lift: a bare SELECT * is still refused")
+	ui.run("UPDATE terminal_policy SET max_rows = 0 WHERE terminal = 'FRONT DESK'")
+	check(level.front_desk.policy_cap() == TerminalPolicy.CAP, "limit lift: a cap of 0 is refused by the table's CHECK")
+	ui.run("UPDATE terminal_policy SET max_rows = 40")
+	await t.physics_frame
+	check(_said(level.maint, level.TEXT.tip_lifted_all % 4) and [level.maint, level.controller, level.bay_terminal, level.front_desk].all(func(term): return term.policy_cap() == 40),
+		"limit lift: with no WHERE all four terminals lift, and SYSOP says what no WHERE did (U71)")
+	ui.close()
+	level.queue_free()
+	await t.process_frame
+	for scene in ["level_5", "level_6", "level_7"]:
+		_game().new_run(5)
+		var floor_level = load("res://scenes/%s.tscn" % scene).instantiate()
+		t.root.add_child(floor_level)
+		for i in 10:
+			await t.physics_frame
+		var terms: Array = floor_level.find_children("*", "Terminal", true, false)
+		if floor_level.db.table_names().has(TerminalPolicy.TABLE):
+			floor_level.db.execute("UPDATE terminal_policy SET max_rows = 60")
+		check(not terms.is_empty() and terms.all(func(term): return not term.reads_cap and term.policy_cap() == TerminalPolicy.CAP), "limit lift: no terminal on %s reads terminal_policy; each keeps 20" % scene)
+		floor_level.queue_free()
+		await t.process_frame
+	net.profile.earned = earned
 
 
 ## Something can hunt the crew on floor 10: the Custodian, from the accident until
