@@ -1145,7 +1145,7 @@ func run(sql: String) -> void:
 	if sync:
 		sync.submit_query(terminal, sql)
 		return
-	var result: Dictionary = terminal.db.execute(sql)
+	var result: Dictionary = terminal.query(sql) if terminal.has_method("query") else terminal.db.execute(sql)
 	show_query(terminal, sql, result, multiplayer.get_unique_id())
 	if result.ok:
 		terminal.on_query(sql, result, self)
@@ -1180,6 +1180,17 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 	if not mine:
 		_remember(on_terminal, sql)
 	var out: Array = [[_echo(sql, who), "echo"]]
+	if result.get("policy", "") == "refused":
+		# The policy's refusal stands alone: no SYSOP line under it, nothing noted.
+		# SYSOP answers the next .hint here instead (P9).
+		on_terminal.set_meta("policy_refused", true)
+		on_terminal.print_line(out[0][0], "echo")
+		on_terminal.print_line("[color=#ff6655]%s[/color]" % TerminalPolicy.REFUSAL, "error")
+		if on_terminal.has_method("sound"):
+			on_terminal.sound("error")
+		if on_terminal.has_signal("query_failed"):
+			on_terminal.query_failed.emit(sql, result)
+		return
 	if not result.ok:
 		out.append(["[color=#ff6655]ERROR: %s[/color]" % _esc(result.error), "error"])
 		out.append([sysop(_explain(on_terminal, sql, result.error)), "hint"])
@@ -1200,6 +1211,8 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 				out.append(["(0 rows)", "info"])
 		else:
 			out.append([_format_table(result.columns, result.rows), "result"])
+			if result.get("capped", false):
+				out.append([TerminalPolicy.CAPPED, "info"])
 	# A hint's shape typed in as it is: a quoted blank runs but finds nothing useful
 	# (an unquoted one is an error, explained above). So is ?, which SQLite takes
 	# as an empty value.
@@ -1253,8 +1266,10 @@ func _command(cmd: String) -> void:
 	match parts[0].to_lower():
 		".help":
 			print_line("Commands:")
-			print_line("  .tables          list every table")
-			print_line("  .schema NAME     show the columns of a table")
+			# Under the policy, officially they don't exist: they still work (P7).
+			if not terminal.policy:
+				print_line("  .tables          list every table")
+				print_line("  .schema NAME     show the columns of a table")
 			print_line("  .hint            ask SYSOP for a hint")
 			print_line("  .clear           clear the screen")
 			print_line("  .note LABEL      write the last line into your notebook (or point at a line)")
@@ -1264,6 +1279,8 @@ func _command(cmd: String) -> void:
 			if terminal.get_meta("scripts", false):
 				print_line("  .script          write and run a script (JavaScript)")
 			print_line("Anything else is run as SQL. End queries with ; (optional).")
+			if terminal.policy:
+				print_line(TerminalPolicy.HELP_LINE)
 		".tables":
 			if terminal.is_locked():
 				print_line("[color=#ff6655]%s[/color]" % terminal.locked_message)
@@ -1296,7 +1313,8 @@ func _command(cmd: String) -> void:
 					count_words(".schema " + t, terminal)
 		".hint":
 			var case_id: String = terminal.hint_case()
-			print_line(sysop(_noted_hint(case_id, terminal.next_hint())), "hint")
+			var policy_hint := _policy_hint(terminal)
+			print_line(sysop(_noted_hint(case_id, policy_hint if policy_hint != "" else terminal.next_hint())), "hint")
 			if is_inside_tree():
 				get_tree().call_group(Commentary.GROUP, "hinted")
 		".clear":
@@ -1354,7 +1372,7 @@ func open_script_editor() -> ScriptEditorUI:
 	_script_terminal = on
 	_editor.open(rt, {
 		"title": on.terminal_name,
-		"library": BuildingLibrary.new(on.api, on.db),
+		"library": BuildingLibrary.new(on.api, on.db, on.get("policy") == true),
 		"seed": game.run_seed if game else 0,
 		"code": on.get_meta("script_code", ""),
 		"player": who,
@@ -1366,6 +1384,23 @@ func open_script_editor() -> ScriptEditorUI:
 
 
 ## Every hint asked for also goes on its puzzle's case page. Returns the hint.
+## SYSOP's answer to `.hint` just after the policy refused a query here (P9), or
+## "": point at the posted card until someone in the crew has read a copy, then
+## say it plainly, once a floor.
+func _policy_hint(on_terminal: Node) -> String:
+	if not on_terminal.get_meta("policy_refused", false):
+		return ""
+	on_terminal.set_meta("policy_refused", false)
+	var game := get_node("/root/Game")
+	if not game.spot_found(TerminalPolicy.SPOT):
+		return TerminalPolicy.HINT_UNREAD
+	var here := str(game.floor_start.get("key", ""))
+	if game.policy_explained == here and here != "":
+		return ""
+	game.policy_explained = here
+	return TerminalPolicy.HINT_READ
+
+
 ## The level `node` is in (one with found_spot), or null.
 static func _level_of(node: Node) -> Node:
 	var n := node

@@ -150,6 +150,9 @@ var selected_case := ""
 ## .schema run. `.hint` sends the crew to the first spot not found yet before its
 ## own tiers (Puzzle.spots, Terminal.next_hint).
 var spots_found: Array = []
+## The floor (floor_start's key) where SYSOP last explained the security policy
+## after a refusal (P9b): once a floor.
+var policy_explained := ""
 ## The job the crew was hired for is over (end_job): the work order is void, and
 ## tasks from then on go on the case they're for.
 var job_over := false
@@ -177,6 +180,7 @@ func _ready() -> void:
 func new_run(seed_value: int = -1) -> void:
 	run_seed = seed_value if seed_value >= 0 else randi()
 	spots_found.clear()
+	policy_explained = ""
 	open_at_home = false
 	open_at_wing = 0
 	floor_start = {}
