@@ -213,8 +213,15 @@ func start_commentary() -> Commentary:
 
 
 ## The case being worked on changed, or one was solved: tell the commentary.
+## In the building (World) only the floor the crew is on follows the case in
+## play: a floor they've left, or one still loading ahead, stays quiet.
 func _follow_cases() -> void:
 	if not is_instance_valid(commentary):
+		return
+	if world and world.get("current") != self:
+		if _commented_case != "":
+			_commented_case = ""
+			commentary.begin("")
 		return
 	var game := get_node("/root/Game")
 	for c in game.notebook_cases:
