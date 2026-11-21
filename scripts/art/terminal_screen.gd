@@ -105,9 +105,9 @@ func _sync_from_terminal() -> void:
 	var typing = t.get("typing")
 	var seated = t.get("seated")
 	var prompts: Array[String] = []
-	if typing is Dictionary:
+	if typing is Dictionary and not typing.is_empty():
 		var order: Array = seated if seated is Array else typing.keys()
-		var net := get_node_or_null("/root/Net")
+		var net := get_node_or_null("/root/Net") if is_inside_tree() else null
 		for peer in order:
 			if not typing.has(peer):
 				continue
