@@ -241,8 +241,8 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l2_cc_door_n1` | "That door's got its name painted over it in red. Maybe the server knows it by that." | Stuck. | Level 2, later |
 | [ ] | `l2_cc_breaker_pay` | "A breaker. Of course it's a breaker." | Relief, and a little laugh at yourself. | Level 2, later |
 | [ ] | `l2_cc_roster` | "Badge numbers, next to names." | Reading a roster board. Noting it. | Level 2, later |
-| [ ] | `l2_cc_pin_n1a` | "The badge readers log every swipe. Who left this floor last?" | Stuck. Thinking it through. | Level 2, later |
-| [ ] | `l2_cc_pin_n1b` | "The last guard out had a badge number. Something up here matches those to names." | Stuck. Putting two things together. | Level 2, later |
+| [ ] | `l2_cc_pin_n1a` | "The badge readers log every swipe. Who came through SEC-EXIT last?" | Stuck. Thinking it through. | Level 2, later |
+| [ ] | `l2_cc_pin_n1b` | "The last guard through SEC-EXIT had a badge number. Something up here matches those to names." | Stuck. Putting two things together. | Level 2, later |
 | [ ] | `l2_cc_pin_err` | "Wrong code. Is that the night lead, or just any guard?" | A second wrong PIN. Thinking. | Level 2, later |
 | [ ] | `l2_cc_pin_pay` | "That's the code. Let's not hang around." | Keypad accepted it. Nervous, wants to move. | Level 2, later |
 | [ ] | `l5_book_find_block` | "No way. It's the same series. Somebody here bought the sequel." "Okay. If the database won't take orders, we ask the building's services instead. Book says they're polite. Mostly." | Delighted, a little thrown. Reading the back cover, hopeful. | Level 5 |

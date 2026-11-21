@@ -105,13 +105,44 @@ var _keeping_in := false
 var _talking := false
 
 var door_puzzle: Puzzle
-var log_puzzle := Puzzle.new("badge_log", "SELECT time, badge_id FROM badge_log ORDER BY time", ["time", "badge_id"], true, [
-	"type this, then Enter:\n" +
-	"    [color=#ffffff]SELECT * FROM badge_log ORDER BY time;[/color]\n" +
-	"  SELECT * FROM badge_log  every swipe at every reader on this floor\n" +
-	"  ORDER BY time            sorted by when it happened, earliest first",
-	"read down the door column for SECLAB-B. who came in, and when?",
-])
+## The terminal has found the latched controller (pointed at it): the reset
+## switches have power (M3). Off again after a re-key.
+var powered := false
+## The response clock starts at the crew's first query in the lockdown, and after
+## a re-key at the next one (M2).
+var clock_waiting := false
+## Host: the lab door's controller is on screen (the query found it): pointing at
+## it is the step.
+var door_listed := false
+
+## The lab door's case (approvals/puzzle-flow-floor-22.md, T2-T13).
+const LAB_QUERY := "SELECT id FROM {table} WHERE zone = '{zone}' AND status = '{status}';"
+const LAB_SLOT := "The lab door's controller:"
+const LAB_ROW := "That's the right row. The blank wants its id."
+const LAB_OFFLINE := "That one's 'offline': switched off on purpose. The blank wants the one that's 'fault'."
+const LAB_ELSEWHERE := "That one's faulted, but in another zone. The blank wants the lab's zone."
+const LAB_OTHER := "Not that one: the blank wants the controller in the lab's zone with status 'fault'."
+## T11: a switch pressed before the terminal finds the latched controller.
+const NO_POWER := "> %s: NO POWER TO THE RESET CIRCUIT.\n> It powers up once the terminal finds the latched controller."
+## The hint spot the door card is (Document.spot): its tier comes first, and goes once it's read (M4).
+const CARD_SPOT := "lab_door_card"
+const CARD_TIER := "the door card hangs over the bench. it says \"controller zone\" and a letter. put that letter in place of enter_zone."
+## Where the lab's screen pieces were found.
+const SCREEN := "Dr. Vale's screen"
+## Her terminal once the lab door is open: Rourke's session is over (part 2).
+const AFTER_LINES := [
+	"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SECURE LAB B",
+	"Session: GUEST (lockdown mode, read only)",
+	TerminalPolicy.BOOT_LINE,
+]
+
+
+static func lab_pieces(z: String) -> Array:
+	return [
+		{"id": "table", "label": "The table of controllers", "value": "door_controllers", "task": "Find the table of door controllers", "where": SCREEN, "seen_in": "door_controllers", "blank": "enter_table_name"},
+		{"id": "zone", "label": "The lab's zone", "value": z, "task": "Find the zone the lab's doors are on", "where": "The door card over the bench", "blank": "enter_zone"},
+		{"id": "status", "label": "What a stuck lock reads", "value": "fault", "task": "Find the status a stuck lock shows", "where": SCREEN, "blank": "enter_status"},
+	]
 
 
 static func create(for_level: Node3D, level_data: Dictionary) -> Level2Lab:
@@ -126,22 +157,24 @@ static func create(for_level: Node3D, level_data: Dictionary) -> Level2Lab:
 
 
 ## The lab door's query: its own zone, and status 'fault'. Both conditions matter.
-## Hints: the shape with the zone left as 'enter_zone', then where the zone is, then the query.
+## Hints: the door card first (a spot, M4), then the shape with the zone left as
+## 'enter_zone' (T12), then the query (T13).
 static func door_puzzle_for(zone: String) -> Puzzle:
-	return Puzzle.new("lab_door", "SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % zone, ["id"], false, [
+	var p := Puzzle.new("lab_door", "SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % zone, ["id"], false, [
 		"the shape, with the zone left blank:\n" +
-		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = 'enter_zone' AND status = 'fault';[/color]\n" +
-		"  SELECT *                   every column\n" +
+		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = 'enter_zone' AND status = 'fault';[/color]\n" +
+		"  SELECT id                  just the controller's id\n" +
 		"  FROM door_controllers      the building's door controllers\n" +
 		"  WHERE zone = 'enter_zone'  only this lab's zone\n" +
 		"  AND status = 'fault'       ...that are ALSO faulted. both must be true\n" +
-		"replace enter_zone with this lab's controller zone. it's on the plate by the door, and on a card in here.",
-		"the door card hangs over the bench. it says \"controller zone\" and a letter. put that letter in place of enter_zone.",
+		"replace enter_zone with this lab's controller zone. it's on the door card over the bench.",
 		"type this, then Enter:\n" +
-		"    [color=#ffffff]SELECT * FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % zone +
-		"the id it gives you is the one to reset. the switches are on this lab's wall, by the coat. " +
-		"press E on the one with that id. the others in zone %s are offline or ok: read their note column." % zone,
+		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % zone +
+		"point at the id it gives you and add it to your notebook: that's the one to reset. " +
+		"the switches are on this lab's wall, by the coat. press E on the one with that id.",
 	])
+	p.spots = [{"id": CARD_SPOT, "text": CARD_TIER, "piece": "zone"}]
+	return p
 
 func _build() -> void:
 	var geo: Node3D = level.geo
@@ -168,7 +201,7 @@ func _build() -> void:
 	# Inside: her desk and terminal on the north wall, the bench along the south.
 	Greybox.box(geo, Vector3(-13, 0.4, -3.2), Vector3(2.4, 0.8, 0.9), Color(0.4, 0.4, 0.42), "ValeDesk")
 	terminal = Terminal.spawn(geo, Vector3(-13.4, 0.8, -3.2), 0, "VALE_I  -  SECURE LAB B", level.db, level.terminal_ui)
-	terminal.puzzles = [door_puzzle, log_puzzle]
+	terminal.puzzles = [door_puzzle]
 	terminal.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SECURE LAB B",
 		"Session: VALE_I",
@@ -178,6 +211,7 @@ func _build() -> void:
 		"  Someone is editing the records after I sign them.",
 	]
 	terminal.queried.connect(_on_query)
+	terminal.query_failed.connect(_on_query_failed)
 	terminal.opened.connect(_on_opened)
 	# The struggle: blood on the desk's edge and on the floor, the chair on its side, the coat.
 	Greybox.panel(geo, Vector3(-12.3, 0.81, -2.78), Vector3(0.35, 0.01, 0.08), Color(0.35, 0.02, 0.02))
@@ -238,6 +272,8 @@ func _place_zone() -> void:
 		"It has to be reset by hand, here, in the lab.",
 	], false, "laminated", Vector2(0.42, 0.3))
 	_card.clues = [{"case": "lab_door", "text": "Lab B's main and rear doors: controller zone %s. Lockdown latches it; reset it by hand in the lab." % zone}]
+	_card.pieces = [{"case": "lab_door", "piece": "zone", "text": "controller zone %s" % zone, "kind": "value"}]
+	_card.spot = CARD_SPOT
 	var ids: Array = data.lab_switches
 	for i in ids.size():
 		var z := -1.85 + i * 0.25
@@ -271,9 +307,11 @@ func skip() -> void:
 	rourke.process_mode = Node.PROCESS_MODE_DISABLED
 	rourke.position = Vector3(-13, -20, 0)
 	_set_door("SECLAB-B", false)
-	_boot_lockdown()
+	powered = true
 	for s in switches.values():
 		s.enabled = true
+	_after_lab()
+	level.lab_door_opened()
 
 
 func net_setup() -> void:
@@ -288,6 +326,8 @@ func run() -> void:
 	_take_over_guide()
 	rourke.visible = true
 	hud.todo("Last stop: the lab", "Follow Rourke to Dr. Vale's lab")
+	# The book's review, on the quiet walk up: same tools as the server floor (M1).
+	level._book_huddle("easy_sql_9")
 	if sync.is_host():
 		_walk_path(LEAD_PATH, "at_door")
 	await _gate("at_door")
@@ -725,10 +765,9 @@ func _lockdown() -> void:
 	for s in switches.values():
 		s.enabled = true
 	level.hud.todo("Still trapped. Think fast.", "Find out what's wrong with the lab door, at Dr. Vale's terminal")
-	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
-	# The book's review, before the clock starts: same tools as the server floor.
-	await level._book_huddle("easy_sql_9")
-	_start_response()
+	_open_door_case()
+	# The clock waits for the first query (M2).
+	clock_waiting = true
 
 
 ## Her terminal's lockdown screen, then SYSOP's tip under it. Put on the screen now,
@@ -739,24 +778,56 @@ func _boot_lockdown() -> void:
 	terminal.print_line(TerminalUI.sysop("two conditions? WHERE the first, AND the second. same as the server floor."))
 
 
+## T1: the lockdown screen, six lines.
 func _lockdown_lines() -> Array:
 	return [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SECURE LAB B",
 		"Badge R-0117 accepted (ROURKE, D.)",
-		"",
 		"[color=#ff6655]LOCKDOWN: INCIDENT IN SECURE LAB B. REPORTED BY R-0117.[/color]",
-		"[color=#ff6655]DOOR SECLAB-B: CONTROLLER LATCHED. MANUAL RESET REQUIRED.[/color]",
-		"",
-		"Door controllers are rows in [b]door_controllers[/b]. This lab's zone is on its door plate.",
-		"Every badge swipe on this floor is in [b]badge_log[/b]: the time, the badge, the door.",
-		"Type .help for commands, .hint if you're stuck.",
+		"[color=#ff6655]DOOR SECLAB-B: CONTROLLER LATCHED, STATUS 'fault'. MANUAL RESET REQUIRED.[/color]",
+		"Door controllers are rows in [b]door_controllers[/b]. This lab's zone is on the door card over the bench.",
+		"Stuck? Type [b].hint[/b]",
 	]
+
+
+## Every machine: the lab door's case is open, with its pieces, its query and its
+## slot: the controller, pointed at on screen.
+func _open_door_case() -> void:
+	var game := _game()
+	game.open_case("lab_door", LAB_CASE, ["door_controllers"])
+	game.set_pieces("lab_door", lab_pieces(zone), LAB_QUERY)
+	game.set_blank("lab_door", LAB_SLOT, ["\u0001"], data.lab_answer, {"column": "id", "values": [data.lab_answer], "rows": [{"id": data.lab_answer}]})
+
+
+## The pencil note for a pointed-at cell that isn't the lab door's controller, or
+## "" when the cell isn't about the door controllers.
+func door_miss(shown: Dictionary) -> String:
+	var rows: Array = level.rows_like("door_controllers", shown)
+	if rows.is_empty():
+		return ""
+	if rows.all(func(r): return r.id == data.lab_answer):
+		return LAB_ROW
+	if rows.all(func(r): return r.zone == zone and r.status == "offline"):
+		return LAB_OFFLINE
+	if rows.all(func(r): return r.zone != zone and r.status == "fault"):
+		return LAB_ELSEWHERE
+	return LAB_OTHER
+
+
+## Every machine: the lab door is open. Rourke's session is over: her terminal
+## reboots as a guest's, under the policy (part 2).
+func _after_lab() -> void:
+	terminal.policy = true
+	terminal.locked = false
+	terminal.set_screen_color(SCREEN_GREEN)
+	terminal.reboot(AFTER_LINES)
 
 
 # --- The security response ---------------------------------------------------
 
 ## Every machine: WARDEN sends a security response, and the clock over the door starts.
 func _start_response() -> void:
+	clock_waiting = false
 	response_left = RESPONSE_TIME
 	_show_clock()
 	level.hud.notice("WARDEN (PA): SECURITY RESPONSE TO SECURE LAB B: %d MINUTES" % int(RESPONSE_TIME / 60.0), 6.0, ThemeUtil.RED)
@@ -806,8 +877,10 @@ func _caught() -> void:
 	data.lab_answer = k.answer
 	data.lab_switches = k.switches
 	door_puzzle = door_puzzle_for(zone)
-	terminal.puzzles = [door_puzzle, log_puzzle]
+	terminal.puzzles = [door_puzzle]
 	switches_locked_until = 0.0
+	powered = false
+	door_listed = false
 	_place_zone()
 	level.player.respawn(respawn_point())
 	await get_tree().create_timer(1.5, false).timeout
@@ -819,13 +892,15 @@ func _caught() -> void:
 	if not page.is_empty():
 		page.clues.clear()
 	_game().add_clue("lab_door", "WARDEN re-keyed the lab's controllers. The zone on the door card has changed.", "WARDEN")
+	# The zone piece and the slot empty; the card's new zone fills the piece again.
+	_game().forget("lab_door", ["zone"])
 	phase = "escape"
 	_boot_lockdown()
 	for s in switches.values():
 		s.enabled = true
 	level.hud.todo("Still trapped. Think fast.", "Find out what's wrong with the lab door, at Dr. Vale's terminal")
-	_game().open_case("lab_door", LAB_CASE, ["door_controllers"])
-	_start_response()
+	_open_door_case()
+	clock_waiting = true
 
 
 # --- The way out -------------------------------------------------------------
@@ -843,6 +918,9 @@ func _log_in() -> void:
 		return
 	logged_in = true
 	terminal.set_screen_color(SCREEN_GREEN)
+	# Her screen names the table and the status: both are found reading it (T1).
+	_game().collect_piece("lab_door", "table", SCREEN)
+	_game().collect_piece("lab_door", "status", SCREEN)
 	level.hud.line("l2_login")
 	level.hud.line("l2_selftest")
 
@@ -860,41 +938,44 @@ func _shows_controllers(result: Dictionary) -> bool:
 	return result.rows.any(func(row): return row.values().any(func(v): return ids.has(str(v))))
 
 
-## Host: a query ran at her terminal.
-func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
+## Host: a query ran at her terminal (or failed there: the clock starts either way).
+func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI = null) -> void:
 	if phase == "escape":
 		if not logged_in:
 			level.sync.run_on(self, "_log_in")
+		if clock_waiting:
+			level.sync.run_on(self, "_start_response")
 		if not _reacted.has("found") and _shows_controllers(result):
 			_reacted["found"] = true
 			level.sync.run_on(self, "_say", ["l2_found"])
-	if not door_puzzle.solved and phase == "escape" and door_puzzle.matches(level.db, result):
-		level.sync.run_on(self, "_door_found")
-	if not log_puzzle.solved and log_puzzle.matches(level.db, result):
-		level.sync.run_on(self, "_log_read")
+	if not door_puzzle.solved and not door_listed and phase == "escape" and door_puzzle.matches(level.db, result):
+		door_listed = true  # the step waits for the crew to point at its id
 
 
+## Host: a refused or failed query at her terminal.
+func _on_query_failed(sql: String, result: Dictionary) -> void:
+	if level.sync.is_host():
+		_on_query(sql, result)
+
+
+## Every machine: the crew pointed at the latched controller. The switches have power.
 func _door_found() -> void:
+	if door_puzzle.solved:
+		return
 	door_puzzle.solved = true
+	powered = true
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the lab door's controller. zone %s, 'fault'. its switch is on the wall in there." % zone))
 	level.hud.todo("Same trick as the server floor", "Reset the lab door's controller at its switch on the lab wall")
 	_game().add_clue("lab_door", "%s is the lab door's controller: zone %s, 'fault'. Its reset switch is on the lab wall." % [data.lab_answer, zone], "SYSOP")
 
 
-## The visitor log, sorted: the crew's own badges, at the scene, minutes ago. Nobody
-## says what it means: Vale's 23:12, Rourke's rear door at 23:40, and the server
-## floor's syslog are for the players to put together.
-func _log_read() -> void:
-	log_puzzle.solved = true
-
-
 ## Host: someone pressed a reset switch. The host decides; everyone sees it.
 func _on_switch(_p: Node, id: String) -> void:
 	if phase != "escape" or _steps.has("door_reset"):
 		return
-	if not logged_in:
-		level.sync.run_on(self, "_switch_result", [id, "no_badge", 0.0])
+	if not powered:
+		level.sync.run_on(self, "_switch_result", [id, "no_power", 0.0])
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < switches_locked_until:
@@ -911,8 +992,8 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	var row: Dictionary = level.db.run_silent("SELECT status, zone, location, note FROM door_controllers WHERE id = '%s'" % id)[0]
 	match outcome:
-		"no_badge":
-			_warden("l2_no_badge")
+		"no_power":
+			level.hud.notice(NO_POWER % id, 4.0, ThemeUtil.RED)
 			return
 		"locked":
 			switches_locked_until = now + seconds
@@ -926,6 +1007,7 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 			switches_locked_until = now + seconds
 			level.hud.notice("> %s: %s, '%s': %s\n> RESET REFUSED. SWITCHES LOCKED: %d s" % [id, row["location"], row["status"], row["note"], int(seconds)], 6.0, ThemeUtil.RED)
 			_warden("l2_panel_wrong")
+			level.comment_mistake("switch")
 			return
 	level.db.run_silent("UPDATE door_controllers SET status = 'ok', last_reset = '1997-10-16 %s' WHERE id = '%s'" % [level.server_time().left(5), id])
 	_set_door("SECLAB-B", false)
@@ -938,6 +1020,8 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 	level.hud.notice("> CONTROLLER %s: RESET OK\n> DOOR SECLAB-B: OPENED" % id, 4.0, ThemeUtil.GREEN)
 	level.hud.line("l2_exit_open")
 	_game().solve_case("lab_door", "%s, reset by hand at its switch. The lab door opened." % id)
+	_after_lab()
+	level.lab_door_opened()
 	_mark_everywhere("door_reset")
 	if level.sync.is_host():
 		_mark("door_reset")
