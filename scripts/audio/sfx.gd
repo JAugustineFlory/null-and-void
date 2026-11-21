@@ -86,6 +86,11 @@ const KINDS := {
 	# A badge reader's answer.
 	"reader_ok": {"unit": 2.0, "db": -8.0},
 	"reader_no": {"unit": 2.0, "db": -8.0},
+	# The elevator (SfxElevator): its bell, brake, cables and the ride.
+	"lift_ding": {"unit": 4.0, "db": -6.0},
+	"lift_thunk": {"unit": 4.0, "db": -2.0, "pitch": 0.05},
+	"cable_creak": {"unit": 3.0, "db": -12.0, "pitch": 0.15},
+	"lift_ride": {"unit": 3.0, "db": -8.0},
 	"fluorescent_buzz": {"bus": AMBIENCE, "unit": 1.2, "db": -18.0, "max": 10.0},
 	"crt_whine": {"bus": AMBIENCE, "unit": 0.8, "db": -20.0, "max": 5.0},
 	"server_hum": {"bus": AMBIENCE, "unit": 3.0, "db": -10.0, "max": 18.0},
