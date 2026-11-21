@@ -34,8 +34,9 @@ const ITEMS := {
 	"keyboard": {"name": "Keyboard", "about": "Beige, with a coiled cord. Plugs into a terminal."},
 	"power_cord": {"name": "Power cord", "about": "A spare monitor power cable. A dead screen might just need one."},
 	"fuse": {"name": "Fuse", "about": "A glass cartridge fuse. Fits the fuse boxes in this building."},
-	"crowbar": {"name": "Crowbar", "about": "Pries open what's stuck. Heavy."},
-	"fire_extinguisher": {"name": "Fire extinguisher", "about": "CO2. A short, loud, blinding blast."},
+	# "throwable": Combat's throw ([G]) works on it (scripts/combat/).
+	"crowbar": {"name": "Crowbar", "about": "Pries open what's stuck. Heavy.", "throwable": true},
+	"fire_extinguisher": {"name": "Fire extinguisher", "about": "Three good blasts.", "throwable": true},
 }
 ## Gear: bulky things carried in your hands, not in a pocket. You carry at most
 ## MAX_GEAR pieces at once (one per hotbar slot), so what to carry is a choice: a full

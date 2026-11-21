@@ -30,6 +30,9 @@ var puzzles: Array = []
 ## player types one literally.
 var blanks := {}
 var locked := false
+## A practice terminal (the garage lab's): what's typed here doesn't count
+## towards retiring a word's button.
+var practice := false
 ## Under the terminal security policy (TerminalPolicy): set by the level, the
 ## same on every machine. Bare SELECT * is refused and results are capped.
 var policy := false

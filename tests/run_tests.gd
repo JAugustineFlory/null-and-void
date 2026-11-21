@@ -224,6 +224,10 @@ func test_coop_touch_sounds() -> void:
 	lockers[0].interact(host.player)
 	await _until(func(): return heard[1].size() == 2, 3.0)
 	check(heard[1].size() == 2 and heard[1][1] == 1 and kinds.call(client) == 2, "and the host's, on the client")
+	lockers[1].sound_everywhere("reader_no")  # decided on the client's machine alone
+	var blats := func(l): return l.get_meta("sounds_played", []).filter(func(x): return x.kind == "reader_no").size()
+	await _until(func(): return blats.call(host) == 1, 3.0)
+	check(blats.call(host) == 1 and blats.call(client) == 1, "a sound only one machine could decide (a reader turning them down) plays on every machine")
 	await _coop_close(worlds)
 
 

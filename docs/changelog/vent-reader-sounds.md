@@ -1,0 +1,2 @@
+- **Added:** vents sound like vents: screws backing out, grates scraping loose and clattering down, hatch hinges squealing, ceiling tiles knocking up, and the duct booming under your knees as you crawl.
+- **Added:** badge readers answer with a chirp when they take a card and a flat buzz when they turn you down, heard by the whole crew.
