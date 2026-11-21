@@ -1711,6 +1711,7 @@ func _on_boost() -> void:
 	await hud.line("l0_boost_1")
 	ceiling_hatch.enabled = false
 	ceiling_hatch.position.y += 0.3  # pushed up into the ceiling void
+	Sfx.play(self, "ceiling_tile", ceiling_hatch.position)
 	hud.notice("You step on Rourke's hands and shove the panel up. Something drops out of the ceiling void.", 4.0)
 	Document.place(geo, Vector3(10.8, 0.602, -13.4), 20.0, "Old sticker", [
 		"FIXED BY BYTE-RIGHT IT SERVICES!",
@@ -1723,6 +1724,7 @@ func _on_boost() -> void:
 
 ## The grate comes off and leans against the wall, on every machine.
 func _on_vent_grate() -> void:
+	Sfx.play(self, "panel_off", vent_grate.position)
 	vent_grate.enabled = false
 	for c in vent_grate.get_children():
 		if c is CollisionShape3D:
