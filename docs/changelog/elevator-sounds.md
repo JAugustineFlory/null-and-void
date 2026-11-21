@@ -1,0 +1,1 @@
+- **Added:** the elevator sounds like one: a bell as the car arrives, the door motor and the doors meeting, the brake letting go, the hoist humming up the shaft with the cables groaning, and the car settling at its floor.
