@@ -22,9 +22,9 @@ const CAST := [
 ]
 
 ## Strong enough that two of them can pry a stuck lift's doors apart (E9,
-## plan/environment-play.md). Augustine 2026-11-21 22:08Z: five, at least one a
-## woman; his card picks the fifth (Mei, Rosa, Priya or June), Rosa until he does.
-const STRONG := ["dana", "sam", "walt", "marcus", "rosa"]
+## plan/environment-play.md). Augustine 2026-11-21: five, women among them
+## (22:08Z), the fifth June (22:51Z).
+const STRONG := ["dana", "sam", "walt", "marcus", "june"]
 
 
 static func is_strong(slug: String) -> bool:
