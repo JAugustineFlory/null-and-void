@@ -313,6 +313,7 @@ func refresh(force := false) -> void:
 ## What this player has found, with the words that have come off taken out.
 func _found(game: Node) -> Dictionary:
 	var have := KeywordHelp.found(game)
+	have["policy"] = ui != null and is_instance_valid(ui.terminal) and ui.terminal.get("policy") == true
 	var net := get_node_or_null("/root/Net")
 	if not InputGlyphs.pad and net and net.get("profile") != null:
 		have.commands = have.commands.filter(func(w): return not net.profile.words_off.has(w))

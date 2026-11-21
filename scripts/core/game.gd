@@ -143,6 +143,8 @@ var notebook_jotted: Array[String] = []
 ## query}. One that answers a case's slot before the case opens fills it when the
 ## slot is set (set_blank). A new floor starts it empty (mark_floor_start).
 var found_cells: Array = []
+## The found cell that last filled a slot (add_cell reads it after a miss).
+var _filled_by: Dictionary = {}
 ## The case this player picked in the notebook ("" for the main one): see
 ## case_selected. The query on screen and the typing line's example follow it.
 var selected_case := ""
@@ -536,7 +538,9 @@ func solve_case(id: String, how: String) -> void:
 ## `column` and hold one of `values` (whole, any case); if its row also shows a
 ## naming column that `rows` has (an id, a name), the row must be an answer row.
 ## A count is {column "" (any name: COUNT(*), n), values, only: true}: the cell
-## must be its result's only one.
+## must be its result's only one. `also` lists values one of the row's other cells
+## must hold (a room with its count beside it). A slot with more than one value
+## writes in the one pointed at (Mercer's two boxes, a line each).
 ## A cell pointed at before this (on this floor) fills it now.
 ## A case whose steps each have an answer sets its next slot once the last is
 ## filled: the filled one is kept (case "answered") and still shows on its page.
@@ -553,6 +557,7 @@ func set_blank(id: String, prompt: String, needles: Array, value: String, cell: 
 			"column": str(cell.get("column", "")).to_lower(),
 			"only": cell.get("only", false),
 			"values": cell.get("values", [value]).map(func(v): return _norm(v)),
+			"also": cell.get("also", []).map(func(v): return _norm(v)),
 			"rows": cell.get("rows", []).map(func(r: Dictionary):
 				var out := {}
 				for k in r:
@@ -579,6 +584,9 @@ static func _fills_cell(cell: Dictionary, column: String, value: String, row: Di
 		return false
 	if cell.get("only", false) and row.size() > 1:
 		return false  # a count: the result's only cell, not a number in a wider row
+	var also: Array = cell.get("also", [])
+	if not also.is_empty() and not row.keys().any(func(k): return _norm(k) != _norm(column) and also.has(_norm(row[k]))):
+		return false
 	if cell.rows.is_empty():
 		return true
 	var shown := {}
@@ -602,20 +610,27 @@ func add_cell(column: String, value: String, row: Dictionary = {}, query: String
 		var b: Dictionary = c.get("blank", {})
 		if c.open and not c.solved and b.has("cell") and b.filled == "" and _fills_cell(b.cell, column, value, row):
 			return _fill_from_cell(c.id, f)
+	# A level may take a cell no slot's rule matches as its answer after all
+	# (floor 18: a room in a list of Mercer's boxes): then it's in.
+	_filled_by = {}
 	cell_missed.emit(column, value, row)
-	return false
+	return is_same(_filled_by, f)
 
 
 ## The open, unsolved case `id`'s slot is answered by found cell `f`: write the
 ## value in, with the query that found it, and fire answer_found.
 func _fill_from_cell(id: String, f: Dictionary) -> bool:
 	var c := case_info(id)
+	var b: Dictionary = c.get("blank", {})
+	if b.get("cell", {}).get("values", []).size() > 1 and str(b.get("filled", "x")) == "":
+		b.value = str(f.value)  # whichever of them was pointed at
 	if not c.get("open", false) or c.get("solved", false) or not fill_blank(id):
 		return false
 	c.blank["source"] = f.source
 	if f.query != "":
 		c.blank["query"] = f.query
 	answer_found.emit(id)
+	_filled_by = f  # after: a next step's slot filled meanwhile doesn't count
 	return true
 
 
