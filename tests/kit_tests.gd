@@ -338,7 +338,12 @@ func test_elevator_stall() -> void:
 	check(level.rides == 2 and not stall.stalled and lift_contains(level.lift_to, p), "pulling it ends the ride: everyone, even up in the shaft, steps out at the floor")
 	# Once only: the next ride runs.
 	check(not stall.should_stall(), "it stalls once, then rides normally")
-	# The pry: two strong players (Movement) finish it with release("pry").
+	# The pry: Movement's PryDoors, stood in by a stub with its signal and `enabled`.
+	var pry := PryStub.new()
+	var climb := ClimbStub.new()
+	stall.link_pry(pry)
+	stall.link_hatch_climb(climb)
+	check(not pry.enabled and not climb.active, "Movement's pry and hatch climb are off while the lift isn't stuck")
 	stall.arm()
 	lift.riding = false
 	p.global_position = lift.to_global(Vector3(0, 0.1, 1.0))
@@ -348,15 +353,28 @@ func test_elevator_stall() -> void:
 	stall.released_by.connect(func(how): hows.append(how))
 	level._ride()
 	await _until(func(): return stall.stalled, 600)
-	stall.release("pry")
+	check(pry.enabled and climb.active, "stuck: the pry is on, and the hatch (still open from before) can be climbed")
+	pry.pried_open.emit()
 	await _until(func(): return level.rides == 3, 300)
 	check(level.rides == 3 and hows == ["pry"] and lift_contains(level.lift_to, p), "prying the doors open ends it the same way")
+	check(not pry.enabled and not climb.active, "and the pry and climb switch off again")
+	pry.free()
+	climb.free()
 	# A condition from the run's choices: its fuse pulled for another puzzle.
 	stall.when(func(): return not level.fuses.is_live("VENDING"))
 	check(not stall.should_stall(), "a condition stalls it only when the run's choices say so")
 	await _press(level, level.fuses.slot("VENDING"))
 	check(stall.should_stall(), "pull that fuse, and the next ride sticks")
 	await _free(level)
+
+
+class PryStub extends Node:
+	signal pried_open
+	var enabled := true
+
+
+class ClimbStub extends Node:
+	var active := true
 
 
 func lift_contains(e: Elevator, p: Node3D) -> bool:

@@ -37,6 +37,9 @@ var door_release: ItemLock
 ## Of the way from one floor to the next where it sticks (0..1).
 var stop_at := 0.5
 var _hatch_frame: Node3D
+## Movement's pieces, once linked (link_pry, link_hatch_climb).
+var pry: Node
+var hatch_climb: Node
 
 
 static func attach(e: Elevator, geo: Node3D, key := "") -> ElevatorStall:
@@ -69,6 +72,38 @@ func roof_y() -> float:
 	return Elevator.SIZE.y + 0.1
 
 
+## Movement's two-person pry (PryDoors): on only while stuck; its `pried_open`
+## (every machine) gets the crew out.
+func link_pry(p: Node) -> void:
+	pry = p
+	p.set("enabled", stalled)
+	p.connect("pried_open", func(): release("pry"))
+
+
+## Movement's climb up through the hatch (a MovementVolume): active only once the
+## hatch is open and the car's stuck.
+func link_hatch_climb(v: Node) -> void:
+	hatch_climb = v
+	_sync_links()
+
+
+## Where Movement's hatch climb goes: the rim's centre, and the spot on the roof it
+## lifts you to (global).
+func hatch_rim() -> Vector3:
+	return elevator.to_global(Vector3(HATCH.position.x, Elevator.SIZE.y + 0.1, HATCH.position.y))
+
+
+func roof_spot() -> Vector3:
+	return elevator.to_global(Vector3(-0.6, roof_y() + 0.05, 1.0))
+
+
+func _sync_links() -> void:
+	if is_instance_valid(pry):
+		pry.set("enabled", stalled)
+	if is_instance_valid(hatch_climb):
+		hatch_climb.set("active", stalled and hatch.is_open)
+
+
 ## Every machine: the crew is out (the release, or the pry finishing).
 func release(how: String) -> void:
 	if not stalled:
@@ -94,12 +129,14 @@ func stall_ride(from: int, to: int, seconds: float) -> void:
 		Sfx.play(e, "clunk", Vector3(0, Elevator.SIZE.y, Elevator.SIZE.z / 2))
 	hatch.enabled = not hatch.is_open
 	door_release.enabled = true
+	_sync_links()
 	stalled_changed.emit(true)
 	await _released
 	_gather()
 	stalled = false
 	door_release.enabled = false
 	hatch.enabled = false
+	_sync_links()
 	e._set_car_light(1.0)
 	stalled_changed.emit(false)
 
@@ -181,7 +218,8 @@ func _build(geo: Node3D) -> void:
 			if c is CollisionShape3D:
 				c.disabled = true
 		_hatch_frame.position = Vector3(HATCH.size.x / 2.0 + 0.1, 0.5, 0)
-		_hatch_frame.rotation_degrees.z = 90)
+		_hatch_frame.rotation_degrees.z = 90
+		_sync_links())
 	# The landing door's release, on the shaft side of the doors, by the ladder.
 	door_release = ItemLock.make(e, "door_release", Vector3(-Elevator.DOORWAY / 2.0 + 0.1, sill + 1.1, -0.18), Vector3(0.2, 0.3, 0.1), "",
 		KitWords.say("door_release"), "")
