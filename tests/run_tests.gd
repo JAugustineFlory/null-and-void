@@ -882,7 +882,7 @@ func test_voice_script() -> void:
 	check(unvoiced.is_empty(), "character lines go through hud.line so recordings play %s" % [unvoiced])
 	var unused := []
 	for id in VoiceLines.LINES:
-		if VoiceLines.scene(VoiceLines.LINES[id]["scene"]).get("wired", false) and not used.has(id):
+		if VoiceLines.scene(VoiceLines.LINES[id]["scene"]).get("wired", false) and not used.has(id) and not VoiceLines.LINES[id].has("cut"):
 			unused.append(id)
 	check(unused.is_empty(), "every line marked as in the game is played by a level %s" % [unused])
 	# Every recording Augustine made has somewhere in the game that plays it.
@@ -891,7 +891,7 @@ func test_voice_script() -> void:
 		for f in DirAccess.get_files_at(Voice.folder.path_join(dir)):
 			if f.ends_with(".wav"):
 				var id := f.get_basename()
-				if VoiceLines.has_line(id) and not used.has(VoiceLines.resolve(id)):
+				if VoiceLines.has_line(id) and not used.has(VoiceLines.resolve(id)) and not VoiceLines.LINES[VoiceLines.resolve(id)].has("cut"):
 					unplayed.append(id)
 	check(unplayed.is_empty(), "every recorded line has a play site %s" % [unplayed])
 

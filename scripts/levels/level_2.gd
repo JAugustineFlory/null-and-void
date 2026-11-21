@@ -173,7 +173,7 @@ const W2 := ["42501 = you asked for the whole table.", "Name your columns, or ad
 const NO_LINE := ["\u0001"]
 ## The crew's commentary by case: the PIN case starts on Pike's lines, then the
 ## night lead's; Rourke's statement has the badge readers' (part 3).
-const COMMENTARY_IDS := {"pin": "pike", "statement": "badge_log"}
+const COMMENTARY_IDS := {"pin": "pike"}
 ## The "Half a name" chapter keeps this far from the floor's first refusal (M8).
 const REFUSAL_GAP_S := 60.0
 
