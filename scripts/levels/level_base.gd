@@ -276,7 +276,9 @@ func found_spot(id: String) -> void:
 
 
 func _crew_found_spot(id: String) -> void:
-	get_node("/root/Game").find_spot(id)
+	var game := get_node("/root/Game")
+	if game.find_spot(id) and id == TerminalPolicy.SPOT:
+		game.note_aside("Security policy", TerminalPolicy.NOTE, "document")  # P6
 
 
 ## Override: what happens when the player dies.

@@ -113,7 +113,7 @@ func _host_run(path: NodePath, code: String) -> void:
 	if not checked.ok:
 		_finished.rpc(path, false, checked.error, 0.0)
 		return
-	var library := BuildingLibrary.new(terminal.api, terminal.db)
+	var library := BuildingLibrary.new(terminal.api, terminal.db, terminal.get("policy") == true)
 	library.requested.connect(func(method: String, req_path: String, headers: Dictionary, body: String, _reply: Dictionary):
 		if method != "GET":
 			_replay.rpc(path, method, req_path, headers, body))
