@@ -12,11 +12,11 @@ to the piece's signals inside a `sync.event` if it changes shared state beyond t
 | Piece | Make it | Signals / state |
 | --- | --- | --- |
 | Gear on the floor | `GearPickup.make(parent, "fuse", pos)`, or `GearPickup.place(parent, "fuse", [spot_a, spot_b, spot_c], "g_fuse")` for a seeded spot | `picked(peer, item, left)` |
-| Roller shutter | `Shutter.make(self, id, pos, size)`; `cycle = Vector2(open_s, shut_s)` to run by itself, or `set_open(bool)` from a `sync.event` | `settled(open)`, `gap()` |
-| Gear train | `GearTrain.make(parent, id, pos, facing, shutter, starts_jammed)` | `jam_changed(jammed, peer)` |
+| Roller shutter | `Shutter.make(self, id, pos, size, facing)`; `cycle = Vector2(open_s, shut_s)` to run by itself, or `set_open(bool)` / `open_to(metres)` on every machine | `settled(open)`, `gap()`, `jammed` |
+| Gear train | `GearTrain.make(parent, id, pos, facing, drives, starts_jammed, jammed_with)`; `drives` is a Shutter or anything with `openness` and `set_jammed(on, at)` | `jam_changed(jammed, peer)`, `jammed` (enemies read it) |
 | Fuse box | `FuseBox.make(parent, id, pos, facing, ["LIGHTS", "STAIR DOOR"], [FuseBox.seeded_blown("g_box", 2)])` | `circuit_changed(circuit, live, peer)`, `is_live(circuit)` |
 | Patch panel | `PatchPanel.make(parent, id, pos, facing, ["RM 101", "LOBBY"])`; `required` for the lines that matter | `patched(port, jack, peer)`, `solved`, `is_linked(label)` |
-| Stuck thing | `ItemLock.make(parent, id, center, size, "crowbar", use_text, need_text)` | `opened(peer)` |
+| Stuck thing | `ItemLock.make(parent, id, center, size, "crowbar", use_text, need_text)`; item `""` for a one-time pull anyone can do (a hand chain) | `opened(peer)` |
 | Broken or switched-off terminal | `TerminalRig.attach(terminal, ["power", "keyboard"], fuse_box, "TERMINALS")` | `fixed(part, peer)`, `assembled` |
 
 Rules that come with it:
@@ -32,4 +32,8 @@ Rules that come with it:
   1.0 m tall, and add the floor to the `bodies` sweep as usual.
 - **Sound**: each piece plays its own sound where it is (`KitPiece._sound`). The bench's
   sweep (`tests/kit_tests.gd`) checks every piece has one.
-- `tests/kit/kit_bench.tscn` has one of everything, if you want to see them.
+- **Power at night**: `TerminalRig.attach(terminal, ["power"])` leaves a terminal switched off
+  until someone presses its power button. A terminal with no rig is on.
+- `tests/kit/kit_bench.tscn` has one of everything, if you want to see them, including floor G's
+  roll-up door: a gear jammed with a crowbar, a hand chain enabled once it's freed, lifting the
+  door to a 1.0 m gap.

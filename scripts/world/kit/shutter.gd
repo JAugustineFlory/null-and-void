@@ -74,6 +74,12 @@ func set_open(open: bool) -> void:
 	_wait = cycle.x if open else cycle.y
 
 
+## Every machine: head to a part-open height with a gap of `metres` under it (a hand
+## chain lifting a roll-up door just far enough to crawl under: keep it >= 1.0 m).
+func open_to(metres: float) -> void:
+	target = clampf(metres / (size.y - 0.1), 0.0, 1.0)
+
+
 ## Every machine: stop where the host says (`at`), or run on again.
 func set_jammed(on: bool, at: float) -> void:
 	jammed = on
@@ -95,15 +101,15 @@ func _physics_process(delta: float) -> void:
 			_set_moving(false)
 			if target == 0.0 and was > 0.0 and get_parent() is Node3D:
 				Sfx.play(get_parent(), "clunk", position)
-			settled.emit(target == 1.0)
+			settled.emit(target >= 0.999)
 	elif cycle != Vector2.ZERO and _is_host():
 		_wait -= delta
 		if _wait <= 0.0:
 			var sync := LevelSync.of(self)
 			if sync and sync.level and sync.level.is_ancestor_of(self):
-				sync.run_on(self, "set_open", [target == 0.0])
+				sync.run_on(self, "set_open", [target < 0.5])
 			else:
-				set_open(target == 0.0)
+				set_open(target < 0.5)
 
 
 func _pose() -> void:

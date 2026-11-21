@@ -1,7 +1,8 @@
 class_name ItemLock
 extends KitPiece
 ## Something stuck that one piece of gear opens: a hatch pried with the crowbar, a
-## cabinet's rusted catch. The floor gives its words (what it says when you carry the
+## cabinet's rusted catch. With no item (""), anyone can work it once: a hand chain
+## that lifts a roll-up door once its gear is free. The floor gives its words (what it says when you carry the
 ## item, and when you don't) and wires what opening it does (`opened`).
 
 ## Every machine: player `peer_id` opened it.
@@ -35,11 +36,11 @@ static func make(parent: Node, id: String, center: Vector3, size: Vector3, item_
 func prompt_for(hand: Dictionary) -> String:
 	if is_open:
 		return ""
-	return use_text if KitPiece.carries(hand, item) else need_text
+	return use_text if can_use(hand) else need_text
 
 
 func can_use(hand: Dictionary) -> bool:
-	return not is_open and KitPiece.carries(hand, item)
+	return not is_open and (item == "" or KitPiece.carries(hand, item))
 
 
 func decide(peer: int, _hand: Dictionary) -> void:
@@ -50,7 +51,7 @@ func _open(peer: int) -> void:
 	if is_open:
 		return
 	is_open = true
-	if uses_up:
+	if uses_up and item != "":
 		_take(peer, item)
 	_sound(peer, sound)
 	opened.emit(peer)

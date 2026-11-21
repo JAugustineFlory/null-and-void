@@ -12,10 +12,10 @@ const W := {
 	"hands_full": "Your hands are full. Hold the gear you'd leave here (1-4) to swap it.",
 	"already": "You already carry a %s.",
 	# A gear train (GearTrain).
-	"jam": "Jam the gears with your screwdriver",
+	"jam": "Jam the gears with your %s",
 	"turning": "The gears are turning. Something could jam them.",
-	"unjam": "Pull the screwdriver out of the gears",
-	"jammed_already": "A screwdriver is jammed in the gears.",
+	"unjam": "Pull the %s out of the gears",
+	"jammed_already": "Something's jammed in the gears: a %s.",
 	# A fuse box (FuseSlot): %s is the slot's label.
 	"fuse_pull": "Pull the %s fuse",
 	"fuse_fit": "Fit your fuse in %s",

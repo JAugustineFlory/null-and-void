@@ -14,6 +14,11 @@ var hatch: ItemLock
 var terminal: Terminal
 var rig: TerminalRig
 var gear := {}
+## A roll-up door whose chain gear starts jammed with a crowbar; freed, its hand chain
+## lifts the door to a 1.0 m gap.
+var rollup: Shutter
+var rollup_gears: GearTrain
+var chain: ItemLock
 
 
 func build() -> void:
@@ -34,6 +39,13 @@ func build() -> void:
 	Greybox.box(geo, Vector3(6, 0.4, 0), Vector3(1.2, 0.8, 0.8), Color(0.4, 0.3, 0.2), "Desk")
 	terminal = Terminal.spawn(geo, Vector3(6, 0.8, 0), 90, "BENCH", db, terminal_ui)
 	rig = TerminalRig.attach(terminal, ["power", "power_cord", "monitor_cable", "keyboard"], fuses, "TERMINALS")
+	rollup = Shutter.make(self, "rollup", Vector3(-4, 1.3, 5.9), Vector3(3, 2.6, 0.12), 180)
+	rollup_gears = GearTrain.make(kit, "rollup", Vector3(-1.6, 1.3, 5.85), 180, rollup, true, "crowbar")
+	chain = ItemLock.make(kit, "chain", Vector3(-2.3, 1.2, 5.85), Vector3(0.1, 1.2, 0.1), "", "Pull the chain", "The chain won't move.")
+	chain.sound = "rattle"
+	chain.enabled = false
+	rollup_gears.jam_changed.connect(func(on, _peer): chain.enabled = not on)
+	chain.opened.connect(func(_peer): rollup.open_to(1.0))
 	var x := -6.0
 	for item in ["keyboard", "power_cord", "fuse", "crowbar", "fire_extinguisher"]:
 		gear[item] = GearPickup.make(kit, item, Vector3(x, 0.0, 2.0))

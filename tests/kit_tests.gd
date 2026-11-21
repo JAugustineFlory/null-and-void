@@ -21,6 +21,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_patch_panel()
 	await test_terminal_rig()
 	await test_item_lock()
+	await test_rollup_door()
 	await test_every_piece_sounds()
 	await test_coop()
 
@@ -168,7 +169,7 @@ func test_gears_and_shutter() -> void:
 	await _press(level, gears)
 	# A train that starts with a screwdriver stuck in it.
 	var stuck: GearTrain = level.stuck_gears
-	check(stuck.jammed and stuck.get_prompt(level.player) == "A screwdriver is jammed in the gears.", "a train can start jammed; carrying a screwdriver, you've no hand for a second")
+	check(stuck.jammed and stuck.get_prompt(level.player) == "Something's jammed in the gears: a screwdriver.", "a train can start jammed; carrying a screwdriver, you've no hand for a second")
 	inv.remove("screwdriver")
 	await _press(level, stuck)
 	check(not stuck.jammed and inv.has("screwdriver"), "without one, pulling it out gives you a screwdriver and the gears run")
@@ -270,6 +271,24 @@ func test_item_lock() -> void:
 	check(hatch.get_prompt(level.player) == "[E] Pry the hatch open", "with the crowbar it offers to pry")
 	await _press(level, hatch)
 	check(hatch.is_open and level.player.inventory.has("crowbar") and hatch.get_prompt(level.player) == "", "it opens, and you keep the crowbar")
+	await _free(level)
+
+
+## Floor G's receiving door: a crowbar left in its chain gear; pull it out, then the
+## hand chain lifts the door to a 1.0 m gap, the least every body fits under.
+func test_rollup_door() -> void:
+	var level = await _bench()
+	var gears: GearTrain = level.rollup_gears
+	var door: Shutter = level.rollup
+	check(gears.jammed and door.jammed and not level.chain.enabled and door.gap() == 0.0, "the roll-up door's gear starts jammed, and its chain does nothing")
+	await _press(level, level.chain)
+	check(not level.chain.is_open, "pulling the chain while it's jammed does nothing")
+	check(gears.get_prompt(level.player) == "[E] Pull the crowbar out of the gears", "something other than a screwdriver can jam a gear")
+	await _press(level, gears)
+	check(not gears.jammed and level.player.inventory.has("crowbar") and level.chain.enabled, "pulling it out frees the chain, and you keep the crowbar")
+	await _press(level, level.chain)
+	await _frames(120)
+	check(level.chain.is_open and absf(door.gap() - 1.0) < 0.01 and not door.is_open(), "the chain lifts the door to exactly 1.0 m (%.2f): crawl under" % door.gap())
 	await _free(level)
 
 
