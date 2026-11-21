@@ -21,6 +21,8 @@ const HARD_LANDING := 7.0
 ## Moving faster than this is a teleport or a respawn, not a step.
 const TELEPORT_SPEED := 15.0
 const CROUCH_DB := -18.0
+## Crawling a duct: quieter than walking, but the metal carries.
+const CRAWL_VENT_DB := -10.0
 const WALK_DB := -6.0
 const SPRINT_DB := 0.0
 
@@ -90,8 +92,12 @@ func _physics_process(delta: float) -> void:
 	_step_t = 0.0
 	var db := SPRINT_DB if sprinting else WALK_DB
 	if _crouched():
-		# In a duct you're always on hands and knees: only scrambling is loud.
-		db = SPRINT_DB if surface == "vent" and sprinting else CROUCH_DB
+		if surface == "vent":
+			# On hands and knees in a duct the sheet metal booms under each knee;
+			# scrambling, loudly.
+			_play("duct_crawl", SPRINT_DB if sprinting else CRAWL_VENT_DB)
+			return
+		db = CROUCH_DB
 	_play("step_" + surface, db)
 
 

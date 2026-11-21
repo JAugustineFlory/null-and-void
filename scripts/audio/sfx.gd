@@ -77,6 +77,15 @@ const KINDS := {
 	"car_door": {"unit": 6.0, "pitch": 0.04},
 	"tape_tear": {"unit": 2.0, "db": -4.0, "pitch": 0.08},
 	"rattle": {"unit": 3.0, "db": -5.0, "pitch": 0.1},
+	# Vents: a grate's screws, a panel coming off, a hatch's hinge, a ceiling tile, crawling.
+	"unscrew": {"unit": 1.5, "db": -6.0, "pitch": 0.08},
+	"panel_off": {"unit": 4.0, "pitch": 0.06},
+	"hinge": {"unit": 3.0, "db": -8.0, "pitch": 0.1},
+	"ceiling_tile": {"unit": 3.0, "db": -4.0, "pitch": 0.08},
+	"duct_crawl": {"unit": 3.0, "pitch": 0.12},
+	# A badge reader's answer.
+	"reader_ok": {"unit": 2.0, "db": -8.0},
+	"reader_no": {"unit": 2.0, "db": -8.0},
 	"fluorescent_buzz": {"bus": AMBIENCE, "unit": 1.2, "db": -18.0, "max": 10.0},
 	"crt_whine": {"bus": AMBIENCE, "unit": 0.8, "db": -20.0, "max": 5.0},
 	"server_hum": {"bus": AMBIENCE, "unit": 3.0, "db": -10.0, "max": 18.0},
@@ -171,6 +180,15 @@ static func play(parent: Node, kind: String, pos: Vector3, volume_db := 0.0) -> 
 	p.finished.connect(p.queue_free)
 	p.play()
 	return p
+
+
+## play(), `secs` from now, if `parent` is still there: something landing after it falls.
+static func play_later(parent: Node, kind: String, pos: Vector3, secs: float, volume_db := 0.0) -> void:
+	if not parent.is_inside_tree():
+		return
+	parent.get_tree().create_timer(secs, false).timeout.connect(func():
+		if is_instance_valid(parent):
+			play(parent, kind, pos, volume_db))
 
 
 ## Plays `kind` once with no position: menus, the terminal you're sitting at.
