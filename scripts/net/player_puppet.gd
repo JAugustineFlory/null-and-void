@@ -254,17 +254,26 @@ func _crew() -> Node:
 	return CrewVitals.of(players.level) if players else null
 
 
-## E on a teammate: help them up if they're down; otherwise huddle up to share
-## notes, or join the huddle they're in.
+## E on a teammate: help them up if they're down; take a leg-up if they're
+## braced at a wall with an edge over them (Player.brace_of); otherwise huddle
+## up to share notes, or join the huddle they're in.
 func get_prompt(_by: Node) -> String:
 	if downed:
 		var c := _crew()
 		return FirstAidCabinet.teammate_prompt(_by, c, peer_id) if c else ""
+	if _can_leg_up(_by):
+		return Player.LEG_UP_PROMPT
 	return _huddle_prompt()
 
 
+func _can_leg_up(by: Node) -> bool:
+	return by is Player and players != null and (by as Player).can_leg_up(self)
+
+
 func interact(_by: Node) -> void:
-	if downed:
+	if not downed and _can_leg_up(_by):
+		players.ask_leg_up(peer_id)  # the host decides: one at a time off each of them
+	elif downed:
 		var c := _crew()
 		# A first-aid kit in your hands; a bare-handed help-up only where the
 		# crew's rules still offer one (its prompt says so).

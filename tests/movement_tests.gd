@@ -35,6 +35,8 @@ func _run_moves() -> void:
 	await test_vent()
 	await test_ledge_shuffle()
 	await test_shoulders()
+	await test_leg_up()
+	await test_cable_rope()
 	await test_same_controls_same_moves()
 	await test_first_person_motion()
 
@@ -733,6 +735,199 @@ func test_ledge_shuffle() -> void:
 	check(grip.get("hands", []).size() == 1, "turned that far, one hand comes off the wall (%s)" % [grip.get("hands")])
 	check(p.state == Player.Move.WALK, "walking off the end returns to normal movement")
 	await done(a)
+
+
+## A body of `size` at `pos`, facing -Z (set before it enters the world).
+func _spawn_sized(parent: Node, pos: Vector3, body: CrewBody) -> Player:
+	var p := Player.new()
+	p.local_control = false
+	p.body = body
+	p.position = pos
+	parent.add_child(p)
+	return p
+
+
+## Climber takes a leg-up off `base`. True once they stand on the top, `top` m up.
+func _go_up(base: Player, climber: Player, top: float) -> bool:
+	base.interact(climber)
+	for i in 120:
+		await frames(1)
+		if climber.state == Player.Move.WALK and climber.is_on_floor() and climber.global_position.y > top - 0.1:
+			return true
+	return false
+
+
+## E1 (environment play): crouch at a wall, facing it, and you're braced; a
+## teammate steps up off you to an edge too high to reach alone.
+func test_leg_up() -> void:
+	print("Movement: the leg-up")
+	var a := arena()
+	_high_wall(a, 3.5)  # face at z = -2
+	var base := spawn(a, Vector3(0, 0.05, -1.5))
+	var climber := spawn(a, Vector3(0, 0.05, -0.5))
+	await frames(10)
+	check(base.get_prompt(climber) == "[E] Climb on shoulders" and not climber.can_leg_up(base), "standing at the wall, a teammate still offers their shoulders, not a leg-up")
+	base.controls.crouch = true
+	await frames(10)
+	check(not climber.brace_of(base).is_empty() and base.get_prompt(climber) == Player.LEG_UP_PROMPT, "crouched up against the wall, facing it, they're braced: a leg-up")
+	base.rotation.y = PI
+	await frames(2)
+	check(climber.brace_of(base).is_empty() and base.get_prompt(climber) == "", "crouched with their back to it, they aren't")
+	base.rotation.y = 0.0
+	await frames(2)
+	var base_at := base.global_position
+	base.interact(climber)
+	await frames(3)
+	check(climber.state == Player.Move.LIFT and base.is_lifting(), "E on them: you're going up, and they hold still")
+	base.controls.move = Vector2(0, 1)  # trying to walk off doesn't drop you
+	base.controls.jump = true
+	var up := false
+	var held := INF
+	for i in 120:
+		await frames(1)
+		if climber.state != Player.Move.LIFT and held == INF:
+			held = base.global_position.distance_to(base_at)  # off their hands
+		if climber.state == Player.Move.WALK and climber.is_on_floor() and climber.global_position.y > 3.4:
+			up = true
+			break
+	stop(base)
+	check(up, "you go up off them and over the 3.5 m edge (y %.2f)" % climber.global_position.y)
+	check(held < 0.15, "and they stayed braced under you till you were off them (%.2f m)" % held)
+	check(base.get_prompt(climber) == "", "from up there, nothing to press on them")
+	await done(a)
+
+	# Out of reach of the leg-up, or a ceiling over them: no prompt, so nobody's
+	# lifted into nothing.
+	a = arena()
+	_high_wall(a, Player.LEG_UP_REACH + 0.4)
+	base = spawn(a, Vector3(0, 0.05, -1.5))
+	climber = spawn(a, Vector3(0, 0.05, -0.5))
+	base.controls.crouch = true
+	await frames(15)
+	check(not climber.brace_of(base).is_empty() and not climber.can_leg_up(base) and base.get_prompt(climber) == "", "braced under an edge too high even for a leg-up, there's nothing to take")
+	await done(a)
+	a = arena()
+	_high_wall(a, 3.5)
+	Greybox.box(a, Vector3(0, 2.6, -1.0), Vector3(6, 0.2, 2), Color.GRAY)  # a soffit over them, 2.5 m up
+	base = spawn(a, Vector3(0, 0.05, -1.5))
+	climber = spawn(a, Vector3(0, 0.05, -0.5))
+	base.controls.crouch = true
+	await frames(15)
+	check(not climber.can_leg_up(base), "with a ceiling over them, no leg-up through it")
+	await done(a)
+
+	# Every body, both ways round, gets up edges from too high to reach alone to
+	# the top of the leg-up's reach.
+	var ok := true
+	var report := []
+	var bodies := [CrewBody.smallest(), CrewBody.largest()]
+	for h in [Player.SOLO_REACH + 0.1, Player.LEG_UP_REACH]:
+		for bb in bodies:
+			for cb in bodies:
+				a = arena()
+				_high_wall(a, h)
+				base = _spawn_sized(a, Vector3(0, 0.05, -2.0 + bb.radius + 0.12), bb)
+				climber = _spawn_sized(a, Vector3(0, 0.05, -0.6), cb)
+				base.controls.crouch = true
+				await frames(15)
+				var got: bool = climber.can_leg_up(base) and await _go_up(base, climber, h)
+				ok = ok and got
+				if not got:
+					report.append("%.2f m, base %.2f, climber %.2f" % [h, bb.size, cb.size])
+				await done(a)
+	check(ok, "every body size, braced or climbing, gets up a %.1f m and a %.1f m edge %s" % [Player.SOLO_REACH + 0.1, Player.LEG_UP_REACH, report])
+
+	# Too high to reach alone, even with a running jump.
+	a = arena()
+	_high_wall(a, Player.SOLO_REACH + 0.1)
+	var solo := spawn(a, Vector3(0, 0.05, 0))
+	await frames(5)
+	for i in 3:
+		forward(solo, true)
+		await frames(20)
+		solo.controls.jump = true
+		await frames(60)
+	check(solo.global_position.y < 0.5, "and alone, nobody reaches a %.1f m edge" % (Player.SOLO_REACH + 0.1))
+	await done(a)
+
+
+## E2 (environment play): the first one up ties a network cable off at the top
+## and everyone else climbs it; it's used up until someone unties it.
+func test_cable_rope() -> void:
+	print("Movement: the cable rope")
+	var a := arena()
+	_high_wall(a, 3.6)  # face at z = -2, top from z = -4
+	var anchor := CableAnchor.make(a, Vector3(0, 3.6, -2.0), Vector3.BACK, 3.6)
+	var up := spawn(a, Vector3(1.5, 3.65, -3.2))  # up top, out of the way of the climb
+	var below := spawn(a, Vector3(0, 0.05, -0.9))
+	await frames(15)
+	check(anchor.get_prompt(below) == CableAnchor.NEED and anchor.get_prompt(up) == CableAnchor.NEED, "with no cable on you, the anchor's only something to tie one to")
+	anchor.interact(up)
+	check(not anchor.tied, "and pressing it does nothing")
+	up.inventory.add("cable")
+	check(anchor.get_prompt(up) == "[E] " + CableAnchor.TIE, "up top with a cable: tie it off")
+	anchor.interact(up)
+	await frames(2)
+	check(anchor.tied and anchor.rope.visible and anchor.volume != null and not up.inventory.has("cable"), "tied: it hangs down the wall, and it's out of your inventory")
+	check(anchor.get_prompt(up) == "[E] " + CableAnchor.UNTIE, "anyone up there without a cable can untie it")
+	# Below, W + Space at it and climb.
+	below.rotation.y = 0.0
+	forward(below)
+	below.controls.jump = true
+	var climbed := false
+	var on_it := false
+	for i in 300:
+		await frames(1)
+		on_it = on_it or below.state == Player.Move.CLIMB
+		if below.state == Player.Move.WALK and below.is_on_floor() and below.global_position.y > 3.5:
+			climbed = true
+			break
+	stop(below)
+	check(on_it and climbed, "below, W + Space takes hold of it, and you climb it to the top (y %.2f)" % below.global_position.y)
+	# Untied with someone on it: they drop off it.
+	var third := spawn(a, Vector3(0.0, 0.05, -0.9))
+	await frames(10)
+	forward(third)
+	third.controls.jump = true
+	await _until_state(third, Player.Move.CLIMB, 60)
+	await frames(20)
+	stop(third)
+	var was_on := third.state == Player.Move.CLIMB
+	anchor.interact(up)
+	await frames(2)
+	check(not anchor.tied and not anchor.rope.visible and anchor.volume == null and up.inventory.has("cable"), "untied: the cable's back in the inventory of whoever untied it")
+	await frames(90)
+	check(was_on and third.state == Player.Move.WALK and third.global_position.y < 0.3, "and whoever was on it is back on the floor")
+	check(anchor.get_prompt(below) == CableAnchor.NEED, "with nothing tied, the one who climbed it has no cable to tie")
+	await done(a)
+
+	# A fixed one keeps its own cable, tied off a beam overhead: anyone ties and
+	# unties it, and nobody's inventory changes.
+	a = arena()
+	_high_wall(a, 3.0)
+	Greybox.box(a, Vector3(0, 3.95, -2.8), Vector3(6, 0.15, 0.15), Color.DIM_GRAY)  # a beam over the top
+	anchor = CableAnchor.make(a, Vector3(0, 3.0, -2.0), Vector3.BACK, 3.0, true, Vector3(0, 3.8, -2.8))
+	up = spawn(a, Vector3(0, 3.05, -3.4))
+	await frames(15)
+	check(anchor.get_prompt(up) == "[E] " + CableAnchor.TIE and anchor.coil.visible, "a fixed one lies coiled by its beam: anyone can tie it off")
+	anchor.interact(up)
+	await frames(2)
+	check(anchor.tied and anchor.volume != null and not anchor.coil.visible and not up.inventory.has("cable"), "tied off in place, from nobody's inventory")
+	anchor.interact(up)
+	check(anchor.tied, "a second press straight after counts as the same press")
+	anchor._changed_at = -100000  # a moment later
+	anchor.interact(up)
+	await frames(2)
+	check(not anchor.tied and anchor.coil.visible and not up.inventory.has("cable"), "and untied, it stays where it is")
+	await done(a)
+
+
+func _until_state(p: Player, s: Player.Move, n: int) -> bool:
+	for i in n:
+		if p.state == s:
+			return true
+		await frames(1)
+	return p.state == s
 
 
 func test_shoulders() -> void:
