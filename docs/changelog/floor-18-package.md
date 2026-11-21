@@ -1,0 +1,8 @@
+- **Changed:** on floor 18 each case takes you one step at a time: the query on screen follows the step you're on, and you answer by pointing at the answer in the result.
+- **Added:** on floor 18, a pencil note says why when you point at the wrong cell, and SYSOP says why when a list is nearly right.
+- **Added:** the records desk on floor 18 runs under the security policy, with its card pinned above the terminal.
+- **Added:** every badge reader on floor 18 shows its last swipe, and the card catalogue has drawer labels.
+- **Changed:** some of floor 18's papers have moved to where they belong, and its night clerk's chores start from the clipboard on the slip spike.
+- **Changed:** on floor 18 the book's chapters come a little apart, and nothing wakes until something loud happens.
+- **Changed:** on floor 18 one computer asks a question of its own before it gives anything up.
+- **Changed:** `.hint` on floor 18 first says where to look on the floor.

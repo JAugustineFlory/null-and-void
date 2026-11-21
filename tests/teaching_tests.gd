@@ -95,8 +95,8 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	await walk_lab(11)
 	for s in [11, 42]:
 		await walk_level_2(s)
-	for s in [3, 23]:
-		await walk_level_3(s)
+	for run in [[3, "visits"], [23, "catalogue"]]:
+		await walk_level_3(run[0], run[1])
 	await walk_level_4(31, true)
 	await walk_level_4(12, false)
 	check_teaching_order()
@@ -139,6 +139,13 @@ func world_text(level: Node, at: Node3D = null) -> String:
 	for d in level.find_children("*", "Document", true, false):
 		if in_room(d, at):
 			parts.append(d.plain_text())
+	# A sticky note shows its label; read (E), the rest of it, tip and all.
+	for n in level.find_children("*", "StickyNote", true, false):
+		if in_room(n, at):
+			var note: Dictionary = StickyNotes.get_note(n.note_id)
+			for k in ["what", "syntax", "example", "tip"]:
+				if note.has(k):
+					parts.append(str(note[k]))
 	parts.append(level.hud.current_todo())
 	return "\n".join(parts)
 
@@ -196,7 +203,9 @@ func keywords_in(text: String) -> Array:
 ## Returns how many characters were new: what the player had to read.
 func remember(level: Node, ui: TerminalUI) -> int:
 	var read := 0
-	for line in (screen(ui) + "\n" + world_text(level, ui.terminal)).split("\n"):
+	# The case's query under the case chip is on screen too (v0.10): its words are read.
+	var case_line: String = ui._case_line.get_parsed_text() if ui._case_line and ui._case_line.visible else ""
+	for line in (screen(ui) + "\n" + case_line + "\n" + world_text(level, ui.terminal)).split("\n"):
 		if line.strip_edges() != "" and not taught.contains(line):
 			taught += line + "\n"
 			read += line.length()
@@ -515,6 +524,20 @@ func follow_spot(level: Node, ui: TerminalUI, puzzle: Puzzle, pace := false) -> 
 	return true
 
 
+## Point at the newest cell on screen in `column` (any, if "") holding `value`,
+## in a row whose text has `row_has` (click to solve). True if it filled a slot.
+func point_cell(ui: TerminalUI, column: String, value: String, row_has: String = "") -> bool:
+	var lines: Array = ui.noteable_lines()
+	for i in range(lines.size() - 1, -1, -1):
+		if row_has != "" and not str(lines[i].text).contains(row_has):
+			continue
+		var cells: Array = lines[i].get("cells", [])
+		for j in cells.size():
+			if (column == "" or str(cells[j].column).to_lower() == column.to_lower()) and str(cells[j].value) == value:
+				return ui.use_cell(i, j)
+	return false
+
+
 func rescue_tier(p: Puzzle) -> int:
 	if p.hints.is_empty():
 		return 0
@@ -578,7 +601,9 @@ func check_ladder(ui: TerminalUI, p: Puzzle) -> void:
 				var given := RegEx.create_from_string("(?i)(?<![A-Za-z0-9_])" + _escape(v) + "(?![A-Za-z0-9_])").search(first) != null
 				check(not given, "%s: hint 1 doesn't give the value away (%s)" % [p.id, v])
 		if mode != "review":
-			check(p.hints.size() >= 3, "%s: three tiers: shape, how to find the value, exact query" % p.id)
+			# A spot tier (.hint names where in the building to look) counts as the
+			# tier on how to find the value (floor G's rule, v0.10).
+			check(p.hints.size() + mini(p.spots.size(), 1) >= 3, "%s: three tiers: shape, how to find the value, exact query" % p.id)
 		for h in p.hints.slice(1, p.hints.size() - 1):
 			check(not _plain(h).contains(q), "%s: the middle hints say how to find the value, not the query" % p.id)
 	var real := true
@@ -783,9 +808,28 @@ func walk_level_0() -> void:
 	check(level.caller_puzzle.solved, "lobby: and that answers who called")
 	ui.open(level.desk_terminal, level.player)
 	# Optional: the visitor log newest first. Vale signed in and never left.
-	h = await solve(level, ui, level.visitor_puzzle, false)
+	# The visitor book, read once the caller's solved, opens its case (M3).
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "Visitor book":
+			d.report_open(level.player)
+	check(_game().case_info("last_visitor").get("open", false), "lobby: the visitor book, read after the caller, opens its case")
+	h = await solve(level, ui, level.visitor_puzzle, false, 3, "", false, func(): return level.visitor_listed)
 	check(h >= 0 and h <= rescue_tier(level.visitor_puzzle), "lobby: a lost player reads the visitor log newest first once a hint gives the query (hints %d)" % h)
 	check(screen(ui).contains("VALE, I."), "lobby: the newest visitors on screen include Vale")
+	# The answer is the name in the row below the crew's own (G15, G25).
+	var vale := [-1, -1]
+	var shown_lines: Array = ui.noteable_lines()
+	for i in shown_lines.size():
+		var cells: Array = shown_lines[i].get("cells", [])
+		for j in cells.size():
+			if cells[j].column == "name" and cells[j].value == "VALE, I.":
+				vale = [i, j]
+	check(vale[0] >= 0 and ui.use_cell(vale[0], vale[1]), "lobby: pointing at Vale's name goes in the visitor case's blank")
+	for i in 30:
+		if level.visitor_puzzle.solved:
+			break
+		await t.physics_frame
+	check(level.visitor_puzzle.solved, "lobby: and that answers who signed in before the crew")
 	ui.close()
 	board_verdict("lobby")
 	level.queue_free()
@@ -866,7 +910,7 @@ func _has_word(text: String, word: String) -> bool:
 ## Columns the Tables page may find though they aren't tables (case id -> piece ids).
 ## The caller's: the work order says "ext.", and no other column could hold it
 ## (Teaching audit of PR #206).
-const TABLES_PAGE_COLUMNS := {"caller": ["column"]}
+const TABLES_PAGE_COLUMNS := {"caller": ["column"], "last_visitor": ["column"]}
 ## What the case board showed this floor that the world hadn't: judged once a floor.
 var _board_bad: Array[String] = []
 ## Steps at which some case had pieces: 0 on a floor with no board yet.
@@ -1033,6 +1077,7 @@ func walk_level_1(seed_value: int) -> void:
 	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
+	level.pace_s = 0.0  # a side case's paper opens it at once (M5's minute is tested in hints)
 	level._on_asked()  # Rourke has asked the crew to find the fault
 	check_case_clues(level, "server floor (seed %d)" % seed_value)
 	check_jots(level, "server floor (seed %d)" % seed_value)
@@ -1042,23 +1087,26 @@ func walk_level_1(seed_value: int) -> void:
 	ui.open(level.terminal, level.player)
 	check(world_text(level, level.terminal).contains("door_controllers") and world_text(level, level.terminal).contains("'fault'") and not screen(ui).contains("zone %s" % level.zone), "server room: the desk papers name the table and 'fault', and the zone comes from the doors query, not the boot screen")
 	# First step: the stuck doors, and the zone they share (only the doors table has it).
-	# The controller's board waits for that query to write the zone in.
-	check(_game().case_query("controller").contains("enter_zone"), "server room: before the doors query, the controller's board leaves the zone as the hint's blank (%s)" % _game().case_query("controller"))
-	var h := await solve(level, ui, level.stuck_doors_puzzle, false)
-	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player finds the stuck doors once a hint gives the query (hints %d)" % h)
-	check(_game().case_query("controller").contains("zone = '%s'" % level.zone), "server room: once the doors query shows their zone, the controller's board writes it in (%s)" % _game().case_query("controller"))
+	# The case's query is the doors query until their zone is pointed at (S7).
+	check(_game().case_query("controller").begins_with("SELECT name, zone FROM") and not _game().case_query("controller").contains("door_controllers"), "server room: the case's first query is the doors one (%s)" % _game().case_query("controller"))
+	var h := await solve(level, ui, level.stuck_doors_puzzle, false, 3, "", false, func(): return level.stuck_listed)
+	check(h >= 0 and h <= rescue_tier(level.stuck_doors_puzzle), "server room: a lost player lists the stuck doors once a hint gives the query (hints %d)" % h)
 	var stuck := last_table(screen(ui)).filter(func(r): return ["Server Room A rear exit", "Server Room C", "Lift 1, server floor"].has(r.get("name", "")))
 	check(stuck.size() == 3 and stuck.all(func(r): return r.get("zone", "") == level.zone), "server room: the shift log's stuck doors share one zone in the result")
-	h = await solve(level, ui, level.controller_puzzle, false)
+	check(point_cell(ui, "zone", level.zone, "Server Room C") and await _until(func(): return level.stuck_doors_puzzle.solved, 2.0), "server room: pointing at a stuck door's zone answers the first step")
+	check(_game().case_query("controller").contains("zone = '%s'" % level.zone), "server room: with the zone found, the controller's query writes it in (%s)" % _game().case_query("controller"))
+	h = await solve(level, ui, level.controller_puzzle, false, 3, "", false, func(): return level.controller_listed)
 	check(h >= 0 and h <= rescue_tier(level.controller_puzzle), "server room: a lost player finds the controller once a hint gives the query (hints %d)" % h)
 	# Read the answer off the result table, then find that rack in the room.
 	var rows := last_table(screen(ui))
 	var id: String = rows[0].get("id", "") if rows.size() == 1 else ""
 	check(id != "" and has_world_label(level, id), "server room: the result names one controller, and a rack is labelled %s" % id)
+	check(point_cell(ui, "id", id) and await _until(func(): return level.controller_puzzle.solved, 2.0), "server room: pointing at its id answers the controller's step")
 	# Then the reset's sign-off: how many controllers are faulted, floor-wide.
 	check(_game().current_todo() == level.COUNT_TODO, "server room: once the controller is found, the to-do asks for the sign-off's count")
-	h = await solve(level, ui, level.count_puzzle, false)
+	h = await solve(level, ui, level.count_puzzle, false, 3, "", false, func(): return level.counted)
 	check(h >= 0 and h <= rescue_tier(level.count_puzzle), "server room: a lost player counts the faulted controllers once a hint gives the query (hints %d)" % h)
+	check(point_cell(ui, "", str(level.faulted)) and await _until(func(): return level.count_puzzle.solved, 2.0), "server room: pointing at the number logs the count")
 	ui.close()
 	var panel := find_interactable(level, "Reset controller " + id)
 	check(panel != null, "server room: that rack has a reset panel the player can press")
@@ -1071,12 +1119,20 @@ func walk_level_1(seed_value: int) -> void:
 	check(level.doors["SRA-EXIT"].is_open and not level.room_c_door.locked, "server room: resetting the controller read off the screen frees the floor's stuck doors")
 	# Optional: the overheating rack, comparison with > practised safely. The query
 	# only finds the rack; reseating its fan tray in Server Room B solves it.
+	# The sealed back door's plate opens the case.
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "Fire interlock":
+			d.report_open(level.player)
+	check(await _until(func(): return _game().case_info("hot_rack").get("open", false), 2.0), "server floor: the fire interlock plate opens the hot rack's case")
+	# What counts as too hot is on the monitoring card in Server Room B, by the trays (M4).
+	read_paper(level, "SERVER ROOM B - RACK MONITORING")
 	ui.open(level.terminal, level.player)
 	var hot: String = level.hot_rack
 	h = await solve(level, ui, level.hot_rack_puzzle, false, 3, "", false, func():
 		var r := last_table(screen(ui))
 		return r.size() == 1 and r[0].get("id", "") == hot)
 	check(h >= 0 and h <= rescue_tier(level.hot_rack_puzzle), "server floor: a lost player finds the hot rack once a hint gives the query (hints %d)" % h)
+	check(point_cell(ui, "id", hot) and await _until(func(): return level.hot_rack_found, 2.0), "server floor: pointing at the hot rack's id finds it")
 	ui.close()
 	var tray := find_interactable(level, "Reseat the fan tray (%s)" % hot)
 	check(tray != null, "server floor: the rack the query names has a fan tray to reseat")
@@ -1084,7 +1140,13 @@ func walk_level_1(seed_value: int) -> void:
 		tray.interact(level.player)
 	check(await _until(func(): return not level.vault_back.locked, 6.0), "server floor: reseating the hot rack's tray releases the cable vault's back door")
 	# Optional: the dark break room, OR practised safely. The query lists the lights
-	# that are out; the circuit reset by the break room door fixes them.
+	# that are out; the circuit reset by the break room door fixes them. Facilities'
+	# card by the break room opens the case and names the two statuses (M4).
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "FACILITIES - LIGHTING CIRCUITS":
+			d.report_open(level.player)
+	read_paper(level, "FACILITIES - LIGHTING CIRCUITS")
+	check(await _until(func(): return _game().case_info("dark_room").get("open", false), 2.0), "server floor: facilities' card opens the dark room's case")
 	ui.open(level.terminal, level.player)
 	h = await solve(level, ui, level.dark_room_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.dark_room_puzzle), "server floor: a lost player lists the lights that are out once a hint gives the query (hints %d)" % h)
@@ -1145,22 +1207,23 @@ func walk_lab(seed_value: int) -> void:
 	ui.open(lab.terminal, p)
 	var near: String = world_text(level, lab.terminal)
 	check(near.contains("zone " + level.data.lab_zone) or near.contains("ZONE " + level.data.lab_zone), "lab: a card inside the lab gives its controller zone (the door plate is outside the locked door)")
-	var hunted: bool = level.watcher.active or (lab.rourke.visible and lab.rourke.state != Rourke.State.DOWN) or lab.response_left > 0.0
+	# The response clock starts at the first query (M2): from then on it's under pressure.
+	var hunted: bool = level.watcher.active or (lab.rourke.visible and lab.rourke.state != Rourke.State.DOWN) or lab.response_left > 0.0 or lab.clock_waiting
 	# The response clock, measured: game time passes as a first-time player reads,
 	# thinks and types (PACE_*), so the clock and any re-key run for real.
 	paced = 0.0
-	var clock_from: float = lab.response_left
+	var clock_from: float = Level2Lab.RESPONSE_TIME
 	var zone: String = level.data.lab_zone
-	var h := await solve(level, ui, lab.door_puzzle, hunted, 3, "", true)
-	check(h >= 0 and h <= rescue_tier(lab.door_puzzle), "lab: a lost player finds the lab door's controller once a hint gives the query (hints %d)" % h)
+	var h := await solve(level, ui, lab.door_puzzle, hunted, 3, "", true, func(): return lab.door_listed)
+	check(h >= 0 and h <= rescue_tier(lab.door_puzzle), "lab: a lost player lists the lab door's controller once a hint gives the query (hints %d)" % h)
+	var shown := last_table(screen(ui))
+	var id: String = shown[0].get("id", "") if shown.size() == 1 else ""
+	check(point_cell(ui, "id", id) and await _until(func(): return lab.door_puzzle.solved and lab.powered, 2.0), "lab: pointing at the id it gives finds the controller, and the switches get power")
 	check(not _game().current_todo().contains(level.data.lab_answer), "lab: the to-do doesn't name the controller")
 	await _spend(10.0)  # across the lab to the switch wall
 	var used: float = clock_from - lab.response_left
 	print("  INFO  lab clock (seed %d): a first-time player reaches the switch after %d s of %d (%d hint%s)" % [seed_value, used, Level2Lab.RESPONSE_TIME, h, "" if h == 1 else "s"])
 	check(lab.response_left > 0.0 and level.data.lab_zone == zone, "lab: a first-time player who reads the hints reaches the switch before the security response re-keys the zone (%d s left)" % lab.response_left)
-	# The badge log is optional here: read unpaced, so its time isn't on the clock.
-	await solve(level, ui, lab.log_puzzle, hunted, 3)
-	check(screen(ui).contains("VIS-"), "lab: the sorted badge_log shows the crew's own badges at her door")
 	ui.close()
 	var sw: Interactable = find_interactable(level, "Reset " + level.data.lab_answer)
 	check(sw != null, "lab: a switch on the wall carries the id the query gave")
@@ -1187,23 +1250,33 @@ func walk_level_2(seed_value: int) -> void:
 	var p: Player = level.player
 	p.local_control = false
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), Vector3(-3, 0.1, 4.6))  # at the booth
+	await _until(func(): return _game().case_info("cameras").has("blank"), 30.0)  # the crew's arrival lines first
 	ui.open(level.booth, p)
-	var h := await solve(level, ui, level.cameras_puzzle, level.loose)
+	var h := await solve(level, ui, level.cameras_puzzle, level.loose, 3, "", false, func(): return level.cams_listed)
 	check(h == 0, "security: the boot screen gets a new player through GET /cameras (hints %d)" % h)
-	h = await solve(level, ui, level.pike_puzzle, level.loose)
-	check(h == 0, "security: LIKE is practised on Pike from the query on screen, safely (hints %d)" % h)
-	check(level.loose, "security: finding Pike freezes CAM-2 (the pressure starts)")
-	# Pressure means the Watcher can actually hunt: it wakes when the office opens.
+	check(point_cell(ui, "motion", "true") and await _until(func(): return level.cameras_puzzle.solved, 2.0), "security: pointing at the camera whose motion is true answers it")
+	h = await solve(level, ui, level.pike_puzzle, level.loose, 3, "", false, func(): return level.pike_listed)
+	check(h >= 0 and h <= rescue_tier(level.pike_puzzle), "security: LIKE is practised on Pike, safely, from the case's query and the papers (hints %d)" % h)
+	var pike_rows := last_table(screen(ui)).filter(func(r): return r.get("name", "").begins_with("PIKE"))
+	check(pike_rows.size() == 1 and point_cell(ui, "pin", pike_rows[0].get("pin", "")) and await _until(func(): return level.pike_puzzle.solved, 2.0), "security: pointing at Pike's PIN finds him")
+	check(not level.loose, "security: Pike's PIN doesn't wake it yet (M7)")
+	# Step 2, calmly: the last guard badge through SEC-EXIT, from the sorted log.
+	h = await solve(level, ui, level.last_puzzle, level.loose, 3, "", false, func(): return level.last_listed)
+	check(h >= 0 and h <= rescue_tier(level.last_puzzle), "security: a lost player lists the SEC-EXIT swipes in time order once a hint gives the query (hints %d)" % h)
+	var swipes := last_table(screen(ui)).filter(func(r): return r.get("badge_id", "").begins_with("G-"))
+	var badge: String = swipes[-1].get("badge_id", "") if not swipes.is_empty() else ""
+	check(point_cell(ui, "badge_id", badge) and await _until(func(): return level.last_puzzle.solved, 2.0), "security: pointing at the last G- badge in the list answers step 2")
+	check(level.loose, "security: the night lead's badge found, CAM-2 freezes (the pressure starts)")
+	# Pressure means the Watcher can actually hunt.
 	var hunting: bool = level.watcher.active
 	level.watcher.active = false  # keep the walkthrough deterministic from here
-	# The Har query isn't written out: the player builds it from LIKE plus AND, both
-	# taught by now (the solve() check enforces it). A lost player who can't gets it
-	# from the hint that gives the query.
-	h = await solve(level, ui, level.har_puzzle, hunting)
-	check(h >= 0 and h <= rescue_tier(level.har_puzzle), "security: a lost player finds the PIN once a hint gives the query (hints %d)" % h)
+	# Step 3: the case's query names the badge already. A lost player who can't
+	# build it gets it from the hint that gives the query.
+	h = await solve(level, ui, level.har_puzzle, hunting, 3, "", false, func(): return level.lead_listed)
+	check(h >= 0 and h <= rescue_tier(level.har_puzzle), "security: a lost player lists the night lead's PIN once a hint gives the query (hints %d)" % h)
 	var rows := last_table(screen(ui))
 	var pin: String = rows[0].get("pin", "") if rows.size() == 1 else ""
-	check(pin.length() == 4, "security: the result shows one guard and their PIN")
+	check(pin.length() == 4 and point_cell(ui, "pin", pin) and await _until(func(): return level.har_puzzle.solved, 2.0), "security: the result shows one guard, and pointing at their PIN finds it")
 	ui.close()
 
 	# Curious players check the door panel before the PIN: its boot text invites it.
@@ -1265,22 +1338,23 @@ func walk_level_2(seed_value: int) -> void:
 
 # --- Level 3: the Records Archive on 18 ---------------------------------------
 
-## The floor's pacing (plan/level-3-records-archive.md): arrive quiet and practise at
-## the desk (COUNT from the sticky, DISTINCT from the memo, GROUP BY from the tally);
-## the north corridor wakes the Shredder, and Security's sheet there asks which room;
-## the night's count under threat names it, the keyholder's badge from the readers'
-## log is the code on Mercer's lock; his room is the breather, where the card and his
-## battery PC teach IS NULL safely; back at the desk under threat, the slips name the
-## box on the returns cart with the stair key in it. Every station has its ladder
-## (COUNT's is the short review one: it was practised on 14).
-func walk_level_3(seed_value: int) -> void:
+## The floor's pacing (plan/teaching/v0.10-floor-18.md): arrive quiet and practise at
+## the desk (COUNT from the sticky, DISTINCT from the memo, GROUP BY from the tally by
+## the stacks doors); Security's sheet in the north corridor asks which room, and the
+## night's count (or Mercer's boxes in the catalogue) names it, still calm; the crank
+## wakes the Shredder, and the keyholder's badge from the readers' log is the code on
+## Mercer's lock; his room is the breather, where the card and his battery PC teach
+## IS NULL safely; back at the desk under threat, the slips name the box on the
+## returns cart with the stair key in it. Every station has its ladder (COUNT's is the
+## short review one: it was practised on 14). Each answer is pointed at.
+func walk_level_3(seed_value: int, route: String) -> void:
 	_game().new_run(seed_value)
 	var level = load("res://scenes/level_3.tscn").instantiate()
 	t.root.add_child(level)
 	skip_chapters(level)
 	for i in 20:
 		await t.physics_frame
-	var where := "records archive (seed %d)" % seed_value
+	var where := "records archive (seed %d, %s route)" % [seed_value, route]
 	check_case_clues(level, where)
 	check_jots(level, where)
 	check_no_copy_under_pressure(level, where)
@@ -1292,28 +1366,37 @@ func walk_level_3(seed_value: int) -> void:
 	var seen := screen(ui) + "\n" + world_text(level, level.desk)
 	check(seen.contains("retrieval_slips") and seen.contains("access_log") and seen.contains("catalogue"), "%s: the desk's papers and boot screen name the three tables" % where)
 	check(seen.contains(Level3Data.NIGHT), "%s: the night's date is written on the desk the way the readers log it" % where)
-	check(seen.contains("COUNT") and seen.contains("DISTINCT") and seen.contains("GROUP BY"), "%s: COUNT, DISTINCT and GROUP BY are found on papers within reach of the desk" % where)
+	check(seen.contains("COUNT") and seen.contains("DISTINCT") and not seen.contains("GROUP BY") and _doc(level, "Reader tally").plain_text().contains("GROUP BY"), "%s: COUNT and DISTINCT are found on papers within reach of the desk; GROUP BY on the tally by the stacks doors (M4)" % where)
 	check(not seen.contains("IS NULL"), "%s: IS NULL is not on the desk: it's the word the crew looks up in Mercer's room" % where)
 	# The desk's chores, asked by the clipboard, the memo and the note by the spike.
 	var asks := world_text(level, level.desk)
 	check(asks.contains("OPEN AT END OF SHIFT") and asks.contains("every department") and asks.contains("never checked back in"), "%s: each practice station is asked for on a paper at the desk" % where)
 	_doc(level, "Retrieval slips").open_reader(p).close()
 	check(_game().case_info("duties").get("open", false) and not _game().case_info("duties").get("solved", false), "%s: reading the clipboard opens the night clerk's list as a case" % where)
-	# Quiet: COUNT as review (its short ladder), then the two new words, each copied
-	# off the paper that shows it (found, and practised at once).
-	var h := await solve(level, ui, level.slips_puzzle, level.shredder_awake)
+	# Quiet: COUNT as review (its short ladder), then the two new words, each found on
+	# a paper that shows it (and practised at once). Each answer is pointed at, or is
+	# the whole result.
+	var h := await solve(level, ui, level.slips_puzzle, level.shredder_awake, 3, "", false, func(): return level.slips_listed)
 	check(h <= rescue_tier(level.slips_puzzle), "%s: the slips count is built from the sticky's shape; a lost player waits on its ladder (hints %d)" % [where, h])
+	if not level.slips_listed:
+		ui.run(level.slips_puzzle.solution_sql)
+	check(point_cell(ui, "", str(level.data.open_slips)) and await _until(func(): return level.slips_puzzle.solved, 2.0), "%s: pointing at the open slips' count fills the clipboard's blank" % where)
 	# The memo's query covers every room: copying it shows DISTINCT at work (the
 	# practice) but the station wants the stacks only, so the WHERE is the player's
 	# (or its ladder's).
 	ui.run("SELECT DISTINCT dept FROM catalogue")
 	remember(level, ui)
 	var every := last_table(screen(ui)).size()
-	check(not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;"), "%s: DISTINCT is practised by copying the memo, safely, and the stacks station still needs the player's WHERE" % where)
+	check(not level.depts_puzzle.solved and taught.contains("SELECT DISTINCT dept FROM catalogue;") and _said(level.desk, level.DEPTS_EVERY), "%s: DISTINCT is practised by copying the memo, safely; SYSOP says the stacks station still needs the player's WHERE" % where)
 	h = await solve(level, ui, level.depts_puzzle, level.shredder_awake)
 	check(h <= rescue_tier(level.depts_puzzle) and level.depts_puzzle.solved and last_table(screen(ui)).size() < every, "%s: the memo's list has more departments than the stacks: the WHERE narrows it, from the player or the ladder (hints %d)" % [where, h])
+	# The clipboard says September's tally is up by the stacks doors: the player goes
+	# and reads it (M4), then types its count at the desk.
+	read_paper(level, "Reader tally")
+	_doc(level, "Reader tally").report_open(p)
 	h = await solve(level, ui, level.tally_puzzle, level.shredder_awake)
-	check(h == 0 and level.tally_puzzle.solved, "%s: GROUP BY is practised from the reader tally on the desk, safely (hints %d)" % [where, h])
+	check(h <= rescue_tier(level.tally_puzzle) and level.tally_puzzle.solved and _game().spot_found("reader_tally"), "%s: GROUP BY is practised from the reader tally by the stacks doors, safely (hints %d)" % [where, h])
+	check(_game().case_info("duties").get("solved", false), "%s: the night clerk's three chores close the clerk's case" % where)
 	ui.run(level.tally_puzzle.solution_sql)
 	var top := ""
 	var most := -1
@@ -1323,20 +1406,15 @@ func walk_level_3(seed_value: int) -> void:
 				most = int(r[k])
 				top = r.get("room", "")
 	check(top == "READING ROOM", "%s: the whole log puts the reading room first (the decoy)" % where)
-	# The night's question hasn't been asked: its answer doesn't count yet.
-	ui.run(level.visits_puzzle.solution_sql)
-	check(not level.visits_puzzle.solved and not level.shredder_awake, "%s: before Security's sheet is read, the night's count is no station, and nothing has woken the Shredder" % where)
 	ui.close()
 
-	# North: setting foot in the corridor is the pressure peak, and the sheet by the
-	# shredding room's reader asks which room.
+	# North: Security's sheet by the shredding room's reader asks which room. Nothing
+	# wakes on the way (M1): the question is read, and answered, calmly.
 	p.global_transform = Transform3D(Basis(), level.to_global(Vector3(-9.5, 0.1, -23.5)))
 	for i in 10:
 		await t.physics_frame
-	check(level.shredder_awake and level.shredder.active, "%s: the north corridor wakes the Shredder before the question can be read" % where)
-	level.shredder.active = false  # keep the walkthrough deterministic from here; the threat is still on
 	var sheet = _doc(level, "Reader exceptions")
-	check(sheet != null and in_room(sheet, level.find_child("NorthCorridor", true, false)), "%s: Security's sheet hangs in the corridor" % where)
+	check(sheet != null and level.to_local(sheet.global_position).z < -22.0 and not level.shredder_awake, "%s: Security's sheet hangs in the north corridor, and walking there wakes nothing" % where)
 	sheet.open_reader(p).close()
 	for i in 3:
 		await t.physics_frame
@@ -1344,35 +1422,50 @@ func walk_level_3(seed_value: int) -> void:
 	var host: String = level.data.host
 	check(level.safe_door.locked, "%s: Mercer's door is locked whichever room it's behind: a crank alone opens nothing" % where)
 
-	# Under threat: the night's count names the room. Not a copy job: the player adds
-	# the date (from the slips) and the sort (from Level 0) to the tally's query.
+	# Still calm: the room, by one of two routes. The night's count isn't a copy job:
+	# the player adds the date (on every reader's screen) and the sort (from Level 0)
+	# to the tally's query. Or Mercer's own boxes in the catalogue name it.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	ui.open(level.desk, p)
-	h = await solve(level, ui, level.visits_puzzle, level.shredder_awake)
-	check(h <= rescue_tier(level.visits_puzzle), "%s: the night's count is built, not copied; a lost player waits on its ladder (hints %d)" % [where, h])
-	if not level.visits_puzzle.solved:
-		ui.run(level.visits_puzzle.solution_sql)  # the player who built it from the papers
-	check(level.visits_puzzle.solved and _game().case_info("room").get("solved", false) and _game().case_info("room").how.contains(host), "%s: the night's count ranks the host room first and closes the room case" % where)
-	var ranked := last_table(screen(ui))
-	check(ranked.size() > 0 and ranked[0].get("room", "") == host, "%s: the top row of the result is the room to look in" % where)
-	# The code on the lock: the policy sheet says whose badge; the readers' log says which.
-	check(world_text(level, level.desk).contains("badge number"), "%s: the lock policy on the desk says the code is the keyholder's badge number" % where)
-	h = await solve(level, ui, level.keyholder_puzzle, level.shredder_awake)
+	if route == "visits":
+		h = await solve(level, ui, level.visits_puzzle, level.shredder_awake, 3, "", false, func(): return level.room_listed)
+		check(h <= rescue_tier(level.visits_puzzle), "%s: the night's count is built, not copied; a lost player waits on its ladder (hints %d)" % [where, h])
+		if not level.room_listed:
+			ui.run(level.visits_puzzle.solution_sql)  # the player who built it from the papers
+		var ranked := last_table(screen(ui))
+		check(ranked.size() > 0 and ranked[0].get("room", "") == host, "%s: the top row of the result is the room to look in" % where)
+	else:
+		# The archivist's own drawer names his boxes' department: the player who reads
+		# it lists where they're filed (no paper writes the query out).
+		read_paper(level, level.DRAWERS_TITLE)
+		check(taught.contains("EXECUTIVE") and not queries_in(world_text(level)).any(func(q): return level.mercer_puzzle.matches(level.db, level.db.execute(q))), "%s: the catalogue route is built, not copied: the archivist's drawer names EXECUTIVE, and no paper writes the query" % where)
+		ui.run("SELECT room, title FROM catalogue WHERE dept = 'EXECUTIVE'")
+		check(level.room_listed, "%s: Mercer's boxes, listed with their room, answer the room's question" % where)
+	check(point_cell(ui, "room", host) and await _until(func(): return level.room_slot == "badge", 2.0) and (level.visits_puzzle.solved if route == "visits" else level.mercer_puzzle.solved), "%s: pointing at the room (%s route) fills the room case's first slot" % [where, route])
+	ui.close()
+	# The crank: the floor's first loud act, and the hunt starts (M1).
+	level.cranks[host].interact(p)
+	for i in 5:
+		await t.physics_frame
+	check(level.shredder_awake, "%s: cranking the room's shelving wakes the Shredder" % where)
+	level.shredder.active = false  # keep the walkthrough deterministic from here; the threat is still on
+	# The code on the lock, under threat: the notice by the elevators says whose
+	# badge; the readers' log says which.
+	check(_doc(level, "Push-button locks").plain_text().contains("badge number"), "%s: facilities' notice says the code is the keyholder's badge number" % where)
+	ui.open(level.desk, p)
+	h = await solve(level, ui, level.keyholder_puzzle, level.shredder_awake, 3, "", false, func(): return level.badge_listed)
 	check(h <= rescue_tier(level.keyholder_puzzle), "%s: the keyholder's badge is built, not copied; a lost player waits on its ladder (hints %d)" % [where, h])
-	ui.run("SELECT * FROM access_log WHERE room = '%s'" % host)
+	ui.run("SELECT badge_id, holder FROM access_log WHERE room = '%s'" % host)
 	remember(level, ui)
-	check(level.keyholder_puzzle.solved and not level.mercer_puzzle.solved, "%s: that room's raw rows, read by eye, answer the lock's question, and aren't the catalogue route" % where)
 	var badges := {}
 	for r in last_table(screen(ui)):
 		badges[r.get("badge_id", "")] = true
 	check(badges.size() == 1 and badges.has(level.data.visitor_badge), "%s: one badge used that room's reader, and its digits are the code" % where)
+	check(point_cell(ui, "badge_id", level.data.visitor_badge) and await _until(func(): return level.keyholder_puzzle.solved and level.room_slot == "", 2.0), "%s: pointing at it fills the room case's second slot" % where)
 	ui.close()
 	var code: String = level.data.visitor_badge.get_slice("-", 1)
-	level.cranks[host].interact(p)
-	for i in 5:
-		await t.physics_frame
 	level.type_code(code, p)
-	check(level.safe_unlocked and not level.safe_door.locked, "%s: the badge number read off the screen opens Mercer's lock" % where)
+	check(level.safe_unlocked and not level.safe_door.locked and _game().case_info("room").get("solved", false), "%s: the badge number read off the screen opens Mercer's lock, and closes the room case" % where)
 
 	# The breather: Mercer's room. The card shows IS NULL on another table; his PC
 	# practises it on his own list, safely: the Shredder doesn't fit through side doors.
@@ -1383,40 +1476,44 @@ func walk_level_3(seed_value: int) -> void:
 	read_paper(level, "SQL pocket reference")
 	var card: String = _doc(level, "SQL pocket reference").plain_text()
 	check(has_item(card, "IS NULL") and card.contains("= NULL") and not card.contains("returned_at"), "%s: Mercer's card shows IS NULL on a table that isn't the puzzle's, and warns off = NULL" % where)
-	ui.open(level.pc, p)
-	h = await solve(level, ui, level.pc_puzzle, false)
-	check(h == 0 and level.pc_puzzle.solved, "%s: IS NULL is practised on Mercer's PC, in the safe room, from the query on its screen (hints %d)" % [where, h])
-	ui.close()
 	_doc(level, "Mercer's note").open_reader(p).close()
 	for i in 3:
 		await t.physics_frame
-	check(_game().case_info("key").get("open", false) and _game().current_todo() == level.TEXT.todo_key_box, "%s: Mercer's note says where the key is and opens the key case" % where)
+	check(_game().case_info("key").get("open", false) and _game().current_todo() == level.TEXT.todo_key_box and level.key_slot == "pc", "%s: Mercer's note says where the key is and opens the key case, on his own question first" % where)
+	ui.open(level.pc, p)
+	h = await solve(level, ui, level.pc_puzzle, false, 3, "", false, func(): return level.pc_listed)
+	check(h == 0 and level.pc_listed, "%s: IS NULL is practised on Mercer's PC, in the safe room, from the query on its screen (hints %d)" % [where, h])
+	var named_pc := true
+	for b in level.data.mercer_out:
+		named_pc = point_cell(ui, "box_id", b) and named_pc
+	check(named_pc and await _until(func(): return level.pc_puzzle.solved and level.key_slot == "cart" and level.floppy.enabled, 2.0), "%s: pointing at both boxes he never put back answers it, and the floppy comes out of the drive" % where)
+	ui.close()
 	# The cart's boxes are taped: the note alone opens nothing.
 	level.cart_boxes[level.data.key_box].interact(p)
 	for i in 3:
 		await t.physics_frame
 	check(not level.key_taken and level.stair_out.locked and level.cart_boxes[level.data.key_box].get_prompt(p) == level.TEXT.box_taped, "%s: with the note read but no query, the key box is still taped: the desk has to name it" % where)
-	# Back at the desk, under threat: the box nobody checked back in. The note by the
-	# spike sends the player to the slips, so it looks at them first (the column
-	# names are on that screen).
+	# Back at the desk, under threat: the box nobody checked back in. SELECT * won't
+	# run here, so the player asks for the columns the way the workers' note says.
 	p.global_transform = Transform3D(Basis(Vector3.UP, PI), level.to_global(Vector3(-0.8, 0.1, 2.6)))
 	ui.open(level.desk, p)
-	ui.run("SELECT * FROM retrieval_slips")
+	check(world_text(level, level.desk).contains(".schema"), "%s: the workers' note on the desk says how to see a table's columns" % where)
+	ui.run(".schema retrieval_slips")
 	remember(level, ui)
-	check(taught.contains("returned_at") and taught.contains("filled"), "%s: the slips table shows its return-time column and the 'filled' status" % where)
+	check(taught.contains("returned_at") and taught.contains("filled"), "%s: the slips' schema shows the return-time column, and Mercer's PC the 'filled' status" % where)
 	# The tempting wrong turn first: = NULL, which the card warns off.
 	var before := screen(ui).length()
 	ui.run("SELECT box_id FROM retrieval_slips WHERE returned_at = NULL")
 	check(not level.unreturned_puzzle.solved and screen(ui).substr(before).contains("(0 rows)"), "%s: = NULL finds nothing, as the card warns" % where)
-	h = await solve(level, ui, level.unreturned_puzzle, level.shredder_awake)
+	h = await solve(level, ui, level.unreturned_puzzle, level.shredder_awake, 3, "", false, func(): return level.cart_listed)
 	check(h <= rescue_tier(level.unreturned_puzzle), "%s: the box with the key is built from the card and the PC, or its ladder (hints %d)" % [where, h])
-	ui.run(level.unreturned_puzzle.solution_sql)
-	check(level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false), "%s: IS NULL names the box nobody checked back in, and the key case closes" % where)
+	if not level.cart_listed:
+		ui.run(level.unreturned_puzzle.solution_sql)
 	var named := last_table(screen(ui)).map(func(r): return r.get("box_id", ""))
 	check(named.has(level.data.key_box) and named.size() <= 2, "%s: the result names the key's box (one or two to open, not the whole cart)" % where)
-	# The second route to the room, DISTINCT under threat: Mercer's own boxes in the catalogue.
-	h = await solve(level, ui, level.mercer_puzzle, level.shredder_awake)
-	check(h <= rescue_tier(level.mercer_puzzle), "%s: the catalogue route is built, not copied; a lost player waits on its ladder (hints %d)" % [where, h])
+	for b in level.data.unreturned:
+		point_cell(ui, "box_id", b)
+	check(await _until(func(): return level.unreturned_puzzle.solved and _game().case_info("key").get("solved", false), 2.0), "%s: pointing at each box nobody checked back in closes the key case" % where)
 	ui.close()
 	# The box on the cart the result named has the key; the stairs open.
 	level.cart_boxes[level.data.key_box].interact(p)

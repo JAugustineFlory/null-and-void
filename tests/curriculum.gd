@@ -53,7 +53,8 @@ const PUZZLES := {
 		"level": 0,
 		"pressure": false,
 		"teaches": ["DESC", "LIMIT", "visitors", "signed_in"],
-		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "LIMIT", "visitors"],
+		# After the caller: its query names its columns (G22).
+		"needs": ["SELECT", "FROM", "COLUMNS", "ORDER BY", "DESC", "LIMIT", "visitors"],
 	},
 	# Level 1: Server Room A.
 	# The controller chain's first step (Easy SQL ch 5): which zone the stuck doors share.
@@ -102,14 +103,6 @@ const PUZZLES := {
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
 	},
-	# Optional, in the lab: the visitor log sorted shows the crew's badges at the scene.
-	"badge_log": {
-		"level": 2,
-		"pressure": true,
-		"ladder": "exact",
-		"teaches": ["badge_log"],
-		"needs": ["SELECT", "FROM", "ORDER BY", "badge_log", "time"],
-	},
 	"cameras": {
 		"level": 2,
 		"pressure": false,
@@ -121,18 +114,40 @@ const PUZZLES := {
 		"level": 2,
 		"pressure": false,
 		"teaches": ["LIKE", "% = any letters", "guards", "LIKE 'Pike%'"],
-		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "guards", "Pike"],
+		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COLUMNS", "guards", "Pike"],
+	},
+	# The PIN case's step 2 (v0.10 package, M7): the last guard badge through SEC-EXIT,
+	# from the badge readers' log sorted by time, found calmly. The Watcher wakes when
+	# it's pointed at. Allowed routes: ORDER BY time DESC (the policy card's "sort
+	# newest first"), and the briefing room's roster board, whose lead's badge fills it.
+	"last": {
+		"level": 2,
+		"pressure": false,
+		"teaches": ["badge_log", "SEC-EXIT"],
+		"needs": ["SELECT", "FROM", "WHERE", "ORDER BY", "COLUMNS", "badge_log", "badge_id", "time", "SEC-EXIT"],
 	},
 	"har": {
 		"level": 2,
 		"pressure": true,
+		# Two tiers, as approved (T58, T59): the middle one was cut, and step 2 found the badge.
+		"ladder": "review",
 		"teaches": ["Har", "NIGHT SHIFT", "pin", "badge_id"],
-		# Main route (depth pass): badge_log sorted by time (ORDER BY, from the memo,
-		# now under pressure) gives the night lead's badge; guards by badge_id gives
-		# the PIN. LIKE 'Har%' AND shift = 'night' and the roster board still work.
+		# Step 3 (v0.10 package): guards by the badge step 2 found gives the PIN, typed
+		# while it hunts. Allowed routes, any of which fills steps 2 and 3 at once:
+		# LIKE 'Har%' AND shift = 'night' (the coffee-stained sheet), WHERE shift =
+		# 'night' and the notes ("night shift lead. Badged in 22:00", with the lockdown
+		# PIN policy), and the roster board's badge.
 		# DEBT (design plan, 2026-10-19): LIKE is now practised (pike) but no longer
 		# required under threat. Level 3 or later must need it again under pressure.
-		"needs": ["SELECT", "FROM", "WHERE", "ORDER BY", "guards", "badge_log", "badge_id", "time"],
+		"needs": ["SELECT", "FROM", "WHERE", "COLUMNS", "guards", "badge_id"],
+	},
+	# Optional (M5): Rourke's statement against his badge's swipes, a calm first use
+	# of badge_log once the lab door is open. ORDER BY time DESC reaches 23:40 too.
+	"statement": {
+		"level": 2,
+		"pressure": false,
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "ORDER BY", "COLUMNS", "badge_log", "badge_id", "time"],
 	},
 	"door": {
 		"level": 2,
@@ -146,11 +161,13 @@ const PUZZLES := {
 	# COUNT as review: practised on floor 14's reset sign-off (faulted_count, Easy SQL
 	# ch 9 "How many?"), found again on the clerk's sticky on the desk terminal, and
 	# used safely here before the tally and the night count build on it.
+	# The table is on the desk's boot screen and the status word on the clipboard
+	# (R3): the board puts the review count together from them.
 	"slips": {
 		"level": 3,
 		"pressure": false,
 		"ladder": "review",
-		"teaches": ["retrieval_slips"],
+		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "COUNT", "retrieval_slips"],
 	},
 	# DISTINCT, found on the clerk's memo pinned to the card catalogue and practised
@@ -161,7 +178,7 @@ const PUZZLES := {
 		"teaches": ["DISTINCT", "one of each", "catalogue", "dept"],
 		"needs": ["SELECT", "FROM", "WHERE", "DISTINCT", "catalogue", "dept"],
 	},
-	# GROUP BY with COUNT, found on the reader tally taped to the desk and practised
+	# GROUP BY with COUNT, found on the reader tally by the stacks doors and practised
 	# on its harmless whole-log count. The reading room wins by day: the decoy.
 	"tally": {
 		"level": 3,
@@ -170,13 +187,13 @@ const PUZZLES := {
 		"teaches": ["GROUP BY", "one line per room", "access_log"],
 		"needs": ["SELECT", "FROM", "COLUMNS", "COUNT", "GROUP BY", "access_log", "room"],
 	},
-	# The gate: that night's busiest reader. The tally's query plus the date (on the
-	# slips, as the readers write it) and the sort from Level 0. The question is on
-	# Security's sheet in the north corridor, and setting foot there wakes the
-	# Shredder, so this is always typed with it up.
+	# The room: that night's busiest reader. The tally's query plus the date (on every
+	# reader's screen, as the readers write it) and the sort from Level 0. Security's
+	# sheet asks it before anything hunts (M1): answered calmly, then the crank wakes
+	# the Shredder.
 	"visits": {
 		"level": 3,
-		"pressure": true,
+		"pressure": false,
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COLUMNS", "COUNT", "GROUP BY", "ORDER BY", "DESC", "access_log", "room", "1997-10-15"],
 	},
@@ -188,7 +205,7 @@ const PUZZLES := {
 		"pressure": false,
 		"ladder": "exact",
 		"teaches": ["IS NULL", "pulled", "back_on"],
-		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "pulled"],
+		"needs": ["SELECT", "FROM", "WHERE", "AND", "IS NULL", "pulled"],
 	},
 	# Then under threat, back at the desk: the box on the returns cart that nobody
 	# checked back in, which holds the stair key. The exit gate.
@@ -207,10 +224,10 @@ const PUZZLES := {
 		"needs": ["SELECT", "FROM", "WHERE", "access_log", "badge_id", "room"],
 	},
 	# The second route to the room: Mercer's own boxes in the catalogue, listed with
-	# their room (LIKE on the archivist's note, or his department), under threat.
+	# their room (LIKE on the archivist's note, or his department), before the crank.
 	"mercer_room": {
 		"level": 3,
-		"pressure": true,
+		"pressure": false,
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "catalogue", "room"],
 	},

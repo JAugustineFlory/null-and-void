@@ -260,7 +260,7 @@ static func tokens(text: String) -> Array:
 
 ## Where `toks` leaves the statement: {at, table, method}.
 static func _state(toks: Array) -> Dictionary:
-	var s := {"at": "start", "table": "", "method": ""}
+	var s := {"at": "start", "table": "", "method": "", "star": false}
 	for tok in toks:
 		var u := str(tok).to_upper()
 		var at: String = s.at
@@ -293,6 +293,7 @@ static func _state(toks: Array) -> Dictionary:
 					s.at = "lost"
 				else:
 					s.at = "select_item"
+					s.star = u == "*" and at == "select"
 			"select_distinct":
 				s.at = "select_item"
 			"select_item":
@@ -438,7 +439,10 @@ static func _offer(state: Dictionary, have: Dictionary) -> Dictionary:
 		"select_item":
 			out.Commands = words.call([",", "FROM"])
 		"after_table":
-			out.Commands = words.call(["WHERE", "GROUP BY", "ORDER BY", "LIMIT", ";"])
+			# Under the security policy a bare SELECT * FROM a table won't run: no ;
+			# straight after it (only off the network, on Mercer's PC).
+			var ends: bool = not (have.get("policy", false) and state.get("star", false))
+			out.Commands = words.call(["WHERE", "GROUP BY", "ORDER BY", "LIMIT"] + ([";"] if ends else []))
 		"cond_col", "group_col", "set_col", "insert_cols":
 			out.Columns = of_table.call()
 		"order_col":

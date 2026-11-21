@@ -440,7 +440,7 @@ func test_floor_g_memo() -> void:
 	g.set_pieces("memo_order", l0.ORDER_PIECES, l0.ORDER_QUERY, l0.ORDER_STEPS)
 	check(g.has_piece("memo_order", "table") and not g.has_piece("memo_order", "column") and g.pieces_total("memo_order") == 3, "the sort is the next case, with the table already in hand and the column still to find")
 	check(g.current_case() == "memo_order" and not _case_text(g).contains("What does the memo say?"), "and it has the page to itself: the one just read is filed")
-	check(l0.VISITOR_PIECES.all(func(p): return p.id != "column") and l0.VISITOR_QUERY.contains("ORDER BY enter_column_name"), "the visitor case leaves choosing its column to the player")
+	check(l0.VISITOR_PIECES.any(func(p): return p.id == "column" and p.value == "signed_in") and l0.VISITOR_QUERY == "SELECT name, {column} FROM {table} ORDER BY {column} {desc} {limit};", "after the caller, the visitor case names its columns, the sign-in time a piece of its own (G22, G23)")
 
 
 

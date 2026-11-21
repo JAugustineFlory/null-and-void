@@ -128,8 +128,7 @@ func test_books() -> void:
 				leaks.append("%s: %s" % [id, t])
 	_check.call(leaks.is_empty(), "the book only uses its own example table %s" % [leaks])
 	var l0 := FileAccess.get_file_as_string("res://scripts/levels/level_0.gd")
-	var at_huddle := l0.find("run(\"easy_sql_1\"")
-	_check.call(at_huddle > 0 and at_huddle < l0.find("desk_terminal.enabled = true\n\t_rourke_free"), "Level 0 brings in chapter 1 before the desk terminal opens")
+	_check.call(not l0.contains("run(\"easy_sql_1\"") and l0.contains("sync.event(\"_book_huddle\", [\"easy_sql_1\"])"), "Level 0 brings in chapter 1 when someone first sits at the desk terminal (M2)")
 
 
 ## Until chapter `id` is in the crew's book and Maddison's lines for it are over.

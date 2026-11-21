@@ -33,8 +33,14 @@ const PATROL := ["G-0127", "SECURITY STAFF"]
 ## Day staff who pull boxes: lots of reading room rows, by day.
 const DAY_BADGES := [["A-0291", "ARCHIVIST"], ["A-0302", "RECORDS CLERK"], ["A-0288", "RECORDS CLERK"], ["L-0044", "LEGAL"], ["F-0107", "FINANCE"]]
 const DEPARTMENTS := ["LEGAL", "FINANCE", "FACILITIES", "RESEARCH", "PERSONNEL", "SECURITY"]
-## Slips on the spike and in the tray: open ones plus the filled ones on the cart.
-const SLIPS := 12
+## A month of slips (approvals/puzzle-flow-floor-18.md, layout and data): the
+## open ones, this week's returns on the cart, and older ones back on the shelves.
+const SLIPS := 40
+## Boxes in the stacks: more than a month of slips needs.
+const STACK_BOXES := 60
+## Mercer's own slips since the summer, on his PC.
+const PULLED := 20
+const MERCER_TITLES := ["Patent files", "Shareholder letters", "Lease agreements", "Board minutes", "Vendor files", "Incident reports", "Site surveys", "Founder's letters", "Audit papers", "Grant files"]
 const TITLES := ["Correspondence", "Invoices", "Contracts", "Lab notebooks", "Site drawings", "Personnel files", "Vendor files", "Minutes", "Incident reports", "Payroll"]
 
 
@@ -96,7 +102,7 @@ static func build(run_seed: int) -> Dictionary:
 	# them has duplicates to collapse.
 	var boxes := []  # [box_id, title, dept, room, aisle, shelf, status, note]
 	var used_ids := {}
-	for i in 36:
+	for i in STACK_BOXES:
 		var dept: String = DEPARTMENTS[rng.randi_range(0, DEPARTMENTS.size() - 1)]
 		var aisle := rng.randi_range(1, 5)
 		var shelf := rng.randi_range(1, 6)
@@ -106,25 +112,33 @@ static func build(run_seed: int) -> Dictionary:
 			status = "destroyed"
 			note = "shredded per retention schedule"
 		boxes.append([_box_id(rng, used_ids, 1990 + rng.randi_range(0, 7)), "%s %d" % [TITLES[rng.randi_range(0, TITLES.size() - 1)], 1990 + rng.randi_range(0, 7)], dept, "STACKS", "A%d" % aisle, str(shelf), status, note])
+	var executive := []
 	for i in 3:
-		boxes.append([_box_id(rng, used_ids, 1994), ["Founder's papers", "Site drawings 1988", "Correspondence 1994"][i], "EXECUTIVE", host, "R1", str(i + 1), "on shelf", "restricted. Do not pull without the archivist"])
+		executive.append([_box_id(rng, used_ids, 1994), ["Founder's papers", "Site drawings 1988", "Correspondence 1994"][i], "EXECUTIVE", host, "R1", str(i + 1), "on shelf", "restricted. Do not pull without the archivist"])
 	for c in CANDIDATES:
 		if c == host:
 			continue
 		for i in 2:
 			boxes.append([_box_id(rng, used_ids, 1991 + i), "%s %d" % [TITLES[rng.randi_range(0, TITLES.size() - 1)], 1991 + i], DEPARTMENTS[rng.randi_range(0, DEPARTMENTS.size() - 1)], c, "R1", str(i + 1), "on shelf", ""])
 	_shuffle(boxes, rng)
+	# The EXECUTIVE rows sit past the policy's 20-row cap in stored order, so a
+	# bare list of the catalogue never shows them: a WHERE or ORDER BY has to.
+	for b in executive:
+		boxes.insert(rng.randi_range(TerminalPolicy.CAP, boxes.size()), b)
 
-	# Retrieval slips: paper requests the desk works through. A few are still open
-	# (nothing pulled yet). The filled ones' boxes are back on the returns cart in the
-	# reading room, waiting to be reshelved; for most, the clerk wrote the time they
-	# were checked back in. One or two were dropped on the cart and never checked in,
-	# so returned_at is NULL: an empty cell, not '' and not 0. The stair key is in the
-	# first of those (Mercer's note says so): the IS NULL question gates the exit.
+	# Retrieval slips: a month of paper requests the desk worked through. A few are
+	# still open (nothing pulled yet). This week's filled ones are back on the
+	# returns cart in the reading room, waiting to be reshelved, with the time the
+	# clerk checked them back in; older ones are back on the shelves. One or two were
+	# dropped on the cart and never checked in, so returned_at is NULL: an empty
+	# cell, not '' and not 0. The stair key is in the first of those (Mercer's note
+	# says so): the IS NULL question gates the exit.
 	var slips := []  # [slip_no, box_id, requested_by, status, returned_at, note]
 	var open_slips := rng.randi_range(3, 5)
 	var unreturned_n := rng.randi_range(1, 2)
+	var this_week := rng.randi_range(6, 7)
 	var unreturned := []
+	var unreturned_rows := []
 	var cart := []
 	var slip_boxes := boxes.filter(func(b): return b[3] == "STACKS" and b[6] != "destroyed").duplicate()
 	_shuffle(slip_boxes, rng)
@@ -133,19 +147,71 @@ static func build(run_seed: int) -> Dictionary:
 		var status := "open" if i < open_slips else "filled"
 		var note := "" if status == "filled" else "waiting on the night clerk"
 		var returned_at = null
+		var never := false
 		if status == "filled":
-			cart.append(b[0])
 			if i < open_slips + unreturned_n:
+				never = true
+				cart.append(b[0])
 				b[6] = "out"
 				b[7] = "not checked back in"
 				unreturned.append(b[0])
-			else:
+			elif i < open_slips + unreturned_n + this_week:
+				cart.append(b[0])
 				b[6] = "returned"
 				b[7] = "returns cart. Reshelve Friday"
 				returned_at = "1997-10-%02d %02d:%02d" % [rng.randi_range(13, 14), rng.randi_range(9, 16), rng.randi_range(0, 59)]
-		slips.append(["S-%04d" % (2200 + i * 3 + rng.randi_range(0, 2)), b[0], DAY_BADGES[rng.randi_range(0, DAY_BADGES.size() - 1)][1], status, returned_at, note])
+			else:
+				# Earlier this month or late last: checked back in, and on its shelf again.
+				var day := rng.randi_range(0, 23)
+				returned_at = ("1997-09-%02d" % (19 + day) if day < 12 else "1997-10-%02d" % (day - 11)) + " %02d:%02d" % [rng.randi_range(9, 16), rng.randi_range(0, 59)]
+		var row := ["S-%04d" % (2200 + i * 3 + rng.randi_range(0, 2)), b[0], DAY_BADGES[rng.randi_range(0, DAY_BADGES.size() - 1)][1], status, returned_at, note]
+		if never:
+			unreturned_rows.append(row)
+		else:
+			slips.append(row)
 	_shuffle(slips, rng)
+	# The ones nobody checked back in are past row 20 in stored order, among the
+	# filled slips too: only a WHERE, or a sort on returned_at, brings them up.
+	for row in unreturned_rows:
+		slips.insert(rng.randi_range(TerminalPolicy.CAP + open_slips, slips.size()), row)
 	_shuffle(cart, rng)
+
+	# Mercer's own slips since the summer, on his battery PC: what he asked for,
+	# what came up, when it went back. Two came up and never went back; two or three
+	# are still open, with no dates at all. Off the network, so no cap.
+	var pulled := []  # [box_id, title, status, pulled_on, back_on]
+	var pc_ids := {}
+	var out_n := 2
+	var pc_open := rng.randi_range(2, 3)
+	var mercer_out := []
+	var mercer_open := []
+	for i in PULLED:
+		var id := ""
+		while id == "" or pc_ids.has(id):
+			id = "HD-%d-%03d" % [1986 + rng.randi_range(0, 10), rng.randi_range(1, 30)]
+		pc_ids[id] = true
+		var title: String = "%s %s" % [MERCER_TITLES[rng.randi_range(0, MERCER_TITLES.size() - 1)], id.get_slice("-", 1)]
+		if i < out_n:
+			pulled.append([id, title, "filled", _summer_day(rng, 0, 95), null])
+			mercer_out.append(id)
+		elif i < out_n + pc_open:
+			pulled.append([id, title, "open", null, null])
+			mercer_open.append(id)
+		else:
+			var on := rng.randi_range(0, 100)
+			pulled.append([id, title, "filled", _summer_day(rng, on, on), _summer_day(rng, on, mini(on + 6, 105))])
+	_shuffle(pulled, rng)
+	var pc_sql := """
+CREATE TABLE pulled (
+	box_id TEXT,
+	title TEXT,
+	status TEXT,
+	pulled_on TEXT,
+	back_on TEXT
+);
+INSERT INTO pulled VALUES
+	%s;
+""" % ",\n\t".join(pulled.map(_values))
 
 	var sql := """
 -- The badge readers beside every room door on 18, as they reported in.
@@ -213,13 +279,25 @@ INSERT INTO lights VALUES
 	var open_list := slips.filter(func(s): return s[3] == "open")
 	return {"sql": sql, "host": host, "night_counts": night_counts, "open_slips": open_list.size(),
 		"visitor_badge": visitor_badge, "code": code, "unreturned": unreturned, "cart": cart, "key_box": unreturned[0],
-		"mercer_boxes": boxes.filter(func(b): return b[3] == host).map(func(b): return b[0])}
+		"mercer_boxes": boxes.filter(func(b): return b[3] == host).map(func(b): return b[0]),
+		"pc_sql": pc_sql, "mercer_out": mercer_out, "mercer_open": mercer_open}
 
 
 ## One row's values, quoted for SQL ("Founder's papers" needs its quote doubled).
 ## A null stays a real NULL, so IS NULL finds it and = '' doesn't.
 static func _values(row: Array) -> String:
 	return "(%s)" % ", ".join(row.map(func(v): return "NULL" if v == null else "'%s'" % str(v).replace("'", "''")))
+
+
+## A day between 1997-07-01 and 1997-10-14, `from` to `to` days into that stretch.
+static func _summer_day(rng: RandomNumberGenerator, from: int, to: int) -> String:
+	var d := rng.randi_range(from, to)
+	var months := [["07", 31], ["08", 31], ["09", 30], ["10", 14]]
+	for m in months:
+		if d < m[1]:
+			return "1997-%s-%02d" % [m[0], d + 1]
+		d -= m[1]
+	return "1997-10-14"
 
 
 static func _box_id(rng: RandomNumberGenerator, used: Dictionary, year: int) -> String:

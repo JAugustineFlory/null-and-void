@@ -52,6 +52,22 @@ func test_every_floor_shows_its_case() -> void:
 			cases += 1
 			if not (chip.chip.visible and chip.case_id in opens and chip.title.text != ""):
 				missing.append("level %d \"%s\" (%s)" % [i, d.title, ", ".join(opens)])
+		# Floor 14's side cases open from their papers once the pacing minute is up (M5).
+		if level.has_method("_side_case_read"):
+			level.pace_s = 0.0
+			for pair in [["Fire interlock", "hot_rack"], ["FACILITIES - LIGHTING CIRCUITS", "dark_room"]]:
+				_game().notebook_cases.clear()
+				_game().notebook_changed.emit()
+				var paper: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == pair[0])
+				if paper.is_empty():
+					missing.append("level %d \"%s\" (not found)" % [i, pair[0]])
+					continue
+				paper[0].open_reader(level.player).close()
+				await _frames(4)
+				cases += 1
+				if not (chip.chip.visible and chip.case_id == pair[1] and chip.title.text != ""):
+					missing.append("level %d \"%s\" (%s)" % [i, pair[0], pair[1]])
+				level._side_waiting.clear()
 		if openers.is_empty() and level.get("CASES") != null:
 			var first: String = level.CASES.keys()[0]
 			_game().notebook_cases.clear()
@@ -80,7 +96,7 @@ func test_coop_cases_shared() -> void:
 	(_tree as Variant)._lower_chapters_read(levels)
 	var host = levels[0]
 	var c1 = levels[1]
-	var host_doc: Document = host.find_children("*", "Document", true, false).filter(func(d): return d.clues.any(func(k): return k.get("case", "") == "dark_room" and k.has("opens")))[0]
+	var host_doc: Document = host.find_children("*", "Document", true, false).filter(func(d): return d.title == "FACILITIES - LIGHTING CIRCUITS")[0]
 	var client_doc: Document = c1.get_node(host.get_path_to(host_doc))
 	host_doc.clues.append({"case": "on_host", "opens": "marker", "text": "marker"})
 	client_doc.clues.append({"case": "on_client", "opens": "marker", "text": "marker"})

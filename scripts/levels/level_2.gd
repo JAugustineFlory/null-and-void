@@ -106,7 +106,76 @@ const CASES := {
 	"cameras": "What's moving on the security floor?",
 	"pin": "Whose PIN still works tonight?",
 	"door": "Why won't SEC-EXIT open?",
+	"statement": "Was Rourke really at the night desk?",
 }
+
+# --- The v0.10 package (approvals/puzzle-flow-floor-22.md) -----------------------
+## The cameras: clicked to solve (T29-T31).
+const CAM_SLOT := "The camera reporting motion:"
+const CAM_LINE := "That's the right camera. The blank wants its motion line."
+const CAM_OTHER := "Not that one: the blank wants the camera whose motion is true."
+## The PIN case's three steps (T33, T34; step 1 is the to-do's).
+const PIN_STEPS := [
+	{"id": "pike", "text": "Look up Officer Pike's PIN"},
+	{"id": "last", "text": "Find the last guard badge through SEC-EXIT"},
+	{"id": "lead", "text": "Find that guard's PIN"},
+]
+const PIKE_QUERY := "SELECT name, pin FROM {table} WHERE name {like} '{surname}%';"
+const LAST_QUERY := "SELECT time, badge_id FROM {log} WHERE door = '{door}' ORDER BY time;"
+const LEAD_QUERY := "SELECT name, pin FROM {table} WHERE badge_id = '%s';"
+const GUARDS_PIECE := {"id": "table", "label": "The table of guards", "value": "guards", "task": "Find the table where guard PINs are kept", "where": "The night shift's sign-in sheet", "seen_in": "guards", "blank": "enter_table_name"}
+const LIKE_PIECE := {"id": "like", "label": "How to search part of a name", "value": "LIKE", "task": "Find how to match just the start of a name", "where": "A WARDEN manual page at the booth"}
+const NAME_PIECE := {"id": "surname", "label": "The clear name on the sheet", "value": "Pike", "task": "Find the one name you can read on the sign-in sheet", "where": "The night shift's sign-in sheet", "blank": "enter_surname"}
+const LOG_PIECE := {"id": "log", "label": "The badge readers' log", "value": "badge_log", "task": "Find where every badge swipe is kept", "where": "The badge reader card at the security booth", "seen_in": "badge_log", "blank": "enter_table_name"}
+const DOOR_PIECE := {"id": "door", "label": "The door guards badge through", "value": "SEC-EXIT", "task": "Find the door guards use at shift change", "where": "The shift-change notice by the badge reader", "blank": "enter_door"}
+const PIKE_SLOT := "Officer Pike's PIN:"
+const PIKE_ROW := "That's Pike's row. The blank wants his PIN."
+const PIKE_OTHER := "Not that one: the blank wants Officer Pike's PIN."
+const LAST_SLOT := "The last guard badge through SEC-EXIT:"
+const LAST_EARLIER := "That's an earlier swipe. The blank wants the latest one: sort by time."
+const LAST_NOT_GUARD := "That's not a guard's badge. The blank wants a G- badge."
+const LAST_OTHER := "Not that one: the blank wants the last G- badge through SEC-EXIT."
+const LEAD_SLOT := "The night lead's PIN:"
+const LEAD_ROW := "That's the night lead. The blank wants the PIN."
+const LEAD_PIKE := "That's Pike's PIN, and it's suspended. The blank wants the night lead's."
+const LEAD_OFF := "That guard isn't on tonight. The blank wants the night lead's PIN."
+const LEAD_OTHER := "Not that one: the blank wants the night lead's PIN."
+## Rourke's statement: an optional case (M5, T14-T26).
+const STATEMENT_STEPS := [{"id": "swipe", "text": "Find when Rourke's badge opened the lab's rear door"}]
+const STATEMENT_QUERY := "SELECT time, door FROM {table} WHERE badge_id = '{badge}' ORDER BY time;"
+const STATEMENT_PIECES := [
+	{"id": "table", "label": "The badge readers' log", "value": "badge_log", "task": "Find where every badge swipe is kept", "where": "The badge reader card at the security booth", "seen_in": "badge_log", "blank": "enter_table_name"},
+	{"id": "badge", "label": "Rourke's badge", "value": "R-0117", "task": "Find Rourke's badge number", "where": "His statement", "blank": "enter_badge_id"},
+]
+const STATEMENT_SLOT := "Rourke's swipe at the lab's rear door:"
+const STATEMENT_SWIPE := "1997-10-15 23:40"
+const STATEMENT_ROW := "That's the right swipe. The blank wants its time."
+const STATEMENT_DESK := "That's the night desk, later on. The blank wants the lab's rear door."
+const STATEMENT_MAIN := "That's him letting you into the lab. The blank wants his swipe at the rear door."
+const STATEMENT_OTHER := "Not that one: the blank wants Rourke's swipe at the lab's rear door."
+const STATEMENT_SOLVED := "Rourke's badge opened the lab's rear door at 23:40. His statement says he was at the night desk all evening."
+## .hint's first tier: where the first missing piece is (T60-T63).
+const SPOT_SHEET := "the guards' paper sign-in sheet is on the booth wall."
+const SPOT_MANUAL := "a page from the WARDEN manual on the booth wall shows how to search part of a name."
+const SPOT_READER := "the card under the badge reader by the booth says where swipes are kept."
+const SPOT_NOTICE := "there's a shift-change notice by the badge reader."
+## T27, T28: the notice beside the badge reader.
+const SHIFT_NOTICE := [
+	"SHIFT CHANGE  -  SECURITY FLOOR",
+	"Day and swing guards badge out through SEC-EXIT.",
+	"The night lead badges in through SEC-EXIT after them.",
+]
+const SHIFT_NOTE := "Guards badge through SEC-EXIT at shift change. The night lead comes in last."
+## The workers' notes at the booth (v0.10-policy.md, W1 and W2).
+const W1 := ["The card won't say it, but", ".tables and .schema still work.", "Upstairs pretends they don't exist.", "   - night shift"]
+const W2 := ["42501 = you asked for the whole table.", "Name your columns, or add a WHERE.", "   - P."]
+## No line of a paper answers these slots: only a pointed-at cell does.
+const NO_LINE := ["\u0001"]
+## The crew's commentary by case: the PIN case starts on Pike's lines, then the
+## night lead's; Rourke's statement has the badge readers' (part 3).
+const COMMENTARY_IDS := {"pin": "pike"}
+## The "Half a name" chapter keeps this far from the floor's first refusal (M8).
+const REFUSAL_GAP_S := 60.0
 
 var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"type this, then Enter:\n" +
@@ -114,14 +183,14 @@ var cameras_puzzle := Puzzle.new("cameras", "", [], false, [
 	"  GET       ask the security server for something. it only reads, it changes nothing\n" +
 	"  /cameras  the address of the camera list\n" +
 	"the answer is JSON. { } is one camera's fields, [ ] is a list of them.",
-	"look down the list for \"motion\": true. its location is the room where something's moving.",
+	"look down the list for \"motion\": true. point at that line and add it to your notebook. its location is the room where something's moving.",
 ])
 ## Hints climb from the query's shape, with the value to find left as a named blank, to how
 ## to find that value, to the exact query.
 var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE 'Pike%'", ["name"], false, [
 	"the shape, with the name left blank:\n" +
-	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'enter_surname%';[/color]\n" +
-	"  SELECT *            every column\n" +
+	"    [color=#ffffff]SELECT name, pin FROM guards WHERE name LIKE 'enter_surname%';[/color]\n" +
+	"  SELECT name, pin    each guard's name and PIN\n" +
 	"  FROM guards         from the guard roster\n" +
 	"  WHERE name LIKE     keep rows whose name matches a pattern\n" +
 	"  'enter_surname%'    starts with the surname. % = any letters after it, or none\n" +
@@ -129,8 +198,8 @@ var pike_puzzle := Puzzle.new("pike", "SELECT name FROM guards WHERE name LIKE '
 	"the sign-in sheet is on the booth wall. the first name on it is marked NO SHOW. " +
 	"put that surname in place of enter_surname, with the % straight after it.",
 	"type this, then Enter:\n" +
-	"    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]\n" +
-	"keep the 'single quotes' round Pike%.",
+	"    [color=#ffffff]SELECT name, pin FROM guards WHERE name LIKE 'Pike%';[/color]\n" +
+	"keep the 'single quotes' round Pike%. then point at his PIN and add it to your notebook.",
 ])
 var door_puzzle := Puzzle.new("door", "", [], false, [
 	"the shape, with the door left blank:\n" +
@@ -143,31 +212,79 @@ var door_puzzle := Puzzle.new("door", "", [], false, [
 	"    [color=#ffffff]GET /doors/SEC-EXIT[/color]\n" +
 	"the note names a breaker. the breaker box is on the wall under the vent. press E on that one.",
 ])
-## Finding the PIN: the main route runs through the badge readers' log. The coffee-
-## stained "Har" on the sign-in sheet (LIKE + AND) and the briefing room's roster
-## board get there too: any query that comes back with just the night lead's PIN works.
+## The PIN case's step 2: the last guard badge through SEC-EXIT, from the badge
+## readers' log sorted by time (T42, T56, T57).
+var last_puzzle := Puzzle.new("last", "SELECT time, badge_id FROM badge_log WHERE door = 'SEC-EXIT' ORDER BY time", ["time", "badge_id"], true, [
+	"the shape, with the door left blank:\n" +
+	"    [color=#ffffff]SELECT time, badge_id FROM badge_log WHERE door = 'enter_door' ORDER BY time;[/color]\n" +
+	"  SELECT time, badge_id      when, and whose badge\n" +
+	"  FROM badge_log             from the badge readers' log\n" +
+	"  WHERE door = 'enter_door'  only the swipes at that door\n" +
+	"  ORDER BY time              in time order, so the last one is at the bottom\n" +
+	"replace enter_door with the door guards badge through at shift change.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT time, badge_id FROM badge_log WHERE door = 'SEC-EXIT' ORDER BY time;[/color]\n" +
+	"the last G- badge in the list came in last: the night lead. point at it and add it to your notebook.",
+])
+## Step 3, the night lead's PIN. The main route runs through the badge readers' log.
+## The coffee-stained "Har" on the sign-in sheet (LIKE + AND), the night shift's
+## notes and the briefing room's roster board get there too: pointing at the night
+## lead's PIN in any result is the answer.
 var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, pin_hints("G-1??"))
+## Rourke's statement (M5): his own badge, through the badge readers' log.
+var statement_puzzle := Puzzle.new("statement", "SELECT time FROM badge_log WHERE badge_id = 'R-0117' ORDER BY time", ["time"], true, [
+	"the shape, with the badge left blank:\n" +
+	"    [color=#ffffff]SELECT time, door FROM badge_log WHERE badge_id = 'enter_badge_id' ORDER BY time;[/color]\n" +
+	"  SELECT time, door                   when, and at which door\n" +
+	"  FROM badge_log                      from the badge readers' log\n" +
+	"  WHERE badge_id = 'enter_badge_id'   only one badge's swipes\n" +
+	"  ORDER BY time                       in time order\n" +
+	"replace enter_badge_id with Rourke's badge number. it's on his statement.",
+	"type this, then Enter:\n" +
+	"    [color=#ffffff]SELECT time, door FROM badge_log WHERE badge_id = 'R-0117' ORDER BY time;[/color]\n" +
+	"find his swipe at SECLAB-B-REAR. point at its time and add it to your notebook.",
+])
+## The PIN case's slot is on this step: "pike", "last" or "lead" ("" before it opens).
+var pin_slot := ""
+## Host: what's been on screen: each step's answer, waiting to be pointed at.
+var cams_listed := false
+var pike_listed := false
+var last_listed := false
+var lead_listed := false
+## Host: the floor's first refusal (ERROR 42501), msec; -1 before one (M8).
+var _refused_ms := -1
+## Pacing (M5): a side case waits out a quiet minute after the last busy moment.
+var pace_s := 60.0
+var _beat_ms := -1
+var _statement_read := false
+var _statement_waiting := false
+var lab_open := false
 
 
 static func pin_hints(badge: String) -> Array:
 	return [
 		"the shape, with the badge left blank:\n" +
-		"    [color=#ffffff]SELECT * FROM guards WHERE badge_id = 'enter_badge_id';[/color]\n" +
-		"  SELECT * FROM guards                every column of the guard roster, pin too\n" +
+		"    [color=#ffffff]SELECT name, pin FROM guards WHERE badge_id = 'enter_badge_id';[/color]\n" +
+		"  SELECT name, pin FROM guards        each guard's name and PIN\n" +
 		"  WHERE badge_id = 'enter_badge_id'   only the guard with that badge\n" +
-		"replace enter_badge_id with the last guard badge (G-) through SEC-EXIT tonight. the readers keep every swipe in [b]badge_log[/b].",
-		"sort the swipes by time:\n" +
-		"    [color=#ffffff]SELECT * FROM badge_log ORDER BY time;[/color]\n" +
-		"read down the door column for SEC-EXIT. the last G- badge there is your guard. put it in place of enter_badge_id.",
+		"replace enter_badge_id with the night lead's badge, from the last step. it's in your notebook.",
 		"type this, then Enter:\n" +
-		"    [color=#ffffff]SELECT * FROM guards WHERE badge_id = '%s';[/color]\n" % badge +
-		"the pin column is the code. office door first, then the SEC-EXIT keypad past it.",
+		"    [color=#ffffff]SELECT name, pin FROM guards WHERE badge_id = '%s';[/color]\n" % badge +
+		"point at the pin and add it to your notebook. it opens the office door first, then the SEC-EXIT keypad past it.",
 	]
 
 func build() -> void:
 	data = Level2Data.build(Game.run_seed)
 	load_level_seed(data.sql)
 	har_puzzle.hints = pin_hints(data.badge)
+	pike_puzzle.spots = [{"id": "sign_in_sheet", "text": SPOT_SHEET, "piece": "table"}, {"id": "warden_manual", "text": SPOT_MANUAL, "piece": "like"}, {"id": "sign_in_sheet", "text": SPOT_SHEET, "piece": "surname"}]
+	last_puzzle.spots = [{"id": "reader_card", "text": SPOT_READER, "piece": "log"}, {"id": "shift_notice", "text": SPOT_NOTICE, "piece": "door"}]
+	statement_puzzle.spots = [{"id": "reader_card", "text": SPOT_READER, "piece": "table"}]
+	last_puzzle.case_id = "pin"
+	statement_puzzle.case_id = "statement"
+	var game := get_node("/root/Game")
+	game.answer_found.connect(_on_answer_found)
+	game.cell_missed.connect(_on_cell_missed)
 
 	var floor_c := Color(0.27, 0.27, 0.3)
 	var wall_c := Color(0.52, 0.53, 0.5)
@@ -278,13 +395,16 @@ func build() -> void:
 	watcher.started_moving.connect(_on_watcher_moving)
 	spawn = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(6.7, 0.1, 8))  # in the arrival car, facing out
 	DressLevel2.apply(self)  # furniture and materials (Graphics thread)
+	commentary_ids = COMMENTARY_IDS.duplicate()
+	start_commentary()
 
 
 func _build_booth() -> void:
 	Greybox.box(geo, Vector3(-3, 0.45, 5.5), Vector3(2.0, 0.9, 0.8), Color(0.38, 0.36, 0.33), "BoothDesk")
 	booth = Terminal.spawn(geo, Vector3(-3, 0.9, 5.5), 180, "SECURITY BOOTH", db, terminal_ui)
 	booth.api = api
-	booth.puzzles = [cameras_puzzle, pike_puzzle, har_puzzle]
+	booth.puzzles = [cameras_puzzle, pike_puzzle, last_puzzle, har_puzzle, statement_puzzle]
+	booth.policy = true  # unescorted from here on: the security policy (P1-P9)
 	pike_puzzle.case_id = "pin"  # both searches are after a working PIN
 	har_puzzle.case_id = "pin"
 	pike_puzzle.givens = ["PIKE, H."]  # the sign-in sheet names him before the search
@@ -311,13 +431,23 @@ func _build_booth() -> void:
 	# manual x -5.3, camera card -4.3, monitor -3, sign-in sheet -2.3, reader and its card -1.6.
 	Greybox.panel(geo, Vector3(-1.6, 1.3, 5.9), Vector3(0.1, 0.15, 0.04), Color(0.12, 0.12, 0.13))
 	Greybox.panel(geo, Vector3(-1.6, 1.34, 5.875), Vector3(0.02, 0.02, 0.01), Color(0.1, 1.0, 0.2), 3.0)
-	Document.place(geo, Vector3(-1.6, 1.0, 5.86), 0, "Badge reader card", [
+	var reader_card := Document.place(geo, Vector3(-1.6, 1.0, 5.86), 0, "Badge reader card", [
 		"BADGE IN AT THE START OF EVERY SHIFT",
 		"The reader logs every swipe in badge_log: the time, your badge, the door.",
 		"Reader down? Sign the paper sheet. The night lead keeps it as the backup copy.",
-	], false, "laminated", Vector2(0.42, 0.3)).clues = [
+	], false, "laminated", Vector2(0.42, 0.3))
+	reader_card.clues = [
 		{"case": "pin", "text": "Every badge swipe is kept in badge_log: the time, the badge, the door."},
 	]
+	reader_card.pieces = [{"case": "pin", "piece": "log", "text": "badge_log", "kind": "table"}, {"case": "statement", "piece": "table", "text": "badge_log", "kind": "table"}]
+	reader_card.spot = "reader_card"
+	# Above the reader: who comes through SEC-EXIT at shift change (T27, T28).
+	var notice := Document.place(geo, Vector3(-1.6, 1.72, 5.86), 0, SHIFT_NOTICE[0], SHIFT_NOTICE, false, "paper", Vector2(0.42, 0.24))
+	notice.name = "ShiftChangeNotice"
+	notice.clues = [{"case": "pin", "text": SHIFT_NOTE}]
+	notice.pieces = [{"case": "pin", "piece": "door", "text": "SEC-EXIT", "kind": "value"}]
+	notice.spot = "shift_notice"
+	_booth_desk_papers()
 	# The backup sheet: the names are handwritten, and coffee took most of the second one.
 	var sheet := Document.place(geo, Vector3(-2.3, 1.45, 5.86), 0, "NIGHT SHIFT SIGN-IN      DATE: 10/15", [
 		"(backup copy)",
@@ -331,6 +461,8 @@ func _build_booth() -> void:
 		{"text": "guards", "hand": true},
 	], false, "paper", Vector2(0.6, 0.8))
 	sheet.read_by.connect(func(_p): _book_found("easy_sql_11"))
+	sheet.pieces = [{"case": "pin", "piece": "table", "text": "guards", "kind": "table"}, {"case": "pin", "piece": "surname", "text": "PIKE", "kind": "value"}]
+	sheet.spot = "sign_in_sheet"
 	sheet.clues = [
 		{"case": "pin", "text": "PIKE, H. is marked NO SHOW. The next name starts \"Har\", under the coffee. Badged in 22:00."},
 		{"case": "pin", "text": "Guard PINs are on file in the table guards."},
@@ -357,6 +489,8 @@ func _build_booth() -> void:
 		{"text": "% = any letters, or none.  - H.M.", "hand": true},
 	], false, "paper", Vector2(0.8, 0.9))
 	manual.read_by.connect(func(_p): _book_found("easy_sql_11"))
+	manual.pieces = [{"case": "pin", "piece": "like", "text": "LIKE", "kind": "keyword"}]
+	manual.spot = "warden_manual"
 	manual.clues = [
 		{"case": "pin", "text": "Only know part of a name? WHERE name LIKE 'Ro%' finds every name starting Ro."},
 	]
@@ -403,6 +537,17 @@ func _masking_tape() -> Document:
 	return tape
 
 
+## On the booth's desk, beside the keyboard: the policy card (P5) and a guard's
+## note on the keyboard tray (W2). On the monitor's bezel, the night shift's (W1).
+## The LIKE sticky stays on the screen, and Mercer's tape on its side.
+func _booth_desk_papers() -> void:
+	TerminalPolicy.place_card(geo, Vector3(-2.35, 0.905, 5.45), 180, true).name = "PolicyCard"
+	var w2 := Document.place(geo, Vector3(-3.6, 0.905, 5.22), 180, "Sticky note", W2.map(func(l): return {"text": l, "hand": true}), true, "sticky")
+	w2.name = "KeyboardTrayNote"
+	var w1 := Document.place(geo, Vector3(-2.86, 1.0, 5.255), 180, "Sticky note", W1.map(func(l): return {"text": l, "hand": true}), false, "sticky")
+	w1.name = "BezelNote"
+
+
 func _build_panel() -> void:
 	# A wall terminal in the vestibule, under CAM-3: the place to check your work.
 	Greybox.box(geo, Vector3(-1.4, 0.45, -11.4), Vector3(1.4, 0.9, 0.7), Color(0.38, 0.36, 0.33), "PanelDesk")
@@ -420,9 +565,11 @@ func _build_panel() -> void:
 	door_card.clues = [
 		{"case": "door", "text": "GET /doors/SEC-EXIT shows the door's record. sensor is what it's really doing, and note says why."},
 	]
+	panel.policy = true
 	panel.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  VESTIBULE PANEL",
 		"Door and camera status for this vestibule.",
+		TerminalPolicy.BOOT_LINE,
 		"",
 		"    [color=#ffffff]GET /doors/SEC-EXIT[/color]    the stairwell door",
 		"    [color=#ffffff]GET /cameras[/color]           every camera",
@@ -665,7 +812,17 @@ func start() -> void:
 	await hud.lines(["l2_arrive", "l2_cameras"])
 	if not cameras_puzzle.solved:
 		hud.todo("Security knows the way out", "Check the security booth terminal")
-		Game.open_case("cameras", CASES.cameras, ["cameras"])
+		_open_cameras_case()
+
+
+## Every machine: the cameras' case, its request on screen, and its slot: the
+## camera whose motion is true, pointed at in the answer (T29).
+func _open_cameras_case() -> void:
+	var game := get_node("/root/Game")
+	game.open_case("cameras", CASES.cameras, ["cameras"])
+	if game.case_info("cameras").get("blank", {}).is_empty():
+		game.set_pieces("cameras", [], "GET /cameras")
+		game.set_blank("cameras", CAM_SLOT, NO_LINE, "CAM-2", {"column": "motion", "values": ["true"]})
 
 
 ## The lab reader wants the visitor badge from the front desk. Started here on its
@@ -836,9 +993,14 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 	if not line.to_lower().contains("/cameras"):
 		return
 	if not cameras_puzzle.solved:
-		sync.event("_on_cameras_found", [which])
+		_cams_at = which  # the click answers it, on this terminal
+		cams_listed = true
 	elif loose and not _lie_explained and not _in(cam_zones["CAM-2"], watcher.global_position):
 		sync.event("_on_lie_spotted", [which, _cam2_frame()])
+
+
+## Host: where the cameras were last listed, for SYSOP's line when they're pointed at.
+var _cams_at := "booth"
 
 
 ## The only nudge on the HUD: there's something to read at a terminal.
@@ -869,21 +1031,14 @@ func _on_cameras_found(which: String) -> void:
 	var t := _term(which)
 	if not cameras_puzzle.solved:
 		cameras_puzzle.solved = true
+		_mark_beat()
 		t.print_line("")
-		sysop(t, "that's JSON. { } is one camera's fields, [ ] is a list of cameras.")
-		sysop(t, "each field is a name and a value, like \"motion\": true.")
 		sysop(t, "cam-2 says motion in the security office. look through the window. cam-2 is the only thing watching that room.")
-		t.print_line("")
-		sysop(t, "doors here want a guard's PIN. they're in the table [b]guards[/b]. long roster. count it, or peek:")
-		t.print_line("    [color=#ffffff]SELECT COUNT(*) FROM guards;[/color]     how many rows")
-		t.print_line("    [color=#ffffff]SELECT * FROM guards LIMIT 5;[/color]    just the first 5")
-		sysop(t, "pike's name is clear on the sign-in sheet. find his row with a pattern:")
-		t.print_line("    [color=#ffffff]SELECT * FROM guards WHERE name LIKE 'Pike%';[/color]")
-		t.print_line("      LIKE 'Pike%'   names that start with Pike. % = any letters after")
 		hud.todo("Borrow a guard's PIN", "Look up Officer Pike's PIN")
-		Game.open_case("cameras", CASES.cameras, ["cameras"])
+		_open_cameras_case()
 		Game.solve_case("cameras", "CAM-2 reports motion in the security office. It's the only camera pointed at that room.")
 		Game.open_case("pin", CASES.pin, ["guards", "badge_log"])
+		_pin_step("pike")
 		_book_check("easy_sql_11")
 
 
@@ -953,7 +1108,8 @@ func _book_ready(id: String) -> bool:
 		"easy_sql_10":
 			return lab.phase == "done"  # the cameras come after the lab
 		"easy_sql_11":
-			return cameras_puzzle.solved  # the Pike search
+			# The Pike search, never in the same minute as the floor's first refusal (M8).
+			return cameras_puzzle.solved and _refusal_quiet()
 		"easy_sql_13":
 			return (door_asked or door_checked) and not door_open
 	return true
@@ -981,43 +1137,141 @@ func shows_lead(result: Dictionary) -> bool:
 ## Every machine: a chapter of Easy SQL comes into the crew's book (once per run).
 ## Nothing stops for it, the Watcher included.
 func _book_huddle(id: String) -> void:
+	if id == "easy_sql_11":
+		Game.collect_piece("pin", "like", "Easy SQL")  # the chapter fills its piece (T37)
 	await Huddle.of(self).run(id, Huddle.REMEMBERED)
+
+
+## Host: no refusal yet, or the first was a minute ago. A chapter held back by
+## one is checked again when the minute is up.
+func _refusal_quiet() -> bool:
+	if _refused_ms < 0:
+		return true
+	var left := REFUSAL_GAP_S - (Time.get_ticks_msec() - _refused_ms) / 1000.0
+	if left <= 0.0:
+		return true
+	get_tree().create_timer(left + 0.1, false).timeout.connect(func(): _book_check("easy_sql_11"), CONNECT_ONE_SHOT)
+	return false
+
+
+## Host: a query was refused (the policy) or failed at a terminal on this floor.
+## The commentary hears it too (LevelBase).
+func _on_query_failed(sql: String, result: Dictionary) -> void:
+	super._on_query_failed(sql, result)
+	if sync.is_host() and _refused_ms < 0 and result.get("policy", "") == "refused":
+		_refused_ms = Time.get_ticks_msec()
 
 
 ## Host: a query ran at `which` terminal. Puzzle results play out on every machine.
 func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
-	if not pike_puzzle.solved and pike_puzzle.matches(db, result):
-		sync.event("_on_pike_found", [which])
-	if not har_puzzle.solved and (har_puzzle.matches(db, result) or shows_lead(result)):
-		sync.event("_on_har_found", [which])
+	_last_at = which
+	if pin_slot == "pike" and not pike_puzzle.solved:
+		if pike_puzzle.matches(db, result):
+			pike_listed = true  # the step waits for the crew to point at his PIN
+		elif sql.to_lower().contains("like") and sql.to_lower().contains("guards") and result.get("ok", false) and result.rows.is_empty():
+			comment_mistake("spelling")  # nobody by that name
+	if pin_slot == "last" and last_puzzle.matches(db, result):
+		last_listed = true
+	if pin_slot in ["last", "lead"] and (har_puzzle.matches(db, result) or shows_lead(result)):
+		lead_listed = true
 	if sql.to_lower().contains("door_status") and not result.rows.is_empty() and pin_entered and not door_checked and not door_open:
 		sync.event("_on_door_checked", [which])
+
+
+## Host: the terminal a query last ran at.
+var _last_at := "booth"
+
+
+## Every machine: the PIN case moves to step `step`: its pieces, its query and its slot.
+func _pin_step(step: String) -> void:
+	pin_slot = step
+	var game := get_node("/root/Game")
+	match step:
+		"pike":
+			game.set_pieces("pin", [GUARDS_PIECE, LIKE_PIECE, NAME_PIECE], PIKE_QUERY, PIN_STEPS)
+			game.set_blank("pin", PIKE_SLOT, NO_LINE, data.pike_pin, {"column": "pin", "values": [data.pike_pin], "rows": [{"name": "PIKE, H."}]})
+		"last":
+			game.tick_step("pin", "pike")
+			game.set_pieces("pin", [LOG_PIECE, DOOR_PIECE], LAST_QUERY, PIN_STEPS)
+			# The roster board's line with the lead's badge answers it too.
+			game.set_blank("pin", LAST_SLOT, [data.badge], data.badge, {"column": "badge_id", "values": [data.badge]})
+		"lead":
+			game.tick_step("pin", "pike")
+			game.tick_step("pin", "last")
+			game.set_pieces("pin", [GUARDS_PIECE], LEAD_QUERY % data.badge, PIN_STEPS)
+			game.set_assemble("pin", false)  # typed while it hunts: the crew puts it together
+			game.set_blank("pin", LEAD_SLOT, NO_LINE, data.pin, {"column": "pin", "values": [data.pin]})
+		"":
+			game.tick_step("pin", "lead")
 
 
 func _on_pike_found(which: String) -> void:
 	var t := _term(which)
 	if not pike_puzzle.solved:
 		pike_puzzle.solved = true
+		_mark_beat()
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.[/color]")
 		sysop(t, "you need a night-shift guard who badged in tonight. the badge readers know who. so does the sign-in sheet, under the coffee.")
 		hud.todo("That PIN's dead. Try another.", "Find out who else has a working PIN")
 		Game.add_clue("pin", "Officer Pike's PIN is suspended. Nobody has seen him since Tuesday.", "WARDEN")
-		# The answer only leads to the next search: the book's review of that, before it hunts.
+		if is_instance_valid(commentary) and sync.is_host():
+			commentary.solved("pike")
+			commentary.begin("har")
+		commentary_ids["pin"] = "har"
+		_pin_step("last")
+		# The night lead's PIN, pointed at already (the "Har" route), answers step 2 too.
+		_lead_pin_seen()
+		# The answer only leads to the next search: the book's review of that.
 		await _book_huddle("easy_sql_12")
-		sysop(t, "[color=#ff6655]something in the office is moving. it only moves while nothing is watching it. not you, not a working camera.[/color]")
 		hud.line("l2_smudged")
-		_set_loose()
-		_set_stage("near")
-		# From here it hunts, so the Har search is typed under pressure. The locked
-		# office door and its glass still stand between it and the booth.
-		wake_watcher()
+
+
+## This machine pointed at the night lead's PIN before step 2: step 2 is answered
+## with it, and step 3 takes it as soon as it's set (T49).
+func _lead_pin_seen() -> void:
+	var game := get_node("/root/Game")
+	if pin_slot != "last":
+		return
+	for f in game.found_cells:
+		if str(f.column).to_lower() == "pin" and str(f.value) == str(data.pin):
+			game._fill_from_cell("pin", f)
+			return
+
+
+## Every machine: the night lead's badge is in (step 2). The Watcher wakes now,
+## while the next query is typed (M7).
+func _on_last_found(which: String) -> void:
+	if pin_slot != "last":
+		return
+	_mark_beat()
+	last_puzzle.solved = true
+	var game := get_node("/root/Game")
+	_pin_step("lead")
+	_hunt(which)
+
+
+## Every machine: the Watcher wakes (M7), once: SYSOP's warning, CAM-2 freezes on
+## its last frame, the office lights flicker, and it hunts.
+func _hunt(which: String) -> void:
+	if loose:
+		return
+	sysop(_term(which), "[color=#ff6655]something in the office is moving. it only moves while nothing is watching it. not you, not a working camera.[/color]")
+	_set_loose()
+	_set_stage("near")
+	# From here it hunts, so the next query is typed under pressure. The locked
+	# office door and its glass still stand between it and the booth.
+	wake_watcher()
 
 
 func _on_har_found(which: String) -> void:
 	var t := _term(which)
 	if not har_puzzle.solved:
 		har_puzzle.solved = true
+		_mark_beat()
+		last_puzzle.solved = true
+		_pin_step("")
+		_hunt(which)
 		t.print_line("")
 		t.print_line("[color=#e0b050]WARDEN: %s, night shift. Badged in 22:00. PIN on file.[/color]" % data.name)
 		sysop(t, "that PIN opens the office door, and the SEC-EXIT keypad past it.")
@@ -1026,6 +1280,198 @@ func _on_har_found(which: String) -> void:
 		Game.solve_case("pin", "%s, night shift, badged in 22:00. That PIN opens the office and the SEC-EXIT keypad." % data.name)
 		_set_loose()
 		_set_stage("window")
+
+
+## This player pointed at a cell that answers one of this floor's slots: tell the
+## host. The PIN case's answer names its step ("pin@pike"), so two crewmates
+## answering the same step at once count once.
+func _on_answer_found(id: String) -> void:
+	if id == "pin":
+		sync.report_answer("pin@" + pin_slot)
+	elif id in ["cameras", "statement", "lab_door"]:
+		sync.report_answer(id)
+
+
+## Every machine: a crewmate's answer goes in everyone's slot, if it's still the
+## step it answers.
+func _crew_answered(id: String, peer: int) -> void:
+	if id.contains("@") and id.get_slice("@", 1) != pin_slot:
+		return
+	super._crew_answered(id.get_slice("@", 0), peer)
+
+
+## Host: a player put the answer in a slot. The PIN case's slot is the step it's on.
+func case_answered(answer: String, _peer: int) -> void:
+	var id := answer.get_slice("@", 0)
+	if answer.contains("@") and answer.get_slice("@", 1) != pin_slot:
+		return  # that step's answered already
+	match id:
+		"cameras":
+			if not cameras_puzzle.solved:
+				sync.event("_on_cameras_found", [_cams_at])
+		"lab_door":
+			if lab.phase == "escape" and not lab.door_puzzle.solved:
+				sync.run_on(lab, "_door_found")
+		"statement":
+			sync.event("_on_statement_found")
+		"pin":
+			match pin_slot:
+				"pike":
+					sync.event("_on_pike_found", [_last_at])
+				"last":
+					sync.event("_on_last_found", [_last_at])
+				"lead":
+					sync.event("_on_har_found", [_last_at])
+
+
+## This player pointed at a cell that answers no slot: if it's in a row the slot
+## is about, a pencil line under the blank says why (this player's notebook only).
+func _on_cell_missed(column: String, value: String, row: Dictionary) -> void:
+	var game := get_node("/root/Game")
+	var shown := {}
+	for k in row:
+		shown[str(k).to_lower()] = str(row[k])
+	var col := column.to_lower()
+	if not shown.has(col):
+		shown[col] = value
+	var lab_case: Dictionary = game.case_info("lab_door")
+	if lab.phase == "escape" and lab_case.get("open", false) and not lab_case.get("solved", false) and not lab.door_puzzle.solved:
+		var note := lab.door_miss(shown)
+		if note != "":
+			game.blank_miss("lab_door", note)
+	var cams: Dictionary = game.case_info("cameras")
+	if cams.get("open", false) and not cams.get("solved", false) and col in ["id", "location", "status", "last_frame", "motion", "note"]:
+		var cam2: Dictionary = db.run_silent("SELECT id, location FROM cameras WHERE id = 'CAM-2'")[0]
+		var mine := (col == "id" and value.to_upper() == "CAM-2") or (col == "location" and value == str(cam2.location))
+		game.blank_miss("cameras", CAM_LINE if mine else CAM_OTHER)
+	var pin: Dictionary = game.case_info("pin")
+	if pin.get("open", false) and not pin.get("solved", false):
+		var note := _pin_miss(col, value, shown)
+		if note == "\u0002":
+			_lead_pin_seen()  # the night lead's PIN: step 2 and 3 with it
+		elif note != "":
+			game.blank_miss("pin", note)
+	var st: Dictionary = game.case_info("statement")
+	if st.get("open", false) and not st.get("solved", false):
+		var rows := rows_like("badge_log", shown)
+		if not rows.is_empty():
+			var note := STATEMENT_OTHER
+			if rows.all(func(r): return r.badge_id == "R-0117" and r.door == "SECLAB-B-REAR"):
+				note = STATEMENT_ROW
+			elif rows.all(func(r): return r.badge_id == "R-0117" and r.door == "NIGHT DESK" and str(r.time).ends_with("23:55")):
+				note = STATEMENT_DESK
+			elif rows.all(func(r): return r.badge_id == "R-0117" and r.door == "SECLAB-B"):
+				note = STATEMENT_MAIN
+			game.blank_miss("statement", note)
+
+
+## The pencil note for a missed cell on the PIN case's current step, "" for none,
+## or "\u0002" for the night lead's PIN pointed at on step 2.
+func _pin_miss(col: String, value: String, shown: Dictionary) -> String:
+	match pin_slot:
+		"pike":
+			var rows := rows_like("guards", shown)
+			if rows.is_empty():
+				return ""
+			return PIKE_ROW if rows.all(func(r): return r.name == "PIKE, H.") else PIKE_OTHER
+		"last":
+			if col == "pin" and value == str(data.pin):
+				return "\u0002"
+			if rows_like("badge_log", shown).is_empty() and rows_like("guards", shown).is_empty():
+				return ""
+			if col == "badge_id":
+				if not value.to_upper().begins_with("G-"):
+					return LAST_NOT_GUARD
+				if not db.run_silent("SELECT time FROM badge_log WHERE door = 'SEC-EXIT' AND badge_id = '%s'" % value.replace("'", "")).is_empty():
+					return LAST_EARLIER
+			return LAST_OTHER
+		"lead":
+			var rows := rows_like("guards", shown)
+			if rows.is_empty():
+				return ""
+			if rows.all(func(r): return r.name == data.name):
+				return LEAD_ROW
+			if col == "pin" and value == str(data.pike_pin):
+				return LEAD_PIKE
+			if col == "pin":
+				return LEAD_OFF
+			return LEAD_OTHER
+	return ""
+
+
+## The rows of `table` that a result row showing `shown` (column -> value, lower-
+## case names) could be: every shown column is the table's and holds that value.
+## [] if a shown column isn't the table's.
+func rows_like(table: String, shown: Dictionary) -> Array:
+	var all := db.run_silent("SELECT * FROM %s" % table)
+	if all.is_empty():
+		return []
+	var cols := {}
+	for k in all[0]:
+		cols[str(k).to_lower()] = k
+	for k in shown:
+		if not cols.has(k):
+			return []
+	return all.filter(func(r):
+		for k in shown:
+			var v = r[cols[k]]
+			if ("NULL" if v == null else str(v)).to_lower() != str(shown[k]).to_lower():
+				return false
+		return true)
+
+
+## A busy moment: a side case opening soon after waits for the quiet minute (M5).
+func _mark_beat() -> void:
+	_beat_ms = Time.get_ticks_msec()
+
+
+## Every machine: the lab door is open (Level2Lab). Rourke's statement can open
+## now, after a quiet minute, if it's been read.
+func lab_door_opened() -> void:
+	lab_open = true
+	_mark_beat()
+	if not statement_puzzle in lab.terminal.puzzles:
+		lab.terminal.puzzles.append(statement_puzzle)
+	if _statement_read:
+		_statement_pace()
+
+
+## Every machine: someone read Rourke's statement. Read before the lab door
+## opened, it waits for that.
+func _on_statement_read(_p: Node) -> void:
+	if _statement_read:
+		return
+	_statement_read = true
+	if lab_open:
+		_statement_pace()
+
+
+## Host: the statement's case opens once the quiet minute since the last busy
+## moment is up.
+func _statement_pace() -> void:
+	if not sync.is_host() or _statement_waiting or Game.case_info("statement").get("open", false):
+		return
+	_statement_waiting = true
+	if _beat_ms >= 0:
+		var wait := pace_s - (Time.get_ticks_msec() - _beat_ms) / 1000.0
+		if wait > 0.0:
+			await get_tree().create_timer(wait, false).timeout
+	sync.event("_open_statement")
+
+
+func _open_statement() -> void:
+	Game.open_case("statement", CASES.statement, ["badge_log"])
+	Game.set_pieces("statement", STATEMENT_PIECES, STATEMENT_QUERY, STATEMENT_STEPS, true)
+	Game.set_blank("statement", STATEMENT_SLOT, NO_LINE, STATEMENT_SWIPE, {"column": "time", "values": [STATEMENT_SWIPE], "rows": [{"door": "SECLAB-B-REAR"}]})
+
+
+## Every machine: Rourke's 23:40 swipe is in the slot.
+func _on_statement_found() -> void:
+	if statement_puzzle.solved:
+		return
+	statement_puzzle.solved = true
+	Game.tick_step("statement", "swipe")
+	Game.solve_case("statement", STATEMENT_SOLVED)
 
 
 ## CAM-2 freezes on its last frame. The Watcher is free, and the camera still says "live".
@@ -1105,6 +1551,7 @@ func _pad_key(which: String, key: String) -> void:
 	var result := check_pin(pad.take_code())
 	if not result.ok:
 		pad.show_text(result.message, ThemeUtil.RED)
+		comment_mistake("pin")
 		return
 	pad.show_text(result.message, ThemeUtil.GREEN)
 	_pin_ok(which)
@@ -1173,6 +1620,7 @@ func enter_pin() -> void:
 	if _update_door():
 		return
 	hud.todo("Almost out!", "Get through SEC-EXIT")
+	comment("door_lie")
 	await hud.line("l2_door_ok")
 	await get_tree().create_timer(5.0).timeout
 	if not door_open and not door_checked:

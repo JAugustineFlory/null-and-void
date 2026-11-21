@@ -113,7 +113,7 @@ var huddle: NotesHuddle
 var showing := false
 ## The blank written in on this build of the pages, and its case.
 var _fresh_blank: Control
-var _fresh_case := ""
+var _fresh_slot: Dictionary = {}
 ## The book tab: the chapter open in it ("" for the contents), and its quiz while
 ## testing yourself.
 var book_chapter := ""
@@ -579,10 +579,18 @@ func _floor_notes_items(game: Node, h: NotesHuddle, bare := false) -> Array[Cont
 	var other: Array = game.notebook_written.filter(func(w):
 		var on: String = str(w.get("case", ""))
 		return on == "" or not game.case_info(on).get("open", false))
+	# What's been read for a case that hasn't opened yet waits here, and moves to
+	# its page when it does.
+	var waiting: Array = []
+	for c in game.notebook_cases:
+		if not c.get("open", false):
+			waiting.append_array(c.get("clues", []))
 	if bare:
 		items.append(NotebookArt.hand("Other notes", 26))
-	if other.is_empty():
+	if other.is_empty() and waiting.is_empty():
 		items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 22, NotebookArt.PENCIL))
+	for k in waiting:
+		items.append(_clue_item(k.text, k.from))
 	for w in other:
 		items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
 	if game.current_case() == "":
@@ -952,12 +960,21 @@ func file_solved() -> void:
 
 ## A case's blank for its answer, under the question: empty, with how to fill it
 ## in pencil, or filled in in pen. One just filled is written in as you watch.
+## A case whose slot moved on step by step (Game.set_blank) shows the answers
+## already in above the one it wants now.
 func _blank_items(c: Dictionary) -> Array[Control]:
-	var b: Dictionary = c.blank
+	var items: Array[Control] = []
+	for b in c.get("answered", []):
+		items.append_array(_slot_items(b))
+	items.append_array(_slot_items(c.blank))
+	return items
+
+
+func _slot_items(b: Dictionary) -> Array[Control]:
 	var line := HFlowContainer.new()  # the answer drops under the question if it won't fit beside it
 	line.name = "Blank"
 	line.add_theme_constant_override("h_separation", 10)
-	var question := NotebookArt.hand(b.prompt + ":", 26)
+	var question := NotebookArt.hand(b.prompt if str(b.prompt).ends_with(":") else b.prompt + ":", 26)
 	var answer := NotebookArt.hand(b.filled if b.filled != "" else BLANK, 26)
 	answer.name = "Answer"
 	for l in [question, answer]:
@@ -970,7 +987,7 @@ func _blank_items(c: Dictionary) -> Array[Control]:
 		return how
 	if b.get("fresh", false):
 		_fresh_blank = answer
-		_fresh_case = c.id
+		_fresh_slot = b
 	var out: Array[Control] = [line]
 	if str(b.get("query", "")) != "":
 		var used := NotebookArt.code(FOUND_WITH % str(b.query).replace("\n", " "), 16, NotebookArt.PENCIL)
@@ -1116,8 +1133,7 @@ func _show_spread(index: int) -> void:
 func _write_in_fresh() -> void:
 	if not (showing and is_instance_valid(_fresh_blank) and _fresh_blank.is_inside_tree()):
 		return
-	var b: Dictionary = get_node("/root/Game").case_info(_fresh_case).get("blank", {})
-	b["fresh"] = false
+	_fresh_slot["fresh"] = false
 	book.write_in(_fresh_blank, ANSWER_WRITE_TIME)
 	_fresh_blank = null
 

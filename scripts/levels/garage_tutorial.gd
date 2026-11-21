@@ -176,7 +176,7 @@ func _build() -> void:
 		pc.opened.connect(_on_sat)
 		pc.queried.connect(_on_query)
 	var game := _game()
-	game.cell_added.connect(_on_cell)
+	game.cell_missed.connect(_on_cell)
 	game.answer_found.connect(_on_answer_found)
 
 
@@ -347,9 +347,7 @@ func answered(id: String) -> void:
 
 ## This player pointed at a cell that didn't answer a practice case: pencil why,
 ## under its blank (their own page; once each, Game.blank_miss).
-func _on_cell(_column: String, _value: String, row: Dictionary, answered_it: bool) -> void:
-	if answered_it:
-		return
+func _on_cell(_column: String, _value: String, row: Dictionary) -> void:
 	var game := _game()
 	var cells := {}
 	for k in row:
