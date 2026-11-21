@@ -121,6 +121,8 @@ func get_prompt(_player: Node) -> String:
 ## by its leaf; shut again, it keeps that side (what it offers to anything that can
 ## only push, like the Shredder). A `one_way` door keeps its own side.
 func interact(player: Node) -> void:
+	if is_hinged() and locked and get_parent() is Node3D:
+		Sfx.play(get_parent(), "lock", position)  # the handle won't turn
 	if not is_hinged() or locked:
 		return
 	var sync := LevelSync.of(self)
@@ -250,7 +252,8 @@ func _phase(phase: StringName) -> void:
 func _sound(opening: bool) -> void:
 	var parent := get_parent()
 	if parent is Node3D:
-		Sfx.play(parent, "click" if is_hinged() else ("door_motor" if opening else "clunk"), position)
+		var hinged := "push_bar" if String(name).contains("STAIR") else ("handle" if opening else "click")
+		Sfx.play(parent, hinged if is_hinged() else ("door_motor" if opening else "clunk"), position)
 
 
 ## Called when the database row changes. A hinged door's row is its lock: it

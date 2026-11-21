@@ -747,6 +747,8 @@ func put_down(instant: bool = false) -> void:
 		_drop_prop()
 		return
 	_prop_lowering = true
+	if not instant:
+		Sfx.play_flat(self, "paper_down")  # set back where it was
 	if instant:
 		_prop_t = 0.0
 		_return_prop()
