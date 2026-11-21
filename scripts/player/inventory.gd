@@ -30,7 +30,19 @@ const ITEMS := {
 	"stair_key": {"name": "Key ring", "about": "Brass. STAIR 1 / 18. Opens the stairwell door on floor 18."},
 	"first_aid_kit": {"name": "First-aid kit", "about": "Bandages, gauze, smelling salts. One use: you, or a teammate who's down."},
 	"deck": {"name": "Portable deck", "about": "A rugged laptop, built to be dropped. Carry it: fitted and in range of a network, it's a terminal in your hands."},
+	# Gear (GEAR below): the environment kit's parts and tools (scripts/world/kit/).
+	"keyboard": {"name": "Keyboard", "about": "Beige, with a coiled cord. Plugs into a terminal."},
+	"power_cord": {"name": "Power cord", "about": "A spare monitor power cable. A dead screen might just need one."},
+	"fuse": {"name": "Fuse", "about": "A glass cartridge fuse. Fits the fuse boxes in this building."},
+	# "throwable": Combat's throw ([G]) works on it (scripts/combat/).
+	"crowbar": {"name": "Crowbar", "about": "Pries open what's stuck. Heavy.", "throwable": true},
+	"fire_extinguisher": {"name": "Fire extinguisher", "about": "Three good blasts.", "throwable": true},
 }
+## Gear: bulky things carried in your hands, not in a pocket. You carry at most
+## MAX_GEAR pieces at once (one per hotbar slot), so what to carry is a choice: a full
+## set of hands swaps for what's on the floor (GearPickup).
+const GEAR := ["keyboard", "power_cord", "fuse", "crowbar", "fire_extinguisher"]
+const MAX_GEAR := HOTBAR_SIZE
 
 ## Every item carried, in the order picked up (the fixed ones first).
 var items: Array[String] = []
@@ -62,14 +74,32 @@ static func item_name(item: String) -> String:
 	return ITEMS.get(item, {}).get("name", item.capitalize())
 
 
+## How many pieces of gear `carried` (item ids) holds.
+static func gear_count(carried: Array) -> int:
+	return carried.filter(func(i): return GEAR.has(i)).size()
+
+
+## There's room to pick up `item`: you don't have one, and it isn't gear you've no hands for.
+func room_for(item: String) -> bool:
+	return item != "" and not items.has(item) and (not GEAR.has(item) or gear_count(items) < MAX_GEAR)
+
+
 ## Picks up `item`: it goes in the inventory and into the first empty hotbar slot.
-## False if you already have it.
+## Gear always gets a slot: on a full bar it bumps a small thing into the bag (still
+## carried). False if you already have it, or it's gear and your hands are full.
 func add(item: String) -> bool:
-	if item == "" or items.has(item):
+	if not room_for(item):
 		return false
 	items.append(item)
 	if not FIXED.has(item) and not WORN.has(item):
 		var slot := hotbar.find("")
+		if slot < 0 and GEAR.has(item):
+			for i in HOTBAR_SIZE:
+				if not GEAR.has(hotbar[i]):
+					slot = i
+					break
+			if slot == active:
+				_set_active(-1)
 		if slot >= 0:
 			hotbar[slot] = item
 	changed.emit()
