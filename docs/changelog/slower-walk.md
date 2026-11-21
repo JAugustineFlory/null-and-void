@@ -1,0 +1,1 @@
+- **Changed:** walking is slower and more deliberate (sprinting is unchanged), so floors take longer to explore.

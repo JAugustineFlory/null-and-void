@@ -2433,6 +2433,12 @@ func test_terminal_screen() -> void:
 	source.skin_color = null
 	source.screen_changed.emit()
 	check(screen.display.text.text.contains("7dff8c") and screen.display.text.get_theme_color("default_color") == TerminalScreen.PHOSPHOR, "with nobody's skin the screen is green phosphor again")
+	source.look = TerminalLook.of({"item": "highlighter"}, {"item": "deep_blue"})
+	source.transcript = ["[color=#ffcc59]SELECT[/color] 1;"]
+	source.screen_changed.emit()
+	check(screen.display.text.text.contains("ff6ac1") and screen.display._bg.color == TerminalLook.SCREENS.deep_blue, "a terminal's look draws its text theme on its screen")
+	source.look = {}
+	source.screen_changed.emit()
 	var ui := CanvasLayer.new()
 	screen.host(ui)
 	check(ui.get_parent() == screen.viewport and not screen.display.visible and screen.viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "the terminal UI can be put on the glass")
@@ -2477,3 +2483,4 @@ class _FakeTerminal extends Node:
 	var seated: Array[int] = []
 	var typing := {}
 	var skin_color: Variant = null
+	var look := {}

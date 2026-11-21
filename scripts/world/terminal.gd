@@ -54,6 +54,9 @@ var typing := {}
 ## "whoever got there first"), kept after they leave. TerminalMirror sets it;
 ## the screen redraws on screen_changed.
 var skin_color: Color = TerminalScreen.PHOSPHOR
+## The whole look of its screen (TerminalLook.of: the text theme and the screen
+## behind it) of whoever sat down first; {} until someone has, which draws standard.
+var look := {}
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
