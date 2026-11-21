@@ -827,8 +827,9 @@ func start() -> void:
 	game.open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], OBJ_MEMO)
 	game.set_pieces("memo", MEMO_PEEK_PIECES, MEMO_PEEK_QUERY, MEMO_PEEK_STEPS)
 	# The crew's first case, so the page says how a case works and the room says
-	# which things are worth reading.
-	game.set_case_note("memo", INTRO_CASE, INTRO_HUNT, DESK_TERMINAL)
+	# which things are worth reading. A crew that did the garage lab's practice
+	# has read how a case works there (GarageTutorial.INTRO_CASE).
+	game.set_case_note("memo", "" if game.practiced else INTRO_CASE, INTRO_HUNT, DESK_TERMINAL)
 	_shine_clue_papers()
 	_turn_monitor()
 
@@ -1711,6 +1712,7 @@ func _on_boost() -> void:
 	await hud.line("l0_boost_1")
 	ceiling_hatch.enabled = false
 	ceiling_hatch.position.y += 0.3  # pushed up into the ceiling void
+	Sfx.play(self, "ceiling_tile", ceiling_hatch.position)
 	hud.notice("You step on Rourke's hands and shove the panel up. Something drops out of the ceiling void.", 4.0)
 	Document.place(geo, Vector3(10.8, 0.602, -13.4), 20.0, "Old sticker", [
 		"FIXED BY BYTE-RIGHT IT SERVICES!",
@@ -1723,6 +1725,7 @@ func _on_boost() -> void:
 
 ## The grate comes off and leans against the wall, on every machine.
 func _on_vent_grate() -> void:
+	Sfx.play(self, "panel_off", vent_grate.position)
 	vent_grate.enabled = false
 	for c in vent_grate.get_children():
 		if c is CollisionShape3D:

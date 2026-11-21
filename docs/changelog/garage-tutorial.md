@@ -1,0 +1,1 @@
+- **Added:** two practice cases at the garage lab's computers before the first job, for anyone in the crew who hasn't done them: find a table's name, ask for it, and point at the answer.

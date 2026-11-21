@@ -762,12 +762,14 @@ func open_vent_grate() -> void:
 		if c is CollisionShape3D:
 			c.disabled = true
 	Level2FX.drop(vent_grate, Vector3(-4.75, 0.03, 4.0), Vector3(0, 0, PI / 2))
-	Level2FX.sound(geo, Vector3(-5.5, 1.0, 4.0), "clatter")
+	Level2FX.sound(geo, vent_grate.position, "unscrew")
+	Sfx.play_later(geo, "clatter", Vector3(-5.5, 1.0, 4.0), 0.45)  # as it lands
 
 
 ## The hinged hatch at the vestibule end swings up out of the way, or back down.
 func set_hatch(open: bool) -> void:
 	hatch_open = open
+	Sfx.play(geo, "hinge" if open else "clunk", vent_hatch.position)
 	vent_hatch.prompt = "Close the vent hatch" if open else "Push the vent hatch open"
 	vent_hatch.position = Vector3(-1.95, 2.97, -10.0) if open else Vector3(-2.45, 2.5, -10.0)
 	vent_hatch.rotation.z = PI / 2 if open else 0.0

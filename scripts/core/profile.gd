@@ -27,6 +27,9 @@ var cases := {}
 var word_uses := {}
 var words_off: Array = []
 var buttons_tip := false
+## The garage lab's practice cases are done (GarageTutorial): next run, this
+## player can skip them.
+var tutorial_done := false
 
 
 static func open(at: String = PATH) -> Profile:
@@ -51,6 +54,7 @@ static func open(at: String = PATH) -> Profile:
 	var w = cfg.get_value("terminal", "words_off", [])
 	p.words_off = w.filter(func(x): return x is String) if w is Array else []
 	p.buttons_tip = bool(cfg.get_value("terminal", "buttons_tip", false))
+	p.tutorial_done = bool(cfg.get_value("garage", "tutorial_done", false))
 	var l = cfg.get_value("player", "loadout", {})
 	p.loadout = Cosmetics.trim(l, p) if l is Dictionary else {}
 	return p
@@ -68,6 +72,7 @@ func save() -> void:
 	cfg.set_value("terminal", "word_uses", word_uses)
 	cfg.set_value("terminal", "words_off", words_off)
 	cfg.set_value("terminal", "buttons_tip", buttons_tip)
+	cfg.set_value("garage", "tutorial_done", tutorial_done)
 	cfg.save(path)
 
 

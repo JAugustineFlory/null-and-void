@@ -106,6 +106,7 @@ const MADDISON_MARKS := {
 	"side": [Vector3(-6.6, 0, 3.4), Vector3(-6.2, 0, 5.6)],  # by the shelf, showing the crew the shop bag
 	"bench": [Vector3(2.1, 0, 3.6), BENCH],
 	"van": [Vector3(2.4, 0, 0.8), Vector3(3.3, 0, -0.5)],
+	"lab": [Vector3(-13.4, 0, -1.4), Vector3(-10.0, 0, -1.4)],  # at the lab's whiteboard, facing the desks
 }
 ## The walk in from the lobby (garage-local): through the roll-up door, past the
 ## punch bag, then down to the north end of the couch and the stools.
@@ -621,6 +622,12 @@ func net_setup() -> void:
 	lab.assign()
 
 
+## Host: a player wrote a case's answer in (LevelSync.report_answer). The garage's
+## cases are the lab's practice ones.
+func case_answered(id: String, _peer: int) -> void:
+	lab.tutorial.answered(id)
+
+
 func apply_environment(env: Environment) -> void:
 	env.ambient_light_energy = 0.45
 	env.fog_density = 0.0
@@ -671,6 +678,11 @@ func start() -> void:
 	_put_book_down()
 	# Chapter zero goes in everyone's notebook; nobody has to stop to read it.
 	await Huddle.of(self).run("easy_sql_0")
+	await _beat()
+
+	# Then the lab: two practice cases, for whoever hasn't done them before.
+	await lab.tutorial.run()
+	maddison_to("board")
 	await _beat()
 
 	# Nerves out before the job: everyone blocks the punch bag once, and whoever has
@@ -1111,6 +1123,7 @@ func _on_boarded(id: int) -> void:
 ## Off to the job. In the World the van pulls up at Halcyon (Level 0); on its own,
 ## the garage starts the World there.
 func _leave() -> void:
+	lab.tutorial.forget_tables()  # the lab's practice tables stay in the garage
 	if world:
 		world.call("leave_home")
 	else:

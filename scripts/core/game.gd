@@ -86,6 +86,9 @@ var book_words: Array[String] = []
 ## The crew hasn't got the book yet this run (the garage, before the shop bag):
 ## chapters earned on earlier runs stay out of the notebook until they have.
 var before_book := false
+## This run's crew did the garage lab's practice cases (GarageTutorial): the
+## ground floor's first case page then skips how a case works.
+var practiced := false
 ## The chapters the crew has read this run, in order: they're in the notebook's book.
 var book_chapters: Array[String] = []
 ## Words learned off a paper this run rather than from a chapter (IS NULL, off
@@ -199,6 +202,7 @@ func new_run(seed_value: int = -1) -> void:
 	counted_queries.clear()
 	words_waiting.clear()
 	before_book = false
+	practiced = false
 	rourke_fate = "unknown"
 	has_walkie = false
 	visitor_badge_no = ""
