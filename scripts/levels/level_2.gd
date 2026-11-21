@@ -232,7 +232,7 @@ var last_puzzle := Puzzle.new("last", "SELECT time, badge_id FROM badge_log WHER
 ## lead's PIN in any result is the answer.
 var har_puzzle := Puzzle.new("har", "SELECT pin FROM guards WHERE name LIKE 'Har%' AND shift = 'night'", ["pin"], false, pin_hints("G-1??"))
 ## Rourke's statement (M5): his own badge, through the badge readers' log.
-var statement_puzzle := Puzzle.new("statement", "SELECT time, door FROM badge_log WHERE badge_id = 'R-0117' ORDER BY time", ["time", "door"], true, [
+var statement_puzzle := Puzzle.new("statement", "SELECT time FROM badge_log WHERE badge_id = 'R-0117' ORDER BY time", ["time"], true, [
 	"the shape, with the badge left blank:\n" +
 	"    [color=#ffffff]SELECT time, door FROM badge_log WHERE badge_id = 'enter_badge_id' ORDER BY time;[/color]\n" +
 	"  SELECT time, door                   when, and at which door\n" +
@@ -246,8 +246,11 @@ var statement_puzzle := Puzzle.new("statement", "SELECT time, door FROM badge_lo
 ])
 ## The PIN case's slot is on this step: "pike", "last" or "lead" ("" before it opens).
 var pin_slot := ""
-## Host: what's been on screen, for SYSOP and the commentary.
+## Host: what's been on screen: each step's answer, waiting to be pointed at.
+var cams_listed := false
 var pike_listed := false
+var last_listed := false
+var lead_listed := false
 ## Host: the floor's first refusal (ERROR 42501), msec; -1 before one (M8).
 var _refused_ms := -1
 ## Pacing (M5): a side case waits out a quiet minute after the last busy moment.
@@ -280,8 +283,6 @@ func build() -> void:
 	last_puzzle.case_id = "pin"
 	statement_puzzle.case_id = "statement"
 	var game := get_node("/root/Game")
-	game.set_pieces("statement", STATEMENT_PIECES, STATEMENT_QUERY, STATEMENT_STEPS, true)
-	game.set_blank("statement", STATEMENT_SLOT, NO_LINE, STATEMENT_SWIPE, {"column": "time", "values": [STATEMENT_SWIPE], "rows": [{"door": "SECLAB-B-REAR"}]})
 	game.answer_found.connect(_on_answer_found)
 	game.cell_missed.connect(_on_cell_missed)
 
@@ -394,8 +395,6 @@ func build() -> void:
 	watcher.started_moving.connect(_on_watcher_moving)
 	spawn = Transform3D(Basis(Vector3.UP, PI / 2), Vector3(6.7, 0.1, 8))  # in the arrival car, facing out
 	DressLevel2.apply(self)  # furniture and materials (Graphics thread)
-	for t in [booth, panel, lab.terminal]:
-		t.query_failed.connect(_on_query_failed)
 	commentary_ids = COMMENTARY_IDS.duplicate()
 	start_commentary()
 
@@ -542,10 +541,10 @@ func _masking_tape() -> Document:
 ## note on the keyboard tray (W2). On the monitor's bezel, the night shift's (W1).
 ## The LIKE sticky stays on the screen, and Mercer's tape on its side.
 func _booth_desk_papers() -> void:
-	TerminalPolicy.place_card(geo, Vector3(-2.35, 0.905, 5.45), 0, true).name = "PolicyCard"
-	var w2 := Document.place(geo, Vector3(-3.6, 0.905, 5.22), 0, "Sticky note", W2.map(func(l): return {"text": l, "hand": true}), true, "note", Vector2(0.15, 0.09))
+	TerminalPolicy.place_card(geo, Vector3(-2.35, 0.905, 5.45), 180, true).name = "PolicyCard"
+	var w2 := Document.place(geo, Vector3(-3.6, 0.905, 5.22), 180, "Sticky note", W2.map(func(l): return {"text": l, "hand": true}), true, "sticky")
 	w2.name = "KeyboardTrayNote"
-	var w1 := Document.place(geo, Vector3(-2.86, 1.0, 5.255), 0, "Sticky note", W1.map(func(l): return {"text": l, "hand": true}), false, "note", Vector2(0.13, 0.08))
+	var w1 := Document.place(geo, Vector3(-2.86, 1.0, 5.255), 180, "Sticky note", W1.map(func(l): return {"text": l, "hand": true}), false, "sticky")
 	w1.name = "BezelNote"
 
 
@@ -995,6 +994,7 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 		return
 	if not cameras_puzzle.solved:
 		_cams_at = which  # the click answers it, on this terminal
+		cams_listed = true
 	elif loose and not _lie_explained and not _in(cam_zones["CAM-2"], watcher.global_position):
 		sync.event("_on_lie_spotted", [which, _cam2_frame()])
 
@@ -1155,7 +1155,9 @@ func _refusal_quiet() -> bool:
 
 
 ## Host: a query was refused (the policy) or failed at a terminal on this floor.
-func _on_query_failed(_sql: String, result: Dictionary) -> void:
+## The commentary hears it too (LevelBase).
+func _on_query_failed(sql: String, result: Dictionary) -> void:
+	super._on_query_failed(sql, result)
 	if sync.is_host() and _refused_ms < 0 and result.get("policy", "") == "refused":
 		_refused_ms = Time.get_ticks_msec()
 
@@ -1168,6 +1170,10 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 			pike_listed = true  # the step waits for the crew to point at his PIN
 		elif sql.to_lower().contains("like") and sql.to_lower().contains("guards") and result.get("ok", false) and result.rows.is_empty():
 			comment_mistake("spelling")  # nobody by that name
+	if pin_slot == "last" and last_puzzle.matches(db, result):
+		last_listed = true
+	if pin_slot in ["last", "lead"] and (har_puzzle.matches(db, result) or shows_lead(result)):
+		lead_listed = true
 	if sql.to_lower().contains("door_status") and not result.rows.is_empty() and pin_entered and not door_checked and not door_open:
 		sync.event("_on_door_checked", [which])
 
@@ -1193,6 +1199,7 @@ func _pin_step(step: String) -> void:
 			game.tick_step("pin", "pike")
 			game.tick_step("pin", "last")
 			game.set_pieces("pin", [GUARDS_PIECE], LEAD_QUERY % data.badge, PIN_STEPS)
+			game.set_assemble("pin", false)  # typed while it hunts: the crew puts it together
 			game.set_blank("pin", LEAD_SLOT, NO_LINE, data.pin, {"column": "pin", "values": [data.pin]})
 		"":
 			game.tick_step("pin", "lead")
@@ -1275,14 +1282,29 @@ func _on_har_found(which: String) -> void:
 		_set_stage("window")
 
 
-## This player pointed at a cell that answers one of this floor's slots: tell the host.
+## This player pointed at a cell that answers one of this floor's slots: tell the
+## host. The PIN case's answer names its step ("pin@pike"), so two crewmates
+## answering the same step at once count once.
 func _on_answer_found(id: String) -> void:
-	if id in ["cameras", "pin", "statement", "lab_door"]:
+	if id == "pin":
+		sync.report_answer("pin@" + pin_slot)
+	elif id in ["cameras", "statement", "lab_door"]:
 		sync.report_answer(id)
 
 
+## Every machine: a crewmate's answer goes in everyone's slot, if it's still the
+## step it answers.
+func _crew_answered(id: String, peer: int) -> void:
+	if id.contains("@") and id.get_slice("@", 1) != pin_slot:
+		return
+	super._crew_answered(id.get_slice("@", 0), peer)
+
+
 ## Host: a player put the answer in a slot. The PIN case's slot is the step it's on.
-func case_answered(id: String, _peer: int) -> void:
+func case_answered(answer: String, _peer: int) -> void:
+	var id := answer.get_slice("@", 0)
+	if answer.contains("@") and answer.get_slice("@", 1) != pin_slot:
+		return  # that step's answered already
 	match id:
 		"cameras":
 			if not cameras_puzzle.solved:
@@ -1439,6 +1461,8 @@ func _statement_pace() -> void:
 
 func _open_statement() -> void:
 	Game.open_case("statement", CASES.statement, ["badge_log"])
+	Game.set_pieces("statement", STATEMENT_PIECES, STATEMENT_QUERY, STATEMENT_STEPS, true)
+	Game.set_blank("statement", STATEMENT_SLOT, NO_LINE, STATEMENT_SWIPE, {"column": "time", "values": [STATEMENT_SWIPE], "rows": [{"door": "SECLAB-B-REAR"}]})
 
 
 ## Every machine: Rourke's 23:40 swipe is in the slot.

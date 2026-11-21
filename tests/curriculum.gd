@@ -103,14 +103,6 @@ const PUZZLES := {
 		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "AND", "door_controllers", "zone", "status", "'fault'"],
 	},
-	# Optional, in the lab: the visitor log sorted shows the crew's badges at the scene.
-	"badge_log": {
-		"level": 2,
-		"pressure": true,
-		"ladder": "exact",
-		"teaches": ["badge_log"],
-		"needs": ["SELECT", "FROM", "ORDER BY", "badge_log", "time"],
-	},
 	"cameras": {
 		"level": 2,
 		"pressure": false,
@@ -122,18 +114,40 @@ const PUZZLES := {
 		"level": 2,
 		"pressure": false,
 		"teaches": ["LIKE", "% = any letters", "guards", "LIKE 'Pike%'"],
-		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "guards", "Pike"],
+		"needs": ["SELECT", "FROM", "WHERE", "LIKE", "COLUMNS", "guards", "Pike"],
+	},
+	# The PIN case's step 2 (v0.10 package, M7): the last guard badge through SEC-EXIT,
+	# from the badge readers' log sorted by time, found calmly. The Watcher wakes when
+	# it's pointed at. Allowed routes: ORDER BY time DESC (the policy card's "sort
+	# newest first"), and the briefing room's roster board, whose lead's badge fills it.
+	"last": {
+		"level": 2,
+		"pressure": false,
+		"teaches": ["badge_log", "SEC-EXIT"],
+		"needs": ["SELECT", "FROM", "WHERE", "ORDER BY", "COLUMNS", "badge_log", "badge_id", "time", "SEC-EXIT"],
 	},
 	"har": {
 		"level": 2,
 		"pressure": true,
+		# Two tiers, as approved (T58, T59): the middle one was cut, and step 2 found the badge.
+		"ladder": "review",
 		"teaches": ["Har", "NIGHT SHIFT", "pin", "badge_id"],
-		# Main route (depth pass): badge_log sorted by time (ORDER BY, from the memo,
-		# now under pressure) gives the night lead's badge; guards by badge_id gives
-		# the PIN. LIKE 'Har%' AND shift = 'night' and the roster board still work.
+		# Step 3 (v0.10 package): guards by the badge step 2 found gives the PIN, typed
+		# while it hunts. Allowed routes, any of which fills steps 2 and 3 at once:
+		# LIKE 'Har%' AND shift = 'night' (the coffee-stained sheet), WHERE shift =
+		# 'night' and the notes ("night shift lead. Badged in 22:00", with the lockdown
+		# PIN policy), and the roster board's badge.
 		# DEBT (design plan, 2026-10-19): LIKE is now practised (pike) but no longer
 		# required under threat. Level 3 or later must need it again under pressure.
-		"needs": ["SELECT", "FROM", "WHERE", "ORDER BY", "guards", "badge_log", "badge_id", "time"],
+		"needs": ["SELECT", "FROM", "WHERE", "COLUMNS", "guards", "badge_id"],
+	},
+	# Optional (M5): Rourke's statement against his badge's swipes, a calm first use
+	# of badge_log once the lab door is open. ORDER BY time DESC reaches 23:40 too.
+	"statement": {
+		"level": 2,
+		"pressure": false,
+		"teaches": [],
+		"needs": ["SELECT", "FROM", "WHERE", "ORDER BY", "COLUMNS", "badge_log", "badge_id", "time"],
 	},
 	"door": {
 		"level": 2,

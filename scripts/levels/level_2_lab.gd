@@ -796,6 +796,7 @@ func _open_door_case() -> void:
 	var game := _game()
 	game.open_case("lab_door", LAB_CASE, ["door_controllers"])
 	game.set_pieces("lab_door", lab_pieces(zone), LAB_QUERY)
+	game.set_assemble("lab_door", false)  # under the clock, the crew puts it together
 	game.set_blank("lab_door", LAB_SLOT, ["\u0001"], data.lab_answer, {"column": "id", "values": [data.lab_answer], "rows": [{"id": data.lab_answer}]})
 
 
@@ -1002,6 +1003,7 @@ func _switch_result(id: String, outcome: String, seconds: float) -> void:
 		"healthy":
 			level.hud.notice("> %s: %s, OK. NOTHING TO RESET." % [id, row["location"]], 4.0)
 			_warden("l2_panel_ok")
+			level.comment_mistake("switch")
 			return
 		"wrong":
 			switches_locked_until = now + seconds

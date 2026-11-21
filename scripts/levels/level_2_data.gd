@@ -65,15 +65,27 @@ static func build(run_seed: int) -> Dictionary:
 	_shuffle(guards, rng)
 	# The policy shows 20 rows at most: Pike's and the night lead's rows come after
 	# the first 20 as stored, so only a search finds them (v0.10 floor 22 package).
-	for name in [answer_name, "PIKE, H."]:
-		var at := guards.find(guards.filter(func(g): return g[0] == name)[0])
-		if at < CAP_ROWS:
-			var to := rng.randi_range(CAP_ROWS, guards.size() - 1)
-			while guards[to][0] == answer_name or guards[to][0] == "PIKE, H.":
-				to = rng.randi_range(CAP_ROWS, guards.size() - 1)
-			var tmp = guards[at]
-			guards[at] = guards[to]
-			guards[to] = tmp
+	# The lead goes past row 20, but among the first 20 night-shift rows, so
+	# WHERE shift = 'night' and the notes are a route (layout and data).
+	var lead_row = guards.filter(func(g): return g[0] == answer_name)[0]
+	guards.erase(lead_row)
+	var spots := []
+	var nights := 0
+	for i in guards.size() + 1:
+		if i >= CAP_ROWS and nights < CAP_ROWS:
+			spots.append(i)
+		if i < guards.size() and guards[i][1] == "night":
+			nights += 1
+	guards.insert(spots[rng.randi_range(0, spots.size() - 1)], lead_row)
+	# Then Pike, by a swap that never moves the lead.
+	var pike_at := guards.find(guards.filter(func(g): return g[0] == "PIKE, H.")[0])
+	if pike_at < CAP_ROWS:
+		var to := rng.randi_range(CAP_ROWS, guards.size() - 1)
+		while guards[to][0] == answer_name:
+			to = rng.randi_range(CAP_ROWS, guards.size() - 1)
+		var tmp = guards[pike_at]
+		guards[pike_at] = guards[to]
+		guards[to] = tmp
 	# Which breaker tripped the stairwell door's actuator (the first terminal lie).
 	var breaker := rng.randi_range(1, 4)
 	var badge_of := {}  # name -> badge id
