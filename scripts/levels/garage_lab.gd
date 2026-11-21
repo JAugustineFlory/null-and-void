@@ -9,7 +9,7 @@ extends Node3D
 ## straight away. Built by HomeBase; the shell is part of the garage's outside
 ## (HomeBase._build_shell), so the pre-game lobby's shot of the garage matches.
 
-## Drafts, waiting on Augustine's word-for-word OK (plan/garage-lab-v0.10.md, part 4).
+## Approved by Augustine word for word, 2026-11-20 (plan/approvals/v0.10-small-strings.md).
 const SIGN := "LAB"
 const LOCKER_PROMPT := "Open your locker"
 ## Approved for the back office (GarageOffice.PC_PROMPT).

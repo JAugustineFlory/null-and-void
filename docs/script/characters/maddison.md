@@ -120,7 +120,7 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 **[ ] `l0_lab_go.wav`**
 
-*Chapter zero has just gone into the book. Draft for Augustine's OK (plan/approvals/garage-tutorial-text.md, M1). Walking through the doorway behind her desk, waving the crew after her. Proud of her lab. It's a lean-to with six second-hand computers.*
+*Chapter zero has just gone into the book. Walking through the doorway behind her desk, waving the crew after her. Proud of her lab. It's a lean-to with six second-hand computers.*
 
 "Book's no good till somebody tries it. Through the door by my desk: I set us up a lab. Everybody grab a computer."
 
@@ -132,7 +132,7 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 **[ ] `l0_lab_cases.wav`**
 
-*Everyone has sat down at a lab computer. Draft (M2). At the lab's whiteboard, holding up her notebook and pointing at each part of the page. A teacher walking through a worksheet: unhurried, a beat on each part.*
+*Everyone has sat down at a lab computer. At the lab's whiteboard, holding up her notebook and pointing at each part of the page. A teacher walking through a worksheet: unhurried, a beat on each part.*
 
 "Notebooks out. Cases, the tab with the bookmark. Top left, the case and what to do. Top right, its tables. Down here, the query you're building."
 
@@ -144,25 +144,25 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 **[ ] `l0_lab_label.wav`**
 
-*The practice case is open in everyone's notebook. Draft (M3). Pointing back through the doorway towards the van. A tip from experience.*
+*The practice case is open in everyone's notebook. Pointing back through the doorway towards the van. A tip from experience.*
 
 "First you need the table's name. Somebody always writes it down. Try the label on the van's kit crate."
 
 **[ ] `l0_lab_query.wav`**
 
-*Someone has read the kit crate's label. Draft (M4). Tapping the nearest screen. Encouraging, one step at a time.*
+*Someone has read the kit crate's label. Tapping the nearest screen. Encouraging, one step at a time.*
 
 "That's the table. Now at your computer: the question's on the screen with van_kit in it. Type it and press Enter."
 
 **[ ] `l0_lab_click.wav`**
 
-*The van's kit is on a lab screen. Draft (M5). Leaning over a shoulder, looking at the screen. Pleased, then a gentle nudge.*
+*The van's kit is on a lab screen. Leaning over a shoulder, looking at the screen. Pleased, then a gentle nudge.*
 
 "There's the kit. The case wants what we've run out of. Point at it and add it to your notebook."
 
 **[ ] `l0_lab_case2.wav`**
 
-*The first practice case is solved. Draft (M6). Pointing at the job board on the lab wall. A friendly challenge.*
+*The first practice case is solved. Pointing at the job board on the lab wall. A friendly challenge.*
 
 "One more, no help this time. My job board's on the wall in here. Find the table, then type the whole question yourselves."
 
@@ -174,13 +174,13 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 **[ ] `l0_lab_case2_done.wav`**
 
-*The second practice case is solved: the open job is Zebulon Feed & Seed. Draft (M7). Hand to her forehead. Wincing, half to herself.*
+*The second practice case is solved: the open job is Zebulon Feed & Seed. Hand to her forehead. Wincing, half to herself.*
 
 "Zebulon Feed and Seed. I knew I'd forgotten somebody."
 
 **[ ] `l0_lab_lockers.wav`**
 
-*The practice is done. Draft (M8). Nodding at the row of lockers on the lab's back wall. An afterthought, pleased she thought of it.*
+*The practice is done. Nodding at the row of lockers on the lab's back wall. An afterthought, pleased she thought of it.*
 
 "Oh, and those lockers have your names on. Change into whatever you like, whenever you like."
 
@@ -192,7 +192,7 @@ Send the files back as they are. They go in `audio/voice/maddison/` in the game.
 
 **[ ] `l0_lab_skip.wav`**
 
-*Plays instead of the practice when everyone has done it before. Draft (M9). Waving towards the doorway behind her desk. Easy, no fuss.*
+*Plays instead of the practice when everyone has done it before. Waving towards the doorway behind her desk. Easy, no fuss.*
 
 "You've all done the practice. Lab's open if you want it, and so are your lockers."
 

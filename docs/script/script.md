@@ -296,7 +296,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Walking to the back shelf by the side door to the house)* "It's in the shop bag on the shelf by the side door. Go on, grab it for me." *Pointing at the side door to the house.*
 
 **MADDISON** `l0_lab_go.wav`  
-*Cue: Chapter zero has just gone into the book. Draft for Augustine's OK (plan/approvals/garage-tutorial-text.md, M1)*  
+*Cue: Chapter zero has just gone into the book*  
 *(Walking through the doorway behind her desk, waving the crew after her)* "Book's no good till somebody tries it. Through the door by my desk: I set us up a lab. Everybody grab a computer." *Proud of her lab. It's a lean-to with six second-hand computers.*
 
 **MADDISON** `l0_lab_go_solo.wav`  
@@ -304,7 +304,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Walking through the doorway behind her desk, waving the crew after her)* "Book's no good till somebody tries it. Through the door by my desk: I set us up a lab. Grab a computer." *Proud of her lab. It's a lean-to with six second-hand computers.*
 
 **MADDISON** `l0_lab_cases.wav`  
-*Cue: Everyone has sat down at a lab computer. Draft (M2)*  
+*Cue: Everyone has sat down at a lab computer*  
 *(At the lab's whiteboard, holding up her notebook and pointing at each part of the page)* "Notebooks out. Cases, the tab with the bookmark. Top left, the case and what to do. Top right, its tables. Down here, the query you're building." *A teacher walking through a worksheet: unhurried, a beat on each part.*
 
 **MADDISON** `l0_lab_cases_solo.wav`  
@@ -312,19 +312,19 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(At the lab's whiteboard, holding up her notebook and pointing at each part of the page)* "Notebook out. Cases, the tab with the bookmark. Top left, the case and what to do. Top right, its tables. Down here, the query you're building." *A teacher walking through a worksheet: unhurried, a beat on each part.*
 
 **MADDISON** `l0_lab_label.wav`  
-*Cue: The practice case is open in everyone's notebook. Draft (M3)*  
+*Cue: The practice case is open in everyone's notebook*  
 *(Pointing back through the doorway towards the van)* "First you need the table's name. Somebody always writes it down. Try the label on the van's kit crate." *A tip from experience.*
 
 **MADDISON** `l0_lab_query.wav`  
-*Cue: Someone has read the kit crate's label. Draft (M4)*  
+*Cue: Someone has read the kit crate's label*  
 *(Tapping the nearest screen)* "That's the table. Now at your computer: the question's on the screen with van_kit in it. Type it and press Enter." *Encouraging, one step at a time.*
 
 **MADDISON** `l0_lab_click.wav`  
-*Cue: The van's kit is on a lab screen. Draft (M5)*  
+*Cue: The van's kit is on a lab screen*  
 *(Leaning over a shoulder, looking at the screen)* "There's the kit. The case wants what we've run out of. Point at it and add it to your notebook." *Pleased, then a gentle nudge.*
 
 **MADDISON** `l0_lab_case2.wav`  
-*Cue: The first practice case is solved. Draft (M6)*  
+*Cue: The first practice case is solved*  
 *(Pointing at the job board on the lab wall)* "One more, no help this time. My job board's on the wall in here. Find the table, then type the whole question yourselves." *A friendly challenge.*
 
 **MADDISON** `l0_lab_case2_solo.wav`  
@@ -332,11 +332,11 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Pointing at the job board on the lab wall)* "One more, no help this time. My job board's on the wall in here. Find the table, then type the whole question yourself." *A friendly challenge.*
 
 **MADDISON** `l0_lab_case2_done.wav`  
-*Cue: The second practice case is solved: the open job is Zebulon Feed & Seed. Draft (M7)*  
+*Cue: The second practice case is solved: the open job is Zebulon Feed & Seed*  
 *(Hand to her forehead)* "Zebulon Feed and Seed. I knew I'd forgotten somebody." *Wincing, half to herself.*
 
 **MADDISON** `l0_lab_lockers.wav`  
-*Cue: The practice is done. Draft (M8)*  
+*Cue: The practice is done*  
 *(Nodding at the row of lockers on the lab's back wall)* "Oh, and those lockers have your names on. Change into whatever you like, whenever you like." *An afterthought, pleased she thought of it.*
 
 **MADDISON** `l0_lab_lockers_solo.wav`  
@@ -344,7 +344,7 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *(Nodding at the row of lockers on the lab's back wall)* "Oh, and that locker's got your name on it. Change into whatever you like, whenever you like." *An afterthought, pleased she thought of it.*
 
 **MADDISON** `l0_lab_skip.wav`  
-*Cue: Plays instead of the practice when everyone has done it before. Draft (M9)*  
+*Cue: Plays instead of the practice when everyone has done it before*  
 *(Waving towards the doorway behind her desk)* "You've all done the practice. Lab's open if you want it, and so are your lockers." *Easy, no fuss.*
 
 **MADDISON** `l0_lab_skip_solo.wav`  

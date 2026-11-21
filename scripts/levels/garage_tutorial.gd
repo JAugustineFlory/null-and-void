@@ -11,9 +11,9 @@ extends Node
 ## in the lab's own database (GarageLab.db), so nothing here touches the building.
 ## Built by GarageLab; HomeBase.start runs it and passes it the crew's answers.
 
-## Drafts, waiting on Augustine's word-for-word OK (plan/approvals/garage-tutorial-text.md:
-## M lines are Maddison's, in VoiceLines; L lines are Teaching's,
-## plan/teaching/garage-lab-cases-draft.md; T1 is the first to-do).
+## Approved by Augustine word for word, 2026-11-21 (plan/approvals/garage-tutorial-text.md:
+## M lines are Maddison's, in VoiceLines; T1 is the first to-do. L lines are Teaching's,
+## plan/teaching/garage-lab-cases-draft.md).
 const INTRO_CASE := "This is a case. Each one gets its own bookmark on the left. Read it, find the pieces it needs, run the query at a terminal, then point at the answer and add it to your notebook."  # L1
 const PC_NAME := "lab computer"  # L2
 const SIT := "Use a computer in the lab"  # T1, under the first case's question
