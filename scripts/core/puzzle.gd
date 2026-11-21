@@ -151,3 +151,36 @@ func _project(rows: Array, cols: Array, mapping: Dictionary) -> Array:
 			parts.append(str(lowered.get(mapping.get(c, c), "<missing>")))
 		out.append("\u001f".join(parts))
 	return out
+
+
+## A find step's answer slot (Game.set_blank's `cell`), read from this run's data:
+## the values of `column` in the solution's rows, and for each row the cells that
+## name it (the `names` columns the solution shows, other than `column` itself).
+## Clicking a cell in `column` holding one of those values answers it; a row that
+## shows a naming column must be one of the answer rows.
+func answer_slot(db: FacilityDB, column: String, names: Array = ["id", "name"]) -> Dictionary:
+	var res: Dictionary = db.execute(solution_sql)
+	var slot := {"column": column, "values": [], "rows": []}
+	if not res.get("ok", false):
+		push_warning("Puzzle %s: its solution doesn't run (%s)" % [id, res.get("error", "")])
+		return slot
+	var col := _column_named(res.columns, column)
+	var naming: Array = names.map(func(n): return _column_named(res.columns, n)).filter(func(n): return n != "" and n != col)
+	for row in res.rows:
+		var v = row.get(col) if col != "" else null
+		var text := "NULL" if v == null else str(v)
+		if not slot.values.has(text):
+			slot.values.append(text)
+		if not naming.is_empty():
+			var named := {}
+			for n in naming:
+				named[n] = row[n]
+			slot.rows.append(named)
+	return slot
+
+
+static func _column_named(cols: Array, want: String) -> String:
+	for c in cols:
+		if str(c).to_lower() == want.to_lower():
+			return str(c)
+	return ""

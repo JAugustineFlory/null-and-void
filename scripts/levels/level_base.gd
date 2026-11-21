@@ -170,6 +170,20 @@ func owns_falls() -> bool:
 	return false
 
 
+## Every machine: `peer` answered case `id` (LevelSync.report_answer). The answer
+## goes in everyone's slot, not only the notebook of whoever pointed at it, with
+## who found it.
+func _crew_answered(id: String, peer: int) -> void:
+	var game := get_node("/root/Game")
+	var b: Dictionary = game.case_info(id).get("blank", {})
+	if b.is_empty():
+		return
+	if b.filled == "":
+		game.fill_blank(id)
+	var net := get_node_or_null("/root/Net")
+	b["by"] = net.display_name(peer) if net and net.has_method("display_name") else ""
+
+
 ## Turn on the crew's commentary (Commentary) for this floor, once its lines are
 ## approved: call it from build(). It follows the case being worked on (begin,
 ## and the payoff when it's solved), hears every paper read and every failed

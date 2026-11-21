@@ -773,7 +773,9 @@ func walk_level_0() -> void:
 	for i in lines.size():
 		if lines[i].kind == "row" and lines[i].text.contains(str(level.data.extension)):
 			mercer = i
-	check(mercer >= 0 and ui.write_note(mercer), "lobby: the row with the work order's extension goes in the case page's blank")
+	# Clicking the name in that row fills the case page's blank (click to solve).
+	var name_at: int = lines[mercer].get("cells", []).map(func(x): return x.column).find("name") if mercer >= 0 else -1
+	check(mercer >= 0 and ui.use_cell(mercer, name_at), "lobby: the name in the row with the work order's extension goes in the case page's blank")
 	for i in 30:
 		if level.caller_puzzle.solved:
 			break

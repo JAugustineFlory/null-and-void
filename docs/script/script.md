@@ -469,6 +469,10 @@ Each playable crew member's own short lines, played by Co-op. Their shared comme
 *Cue: Only when the crew has been stuck on a puzzle for a couple of minutes, or has failed twice. This version plays the first time, on any floor, before that name on the screen has helped you*  
 *(Staring at the terminal screen, half smiling)* "That SYSOP on the screen seems to know this building. Maybe ask." *Stuck, before SYSOP has helped. Half a joke, half serious.*
 
+**CREW** `cc_point_at_it.wav`  
+*Cue: Any floor: the answer to the open case has been on the terminal for 20 seconds and nobody has pointed at it*  
+*(Tapping the screen)* "If it's on the screen, point at it and add it to your notebook." *The answer's been sitting on the screen and nobody's grabbed it. Helpful, a little impatient.*
+
 **CREW** `cc_nudge2.wav`  
 *Cue: The same kind of moment, any time later, once that name on the screen has already helped you*  
 *(Frowning at the screen, arms folded)* "Whoever SYSOP is, they've been right so far. Maybe ask." *Stuck again. A little uneasy about trusting a stranger on a screen.*

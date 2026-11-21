@@ -1,6 +1,6 @@
 # June Whitaker
 
-*Your script for Null & Void: 76 recordings.*
+*Your script for Null & Void: 77 recordings.*
 
 ## Who you are
 
@@ -117,6 +117,12 @@ Short lines only you say. The game plays them at lots of different moments, so e
 *Only when the crew has been stuck on a puzzle for a couple of minutes, or has failed twice. This version plays the first time, on any floor, before that name on the screen has helped you. Staring at the terminal screen, half smiling. Stuck, before SYSOP has helped. Half a joke, half serious.*
 
 "That SYSOP on the screen seems to know this building. Maybe ask."
+
+**[ ] `cc_point_at_it.wav`**
+
+*Any floor: the answer to the open case has been on the terminal for 20 seconds and nobody has pointed at it. Tapping the screen. The answer's been sitting on the screen and nobody's grabbed it. Helpful, a little impatient.*
+
+"If it's on the screen, point at it and add it to your notebook."
 
 **[ ] `cc_nudge2.wav`**
 

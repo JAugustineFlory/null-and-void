@@ -130,6 +130,7 @@ func _group_core() -> void:
 	test_facility_db_read_only()
 	test_facility_api()
 	test_voice_codec()
+	test_terminal_looks()
 	await test_voice_mic_bus()
 	test_radio_rules()
 	test_voice_script()
@@ -619,6 +620,36 @@ func _tone(n: int, rate: float, amp: float) -> PackedVector2Array:
 	return f
 
 
+## A terminal's look: a text theme that colors each kind of word, and the screen behind.
+func test_terminal_looks() -> void:
+	print("Terminal looks")
+	var plain := TerminalLook.standard()
+	check(plain.text == TerminalScreen.PHOSPHOR and plain.keyword == Color.html(TerminalUI.KEYWORD) and plain.bg == TerminalLook.SCREENS.black,
+		"with no picks, a terminal is the phosphor green on black it always was")
+	var line := "[color=#ffcc59]SELECT[/color] [color=#ff6655]ERROR[/color] [color=#7dff8c]ok[/color]"
+	check(TerminalLook.recolor(line, plain).contains("ffcc59") and TerminalLook.recolor(line, plain).contains("7dff8c"), "and draws its text unchanged")
+	var hi := TerminalLook.of({"item": "highlighter"}, {"item": "graphite"})
+	var shown := TerminalLook.recolor(line, hi)
+	check(shown.contains("ff6ac1") and not shown.contains("ffcc59") and hi.bg == TerminalLook.SCREENS.graphite, "a text theme colors keywords its own way, on the screen picked")
+	check(TerminalLook.recolor("[color=#ffd27f]id[/color]", hi).contains(hi.head.to_html(false)), "and a result's header too")
+	var amber := TerminalLook.of({"item": "amber"})
+	check(amber.text == CharacterLooks.FIXED_COLORS["terminal/amber"] and amber.error == Color.html(TerminalLook.STANDARD.error), "older terminal skins are text themes now, errors still red")
+	var tinted := TerminalLook.of({"item": "phosphor", "color": Color(0.3, 0.6, 1.0)})
+	check(tinted.text == Color(0.3, 0.6, 1.0) and tinted.keyword == plain.keyword, "the phosphor takes the player's own color, with the rest as they were")
+	var paper := TerminalLook.of({"item": "paper_white"}, {"item": "paper"})
+	check(paper.bg.get_luminance() > 0.5 and paper.text.get_luminance() < 0.3 and paper.keyword.get_luminance() < 0.3, "on a light screen the text goes dark, to stay readable")
+	check(TerminalLook.of({"item": "nonsense"}, {"item": "nope"}) == plain, "anything unknown is the standard look")
+	var echo := TerminalLook.highlight_sql("SELECT name FROM staff WHERE id = 7 AND role = 'it'", TerminalUI.KEYWORDS)
+	check(echo.contains("[color=#ffcc59]SELECT[/color]") and echo.contains("[color=#b3d9ff]7[/color]") and echo.contains("[color=#99ffff]'it'[/color]") and echo.contains(" name "),
+		"a typed query echoes with keywords, numbers and quoted text each in their own color")
+	check(TerminalUI._plain(echo) == "SELECT name FROM staff WHERE id = 7 AND role = 'it'", "and reads the same as typed")
+	var echoed := TerminalLook.recolor("[color=#ffffff]Ana> SELECT * FROM staff;[/color]", hi)
+	check(echoed.contains("[color=#ff6ac1]SELECT[/color]") and TerminalUI._plain(echoed) == "Ana> SELECT * FROM staff;", "every screen colors the queries typed at it, in its own theme")
+	check(Cosmetics.items_in("screen").size() == TerminalLook.SCREENS.size() and Cosmetics.items_in("terminal").all(func(it): return TerminalLook.THEMES.has(it.item)),
+		"every screen and text theme can be picked in the lobby")
+	check(Cosmetics.clean({}, 0).screen.item == "black" and Cosmetics.clean({}, 0).terminal.item == "phosphor", "everyone starts on phosphor and black")
+
+
 func test_voice_codec() -> void:
 	print("Voice codec")
 	var tone := _tone(4800, 48000.0, 0.5)
@@ -957,7 +988,7 @@ func test_commentary() -> void:
 	var bad_ids := []
 	var bad_docs := []
 	var bad_puzzles := []
-	var used := {Commentary.NUDGE2_FIRST: true, Commentary.NUDGE2: true}
+	var used := {Commentary.NUDGE2_FIRST: true, Commentary.NUDGE2: true, TerminalUI.NUDGE_LINE: true}  # (the screen plays that one)
 	for pid in Commentary.NUDGES:
 		var d: Dictionary = Commentary.NUDGES[pid]
 		if not levels_src.contains('Puzzle.new("%s"' % pid):
@@ -1675,8 +1706,22 @@ func test_caller_answer() -> void:
 			ui._finish_note("")
 			await process_frame
 			check(screen_text(ui).count("the blank wants whoever") == 1, "terminal: once per run")
+			# Click to solve: the name cell in Mercer's row is the answer; the row's
+			# other cells, and a name in another row, are ordinary notes.
+			var cells: Array = lines[right].cells
+			var name_at: int = cells.map(func(x): return x.column).find("name")
+			var ext_at: int = cells.map(func(x): return x.column).find("extension")
+			check(name_at >= 0 and ext_at >= 0 and cells[name_at].value == "Harold Mercer" and cells[ext_at].value == ext, "terminal: Mercer's row is read as cells, by its header's columns")
 			ui._start_note(right)
-			check(not ui.visible and not ui._note_label.visible, "terminal: Mercer's row goes straight in, and you step back from the screen")
+			check(ui._note_label.visible and _game().case_info("caller").blank.filled == "", "terminal: the whole row isn't the answer: it's an ordinary note")
+			ui._cancel_note()
+			check(not ui.use_cell(right, ext_at) and _game().case_info("caller").blank.filled == "", "terminal: nor is the row's extension")
+			ui._cancel_note()
+			check(not ui.use_cell(wrong, lines[wrong].cells.map(func(x): return x.column).find("name")) and _game().case_info("caller").blank.filled == "", "terminal: nor someone else's name")
+			ui._cancel_note()
+			check(ui.use_cell(right, name_at), "terminal: Mercer's name, in his row, is")
+			check(not ui.visible and not ui._note_label.visible, "terminal: Mercer's name goes straight in, and you step back from the screen")
+			check(c.blank.get("query", "") == "SELECT name, extension FROM staff_directory;", "terminal: the case keeps the query that found it (%s)" % c.blank.get("query", ""))
 		else:
 			var reader: DocumentReader = level.directory_printout.open_reader(p)
 			var at: int = level.directory_printout.lines().map(func(l): return l.text).find(level.directory_printout.lines().filter(func(l): return l.text.contains("Harold Mercer"))[0].text)
@@ -2724,6 +2769,8 @@ func test_coop_terminal_screens() -> void:
 	ui.open(c1.desk_terminal, c1.player)
 	await _frames(10)
 	check(screen.seated == [c1_id], "the host sees the client sit down at the terminal")
+	check(screen.look == TerminalLook.of(NetPlayers.look_for(host, c1_id).tools.terminal, NetPlayers.look_for(host, c1_id).tools.screen) and c1.desk_terminal.look == screen.look,
+		"the screen takes the look of whoever sat down first, the same on every machine")
 	check(not screen.transcript.is_empty() and screen.transcript == c1.desk_terminal.transcript, "the boot screen shows on the host's copy too")
 
 	var changes := [0]
@@ -3564,7 +3611,7 @@ func test_coop_achievements() -> void:
 	var levels := await _coop_load(worlds, "res://scenes/level_1.tscn")
 	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	levels[0].sync.unlock_for([1], "achievement:floor_18")
-	check(levels[0].hud._notice.text == Achievements.NOTICE % "Filed under F" + "\nUnlocked: Archive box label", "earning an achievement shows its name, then the sticker it unlocks")
+	check(levels[0].hud._notice.text == Achievements.NOTICE % "Filed under F" + "\nUnlocked: Archive box label\nUnlocked: Blueprint", "earning an achievement shows its name, then the sticker it unlocks")
 	levels[0].hud._notice.text = ""
 	levels[0].sync.unlock_for([1], "achievement:floor_18")
 	check(levels[0].hud._notice.text == "", "and only the first time")
@@ -3641,7 +3688,7 @@ func test_coop_unlocks() -> void:
 	net.profile = Profile.new()  # the test's machines share one Net, so give the client its own save
 	await _frames(10)
 	check(host_profile.has_item("head/hard_hat") and net.profile.has_item("head/hard_hat"), "finishing the ground floor unlocks the hard hat for every player")
-	check(levels[0].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat") and levels[1].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat"), "and each of them is told")
+	check(levels[0].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat\nUnlocked: Deep blue") and levels[1].hud._notice.text == (Achievements.NOTICE % Achievements.name_of("achievement:floor_g") + "\nUnlocked: Hard hat\nUnlocked: Deep blue"), "and each of them is told")
 	levels[0].hud._notice.text = ""
 	levels[0].sync.unlock("achievement:floor_g")
 	await _frames(5)
