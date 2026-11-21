@@ -91,7 +91,7 @@ const OBJ_VISITOR := "Find who signed in last, now the book's last page is gone"
 ## works and the papers it needs shine until they've been read.
 const INTRO_CASE := "Your notebook keeps one case at a time. This is it: read it, find what it needs, then type the query at a terminal."
 const INTRO_HUNT := "The words you need are written down somewhere out here. Anything worth reading has a shine on it until you've read it."
-const INTRO_SHINE := "Press E to read it. What it tells you goes straight into your case."
+const INTRO_SHINE := "Press E to read it. Point at what your case needs and click it: it goes straight into your case."
 ## This floor's queries are all typed at the front desk.
 const DESK_TERMINAL := "front desk terminal"
 const CALLER_STEPS := [{"id": "row", "text": "Point at the caller's row and add it to your notebook"}]
@@ -215,7 +215,8 @@ func build() -> void:
 		"",
 		{"text": "Front desk scanner. Don't feed it staples!! - IT", "hand": true},
 	], true, "brochure", Vector2(0.15, 0.21))
-	scan_card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo_order", "piece": "column"}]
+	scan_card.pieces = [{"case": "memo", "piece": "table", "text": "memo_fragments", "kind": "table"},
+		{"case": "memo_order", "piece": "column", "text": "piece_no", "kind": "column"}]
 	scan_card.clues = [
 		{"case": "memo", "text": "The scanner saves each scrap as one row in the table memo_fragments."},
 		{"case": "memo_order", "text": "piece_no numbers each scrap by where it sat on the page, starting at 1."},
@@ -248,7 +249,7 @@ func build() -> void:
 		{"text": "Who tore the last page out?? - N.F.", "hand": true},
 	], true, "note", Vector2(0.15, 0.2))
 	game.set_pieces("last_visitor", VISITOR_PIECES, VISITOR_QUERY, [], true)
-	book.pieces = [{"case": "last_visitor", "piece": "table"}]
+	book.pieces = [{"case": "last_visitor", "piece": "table", "text": "visitors", "kind": "table"}]
 	book.clues = [{"case": "last_visitor", "opens": BOOK_CASE, "tables": ["visitors"],
 		"text": "The book's last page is torn out, but every visitor is also logged in the visitors table."}]
 	# The night desk's own reminder beside the book: DESC, found before it's needed.
@@ -258,14 +259,14 @@ func build() -> void:
 		{"text": "  - N.F.", "hand": true},
 	], true, "sticky")
 	newest.clues = [{"case": "last_visitor", "text": "Newest first = ORDER BY ... DESC"}]
-	newest.pieces = [{"case": "last_visitor", "piece": "desc"}]
+	newest.pieces = [{"case": "last_visitor", "piece": "desc", "text": "DESC", "kind": "keyword"}]
 	var last_few := Document.place(geo, Vector3(-2.95, 1.102, -1.15), -8.0, "Sticky note", [
 		{"text": "Just the last few?", "hand": true},
 		{"text": "...DESC LIMIT 5", "hand": true},
 		{"text": "  - N.F.", "hand": true},
 	], true, "sticky")
 	last_few.clues = [{"case": "last_visitor", "text": "Just the last few? End the query with LIMIT 5: only the first 5 rows."}]
-	last_few.pieces = [{"case": "last_visitor", "piece": "limit"}]
+	last_few.pieces = [{"case": "last_visitor", "piece": "limit", "text": "LIMIT 5", "kind": "keyword"}]
 	# The book or N.F.'s stickies bring back Newest first (DESC, LIMIT), once the memo
 	# has put ORDER BY to use.
 	for d in [book, newest, last_few]:

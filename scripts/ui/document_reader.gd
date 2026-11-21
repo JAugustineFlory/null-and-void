@@ -39,6 +39,7 @@ func _ready() -> void:
 	view = DocumentView.new()
 	add_child(view)
 	view.copy_requested.connect(func(text): _start_note(_index_of(text)))
+	view.take_requested.connect(func(text): take(_index_of(text)))
 	view.closed.connect(close)
 	_note_label = LineEdit.new()
 	_note_label.visible = false
@@ -64,6 +65,7 @@ func open(doc: Node, by_player: Node) -> void:
 	view.set_paper(document.paper_kind())
 	view.set_title(document.title)
 	view.add_lines(document.lines())
+	view.set_marker(document.has_method("marked") and document.marked())
 	view.show_doc()
 	_hold_query(true)
 
@@ -115,6 +117,7 @@ func hold(doc: Node, by_player: Node) -> bool:
 		var page_view := page_viewport.get_child(0) as DocumentView
 		if page_view:
 			page_view.copy_requested.connect(func(text): _start_note(_index_of(text)))
+			page_view.take_requested.connect(func(text): take(_index_of(text)))
 			# A page with so much on it that it's printed small comes up closer.
 			page_view.fitted.connect(_hold_closer)
 			_hold_closer(page_view.fit_scale)
@@ -135,27 +138,12 @@ func _finish_hold() -> bool:
 ## A paper of the selected case in this player's hands keeps that case's query
 ## up under the case chip (CaseChip.hold_query) until it's put down.
 func _hold_query(on: bool) -> void:
-	if on and not of_selected_case(document):
+	if on and not (document and is_instance_valid(document) and document.has_method("marked") and document.marked()):
 		return
 	var level: Node = document._level() if document and is_instance_valid(document) and document.has_method("_level") else null
 	var hud = level.get("hud") if level else null
 	if hud and hud.get("case_chip"):
 		hud.case_chip.hold_query(on)
-
-
-## Does paper `doc` belong to the selected case: does it hold one of its pieces
-## or say something on its page?
-static func of_selected_case(doc: Node) -> bool:
-	var game := doc.get_node_or_null("/root/Game") if doc else null
-	if game == null:
-		return false
-	var id: String = game.case_selected()
-	if id == "":
-		return false
-	var pieces = doc.get("pieces")
-	var clues = doc.get("clues")
-	return (pieces is Array and pieces.any(func(p): return p.get("case", "") == id)) \
-			or (clues is Array and clues.any(func(k): return k.get("case", "") == id))
 
 
 func _make_chip() -> void:
@@ -205,6 +193,7 @@ func _hover(screen_pos: Vector2) -> void:
 	var index := line_at(screen_pos) if not _note_label.visible else -1
 	_chip_index = index
 	_chip.visible = index >= 0
+	_tint(index)
 	if index < 0:
 		return
 	for l in _labels:
@@ -215,6 +204,21 @@ func _hover(screen_pos: Vector2) -> void:
 			var screen := get_viewport().get_visible_rect().size
 			at.x = minf(at.x, screen.x - _chip.size.x - 4)
 			_chip.position = at
+
+
+## Big print: the line under the pointer that holds a piece takes its kind's
+## color (DocumentView does the same on a page); the rest are as printed.
+func _tint(index: int) -> void:
+	var kinds := {}
+	for at in document.piece_lines() if document and document.has_method("piece_lines") else []:
+		kinds[at.line] = at.kind
+	for l in _labels:
+		if not is_instance_valid(l):
+			continue
+		var i: int = l.get_meta("line_index")
+		if not l.has_meta("ink"):
+			l.set_meta("ink", l.modulate)
+		l.modulate = PieceKind.color(kinds[i]) if i == index and kinds.has(i) else l.get_meta("ink")
 
 
 ## The point on the held page's image (viewport pixels) under a screen position,
@@ -312,6 +316,14 @@ func answer(index: int) -> bool:
 	return true  # it slides up (CaseChip); the paper stays in your hands
 
 
+## This player clicked line `index`: the pieces on it go in their cases
+## (Document.take_line), and slide up. False if it holds none still to find.
+func take(index: int) -> bool:
+	if index < 0 or document == null or not is_instance_valid(document) or not document.has_method("take_line"):
+		return false
+	return document.take_line(player, index)
+
+
 func _start_note(index: int) -> void:
 	if index < 0:
 		return
@@ -367,6 +379,10 @@ func _forward_mouse(event: InputEventMouse) -> void:
 		return  # only the left button clicks the page (see HeldNotebook._input)
 	if _chip:
 		_hover(event.position)  # the chip is a button on this layer; the click reaches it
+		if event is InputEventMouseButton and event.pressed and not _chip.get_global_rect().grow(6).has_point(event.position):
+			var line := line_at(event.position)
+			if line >= 0 and take(line):
+				get_viewport().set_input_as_handled()
 		return
 	var at := page_point(event.position)
 	if at.x < 0.0:

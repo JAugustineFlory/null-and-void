@@ -313,16 +313,44 @@ func test_paper_pieces() -> void:
 	g.set_pieces("memo", PIECES)
 	var holder := Node3D.new()
 	_tree.root.add_child(holder)
-	var card := Document.place(holder, Vector3.ZERO, 0.0, "ScanRight", ["Saved in memo_fragments."], true, "brochure")
-	card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo", "piece": "column"}]
+	var card := Document.place(holder, Vector3.ZERO, 0.0, "ScanRight", ["Feed the scraps in.", "Saved in memo_fragments.", "piece_no numbers them; ORDER BY sorts."], true, "brochure")
+	card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo", "piece": "column"}, {"case": "memo", "piece": "order"}]
 	card.clues = [{"case": "memo", "text": "Scraps are saved in memo_fragments."}]
 	var reads := []
 	card.read_by.connect(func(p): reads.append(p))
 	check(card.get_prompt(null) == "[E] Read: ScanRight", "a paper holding pieces is read like any paper: E picks it up")
+	check(card.marks_case("memo") and card.marked() and not card.marks_case("other"), "it matters to the memo case, so it shows the marker while that case is selected")
 	card._note_clues()  # what picking it up does (pick_up / open_reader)
 	card._report_read(null)
-	check(g.has_piece("memo", "table") and g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "ScanRight", "reading it puts both its pieces in, from the paper")
-	check(g.case_info("memo").clues.size() == 1 and reads.size() == 1, "its clues go on the case page too, and it counts as read")
+	check(g.pieces_found("memo") == 0, "reading it doesn't take its pieces: they're clicked (F)")
+	check(g.case_info("memo").clues.size() == 1 and reads.size() == 1, "its clues go on the case page, and it counts as read")
+	var lines := card.lines()
+	check(lines[0].get("piece_kind", -1) == -1 and lines[1].get("piece_kind", -1) == PieceKind.TABLE and lines[2].has("piece_kind"), "each line holding a piece says its kind, for the pointer's highlight; the rest don't")
+	check(not card.take_line(null, 0) and g.pieces_found("memo") == 0, "clicking a line with no piece on it takes nothing")
+	check(card.take_line(null, 1) and g.has_piece("memo", "table") and not g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "ScanRight", "clicking the line with the table takes just that piece, from the paper")
+	check(not card.take_line(null, 1), "and only once")
+	check(card.take_line(null, 2) and g.has_piece("memo", "column") and g.has_piece("memo", "order"), "a line with two pieces on it takes both")
+	var view := DocumentView.new()
+	_tree.root.add_child(view)
+	view.add_lines(card.lines())
+	var rows := view.body.get_children().filter(func(r): return r.get("piece_kind") != null)
+	var took := []
+	view.take_requested.connect(func(t): took.append(t))
+	var table_row = rows.filter(func(r): return r.piece_kind == PieceKind.TABLE)[0]
+	var plain_row = rows.filter(func(r): return r.piece_kind == -1)[0]
+	check(table_row.band() != plain_row.band() and table_row.band().to_html(false) == PieceKind.color(PieceKind.TABLE).to_html(false), "pointed at, a piece's line is highlighted in its kind's color; others in the notebook's yellow")
+	table_row.size = Vector2(400, 30)
+	plain_row.size = Vector2(400, 30)
+	var click := _click()
+	click.position = Vector2(20, 10)
+	table_row._gui_input(click)
+	plain_row._gui_input(click)
+	check(took == ["Saved in memo_fragments."], "clicking a piece's line asks to take it; clicking any other line doesn't")
+	check(not view.marker.visible, "no marker until the reader says the paper matters")
+	view.set_marker(true)
+	check(view.marker.visible and view.marker.position.y == 0.0, "the marker: a tab at the paper's top edge")
+	view.free()
+	check(Document._shows("ALERT if temp_c > 40", ">") and Document._shows("reads over 40°C", "40") and not Document._shows("LIGHTING CIRCUITS", "lights") and Document._shows("the table lights.", "lights"), "a piece's words are matched whole, any case")
 	holder.free()
 
 

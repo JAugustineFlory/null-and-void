@@ -64,7 +64,8 @@ func hold(held: Node3D, size: Vector2, face := Vector3.BACK, document: Node = nu
 	if document and document.has_method("lines"):
 		var kind: String = document.call("paper_kind") if document.has_method("paper_kind") else "memo"
 		var title := str(document.get("title")) if document.get("title") != null else ""
-		var tex := DocumentView.paper_texture(self, document.call("lines"), kind, title)
+		var marked: bool = document.has_method("marked") and document.call("marked")
+		var tex := DocumentView.paper_texture(self, document.call("lines"), kind, title, marked)
 		page = MeshInstance3D.new()
 		page.name = "Page"
 		var qm := QuadMesh.new()

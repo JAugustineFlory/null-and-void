@@ -21,6 +21,8 @@ extends Control
 ## whole with add_lines(); see add_entry() for every kind of line.
 
 signal copy_requested(text: String)
+## A line holding a piece was clicked (its "piece_kind"): take the piece.
+signal take_requested(text: String)
 signal closed
 ## Its lines were printed smaller (fit_scale) so they all fit on the page.
 signal fitted(scale: float)
@@ -45,6 +47,10 @@ const STAMP_BLUE := Color(0.16, 0.24, 0.6)
 const HANDS := [["hand", Color(0.12, 0.15, 0.32)], ["old", Color(0.08, 0.08, 0.1)], ["hand", Color(0.3, 0.3, 0.33)], ["old", Color(0.12, 0.2, 0.42)]]
 
 var kind := "memo"
+## The marker: a tab at the paper's top corner, in the case's color, on a paper
+## that matters to the selected case (set_marker).
+var marker: Control
+const MARKER_COLOR := Color(0.91, 0.69, 0.29)  # CaseChip.AMBER: the case's color
 var margin_width := MARGIN_WIDTH
 var paper: Control  # everything that moves when the page is shown
 var body: VBoxContainer
@@ -117,6 +123,11 @@ func _init() -> void:
 	_close.add_theme_color_override("font_hover_color", Color.WHITE)
 	_close.pressed.connect(func(): closed.emit())
 	paper.add_child(_close)
+	marker = _Marker.new()
+	marker.name = "Marker"
+	marker.visible = false
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	paper.add_child(marker)
 	set_paper("memo")
 	resized.connect(_fit)
 
@@ -139,6 +150,8 @@ func set_paper(paper_kind: String) -> void:
 	body.size = p.body.size
 	margin_width = p.margin
 	_close.position = Vector2(paper.size.x - 110, -46)
+	marker.size = Vector2(30, 64)
+	marker.position = Vector2(paper.size.x - 58, 0)
 	_style_title()
 	paper.set("kind", kind)
 	paper.queue_redraw()
@@ -276,6 +289,10 @@ func add_entry(l: Variant) -> Control:
 		row = add_line(d.text)
 	if d.has("stain"):
 		add_stain(row, int(d.get("stain_at", -1)))
+	if d.has("piece_kind") and row is _Row:
+		row.piece_kind = int(d.piece_kind)
+		var text := str(row.copy_text)
+		row.taken.connect(func(): take_requested.emit(text))
 	return row
 
 
@@ -399,7 +416,7 @@ static func _jitter(key: String, degrees: float) -> float:
 ## while the page lays out, then keeps the picture and stops drawing. The texture
 ## is the paper's design size (PAPERS[kind].size); its DocumentView is the
 ## viewport's child, so `plain_text()` there says what's on it.
-static func paper_texture(owner: Node, lines: Array, kind := "memo", title := "") -> ViewportTexture:
+static func paper_texture(owner: Node, lines: Array, kind := "memo", title := "", marked := false) -> ViewportTexture:
 	var vp := _RenderOnce.new()
 	vp.name = "PaperTexture"
 	vp.transparent_bg = true
@@ -409,10 +426,16 @@ static func paper_texture(owner: Node, lines: Array, kind := "memo", title := ""
 	view.set_paper(kind)
 	view.set_title(title)
 	view.add_lines(lines)
+	view.set_marker(marked)
 	vp.size = Vector2i(view.paper.size)
 	view.size = view.paper.size
 	owner.add_child(vp)
 	return vp.get_texture()
+
+
+## Show the marker (the paper matters to the selected case) or not.
+func set_marker(on: bool) -> void:
+	marker.visible = on
 
 
 ## Everything written on the page, top to bottom: the title, then each line as
@@ -879,13 +902,31 @@ class _Stamp extends Control:
 ## A line on the page: a highlighter band and the add chip while the pointer is on it.
 class _Row extends HBoxContainer:
 	const BAND := Color(0.98, 0.9, 0.42, 0.38)  # yellow highlighter: yellow means "notebook"
+	## Clicked while it holds a piece: the piece is taken.
+	signal taken
 	var copy_text := ""
 	var margin_width := 0.0
 	var chip: Button
 	var hovered := false
+	## The kind of the piece on this line (PieceKind), -1 for none: pointed at,
+	## it's highlighted in that kind's color instead of the notebook's yellow.
+	var piece_kind := -1
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_PASS
+
+	func _gui_input(event: InputEvent) -> void:
+		if piece_kind >= 0 and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed \
+				and _text_rect().has_point(event.position):
+			taken.emit()
+			accept_event()
+
+	func band() -> Color:
+		if piece_kind < 0:
+			return BAND
+		var c := PieceKind.color(piece_kind)
+		c.a = 0.45
+		return c
 
 	func _process(_delta: float) -> void:
 		var on := copy_text.strip_edges() != "" and is_visible_in_tree() and Rect2(Vector2(-6, -2), size + Vector2(6, 4)).has_point(get_local_mouse_position())
@@ -914,4 +955,20 @@ class _Row extends HBoxContainer:
 
 	func _draw() -> void:
 		if hovered:
-			draw_rect(_text_rect(), BAND)
+			draw_rect(_text_rect(), band())
+			if piece_kind == PieceKind.TABLE:  # each kind's shape cue too, not just its color
+				draw_rect(_text_rect(), PieceKind.color(piece_kind).darkened(0.4), false, 2.0)
+			elif piece_kind == PieceKind.COLUMN:
+				var r := _text_rect()
+				draw_line(Vector2(r.position.x, r.end.y - 1), Vector2(r.end.x, r.end.y - 1), PieceKind.color(piece_kind).darkened(0.4), 3.0)
+
+
+
+## The marker: a bookmark tab hanging from the paper's top edge, notched at its foot.
+class _Marker extends Control:
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		var pts := PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(w / 2.0, h - 12.0), Vector2(0, h)])
+		draw_colored_polygon(pts, MARKER_COLOR)
+		draw_polyline(pts + PackedVector2Array([Vector2(0, 0)]), MARKER_COLOR.darkened(0.35), 1.5)

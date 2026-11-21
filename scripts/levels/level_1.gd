@@ -202,7 +202,7 @@ func build() -> void:
 		"Columns: id, zone, status, location, last_reset, note",
 		"Faulted lock? Reset it at its own rack. Never reset a healthy one.",
 	], true, "laminated", Vector2(0.21, 0.15))
-	card.pieces = [{"case": "controller", "piece": "table"}]
+	card.pieces = [{"case": "controller", "piece": "table", "text": "door_controllers", "kind": "table"}]
 	card.clues = [
 		{"case": "controller", "text": "Every controller is listed in the table door_controllers. Columns: id, zone, status, location, last_reset, note."},
 		{"case": "controller", "text": "Reset a faulted lock at its own rack. Never reset a healthy one."},
@@ -213,7 +213,7 @@ func build() -> void:
 		{"text": "Zone first, then status. Plenty of faults in this building aren't yours.", "hand": true, "author": "mercer"},
 		{"text": "- H.M.", "hand": true, "author": "mercer"},
 	], true, "note", Vector2(0.1, 0.14))
-	reminders.pieces = [{"case": "controller", "piece": "status"}]
+	reminders.pieces = [{"case": "controller", "piece": "status", "text": "fault", "kind": "value"}]
 	reminders.clues = [
 		{"case": "controller", "text": "status 'fault' means the lock relay is stuck. 'offline' means switched off on purpose: leave it alone."},
 		{"case": "controller", "text": "Zone first, then status. Plenty of faults in this building aren't yours. - H.M."},
@@ -311,7 +311,7 @@ func _rack_card(pos: Vector3, facing: float, flat: bool) -> void:
 		{"case": "hot_rack", "text": "Rack temperatures are in the table racks. Columns: id, room, temp_c, load_pct, note."},
 		{"case": "hot_rack", "text": "ALERT if temp_c > %d. Running hot? Reseat that rack's fan tray." % Level1Data.INTERLOCK_C},
 	]
-	card.pieces = [{"case": "hot_rack", "piece": "table"}, {"case": "hot_rack", "piece": "more"}]
+	card.pieces = [{"case": "hot_rack", "piece": "table", "text": "racks", "kind": "table"}, {"case": "hot_rack", "piece": "more", "text": ">", "kind": "keyword"}]
 	card.read_by.connect(func(_p): _book_found("easy_sql_7"))  # More than, less than
 
 
@@ -323,7 +323,8 @@ func _facilities_card(pos: Vector3, facing: float, flat: bool) -> void:
 		"One reset clears the lot.",
 		"Lights marked 'off' are off on purpose. Leave them.",
 	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15))
-	card.pieces = [{"case": "dark_room", "piece": "table"}, {"case": "dark_room", "piece": "dead"}, {"case": "dark_room", "piece": "flickering"}]
+	card.pieces = [{"case": "dark_room", "piece": "table", "text": "lights", "kind": "table"}, {"case": "dark_room", "piece": "dead", "text": "dead", "kind": "value"},
+		{"case": "dark_room", "piece": "flickering", "text": "flickering", "kind": "value"}]
 	card.read_by.connect(func(_p): _book_found("easy_sql_8"))  # Either one will do
 	card.clues = [
 		{"case": "dark_room", "opens": DARK_CASE, "tables": ["lights"], "text": "List every light that's 'dead' OR 'flickering' in the lights table (columns: id, room, floor, is_on, status), then reset the circuit by the break room door."},
@@ -531,7 +532,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		{"case": "hot_rack", "opens": "Why won't the cable vault's back door open?", "tables": ["racks"],
 			"text": "It stays sealed while any rack on this floor reads over %d°C." % Level1Data.INTERLOCK_C},
 	]
-	interlock.pieces = [{"case": "hot_rack", "piece": "limit"}, {"case": "hot_rack", "piece": "more"}]  # "over" it
+	interlock.pieces = [{"case": "hot_rack", "piece": "limit", "text": str(Level1Data.INTERLOCK_C), "kind": "value"}, {"case": "hot_rack", "piece": "more", "text": "over", "kind": "keyword"}]  # "over" it
 	interlock.read_by.connect(func(_p): _book_found("easy_sql_7"))
 
 	# Server Room B: x 8..22, z -3..9. Racks on another zone; nothing to fix here.
