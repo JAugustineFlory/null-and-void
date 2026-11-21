@@ -18,8 +18,6 @@ var held: HeldNotebook
 ## Where you type a note of your own (from "+ write a note"); shown while writing.
 var writer: LineEdit
 var _open := false
-## How long an answer waits for your hands to be free to show the notebook.
-const ANSWER_WAIT_FRAMES := 300
 var _was_locked := false
 ## The right stick turned a page and hasn't come back to the middle yet.
 var _stick_turned := false
@@ -31,7 +29,6 @@ func _ready() -> void:
 	get_node("/root/Game").notebook_changed.connect(func():
 		if _open:
 			pages.refresh())
-	get_node("/root/Game").answer_found.connect(_show_answer)
 	PadReader.attach(self, _on_pad, _on_stick)
 
 
@@ -66,19 +63,6 @@ func _build() -> void:
 	else:
 		pages.visible = false
 		add_child(pages)
-
-
-## You added the line that answers a case: once you've stepped back from the
-## terminal or put the paper down, the notebook comes up at the case page and the
-## answer is written into its blank there (NotebookPages).
-func _show_answer(_case_id: String) -> void:
-	for i in ANSWER_WAIT_FRAMES:
-		if _open:
-			pages.show_page(NotebookPages.Page.CASES)
-			return
-		if open(NotebookPages.Page.CASES):
-			return
-		await get_tree().process_frame
 
 
 ## Where Tab opens the notebook: on the case being worked on (or one just
@@ -119,6 +103,7 @@ func open(page: int = -1) -> bool:
 	pages.showing = true
 	pages.showing_completed = false
 	pages.completed_case = ""
+	pages.mark = ""  # the Cases tab opens on the selected case again
 	pages.show_page(page if page >= 0 else default_page())
 	pages.book.show_book()
 	opened.emit()
@@ -229,7 +214,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif _open and event is InputEventKey and event.pressed and not event.echo \
 			and event.physical_keycode >= KEY_1 and event.physical_keycode < KEY_1 + NotebookPages.TAB_NAMES.size():
-		pages.show_page(event.physical_keycode - KEY_1)  # 1-4: the tabs, in order
+		pages.show_tab(event.physical_keycode - KEY_1)  # 1-3: the tabs, in order
 		get_viewport().set_input_as_handled()
 	elif _open and event.is_action_pressed("pause"):
 		close()
@@ -250,8 +235,7 @@ func _on_pad(event: InputEvent) -> bool:
 		return false  # B is ui_cancel: the writer puts the pen down
 	if event.is_action_pressed("ui_tab_prev") or event.is_action_pressed("ui_tab_next"):
 		var step := -1 if event.is_action_pressed("ui_tab_prev") else 1
-		var n := NotebookPages.TAB_NAMES.size()
-		pages.show_page((pages.current_page() + step + n) % n)
+		pages.show_tab(pages.current_tab() + step)
 	elif event.is_action_pressed("alt_interact"):
 		start_writing()
 	elif event.is_action_pressed("ui_left"):

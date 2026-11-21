@@ -1,12 +1,20 @@
 class_name CaseChip
 extends Control
 ## The main case on screen (top right): what to do about it, how many of its pieces are
-## in ("3/4"), a bar of one segment per piece, and what to do next. Finding a
-## piece pops a card in the top left saying what it was. Only the main case
-## counts (Game.main_case): side cases and other ways in stay off the screen.
+## in ("3/4"), a bar of one segment per piece, and what to do next. Only the main
+## case counts (Game.main_case): side cases and other ways in stay off the screen.
 ## Built by the HUD; follows Game.notebook_changed and Game.piece_found. The
 ## next step shows only briefly: after a piece is found and after the notebook
 ## closes (brief_next), then the chip is just the case and its count.
+##
+## Under it, the selected case's query with blanks (Game.case_query, colored by
+## kind: PieceKind), while a paper of that case is held (hold_query) and for a
+## few seconds after one of its pieces is found (show_query). At a terminal the
+## typing line shows it instead (TerminalUI).
+##
+## A piece or an answer found slides up at the screen's bottom edge, everywhere,
+## with the pencil's sound, then writes itself into the query (puzzle-flow spec,
+## section 5). In co-op a crewmate's find says who found it. A click puts it away.
 
 ## The words on screen (drafts for Augustine's word-for-word OK).
 const HEADER := "CURRENT CASE"
@@ -14,8 +22,13 @@ const NEXT := "Next: %s"
 const FOUND := "PIECE FOUND  ·  %d OF %d"
 const FOUND_SIDE := "PIECE FOUND  ·  SIDE CASE"
 const ADDED := "Added to the case. Checklist updated (Tab)."
-## How long the found card stays up.
-const TOAST_TIME := 4.0
+## How long the slide-up stays up, and how long it takes to slide.
+const TOAST_TIME := 3.0
+const SLIDE_TIME := 0.35
+## The slide-up's credit line in co-op (G21).
+const FOUND_BY := "Found by %s"
+## How long the query stays under the chip after a piece of it is found.
+const QUERY_TIME := 4.0
 ## How long the next step stays up.
 const NEXT_TIME := 6.0
 ## Widths: the chip and its wrapped lines, then narrower at a terminal, so it
@@ -35,17 +48,28 @@ var title: Label
 var count: Label
 var bar: HBoxContainer
 var next: Label
+var column: VBoxContainer
+## The slide-up (its old name: it was a card in the top left).
 var toast: PanelContainer
 var toast_head: Label
-var toast_value: Label
+var toast_value: RichTextLabel
+var toast_by: Label
 var _toast_tween: Tween
+## The selected case's query with blanks, under the chip.
+var query_panel: PanelContainer
+var query: RichTextLabel
+## A paper of the selected case is held: the query stays up.
+var query_held := false
+## The piece just written in, drawn brighter while the query's up for it.
+var _fresh_piece := ""
+var _query_turn := 0
+var _query_on := false
+var _query_tween: Tween
 ## The case shown, "" for none.
 var case_id := ""
-## Off while a terminal fills the view: the found card waits, and the chip
-## narrows to sit beside the glass.
+## Off while a terminal fills the view: the chip narrows to sit beside the
+## glass, and the query under it gives way to the one above the typing line.
 var allowed := true
-## Pieces found while it was off: [case_id, piece_id] each, shown once it's back.
-var waiting: Array = []
 ## The next step is up for now (brief_next).
 var next_up := false
 ## The task just put on the list, shown as the next step instead (brief_task): its title.
@@ -58,22 +82,30 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_chip()
+	_build_query()
 	_build_toast()
 	var game := get_node_or_null("/root/Game")
 	if game:
 		game.notebook_changed.connect(refresh)
 		game.piece_found.connect(show_found)
+		game.answer_found.connect(show_answer)
+		game.answer_shared.connect(show_answer)
 	refresh()
 
 
 func _build_chip() -> void:
+	column = VBoxContainer.new()
+	column.name = "Column"
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override("separation", 8)
+	column.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	column.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	column.offset_right = -24
+	column.offset_top = 24
+	add_child(column)
 	chip = _panel(PANEL, EDGE)
 	chip.name = "Chip"
-	chip.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	chip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	chip.offset_right = -24
-	chip.offset_top = 24
-	add_child(chip)
+	column.add_child(chip)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	chip.add_child(box)
@@ -106,24 +138,54 @@ func _fit(width: int) -> void:
 	chip.custom_minimum_size.x = width
 	title.custom_minimum_size.x = width - 40
 	next.custom_minimum_size.x = width - 40
+	if query:
+		query.custom_minimum_size.x = width - 32
 	# Down to nothing: it grows back to fit, leftward from the right edge.
-	chip.offset_left = chip.offset_right
-	chip.offset_bottom = chip.offset_top
+	column.offset_left = column.offset_right
+	column.offset_bottom = column.offset_top
+
+
+func _build_query() -> void:
+	query_panel = _panel(PANEL, EDGE)
+	query_panel.name = "Query"
+	query_panel.visible = false
+	column.add_child(query_panel)
+	query = RichTextLabel.new()
+	query.name = "Text"
+	query.bbcode_enabled = true
+	query.fit_content = true
+	query.scroll_active = false
+	query.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	query.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	query.add_theme_font_override("normal_font", ThemeUtil.mono())
+	for f in ["bold_font", "italics_font"]:
+		query.add_theme_font_override(f, ThemeUtil.mono())
+	for f in ["normal_font_size", "bold_font_size", "italics_font_size"]:
+		query.add_theme_font_size_override(f, 17)
+	query.add_theme_color_override("default_color", PAPER)
+	query.custom_minimum_size.x = WIDE - 32
+	query_panel.add_child(query)
 
 
 func _build_toast() -> void:
-	toast = _panel(PAPER, PAPER)
+	toast = _panel(PANEL, EDGE)
 	toast.name = "Found"
-	toast.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	toast.offset_left = 24
-	toast.offset_top = 24
-	toast.custom_minimum_size.x = 380
+	toast.mouse_filter = Control.MOUSE_FILTER_STOP  # a click puts it away
+	toast.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			dismiss())
+	toast.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	toast.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	toast.grow_vertical = Control.GROW_DIRECTION_END
+	toast.custom_minimum_size.x = 440
+	toast.offset_left = -220
+	toast.offset_right = 220
 	toast.visible = false
 	add_child(toast)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	toast.add_child(row)
-	var plus := _on_paper("+1", 20, Color(0.1, 0.12, 0.13))
+	var plus := _on_paper("+1", 20, PANEL)
 	var badge := _panel(AMBER, AMBER)
 	badge.custom_minimum_size = Vector2(52, 52)
 	plus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -132,13 +194,28 @@ func _build_toast() -> void:
 	row.add_child(badge)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
-	toast_head = _on_paper("", 13, Color(0.42, 0.42, 0.42))
+	box.add_theme_constant_override("separation", 4)
+	toast_head = ThemeUtil.label("", 13, DIM)
 	box.add_child(toast_head)
-	toast_value = NotebookArt.hand("", 28, NotebookArt.INK)
+	toast_value = RichTextLabel.new()
 	toast_value.name = "Value"
+	toast_value.bbcode_enabled = true
+	toast_value.fit_content = true
+	toast_value.scroll_active = false
 	toast_value.autowrap_mode = TextServer.AUTOWRAP_OFF
+	toast_value.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast_value.add_theme_font_override("normal_font", ThemeUtil.mono())
+	for f in ["bold_font", "italics_font"]:
+		toast_value.add_theme_font_override(f, ThemeUtil.mono())
+	for f in ["normal_font_size", "bold_font_size", "italics_font_size"]:
+		toast_value.add_theme_font_size_override(f, 20)
+	toast_value.add_theme_color_override("default_color", PAPER)
 	box.add_child(toast_value)
-	box.add_child(_on_paper(ADDED, 13, Color(0.42, 0.42, 0.42)))
+	toast_by = ThemeUtil.label("", 13, AMBER)
+	toast_by.name = "By"
+	toast_by.visible = false
+	box.add_child(toast_by)
+	box.add_child(ThemeUtil.label(ADDED, 13, DIM))
 	row.add_child(box)
 
 
@@ -179,6 +256,8 @@ func refresh() -> void:
 		bar.visible = false
 		next.text = NEXT % task if task_only else ""
 		next.visible = task_only
+		if query:
+			_draw_query()
 		return
 	var c: Dictionary = game.case_info(case_id)
 	var found: int = game.pieces_found(case_id)
@@ -200,9 +279,11 @@ func refresh() -> void:
 	var step: String = task if task != "" else game.case_next(case_id)
 	next.text = NEXT % step if step != "" else ""
 	next.visible = next_up and step != ""
+	if query:
+		_draw_query()
 
 
-## Case `id`'s piece `piece_id` was just found: say what it was, top left.
+## Case `id`'s piece `piece_id` was just found: it slides up, saying what it was.
 func show_found(id: String, piece_id: String) -> void:
 	var game := get_node_or_null("/root/Game")
 	if game == null:
@@ -216,37 +297,137 @@ func show_found(id: String, piece_id: String) -> void:
 			piece = p
 	if piece.is_empty():
 		return
-	if not allowed:
-		waiting.append([id, piece_id])  # said when the terminal's put away
-		return
 	brief_next()
-	toast_head.text = FOUND_SIDE if c.get("optional", false) else FOUND % [game.pieces_found(id), game.pieces_total(id)]
-	toast_value.text = "%s: %s" % [piece.label, piece.value]
+	var head: String = FOUND_SIDE if c.get("optional", false) else FOUND % [game.pieces_found(id), game.pieces_total(id)]
+	_slide_up(head, "%s: %s" % [str(piece.label).replace("[", "[lb]"), PieceKind.bbcode(str(piece.value), PieceKind.of_piece(piece))], str(piece.get("by", "")))
+	if id == game.case_selected():
+		_fresh_piece = piece_id
+		show_query()
+
+
+## Case `id`'s slot was just answered, by this player or (with `by`) a crewmate:
+## it slides up, the case's question over the answer.
+func show_answer(id: String, by: String = "") -> void:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return
+	var b: Dictionary = game.case_info(id).get("blank", {})
+	if b.is_empty() or str(b.get("filled", "")) == "":
+		return
+	_slide_up(str(b.get("prompt", "")), PieceKind.bbcode(str(b.filled), PieceKind.VALUE), by)
+
+
+## Slide `head` over `value` (BBCode) up from the screen's bottom edge, with
+## the pencil's sound; `by` names the crewmate who found it.
+func _slide_up(head: String, value: String, by: String) -> void:
+	toast_head.text = head
+	toast_head.visible = head != ""
+	toast_value.text = value
+	toast_by.text = FOUND_BY % by if by != "" else ""
+	toast_by.visible = by != ""
 	toast.visible = true
 	toast.modulate.a = 1.0
 	if _toast_tween:
 		_toast_tween.kill()
 	if not is_inside_tree():
 		return
-	_toast_tween = create_tween()
+	Sfx.play_flat(self, "pencil")
+	toast.reset_size()
+	var h: float = maxf(toast.get_combined_minimum_size().y, 60.0)
+	toast.offset_top = 0.0
+	toast.offset_bottom = h
+	_toast_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_toast_tween.tween_property(toast, "offset_top", -h - 24.0, SLIDE_TIME)
+	_toast_tween.parallel().tween_property(toast, "offset_bottom", -24.0, SLIDE_TIME)
 	_toast_tween.tween_interval(TOAST_TIME)
-	_toast_tween.tween_property(toast, "modulate:a", 0.0, 0.6)
+	_toast_tween.tween_callback(dismiss)
+
+
+## Put the slide-up away, back down past the bottom edge.
+func dismiss() -> void:
+	if not toast.visible:
+		return
+	if _toast_tween:
+		_toast_tween.kill()
+	if not is_inside_tree():
+		toast.visible = false
+		return
+	var h: float = toast.offset_bottom - toast.offset_top
+	_toast_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_toast_tween.tween_property(toast, "offset_top", 0.0, SLIDE_TIME)
+	_toast_tween.parallel().tween_property(toast, "offset_bottom", h, SLIDE_TIME)
 	_toast_tween.tween_callback(func(): toast.visible = false)
 
 
+## The selected case's query, under the chip for QUERY_TIME seconds.
+func show_query() -> void:
+	_query_turn += 1
+	_set_query(true)
+	if not is_inside_tree():
+		return
+	var turn := _query_turn
+	get_tree().create_timer(QUERY_TIME).timeout.connect(func():
+		if turn == _query_turn:
+			_fresh_piece = ""
+			_set_query(false))
+
+
+## A paper of the selected case is in this player's hands (`on`), or put down:
+## the query stays up while it's held.
+func hold_query(on: bool) -> void:
+	query_held = on
+	_set_query(on)
+
+
+## Fade the query under the chip in (`on`) or out, unless it's still held.
+func _set_query(on: bool) -> void:
+	on = on or query_held
+	_query_on = on
+	_draw_query()
+	var shown := query_panel.visible and query_panel.modulate.a > 0.99
+	var want: bool = on and _query_text() != "" and allowed
+	if want == shown and (want or not query_panel.visible):
+		return
+	if _query_tween:
+		_query_tween.kill()
+	if not is_inside_tree():
+		query_panel.visible = want
+		query_panel.modulate.a = 1.0
+		return
+	query_panel.visible = true
+	_query_tween = create_tween()
+	_query_tween.tween_property(query_panel, "modulate:a", 1.0 if want else 0.0, 0.3)
+	if not want:
+		_query_tween.tween_callback(func(): query_panel.visible = false)
+
+
+## The selected case's query as BBCode, "" if it has none.
+func _query_text() -> String:
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return ""
+	var id: String = game.case_selected()
+	if id == "" or game.case_query(id) == "":
+		return ""
+	return PieceKind.query_bbcode(game.case_info(id), game.PIECE_MISSING, _fresh_piece)
+
+
+func _draw_query() -> void:
+	var text := _query_text()
+	if query.text != text:
+		query.text = text
+	if text == "" or not allowed:
+		query_panel.visible = false
+
+
 ## While a terminal's glass fills the view the chip stays, narrowed to fit
-## beside it, so the task is still in sight; the found card would cover the
-## glass, so a piece found meanwhile is shown once it's put away.
+## beside it, so the task is still in sight; the query under it gives way to
+## the one above the typing line.
 func set_allowed(on: bool) -> void:
 	allowed = on
-	if not on:
-		toast.visible = false
 	_fit(WIDE if on else NARROW)
 	refresh()
-	if on and not waiting.is_empty():
-		var last: Array = waiting.pop_back()  # the newest says the count as it is now
-		waiting.clear()
-		show_found(last[0], last[1])
+	_set_query(_query_on)
 
 
 ## A task just went on the list (HUD.todo): "Next: <its title>" for NEXT_TIME seconds.

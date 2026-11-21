@@ -33,8 +33,12 @@ var read_face := Vector3.BACK
 ## What reading it adds to the reader's case pages: [{case, text}] (see Game.add_clue).
 ## A clue with "opens" (a case title, and optional "tables") opens that case too.
 var clues: Array = []
-## Pieces of cases it holds: [{case, piece}] (see Game.collect_piece). Reading
-## it puts them into their cases. Anyone finding them finds them for the whole crew.
+## Pieces of cases it holds: [{case, piece, text?}] (see Game.collect_piece).
+## Each sits on the line that shows `text` (default: the piece's value): pointing
+## at that line highlights it in the piece's kind's color, and clicking it puts
+## the piece in its case, for the whole crew (take_line). Reading alone only
+## shows the marker. A sticky is the exception: taking or copying it takes its
+## pieces with it.
 var pieces: Array = []
 ## The hint spot this paper is (Puzzle.spots): reading it, or taking it, unlocks
 ## `.hint`'s next tier for the whole crew. "" for none.
@@ -96,9 +100,80 @@ static func _line(l: Variant) -> Dictionary:
 	return d
 
 
-## The document's text, for the reader and the teaching tests.
+## The document's text, for the reader and the teaching tests. A line holding
+## a piece says its kind ("piece_kind", PieceKind), for the pointer's highlight.
 func lines() -> Array[Dictionary]:
-	return doc_lines.duplicate(true)
+	var out := doc_lines.duplicate(true)
+	for at in piece_lines():
+		if at.line >= 0 and not out[at.line].has("piece_kind"):
+			out[at.line]["piece_kind"] = at.kind
+	return out
+
+
+## Where each of its pieces is: [{case, piece, line, kind}], `line` the index of
+## the first line showing its words (whole words, any case), -1 if none does.
+func piece_lines() -> Array:
+	var game := _game()
+	var out := []
+	for e in pieces:
+		var def := {}
+		if game:
+			for p in game.case_info(e.case).get("pieces", []):
+				if p.id == e.piece:
+					def = p
+		var words := str(e.get("text", def.get("value", "")))
+		var line := -1
+		if words != "":
+			for i in doc_lines.size():
+				if _shows(str(doc_lines[i].text), words):
+					line = i
+					break
+		var kind := PieceKind.NAMES.find(str(e.get("kind", ""))) if e.has("kind") else (PieceKind.of_piece(def) if not def.is_empty() else PieceKind.VALUE)
+		out.append({"case": e.case, "piece": e.piece, "line": line, "kind": kind})
+	return out
+
+
+## The pieces on line `line`: [{case, piece, line, kind}].
+func pieces_on(line: int) -> Array:
+	return piece_lines().filter(func(at): return at.line == line)
+
+
+## Does `text` show `words`? Whole words, any case (a sign like > as it is).
+static func _shows(text: String, words: String) -> bool:
+	var low := text.to_lower()
+	var w := words.to_lower()
+	var at := low.find(w)
+	while at >= 0:
+		var before := low.substr(at - 1, 1) if at > 0 else " "
+		var after := low.substr(at + w.length(), 1)
+		var edge := func(c: String) -> bool: return c == "" or not (c.is_valid_identifier() or c.is_valid_int())
+		if (edge.call(before) or not w.substr(0, 1).is_valid_identifier()) and (edge.call(after) or not w.right(1).is_valid_identifier()):
+			return true
+		at = low.find(w, at + 1)
+	return false
+
+
+## Does this paper matter to case `id`: does it hold one of its pieces or its
+## answer, or say something on its page? The marker shows on it while that case
+## is selected (DocumentView.set_marker), and its query stays up while it's held.
+func marks_case(id: String) -> bool:
+	if id == "":
+		return false
+	if pieces.any(func(p): return p.get("case", "") == id) or clues.any(func(k): return k.get("case", "") == id):
+		return true
+	var game := _game()
+	return game != null and doc_lines.any(func(l): return game.answers(str(l.text), "document") == id)
+
+
+## Does it matter to the case this player has selected (Game.case_selected)?
+func marked() -> bool:
+	var game := _game()
+	return game != null and marks_case(game.case_selected())
+
+
+func _game() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	return tree.root.get_node_or_null("Game") if tree else null
 
 
 func plain_text() -> String:
@@ -322,13 +397,40 @@ func _read(player: Node) -> void:
 		open_reader(player)
 
 
-## Every machine: this paper's pieces are found.
-func _collect_pieces() -> void:
+## Every machine: this paper's pieces are found (only those on line `line`, if
+## it's 0 or more), by the crewmate named `by` (shown on everyone else's slide-up).
+func _collect_pieces(by: String = "", peer: int = 0, line: int = -1) -> void:
 	var game := get_node_or_null("/root/Game")
 	if game == null:
 		return
+	var mine := peer == 0 or not is_inside_tree() or multiplayer.get_unique_id() == peer
+	var on := pieces_on(line).map(func(at): return [at.case, at.piece]) if line >= 0 else []
 	for p in pieces:
-		game.collect_piece(p.case, p.piece, title)
+		if line < 0 or on.has([p.case, p.piece]):
+			game.collect_piece(p.case, p.piece, title, "" if mine else by)
+
+
+## This player clicked line `line`: the pieces on it that aren't found yet go in
+## their cases, for the whole crew (the host decides). True if there were any.
+func take_line(player: Node, line: int) -> bool:
+	var game := get_node_or_null("/root/Game")
+	if game == null or not pieces_on(line).any(func(at): return not game.has_piece(at.case, at.piece)):
+		return false
+	var sync := LevelSync.of(self)
+	if sync == null or not sync.forward_args(self, "report_take", [line]):
+		report_take(player, line)
+	return true
+
+
+## Host: someone took the pieces on line `line`; they're found for everyone.
+func report_take(player: Node, line: int) -> void:
+	var s := LevelSync.of(self)
+	if s:
+		var peer := s.peer_of(player)
+		var net := get_node_or_null("/root/Net")
+		s.run_on(self, "_collect_pieces", [net.display_name(peer) if net and peer != 0 else "", peer, line])
+	else:
+		_collect_pieces("", 0, line)
 
 
 ## Every machine: the cases this paper opens are open for the whole crew, so the
@@ -436,13 +538,16 @@ func _report_read(player: Node) -> void:
 		report_open(player)
 
 
-## Host: someone read it (or took it, if it's a loose sticky). Its pieces are
-## found for everyone, and the cases it opens open for everyone.
+## Host: someone read it (or took it, if it's a sticky). A sticky's pieces are
+## found for everyone (a paper's wait for a click: take_line), and the cases it
+## opens open for everyone.
 func report_open(player: Node) -> void:
 	var s := LevelSync.of(self)
-	if not pieces.is_empty():
+	if not pieces.is_empty() and is_sticky():
 		if s:
-			s.run_on(self, "_collect_pieces")
+			var peer := s.peer_of(player)
+			var net := get_node_or_null("/root/Net")
+			s.run_on(self, "_collect_pieces", [net.display_name(peer) if net and peer != 0 else "", peer])
 		else:
 			_collect_pieces()
 	if clues.any(func(k): return k.has("opens")):

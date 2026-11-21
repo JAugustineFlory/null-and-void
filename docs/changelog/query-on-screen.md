@@ -1,0 +1,4 @@
+- **Added:** the case's query with its blanks shows under the case in the corner while you hold one of its papers, and for a moment after you find one of its pieces.
+- **Added:** at a terminal, the case's query sits just above the typing line and is the typing line's example.
+- **Added:** each kind of piece (keyword, table, column, value) has its own color and mark, the same on screen, in the query and on the typing line.
+- **Changed:** a piece or answer you find slides up at the bottom of the screen, everywhere; you stay at the terminal or keep the paper in your hands. In co-op it says who found it.

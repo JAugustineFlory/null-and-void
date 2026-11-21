@@ -1674,7 +1674,7 @@ func test_caller_answer() -> void:
 			ui.run("SELECT name, extension FROM staff_directory WHERE extension != %s;" % ext)
 			await process_frame
 			check(_game().has_piece("caller", "column") and _game().case_query("caller") == "SELECT name, extension FROM staff_directory;" and chip.count.text == "3/3", "terminal: the directory's columns turn up, so the column piece is found: 3/3 and the query whole (%s)" % _game().case_query("caller"))
-			check(chip.toast.visible or not chip.waiting.is_empty(), "terminal: and a card says so (held until the terminal's put away, when it's on the glass)")
+			check(chip.toast.visible, "terminal: and it slides up, with the terminal still open")
 			check(not level.caller_listed and not screen_text(ui).contains("there it is"), "terminal: a list without the caller's row gets no \"there it is\" from SYSOP")
 			ui.run("SELECT name, extension FROM staff_directory;")
 			await process_frame
@@ -1720,7 +1720,7 @@ func test_caller_answer() -> void:
 			check(not ui.use_cell(wrong, lines[wrong].cells.map(func(x): return x.column).find("name")) and _game().case_info("caller").blank.filled == "", "terminal: nor someone else's name")
 			ui._cancel_note()
 			check(ui.use_cell(right, name_at), "terminal: Mercer's name, in his row, is")
-			check(not ui.visible and not ui._note_label.visible, "terminal: Mercer's name goes straight in, and you step back from the screen")
+			check(ui.visible and not ui._note_label.visible and level.hud.case_chip.toast.visible and level.hud.case_chip.toast_value.get_parsed_text() == "Harold Mercer", "terminal: Mercer's name goes straight in and slides up, and you stay at the screen")
 			check(c.blank.get("query", "") == "SELECT name, extension FROM staff_directory;", "terminal: the case keeps the query that found it (%s)" % c.blank.get("query", ""))
 		else:
 			var reader: DocumentReader = level.directory_printout.open_reader(p)
@@ -1738,11 +1738,9 @@ func test_caller_answer() -> void:
 			page = level.notebook.pages.section_text(NotebookPages.Page.CASES)
 			check(page.count(miss) == 1, "printout: once")
 			reader._start_note(at)
-			for i in 30:
-				if not is_instance_valid(reader):
-					break
-				await physics_frame
-			check(not is_instance_valid(reader), "printout: adding Mercer's line puts the printout down")
+			await physics_frame
+			check(is_instance_valid(reader) and level.hud.case_chip.toast.visible, "printout: adding Mercer's line slides it up, and the printout stays in your hands")
+			reader.close()
 		for i in 30:
 			if level.caller_puzzle.solved:
 				break
@@ -1752,12 +1750,16 @@ func test_caller_answer() -> void:
 		check(_game().pieces_found("caller") == 3 and _game().main_case() == "" and not level.hud.case_chip.chip.visible, "%s: solved, the board is complete and the HUD lets it go" % route)
 		var other_way: bool = c.routes.any(func(r): return r.id == "printout" and r.found)
 		check(other_way == (route == "printout"), "%s: the mailroom's printout counts as another way in only when it's what answered it" % route)
+		for i in 30:
+			await physics_frame
+		check(not level.notebook.is_open(), "%s: no look-down: the notebook stays put away" % route)
+		if level.terminal_ui.visible:
+			level.terminal_ui.close()
 		for i in 60:
-			if level.notebook.is_open():
+			if level.notebook.open(NotebookPages.Page.CASES) or level.notebook.is_open():
 				break
 			await physics_frame
-		check(level.notebook.is_open() and level.notebook.pages.current_page() == NotebookPages.Page.CASES, "%s: the notebook comes up at the case page" % route)
-		check(not c.blank.fresh and level.notebook.pages.book.book.get_node_or_null("Pen") != null, "%s: and the pen writes the name in as you watch" % route)
+		check(level.notebook.is_open() and not c.blank.fresh and level.notebook.pages.book.book.get_node_or_null("Pen") != null, "%s: opened at the case page, the pen writes the name in as you watch" % route)
 		check(not _game().notebook_written.any(func(w): return w.text.contains("Harold Mercer")), "%s: the answer goes in the blank, not as a loose note too" % route)
 		level.queue_free()
 		await process_frame
@@ -1890,7 +1892,9 @@ func test_level_1_scene() -> void:
 	check(_game().main_case() == "controller" and _game().pieces_total("controller") == 3 and not _game().has_piece("controller", "zone") and not _game().has_piece("controller", "status"), "the controller case asks for 3 pieces; the zone and the status are still to find")
 	var reminders: Document = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Reminders")[0]
 	reminders._on_used(level.player)
-	check(_game().has_piece("controller", "status") and _game().case_info("controller").clues.any(func(k): return k.from == "Reminders"), "E on Mercer's reminders notes the status piece, and its clues go on the case page too")
+	check(not _game().has_piece("controller", "status"), "reading Mercer's reminders doesn't take the status piece on its own")
+	reminders.take_line(level.player, reminders.piece_lines()[0].line)
+	check(_game().has_piece("controller", "status") and _game().case_info("controller").clues.any(func(k): return k.from == "Reminders"), "clicking its 'fault' line takes the status piece, and its clues go on the case page too")
 	check(level.terminal.hint_case() == "controller" and level.terminal.puzzles[0] == level.stuck_doors_puzzle, "the first hints are for the stuck doors, on the controller's case page")
 	for bad in ["SELECT name, zone FROM doors", "SELECT name, zone FROM doors WHERE locked = 0", "SELECT name FROM doors WHERE locked = 1"]:
 		level.terminal_ui.run(bad)
@@ -2188,9 +2192,15 @@ func test_coop_level_0() -> void:
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"])
 	brochures[1].interact(c1.player)
 	await _frames(5)
-	check(_game().has_piece("memo", "table"), "a client's E on a paper with pieces picks it up to read, and that puts its pieces in")
+	check(not _game().has_piece("memo", "table"), "a client's E on a paper with pieces picks it up to read, which doesn't take them on its own")
 	check(c1.find_children("*", "DocumentReader", true, false).size() == 1 and host.find_children("*", "DocumentReader", true, false).is_empty() \
 		and c2.find_children("*", "DocumentReader", true, false).is_empty(), "a client reading a document opens it on their screen only")
+	var at: Array = brochures[1].piece_lines().filter(func(a): return a.case == "memo")
+	check(c1.find_children("*", "DocumentReader", true, false)[0].take(at[0].line), "the client clicks the line with the table on it")
+	await _frames(5)
+	var piece: Dictionary = _game().case_info("memo").pieces.filter(func(p): return p.id == "table")[0] if _game().pieces_total("memo") > 0 else {}
+	check(_game().has_piece("memo", "table"), "and the host puts the piece in, for the whole crew")
+	check(piece.is_empty() or str(piece.get("by", "")) == root.get_node("Net").display_name(c1_id), "credited to the client who clicked it (%s)" % str(piece.get("by", "")))
 	c1.find_children("*", "DocumentReader", true, false)[0].close()
 	await _frames(2)
 	check(not c1.player.input_locked, "putting the document down gives the client their controls back")
@@ -2216,6 +2226,8 @@ func test_coop_level_0() -> void:
 	c1.sync.report_answer("caller")
 	await _frames(10)
 	check(levels.all(func(l): return l.caller_puzzle.solved), "a client's answer settles who called for every machine")
+	var finder: String = root.get_node("Net").display_name(get_multiplayer(worlds[1].get_path()).get_unique_id())
+	check(str(_game().case_info("caller").blank.get("by", "")) == finder, "and the case remembers who found it, for the slide-up's credit (%s)" % finder)
 
 	c2.terminal_ui.terminal = c2.desk_terminal
 	c2.terminal_ui.run("INSERT INTO visitors (name) VALUES ('Intruder')")
@@ -5915,7 +5927,7 @@ func test_notebook() -> void:
 	var nb: Notebook = level.notebook
 	level.player.input_locked = false
 	check(nb.open() and nb.is_open() and level.player.input_locked, "Tab opens the notebook and holds the player")
-	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER and NotebookPages.TAB_NAMES == ["Work order", "Cases", "Tables", "Field Notes", "Books"], "it opens on the work order, then Cases, Tables, Field Notes and the crew's book: no separate Notes tab")
+	check(nb.pages.current_page() == NotebookPages.Page.WORK_ORDER and NotebookPages.TAB_NAMES == ["Work order", "Cases", "Books"], "it opens on the work order, then Cases and the crew's book: three tabs")
 	nb.close()
 	check(not nb.is_open() and not level.player.input_locked, "and closes again")
 	level.terminal_ui.open(level.desk_terminal, level.player)
@@ -5987,9 +5999,9 @@ func test_notebook() -> void:
 	check(not _game().add_note("order_by") and _game().notebook_notes.size() == 2, "a note is only written down once")
 	nb.open(NotebookPages.Page.TABLES)
 	var on_pages: Array = nb.pages.book.left.get_children() + nb.pages.book.right.get_children()
-	check(nb.pages.current_page() == NotebookPages.Page.TABLES and NotebookPages.text_of(on_pages).contains("memo_fragments"), "the Tables page lists what was found")
+	check(nb.pages.current_page() == NotebookPages.Page.CASES and nb.pages.mark == NotebookPages.NOTES_MARK and NotebookPages.text_of(on_pages).contains("memo_fragments"), "Floor notes lists the tables found")
 	var notes_text := nb.pages.section_text(NotebookPages.Page.TABLES)
-	check(notes_text.contains("ORDER BY") and notes_text.contains("FROM lights") and notes_text.find("Sticky notes") > notes_text.find("memo_fragments"), "sticky notes go on the Tables page after the tables, each with its example")
+	check(notes_text.contains("ORDER BY") and notes_text.contains("FROM lights") and notes_text.contains("Sticky notes"), "sticky notes go on Floor notes too, each with its example")
 	_game().set_todo("Find the exit")
 	_game().set_todo("Open the exit door")
 	check(not _game().set_todo("Open the exit door"), "the same task isn't written twice")
@@ -6029,6 +6041,7 @@ func test_notebook() -> void:
 	for i in nb.pages._spreads.size():
 		nb.pages._show_spread(nb.pages._spread + 1)
 	check(nb.pages._spread == 0 and nb.pages.book.left.get_children() == first_page and first_page.all(func(c): return is_instance_valid(c) and not c.is_queued_for_deletion()), "turning all the way round comes back to the first spread intact")
+	nb.pages.mark = ""  # back from Floor notes to the case
 	var written_text := nb.pages.section_text(NotebookPages.Page.CASES)
 	check(written_text.contains("memo scraps") and written_text.contains("piece_no"), "a line copied while a case is open goes on that case's page, under the player's label")
 	# With nothing open, copied lines are under Other notes instead.
@@ -6037,7 +6050,7 @@ func test_notebook() -> void:
 	for w in _game().notebook_written:
 		w.case = ""
 	written_text = nb.pages.section_text(NotebookPages.Page.CASES)
-	check(written_text.contains("Other notes") and written_text.contains("memo scraps") and written_text.contains("piece_no") and not written_text.contains("Sticky notes"), "lines copied with no case open go under Other notes on the Cases page, with their labels")
+	check(written_text.contains("Other notes") and written_text.contains("memo scraps") and written_text.contains("piece_no"), "lines copied with no case open go under Other notes on the Cases page (Floor notes), with their labels")
 	_game().notebook_cases.assign(cases_kept)
 	# A long case title wraps on its own page: nothing pushes the pages out over the spine.
 	_game().open_case("long_title", "Who signed in last? The book's last page is gone, and nobody owns up to it.")
@@ -6073,12 +6086,12 @@ func test_notebook() -> void:
 	check(not nb.is_writing() and level.player.input_locked and nb.is_open(), "Enter writes it in and the notebook stays open")
 	check(_game().notebook_written[-1].text == "PIN for HARDY: 2751" and _game().notebook_written[-1].kind == "mine", "the note is written as typed")
 	var mine_text := nb.pages.section_text(NotebookPages.Page.CASES)
-	check(_game().notebook_written[-1].case == _game().current_case() and mine_text.contains("My note") and mine_text.find("PIN for HARDY: 2751") < mine_text.find("Other notes"), "your note goes on the page of the case you're working on")
-	check(mine_text.count("PIN for HARDY") == 1, "and isn't listed again under Other notes")
+	check(_game().notebook_written[-1].case == _game().current_case() and mine_text.contains("My note") and mine_text.contains("PIN for HARDY: 2751"), "your note goes on the page of the case you're working on")
+	check(mine_text.count("PIN for HARDY") == 1 and not nb.pages.section_text(NotebookPages.Page.TABLES).contains("PIN for HARDY"), "and isn't listed again under Floor notes")
 	while _game().current_case() != "":
 		_game().solve_case(_game().current_case(), "done")
 	_game().write_note("Query result", "a line copied after", "result")
-	check(_game().notebook_written[-1].case == "" and nb.pages.section_text(NotebookPages.Page.CASES).contains("a line copied after"), "with every case solved, new notes go under Other notes")
+	check(_game().notebook_written[-1].case == "" and nb.pages.section_text(NotebookPages.Page.TABLES).contains("a line copied after"), "with every case solved, new notes go on Floor notes")
 	_game().open_case("caller", "Who called?")
 	_game().open_case("last_visitor", "Who signed in last?")
 	_game().write_note("Query result", "copied at the desk", "result", "caller")
@@ -6245,7 +6258,10 @@ func test_pick_up_papers() -> void:
 	card._on_used(p)
 	var reader: DocumentReader = level.find_children("*", "DocumentReader", true, false)[0]
 	check(reader.held and p.held_prop == card and not p.input_locked and not reader.view.visible, "E lifts the card off the desk into your hands, with no full-screen page and no freezing in place")
-	check(_game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "reading it puts the card's pieces into their cases")
+	check(not _game().has_piece("memo", "table") and not _game().has_piece("memo_order", "column"), "reading it doesn't take the card's pieces on its own")
+	var at := card.piece_lines()
+	check(at.size() == 2 and at.all(func(a): return a.line >= 0) and reader.page_viewport != null, "each of the card's pieces is on a line of it, before its case has said what it needs")
+	check(reader.take(at[0].line) and reader.take(at[1].line) and _game().has_piece("memo", "table") and _game().has_piece("memo_order", "column"), "clicking those lines puts the card's pieces into their cases")
 	for i in 120:
 		if p.is_holding_prop() and p._prop_t >= 1.0:
 			break
@@ -6329,14 +6345,14 @@ func test_pick_up_papers() -> void:
 	check(stickies.any(func(d): return d.plain_text().contains("ORDER BY ... DESC") and d.position.distance_to(Vector3(-2.25, 1.102, -0.72)) < 0.5), "and the night desk's DESC reminder sits by the visitor book")
 	var desk_sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
 	check(desk_sticky.find_child("StickyNote", false, false).scale.x > 1.2, "stickies lying on the desk are drawn big enough to read standing up")
-	# The notebook: 1-4 turn to its tabs; Tab closes it.
+	# The notebook: 1-3 turn to its tabs; Tab closes it.
 	level.notebook.open()
 	var three := InputEventKey.new()
 	three.keycode = KEY_3
 	three.physical_keycode = KEY_3
 	three.pressed = true
 	level.notebook._unhandled_input(three)
-	check(level.notebook.pages.current_page() == NotebookPages.Page.TABLES, "3 turns the notebook to its third tab")
+	check(level.notebook.pages.current_page() == NotebookPages.Page.BOOK, "3 turns the notebook to its third tab, the books")
 	level.notebook._unhandled_input(tab)
 	check(not level.notebook.is_open(), "and Tab puts it away")
 	for i in 40:
@@ -6370,10 +6386,10 @@ func test_pick_up_papers() -> void:
 		await physics_frame
 	var noted: Array = _game().notebook_written.filter(func(w): return w.text.contains("ORDER matters."))
 	check(noted.size() == 1 and noted[0].case == "memo_order" and not is_instance_valid(order), "once it lands its clue is in the notebook for the case the sort belongs to, and it's gone from the desk")
-	check(level.notebook.pages.section_text(NotebookPages.Page.CASES).contains("ORDER matters."), "kept under Other notes until the memo case opens")
+	check(level.notebook.pages.section_text(NotebookPages.Page.CASES).contains("ORDER matters."), "kept under Other notes (Floor notes) until the memo case opens")
 	_game().open_case("memo", "What does Dr. Vale's shredded memo say?")
 	var memo_page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
-	check(memo_page.contains("ORDER matters.") and memo_page.find("ORDER matters.") > memo_page.find("shredded memo"), "and on the memo's page once it opens")
+	check(memo_page.contains("shredded memo") and not memo_page.contains("ORDER matters.") and level.notebook.pages.section_text(NotebookPages.Page.TABLES).contains("ORDER matters."), "and stays on Floor notes, not the memo's page, until the sort's own case opens")
 	# One stuck on a wall stays there; each player copies it.
 	var wall := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Sticky note", [{"text": "Bulb's dead.", "hand": true}], false, "sticky")
 	check(wall.prompt == "Copy the sticky note into your notebook", "a sticky on a wall is copied")

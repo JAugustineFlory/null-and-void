@@ -10,7 +10,7 @@ const HI_RATE := 44100
 
 ## Every sound this file can make.
 const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "key", "flicker",
-	"door_motor", "swing", "body_fall", "fluorescent_buzz", "crt_whine", "server_hum"]
+	"door_motor", "swing", "body_fall", "pencil", "fluorescent_buzz", "crt_whine", "server_hum"]
 ## The ones that loop (seamlessly).
 const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum"]
 
@@ -27,7 +27,7 @@ static func make(kind: String) -> AudioStreamWAV:
 	rng.seed = hash(kind)
 	var secs: float = {"glass": 0.6, "clunk": 0.35, "click": 0.06, "clatter": 0.7, "tap": 0.9,
 		"beep": 0.14, "error": 0.42, "key": 0.05, "flicker": 0.22, "door_motor": 1.1,
-		"swing": 0.28, "body_fall": 0.7}.get(kind, 0.3)
+		"swing": 0.28, "body_fall": 0.7, "pencil": 0.34}.get(kind, 0.3)
 	var n := int(secs * RATE)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -86,6 +86,16 @@ static func make(kind: String) -> AudioStreamWAV:
 				low = lerpf(low, rng.randf_range(-1, 1), k)
 				lower = lerpf(lower, low, k * 0.25)
 				v = (low - lower) * 2.2 * sin(PI * t / secs) ** 2
+			"pencil":
+				# A pencil writing a word in: two quick strokes of fine grit on paper.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.5)
+				lower = lerpf(lower, low, 0.12)
+				var stroke := 0.0
+				for st in [[0.0, 0.13], [0.17, 0.32]]:
+					if t >= st[0] and t < st[1]:
+						stroke = sin(PI * (t - st[0]) / (st[1] - st[0]))
+				var grit := 0.6 + 0.4 * absf(sin(TAU * 37.0 * t))
+				v = (low - lower) * 1.6 * stroke * grit
 			"body_fall":
 				# Someone going down: knees, then the rest of them, and their clothes.
 				var hit := exp(-t * 18.0) * 0.6 + (exp(-(t - 0.16) * 11.0) if t > 0.16 else 0.0)
