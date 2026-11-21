@@ -783,9 +783,28 @@ func walk_level_0() -> void:
 	check(level.caller_puzzle.solved, "lobby: and that answers who called")
 	ui.open(level.desk_terminal, level.player)
 	# Optional: the visitor log newest first. Vale signed in and never left.
-	h = await solve(level, ui, level.visitor_puzzle, false)
+	# The visitor book, read once the caller's solved, opens its case (M3).
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "Visitor book":
+			d.report_open(level.player)
+	check(_game().case_info("last_visitor").get("open", false), "lobby: the visitor book, read after the caller, opens its case")
+	h = await solve(level, ui, level.visitor_puzzle, false, 3, "", false, func(): return level.visitor_listed)
 	check(h >= 0 and h <= rescue_tier(level.visitor_puzzle), "lobby: a lost player reads the visitor log newest first once a hint gives the query (hints %d)" % h)
 	check(screen(ui).contains("VALE, I."), "lobby: the newest visitors on screen include Vale")
+	# The answer is the name in the row below the crew's own (G15, G25).
+	var vale := [-1, -1]
+	var shown_lines: Array = ui.noteable_lines()
+	for i in shown_lines.size():
+		var cells: Array = shown_lines[i].get("cells", [])
+		for j in cells.size():
+			if cells[j].column == "name" and cells[j].value == "VALE, I.":
+				vale = [i, j]
+	check(vale[0] >= 0 and ui.use_cell(vale[0], vale[1]), "lobby: pointing at Vale's name goes in the visitor case's blank")
+	for i in 30:
+		if level.visitor_puzzle.solved:
+			break
+		await t.physics_frame
+	check(level.visitor_puzzle.solved, "lobby: and that answers who signed in before the crew")
 	ui.close()
 	board_verdict("lobby")
 	level.queue_free()
@@ -866,7 +885,7 @@ func _has_word(text: String, word: String) -> bool:
 ## Columns the Tables page may find though they aren't tables (case id -> piece ids).
 ## The caller's: the work order says "ext.", and no other column could hold it
 ## (Teaching audit of PR #206).
-const TABLES_PAGE_COLUMNS := {"caller": ["column"]}
+const TABLES_PAGE_COLUMNS := {"caller": ["column"], "last_visitor": ["column"]}
 ## What the case board showed this floor that the world hadn't: judged once a floor.
 var _board_bad: Array[String] = []
 ## Steps at which some case had pieces: 0 on a floor with no board yet.

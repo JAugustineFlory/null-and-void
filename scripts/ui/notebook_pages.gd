@@ -579,10 +579,18 @@ func _floor_notes_items(game: Node, h: NotesHuddle, bare := false) -> Array[Cont
 	var other: Array = game.notebook_written.filter(func(w):
 		var on: String = str(w.get("case", ""))
 		return on == "" or not game.case_info(on).get("open", false))
+	# What's been read for a case that hasn't opened yet waits here, and moves to
+	# its page when it does.
+	var waiting: Array = []
+	for c in game.notebook_cases:
+		if not c.get("open", false):
+			waiting.append_array(c.get("clues", []))
 	if bare:
 		items.append(NotebookArt.hand("Other notes", 26))
-	if other.is_empty():
+	if other.is_empty() and waiting.is_empty():
 		items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 22, NotebookArt.PENCIL))
+	for k in waiting:
+		items.append(_clue_item(k.text, k.from))
 	for w in other:
 		items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
 	if game.current_case() == "":
@@ -957,7 +965,7 @@ func _blank_items(c: Dictionary) -> Array[Control]:
 	var line := HFlowContainer.new()  # the answer drops under the question if it won't fit beside it
 	line.name = "Blank"
 	line.add_theme_constant_override("h_separation", 10)
-	var question := NotebookArt.hand(b.prompt + ":", 26)
+	var question := NotebookArt.hand(b.prompt if str(b.prompt).ends_with(":") else b.prompt + ":", 26)
 	var answer := NotebookArt.hand(b.filled if b.filled != "" else BLANK, 26)
 	answer.name = "Answer"
 	for l in [question, answer]:

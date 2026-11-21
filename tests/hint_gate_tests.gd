@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hint_spots()
 	await test_commentary_hook()
 	await test_floor_g()
+	await test_floor_g_package()
 
 
 func _game() -> Node:
@@ -148,7 +149,8 @@ func test_floor_g() -> void:
 	if card:
 		card.report_open(level.player)
 	check(g.spot_found("scan_card") and term.next_hint() != k.SPOT_CARD, "once it's read, .hint goes on to the tiers")
-	check(level.caller_puzzle.spots[0].text == k.SPOT_SCHEMA and level.visitor_puzzle.spots[1].text == k.SPOT_NIGHT_DESK, "the caller and visitor cases start at .schema and the night desk's stickies (G29, G30)")
+	check(level.caller_puzzle.spots[0].text == k.SPOT_PHONE and level.phone_note.spot == "phone_note", "the caller's first spot is the note by the front desk phone (G28)")
+	check(level.caller_puzzle.spots[1].text == k.SPOT_SCHEMA and level.visitor_puzzle.spots[0].text == k.SPOT_SCHEMA and level.visitor_puzzle.spots[1].text == k.SPOT_NIGHT_DESK, "then .schema, and the night desk's stickies (G29, G30)")
 	var c: Commentary = level.commentary
 	check(c != null, "G's commentary is on")
 	g.open_case("memo", "What does the memo say?", ["memo_fragments"], "Read it")
@@ -156,6 +158,80 @@ func test_floor_g() -> void:
 	check(c.case_id == "peek", "the memo case is the commentary's peek (%s)" % c.case_id)
 	level.comment("memo_scraps")
 	check(c.played.has("l0_cc_memo_disc"), "the floor's own moments play their discovery lines")
+	level.queue_free()
+	await _tree.process_frame
+
+
+## Floor G's v0.10 package (plan/approvals/puzzle-flow-floor-g.md): the moves,
+## the desk phone, the visitor slot and the pencil notes under the slots.
+func test_floor_g_package() -> void:
+	print("Floor G: the v0.10 package")
+	var g := _game()
+	g.new_run(24)
+	var level = load("res://scenes/level_0.tscn").instantiate()
+	_tree.root.add_child(level)
+	await _frames(12)
+	var k: Dictionary = level.get_script().get_script_constant_map()
+	var term: Terminal = level.desk_terminal
+	# The monitor faces behind the desk until the first case opens, then Rourke turns it.
+	check(is_equal_approx(term.rotation_degrees.y, 180.0), "the front desk's monitor faces behind the desk to start with")
+	level._turn_monitor()
+	await _tree.create_timer(1.0).timeout
+	check(is_equal_approx(term.rotation_degrees.y, 0.0), "turned round to face the crew when the first case opens")
+	# Chapter 1 comes in when someone first sits at the terminal (M2).
+	check(not g.book_chapters.has("easy_sql_1"), "chapter 1 isn't in the book before anyone sits at the terminal")
+	level._on_desk_opened(level.player)
+	await _frames(4)
+	check(g.book_chapters.has("easy_sql_1"), "it comes in when someone first sits at the front desk terminal (M2)")
+	# The phone and its sticky (G1-G3).
+	var labels: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text)
+	check(labels.has(k.PHONE_LABEL % level.data.front_desk), "the desk phone shows the front desk's own extension (G1)")
+	level.phone_note.take_sticky(level.player)
+	check(g.spot_found("phone_note"), "reading the phone's sticky finds its spot")
+	level.peek_puzzle.solved = true
+	level.memo_puzzle.solved = true
+	level._ask_caller()
+	check(g.has_piece("caller", "table"), "read before Rourke asks, it still brings the caller's table")
+	for i in 120:
+		if g.notebook_written.any(func(w): return w.text == k.PHONE_NOTE and w.case == "caller"):
+			break
+		await _tree.physics_frame
+	check(g.notebook_written.any(func(w): return w.text == k.PHONE_NOTE and w.case == "caller"), "and its note, on the caller's page now it's open (G3)")
+	# Pencil notes under the caller's slot (G11).
+	g.add_cell("extension", str(level.data.extension), {"name": "Harold Mercer", "extension": str(level.data.extension)})
+	check(g.case_info("caller").blank.get("miss", "") == k.CALLER_NUMBER, "pointing at the right row's extension: the blank wants the name beside it (G11)")
+	g.add_cell("name", "Iris Vale", {"name": "Iris Vale", "extension": "2301"})
+	check(g.case_info("caller").blank.get("miss", "") == k.CALLER_OTHER % level.data.extension, "any other row: not that one")
+	# The visitor book read before the caller's solved waits in Floor notes (M3).
+	var book: Document = null
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "Visitor book":
+			book = d
+	book._note_clues(true)
+	book.report_open(level.player)
+	check(not g.case_info("last_visitor").get("open", false) and level.notebook.pages.section_text(NotebookPages.Page.TABLES).contains("every visitor is also logged"), "the visitor book read before the caller's solved: no case yet, its note in Floor notes (M3)")
+	level._on_caller_found()
+	await _frames(2)
+	check(g.case_info("last_visitor").get("open", false) and g.case_info("last_visitor").title == k.BOOK_CASE, "the caller solved, the visitor case opens (G13)")
+	check(not g.book_chapters.has("easy_sql_4"), "Newest first waits for Rourke's exchange at the desk (M4)")
+	level._exchange_done = true
+	level._book_check("easy_sql_4")
+	await _frames(4)
+	check(g.book_chapters.has("easy_sql_4"), "then it comes in")
+	# The visitor slot (G15-G17).
+	check(g.case_info("last_visitor").blank.prompt == k.VISITOR_SLOT, "the visitor case's slot (G15)")
+	g.add_cell("name", "Contract IT crew", {"name": "Contract IT crew", "signed_in": "1997-10-15 23:04"})
+	check(g.case_info("last_visitor").blank.get("miss", "") == k.VISITOR_OURS, "our own sign-in: the blank wants whoever came before us (G16)")
+	g.add_cell("name", "P. Okafor", {"name": "P. Okafor", "signed_in": "1997-10-15 16:40"})
+	check(g.case_info("last_visitor").blank.get("miss", "") == k.VISITOR_LEFT, "someone who signed out: the blank wants whoever never did (G17)")
+	check(g.add_cell("name", "VALE, I.", {"name": "VALE, I.", "signed_in": level.data.vale_in}), "Vale's name fills it")
+	await _frames(2)
+	check(level.visitor_puzzle.solved and g.case_info("last_visitor").solved, "and answers the visitor log")
+	# The memo sorted by the wrong column (G18, G19).
+	var db: FacilityDB = level.db
+	check(level.memo_sort_kind(db.execute("SELECT * FROM memo_fragments ORDER BY scanned_at")) == "scan", "sorted by scan time: the order they were scanned in (G18)")
+	check(level.memo_sort_kind(db.execute("SELECT text FROM memo_fragments ORDER BY text DESC")) == "other", "sorted by another column (G19)")
+	check(level.memo_sort_kind(db.execute("SELECT * FROM memo_fragments")) == "" and level.memo_sort_kind(db.execute("SELECT * FROM memo_fragments ORDER BY piece_no DESC")) == "", "not for the unsorted scraps, nor the memo backwards")
 	level.queue_free()
 	await _tree.process_frame
 

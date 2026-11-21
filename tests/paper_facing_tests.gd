@@ -102,6 +102,10 @@ func test_papers_face_their_readers() -> void:
 			_tree.root.add_child(level)
 			for f in 12:
 				await _tree.physics_frame
+			# The room as it is when its papers are read (floor G's monitor turned
+			# round to the crew).
+			if level.has_method("reading_layout"):
+				level.reading_layout()
 			for d in level.find_children("*", "Document", true, false):
 				if not d.is_visible_in_tree():
 					continue

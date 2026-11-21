@@ -53,7 +53,8 @@ const PUZZLES := {
 		"level": 0,
 		"pressure": false,
 		"teaches": ["DESC", "LIMIT", "visitors", "signed_in"],
-		"needs": ["SELECT", "FROM", "ORDER BY", "DESC", "LIMIT", "visitors"],
+		# After the caller: its query names its columns (G22).
+		"needs": ["SELECT", "FROM", "COLUMNS", "ORDER BY", "DESC", "LIMIT", "visitors"],
 	},
 	# Level 1: Server Room A.
 	# The controller chain's first step (Easy SQL ch 5): which zone the stuck doors share.

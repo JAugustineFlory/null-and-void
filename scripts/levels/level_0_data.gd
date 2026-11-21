@@ -6,8 +6,9 @@ extends RefCounted
 ##   - staff_directory: the work order's caller extension is Harold Mercer's line,
 ##     though he left in 1994. Another Building Services row means the department
 ##     alone doesn't give him away: the extension does.
-##   - visitors: stored oldest first; sorted newest first, the crew's own row comes
-##     top, then Vale's, never signed out.
+##   - visitors: about a month of sign-ins (visitor_rows), stored oldest first, so
+##     the newest are off the first screen. Sorted newest first, the crew's own row
+##     comes top, then Vale's, never signed out.
 ##   - lights: the ground floor's rooms (the east corridor's is dead).
 
 const SEED_PATH := "res://data/level_0.sql"
@@ -18,7 +19,7 @@ const CALLER_DEPT := "Building Services"
 static func build(run_seed: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
-	var used := {}
+	var used := {1000: true}  # the Director's fixed line
 	var ext := func(lo: int, hi: int) -> int:
 		var n := rng.randi_range(lo, hi)
 		while used.has(n):
@@ -67,12 +68,7 @@ CREATE TABLE visitors (
 	signed_out TEXT
 );
 INSERT INTO visitors VALUES
-	(306, 'M. Quill', 'Quill Pest Control', 'ROURKE, D.', '1997-10-10 07:30', '1997-10-10 08:05'),
-	(307, 'Board delegation', 'Halcyon Board', 'DIRECTOR', '1997-10-13 09:00', '1997-10-13 11:30'),
-	(308, 'T. Reyes', 'Coastline Elevator Co.', 'ROURKE, D.', '1997-10-14 10:15', '1997-10-14 13:40'),
-	(309, 'P. Okafor', 'Delmont Courier', 'NONE', '1997-10-15 16:40', '1997-10-15 16:52'),
-	(310, 'VALE, I.', 'Halcyon (staff)', 'NONE', '%s', NULL),
-	(311, 'Contract IT crew', 'Byte-Right IT Services', 'ROURKE, D.', '1997-10-15 23:04', NULL);
+	%s;
 
 -- lights is building-wide (FacilityDB.SHARED_SCHEMA): one row per room. A row
 -- whose id is a light group (LevelBase.add_light) switches that group's lights.
@@ -82,8 +78,69 @@ INSERT INTO lights VALUES
 	('cafeteria', 'Cafeteria', 0, 1, 'ok'),
 	('it_closet', 'IT closet', 0, 1, 'ok'),
 	('G-EAST', 'East corridor', 0, 0, 'dead');
-""" % [",\n\t".join(staff_rows), vale_in]
-	return {"sql": sql, "extension": caller_ext, "caller": CALLER, "vale_in": vale_in, "staff": staff}
+""" % [",\n\t".join(staff_rows), ",\n\t".join(visitor_rows(rng, vale_in))]
+	return {"sql": sql, "extension": caller_ext, "caller": CALLER, "vale_in": vale_in, "staff": staff,
+		"front_desk": staff.filter(func(r): return r[2] == "Front Desk")[0][3]}
+
+
+## Who came through the front desk: a month of weekday visits from the seed, the
+## same last few days every run, then Vale (never signed out) and the crew.
+static func visitor_rows(rng: RandomNumberGenerator, vale_in: String) -> Array:
+	var rows := []
+	# Weekdays from Monday 15 September to Thursday 9 October 1997.
+	var days := []
+	for d in range(15, 31):
+		days.append("1997-09-%02d" % d)
+	for d in range(1, 10):
+		days.append("1997-10-%02d" % d)
+	var weekdays := []
+	for i in days.size():
+		if i % 7 < 5:  # the 15th was a Monday
+			weekdays.append(days[i])
+	for day in weekdays:
+		var starts := []
+		for n in rng.randi_range(3, 4):
+			var at := rng.randi_range(15, 33) * 15  # 07:30 to 16:45
+			while starts.has(at):
+				at = rng.randi_range(15, 33) * 15
+			starts.append(at)
+		starts.sort()
+		for at in starts:
+			var who: Array = VISITORS[rng.randi_range(0, VISITORS.size() - 1)]
+			var left: int = at + rng.randi_range(2, 24) * 5
+			rows.append([who[0], who[1], ESCORTS[rng.randi_range(0, ESCORTS.size() - 1)], _clock(day, at), _clock(day, left)])
+	rows.append_array(LAST_DAYS)
+	var first_id := 306 - rows.size() + LAST_DAYS.size()
+	var out := []
+	for i in rows.size():
+		var r: Array = rows[i]
+		out.append("(%d, '%s', '%s', '%s', '%s', '%s')" % [first_id + i, r[0], r[1], r[2], r[3], r[4]])
+	out.append("(%d, 'VALE, I.', 'Halcyon (staff)', 'NONE', '%s', NULL)" % [first_id + rows.size(), vale_in])
+	out.append("(%d, 'Contract IT crew', 'Byte-Right IT Services', 'ROURKE, D.', '1997-10-15 23:04', NULL)" % [first_id + rows.size() + 1])
+	return out
+
+
+static func _clock(day: String, minutes: int) -> String:
+	return "%s %02d:%02d" % [day, floori(minutes / 60.0), minutes % 60]
+
+
+## The month's regular callers: name, company.
+const VISITORS := [
+	["M. Quill", "Quill Pest Control"], ["T. Reyes", "Coastline Elevator Co."], ["P. Okafor", "Delmont Courier"],
+	["R. Banerjee", "Delmont Courier"], ["L. Haas", "Tri-County Cable Co."], ["G. Whitlock", "Harbor Copier Service"],
+	["S. Lindqvist", "Lakeside Water Co."], ["D. Ortega", "Northgate Plumbing"], ["K. Mbeki", "Apex Fire Inspection"],
+	["J. Calloway", "Summit Office Supply"], ["A. Novak", "Ridgeline Alarm Systems"], ["F. Duarte", "Metro Records Storage"],
+	["E. Pruitt", "Halcyon Board"], ["B. Tanaka", "Keller Heating & Air"], ["C. Marsh", "Brightwater Coffee Service"],
+	["W. Achebe", "State Fire Marshal"], ["H. Ostrowski", "Pacific Rim Freight"], ["V. Castillo", "Temp agency (reception cover)"],
+]
+const ESCORTS := ["FERRIS, N.", "FERRIS, N.", "ROURKE, D.", "NONE", "BRANDT, P."]
+## The last week, the same every run: name, company, escort, in, out.
+const LAST_DAYS := [
+	["M. Quill", "Quill Pest Control", "ROURKE, D.", "1997-10-10 07:30", "1997-10-10 08:05"],
+	["Board delegation", "Halcyon Board", "DIRECTOR", "1997-10-13 09:00", "1997-10-13 11:30"],
+	["T. Reyes", "Coastline Elevator Co.", "ROURKE, D.", "1997-10-14 10:15", "1997-10-14 13:40"],
+	["P. Okafor", "Delmont Courier", "NONE", "1997-10-15 16:40", "1997-10-15 16:52"],
+]
 
 
 ## What the work order's "Caller:" line says for this run.

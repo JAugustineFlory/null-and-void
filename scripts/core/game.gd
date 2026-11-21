@@ -13,6 +13,9 @@ signal piece_found(case_id: String, piece_id: String)
 ## A crewmate's answer just went into this player's slot for case `case_id` too
 ## (LevelBase._crew_answered): `by` is their name. The HUD slides it up.
 signal answer_shared(case_id: String, by: String)
+## This player pointed at a result cell that answers no case's slot (add_cell):
+## a level can say why under the blank (blank_miss).
+signal cell_missed(column: String, value: String, row: Dictionary)
 
 const LEVELS := {
 	"world": "res://scenes/world.tscn",
@@ -140,6 +143,9 @@ var notebook_jotted: Array[String] = []
 ## query}. One that answers a case's slot before the case opens fills it when the
 ## slot is set (set_blank). A new floor starts it empty (mark_floor_start).
 var found_cells: Array = []
+## The case this player picked in the notebook ("" for the main one): see
+## case_selected. The query on screen and the typing line's example follow it.
+var selected_case := ""
 ## Hint spots someone in the crew has found this run (find_spot): a paper read, a
 ## .schema run. `.hint` sends the crew to the first spot not found yet before its
 ## own tiers (Puzzle.spots, Terminal.next_hint).
@@ -147,9 +153,6 @@ var spots_found: Array = []
 ## The floor (floor_start's key) where SYSOP last explained the security policy
 ## after a refusal (P9b): once a floor.
 var policy_explained := ""
-## The case this player picked in the notebook ("" for the main one): see
-## case_selected. The query on screen and the typing line's example follow it.
-var selected_case := ""
 ## The job the crew was hired for is over (end_job): the work order is void, and
 ## tasks from then on go on the case they're for.
 var job_over := false
@@ -500,8 +503,7 @@ func add_clue(id: String, text: String, from: String) -> bool:
 		if k.text == text:
 			return false
 	c.clues.append({"text": text, "from": from})
-	if c.open:
-		notebook_changed.emit()
+	notebook_changed.emit()  # an unopened case's clue waits in Floor notes
 	return c.open
 
 
@@ -593,6 +595,7 @@ func add_cell(column: String, value: String, row: Dictionary = {}, query: String
 		var b: Dictionary = c.get("blank", {})
 		if c.open and not c.solved and b.has("cell") and b.filled == "" and _fills_cell(b.cell, column, value, row):
 			return _fill_from_cell(c.id, f)
+	cell_missed.emit(column, value, row)
 	return false
 
 
@@ -646,10 +649,11 @@ func fill_blank(id: String, fresh := true) -> bool:
 
 
 ## Pencil `text` under case `id`'s empty blank: why the line just added didn't
-## fill it. Once per run; false if it was already said or the blank is filled.
+## fill it, in place of any earlier one. False if it's already what's written
+## there, or the blank is filled.
 func blank_miss(id: String, text: String) -> bool:
 	var b: Dictionary = case_info(id).get("blank", {})
-	if b.is_empty() or b.filled != "" or b.has("miss"):
+	if b.is_empty() or b.filled != "" or b.get("miss", "") == text:
 		return false
 	b["miss"] = text
 	notebook_changed.emit()
