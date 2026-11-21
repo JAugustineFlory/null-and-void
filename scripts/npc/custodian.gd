@@ -94,6 +94,7 @@ var _search: Node3D
 
 
 func _ready() -> void:
+	SfxMonster.attach(self)  # its voice and footfalls, heard on every machine
 	add_to_group("npc")
 	SfxCombat.watch(self)  # punches landing on it, heard on every machine
 	var shape := CollisionShape3D.new()

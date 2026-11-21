@@ -20,6 +20,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_terminal_sounds()
 	await test_door_sounds()
 	await test_elevator_sounds()
+	await test_monster_sounds()
 	test_touch_kinds()
 	check(Sfx.KINDS.has(Counterplay.BLAST_SOUND) and Sfx.stream(Counterplay.BLAST_SOUND) != null, "a fire extinguisher's blast has its burst and hiss")
 	await test_touch()
@@ -76,12 +77,20 @@ func test_made_sounds() -> void:
 	check(Sfx.stream("glass") == Sfx.stream("glass"), "each sound is made once and kept")
 	# Made at load, never shipped: still, keep them small in memory.
 	check(total < 1_000_000, "every made sound together is under 1 MB in memory (%d bytes)" % total)
+	var monsters := 0
+	for kind in SfxCreatures.KINDS:
+		var w := SfxCreatures.make(kind)
+		monsters += w.data.size()
+		var peak := _peak(w)
+		check(peak > 0.05 and _clipped(w) < 0.01 and Sfx.KINDS.has(kind) and (w.loop_mode == AudioStreamWAV.LOOP_FORWARD) == (kind in SfxCreatures.LOOPS),
+			"monster sound %s is made, audible, not clipped and in Sfx.KINDS (peak %.2f)" % [kind, peak])
+	check(monsters < 400_000, "the monsters' sounds stay under 400 KB (%d bytes)" % monsters)
 
 
 ## A loop's last sample runs on into its first: no click each time round.
 func test_loops_have_no_seam() -> void:
-	for kind in SfxSynth.LOOPS:
-		var w := SfxSynth.make(kind)
+	for kind in SfxSynth.LOOPS + SfxCreatures.LOOPS:
+		var w: AudioStreamWAV = SfxSynth.make(kind) if kind in SfxSynth.LOOPS else SfxCreatures.make(kind)
 		var n := w.loop_end
 		var first := w.data.decode_s16(0) / 26000.0
 		var last := w.data.decode_s16((n - 1) * 2) / 26000.0
@@ -274,6 +283,83 @@ func test_elevator_sounds() -> void:
 	check(other.get_meta("sounds_played", []).is_empty() and kinds.call().size() == n, "a car already open when a floor loads makes no sound")
 	room.queue_free()
 	await t.process_frame
+
+## The monsters, heard from what they do. Their brains are off here, as on a client's
+## machine: only their state and where they are change, as the host sends them.
+func test_monster_sounds() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	Greybox.box(a, Vector3(0, -0.1, 0), Vector3(60, 0.2, 60), Color.GRAY, "Floor")
+	var heard := func(): return a.get_meta("sounds_played", []).map(func(x): return x.kind)
+	var walk := func(n: Node3D, metres: float):
+		for i in int(metres / 0.05):
+			n.global_position.x += 0.05
+			await t.process_frame
+	var sh := Shredder.new()
+	sh.position = Vector3(-20, 0, -20)
+	a.add_child(sh)
+	sh.set_physics_process(false)
+	await t.process_frame
+	sh.state = "listening"
+	await t.process_frame
+	check(heard.call().has("shredder_roar"), "the Shredder roars as it wakes")
+	await walk.call(sh, 4.5)
+	check(heard.call().count("heavy_step") >= 2, "its feet come down heavy as it walks (%d)" % heard.call().count("heavy_step"))
+	sh.state = "turning"
+	await t.process_frame
+	check(heard.call().back() == "shredder_snarl", "it snarls as it turns to a sound")
+	sh.state = "stunned"
+	await t.process_frame
+	check(heard.call().back() == "shredder_roar", "a blast in the face makes it roar")
+	var cu := Custodian.new()
+	cu.position = Vector3(-10, 0, -10)
+	a.add_child(cu)
+	cu.set_physics_process(false)
+	await t.process_frame
+	cu.state = "hunting"
+	await t.process_frame
+	check(heard.call().back() == "robot_boot", "the Custodian boots up as it leaves its bay")
+	var cu_voice: SfxMonster = cu.get_node("Voice")
+	await walk.call(cu, 3.0)
+	check(heard.call().has("robot_step") and is_instance_valid(cu_voice.loop_player), "it clanks along, its servos whining")
+	await t.create_timer(1.0).timeout
+	check(cu_voice.loop_player == null, "standing still, the servos stop")
+	cu.state = "stunned"
+	await t.process_frame
+	await t.process_frame
+	check(heard.call().back() == "sparks", "stunned, it spits sparks")
+	var wa := Watcher.new()
+	wa.position = Vector3(0, 0, 10)
+	a.add_child(wa)
+	wa.set_physics_process(false)
+	await t.process_frame
+	await walk.call(wa, 2.5)
+	check(heard.call().has("watcher_step"), "the Watcher's feet drag as it comes, unseen")
+	await t.create_timer(1.0).timeout
+	check(heard.call().back() == "watcher_creak", "seen, it stops dead and its joints creak")
+	var mi := Mimic.new()
+	mi.position = Vector3(10, 0, 10)
+	a.add_child(mi)
+	mi.set_physics_process(false)
+	await t.process_frame
+	mi.state = "leaving"
+	await t.process_frame
+	check(heard.call().back() == "vault", "a Mimic's clothes rustle as it gets up to leave")
+	var n: int = heard.call().size()
+	mi.global_position += Vector3(10, 0, 0)  # turns up somewhere else
+	await t.process_frame
+	check(heard.call().size() == n, "and turning up somewhere else makes no footstep")
+	var ec := Echo.make(a, "TEST", "Test", Vector3(20, 0, 0), 0.0)
+	await t.process_frame
+	await t.process_frame
+	var ec_voice: SfxMonster = ec.get_node("Voice")
+	check(is_instance_valid(ec_voice.loop_player) and ec_voice.loop_player.playing, "an Echo hums, cold and thin, at its row")
+	ec.begin_release()
+	await t.process_frame
+	check(heard.call().back() == "echo_release" and ec_voice.loop_player == null, "punched out, it shimmers up and the hum is gone")
+	a.queue_free()
+	await t.process_frame
+
 
 ## What each thing you can use sounds like, from what it is and what its prompt says.
 func test_touch_kinds() -> void:

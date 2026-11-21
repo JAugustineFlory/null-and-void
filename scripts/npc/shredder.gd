@@ -89,6 +89,7 @@ var _heard_stunned := false
 
 
 func _ready() -> void:
+	SfxMonster.attach(self)  # its voice and footfalls, heard on every machine
 	add_to_group("npc")
 	_rng.seed = 18
 	var shape := CollisionShape3D.new()

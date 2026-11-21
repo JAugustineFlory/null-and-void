@@ -40,6 +40,7 @@ var _wait := 0.0
 
 
 func _ready() -> void:
+	SfxMonster.attach(self)  # its voice and footfalls, heard on every machine
 	add_to_group("npc")
 	add_to_group("interactable")  # so looking at it shows the lanyard
 	var shape := CollisionShape3D.new()
