@@ -1,0 +1,1 @@
+- **Added:** doors open like real doors. The handle goes down before a door swings, it eases to a stop and the closer pulls it shut onto the latch. Stair doors have push bars, kick plates and overhead closers, and security doors lurch as their bolts draw before they run.
