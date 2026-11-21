@@ -8,7 +8,8 @@ extends Node3D
 ##
 ## It follows the door's `moved` phases, so it plays on every machine: "unlatch"
 ## presses the levers (and the push bar) down, "swing" lets them go as the leaf
-## moves. A shove (no "unlatch") leaves the handles alone. Door._ready furnishes
+## moves. A shove (no "unlatch") leaves the handles alone; "rattle" (tried
+## locked) jiggles them against the lock. Door._ready furnishes
 ## every door; a stairwell's painted copies of its door get the same look, shut
 ## for good (furnish_copy).
 
@@ -271,6 +272,18 @@ func _on_moved(phase: StringName) -> void:
 			_press_to(1.0, Door.HOLD * 0.8)
 		&"swing":
 			_release(0.12, 0.28)  # (even unpressed: a long frame can bring both at once)
+		&"rattle":
+			_rattle()
+
+
+## The handle tried against the lock: it gives a little, twice, and stops.
+func _rattle() -> void:
+	if _tween:
+		_tween.kill()
+	_tween = create_tween()
+	for k in 2:
+		_tween.tween_property(self, "press", 0.3, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_tween.tween_property(self, "press", 0.0, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 func _press_to(to: float, time: float) -> void:

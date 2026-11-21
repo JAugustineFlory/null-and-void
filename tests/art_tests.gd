@@ -2513,6 +2513,10 @@ func test_door_motion() -> void:
 	hinged.set_open(false)
 	await t.create_timer(0.75).timeout
 	check(seen.h.slice(3) == [&"close", &"latch"] and hinged.swing == 0.0, "shut, the closer sweeps it home and the latch catches")
+	hinged.locked = true
+	hinged.interact(null)
+	check(seen.h.back() == &"rattle" and not hinged.is_open, "trying it locked: the handle rattles, it stays shut")
+	hinged.locked = false
 	seen.h.clear()
 	hinged.set_open(true, false, 0.0, true)
 	check(seen.h == [&"swing"], "a shove skips the handle and moves the leaf at once")

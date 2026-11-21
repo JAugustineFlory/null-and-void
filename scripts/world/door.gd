@@ -33,6 +33,7 @@ var is_open := false
 ## on every machine, since set_open does):
 ##   hinged: "unlatch" (the handle goes down: HOLD before the leaf moves), "swing",
 ##           "stop" (at the stop, a small rebound), then "close" and "latch";
+##           and "rattle" when someone tries it locked;
 ##   sliding: "unlock" (the bolts draw, the motor lurches it), "run", "stop", then
 ##           "close" and "thud" (it bumps the floor or the jamb, a little rebound).
 ## Set at once (`instant`), a door moves without a sound or a phase.
@@ -121,15 +122,30 @@ func get_prompt(_player: Node) -> String:
 ## by its leaf; shut again, it keeps that side (what it offers to anything that can
 ## only push, like the Shredder). A `one_way` door keeps its own side.
 func interact(player: Node) -> void:
-	if is_hinged() and locked and get_parent() is Node3D:
-		Sfx.play(get_parent(), "lock", position)  # the handle won't turn
-	if not is_hinged() or locked:
+	if not is_hinged():
 		return
 	var sync := LevelSync.of(self)
+	if sync != null and sync.forward(self, "interact"):
+		return  # the host decides, and every machine plays it out
+	if locked:
+		if sync:
+			sync.run_on(self, "rattle")
+		else:
+			rattle()
+		return
 	if sync == null:
 		set_open(not is_open, false, away_from(player))
-	elif not sync.forward(self, "interact"):
+	else:
 		sync.run_on(self, "set_open", [not is_open, false, away_from(player)])
+
+
+## Someone tried a locked door: the handle won't turn. Plays on every machine.
+func rattle() -> void:
+	if is_open:
+		return
+	_phase(&"rattle")
+	if get_parent() is Node3D:
+		Sfx.play(get_parent(), "lock", position)
 
 
 ## The swing sign (+1 or -1) that opens this shut door away from `body`; 0 to keep
