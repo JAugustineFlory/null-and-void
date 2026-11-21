@@ -87,6 +87,7 @@ func _ready() -> void:
 	add_child(player)
 	players = NetPlayers.create(self, player)
 	crew = CrewVitals.create(self, players)
+	Counterplay.create(self, players)  # stun, trap, hide from enemies
 	player.combat.crew = crew
 	player.died.connect(_on_player_died)
 	FallNet.create(self, player)  # a fall out of the world puts you back on solid ground

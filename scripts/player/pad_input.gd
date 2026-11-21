@@ -24,6 +24,7 @@ const BUTTONS := {
 	"look_up": [[JOY_AXIS_RIGHT_Y, -1]],
 	"look_down": [[JOY_AXIS_RIGHT_Y, 1]],
 	"sprint": [JOY_BUTTON_LEFT_STICK],
+	"throw": [JOY_BUTTON_RIGHT_STICK],
 	"jump": [JOY_BUTTON_A],
 	"crouch": [JOY_BUTTON_B],
 	"interact": [JOY_BUTTON_X],
