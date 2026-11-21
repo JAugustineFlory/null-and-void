@@ -484,7 +484,7 @@ func _host_query(path: NodePath, sql: String, from_peer: int) -> void:
 	var result: Dictionary = terminal.query(sql) if terminal.has_method("query") else terminal.db.execute(sql)
 	_show_query.rpc(path, sql, result, from_peer)
 	if result.ok:
-		terminal.on_query(sql, result, level.terminal_ui)
+		terminal.on_query(sql, result, level.terminal_ui, from_peer)
 
 
 @rpc("authority", "reliable")

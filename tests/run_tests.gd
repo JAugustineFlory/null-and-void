@@ -3802,8 +3802,9 @@ func test_coop_achievements() -> void:
 	var real_profile = net.profile
 	Cosmetics.reset()
 	var ids := Achievements.LIST.map(func(a): return a.id)
-	check(ids.all(func(id): return ids.count(id) == 1 and (not Cosmetics.unlocked_by(id).is_empty() or Achievements.hint(id) != "")),
-		"every achievement is one of the unlock ids (or says how to earn it itself), each listed once")
+	# A secret is hidden until it's found, so it needs no hint (floor 10's unlocks nothing).
+	check(ids.all(func(id): return ids.count(id) == 1 and (not Cosmetics.unlocked_by(id).is_empty() or Achievements.hint(id) != "" or Achievements.is_secret(id))),
+		"every achievement is one of the unlock ids (or says how to earn it itself, or is a secret), each listed once")
 	check(Achievements.name_of("achievement:floor_18") == "Filed under F", "floor 18's is called what Augustine approved")
 	check(ids.all(func(id): return Achievements.is_secret(id) == (Achievements.hint(id) == "")), "every achievement but a secret says how to earn it")
 	net.profile = Profile.new()

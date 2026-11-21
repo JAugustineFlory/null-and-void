@@ -26,7 +26,7 @@ extends LevelBase
 ##               teammate's shoulders from its platform (fast), or raise it and climb
 ##               its mast (solo), or move and raise in one row change (advanced).
 ##   4. lockout  optional, under pressure: lock out the charging bay's breaker
-##               (INSERT) and read it back at the bay's own panel within 30 seconds
+##               (INSERT) and read it back at the bay's own panel within 45 seconds
 ##               (the two-terminal teaser). The Custodian goes dark for good.
 ##   5. entrance  the ground floor, down STAIR 1: the front desk's terminal, and the
 ##               main entrance's row in `gates`. The UPDATE says 1 row changed and the
@@ -37,7 +37,10 @@ extends LevelBase
 ## (script/drafts/level-4-warden-and-accident.md), the architect's working default
 ## while Augustine chooses between A, B and C.
 ## Write stations are StatePuzzles: checked by the table's state after the write,
-## as a result set, never by the query's text.
+## as a result set, never by the query's text. Each read-back is answered by
+## pointing at its cell (v0.10: plan/approvals/puzzle-flow-floor-10.md).
+## All four terminals are under the security policy; each reads its own cap from
+## terminal_policy, which a crew that finds it can lift (a secret).
 ## Every line players read is a draft in plan/approvals/l4-text.md until Augustine
 ## approves it word for word.
 ##
@@ -123,14 +126,86 @@ const TEXT := {
 	"tip_first": "the breakers are rows. the work order names a circuit. find its row first, then change only that one.",
 	"tip_no_where": "that changed more than one row: with no WHERE, or a WHERE that matches several, UPDATE changes them all. put them back one WHERE at a time: breakers whose tags say to leave them off go back to 'off', the rest to 'on'.",
 	"tip_example": "that's CB-03, last month's job for the riser fans. it was already on, so nothing you'd see changed. tonight's breaker is the circuit the work order names.",
-	"tip_zero": "0 rows changed: your WHERE matched nothing. look at the row first: SELECT * FROM breakers;",
+	"tip_zero": "0 rows changed: your WHERE matched nothing. look at the ids first: SELECT id, circuit FROM breakers;",
 	"tip_verify": "the terminal said it changed. did it? read it back.",
 	"tip_order": "that row went in, but its values are in the wrong columns. they line up with the columns you named: company, job, time_in.",
 	"tip_count": "the log has four columns and log_no fills itself in. name the three you're filling: (company, job, time_in).",
 	"tip_quotes": "a word without 'quotes' reads as a column name. text goes in single quotes, like the clipboard says.",
 	"tip_example_log": "that's the clerk's example: another contractor's job, so it's in the log twice now. your row is Byte-Right's: your own work order's number, and the time on the clock over the door.",
-	"tip_dock": "that's not the front doors, and its note says why it can't let you out: SELECT * FROM gates; the front doors are the card's last line.",
+	"tip_dock": "that's not the front doors, and its note says why it can't let you out: SELECT name, note FROM gates; the front doors are on the card's last line.",
+	# v0.10 (plan/approvals/puzzle-flow-floor-10.md, U46, U47, U70, U71).
+	"tip_circuit": "that lockout went in under the circuit's name. lockouts go by the breaker's id: the CB- number on its box.",
+	"tip_lockout_count": "the lockout log has four columns, and read_back is filled in at the bay. name the three you're filling: (breaker, company, job).",
+	"tip_lifted": "that was security's setting, not a breaker. that terminal shows more than 20 rows now.",
+	"tip_lifted_all": "%d rows changed: every terminal on the list, not just one. that's what no WHERE does. they all show more than 20 rows now.",
 }
+
+## Each case's steps, the query for each step (its pieces in {braces}), and the
+## slot a read-back's cell is pointed into, with the pencil notes for a cell that
+## isn't it (Augustine, 2026-11-21: plan/approvals/puzzle-flow-floor-10.md, U1-U68).
+const NO_LINE := ["\u0001"]
+const POWER_STEPS := [
+	{"id": "reset", "text": "Reset the breaker the work order names"},
+	{"id": "check", "text": "Read it back for the sign-off"},
+]
+const RESET_QUERY := "UPDATE {table} SET state = '{state}' WHERE id = '{breaker}';"
+const CHECK_QUERY := "SELECT state FROM {table} WHERE id = '{breaker}';"
+const BREAKERS_PIECE := {"id": "table", "label": "The breaker panel's table", "value": "breakers", "task": "Find the table the breakers are kept in", "where": "The plant terminal's screen", "seen_in": "breakers", "blank": "enter_table_name"}
+const STATE_PIECE := {"id": "state", "label": "A reset breaker's state", "value": "on", "task": "Find the state a reset breaker should read", "where": "Facilities' work order", "blank": "enter_state"}
+const CHECK_SLOT := "Read back as:"
+const CHECK_OTHER := "That's another breaker. The sign-off wants tonight's: the one you reset."
+const CHECK_ROW := "That's the right row. The sign-off wants its state."
+const CHECK_WHOSE := "Whose state is that? Read back only tonight's breaker, or show its id beside it."
+const CHECK_MISS := "Not that one: the sign-off wants tonight's breaker's state, read back."
+const SPOT_WORK_ORDER := "facilities' work order is on this desk. it says which breaker to reset, and shows how."
+const LOGIN_STEPS := [
+	{"id": "login", "text": "Log the crew in on the controller"},
+	{"id": "login_read", "text": "Read our row back, or it doesn't count"},
+]
+const LOGIN_QUERY := "INSERT INTO {table} (company, job, time_in) VALUES ('{company}', '{job}', '{time}');"
+const LOGIN_READ_QUERY := "SELECT company, job, time_in FROM {table};"
+const LOG_PIECE := {"id": "table", "label": "The contractor log", "value": "contractor_log", "task": "Find the table contractors log in to", "where": "The clipboard by the controller", "seen_in": "contractor_log", "blank": "enter_table_name"}
+const LOGIN_SLOT := "Our log-in, read back:"
+const LOGIN_OTHER := "That's another contractor's row. Ours is Byte-Right's, with our own work order's number."
+const LOGIN_ROW := "That's our row. The blank wants its job number."
+const LOGIN_MISS := "Not that one: the blank wants our job number, from our own row in the log."
+const SPOT_CLIPBOARD := "the clipboard by the controller says how contractors log in."
+const SEAL_STEPS := [
+	{"id": "lockout", "text": "Lock out the charging bay's breaker"},
+	{"id": "readback", "text": "Read it back at the bay's panel in time"},
+]
+const LOCKOUT_QUERY := "INSERT INTO {table} (breaker, company, job) VALUES ('{breaker}', '{company}', '{job}');"
+const READBACK_QUERY := "SELECT * FROM {table} WHERE breaker = '{breaker}';"
+const LOCKOUTS_PIECE := {"id": "table", "label": "The lockout log", "value": "lockouts", "task": "Find the table lockouts are logged in", "where": "The lockout card by the breaker panel", "seen_in": "lockouts", "blank": "enter_table_name"}
+const READBACK_SLOT := "Our lockout, read back at the bay:"
+const READBACK_COASTLINE := "That's Coastline's lockout, on the lift motors. Ours is the charging bay's."
+const READBACK_ELSEWHERE := "Not at this terminal: the lockout card says to read it back at the panel it covers, the bay's."
+const READBACK_LATE := "Too late: the lockout lapsed. Log it again, then read it back at the bay in time."
+const READBACK_MISS := "Not that one: the blank wants the breaker on our lockout."
+const SPOT_LOCKOUT_CARD := "the lockout card by the breaker panel says how to lock a breaker out."
+const ENTRANCE_STEPS := [
+	{"id": "entrance", "text": "Unlock the front doors from the desk"},
+	{"id": "verify", "text": "Check it took"},
+]
+const ENTRANCE_QUERY := "UPDATE {table} SET unlocked = 1 WHERE name = '{gate}';"
+const VERIFY_QUERY := "SELECT unlocked FROM {table} WHERE name = '{gate}';"
+const GATES_PIECE := {"id": "table", "label": "The night lockup's table", "value": "gates", "task": "Find the table that holds the building's gates", "where": "The night lockup card on the front desk", "seen_in": "gates", "blank": "enter_table_name"}
+const GATE_PIECE := {"id": "gate", "label": "The front doors' gate", "value": "main_entrance", "task": "Find what the lockup calls the front doors", "where": "The night lockup card on the front desk", "blank": "enter_gate_name"}
+const VERIFY_SLOT := "The front doors, read back (1 = open):"
+const VERIFY_OTHER := "That's another gate. The blank wants the front doors'."
+const VERIFY_ROW := "That's the front doors' row. The blank wants the number under unlocked."
+const VERIFY_MISS := "Not that one: the blank wants the front doors' number under unlocked, read back."
+## The workers' notes on the plant terminal's and the front desk's monitors
+## (v0.10-policy.md, W4 and W5).
+const W4 := ["Policy card left these off. Still work:", "  .tables    what's on here", "  .schema    what's in it", "     - maint."]
+const W5 := ["42501?? That's the new policy.", "No more SELECT * on its own.", "Name the columns!   - N.F."]
+## The building engineer's sticky over the plant workshop's bench, off the route
+## (U69): the cap is a setting in a table. Nothing else points at it.
+const RO_STICKY := ["After hours, Security caps our", "terminals at 20 rows. Can't check", "the whole building's lights like that.", "It's just a setting, in a table", "they forgot to hide.", "Put it back before you leave!   - R.O."]
+## The plant workshop's bench, on the hall's east wall (level space).
+const WORKSHOP_AT := Vector3(9.55, 0, -6.5)
+## Lifting a terminal's cap past 20 (U72): a secret, for whoever typed it.
+const LIFT_SECRET := "secret:security_through_obscurity"
 
 ## Each task's title: how the crew feels and what's going on (Augustine, approved
 ## 2026-11-05: plan/approvals/task-titles.md). Its details are TEXT under the same key.
@@ -198,7 +273,7 @@ const LOCKOUT_LINES := [
 	"LOCKOUT / TAGOUT  -  PLANT 10",
 	"Working on anything a breaker feeds? Lock it out first.",
 	"1. Log it on the controller: lockouts (breaker, company, job).",
-	"2. A second person reads it back at the panel it covers within 30 seconds, or it lapses.",
+	"2. A second person reads it back at the panel it covers within 45 seconds, or it lapses.",
 	"A locked-out breaker stays off until Facilities clears it.",
 ]
 ## The gantry arm: its rail runs along the hall's north wall. Bay positions west to
@@ -223,7 +298,7 @@ const GANTRY_CARD := [
 	"Do not ride the platform while it travels.",
 ]
 ## How long a lockout waits to be read back at the bay's panel.
-const LOCKOUT_WINDOW := 30.0
+const LOCKOUT_WINDOW := 45.0
 ## How long the bay's breaker stays off before WARDEN puts it back (unless locked out).
 const POWER_CUT_TIME := 10.0
 const CASES := {"power": TEXT.case_power, "login": TEXT.case_login, "main_doors": TEXT.case_main_doors, "seal": TEXT.case_seal, "entrance": TEXT.case_entrance}
@@ -325,7 +400,7 @@ var front_desk: Terminal
 var refusals := 0
 var lie_time := LIE_TIME
 ## How long after the crew the Custodian comes down, if it isn't locked out.
-var follow_time := 20.0
+var follow_time := 30.0
 var entrance_puzzle: StatePuzzle
 var verify_puzzle: Puzzle
 ## The SYSOP tips that have fired this run (every machine).
@@ -334,6 +409,22 @@ var tips_sent := {}
 var adapted := false
 ## Seconds between Epsilon's PA reminders after the accident (tests shorten it).
 var reminder_every := 75.0
+## WARDEN's "I have adapted" is playing: the fridge tape waits for it (M1).
+var _adapting := false
+## The fridge tape has played (M1: once the first of the crew is on STAIR 1 below 10).
+var tape_played := false
+## The stair door has let go after the lockdown announcement, and someone has read
+## the lockout card: the seal case opens once both are so (M2).
+var stairs_released := false
+var lockout_card_read := false
+## The terminals whose cap the crew has lifted past 20 (terminal_policy), by name.
+var lifted := {}
+## A read-back's answer is on this machine's screen (tests and the teaching walk):
+## the breaker's, the log's, the lockout's at the bay, the front doors'.
+var check_listed := false
+var login_listed := false
+var readback_listed := false
+var verify_listed := false
 
 ## Puzzle stations. Built with the data (the breaker and the job vary per run).
 ## Ladder A for each: the shape with the value as ?, how to find it, the exact query.
@@ -406,6 +497,14 @@ func build() -> void:
 	# Read-only (from the lie on): the host's database refuses, and WARDEN answers on
 	# every machine.
 	db.write_refused.connect(func(_sql): if sync.is_host(): sync.event("_write_refused"))
+	# Each case's steps and pieces, and the read-backs answered by pointing at a cell.
+	_power_step("reset")
+	_login_step("login")
+	_seal_step("lockout")
+	_entrance_step("entrance")
+	Game.answer_found.connect(_on_answer_found)
+	Game.cell_missed.connect(_on_cell_missed)
+	Game.cell_rule = _cell_counts
 	DressLevel4.apply(self)  # furniture and materials (Graphics thread)
 
 
@@ -425,13 +524,14 @@ func _make_puzzles() -> void:
 		"  SET state = 'on'   what to change: the state column becomes 'on'\n" +
 		"  WHERE id = 'enter_breaker_id'   only that one row. replace enter_breaker_id with the id of the breaker the work order names. without WHERE, every row changes",
 		"type\n" +
-		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
+		"    [color=#ffffff]SELECT id, circuit FROM breakers;[/color]\n" +
 		"the work order names a circuit, not an id. find the PLANT CONTROL row: its id is in the first column.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]UPDATE breakers SET state = 'on' WHERE id = '%s';[/color]\n" % t +
 		"then check it took.",
 	])
 	reset_puzzle.case_id = "power"
+	reset_puzzle.spots = [{"id": "work_order", "text": SPOT_WORK_ORDER}]
 	# While the alarm sounds: put the others back. Listed first at the plant terminal,
 	# solved whenever no breaker but tonight's differs from the panel's (on or not on).
 	var lit_before := PackedStringArray()
@@ -455,7 +555,7 @@ func _make_puzzles() -> void:
 		"the work order's sign-off wants the state you read, not the one you typed. replace enter_breaker_id with the id from your UPDATE.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]SELECT state FROM breakers WHERE id = '%s';[/color]\n" % t +
-		"it should say on. that's the read-back the sign-off wants.",
+		"it should say on. point at it and add it to your notebook: that's the read-back the sign-off wants.",
 	])
 	check_puzzle.accept_also("SELECT id, state FROM breakers WHERE id = '%s'" % t, ["id", "state"], false)
 	check_puzzle.case_id = "power"
@@ -470,20 +570,22 @@ func _make_puzzles() -> void:
 		"  VALUES (...)   the new row's values, in the same order as those columns\n" +
 		"  '...'   each value here is text, so it goes in single quotes\n" +
 		"replace enter_job_number with your own work order's number (Byte-Right's, in your notebook), and enter_time with the time on the clock over this room's door.",
-		"open your notebook (Tab): the work order's number is printed at the top, WO- and five digits. the clock over the door reads hours:minutes.",
+		"open your notebook (Tab) to its Work order tab: the number is printed at the top, WO- and five digits. the clock over the door reads hours:minutes.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]INSERT INTO contractor_log (company, job, time_in) VALUES %s;[/color]\n" % who +
-		"then read the log back: SELECT * FROM contractor_log;",
+		"then read the log back: SELECT company, job, time_in FROM contractor_log;",
 	])
 	login_puzzle.case_id = "login"
+	login_puzzle.spots = [{"id": "contractor_clipboard", "text": SPOT_CLIPBOARD}]
 	# The log-in counts once it's read back (verify after write, practised safely on
 	# every route). Any read of the log that shows the crew's row answers it.
 	login_read_puzzle = Puzzle.new("login_read", "SELECT company, job, time_in FROM contractor_log", ["company", "job", "time_in"], false, [
 		"the shape: read the log back, with the table left blank:\n" +
-		"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
-		"replace enter_table_name with the table you just added your row to.",
+		"    [color=#ffffff]SELECT company, job, time_in FROM enter_table_name;[/color]\n" +
+		"the same three columns you filled. replace enter_table_name with the table you just added your row to.",
 		"type this, then Enter:\n" +
-		"    [color=#ffffff]SELECT * FROM contractor_log;[/color]",
+		"    [color=#ffffff]SELECT company, job, time_in FROM contractor_log;[/color]\n" +
+		"then point at your row's job and add it to your notebook.",
 	])
 	login_read_puzzle.case_id = "login"
 	main_doors_puzzle = StatePuzzle.new("main_doors", "UPDATE doors SET locked = 0 WHERE id = 'main_doors'",
@@ -493,7 +595,7 @@ func _make_puzzles() -> void:
 		"  UPDATE doors   change rows in the doors table\n" +
 		"  SET locked = 0   0 is open, 1 is locked\n" +
 		"  WHERE id = 'enter_door_id'   only that door. replace enter_door_id with the fire exit Facilities' notice names",
-		"Facilities' notice on the corkboard here names the east fire exit's door. read its row first: SELECT * FROM doors;",
+		"Facilities' notice on the corkboard here names the east fire exit's door. read its row first: SELECT * FROM doors WHERE id = 'enter_door_id';",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]UPDATE doors SET locked = 0 WHERE id = 'main_doors';[/color]\n",
 	])
@@ -509,21 +611,23 @@ func _make_puzzles() -> void:
 		"  VALUES (...)   the values, in the same order\n" +
 		"replace enter_breaker_id with the charging bay's breaker id, and enter_job_number with your own work order's number (Byte-Right's, in your notebook).",
 		"type\n" +
-		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
+		"    [color=#ffffff]SELECT id, circuit FROM breakers;[/color]\n" +
 		"the CHARGING BAY row's id goes in place of enter_breaker_id. then someone reads the lockout back at the bay's own panel, fast.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]INSERT INTO lockouts (breaker, company, job) VALUES %s;[/color]\n" % lock_row +
-		"then, at the panel in the bay, within 30 seconds: SELECT * FROM lockouts;",
+		"then, at the panel in the bay, within 45 seconds: SELECT * FROM lockouts WHERE breaker = '%s';" % data.bay_breaker,
 	])
 	lockout_puzzle.case_id = "seal"
+	lockout_puzzle.spots = [{"id": "lockout_card", "text": SPOT_LOCKOUT_CARD}]
 	# The read-back at the bay's panel: the lockouts table, or the bay's own row.
 	# SELECT * is long practised: the review ladder (the shape with a blank, then the query).
 	readback_puzzle = Puzzle.new("readback", "SELECT breaker, company, job FROM lockouts", ["breaker", "company", "job"], false, [
-		"the shape, with the table left blank:\n" +
-		"    [color=#ffffff]SELECT * FROM enter_table_name;[/color]\n" +
-		"replace enter_table_name with the lockout log's table: its name is on the lockout card by the breaker panel.",
-		"type this, then Enter, within 30 seconds of logging the lockout:\n" +
-		"    [color=#ffffff]SELECT * FROM lockouts;[/color]",
+		"the shape, with the table and the breaker left blank:\n" +
+		"    [color=#ffffff]SELECT * FROM enter_table_name WHERE breaker = 'enter_breaker_id';[/color]\n" +
+		"replace enter_table_name with the lockout log's table: its name is on the lockout card by the breaker panel. enter_breaker_id is the breaker you locked out.",
+		"type this, then Enter, within 45 seconds of logging the lockout:\n" +
+		"    [color=#ffffff]SELECT * FROM lockouts WHERE breaker = '%s';[/color]\n" % data.bay_breaker +
+		"then point at its breaker and add it to your notebook.",
 	])
 	readback_puzzle.accept_also("SELECT breaker, company, job FROM lockouts WHERE breaker = '%s'" % data.bay_breaker, ["breaker", "company", "job"], false)
 	readback_puzzle.case_id = "seal"
@@ -550,7 +654,8 @@ func _make_puzzles() -> void:
 		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = 'enter_gate_name';[/color]\n" +
 		"replace enter_gate_name with the gate you just changed.",
 		"type this, then Enter:\n" +
-		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = 'main_entrance';[/color]",
+		"    [color=#ffffff]SELECT unlocked FROM gates WHERE name = 'main_entrance';[/color]\n" +
+		"point at the number and add it to your notebook.",
 	])
 	verify_puzzle.accept_also("SELECT name, unlocked FROM gates WHERE name = 'main_entrance'", ["name", "unlocked"], false)
 	verify_puzzle.case_id = "entrance"
@@ -564,7 +669,7 @@ func _make_puzzles() -> void:
 		"  WHERE id = 'GA-1'   only the arm GA-1\n" +
 		"replace enter_bay_number with the bay under the access panel: the gantry card on the north wall says which.",
 		"read the gantry card by where the arm parks: it numbers the bays and names the one under the access panel. or type\n" +
-		"    [color=#ffffff]SELECT * FROM gantry;[/color]\n" +
+		"    [color=#ffffff]SELECT * FROM gantry WHERE id = 'GA-1';[/color]\n" +
 		"to see where the arm is now.",
 		"type this, then Enter:\n" +
 		"    [color=#ffffff]UPDATE gantry SET bay = %d WHERE id = 'GA-1';[/color]\n" % hb +
@@ -614,9 +719,19 @@ func _build_hall(colors: Dictionary) -> void:
 		lamp.name = "Lamp_" + r[0]
 		lamps[r[0]] = lamp
 		if str(r[4]) != "":
-			Document.place(geo, at + Vector3(0.14, -0.3, 0.2), -90.0, "Breaker tag", [r[0], {"text": r[4], "hand": true}], false, "note", Vector2(0.12, 0.09))
+			var tag := Document.place(geo, at + Vector3(0.14, -0.3, 0.2), -90.0, "Breaker tag", [r[0], {"text": r[4], "hand": true}], false, "note", Vector2(0.12, 0.09))
+			# Tonight's tag and the bay's: marking the id on it finds the breaker (U6, U42).
+			if r[0] == data.target:
+				tag.pieces = [{"case": "power", "piece": "breaker", "text": r[0], "kind": "value"}]
+			elif r[0] == data.bay_breaker:
+				tag.pieces = [{"case": "seal", "piece": "breaker", "text": r[0], "kind": "value"}]
+	# The lockout card: its line waits in Floor notes until the stair door lets go
+	# after the lockdown (M2), and then it opens the seal case.
 	var card := Document.place(geo, Vector3(-9.6, 1.6, -0.4), -90.0, "Lockout card", LOCKOUT_LINES, false, "laminated", Vector2(0.3, 0.3))
-	card.clues = [{"case": "seal", "opens": TEXT.case_seal, "tables": ["lockouts", "breakers"], "text": "The lockout card: a locked-out breaker stays off. Log it on the controller, then read it back at the panel it covers within 30 seconds."}]
+	card.clues = [{"case": "seal", "tables": ["lockouts", "breakers"], "text": "The lockout card: a locked-out breaker stays off. Log it on the controller, then read it back at the panel it covers within 45 seconds."}]
+	card.pieces = [{"case": "seal", "piece": "table", "text": "lockouts", "kind": "table"}]
+	card.spot = "lockout_card"
+	card.read_by.connect(func(_p): sync.event("_lockout_card_read"))
 	# The plant maintenance desk, facing the panel's end: its terminal and the work order.
 	Greybox.box(geo, Vector3(-6, 0.5, 1.6), Vector3(2.4, 1.0, 0.8), Color(0.4, 0.38, 0.34), "MaintDesk")
 	maint = Terminal.spawn(geo, Vector3(-6.5, 1.0, 1.6), 0, "PLANT MAINT", db, terminal_ui)
@@ -626,9 +741,15 @@ func _build_hall(colors: Dictionary) -> void:
 		"HALCYON FACILITIES  -  PLANT 10  -  MAINTENANCE",
 		"Breaker panel: breakers. One row per breaker box.",
 	]
-	maint.queried.connect(_on_query.bind("maint"))
+	_policy_terminal(maint, "maint")
+	# Floor 10's first policy terminal: the card beside it (P5), and an engineer's
+	# note on its monitor's bezel (W4).
+	TerminalPolicy.place_card(geo, Vector3(-7.0, 1.002, 1.75), 0, true).name = "PolicyCard"
+	Document.place(geo, Vector3(-6.78, 1.12, 1.62), 0, "Sticky note", W4.map(func(l): return {"text": l, "hand": true}), false, "sticky").name = "BezelNote"
 	var wo := Document.place(geo, Vector3(-5.3, 1.0, 1.6), 0, "Facilities work order", WORK_ORDER_LINES, true, "clipboard")
 	wo.clues = [{"case": "power", "opens": TEXT.case_power, "tables": ["breakers"], "text": "Facilities' work order: Tuesday's power event tripped the PLANT CONTROL breaker. Reset it, then check it took."}]
+	wo.pieces = [{"case": "power", "piece": "table", "text": "breakers", "kind": "table"}, {"case": "power", "piece": "state", "text": "on", "kind": "value"}]
+	wo.spot = "work_order"
 	wo.read_by.connect(func(_p):
 		sync.event("_ask_power")
 		sync.event("_book_huddle", ["easy_sql_update"]))
@@ -638,7 +759,17 @@ func _build_hall(colors: Dictionary) -> void:
 		Greybox.box(geo, Vector3(0, 4.6, z), Vector3(18, 0.15, 0.6), Color(0.45, 0.45, 0.42), "CableTray")
 	Greybox.box(geo, Vector3(7.5, 1.2, 1.5), Vector3(3.0, 2.4, 3.0), Color(0.3, 0.34, 0.32), "Transformer")
 	Greybox.label(geo, Vector3(7.5, 2.0, -0.02), "DANGER  480V", 36, Color(0.9, 0.75, 0.1), 180)
+	_build_workshop()
 
+
+## The plant workshop, on the hall's east wall away from the walk to the control
+## room (the WORKSHOP breaker feeds its sockets): a bench, a pegboard over it, and
+## on the pegboard the building engineer's sticky about the cap (U69).
+func _build_workshop() -> void:
+	var at := WORKSHOP_AT
+	Greybox.box(geo, at + Vector3(0, 0.45, 0), Vector3(0.7, 0.9, 1.8), Color(0.4, 0.38, 0.34), "WorkshopBench")
+	Greybox.box(geo, Vector3(9.87, 1.65, at.z), Vector3(0.03, 0.8, 1.4), Color(0.45, 0.34, 0.22), "WorkshopPegboard")
+	Document.place(geo, Vector3(9.84, 1.7, at.z + 0.3), -90, "Sticky note", RO_STICKY.map(func(l): return {"text": l, "hand": true}), false, "sticky").name = "EngineersSticky"
 
 func _build_control_room(colors: Dictionary) -> void:
 	Greybox.room(geo, Vector3(6, 0, -14), Vector3(8, 5.4, 8), {"floor": Color(0.25, 0.26, 0.28), "wall": colors.wall}, [
@@ -660,9 +791,9 @@ func _build_control_room(colors: Dictionary) -> void:
 	controller.puzzles = [login_puzzle, login_read_puzzle, main_doors_puzzle, lockout_puzzle]
 	controller.boot_lines = [
 		"HALCYON DOOR AND LIFT CONTROL  -  PLANT 10",
-		"Contractors: log in first. contractor_log. Doors: doors.",
+		"Contractors log in first: contractor_log. Doors: doors.",
 	]
-	controller.queried.connect(_on_query.bind("controller"))
+	_policy_terminal(controller, "controller")
 	# A value typed without its quotes reads as a column name: SYSOP says why, in
 	# place of the usual "that column isn't in the table".
 	# And the plain VALUES form, without the column list, is a value short.
@@ -670,12 +801,18 @@ func _build_control_room(colors: Dictionary) -> void:
 		"contractor_log": TEXT.tip_count}
 	var board := Document.place(geo, Vector3(6.6, 1.0, -16.6), 0, "Contractor log", _clipboard_lines(), true, "clipboard")
 	board.clues = [{"case": "login", "opens": TEXT.case_login, "tables": ["contractor_log"], "text": "The clipboard by the controller: all contractors log in on the controller before touching anything."}]
+	board.pieces = [{"case": "login", "piece": "table", "text": "contractor_log", "kind": "table"}]
+	board.spot = "contractor_clipboard"
 	board.read_by.connect(func(_p):
 		sync.event("_ask_login")
 		sync.event("_book_huddle", ["easy_sql_insert"]))
 	# The clock over the door, on the room's side and facing into it (a label reads
 	# from its +Z side): the time the crew logs in with, big enough to read from the desk.
 	Greybox.label(geo, Vector3(CTRL_DOOR_AT.x, 2.75, -10.12), data.time_in, 96, Color(1.0, 0.25, 0.15), 180).name = "Clock"
+	# Read up close (E), it's the time and nothing else: the log-in's time (U24).
+	var face := Document.place(geo, Vector3(CTRL_DOOR_AT.x, 2.75, -10.1), 0, "Clock", [data.time_in], false, "laminated", Vector2(0.62, 0.26))
+	face.name = "ClockFace"
+	face.pieces = [{"case": "login", "piece": "time", "text": data.time_in, "kind": "value"}]
 	# The shift's papers pinned on a corkboard by the desk: Facilities' notice, and
 	# beside it the earlier copy of the warning.
 	Greybox.box(geo, Vector3(7.9, 1.6, -17.92), Vector3(1.8, 1.0, 0.04), Color(0.55, 0.42, 0.28), "Corkboard")
@@ -716,7 +853,7 @@ func _build_deck_cart() -> void:
 		lamp.position = Vector3(x, -0.15, DECK_CART_SIZE.z / 2 - 0.02)
 		deck_cart.add_child(lamp)
 		_deck_lamps.append(lamp)
-	_deck_cart_power(power_back)
+	_deck_cart_power(logged_in)
 
 
 ## Every machine: the cart's locks follow PLANT CONTROL's power.
@@ -764,7 +901,7 @@ func _build_bay(colors: Dictionary) -> void:
 		"HALCYON FACILITIES  -  CHARGING BAY 10",
 		"Lockouts: lockouts. Read a new lockout back here to make it count.",
 	]
-	bay_terminal.queried.connect(_on_query.bind("bay"))
+	_policy_terminal(bay_terminal, "bay")
 	# The night guard it took on Tuesday, in the corner behind the cradle. His copy of
 	# the note is still in his hand.
 	Greybox.box(geo, Vector3(-8.6, 0.15, -16.6), Vector3(0.5, 0.3, 1.7), Color(0.12, 0.15, 0.25), "NightGuard")
@@ -838,22 +975,17 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	if which == "maint":
 		if not reset_puzzle.solved and reset_puzzle.matches(db, result):
 			sync.event("_on_solved", ["reset"])
-		# Read back after the reset: the sign-off.
-		elif reset_puzzle.solved and not check_puzzle.solved and changed == 0 and (check_puzzle.matches(db, result) or _reads_target_on(result)):
-			sync.event("_on_solved", ["check"])
 	elif which == "controller":
 		if not login_puzzle.solved and login_puzzle.matches(db, result):
 			sync.event("_on_solved", ["login"])
-		elif login_puzzle.solved and not login_read_puzzle.solved and changed == 0 and (login_read_puzzle.matches(db, result) or _reads_login(result)):
-			sync.event("_on_solved", ["login_read"])
-	elif which == "desk":
+	# The read-backs are answered by pointing at the cell (case_answered): a query
+	# that puts one on screen, at any terminal on the floor (the lockout's at the
+	# bay's panel), only says so here.
+	_note_listed(result, which, changed)
+	_find_pieces(result)
+	if which == "desk":
 		if not entrance_puzzle.solved and changed > 0 and entrance_puzzle.state_ok(db):
 			sync.event("_on_solved", ["entrance"])
-		elif entrance_puzzle.solved and db.read_only and not verify_puzzle.solved and changed == 0 and (verify_puzzle.matches(db, result) or _reads_entrance(result)):
-			sync.event("_on_solved", ["verify"])
-	elif which == "bay":
-		if lockout_until > 0 and not sealed and readback_puzzle.matches(db, result) and _has_lockout():
-			sync.event("_seal")
 	# Any terminal: a breaker write lights the lamps (and, loose, cuts the Custodian's
 	# power); a write that leaves main_doors open is the accident; one that logs the
 	# bay's lockout starts its read-back clock.
@@ -880,8 +1012,88 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 	_tip_if(which == "maint" and reset_puzzle.solved and not check_puzzle.solved and changed > 0, "verify", which)
 	_tip_if(is_insert and lower.contains("contractor_log") and changed > 0 and not login_puzzle.solved and _ticket_in_wrong_column(), "order", which)
 	_tip_if(is_insert and lower.contains("contractor_log") and changed > 0 and not login_puzzle.solved and _example_logged_twice(), "example_log", which)
+	# A lockout under the circuit's name in place of its box's id (U46).
+	_tip_if(is_insert and lower.contains("lockouts") and changed > 0 and not sealed and _lockout_by_circuit(), "circuit", which)
 	# The lockup card's own example copied at the desk: another gate changed, not the front.
 	_tip_if(which == "desk" and is_update and lower.contains("gates") and changed > 0 and not entrance_puzzle.state_ok(db), "dock", which)
+	if is_update and changed > 0 and lower.contains(TerminalPolicy.TABLE):
+		_policy_changed(changed, which)
+
+
+## Every policy terminal on 10 and G: queries reach the floor's handler, and a
+## failed one can earn a tip (U47). Each reads its own cap (terminal_policy).
+func _policy_terminal(term: Terminal, which: String) -> void:
+	term.policy = true
+	term.reads_cap = true
+	term.queried.connect(_on_query.bind(which))
+	term.query_failed.connect(_on_failed.bind(which))
+
+
+## A query failed at one of the floor's terminals (every machine that shows it).
+## A lockout's VALUES a column short: SYSOP says which three to name (U47).
+func _on_failed(sql: String, result: Dictionary, which: String) -> void:
+	if not sync.is_host():
+		return
+	var lower := sql.to_lower()
+	_tip_if(lower.strip_edges().begins_with("insert") and lower.contains("lockouts") and str(result.get("error", "")).contains("has 4 columns but 3 values"), "lockout_count", which)
+
+
+## A lockout row that names a circuit (CHARGING BAY, say) where its box's id goes.
+func _lockout_by_circuit() -> bool:
+	return not db.run_silent("SELECT 1 FROM lockouts WHERE upper(trim(breaker)) IN (SELECT upper(circuit) FROM breakers)").is_empty()
+
+
+## Host: an UPDATE changed terminal_policy. Each terminal raised past 20 for the
+## first time shows more rows from now on; SYSOP says so once (U70, or U71 when no
+## WHERE changed the lot), and whoever typed it has found the secret (U72).
+func _policy_changed(changed: int, which: String) -> void:
+	var over := {}
+	for r in db.run_silent("SELECT terminal FROM %s WHERE max_rows > %d" % [TerminalPolicy.TABLE, TerminalPolicy.CAP]):
+		over[str(r["terminal"])] = true
+	var fresh := over.keys().filter(func(k): return not lifted.has(k))
+	lifted = over
+	if fresh.is_empty():
+		return
+	var every := int(db.run_silent("SELECT COUNT(*) AS n FROM %s" % TerminalPolicy.TABLE)[0]["n"])
+	if changed > 1 and changed >= every:
+		if not tips_sent.has("lifted_all"):
+			sync.event("_tip", ["lifted_all", which, changed])
+	else:
+		_tip_if(true, "lifted", which)
+	sync.unlock_for([_terminal(which).last_peer], LIFT_SECRET)
+
+
+## This machine's screen now shows a read-back's answer (for the teaching walk:
+## a first-time player who sees it there points at it).
+func _note_listed(result: Dictionary, which: String, changed: int) -> void:
+	if not result.get("ok", false) or changed > 0:
+		return
+	if reset_puzzle.solved and (check_puzzle.matches(db, result) or _reads_target_on(result)):
+		check_listed = true
+	if login_puzzle.solved and (login_read_puzzle.matches(db, result) or _reads_login(result)):
+		login_listed = true
+	if which == "bay" and lockout_until > 0 and readback_puzzle.matches(db, result):
+		readback_listed = true
+	if db.read_only and (verify_puzzle.matches(db, result) or _reads_entrance(result)):
+		verify_listed = true
+
+
+## A result that shows tonight's breaker or the bay's by its id, beside its circuit
+## (or as the only row): the piece is found, as marking its tag finds it (U6, U42).
+func _find_pieces(result: Dictionary) -> void:
+	var rows: Array = result.get("rows", [])
+	for row in rows:
+		var id := str(row.get("id", ""))
+		var circuit := str(row.get("circuit", ""))
+		if id == data.target and (circuit == Level4Data.TARGET[0] or rows.size() == 1) and not Game.has_piece("power", "breaker"):
+			sync.event("_piece", ["power", "breaker", "The breaker panel"])
+		if id == data.bay_breaker and (circuit == Level4Data.DECOYS[0][0] or rows.size() == 1) and not Game.has_piece("seal", "breaker"):
+			sync.event("_piece", ["seal", "breaker", "The breaker panel"])
+
+
+## Every machine: a piece of case `id` is found, from `from`.
+func _piece(id: String, piece: String, from: String) -> void:
+	Game.collect_piece(id, piece, from)
 
 
 ## A read of the panel that shows tonight's breaker on (the whole panel, say): that's
@@ -945,12 +1157,14 @@ func _all_circuits() -> void:
 	_warden(["l4_all_circuits", "l4_all_circuits_tease"], 1.5)
 
 
-## Every machine: a line from SYSOP on the screen the query was typed at (once per tip).
-func _tip(id: String, which: String) -> void:
+## Every machine: a line from SYSOP on the screen the query was typed at (once per
+## tip); `n`, when it's 0 or more, fills in the line's number.
+func _tip(id: String, which: String, n := -1) -> void:
 	if tips_sent.has(id):
 		return
 	tips_sent[id] = true
-	_terminal(which).print_line(TerminalUI.sysop(TEXT["tip_" + id]))
+	var line: String = TEXT["tip_" + id]
+	_terminal(which).print_line(TerminalUI.sysop(line % n if n >= 0 else line))
 
 
 func _terminal(which: String) -> Terminal:
@@ -965,6 +1179,7 @@ func _on_solved(id: String) -> void:
 	match id:
 		"reset":
 			_restore_power()
+			_power_step("check")
 		"check":
 			Game.open_case("power", CASES.power, ["breakers"])
 			Game.solve_case("power", TEXT.power_done % data.target)
@@ -972,12 +1187,14 @@ func _on_solved(id: String) -> void:
 				_todo("todo_login_read" if login_puzzle.solved else "todo_login")
 		"login":
 			Game.open_case("login", CASES.login, ["contractor_log"])
+			_login_step("login_read")
 			_todo("todo_login_read")
 			_warden(["l4_signed_in"])
 		"login_read":
 			logged_in = true
 			Game.solve_case("login", TEXT.login_done % [data.company, data.ticket, data.time_in])
 			hud.todo("")
+			_deck_cart_power(true)  # the decks are for logged-in contractors (M3)
 		"main_doors":
 			_accident()
 		"entrance":
@@ -996,11 +1213,274 @@ func _ask_power() -> void:
 		_todo("todo_power")
 
 
-## Every machine: the contractor clipboard has been read.
+## Every machine: the contractor clipboard has been read. Our company and our job
+## number are on our own work order, in the notebook (U22, U23).
 func _ask_login() -> void:
 	Game.open_case("login", CASES.login, ["contractor_log"])
+	for case_id in ["login", "seal"]:
+		for piece in ["company", "job"]:
+			Game.collect_piece(case_id, piece, "Work order")
 	if not logged_in and not alarm:
 		_todo("todo_login_read" if login_puzzle.solved else "todo_login")
+
+
+# --- The cases' steps (v0.10-floor-10.md, U1-U68) ------------------------------------
+
+## The pieces this run's values make: tonight's breaker, the bay's, our company,
+## our job and the clock's time.
+func _breaker_piece() -> Dictionary:
+	return {"id": "breaker", "label": "Tonight's breaker", "value": data.target, "task": "Find the id of the breaker the work order names", "where": "The breaker panel", "blank": "enter_breaker_id"}
+
+
+func _bay_piece() -> Dictionary:
+	return {"id": "breaker", "label": "The charging bay's breaker", "value": data.bay_breaker, "task": "Find the id of the breaker that feeds the charging bay", "where": "The breaker panel", "blank": "enter_breaker_id"}
+
+
+func _company_piece() -> Dictionary:
+	return {"id": "company", "label": "Our company", "value": data.company, "task": "Find our company's name as our work order prints it", "where": "The Work order tab in your notebook", "blank": "enter_company"}
+
+
+func _job_piece() -> Dictionary:
+	return {"id": "job", "label": "Our job number", "value": data.ticket, "task": "Find our own work order's number", "where": "The Work order tab in your notebook", "blank": "enter_job_number"}
+
+
+func _time_piece() -> Dictionary:
+	return {"id": "time", "label": "The time now", "value": data.time_in, "task": "Find the time to log in with", "where": "The clock over the control room's door", "blank": "enter_time"}
+
+
+## Every machine: the power case's step. The reset is proved by the lamps; the
+## read-back by pointing at tonight's breaker's state.
+func _power_step(step: String) -> void:
+	match step:
+		"reset":
+			Game.set_pieces("power", [BREAKERS_PIECE, STATE_PIECE, _breaker_piece()], RESET_QUERY, POWER_STEPS)
+		"check":
+			# Reset without the work order read: the read-back is still its case's.
+			Game.open_case("power", TEXT.case_power, ["breakers"])
+			Game.tick_step("power", "reset")
+			Game.set_pieces("power", [BREAKERS_PIECE, _breaker_piece()], CHECK_QUERY, POWER_STEPS)
+			Game.set_blank("power", CHECK_SLOT, NO_LINE, "on", {"column": "state", "values": ["on"], "rows": [{"id": data.target, "circuit": Level4Data.TARGET[0]}]})
+
+
+## Every machine: the log-in case's step.
+func _login_step(step: String) -> void:
+	match step:
+		"login":
+			Game.set_pieces("login", [LOG_PIECE, _company_piece(), _job_piece(), _time_piece()], LOGIN_QUERY, LOGIN_STEPS)
+		"login_read":
+			Game.open_case("login", TEXT.case_login, ["contractor_log"])
+			Game.tick_step("login", "login")
+			Game.set_pieces("login", [LOG_PIECE], LOGIN_READ_QUERY, LOGIN_STEPS)
+			Game.set_blank("login", LOGIN_SLOT, NO_LINE, data.ticket, {"column": "job", "values": [data.ticket]})
+
+
+## Every machine: the seal case's step. Under pressure, the screen shows the bare
+## shape (the case page keeps the pieces).
+func _seal_step(step: String) -> void:
+	match step:
+		"lockout":
+			var c: Dictionary = Game.case_info("seal")
+			for st in c.get("steps", []):
+				if st.id == "lockout":
+					st.done = false  # it lapsed: log it again
+			Game.set_pieces("seal", [LOCKOUTS_PIECE, _bay_piece(), _company_piece(), _job_piece()], LOCKOUT_QUERY, SEAL_STEPS)
+			Game.set_assemble("seal", false)
+		"readback":
+			Game.tick_step("seal", "lockout")
+			Game.set_pieces("seal", [LOCKOUTS_PIECE, _bay_piece()], READBACK_QUERY, SEAL_STEPS)
+			Game.set_blank("seal", READBACK_SLOT, NO_LINE, data.bay_breaker, {"column": "breaker", "values": [data.bay_breaker]})
+
+
+## Every machine: the front doors' case's step, under the Custodian: bare shapes.
+func _entrance_step(step: String) -> void:
+	match step:
+		"entrance":
+			Game.set_pieces("entrance", [GATES_PIECE, GATE_PIECE], ENTRANCE_QUERY, ENTRANCE_STEPS)
+			Game.set_assemble("entrance", false)
+		"verify":
+			Game.tick_step("entrance", "entrance")
+			Game.set_pieces("entrance", [GATES_PIECE, GATE_PIECE], VERIFY_QUERY, ENTRANCE_STEPS)
+			Game.set_blank("entrance", VERIFY_SLOT, NO_LINE, "0", {"column": "unlocked", "values": ["0"], "rows": [{"name": "main_entrance"}]})
+
+
+## Every machine: someone read the lockout card. Once the stair door has let go
+## after the lockdown, it opens the seal case; until then its line waits (M2).
+func _lockout_card_read() -> void:
+	lockout_card_read = true
+	if stairs_released:
+		_open_seal()
+
+
+## Every machine: the stair door let go after the lockdown announcement (M2).
+func _stairs_released() -> void:
+	stairs_released = true
+	if lockout_card_read:
+		_open_seal()
+
+
+func _open_seal() -> void:
+	Game.open_case("seal", CASES.seal, ["lockouts", "breakers"])
+
+
+# --- Pointing at cells ------------------------------------------------------------
+
+## Game.cell_rule: a cell that matches a floor 10 slot still counts only if
+## it's this one's. A read-back that names no breaker (or gate) counts in a
+## result of one row; the lockout's, only at the bay's panel while it waits, in
+## our own row; the log-in's, in our own row.
+func _cell_counts(case_id: String, f: Dictionary) -> bool:
+	var shown := _shown(f.row)
+	match case_id:
+		"power":
+			return shown.has("id") or shown.has("circuit") or _one_row(str(f.query))
+		"login":
+			return not shown.has("company") or shown.company.begins_with(Level4Data.COMPANY_STARTS)
+		"seal":
+			return is_instance_valid(terminal_ui) and terminal_ui.terminal == bay_terminal and lockout_until > 0 and not sealed \
+				and (not shown.has("company") or shown.company.begins_with(Level4Data.COMPANY_STARTS)) and (not shown.has("job") or shown.job == data.ticket.to_lower())
+		"entrance":
+			return db.read_only and (shown.has("name") or _one_row(str(f.query)))
+	return true
+
+
+## A result row's cells, column -> value, both lower case (NULL as "null").
+static func _shown(row: Dictionary) -> Dictionary:
+	var out := {}
+	for k in row:
+		out[str(k).to_lower()] = ("NULL" if row[k] == null else str(row[k])).strip_edges().to_lower()
+	return out
+
+
+## Does `query` read back exactly one row?
+func _one_row(query: String) -> bool:
+	if query == "" or FacilityDB.is_write(query):
+		return false
+	var res := db.execute(query)
+	return res.get("ok", false) and res.rows.size() == 1
+
+
+## This player pointed at a cell that answers one of the floor's slots: tell the host.
+func _on_answer_found(id: String) -> void:
+	match id:
+		"power":
+			sync.report_answer("power@check")
+		"login":
+			sync.report_answer("login@login_read")
+		"seal":
+			sync.report_answer("seal@readback")
+		"entrance":
+			sync.report_answer("entrance@verify")
+
+
+## Every machine: a crewmate's answer goes in everyone's slot, if it's still the
+## step it answers.
+func _crew_answered(id: String, peer: int) -> void:
+	var case_id := id.get_slice("@", 0)
+	var step := id.get_slice("@", 1)
+	var now := {"power": "check" if reset_puzzle.solved and not check_puzzle.solved else "",
+		"login": "login_read" if login_puzzle.solved and not login_read_puzzle.solved else "",
+		"seal": "readback" if lockout_until > 0 and not sealed else "",
+		"entrance": "verify" if db.read_only and not verify_puzzle.solved else ""}
+	if id.contains("@") and now.get(case_id, "") != step:
+		return
+	super._crew_answered(case_id, peer)
+
+
+## Host: a player put a read-back's answer in its slot.
+func case_answered(answer: String, _peer: int) -> void:
+	match answer:
+		"power@check":
+			if reset_puzzle.solved and not check_puzzle.solved:
+				sync.event("_on_solved", ["check"])
+		"login@login_read":
+			if login_puzzle.solved and not login_read_puzzle.solved:
+				sync.event("_on_solved", ["login_read"])
+		"seal@readback":
+			if lockout_until > 0 and not sealed and _has_lockout():
+				sync.event("_seal")
+		"entrance@verify":
+			if entrance_puzzle.solved and db.read_only and not verify_puzzle.solved:
+				sync.event("_on_solved", ["verify"])
+
+
+## This player pointed at a cell that answers no slot: if it's in a row the slot is
+## about, a pencil line under the blank says why (this player's notebook only).
+func _on_cell_missed(column: String, value: String, row: Dictionary) -> void:
+	var shown := _shown(row)
+	var col := column.to_lower()
+	if not shown.has(col):
+		shown[col] = value.strip_edges().to_lower()
+	var target: String = str(data.target).to_lower()
+	if _open_unsolved("power") and reset_puzzle.solved and not rows_like("breakers", shown).is_empty():
+		var named := shown.has("id") or shown.has("circuit")
+		var ours: bool = shown.get("id", target) == target and shown.get("circuit", Level4Data.TARGET[0].to_lower()) == Level4Data.TARGET[0].to_lower()
+		var note := CHECK_MISS
+		if col == "state" and named and not ours:
+			note = CHECK_OTHER
+		elif col == "state" and not named:
+			note = CHECK_WHOSE
+		elif named and ours:
+			note = CHECK_ROW
+		Game.blank_miss("power", note)
+	if _open_unsolved("login") and login_puzzle.solved and not rows_like("contractor_log", shown).is_empty():
+		var note := LOGIN_MISS
+		if shown.has("company") and not shown.company.begins_with(Level4Data.COMPANY_STARTS):
+			note = LOGIN_OTHER
+		elif shown.has("company") and col != "job":
+			note = LOGIN_ROW
+		Game.blank_miss("login", note)
+	if _open_unsolved("seal") and not Game.case_info("seal").get("blank", {}).is_empty() and _is_lockout_row(shown):
+		var note := READBACK_MISS
+		var crews: bool = shown.get("breaker", "") == data.bay_breaker.to_lower() or shown.get("company", "").begins_with(Level4Data.COMPANY_STARTS)
+		if shown.get("company", "").begins_with("coastline"):
+			note = READBACK_COASTLINE
+		elif crews and col == "breaker" and lockout_until == 0:
+			note = READBACK_LATE
+		elif crews and col == "breaker" and not (is_instance_valid(terminal_ui) and terminal_ui.terminal == bay_terminal):
+			note = READBACK_ELSEWHERE
+		Game.blank_miss("seal", note)
+	if _open_unsolved("entrance") and db.read_only and not rows_like("gates", shown).is_empty():
+		var note := VERIFY_MISS
+		if shown.has("name") and shown.name != "main_entrance":
+			note = VERIFY_OTHER
+		elif shown.has("name") and col != "unlocked":
+			note = VERIFY_ROW
+		Game.blank_miss("entrance", note)
+
+
+## Is `shown` a row of the lockout log: its columns are the log's, with a breaker
+## or a company? (A lapsed lockout's row is out of the table, but still on screen.)
+func _is_lockout_row(shown: Dictionary) -> bool:
+	var cols := ["breaker", "company", "job", "read_back"]
+	return shown.keys().all(func(k): return cols.has(k)) and (shown.has("breaker") or shown.has("company"))
+
+
+func _open_unsolved(id: String) -> bool:
+	var c: Dictionary = Game.case_info(id)
+	return c.get("open", false) and not c.get("solved", false)
+
+
+## The rows of `table` that a result row showing `shown` (column -> value, lower
+## case) could be: every shown column is the table's and holds that value. [] if a
+## shown column isn't the table's.
+func rows_like(table: String, shown: Dictionary) -> Array:
+	if not db.table_names().has(table):
+		return []
+	var all := db.run_silent("SELECT * FROM %s" % table)
+	if all.is_empty():
+		return []
+	var cols := {}
+	for k in all[0]:
+		cols[str(k).to_lower()] = k
+	for k in shown:
+		if not cols.has(k):
+			return []
+	return all.filter(func(r):
+		for k in shown:
+			var v = r[cols[k]]
+			if ("NULL" if v == null else str(v)).strip_edges().to_lower() != str(shown[k]):
+				return false
+		return true)
 
 
 ## Every machine: a paper brings back its chapter of Easy SQL, into the crew's book
@@ -1046,9 +1526,14 @@ func _build_ground() -> void:
 		"HALCYON DATA SYSTEMS  -  FRONT DESK",
 		"Night lockup: gates.",
 	]
-	front_desk.queried.connect(_on_query.bind("desk"))
+	# On the way in Rourke was the crew's escort; on the way back it's under the policy.
+	_policy_terminal(front_desk, "desk")
 	var card := Document.place(g_geo, G_DESK_AT + Vector3(0.6, 1.102, 0.15), 0, "Night lockup card", GATES_CARD, true, "laminated", Vector2(0.24, 0.3))
 	card.clues = [{"case": "entrance", "opens": TEXT.case_entrance, "tables": ["gates"], "text": "The night lockup card: the front doors are main_entrance in gates. 1 = open."}]
+	card.pieces = [{"case": "entrance", "piece": "table", "text": "gates", "kind": "table"}, {"case": "entrance", "piece": "gate", "text": "main_entrance", "kind": "value"}]
+	# Beside the night lockup card, the policy card (P5); on the monitor's bezel, N.F.'s note (W5).
+	TerminalPolicy.place_card(g_geo, G_DESK_AT + Vector3(0.25, 1.102, 0.15), 0, true).name = "PolicyCard"
+	Document.place(g_geo, G_DESK_AT + Vector3(1.22, 1.22, 0.02), 0, "Sticky note", W5.map(func(l): return {"text": l, "hand": true}), false, "sticky").name = "BezelNote"
 	for id_pos in [["G-LOBBY", Vector3(-4, 4.0, 0)], ["G-LOBBY", Vector3(4, 4.0, 0)], ["G-HALL", Vector3(16, 3.0, 3)], ["G-LIFTS", Vector3(27, 3.2, 3)]]:
 		add_light(id_pos[0], g_geo.transform * id_pos[1], 9.0, 0.8)
 	# After hours, the rest of the floor is lit low.
@@ -1241,8 +1726,10 @@ func _epsilon() -> void:
 			await hud.line(id)
 	if is_inside_tree():
 		hud.notice(TEXT.stairs_release, 4.0)
+		_stairs_released()
 		if sync.is_host():
 			_adapt_when_out()
+			_tape_when_down()
 			_remind()
 
 
@@ -1270,13 +1757,41 @@ func _adapt_when_out() -> void:
 		sync.event("_adapted")
 
 
-## Every machine: "I HAVE ADAPTED." Then the fridge tape, and WARDEN over it.
+## Every machine: "I HAVE ADAPTED."
 func _adapted() -> void:
 	adapted = true
+	_adapting = true
 	await _warden(["l4_upgrade_1", "l4_upgrade_2"], 2.5)
-	if not is_inside_tree():
+	_adapting = false
+
+
+## Host: the fridge tape plays once the first of the crew is on STAIR 1 below 10,
+## on the walk down: the floor's longest quiet (M1).
+func _tape_when_down() -> void:
+	while is_inside_tree() and not on_ground and not players.all_players().any(_below_10):
+		await get_tree().create_timer(0.5, false).timeout
+	if is_inside_tree():
+		sync.event("_fridge_tape")
+
+
+## Is `p` on STAIR 1 below floor 10's landing (or on G's stairs)?
+func _below_10(p: Node3D) -> bool:
+	for door in [stair_out, g_stair]:
+		var holder := Stairwell.of(door)
+		var at := holder.global_transform.affine_inverse() * p.global_position
+		if Stairwell._in_shaft(at) and (door == g_stair or at.y < -1.0):
+			return true
+	return false
+
+
+## Every machine: the PA's fridge tape, with WARDEN over it. If "I have adapted"
+## is still playing, it waits for it.
+func _fridge_tape() -> void:
+	if tape_played:
 		return
-	await get_tree().create_timer(4.0, false).timeout
+	tape_played = true
+	while is_inside_tree() and (not adapted or _adapting):
+		await get_tree().create_timer(0.25, false).timeout
 	if not is_inside_tree():
 		return
 	if not VoiceLines.get_line("l4_pa_fridge").is_empty():
@@ -1293,6 +1808,7 @@ func _lockout_logged() -> void:
 	lockout_until = Time.get_ticks_msec() + int(lockout_window * 1000.0)
 	Game.open_case("seal", CASES.seal, ["lockouts", "breakers"])
 	lockout_puzzle.solved = true
+	_seal_step("readback")
 	hud.notice(TEXT.lockout_logged % int(lockout_window), 5.0)
 	if sync.is_host():
 		_lapse_after(lockout_until)
@@ -1308,7 +1824,9 @@ func _lapse_after(until: int) -> void:
 func _lockout_lapsed() -> void:
 	lockout_until = 0
 	lockout_puzzle.solved = false
+	readback_listed = false
 	db.run_silent("DELETE FROM lockouts WHERE upper(trim(breaker)) = '%s' AND read_back IS NULL" % data.bay_breaker)
+	_seal_step("lockout")
 	hud.notice(TEXT.lockout_lapsed, 4.0)
 
 
@@ -1445,6 +1963,7 @@ func _lie() -> void:
 	db.run_silent("UPDATE doors SET locked = 1 WHERE id = 'LOBBY-FRONT'")
 	db.sync_world()
 	db.read_only = true  # for the rest of the game: the building's flag, not the floor's
+	_entrance_step("verify")
 	prepare_next()  # floor 9 builds now, below the stairwell
 	hud.notice(TEXT.latch_again, 4.0)
 	_todo("todo_check_front")
@@ -1587,7 +2106,7 @@ func _put_back_hints() -> void:
 		"  WHERE id = 'enter_breaker_id'   only that one breaker\n" +
 		"replace enter_breaker_id with each breaker whose tag says to leave it off, one at a time.",
 		"type\n" +
-		"    [color=#ffffff]SELECT * FROM breakers;[/color]\n" +
+		"    [color=#ffffff]SELECT id, state, note FROM breakers;[/color]\n" +
 		"and read the note column: the tags say which ones stay off. tonight's breaker stays on.",
 		"type these, one at a time, then Enter after each:\n" + "\n".join(fixes),
 	]
@@ -1610,7 +2129,6 @@ func _restore_power() -> void:
 	db.run_silent("UPDATE lights SET is_on = 1, status = 'ok' WHERE id = 'L10-CTRL'")
 	db.run_silent("UPDATE doors SET actuator_fault = 0 WHERE id = 'PLANT-CTRL'")
 	db.sync_world()
-	_deck_cart_power(true)
 	hud.notice(TEXT.power_back, 5.0)
 	gantry_puzzle.solved = true  # the door's open: the second way in isn't needed
 	if not alarm and not check_puzzle.solved:

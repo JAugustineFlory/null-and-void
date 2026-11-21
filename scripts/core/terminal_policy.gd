@@ -16,11 +16,18 @@ extends RefCounted
 
 ## Most rows a query shows under the policy.
 const CAP := 20
+## Floor 10's secret (v0.10-floor-10.md, part 4): a terminal that reads its own
+## row of this table for its cap (Terminal.reads_cap). Nothing names it.
+const TABLE := "terminal_policy"
+## However high its row is set, a terminal shows no more than the screen's own
+## limit (TerminalUI.MAX_ROWS_SHOWN, the escorted floors').
+const MOST := 60
 ## P1: under the session line of a terminal's boot screen.
 const BOOT_LINE := "NO ESCORT ON FILE: TERMINAL SECURITY POLICY IN EFFECT."
 ## P2: the refusal. Nothing runs, and nothing shows under it.
 const REFUSAL := "ERROR 42501: insufficient privilege"
-## P4: under a result that had more than CAP rows.
+## P4: under a result that had more than CAP rows (capped_line, for a terminal
+## whose own cap is another).
 const CAPPED := "POLICY: OUTPUT CAPPED AT 20 ROWS (LIMIT 20)."
 ## P7: in `.help`, in place of its .tables and .schema lines.
 const HELP_LINE := "Unescorted session: security policy in effect. See posted policy. Output capped at 20 rows."
@@ -84,12 +91,12 @@ static func _outer(sql: String) -> String:
 
 
 ## Run `sql` on `db` under the policy: refused ({ok: false, error: REFUSAL,
-## policy: "refused"}, and nothing runs), or run, with at most CAP rows shown
+## policy: "refused"}, and nothing runs), or run, with at most `most` rows shown
 ## (`capped` when some were cut).
-static func run(db: FacilityDB, sql: String) -> Dictionary:
+static func run(db: FacilityDB, sql: String, most := CAP) -> Dictionary:
 	if refuses(sql):
 		return {"ok": false, "error": REFUSAL, "policy": "refused", "rows": [], "columns": [], "changes": 0}
-	return cap(db.execute(sql))
+	return cap(db.execute(sql), most)
 
 
 ## The card (P5), laminated, by a floor's first policy terminal. Reading any copy
@@ -100,13 +107,30 @@ static func place_card(parent: Node, pos: Vector3, facing_deg: float, flat := tr
 	return d
 
 
-## `result` with at most CAP rows.
-static func cap(result: Dictionary) -> Dictionary:
+## `result` with at most `most` rows (`cap` says how many, when some were cut).
+static func cap(result: Dictionary, most := CAP) -> Dictionary:
 	var rows: Array = result.get("rows", [])
-	if result.get("ok", false) and rows.size() > CAP:
-		result.rows = rows.slice(0, CAP)
+	if result.get("ok", false) and rows.size() > most:
+		result.rows = rows.slice(0, most)
 		result["capped"] = true
+		result["cap"] = most
 	return result
+
+
+## P4's footer for a cap of `most` rows: CAPPED at the policy's own 20.
+static func capped_line(most: int) -> String:
+	return CAPPED if most == CAP else "POLICY: OUTPUT CAPPED AT %d ROWS (LIMIT %d)." % [most, most]
+
+
+## The cap `terminal` (its title bar's name) has in `db`'s terminal_policy table:
+## its own row's max_rows, at most MOST; CAP when it has no row (or no table).
+static func cap_of(db: FacilityDB, terminal: String) -> int:
+	if db == null or not db.table_names().has(TABLE):
+		return CAP
+	var rows := db.run_silent("SELECT max_rows FROM %s WHERE terminal = '%s'" % [TABLE, terminal.replace("'", "''")])
+	if rows.size() != 1 or typeof(rows[0]["max_rows"]) != TYPE_INT or int(rows[0]["max_rows"]) < 1:
+		return CAP
+	return mini(int(rows[0]["max_rows"]), MOST)
 
 
 ## Boot text with BOOT_LINE under its session line (the one naming the session,

@@ -40,6 +40,8 @@ const LIST := [
 	{"id": "secret:mercer_floppy_1", "name": "Mercer's First Disk"},
 	{"id": "secret:roster_thu", "name": "Thursday, Apparently"},
 	{"id": "secret:ending_news", "name": "Breaking News"},
+	# Floor 10's limit lift (Augustine 2026-11-21: plan/approvals/puzzle-flow-floor-10.md, U72).
+	{"id": "secret:security_through_obscurity", "name": "Security Through Obscurity"},
 ]
 
 const NOTICE := "Achievement: %s"
