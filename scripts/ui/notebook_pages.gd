@@ -965,7 +965,7 @@ func _blank_items(c: Dictionary) -> Array[Control]:
 	var line := HFlowContainer.new()  # the answer drops under the question if it won't fit beside it
 	line.name = "Blank"
 	line.add_theme_constant_override("h_separation", 10)
-	var question := NotebookArt.hand(b.prompt + ":", 26)
+	var question := NotebookArt.hand(b.prompt if str(b.prompt).ends_with(":") else b.prompt + ":", 26)
 	var answer := NotebookArt.hand(b.filled if b.filled != "" else BLANK, 26)
 	answer.name = "Answer"
 	for l in [question, answer]:
