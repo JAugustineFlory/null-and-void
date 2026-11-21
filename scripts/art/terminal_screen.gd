@@ -93,8 +93,12 @@ func _sync_from_terminal() -> void:
 	var t := _followed
 	if t == null or not is_instance_valid(t):
 		return
-	var skin = t.get("skin_color")
-	set_skin(skin if skin is Color else PHOSPHOR)
+	var look = t.get("look")
+	if look is Dictionary and not look.is_empty():
+		set_look(look)
+	else:
+		var skin = t.get("skin_color")
+		set_skin(skin if skin is Color else PHOSPHOR)
 	var lines = t.get("transcript")
 	if lines is Array:
 		display.set_lines(lines)
@@ -135,8 +139,13 @@ static func reskin(c: Color, skin: Color) -> Color:
 
 ## Recolors the phosphor, text and tube glow alike, to a terminal skin.
 func set_skin(c: Color) -> void:
-	display.set_skin(c)
-	var g := reskin(GLOW, c)
+	set_look(TerminalLook.of({"item": "phosphor", "color": c}))
+
+
+## Draws the screen in `look` (TerminalLook.of): its text theme and the glass behind.
+func set_look(look: Dictionary) -> void:
+	display.set_look(look)
+	var g := reskin(GLOW, look.text)
 	(glass.material_override as ShaderMaterial).set_shader_parameter("glow", Vector3(g.r, g.g, g.b))
 
 
@@ -313,6 +322,8 @@ class TerminalDisplay extends Control:
 	var text: RichTextLabel
 	var prompt: RichTextLabel  # bbcode: each typer's line in their own color
 	var skin := TerminalScreen.PHOSPHOR
+	## How it's drawn (TerminalLook.of); {} is the standard look.
+	var look := {}
 	var _bg: ColorRect
 	var _lines: Array = []
 	var _typing := ""
@@ -386,21 +397,20 @@ class TerminalDisplay extends Control:
 
 	## Recolors the phosphor to a terminal skin (see TerminalScreen.reskin).
 	func set_skin(c: Color) -> void:
-		if c == skin:
+		set_look(TerminalLook.of({"item": "phosphor", "color": c}))
+
+	## Draws in `look` (TerminalLook.of): the glass, the plain text and every kind of word.
+	func set_look(l: Dictionary) -> void:
+		if l == look:
 			return
-		skin = c
-		_bg.color = TerminalScreen.reskin(BG, c)
-		title.add_theme_color_override("font_color", Color(TerminalScreen.reskin(TerminalScreen.PHOSPHOR, c), 0.55))
-		text.add_theme_color_override("default_color", TerminalScreen.reskin(TerminalScreen.PHOSPHOR, c))
-		prompt.add_theme_color_override("default_color", TerminalScreen.reskin(PROMPT, c))
+		look = l
+		skin = l.text
+		_bg.color = l.bg
+		title.add_theme_color_override("font_color", Color(l.text, 0.55))
+		text.add_theme_color_override("default_color", l.text)
+		prompt.add_theme_color_override("default_color", l.row)
 		_show_lines()
 
 	func _show_lines() -> void:
 		var out := "\n".join(_lines)
-		if skin != TerminalScreen.PHOSPHOR:
-			for m in _hex.search_all(out):
-				if not Color.html_is_valid(m.get_string(1)):
-					continue
-				var c := Color.html(m.get_string(1))
-				out = out.replace(m.get_string(), "[color=#%s]" % TerminalScreen.reskin(c, skin).to_html())
-		text.text = out
+		text.text = TerminalLook.recolor(out, look) if not look.is_empty() else out

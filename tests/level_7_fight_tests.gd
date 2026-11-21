@@ -234,7 +234,7 @@ func _check_rewards(achievement: String) -> void:
 	var prof: Profile = t.root.get_node("/root/Net").profile
 	var own := {"achievement:b2_ines_only": ["terminal/microfiche"], "achievement:b2_tomas_only": ["terminal/greenbar"],
 		"achievement:b2_both_lost": ["notebook/haunted_past"],
-		"achievement:b2_both_saved": ["terminal/night_shift", "flashlight/night_shift", "walkie/night_shift", "notebook/ledger", "sticker/records_tab", "clip/pay_stub"]}
+		"achievement:b2_both_saved": ["terminal/night_shift", "flashlight/night_shift", "walkie/night_shift", "notebook/ledger", "sticker/records_tab", "clip/pay_stub", "screen/night_shift"]}
 	var every: Array = []
 	for k in own:
 		every.append_array(own[k])

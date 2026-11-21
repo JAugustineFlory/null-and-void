@@ -37,7 +37,9 @@ signal got_up
 
 enum Move { WALK, SLIDE, ROLL, MANTLE, HANG, CLIMB, LEDGE, RIDE, TERMINAL, VAULT, SIT, DOWN }
 
-const WALK_SPEED := 3.8
+## Walking pace, m/s (v0.10: 25% slower than the 3.8 it was, Augustine 2026-11-17;
+## sprint is unchanged). Sprint, footstep and slide thresholds hang off it.
+const WALK_SPEED := 2.9
 const SPRINT_SPEED := 6.5
 const CROUCH_SPEED := 1.9
 const CRAWL_SPEED := 1.5
