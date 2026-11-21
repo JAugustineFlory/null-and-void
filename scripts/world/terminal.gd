@@ -63,6 +63,8 @@ var skin_color: Color = TerminalScreen.PHOSPHOR
 ## The whole look of its screen (TerminalLook.of: the text theme and the screen
 ## behind it) of whoever sat down first; {} until someone has, which draws standard.
 var look := {}
+## A TerminalRig standing in front of it (switched off, no keyboard...), or null.
+var rig: Node = null
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
@@ -149,6 +151,8 @@ func _on_walked_off() -> void:
 ## Looking at the terminal also shows what teammates sitting at it are typing,
 ## big enough to read when their body is between you and the glass.
 func get_prompt(player: Node) -> String:
+	if rig and rig.blocks():
+		return rig.terminal_prompt(player) if enabled else ""
 	var p := super(player)
 	var me := multiplayer.get_unique_id()
 	var net := get_node_or_null("/root/Net")
@@ -165,7 +169,9 @@ func get_prompt(player: Node) -> String:
 
 ## Opening a terminal is local to each player; the host only hears that it happened.
 func interact(player: Node) -> void:
-	if enabled:
+	if enabled and rig and rig.blocks():
+		rig.press_terminal(player)
+	elif enabled:
 		used.emit(player)
 		if not _forwarded("report_open"):
 			opened.emit(player)
