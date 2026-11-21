@@ -21,6 +21,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_door_sounds()
 	await test_elevator_sounds()
 	test_touch_kinds()
+	check(Sfx.KINDS.has(Counterplay.BLAST_SOUND) and Sfx.stream(Counterplay.BLAST_SOUND) != null, "a fire extinguisher's blast has its burst and hiss")
 	await test_touch()
 	await test_every_interactable_sounds()
 	test_surfaces()
