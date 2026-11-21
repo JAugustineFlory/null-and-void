@@ -1,0 +1,9 @@
+- **Changed:** on floor 14 the case takes you one step at a time: the query on screen follows the step you're on, and you answer each step by pointing at the answer in the result.
+- **Added:** on floor 14, a pencil note says why when you point at the wrong cell.
+- **Changed:** floor 14's book chapters arrive when their step needs them, and a side job found during a busy moment waits a minute before it opens.
+- **Changed:** the server room terminal's start-up screen is shorter, and the NOC shift log says how the doors table marks a stuck door.
+- **Changed:** `.hint` on floor 14 first says where to look in the building.
+- **Changed:** the monitoring and lighting cards are only in their own rooms now, not copied onto the terminal desk.
+- **Added:** an out-of-service sign on the lift, and a pencilled note on Server Room B's monitoring card.
+- **Added:** the crew thinks out loud on floor 14.
+- **Fixed:** the NOC's door sign now says NOC, as everyone calls it.

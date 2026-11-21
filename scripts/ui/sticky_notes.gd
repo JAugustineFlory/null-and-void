@@ -27,7 +27,7 @@ const NOTES := {
 		"label": "WHERE AND",
 		"what": "WHERE keeps only the rows where a condition is true. AND adds a second condition: a row must pass both.",
 		"syntax": "SELECT ... WHERE col = value;",
-		"example": "SELECT * FROM doors\n  WHERE zone = 'A'\n  AND locked = 1;",
+		"example": "SELECT holder FROM badges\n  WHERE clearance = 'ESCORT'\n  AND last_seen = 'Server Room A';",
 		"tip": "Text goes in 'single quotes'. Numbers don't.",
 	},
 	"like": {

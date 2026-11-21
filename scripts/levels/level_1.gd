@@ -64,18 +64,55 @@ var cable_holders := {}
 ## Host: Easy SQL chapters whose paper has been read: "found" waits until its
 ## puzzle is ready, "played" has been held (_book_found).
 var _books := {}
+## The controller case's slot the crew is on: "zone", "controller", "count", or ""
+## before Rourke asks and once the count is in (every machine).
+var slot := ""
+## The right result is on screen (the query matched); the slot waits for the click.
+var stuck_listed := false
+var controller_listed := false
+var counted := false
+var hot_listed := false
+## The sign-off's count from the stuck doors' zone only (S30), built in build().
+var count_zone: Puzzle
+## The hot rack's query the wrong way round: the cool ones.
+var hot_backwards := Puzzle.new("hot_backwards", "SELECT id FROM racks WHERE temp_c < %d" % Level1Data.INTERLOCK_C, ["id"], false)
+var hot_backwards_eq := Puzzle.new("hot_backwards_eq", "SELECT id FROM racks WHERE temp_c <= %d" % Level1Data.INTERLOCK_C, ["id"], false)
+## When the last main step or chapter landed (Time ticks, ms; -1 for none). A side
+## case's paper read within pace_s of it opens its case when that minute is up (M5).
+var _beat_ms := -1
+var pace_s := 60.0
+var _side_waiting := {}
+## Rourke's pivot lines have played (M6), on the walk out through the rear exit.
+var _pivot_done := false
+## Lift 1's out-of-service sign (S43), taken down once the lift's back in service.
+var lift_sign: Document
 
 ## What the floor's case is for, the same words on its page, the chip on screen and
 ## the to-do list once the stuck doors' zone is known.
 const OBJ_CONTROLLER := "Find the door controller that keeps faulting, and reset it"
+## The case's first step (S6), and the to-do while it's on.
+const STEP_ZONE := "Find which zone the stuck doors are in"
+const TODO_ZONE := "Find which zone the stuck doors are in, at the terminal"
 ## The to-do once the controller is found: the sign-off's count comes first.
 const COUNT_TODO := "Count the faulted controllers for the reset sign-off, at the terminal"
 ## The dark break room's case page (optional), opened by facilities' card.
 const DARK_CASE := "Why is the break room dark?"
+## The hot rack's case page (optional), opened by the fire interlock plate.
+const HOT_CASE := "Why won't the cable vault's back door open?"
 ## Each case's pieces (Game.set_pieces): what the crew finds on this floor to put
 ## its query together. Drafts for Augustine's word-for-word OK.
 const CONTROLLER_QUERY := "SELECT id FROM {table} WHERE zone = '{zone}' AND status = '{status}';"
+## The case's query follows its step (S7, S11): the doors first, then the
+## controller's, then the count. Pieces found carry over.
+const STUCK_QUERY := "SELECT name, zone FROM {doors} WHERE locked = {locked};"
+const COUNT_QUERY := "SELECT {count} FROM {table} WHERE status = '{status}';"
+const STUCK_PIECES := [
+	{"id": "doors", "label": "The table of doors", "value": "doors", "task": "Find the table that lists every door", "where": "The NOC shift log", "seen_in": "doors", "blank": "enter_table_name"},
+	{"id": "locked", "label": "What locked reads for a stuck door", "value": "1", "task": "Find the number a door that won't release shows", "where": "The NOC shift log", "blank": "enter_number"},
+]
+const COUNT_PIECE := {"id": "count", "label": "How to count rows", "value": "COUNT(*)", "task": "Find how to get one number instead of the rows", "where": "WARDEN's printout on the desk"}
 const CONTROLLER_STEPS := [
+	{"id": "zone", "text": STEP_ZONE},
 	{"id": "run", "text": "Run it to find the faulting controller"},
 	{"id": "count", "text": "Count the faulted units for the sign-off form"},
 	{"id": "reset", "text": "Reset the faulted controller at its rack"},
@@ -95,6 +132,34 @@ const DARK_STEPS := [
 	{"id": "run", "text": "Run it to list the lights that are out"},
 	{"id": "reset", "text": "Reset the circuit by the break room door"},
 ]
+## Answer slots and the pencil notes under them when another cell is pointed at
+## (approvals/puzzle-flow-floor-14.md, S13-S28).
+const SLOT_ZONE := "The stuck doors' zone:"
+const ZONE_ROW := "That's one of the stuck doors. The blank wants their zone."
+const ZONE_OTHER_FLOOR := "That's another floor's door. The blank wants the zone of the three on the shift log."
+const ZONE_OTHER := "Not that one: the blank wants the zone of the three doors on the shift log."
+const SLOT_CONTROLLER := "The controller that keeps faulting:"
+const CTRL_ROW := "That's the right row. The blank wants its id."
+const CTRL_OFFLINE := "That one's 'offline': switched off on purpose. The blank wants the one that's 'fault'."
+const CTRL_ELSEWHERE := "That one's faulted, but in another zone. The blank wants the stuck doors' zone."
+const CTRL_OTHER := "Not that one: the blank wants the controller in the stuck doors' zone with status 'fault'."
+const SLOT_COUNT := "Units faulted:"
+const COUNT_ONE := "That's one unit. The form wants how many there are."
+const COUNT_WRONG := "Not that number: the form wants every unit with status 'fault', whichever door it runs."
+const SLOT_HOT := "The rack over the limit:"
+const HOT_EDGE := "That one reads exactly 40: the limit, not over it."
+const HOT_TEMP := "That's its temperature. The blank wants its id."
+const HOT_OTHER := "Not that one: the blank wants the rack over the limit."
+## No line of a paper answers these slots: only a pointed-at cell does.
+const NO_LINE := ["\u0001"]
+## .hint's first tier: the spot for the first piece the crew still lacks (S38-S42).
+const SPOT_LOG := "Night shift logs every alarm. Their shift log is on a desk in the NOC."
+const SPOT_CARD := "There's a reference card on the door controllers beside this keyboard."
+const SPOT_REMINDERS := "Someone left handwritten reminders beside this keyboard about what the statuses mean."
+const SPOT_PRINTOUT := "WARDEN's diagnostics printout on this desk shows how to count rows."
+const SPOT_RACK_CARD := "Server Room B has a monitoring card just inside its door."
+## The crew's commentary: the case's first step has the zone's lines, the rest the controller's.
+const COMMENTARY_IDS := {"controller": "stuck_doors"}
 const ROURKE_IN_LIFT := Vector3(-0.75, 0, 1.6)  # across the car from the buttons
 const RESPAWN := Vector3(0, 0.1, 11.0)
 ## Seconds after Rourke's ask before he tells a slow crew to take their time.
@@ -111,8 +176,19 @@ func build() -> void:
 	load_level_seed(data.sql)
 	controller_puzzle = controller_puzzle_for(zone)
 	hot_rack_puzzle = hot_rack_puzzle_for()
-	get_node("/root/Game").set_pieces("hot_rack", hot_pieces(), HOT_QUERY, HOT_STEPS, true)
-	get_node("/root/Game").set_pieces("dark_room", DARK_PIECES, DARK_QUERY, DARK_STEPS, true)
+	count_zone = Puzzle.new("count_zone", "SELECT COUNT(*) FROM door_controllers WHERE zone = '%s' AND status = 'fault'" % zone, ["count(*)"], false)
+	stuck_doors_puzzle.spots = [{"id": "shift_log", "text": SPOT_LOG, "piece": "locked"}]
+	controller_puzzle.spots = [{"id": "controllers_card", "text": SPOT_CARD, "piece": "table"}, {"id": "reminders", "text": SPOT_REMINDERS, "piece": "status"}]
+	count_puzzle.spots = [{"id": "warden_printout", "text": SPOT_PRINTOUT, "piece": "count"}]
+	hot_rack_puzzle.case_id = "hot_rack"
+	hot_rack_puzzle.spots = [{"id": "rack_card", "text": SPOT_RACK_CARD, "piece": "table"}]
+	var game := get_node("/root/Game")
+	game.set_pieces("hot_rack", hot_pieces(), HOT_QUERY, HOT_STEPS, true)
+	game.set_pieces("dark_room", DARK_PIECES, DARK_QUERY, DARK_STEPS, true)
+	# The hot rack's slot is set before its case opens: the interlock plate opens it.
+	game.set_blank("hot_rack", SLOT_HOT, NO_LINE, hot_rack, {"column": "id", "values": [hot_rack], "rows": [{"id": hot_rack}]})
+	game.answer_found.connect(_on_answer_found)
+	game.cell_missed.connect(_on_cell_missed)
 
 	var floor_c := Color(0.32, 0.33, 0.35)
 	var wall_c := Color(0.5, 0.52, 0.55)
@@ -195,6 +271,12 @@ func build() -> void:
 	terminal.locked_message = "MAINTENANCE SESSION ROURKE_D: WAITING FOR ESCORT."
 	terminal.queried.connect(_on_query)
 	StickyNote.on_monitor(terminal, "where_and")
+	# Lift 1's doors, on the way the crew will need: the same fault as the self-test's (S43).
+	lift_sign = Document.place(geo, Vector3(0, 1.45, -13.06), 0.0, "OUT OF SERVICE", [
+		"OUT OF SERVICE",
+		"Controller fault.",
+		"- Facilities",
+	], false, "paper", Vector2(0.28, 0.2))
 	# The room's laminated reference card, and Mercer's note on what the statuses mean.
 	var card := Document.place(geo, Vector3(-5.25, 0.902, 8.35), 175.0, "SERVER ROOM A - DOOR CONTROLLERS", [
 		"Each rack drives one door lock. Rack ids DC-1 to DC-8 are on the aisle end.",
@@ -203,6 +285,7 @@ func build() -> void:
 		"Faulted lock? Reset it at its own rack. Never reset a healthy one.",
 	], true, "laminated", Vector2(0.21, 0.15))
 	card.pieces = [{"case": "controller", "piece": "table", "text": "door_controllers", "kind": "table"}]
+	card.spot = "controllers_card"
 	card.clues = [
 		{"case": "controller", "text": "Every controller is listed in the table door_controllers. Columns: id, zone, status, location, last_reset, note."},
 		{"case": "controller", "text": "Reset a faulted lock at its own rack. Never reset a healthy one."},
@@ -214,6 +297,7 @@ func build() -> void:
 		{"text": "- H.M.", "hand": true, "author": "mercer"},
 	], true, "note", Vector2(0.1, 0.14))
 	reminders.pieces = [{"case": "controller", "piece": "status", "text": "fault", "kind": "value"}]
+	reminders.spot = "reminders"
 	reminders.clues = [
 		{"case": "controller", "text": "status 'fault' means the lock relay is stuck. 'offline' means switched off on purpose: leave it alone."},
 		{"case": "controller", "text": "Zone first, then status. Plenty of faults in this building aren't yours. - H.M."},
@@ -222,16 +306,21 @@ func build() -> void:
 	# numbers come from the racks table, so the paper never goes out of date.
 	var racks_all: int = db.run_silent("SELECT COUNT(*) AS n FROM racks")[0]["n"]
 	var racks_c: int = db.run_silent("SELECT COUNT(*) AS n FROM racks WHERE room = 'Server Room C'")[0]["n"]
-	Document.place(geo, Vector3(-3.55, 0.902, 8.62), 174.0, "WARDEN DIAGNOSTICS", [
+	var printout := Document.place(geo, Vector3(-3.55, 0.902, 8.62), 174.0, "WARDEN DIAGNOSTICS", [
 		"WARDEN DIAGNOSTICS - FLOOR 14 - 23:40",
 		"> SELECT COUNT(*) FROM racks;",
 		"  COUNT(*): %d" % racks_all,
 		"> SELECT COUNT(*) FROM racks WHERE room = 'Server Room C';",
 		"  COUNT(*): %d" % racks_c,
 		{"text": "How many? COUNT(*). Don't count rows by hand.", "hand": true},
-	], true, "paper", Vector2(0.12, 0.16)).clues = [
+	], true, "paper", Vector2(0.12, 0.16))
+	printout.clues = [
 		{"case": "controller", "text": "COUNT(*) counts the rows instead of listing them: SELECT COUNT(*) FROM racks WHERE room = 'Server Room C'; gives %d." % racks_c},
 	]
+	printout.pieces = [{"case": "controller", "piece": "count", "text": "COUNT(*)", "kind": "keyword"}]
+	printout.spot = "warden_printout"
+	# The "How many?" chapter waits for the counting step (M3).
+	printout.read_by.connect(func(_p): _book_found("easy_sql_count"))
 	# The reset's paperwork: the count it wants comes from the terminal.
 	var signoff := Document.place(geo, Vector3(-3.9, 0.902, 8.6), -176.0, "CONTROLLER RESET - SIGN-OFF", [
 		"CONTROLLER RESET - SIGN-OFF",
@@ -245,8 +334,8 @@ func build() -> void:
 		{"case": "controller", "text": "The reset sign-off wants the number of controllers with status 'fault', whichever door they run. 'offline' units don't count."},
 		{"case": "controller", "text": "The rack reset circuits stay unpowered until the count is logged at the terminal."},
 	]
-	# Reading it brings back the book's COUNT chapter, round the garage bench.
-	signoff.read_by.connect(func(_p): sync.event("_book_huddle", ["easy_sql_count"]))
+	# Reading it brings back the book's COUNT chapter once the controller's found (M3).
+	signoff.read_by.connect(func(_p): _book_found("easy_sql_count"))
 
 	for p in [Vector3(0, 3.6, -7), Vector3(0, 3.6, -1.5), Vector3(0, 3.6, 4.5), Vector3(-6, 3.6, 8), Vector3(6, 3.6, -8)]:
 		add_light("room", p, 9.0, 1.2)
@@ -260,6 +349,9 @@ func build() -> void:
 	add_child(rourke)
 	spawn = Transform3D(Basis(), RESPAWN)
 	DressLevel1.apply(self)  # furniture and materials (Graphics thread)
+	# The crew thinking out loud: floor 14's 13 approved lines (approvals/puzzle-flow-floor-14.md, part 3).
+	commentary_ids = COMMENTARY_IDS.duplicate()
+	start_commentary()
 
 
 ## A plate beside each of the floor's doors with its zone, and a light that's red
@@ -306,7 +398,9 @@ func _rack_card(pos: Vector3, facing: float, flat: bool) -> void:
 		"Columns: id, room, temp_c, load_pct, note",
 		"ALERT if temp_c > %d" % Level1Data.INTERLOCK_C,
 		"Running hot? Reseat that rack's fan tray.",
+		{"text": "40 on the dot is fine. It's OVER 40 that trips it.", "hand": true},
 	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15))
+	card.spot = "rack_card"
 	card.clues = [
 		{"case": "hot_rack", "text": "Rack temperatures are in the table racks. Columns: id, room, temp_c, load_pct, note."},
 		{"case": "hot_rack", "text": "ALERT if temp_c > %d. Running hot? Reseat that rack's fan tray." % Level1Data.INTERLOCK_C},
@@ -325,9 +419,11 @@ func _facilities_card(pos: Vector3, facing: float, flat: bool) -> void:
 	], flat, "laminated", Vector2(0.3, 0.21) if not flat else Vector2(0.21, 0.15))
 	card.pieces = [{"case": "dark_room", "piece": "table", "text": "lights", "kind": "table"}, {"case": "dark_room", "piece": "dead", "text": "dead", "kind": "value"},
 		{"case": "dark_room", "piece": "flickering", "text": "flickering", "kind": "value"}]
-	card.read_by.connect(func(_p): _book_found("easy_sql_8"))  # Either one will do
+	card.read_by.connect(func(_p):
+		_book_found("easy_sql_8")  # Either one will do
+		_side_case_read("dark_room"))
 	card.clues = [
-		{"case": "dark_room", "opens": DARK_CASE, "tables": ["lights"], "text": "List every light that's 'dead' OR 'flickering' in the lights table (columns: id, room, floor, is_on, status), then reset the circuit by the break room door."},
+		{"case": "dark_room", "text": "List every light that's 'dead' OR 'flickering' in the lights table (columns: id, room, floor, is_on, status), then reset the circuit by the break room door."},
 		{"case": "dark_room", "text": "Lights marked 'off' are off on purpose. Leave them."},
 	]
 
@@ -386,7 +482,7 @@ static func controller_puzzle_for(z: String) -> Puzzle:
 		"No result yet? Run the doors query first: .hint walks you through it.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';[/color]\n" % z +
-		"Then count the faulted controllers for the sign-off form on the desk, and press E on that rack's panel in Server Room A: its id is on the end facing the center aisle.",
+		"Then point at its id and add it to your notebook. Next, count the faulted controllers for the sign-off form on the desk, and press E on that rack's panel in Server Room A: its id is on the end facing the center aisle.",
 	])
 
 
@@ -398,12 +494,12 @@ static func stuck_doors_puzzle_for() -> Puzzle:
 		"  SELECT name, zone           each door's name and zone\n" +
 		"  FROM doors                  from the table of doors\n" +
 		"  WHERE locked = enter_number keep only the rows where locked is that number\n" +
-		"Replace enter_number with the number the doors table uses for a door that won't release. The self-test above says which.",
-		"The self-test says what locked holds for a door that won't release. Numbers go in without quotes. " +
-		"Then find the NOC shift log's doors in the result: they share one zone.",
+		"Replace enter_number with the number the doors table uses for a door that won't release. The NOC shift log says which.",
+		"The NOC shift log says what locked holds for a door that won't release. Numbers go in without quotes. " +
+		"Then find the shift log's three doors in the result: they share one zone.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT name, zone FROM doors WHERE locked = 1;[/color]\n" +
-		"The Cold Lab is another floor's problem (the shift log says so). The other stuck doors share one zone.",
+		"The shift log's three doors share one zone. Point at it and add it to your notebook.",
 	])
 
 
@@ -440,7 +536,7 @@ static func count_puzzle_for() -> Puzzle:
 		"The DOOR CONTROLLERS card by the terminal names the table. COUNT(*) counts rows, like WARDEN's printout on the desk. The sign-off form says 'offline' units don't count.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT COUNT(*) FROM door_controllers WHERE status = 'fault';[/color]\n" +
-		"Then reset the faulted controller at its rack.",
+		"Then point at the number and add it to your notebook, and reset the faulted controller at its rack.",
 	])
 
 
@@ -454,10 +550,10 @@ static func hot_rack_puzzle_for() -> Puzzle:
 		"  FROM racks                   from the rack table\n" +
 		"  WHERE temp_c > enter_limit   only rows where temp_c is more than the limit\n" +
 		"Replace enter_limit with the limit on the cable vault's back door (a number: no quotes).",
-		"The fire interlock plate on the cable vault's back door (in the ops room) gives the limit, in °C.",
+		"The fire interlock plate on the cable vault's back door (in the NOC) gives the limit, in °C.",
 		"Type this exactly and press Enter:\n" +
 		"    [color=#ffffff]SELECT id, temp_c FROM racks WHERE temp_c > %d;[/color]\n" % Level1Data.INTERLOCK_C +
-		"Then reseat that rack's fan tray in Server Room B.",
+		"Then point at the rack's id and add it to your notebook, and reseat its fan tray in Server Room B.",
 	])
 
 
@@ -477,7 +573,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	# Network operations room (NOC): x -22..-8, z -3..9. Desks facing a wall of status screens.
 	Greybox.room(geo, Vector3(-15, 0, 3), Vector3(14, 3, 12), c, [_gap("s", 0.5, door), _gap("n", 3.0, door)])
 	add_door("NOC", Vector3(-14.5, 1.1, 9.0), Vector3(1.35, 2.2, 0.08)).make_hinged(Vector3(-0.675, 0, 0), 90.0)
-	Greybox.label(geo, Vector3(-14.5, 2.45, 9.12), "NETWORK OPERATIONS", 36, sign_c)
+	Greybox.label(geo, Vector3(-14.5, 2.45, 9.12), "NETWORK OPERATIONS (NOC)", 36, sign_c)
 	Greybox.box(geo, Vector3(-18.5, 1.6, -2.85), Vector3(6.6, 2.0, 0.1), Color(0.08, 0.09, 0.1), "StatusWall")
 	for i in 3:
 		Greybox.panel(geo, Vector3(-20.6 + i * 2.1, 1.7, -2.78), Vector3(1.7, 1.0, 0.02), Color(0.15, 0.45, 0.6), 1.5)
@@ -488,14 +584,19 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	var shift_log := Document.place(geo, Vector3(-15, 0.762, 4.6), 180.0, "NOC SHIFT LOG", [
 		"22:40  Alarms: doors on this floor won't release. Server Room A rear exit, Server Room C, Lift 1.",
 		"22:41  Facilities (Rourke) informed. Contractor called out.",
+		"22:44  doors table: all three show locked = 1.",
 		"22:55  Records Archive and Cold Lab faults: not ours, tickets open.",
 		{"text": "Contractor: use the terminal in Server Room A.", "hand": true},
 	], true, "paper")
 	shift_log.clues = [
 		{"case": "controller", "text": "The stuck doors on this floor: Server Room A's rear exit, Server Room C, Lift 1."},
+		{"case": "controller", "text": "The doors table marks a stuck door as locked = 1."},
 		{"case": "controller", "text": "The Records Archive and Cold Lab faults aren't this floor's."},
 	]
-	shift_log.read_by.connect(func(_p): _book_found("easy_sql_5"))  # Keeping only some rows
+	shift_log.pieces = [{"case": "controller", "piece": "doors", "text": "doors table", "kind": "table"},
+		{"case": "controller", "piece": "locked", "text": "locked = 1", "kind": "value"}]
+	shift_log.spot = "shift_log"
+	shift_log.read_by.connect(func(_p): _book_found("easy_sql_5"))  # Keeping only some rows: it waits for Rourke (M1)
 	# A charger of spare walkie-talkies on the front desk.
 	Greybox.box(geo, Vector3(-13.5, 0.78, 1.2), Vector3(0.9, 0.04, 0.26), Color(0.12, 0.12, 0.13), "ChargingDock")
 	spare_walkies = ItemDock.walkies(geo, Vector3(-13.5, 0.8, 1.2))
@@ -529,11 +630,13 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		"This door stays sealed while any rack on this floor reads over %d°C." % Level1Data.INTERLOCK_C,
 	], false, "laminated", Vector2(0.36, 0.24))
 	interlock.clues = [
-		{"case": "hot_rack", "opens": "Why won't the cable vault's back door open?", "tables": ["racks"],
+		{"case": "hot_rack",
 			"text": "It stays sealed while any rack on this floor reads over %d°C." % Level1Data.INTERLOCK_C},
 	]
 	interlock.pieces = [{"case": "hot_rack", "piece": "limit", "text": str(Level1Data.INTERLOCK_C), "kind": "value"}, {"case": "hot_rack", "piece": "more", "text": "over", "kind": "keyword"}]  # "over" it
-	interlock.read_by.connect(func(_p): _book_found("easy_sql_7"))
+	interlock.read_by.connect(func(_p):
+		_book_found("easy_sql_7")
+		_side_case_read("hot_rack"))
 
 	# Server Room B: x 8..22, z -3..9. Racks on another zone; nothing to fix here.
 	Greybox.room(geo, Vector3(15, 0, 3), Vector3(14, 3.6, 12), machine, [_gap("s", -0.5, door), _gap("n", -3.0, door)])
@@ -558,9 +661,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 		add_light("srb", Vector3(15, 3.6, z), 8.0, 1.0)
 	# Inside the door, the room's monitoring card: where the temperatures live and
 	# what counts as too hot (the > the hot rack's query needs, found in the world).
-	# A copy lies on Server Room A's terminal desk, where the query is typed.
 	_rack_card(Vector3(12.6, 1.5, 8.89), 0.0, false)
-	_rack_card(Vector3(-3.7, 0.902, 8.35), 175.0, true)
 
 	# Break room: x 8..22, z -9..-3. Coffee, a fridge, a table.
 	Greybox.room(geo, Vector3(15, 0, -6), Vector3(14, 3, 6), c, [_gap("n", -3.0, door), _gap("s", -3.0, door)])
@@ -587,9 +688,7 @@ func _build_floor(c: Dictionary, machine: Dictionary, office: Color) -> void:
 	# lights that are out: dead OR flickering, not the ones off on purpose.
 	light_panel = Interactable.create(geo, Vector3(13.3, 1.3, -8.86), Vector3(0.35, 0.45, 0.08), "Reset the lighting circuit", Color(0.55, 0.56, 0.5))
 	light_panel.used.connect(_on_light_panel)
-	# A copy lies on Server Room A's terminal desk, where the lights are listed.
 	_facilities_card(Vector3(14.1, 1.45, -8.89), 180.0, false)
-	_facilities_card(Vector3(-5.3, 0.902, 8.62), -175.0, true)  # behind the DOOR CONTROLLERS card, clear of it
 
 	# Server Room C: x -17..-7, z -24..-13. Its lock is on the faulting controller (seeded zone).
 	Greybox.room(geo, Vector3(-12, 0, -18.5), Vector3(10, 3.6, 11), machine, [_gap("s", 0.0, door)])
@@ -650,29 +749,43 @@ func _on_asked() -> void:
 	if asked:
 		return
 	asked = true
-	# The self-test filters with WHERE and AND: the book's chapters on those first,
-	# round the garage bench (Keeping only some rows is skipped if the shift log
-	# already brought it back).
+	# Keeping only some rows lands with his ask, always: read earlier, the shift
+	# log's chapter waited for him (M1). AND comes with the stuck doors' zone (M2).
+	if sync.is_host():
+		_books["easy_sql_5"] = "played"
 	await _book_huddle("easy_sql_5")
-	await _book_huddle("easy_sql_6")
 	terminal.locked = false
+	_mark_beat()
 	if not controller_puzzle.solved:
-		if stuck_doors_puzzle.solved:
-			hud.todo("The one that keeps breaking", OBJ_CONTROLLER)
-		else:
-			hud.todo("Doors that won't open", "Find which zone the stuck doors are in, at the terminal")
-		get_node("/root/Game").open_case("controller", "Which door controller keeps faulting?", ["door_controllers", "doors"], OBJ_CONTROLLER)
-		get_node("/root/Game").set_pieces("controller", controller_pieces(zone), CONTROLLER_QUERY, CONTROLLER_STEPS)
+		var game := get_node("/root/Game")
+		hud.todo("Doors that won't open", TODO_ZONE)
+		game.open_case("controller", "Which door controller keeps faulting?", ["door_controllers", "doors"], OBJ_CONTROLLER)
+		# The case's query follows its step (S7): the doors table first.
+		game.set_pieces("controller", STUCK_PIECES, STUCK_QUERY, CONTROLLER_STEPS)
+		_set_zone_slot()
 	if sync.is_host():
 		await get_tree().create_timer(WAITING_AFTER, false).timeout
 		if not controller_puzzle.solved:
 			sync.event("_on_rourke_waiting")
 
 
-## A while in and still looking: Rourke tells them to take their time.
+## The first slot (S13): any stuck door's zone cell answers it.
+func _set_zone_slot() -> void:
+	slot = "zone"
+	var rows := db.run_silent("SELECT id, name FROM doors WHERE id IN ('%s')" % "', '".join(Level1Data.STUCK_DOORS))
+	get_node("/root/Game").set_blank("controller", SLOT_ZONE, NO_LINE, zone, {"column": "zone", "values": [zone], "rows": rows})
+
+
+## A while in and still looking: Rourke tells them to take their time. The crew's
+## commentary holds around his line, so the two never overlap.
 func _on_rourke_waiting() -> void:
-	if not controller_puzzle.solved:
-		hud.line("l1_waiting")
+	if controller_puzzle.solved:
+		return
+	if is_instance_valid(commentary):
+		commentary.hold(true)
+	await hud.line("l1_waiting")
+	if is_instance_valid(commentary):
+		commentary.hold(false)
 
 
 ## Rourke leads the crew in: out of the car, along the corridor and through Server
@@ -707,70 +820,99 @@ func _self_test_lines() -> Array:
 	return [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  SERVER ROOM A",
 		"Session: ROURKE_D (facilities)  -  maintenance window open until 06:00",
-		"",
 		"[b]WARDEN SELF-TEST[/b]  23:51:07",
-		"  [color=#7dff8c]PASS[/color]  power.main_feed",
-		"  [color=#7dff8c]PASS[/color]  hvac.zone_a",
 		"  [color=#ff6655]FAIL[/color]  doors.server_room_a.exit    expected: unlocked     got: controller fault",
 		"  [color=#ff6655]FAIL[/color]  lift.server_floor           expected: in service   got: controller fault",
-		"  [color=#7dff8c]PASS[/color]  network.uplink",
 		"  [color=#ff6655]FAIL[/color]  doors.cold_lab              expected: unlocked     got: controller fault",
-		"  [color=#7dff8c]PASS[/color]  cameras.lobby",
 		"3 failed, 4 passed.",
-		"",
-		"The faulting controller is one row in the controller table (see the reference card at this desk).",
-		"Which doors are stuck? Night shift logs it. Every door belongs to a zone.",
-		"The doors table (columns: id, name, zone, locked, actuator_fault) marks each door: locked = 1 means it won't release, 0 means it opens.",
-		"Filter rows with WHERE. Need two conditions? Join them with AND. Example on another table:",
-		"    [color=#ffffff]SELECT * FROM badges WHERE clearance = 'ESCORT' AND last_seen = 'Server Room A';[/color]",
-		"      SELECT *                         which columns to show (* = all)",
-		"      FROM badges                      which table to read",
-		"      WHERE clearance = 'ESCORT'       keep only rows where this is true",
-		"      AND last_seen = 'Server Room A'  ...and this is true as well",
-		"Text values go in 'single quotes'. Stuck? Type [b].hint[/b]",
+		"Stuck? Type [b].hint[/b]",
 	]
 
 
-## Runs on the host; the result plays out on every machine.
+## Runs on the host; the result plays out on every machine. A result that
+## answers a step puts SYSOP's word up at most; the step itself waits for the
+## crew to point at the answer in it (case_answered).
 func _on_query(_sql: String, result: Dictionary, _ui: TerminalUI) -> void:
-	if not hot_rack_found and hot_rack_puzzle.matches(db, result):
-		sync.event("_on_hot_rack_found")
+	if not hot_listed and hot_rack_puzzle.matches(db, result):
+		sync.event("_on_hot_rack_listed")
+	elif not hot_rack_puzzle.solved and (hot_backwards.matches(db, result) or hot_backwards_eq.matches(db, result)):
+		comment_mistake("backwards")
 	if not dark_room_puzzle.solved and dark_room_puzzle.matches(db, result):
 		sync.event("_on_dark_room_found")
-	if asked and not stuck_doors_puzzle.solved and not controller_puzzle.solved and stuck_doors_puzzle.matches(db, result):
-		sync.event("_on_stuck_doors_found")
-	if asked and not count_puzzle.solved:
+	if not asked:
+		return
+	if slot == "zone" and not stuck_listed and stuck_doors_puzzle.matches(db, result):
+		sync.event("_on_stuck_doors_listed")
+	if slot == "controller" and not controller_listed and controller_puzzle.matches(db, result):
+		sync.event("_on_controller_listed")
+	if not count_puzzle.solved:
 		if count_puzzle.matches(db, result):
-			sync.event("_on_count_found")
+			if not counted:
+				sync.event("_on_counted")
 		elif count_all.matches(db, result):
 			sync.event("_on_count_wrong", ["all"])
 		elif count_not_ok.matches(db, result):
 			sync.event("_on_count_wrong", ["not_ok"])
+		elif count_zone.matches(db, result):
+			sync.event("_on_count_wrong", ["zone"])
 		elif controller_puzzle.solved and count_listed.matches(db, result):
 			sync.event("_on_count_wrong", ["listed"])
-	if not asked or controller_puzzle.solved or not controller_puzzle.matches(db, result):
-		return
-	sync.event("_on_controller_found")
 
 
-## The query, not trial and error, opens the hot rack's tray.
+## The hot rack is on screen: pointing at its id finds it.
+func _on_hot_rack_listed() -> void:
+	hot_listed = true
+
+
+## The terminal found the hot rack (its id pointed at): its tray's latch lets go.
 func _on_hot_rack_found() -> void:
+	if hot_rack_found:
+		return
 	hot_rack_found = true
 	get_node("/root/Game").tick_step("hot_rack", "run")
 	terminal.print_line("> FAN TRAY LATCH RELEASED: RACK %s RUNNING HOT." % hot_rack)
 
 
-## The stuck doors, and their zone: the controller is the next step.
+## The stuck doors are on screen: SYSOP says what they share (S29).
+func _on_stuck_doors_listed() -> void:
+	if stuck_listed:
+		return
+	stuck_listed = true
+	terminal.print_line("")
+	terminal.print_line(TerminalUI.sysop("those are the doors that won't release. the three on the shift log share one zone: the faulting controller is in it."))
+
+
+func _on_controller_listed() -> void:
+	controller_listed = true
+
+
+func _on_counted() -> void:
+	counted = true
+
+
+## The stuck doors' zone is in the slot: the controller is the next step, and
+## the case's query becomes the controller's. AND's chapter lands now (M2).
 func _on_stuck_doors_found() -> void:
 	if stuck_doors_puzzle.solved:
 		return
 	stuck_doors_puzzle.solved = true
-	terminal.print_line("")
-	terminal.print_line(TerminalUI.sysop("those are the doors that won't release. the cold lab and the main entrance are other floors'. the rest share one zone: the faulting controller is in it."))
-	get_node("/root/Game").add_clue("controller", "The stuck doors on this floor are all in zone %s." % zone, "Query result")
-	get_node("/root/Game").collect_piece("controller", "zone", "the doors query")
+	var game := get_node("/root/Game")
+	game.add_clue("controller", "The stuck doors on this floor are all in zone %s." % zone, "Query result")
+	game.tick_step("controller", "zone")
+	game.set_pieces("controller", controller_pieces(zone), CONTROLLER_QUERY, CONTROLLER_STEPS)
+	game.collect_piece("controller", "zone", "the doors query")
+	slot = "controller"
+	game.set_blank("controller", SLOT_CONTROLLER, NO_LINE, answer, {"column": "id", "values": [answer], "rows": [{"id": answer}]})
 	if not controller_puzzle.solved:
 		hud.todo("The one that keeps breaking", OBJ_CONTROLLER)
+	# The crew sees it now: every stuck door in one zone. Then the controller's lines.
+	if is_instance_valid(commentary):
+		if sync.is_host():
+			commentary.solved("stuck_doors")
+		commentary_ids["controller"] = "controller"
+		commentary.begin("controller")
+	_mark_beat()
+	_book_huddle("easy_sql_6")
 
 
 ## Optional: the list of lights that are out. The circuit reset takes now.
@@ -813,17 +955,162 @@ func _book_check(id: String) -> void:
 
 func _book_ready(id: String) -> bool:
 	match id:
+		"easy_sql_5":
+			return asked  # it lands with Rourke's ask (M1)
 		"easy_sql_7", "easy_sql_8":
-			# After the self-test's chapters, so their WHERE comes first.
+			# After WHERE and AND's chapters, so their WHERE comes first.
 			var h := Huddle.of(self)
 			return asked and h != null and h.done.has("easy_sql_6")
+		"easy_sql_count":
+			return controller_puzzle.solved  # counting is the third step (M3)
 	return true
 
 
 ## Every machine: a paper brings back its chapter of Easy SQL, into the crew's book
-## (once per run), and one of the crew remembers what Maddison said about it.
+## (once per run), and one of the crew remembers what Maddison said about it. A
+## chapter landing is a beat: a side case's paper read just now waits (M5).
 func _book_huddle(id: String) -> void:
-	await Huddle.of(self).run(id, Huddle.REMEMBERED)
+	if id == "easy_sql_count":
+		get_node("/root/Game").collect_piece("controller", "count", "Easy SQL")  # the chapter fills its piece (S12)
+	var h := Huddle.of(self)
+	if h == null or h.done.has(id):
+		return
+	_mark_beat()
+	await h.run(id, Huddle.REMEMBERED)
+	if sync.is_host():
+		for k in _books.keys():
+			_book_check(k)  # a chapter that waited on this one
+
+
+## A main step or a chapter landed just now (M5).
+func _mark_beat() -> void:
+	_beat_ms = Time.get_ticks_msec()
+
+
+## Host: a side case's paper was read. Within a minute of the last beat its case
+## waits for that minute to be up, so it doesn't crowd the main one (M5).
+func _side_case_read(id: String) -> void:
+	if not sync.is_host() or _side_waiting.has(id) or get_node("/root/Game").case_info(id).get("open", false):
+		return
+	_side_waiting[id] = true
+	if _beat_ms >= 0:
+		var wait := pace_s - (Time.get_ticks_msec() - _beat_ms) / 1000.0
+		if wait > 0.0:
+			await get_tree().create_timer(wait, false).timeout
+	sync.event("_open_side_case", [id])
+
+
+## Every machine: a side case opens.
+func _open_side_case(id: String) -> void:
+	var game := get_node("/root/Game")
+	match id:
+		"hot_rack":
+			game.open_case("hot_rack", HOT_CASE, ["racks"])
+		"dark_room":
+			game.open_case("dark_room", DARK_CASE, ["lights"])
+
+
+## This player pointed at a cell that answers one of their cases: tell the host.
+func _on_answer_found(id: String) -> void:
+	if id in ["controller", "hot_rack"]:
+		sync.report_answer(id)
+
+
+## Host: a player put the answer in a slot. The controller case's slot is the
+## step it's on.
+func case_answered(id: String, _peer: int) -> void:
+	if id == "hot_rack" and not hot_rack_found:
+		sync.event("_on_hot_rack_found")
+	if id != "controller" or not asked:
+		return
+	match slot:
+		"zone":
+			sync.event("_on_stuck_doors_found")
+		"controller":
+			sync.event("_on_controller_found")
+		"count":
+			sync.event("_on_count_found")
+
+
+## This player pointed at a cell that answers no slot: if it's in a row the slot
+## is about, a pencil line under the blank says why (S14-S16, S18-S21, S23-S24,
+## S26-S28; this player's notebook only).
+func _on_cell_missed(column: String, value: String, row: Dictionary) -> void:
+	var game := get_node("/root/Game")
+	var shown := {}
+	for k in row:
+		shown[str(k).to_lower()] = str(row[k])
+	if not shown.has(column.to_lower()):
+		shown[column.to_lower()] = value
+	var col := column.to_lower()
+	var ctl: Dictionary = game.case_info("controller")
+	if asked and ctl.get("open", false) and not ctl.get("solved", false):
+		var note := _controller_miss(col, value, shown)
+		if note != "":
+			game.blank_miss("controller", note)
+	var hot: Dictionary = game.case_info("hot_rack")
+	if hot.get("open", false) and not hot.get("solved", false) and not hot_rack_found:
+		var rows := rows_like("racks", shown)
+		if not rows.is_empty():
+			var edge := rows.all(func(r): return int(r.temp_c) == Level1Data.INTERLOCK_C)
+			if edge:
+				game.blank_miss("hot_rack", HOT_EDGE)
+			elif col == "temp_c" and rows.all(func(r): return r.id == hot_rack):
+				game.blank_miss("hot_rack", HOT_TEMP)
+			else:
+				game.blank_miss("hot_rack", HOT_OTHER)
+
+
+## The pencil note for a missed cell on the controller case's current slot, or "".
+func _controller_miss(col: String, value: String, shown: Dictionary) -> String:
+	match slot:
+		"zone":
+			var rows := rows_like("doors", shown)
+			if rows.is_empty():
+				return ""
+			if rows.all(func(r): return r.id in Level1Data.STUCK_DOORS):
+				return ZONE_ROW
+			if col == "zone" and rows.all(func(r): return int(r.locked) == 1 and not r.id in Level1Data.STUCK_DOORS):
+				return ZONE_OTHER_FLOOR
+			return ZONE_OTHER
+		"controller":
+			var rows := rows_like("door_controllers", shown)
+			if rows.is_empty():
+				return ""
+			if rows.all(func(r): return r.id == answer):
+				return CTRL_ROW
+			if rows.all(func(r): return r.zone == zone and r.status == "offline"):
+				return CTRL_OFFLINE
+			if rows.all(func(r): return r.zone != zone and r.status == "fault"):
+				return CTRL_ELSEWHERE
+			return CTRL_OTHER
+		"count":
+			if col == "id" and not rows_like("door_controllers", shown).is_empty():
+				return COUNT_ONE
+			if shown.size() == 1 and value.is_valid_int():
+				return COUNT_WRONG
+	return ""
+
+
+## The rows of `table` that a result row showing `shown` (column -> value, lower-
+## case names) could be: every shown column is the table's and holds that value.
+## [] if a shown column isn't the table's.
+func rows_like(table: String, shown: Dictionary) -> Array:
+	var all := db.run_silent("SELECT * FROM %s" % table)
+	if all.is_empty():
+		return []
+	var cols := {}
+	for k in all[0]:
+		cols[str(k).to_lower()] = k
+	for k in shown:
+		if not cols.has(k):
+			return []
+	return all.filter(func(r):
+		for k in shown:
+			var v = r[cols[k]]
+			if ("NULL" if v == null else str(v)).to_lower() != str(shown[k]).to_lower():
+				return false
+		return true)
 
 
 ## Every machine: the break room lights up and the north corridor stops flickering.
@@ -841,25 +1128,44 @@ func _on_light_reset() -> void:
 	get_node("/root/Game").solve_case("dark_room", "the break room's bulb was dead and the north corridor flickering. One circuit reset fixed both.")
 
 
+## The controller's id is in the slot: next, the sign-off's count, and the
+## case's query becomes the count's (S11). "How many?" lands now if the sign-off
+## or WARDEN's printout has been read (M3).
 func _on_controller_found() -> void:
+	if controller_puzzle.solved:
+		return
 	controller_puzzle.solved = true
-	stuck_doors_puzzle.solved = true  # found without the doors query (say, reading every fault's note): the first step is done too
-	get_node("/root/Game").tick_step("controller", "run")
+	var game := get_node("/root/Game")
+	game.tick_step("controller", "run")
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("that's the one. %s, zone %s, 'fault'. reset it by hand at its rack." % [answer, zone]))
-	get_node("/root/Game").add_clue("controller", "%s is the one: zone %s, 'fault'. Reset it by hand at its rack." % [answer, zone], "SYSOP")
-	if count_puzzle.solved:
-		hud.todo("Turn it off and on again", "Reset the faulted controller at its rack")
-		return
+	game.add_clue("controller", "%s is the one: zone %s, 'fault'. Reset it by hand at its rack." % [answer, zone], "SYSOP")
+	game.set_pieces("controller", count_pieces(), COUNT_QUERY, CONTROLLER_STEPS)
+	slot = "count"
+	game.set_blank("controller", SLOT_COUNT, NO_LINE, str(faulted), {"column": "", "values": [str(faulted)], "only": true})
+	_mark_beat()
+	_book_check("easy_sql_count")
 	terminal.print_line(TerminalUI.sysop("the reset wants its sign-off first: how many controllers are faulted, whichever door they run. count them here, not by walking the racks."))
 	hud.todo("Paperwork. Even tonight.", COUNT_TODO)
 
 
-## The sign-off's count. Its blank on the job ticket is filled in with the number.
+## The count step's pieces (S12): COUNT(*) is new; the table and the status carry over.
+func count_pieces() -> Array:
+	var out: Array = [COUNT_PIECE]
+	for p in controller_pieces(zone):
+		if p.id != "zone":
+			out.append(p)
+	return out
+
+
+## The sign-off's count is in the slot. Its blank on the job ticket is filled in
+## with the number, and the rack reset circuits are powered.
 func _on_count_found() -> void:
 	if count_puzzle.solved:
 		return
 	count_puzzle.solved = true
+	slot = ""
+	_mark_beat()
 	terminal.print_line("")
 	terminal.print_line(TerminalUI.sysop("%d faulted, whichever door they run. that's the number for the sign-off. the rack reset circuits are powered now." % faulted))
 	var game := get_node("/root/Game")
@@ -874,6 +1180,8 @@ func _on_count_wrong(why: String) -> void:
 		terminal.print_line(TerminalUI.sysop("that counts every controller on the floor, healthy ones too. the sign-off wants only the faulted ones."))
 	elif why == "listed":
 		terminal.print_line(TerminalUI.sysop("that's them. the form wants how many: let COUNT(*) do the counting."))
+	elif why == "zone":
+		terminal.print_line(TerminalUI.sysop("that's only the stuck doors' zone. the sign-off wants every faulted unit, whichever door it runs."))
 	else:
 		terminal.print_line(TerminalUI.sysop("that counts the offline ones too. they're switched off on purpose, not faulted."))
 
@@ -919,6 +1227,7 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 			hud.notice("> CONTROLLER %s: ZONE %s, OK. NOTHING TO RESET." % [id, zone], 4.0)
 			terminal.print_line(TerminalUI.sysop("%s is healthy. you want the controller with status 'fault' in the stuck doors' zone." % id))
 			hud.line("l1_wrong_panel", false)
+			comment_mistake("reset")
 			return
 		"wrong":
 			var row: Dictionary = db.run_silent("SELECT status, zone, note FROM door_controllers WHERE id = '%s'" % id)[0]
@@ -927,6 +1236,7 @@ func _on_panel_result(id: String, outcome: String, seconds: float) -> void:
 			hud.notice("> %s: ZONE %s, '%s': %s\n> RESET REFUSED. PANELS LOCKED: %d s" % [id, row["zone"], row["status"], row["note"], int(seconds)], 6.0, ThemeUtil.RED)
 			terminal.print_line(TerminalUI.sysop("not that one. %s is zone %s, '%s': %s" % [id, row["zone"], row["status"], row["note"]]))
 			hud.line("l1_wrong_panel", false)
+			comment_mistake("reset")
 			return
 	_on_reset(id)
 
@@ -953,6 +1263,10 @@ func _on_reset(id: String) -> void:
 	db.sync_world()
 	for door_id in Level1Data.STUCK_DOORS:
 		_light_plate(door_id, false)
+	if is_instance_valid(lift_sign):
+		lift_sign.queue_free()  # Lift 1's back in service: facilities' sign comes down
+	comment("right_rack")
+	_mark_beat()
 	hud.notice("> CONTROLLER %s: RESET OK\n> ZONE %s DOORS: OK\n> LIFT 1: IN SERVICE" % [id, zone], 4.0, ThemeUtil.GREEN)
 	get_node("/root/Game").solve_case("controller", "%s, reset at its rack. Its log says VALE_I kept resetting it from Secure Lab B." % id)
 	terminal.print_line("")
@@ -960,8 +1274,12 @@ func _on_reset(id: String) -> void:
 		terminal.print_line(line)
 	hud.todo("")
 	_watch_nearest()
-	await hud.lines(["l1_fixed_1", "l1_fixed_2", "l1_pivot_1", "l1_pivot_2", "l1_pivot_3"])
+	await hud.lines(["l1_fixed_1", "l1_fixed_2"])
 	hud.todo("Job done. Next floor.", "Follow Rourke to the elevator")
+	# Vale's login comes up on the walk out, through the rear exit the reset just
+	# opened (M6), not at the rack.
+	var rear := Trigger.create(self, Vector3(0, 1, -9.4), Vector3(3.0, 2, 2.0))
+	rear.entered.connect(func(_b): sync.event("_on_pivot"), CONNECT_ONE_SHOT)
 	rourke.watch = null
 	await sync.gate("rourke_at_lift", func():
 		for p in [Vector3(0, 0, to_local(rourke.global_position).z), Vector3(0, 0, -7.8), Vector3(0, 0, -10.5), Vector3(1.8, 0, -11)]:
@@ -986,8 +1304,19 @@ func _controller_log(id: String) -> Array:
 	]
 
 
+## Every machine: through Server Room A's rear exit, Rourke works out whose login
+## kept resetting the controller (M6).
+func _on_pivot() -> void:
+	if _pivot_done:
+		return
+	_pivot_done = true
+	await hud.lines(["l1_pivot_1", "l1_pivot_2", "l1_pivot_3"])
+
+
 ## Everyone is with Rourke: the elevator opens and he steps in first.
 func _on_crew_at_lift() -> void:
+	if not _pivot_done:
+		await _on_pivot()  # the crew went round another way: he says it here
 	elevator.hud = hud
 	elevator.open()
 	elevator.closed.connect(_on_elevator_closed, CONNECT_ONE_SHOT)

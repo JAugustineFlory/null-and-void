@@ -314,7 +314,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 *Same moment, stuck for about a minute, but someone has read the monitoring card. Glancing back toward the card by the terminal. Stuck. Remembering a card.*
 
-"That monitoring card by the terminal said what counts as too hot."
+"That monitoring card in Server Room B said what counts as too hot."
 
 **[ ] `l1_cc_hot_err.wav`**
 
