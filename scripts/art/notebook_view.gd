@@ -204,6 +204,11 @@ func write_in(item: Control, duration: float = 0.8) -> Tween:
 	var t := create_tween()
 	t.tween_interval(0.03)  # let the page lay the item out first
 	t.tween_callback(func():
+		if not is_instance_valid(item):  # the page was laid out again before it was written
+			cover.queue_free()
+			pen.queue_free()
+			t.kill()
+			return
 		var at := book.get_global_transform().affine_inverse() * item.global_position
 		span.x = at.x - 2
 		span.w = item.size.x + 6

@@ -1,6 +1,6 @@
 # Recording list
 
-1115 recordings in all, 1303 lines.
+1129 recordings in all, 1317 lines.
 
 Generated from `scripts/audio/voice_lines.gd`. The full script with scene context is in [script.md](script.md).
 
@@ -151,7 +151,7 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 |---|---|---|---|---|
 | [ ] | `l2_vale_1_block` | "Hi, this is for the night desk. It's Iris Vale. I know it's nearly two in the morning, I'm sorry." "If anyone asks, I was never in the cold lab tonight. Pull the tape from camera nine before the day shift sees it." "And please don't give your PIN to anyone. Not even Dale." | Beep before this. Hushed, fast. Urgent. A glance over her shoulder in the voice. Softer. | Level 2 |
 
-## Maddison Kowalski (16 recordings, 23 lines)
+## Maddison Kowalski (30 recordings, 37 lines)
 
 > Warm, quick and sure of herself, with a saleswoman's energy. The crew's friend more than their boss, and the one who believes in them before they believe in themselves. On the van radio she puts on a 'professional dispatcher' voice: bored, routine, reading tickets, a bluff that doesn't quite hide the excitement.
 
@@ -164,6 +164,20 @@ Recordings marked **later** are written ahead for a level that isn't built yet. 
 | [ ] | `l0_book_catch_solo` | "Small problem. It says database. And unless you secretly know SQL..." | The smile stays on. She leaves the sentence hanging and waits. | Level 0 |
 | [ ] | `l0_bookstore_block` | "...I stopped by the bookstore. Easy SQL. 'Learn databases in a weekend.' We've got till eleven." "It's in the shop bag on the shelf by the side door. One of you go grab it." | Proud of this. Pointing at the side door to the house. | Level 0 |
 | [ ] | `l0_grab_solo` | "It's in the shop bag on the shelf by the side door. Go on, grab it for me." | Pointing at the side door to the house. | Level 0 |
+| [ ] | `l0_lab_go` | "Book's no good till somebody tries it. Through the door by my desk: I set us up a lab. Everybody grab a computer." | Proud of her lab. It's a lean-to with six second-hand computers. | Level 0 |
+| [ ] | `l0_lab_go_solo` | "Book's no good till somebody tries it. Through the door by my desk: I set us up a lab. Grab a computer." | Proud of her lab. It's a lean-to with six second-hand computers. | Level 0 |
+| [ ] | `l0_lab_cases` | "Notebooks out. Cases, the tab with the bookmark. Top left, the case and what to do. Top right, its tables. Down here, the query you're building." | A teacher walking through a worksheet: unhurried, a beat on each part. | Level 0 |
+| [ ] | `l0_lab_cases_solo` | "Notebook out. Cases, the tab with the bookmark. Top left, the case and what to do. Top right, its tables. Down here, the query you're building." | A teacher walking through a worksheet: unhurried, a beat on each part. | Level 0 |
+| [ ] | `l0_lab_label` | "First you need the table's name. Somebody always writes it down. Try the label on the van's kit crate." | A tip from experience. | Level 0 |
+| [ ] | `l0_lab_query` | "That's the table. Now at your computer: the question's on the screen with van_kit in it. Type it and press Enter." | Encouraging, one step at a time. | Level 0 |
+| [ ] | `l0_lab_click` | "There's the kit. The case wants what we've run out of. Point at it and add it to your notebook." | Pleased, then a gentle nudge. | Level 0 |
+| [ ] | `l0_lab_case2` | "One more, no help this time. My job board's on the wall in here. Find the table, then type the whole question yourselves." | A friendly challenge. | Level 0 |
+| [ ] | `l0_lab_case2_solo` | "One more, no help this time. My job board's on the wall in here. Find the table, then type the whole question yourself." | A friendly challenge. | Level 0 |
+| [ ] | `l0_lab_case2_done` | "Zebulon Feed and Seed. I knew I'd forgotten somebody." | Wincing, half to herself. | Level 0 |
+| [ ] | `l0_lab_lockers` | "Oh, and those lockers have your names on. Change into whatever you like, whenever you like." | An afterthought, pleased she thought of it. | Level 0 |
+| [ ] | `l0_lab_lockers_solo` | "Oh, and that locker's got your name on it. Change into whatever you like, whenever you like." | An afterthought, pleased she thought of it. | Level 0 |
+| [ ] | `l0_lab_skip` | "You've all done the practice. Lab's open if you want it, and so are your lockers." | Easy, no fuss. | Level 0 |
+| [ ] | `l0_lab_skip_solo` | "You've done the practice. Lab's open if you want it, and so's your locker." | Easy, no fuss. | Level 0 |
 | [ ] | `l0_bag` | "Before the van, everybody hits the bag once. Nerves out here, not at the client's." | Coach before the big game, brisk and warm. | Level 0 |
 | [ ] | `l0_bag_solo` | "Before the van, hit the bag once. Nerves out here, not at the client's." | Coach before the big game, brisk and warm. | Level 0 |
 | [ ] | `l0_garage_5` | "Look at that. You're practically engineers. Take the book with you. Everybody in the van." | Genuinely thrilled. | Level 0 |

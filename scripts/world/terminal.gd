@@ -27,6 +27,9 @@ var puzzles: Array = []
 ## player types one literally.
 var blanks := {}
 var locked := false
+## A practice terminal (the garage lab's): what's typed here doesn't count
+## towards retiring a word's button.
+var practice := false
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D

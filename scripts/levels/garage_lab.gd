@@ -14,6 +14,8 @@ const SIGN := "LAB"
 const LOCKER_PROMPT := "Open your locker"
 ## Approved for the back office (GarageOffice.PC_PROMPT).
 const PC_PROMPT := GarageOffice.PC_PROMPT
+## Each computer's screen title, numbered.
+const PC_TITLE := "LAB %d"
 
 ## The annex (garage-local): its floor's middle and its inside size. The garage's
 ## west wall (x -8) is its east wall; it stops short of the back office (z 2.6).
@@ -31,7 +33,10 @@ const DESKS := [
 	Vector3(-10.4, 0, -3.4), Vector3(-10.4, 0, -1.4), Vector3(-10.4, 0, 0.6),
 ]
 const DESK_SIZE := Vector3(0.6, 0.76, 1.0)
-const DESK_SEAT := Vector3(0.7, 0.45, 0.0)
+## The chair, behind where you stand at the computer (Terminal.stand_point).
+const DESK_SEAT := Vector3(0.95, 0.45, 0.0)
+## Where each computer sits on its desk, facing the chair (+X).
+const PC_ON_DESK := Vector3(-0.08, 0.76, 0.0)
 ## The lockers' middles, along the north wall, the host's first.
 const LOCKERS := [
 	Vector3(-13.6, 0, -5.65), Vector3(-13.0, 0, -5.65), Vector3(-12.4, 0, -5.65),
@@ -40,9 +45,13 @@ const LOCKERS := [
 const LOCKER_SIZE := Vector3(0.58, 1.9, 0.5)
 
 var home: Node3D
-## One per desk, in DESKS order. Off until the tutorial (PR 2) turns them on.
-var computers: Array[Interactable] = []
-var seats: Array[Seat] = []
+## One per desk, in DESKS order, all on the lab's own small database (db): the
+## practice cases' tables, nothing of the building's. Off until the practice
+## starts, or the crew skips it (GarageTutorial).
+var computers: Array[Terminal] = []
+var db: FacilityDB
+## The practice cases and the papers they're found on.
+var tutorial: GarageTutorial
 ## One per locker, in LOCKERS order: its door, and the name card on it.
 var lockers: Array[Interactable] = []
 var name_cards: Array[Label3D] = []
@@ -86,21 +95,21 @@ func _build() -> void:
 	Greybox.panel(geo, BOARD, Vector3(0.04, 1.2, 2.4), Color(0.95, 0.95, 0.93)).name = "LabBoard"
 	Greybox.panel(geo, BOARD + Vector3(0.0, -0.66, 0), Vector3(0.1, 0.04, 2.4), Color(0.6, 0.6, 0.62)).name = "LabBoardTray"
 
+	db = FacilityDB.new()
+	db.load_seed(GarageTutorial.seed_sql())
 	for i in DESKS.size():
 		var at: Vector3 = DESKS[i]
 		Greybox.box(geo, at + Vector3(0, DESK_SIZE.y / 2, 0), DESK_SIZE, Color(0.55, 0.5, 0.42), "LabDesk%d" % i)
-		# A beige box and its screen, facing the chair.
-		Greybox.box(geo, at + Vector3(-0.08, DESK_SIZE.y + 0.2, 0), Vector3(0.38, 0.36, 0.4), Color(0.78, 0.75, 0.66), "LabMonitor%d" % i)
-		Greybox.panel(geo, at + Vector3(0.115, DESK_SIZE.y + 0.21, 0), Vector3(0.01, 0.26, 0.32), Color(0.15, 0.35, 0.2), 0.5)
-		var pc := Interactable.create(home, at + Vector3(0.05, DESK_SIZE.y + 0.2, 0), Vector3(0.5, 0.4, 0.5), PC_PROMPT, Color.BLACK, false)
+		var pc := Terminal.spawn(home, at + PC_ON_DESK, 90.0, PC_TITLE % (i + 1), db, home.terminal_ui)
 		pc.name = "LabPC%d" % i
+		pc.prompt = PC_PROMPT
+		pc.practice = true  # practice doesn't wear the word buttons down
 		pc.enabled = false  # the practice cases turn them on
 		computers.append(pc)
+		# The chair, pushed back for whoever stands to type (no collision: it's
+		# where you stand).
 		var seat_top: Vector3 = at + DESK_SEAT
-		Greybox.box(geo, Vector3(seat_top.x, seat_top.y / 2, seat_top.z), Vector3(0.42, seat_top.y, 0.42), Color(0.2, 0.2, 0.22), "LabChair%d" % i)
-		var seat := Seat.create_at(home, seat_top, PI / 2, Vector2(0.42, 0.42))  # facing the board (-X)
-		seat.name = "LabSeat%d" % i
-		seats.append(seat)
+		Greybox.panel(geo, Vector3(seat_top.x, seat_top.y / 2, seat_top.z), Vector3(0.42, seat_top.y, 0.42), Color(0.2, 0.2, 0.22)).name = "LabChair%d" % i
 
 	for i in LOCKERS.size():
 		var at: Vector3 = LOCKERS[i]
@@ -123,6 +132,7 @@ func _build() -> void:
 
 	for z in [-3.6, 0.4]:
 		home.add_light("garage", Vector3(ROOM.x, ROOM_SIZE.y, z), 6.0, 1.2, Color(1.0, 0.96, 0.9))
+	tutorial = GarageTutorial.build(self)
 
 
 ## Every machine, once the crew is known (HomeBase.net_setup): each player's

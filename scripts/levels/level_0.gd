@@ -743,8 +743,9 @@ func start() -> void:
 	game.open_case("memo", "What does Dr. Vale's shredded memo say?", ["memo_fragments"], OBJ_MEMO)
 	game.set_pieces("memo", MEMO_PEEK_PIECES, MEMO_PEEK_QUERY, MEMO_PEEK_STEPS)
 	# The crew's first case, so the page says how a case works and the room says
-	# which things are worth reading.
-	game.set_case_note("memo", INTRO_CASE, INTRO_HUNT, DESK_TERMINAL)
+	# which things are worth reading. A crew that did the garage lab's practice
+	# has read how a case works there (GarageTutorial.INTRO_CASE).
+	game.set_case_note("memo", "" if game.practiced else INTRO_CASE, INTRO_HUNT, DESK_TERMINAL)
 	_shine_clue_papers()
 
 

@@ -1440,6 +1440,8 @@ func count_words(sql: String, on_terminal: Node = null) -> void:
 	var net := get_node_or_null("/root/Net")
 	if game == null or net == null or net.get("profile") == null or not KeywordHelp.counting:
 		return
+	if on_terminal and on_terminal.get("practice"):
+		return  # the garage lab's practice doesn't count
 	var key := KeywordHelp.same_query(sql)
 	var how: Dictionary = _sent.get(key, {})
 	_sent.erase(key)

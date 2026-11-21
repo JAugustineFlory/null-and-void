@@ -5,6 +5,9 @@ extends Node
 signal notebook_changed
 ## This player added the line that answers a case's blank (add_answer).
 signal answer_found(case_id: String)
+## The crew pointed at a result cell (add_cell): `answered` says whether it filled
+## a case's slot. A level can pencil why a near miss didn't.
+signal cell_added(column: String, value: String, row: Dictionary, answered: bool)
 ## A line went into the notebook as a plain note (it answered no blank): a
 ## terminal row (kind "row") or a paper's line ("document").
 signal line_noted(text: String, kind: String)
@@ -80,6 +83,9 @@ var book_words: Array[String] = []
 ## The crew hasn't got the book yet this run (the garage, before the shop bag):
 ## chapters earned on earlier runs stay out of the notebook until they have.
 var before_book := false
+## This run's crew did the garage lab's practice cases (GarageTutorial): the
+## ground floor's first case page then skips how a case works.
+var practiced := false
 ## The chapters the crew has read this run, in order: they're in the notebook's book.
 var book_chapters: Array[String] = []
 ## Words learned off a paper this run rather than from a chapter (IS NULL, off
@@ -173,6 +179,7 @@ func new_run(seed_value: int = -1) -> void:
 	counted_queries.clear()
 	words_waiting.clear()
 	before_book = false
+	practiced = false
 	rourke_fate = "unknown"
 	has_walkie = false
 	visitor_badge_no = ""
@@ -549,7 +556,10 @@ func add_cell(column: String, value: String, row: Dictionary = {}, query: String
 	for c in notebook_cases:
 		var b: Dictionary = c.get("blank", {})
 		if c.open and not c.solved and b.has("cell") and b.filled == "" and _fills_cell(b.cell, column, value, row):
-			return _fill_from_cell(c.id, f)
+			var filled := _fill_from_cell(c.id, f)
+			cell_added.emit(column, value, row, filled)
+			return filled
+	cell_added.emit(column, value, row, false)
 	return false
 
 
