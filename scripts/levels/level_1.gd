@@ -272,7 +272,7 @@ func build() -> void:
 	terminal.queried.connect(_on_query)
 	StickyNote.on_monitor(terminal, "where_and")
 	# Lift 1's doors, on the way the crew will need: the same fault as the self-test's (S43).
-	lift_sign = Document.place(geo, Vector3(0, 1.45, -13.06), 0.0, "OUT OF SERVICE", [
+	lift_sign = Document.place(geo, Vector3(0, 1.45, -13.06), 180.0, "OUT OF SERVICE", [
 		"OUT OF SERVICE",
 		"Controller fault.",
 		"- Facilities",
@@ -1170,6 +1170,8 @@ func _on_count_found() -> void:
 	terminal.print_line(TerminalUI.sysop("%d faulted, whichever door they run. that's the number for the sign-off. the rack reset circuits are powered now." % faulted))
 	var game := get_node("/root/Game")
 	game.ticket_fill(COUNT_TODO, "units faulted: %d" % faulted)
+	# Counted before the chapter came: the query that counted is where it was found.
+	game.collect_piece("controller", "count", str(game.case_info("controller").get("blank", {}).get("query", "")))
 	game.tick_step("controller", "count")
 	if controller_puzzle.solved:
 		hud.todo("Turn it off and on again", "Reset the faulted controller at its rack")

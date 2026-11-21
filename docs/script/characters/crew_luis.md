@@ -312,7 +312,7 @@ Short lines only you say. The game plays them at lots of different moments, so e
 
 **[ ] `l1_cc_hot_n1b.wav`**
 
-*Same moment, stuck for about a minute, but someone has read the monitoring card. Glancing back toward the card by the terminal. Stuck. Remembering a card.*
+*Same moment, stuck for about a minute, but someone has read the monitoring card. Glancing back toward Server Room B. Stuck. Remembering a card.*
 
 "That monitoring card in Server Room B said what counts as too hot."
 
