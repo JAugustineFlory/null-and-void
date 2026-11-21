@@ -230,14 +230,15 @@ static func _crt() -> AudioStreamWAV:
 
 ## A rack of servers: fan rush, a low hum and a slow swell between two fans.
 static func _server() -> AudioStreamWAV:
-	var n := RATE * 4
-	var rush := _noise("server_hum", n, 0.25)
-	var deep := _noise("server_hum_deep", n, 0.012)
+	var rate := RATE / 2  # nothing high in it: half rate, the same sound in half the memory
+	var n := rate * 4
+	var rush := _noise("server_hum", n, 0.44)
+	var deep := _noise("server_hum_deep", n, 0.024)
 	for i in n:
-		var t := float(i) / RATE
+		var t := float(i) / rate
 		var beat := 0.8 + 0.2 * sin(TAU * 0.5 * t)
 		rush[i] = (rush[i] * 0.35 + deep[i] * 2.5) * beat + sin(TAU * 60 * t) * 0.15 + sin(TAU * 180 * t) * 0.05
-	return _loop(_wav(rush, RATE))
+	return _loop(_wav(rush, rate))
 
 
 ## Riding the lift: the hoist motor's hum, the car's faint rattle and air rushing
