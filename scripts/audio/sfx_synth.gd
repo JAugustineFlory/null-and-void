@@ -13,7 +13,7 @@ const HI_RATE := 44100
 const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "key", "flicker",
 	"door_motor", "swing", "body_fall", "pencil", "keypad", "card", "crank", "tape_tear", "sticky", "rattle",
 	"unscrew", "panel_off", "hinge", "ceiling_tile", "duct_crawl", "reader_ok", "reader_no",
-	"lift_ding", "lift_thunk", "cable_creak", "lift_ride",
+	"lift_ding", "lift_thunk", "cable_creak", "lift_ride", "extinguisher",
 	"fluorescent_buzz", "crt_whine", "server_hum", "gears"]
 ## The ones that loop (seamlessly).
 const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum", "lift_ride", "gears"]
@@ -36,7 +36,8 @@ static func make(kind: String) -> AudioStreamWAV:
 		"swing": 0.28, "body_fall": 0.7, "pencil": 0.34, "keypad": 0.13, "card": 0.2, "crank": 0.5,
 		"tape_tear": 0.45, "sticky": 0.2, "rattle": 0.3, "unscrew": 0.42,
 		"panel_off": 0.55, "hinge": 0.6, "ceiling_tile": 0.5, "duct_crawl": 0.32, "reader_ok": 0.22, "reader_no": 0.34,
-		"lift_ding": 1.3, "lift_thunk": 0.5, "cable_creak": 0.6}.get(kind, 0.3)
+		"lift_ding": 1.3, "lift_thunk": 0.5, "cable_creak": 0.6,
+		"extinguisher": 0.8}.get(kind, 0.3)
 	var n := int(secs * RATE)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -204,6 +205,15 @@ static func make(kind: String) -> AudioStreamWAV:
 				phase += TAU * (150.0 + 40.0 * sin(TAU * 1.3 * t) + rng.randf_range(-15, 15)) / RATE
 				var slip := 0.5 + 0.5 * signf(sin(TAU * 19.0 * t + 2.0 * sin(TAU * 2.0 * t)))
 				v = (sin(phase) * 0.35 + sin(phase * 2.0) * 0.2 + sin(phase * 3.0) * 0.12) * slip * sin(PI * t / secs) ** 2
+			"extinguisher":
+				# A fire extinguisher let off: the valve's burst, then a hard hiss of gas and
+				# powder that sputters out.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.6)
+				lower = lerpf(lower, low, 0.15)
+				var burst := (rng.randf_range(-1, 1) * 0.7 + sin(TAU * 90 * t) * 0.45) * exp(-t * 35.0)
+				var env := minf(t / 0.02, 1.0) * (1.0 - smoothstep(0.45, secs, t))
+				var flutter := 0.85 + 0.15 * sin(TAU * 13.0 * t)
+				v = burst + ((low - lower) * 1.1 + lower * 0.5) * env * flutter
 		out[i] = v
 	return _wav(out, RATE)
 
@@ -211,11 +221,12 @@ static func make(kind: String) -> AudioStreamWAV:
 ## Fluorescent tubes on a magnetic ballast: a 120 Hz buzz with a rasp in it.
 ## Two seconds that loop with no seam.
 static func _buzz() -> AudioStreamWAV:
-	var n := RATE * 2
-	var out := _noise("fluorescent_buzz", n, 0.6)
+	var rate := RATE / 2  # a hum and its rasp: half rate holds it, in half the memory
+	var n := rate * 2
+	var out := _noise("fluorescent_buzz", n, 0.84)
 	for i in n:
-		out[i] = _mains(float(i) / RATE) * 0.5 + out[i] * 0.04
-	return _loop(_wav(out, RATE))
+		out[i] = _mains(float(i) / rate) * 0.5 + out[i] * 0.04
+	return _loop(_wav(out, rate))
 
 
 ## An old monitor: the thin flyback whine, a little mains hum and a static fizz.
