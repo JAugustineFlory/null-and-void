@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints", "policy", "counterplay"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints", "policy", "kit", "counterplay"]
 
 
 func _run() -> void:
@@ -101,6 +101,7 @@ func _run_group(g: String) -> void:
 		"hard": await _group_hard()
 		"hints": await _group_hints()
 		"policy": await _run_file("res://tests/policy_tests.gd")
+		"kit": await _run_file("res://tests/kit_tests.gd")
 		"counterplay": await _run_file("res://tests/counterplay_tests.gd")
 
 

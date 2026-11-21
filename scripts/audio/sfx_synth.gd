@@ -13,9 +13,9 @@ const HI_RATE := 44100
 const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "key", "flicker",
 	"door_motor", "swing", "body_fall", "pencil", "keypad", "card", "crank", "tape_tear", "sticky", "rattle",
 	"unscrew", "panel_off", "hinge", "ceiling_tile", "duct_crawl", "reader_ok", "reader_no",
-	"fluorescent_buzz", "crt_whine", "server_hum"]
+	"fluorescent_buzz", "crt_whine", "server_hum", "gears"]
 ## The ones that loop (seamlessly).
-const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum"]
+const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum", "gears"]
 
 
 ## The sound called `kind`, or null if there's no such sound.
@@ -24,6 +24,7 @@ static func make(kind: String) -> AudioStreamWAV:
 		"fluorescent_buzz": return _buzz()
 		"crt_whine": return _crt()
 		"server_hum": return _server()
+		"gears": return _gears()
 	if kind not in KINDS:
 		return null
 	var rng := RandomNumberGenerator.new()
@@ -220,6 +221,20 @@ static func _server() -> AudioStreamWAV:
 		var beat := 0.8 + 0.2 * sin(TAU * 0.5 * t)
 		rush[i] = (rush[i] * 0.35 + deep[i] * 2.5) * beat + sin(TAU * 60 * t) * 0.15 + sin(TAU * 180 * t) * 0.05
 	return _loop(_wav(rush, RATE))
+
+
+## Open gears turning (GearTrain): a low motor drone under the tick of each tooth
+## meeting the next, 16 a second. Two seconds that loop with no seam.
+static func _gears() -> AudioStreamWAV:
+	var n := RATE * 2
+	var grind := _noise("gears", n, 0.3)
+	var drone := _noise("gears_drone", n, 0.02)
+	for i in n:
+		var t := float(i) / RATE
+		var tooth := fmod(t, 0.0625)
+		var tick := (1.0 - exp(-tooth * 900.0)) * exp(-tooth * 90.0) * (0.8 if int(t / 0.0625) % 2 == 0 else 0.55)
+		grind[i] = grind[i] * tick * 0.9 + drone[i] * 2.0 + sin(TAU * 50 * t) * 0.12
+	return _loop(_wav(grind, RATE))
 
 
 ## Mains buzz: 120 Hz and its odd-sounding harmonics, slightly clipped like a ballast.

@@ -15,7 +15,7 @@ signal gate_opened(key: String)
 ## Methods a client may ask the host to call on a world node on its behalf.
 const FORWARDABLE := ["interact", "interact_alt", "take_hit", "report_open"]
 ## The same, with arguments after the player (forward_args).
-const FORWARDABLE_ARGS := ["report_take"]
+const FORWARDABLE_ARGS := ["report_take", "report_use"]
 const READY_TIMEOUT := 20.0
 ## Host: the NPCs it simulates for everyone. Teammates' bodies here (PlayerPuppet)
 ## don't push them: a puppet is only placed where its player's machine says, so a
