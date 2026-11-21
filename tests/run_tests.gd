@@ -35,7 +35,7 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints", "policy"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "teaching_garage", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints", "policy"]
 
 
 func _run() -> void:
@@ -89,6 +89,7 @@ func _run_group(g: String) -> void:
 		"teaching_lab": await _group_teaching_lab()
 		"teaching_api": await _group_teaching_api()
 		"teaching_scripts": await _group_teaching_scripts()
+		"teaching_garage": await _group_teaching_garage()
 		"scripting": await _group_scripting()
 		"chapters": await _group_chapters()
 		"sound": await _group_sound()
@@ -390,6 +391,11 @@ func _group_teaching_api() -> void:
 ## B1's lost-player walks: the crew's first scripts, warm, then in the cold.
 func _group_teaching_scripts() -> void:
 	await _run_file("res://tests/teaching_tests.gd", "scripts")
+
+
+## The garage lab's practice cases, walked by a player who's never typed a query.
+func _group_teaching_garage() -> void:
+	await _run_file("res://tests/teaching_tests.gd", "garage")
 
 
 ## Scripting and services: the facility API's writes, and deck scripts.
