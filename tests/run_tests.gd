@@ -1899,7 +1899,7 @@ func test_level_1_scene() -> void:
 	var round_west := NavigationServer3D.map_get_path(map, level.to_global(Vector3(-14.5, 0, 10)), level.to_global(Vector3(-12, 0, -10.5)), true)
 	check(round_west.size() > 1 and Array(round_west).all(func(q): return level.to_local(q).x < -7.5), "the west side loops round through the NOC and the cable vault, not Server Room A")
 
-	level.terminal_ui.terminal = level.terminal
+	level.terminal_ui.open(level.terminal, level.player)
 	var ui: TerminalUI = level.terminal_ui
 	var g := _game()
 	var miss := func(id: String) -> String: return str(g.case_info(id).get("blank", {}).get("miss", ""))
@@ -2057,7 +2057,7 @@ func test_level_1_scene() -> void:
 	level.player.global_position = level.to_global(Vector3(0, 0.1, -9.4))  # through the rear exit
 	check(await _until(func(): return level._pivot_done, 5.0), "and come as the crew goes through Server Room A's rear exit")
 	level.player.global_position = level.to_global(Vector3(-1.5, 0.1, -11))
-	for i in 900:
+	for i in 3000:  # his lines about Vale's login finish first
 		if level.sync._gates.has("rourke_in_lift"):
 			break
 		await physics_frame
@@ -2486,8 +2486,15 @@ func test_coop_late_join() -> void:
 	host.sync.event("_on_asked")
 	await _frames(20)
 	client.player.global_position = Vector3(-4.5, 0.1, 7.4)
-	client.terminal_ui.terminal = client.terminal
+	# One step at a time, each answer pointed at: the stuck doors' zone, then the controller.
+	client.terminal_ui.open(client.terminal, client.player)
+	client.terminal_ui.run("SELECT name, zone FROM doors WHERE locked = 1;")
+	await _frames(10)
+	_point_at(client.terminal_ui, "zone", host.zone, "Server Room C")
+	await _frames(10)
 	client.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % host.zone)
+	await _frames(10)
+	_point_at(client.terminal_ui, "id", host.answer)
 	await _frames(10)
 	client.terminal_ui.terminal = client.terminal
 	client.terminal_ui.run("UPDATE doors SET locked = 0, actuator_fault = 0 WHERE id = 'SRA-EXIT'")
@@ -2622,13 +2629,24 @@ func test_coop_level_1() -> void:
 	check(client.rourke.global_position.distance_to(host.rourke.global_position) < 1.0, "clients see Rourke where the host has him")
 
 	var wrong: String = host.db.run_silent("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'offline'" % host.zone)[0]["id"]
-	client.terminal_ui.terminal = client.terminal
+	# One step at a time, each answer pointed at on the client's own screen.
+	client.terminal_ui.open(client.terminal, client.player)
+	client.terminal_ui.run("SELECT name, zone FROM doors WHERE locked = 1;")
+	await _frames(10)
+	_point_at(client.terminal_ui, "zone", host.zone, "Server Room C")
+	await _frames(10)
+	check(host.stuck_doors_puzzle.solved and client.stuck_doors_puzzle.solved, "a client's pointing finds the stuck doors' zone for everyone")
 	client.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % host.zone)
+	await _frames(10)
+	_point_at(client.terminal_ui, "id", host.answer)
 	await _frames(10)
 	check(host.controller_puzzle.solved and client.controller_puzzle.solved, "a client's query finds the controller for everyone")
 	client.terminal_ui.run("SELECT COUNT(*) FROM door_controllers WHERE status = 'fault';")
 	await _frames(10)
+	_point_at(client.terminal_ui, "COUNT(*)", str(host.faulted))
+	await _frames(10)
 	check(host.count_puzzle.solved and client.count_puzzle.solved, "a client's count logs the sign-off for everyone")
+	client.terminal_ui.close()
 	client.rack_panels[wrong].interact(client.player)
 	await _frames(10)
 	check(host.panels_locked_until > 0.0 and client.panels_locked_until > 0.0, "a wrong rack locks the panels for everyone")
@@ -2676,6 +2694,8 @@ func test_coop_level_1() -> void:
 	check(host.cable_holders.size() == 2 and client.cable_holders.size() == 2 and host.player.inventory.has("cable"), "and there's a coil for the host too")
 
 	# The elevator: the host counts heads, then the doors close everywhere.
+	for l in levels:
+		l._pivot_done = true  # Rourke's lines on the walk out are their own test
 	host.sync.event("_on_crew_at_lift")
 	await _frames(5)
 	for l in levels:
@@ -5877,8 +5897,14 @@ func test_case_pages() -> void:
 	level.terminal_ui.terminal = level.terminal
 	level.terminal_ui.run(".hint")
 	check(g.case_info("controller").clues.any(func(k): return k.from == "SYSOP hint"), "a hint asked for goes on the case page too")
+	# One step at a time: the stuck doors' zone first, then the controller, each pointed at.
+	level.terminal_ui.open(level.terminal, level.player)
+	level.terminal_ui.run("SELECT name, zone FROM doors WHERE locked = 1;")
+	_point_at(level.terminal_ui, "zone", level.zone, "Server Room C")
 	level.terminal_ui.run("SELECT id FROM door_controllers WHERE zone = '%s' AND status = 'fault';" % level.zone)
-	check(g.case_info("controller").clues.any(func(k): return k.text.contains(level.answer)), "SYSOP's answer is noted once the query finds it")
+	check(not g.case_info("controller").clues.any(func(k): return k.text.contains(level.answer)), "the query alone doesn't note the controller: it waits to be pointed at")
+	_point_at(level.terminal_ui, "id", level.answer)
+	check(g.case_info("controller").clues.any(func(k): return k.text.contains(level.answer)), "SYSOP's answer is noted once the crew points at it")
 	level.queue_free()
 	await process_frame
 

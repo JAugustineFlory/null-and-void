@@ -1119,7 +1119,7 @@ const LINES := {
 	"l1_cc_hot_n1b": {"scene": "l1_crew", "speaker": "CREW", "text": "That monitoring card in Server Room B said what counts as too hot.",
 		"note": "Stuck. Remembering a card.",
 		"cue": "Same moment, stuck for about a minute, but someone has read the monitoring card.",
-		"action": "Glancing back toward the card by the terminal."},
+		"action": "Glancing back toward Server Room B."},
 	"l1_cc_hot_err": {"scene": "l1_crew", "speaker": "CREW", "text": "We want the hot ones, not the cool ones, right?",
 		"note": "The comparison the wrong way round, twice. Checking.",
 		"cue": "When the crew gets the comparison backwards a second time.",

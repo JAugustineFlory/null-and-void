@@ -139,6 +139,13 @@ func world_text(level: Node, at: Node3D = null) -> String:
 	for d in level.find_children("*", "Document", true, false):
 		if in_room(d, at):
 			parts.append(d.plain_text())
+	# A sticky note shows its label; read (E), the rest of it, tip and all.
+	for n in level.find_children("*", "StickyNote", true, false):
+		if in_room(n, at):
+			var note: Dictionary = StickyNotes.get_note(n.note_id)
+			for k in ["what", "syntax", "example", "tip"]:
+				if note.has(k):
+					parts.append(str(note[k]))
 	parts.append(level.hud.current_todo())
 	return "\n".join(parts)
 
@@ -1113,6 +1120,8 @@ func walk_level_1(seed_value: int) -> void:
 		if d.title == "Fire interlock":
 			d.report_open(level.player)
 	check(await _until(func(): return _game().case_info("hot_rack").get("open", false), 2.0), "server floor: the fire interlock plate opens the hot rack's case")
+	# What counts as too hot is on the monitoring card in Server Room B, by the trays (M4).
+	read_paper(level, "SERVER ROOM B - RACK MONITORING")
 	ui.open(level.terminal, level.player)
 	var hot: String = level.hot_rack
 	h = await solve(level, ui, level.hot_rack_puzzle, false, 3, "", false, func():
@@ -1127,7 +1136,13 @@ func walk_level_1(seed_value: int) -> void:
 		tray.interact(level.player)
 	check(await _until(func(): return not level.vault_back.locked, 6.0), "server floor: reseating the hot rack's tray releases the cable vault's back door")
 	# Optional: the dark break room, OR practised safely. The query lists the lights
-	# that are out; the circuit reset by the break room door fixes them.
+	# that are out; the circuit reset by the break room door fixes them. Facilities'
+	# card by the break room opens the case and names the two statuses (M4).
+	for d in level.find_children("*", "Document", true, false):
+		if d.title == "FACILITIES - LIGHTING CIRCUITS":
+			d.report_open(level.player)
+	read_paper(level, "FACILITIES - LIGHTING CIRCUITS")
+	check(await _until(func(): return _game().case_info("dark_room").get("open", false), 2.0), "server floor: facilities' card opens the dark room's case")
 	ui.open(level.terminal, level.player)
 	h = await solve(level, ui, level.dark_room_puzzle, false)
 	check(h >= 0 and h <= rescue_tier(level.dark_room_puzzle), "server floor: a lost player lists the lights that are out once a hint gives the query (hints %d)" % h)
