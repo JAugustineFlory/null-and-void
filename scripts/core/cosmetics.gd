@@ -24,19 +24,19 @@ extends RefCounted
 ## finish with no color to pick.
 
 const WORN_SLOTS := ["hair", "head", "top", "jacket", "legs", "feet", "face", "ears", "belt"]
-const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "sticker", "clip", "terminal"]
+const TOOL_SLOTS := ["flashlight", "walkie", "notebook", "sticker", "clip", "terminal", "screen"]
 ## Add-ons on the notebook's cover, shown with any cover; "none" is the default.
 const NOTEBOOK_ADDONS := ["sticker", "clip"]
 const SLOT_NAMES := {
 	"hair": "Hair", "head": "Hat", "top": "Top", "jacket": "Jacket", "legs": "Legs",
 	"feet": "Shoes", "face": "Face", "ears": "Ears", "belt": "Belt",
 	"flashlight": "Flashlight", "walkie": "Walkie", "notebook": "Notebook",
-	"sticker": "Sticker", "clip": "Clip", "terminal": "Terminal",
+	"sticker": "Sticker", "clip": "Clip", "terminal": "Text", "screen": "Screen",  # (Text, Screen: DRAFT)
 }
 ## What the tools look like before anyone changes them.
 const TOOL_COLORS := {
 	"flashlight": Color(0.12, 0.12, 0.13), "walkie": Color(0.1, 0.1, 0.1),
-	"notebook": NotebookView.COVER, "terminal": TerminalScreen.PHOSPHOR,
+	"notebook": NotebookView.COVER, "terminal": TerminalScreen.PHOSPHOR, "screen": TerminalLook.SCREENS.black,
 	"sticker": Color(0.86, 0.8, 0.62), "clip": Color(0.12, 0.12, 0.14),
 }
 
@@ -70,6 +70,8 @@ const ITEMS := [
 	{"slot": "walkie", "item": "standard", "name": "Standard", "unlock": "default"},
 	{"slot": "notebook", "item": "spiral", "name": "Spiral", "unlock": "default"},
 	{"slot": "terminal", "item": "phosphor", "name": "Phosphor", "unlock": "default"},
+	{"slot": "screen", "item": "black", "name": "Black", "unlock": "default"},
+	{"slot": "screen", "item": "graphite", "name": "Graphite", "unlock": "default"},
 	# The first unlocks (Augustine, 2026-10-20 23:24Z; plan/approvals/unlocks.md).
 	{"slot": "notebook", "item": "easy_sql", "name": "Easy SQL cover", "unlock": "achievement:book_easy_sql",
 		"hint": "Pick up the crew's first book."},
@@ -120,6 +122,17 @@ const ITEMS := [
 		"hint": "Finish the game on Hard, alive."},
 	{"slot": "top", "item": "torn_clothes", "name": "The Hard Way", "unlock": "achievement:hard_game",
 		"hint": "Finish the game on Hard, alive."},
+	# Terminal looks, v0.10 (plan/overhaul-v0.10.md 5; names and hints DRAFT, for Augustine).
+	{"slot": "screen", "item": "deep_blue", "name": "Deep blue", "unlock": "achievement:floor_g", "hint": "Finish the ground floor."},
+	{"slot": "screen", "item": "oxblood", "name": "Oxblood", "unlock": "achievement:hard_floor",
+		"hint": "Clear a floor on Hard and live through it."},
+	{"slot": "screen", "item": "paper", "name": "Paper", "unlock": "achievement:look_no_buttons",
+		"hint": "Type every word in Easy SQL yourself."},
+	{"slot": "screen", "item": "night_shift", "name": "Night shift", "unlock": "achievement:b2_both_saved",
+		"hint": "Leave floor B2 with Ines and Tomas both."},
+	{"slot": "terminal", "item": "highlighter", "name": "Highlighter", "unlock": "achievement:easy_sql_done",
+		"hint": "Finish every chapter of Easy SQL."},
+	{"slot": "terminal", "item": "blueprint", "name": "Blueprint", "unlock": "achievement:floor_18", "hint": "Finish floor 18."},
 ]
 
 ## The catalogue in use: ITEMS, unless a test swaps in its own (reset() puts it back).

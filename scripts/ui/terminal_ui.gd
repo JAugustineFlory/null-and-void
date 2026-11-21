@@ -71,6 +71,10 @@ var _foot: Label
 ## no dimmed backdrop, no margin. `_home` is where it goes back to afterwards.
 var _dim: ColorRect
 var _panel: PanelContainer
+## The look the screen is drawn in now (TerminalLook.of; the terminal's, set by
+## whoever sat down first).
+var _look := {}
+var _style: StyleBoxFlat
 var _screen: Node
 var _home: Node
 ## The script runner (.script), made the first time it's needed, and the
@@ -116,6 +120,7 @@ func _ready() -> void:
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_set_hosted(false)
 	var style := StyleBoxFlat.new()
+	_style = style
 	style.bg_color = Color(0.02, 0.05, 0.03)
 	style.border_color = Color(0.2, 0.45, 0.25)
 	style.set_border_width_all(3)
@@ -240,9 +245,9 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	visible = true
 	# Each terminal keeps its own screen; in co-op it shows everyone's queries.
 	terminal.ensure_booted()
-	_clear_output()
-	for i in terminal.transcript.size():
-		_render(terminal.transcript[i], terminal.transcript_kinds[i] if i < terminal.transcript_kinds.size() else "")
+	_look = {}
+	_apply_look()
+	_show_transcript()
 	if not terminal.screen_changed.is_connected(_show_others):
 		terminal.screen_changed.connect(_show_others)
 	var mirror := _mirror()
@@ -447,6 +452,8 @@ func make_room(top: float) -> void:
 func _show_others() -> void:
 	if terminal == null or not visible:
 		return
+	if _apply_look():
+		_show_transcript()  # whoever sat first has a look of their own: redraw in it
 	var me := multiplayer.get_unique_id()
 	var net := get_node_or_null("/root/Net")
 	var lines := PackedStringArray()
@@ -463,6 +470,8 @@ func _show_others() -> void:
 ## Put a line on this machine's screen. Every non-blank line can be pointed at
 ## and added to this player's own notebook; "none" lines can't.
 func _render(bbcode: String, kind: String = "") -> void:
+	if not _look.is_empty():
+		bbcode = TerminalLook.recolor(bbcode, _look)
 	var text := _plain(bbcode).strip_edges()
 	if text == "" or kind == "none":
 		_output.append_text(bbcode + "\n")
@@ -758,6 +767,30 @@ func _on_note_key(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_note_label.accept_event()
 		_cancel_note()
+
+
+## Everything on the open terminal's screen so far, drawn afresh.
+func _show_transcript() -> void:
+	_clear_output()
+	for i in terminal.transcript.size():
+		_render(terminal.transcript[i], terminal.transcript_kinds[i] if i < terminal.transcript_kinds.size() else "")
+
+
+## Draw in the open terminal's look (its text theme and screen). True if it changed.
+func _apply_look() -> bool:
+	var l: Dictionary = terminal.look if terminal and terminal.get("look") is Dictionary and not terminal.look.is_empty() else TerminalLook.standard()
+	if l == _look:
+		return false
+	_look = l
+	_style.bg_color = l.bg
+	_style.border_color = l.rule
+	_output.add_theme_color_override("default_color", l.text)
+	_hover_band.color = Color(l.text, 0.12)
+	_add_chip.add_theme_color_override("font_color", Color(l.text, 0.75))
+	_input.add_theme_color_override("font_color", l.row)
+	_input.add_theme_color_override("background_color", l.bg.lerp(l.text, 0.06))
+	_input.syntax_highlighter = _sql_highlighter()
+	return true
 
 
 func _clear_output() -> void:
@@ -1417,14 +1450,18 @@ func _esc(s: String) -> String:
 	return s.replace("[", "[lb]")
 
 
-## The typing line's colors, by kind (PieceKind): words, then the tables and
-## columns on this player's Tables page (only ones they've found), then values.
+## The typing line's colors: the look's words and values, and the tables and
+## columns on this player's Tables page (only ones they've found) by kind.
 func _sql_highlighter() -> CodeHighlighter:
+	var l: Dictionary = _look if not _look.is_empty() else TerminalLook.standard()
 	var h := CodeHighlighter.new()
-	h.number_color = PieceKind.color(PieceKind.VALUE)
-	h.symbol_color = Color(0.8, 0.9, 0.8)
-	h.function_color = Color(0.85, 1.0, 0.85)
-	h.member_variable_color = Color(0.85, 1.0, 0.85)
+	# Words, numbers and quoted text follow the screen's look, as the echoed query
+	# does; tables and columns found keep their kind's color (PieceKind), as on the
+	# case board.
+	h.number_color = l.number
+	h.symbol_color = l.row.lerp(l.text, 0.3)
+	h.function_color = l.row
+	h.member_variable_color = l.row
 	var game := get_node_or_null("/root/Game")
 	if game:
 		for t in game.notebook_tables:
@@ -1432,11 +1469,11 @@ func _sql_highlighter() -> CodeHighlighter:
 				h.add_keyword_color(str(col), PieceKind.color(PieceKind.COLUMN))
 		for t in game.notebook_tables:
 			h.add_keyword_color(str(t), PieceKind.color(PieceKind.TABLE))
-	var kw := PieceKind.color(PieceKind.KEYWORD)
+	var kw: Color = l.keyword
 	for word in KEYWORDS:
 		h.add_keyword_color(word, kw)
 		h.add_keyword_color(word.to_lower(), kw)
-	h.add_color_region("'", "'", PieceKind.color(PieceKind.VALUE))
+	h.add_color_region("'", "'", l.string)
 	return h
 
 

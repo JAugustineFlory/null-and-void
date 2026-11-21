@@ -10,7 +10,7 @@ extends Node3D
 ## level set one, otherwise a guess from its name, otherwise concrete.
 
 ## Player.WALK_SPEED, plus the margin Player._footsteps uses to call it a sprint.
-const SPRINT_ABOVE := 4.3
+const SPRINT_ABOVE := Player.WALK_SPEED + 0.5
 ## Between Player.CRAWL_SPEED and VENT_RUSH_SPEED: hurrying through a duct.
 const VENT_RUSH_ABOVE := 2.1
 const WALK_INTERVAL := 0.5

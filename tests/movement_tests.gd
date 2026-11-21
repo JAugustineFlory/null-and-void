@@ -114,7 +114,7 @@ func test_walk_and_sprint() -> void:
 	await frames(60)
 	var walked := 10.0 - walker.global_position.z
 	var ran := 10.0 - runner.global_position.z
-	check(walked > 3.0 and walked < 4.0, "walking covers about 3.8 m a second (%.2f m)" % walked)
+	check(absf(walked - Player.WALK_SPEED) < 0.5, "walking covers about %.1f m a second (%.2f m)" % [Player.WALK_SPEED, walked])
 	check(ran > walked * 1.5, "sprinting is much faster (%.2f m)" % ran)
 	await done(a)
 
