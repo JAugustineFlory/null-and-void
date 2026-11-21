@@ -18,6 +18,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hide()
 	await test_dark()
 	await test_cage()
+	await test_shredder()
+	await test_watcher()
 	await test_coop()
 
 
@@ -38,9 +40,21 @@ func until(cond: Callable, max_frames: int) -> bool:
 	return cond.call()
 
 
+static var _arena_gd: GDScript
+
+
+static func _arena_script() -> GDScript:
+	if _arena_gd == null:
+		_arena_gd = GDScript.new()
+		_arena_gd.source_code = "extends Node3D\nvar players\nvar player\n"
+		_arena_gd.reload()
+	return _arena_gd
+
+
 ## A floor, the player at `at` looking down -Z, and the world's Counterplay.
 func arena(at := Vector3(0, 0.1, 5)) -> Array:
 	var a := Node3D.new()
+	a.set_script(_arena_script())  # a level's players and player, for the gear kit
 	t.root.add_child(a)
 	Greybox.box(a, Vector3(0, -0.1, 0), Vector3(60, 0.2, 60), Color.GRAY, "Floor")
 	var p := Player.new()
@@ -48,6 +62,8 @@ func arena(at := Vector3(0, 0.1, 5)) -> Array:
 	p.position = at
 	a.add_child(p)
 	var np := NetPlayers.create(a, p)
+	a.set("players", np)
+	a.set("player", p)
 	var cp := Counterplay.create(a, np)
 	return [a, p, cp]
 
@@ -64,6 +80,12 @@ func hold(p: Player, item: String) -> void:
 	p.inventory.add(item)
 	if p.inventory.active_item() != item:
 		p.inventory.use_slot(p.inventory.hotbar.find(item))
+
+
+## The `n`th thrown thing lying on the floor under `root`, or null.
+func landed_gear(root: Node, n := 1) -> GearPickup:
+	var g := root.find_child("Thrown%d" % n, true, false)
+	return g if g is GearPickup and not g.taken else null
 
 
 func done(a: Node) -> void:
@@ -149,25 +171,38 @@ func test_throw() -> void:
 	check(cp.prompt_for(p) == Counterplay.THROW_PROMPT, "an extinguisher in your hands: \"%s\"" % Counterplay.THROW_PROMPT)
 	c.activate()
 	check(cp.throw_held() and not p.inventory.has(Counterplay.EXTINGUISHER), "thrown, it leaves your hands")
-	var thrown: ThrownItem = a.find_children("*", "ThrownItem", true, false)[0] if a.find_children("*", "ThrownItem", true, false).size() > 0 else null
-	check(thrown != null and not thrown.enabled, "it flies")
+	check(a.find_children("Flying*", "ThrownItem", true, false).size() == 1, "it flies")
 	check(await until(func(): return c.state == "stunned", 90), "it hits the Custodian: a flinch")
-	check(await until(func(): return thrown.enabled, 90) and thrown.global_position.y < 0.4, "and lands on the floor")
-	check(thrown.get_prompt(p) == "[E] Pick up fire extinguisher", "for anyone to pick up again")
+	check(await until(func(): return landed_gear(a) != null, 90) and landed_gear(a).global_position.y < 0.4 \
+		and a.find_children("Flying*", "ThrownItem", true, false).is_empty(), "and lands on the floor")
+	var thrown: GearPickup = landed_gear(a)
+	check(thrown.get_prompt(p) == "[E] Pick up the fire extinguisher", "for anyone to pick up again (it's gear)")
 	thrown.interact(p)
 	await frames(3)
-	check(p.inventory.has(Counterplay.EXTINGUISHER) and cp.blasts_left == 2 and not is_instance_valid(thrown), "picked up, it still has the blasts it had")
+	check(p.inventory.has(Counterplay.EXTINGUISHER) and cp.blasts_left == 2 and thrown.taken, "picked up, it still has the blasts it had")
+	# Hands full of gear: swapping it for something leaves it, with its blasts, on the floor.
+	for g in ["keyboard", "power_cord", "fuse"]:
+		p.inventory.add(g)
+	hold(p, Counterplay.EXTINGUISHER)
+	cp.blasts_left = 1
+	var bar := GearPickup.make(a, "crowbar", Vector3(0, 0, 4.2))
+	await frames(2)
+	bar.interact(p)
+	await frames(3)
+	check(p.inventory.has("crowbar") and not p.inventory.has(Counterplay.EXTINGUISHER) and bar.item == Counterplay.EXTINGUISHER, "(swapped for a crowbar)")
+	hold(p, "crowbar")
+	bar.interact(p)
+	await frames(3)
+	check(p.inventory.has(Counterplay.EXTINGUISHER) and cp.blasts_left == 1, "swapped back, it still has the one blast left")
+	for g in ["keyboard", "power_cord", "fuse", "crowbar"]:
+		p.inventory.remove(g)
 	# Thrown at nothing: it lands out in front.
 	c.queue_free()
 	await frames(2)
 	hold(p, Counterplay.EXTINGUISHER)
 	check(cp.throw_held(), "(thrown again)")
-	var lands := func():
-		var found := a.find_children("*", "ThrownItem", true, false)
-		return found.size() > 0 and found[0].enabled
-	await until(lands, 150)
-	var found := a.find_children("*", "ThrownItem", true, false)
-	var far: ThrownItem = found[0] if found.size() > 0 else null
+	await until(func(): return landed_gear(a, 2) != null, 150)
+	var far: GearPickup = landed_gear(a, 2)
 	check(far != null and far.global_position.z < p.global_position.z - 2.0, "thrown at nothing, it lands out in front of you")
 	await done(a)
 
@@ -263,6 +298,141 @@ func test_cage() -> void:
 
 
 ## Co-op: a client hides, and the host's enemies know; a client's blast reaches them.
+func shredder(parent: Node, at: Vector3) -> Shredder:
+	var s := Shredder.new()
+	s.position = at
+	parent.add_child(s)
+	s.wake()
+	return s
+
+
+## The Shredder: blind, so the strobe does nothing; the blast stuns it but it hears
+## the hiss; a thrown thing lures it; hiding is safe unless it heard you get in.
+func test_shredder() -> void:
+	print("Counterplay: the Shredder")
+	var r := arena()
+	var a: Node3D = r[0]
+	var p: Player = r[1]
+	var cp: Counterplay = r[2]
+	var s := shredder(a, Vector3(0, 0.1, 2.6))
+	await frames(20)
+	s.state = "listening"
+	cp.strobe()
+	await frames(2)
+	check(s.state == "listening", "a strobe does nothing to it: it's blind")
+	hold(p, Counterplay.EXTINGUISHER)
+	check(cp.blast() and s.state == "stunned" and is_equal_approx(s._timer, Shredder.BLAST_STUN), "a blast stuns it for %.0f s" % Shredder.BLAST_STUN)
+	check(s.target_point.distance_to(p.global_position) < 2.0, "but it heard the hiss")
+	check(await until(func(): return s.state == "investigating", 200), "and once it shakes it off, it comes for you")
+	check(s.target_point.distance_to(p.global_position) < 2.0, "(where the hiss was)")
+	# A thrown thing: no stun, but it walks to where it lands.
+	s.global_position = Vector3(-4, 0.1, -4)
+	s.state = "listening"
+	s.set_meta("counter_stunned_at", -INF)
+	p.rotation.y = deg_to_rad(-40.0)  # off to the right, away from it
+	await frames(2)
+	check(cp.throw_held(), "(thrown)")
+	check(await until(func(): return landed_gear(a) != null, 150), "(landed)")
+	await frames(2)
+	var at := landed_gear(a).global_position
+	check(s.state in ["turning", "investigating"] and s.target_point.distance_to(at) < 1.0, "the clatter where it lands draws it away")
+	check(await until(func(): return Vector2(s.global_position.x - at.x, s.global_position.z - at.z).length() < 1.5, 400), "and it walks over there")
+	p.rotation.y = 0.0
+	# Hiding where it can't hear you get in: it walks right past.
+	var spot := HidingSpot.make(a, Vector3(1.2, 0.0, 5), 0.0, "locker")
+	s.global_position = Vector3(0, 0.1, -8)
+	s.state = "listening"
+	await frames(5)
+	spot.interact(p)
+	await frames(2)
+	check(p.is_sitting() and Counterplay.hidden_in(p) == spot and s._search == null, "it's too far off to hear the locker shut")
+	s.global_position = Vector3(1.2, 0.1, 3.8)  # right by it
+	s.state = "roaming"
+	s.target_point = Vector3(1.2, 0.1, 8)
+	await frames(90)
+	check(s.held == null and Counterplay.hidden_in(p) == spot, "it bumps right past the locker: you make no sound in there")
+	p.stand_up(true)
+	await frames(5)
+	# Heard getting in: it bangs on the locker and pulls you out.
+	s.global_position = Vector3(1.2, 0.1, 2.6)
+	s.state = "listening"
+	s.held = null
+	await frames(30)
+	spot.interact(p)
+	await frames(2)
+	check(Counterplay.hidden_in(p) == spot and s._search == spot and s.state == "investigating", "close by, it hears the locker shut and comes")
+	check(await until(func(): return s.held == p, 240), "it pulls you out")
+	check(not p.is_sitting() and Counterplay.hidden_in(p) == null, "(out of the locker)")
+	await done(a)
+
+
+func watcher(parent: Node, at: Vector3) -> Watcher:
+	var w := Watcher.new()
+	w.position = at
+	parent.add_child(w)
+	w.active = true
+	return w
+
+
+## The Watcher: the strobe keeps it frozen after you look away; the extinguisher's
+## cloud blocks your view of it; from a locker you can still watch it, from a
+## cabinet you can't.
+func test_watcher() -> void:
+	print("Counterplay: the Watcher")
+	var r := arena(Vector3(0, 0.1, 6))
+	var a: Node3D = r[0]
+	var p: Player = r[1]
+	var cp: Counterplay = r[2]
+	var w := watcher(a, Vector3(0, 0.1, 3))
+	var caught := []
+	w.caught.connect(func(b): caught.append(b))
+	await frames(20)
+	var at := w.global_position
+	check(w.seen and w.global_position.distance_to(at) < 0.05, "you're looking: it's frozen")
+	check(cp.strobe(), "you strobe it")
+	p.rotation.y = PI  # turn your back and run
+	await frames(90)
+	check(w.global_position.distance_to(at) < 0.05, "back turned, it stays frozen a moment longer")
+	check(await until(func(): return w.global_position.distance_to(at) > 0.3, 200), "then it comes")
+	p.rotation.y = 0.0
+	w.global_position = Vector3(0, 0.1, 1)
+	await frames(10)
+	at = w.global_position
+	check(w.seen and w.global_position.distance_to(at) < 0.05, "(frozen again)")
+	# The extinguisher's cloud: it hides it from you, so it moves.
+	hold(p, Counterplay.EXTINGUISHER)
+	check(cp.blast(), "you blast it")
+	check(await until(func(): return w.global_position.distance_to(at) > 0.3, 120), "the cloud blocks your view of it: it moves")
+	for c in a.find_children("*", "SightCloud", true, false):
+		c.free()
+	# In a locker you can see out through the slats: staring keeps it frozen.
+	w.global_position = Vector3(0, 0.1, 1)
+	var locker := HidingSpot.make(a, Vector3(0, 0.0, 6.3), 0.0, "locker")
+	await frames(10)
+	locker.interact(p)
+	await frames(10)
+	at = w.global_position
+	check(Counterplay.hidden_in(p) == locker and w._search == locker, "it was coming for you: it heads for the locker")
+	await frames(60)
+	check(w.seen and w.global_position.distance_to(at) < 0.05 and caught.is_empty(), "but from in there you can watch it, and it stays put")
+	SightCloud.make(a, Vector3(0, 1.4, 4.0), 1.4, 6.0)
+	check(await until(func(): return not caught.is_empty(), 400), "lose sight of it and it comes to the locker")
+	check(caught[0] == p and not p.is_sitting() and Counterplay.hidden_in(p) == null, "and takes you out")
+	for c in a.find_children("*", "SightCloud", true, false):
+		c.free()
+	# A cabinet: you can't see out.
+	caught.clear()
+	await frames(int(Watcher.CATCH_COOLDOWN * 60) + 5)
+	w.global_position = Vector3(0, 0.1, 1)
+	var cabinet := HidingSpot.make(a, Vector3(1.4, 0.0, 6.0), 0.0, "cabinet")
+	await frames(5)
+	cabinet.interact(p)
+	await frames(5)
+	check(Counterplay.hidden_in(p) == cabinet and not w.player_sees(p), "in a cabinet, you can't see out")
+	check(await until(func(): return not caught.is_empty(), 400) and caught[0] == p, "it walks to the cabinet and takes you")
+	await done(a)
+
+
 func test_coop() -> void:
 	print("Counterplay: co-op")
 	var tests = t
@@ -325,16 +495,14 @@ func test_coop() -> void:
 		b.queue_free()
 	await tests._frames(2)
 	check(ccp.throw_held(), "the client throws it")
-	var landed := func(l):
-		var f: Array = l.find_children("Thrown*", "ThrownItem", true, false)
-		return f.size() > 0 and f[0].enabled
-	check(await until(func(): return landed.call(host) and landed.call(client), 180), "it lands on every machine")
-	var hi: ThrownItem = host.find_children("Thrown*", "ThrownItem", true, false)[0]
-	var ci: ThrownItem = client.find_children("Thrown*", "ThrownItem", true, false)[0]
-	check(hi.global_position.distance_to(ci.global_position) < 0.05, "in the same place")
+	check(await until(func(): return landed_gear(host) != null and landed_gear(client) != null, 180), "it lands on every machine")
+	var hi: GearPickup = landed_gear(host)
+	var ci: GearPickup = landed_gear(client)
+	check(hi.global_position.distance_to(ci.global_position) < 0.05 and hi.get_path() != ci.get_path() \
+		and host.get_path_to(hi) == client.get_path_to(ci), "in the same place, as the same gear")
 	hi.interact(host.player)
 	# (Both machines share one Game.inventory in a test, so only the floors can show who took it.)
-	check(await until(func(): return host.player.inventory.has(Counterplay.EXTINGUISHER) and not is_instance_valid(ci), 60),
+	check(await until(func(): return host.player.inventory.has(Counterplay.EXTINGUISHER) and ci.taken, 60),
 		"the host picks it up: it's gone from the client's floor too")
 	host.player.inventory.remove(Counterplay.EXTINGUISHER)
 	for s in spots:
