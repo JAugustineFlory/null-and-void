@@ -4,15 +4,18 @@ extends Area3D
 ## to crawl through, something to climb, or a narrow ledge to shuffle along.
 ## Build them with the `Traversal` helpers.
 
-enum Kind { VENT, CLIMB, LEDGE }
+enum Kind { VENT, CLIMB, LEDGE, HATCH }
 
 var kind := Kind.VENT
 ## CLIMB: bottom and top of the climbable, at the climber's feet.
 ## LEDGE: the two ends of the walkable line, at foot height.
+## HATCH: a = the middle of the opening's rim, b = where you come out on top.
 var a := Vector3.ZERO
 var b := Vector3.ZERO
 ## Points away from the wall, toward where the player stands or hangs.
 var normal := Vector3.FORWARD
+## Off, it changes nothing (a hatch whose panel is shut).
+var active := true
 
 
 static func create(parent: Node, center: Vector3, size: Vector3, volume_kind: Kind) -> MovementVolume:

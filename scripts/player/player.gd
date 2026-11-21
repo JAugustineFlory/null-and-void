@@ -251,6 +251,10 @@ var _lift_from := Vector3.ZERO
 var _lifting := 0.0
 ## The crate in your hands (Crate), if you're carrying one: both hands, slowly.
 var carrying: Crate = null
+## Who you play (a PlayableCrew slug); "" if not set (LevelBase sets it from your look).
+var crew := ""
+## The stuck lift door you're pulling on (PryGrip), holding E.
+var gripping: PryGrip = null
 
 var _volumes: Array[MovementVolume] = []
 var _timer := 0.0
@@ -584,8 +588,11 @@ func step(delta: float) -> void:
 	controls.sit = false
 	_tick_stamina(delta)
 	_lifting = maxf(0.0, _lifting - delta)
-	if _lifting > 0.0:
-		jump_pressed = false  # braced under a teammate going up off you
+	if _lifting > 0.0 or gripping:
+		jump_pressed = false  # braced under a teammate going up off you, or pulling on a door
+	if gripping and (not controls.use or downed or not is_instance_valid(gripping) or not gripping.enabled \
+			or global_position.distance_to(gripping.global_position) > PryDoors.REACH + body.radius + 0.5):
+		let_go_grip()
 	var crouch_pressed := controls.crouch and not _crouch_was
 	_crouch_was = controls.crouch
 	if _notebook_held and state in [Move.MANTLE, Move.HANG, Move.CLIMB, Move.VAULT]:
@@ -1376,6 +1383,8 @@ func _let_go() -> void:
 	_end_lift()
 	if carrying:
 		carrying.drop_here()
+	if gripping:
+		let_go_grip()
 	lower_notebook()
 	put_down()
 	_end_filing()
@@ -1603,6 +1612,32 @@ func leg_up(base: Node3D) -> bool:
 	return true
 
 
+## Free to take hold of a stuck door's edge: on your feet, hands free.
+func can_grip() -> bool:
+	return gripping == null and state == Move.WALK and is_on_floor() and not crawling and not downed \
+		and not _hands_full() and rider == null and carrier == null and _lifting <= 0.0
+
+
+## The host gave you grip `g` (PryDoors.set_holders): you hold on while E is down.
+func take_grip(g: PryGrip) -> void:
+	gripping = g
+	lower_notebook()
+	velocity = Vector3(0, velocity.y, 0)
+
+
+## You let go (E up, or pulled away): tell the doors.
+func let_go_grip() -> void:
+	var g := gripping
+	gripping = null
+	if g and is_instance_valid(g) and g.doors:
+		g.doors.ask_release(self)
+
+
+## The doors let you go (they opened, or the host says so).
+func drop_grip() -> void:
+	gripping = null
+
+
 ## Give a teammate a leg-up: you hold still, braced, while they go up off you.
 func give_leg_up() -> void:
 	_lifting = LEG_UP_TIME + 0.15
@@ -1659,7 +1694,7 @@ func exit_volume(v: MovementVolume) -> void:
 
 func in_volume(kind: MovementVolume.Kind) -> MovementVolume:
 	for v in _volumes:
-		if v.kind == kind:
+		if is_instance_valid(v) and v.kind == kind and v.active:
 			return v
 	return null
 
@@ -1696,7 +1731,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			state = Move.WALK  # stance settles next tick, as high as there's room for
 	else:
 		var dir := (transform.basis * Vector3(controls.move.x, 0, controls.move.y)).normalized()
-		if _lifting > 0.0:
+		if _lifting > 0.0 or gripping:
 			dir = Vector3.ZERO
 		var speed := WALK_SPEED
 		if rider:
@@ -1740,6 +1775,9 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			# Keep the stance you stepped on with: facing the wall or back to it.
 			_ledge_face = -ledge.normal if _forward().dot(-ledge.normal) > 0.0 else ledge.normal
 			_clamp_ledge_yaw()
+			return
+		var hatch := in_volume(MovementVolume.Kind.HATCH)
+		if hatch and (jump_pressed or (not on_floor and _air_time > 0.1 and velocity.y < 1.5)) and _try_hatch(hatch):
 			return
 		if jump_pressed:
 			# A direction key plus Space: vault something low, mantle or grab something
@@ -1877,6 +1915,20 @@ func _try_ledge(allow_hang: bool, dir: Vector3 = Vector3.ZERO) -> bool:
 		_noise(0.25)
 		return true
 	return false
+
+
+## Under an open hatch (Traversal.hatch) with its rim in reach: up through it
+## and out on top. Space under it; if it's higher, jump and you catch it.
+func _try_hatch(v: MovementVolume) -> bool:
+	if v.a.y - global_position.y > HANG_REACH or v.a.y < global_position.y + _height * 0.5:
+		return false
+	var out := v.b
+	out.y += 0.02
+	if not _fits(out, body.crawl):
+		return false
+	_start_mantle(out)
+	_cam_kick += Vector3(-0.05, -0.1, 0)  # caught the rim
+	return true
 
 
 ## Vault over a low obstacle just ahead: it's VAULT_MIN..VAULT_MAX tall, no deeper
