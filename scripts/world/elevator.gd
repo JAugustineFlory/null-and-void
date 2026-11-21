@@ -46,6 +46,8 @@ var destination: Elevator
 var floor_label := ""
 ## The floor the button takes you to.
 var to_floor := ""
+## An ElevatorStall that can stick this car between floors (scripts/world/kit/), or null.
+var stall: Node = null
 var _leaves: Array[AnimatableBody3D] = []
 var _tween: Tween
 var _light: OmniLight3D
@@ -227,6 +229,14 @@ func _players() -> Array:
 ## The button: works only when every living player is inside.
 func press(by: Node = null) -> bool:
 	refusal = ""
+	if riding and stall and stall.stalled:
+		refusal = KitWords.say("buttons_dead")
+		var s := LevelSync.of(self)
+		if s and s.is_online():
+			s.team_notice(refusal, 3.0)
+		elif hud:
+			hud.notice(refusal, 3.0)
+		return false
 	if is_closing or riding or open_amount <= 0.0:
 		return false
 	var c := headcount()
@@ -277,13 +287,16 @@ func ride(seconds: float = RIDE_TIME) -> void:
 	var to := level_of(destination.floor_label if destination else to_floor)
 	if art:
 		art.call("set_direction", signi(to - from))
-	var tw := create_tween()
-	tw.tween_method(_set_car_light, 1.0, 0.6, seconds * 0.5)
-	tw.tween_method(_set_car_light, 0.6, 1.0, seconds * 0.5)
-	if art and to != from:
-		var count := create_tween()
-		count.tween_method(func(f: float): art.call("set_floor", label_of(roundi(f))), float(from), float(to), seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	await tw.finished
+	if stall and stall.should_stall():
+		await stall.stall_ride(from, to, seconds)
+	else:
+		var tw := create_tween()
+		tw.tween_method(_set_car_light, 1.0, 0.6, seconds * 0.5)
+		tw.tween_method(_set_car_light, 0.6, 1.0, seconds * 0.5)
+		if art and to != from:
+			var count := create_tween()
+			count.tween_method(func(f: float): art.call("set_floor", label_of(roundi(f))), float(from), float(to), seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		await tw.finished
 	if art:
 		art.call("set_floor", label_of(to))
 		art.call("set_direction", 0)

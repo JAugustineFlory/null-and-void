@@ -17,6 +17,7 @@ to the piece's signals inside a `sync.event` if it changes shared state beyond t
 | Fuse box | `FuseBox.make(parent, id, pos, facing, ["LIGHTS", "STAIR DOOR"], [FuseBox.seeded_blown("g_box", 2)])` | `circuit_changed(circuit, live, peer)`, `is_live(circuit)` |
 | Patch panel | `PatchPanel.make(parent, id, pos, facing, ["RM 101", "LOBBY"])`; `required` for the lines that matter | `patched(port, jack, peer)`, `solved`, `is_linked(label)` |
 | Stuck thing | `ItemLock.make(parent, id, center, size, "crowbar", use_text, need_text)`; item `""` for a one-time pull anyone can do (a hand chain) | `opened(peer)` |
+| Stuck elevator (E9) | `ElevatorStall.attach(elevator, geo, key)`; `arm()` from a `sync.event`, or `when(callable)` for a run choice (its fuse pulled). Needs 5.6 m clear above the car | `stalled_changed(stalled)`, `released_by(how)`; Movement's pry calls `release("pry")` on every machine |
 | Broken or switched-off terminal | `TerminalRig.attach(terminal, ["power", "keyboard"], fuse_box, "TERMINALS")` | `fixed(part, peer)`, `assembled` |
 
 Rules that come with it:
