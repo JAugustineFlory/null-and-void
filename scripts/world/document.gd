@@ -319,13 +319,15 @@ func _read(player: Node) -> void:
 		open_reader(player)
 
 
-## Every machine: this paper's pieces are found.
-func _collect_pieces() -> void:
+## Every machine: this paper's pieces are found, by the crewmate named `by`
+## (shown on everyone else's slide-up).
+func _collect_pieces(by: String = "", peer: int = 0) -> void:
 	var game := get_node_or_null("/root/Game")
 	if game == null:
 		return
+	var mine := peer == 0 or not is_inside_tree() or multiplayer.get_unique_id() == peer
 	for p in pieces:
-		game.collect_piece(p.case, p.piece, title)
+		game.collect_piece(p.case, p.piece, title, "" if mine else by)
 
 
 ## Every machine: the cases this paper opens are open for the whole crew, so the
@@ -439,7 +441,9 @@ func report_open(player: Node) -> void:
 	var s := LevelSync.of(self)
 	if not pieces.is_empty():
 		if s:
-			s.run_on(self, "_collect_pieces")
+			var peer := s.peer_of(player)
+			var net := get_node_or_null("/root/Net")
+			s.run_on(self, "_collect_pieces", [net.display_name(peer) if net and peer != 0 else "", peer])
 		else:
 			_collect_pieces()
 	if clues.any(func(k): return k.has("opens")):

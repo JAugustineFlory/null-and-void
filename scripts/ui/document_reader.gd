@@ -65,6 +65,7 @@ func open(doc: Node, by_player: Node) -> void:
 	view.set_title(document.title)
 	view.add_lines(document.lines())
 	view.show_doc()
+	_hold_query(true)
 
 
 ## Pick the document up and read it in your hands. False if the player's hands
@@ -127,7 +128,34 @@ func _hold_closer(print_scale: float) -> void:
 
 func _finish_hold() -> bool:
 	player.prop_lowered.connect(_on_lowered, CONNECT_ONE_SHOT)
+	_hold_query(true)
 	return true
+
+
+## A paper of the selected case in this player's hands keeps that case's query
+## up under the case chip (CaseChip.hold_query) until it's put down.
+func _hold_query(on: bool) -> void:
+	if on and not of_selected_case(document):
+		return
+	var level: Node = document._level() if document and is_instance_valid(document) and document.has_method("_level") else null
+	var hud = level.get("hud") if level else null
+	if hud and hud.get("case_chip"):
+		hud.case_chip.hold_query(on)
+
+
+## Does paper `doc` belong to the selected case: does it hold one of its pieces
+## or say something on its page?
+static func of_selected_case(doc: Node) -> bool:
+	var game := doc.get_node_or_null("/root/Game") if doc else null
+	if game == null:
+		return false
+	var id: String = game.case_selected()
+	if id == "":
+		return false
+	var pieces = doc.get("pieces")
+	var clues = doc.get("clues")
+	return (pieces is Array and pieces.any(func(p): return p.get("case", "") == id)) \
+			or (clues is Array and clues.any(func(k): return k.get("case", "") == id))
 
 
 func _make_chip() -> void:
@@ -233,6 +261,7 @@ func close() -> void:
 func _finish_close() -> void:
 	if not is_inside_tree():
 		return
+	_hold_query(false)
 	if held:
 		for mi in _hidden:
 			if is_instance_valid(mi):
@@ -280,8 +309,7 @@ func answer(index: int) -> bool:
 	var all: Array[Dictionary] = document.lines()
 	if index < 0 or index >= all.size() or not get_node("/root/Game").add_answer(str(all[index].text), "document"):
 		return false
-	close()
-	return true
+	return true  # it slides up (CaseChip); the paper stays in your hands
 
 
 func _start_note(index: int) -> void:

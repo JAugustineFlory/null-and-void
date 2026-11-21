@@ -18,8 +18,6 @@ var held: HeldNotebook
 ## Where you type a note of your own (from "+ write a note"); shown while writing.
 var writer: LineEdit
 var _open := false
-## How long an answer waits for your hands to be free to show the notebook.
-const ANSWER_WAIT_FRAMES := 300
 var _was_locked := false
 ## The right stick turned a page and hasn't come back to the middle yet.
 var _stick_turned := false
@@ -31,7 +29,6 @@ func _ready() -> void:
 	get_node("/root/Game").notebook_changed.connect(func():
 		if _open:
 			pages.refresh())
-	get_node("/root/Game").answer_found.connect(_show_answer)
 	PadReader.attach(self, _on_pad, _on_stick)
 
 
@@ -66,19 +63,6 @@ func _build() -> void:
 	else:
 		pages.visible = false
 		add_child(pages)
-
-
-## You added the line that answers a case: once you've stepped back from the
-## terminal or put the paper down, the notebook comes up at the case page and the
-## answer is written into its blank there (NotebookPages).
-func _show_answer(_case_id: String) -> void:
-	for i in ANSWER_WAIT_FRAMES:
-		if _open:
-			pages.show_page(NotebookPages.Page.CASES)
-			return
-		if open(NotebookPages.Page.CASES):
-			return
-		await get_tree().process_frame
 
 
 ## Where Tab opens the notebook: on the case being worked on (or one just
