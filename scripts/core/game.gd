@@ -303,10 +303,12 @@ func discover_table(table: String, columns: Array) -> void:
 
 ## Write a terminal line into the notebook, under the player's own label. It goes
 ## on `case_id`'s page (at a terminal: the case its hints are for), else on the
-## case being worked on (current_case), or under Other notes.
+## case this player has selected in the notebook, else the case being worked on
+## (current_case), or on Floor notes.
 func write_note(label: String, text: String, kind: String, case_id: String = "") -> void:
 	if case_id == "" or not case_info(case_id).get("open", false):
-		case_id = current_case()
+		var picked := case_info(selected_case)
+		case_id = selected_case if picked.get("open", false) and not picked.get("solved", false) else current_case()
 	notebook_written.append({"label": label, "text": text, "kind": kind, "case": case_id})
 	notebook_changed.emit()
 	line_noted.emit(text, kind)
@@ -453,6 +455,7 @@ func open_case(id: String, title: String, tables: Array = [], objective: String 
 	c.title = title
 	c.open = true
 	c.objective = objective
+	c["floor"] = str(floor_start.get("key", ""))  # its bookmark is on this floor's Cases tab
 	c.tables = tables.duplicate()
 	# The newest open case goes on top.
 	notebook_cases.erase(c)
