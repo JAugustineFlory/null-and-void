@@ -1,0 +1,3 @@
+- **Changed:** the notebook has three tabs: Work order, Cases and Books. Each case on the floor gets a bookmark down the left edge of the Cases tab, in the order it opened, ticked once it's solved; picking one makes it the case you're working on. A case's tables are on its page.
+- **Added:** a Floor notes bookmark keeps notes that belong to no case, your sticky notes and every table you've found. Field Notes opens from the work order.
+- **Added:** a blank you've filled shows the query that found it and, in co-op, who found it.

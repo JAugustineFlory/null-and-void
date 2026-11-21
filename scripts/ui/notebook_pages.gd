@@ -1,11 +1,14 @@
 class_name NotebookPages
 extends Control
-## What goes on which page of the player's notebook: the crew's work order,
-## a case page per puzzle (everything found about it in one place, with the notes
-## the player writes or copies while on it), tables discovered with the sticky
-## notes found, Field Notes, and the crew's books: the chapters they've had so
-## far (Huddle), each with a "Test yourself" quiz (BookQuiz). The notebook itself is drawn by
-## NotebookView and NotebookArt (scripts/art/).
+## What goes on which page of the player's notebook. Three tabs: the crew's work
+## order (with a link to Field Notes, the floor's recap), the Cases (a bookmark
+## down the left edge for each case on the floor, in the order they opened, and a
+## last one for Floor notes: notes with no case, sticky notes and every table
+## found), and the crew's books: the chapters they've had so far (Huddle), each
+## with a "Test yourself" quiz (BookQuiz). A case page has everything found about
+## it in one place: its name and objective top left, its tables top right, the
+## query being built, its pieces and the notes taken on it. The notebook itself is
+## drawn by NotebookView and NotebookArt (scripts/art/).
 ## Each section fills the left page, then the right; "next" turns to the next spread.
 ## In a co-op notes huddle (NotesHuddle), each line and sticky note has a "+ share"
 ## chip, and each case a button to share the whole page.
@@ -13,9 +16,22 @@ extends Control
 ## "+ write a note" on the Cases page: the player wants to write something of their own.
 signal write_requested
 
+## TABLES is Floor notes on the Cases tab (where the sticky notes and tables went);
+## FIELD_NOTES has no tab: the work order links to it, and a floor's end opens on it.
 enum Page { WORK_ORDER, CASES, TABLES, FIELD_NOTES, BOOK }
 
-const TAB_NAMES := ["Work order", "Cases", "Tables", "Field Notes", "Books"]
+## The tabs, in order, and the page each opens.
+const TAB_NAMES := ["Work order", "Cases", "Books"]
+const TABS := [Page.WORK_ORDER, Page.CASES, Page.BOOK]
+## The Cases tab's last bookmark: notes with no case (spec J), and its id.
+const FLOOR_NOTES := "Floor notes"
+const NOTES_MARK := "floor_notes"
+## On the work order: Field Notes, the floor's recap.
+const FIELD_NOTES_LINK := "Field Notes  >"
+## Under a filled blank: the player's own query that put it on screen (draft,
+## plan/approvals/v0.10-small-strings.md), and in co-op who found it (G21).
+const FOUND_WITH := "Found with: %s"
+const FOUND_BY := "Found by %s"
 ## The book tab's words (drafts for Augustine's word-for-word OK).
 const BOOK_EMPTY := "New chapters of the crew's books go here."
 const BOOK_TEST := "Test yourself"
@@ -105,8 +121,11 @@ var quiz: BookQuiz
 ## The Cases tab: showing the archive, or one case in it ("" for none).
 var showing_completed := false
 var completed_case := ""
-## A side case opened from the line under the current case ("" for none).
-var side_case := ""
+## The bookmark picked on the Cases tab: a case on this floor (solved ones too),
+## NOTES_MARK, or "" for the selected case (Game.selected_case, else the current one).
+var mark := ""
+## The bookmark the Cases tab is showing (after section_items).
+var _shown_mark := ""
 ## Just-solved cases shown on screen this time: filed when the notebook closes.
 var _solved_seen := {}
 
@@ -122,7 +141,10 @@ func _ready() -> void:
 	add_child(book)
 	for t in TAB_NAMES:
 		book.add_tab(t)
-	book.tab_pressed.connect(func(t): show_page(TAB_NAMES.find(t)))
+	book.tab_pressed.connect(func(t):
+		mark = ""
+		show_page(TABS[TAB_NAMES.find(t)]))
+	book.bookmark_pressed.connect(pick_bookmark)
 	_turn = NotebookArt.write_button("next page  >")
 	_turn.tooltip_text = "Turn the page"
 	_turn.pressed.connect(func(): book.turn_page(func(): _show_spread(_spread + 1)))
@@ -175,14 +197,64 @@ func _free_spreads() -> void:
 
 
 func show_page(page: int) -> void:
+	if page == Page.TABLES:  # the sticky notes and tables are on Floor notes now
+		page = Page.CASES
+		mark = NOTES_MARK
 	_page = page as Page
 	if book:
-		book.select_tab(TAB_NAMES[_page])
+		book.select_tab(TAB_NAMES[current_tab()])
 	refresh()
 
 
 func current_page() -> Page:
 	return _page
+
+
+## The tab showing (its index in TABS): Field Notes is under the work order.
+func current_tab() -> int:
+	return maxi(0, TABS.find(_page))
+
+
+## Show tab `i` (0 for the first), as a click on it would.
+func show_tab(i: int) -> void:
+	mark = ""
+	show_page(TABS[posmod(i, TABS.size())])
+
+
+## A bookmark was picked: show its case (an open one becomes the selected case,
+## so the query on screen follows it), or Floor notes.
+func pick_bookmark(id: String) -> void:
+	var game := get_node("/root/Game")
+	mark = id
+	showing_completed = false
+	completed_case = ""
+	if id != NOTES_MARK:
+		var c: Dictionary = game.case_info(id)
+		if c.get("open", false) and not c.get("solved", false):
+			game.selected_case = id
+			game.notebook_changed.emit()  # the on-screen query and the typing line follow it
+	if _page != Page.CASES:
+		show_page(Page.CASES)
+	else:
+		refresh()
+
+
+## The Cases tab's bookmarks: each case opened on this floor, in the order they
+## opened, then Floor notes. [{id, label, state, tooltip}] for NotebookView.
+func bookmarks(game: Node) -> Array:
+	var here := str(game.floor_start.get("key", ""))
+	var out: Array = []
+	for i in range(game.notebook_cases.size() - 1, -1, -1):  # newest first: oldest is last
+		var c: Dictionary = game.notebook_cases[i]
+		# A solved case keeps its bookmark for the floor it was opened on.
+		if not c.open or (c.solved and str(c.get("floor", "")) != here):
+			continue
+		var state := "solved" if c.solved else ("side" if c.get("optional", false) else "open")
+		var objective := str(c.get("objective", ""))
+		out.append({"id": c.id, "label": ("[x] " if c.solved else "") + c.title, "state": state,
+				"tooltip": objective if objective != "" else c.title})
+	out.append({"id": NOTES_MARK, "label": FLOOR_NOTES, "state": "notes", "tooltip": FLOOR_NOTES})
+	return out
 
 
 ## Rebuild the open section from the notebook data, back to its first spread.
@@ -196,6 +268,8 @@ func refresh() -> void:
 	_free_spreads()
 	_fresh_blank = null
 	_spreads = _paginate(section_items(_page))
+	var cases: bool = _page == Page.CASES and not end_of_level and not showing_completed and completed_case == ""
+	book.set_bookmarks(bookmarks(get_node("/root/Game")) if cases else [], _shown_mark)
 	_show_spread(0)
 
 
@@ -204,11 +278,14 @@ func section_items(page: int) -> Array[Control]:
 	var game := get_node("/root/Game")
 	match page:
 		Page.WORK_ORDER:
-			return WorkOrderForm.build(game.ticket(), book.left.size.y if book else 0.0)
+			var order: Array[Control] = WorkOrderForm.build(game.ticket(), book.left.size.y if book else 0.0)
+			if not end_of_level:
+				order.append(_book_button(FIELD_NOTES_LINK, "FieldNotesLink", func(): _page = Page.FIELD_NOTES))
+			return order
 		Page.CASES:
 			return _case_items(game)
 		Page.TABLES:
-			return _table_items(game.notebook_tables) + _notes_items(game.notebook_notes, _huddling())
+			return _floor_notes_items(game, _huddling())
 		Page.BOOK:
 			return _book_items(game)
 		_:
@@ -260,7 +337,7 @@ func _book_items(game: Node) -> Array[Control]:
 		return items
 	var have := _chapters_had(game)
 	if have.is_empty():
-		items.append(NotebookArt.heading(TAB_NAMES[Page.BOOK]))
+		items.append(NotebookArt.heading(TAB_NAMES[TABS.find(Page.BOOK)]))
 		items.append(NotebookArt.hand(BOOK_EMPTY, 24, NotebookArt.PENCIL))
 	for book_id in Books.BOOKS:
 		var had: Array = Books.book_chapter_ids(book_id).filter(func(c): return have.has(c))
@@ -430,14 +507,15 @@ func _written_item(w: Dictionary, share: Dictionary = {}) -> Control:
 	return _clue_item("\n".join(lines.slice(0, 12)), label, share)
 
 
-## The Cases tab holds one case: the one being worked on (Augustine, 2026-10-26:
+## The Cases tab shows one case at a time: the selected one (Game.selected_case,
+## picked from its bookmark), else the one being worked on (Augustine, 2026-10-26:
 ## "I want a single case to exist until a puzzle is solved, then it will be archived
 ## and the single case will be the next puzzle"). A case with pieces (Game.set_pieces)
-## gets a spread: the case on the left, its checklist and notes on the right. One
-## without pieces is a page of its question, clues and notes. Solved cases are filed
-## under Archive, except one just solved, which keeps the page once as its reward.
-## A side case is one line under the case, opening its own page; notes with no open
-## case go under Other notes at the end.
+## gets a spread: the case on the left, its tables, checklist and notes on the right.
+## One without pieces is its question and blank, then its tables and notes. Solved
+## cases keep their bookmark for the floor and are filed under Archive, except one
+## just solved, which keeps the page once as its reward. Floor notes is its own
+## bookmark (_floor_notes_items), and the page when there's no case.
 func _case_items(game: Node) -> Array[Control]:
 	if completed_case != "":
 		return _completed_case_items(game)
@@ -448,57 +526,74 @@ func _case_items(game: Node) -> Array[Control]:
 	var h := _huddling()
 	if h:
 		items.append_array(_huddle_items(h, game))
-	# One case on the page: the case being worked on, or one just solved while the
-	# crew is looking at it (its reward, filed when the notebook closes). A side
-	# case opened from the line below takes the page while it's being read.
-	var showing_id := current
-	for c in game.notebook_cases:
-		if c.open and c.get("fresh_solve", false) and (showing or current == ""):
-			showing_id = c.id
-			break
-	if side_case != "" and game.case_info(side_case).get("open", false) and not game.case_info(side_case).solved:
-		showing_id = side_case
-	elif side_case != "":
-		side_case = ""
+	var showing_id := shown_case(game)
+	_shown_mark = showing_id if showing_id != "" else NOTES_MARK
 	var filed: Array = game.completed_cases().filter(func(c): return c.id != showing_id)
 	if not filed.is_empty() and not end_of_level:
 		items.append(_case_button(COMPLETED % filed.size(), "CompletedCases", func(): showing_completed = true))
-	if side_case != "":
-		items.append(_case_button(BACK_TO_CASE, "BackToCase", func(): side_case = ""))
 	if showing_id == "":
-		items.append(NotebookArt.heading("Cases"))
-		items.append(NotebookArt.hand(NO_CASE, 24, NotebookArt.PENCIL))
+		if current == "" and mark != NOTES_MARK:
+			items.append(NotebookArt.heading("Cases"))
+			items.append(NotebookArt.hand(NO_CASE, 24, NotebookArt.PENCIL))
+		items.append_array(_floor_notes_items(game, h, current == "" and mark != NOTES_MARK))
+		return items
+	var c: Dictionary = game.case_info(showing_id)
+	if c.get("fresh_solve", false) and showing:
+		_solved_seen[c.id] = true
+	var on: bool = not c.solved
+	if not c.get("pieces", []).is_empty():
+		var board := _board_items(game, c, on)
+		board.pop_front().free()  # the one case starts here, not on a spread of its own
+		items.append_array(board)
 	else:
-		var c: Dictionary = game.case_info(showing_id)
-		if c.get("fresh_solve", false) and showing:
-			_solved_seen[c.id] = true
-		if not c.get("pieces", []).is_empty():
-			var board := _board_items(game, c, c.id == current)
-			board.pop_front().free()  # the one case starts here, not on a spread of its own
-			items.append_array(board)
-		else:
-			items.append_array(_plain_case_items(game, c, c.id == current, h))
-	if side_case == "":
-		for c in game.side_cases():
-			if c.id != showing_id:
-				var id: String = c.id
-				items.append(_case_button(ALSO % c.title, "SideCase_" + id, func(): side_case = id))
-	# Notes with no case of their own, or on a case that isn't open yet.
-	var other: Array = game.notebook_written.filter(func(w):
-		var on: String = str(w.get("case", ""))
-		return on == "" or not game.case_info(on).get("open", false))
-	if not other.is_empty() or showing_id == "":
-		items.append(NotebookArt.heading("Other notes"))
-		if other.is_empty():
-			items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 22, NotebookArt.PENCIL))
-		for w in other:
-			items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
-		if showing_id == "":
-			items.append_array(_write_button())
+		items.append_array(_plain_case_items(game, c, on, h))
 	return items
 
 
-## A case without pieces: its question, blank, clues, notes and tables, in order.
+## The case the Cases tab shows ("" for Floor notes): the bookmark picked, else
+## one just solved while the crew is looking at it (its reward, filed when the
+## notebook closes), else the selected case, else the one being worked on.
+func shown_case(game: Node) -> String:
+	if mark == NOTES_MARK:
+		return ""
+	if mark != "" and game.case_info(mark).get("open", false):
+		return mark
+	mark = ""
+	var current: String = game.current_case()
+	for c in game.notebook_cases:
+		if c.open and c.get("fresh_solve", false) and (showing or current == ""):
+			return c.id
+	var picked: String = game.selected_case
+	if picked != "" and game.case_info(picked).get("open", false) and not game.case_info(picked).solved:
+		return picked
+	return current
+
+
+## Floor notes: the notes with no case (or on a case that isn't open yet: they
+## move to its page when it opens), the sticky notes found, and every table found.
+## `bare`: there's no case at all, so the page already has its heading.
+func _floor_notes_items(game: Node, h: NotesHuddle, bare := false) -> Array[Control]:
+	var items: Array[Control] = []
+	if not bare:
+		items.append(NotebookArt.heading(FLOOR_NOTES))
+	var other: Array = game.notebook_written.filter(func(w):
+		var on: String = str(w.get("case", ""))
+		return on == "" or not game.case_info(on).get("open", false))
+	if bare:
+		items.append(NotebookArt.hand("Other notes", 26))
+	if other.is_empty():
+		items.append(NotebookArt.hand("At a terminal or on a paper, point at any line and add it to your notebook.", 22, NotebookArt.PENCIL))
+	for w in other:
+		items.append(_written_item(w, NotesHuddle.note_item(game, w) if h else {}))
+	if game.current_case() == "":
+		items.append_array(_write_button())
+	items.append_array(_notes_items(game.notebook_notes, h))
+	items.append_array(_table_items(game.notebook_tables))
+	return items
+
+
+## A case without pieces: its question and blank, its tables, then "+ write a
+## note" over its clues and notes.
 func _plain_case_items(game: Node, c: Dictionary, is_current: bool, h: NotesHuddle) -> Array[Control]:
 	var items: Array[Control] = []
 	var notes: Array = game.notebook_written.filter(func(w): return w.get("case", "") == c.id)
@@ -511,14 +606,24 @@ func _plain_case_items(game: Node, c: Dictionary, is_current: bool, h: NotesHudd
 		items.append(NotebookArt.hand("Solved: " + c.how, 22))
 		if c.get("fresh_solve", false):
 			items.append(NotebookArt.hand(FILED, 22, NotebookArt.PENCIL))
+	items.append_array(_case_tables(game, c))
 	if c.clues.is_empty() and notes.is_empty():
 		items.append(NotebookArt.hand("Nothing yet. Read what's around: papers, plates on the doors, the terminal.", 22, NotebookArt.PENCIL))
-	items.append_array(_case_notes(game, c, notes, h))
 	if is_current:
 		items.append_array(_write_button())
-	for t in c.tables:
+	items.append_array(_case_notes(game, c, notes, h))
+	return items
+
+
+## The tables a case needs that this player has found, each with the columns
+## found so far (top right of its page).
+func _case_tables(game: Node, c: Dictionary) -> Array[Control]:
+	var items: Array[Control] = []
+	for t in c.get("tables", []):
 		if game.notebook_tables.has(t):
-			items.append(NotebookArt.table_card(t, game.notebook_tables[t]))
+			var card := NotebookArt.table_card(t, game.notebook_tables[t])
+			card.name = "CaseTable"
+			items.append(card)
 	return items
 
 
@@ -549,9 +654,10 @@ func _case_notes(game: Node, c: Dictionary, notes: Array, h: NotesHuddle) -> Arr
 
 
 ## A case with pieces, on a spread of its own. Left: the question, how many
-## pieces are in, each piece (found, or ???? with where to look), the query so
-## far and the blank for the answer; solved, its ending. Right: the checklist,
-## the other ways in and endings still hidden, then the clues and notes.
+## pieces are in, the query so far, each piece (found, or ???? with where to
+## look) and the blank for the answer; solved, its ending. Right: its tables,
+## the checklist, the other ways in and endings still hidden, then the clues and
+## notes.
 func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]:
 	var h := _huddling()
 	var items: Array[Control] = [_break("spread")]
@@ -579,6 +685,7 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 		if c.get("fresh_solve", false):
 			items.append(NotebookArt.hand(FILED, 22, NotebookArt.PENCIL))
 	items.append(_break("page"))
+	items.append_array(_case_tables(game, c))
 	items.append(NotebookArt.hand(CHECKLIST, 30))
 	for line in game.case_checklist(c.id):
 		var titled: String = line.get("title", "")
@@ -593,9 +700,9 @@ func _board_items(game: Node, c: Dictionary, is_current: bool) -> Array[Control]
 		items.append(_share_case_button(h, game, c.id))
 	if not (c.clues.is_empty() and notes.is_empty()):
 		items.append(NotebookArt.hand(NOTES, 26))
-	items.append_array(_case_notes(game, c, notes, h))
 	if is_current:
 		items.append_array(_write_button())
+	items.append_array(_case_notes(game, c, notes, h))
 	return items
 
 
@@ -864,7 +971,17 @@ func _blank_items(c: Dictionary) -> Array[Control]:
 	if b.get("fresh", false):
 		_fresh_blank = answer
 		_fresh_case = c.id
-	return [line]
+	var out: Array[Control] = [line]
+	if str(b.get("query", "")) != "":
+		var used := NotebookArt.code(FOUND_WITH % str(b.query).replace("\n", " "), 16, NotebookArt.PENCIL)
+		used.name = "FoundWith"
+		used.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		out.append(used)
+	if str(b.get("by", "")) != "":
+		var by := NotebookArt.hand(FOUND_BY % str(b.by), 20, NotebookArt.PENCIL)
+		by.name = "FoundBy"
+		out.append(by)
+	return out
 
 
 ## One clue: where it came from in pencil, then the clue itself, wrapped to the
@@ -1055,10 +1172,10 @@ func turn(step: int) -> void:
 
 
 ## The buttons a gamepad can pick on the spread showing, in reading order:
-## down the left page, down the right, then "next page".
+## the bookmarks, down the left page, down the right, then "next page".
 func pad_buttons() -> Array[BaseButton]:
 	var out: Array[BaseButton] = []
-	for page in [book.left, book.right]:
+	for page in [book.bookmarks, book.left, book.right]:
 		for b in page.find_children("*", "BaseButton", true, false):
 			if b.is_visible_in_tree() and not b.disabled:
 				out.append(b)

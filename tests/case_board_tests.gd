@@ -24,6 +24,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_endings_and_routes()
 	test_job_over()
 	test_chip()
+	test_query_on_screen()
 	test_task_titles()
 	test_paper_pieces()
 	test_growing_case()
@@ -31,11 +32,19 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_floor_g_memo()
 	test_one_case_at_a_time()
 	test_book_before_bag()
+	await test_notebook_tabs()
 	_game().new_run(1)
 
 
 func _game() -> Node:
 	return _tree.root.get_node("Game")
+
+
+static func _click() -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = true
+	return e
 
 
 func test_pieces() -> void:
@@ -177,7 +186,13 @@ func test_chip() -> void:
 	check(chip.chip.visible and chip.count.text == "0/3" and chip.title.text == "What does the memo say?" and chip.bar.get_child_count() == 3, "the main case: its question, 0/3 and a segment per piece")
 	check(not chip.next.visible, "the next step isn't up until something happens")
 	g.collect_piece("memo", "order", "A sticky")
-	check(chip.count.text == "1/3" and chip.toast.visible and chip.toast_head.text == CaseChip.FOUND % [1, 3] and chip.toast_value.text == "The words that sort rows: ORDER BY", "a piece found: the count goes up and a card says what it was")
+	check(chip.count.text == "1/3" and chip.toast.visible and chip.toast_head.text == CaseChip.FOUND % [1, 3] and chip.toast_value.get_parsed_text() == "The words that sort rows: ORDER BY", "a piece found: the count goes up and it slides up, saying what it was")
+	check(chip.toast.anchor_top == 1.0 and chip.toast.anchor_left == 0.5, "it slides up at the screen's bottom edge")
+	check(chip.toast_value.text.contains(PieceKind.hex(PieceKind.KEYWORD)) and chip.toast_value.text.contains("[b]"), "in its kind's color and cue (ORDER BY is a keyword: bold)")
+	check(not chip.toast_by.visible, "this player's own find names no one")
+	var up_tween: Tween = chip._toast_tween
+	chip.toast.gui_input.emit(_click())
+	check(not up_tween.is_valid() and chip._toast_tween.is_running(), "a click on it starts sliding it back down")
 	check(chip.next.visible and chip.next.text == CaseChip.NEXT % "Find the table", "and the next step shows for a moment")
 	chip._end_next(chip._next_turn)
 	check(chip.chip.visible and not chip.next.visible and chip.count.text == "1/3", "then the chip is just the case and its count")
@@ -188,11 +203,11 @@ func test_chip() -> void:
 	check(chip.next.visible, "a newer brief show isn't cut short by an older one's time running out")
 	chip._end_next(chip._next_turn)
 	chip.set_allowed(false)
-	g.collect_piece("memo", "table")
-	check(chip.chip.visible and not chip.toast.visible and chip.chip.custom_minimum_size.x == CaseChip.NARROW, "at a terminal the case stays up, narrower, and the found card waits")
+	g.collect_piece("memo", "table", "", "Dana")
+	check(chip.chip.visible and chip.toast.visible and chip.chip.custom_minimum_size.x == CaseChip.NARROW, "at a terminal the case stays up, narrower, and a find still slides up: the terminal stays open")
+	check(chip.toast_head.text == CaseChip.FOUND % [2, 3] and chip.toast_by.visible and chip.toast_by.text == CaseChip.FOUND_BY % "Dana", "a crewmate's find says who found it (G21)")
 	chip.set_allowed(true)
 	check(chip.chip.custom_minimum_size.x == CaseChip.WIDE, "and it's full width again once the terminal's put away")
-	check(chip.chip.visible and chip.toast.visible and chip.toast_head.text == CaseChip.FOUND % [2, 3], "and the piece found meanwhile is said once it's back")
 	g.open_case("side", "A side case")
 	g.set_pieces("side", [PIECES[0]], "", [], true)
 	g.collect_piece("side", "table")
@@ -200,6 +215,62 @@ func test_chip() -> void:
 	g.solve_case("memo", "done.")
 	check(not chip.chip.visible, "solved: nothing to count")
 	chip.free()
+
+
+## The query with blanks under the case chip (puzzle-flow spec, section 5), the
+## answer's slide-up, the typing line's example (policy P8), and the kinds' colors.
+func test_query_on_screen() -> void:
+	print("Case board: the query on screen and the slide-up")
+	var g := _game()
+	g.new_run(8)
+	var chip := CaseChip.new()
+	_tree.root.add_child(chip)
+	var pieces: Array = PIECES.duplicate(true)
+	pieces[2]["blank"] = "enter_column_name"
+	g.open_case("memo", "What does the memo say?")
+	g.set_pieces("memo", pieces, "SELECT * FROM {table} {order} {column};")
+	check(g.case_selected() == "memo", "with nothing picked in the notebook, the selected case is the main one")
+	check(not chip.query_panel.visible, "the query isn't up on its own: the screen stays clear")
+	chip.hold_query(true)
+	check(chip.query_panel.visible and chip.query.get_parsed_text() == g.case_query("memo"), "a paper of the case in hand: its query is up, word for word the case page's (%s)" % chip.query.get_parsed_text())
+	check(chip.query.text.contains(PieceKind.hex(PieceKind.TABLE, true)) and chip.query.text.contains(PieceKind.hex(PieceKind.COLUMN, true)), "each blank in the faded color of what fits it")
+	chip.set_allowed(false)
+	check(not chip.query_panel.visible, "at a terminal it gives way to the one over the typing line")
+	chip.set_allowed(true)
+	check(chip.query_panel.visible, "and comes back after")
+	chip.hold_query(false)
+	check(not chip._query_on, "put down: it fades")
+	g.collect_piece("memo", "table")
+	check(chip.query_panel.visible and chip.query.get_parsed_text().contains("FROM memo_fragments") and chip._fresh_piece == "table", "a piece found: the query comes up with it written in")
+	chip._query_turn += 1  # as if its time ran out
+	chip._set_query(false)
+	g.selected_case = "nope"
+	check(g.case_selected() == "memo", "a pick that isn't an open case falls back to the main one")
+	g.selected_case = ""
+	# The answer slides up too, and a crewmate's says who.
+	g.set_blank("memo", "Who wrote it?", ["harold"], "Harold Mercer")
+	check(g.add_answer("Signed, Harold Mercer", "document") and chip.toast.visible and chip.toast_head.text == "Who wrote it?" and chip.toast_value.get_parsed_text() == "Harold Mercer" and not chip.toast_by.visible, "an answer slides up under its question")
+	g.answer_shared.emit("memo", "Kit")
+	check(chip.toast_by.visible and chip.toast_by.text == CaseChip.FOUND_BY % "Kit", "a crewmate's answer names them")
+	chip.free()
+	# The typing line: the selected case's shape, above it and as its grey example.
+	var ui := TerminalUI.new()
+	_tree.root.add_child(ui)
+	g.new_run(8)
+	ui.show_case_query()
+	check(ui._input.placeholder_text == TerminalUI.EXAMPLE and not ui._case_line.visible, "no case: the plain example, with no SELECT * in it (P8)")
+	check(not TerminalUI.EXAMPLE.contains("*"), "the example never shows the refused query")
+	g.open_case("memo", "What does the memo say?")
+	g.set_pieces("memo", PIECES, "SELECT * FROM {table} {order} {column};")
+	check(ui._input.placeholder_text == g.case_query("memo") and ui._case_line.visible and ui._case_line.get_parsed_text() == g.case_query("memo"), "a case: its query is the example and sits over the typing line")
+	ui.free()
+	# Kinds.
+	check(PieceKind.of_piece({"value": "visitors", "seen_in": "visitors"}) == PieceKind.TABLE and PieceKind.of_piece({"value": "extension", "seen_in": "staff_directory"}) == PieceKind.COLUMN, "a piece seen in a table is that table, or one of its columns")
+	check(PieceKind.of_piece({"value": "ORDER BY"}) == PieceKind.KEYWORD and PieceKind.of_piece({"value": "LIMIT 5"}) == PieceKind.KEYWORD and PieceKind.of_piece({"value": ">"}) == PieceKind.KEYWORD, "query words and signs are keywords")
+	check(PieceKind.of_piece({"value": "fault", "blank": "enter_status"}) == PieceKind.VALUE and PieceKind.of_piece({"value": "DC-7"}) == PieceKind.VALUE and PieceKind.of_piece({"value": "lights", "blank": "enter_table_name"}) == PieceKind.TABLE, "the rest are values; a blank's name says what it wants")
+	check(PieceKind.of_piece({"value": "x", "kind": "column"}) == PieceKind.COLUMN, "a piece can say its own kind")
+	var cues := [PieceKind.bbcode("a", PieceKind.KEYWORD), PieceKind.bbcode("a", PieceKind.TABLE), PieceKind.bbcode("a", PieceKind.COLUMN), PieceKind.bbcode("a", PieceKind.VALUE)]
+	check(cues[0].begins_with("[b]") and cues[1].begins_with("[bgcolor") and cues[2].begins_with("[u]") and cues[3].begins_with("[i]"), "each kind has a shape cue as well as a color")
 
 
 ## A task's title says how the crew feels; its details say what to do (Augustine,
@@ -243,16 +314,44 @@ func test_paper_pieces() -> void:
 	g.set_pieces("memo", PIECES)
 	var holder := Node3D.new()
 	_tree.root.add_child(holder)
-	var card := Document.place(holder, Vector3.ZERO, 0.0, "ScanRight", ["Saved in memo_fragments."], true, "brochure")
-	card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo", "piece": "column"}]
+	var card := Document.place(holder, Vector3.ZERO, 0.0, "ScanRight", ["Feed the scraps in.", "Saved in memo_fragments.", "piece_no numbers them; ORDER BY sorts."], true, "brochure")
+	card.pieces = [{"case": "memo", "piece": "table"}, {"case": "memo", "piece": "column"}, {"case": "memo", "piece": "order"}]
 	card.clues = [{"case": "memo", "text": "Scraps are saved in memo_fragments."}]
 	var reads := []
 	card.read_by.connect(func(p): reads.append(p))
 	check(card.get_prompt(null) == "[E] Read: ScanRight", "a paper holding pieces is read like any paper: E picks it up")
+	check(card.marks_case("memo") and card.marked() and not card.marks_case("other"), "it matters to the memo case, so it shows the marker while that case is selected")
 	card._note_clues()  # what picking it up does (pick_up / open_reader)
 	card._report_read(null)
-	check(g.has_piece("memo", "table") and g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "ScanRight", "reading it puts both its pieces in, from the paper")
-	check(g.case_info("memo").clues.size() == 1 and reads.size() == 1, "its clues go on the case page too, and it counts as read")
+	check(g.pieces_found("memo") == 0, "reading it doesn't take its pieces: they're clicked (F)")
+	check(g.case_info("memo").clues.size() == 1 and reads.size() == 1, "its clues go on the case page, and it counts as read")
+	var lines := card.lines()
+	check(lines[0].get("piece_kind", -1) == -1 and lines[1].get("piece_kind", -1) == PieceKind.TABLE and lines[2].has("piece_kind"), "each line holding a piece says its kind, for the pointer's highlight; the rest don't")
+	check(not card.take_line(null, 0) and g.pieces_found("memo") == 0, "clicking a line with no piece on it takes nothing")
+	check(card.take_line(null, 1) and g.has_piece("memo", "table") and not g.has_piece("memo", "column") and g.case_info("memo").pieces[0].from == "ScanRight", "clicking the line with the table takes just that piece, from the paper")
+	check(not card.take_line(null, 1), "and only once")
+	check(card.take_line(null, 2) and g.has_piece("memo", "column") and g.has_piece("memo", "order"), "a line with two pieces on it takes both")
+	var view := DocumentView.new()
+	_tree.root.add_child(view)
+	view.add_lines(card.lines())
+	var rows := view.body.get_children().filter(func(r): return r.get("piece_kind") != null)
+	var took := []
+	view.take_requested.connect(func(t): took.append(t))
+	var table_row = rows.filter(func(r): return r.piece_kind == PieceKind.TABLE)[0]
+	var plain_row = rows.filter(func(r): return r.piece_kind == -1)[0]
+	check(table_row.band() != plain_row.band() and table_row.band().to_html(false) == PieceKind.color(PieceKind.TABLE).to_html(false), "pointed at, a piece's line is highlighted in its kind's color; others in the notebook's yellow")
+	table_row.size = Vector2(400, 30)
+	plain_row.size = Vector2(400, 30)
+	var click := _click()
+	click.position = Vector2(20, 10)
+	table_row._gui_input(click)
+	plain_row._gui_input(click)
+	check(took == ["Saved in memo_fragments."], "clicking a piece's line asks to take it; clicking any other line doesn't")
+	check(not view.marker.visible, "no marker until the reader says the paper matters")
+	view.set_marker(true)
+	check(view.marker.visible and view.marker.position.y == 0.0, "the marker: a tab at the paper's top edge")
+	view.free()
+	check(Document._shows("ALERT if temp_c > 40", ">") and Document._shows("reads over 40°C", "40") and not Document._shows("LIGHTING CIRCUITS", "lights") and Document._shows("the table lights.", "lights"), "a piece's words are matched whole, any case")
 	holder.free()
 
 
@@ -372,10 +471,7 @@ func test_one_case_at_a_time() -> void:
 	text = _case_text(g)
 	check(g.current_case() == "first" and text.contains("What does the memo say?") and not text.contains("Find who signed in last"),
 		"a side case doesn't take the page")
-	var side_items := pages._case_items(g)
-	check(side_items.any(func(i): return i is Button and i.text == NotebookPages.ALSO % "Who signed in last?"), "it's one line under the case instead, which opens it")
-	for i in side_items:
-		i.free()
+	check(pages.bookmarks(g).any(func(m): return m.id == "side" and m.state == "side"), "it has a bookmark of its own instead, in the side cases' color")
 	g.solve_case("first", "the scraps are in memo_fragments.")
 	g.open_case("second", "Which scrap comes first?", [], "Put the scraps in order")
 	g.set_pieces("second", [PIECES[2]], "SELECT * FROM memo_fragments ORDER BY {column};", [])
@@ -419,6 +515,78 @@ func test_book_before_bag() -> void:
 
 
 ## The Cases tab's text for the current case.
+## Three tabs (Work order, Cases, Books). On Cases, each case on the floor is a
+## bookmark in the order it opened, then Floor notes; picking one selects that
+## case. A case page shows its tables; a filled blank says how it was found
+## (plan/teaching/puzzle-flow-v0.10.md section 6).
+func test_notebook_tabs() -> void:
+	print("Notebook: three tabs, bookmarks, Floor notes")
+	var g := _game()
+	g.new_run(16)
+	g.mark_floor_start("level_0")
+	check(NotebookPages.TAB_NAMES == ["Work order", "Cases", "Books"], "the notebook has three tabs: Work order, Cases and Books")
+	var pages := NotebookPages.new()
+	_tree.root.add_child(pages)
+	await _tree.process_frame
+	check(pages.book.bookmarks.get_child_count() == 0 and not pages.book.bookmarks.visible, "the work order has no bookmarks")
+	var link: Button = null
+	for i in pages.book.right.find_children("*", "Button", true, false) + pages.book.left.find_children("*", "Button", true, false):
+		if i.name == "FieldNotesLink":
+			link = i
+	check(link != null and link.text == NotebookPages.FIELD_NOTES_LINK, "the work order links to Field Notes")
+	if link:
+		link.pressed.emit()
+		await _tree.process_frame
+		check(pages.current_page() == NotebookPages.Page.FIELD_NOTES and pages.current_tab() == 0, "which opens under the work order's tab")
+	g.discover_table("visitors", ["name", "signed_in"])
+	g.discover_table("doors", ["zone"])
+	g.add_note("order_by")
+	g.note_aside("PA", "The lobby closes at seven.", "voice")
+	g.open_case("first", "Who called?", ["visitors"], "Find the caller")
+	g.open_case("second", "Who signed in last?", [], "Find the last visitor")
+	g.open_case("side", "Why is the break room dark?", [], "Look into the dark break room")
+	g.set_pieces("side", [PIECES[0]], "SELECT * FROM {table};", [], true)
+	g.set_blank("first", "The caller", ["hardy"], "HARDY", {"column": "name", "values": ["HARDY"]})
+	pages.show_page(NotebookPages.Page.CASES)
+	var marks: Array = pages.bookmarks(g)
+	check(marks.map(func(m): return m.id) == ["first", "second", "side", NotebookPages.NOTES_MARK], "each case is a bookmark in the order it opened, then Floor notes last")
+	check(marks[0].state == "open" and marks[2].state == "side" and marks[3].label == NotebookPages.FLOOR_NOTES, "a side case and Floor notes have their own look")
+	check(pages.book.bookmarks.visible and pages.book.bookmarks.get_child_count() == 4, "they show down the left edge of the Cases tab")
+	var shown: Button = pages.book.bookmarks.get_node("Mark_" + g.current_case())
+	check(shown.get_meta("selected"), "the tab opens on the case being worked on, its bookmark picked")
+	pages.book.bookmarks.get_node("Mark_first").pressed.emit()
+	check(g.selected_case == "first" and g.case_selected() == "first", "picking a bookmark selects its case (the query on screen follows it)")
+	var text := NotebookPages.text_of(pages.book.left.get_children() + pages.book.right.get_children())
+	check(pages.book.bookmarks.get_node("Mark_first").get_meta("selected") and text.contains("Find the caller"), "and turns to its page")
+	check(text.contains("visitors") and text.contains("signed_in") and not text.contains("zone"), "a case page shows the tables it needs, with their columns, and no others")
+	check(not text.contains("The lobby closes at seven."), "a note with no case isn't on the case page")
+	g.write_note("", "HARDY rang at 9", "mine")
+	check(g.notebook_written[-1].case == "first", "a note written now goes on the selected case")
+	pages.book.bookmarks.get_node("Mark_" + NotebookPages.NOTES_MARK).pressed.emit()
+	text = NotebookPages.text_of(pages.book.left.get_children() + pages.book.right.get_children())
+	check(text.contains(NotebookPages.FLOOR_NOTES) and text.contains("The lobby closes at seven.") and text.contains("Sticky notes") and text.contains("doors"), "Floor notes holds the notes with no case, the sticky notes and every table found")
+	check(g.selected_case == "first", "and leaves the selected case as it was")
+	pages.show_page(NotebookPages.Page.TABLES)
+	check(pages.current_page() == NotebookPages.Page.CASES and pages.mark == NotebookPages.NOTES_MARK, "what opened the old Tables tab opens Floor notes")
+	# A cell found fills the blank, with the query that found it.
+	check(g.add_cell("name", "HARDY", {"name": "HARDY"}, "SELECT name FROM visitors WHERE signed_in > 9;"), "the caller's cell fills the blank")
+	g.case_info("first").blank["by"] = "Sam"
+	pages.mark = "first"
+	pages.refresh()
+	text = NotebookPages.text_of(pages.book.left.get_children() + pages.book.right.get_children())
+	check(text.contains(NotebookPages.FOUND_WITH % "SELECT name FROM visitors WHERE signed_in > 9;"), "the filled blank says the query that found it")
+	check(text.contains(NotebookPages.FOUND_BY % "Sam"), "and in co-op, who found it")
+	g.solve_case("first", "HARDY")
+	g.case_info("first").erase("fresh_solve")
+	pages.mark = ""
+	pages.refresh()
+	marks = pages.bookmarks(g)
+	check(marks.any(func(m): return m.id == "first" and m.state == "solved") and g.case_selected() != "first", "a solved case keeps its bookmark for the floor, ticked, and is no longer the selected one")
+	g.mark_floor_start("level_1")
+	check(not pages.bookmarks(g).any(func(m): return m.id == "first"), "on the next floor it's only in the archive")
+	pages.free()
+
+
 func _case_text(g: Node) -> String:
 	var pages := NotebookPages.new()
 	var items := pages._case_items(g)

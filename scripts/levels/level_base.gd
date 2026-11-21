@@ -178,10 +178,11 @@ func _crew_answered(id: String, peer: int) -> void:
 	var b: Dictionary = game.case_info(id).get("blank", {})
 	if b.is_empty():
 		return
-	if b.filled == "":
-		game.fill_blank(id)
+	var here: bool = b.filled == "" and game.fill_blank(id)  # a crewmate's find: not yet in this player's slot
 	var net := get_node_or_null("/root/Net")
 	b["by"] = net.display_name(peer) if net and net.has_method("display_name") else ""
+	if here:
+		game.answer_shared.emit(id, str(b.by))
 
 
 ## Turn on the crew's commentary (Commentary) for this floor, once its lines are

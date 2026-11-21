@@ -28,6 +28,9 @@ var last_typed_msec := -1000000
 var player: Player
 var _output: RichTextLabel
 var _input: TextEdit
+## The selected case's query with blanks, just above the typing line, colored by
+## kind (PieceKind). Hidden with no case selected, or one with no query.
+var _case_line: RichTextLabel
 var _title: Label
 ## Up and Down: every command typed at the open terminal, by anyone in the crew,
 ## in the order the host ran them (yours go in as you press Enter). Each terminal
@@ -94,10 +97,14 @@ const PAD_SCROLL := 900.0
 ## the crew says to point at it (NUDGE_LINE), once per case.
 const NUDGE_AFTER := 20.0
 const NUDGE_LINE := "cc_point_at_it"
+## The typing line's grey example with no case selected (policy P8). With one,
+## it's that case's query (Game.case_query).
+const EXAMPLE := "Type a query   (.help for commands)"
 const FOOT := "Enter: run (a query ends with ;)    Up/Down: previous queries    point at a line: add it to your notebook    Esc: step away"
 ## The foot line while a pad is in use (draft for Augustine's word-for-word OK).
 const PAD_FOOT := "%s: run    D-pad up/down: previous queries    %s: pick a line for your notebook    Right stick: scroll    %s: step away"
-const PAD_PICK_FOOT := "D-pad up/down: choose a line    %s: add it to your notebook    %s: back to typing"
+## Left/right step between a row's cells (draft on plan/approvals/v0.10-small-strings.md).
+const PAD_PICK_FOOT := "D-pad up/down: choose a line    D-pad left/right: pick a cell    %s: add it to your notebook    %s: back to typing"
 
 
 func _ready() -> void:
@@ -174,9 +181,22 @@ func _ready() -> void:
 	_note_label.gui_input.connect(_on_note_key)
 	vbox.add_child(_note_label)
 
+	_case_line = RichTextLabel.new()
+	_case_line.name = "CaseQuery"
+	_case_line.bbcode_enabled = true
+	_case_line.fit_content = true
+	_case_line.scroll_active = false
+	_case_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_case_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for f in ["normal_font", "bold_font", "italics_font"]:
+		_case_line.add_theme_font_override(f, ThemeUtil.mono())
+	_case_line.add_theme_color_override("default_color", Color(0.85, 1.0, 0.85))
+	_case_line.visible = false
+	vbox.add_child(_case_line)
+
 	_input = TextEdit.new()
 	_input.custom_minimum_size = Vector2(0, 110)
-	_input.placeholder_text = "Type a query, e.g.  SELECT * FROM table_name;   (.help for commands)"
+	_input.placeholder_text = EXAMPLE
 	_input.add_theme_font_override("font", ThemeUtil.mono())
 	_input.add_theme_font_size_override("font_size", 18)
 	_input.add_theme_color_override("font_color", Color(0.85, 1.0, 0.85))
@@ -203,6 +223,7 @@ func _ready() -> void:
 	var game := get_node_or_null("/root/Game")
 	if game:
 		game.notebook_changed.connect(_words_check)
+		game.notebook_changed.connect(show_case_query)
 	InputGlyphs.watch(self).changed.connect(_on_device_changed)  # a method: it goes when the screen does
 
 
@@ -233,6 +254,8 @@ func open(from_terminal: Node, by_player: Player) -> void:
 	if mirror:
 		mirror.seat(terminal, true)
 	_show_others()
+	show_case_query()
+	_input.syntax_highlighter = _sql_highlighter()  # the names on this player's Tables page by now
 	_input.grab_focus()
 	_show_foot()
 	PadReader.show_keyboard(_input.text)
@@ -275,6 +298,8 @@ func _set_hosted(on: bool) -> void:
 	for l in [_others, _foot]:
 		l.add_theme_font_size_override("font_size", 20 if on else 15)
 	_add_chip.add_theme_font_size_override("font_size", 18 if on else 13)
+	for f in ["normal_font_size", "bold_font_size", "italics_font_size"]:
+		_case_line.add_theme_font_size_override(f, big if on else 17)
 	_input.custom_minimum_size.y = big * 4 if on else 110
 	# Subtitles move above the glass, off the line you're typing.
 	var hud = _hud()
@@ -583,9 +608,7 @@ func use_cell(index: int, cell: int) -> bool:
 		return false
 	var c: Dictionary = cells[cell]
 	if get_node("/root/Game").add_cell(c.column, c.value, _row_of(index), _noteable[index].get("query", ""), "terminal"):
-		_render("[color=#7fa88a]Written in your notebook.[/color]", "none")
-		if visible:
-			close()
+		_render("[color=#7fa88a]Written in your notebook.[/color]", "none")  # and it slides up (CaseChip)
 		return true
 	_start_note(index)
 	return false
@@ -611,14 +634,12 @@ func _on_meta(meta: Variant) -> void:
 
 
 ## Line `index` answers a case's blank (Game.add_answer): it's written in there,
-## with no name to give it, and you step back from the screen while the notebook
-## comes up to show it written in (Notebook). False if it answers nothing.
+## with no name to give it, and it slides up (CaseChip) while you stay at the
+## screen. False if it answers nothing.
 func answer(index: int) -> bool:
 	if index < 0 or index >= _noteable.size() or not get_node("/root/Game").add_answer(_noteable[index].text, "terminal"):
 		return false
 	_render("[color=#7fa88a]Written in your notebook.[/color]", "none")
-	if visible:
-		close()
 	return true
 
 
@@ -1429,19 +1450,44 @@ func _esc(s: String) -> String:
 	return s.replace("[", "[lb]")
 
 
+## The typing line's colors: the look's words and values, and the tables and
+## columns on this player's Tables page (only ones they've found) by kind.
 func _sql_highlighter() -> CodeHighlighter:
 	var l: Dictionary = _look if not _look.is_empty() else TerminalLook.standard()
 	var h := CodeHighlighter.new()
+	# Words, numbers and quoted text follow the screen's look, as the echoed query
+	# does; tables and columns found keep their kind's color (PieceKind), as on the
+	# case board.
 	h.number_color = l.number
 	h.symbol_color = l.row.lerp(l.text, 0.3)
 	h.function_color = l.row
 	h.member_variable_color = l.row
+	var game := get_node_or_null("/root/Game")
+	if game:
+		for t in game.notebook_tables:
+			for col in game.notebook_tables[t]:
+				h.add_keyword_color(str(col), PieceKind.color(PieceKind.COLUMN))
+		for t in game.notebook_tables:
+			h.add_keyword_color(str(t), PieceKind.color(PieceKind.TABLE))
 	var kw: Color = l.keyword
 	for word in KEYWORDS:
 		h.add_keyword_color(word, kw)
 		h.add_keyword_color(word.to_lower(), kw)
 	h.add_color_region("'", "'", l.string)
 	return h
+
+
+## The selected case's query: just above the typing line, and as its grey
+## example (P8). With none: the plain example, and no line.
+func show_case_query() -> void:
+	if _input == null:
+		return
+	var game := get_node_or_null("/root/Game")
+	var id: String = game.case_selected() if game else ""
+	var q: String = game.case_query(id) if id != "" else ""
+	_input.placeholder_text = q if q != "" else EXAMPLE
+	_case_line.text = PieceKind.query_bbcode(game.case_info(id), game.PIECE_MISSING) if q != "" else ""
+	_case_line.visible = q != ""
 
 
 # --- The next-word buttons' counts ----------------------------------------------------
