@@ -8,7 +8,7 @@ extends Interactable
 ## presser holds (`hand_of`) to the host. The host decides (`decide`) and every machine
 ## plays it out (`play`), where only the presser's machine changes its inventory.
 ## A piece never emits `used`: it plays its own sound, where it is, on every machine
-## (`_sound`, which also fires `touched` for the hands).
+## (`_sound_for`, which also fires `touched` for the hands).
 
 ## Anything the presser carries that the decision needs, as plain data.
 static func hand_of(player: Node) -> Dictionary:
@@ -127,7 +127,7 @@ func _tell(peer: int, text: String, seconds := 3.0) -> void:
 
 
 ## `sound` where it is, and the hands' cue for player `peer`.
-func _sound(peer: int, sound: String) -> void:
+func _sound_for(peer: int, sound: String) -> void:
 	touched.emit(peer)
 	var parent := get_parent()
 	if parent is Node3D and is_inside_tree():

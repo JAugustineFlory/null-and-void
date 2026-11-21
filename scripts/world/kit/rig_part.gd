@@ -60,10 +60,10 @@ func decide(peer: int, _hand: Dictionary) -> void:
 ## Every machine. The power button with no power behind it only clicks.
 func _done_by(peer: int) -> void:
 	if part == "power" and not rig.has_power():
-		_sound(peer, "button")
+		_sound_for(peer, "button")
 		_tell(peer, KitWords.say("no_power"))
 		return
 	if _needs() != "":
 		_take(peer, _needs())
-	_sound(peer, "button" if part == "power" else "clunk")
+	_sound_for(peer, "button" if part == "power" else "clunk")
 	rig._fix(part, peer)

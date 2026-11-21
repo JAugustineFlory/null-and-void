@@ -30,7 +30,7 @@ Rules that come with it:
   `FuseBox.seeded_blown` and the patch panel's own shuffle, and test across many seeds.
 - **Bodies**: a shutter jammed part-way is a crawl gap. Keep any route under one at least
   1.0 m tall, and add the floor to the `bodies` sweep as usual.
-- **Sound**: each piece plays its own sound where it is (`KitPiece._sound`). The bench's
+- **Sound**: each piece plays its own sound where it is (`KitPiece._sound_for`). The bench's
   sweep (`tests/kit_tests.gd`) checks every piece has one.
 - **Power at night**: `TerminalRig.attach(terminal, ["power"])` leaves a terminal switched off
   until someone presses its power button. A terminal with no rig is on.

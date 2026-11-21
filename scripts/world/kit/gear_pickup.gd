@@ -80,7 +80,7 @@ func _picked(peer: int, left: String) -> void:
 	if left != "":
 		_take(peer, left)
 	_give(peer, got)
-	_sound(peer, "item")
+	_sound_for(peer, "item")
 	if left != "":
 		_show(left)
 	else:

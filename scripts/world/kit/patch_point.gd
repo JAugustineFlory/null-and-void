@@ -69,4 +69,4 @@ func _act(peer: int, what: String) -> void:
 		"unplug": panel._hold(peer, panel.jack_lead(index))
 		"drop": panel._drop(peer)
 		"hold": panel._hold(peer, index)
-	_sound(peer, "click")
+	_sound_for(peer, "click")

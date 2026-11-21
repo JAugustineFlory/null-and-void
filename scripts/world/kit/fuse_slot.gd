@@ -64,7 +64,7 @@ func _set_state(peer: int, to: String) -> void:
 	else:
 		_take(peer, "fuse")
 	_show(to)
-	_sound(peer, "clunk")
+	_sound_for(peer, "clunk")
 	if box:
 		box.circuit_changed.emit(circuit, to == "good", peer)
 

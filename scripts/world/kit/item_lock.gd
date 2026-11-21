@@ -53,5 +53,5 @@ func _open(peer: int) -> void:
 	is_open = true
 	if uses_up and item != "":
 		_take(peer, item)
-	_sound(peer, sound)
+	_sound_for(peer, sound)
 	opened.emit(peer)
