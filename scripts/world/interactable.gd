@@ -6,12 +6,19 @@ signal used(player: Node)
 signal alt_used(player: Node)
 ## A player aimed at it while it shone (once): the moment to say what the shine means.
 signal shine_seen(player: Node)
+## Every machine: player `peer_id` used it (the machine that decided sends it to all).
+## Its sound plays from here (SfxTouch), and the hands can animate from it.
+signal touched(peer_id: int)
 
 var prompt := "Use"
 var alt_prompt := ""
 var enabled := true
 ## Co-op: act on this machine only, instead of asking the host (e.g. hopping a counter).
 var local_only := false
+## What it is, for the sound it makes when used and the hands' move: "paper", "button",
+## "locker", "switch"... (Sfx.KINDS). Left "", SfxTouch works it out from what it is
+## and its prompt; "none" is silent.
+var kind := ""
 ## The shine over something still worth reading (see shine()): blue, so it can't be
 ## mistaken for lamplight on paper (Augustine, v0.7.1 playtest).
 const SHINE_COLOR := Color(0.3, 0.68, 1.0)
@@ -40,6 +47,14 @@ var _shine: MeshInstance3D
 var _shine_spent := false
 ## shine_seen has gone out.
 var _shine_seen := false
+
+
+## Hooked up on entering the tree: a notification reaches every class it's made of,
+## so a kind with its own _init (a Seat) is still heard.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ENTER_TREE and not used.is_connected(_on_touched):
+		used.connect(_on_touched)
+		alt_used.connect(_on_touched)
 
 
 static func create(parent: Node, center: Vector3, size: Vector3, prompt_text: String, color: Color = Color(0.3, 0.3, 0.3), visible_mesh: bool = true) -> Interactable:
@@ -142,6 +157,20 @@ func interact(player: Node) -> void:
 func interact_alt(player: Node) -> void:
 	if enabled and alt_prompt != "" and not _forwarded("interact_alt"):
 		alt_used.emit(player)
+
+
+## Used, on the machine that decided it: tell every machine, so everyone hears it.
+func _on_touched(player: Node) -> void:
+	if not is_inside_tree() or SfxTouch.sound_of(SfxTouch.kind_of(self)) == "":
+		return
+	var sync := LevelSync.of(self)
+	_touch.rpc(sync.peer_of(player) if sync else 0)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _touch(peer_id: int) -> void:
+	touched.emit(peer_id)
+	SfxTouch.play(self)
 
 
 func _forwarded(method: String) -> bool:

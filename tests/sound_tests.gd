@@ -19,6 +19,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hum_on_ambience()
 	await test_terminal_sounds()
 	await test_door_sounds()
+	test_touch_kinds()
+	await test_touch()
+	await test_every_interactable_sounds()
 	test_surfaces()
 	await test_footsteps()
 	await test_landing()
@@ -216,13 +219,124 @@ func test_door_sounds() -> void:
 	slid.set_open(false)
 	check(kinds.call().back() == "clunk", "and it thuds shut")
 	hinged.set_open(true)
-	check(kinds.call().back() == "click", "a hinged door's latch clicks")
+	check(kinds.call().back() == "handle", "a hinged door's handle turns and it creaks open")
+	hinged.set_open(false)
+	check(kinds.call().back() == "click", "and its latch clicks shut")
+	var stair := Door.create(room, "STAIR-1-G", Vector3(12, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
+	await t.process_frame
+	stair.set_open(true)
+	check(kinds.call().back() == "push_bar", "a stair door clanks on its push bar")
+	stair.set_open(false)
+	stair.locked = true
+	var n: int = kinds.call().size()
+	stair.interact(null)
+	check(kinds.call().size() == n + 1 and kinds.call().back() == "lock" and not stair.is_open, "a locked door's handle rattles and it stays shut")
 	var before: int = kinds.call().size()
 	slid.set_open(true, true)
 	slid.set_open(true)
 	check(kinds.call().size() == before, "a door set at once (loading in) or already open makes no sound")
 	room.queue_free()
 	await t.process_frame
+
+
+## What each thing you can use sounds like, from what it is and what its prompt says.
+func test_touch_kinds() -> void:
+	var cases := {"Open your locker": "locker", "Press 22": "button", "Reset breaker B-1": "switch",
+		"Reset the lighting circuit": "switch", "Turn the crank": "crank", "Unbuckle (ready up)": "buckle",
+		"Badge in": "card", "Prop the stair door open": "push_bar", "Pull the manual release": "lever",
+		"Push the vent hatch open": "vent_panel", "Pull the grate off the air return": "vent_panel",
+		"Take the spare key": "keys", "Take a screwdriver": "item", "Get in the van": "car_door",
+		"Use the computer": "mouse", "Close and lock SEC-EXIT": "lock", "Tear the tape on box 3": "tape_tear",
+		"Sign the visitor log": "pen", "Reseat the fan tray (RB-1)": "slot", "Open the door": "handle"}
+	var wrong := []
+	for prompt in cases:
+		var it := Interactable.new()
+		it.prompt = prompt
+		if SfxTouch.kind_of(it) != cases[prompt]:
+			wrong.append("%s: %s" % [prompt, SfxTouch.kind_of(it)])
+		it.free()
+	check(wrong.is_empty(), "a thing's prompt says what it sounds like (wrong: %s)" % [wrong])
+	var key := Interactable.new()
+	key.name = "Key_5"
+	key.prompt = "Press 5"
+	var relay := Interactable.new()
+	relay.prompt = ""
+	check(SfxTouch.kind_of(key) == "keypad" and SfxTouch.sound_of(SfxTouch.kind_of(relay)) == "",
+		"a door keypad's keys sound like a keypad; an unseen relay is silent")
+	key.kind = "paper"
+	relay.kind = "none"
+	relay.prompt = "Open your locker"
+	check(SfxTouch.kind_of(key) == "paper" and SfxTouch.sound_of(SfxTouch.kind_of(relay)) == "",
+		"a kind set by hand wins, and \"none\" is silent")
+	check(SfxTouch.sound_of("slot") == "clunk" and SfxTouch.sound_of("vent_panel") == "rattle"
+		and SfxTouch.sound_of("pen") == "pencil" and SfxTouch.sound_of("terminal") == "",
+		"some kinds borrow another's sound; a terminal makes its own")
+	key.free()
+	relay.free()
+
+
+## Using something tells every machine (touched, which the hands hook too) and it
+## sounds where it is; something switched off, or silent, doesn't.
+func test_touch() -> void:
+	var room := Node3D.new()
+	t.root.add_child(room)
+	var kinds := func(): return room.get_meta("sounds_played", []).map(func(x): return x.kind)
+	var locker := Interactable.create(room, Vector3(2, 1, 0), Vector3(0.5, 1.8, 0.5), "Open your locker")
+	locker.alt_prompt = "Take the spare key"
+	var heard := []
+	locker.touched.connect(func(id): heard.append(id))
+	var used := [0]
+	locker.used.connect(func(_p): used[0] += 1)
+	locker.interact(null)
+	check(heard == [0] and used[0] == 1 and kinds.call() == ["locker"] and room.get_meta("sounds_played")[0].pos == Vector3(2, 1, 0),
+		"using a locker: it's touched, everywhere, and it bangs open where it is")
+	locker.interact_alt(null)
+	check(heard.size() == 2 and kinds.call().size() == 2, "the other use (X) sounds too")
+	locker.enabled = false
+	locker.interact(null)
+	check(heard.size() == 2 and kinds.call().size() == 2, "something switched off makes no sound")
+	var quiet := Interactable.create(room, Vector3(4, 1, 0), Vector3(0.5, 0.5, 0.5), "Press the button")
+	quiet.kind = "none"
+	var quiet_heard := []
+	quiet.touched.connect(func(id): quiet_heard.append(id))
+	quiet.interact(null)
+	check(quiet_heard.is_empty() and kinds.call().size() == 2, "a silent thing is used without a sound")
+	var seat := Seat.create_at(room, Vector3(6, 0.45, 0), 0.0)
+	var sat := []
+	seat.touched.connect(func(id): sat.append(id))
+	seat.used.emit(null)
+	var cabinet := FirstAidCabinet.new()
+	room.add_child(cabinet)
+	check(sat == [0] and kinds.call().back() == "seat" and cabinet.used.is_connected(cabinet._on_touched),
+		"kinds with their own setup (a seat, a first aid cabinet) are touched too: a seat creaks")
+	room.queue_free()
+	await t.process_frame
+
+
+## Everything on every floor that can be used makes a sound (or is quiet on purpose).
+func test_every_interactable_sounds() -> void:
+	var game := t.root.get_node("Game")
+	var unsounded := []
+	var count := 0
+	var kinds := {}
+	for scene in load("res://tests/body_tests.gd").FLOORS:
+		game.new_run(7)
+		var level = load("res://scenes/%s.tscn" % scene).instantiate()
+		t.root.add_child(level)
+		await t.process_frame
+		for n in level.find_children("*", "", true, false):
+			if not n is Interactable:
+				continue
+			count += 1
+			var kind := SfxTouch.kind_of(n)
+			var sound := SfxTouch.sound_of(kind)
+			kinds[kind] = true
+			if kind == "" or (sound != "" and not (Sfx.KINDS.has(sound) and Sfx.stream(sound) != null and n.used.is_connected(n._on_touched))):
+				unsounded.append("%s %s \"%s\"" % [scene, n.name, n.prompt])
+		level.queue_free()
+		await t.process_frame
+	check(count > 300 and unsounded.is_empty(),
+		"all %d things you can use on every floor have a sound, %d kinds (none: %s)" % [count, kinds.size(), unsounded])
 
 
 func test_surfaces() -> void:
