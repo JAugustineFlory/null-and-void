@@ -248,7 +248,10 @@ func test_terminal_rig() -> void:
 	check(not rig.missing.has("power") and not term.screen.glass.visible and term.get_prompt(level.player) == "The power light's on, but there's no picture.",
 		"switched on, it's still dark: the monitor cable")
 	await _press(level, rig.parts["monitor_cable"])
-	check(rig.lit() and term.screen.glass.visible and term.get_prompt(level.player) == "There's no keyboard." and rig.blocks(), "cable in: a picture, but no keyboard")
+	check(rig.booting and term.get_prompt(level.player) == "" and term.transcript.is_empty(), "a picture at last: it warms up first, the screen still blank")
+	await _until(func(): return not rig.booting, 240)
+	check(term.transcript == term.boot_text(), "then its boot lines come up, one at a time")
+	check(rig.lit() and term.screen.glass.visible and term.get_prompt(level.player) == "There's no keyboard." and rig.blocks(), "booted: a picture, but no keyboard")
 	var kb: RigPart = rig.parts["keyboard"]
 	check(not kb.can_use(KitPiece.hand_of(level.player)) and not term.screen.keyboard.visible, "no keyboard to plug in yet")
 	await _press(level, level.gear["keyboard"])

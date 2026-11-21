@@ -31,6 +31,12 @@ var missing: Array = []
 var fuse_box: FuseBox
 var circuit := ""
 var is_assembled := false
+## Warming up after it comes on (the tube glows, then its boot lines come up).
+var booting := false
+## Seconds from the click to the first boot line, and between lines.
+const WARM_UP := 0.8
+const LINE_GAP := 0.25
+var _was_lit := false
 var parts := {}
 var _cord: Node3D
 var _cable: Node3D
@@ -62,6 +68,7 @@ static func attach(t: Terminal, missing_parts: Array, on_box: FuseBox = null, on
 	rig._cable.name = "Cable"
 	rig.add_child(rig._cable)
 	KitPiece._box(rig._cable, Vector3(-0.1, 0.1, -0.36), Vector3(0.02, 0.22, 0.02), Color(0.2, 0.2, 0.25))
+	rig._was_lit = rig.lit()  # already on: no boot at the start of the floor
 	if on_box:
 		on_box.circuit_changed.connect(func(c, _live, _peer): if c == on_circuit: rig._refresh())
 	rig._refresh()
@@ -80,11 +87,13 @@ func lit() -> bool:
 
 ## It stands in front of the terminal: something's missing, or there's no power.
 func blocks() -> bool:
-	return not missing.is_empty() or not has_power()
+	return not missing.is_empty() or not has_power() or booting
 
 
 ## What the terminal itself says while it's blocked (its front: the power button).
 func terminal_prompt(_player: Node) -> String:
+	if booting:
+		return ""
 	if missing.has("power"):
 		return "[E] " + KitWords.say("power_on")
 	if not has_power():
@@ -128,8 +137,27 @@ func _refresh() -> void:
 			c.visible = on
 		elif c is AudioStreamPlayer3D and String(c.name).begins_with("Loop_"):
 			c.stream_paused = not on
+	if on and not _was_lit and is_inside_tree():
+		_boot()
+	_was_lit = on
 	if not blocks() and not is_assembled:
 		is_assembled = true
 		assembled.emit()
 	elif blocks():
 		is_assembled = false
+
+
+## Every machine: it came on. A dark screen warms up, then its usual boot lines
+## come up one at a time (the same lines it always boots with), then the prompt.
+func _boot() -> void:
+	booting = true
+	terminal.clear_screen()
+	var lines := terminal.boot_text()
+	var tw := create_tween()
+	tw.tween_interval(WARM_UP)
+	for line in lines:
+		tw.tween_callback(terminal.print_line.bind(line))
+		tw.tween_interval(LINE_GAP)
+	tw.tween_callback(func():
+		booting = false
+		_refresh())
