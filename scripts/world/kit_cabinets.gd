@@ -113,15 +113,17 @@ static func spots_in(level: Node3D, geo: NavigationRegion3D, nav: Array) -> Arra
 
 
 ## The floor's walkable navigation, stairwells left out (they're for getting
-## between floors, and STAIR 1 has its own cabinet).
+## between floors, and STAIR 1 has its own cabinet), and the rooms nobody can get
+## into (the level's `shut_rooms`).
 static func floor_nav(level: Node3D, geo: NavigationRegion3D) -> Array:
 	var wells := _stairwells(level, geo)
+	var shut: Array = level.get("shut_rooms") if level.get("shut_rooms") is Array else []
 	return _nav_polys(level, geo).filter(func(poly):
 		var c := Vector3.ZERO
 		for v in poly:
 			c += v
 		c /= poly.size()
-		return not wells.any(func(w): return w.grow(0.3).has_point(c)))
+		return not wells.any(func(w): return w.grow(0.3).has_point(c)) and not shut.any(func(room: AABB): return room.has_point(c)))
 
 
 ## Each stairwell's bounds in level space.
@@ -221,7 +223,8 @@ static func _band(y: float) -> int:
 
 
 ## Storey -> how many of `n` kits it gets, by its walkable area (largest
-## remainder), only storeys with somewhere to put one.
+## remainder), only storeys with somewhere to put one. A storey other than the
+## floor's own gets no more than half of them.
 static func _shares(nav: Array, spots: Array, n: int) -> Dictionary:
 	var area := {}
 	for poly in nav:
@@ -245,6 +248,14 @@ static func _shares(nav: Array, spots: Array, n: int) -> Dictionary:
 	rest.sort_custom(func(x, y): return x[0] > y[0] or (x[0] == y[0] and x[1] > y[1]))
 	for i in n - given:
 		out[rest[i][1]] += 1
+	# A storey that isn't the floor's own (floor 10's ground-floor beat) takes at most
+	# half the kits, however much floor it has: the rest stay on the floor itself.
+	var own := _band(0.0)
+	var most := int(ceil(n / 2.0))
+	for b in out.keys():
+		if b != own and out.has(own) and out[b] > most:
+			out[own] += out[b] - most
+			out[b] = most
 	for b in out.keys():
 		if out[b] == 0:
 			out.erase(b)

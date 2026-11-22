@@ -12,8 +12,10 @@ const FALL_TIME := 2.5
 const QUIET_DB := -40.0
 const LOUD_DB := -6.0
 
-## Where it's dark, in this node's space.
+## Where it's dark, in this node's space: `zone`, and any boxes in `more` (a
+## corridor that turns a corner is two).
 var zone := AABB()
+var more: Array[AABB] = []
 ## 0 silent, 1 as loud as it gets. Read-only.
 var intensity := 0.0
 ## Overrides which player it listens for (tests); otherwise this machine's own.
@@ -21,11 +23,12 @@ var listener: Node3D
 var _player: AudioStreamPlayer
 
 
-## A Hum over the box `zone` (in `parent`'s space).
-static func create(parent: Node3D, box: AABB) -> Hum:
+## A Hum over the box `zone` (in `parent`'s space), and over `also`'s boxes.
+static func create(parent: Node3D, box: AABB, also: Array[AABB] = []) -> Hum:
 	var h := Hum.new()
 	h.name = "Hum"
 	h.zone = box
+	h.more = also
 	parent.add_child(h)
 	return h
 
@@ -42,7 +45,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var p := _listener()
 	var target := 0.0
-	if p and zone.has_point(to_local(p.global_position) + Vector3(0, 0.5, 0)):
+	if p and in_dark(to_local(p.global_position) + Vector3(0, 0.5, 0)):
 		var lit: bool = p.get("flashlight") != null and p.flashlight.visible
 		target = 0.0 if lit else 1.0
 	if target > intensity:
@@ -55,6 +58,11 @@ func _process(delta: float) -> void:
 		_player.volume_db = lerpf(QUIET_DB, LOUD_DB, sqrt(intensity))
 	elif _player.playing:
 		_player.stop()
+
+
+## Whether `point` (in this node's space) is in the dark.
+func in_dark(point: Vector3) -> bool:
+	return zone.has_point(point) or more.any(func(b: AABB) -> bool: return b.has_point(point))
 
 
 func is_humming() -> bool:

@@ -308,7 +308,7 @@ const G_STAIR_AT := GroundFloor.STAIR_AT
 const G_FRONT_AT := GroundFloor.FRONT_AT
 ## The reception desk's middle, at floor level.
 const G_DESK_AT := Vector3(GroundFloor.DESK.x, 0, GroundFloor.DESK.z)
-const G_LOBBY := AABB(Vector3(-8, -0.5, -7), Vector3(16, 4.5, 14))
+const G_LOBBY := AABB(Vector3(GroundFloor.LOBBY.position.x, -0.5, GroundFloor.LOBBY.position.y), Vector3(GroundFloor.LOBBY.size.x, GroundFloor.LOBBY_H + 0.5, GroundFloor.LOBBY.size.y))
 ## Run on its own, the ground floor sits this far under floor 10 (level space).
 const G_OFFSET := Vector3(0, -40, 0)
 ## The night lockup card at the front desk: where the gates table is found.
@@ -1507,7 +1507,9 @@ func _build_ground() -> void:
 	geo.add_child(g_geo)
 	# The same rooms Level 0 built: the lobby the crew walked in through.
 	GroundFloor.build(g_geo)
-	Greybox.label(g_geo, Vector3(27, 2.75, -0.88), "G   LOBBY", 56, Color(0.75, 0.75, 0.7))
+	for room in GroundFloor.shut_rooms():
+		shut_rooms.append(g_geo.transform * room)
+	Greybox.label(g_geo, Vector3(GroundFloor.mid(GroundFloor.LIFT_HALL).x, 2.75, GroundFloor.LIFT_HALL.position.y + 0.12), "G   LOBBY", 56, Color(0.75, 0.75, 0.7))
 	g_stair = Stairwell.build(g_root, g_geo, G_STAIR_AT, 180.0, "G", "STAIR 1", 0)
 	g_stair.name = "Door_STAIR-G"
 	# The lift's doors, shut for the night.
@@ -1534,11 +1536,16 @@ func _build_ground() -> void:
 	# Beside the night lockup card, the policy card (P5); on the monitor's bezel, N.F.'s note (W5).
 	TerminalPolicy.place_card(g_geo, G_DESK_AT + Vector3(0.25, 1.102, 0.15), 0, true).name = "PolicyCard"
 	Document.place(g_geo, G_DESK_AT + Vector3(1.22, 1.22, 0.02), 0, "Sticky note", W5.map(func(l): return {"text": l, "hand": true}), false, "sticky").name = "BezelNote"
-	for id_pos in [["G-LOBBY", Vector3(-4, 4.0, 0)], ["G-LOBBY", Vector3(4, 4.0, 0)], ["G-HALL", Vector3(16, 3.0, 3)], ["G-LIFTS", Vector3(27, 3.2, 3)]]:
-		add_light(id_pos[0], g_geo.transform * id_pos[1], 9.0, 0.8)
-	# After hours, the rest of the floor is lit low.
+	# After hours: every other fitting is on along the crew's way out (the lift hall,
+	# the hall, the lobby), and the rest of the floor is lit low.
+	var way_out := {"lobby": "G-LOBBY", "hall": "G-HALL", "elevators": "G-LIFTS"}
+	var nth := {}
 	for l in GroundFloor.LIGHTS:
-		if not l[0] in ["lobby", "hall", "elevators"]:
+		if way_out.has(l[0]):
+			nth[l[0]] = nth.get(l[0], 0) + 1
+			if nth[l[0]] % 2 == 1:
+				add_light(way_out[l[0]], g_geo.transform * l[1], l[2], 0.8)
+		else:
 			add_light("G-" + str(l[0]).to_upper(), g_geo.transform * l[1], l[2], l[3] * 0.5)
 
 
