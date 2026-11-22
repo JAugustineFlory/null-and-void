@@ -129,7 +129,7 @@ const LEG_UP_TIME := 0.55
 ## you up sits between them.
 const SOLO_REACH := 3.2
 const LEG_UP_REACH := 3.75
-## What you see on a braced teammate. New words, waiting on Augustine's OK.
+## What you see on a braced teammate. Augustine approved these words (2026-11-22).
 const LEG_UP_PROMPT := "[E] Take a leg-up"
 ## Falling faster than this lands loudly, unless you roll.
 const HARD_LANDING := 7.0
