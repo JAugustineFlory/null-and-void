@@ -31,7 +31,15 @@ static func create(parent: Node, center: Vector3, size: Vector3, volume_kind: Ki
 	parent.add_child(v)
 	v.body_entered.connect(v._on_body_entered)
 	v.body_exited.connect(v._on_body_exited)
+	v.add_to_group("movement_volume")
 	return v
+
+
+## Is `p` (world space) inside it?
+func has_point(p: Vector3) -> bool:
+	var bs := (get_child(0) as CollisionShape3D).shape as BoxShape3D
+	var l := global_transform.affine_inverse() * p
+	return absf(l.x) <= bs.size.x / 2.0 and absf(l.y) <= bs.size.y / 2.0 and absf(l.z) <= bs.size.z / 2.0
 
 
 func _on_body_entered(body: Node) -> void:

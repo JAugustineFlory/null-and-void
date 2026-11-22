@@ -1572,8 +1572,20 @@ func leg_up_ledge(base: Node3D) -> Dictionary:
 	var p := _ledge_probe(-brace.normal, feet)
 	_lift_base = was
 	if p.is_empty() or p.height > HANG_REACH:
-		return {}
+		var hatch := _hatch_over(feet)
+		return {"hatch": hatch, "height": hatch.a.y - feet.y} if hatch else {}
 	return p
+
+
+## An open hatch (a ceiling vent, a lift's roof) right over `feet`, its rim in
+## reach from there; or null.
+func _hatch_over(feet: Vector3) -> MovementVolume:
+	for v in get_tree().get_nodes_in_group("movement_volume"):
+		var m := v as MovementVolume
+		if m and m.kind == MovementVolume.Kind.HATCH and m.active and m.has_point(feet + Vector3.UP * 0.1) \
+				and m.a.y - feet.y <= HANG_REACH and m.a.y >= feet.y + body.crouch * 0.5:
+			return m
+	return null
 
 
 ## Can you take a leg-up off `base` right now? You on your feet with your hands
@@ -1663,6 +1675,9 @@ func _step_lift(delta: float) -> void:
 	state = Move.WALK
 	var dir := _lift_dir
 	_end_lift()
+	var hatch := in_volume(MovementVolume.Kind.HATCH)
+	if hatch and _try_hatch(hatch):
+		return  # a hole in the ceiling over them: up through it
 	if _try_ledge(true, dir):
 		_hang_jump = state == Move.HANG  # caught it: straight on up
 		return

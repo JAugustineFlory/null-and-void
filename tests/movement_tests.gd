@@ -44,6 +44,7 @@ func _run_moves() -> void:
 	await test_ducts()
 	await test_vent_entries()
 	await test_grille_sides()
+	await test_leg_up_hatch()
 	await test_same_controls_same_moves()
 	await test_first_person_motion()
 
@@ -1374,6 +1375,35 @@ func test_grille_sides() -> void:
 	room.inventory.add(VentGrille.SCREWDRIVER)
 	await frames(10)
 	check(screwed.get_prompt(room) == "[E] " + VentGrille.UNSCREW, "from the room, the same screwed grille unscrews")
+	await done(a)
+
+
+## E10: a ceiling vent too high to jump to (3.5 m), by a wall: a braced teammate's
+## leg-up takes you up through it, once it's open.
+func test_leg_up_hatch() -> void:
+	print("Movement: a leg-up into a ceiling vent")
+	var a := arena()
+	_high_wall(a, 4.5)  # face at z = -2, nothing to catch on top
+	Traversal.ducts(a, [[Vector3(-3, 3.5, -1.5), Vector3(3, 3.5, -1.5)]], Vector2(1.0, 1.0), [], [Vector3(0, 3.5, -1.5)])
+	var vol := Traversal.hatch(a, Vector3(0, 3.51, -1.5), Vector2(1.0, 1.0), Vector3(1.2, 3.51, -1.5))
+	vol.active = false
+	var base := spawn(a, Vector3(0, 0.05, -1.55))
+	var climber := spawn(a, Vector3(0, 0.05, -0.5))
+	base.controls.crouch = true
+	await frames(15)
+	var shut := base.get_prompt(climber)
+	vol.active = true
+	var open := base.get_prompt(climber)
+	check(shut == "" and open == Player.LEG_UP_PROMPT, "shut, nothing to give a leg-up to; open, a leg-up")
+	base.interact(climber)
+	var up := false
+	for i in 180:
+		await frames(1)
+		if climber.state == Player.Move.WALK and climber.global_position.y > 3.4:
+			up = true
+			break
+	check(up and climber.crawling, "up off them and through it, into the duct (y %.2f)" % climber.global_position.y)
+	stop(base)
 	await done(a)
 
 
