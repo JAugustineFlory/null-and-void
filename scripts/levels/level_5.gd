@@ -26,10 +26,12 @@ extends LevelBase
 ##               answers 401), in either order; the station passes once both are out.
 ##               Then PATCH every door opened tonight shut and GET them back.
 ##               Under pressure: the Mimics, and the Custodian if its bay wasn't sealed.
-## The practice is safe: the air only starts to count once the carbon copy has shown
-## the fix and the power is back, and a loose Custodian only starts up the dock
-## stairs once the power and the air are back, the crew is at the passes, or the
-## loading door is opened. A chapter of the book stops nothing (Huddle).
+## The practice is safe: the air only starts to count once the power is back and
+## the crew has asked something since, and a loose Custodian only starts up the dock
+## stairs 180 s after the people case opens, once the crew is at the passes, or when
+## the loading door is opened. Cases open one at a time and chapters land on their
+## gates (the v0.10 package, plan/approvals/puzzle-flow-floor-9.md). A chapter of the
+## book stops nothing (Huddle).
 ## Every station is checked by what the services answer and the state they're left in
 ## (RequestPuzzle), never by the request's text. Every line players read is a draft
 ## in plan/approvals/l5-text.md until Augustine approves it word for word.
@@ -123,8 +125,79 @@ const TASK_TITLES := {
 	"todo_down": "Down we go",
 }
 
+# --- The v0.10 package (plan/approvals/puzzle-flow-floor-9.md, approved 2026-11-22) -----
+
+## A slot answered only by pointing at a cell, never by a noted line.
+const NO_LINE := ["\u0001"]
+## Every case on the floor asks with the HR key: each has it as a piece (N8).
+const KEY_CASES := ["hr_key", "frame", "panel_power", "air", "radio", "people", "vale"]
+## Each case's query under its chip (N1-N7): {piece} is a found piece or its blank.
+const KEY_QUERY := "GET /staff\nX-Api-Key: {key}"
+const FRAME_QUERY := "GET /swipes/{badge}\nX-Api-Key: {key}"
+const POWER_QUERY := "PATCH /circuits/{circuit}\nX-Api-Key: {key}\n\n{\"on\": true}"
+const POWER_READ_QUERY := "GET /circuits\nX-Api-Key: {key}"
+const AIR_QUERY := "POST /work_orders\nX-Api-Key: {key}\n\n{\"floor\": {floor}, \"unit\": \"{unit}\", \"fault\": \"no air\"}"
+const AIR_READ_QUERY := "GET /work_orders\nX-Api-Key: {key}"
+const RADIO_QUERY := "GET /swipes/enter_badge\nX-Api-Key: {key}"
+const PASS_QUERY := "POST /escorts\nX-Api-Key: {key}\n\n{\"badge\": \"{their_badge}\", \"escort\": \"{our_badge}\"}"
+const LOCK_QUERY := "PATCH /doors/enter_door\nX-Api-Key: {key}\n\n{\"locked\": true}"
+const DOORS_READ_QUERY := "GET /doors\nX-Api-Key: {key}"
+const VALE_QUERY := "GET /staff/{vale_badge}\nX-Api-Key: {key}"
+## The cases' steps (N18, N21, N34-N36); the first lines are the to-dos' own.
+const POWER_STEPS := [{"id": "switch", "text": "Get payroll's lights and the cage lock back on"}, {"id": "readback", "text": "Read the panel back"}]
+const AIR_STEPS := [{"id": "order", "text": "Get the air moving again"}, {"id": "readback", "text": "Read our work order back"}]
+const PEOPLE_STEPS := [{"id": "passes", "text": "Get both night-shifters out on an escort pass"}, {"id": "lockup", "text": "Lock every door opened tonight"}, {"id": "readback", "text": "Read the doors back"}]
+## The pieces (N8, N10, N19, N22, N23, N37, N39). The key's value is this run's.
+const BADGE_PIECE := {"id": "badge", "label": "Our visitor badge", "task": "Find the number on one of our visitor badges", "where": "The visitor pass list at the HR desk", "blank": "enter_badge"}
+const OUR_BADGE_PIECE := {"id": "our_badge", "label": "Our visitor badge", "task": "Find the number on one of our visitor badges", "where": "The visitor pass list at the HR desk", "blank": "enter_our_badge"}
+const CIRCUIT_PIECE := {"id": "circuit", "label": "A circuit Epsilon shed", "value": "C9-01", "task": "Find the id of a circuit that was shed", "where": "The Facilities clipboard", "blank": "enter_circuit_id"}
+const UNIT_PIECE := {"id": "unit", "label": "This floor's air handler", "value": "AHU-9", "task": "Find the unit that moves this floor's air", "where": "The tag on payroll's air grille", "blank": "enter_unit"}
+const FLOOR_PIECE := {"id": "floor", "label": "This floor", "value": "9", "task": "Find the number of the floor we're on", "where": "The tag on payroll's air grille", "blank": "enter_floor"}
+const VALE_PIECE := {"id": "vale_badge", "label": "Vale's badge", "value": "ST-0077", "task": "Find Iris Vale's badge number", "where": "The HR service's staff list", "blank": "enter_badge"}
+## The slots and the pencil's notes when a click isn't it (N11-N14, N27-N30, N40-N43).
+const FRAME_SLOT := "Swiped into Vale's lab at:"
+const FRAME_ROW := "That's the lab swipe. The blank wants its time."
+const FRAME_READER := "That's a swipe at another reader. The blank wants the one at LAB-B, Vale's lab."
+const FRAME_MISS := "Not that one: the blank wants when our badges were swiped into Vale's lab."
+const RADIO_SLOT := "Where the voice's badge really is:"
+const RADIO_OLDER := "That's an older swipe. The blank wants that badge's newest one."
+const RADIO_OWN := "That's your own badge. The voice said it had the next one in the book."
+const RADIO_MISS := "Not that one: the blank wants what the log says about the voice's badge."
+const VALE_SLOT := "Last edited by:"
+const VALE_WHEN := "That's when it was edited. The blank wants who by."
+const VALE_ROW := "That's Vale's record. The blank wants who edited it last."
+const VALE_MISS := "Not that one: the blank wants who last edited Vale's record."
+## `.hint`'s first tiers, each skipped once its paper is read (N9, N15, N20, N24, N38).
+const SPOT_DESK_SHEET := "the request sheet on the HR desk says how to ask the HR service."
+const SPOT_POSTER := "the badge poster on HR's wall says how to read a badge's log."
+const SPOT_CLIPBOARD := "the Facilities clipboard beside PANEL 9 lists every circuit, and how to switch one."
+const SPOT_CARBON := "the carbon copy pinned over PANEL 9 is a work order like the one you need."
+const SPOT_PROCEDURE := "the after-hours procedure is pinned on the wall behind the HR desk."
+## The new papers (N45-N50) and their notebook lines.
+const PASS_LIST_HEAD := [
+	"HALCYON SECURITY  -  VISITOR PASSES  -  10/15",
+	"Issued at the front desk, ground floor. Copy to Personnel.",
+	{"columns": ["BADGE", "NAME", "COMPANY", "IN", "ESCORT"], "widths": [0.7, 0.9, 1.9, 0.5, 0.9]},
+]
+const PASS_LIST_TAIL := ["Visitors are escorted at all times."]
+const PASS_LIST_NOTE := "Visitor passes issued tonight: %s."
+const NOTICE_LINES := [
+	"SECURITY NOTICE",
+	"Reader access revoked for these badges:",
+	"ST-0416   reported lost 10/13",
+	"ST-0590   not returned 09/30",
+	"Found one? Hand it in at the HR desk.",
+	"                            - Personnel",
+]
+const NOTICE_NOTE := "Reader access revoked for two badges: ST-0416, lost 10/13, and ST-0590, never returned."
+const PLATE_LINES := ["COPIER BANK", "Panel 9, circuit C9-03: %d A with all three running."]
+const GRILLE_TAG_LINES := ["AHU-9", "FLOOR 9 SUPPLY"]
+## SYSOP's two air tips (N25, N26).
+const TIP_FLOOR := "that order went in, but for floor %d. AHU-9 is this floor's, and this is floor 9."
+const TIP_NO_UNIT := "that order went in for %s, and no unit by that name answered. the clipboard spells this floor's unit AHU-9."
+
 ## The laminated desk sheet at the HR front desk: where the header is found. Its
-## example asks for another floor's clerk with a blank where the key goes.
+## example asks for the HR manager's own record, with a blank where the key goes.
 const DESK_SHEET_LINES := [
 	"HALCYON PERSONNEL  -  HOW TO FILE A PERSONNEL REQUEST",
 	"The HR service answers requests from this desk. Every request carries the HR key.",
@@ -227,7 +300,7 @@ const LURE_LINES := {
 	2: {"crew": "l5_mimic_again", "maddison": "l5_mimic_maddison_again"},
 	3: {"crew": "l5_mimic_last", "maddison": "l5_mimic_maddison_last"},
 }
-const CASES := {"key": TEXT.case_key, "power": TEXT.case_power, "air": TEXT.case_air, "radio": TEXT.case_radio,
+const CASES := {"hr_key": TEXT.case_key, "panel_power": TEXT.case_power, "air": TEXT.case_air, "radio": TEXT.case_radio,
 	"frame": TEXT.case_frame, "people": TEXT.case_people, "vale": TEXT.case_vale}
 ## The clock on the HR front wall reads 00:MM when the crew arrives (seeded) and runs.
 ## The stairs down hold this long before the end card, or the walkie's last line if longer.
@@ -250,9 +323,9 @@ const HIDE_AT := {"cage": Vector3(-8.2, 0, -14.2), "store": Vector3(-7.6, 0, -30
 const WAIT_AT := [Vector3(-2.4, 0, 6.2), Vector3(-2.4, 0, 7.3)]
 ## The shaft past the loading door: step onto it and you fall.
 const SHAFT_AT := Vector3(6, 0, -32.5)
-## How the air goes: once the carbon copy has shown the fix and the power is back, a
-## grace long enough to type it at a lost player's pace (Teaching's walk: about four
-## minutes), then a little each tick until it's back.
+## How the air goes: from the crew's first request after the air case opens (once
+## the power is back), a grace long enough to type it at a lost player's pace
+## (Teaching's walk: about four minutes), then a little each tick until it's back.
 const AIR_GRACE := 300.0
 const AIR_TICK := 15.0
 const AIR_DAMAGE := 3.0
@@ -260,15 +333,16 @@ const AIR_DAMAGE := 3.0
 const PROP_TIME := 90.0
 ## The breaker cupboard's hand reset: how long it takes, in the dark.
 const HAND_RESET_TIME := 20.0
-## When the radio lies: this long after the HR service first answers (sooner once
-## the stair door is propped), then once more if nobody has looked.
+## When the radio lies: this long after the air comes back on (or after it clears
+## through the propped stair door: M6), then once more if nobody has looked.
 const LURE_DELAY := 40.0
 const LURE_DELAY_PROPPED := 15.0
 const LURE_AGAIN := 50.0
-## Not sealed on 10, the Custodian comes up the dock stairs this long after the power
-## and the air are back (the practice is safe; the passes and the lockup aren't), or
-## the moment the loading door is opened for the voice on the radio.
-const CUSTODIAN_DELAY := 150.0
+## Not sealed on 10, the Custodian comes up the dock stairs this long after the people
+## case opens (M8: the practice is safe; the passes and the lockup aren't), sooner
+## once the crew logs a pass or opens a hiding door, or the moment the loading door
+## is opened for the voice on the radio.
+const CUSTODIAN_DELAY := 180.0
 
 var data: Dictionary
 var api: FacilityAPI
@@ -299,12 +373,14 @@ var pending_chapters: Array = []
 var power_back := false
 var air_on := false
 var air_cleared := false
-## The air starts to count against the crew once the carbon copy has shown the fix
-## (host: the seconds counted so far, and the ticks dealt).
+## The air starts to count against the crew at their first request after its case
+## opens (M4) (host: the seconds counted so far, and the ticks dealt).
 var air_armed := false
 var _air_time := 0.0
 var _air_ticks := 0
 var custodian_timed := false
+## The radio's first line is on its way (host; once a run).
+var lure_timed := false
 ## The passes ladder: "review" (POST practised at the work order) or "a" (the prop
 ## route skipped the work order, so POST is new here). Set when the people case opens.
 var passes_ladder := ""
@@ -352,6 +428,19 @@ var passes_puzzle: RequestPuzzle
 var lockup_puzzle: RequestPuzzle
 var check_lockup_puzzle: RequestPuzzle
 var vale_puzzle: RequestPuzzle
+## The frame's station (M1): read our badges' log, and point at the lab swipe's time.
+var frame_puzzle: RequestPuzzle
+## A find's answer is on a screen now (for the teaching walk: a first-time player
+## who sees it there points at it).
+var frame_listed := false
+var radio_listed := false
+var vale_listed := false
+## Circuits the crew has changed (the power's read-back takes any of them shown in
+## its new state), and the terminal anyone last typed at (tip_lure prints there).
+var changed_circuits := {}
+var last_which := "hr"
+## The HR service has answered once (200): the key's done, and the frame's to-do is back.
+var hr_answered := false
 
 
 func build() -> void:
@@ -421,6 +510,13 @@ func build() -> void:
 		reader.entered.connect(_on_reader.bind(r[0]))
 	for term in [hr, panel]:
 		term.api = api
+		# No escort on file: the security policy (P1, P7-P9). Both reach every
+		# service, so `.hint` follows the case, not the terminal (_hint_station).
+		term.policy = true
+		term.hint_station = _hint_station
+	_set_cases()
+	Game.answer_found.connect(_on_answer_found)
+	Game.cell_missed.connect(_on_cell_missed)
 
 
 func _make_puzzles() -> void:
@@ -439,7 +535,15 @@ func _make_puzzles() -> void:
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /staff\n%s[/color]" % hr_key,
 	])
-	key_puzzle.case_id = "key"
+	key_puzzle.case_id = "hr_key"
+	key_puzzle.spots = [{"id": "desk_sheet", "text": SPOT_DESK_SHEET}]
+	# The frame (M1): our own badges' log, practised safely before the radio needs it.
+	# Answered by pointing at the lab swipe's time (_cell_counts); the review ladder.
+	frame_puzzle = RequestPuzzle.new("frame", "GET /swipes/VIS-01\n%s" % hr_key, func(_line: String, _res: Dictionary) -> bool:
+		return false, [])
+	frame_puzzle.case_id = "frame"
+	frame_puzzle.spots = [{"id": "badge_poster", "text": SPOT_POSTER}]
+	_frame_hints()
 	var lights_id := "C9-01"
 	var copiers_id := "C9-03"
 	var cage_id := "C9-04"
@@ -459,17 +563,19 @@ func _make_puzzles() -> void:
 		"    [color=#ffffff]PATCH /circuits/%s\n%s\n\n{\"on\": true}[/color]\n" % [cage_id, hr_key] +
 		"then GET /circuits to see it took.",
 	], _power_ok)
-	circuits_puzzle.case_id = "power"
+	circuits_puzzle.case_id = "panel_power"
+	circuits_puzzle.spots = [{"id": "clipboard", "text": SPOT_CLIPBOARD}]
 	# Verify after the change: GET is long practised (floor 22), so the review ladder.
+	# Any circuit the crew changed, shown in its new state, reads it back.
 	check_circuits_puzzle = RequestPuzzle.new("check_circuits", "GET /circuits\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
-		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/circuits") and _power_ok() and _shows_circuit_on(res.body, lights_id), [
+		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/circuits") and power_back and _shows_changed(res.body), [
 		"the shape: ask the panel back, with the service left as enter_service:\n" +
 		"    [color=#ffffff]GET /enter_service\nX-Api-Key: %s[/color]\n" % key +
 		"enter_service is the service you just changed.",
 		"type this, then Enter twice:\n" +
 		"    [color=#ffffff]GET /circuits\n%s[/color]" % hr_key,
 	])
-	check_circuits_puzzle.case_id = "power"
+	check_circuits_puzzle.case_id = "panel_power"
 	var ex: Dictionary = data.example_order
 	air_puzzle = RequestPuzzle.new("air", "POST /work_orders\n%s\n\n{\"floor\": 9, \"unit\": \"%s\", \"fault\": \"no air\"}" % [hr_key, data.ahu], func(line: String, res: Dictionary) -> bool:
 		return res.status == 201 and _path_of(line).begins_with("/work_orders") and _air_ok(), [
@@ -485,6 +591,7 @@ func _make_puzzles() -> void:
 		"201 means it was made. then ask for it back: GET /work_orders.",
 	], _air_ok)
 	air_puzzle.case_id = "air"
+	air_puzzle.spots = [{"id": "carbon_copy", "text": SPOT_CARBON}]
 	check_air_puzzle = RequestPuzzle.new("check_air", "GET /work_orders\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/work_orders") and _air_ok() and _shows_order(res.body), [
 		"the shape: ask for it back, with the service left as enter_service:\n" +
@@ -497,14 +604,16 @@ func _make_puzzles() -> void:
 	check_air_puzzle.case_id = "air"
 	# The radio's claim against the readers' log: GET with an id in the path is
 	# practised (floor 22's /doors/SEC-EXIT), so the review ladder.
-	swipes_puzzle = RequestPuzzle.new("swipes", "GET /swipes/enter_badge\n%s" % hr_key, func(line: String, res: Dictionary) -> bool:
-		return _exposes_lure(line, res), [
+	# Answered by pointing at what the log says about the voice's badge (_cell_counts).
+	swipes_puzzle = RequestPuzzle.new("swipes", "GET /swipes/enter_badge\n%s" % hr_key, func(_line: String, _res: Dictionary) -> bool:
+		return false, [
 		"the shape, with the badge left as enter_badge:\n" +
 		"    [color=#ffffff]GET /swipes/enter_badge\nX-Api-Key: %s[/color]\n" % key +
-		"enter_badge is the badge of whoever's talking. the readers log where every badge really is: the voice says the loading door; the log says where they are.",
+		"enter_badge is the badge of whoever's talking. the visitor pass list at the HR desk says whose is whose. the readers log where every badge really is: the voice says it's at the loading door; the log says where that badge is.",
 		"",  # the exact query is built once the voice has spoken (_lure_hints)
 	])
 	swipes_puzzle.case_id = "radio"
+	swipes_puzzle.spots = [{"id": "badge_poster", "text": SPOT_POSTER}]
 	swipes_puzzle.solved = true  # until the radio lies
 	# The escort passes: both night-shifters passed and out (their doors opened). POST
 	# is practised at the air handler, so the review ladder, unless the prop route
@@ -512,6 +621,7 @@ func _make_puzzles() -> void:
 	passes_puzzle = RequestPuzzle.new("passes", "POST /escorts\n%s\n\n{\"badge\": \"enter_badge\", \"escort\": \"VIS-01\"}" % hr_key, func(_line: String, _res: Dictionary) -> bool:
 		return _passes_ok(), [], _passes_ok)
 	passes_puzzle.case_id = "people"
+	passes_puzzle.spots = [{"id": "procedure", "text": SPOT_PROCEDURE}]
 	_passes_hints()
 	# The lockup: PATCH is practised at the panel, so the review ladder; its last tier
 	# lists the doors still open (_lockup_hints).
@@ -529,13 +639,15 @@ func _make_puzzles() -> void:
 		"GET /doors/enter_door reads one back.",
 	])
 	check_lockup_puzzle.case_id = "people"
-	vale_puzzle = RequestPuzzle.new("vale", "GET /staff/%s\n%s" % [Level5Data.VALE.id, hr_key], func(line: String, res: Dictionary) -> bool:
-		return res.status == 200 and _path_of(line).to_upper() == "/STAFF/" + Level5Data.VALE.id, [
+	# Answered by pointing at who last edited her record (_cell_counts).
+	vale_puzzle = RequestPuzzle.new("vale", "GET /staff/%s\n%s" % [Level5Data.VALE.id, hr_key], func(_line: String, _res: Dictionary) -> bool:
+		return false, [
 		"the shape, with the badge left as enter_badge:\n" +
 		"    [color=#ffffff]GET /staff/enter_badge\nX-Api-Key: %s[/color]\n" % key +
 		"enter_badge is her badge number: GET /staff lists every record, with its id.",
 		"type this, then Enter twice:\n" +
-		"    [color=#ffffff]GET /staff/%s\n%s[/color]" % [Level5Data.VALE.id, hr_key],
+		"    [color=#ffffff]GET /staff/%s\n%s[/color]\n" % [Level5Data.VALE.id, hr_key] +
+		"point at who last edited it and add it to your notebook.",
 	])
 	vale_puzzle.case_id = "vale"
 
@@ -573,23 +685,32 @@ func _build_hr_front(colors: Dictionary) -> void:
 	]
 	hr.requested.connect(_on_request.bind("hr"))
 	hr.queried.connect(_on_query.bind("hr"))
+	# The desk sheet's example asks for the manager's own record: copied with the
+	# key, it answers 200 with hers.
 	var lines := DESK_SHEET_LINES.duplicate(true)
-	lines[3] = {"text": "GET /staff/%s" % data.example_key_id, "hand": false}
+	lines[3] = {"text": "GET /staff/%s" % data.manager.id, "hand": false}
 	var sheet := Document.place(geo, Vector3(0.7, 1.0, -1.5), 0, "Personnel request sheet", lines, true, "laminated", Vector2(0.24, 0.3))
-	sheet.clues = [{"case": "key", "opens": TEXT.case_key, "text": "The desk sheet: every HR request carries the HR key in an X-Api-Key header, on its own line. The manager issues keys."}]
-	sheet.read_by.connect(func(_p):
-		sync.event("_ask", ["key"])
-		sync.event("_book_huddle", ["api_codes"])
-		sync.event("_book_huddle", ["api_keys"]))
-	# The after-hours procedure, pinned on the wall behind the desk.
+	sheet.clues = [{"case": "hr_key", "text": "The desk sheet: every HR request carries the HR key in an X-Api-Key header, on its own line. The manager issues keys."}]
+	sheet.spot = "desk_sheet"
+	sheet.read_by.connect(func(_p): sync.event("_ask", ["hr_key"]))
+	# The policy card (P5) beside the terminal: floor 9's first policy terminal.
+	TerminalPolicy.place_card(geo, Vector3(-1.32, 1.002, -1.42), 0, true)
+	# The in-tray at the desk's end, for the visitor pass list (seed_crew: it lists
+	# the crew, so it's printed once everyone's here).
+	Greybox.box(geo, Vector3(1.3, 1.025, -1.62), Vector3(0.36, 0.05, 0.28), Color(0.2, 0.22, 0.3), "InTray")
+	# The after-hours procedure, pinned on the wall behind the desk. Read early, its
+	# line waits in Floor notes until the people case opens (M7).
 	var proc := Document.place(geo, Vector3(-1.5, 1.7, -7.88), 180, "Escort procedure", PROCEDURE_LINES, false, "laminated", Vector2(0.3, 0.36))
-	proc.clues = [{"case": "people", "opens": TEXT.case_people, "text": "The after-hours procedure: staff leave only on an escort pass (POST /escorts, logged for a badge the readers have on the floor). Night lockup: every door opened is locked again and read back."}]
-	proc.read_by.connect(func(_p):
-		sync.event("_ask", ["people"])
-		sync.event("_book_huddle", ["api_check"]))
+	proc.clues = [{"case": "people", "text": "The after-hours procedure: staff leave only on an escort pass (POST /escorts, logged for a badge the readers have on the floor). Night lockup: every door opened is locked again and read back."}]
+	proc.spot = "procedure"
 	# The badge poster on the east wall.
 	var poster := Document.place(geo, Vector3(9.88, 1.8, -3), 90, "Badge poster", POSTER_LINES, false, "paper", Vector2(0.42, 0.56))
 	poster.clues = [{"case": "radio", "text": "The poster: every reader logs every swipe. GET /swipes/<badge> is a badge's log."}]
+	poster.spot = "badge_poster"
+	# The security notice beside the reader at HR's door (N47).
+	var notice := Document.place(geo, Vector3(2.75, 1.45, 3.88), 0, "Security notice", NOTICE_LINES, false, "paper", Vector2(0.21, 0.28))
+	notice.name = "SecurityNotice"
+	notice.clues = [{"case": "people", "text": NOTICE_NOTE}]
 	# The training shelf by the west wall, with the book on it.
 	Greybox.box(geo, Vector3(-9.3, 0.9, 0.5), Vector3(1.2, 1.8, 0.4), Color(0.36, 0.3, 0.26), "TrainingShelf")
 	Greybox.label(geo, Vector3(-9.2, 1.95, 0.5), "TRAINING", 24, Color(0.85, 0.85, 0.8), 90)
@@ -616,13 +737,15 @@ func _build_office(colors: Dictionary) -> void:
 	Greybox.panel(geo, Vector3(6.6, 1.25, -14.75), Vector3(0.4, 0.3, 0.04), Color(0.12, 0.14, 0.16), 0.0)
 	var sticky := Document.place(geo, Vector3(6.6, 1.003, -14.28), 0, "Key sticky", [{"text": "HR svc key: %s  (don't share!!)" % data.keys.hr, "hand": true}], true, "sticky")
 	sticky.name = "KeySticky"
-	sticky.clues = [{"case": "key", "text": "Under the HR manager's keyboard: HR svc key: %s" % data.keys.hr}]
+	sticky.clues = [{"case": "hr_key", "text": "Under the HR manager's keyboard: HR svc key: %s" % data.keys.hr}]
+	# Every case on the floor asks with the key (N8).
+	sticky.pieces = KEY_CASES.map(func(c): return {"case": c, "piece": "key", "text": data.keys.hr, "kind": "value"})
 	# The mail tray with the temp's key card: a real key for the wrong service.
 	Greybox.box(geo, Vector3(8.0, 1.03, -14.5), Vector3(0.5, 0.06, 0.35), Color(0.2, 0.22, 0.3), "MailTray")
 	var card_lines := TEMP_CARD_LINES.duplicate()
 	card_lines[2] = TEMP_CARD_LINES[2] % data.keys.temp
 	var card := Document.place(geo, Vector3(8.0, 1.07, -14.5), 0, "Temp key card", card_lines, true, "laminated", Vector2(0.2, 0.14))
-	card.clues = [{"case": "key", "text": "In the mail tray: the temp's mail-room key, %s. Not for HR records." % data.keys.temp}]
+	card.clues = [{"case": "hr_key", "text": "In the mail tray: the temp's mail-room key, %s. Not for HR records." % data.keys.temp}]
 	# A filing cabinet and a framed certificate.
 	Greybox.box(geo, Vector3(9.5, 0.7, -10), Vector3(0.6, 1.4, 0.5), Color(0.45, 0.47, 0.5), "Cabinet")
 
@@ -671,6 +794,10 @@ func _build_payroll(colors: Dictionary) -> void:
 	for z in [-18.5, -20.0, -21.5]:
 		Greybox.box(geo, Vector3(-9.2, 0.6, z), Vector3(0.9, 1.2, 1.1), Color(0.75, 0.75, 0.72), "Copier")
 	Greybox.label(geo, Vector3(-9.6, 1.9, -20), "COPIERS", 24, Color(0.85, 0.85, 0.8), 90)
+	# One plate on the bank: the three share a circuit (N49).
+	var plate_lines := PLATE_LINES.duplicate()
+	plate_lines[1] = PLATE_LINES[1] % int(circuits["C9-03"].amps)
+	Document.place(geo, Vector3(-8.735, 1.0, -20.0), -90, "Copier bank plate", plate_lines, false, "laminated", Vector2(0.22, 0.1)).name = "CopierPlate"
 	# The vending machines on the east wall, and the breaker cupboard behind them.
 	for z in [-18.2, -19.6]:
 		Greybox.box(geo, Vector3(9.2, 0.95, z), Vector3(0.9, 1.9, 1.2), Color(0.25, 0.3, 0.5), "Vending")
@@ -689,22 +816,26 @@ func _build_payroll(colors: Dictionary) -> void:
 	]
 	panel.requested.connect(_on_request.bind("panel"))
 	panel.queried.connect(_on_query.bind("panel"))
+	# The clipboard opens the power case (or the frame's solve does: M3). Its air
+	# line waits in Floor notes until the power's back (M4).
 	var board := Document.place(geo, Vector3(6.8, 1.0, -26.5), 0, "Facilities clipboard", _clipboard_lines(), true, "clipboard")
-	board.clues = [{"case": "power", "opens": TEXT.case_power, "text": "Panel 9 carries %d A at night. Shed circuits come back through the service, one at a time: PATCH /circuits/<id> with {\"on\": true}. The copier bank is still on." % data.limit},
-		{"case": "air", "opens": TEXT.case_air, "text": "The clipboard: %s restarts on a logged work order (night interlock)." % data.ahu}]
-	board.read_by.connect(func(_p):
-		sync.event("_ask", ["power"])
-		sync.event("_book_huddle", ["api_patch"]))
+	board.clues = [{"case": "panel_power", "text": "Panel 9 carries %d A at night. Shed circuits come back through the service, one at a time: PATCH /circuits/<id> with {\"on\": true}. The copier bank is still on." % data.limit},
+		{"case": "air", "text": "The clipboard: %s restarts on a logged work order (night interlock)." % data.ahu}]
+	board.pieces = [{"case": "panel_power", "piece": "circuit", "text": "C9-01", "kind": "value"}, {"case": "panel_power", "piece": "circuit", "text": "C9-04", "kind": "value"},
+		{"case": "air", "piece": "unit", "text": "Air: AHU-9", "kind": "value"}]
+	board.spot = "clipboard"
+	board.read_by.connect(func(_p): sync.event("_ask", ["panel_power"]))
 	var carbon := CARBON_LINES.duplicate()
 	carbon[5] = CARBON_LINES[5] % [data.example_order.floor, data.example_order.unit, data.example_order.fault]
 	var copy := Document.place(geo, Vector3(3.2, 1.7, -27.88), 180, "Carbon copy", carbon, false, "paper", Vector2(0.21, 0.28))
-	copy.clues = [{"case": "air", "opens": TEXT.case_air, "text": "A carbon copy of floor 14's work order: POST /work_orders with a body of floor, unit and fault. 201 Created, then GET it back."}]
-	copy.read_by.connect(func(_p):
-		sync.event("_ask", ["air"])
-		sync.event("_air_armed")
-		sync.event("_book_huddle", ["api_post"]))
-	# The air handler's grille in the ceiling, still.
-	Greybox.box(geo, Vector3(0, 3.1, -24), Vector3(1.2, 0.1, 0.6), Color(0.55, 0.55, 0.52), "AirGrille")
+	copy.clues = [{"case": "air", "text": "A carbon copy of floor 14's work order: POST /work_orders with a body of floor, unit and fault. 201 Created, then GET it back."}]
+	copy.spot = "carbon_copy"
+	# The air handler's grille in the ceiling over the facilities desk, still, with
+	# its tag hung low enough to read (N50).
+	Greybox.box(geo, Vector3(4.6, 3.1, -27.2), Vector3(1.2, 0.1, 0.6), Color(0.55, 0.55, 0.52), "AirGrille")
+	var tag := Document.place(geo, Vector3(4.6, 2.5, -27.2), 180, "Grille tag", GRILLE_TAG_LINES, false, "laminated", Vector2(0.16, 0.1))
+	tag.name = "GrilleTag"
+	tag.pieces = [{"case": "air", "piece": "unit", "text": "AHU-9", "kind": "value"}, {"case": "air", "piece": "floor", "text": "FLOOR 9", "kind": "value"}]
 
 
 func _build_store(colors: Dictionary) -> void:
@@ -809,6 +940,7 @@ func apply_environment(env: Environment) -> void:
 
 func start() -> void:
 	_started_msec = Time.get_ticks_msec()
+	Game.cell_rule = _cell_counts  # this floor's slots, from here on (a wing built ahead keeps its own until then)
 	stair_in.locked = false  # the crew's all up: out of the stairwell, onto 9
 	hr.ensure_booted()
 	panel.ensure_booted()
@@ -818,6 +950,8 @@ func start() -> void:
 	seed_crew(players.count() if players else 1)
 	if completed.get_connections().is_empty():
 		completed.connect(_on_completed)
+	# The frame is why the crew climbed to 9: its case is open from the start (M1).
+	_open("frame")
 	_todo("todo_arrive")
 	hud.notice(TEXT.arrive, 5.0)
 	_warden(["l5_arrive_pa", "l5_arrive", "l5_arrive_tease"], 0.8)
@@ -835,6 +969,9 @@ func seed_crew(count: int) -> void:
 		swipes.append({"badge": badge, "reader": "LAB-B", "dir": "IN", "time": "23:%02d" % (17 + i % 3)})
 		swipes.append({"badge": badge, "reader": "SEC-22", "dir": "IN", "time": "23:%02d" % (34 + i % 3)})
 	_passes_hints()  # the escort on the last tier is this machine's own badge
+	_frame_hints()
+	_pass_list()
+	_frame_step()
 
 
 ## WARDEN's floor 9 lines and the PA's tapes, in order, with a pause between them
@@ -860,6 +997,276 @@ func floor_time() -> String:
 		elapsed = int((Time.get_ticks_msec() - _started_msec) / 60000.0)
 	var m: int = data.minute + elapsed
 	return "%02d:%02d" % [(Level5Data.CLOCK_HOUR + m / 60) % 24, m % 60]
+
+
+# --- The cases: pieces, steps, slots (the v0.10 package) --------------------------------
+
+## The HR key, as every case's piece (N8).
+func _key_piece() -> Dictionary:
+	return {"id": "key", "label": "The HR key", "value": data.keys.hr, "task": "Find the key the HR service answers to", "where": "The HR manager's office", "blank": "enter_key"}
+
+
+func _badge_piece(base: Dictionary) -> Dictionary:
+	var p := base.duplicate()
+	p["value"] = _my_badge()
+	return p
+
+
+## A night-shifter's badge (N37): either fills it.
+func _night_piece() -> Dictionary:
+	return {"id": "their_badge", "label": "A night-shifter's badge", "value": data.night[0].id, "task": "Find a badge on tonight's night shift", "where": "The HR service's staff list", "blank": "enter_badge"}
+
+
+## Every machine: each case's pieces and its query for the step it's on.
+func _set_cases() -> void:
+	Game.set_pieces("hr_key", [_key_piece()], KEY_QUERY)
+	Game.set_pieces("frame", [_badge_piece(BADGE_PIECE), _key_piece()], FRAME_QUERY)
+	_power_step("switch")
+	_air_step("order")
+	Game.set_pieces("radio", [_key_piece()], RADIO_QUERY)
+	_people_step("passes")
+	Game.set_assemble("people", false)  # under pressure: the bare shape, the pieces on the page
+	Game.set_pieces("vale", [VALE_PIECE, _key_piece()], VALE_QUERY, [], true)  # a side case: it never takes the page
+
+
+func _power_step(step: String) -> void:
+	match step:
+		"switch":
+			Game.set_pieces("panel_power", [CIRCUIT_PIECE, _key_piece()], POWER_QUERY, POWER_STEPS)
+		"readback":
+			Game.tick_step("panel_power", "switch")
+			Game.set_pieces("panel_power", [CIRCUIT_PIECE, _key_piece()], POWER_READ_QUERY, POWER_STEPS)
+
+
+func _air_step(step: String) -> void:
+	match step:
+		"order":
+			Game.set_pieces("air", [FLOOR_PIECE, UNIT_PIECE, _key_piece()], AIR_QUERY, AIR_STEPS)
+		"readback":
+			Game.tick_step("air", "order")
+			Game.set_pieces("air", [FLOOR_PIECE, UNIT_PIECE, _key_piece()], AIR_READ_QUERY, AIR_STEPS)
+
+
+func _people_step(step: String) -> void:
+	var pieces := [_night_piece(), _badge_piece(OUR_BADGE_PIECE), _key_piece()]
+	match step:
+		"passes":
+			Game.set_pieces("people", pieces, PASS_QUERY, PEOPLE_STEPS)
+		"lockup":
+			Game.tick_step("people", "passes")
+			Game.set_pieces("people", pieces, LOCK_QUERY, PEOPLE_STEPS)
+		"readback":
+			Game.tick_step("people", "passes")
+			Game.tick_step("people", "lockup")
+			Game.set_pieces("people", pieces, DOORS_READ_QUERY, PEOPLE_STEPS)
+
+
+## Every machine: the frame's slot (N11), the time of a LAB-B swipe of our badges.
+func _frame_step() -> void:
+	var times := swipes.filter(func(w): return issued.has(w.badge) and w.reader == "LAB-B").map(func(w): return w.time)
+	if times.is_empty() or Game.case_info("frame").get("solved", false):
+		return
+	Game.set_blank("frame", FRAME_SLOT, NO_LINE, times[0], {"column": "time", "values": times, "rows": [{"reader": "LAB-B"}]})
+
+
+## Every machine: the radio's slot (N27). Co-op: the reader on the voice's badge's
+## newest swipe; solo: the log's word that no such badge was issued.
+func _radio_step() -> void:
+	if lure_peer > 0:
+		var readers := {}
+		for w in swipes:
+			readers[w.reader] = true
+		for r in ["PERS-FRONT", "PERS-PAY"]:
+			readers[r] = true
+		var newest := _last_swipe(lure_badge)
+		Game.set_blank("radio", RADIO_SLOT, NO_LINE, str(newest.get("reader", "")), {"column": "reader", "values": readers.keys()})
+	else:
+		Game.set_blank("radio", RADIO_SLOT, NO_LINE, _no_badge(lure_badge), {"column": "error", "values": [_no_badge(lure_badge)]})
+
+
+static func _no_badge(badge: String) -> String:
+	return "No visitor badge %s was issued tonight." % badge
+
+
+## Every machine: Vale's slot (N40), who last edited her record.
+func _vale_step() -> void:
+	Game.set_blank("vale", VALE_SLOT, NO_LINE, Level5Data.VALE.edited_by, {"column": "edited_by", "values": [Level5Data.VALE.edited_by]})
+
+
+## The visitor pass list in the HR desk's in-tray (N45): a row per crew member, as
+## the badges were numbered on G, with each badge's lobby swipe. Every machine
+## prints the same list, once everyone's here.
+func _pass_list() -> void:
+	if geo == null:
+		return  # outside a floor (the stations alone, in tests)
+	var old := geo.get_node_or_null("VisitorPasses")
+	if old:
+		old.free()
+	var lines: Array = PASS_LIST_HEAD.duplicate(true)
+	var names := []
+	var noted := PackedStringArray()
+	for i in issued.size():
+		var badge: String = issued[i]
+		var who := _crew_name(i)
+		names.append(who)
+		var lobby := swipes.filter(func(w): return w.badge == badge and w.reader == "G-LOBBY")
+		lines.append({"row": [badge, who, data.company, str(lobby[0].time) if not lobby.is_empty() else "", "ROURKE, D."], "hand": false})
+		noted.append("%s (%s)" % [badge, who])
+	lines.append_array(PASS_LIST_TAIL)
+	var list := Document.place(geo, Vector3(1.3, 1.052, -1.62), 0, "Visitor passes", lines, true, "paper", Vector2(0.21, 0.28))
+	list.name = "VisitorPasses"
+	list.clues = [{"case": "frame", "text": PASS_LIST_NOTE % ", ".join(noted)}]
+	var pieces := []
+	for badge in issued:
+		pieces.append({"case": "frame", "piece": "badge", "text": badge, "kind": "value"})
+		pieces.append({"case": "people", "piece": "our_badge", "text": badge, "kind": "value"})
+	list.pieces = pieces
+
+
+## The name of the crew member with visitor badge `i` + 1 (player order, as on G).
+func _crew_name(i: int) -> String:
+	var net := get_node_or_null("/root/Net")
+	if players and net:
+		for id in players.all_ids():
+			if NetPlayers.index_of(id, multiplayer) == i:
+				return net.display_name(id)
+	return net.display_name(multiplayer.get_unique_id()) if net and i == 0 else "Visitor %d" % (i + 1)
+
+
+## The frame's ladder (N16, N17): our own badge in the last tier's request.
+func _frame_hints() -> void:
+	if frame_puzzle == null:
+		return
+	var key: String = data.keys.hr
+	frame_puzzle.hints = [
+		"the shape, with our badge left as enter_badge:\n" +
+		"    [color=#ffffff]GET /swipes/enter_badge\nX-Api-Key: %s[/color]\n" % key +
+		"enter_badge is one of our visitor badges. the visitor pass list at the HR desk says whose is whose.",
+		"type this, then Enter twice:\n" +
+		"    [color=#ffffff]GET /swipes/%s\nX-Api-Key: %s[/color]\n" % [_my_badge(), key] +
+		"find the swipe at LAB-B, Vale's lab. point at its time and add it to your notebook.",
+	]
+
+
+## `.hint` follows the case (no new words): while the HR service hasn't answered,
+## the key's ladder; else the selected case's first unsolved station, from either
+## terminal's list; else the first unsolved station whose case is open; else none.
+func _hint_station() -> Puzzle:
+	if not key_puzzle.solved:
+		return key_puzzle
+	var stations := [frame_puzzle, circuits_puzzle, check_circuits_puzzle, air_puzzle, check_air_puzzle, swipes_puzzle, passes_puzzle, lockup_puzzle, check_lockup_puzzle, vale_puzzle]
+	var open := stations.filter(func(p): return not p.solved and Game.case_info(p.case_id).get("open", false) and not Game.case_info(p.case_id).get("solved", false))
+	var picked: String = Game.case_selected()
+	for p in open:
+		if p.case_id == picked:
+			return p
+	return open[0] if not open.is_empty() else null
+
+
+# --- Pointing at the answer ------------------------------------------------------------------
+
+## Game.cell_rule: a cell that matches a floor 9 slot counts only if it's this one's.
+## The frame's, in a swipe of one of our badges; the radio's (co-op), on the voice's
+## badge's newest swipe; Vale's, in her record.
+func _cell_counts(case_id: String, f: Dictionary) -> bool:
+	var row: Dictionary = f.row
+	match case_id:
+		"frame":
+			return issued.has(str(row.get("badge", "")).to_upper())
+		"radio":
+			if lure_peer <= 0:
+				return true
+			var newest := _last_swipe(lure_badge)
+			return str(row.get("badge", "")).to_upper() == lure_badge and str(row.get("time", "")) == str(newest.get("time", "")) and str(f.value).to_upper() == str(newest.get("reader", ""))
+		"vale":
+			return not row.has("id") or str(row.id).to_upper() == Level5Data.VALE.id
+	return true
+
+
+## This player's click filled a slot: the host hears whose it was.
+func _on_answer_found(id: String) -> void:
+	match id:
+		"frame":
+			sync.report_answer("frame@" + str(Game.case_info("frame").get("blank", {}).get("value", "")))
+		"radio", "vale":
+			sync.report_answer(id)
+
+
+## Every machine: a crewmate's answer goes in everyone's slot (the frame's with the
+## time they pointed at).
+func _crew_answered(id: String, peer: int) -> void:
+	var case_id := id.get_slice("@", 0)
+	if id.contains("@"):
+		var b: Dictionary = Game.case_info(case_id).get("blank", {})
+		if not b.is_empty() and str(b.get("filled", "")) == "":
+			b.value = id.get_slice("@", 1)
+	super._crew_answered(case_id, peer)
+
+
+## Host: a player put a find's answer in its slot.
+func case_answered(answer: String, peer: int) -> void:
+	var case_id := answer.get_slice("@", 0)
+	match case_id:
+		"frame":
+			if not frame_puzzle.solved:
+				# achievement:framed goes to whoever's click it was (Augustine 2026-10-21).
+				sync.unlock_for([peer], "achievement:framed")
+				sync.event("_frame_solved", [answer.get_slice("@", 1)])
+		"radio":
+			if lures > 0 and not swipes_puzzle.solved:
+				sync.event("_on_solved", ["swipes"])
+		"vale":
+			if not vale_puzzle.solved:
+				sync.event("_on_solved", ["vale"])
+
+
+## This player pointed at a cell that answers no slot: if it's in the answer a slot
+## is about, a pencil line under the blank says why (this player's notebook only).
+func _on_cell_missed(column: String, _value: String, row: Dictionary) -> void:
+	var col := column.to_lower()
+	var badge := str(row.get("badge", "")).to_upper()
+	var swipe := row.has("reader")
+	var record := row.has("edited_by") or row.has("last_edited") or str(row.get("id", "")).to_upper() == Level5Data.VALE.id
+	var home := Game.case_selected()
+	if swipe:
+		home = "radio" if _open_unsolved("radio") and lures > 0 else "frame"
+	elif record:
+		home = "vale"
+	elif col == "error" and _open_unsolved("radio"):
+		home = "radio"
+	match home:
+		"frame":
+			if not _open_unsolved("frame"):
+				return
+			var note := FRAME_MISS
+			if swipe and issued.has(badge) and str(row.reader) == "LAB-B" and col != "time":
+				note = FRAME_ROW
+			elif swipe and col == "time" and str(row.reader) != "LAB-B":
+				note = FRAME_READER
+			Game.blank_miss("frame", note)
+		"radio":
+			if not _open_unsolved("radio") or lures == 0:
+				return
+			var note := RADIO_MISS
+			if lure_peer > 0 and swipe and badge == lure_badge:
+				note = RADIO_OLDER
+			elif lure_peer <= 0 and issued.has(badge):
+				note = RADIO_OWN
+			Game.blank_miss("radio", note)
+		"vale":
+			if not _open_unsolved("vale"):
+				return
+			var note := VALE_MISS
+			if record and col == "last_edited":
+				note = VALE_WHEN
+			elif record and str(row.get("id", Level5Data.VALE.id)).to_upper() == Level5Data.VALE.id:
+				note = VALE_ROW
+			Game.blank_miss("vale", note)
+
+
+func _open_unsolved(id: String) -> bool:
+	var c: Dictionary = Game.case_info(id)
+	return c.get("open", false) and not c.get("solved", false)
 
 
 # --- The services ---------------------------------------------------------------------
@@ -1041,13 +1448,35 @@ func _air_ok() -> bool:
 	return false
 
 
+## The answer shows this floor's order: AHU-9, on floor 9 (an order for another
+## floor's number never reads back as ours: N25).
 func _shows_order(body: Variant) -> bool:
 	if not body is Dictionary:
 		return false
-	if str(body.get("unit", "")) == data.ahu:
+	var ours := func(o: Variant) -> bool:
+		return o is Dictionary and str(o.get("unit", "")) == data.ahu and int(o.get("floor", 0)) == 9
+	if ours.call(body):
 		return true
 	for o in body.get("work_orders", []):
-		if str(o.get("unit", "")) == data.ahu:
+		if ours.call(o):
+			return true
+	return false
+
+
+## The answer shows a circuit the crew changed, in the state it's in now (C9-01 or
+## C9-04 on, C9-03 off): the power case's read-back (M5).
+func _shows_changed(body: Variant) -> bool:
+	if not body is Dictionary:
+		return false
+	var list: Array = body.get("circuits", [body])
+	for c in list:
+		if not c is Dictionary:
+			continue
+		var id := str(c.get("id", ""))
+		if not changed_circuits.has(id) or not circuits.has(id) or not c.has("on"):
+			continue
+		var now: bool = circuits[id].on
+		if bool(c.on) == now and {"C9-01": true, "C9-04": true, "C9-03": false}.get(id, null) == now:
 			return true
 	return false
 
@@ -1157,7 +1586,8 @@ func _lockup_hints() -> void:
 func _lure_hints() -> void:
 	swipes_puzzle.hints[1] = "type this, then Enter twice:\n" + \
 		"    [color=#ffffff]GET /swipes/%s\nX-Api-Key: %s[/color]\n" % [lure_badge, data.keys.hr] + \
-		"the voice said the loading door. the log says where that badge really is."
+		("the voice said it was at the loading door. the log says where that badge really is: point at the reader on its newest swipe and add it to your notebook." if lure_peer > 0 else
+		"the voice said it was at the loading door. the log says where that badge really is: point at what it says and add it to your notebook.")  # N32, N33
 
 
 # --- Terminals --------------------------------------------------------------------------
@@ -1172,47 +1602,72 @@ func _on_request(line: String, res: Dictionary, _ui: TerminalUI, which: String) 
 	var path := _path_of(line).to_upper()
 	var method := _method_of(line)
 	var status := int(res.status)
+	last_which = which
+	var body: Dictionary = res.body if res.body is Dictionary else {}
+	# The air's grace starts at the crew's first request after its case opens (M4).
+	if not air_armed and Game.case_info("air").get("open", false) and not air_on and not air_cleared:
+		sync.event("_air_armed")
 	# Every station checks at either terminal (both reach every service): the key
 	# passes on any 200, a GET /doors at the panel is the lockup's read-back too.
 	for p in puzzles():
 		if not p.solved and p.request_matches(line, res):
 			sync.event("_on_solved", [p.id])
-	if status == 200 and path == "/STAFF":
-		sync.event("_staff_listed")
+	# The key's case opens at the first 401, if the desk sheet hasn't opened it (M2).
+	if status == 401 and not key_puzzle.solved and not Game.case_info("hr_key").get("open", false):
+		sync.event("_ask", ["hr_key"])
+	if status == 200 and (path == "/STAFF" or path.begins_with("/STAFF/")):
+		sync.event("_staff_listed", [path == "/STAFF"])
 	if status == 200 and path.begins_with("/SWIPES/VIS-") and issued.has(path.trim_prefix("/SWIPES/")):
 		sync.event("_frame_seen", [path.trim_prefix("/SWIPES/")])
+	if lures > 0 and _exposes_lure(line, res):
+		sync.event("_radio_seen")
 	if status == 200 and method == "PATCH" and path.begins_with("/CIRCUITS/"):
 		sync.event("_circuits_changed", [path.trim_prefix("/CIRCUITS/")])
 	if status == 200 and method == "PATCH" and path.begins_with("/DOORS/"):
-		sync.event("_door_changed", [path.trim_prefix("/DOORS/"), bool(res.body.get("locked", true))])
-	if status == 201 and path == "/WORK_ORDERS" and str(res.body.get("unit", "")) == data.ahu and not air_on:
+		sync.event("_door_changed", [path.trim_prefix("/DOORS/"), bool(body.get("locked", true))])
+	# Only an order for this floor's unit, on this floor, brings the air back.
+	var order := status == 201 and path == "/WORK_ORDERS"
+	var unit := str(body.get("unit", ""))
+	var on_9 := order and int(body.get("floor", 0)) == 9
+	if order and unit == data.ahu and on_9 and not air_on:
 		sync.event("_air_on")
 	if status == 201 and path == "/ESCORTS":
-		sync.event("_passed", [str(res.body.get("badge", ""))])
+		sync.event("_passed", [str(body.get("badge", ""))])
 	# SYSOP's tips, each once: text only, and never the answer. A 401 from the badge
 	# reader (a pass for a badge that never swiped in) isn't a key problem; it's the
 	# Mimic tip only when the badge is one off a Mimic's lanyard (Vale's gets no tip).
 	var keyed := line.to_lower().contains(FacilityAPI.KEY_HEADER)
-	var error := str(res.body.get("error", "")) if res.body is Dictionary else ""
+	var error := str(body.get("error", ""))
 	var reader_401 := status == 401 and path == "/ESCORTS" and error.contains("did not answer the reader")
 	_tip_if(status == 401 and not keyed, "header", which)
 	_tip_if(status == 403, "temp", which)
 	_tip_if(status == 401 and keyed and not reader_401, "wrong_key", which)
-	_tip_if(status == 409 and path.begins_with("/CIRCUITS/") and str(res.body.get("error", "")).contains("Turn something off"), "load", which)
+	_tip_if(status == 409 and path.begins_with("/CIRCUITS/") and error.contains("Turn something off"), "load", which)
 	_tip_if(status == 404 and path.begins_with("/CIRCUITS/C14"), "example", which)
-	_tip_if(status == 201 and path == "/WORK_ORDERS" and str(res.body.get("unit", "")) == data.example_order.unit, "unit", which)
-	_tip_if(status == 201 and path == "/WORK_ORDERS" and str(res.body.get("unit", "")) == data.ahu, "verify", which)
+	_tip_if(order and unit == data.example_order.unit, "unit", which)
+	_tip_if(order and unit == data.ahu and on_9, "verify", which)
+	if order and unit == data.ahu and not on_9 and not tips_sent.has("floor"):
+		sync.event("_tip", ["floor", which, str(int(body.get("floor", 0)))])  # N25
+	if on_9 and unit != data.ahu and unit != data.example_order.unit and not tips_sent.has("no_unit"):
+		sync.event("_tip", ["no_unit", which, unit])  # N26
 	_tip_if(reader_401 and Level5Data.LOST.any(func(l): return error.contains(l.id)), "mimic", which)
-	_tip_if(status == 409 and path == "/ESCORTS" and str(res.body.get("error", "")).contains("off site"), "off_site", which)
+	_tip_if(status == 409 and path == "/ESCORTS" and error.contains("off site"), "off_site", which)
 
 
 ## A SQL read at either terminal (the database is read-only; looking is free). The
-## doors table read back counts as the lockup's read-back too.
-func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, _which: String) -> void:
-	if not result.get("ok", false) or not check_lockup_puzzle or check_lockup_puzzle.solved or lockup_puzzle == null:
+## doors table read back counts as the lockup's read-back too, and the lights table
+## showing payroll's light on reads the power back.
+func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) -> void:
+	last_which = which
+	if not result.get("ok", false):
+		return
+	var rows: Array = result.get("rows", [])
+	if power_back and not check_circuits_puzzle.solved and rows.any(func(r): return str(r.get("id", "")) == "L9-PAY" and int(r.get("is_on", 0)) == 1):
+		sync.event("_on_solved", ["check_circuits"])
+	if not check_lockup_puzzle or check_lockup_puzzle.solved or lockup_puzzle == null:
 		return
 	# Read-backs count as they come, a door at a time, before the lockup is done.
-	if sql.to_lower().contains("doors") and _shows_locked({"doors": result.get("rows", []).map(func(r): return {"id": str(r.get("id", "")), "locked": int(r.get("locked", 0)) == 1})}) and lockup_puzzle.solved:
+	if sql.to_lower().contains("doors") and _shows_locked({"doors": rows.map(func(r): return {"id": str(r.get("id", "")), "locked": int(r.get("locked", 0)) == 1})}) and lockup_puzzle.solved:
 		sync.event("_on_solved", ["check_lockup"])
 
 
@@ -1221,12 +1676,21 @@ func _tip_if(when: bool, id: String, which: String) -> void:
 		sync.event("_tip", [id, which])
 
 
-## Every machine: a line from SYSOP on the screen the request was typed at (once per tip).
-func _tip(id: String, which: String) -> void:
+## Every machine: a line from SYSOP on the screen the request was typed at (once
+## per tip). `arg` fills the two air tips' blanks (N25's floor, N26's unit).
+func _tip(id: String, which: String, arg := "") -> void:
 	if tips_sent.has(id):
 		return
 	tips_sent[id] = true
-	_terminal(which).print_line(TerminalUI.sysop(TEXT["tip_" + id]))
+	var line: String
+	match id:
+		"floor":
+			line = TIP_FLOOR % int(arg)
+		"no_unit":
+			line = TIP_NO_UNIT % arg
+		_:
+			line = TEXT["tip_" + id]
+	_terminal(which).print_line(TerminalUI.sysop(line))
 
 
 func _terminal(which: String) -> Terminal:
@@ -1240,38 +1704,51 @@ func _on_solved(id: String) -> void:
 			p.solved = true
 	match id:
 		"key":
-			Game.open_case("key", CASES.key)
-			Game.solve_case("key", TEXT.key_done)
-			if not power_back:
+			hr_answered = true
+			_open("hr_key")
+			_solve("hr_key", TEXT.key_done, "api_codes")  # "Read the number": the first 200 (M9)
+			if not frame_puzzle.solved:
+				_todo("todo_arrive")  # the frame's to-do is back until it's solved (M1)
+			elif not power_back:
 				_todo("todo_power")
-			if sync.is_host():
-				_lure_after(lure_delay_propped if propped else lure_delay)
 		"circuits":
-			Game.open_case("power", CASES.power)
-			Game.solve_case("power", TEXT.power_done % data.limit)
+			_power_step("readback")
+		"check_circuits":
+			_open("panel_power")
+			Game.tick_step("panel_power", "switch")
+			Game.tick_step("panel_power", "readback")
+			_solve("panel_power", TEXT.power_done % data.limit)  # at its read-back (M5)
 		"air":
-			Game.open_case("air", CASES.air)
-			var mine := orders.filter(func(o): return o.unit == data.ahu)
-			Game.solve_case("air", TEXT.air_done % (mine[0].id if not mine.is_empty() else "logged"))
+			_air_step("readback")
+		"check_air":
+			_open("air")
+			Game.tick_step("air", "order")
+			Game.tick_step("air", "readback")
+			var mine := orders.filter(func(o): return o.unit == data.ahu and int(o.floor) == 9)
+			_solve("air", TEXT.air_done % (mine[0].id if not mine.is_empty() else "logged"))
 		"swipes":
-			Game.open_case("radio", CASES.radio)
+			_open("radio")
 			if lure_peer > 0:
-				Game.solve_case("radio", TEXT.radio_done % _name_of(lure_peer))
+				_solve("radio", TEXT.radio_done % _name_of(lure_peer))
 			else:
-				Game.solve_case("radio", TEXT.radio_done_solo % lure_badge)
+				_solve("radio", TEXT.radio_done_solo % lure_badge)
 			_warden(["l5_radio_checked", "l5_radio_checked_tease"])
+			_open_people()  # the radio's done: who on this floor is real? (M7)
 			if _todo_is(TEXT.todo_radio):
 				_todo(_next_todo())
 		"passes":
+			_people_step("lockup")
 			if _lockup_ok():
 				_on_solved("lockup")  # every door opened tonight is already locked again
 			elif not lockup_puzzle.solved:
 				_tip("lockup", "hr")
+		"lockup":
+			_people_step("readback")
 		"check_lockup":
 			_check_done()
 		"vale":
-			Game.open_case("vale", CASES.vale)
-			Game.solve_case("vale", TEXT.vale_done % Level5Data.VALE.edited_by)
+			_open("vale")
+			_solve("vale", TEXT.vale_done % Level5Data.VALE.edited_by)
 	if id in ["passes", "lockup", "check_lockup"]:
 		_check_done()
 
@@ -1280,11 +1757,13 @@ func _todo_is(text: String) -> bool:
 	return Game.current_todo() == text
 
 
-## What the notebook should say next, from what's left on the floor: the power, the
-## air, the people (once the procedure has been read), the stairs; or nothing.
+## What the notebook should say next, from what's left on the floor: the key, the
+## frame, the power, the air, the people (once their case is open), the stairs; or nothing.
 func _next_todo() -> String:
 	if not key_puzzle.solved:
-		return "todo_key" if Game.case_info("key").get("open", false) else "todo_arrive"
+		return "todo_key" if Game.case_info("hr_key").get("open", false) else "todo_arrive"
+	if not frame_puzzle.solved:
+		return "todo_arrive"
 	if not power_back:
 		return "todo_power"
 	if not (air_on or air_cleared):
@@ -1296,50 +1775,91 @@ func _next_todo() -> String:
 	return ""
 
 
-## Every machine: a paper opened a case.
+## Every machine: case `id` opens (once), with its chapter if it has one, and the
+## crew's next waiting chapter lands (a gate: M9).
+func _open(id: String) -> void:
+	var chapter: String = {"hr_key": "api_keys", "panel_power": "api_patch", "air": "api_post", "people": "api_check"}.get(id, "")
+	if Game.open_case(id, CASES[id]):
+		_gate(chapter)
+
+
+## Every machine: case `id` is solved, with what was found; a gate too (M9).
+func _solve(id: String, how: String, chapter := "") -> void:
+	if Game.case_info(id).get("solved", false):
+		return
+	Game.solve_case(id, how)
+	_gate(chapter)
+
+
+## Every machine: a paper or a 401 opened a case.
 func _ask(case_id: String) -> void:
-	Game.open_case(case_id, CASES[case_id])
+	_open(case_id)
 	match case_id:
-		"key":
+		"hr_key":
 			if not key_puzzle.solved:
 				_todo("todo_key")
-		"power":
+		"panel_power":
 			if key_puzzle.solved and not power_back:
 				_todo("todo_power")
-		"air":
-			if key_puzzle.solved and power_back and not air_on and not air_cleared:
-				_todo("todo_air")
-		"people":
-			if passes_ladder == "":
-				# POST practised at the work order: the review ladder. Skipped (the stair
-				# door propped instead): ladder A, the word is new here.
-				passes_ladder = "review" if _air_ok() else "a"
-				_passes_hints()
-			if key_puzzle.solved and not released and not _todo_is(TEXT.todo_radio):
-				_todo("todo_people")
 
 
-## Every machine: the staff were listed. Vale's row is in it, so her case opens.
-func _staff_listed() -> void:
-	Game.open_case("vale", CASES.vale)
+## Every machine: the people case opens once the radio is done (M7): the voice's
+## badge read back, the loading door opened, or the voice's second line played.
+## A pass logged opens it too.
+func _open_people() -> void:
+	if Game.case_info("people").get("open", false):
+		return
+	if passes_ladder == "":
+		# POST practised at the work order: the review ladder. Skipped (the stair
+		# door propped instead): ladder A, the word is new here.
+		passes_ladder = "review" if _air_ok() else "a"
+		_passes_hints()
+	_open("people")
+	if key_puzzle.solved and not released and not _todo_is(TEXT.todo_radio):
+		_todo("todo_people")
+	_custodian_clock()  # its 180 s start now (M8)
 
 
-## Every machine: a crew badge's log was read: our badges were in Vale's lab.
-func _frame_seen(badge: String) -> void:
-	var at := ""
-	for s in swipes:
-		if s.badge == badge and s.reader == "LAB-B":
-			at = s.time
-	Game.open_case("frame", CASES.frame)
-	if at != "" and not Game.case_info("frame").get("solved", false):
-		Game.solve_case("frame", TEXT.frame_done % at)
-		get_node("/root/Net").earn("achievement:framed", hud)
+## Every machine: a staff record was shown (the list, or one). The list has Vale's
+## row in it, so her case opens; a night-shifter's badge and hers are found (N37,
+## N39), and her slot waits for who edited it.
+func _staff_listed(whole: bool) -> void:
+	if whole:
+		_open("vale")
+		_vale_step()
+		Game.collect_piece("people", "their_badge", "The HR service's staff list")
+		Game.collect_piece("vale", "vale_badge", "The HR service's staff list")
+	vale_listed = vale_listed or Game.case_info("vale").get("open", false)
+
+
+## Every machine: a crew badge's log was read: our badges were in Vale's lab. It's
+## answered by pointing at the time (_cell_counts).
+func _frame_seen(_badge: String) -> void:
+	frame_listed = true
+
+
+## Every machine: someone's click put the lab swipe's time in the frame's slot.
+func _frame_solved(at: String) -> void:
+	if frame_puzzle.solved:
+		return
+	frame_puzzle.solved = true
+	_solve("frame", TEXT.frame_done % at)
+	# The frame solved opens the power case (M3), unless the clipboard did already.
+	_open("panel_power")
+	if key_puzzle.solved and not power_back:
+		_todo("todo_power")
+
+
+## Every machine: the voice's badge's log is on a screen.
+func _radio_seen() -> void:
+	radio_listed = true
 
 
 # --- The book -----------------------------------------------------------------------------
 
 ## Every machine: somebody took Acceptable API's off the training shelf. Its find
-## and open lines, in their voice; then any chapter a paper has already called for.
+## and open lines, in their voice; then the earliest chapter waiting for it. The
+## others land one at each gate after (M9).
 func _book_found(peer_id: int) -> void:
 	if book_found:
 		return
@@ -1351,21 +1871,26 @@ func _book_found(peer_id: int) -> void:
 	sync.unlock_for([peer_id], "achievement:acceptable_apis_pickup")
 	await _crew_line("l5_book_find", peer_id)
 	await _crew_line("l5_book_open", peer_id)
-	var waiting := pending_chapters.duplicate()
-	pending_chapters.clear()
-	for id in waiting:
-		_book_huddle(id)
+	_gate()
 
 
-## Every machine: a paper brings its chapter of Acceptable API's into the crew's
-## book (once per run), quietly: nothing stops, the Mimics and the Custodian keep
-## going. Before the book is found the chapter waits for it.
+## Every machine: a gate (a case opening or being solved). Its own chapter of
+## Acceptable API's, if it has one, joins the wait; once the book is found, the
+## earliest one waiting lands, quietly: nothing stops (Huddle). One per gate.
+func _gate(chapter := "") -> void:
+	if chapter != "" and not Huddle.of(self).done.has(chapter) and not pending_chapters.has(chapter):
+		pending_chapters.append(chapter)
+	if not book_found:
+		return
+	while not pending_chapters.is_empty() and Huddle.of(self).done.has(pending_chapters[0]):
+		pending_chapters.pop_front()
+	if not pending_chapters.is_empty():
+		_book_huddle(pending_chapters.pop_front())
+
+
+## Every machine: chapter `id` of Acceptable API's lands in the crew's book (once per run).
 func _book_huddle(id: String) -> void:
 	if Huddle.of(self).done.has(id):
-		return
-	if not book_found:
-		if not pending_chapters.has(id):
-			pending_chapters.append(id)
 		return
 	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
@@ -1404,6 +1929,7 @@ func _circuits_changed(id: String) -> void:
 	var c: Dictionary = circuits.get(id, {})
 	if c.is_empty():
 		return
+	changed_circuits[id] = true  # the read-back takes any circuit the crew changed
 	match id:
 		"C9-01":
 			db.run_silent("UPDATE lights SET is_on = %d, status = 'ok' WHERE id IN ('L9-PAY', 'L9-STORE')" % int(c.on))
@@ -1419,20 +1945,21 @@ func _circuits_changed(id: String) -> void:
 		circuits_puzzle.solved = true
 		hud.notice(TEXT.power_back, 5.0)
 		_warden(["l5_power_back", "l5_power_back_tease"])
+		_power_step("readback")  # the switch is done; the case waits for its read-back (M5)
+		# The power back opens the air case, with its to-do (M4).
+		_open("air")
 		if _todo_is(TEXT.todo_power):
 			_todo(_next_todo())
-		_custodian_clock()
 
 
-## Host: the practice is safe. Once the power is back and the air is on or cleared,
-## the Custodian (if loose) starts up the dock stairs towards the passes and the
-## lockup. It also starts (`engaged`) the moment the crew is at those stations (the
-## first pass logged or a hiding door opened), so a crew that never fixes the air
-## still meets it.
+## Host: the practice is safe. Once the people case is open, the Custodian (if loose)
+## starts up the dock stairs towards the passes and the lockup, 180 s on (M8). It
+## starts sooner (`engaged`) the moment the crew is at those stations (the first
+## pass logged or a hiding door opened).
 func _custodian_clock(engaged := false) -> void:
 	if custodian_timed or custodian == null or sync == null or not sync.is_host():
 		return
-	if engaged or (power_back and (air_on or air_cleared)):
+	if engaged or Game.case_info("people").get("open", false):
 		custodian_timed = true
 		_custodian_after(custodian_delay)
 
@@ -1474,13 +2001,15 @@ func _air_on() -> void:
 	air_puzzle.solved = true
 	hud.notice(TEXT.air_back, 5.0)
 	_warden(["l5_air_back", "l5_air_back_tease"])
+	_air_step("readback")  # the order is in; the case waits for its read-back (M5)
 	if _todo_is(TEXT.todo_air):
 		_todo(_next_todo())
-	_custodian_clock()
+	if sync.is_host():
+		_lure_after(lure_delay)  # the radio lies 40 s after the air comes back (M6)
 
 
-## Every machine: the carbon copy has shown how the air comes back. From here the air
-## counts against the crew (host: _process), after a grace long enough to type it.
+## Every machine: the crew's first request after the air case opened (M4). From here
+## the air counts against the crew (host: _process), after a grace long enough to type it.
 func _air_armed() -> void:
 	air_armed = true
 
@@ -1533,14 +2062,18 @@ func _air_cleared() -> void:
 	hud.notice(TEXT.air_cleared, 5.0)
 	if _todo_is(TEXT.todo_air):
 		_todo(_next_todo())
-	_custodian_clock()
+	if sync.is_host() and not air_on:
+		_lure_after(lure_delay_propped)  # 15 s after it clears through the stair door (M6)
 
 
 # --- The radio -----------------------------------------------------------------------------
 
-## Host: once the HR service answers, the radio lies after a while: a teammate's
-## voice (solo: Maddison's), asking for the loading door.
+## Host: once the air is back (or cleared), the radio lies after a while: a
+## teammate's voice (solo: Maddison's), asking for the loading door (M6).
 func _lure_after(seconds: float) -> void:
+	if lure_timed:
+		return
+	lure_timed = true
 	await get_tree().create_timer(seconds, false).timeout
 	if not is_inside_tree() or lures > 0 or dock_opened or released:
 		return
@@ -1553,28 +2086,32 @@ func _lure_after(seconds: float) -> void:
 		rng.seed = Game.run_seed * 31 + 9
 		peer = ids[rng.randi_range(0, ids.size() - 1)]
 		badge = "VIS-%02d" % (ids.find(peer) + 1)
-	sync.event("_lure", [peer, badge, 1])
+	sync.event("_lure", [peer, badge, 1, last_which])
 	await get_tree().create_timer(lure_again, false).timeout
 	if is_inside_tree() and not dock_opened and not swipes_puzzle.solved and not released:
-		sync.event("_lure", [peer, badge, 2])
+		sync.event("_lure", [peer, badge, 2, last_which])
 
 
 ## Every machine: the voice on the walkie. `peer` is who it sounds like (0 for
 ## Maddison), in their own recorded voice and with their name on the subtitle.
-## Returns how long the line takes (the recording, or the time to read it).
-func _lure(peer: int, badge: String, n: int) -> float:
+## Returns how long the line takes (the recording, or the time to read it). SYSOP's
+## tip prints on the screen the crew last typed at (`which`, M6).
+func _lure(peer: int, badge: String, n: int, which := "hr") -> float:
 	lure_peer = peer
 	lure_badge = badge
-	lures = n
+	lures = maxi(lures, n)
 	var id: String = LURE_LINES[n]["maddison" if peer == 0 else "crew"]
 	if n == 1:
 		swipes_puzzle.solved = false
 		swipes_puzzle.hint_index = 0
 		_lure_hints()
-		Game.open_case("radio", CASES.radio)
+		_radio_step()
+		_open("radio")
 		if not released:
 			_todo("todo_radio")
-		_tip("lure", "hr")
+		_tip("lure", which)
+	elif n == 2:
+		_open_people()  # the voice's second line: the radio's done either way (M7)
 	var l := VoiceLines.get_line(id)
 	if l.is_empty():
 		return 0.0
@@ -1645,6 +2182,10 @@ func _dock_opened() -> void:
 	dock_opened = true
 	hud.notice(TEXT.dock_opens, 6.0, ThemeUtil.RED)
 	_warden(["l5_dock_open", "l5_dock_open_tease"])
+	if lures > 0:
+		_open_people()  # the radio's done: the door it asked for is open (M7)
+		if _todo_is(TEXT.todo_radio):
+			_todo(_next_todo())
 	if custodian and not custodian_here and sync.is_host():
 		sync.event("_custodian_arrives")
 
@@ -1654,7 +2195,7 @@ func _passed(badge: String) -> void:
 	if passed.has(badge) or not staffers.has(badge):
 		return
 	passed[badge] = true
-	Game.open_case("people", CASES.people)
+	_open_people()
 	for s in data.night:
 		if s.id == badge:
 			hud.line(s.line)
@@ -1695,8 +2236,11 @@ func _check_done() -> void:
 		exit_trigger.monitoring = false
 		walk_stairs(stair_out, next.stair_in, true, "_down_to_b1", TEXT.stairs_wait)
 	var n: Array = data.night
-	Game.open_case("people", CASES.people)
-	Game.solve_case("people", TEXT.people_done % [n[0].first, n[0].hide.place, n[1].first, n[1].hide.place])
+	_open_people()
+	Game.tick_step("people", "passes")
+	Game.tick_step("people", "lockup")
+	Game.tick_step("people", "readback")
+	_solve("people", TEXT.people_done % [n[0].first, n[0].hide.place, n[1].first, n[1].hide.place])
 	hud.notice(TEXT.stairs_release, 4.0)
 	_todo("todo_down")
 	_warden(["l5_secured", "l5_secured_tease"])
@@ -1769,6 +2313,8 @@ func _on_reader(body: Node, reader: String) -> void:
 func _swipe(badge: String, reader: String, time: String) -> void:
 	swipes.append({"badge": badge, "reader": reader, "dir": "IN", "time": time})
 	SfxTouch.reader(get_node_or_null("Reader_" + reader), true)
+	if badge == lure_badge and lures > 0 and not swipes_puzzle.solved:
+		_radio_step()  # the voice's badge moved: its newest swipe is the one that counts
 
 
 ## Every machine: everyone is on STAIR 2. The radio crackles once more, then down.
