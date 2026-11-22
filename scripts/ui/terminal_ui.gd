@@ -484,14 +484,28 @@ func _render(bbcode: String, kind: String = "") -> void:
 	_output.append_text(bbcode + "\n")
 	if kind == "result" and (text.begins_with("{") or text.begins_with("[")):
 		# A request's answer: the whole of it from its first line, and each field
-		# line ("edited_by": "EXEC-30") a cell of its own.
+		# line ("edited_by": "EXEC-30") a cell of its own. The record it sits in
+		# (the innermost {...}) is its row: a swipe's time comes with its reader.
 		var lines := bbcode.split("\n")
 		_noteable.append({"kind": kind, "text": text, "from": from, "to": from + 1})
+		var frames: Array = [[]]
+		var rows: Array = [{}]
 		for i in range(1, lines.size()):
-			var field := json_field(_plain(lines[i]))
+			var plain := _plain(lines[i])
+			var field := json_field(plain)
+			var t := plain.strip_edges()
 			if not field.is_empty():
-				_noteable.append({"kind": "field", "text": _plain(lines[i]).strip_edges(), "from": from + i, "to": from + i + 1,
+				_noteable.append({"kind": "field", "text": t, "from": from + i, "to": from + i + 1,
 					"cells": [field], "query": _last_query})
+				frames[-1].append(_noteable.size() - 1)
+				rows[-1][field.column] = field.value
+			elif t.ends_with("{"):
+				frames.append([])
+				rows.append({})
+			elif t.begins_with("}") and frames.size() > 1:
+				_json_row(frames.pop_back(), rows.pop_back())
+		while not frames.is_empty():
+			_json_row(frames.pop_back(), rows.pop_back())
 	elif kind == "result" and bbcode.count("\n") >= 3:
 		# A table: its header line copies the whole result, and each row (under
 		# the rule, above the row count) is a line of its own, copied with the header.
@@ -589,8 +603,17 @@ static func json_field(line: String) -> Dictionary:
 	return {"column": m.get_string(2), "value": "NULL" if raw == "null" else value, "start": m.get_string(1).length(), "end": line.rstrip(", ").length()}
 
 
-## The row behind line `index`'s cells, column -> value: what names the row.
+## Every field line in `lines` (indices into _noteable) is in one record: `row`.
+func _json_row(lines: Array, row: Dictionary) -> void:
+	for i in lines:
+		_noteable[i]["row"] = row.duplicate()
+
+
+## The row behind line `index`'s cells, column -> value: what names the row (a
+## request's field: every field of the record it's in).
 func _row_of(index: int) -> Dictionary:
+	if _noteable[index].has("row"):
+		return _noteable[index].row.duplicate()
 	var row := {}
 	for c in _noteable[index].get("cells", []):
 		row[c.column] = c.value
