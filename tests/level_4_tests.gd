@@ -1005,7 +1005,8 @@ func test_same_ground_floor() -> void:
 ## The ground floor's fixed pieces under `geo`: kind, place and size, sorted.
 func _floor_plan(geo: Node3D) -> Array:
 	var kinds := ["Floor", "Wall", "Ceiling", "Desk", "Partition", "Chair", "Table", "Pigeonholes", "SortingTable", "MailCart", "Sinks", "StallWall", "CafTable", "ServingCounter", "VendingMachine", "SpareShelf", "PatchPanel", "Crate", "Shelf"]
-	var area := AABB(Vector3(-21, -1, -19), Vector3(52, 7, 26.5))
+	var indoors: Rect2 = GroundFloor.FOOTPRINT  # not the car park in front of it
+	var area := AABB(Vector3(indoors.position.x - 1.0, -1, indoors.position.y - 1.0), Vector3(indoors.size.x + 2.0, 7, indoors.size.y + 1.5))
 	var word := RegEx.create_from_string("[A-Za-z_]+")
 	var out := []
 	for c in geo.get_children():
@@ -1039,7 +1040,7 @@ func test_world() -> void:
 	check(l4 != null and not l4.active and l4.global_position.distance_to(l3.global_position) > 40.0, "floor 10 builds apart from 18, without starting")
 	check(l4.g_geo.global_transform.origin.distance_to(world.ROUTE[0].at.origin) < 0.01, "its ground floor stands where Level 0's lobby does")
 	var g_floor: Node3D = l4.g_geo.get_node("Floor")
-	check(g_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(g_floor) == "carpet", "and its lobby is carpet underfoot, like Level 0's")
+	check(g_floor.position.is_equal_approx(GroundFloor.mid(GroundFloor.LOBBY, -0.1)) and SfxSteps.surface_of(g_floor) == "carpet", "and its lobby is carpet underfoot, like Level 0's")
 	l3.sync.event("_on_exit")  # everyone down on 10's landing (tests/stair_walk_tests.gd walks it)
 	for i in 600:
 		await t.physics_frame

@@ -113,15 +113,17 @@ static func spots_in(level: Node3D, geo: NavigationRegion3D, nav: Array) -> Arra
 
 
 ## The floor's walkable navigation, stairwells left out (they're for getting
-## between floors, and STAIR 1 has its own cabinet).
+## between floors, and STAIR 1 has its own cabinet), and the rooms nobody can get
+## into (the level's `shut_rooms`).
 static func floor_nav(level: Node3D, geo: NavigationRegion3D) -> Array:
 	var wells := _stairwells(level, geo)
+	var shut: Array = level.get("shut_rooms") if level.get("shut_rooms") is Array else []
 	return _nav_polys(level, geo).filter(func(poly):
 		var c := Vector3.ZERO
 		for v in poly:
 			c += v
 		c /= poly.size()
-		return not wells.any(func(w): return w.grow(0.3).has_point(c)))
+		return not wells.any(func(w): return w.grow(0.3).has_point(c)) and not shut.any(func(room: AABB): return room.has_point(c)))
 
 
 ## Each stairwell's bounds in level space.

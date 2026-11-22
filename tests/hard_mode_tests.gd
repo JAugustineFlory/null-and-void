@@ -78,6 +78,8 @@ func test_kit_cabinets() -> void:
 			var area := KitCabinets._area(KitCabinets.floor_nav(level, level.geo))
 			var want := KitCabinets.count_for(area, hard)
 			_check.call(cabs.size() == want, "%s, %s: %d cabinets for %d m² of floor (want %d)" % ["Hard" if hard else "Normal", level.name, cabs.size(), int(area), want])
+			var shut: Array = level.shut_rooms
+			_check.call(cabs.all(func(c): return not shut.any(func(room): return room.has_point(c.position))), "%s: none of them in a room nobody can get into" % level.name)
 			if not hard:
 				# Nothing in front of any of them: from where you'd stand, you see the cabinet itself.
 				var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state

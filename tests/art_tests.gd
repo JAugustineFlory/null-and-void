@@ -1576,11 +1576,11 @@ func test_dressed_level_0() -> void:
 	var corridor_floor: Node = null
 	var bare_tables := 0
 	for b in level.geo.get_children():
-		if b.name.begins_with("Floor") and is_equal_approx(b.position.z, -8.5) and is_equal_approx(b.position.x, -4.0):
+		if b.name.begins_with("Floor") and b.position.distance_to(GroundFloor.mid(GroundFloor.CORRIDOR, b.position.y)) < 0.01:
 			corridor_floor = b
 		if b.name.begins_with("CafTable") and b.get_node_or_null("TableLook") == null:
 			bare_tables += 1
-	check(corridor_floor != null and corridor_floor.get_child(0).material_override != Greybox.mat(Color(0.3, 0.31, 0.3)), "the back corridor's floor is dressed too, not just the first room's")
+	check(corridor_floor != null and corridor_floor.get_child(0).material_override != Greybox.mat(Color(0.3, 0.31, 0.3)), "the north corridor's floor is dressed too, not just the first room's")
 	check(bare_tables == 0, "every cafeteria table has a top and legs")
 	var look: NpcLook = level.rourke.get_node_or_null("Look")
 	check(look != null and not level.rourke._body.visible, "Rourke wears his character model")

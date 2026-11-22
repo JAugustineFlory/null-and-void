@@ -1,0 +1,1 @@
+- **Changed:** the ground floor is twice as long and twice as wide. The lobby, the hall, the north corridor, the mailroom, the cafeteria and the lift hall all have room to breathe, the restrooms have two proper stalls each, and there are more doors along the way: the offices behind them are locked for the night.

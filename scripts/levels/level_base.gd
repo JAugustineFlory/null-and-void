@@ -31,6 +31,10 @@ var wing_id := ""
 var active := false
 ## The door players leave through. The World seals it once they are in the next wing.
 var exit_door: Door
+## Rooms nobody can get into (shut for good behind locked doors), as boxes in this
+## level's space: no first-aid cabinet goes up in one, and its floor doesn't count
+## toward how many the floor gets (KitCabinets).
+var shut_rooms: Array[AABB] = []
 ## Co-op: keeps this level the same on every machine (see scripts/net/). A wing
 ## has its own LevelSync for its events; the World's one starts the session.
 var sync: LevelSync
