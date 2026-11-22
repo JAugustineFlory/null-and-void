@@ -3,7 +3,7 @@ extends Node
 ## Fighting back without fists (E7, plan/environment-play-e7.md): stun an enemy, trap
 ## it, or hide from it.
 ##   Stun: a fire extinguisher's blast (3 m cone, BLASTS per extinguisher), the
-##     flashlight's strobe up close (hold F), or something thrown at it ([G]: anything
+##     flashlight's strobe up close (hold F), or something thrown at it (right-click or G: anything
 ##     in your hands tagged "throwable" in Inventory.ITEMS). A thrown thing lands as a
 ##     pickup, and as a sound every enemy that listens hears.
 ##   Trap: a locked or jammed door holds any enemy; an enemy's own cage is its own.
@@ -53,7 +53,7 @@ const DARK_SIGHT := 3.0
 const LIT_ENERGY := 0.25
 
 ## Prompts and notices (drafts, plan/approvals/v0.10-environment-strings.md).
-const THROW_PROMPT := "[G] Throw"
+const THROW_PROMPT := "[Right-click] Throw"  # the block button throws what you hold; G does too
 ## The extinguisher's hiss (Sound's to record), and a thrown thing landing.
 const BLAST_SOUND := "extinguisher"
 const LAND_SOUND := "clatter"
