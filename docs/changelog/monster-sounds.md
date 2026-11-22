@@ -1,0 +1,1 @@
+- **Added:** the things in the building make themselves heard, from wherever they are: heavy footfalls, breathing, roars and snarls; clanking feet, whining servos, alarms, sparks and power failing; feet dragging closer and joints creaking; clothes rustling; a cold hum that rises and fades.

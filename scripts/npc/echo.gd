@@ -45,6 +45,7 @@ static func make(parent: Node, id: String, display_name: String, pos: Vector3, f
 
 
 func _ready() -> void:
+	SfxMonster.attach(self)  # its voice and footfalls, heard on every machine
 	add_to_group("echo")
 	_mat = StandardMaterial3D.new()
 	_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

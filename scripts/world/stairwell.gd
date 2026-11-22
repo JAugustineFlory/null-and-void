@@ -336,6 +336,7 @@ static func _copy_door(holder: Node3D, y0: float) -> void:
 	stripe.material_override = Greybox.mat(Color(0.8, 0.6, 0.1))
 	stripe.position.y = DOOR_H * 0.25
 	body.add_child(stripe)
+	ArtDoor.furnish_copy(body, Vector3(DOOR_W, DOOR_H, 0.08), Vector3(-DOOR_W / 2.0, 0, 0), DOOR_SWING)  # its push bar and closer
 	# Beside it, on the latch side, the badge reader that keeps it shut at night:
 	# its light red (the lobby side's placard says why).
 	var reader := Greybox.box(holder, Vector3(DOOR_W / 2.0 + 0.22, y0 + 1.2, -0.22), Vector3(0.09, 0.14, 0.04), Color(0.12, 0.12, 0.13), "BadgeReader")

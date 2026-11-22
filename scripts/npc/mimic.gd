@@ -8,6 +8,12 @@ extends CharacterBody3D
 ## Up close its lanyard reads: a staffer's name over a badge number that isn't
 ## theirs (the badge log is how the crew tells faces from people). The host runs it;
 ## clients mirror it (sync_properties).
+##
+## Counterplay (plan/environment-play-e7.md): a flashlight strobe pins it where it is
+## for a moment, long enough to read its lanyard up close. An extinguisher's blast or
+## something thrown sends it off, the same as being seen. Shut its way out while it's
+## still in the room and it's cornered: it stands facing the wall and stops turning
+## up anywhere else until someone opens the way.
 
 signal left(by_sight: bool)
 
@@ -17,8 +23,14 @@ const HEIGHT := 1.8
 const NOTICE_RANGE := 14.0
 ## How long it waits out of sight before it turns up at its next haunt.
 const HAUNT_WAIT := 20.0
+## Counterplay: how long a strobe pins it.
+const STROBE_PIN := 2.0
+## Leaving but not getting anywhere for this long (its way out is shut): it's cornered.
+const CORNER_AFTER := 1.5
+## Cornered, it tries its way out again this often.
+const CORNER_RETRY := 3.0
 
-## "seated", "standing", "leaving" or "gone".
+## "seated", "standing", "leaving", "cornered" or "gone".
 var state := "standing"
 ## The staffer whose face it wears, and the badge on its lanyard (not theirs).
 var face := ""
@@ -37,9 +49,12 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _agent: NavigationAgent3D
 var _body: Node3D
 var _wait := 0.0
+var _pinned := 0.0
+var _stuck := 0.0
 
 
 func _ready() -> void:
+	SfxMonster.attach(self)  # its voice and footfalls, heard on every machine
 	add_to_group("npc")
 	add_to_group("interactable")  # so looking at it shows the lanyard
 	var shape := CollisionShape3D.new()
@@ -124,9 +139,23 @@ func _physics_process(delta: float) -> void:
 		"seated", "standing":
 			velocity.x = 0.0
 			velocity.z = 0.0
-			if _watched_from_near():
+			if _pinned > 0.0:
+				_pinned -= delta  # strobed: it can't get away
+			elif _watched_from_near():
 				_leave()
 		"leaving":
+			if _pinned > 0.0:
+				_pinned -= delta
+				velocity.x = 0.0
+				velocity.z = 0.0
+				move_and_slide()
+				return
+			var flat_v := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+			_stuck = _stuck + delta if flat_v < 0.3 else 0.0
+			if _stuck > CORNER_AFTER:
+				_corner()
+				move_and_slide()
+				return
 			var dir := _agent.get_next_path_position() - global_position
 			dir.y = 0.0
 			if _agent.is_navigation_finished() or global_position.distance_to(retreat) < 1.0:
@@ -136,6 +165,13 @@ func _physics_process(delta: float) -> void:
 				velocity.x = dir.x * SPEED
 				velocity.z = dir.z * SPEED
 				_face(global_position + dir)
+		"cornered":
+			velocity.x = 0.0
+			velocity.z = 0.0
+			_wait -= delta
+			if _wait <= 0.0:
+				state = "leaving"  # is the way out open again?
+				_stuck = 0.0
 		"gone":
 			velocity.x = 0.0
 			velocity.z = 0.0
@@ -179,12 +215,33 @@ func _player_sees(p: Node) -> bool:
 	return false
 
 
-func _leave() -> void:
+## Counterplay (host): `how` is "extinguisher", "strobe" or "thrown".
+func counter(how: String, _from: Vector3) -> void:
+	if not active:
+		return
+	if how == "strobe":
+		if state in ["seated", "standing", "leaving"]:
+			_pinned = Counterplay.stun_time(self, STROBE_PIN)
+	elif state in ["seated", "standing"] and _pinned <= 0.0:
+		_leave(false)  # sent off, the same as being seen
+
+
+func _leave(by_sight := true) -> void:
 	state = "leaving"
 	times_left += 1
+	_stuck = 0.0
 	_body.position.y = 0.0
 	_agent.target_position = retreat
-	left.emit(true)
+	left.emit(by_sight)
+
+
+## Its way out is shut: it stands facing the wall, and goes nowhere else.
+func _corner() -> void:
+	state = "cornered"
+	_wait = CORNER_RETRY
+	_stuck = 0.0
+	velocity.x = 0.0
+	velocity.z = 0.0
 
 
 ## Out of sight: it isn't there any more.

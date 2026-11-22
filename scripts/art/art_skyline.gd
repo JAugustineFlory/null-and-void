@@ -26,7 +26,7 @@ const MOON := Vector3(0.75, 0.38, 0.22)
 ## hold the whole wing, small enough to miss the wings beside it in World.ROUTE), and
 ## the tower's middle and half size, which the campus is laid out round.
 const VIEWS := {
-	"level_0": {"center": Vector2(2, 0), "radius": 220.0, "tower": Vector2(1.8, -6.1), "half": Vector2(22.4, 12.3)},
+	"level_0": {"center": Vector2(2, 0), "radius": 220.0, "tower": Vector2(9.9, -17.1), "half": Vector2(50.5, 23.3)},
 	"level_1": {"center": Vector2(0, -5.5), "radius": 34.0, "tower": Vector2(0, -5.5), "half": Vector2(22.2, 18.7)},
 	"level_2": {"center": Vector2(-6, -5), "radius": 30.0, "tower": Vector2(-6.1, -5), "half": Vector2(12.2, 15.1)},
 	"level_3": {"center": Vector2(0, -12.5), "radius": 32.0, "tower": Vector2(0, -12.5), "half": Vector2(21.0, 20.5)},

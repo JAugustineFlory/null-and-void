@@ -1,8 +1,9 @@
 class_name GroundFloor
 extends RefCounted
 ## Floor G, as the crew walk in: the lobby with its front desk, the hall to the
-## lift hall, the back corridor and the rooms off it, the dark east corridor, and
-## the forgotten closet behind the air return. Level 0 builds it where it stands;
+## lift hall, the north corridor and the rooms off it, the dark east corridor, the
+## forgotten closet behind the air return, and the staff's rooms, locked for the
+## night. Level 0 builds it where it stands;
 ## Level 4 builds it again for the walk out at the end, so it's the same lobby
 ## (Augustine, v0.8). Static geometry only, in Level 0's coordinates, under `geo`
 ## (navigation bakes from it). Each level adds its own doors' states, lights,
@@ -15,99 +16,191 @@ extends RefCounted
 
 const WALL := Color(0.62, 0.58, 0.5)
 const CARPET := Color(0.22, 0.2, 0.24)
+const LINO := Color(0.3, 0.31, 0.3)
+const TILE := Color(0.75, 0.76, 0.74)
 
 # --- The rooms --------------------------------------------------------------------
 # Each is Rect2(its west wall's x, its north wall's z, how wide east, how deep
 # south), with its ceiling height. North is -Z: the car park is south, at +Z.
 
 ## The lobby, with the front desk across it and the front doors in its south wall.
-const LOBBY := Rect2(-8, -7, 16, 14)
-const LOBBY_H := 4.0
-## The hall east from the lobby to the lift hall. Part way along, an unlit passage
-## turns north into the dark east corridor.
-const HALL := Rect2(8, 2, 16, 2)
+## Behind the desk, between its partitions, is the front office.
+const LOBBY := Rect2(-16, -19, 32, 26)
+const LOBBY_H := 5.0
+## The hall east from the lobby to the lift hall. Near its far end, an unlit
+## passage turns north into the dark east corridor.
+const HALL := Rect2(16, -3, 32, 3)
 const HALL_H := 3.0
-## The back corridor behind the lobby, and the rooms along its north side.
-const CORRIDOR := Rect2(-20, -10, 32, 3)
+## The north corridor behind the lobby, and the rooms along its north side.
+const CORRIDOR := Rect2(-40, -22, 64, 3)
 const CORRIDOR_Z := CORRIDOR.position.y + CORRIDOR.size.y / 2.0  # its centre line
-const MAILROOM := Rect2(-20, -18, 7, 8)
-const MENS := Rect2(-13, -18, 3, 8)
-const WOMENS := Rect2(-10, -18, 3, 8)
-const CAFETERIA := Rect2(-7, -18, 15, 8)
+const MAILROOM := Rect2(-40, -31, 12.5, 9)
+const MENS := Rect2(-27.5, -30, 5.5, 8)
+const WOMENS := Rect2(-19.5, -30, 5.5, 8)
+const CAFETERIA := Rect2(-14, -33, 28, 11)
 const CAFETERIA_H := 3.5
-const IT_CLOSET := Rect2(8, -14, 4, 4)
+const IT_CLOSET := Rect2(14, -28, 6, 6)
 const BACK_H := 3.0
-## The dark east corridor, on from the back corridor's east end, and the passage
+## The dark east corridor, on from the north corridor's east end, and the passage
 ## from it south to the hall. No working lights.
-const DARK := Rect2(12, -10, 7, 3)
-const PASSAGE := Rect2(17, -7, 2, 9)
+const DARK := Rect2(24, -22, 14, 3)
+const PASSAGE := Rect2(35, -19, 3, 16)
 ## The lift hall, through the door at the end of the hall: STAIR 1 in its south
-## wall, the lift in its east wall.
-const LIFT_HALL := Rect2(24, -1, 6, 8)
+## wall, three lifts in its east wall (one runs).
+const LIFT_HALL := Rect2(48, -11, 10, 12)
 const LIFT_HALL_H := 3.2
 ## The forgotten storage closet behind the lobby's air return.
-const CLOSET := Rect2(-20, 1, 6, 6)
+const CLOSET := Rect2(-38, -3, 8, 8)
 const CLOSET_H := 2.6
+## Where Halcyon's ground-floor staff work. Built as bare rooms behind shut doors
+## until each is furnished: visitor badges (off the lobby), the security post and
+## the conference room (south of the hall), Facilities with its manager's office in
+## the corner (north of the hall), Building Services (off the dark corridor), the
+## janitor's closet (between the restrooms), the kitchen (behind the cafeteria) and
+## receiving (behind the mailroom).
+const VISITOR_BADGES := Rect2(-26, -14, 10, 10)
+const SECURITY := Rect2(16, 0, 10, 7)
+const CONFERENCE := Rect2(28, 0, 14, 7)
+const FACILITIES := Rect2(16, -19, 19, 16)
+const MANAGER := Rect2(29, -19, 6, 6)
+const BUILDING_SERVICES := Rect2(24, -34, 14, 12)
+const JANITOR := Rect2(-22, -26, 2.5, 4)
+const KITCHEN := Rect2(-14, -40, 28, 7)
+const RECEIVING := Rect2(-40, -40, 12.5, 9)
+## Everything indoors, as one rectangle (the building's footprint, bar the lifts'
+## shafts east of the lift hall).
+const FOOTPRINT := Rect2(-40, -40, 98, 47)
+## The building from outside: the footprint with its outside walls, and the lifts'
+## shafts east of the lift hall. Its south edge is the front wall.
+const OUTSIDE := Rect2(FOOTPRINT.position.x - 0.6, FOOTPRINT.position.y - 0.4, FOOTPRINT.size.x + 3.0, FOOTPRINT.size.y + 0.4)
 
 # --- Named places -----------------------------------------------------------------
 
 ## The lobby's openings: the hall (east wall, at this z), the front doors (south
-## wall), the two ways round the desk to the back corridor (north wall, at -x and
+## wall), the two ways round the desk to the north corridor (north wall, at -x and
 ## +x), and the air return (west wall, at this z, flush with the floor so you can
 ## crawl in).
-const HALL_Z := 3.0
-const AISLE_X := 6.5
-const VENT_Z := 4.0
+const HALL_Z := -1.5
+const AISLE_X := 11.0
+const VENT_Z := 1.0
 const VENT_SIZE := Vector2(0.9, 1.0)
 ## The reception desk: the only way behind it is over it. Partitions run back
 ## from its ends (at -x and +x) to the lobby's north wall.
-const DESK := Vector3(0, 0.55, -1.0)
-const DESK_SIZE := Vector3(10, 1.1, 0.8)
-const PARTITION_X := 5.0
+const DESK := Vector3(0, 0.55, -9.0)
+const DESK_SIZE := Vector3(12, 1.1, 0.8)
+const PARTITION_X := 6.0
+## Along the desk, east of its middle: the receptionist's terminal, and the phone.
+const TERMINAL_ALONG := 1.5
+const PHONE_ALONG := 3.4
+## The front office: behind the desk, between its partitions, back to the lobby's
+## north wall. No door and no gate: the only way in is over the desk.
+const FRONT_OFFICE := Rect2(DESK.x - PARTITION_X, LOBBY.position.y, PARTITION_X * 2.0, DESK.z - DESK_SIZE.z / 2.0 - LOBBY.position.y)
 ## The side table behind the desk (Level 0 keeps the walkie-talkies' dock on it).
-const CHARGER_TABLE := Vector3(-2.5, 0.68, -5.5)
+const CHARGER_TABLE := Vector3(-2.5, 0.68, -13.5)
+## The front office's two back desks (whoever sits at one faces the counter), and
+## the table for its machines, against the east partition.
+const BACK_DESKS := [Vector3(FRONT_OFFICE.position.x + 3.0, 0, FRONT_OFFICE.position.y + 3.2), Vector3(FRONT_OFFICE.position.x + 7.0, 0, FRONT_OFFICE.position.y + 3.2)]
+const MACHINES_TABLE := Vector3(FRONT_OFFICE.end.x - 0.5, 0, FRONT_OFFICE.position.y + 5.8)
 ## The front doors (glass, sliding), in the lobby's south wall.
 const FRONT_AT := Vector3(0, 1.3, 6.95)
 const FRONT_SIZE := Vector3(3.2, 2.6, 0.12)
 const FRONT_COLOR := Color(0.25, 0.35, 0.4)
-## The hall's roller shutter, part way along to the lift hall.
-const SHUTTER_AT := Vector3(11, 1.5, 3)
-const SHUTTER_SIZE := Vector3(0.15, 3.0, 2.0)
+## The hall's roller shutter, just in from the lobby.
+const SHUTTER_AT := Vector3(19, 1.5, HALL_Z)
+const SHUTTER_SIZE := Vector3(0.15, 3.0, 3.0)
 ## Where the dark passage meets the hall and the dark corridor (its centre line).
-const PASSAGE_X := 18.0
-## STAIR 1's door, in the lift hall's south wall, and the lift's, in its east wall.
-const STAIR_AT := Vector3(27, 0, 7)
-const LIFT_AT := Vector3(30, 0, 3)
-## The doorways off the back corridor's north side, by their middle's x.
-const MAILROOM_DOOR_X := -16.5
-const MENS_DOOR_X := -11.5
-const WOMENS_DOOR_X := -8.5
+const PASSAGE_X := 36.5
+## STAIR 1's door, in the lift hall's south wall, and the working lift's, in its
+## east wall. The other two lifts' doors (shut) are along from it, at these z.
+const STAIR_AT := Vector3(53, 0, 1)
+const LIFT_AT := Vector3(58, 0, HALL_Z)
+const SPARE_LIFTS_Z := [-5.0, -8.5]
+## The doorways off the north corridor's north side, by their middle's x.
+const MAILROOM_DOOR_X := -34.0
+const MENS_DOOR_X := -24.75
+const JANITOR_DOOR_X := -20.75
+const WOMENS_DOOR_X := -16.75
 const CAFETERIA_DOOR_X := 0.0
-const IT_DOOR_X := 10.0
-## Ordinary doors, on hinges: [id, centre, size, hinge edge, swing].
+const IT_DOOR_X := 17.0
+## The other rooms' doorways: [x, z] of each one's middle, on its wall's line.
+const VISITOR_DOOR := Vector2(-16, -9)
+const SECURITY_DOOR := Vector2(23, 0)
+const CONFERENCE_DOOR := Vector2(31, 0)
+const FACILITIES_DOOR := Vector2(22, -3)
+const MANAGER_DOOR := Vector2(29, -15)
+const BUILDING_SERVICES_DOOR := Vector2(31, -22)
+const KITCHEN_DOOR := Vector2(11, -33)
+const RECEIVING_DOOR := Vector2(-34, -31)
+## Ordinary doors, on hinges: [id, centre, size, hinge edge, swing]. A door in an
+## east-west wall is DOOR_X; one in a north-south wall is DOOR_Z.
+const DOOR_X := Vector3(1.35, 2.2, 0.08)
+const DOOR_Z := Vector3(0.08, 2.2, 1.35)
+const HINGE_X := Vector3(-0.675, 0, 0)
+const HINGE_Z := Vector3(0, 0, -0.675)
 const DOORS := [
-	["MAILROOM", Vector3(MAILROOM_DOOR_X, 1.1, -10.0), Vector3(1.35, 2.2, 0.08), Vector3(-0.675, 0, 0), 90.0],
-	["MENS", Vector3(MENS_DOOR_X, 1.1, -10.0), Vector3(1.35, 2.2, 0.08), Vector3(-0.675, 0, 0), 90.0],
-	["WOMENS", Vector3(WOMENS_DOOR_X, 1.1, -10.0), Vector3(1.35, 2.2, 0.08), Vector3(-0.675, 0, 0), 90.0],
-	["IT-CLOSET", Vector3(IT_DOOR_X, 1.1, -10.0), Vector3(1.35, 2.2, 0.08), Vector3(-0.675, 0, 0), 90.0],
-	["LOBBY-HALL-END", Vector3(23.9, 1.2, HALL_Z), Vector3(0.15, 2.4, 1.8), Vector3(0, 0, -0.9), 90.0],  # into the lift hall
+	["MAILROOM", Vector3(MAILROOM_DOOR_X, 1.1, CORRIDOR.position.y), DOOR_X, HINGE_X, 90.0],
+	["MENS", Vector3(MENS_DOOR_X, 1.1, CORRIDOR.position.y), DOOR_X, HINGE_X, 90.0],
+	["WOMENS", Vector3(WOMENS_DOOR_X, 1.1, CORRIDOR.position.y), DOOR_X, HINGE_X, 90.0],
+	["IT-CLOSET", Vector3(IT_DOOR_X, 1.1, CORRIDOR.position.y), DOOR_X, HINGE_X, 90.0],
+	["LOBBY-HALL-END", Vector3(HALL.end.x - 0.1, 1.2, HALL_Z), Vector3(0.15, 2.4, 1.8), Vector3(0, 0, -0.9), 90.0],  # into the lift hall
+	["JANITOR", Vector3(JANITOR_DOOR_X, 1.1, CORRIDOR.position.y), Vector3(1.05, 2.2, 0.08), Vector3(-0.525, 0, 0), 90.0],
+	["VISITOR-BADGES", Vector3(VISITOR_DOOR.x, 1.1, VISITOR_DOOR.y), DOOR_Z, HINGE_Z, 90.0],
+	["SECURITY", Vector3(SECURITY_DOOR.x, 1.1, SECURITY_DOOR.y), DOOR_X, HINGE_X, 90.0],
+	["CONFERENCE", Vector3(CONFERENCE_DOOR.x, 1.1, CONFERENCE_DOOR.y), DOOR_X, HINGE_X, 90.0],
+	["FACILITIES", Vector3(FACILITIES_DOOR.x, 1.1, FACILITIES_DOOR.y), DOOR_X, HINGE_X, 90.0],
+	["FACILITIES-MANAGER", Vector3(MANAGER_DOOR.x, 1.1, MANAGER_DOOR.y), Vector3(0.08, 2.2, 1.15), Vector3(0, 0, -0.575), 90.0],
+	["BUILDING-SERVICES", Vector3(BUILDING_SERVICES_DOOR.x, 1.1, BUILDING_SERVICES_DOOR.y), DOOR_X, HINGE_X, 90.0],
+	["KITCHEN", Vector3(KITCHEN_DOOR.x, 1.1, KITCHEN_DOOR.y), DOOR_X, HINGE_X, 90.0],
+	["RECEIVING", Vector3(RECEIVING_DOOR.x, 1.1, RECEIVING_DOOR.y), DOOR_X, HINGE_X, 90.0],
 ]
+## The doors that are locked for the night: the staff rooms that aren't furnished
+## yet, and the manager's office.
+const LOCKED := ["JANITOR", "VISITOR-BADGES", "SECURITY", "CONFERENCE", "FACILITIES", "FACILITIES-MANAGER", "BUILDING-SERVICES", "KITCHEN", "RECEIVING"]
 ## Its ceiling lights: [room, position, range, energy] (Level 0's lights table names the rooms).
 const LIGHTS := [
-	["lobby", Vector3(-4, 4, -4), 9.0, 1.4], ["lobby", Vector3(4, 4, -4), 9.0, 1.4],
-	["lobby", Vector3(-4, 4, 1.5), 9.0, 1.4], ["lobby", Vector3(4, 4, 1.5), 9.0, 1.4],
-	["lobby", Vector3(-4, 4, 5), 9.0, 1.4], ["lobby", Vector3(4, 4, 5), 9.0, 1.4],
-	["hall", Vector3(13, 3, 3), 6.0, 1.1], ["hall", Vector3(20, 3, 3), 6.0, 1.1],
-	["corridor", Vector3(-16, 3, -8.5), 6.0, 1.0], ["corridor", Vector3(-8, 3, -8.5), 6.0, 1.0],
-	["corridor", Vector3(0, 3, -8.5), 6.0, 1.0], ["corridor", Vector3(8, 3, -8.5), 6.0, 1.0],
-	["mailroom", Vector3(-16.5, 3, -14), 6.0, 1.0],
-	["restrooms", Vector3(-11.5, 3, -13), 4.5, 0.8], ["restrooms", Vector3(-8.5, 3, -13), 4.5, 0.8],
-	["cafeteria", Vector3(-3.5, 3.5, -14), 8.0, 1.1], ["cafeteria", Vector3(4.5, 3.5, -14), 8.0, 1.1],
-	["it_closet", Vector3(10, 3, -12), 4.0, 0.7],
-	["elevators", Vector3(27, 3.2, 1), 7.0, 1.1], ["elevators", Vector3(27, 3.2, 5), 7.0, 1.1],
+	["lobby", Vector3(-10.5, 5, -15), 11.0, 1.5], ["lobby", Vector3(0, 5, -15), 11.0, 1.5], ["lobby", Vector3(10.5, 5, -15), 11.0, 1.5],
+	["lobby", Vector3(-10.5, 5, -6), 11.0, 1.5], ["lobby", Vector3(0, 5, -6), 11.0, 1.5], ["lobby", Vector3(10.5, 5, -6), 11.0, 1.5],
+	["lobby", Vector3(-10.5, 5, 3), 11.0, 1.5], ["lobby", Vector3(0, 5, 3), 11.0, 1.5], ["lobby", Vector3(10.5, 5, 3), 11.0, 1.5],
+	["hall", Vector3(20, 3, HALL_Z), 6.0, 1.1], ["hall", Vector3(28, 3, HALL_Z), 6.0, 1.1],
+	["hall", Vector3(36, 3, HALL_Z), 6.0, 1.1], ["hall", Vector3(44, 3, HALL_Z), 6.0, 1.1],
+	["corridor", Vector3(-36, 3, CORRIDOR_Z), 6.0, 1.0], ["corridor", Vector3(-28, 3, CORRIDOR_Z), 6.0, 1.0],
+	["corridor", Vector3(-20, 3, CORRIDOR_Z), 6.0, 1.0], ["corridor", Vector3(-12, 3, CORRIDOR_Z), 6.0, 1.0],
+	["corridor", Vector3(-4, 3, CORRIDOR_Z), 6.0, 1.0], ["corridor", Vector3(4, 3, CORRIDOR_Z), 6.0, 1.0],
+	["corridor", Vector3(12, 3, CORRIDOR_Z), 6.0, 1.0], ["corridor", Vector3(20, 3, CORRIDOR_Z), 6.0, 1.0],
+	["mailroom", Vector3(-36.75, 3, -26.5), 6.5, 1.0], ["mailroom", Vector3(-30.75, 3, -26.5), 6.5, 1.0],
+	["restrooms", Vector3(-24.75, 3, -26), 5.5, 0.8], ["restrooms", Vector3(-16.75, 3, -26), 5.5, 0.8],
+	["cafeteria", Vector3(-9, 3.5, -25), 8.0, 1.1], ["cafeteria", Vector3(0, 3.5, -25), 8.0, 1.1], ["cafeteria", Vector3(9, 3.5, -25), 8.0, 1.1],
+	["cafeteria", Vector3(-9, 3.5, -30), 8.0, 1.1], ["cafeteria", Vector3(0, 3.5, -30), 8.0, 1.1], ["cafeteria", Vector3(9, 3.5, -30), 8.0, 1.1],
+	["it_closet", Vector3(17, 3, -25), 5.0, 0.7],
+	["elevators", Vector3(53, 3.2, -2), 7.0, 1.1], ["elevators", Vector3(53, 3.2, -8), 7.0, 1.1],
 ]
 ## The dead fitting in the dark east corridor.
-const DEAD_LIGHT := Vector3(15.5, 2.97, -8.5)
+const DEAD_LIGHT := Vector3(31, 2.97, CORRIDOR_Z)
+
+## Furniture other things are placed against (Level 0's papers, DressLevel0's
+## props): the mailroom's pigeonholes, sorting table and cart, the cafeteria's
+## tables (two rows of five), serving counter and the coffee machine of its two
+## vending machines, the IT closet's crate and ceiling access panel (Level 0's
+## leg-up), and the forgotten closet's shelf.
+const PIGEONHOLES := Vector3(MAILROOM.position.x + 9.6, 1.1, MAILROOM.position.y + 0.4)
+const SORTING_TABLE := Vector3(MAILROOM.position.x + 9.2, 0.45, MAILROOM.position.y + 4.5)
+const MAIL_CART := Vector3(MAILROOM.position.x + 1.0, 0.5, MAILROOM.position.y + 7.0)
+const CAFE_TABLES_X := [-10.0, -5.0, 0.0, 5.0, 10.0]
+const CAFE_TABLES_Z := [-25.5, -29.0]
+const SERVING_COUNTER := Vector3(0, 0.5, CAFETERIA.position.y + 0.6)
+const SERVING_COUNTER_SIZE := Vector3(16.0, 1.0, 0.9)
+## The two vending machines stand against the cafeteria's south wall, just east of
+## its door, facing the room: the coffee machine, then the snack machine beside it.
+const VENDING_AT := Vector3(CAFETERIA_DOOR_X + 2.2, 0.9, CAFETERIA.end.y - 0.6)
+const VENDING_NEXT := Vector3(1.2, 0, 0)
+const VENDING_SIZE := Vector3(0.8, 1.8, 0.9)
+const IT_CRATE := Vector3(IT_CLOSET.position.x + 4.8, 0.3, IT_CLOSET.position.y + 0.6)
+const IT_HATCH := Vector3(IT_CLOSET.position.x + 4.2, BACK_H - 0.03, IT_CLOSET.position.y + 1.4)
+const CLOSET_SHELF := Vector3(CLOSET.position.x + 0.5, 0.9, VENT_Z)
+## A restroom's two stalls: along its east wall from the north end, each this
+## wide (east-west) and deep (north-south), with a doorway this wide in its front.
+const STALL := Vector2(1.6, 1.7)
+const STALL_DOORWAY := 1.0
 
 
 # --- Placing things ---------------------------------------------------------------
@@ -153,20 +246,115 @@ static func gap(room: Rect2, wall: String, where: float, width: float, height: f
 	return {"wall": wall, "at": where - (c.x if wall == "n" or wall == "s" else c.y), "width": width, "height": height}
 
 
+## Every opening on the floor, each listed once: [the way its wall runs ("x" for
+## an east-west wall, "z" for a north-south one), its middle's x, its middle's z,
+## width, height]. A room gets a gap wherever one lies on its walls (gaps_of), so
+## the rooms either side of a wall always agree.
+static func openings() -> Array:
+	var north := CORRIDOR.position.y
+	return [
+		["x", FRONT_AT.x, LOBBY.end.y, FRONT_SIZE.x, FRONT_SIZE.y],  # the front doors
+		["x", -AISLE_X, LOBBY.position.y, 2.0, 2.6], ["x", AISLE_X, LOBBY.position.y, 2.0, 2.6],  # round the desk
+		["z", LOBBY.end.x, HALL_Z, 2.6, 3.0],  # lobby to hall
+		["z", LOBBY.position.x, VENT_Z, VENT_SIZE.x, VENT_SIZE.y], ["z", CLOSET.end.x, VENT_Z, VENT_SIZE.x, VENT_SIZE.y],  # the air return
+		["z", VISITOR_DOOR.x, VISITOR_DOOR.y, 1.4, 2.2],
+		["x", SECURITY_DOOR.x, SECURITY_DOOR.y, 1.4, 2.2], ["x", CONFERENCE_DOOR.x, CONFERENCE_DOOR.y, 1.4, 2.2],
+		["x", FACILITIES_DOOR.x, FACILITIES_DOOR.y, 1.4, 2.2],
+		["x", PASSAGE_X, PASSAGE.end.y, 2.6, 2.6], ["x", PASSAGE_X, PASSAGE.position.y, 2.6, 2.6],  # the dark passage's two ends
+		["z", CORRIDOR.end.x, CORRIDOR_Z, 2.8, 3.0],  # north corridor into the dark
+		["x", BUILDING_SERVICES_DOOR.x, BUILDING_SERVICES_DOOR.y, 1.4, 2.2],
+		["x", MAILROOM_DOOR_X, north, 1.4, 2.2], ["x", MENS_DOOR_X, north, 1.4, 2.2], ["x", JANITOR_DOOR_X, north, 1.1, 2.2],
+		["x", WOMENS_DOOR_X, north, 1.4, 2.2], ["x", CAFETERIA_DOOR_X, north, 2.4, 2.6], ["x", IT_DOOR_X, north, 1.4, 2.2],
+		["x", KITCHEN_DOOR.x, KITCHEN_DOOR.y, 1.4, 2.2], ["x", RECEIVING_DOOR.x, RECEIVING_DOOR.y, 1.4, 2.2],
+		["z", HALL.end.x, HALL_Z, 1.8, 2.4],  # into the lift hall
+		["z", LIFT_AT.x, LIFT_AT.z, Elevator.DOORWAY, Elevator.DOOR_H],
+		["x", STAIR_AT.x, STAIR_AT.z, Stairwell.DOOR_W, Stairwell.DOOR_H],
+	]
+
+
+## `room`'s openings, as Greybox.room's gaps.
+static func gaps_of(room: Rect2) -> Array:
+	var out := []
+	for o in openings():
+		var x: float = o[1]
+		var z: float = o[2]
+		if o[0] == "x" and x > room.position.x and x < room.end.x:
+			if is_equal_approx(z, room.position.y):
+				out.append(gap(room, "n", x, o[3], o[4]))
+			elif is_equal_approx(z, room.end.y):
+				out.append(gap(room, "s", x, o[3], o[4]))
+		elif o[0] == "z" and z > room.position.y and z < room.end.y:
+			if is_equal_approx(x, room.position.x):
+				out.append(gap(room, "w", z, o[3], o[4]))
+			elif is_equal_approx(x, room.end.x):
+				out.append(gap(room, "e", z, o[3], o[4]))
+	return out
+
+
+## Every room on the floor: [its rectangle, its ceiling height, its floor's colour,
+## its walls' colour, and any walls it leaves to its neighbours]. The lobby is first
+## (its floor is the node named "Floor"). Facilities has no north wall of its own:
+## the north corridor's and the dark corridor's south walls stand there, each with
+## its own look.
+static func rooms() -> Array:
+	var dim := LINO.darkened(0.2)
+	var dim_wall := WALL.darkened(0.3)
+	return [
+		[LOBBY, LOBBY_H, CARPET, WALL], [HALL, HALL_H, Color(0.3, 0.3, 0.3), WALL],
+		[CORRIDOR, BACK_H, LINO, WALL], [MAILROOM, BACK_H, LINO, WALL],
+		[MENS, BACK_H, TILE, TILE.darkened(0.1)], [WOMENS, BACK_H, TILE, TILE.darkened(0.1)],
+		[CAFETERIA, CAFETERIA_H, LINO, WALL], [IT_CLOSET, BACK_H, LINO, WALL],
+		[DARK, BACK_H, dim, dim_wall], [PASSAGE, BACK_H, dim, dim_wall],
+		[LIFT_HALL, LIFT_HALL_H, Color(0.35, 0.33, 0.3), WALL],
+		[CLOSET, CLOSET_H, Color(0.2, 0.2, 0.2), Color(0.4, 0.38, 0.33)],
+		[VISITOR_BADGES, BACK_H, LINO, WALL], [SECURITY, BACK_H, LINO, WALL], [CONFERENCE, BACK_H, LINO, WALL],
+		[FACILITIES, BACK_H, LINO, WALL, ["n"]], [BUILDING_SERVICES, BACK_H, LINO, WALL], [JANITOR, BACK_H, TILE, WALL],
+		[KITCHEN, BACK_H, TILE, WALL], [RECEIVING, BACK_H, LINO, WALL],
+	]
+
+
+## The rooms nobody can get into, behind LOCKED doors, as boxes (a level's
+## `shut_rooms`). The manager's office is inside Facilities.
+static func shut_rooms() -> Array[AABB]:
+	var out: Array[AABB] = []
+	for room in [VISITOR_BADGES, SECURITY, CONFERENCE, FACILITIES, BUILDING_SERVICES, JANITOR, KITCHEN, RECEIVING]:
+		out.append(box(room, BACK_H, 0.0, 0.5, 0.5))  # its roof too
+	return out
+
+
+## The floor centre of each of `room`'s stalls (a restroom), north one first.
+static func stalls(room: Rect2) -> Array:
+	var out := []
+	for k in 2:
+		out.append(Vector3(room.end.x - STALL.x / 2.0, 0, room.position.y + 0.1 + STALL.y * (k + 0.5)))
+	return out
+
+
 ## Build the floor under `geo`.
 static func build(geo: Node3D) -> void:
+	for r in rooms():
+		var gaps := gaps_of(r[0])
+		for wall in (r[4] if r.size() > 4 else []):
+			gaps.append({"wall": wall, "at": 0.0, "width": maxf(r[0].size.x, r[0].size.y), "height": r[1]})
+		Greybox.room(geo, mid(r[0]), span(r[0], r[1]), {"floor": r[2], "wall": r[3]}, gaps)
 	_lobby(geo)
 	_hall(geo)
 	_back(geo)
 	_lift_hall(geo)
 	_closet(geo)
+	# The manager's office: two partitions across Facilities' north-east corner.
+	Greybox._wall(geo, mid(MANAGER), span(MANAGER, BACK_H), "w", WALL, [gap(MANAGER, "w", MANAGER_DOOR.y, 1.2, 2.2)], 0.2)
+	Greybox._wall(geo, mid(MANAGER), span(MANAGER, BACK_H), "s", WALL, [], 0.2)
 
 
-## The ordinary doors (DOORS), under `parent`, named `prefix` + id. Returns them by id.
+## The ordinary doors (DOORS), under `parent`, named `prefix` + id. Returns them by
+## id. The staff rooms' (LOCKED) are locked.
 static func doors(parent: Node3D, prefix: String = "") -> Dictionary:
 	var made := {}
 	for d in DOORS:
-		made[d[0]] = Door.create(parent, prefix + d[0], d[1], d[2]).make_hinged(d[3], d[4])
+		var door := Door.create(parent, prefix + d[0], d[1], d[2]).make_hinged(d[3], d[4])
+		door.locked = d[0] in LOCKED
+		made[d[0]] = door
 	return made
 
 
@@ -180,13 +368,6 @@ static func front_doors(parent: Node3D, id: String) -> Door:
 static func _lobby(geo: Node3D) -> void:
 	var north := LOBBY.position.y
 	var south := LOBBY.end.y
-	Greybox.room(geo, mid(LOBBY), span(LOBBY, LOBBY_H), {"floor": CARPET, "wall": WALL}, [
-		gap(LOBBY, "e", HALL_Z, 2.0, 3.0),
-		gap(LOBBY, "s", FRONT_AT.x, FRONT_SIZE.x, FRONT_SIZE.y),
-		gap(LOBBY, "n", -AISLE_X, 1.6, 2.6),  # to the back corridor, either side of the desk
-		gap(LOBBY, "n", AISLE_X, 1.6, 2.6),
-		gap(LOBBY, "w", VENT_Z, VENT_SIZE.x, VENT_SIZE.y),  # the air return
-	])
 	Sfx.mark_surface(geo.get_node("Floor"), "carpet")  # the lobby's
 	Greybox.label(geo, Vector3(DESK.x, 3.0, north + 0.12), "HALCYON DATA SYSTEMS", 160, Color(0.15, 0.2, 0.35))
 	Greybox.label(geo, Vector3(DESK.x, 2.55, north + 0.12), "Data you can trust.", 64, Color(0.25, 0.25, 0.3))
@@ -202,39 +383,21 @@ static func _lobby(geo: Node3D) -> void:
 	Greybox.box(geo, CHARGER_TABLE, Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
 	for leg in [Vector3(-0.55, 0, -0.25), Vector3(0.55, 0, -0.25), Vector3(-0.55, 0, 0.25), Vector3(0.55, 0, 0.25)]:
 		Greybox.box(geo, Vector3(CHARGER_TABLE.x, 0.33, CHARGER_TABLE.z) + leg, Vector3(0.05, 0.66, 0.05), Color(0.3, 0.3, 0.32), "TableChargerLeg")
-	# Waiting area chairs (cover, atmosphere), facing the coffee table.
+	# Waiting area chairs by the front doors (cover, atmosphere), facing the coffee table.
 	for x in [-6.0, -4.8, 4.8, 6.0]:
-		Greybox.box(geo, Vector3(x, 0.25, south - 2.5), Vector3(0.9, 0.5, 0.9), Color(0.3, 0.12, 0.12), "Chair")
-		Seat.create_at(geo, Vector3(x, 0.5, south - 2.5), 0.0, Vector2(0.8, 0.8))
-	Greybox.box(geo, Vector3(-5.4, 0.2, south - 4.2), Vector3(2.0, 0.4, 0.8), Color(0.35, 0.28, 0.2), "Table")
+		Greybox.box(geo, Vector3(FRONT_AT.x + x, 0.25, south - 2.5), Vector3(0.9, 0.5, 0.9), Color(0.3, 0.12, 0.12), "Chair")
+		Seat.create_at(geo, Vector3(FRONT_AT.x + x, 0.5, south - 2.5), 0.0, Vector2(0.8, 0.8))
+	Greybox.box(geo, Vector3(FRONT_AT.x - 5.4, 0.2, south - 4.2), Vector3(2.0, 0.4, 0.8), Color(0.35, 0.28, 0.2), "Table")
 
 
-## The hall east to the lift hall. Part way along, an unlit passage turns north
-## into the dark east corridor.
+## The hall east to the lift hall.
 static func _hall(geo: Node3D) -> void:
-	Greybox.room(geo, mid(HALL), span(HALL, HALL_H), {"floor": Color(0.3, 0.3, 0.3), "wall": WALL}, [
-		gap(HALL, "w", HALL_Z, 2.0, 3.0),
-		gap(HALL, "e", HALL_Z, 1.8, 2.4),  # into the lift hall
-		gap(HALL, "n", PASSAGE_X, 2.0, 2.6),  # the dark passage
-	])
 	Greybox.label(geo, Vector3(HALL.end.x - 0.12, 2.72, HALL_Z), "ELEVATORS  >", 64, Color(0.7, 0.1, 0.1), -90)
 
 
-## The back corridor behind the lobby and the rooms off it, and the dark east corridor.
+## The north corridor behind the lobby and the rooms off it, and the dark east corridor.
 static func _back(geo: Node3D) -> void:
-	var lino := Color(0.3, 0.31, 0.3)
-	var tile := Color(0.75, 0.76, 0.74)
 	var sign_z := CORRIDOR.position.y + 0.12  # on the corridor's north wall
-	Greybox.room(geo, mid(CORRIDOR), span(CORRIDOR, BACK_H), {"floor": lino, "wall": WALL}, [
-		gap(CORRIDOR, "s", -AISLE_X, 1.6, 2.6),  # lobby, west of the desk
-		gap(CORRIDOR, "s", AISLE_X, 1.6, 2.6),  # lobby, east of the desk
-		gap(CORRIDOR, "e", CORRIDOR_Z, 2.8, 3.0),  # into the dark east corridor
-		gap(CORRIDOR, "n", MAILROOM_DOOR_X, 1.4, 2.2),
-		gap(CORRIDOR, "n", MENS_DOOR_X, 1.4, 2.2),
-		gap(CORRIDOR, "n", WOMENS_DOOR_X, 1.4, 2.2),
-		gap(CORRIDOR, "n", CAFETERIA_DOOR_X, 2.4, 2.6),
-		gap(CORRIDOR, "n", IT_DOOR_X, 1.4, 2.2),
-	])
 	Greybox.label(geo, Vector3(MAILROOM_DOOR_X, 2.45, sign_z), "MAILROOM", 36, Color(0.15, 0.15, 0.2))
 	Greybox.label(geo, Vector3(MENS_DOOR_X, 2.45, sign_z), "MEN", 36, Color(0.15, 0.15, 0.2))
 	Greybox.label(geo, Vector3(WOMENS_DOOR_X, 2.45, sign_z), "WOMEN", 36, Color(0.15, 0.15, 0.2))
@@ -242,80 +405,47 @@ static func _back(geo: Node3D) -> void:
 	Greybox.label(geo, Vector3(IT_DOOR_X, 2.45, sign_z), "IT", 36, Color(0.15, 0.15, 0.2))
 
 	# Mailroom. Pigeonholes, a sorting table, a cart.
-	Greybox.room(geo, mid(MAILROOM), span(MAILROOM, BACK_H), {"floor": lino, "wall": WALL}, [
-		gap(MAILROOM, "s", MAILROOM_DOOR_X, 1.4, 2.2),
-	])
-	Greybox.box(geo, at(MAILROOM, 3.5, 1.1, 0.4), Vector3(5.5, 2.2, 0.6), Color(0.45, 0.38, 0.28), "Pigeonholes")
-	Greybox.box(geo, at(MAILROOM, 3.5, 0.45, 3.5), Vector3(3.0, 0.9, 1.2), Color(0.5, 0.45, 0.38), "SortingTable")
-	Greybox.box(geo, at(MAILROOM, 1.0, 0.5, 6.0), Vector3(1.0, 1.0, 1.4), Color(0.35, 0.35, 0.38), "MailCart")
+	Greybox.box(geo, PIGEONHOLES, Vector3(5.5, 2.2, 0.6), Color(0.45, 0.38, 0.28), "Pigeonholes")
+	Greybox.box(geo, SORTING_TABLE, Vector3(3.0, 0.9, 1.2), Color(0.5, 0.45, 0.38), "SortingTable")
+	Greybox.box(geo, MAIL_CART, Vector3(1.0, 1.0, 1.4), Color(0.35, 0.35, 0.38), "MailCart")
 
-	# Restrooms: two narrow rooms with stalls to duck into.
+	# Restrooms: sinks along the west wall, and two stalls along the east wall with
+	# a wide aisle in front of them.
+	var panel := Color(0.55, 0.6, 0.62)
 	for room in [MENS, WOMENS]:
-		var r: float = mid(room).x
-		Greybox.room(geo, mid(room), span(room, BACK_H), {"floor": tile, "wall": tile.darkened(0.1)}, [
-			gap(room, "s", r, 1.4, 2.2),
-		])
-		# Along the west wall, past where the door swings.
-		Greybox.box(geo, at(room, 0.25, 0.45, 5.7), Vector3(0.5, 0.9, 1.0), Color(0.85, 0.85, 0.82), "Sinks")
-		for k in 2:
-			Greybox.box(geo, at(room, 1.7, 1.0, 3.5 - k * 1.4), Vector3(2.2, 2.0, 0.05), Color(0.55, 0.6, 0.62), "StallWall")
-		Greybox.box(geo, at(room, 1.7, 1.0, 0.05), Vector3(2.2, 2.0, 0.05), Color(0.55, 0.6, 0.62), "StallWall")
+		Greybox.box(geo, at(room, 0.25, 0.45, 5.0), Vector3(0.5, 0.9, 2.0), Color(0.85, 0.85, 0.82), "Sinks")
+		var front: float = room.end.x - STALL.x  # the stalls' fronts
+		var jamb := (STALL.y - STALL_DOORWAY) / 2.0  # the panel either side of a stall's doorway
+		for stall in stalls(room):
+			Greybox.box(geo, Vector3(stall.x, 1.0, stall.z + STALL.y / 2.0), Vector3(STALL.x, 2.0, 0.05), panel, "StallWall")  # its south side
+			for side in [-1.0, 1.0]:
+				Greybox.box(geo, Vector3(front, 1.0, stall.z + side * (STALL.y - jamb) / 2.0), Vector3(0.05, 2.0, jamb), panel, "StallWall")
 
 	# Cafeteria. Tables to hop, a serving counter, vending machines.
-	Greybox.room(geo, mid(CAFETERIA), span(CAFETERIA, CAFETERIA_H), {"floor": lino, "wall": WALL}, [
-		gap(CAFETERIA, "s", CAFETERIA_DOOR_X, 2.4, 2.6),
-	])
 	for tx in CAFE_TABLES_X:
 		for tz in CAFE_TABLES_Z:
 			Greybox.box(geo, Vector3(tx, 0.375, tz), Vector3(2.0, 0.75, 1.0), Color(0.55, 0.42, 0.3), "CafTable")
-	Greybox.box(geo, at(CAFETERIA, 7.5, 0.5, 0.6), Vector3(8.0, 1.0, 0.9), Color(0.6, 0.6, 0.62), "ServingCounter")
-	Greybox.box(geo, VENDING_AT, Vector3(0.9, 1.8, 0.8), Color(0.25, 0.3, 0.5), "VendingMachine")
-	Greybox.box(geo, VENDING_AT + Vector3(0, 0, -1.2), Vector3(0.9, 1.8, 0.8), Color(0.6, 0.15, 0.12), "VendingMachine")
+	Greybox.box(geo, SERVING_COUNTER, SERVING_COUNTER_SIZE, Color(0.6, 0.6, 0.62), "ServingCounter")
+	Greybox.box(geo, VENDING_AT, VENDING_SIZE, Color(0.25, 0.3, 0.5), "VendingMachine")
+	Greybox.box(geo, VENDING_AT + VENDING_NEXT, VENDING_SIZE, Color(0.6, 0.15, 0.12), "VendingMachine")
 
 	# IT closet. Shelves of spares and a patch panel.
-	Greybox.room(geo, mid(IT_CLOSET), span(IT_CLOSET, BACK_H), {"floor": lino, "wall": WALL}, [
-		gap(IT_CLOSET, "s", IT_DOOR_X, 1.4, 2.2),
-	])
-	Greybox.box(geo, at(IT_CLOSET, 0.4, 1.0, 2.0), Vector3(0.6, 2.0, 3.4), Color(0.4, 0.4, 0.42), "SpareShelf")
-	Greybox.box(geo, at(IT_CLOSET, 3.7, 1.3, 1.5), Vector3(0.3, 1.2, 1.6), Color(0.12, 0.12, 0.14), "PatchPanel")
+	Greybox.box(geo, at(IT_CLOSET, 0.4, 1.0, 3.0), Vector3(0.6, 2.0, 3.4), Color(0.4, 0.4, 0.42), "SpareShelf")
+	Greybox.box(geo, at(IT_CLOSET, IT_CLOSET.size.x - 0.3, 1.3, 1.5), Vector3(0.3, 1.2, 1.6), Color(0.12, 0.12, 0.14), "PatchPanel")
 	Greybox.box(geo, IT_CRATE, Vector3(0.8, 0.6, 0.6), Color(0.45, 0.35, 0.2), "Crate")
 
-	# The dark east corridor, then a passage south to the hall. No working lights.
-	Greybox.room(geo, mid(DARK), span(DARK, BACK_H), {"floor": lino.darkened(0.2), "wall": WALL.darkened(0.3)}, [
-		gap(DARK, "w", CORRIDOR_Z, 2.8, 3.0),
-		gap(DARK, "s", PASSAGE_X, 2.0, 2.6),
-	])
-	Greybox.room(geo, mid(PASSAGE), span(PASSAGE, BACK_H), {"floor": lino.darkened(0.2), "wall": WALL.darkened(0.3)}, [
-		gap(PASSAGE, "n", PASSAGE_X, 2.0, 2.6),
-		gap(PASSAGE, "s", PASSAGE_X, 2.0, 2.6),
-	])
+	# The dark east corridor and its passage south to the hall. No working lights.
 	Greybox.panel(geo, DEAD_LIGHT, Vector3(1.2, 0.05, 0.3), Color(0.3, 0.3, 0.3))  # a dead light
 
 
-## The cafeteria's tables (two rows of three), the coffee machine of its two
-## vending machines, and the crate in the IT closet's corner.
-const CAFE_TABLES_X := [-4.0, 0.0, 4.0]
-const CAFE_TABLES_Z := [-12.5, -15.0]
-const VENDING_AT := Vector3(7.4, 0.9, -12.0)
-const IT_CRATE := Vector3(10.8, 0.3, -13.4)
-## The IT closet's ceiling access panel (Level 0's leg-up).
-const IT_HATCH := Vector3(10.2, 2.97, -12.6)
-
-
-## The lift hall, through the door at the end of the hall, with STAIR 1 in its
-## south wall and the lift in its east wall.
+## The lift hall, through the door at the end of the hall. Two of its three
+## lifts are out of service: their doors stay shut.
 static func _lift_hall(geo: Node3D) -> void:
-	Greybox.room(geo, mid(LIFT_HALL), span(LIFT_HALL, LIFT_HALL_H), {"floor": Color(0.35, 0.33, 0.3), "wall": WALL}, [
-		gap(LIFT_HALL, "w", HALL_Z, 1.8, 2.4),
-		gap(LIFT_HALL, "e", LIFT_AT.z, Elevator.DOORWAY, Elevator.DOOR_H),
-		gap(LIFT_HALL, "s", STAIR_AT.x, Stairwell.DOOR_W, Stairwell.DOOR_H),  # the stairs
-	])
+	for z in SPARE_LIFTS_Z:
+		Greybox.box(geo, Vector3(LIFT_AT.x - 0.07, Elevator.DOOR_H / 2.0, z), Vector3(0.06, Elevator.DOOR_H, Elevator.DOORWAY), Color(0.55, 0.56, 0.58), "LiftDoorsShut")
 
 
 ## The forgotten storage closet behind the lobby's air return, and the duct to it.
 static func _closet(geo: Node3D) -> void:
 	Traversal.vent(geo, Vector3(LOBBY.position.x, 0.0, VENT_Z), Vector3(CLOSET.end.x, 0.0, VENT_Z), VENT_SIZE)
-	Greybox.room(geo, mid(CLOSET), span(CLOSET, CLOSET_H), {"floor": Color(0.2, 0.2, 0.2), "wall": Color(0.4, 0.38, 0.33)}, [
-		gap(CLOSET, "e", VENT_Z, VENT_SIZE.x, VENT_SIZE.y),
-	])
-	Greybox.box(geo, at(CLOSET, 0.5, 0.9, 3.0), Vector3(0.8, 1.8, 3), Color(0.35, 0.35, 0.35), "Shelf")
+	Greybox.box(geo, CLOSET_SHELF, Vector3(0.8, 1.8, 3), Color(0.35, 0.35, 0.35), "Shelf")

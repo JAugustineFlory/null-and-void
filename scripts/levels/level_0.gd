@@ -231,13 +231,14 @@ func build() -> void:
 	game.cell_missed.connect(_on_cell_missed)
 	# The ground floor's rooms, the same lobby Level 4 brings the crew back to.
 	GroundFloor.build(geo)
+	shut_rooms = GroundFloor.shut_rooms()
 	# Front doors: Rourke lets the crew in, then they lock behind them.
 	front_doors = GroundFloor.front_doors(self, "LOBBY-FRONT")
 	doors["LOBBY-FRONT"] = front_doors
 
 	# A receptionist's monitor, facing behind the desk until Rourke turns it round
 	# for the crew (_turn_monitor).
-	desk_terminal = Terminal.spawn(geo, GroundFloor.on_desk(1.5), 180, "FRONT DESK", db, terminal_ui)
+	desk_terminal = Terminal.spawn(geo, GroundFloor.on_desk(GroundFloor.TERMINAL_ALONG), 180, "FRONT DESK", db, terminal_ui)
 	desk_terminal.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  FRONT DESK",
 		"Visitor session opened 23:04.",
@@ -287,9 +288,9 @@ func build() -> void:
 	]
 	# The front desk phone, with its own extension on it (G1), and the night desk's
 	# reminder beside it: which table the phone list is (G2, G3).
-	_mesh(geo, GroundFloor.on_desk(3.4, 0.0, 0.03), Vector3(0.22, 0.06, 0.24), Color(0.16, 0.16, 0.17)).name = "DeskPhone"
-	_mesh(geo, GroundFloor.on_desk(3.4, -0.04, 0.08), Vector3(0.2, 0.04, 0.06), Color(0.12, 0.12, 0.13)).name = "DeskPhoneHandset"
-	Greybox.label(geo, GroundFloor.on_desk(3.4, 0.125, 0.05), PHONE_LABEL % data.front_desk, 12, Color(0.9, 0.9, 0.85), 0)
+	_mesh(geo, GroundFloor.on_desk(GroundFloor.PHONE_ALONG, 0.0, 0.03), Vector3(0.22, 0.06, 0.24), Color(0.16, 0.16, 0.17)).name = "DeskPhone"
+	_mesh(geo, GroundFloor.on_desk(GroundFloor.PHONE_ALONG, -0.04, 0.08), Vector3(0.2, 0.04, 0.06), Color(0.12, 0.12, 0.13)).name = "DeskPhoneHandset"
+	Greybox.label(geo, GroundFloor.on_desk(GroundFloor.PHONE_ALONG, 0.125, 0.05), PHONE_LABEL % data.front_desk, 12, Color(0.9, 0.9, 0.85), 0)
 	phone_note = Document.place(geo, GroundFloor.on_desk(3.78, 0.18, PAPER), 6.0, "Sticky note", [
 		{"text": "Who's on what ext.?", "hand": true},
 		{"text": "Phone list is on the terminal:", "hand": true},
@@ -389,12 +390,12 @@ func build() -> void:
 		louvre.position = Vector3(0.03, -0.38 + i * 0.15, 0)
 		vent_grate.add_child(louvre)
 	vent_grate.used.connect(func(_p): sync.event("_on_vent_grate"))
-	Greybox.label(geo, GroundFloor.at(GroundFloor.CLOSET, 0.95, 1.4, 3.0),  # on the shelf's face
+	Greybox.label(geo, GroundFloor.CLOSET_SHELF + Vector3(0.45, 0.5, 0),  # on the shelf's face
 		"THE HALCYON LEDGER - March 1994\nFOUNDER OUSTED OVER 'WARDEN' PLAN\nHarold Mercer, who built Halcyon from a garage,\nwas removed by the board after refusing to let an\nautomated system run the campus. 'You don't hand\nthe keys to something that can't be locked out,'\nhe told staff on his last day.",
 		26, Color(0.9, 0.88, 0.8), 90)
-	tape = Interactable.create(geo, GroundFloor.at(GroundFloor.CLOSET, 0.7, 1.88, 4.0), Vector3(0.3, 0.12, 0.2), "Play the cassette", Color(0.12, 0.12, 0.12))
+	tape = Interactable.create(geo, GroundFloor.CLOSET_SHELF + Vector3(0.2, 0.98, 1.0), Vector3(0.3, 0.12, 0.2), "Play the cassette", Color(0.12, 0.12, 0.12))
 	tape.used.connect(func(_p): sync.event("_on_tape"))
-	var closet_light := Greybox.ceiling_light(geo, GroundFloor.mid(GroundFloor.CLOSET, GroundFloor.CLOSET_H), 5.0, 0.9)
+	var closet_light := Greybox.ceiling_light(geo, GroundFloor.mid(GroundFloor.CLOSET, GroundFloor.CLOSET_H), 6.8, 0.9)  # reaches its corners
 	FlickerLight.attach(closet_light, 0.35)
 
 	# Lights. An ordinary, well-lit office lobby: every tube works, nothing flickers.
@@ -444,11 +445,14 @@ func _build_parking_lot() -> void:
 	Greybox.box(geo, Vector3(LOT.position.x, 1.5, lot.z), Vector3(0.2, 3, LOT.size.y), fence, "FenceW")
 	Greybox.box(geo, Vector3(LOT.end.x, 1.5, lot.z), Vector3(0.2, 3, LOT.size.y), fence, "FenceE")
 	Greybox.box(geo, Vector3(lot.x, 1.5, LOT.end.y), Vector3(LOT.size.x, 3, 0.2), fence, "FenceS")
-	# Building front, with a gap for the doors and a canopy over them.
-	var west := (door - door_w / 2.0) - LOT.position.x  # the front, west of the doors
-	var east := LOT.end.x - (door + door_w / 2.0)  # and east of them
-	Greybox.box(geo, Vector3(LOT.position.x + west / 2.0, FACADE_H / 2.0, front + 0.25), Vector3(west, FACADE_H, 0.3), facade, "Facade")
-	Greybox.box(geo, Vector3(LOT.end.x - east / 2.0, FACADE_H / 2.0, front + 0.25), Vector3(east, FACADE_H, 0.3), facade, "Facade")
+	# Building front, with a gap for the doors and a canopy over them. It runs the
+	# building's whole width, on past the car park's fences.
+	var west_end := GroundFloor.OUTSIDE.position.x
+	var east_end := GroundFloor.OUTSIDE.end.x
+	var west := (door - door_w / 2.0) - west_end  # the front, west of the doors
+	var east := east_end - (door + door_w / 2.0)  # and east of them
+	Greybox.box(geo, Vector3(west_end + west / 2.0, FACADE_H / 2.0, front + 0.25), Vector3(west, FACADE_H, 0.3), facade, "Facade")
+	Greybox.box(geo, Vector3(east_end - east / 2.0, FACADE_H / 2.0, front + 0.25), Vector3(east, FACADE_H, 0.3), facade, "Facade")
 	Greybox.box(geo, Vector3(door, (FACADE_H + door_h) / 2.0, front + 0.25), Vector3(door_w, FACADE_H - door_h, 0.3), facade, "Facade")
 	Greybox.box(geo, Vector3(door, 3.0, front + 1.5), Vector3(5, 0.2, 2.2), Color(0.3, 0.3, 0.32), "Canopy")
 	Greybox.label(geo, Vector3(door, 4.9, front + 0.42), "HALCYON DATA SYSTEMS", 200, Color(0.75, 0.8, 0.9))
@@ -951,8 +955,8 @@ func _checkin_progress() -> void:
 			sync.team_notice("Checked in: %d/%d (sign the log, take a badge)" % [done, n])
 
 
-## The rest of the ground floor around the lobby: a corridor along the back with
-## the mailroom, restrooms, cafeteria and IT closet off it; the unlit east corridor
+## The rest of the ground floor around the lobby: the north corridor with the
+## mailroom, restrooms, cafeteria and IT closet off it; the unlit east corridor
 ## where the Hum lives, looping back to the hall; and the elevator bank at the end
 ## of the hall. Optional to explore: nothing here is needed to finish the level.
 func _build_ground_floor() -> void:
@@ -974,15 +978,14 @@ func _build_ground_floor() -> void:
 	in_mailroom.entered.connect(func(_b): sync.event("_on_mailroom_entered"), CONNECT_ONE_SHOT)
 
 	# The cafeteria's vending machine takes your coins.
-	vending = Interactable.create(geo, GroundFloor.VENDING_AT + Vector3(-0.48, 0.1, 0), Vector3(0.06, 0.6, 0.6), "Buy a coffee", Color.WHITE, false)
+	vending = Interactable.create(geo, GroundFloor.VENDING_AT + Vector3(0, 0.1, -GroundFloor.VENDING_SIZE.z / 2.0 - 0.03), Vector3(0.6, 0.6, 0.06), "Buy a coffee", Color.WHITE, false)
 	vending.used.connect(_on_vending)
 	# The IT closet's ceiling access panel sticks: out of reach without a leg up.
 	ceiling_hatch = Interactable.create(self, GroundFloor.IT_HATCH, Vector3(0.7, 0.04, 0.7), "Push the ceiling panel", Color(0.78, 0.78, 0.74))
 	ceiling_hatch.used.connect(_on_hatch)
 
 	# The dark east corridor is where the Hum lives.
-	var dark := GroundFloor.DARK  # and the passage south from its east end, as one box
-	hum = Hum.create(self, AABB(Vector3(dark.position.x, 0, dark.position.y), Vector3(dark.size.x, GroundFloor.BACK_H, GroundFloor.PASSAGE.end.y - dark.position.y)))
+	hum = Hum.create(self, GroundFloor.box(GroundFloor.DARK, GroundFloor.BACK_H), [GroundFloor.box(GroundFloor.PASSAGE, GroundFloor.BACK_H)])  # and the passage south from it
 
 	# The lift hall: STAIR 1 and the lift.
 	stair_door = Stairwell.build(self, geo, GroundFloor.STAIR_AT, 180.0, "G", "STAIR 1", 0)  # no way down from G
@@ -1507,11 +1510,11 @@ func _walk_to_server_room() -> void:
 	_watch_nearest()
 	shutter.set_open(true)  # he badges it, and it opens like any other door
 	hud.todo("Time to look like IT", "Follow Rourke down the hall")
-	var hall := Trigger.create(self, Vector3(GroundFloor.HALL.position.x + 0.2, 1, GroundFloor.HALL_Z), Vector3(1.2, 2, 2))
+	var hall := Trigger.create(self, Vector3(GroundFloor.HALL.position.x + 0.2, 1, GroundFloor.HALL_Z), Vector3(1.2, 2, GroundFloor.HALL.size.y - 0.4))
 	await sync.gate("hall", hall.entered)
 	rourke.walk_to(HALL_END_SPOT)
 	_face_crew_on_arrival()
-	var mid := Trigger.create(self, Vector3(GroundFloor.PASSAGE_X - 3.0, 1, GroundFloor.HALL_Z), Vector3(1.2, 2, 2))
+	var mid := Trigger.create(self, Vector3(GroundFloor.PASSAGE_X - 3.0, 1, GroundFloor.HALL_Z), Vector3(1.2, 2, GroundFloor.HALL.size.y - 0.4))
 	mid.name = "MidHall"
 	mid.entered.connect(func(_b): _mid_hall = true, CONNECT_ONE_SHOT)
 	# Two stops along the hall (M5), with the PA's shredder reminder between them
@@ -1528,7 +1531,7 @@ func _walk_to_server_room() -> void:
 		if rourke.state == Rourke.State.WALK:
 			await rourke.arrived)
 	# He waits until the whole crew has caught up.
-	var near := Trigger.create(self, Vector3(GroundFloor.HALL.end.x - 4.6, 1, GroundFloor.HALL_Z), Vector3(4.8, 2, 2))
+	var near := Trigger.create(self, Vector3(GroundFloor.HALL.end.x - 4.6, 1, GroundFloor.HALL_Z), Vector3(4.8, 2, GroundFloor.HALL.size.y - 0.4))
 	near.require_all = true
 	near.waiting.connect(func(inside, total): sync.team_notice("Rourke is waiting for everyone at Server Room A (%d/%d)" % [inside, total]))
 	near.entered.connect(func(_b): sync.event("_on_reach_server_room", [null]))
@@ -1562,6 +1565,9 @@ const DESK_SPOT := Vector3(GroundFloor.DESK.x - 0.5, 0, GroundFloor.DESK.z + 1.6
 ## the doorway so the crew can walk past him.
 const HOLD_DOOR_AT := Vector3(GroundFloor.LIFT_HALL.position.x + 1.0, 0, GroundFloor.HALL_Z + 1.05)
 
+## How far into the lift hall that door's swing reaches (the crew is "past" it beyond this).
+const DOOR_SWING := 2.2
+
 ## Where he stops at the hall's far end, in front of that door.
 const HALL_END_SPOT := Vector3(GroundFloor.HALL.end.x - 1.6, 0, GroundFloor.HALL_Z)
 
@@ -1583,7 +1589,8 @@ func _on_reach_server_room(_b: Node) -> void:
 	await hud.line("l0_elevator")
 	hud.todo("Going up", "Follow Rourke to the elevator")
 	# The door swings shut once the whole crew is past him and clear of its swing.
-	var past := Trigger.create(self, Vector3(GroundFloor.LIFT_HALL.end.x - 1.9, 1, GroundFloor.mid(GroundFloor.LIFT_HALL).z), Vector3(3.8, 2, GroundFloor.LIFT_HALL.size.y))
+	var lifts := GroundFloor.LIFT_HALL
+	var past := Trigger.create(self, Vector3(lifts.end.x - (lifts.size.x - DOOR_SWING) / 2.0, 1, GroundFloor.mid(lifts).z), Vector3(lifts.size.x - DOOR_SWING, 2, lifts.size.y))
 	past.require_all = true
 	past.waiting.connect(func(n, total): sync.team_notice("Rourke is holding the door for everyone (%d/%d)" % [n, total]))
 	past.entered.connect(func(_b): sync.event("_on_crew_at_elevators"))
@@ -1635,20 +1642,26 @@ func _on_elevator_closed() -> void:
 	finish_level("level_1")
 
 
-## Rourke's walks from the front desk, round the west partition and along the north
-## corridor: straight steps, so he never snags on the desk's corner.
+## Rourke's walks from the front desk, round a partition and along the north
+## corridor: straight steps, so he never snags on the desk's corner. West about for
+## the cafeteria, east about for the IT closet.
 const ROUND_THE_DESK := [
 	Vector3(-GroundFloor.AISLE_X + 0.2, 0, DESK_SPOT.z),
 	Vector3(-GroundFloor.AISLE_X, 0, GroundFloor.LOBBY.position.y + 0.5),
 	Vector3(-GroundFloor.AISLE_X, 0, GroundFloor.CORRIDOR_Z),
 ]
+const ROUND_THE_DESK_EAST := [
+	Vector3(GroundFloor.AISLE_X - 0.2, 0, DESK_SPOT.z),
+	Vector3(GroundFloor.AISLE_X, 0, GroundFloor.LOBBY.position.y + 0.5),
+	Vector3(GroundFloor.AISLE_X, 0, GroundFloor.CORRIDOR_Z),
+]
 const TO_CAFETERIA := ROUND_THE_DESK + [
 	Vector3(GroundFloor.CAFETERIA_DOOR_X, 0, GroundFloor.CORRIDOR_Z),
 	Vector3(GroundFloor.CAFETERIA_DOOR_X, 0, GroundFloor.CORRIDOR.position.y - 0.6),
-	Vector3(GroundFloor.VENDING_AT.x - 1.2, 0, GroundFloor.CORRIDOR.position.y - 1.0),
-	Vector3(GroundFloor.VENDING_AT.x - 1.2, 0, GroundFloor.VENDING_AT.z),
+	Vector3(GroundFloor.CAFETERIA_DOOR_X, 0, GroundFloor.VENDING_AT.z - 1.2),
+	Vector3(GroundFloor.VENDING_AT.x, 0, GroundFloor.VENDING_AT.z - 1.2),
 ]
-const TO_IT_CLOSET := ROUND_THE_DESK + [
+const TO_IT_CLOSET := ROUND_THE_DESK_EAST + [
 	Vector3(GroundFloor.IT_DOOR_X, 0, GroundFloor.CORRIDOR_Z),
 	Vector3(GroundFloor.IT_DOOR_X, 0, GroundFloor.CORRIDOR.position.y - 1.0),
 ]
@@ -1721,7 +1734,7 @@ func _on_coffee() -> void:
 	cup.mesh = cm
 	cup.material_override = Greybox.mat(Color(0.92, 0.9, 0.85))
 	cup.name = "CoffeeCup"
-	cup.position = GroundFloor.VENDING_AT + Vector3(-0.55, -0.35, 0)
+	cup.position = GroundFloor.VENDING_AT + Vector3(0, -0.35, -GroundFloor.VENDING_SIZE.z / 2.0 - 0.1)
 	geo.add_child(cup)
 	if sync.is_host():
 		_rourke_back_to_desk(TO_CAFETERIA)

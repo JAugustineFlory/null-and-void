@@ -20,6 +20,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_cage()
 	await test_shredder()
 	await test_watcher()
+	await test_mimic()
 	await test_coop()
 
 
@@ -430,6 +431,72 @@ func test_watcher() -> void:
 	await frames(5)
 	check(Counterplay.hidden_in(p) == cabinet and not w.player_sees(p), "in a cabinet, you can't see out")
 	check(await until(func(): return not caught.is_empty(), 400) and caught[0] == p, "it walks to the cabinet and takes you")
+	await done(a)
+
+
+## The Mimic: a strobe pins it, a blast or a throw sends it off, and with its way
+## out shut it's cornered and stops turning up anywhere else.
+func test_mimic() -> void:
+	print("Counterplay: the Mimic")
+	var r := arena(Vector3(0, 0.1, 3))  # strobe range
+	var a: Node3D = r[0]
+	var p: Player = r[1]
+	var cp: Counterplay = r[2]
+	# A wall at x 3 with a doorway at z 0 and a door in it; the Mimic's way out is through it.
+	var geo := NavigationRegion3D.new()
+	a.add_child(geo)
+	Greybox.box(geo, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "NavFloor")
+	Greybox.box(geo, Vector3(3, 1.5, -10.75), Vector3(0.3, 3, 19.5), Color.GRAY, "WallN")
+	Greybox.box(geo, Vector3(3, 1.5, 10.75), Vector3(0.3, 3, 19.5), Color.GRAY, "WallS")
+	var nm := NavigationMesh.new()
+	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	nm.agent_radius = 0.3
+	nm.cell_size = 0.1
+	nm.cell_height = 0.1
+	geo.navigation_mesh = nm
+	geo.bake_navigation_mesh(false)
+	var door := Door.create(a, "TEST-MIMIC", Vector3(3, 1.2, 0), Vector3(0.1, 2.4, 2.0))
+	door.set_open(true, true)
+	var m := Mimic.new()
+	m.active = false
+	a.add_child(m)
+	m.stand(Vector3(0, 0.1, 0), Vector3(0, 0.1, -5))
+	m.retreat = Vector3(8, 0.1, 0)
+	m.haunts = [{"at": Vector3(-2, 0.1, -4), "look": Vector3(-2, 0.1, -8)}]
+	await frames(30)
+	m.active = true
+	check(cp.strobe() and m._pinned > 0.0, "you strobe it as you look at it")
+	await frames(60)
+	check(m.state == "standing", "it can't get away: time to read its lanyard")
+	check(await until(func(): return m.state == "leaving", 120), "then it goes")
+	check(await until(func(): return m.state == "gone", 400), "out through the door")
+	# Its way out shut: cornered.
+	m.stand(Vector3(0, 0.1, 0), Vector3(0, 0.1, -5))
+	m.visible = true
+	door.set_open(false, true)
+	door.locked = true
+	await frames(5)
+	check(await until(func(): return m.state == "cornered", 400), "with the door shut, it's cornered")
+	await frames(int((Mimic.CORNER_RETRY + Mimic.CORNER_AFTER) * 60) + 30)
+	check(m.state in ["cornered", "leaving"] and m.visible and m.global_position.x < 3.0, "and stays cornered, turning up nowhere else")
+	door.locked = false
+	door.set_open(true, true)
+	check(await until(func(): return m.state == "gone", 600), "open the door and it gets away")
+	# A blast or a throw sends it off, the same as being seen; strobed, it stays.
+	p.rotation.y = PI  # not looking
+	m.stand(Vector3(0, 0.1, 0), Vector3(0, 0.1, -5))
+	m.visible = true
+	await frames(5)
+	m.set_meta("counter_stunned_at", -INF)
+	m.counter("strobe", Vector3.ZERO)
+	m.counter("extinguisher", Vector3.ZERO)
+	check(m.state == "standing", "pinned by the strobe, a blast doesn't move it")
+	m._pinned = 0.0
+	m.counter("extinguisher", Vector3.ZERO)
+	check(m.state == "leaving", "a blast sends it off")
+	m.stand(Vector3(0, 0.1, 0), Vector3(0, 0.1, -5))
+	m.counter("thrown", Vector3.ZERO)
+	check(m.state == "leaving", "so does something thrown")
 	await done(a)
 
 
