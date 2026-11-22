@@ -892,6 +892,8 @@ func test_coop() -> void:
 	var older: Dictionary = client.swipes.filter(func(w): return w.badge == client.lure_badge and w.reader == "LAB-B")[0]
 	_point(cui, "reader", older.reader, {"badge": client.lure_badge, "time": older.time})
 	check(not client.swipes_puzzle.solved and _game().case_info("radio").blank.get("miss", "") == client.RADIO_OLDER, "pointing at an older swipe: the blank wants the newest (N28)")
+	_point(cui, "time", newest.time, {"badge": client.lure_badge, "time": newest.time, "reader": newest.reader})
+	check(not client.swipes_puzzle.solved and _game().case_info("radio").blank.get("miss", "") == client.RADIO_MISS, "pointing at the newest swipe's time: not an older swipe, the blank wants the reader (N30)")
 	_point(cui, "reader", newest.reader, {"badge": client.lure_badge, "time": newest.time})
 	check(await _until(func(): return machines.all(func(l): return l.swipes_puzzle.solved), 60) and _game().case_info("radio").get("solved", false), "the reader on the newest swipe exposes it for everyone: that badge is on the floor, not at the loading door")
 	check(machines.all(func(l): return _game().case_info("people").get("open", false)), "and the people case opens")
