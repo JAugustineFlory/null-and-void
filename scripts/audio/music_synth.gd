@@ -14,7 +14,7 @@ const BEAT := 60.0 / BPM
 const LENGTH := BEAT * BEATS
 
 ## Every layer, quietest mood first.
-const LAYERS := ["drone", "pad", "pulse", "heart", "tension", "relief", "lobby", "lobby_off"]
+const LAYERS := ["drone", "pad", "pulse", "heart", "tension", "relief", "siren", "lobby", "lobby_off"]
 ## The lobby's tune runs twice as long as the rest (two loops of theirs, so it stays
 ## in time with them), and it comes out of a ceiling speaker, so it's made at a
 ## lower rate: no top end, and half the memory.
@@ -49,6 +49,7 @@ static func make(layer: String) -> AudioStreamWAV:
 		"heart": _heart(out)
 		"tension": _tension(out)
 		"relief": _relief(out)
+		"siren": _siren(out)
 	return SfxSynth._loop(SfxSynth._wav(out, RATE))
 
 
@@ -115,6 +116,44 @@ static func _relief(out: PackedFloat32Array) -> void:
 		var t := float(i) / RATE
 		var breathe := 0.7 + 0.3 * sin(TAU * t / LENGTH * 2.0)
 		out[i] = (sin(TAU * 440.0 * t) + sin(TAU * 554.4 * t) * 0.8 + sin(TAU * 659.3 * t) * 0.7 + sin(TAU * 220.0 * t) * 0.5) * 0.09 * breathe
+
+
+
+## The one-off sounds the score plays over its layers, or null: "sealed", as the
+## building locks the crew in (a deep boom, and a cluster of low brass that swells
+## and won't resolve). Four seconds, once.
+static func sting(kind: String) -> AudioStreamWAV:
+	if kind != "sealed":
+		return null
+	var n := int(4.0 * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# A semitone cluster, low: nothing in it agrees with anything else.
+	var cluster := [73.4, 77.8, 82.4, 110.0, 116.5]
+	for i in n:
+		var t := float(i) / RATE
+		var boom := sin(TAU * (48.0 - 18.0 * minf(t, 1.0)) * t) * exp(-t * 3.0) * 0.8
+		var swell := smoothstep(0.05, 1.4, t) * (1.0 - smoothstep(2.4, 4.0, t))
+		var brass := 0.0
+		for f in cluster:
+			brass += sin(TAU * f * t) + sin(TAU * f * 2.0 * t) * 0.35 + sin(TAU * f * 3.0 * t) * 0.15
+		out[i] = boom * clampf(t / 0.004, 0.0, 1.0) + brass * swell * 0.09
+	return SfxSynth._wav(out, RATE)
+
+
+## An alarm somewhere in the building, two notes a semitone apart trading on the
+## beat, through a wall: it isn't the music, but the music won't ignore it.
+static func _siren(out: PackedFloat32Array) -> void:
+	for i in out.size():
+		var t := float(i) / RATE
+		var into := fmod(t, BEAT) / BEAT
+		# Which note: high on even beats; a quick glide between them, not a click.
+		var high := int(t / BEAT) % 2 == 0
+		var glide := smoothstep(0.0, 0.08, into)
+		var mix := glide if high else 1.0 - glide
+		var tone := lerpf(sin(TAU * 493.9 * t) + sin(TAU * 1481.7 * t) * 0.15, sin(TAU * 466.2 * t) + sin(TAU * 1398.6 * t) * 0.15, 1.0 - mix)
+		var swell := 0.75 + 0.25 * sin(TAU * t / LENGTH * 4.0)
+		out[i] = tone * 0.22 * swell
 
 
 # --- The lobby -------------------------------------------------------------------

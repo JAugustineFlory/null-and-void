@@ -1,0 +1,3 @@
+- **Added:** every room sounds its size: a vent rings close and tinny, an office is nearly dry, halls and stairwells echo, and outside there's no echo at all.
+- **Added:** each floor has its own sound under everything else, from humming server rows and droning transformers to the cold store's compressors and the quiet of the archive.
+- **Added:** the music hears the building's alarms, tightens when something is close to you, and knows when a door has just locked you in.
