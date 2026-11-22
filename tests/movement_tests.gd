@@ -40,6 +40,7 @@ func _run_moves() -> void:
 	await test_crate_stack()
 	await test_pry_doors()
 	await test_hatch()
+	await test_stuck_lift()
 	await test_same_controls_same_moves()
 	await test_first_person_motion()
 
@@ -1121,6 +1122,67 @@ func test_hatch() -> void:
 				break
 		check(shut_ok and up, "%s: shut, a jump goes nowhere; open, you jump, catch the rim and pull up onto the roof (y %.2f)" % ["largest body" if big else "standard body", p.global_position.y])
 		await done(a)
+
+
+## E9 on a real lift that sticks (ElevatorStall), fitted with PryDoors.fit: out
+## through its roof hatch, or two strong crew prying its doors.
+func test_stuck_lift() -> void:
+	print("Movement: out of a stuck lift")
+	var a := arena()
+	var lift := Elevator.create(a, a, Vector3(0, 0, -3), 0, "G", ["G", "1"], "1")
+	var stall := ElevatorStall.attach(lift, a, "movement_lift")
+	var doors := PryDoors.fit(stall)
+	var climb: MovementVolume = stall.hatch_climb
+	var shape: CollisionShape3D = doors.grips[0].get_child(0)
+	await frames(5)
+	check(not doors.enabled and shape.disabled and not climb.active and doors.grips[1].get_prompt(null) == "", "fitted to a lift that isn't stuck: nothing in its doorway, nothing to climb")
+	var p := spawn(a, lift.to_global(Vector3(ElevatorStall.HATCH.position.x, 0.05, ElevatorStall.HATCH.position.y)))
+	var q := spawn(a, lift.to_global(Vector3(-0.4, 0.05, 0.7)))
+	var r := spawn(a, lift.to_global(Vector3(0.4, 0.05, 0.7)))
+	q.crew = "june"
+	r.crew = "marcus"
+	var hows := []
+	stall.released_by.connect(func(how): hows.append(how))
+	stall.stall_ride(0, 1, 0.1)
+	for i in 120:
+		if stall.stalled:
+			break
+		await frames(1)
+	await frames(3)
+	check(stall.stalled and doors.enabled and not shape.disabled and not climb.active, "stuck: the doors can be gripped; the hatch is still shut")
+	p.controls.jump = true
+	await frames(60)
+	var shut_ok := p.global_position.y < 0.3
+	stall.hatch._open(0)
+	await frames(2)
+	var roof := lift.global_position.y + Elevator.SIZE.y
+	var up := false
+	for i in 3:
+		p.controls.jump = true
+		for f in 60:
+			await frames(1)
+			if p.state == Player.Move.WALK and p.is_on_floor() and p.global_position.y > roof:
+				up = true
+				break
+		if up:
+			break
+	check(shut_ok and climb.active and up, "shut, a jump goes nowhere; pushed open, you're up through it onto the car's roof (y %.2f)" % p.global_position.y)
+	q.controls.use = true
+	doors.grips[0].interact(q)
+	r.controls.use = true
+	doors.grips[1].interact(r)
+	for f in int(PryDoors.PRY_TIME * 60) + 60:
+		await frames(1)
+		if not hows.is_empty():
+			break
+	check(doors.opened and hows == ["pry"], "June and Marcus pull the doors apart, and that's the way out")
+	for i in 60:
+		if not stall.stalled:
+			break
+		await frames(1)
+	await frames(3)
+	check(not stall.stalled and not climb.active and shape.disabled and q.gripping == null, "moving again: the grips and the climb are gone, and nobody's left holding on")
+	await done(a)
 
 
 func test_shoulders() -> void:

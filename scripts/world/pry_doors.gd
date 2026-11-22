@@ -33,7 +33,7 @@ var enabled := true:
 	set(value):
 		enabled = value
 		for g in grips:
-			g.enabled = value and not opened
+			_switch(g, value and not opened)
 		if not value and not opened and (holders[0] != 0 or holders[1] != 0):
 			var sync := LevelSync.of(self) if is_inside_tree() else null
 			if sync == null or sync.is_host():
@@ -71,6 +71,33 @@ static func make(parent: Node3D, center: Vector3, out: Vector3, width: float = 0
 		g.add_to_group("interactable")
 		d.grips.append(g)
 	return d
+
+
+## A grip on or off. Off, it isn't there at all, so it's never in the doorway of a
+## lift that isn't stuck.
+static func _switch(g: PryGrip, on: bool) -> void:
+	g.enabled = on
+	for c in g.get_children():
+		if c is CollisionShape3D:
+			c.set_deferred("disabled", not on)
+
+
+## E9 for a lift that can stick (ElevatorStall): the pry just inside its doors
+## and the climb up through its roof hatch, both under the car and linked to the
+## stall, so they're on only while it's stuck (the climb once the hatch is open
+## too). Returns the pry; the climb is `stall.hatch_climb`.
+static func fit(stall: ElevatorStall) -> PryDoors:
+	var e := stall.elevator
+	var doors := make(e, Vector3(0, 1.0, 0.2), Vector3.BACK, 0.5)
+	var rim := stall.hatch_rim()
+	var roof := stall.roof_spot()
+	var climb := Traversal.hatch(e, e.to_local(rim), ElevatorStall.HATCH.size, e.to_local(roof))
+	climb.name = "HatchClimb"
+	climb.a = rim
+	climb.b = roof
+	stall.link_pry(doors)
+	stall.link_hatch_climb(climb)
+	return doors
 
 
 ## On the machine whose player pressed E on grip `index`: ask to take hold.
@@ -198,7 +225,7 @@ func pried() -> void:
 	opened = true
 	set_holders([0, 0], false)
 	for g in grips:
-		g.enabled = false
+		_switch(g, false)
 	pried_open.emit()
 
 
