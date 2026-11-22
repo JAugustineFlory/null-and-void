@@ -802,14 +802,24 @@ func test_music_layers() -> void:
 		var start := Time.get_ticks_msec()
 		var w := MusicSynth.make(layer)
 		ms += Time.get_ticks_msec() - start
-		check(w != null and w.loop_mode == AudioStreamWAV.LOOP_FORWARD and w.loop_end == MusicSynth.samples(),
-			"music layer %s loops, the same length as the rest" % layer)
+		var secs := float(w.loop_end) / w.mix_rate if w else 0.0
+		var loops := secs / MusicSynth.LENGTH
+		check(w != null and w.loop_mode == AudioStreamWAV.LOOP_FORWARD and is_equal_approx(secs, MusicSynth.seconds(layer))
+			and loops >= 1.0 and is_equal_approx(loops, roundf(loops)),
+			"music layer %s loops, a whole number of the others' loops long (%.2f s)" % [layer, secs])
 		var peak := _peak(w, 7)
 		check(peak > 0.1 and _clipped(w, 7) < 0.001, "music layer %s is audible and not clipped (peak %.2f)" % [layer, peak])
 		var first := w.data.decode_s16(0) / 26000.0
 		var last := w.data.decode_s16((w.loop_end - 1) * 2) / 26000.0
 		check(absf(first - last) < 0.05, "music layer %s loops without a click (seam %.3f)" % [layer, absf(first - last)])
 	print("    (music made in %d ms)" % ms)
+	var lobby := MusicSynth.make("lobby")
+	check(lobby.mix_rate == MusicSynth.LOBBY_RATE and is_equal_approx(MusicSynth.seconds("lobby"), MusicSynth.LENGTH * 2.0),
+		"the lobby's tune runs two of the others' loops, through a ceiling speaker")
+	check(MusicSynth.LOBBY_TUNE.back()[2] == 72 and MusicSynth.SAG > 0.0 and MusicSynth.SAG < 0.5,
+		"the tune's last note sags, a little: not quite right, not obviously wrong")
+	# The shadow is quieter than the tune itself.
+	check(_peak(MusicSynth.make("lobby_off"), 7) < _peak(lobby, 7), "the lobby's shadow sits under the tune")
 	check(MusicSynth.make("kazoo") == null, "there's no layer that isn't listed")
 	for m in Music.MOODS:
 		for layer in Music.MOODS[m]:
@@ -855,6 +865,13 @@ class FakeWorld extends Node:
 	signal checkpoint_reached(wing_id: String)
 	var current: Node
 	var home: Node
+	var player: Node3D
+
+
+## Stands in for a floor: its key, and (Floor 10) its copy of the ground floor.
+class FakeWing extends Node3D:
+	var wing_id := ""
+	var g_root: Node3D
 
 
 func test_npc_danger() -> void:
@@ -923,6 +940,7 @@ func test_music_director() -> void:
 	s.reparent(other)
 	s.active = true
 	check(d.pick() == "uneasy", "a threat on another floor doesn't count")
+	await _lobby_moods(world, d, game)
 	world.home = Node3D.new()
 	world.current = world.home
 	check(d.pick() == "checkpoint", "at home base, relief")
@@ -932,6 +950,65 @@ func test_music_director() -> void:
 	check(d.pick() == "silent", "with no world, silence")
 	game.rourke_fate = fate
 	d.get_parent().queue_free()
+	await t.process_frame
+
+
+## The ground floor plays its own hold music inside; out by the van, the home theme.
+func _lobby_moods(world: FakeWorld, d: MusicDirector, game: Node) -> void:
+	var gf: Script = load(MusicDirector.GROUND_FLOOR)
+	var was: Node = world.current
+	var g := FakeWing.new()
+	g.wing_id = "level_0"
+	world.add_child(g)
+	world.current = g
+	var me := Node3D.new()
+	world.add_child(me)
+	world.player = me
+	game.rourke_fate = "unknown"
+	me.global_position = Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0)
+	check(d.pick() == "lobby", "in the lobby, its own hold music")
+	me.global_position = gf.mid(gf.LIFT_HALL)
+	check(d.pick() == "lobby", "all the way through the ground floor, to the lifts")
+	me.global_position = Vector3(gf.FRONT_AT.x, 0, gf.LOBBY.end.y + 9.0)
+	check(d.pick() == "checkpoint", "out in the car park, by the van, the home theme still")
+	me.global_position = Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0)
+	var s := Shredder.new()
+	g.add_child(s)
+	s.set_process(false)
+	s.set_physics_process(false)
+	s.active = true
+	s.state = "roaming"
+	check(d.pick() == "hunted", "danger in the lobby hands over to the score")
+	s.free()
+	# Floor 10's walk out, through the same lobby, built somewhere else entirely.
+	var f10 := FakeWing.new()
+	f10.wing_id = "level_4"
+	world.add_child(f10)
+	f10.position = Vector3(74, 0, -140)
+	f10.g_root = Node3D.new()
+	f10.add_child(f10.g_root)
+	f10.g_root.position = Vector3(0, -40, 0)
+	world.current = f10
+	game.rourke_fate = "tied"
+	me.global_position = f10.g_root.to_global(Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0))
+	check(d.pick() == "lobby_late", "the same lobby on the way out, after Rourke: the tune gone wrong")
+	me.global_position = f10.to_global(Vector3(0, 0, 0))
+	check(d.pick() == "uneasy", "the rest of floor 10 is floor 10")
+	game.rourke_fate = "unknown"
+	me.global_position = f10.g_root.to_global(Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0))
+	check(d.pick() == "lobby", "(the lobby itself, if Rourke hadn't turned)")
+	world.current = was
+	world.player = null
+	for n in [g, f10, me]:
+		n.free()
+	game.rourke_fate = "tied"
+	var m: Music = d.get_parent()
+	m.set_mood("lobby")
+	m._process(Music.FADE_IN)
+	check(m.level["lobby"] > 0.7 and m.level["lobby_off"] < 0.2 and m.level["drone"] == 0.0, "lobby: the tune, its shadow just under it")
+	m.set_mood("lobby_late")
+	m._process(Music.FADE_OUT)
+	check(m.level["lobby_off"] > m.level["lobby"] and m.level["drone"] > 0.0, "lobby_late: the shadow over the tune, and the drone back")
 	await t.process_frame
 
 

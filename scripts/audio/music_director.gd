@@ -3,17 +3,22 @@ extends Node
 ## Picks the music's mood from what's already true in the building, so a new floor
 ## gets music without adding calls to its level code:
 ##   - home base, and the ride up after a floor is done: checkpoint;
+##   - inside the ground floor (Level 0, and Floor 10's walk out through the same
+##     lobby): the lobby's own hold music, gone wrong once Rourke has; outside it,
+##     in the van and the car park, the home theme still;
 ##   - otherwise calm while Rourke still escorts the crew, uneasy once he's gone;
 ##   - hunted while a threat on the current floor is loose, chase while it's after
 ##     someone (see danger()).
 ## Everything it reads is the same on every machine (the World's wing and checkpoint
 ## signals, Game.rourke_fate, and NPC state the host replicates), so everyone hears
-## the same mood.
+## the same mood. The one exception is where you're standing on the ground floor: a
+## player still out by the van hears the home theme while one inside hears the lobby.
 
 ## How long the relief plays after a floor's checkpoint, unless danger cuts in.
 const CHECKPOINT_HOLD := 20.0
 ## How often the floor is checked for threats, in seconds.
 const POLL := 0.25
+const GROUND_FLOOR := "res://scripts/world/ground_floor.gd"
 
 var world: Node
 var _hold := 0.0
@@ -76,7 +81,35 @@ func pick() -> String:
 	if _hold > 0.0:
 		return "checkpoint"
 	var game := get_node_or_null("/root/Game")
-	return "uneasy" if game and game.rourke_fate != "unknown" else "calm"
+	var turned: bool = game != null and game.rourke_fate != "unknown"
+	var ground := ground_floor(here)
+	if ground:
+		var me: Node3D = world.get("player")
+		if me and indoors(ground.to_local(me.global_position)):
+			return "lobby_late" if turned else "lobby"
+		if here.get("wing_id") == "level_0":
+			return "checkpoint"  # the van and the car park keep the home theme
+	return "uneasy" if turned else "calm"
+
+
+## The ground floor's frame on this floor, in GroundFloor's coordinates: Level 0
+## itself, or Floor 10's copy of it (its g_root). Null on any other floor.
+static func ground_floor(here: Node) -> Node3D:
+	if here.get("wing_id") == "level_0":
+		return here as Node3D
+	var g = here.get("g_root")
+	return g as Node3D if g is Node3D else null
+
+
+## Is `at` (GroundFloor's coordinates) inside the building, not out in the car park?
+## (GroundFloor is loaded when it's needed: naming it here would pull the levels
+## into everything that loads the music.)
+static func indoors(at: Vector3) -> bool:
+	var g: Script = load(GROUND_FLOOR)
+	var west: float = g.CORRIDOR.position.x
+	var north: float = g.MAILROOM.position.y
+	var inside := Rect2(west, north, g.LIFT_HALL.end.x - west, g.LOBBY.end.y - north)
+	return inside.has_point(Vector2(at.x, at.z)) and at.y > -1.0 and at.y < g.LOBBY_H + 1.0
 
 
 func _process(delta: float) -> void:
