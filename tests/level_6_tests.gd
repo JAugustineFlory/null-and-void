@@ -192,7 +192,7 @@ func _papers(level: Node) -> void:
 	check(card and card.title == "Pairing card" and level.IT_CAGE.has_point(level.to_local(card.global_position)) and card.global_position.distance_to(level.find_child("KeySticky", true, false).global_position) < 1.2, "the cradle card is the pairing card now, at the bench beside the key sticky")
 	check(card.clues.all(func(c): return not c.has("opens")), "reading the pairing card early only notes its clue")
 	var over_c: Document = level.find_child("VaultCDoorSign", true, false)
-	check(over_c and over_c.plain_text().contains("VAULT C  -  DEEP FREEZE  -  " + level.data.doors.vault_c), "the sign over Vault C's door shows its id, as the anteroom's does (V30)")
+	check(over_c and over_c.plain_text().contains("VAULT C  -  DEEP FREEZE  -  " + level.data.doors.vault_c), "the sign by Vault C's door shows its id, as the anteroom's does (V30)")
 	var over_a: Document = level.find_child("AnteDoorSign", true, false)
 	check(over_a and over_a.plain_text().contains(level.data.doors.ante), "and the anteroom's sign shows its own")
 	check(level.find_child("WarmUpSign", true, false) != null and level.WARM_ROOMS.has(level.WARM_UP) and level.AP_ROOMS.has(level.WARM_UP) and not level.CORRIDOR.intersects(level.WARM_UP), "the warm-up area: signed, warm, outside the corridor's cold, and an access point covers it")

@@ -443,6 +443,9 @@ const PUZZLES := {
 		"ladder": "review",
 		"teaches": ["freezer_log", "clock_out"],
 		"needs": ["SELECT", "COLUMNS", "FROM", "WHERE", "IS NULL", "ORDER BY", "freezer_log"],
+		# Naming columns is floor G's lesson; on B1 the case's shape shows them under
+		# the chip once the first query opens the case (M1), not before.
+		"known_gap": "the named columns show in the case's shape once the first query opens it",
 	},
 	# The try (v0.10 package, M1): the cradle's self-test label, one set. The editor,
 	# let, a request as a script line and the log, run once. Two tiers, as approved
