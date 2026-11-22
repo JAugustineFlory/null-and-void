@@ -81,7 +81,7 @@ func _physics_process(delta: float) -> void:
 ## Moves that place the body themselves (climbing, riding, at a terminal): not a fall.
 func _driven() -> bool:
 	return player.state in [Player.Move.RIDE, Player.Move.TERMINAL, Player.Move.MANTLE, Player.Move.HANG,
-		Player.Move.CLIMB, Player.Move.VAULT, Player.Move.LEDGE, Player.Move.SIT] or player.seated
+		Player.Move.CLIMB, Player.Move.VAULT, Player.Move.LEDGE, Player.Move.SIT, Player.Move.LIFT] or player.seated
 
 
 ## Back onto solid ground: the last safe spot, or the floor's checkpoint.

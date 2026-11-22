@@ -19,7 +19,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hum_on_ambience()
 	await test_terminal_sounds()
 	await test_door_sounds()
+	await test_elevator_sounds()
 	test_touch_kinds()
+	check(Sfx.KINDS.has(Counterplay.BLAST_SOUND) and Sfx.stream(Counterplay.BLAST_SOUND) != null, "a fire extinguisher's blast has its burst and hiss")
 	await test_touch()
 	await test_every_interactable_sounds()
 	test_surfaces()
@@ -239,6 +241,40 @@ func test_door_sounds() -> void:
 	await t.process_frame
 
 
+## An elevator: the bell and doors as it opens, the doors meeting as it shuts, the brake
+## letting go and the hoist humming through the ride, and the brake catching at the floor.
+func test_elevator_sounds() -> void:
+	var room := Node3D.new()
+	t.root.add_child(room)
+	var lift := Elevator.create(room, room, Vector3(0, 0, 0), 0.0, "G", ["14", "G"], "14")
+	var kinds := func(): return lift.get_meta("sounds_played", []).map(func(x): return x.kind)
+	await t.process_frame
+	lift.open()
+	await t.process_frame
+	await t.process_frame
+	check(kinds.call() == ["lift_ding", "door_motor"], "the car's bell rings as its doors part, over their motor (%s)" % [kinds.call()])
+	await t.create_timer(Elevator.OPEN_TIME + 0.2).timeout
+	lift.close()
+	await t.create_timer(Elevator.CLOSE_TIME + 0.2).timeout
+	check(kinds.call().slice(2) == ["door_motor", "clunk"], "closing: the motor, then the doors meet (%s)" % [kinds.call().slice(2)])
+	lift.ride(2.5)
+	await t.process_frame
+	await t.process_frame
+	var sounds: SfxElevator = lift.get_node("Sounds")
+	check(kinds.call().back() == "lift_thunk" and is_instance_valid(sounds.ride_loop) and sounds.ride_loop.playing,
+		"the brake lets go and the hoist hums up the shaft")
+	await t.create_timer(2.7).timeout
+	check(kinds.call().has("cable_creak"), "the cables groan now and then on the way")
+	check(kinds.call().back() == "lift_thunk" and sounds.ride_loop == null and not lift.riding, "and the brake catches at the floor; the hum stops")
+	var n: int = kinds.call().size()
+	var other := Elevator.create(room, room, Vector3(6, 0, 0), 0.0, "14", ["14", "G"], "G")
+	other.open(true)
+	await t.process_frame
+	await t.process_frame
+	check(other.get_meta("sounds_played", []).is_empty() and kinds.call().size() == n, "a car already open when a floor loads makes no sound")
+	room.queue_free()
+	await t.process_frame
+
 ## What each thing you can use sounds like, from what it is and what its prompt says.
 func test_touch_kinds() -> void:
 	var cases := {"Open your locker": "locker", "Press 22": "button", "Reset breaker B-1": "switch",
@@ -313,6 +349,43 @@ func test_touch() -> void:
 	await t.process_frame
 
 
+## The floors' vents and badge readers sound as they work, on every machine (each
+## of these runs everywhere).
+func _vents_and_readers(scene: String, level: Node) -> void:
+	var last := func(n: Node): return n.get_meta("sounds_played", [{}]).back().get("kind", "")
+	match scene:
+		"level_0":
+			level._on_vent_grate()
+			check(last.call(level) == "panel_off", "floor G: the air return's grate is worked out of its frame")
+			level._on_boost()  # after Rourke's line
+			var end := Time.get_ticks_msec() + 15000
+			while last.call(level) != "ceiling_tile" and Time.get_ticks_msec() < end:
+				await t.create_timer(0.1).timeout
+			check(last.call(level) == "ceiling_tile", "the ceiling tile knocks up into the void")
+		"level_2":
+			level.set_hatch(true)
+			check(last.call(level.geo) == "hinge", "floor 22: the vent hatch's hinge squeals open")
+			level.set_hatch(false)
+			check(last.call(level.geo) == "clunk", "and clunks shut")
+			level.open_vent_grate()
+			check(last.call(level.geo) == "unscrew", "the grate's screws come out")
+			await t.create_timer(0.6).timeout
+			check(last.call(level.geo) == "clatter", "and it clatters to the floor as it lands")
+			var lab: Level2Lab = level.lab
+			level.player.inventory.remove("visitor_badge")
+			lab._on_reader(level.player)
+			check(last.call(level.geo) == "reader_no", "the lab's reader blats at someone with no badge")
+			lab._badged(99, "VIS-09")
+			check(last.call(level.geo) == "reader_ok", "and chirps for a visitor badge")
+		"level_5":
+			level._swipe("VIS-01", "PERS-FRONT", "23:10")
+			check(last.call(level) == "reader_ok", "floor 9: a doorway reader chirps as a badge goes by")
+		"level_6":
+			var vault: String = level.VAULT_ROOMS.keys()[0]
+			level._punch("VIS-01", vault, true)
+			check(last.call(level) == "reader_ok", "B1: a vault's reader chirps as a card punches in")
+
+
 ## Everything on every floor that can be used makes a sound (or is quiet on purpose).
 func test_every_interactable_sounds() -> void:
 	var game := t.root.get_node("Game")
@@ -333,6 +406,7 @@ func test_every_interactable_sounds() -> void:
 			kinds[kind] = true
 			if kind == "" or (sound != "" and not (Sfx.KINDS.has(sound) and Sfx.stream(sound) != null and n.used.is_connected(n._on_touched))):
 				unsounded.append("%s %s \"%s\"" % [scene, n.name, n.prompt])
+		await _vents_and_readers(scene, level)
 		level.queue_free()
 		await t.process_frame
 	check(count > 300 and unsounded.is_empty(),
@@ -373,7 +447,7 @@ func _walker(how: String, surface := "") -> Array:
 	p.controls.crouch = how == "crouch"
 	for i in 120:
 		await t.physics_frame
-	var steps: Array = p.get_node("Steps").heard.filter(func(h): return h.kind.begins_with("step_"))
+	var steps: Array = p.get_node("Steps").heard.filter(func(h): return h.kind.begins_with("step_") or h.kind == "duct_crawl")
 	a.queue_free()
 	await t.process_frame
 	return [steps, noise]
@@ -391,6 +465,9 @@ func test_footsteps() -> void:
 	check(not crouch[0].is_empty() and crouch[0].all(func(h): return h.db == SfxSteps.CROUCH_DB) and crouch[1].is_empty(),
 		"crouching, your steps are barely there, and the Shredder hears nothing either")
 	check(sprint[1].size() > 0 and sprint[1].all(func(l): return l >= 0.5), "sprinting is loud to the Shredder too")
+	var duct: Array = await _walker("crouch", "vent")
+	check(not duct[0].is_empty() and duct[0].all(func(h): return h.kind == "duct_crawl" and h.db == SfxSteps.CRAWL_VENT_DB),
+		"crawling a duct, the sheet metal booms under each knee (%d)" % duct[0].size())
 	var carpet: Array = await _walker("walk", "carpet")
 	check(not carpet[0].is_empty() and carpet[0].all(func(h): return h.kind == "step_carpet"), "on carpet, carpet steps")
 

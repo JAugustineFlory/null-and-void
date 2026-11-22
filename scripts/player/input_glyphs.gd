@@ -28,7 +28,7 @@ const KEY_NAMES := {KEY_SPACE: "Space", KEY_SHIFT: "Shift", KEY_CTRL: "Ctrl", KE
 ## Which action a bracketed keyboard key in a prompt stands for.
 const PROMPT_KEYS := {"E": "interact", "X": "alt_interact", "Space": "jump", "Shift": "sprint",
 	"Ctrl": "crouch", "C": "crouch", "Z": "sit", "F": "flashlight", "Tab": "notebook", "I": "inventory",
-	"V": "radio_talk", "B": "voice_toggle", "Esc": "pause", "Click": "attack", "Right-click": "block"}
+	"V": "radio_talk", "B": "voice_toggle", "Esc": "pause", "Click": "attack", "Right-click": "block", "G": "throw"}
 static var _press := RegEx.create_from_string("\\b(Press|press|Hold|hold) (E|X|Space|Z|F|Tab|I|V|B|Esc)\\b")
 static var _bracket := RegEx.create_from_string("\\[([A-Za-z\\-]+)\\]")
 

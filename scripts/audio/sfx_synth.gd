@@ -1,7 +1,7 @@
 class_name SfxSynth
 ## Sounds made in code: the building's electrical noises (tube buzz, flicker crackle,
 ## CRT whine, server hum, beeps, key clicks, door motors), the security wing's
-## knocks and breaks, things you use (keypads, card readers, cranks, tape, grates)
+## knocks and breaks, things you use (keypads, card readers, cranks, tape, vents)
 ## and a fight's whooshes and falls. Tiny, and nothing to license. Sfx uses these
 ## whenever audio/sfx/ has no recorded file of the same name.
 
@@ -12,9 +12,11 @@ const HI_RATE := 44100
 ## Every sound this file can make.
 const KINDS := ["glass", "clunk", "click", "clatter", "tap", "beep", "error", "key", "flicker",
 	"door_motor", "swing", "body_fall", "pencil", "keypad", "card", "crank", "tape_tear", "sticky", "rattle",
-	"fluorescent_buzz", "crt_whine", "server_hum"]
+	"unscrew", "panel_off", "hinge", "ceiling_tile", "duct_crawl", "reader_ok", "reader_no",
+	"lift_ding", "lift_thunk", "cable_creak", "lift_ride", "extinguisher",
+	"fluorescent_buzz", "crt_whine", "server_hum", "gears"]
 ## The ones that loop (seamlessly).
-const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum"]
+const LOOPS := ["fluorescent_buzz", "crt_whine", "server_hum", "lift_ride", "gears"]
 
 
 ## The sound called `kind`, or null if there's no such sound.
@@ -23,14 +25,19 @@ static func make(kind: String) -> AudioStreamWAV:
 		"fluorescent_buzz": return _buzz()
 		"crt_whine": return _crt()
 		"server_hum": return _server()
+		"lift_ride": return _lift()
+		"gears": return _gears()
 	if kind not in KINDS:
 		return null
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(kind)
 	var secs: float = {"glass": 0.6, "clunk": 0.35, "click": 0.06, "clatter": 0.7, "tap": 0.9,
 		"beep": 0.14, "error": 0.42, "key": 0.05, "flicker": 0.22, "door_motor": 1.1,
-		"swing": 0.28, "body_fall": 0.7, "pencil": 0.34, "keypad": 0.13, "card": 0.32, "crank": 0.5,
-		"tape_tear": 0.45, "sticky": 0.2, "rattle": 0.3}.get(kind, 0.3)
+		"swing": 0.28, "body_fall": 0.7, "pencil": 0.34, "keypad": 0.13, "card": 0.2, "crank": 0.5,
+		"tape_tear": 0.45, "sticky": 0.2, "rattle": 0.3, "unscrew": 0.42,
+		"panel_off": 0.55, "hinge": 0.6, "ceiling_tile": 0.5, "duct_crawl": 0.32, "reader_ok": 0.22, "reader_no": 0.34,
+		"lift_ding": 1.3, "lift_thunk": 0.5, "cable_creak": 0.6,
+		"extinguisher": 0.8}.get(kind, 0.3)
 	var n := int(secs * RATE)
 	var out := PackedFloat32Array()
 	out.resize(n)
@@ -111,12 +118,11 @@ static func make(kind: String) -> AudioStreamWAV:
 				var chirp := sin(TAU * 1250 * t) * 0.3 * _edges(t - 0.02, 0.07, 0.004) if t > 0.02 else 0.0
 				v = low * exp(-t * 90.0) * 1.2 + chirp
 			"card":
-				# A card dragged through a reader's slot, then its beep.
+				# A card dragged through a reader's slot. The reader answers with reader_ok or reader_no.
 				low = lerpf(low, rng.randf_range(-1, 1), lerpf(0.15, 0.45, minf(t / 0.18, 1.0)))
 				lower = lerpf(lower, low, 0.05)
 				var drag := sin(PI * minf(t / 0.18, 1.0)) if t < 0.18 else 0.0
-				var ok := sin(TAU * 1800 * t) * 0.25 * _edges(t - 0.22, 0.08, 0.004) if t > 0.22 else 0.0
-				v = (low - lower) * 1.4 * drag + ok
+				v = (low - lower) * 1.4 * drag
 			"crank":
 				# A ratchet handle wound round: clicks, each with a little ring of steel.
 				var tick := fmod(t, 0.075)
@@ -138,6 +144,76 @@ static func make(kind: String) -> AudioStreamWAV:
 					if t >= h:
 						var d: float = t - h
 						v += (rng.randf_range(-1, 1) * 0.5 + sin(TAU * 1870 * d) * 0.3 + sin(TAU * 2950 * d) * 0.2) * exp(-d * 55.0) * (1.0 - h * 2.5)
+			"unscrew":
+				# A screwdriver backing a tight screw out: two squeaky turns, then the screw tinks free.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.6)
+				lower = lerpf(lower, low, 0.25)
+				var turn := 0.0
+				for st in [[0.0, 0.12], [0.15, 0.28]]:
+					if t >= st[0] and t < st[1]:
+						turn = sin(PI * (t - st[0]) / (st[1] - st[0]))
+				var squeak := sin(TAU * (2300.0 + 300.0 * sin(TAU * 9.0 * t)) * t) * 0.15
+				var tink := 0.0
+				if t > 0.31:
+					var d := t - 0.31
+					tink = (sin(TAU * 4200 * d) * 0.3 + sin(TAU * 6100 * d) * 0.15) * exp(-d * 40.0)
+				v = ((low - lower) * 1.2 + squeak) * turn * (0.7 + 0.3 * absf(sin(TAU * 41.0 * t))) + tink
+			"panel_off":
+				# A sheet-metal grate worked out of its frame: a gritty scrape, then it clanks loose.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.3)
+				lower = lerpf(lower, low, 0.1)
+				var scrape := sin(PI * t / 0.3) if t < 0.3 else 0.0
+				var grit := 0.5 + 0.5 * absf(sin(TAU * 23.0 * t))
+				v = ((low - lower) * 1.3 * grit + sin(TAU * 910 * t) * 0.06 + sin(TAU * 1730 * t) * 0.04) * scrape
+				if t > 0.3:
+					var d := t - 0.3
+					v += (rng.randf_range(-1, 1) * 0.4 + sin(TAU * 620 * d) * 0.3 + sin(TAU * 1330 * d) * 0.2) * exp(-d * 14.0)
+			"hinge":
+				# A dry hinge on a duct hatch: a squeal that sticks and slips as it swings.
+				phase += TAU * (700.0 + 400.0 * t / secs + rng.randf_range(-40, 40)) / RATE
+				var slip := 0.55 + 0.45 * signf(sin(TAU * 34.0 * t + sin(TAU * 3.0 * t)))
+				v = (sin(phase) * 0.3 + sin(phase * 2.0) * 0.18 + sin(phase * 3.0) * 0.1) * slip * sin(PI * t / secs)
+			"ceiling_tile":
+				# A fibreboard ceiling tile shoved up out of its grid: a soft knock, then grit trickling down.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.05)
+				var knock := low * 2.5 * exp(-t * 20.0) + sin(TAU * 160 * t) * 0.3 * exp(-t * 25.0)
+				var grit := (rng.randf_range(-1, 1) if rng.randf() > 0.96 else 0.0) * 0.5 * exp(-absf(t - 0.18) * 7.0)
+				v = knock + grit
+			"duct_crawl":
+				# A knee on a duct's floor: the sheet metal booms under it and pops back.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.1)
+				v = low * 1.5 * exp(-t * 25.0) + sin(TAU * 140 * t) * 0.45 * exp(-t * 12.0) + sin(TAU * (380.0 - 120.0 * t) * t) * 0.22 * exp(-t * 9.0)
+			"reader_ok":
+				# A badge reader taking a card: two quick rising chirps.
+				var f := 1600.0 if t < 0.1 else 2100.0
+				v = sin(TAU * f * t) * 0.32 * (_edges(t, 0.08, 0.004) if t < 0.1 else _edges(t - 0.12, 0.09, 0.004))
+			"reader_no":
+				# A badge reader turning a card down: three flat, low blats.
+				var k := fmod(t, 0.12)
+				v = (signf(sin(TAU * 400 * t)) * 0.22 + sin(TAU * 200 * t) * 0.15) * _edges(k, 0.08, 0.004)
+			"lift_ding":
+				# The car's arrival bell: one soft strike, its overtones dying first.
+				var f := 1046.5
+				v = (sin(TAU * f * t) * 0.4 + sin(TAU * f * 2.76 * t) * 0.12 * exp(-t * 6.0) + sin(TAU * f * 5.4 * t) * 0.05 * exp(-t * 12.0)) * exp(-t * 2.6) * minf(t / 0.003, 1.0)
+			"lift_thunk":
+				# The car's brake catching: a deep thud through the floor and a rattle of the panels.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.04)
+				var rattle := rng.randf_range(-1, 1) * 0.12 * exp(-absf(t - 0.08) * 30.0)
+				v = (low * 1.8 + sin(TAU * (55.0 - 15.0 * t) * t) * 0.7) * exp(-t * 9.0) + rattle
+			"cable_creak":
+				# A steel cable taking the strain: a low, slow stick-slip groan.
+				phase += TAU * (150.0 + 40.0 * sin(TAU * 1.3 * t) + rng.randf_range(-15, 15)) / RATE
+				var slip := 0.5 + 0.5 * signf(sin(TAU * 19.0 * t + 2.0 * sin(TAU * 2.0 * t)))
+				v = (sin(phase) * 0.35 + sin(phase * 2.0) * 0.2 + sin(phase * 3.0) * 0.12) * slip * sin(PI * t / secs) ** 2
+			"extinguisher":
+				# A fire extinguisher let off: the valve's burst, then a hard hiss of gas and
+				# powder that sputters out.
+				low = lerpf(low, rng.randf_range(-1, 1), 0.6)
+				lower = lerpf(lower, low, 0.15)
+				var burst := (rng.randf_range(-1, 1) * 0.7 + sin(TAU * 90 * t) * 0.45) * exp(-t * 35.0)
+				var env := minf(t / 0.02, 1.0) * (1.0 - smoothstep(0.45, secs, t))
+				var flutter := 0.85 + 0.15 * sin(TAU * 13.0 * t)
+				v = burst + ((low - lower) * 1.1 + lower * 0.5) * env * flutter
 		out[i] = v
 	return _wav(out, RATE)
 
@@ -145,11 +221,12 @@ static func make(kind: String) -> AudioStreamWAV:
 ## Fluorescent tubes on a magnetic ballast: a 120 Hz buzz with a rasp in it.
 ## Two seconds that loop with no seam.
 static func _buzz() -> AudioStreamWAV:
-	var n := RATE * 2
-	var out := _noise("fluorescent_buzz", n, 0.6)
+	var rate := RATE / 2  # a hum and its rasp: half rate holds it, in half the memory
+	var n := rate * 2
+	var out := _noise("fluorescent_buzz", n, 0.84)
 	for i in n:
-		out[i] = _mains(float(i) / RATE) * 0.5 + out[i] * 0.04
-	return _loop(_wav(out, RATE))
+		out[i] = _mains(float(i) / rate) * 0.5 + out[i] * 0.04
+	return _loop(_wav(out, rate))
 
 
 ## An old monitor: the thin flyback whine, a little mains hum and a static fizz.
@@ -164,14 +241,44 @@ static func _crt() -> AudioStreamWAV:
 
 ## A rack of servers: fan rush, a low hum and a slow swell between two fans.
 static func _server() -> AudioStreamWAV:
-	var n := RATE * 4
-	var rush := _noise("server_hum", n, 0.25)
-	var deep := _noise("server_hum_deep", n, 0.012)
+	var rate := RATE / 2  # nothing high in it: half rate, the same sound in half the memory
+	var n := rate * 4
+	var rush := _noise("server_hum", n, 0.44)
+	var deep := _noise("server_hum_deep", n, 0.024)
 	for i in n:
-		var t := float(i) / RATE
+		var t := float(i) / rate
 		var beat := 0.8 + 0.2 * sin(TAU * 0.5 * t)
 		rush[i] = (rush[i] * 0.35 + deep[i] * 2.5) * beat + sin(TAU * 60 * t) * 0.15 + sin(TAU * 180 * t) * 0.05
-	return _loop(_wav(rush, RATE))
+	return _loop(_wav(rush, rate))
+
+
+## Riding the lift: the hoist motor's hum, the car's faint rattle and air rushing
+## past in the shaft, swelling and easing. Two seconds that loop with no seam, at
+## half rate: there's nothing high in it.
+static func _lift() -> AudioStreamWAV:
+	var rate := RATE / 2
+	var n := rate * 2
+	var wind := _noise("lift_wind", n, 0.06)
+	var rattle := _noise("lift_rattle", n, 0.8)
+	for i in n:
+		var t := float(i) / rate
+		var swell := 0.75 + 0.25 * sin(TAU * 0.5 * t)
+		wind[i] = wind[i] * 2.4 * swell + sin(TAU * 50 * t) * 0.16 + sin(TAU * 100 * t) * 0.1 + sin(TAU * 150 * t) * 0.04 + rattle[i] * 0.015 * (0.5 + 0.5 * sin(TAU * 3.0 * t))
+	return _loop(_wav(wind, rate))
+
+
+## Open gears turning (GearTrain): a low motor drone under the tick of each tooth
+## meeting the next, 16 a second. Two seconds that loop with no seam.
+static func _gears() -> AudioStreamWAV:
+	var n := RATE * 2
+	var grind := _noise("gears", n, 0.3)
+	var drone := _noise("gears_drone", n, 0.02)
+	for i in n:
+		var t := float(i) / RATE
+		var tooth := fmod(t, 0.0625)
+		var tick := (1.0 - exp(-tooth * 900.0)) * exp(-tooth * 90.0) * (0.8 if int(t / 0.0625) % 2 == 0 else 0.55)
+		grind[i] = grind[i] * tick * 0.9 + drone[i] * 2.0 + sin(TAU * 50 * t) * 0.12
+	return _loop(_wav(grind, RATE))
 
 
 ## Mains buzz: 120 Hz and its odd-sounding harmonics, slightly clipped like a ballast.

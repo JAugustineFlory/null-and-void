@@ -15,6 +15,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	_check = check
 	print("Floor 10: the Power Plant")
 	test_data_every_seed()
+	test_doors_past_the_cap()
 	await test_scene()
 	await test_right_first_time()
 	await test_reset_capitals_elsewhere()
@@ -39,6 +40,13 @@ func _game() -> Node:
 func _frames(n: int) -> void:
 	for i in n:
 		await t.physics_frame
+
+
+## Click every line of `doc` with a piece on it, as a reader does (Document.take_line).
+func _take(doc: Node, p: Node) -> void:
+	for at in doc.piece_lines():
+		if at.line >= 0:
+			doc.take_line(p, at.line)
 
 
 func _doc(level: Node, title_part: String) -> Node:
@@ -212,6 +220,37 @@ func test_data_every_seed() -> void:
 	check(ok_lockout, "the bay's lockout row and its last hint pass, and the read-back reads it; the wrong breaker, swapped columns and a read don't")
 
 
+## The building's doors and lights by floor 10, every wing in (G, 14, 22, 18, 10):
+## main_doors is stored past the policy's 20 rows (why U35 reads it with a WHERE),
+## and the lights run past it too (R.O.'s sticky). Floor 10's own tables all fit.
+func test_doors_past_the_cap() -> void:
+	print("Floor 10: the building's doors and lights past the cap, 200 seeds")
+	var ok_doors := true
+	var ok_lights := true
+	var ok_small := true
+	var ok_policy := true
+	var at := {}
+	for s in range(1, 201):
+		var db := FacilityDB.new()
+		db.load_seed("")
+		for sql in [Level0Data.build(s).sql, Level1Data.build(s).sql, Level2Data.build(s).sql, Level3Data.build(s).sql]:
+			db.add_wing("w", sql)
+		var data := Level4Data.build(s, "WO-%05d" % (s % 100000))
+		db.add_wing("level_4", data.sql)
+		var ids := db.run_silent("SELECT id FROM doors").map(func(r): return r["id"])
+		var k := ids.find("main_doors")
+		at[k] = true
+		ok_doors = ok_doors and k >= TerminalPolicy.CAP
+		ok_lights = ok_lights and db.run_silent("SELECT id FROM lights").size() > TerminalPolicy.CAP
+		for table in ["breakers", "contractor_log", "lockouts", "gantry"]:
+			ok_small = ok_small and db.run_silent("SELECT COUNT(*) AS n FROM %s" % table)[0]["n"] < TerminalPolicy.CAP
+		ok_policy = ok_policy and db.run_silent("SELECT terminal, max_rows FROM terminal_policy ORDER BY terminal") == [
+			{"terminal": "BAY 10 PANEL", "max_rows": 20}, {"terminal": "DOOR & LIFT CONTROL", "max_rows": 20}, {"terminal": "FRONT DESK", "max_rows": 20}, {"terminal": "PLANT MAINT", "max_rows": 20}]
+	check(ok_doors, "main_doors is stored past row 20 of the building's doors on every seed (rows %s)" % [at.keys().map(func(k): return k + 1)])
+	check(ok_lights and ok_small, "the building's lights run past 20 rows; floor 10's own tables all fit under the cap")
+	check(ok_policy, "terminal_policy has a row for each of floor 10's four terminals, each at 20")
+
+
 func test_scene() -> void:
 	print("Floor 10: the switchgear hall and the control room")
 	_game().new_run(31)
@@ -232,13 +271,24 @@ func test_scene() -> void:
 	check(level.maint.puzzles.all(func(pz): return pz.hints.size() == 3) and level.controller.puzzles.all(func(pz): return pz.hints.size() == (2 if pz.id == "login_read" else 3)) \
 		and level.bay_terminal.puzzles.all(func(pz): return pz.hints.size() == 2), "every new write has a three-step hint ladder; the log's and the bay's read-backs, two-step reviews")
 	var ui: TerminalUI = level.terminal_ui
-	ui.terminal = level.maint
-	check(level.maint.next_hint().contains("UPDATE breakers SET state = 'on' WHERE id = 'enter_breaker_id'"), "the first hint is the UPDATE's shape with the breaker left blank")
+	check([level.maint, level.controller, level.bay_terminal, level.front_desk].all(func(term): return term.policy and term.reads_cap and term.boot_text()[1] == TerminalPolicy.BOOT_LINE),
+		"all four terminals are under the policy, its line second on each boot screen (P1)")
+	check(level.controller.boot_text()[2] == "Contractors log in first: contractor_log. Doors: doors.", "the controller's boot screen reads as the American English sheet has it")
+	ui.open(level.maint, p)
+	check(level.maint.next_hint() == level.SPOT_WORK_ORDER, "before the work order's read, .hint says it's on this desk (U7)")
 	var wo: Node = _doc(level, "Facilities work order")
 	check(wo != null and wo.plain_text().contains("UPDATE breakers SET state = 'on' WHERE id = 'CB-03';") and not wo.plain_text().contains(data.target), "the work order shows last month's UPDATE, not tonight's breaker")
 	wo.open_reader(p).close()
+	_take(wo, p)
 	await _frames(3)
 	check(_game().case_info("power").get("open", false) and _game().current_todo() == level.TEXT.todo_power, "reading the work order opens the power case and sets the to-do")
+	check(level.maint.next_hint().contains("UPDATE breakers SET state = 'on' WHERE id = 'enter_breaker_id'"), "then the first tier is the UPDATE's shape with the breaker left blank")
+	check(_game().case_query("power") == "UPDATE breakers SET state = 'on' WHERE id = 'enter_breaker_id';" and _game().has_piece("power", "state"), "the case's query has the work order's table and state in, and the breaker still to find (U3-U5): %s %s" % [_game().case_query("power"), _game().case_info("power").get("pieces", [])])
+	var tag: Node = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Breaker tag" and d.plain_text().contains("power event"))[0]
+	tag.report_open(p)
+	_take(tag, p)
+	await _frames(3)
+	check(_game().has_piece("power", "breaker") and _game().case_query("power") == "UPDATE breakers SET state = 'on' WHERE id = '%s';" % data.target, "PLANT CONTROL's tag gives tonight's breaker, and the query's whole (U6)")
 	ui.run("UPDATE breakers SET state = 'on' WHERE id = 'CB-03'")
 	await _frames(2)
 	check(not level.alarm and _said(level.maint, level.TEXT.tip_example), "copying the work order's CB-03 changes a row that was already on, and SYSOP says so")
@@ -276,14 +326,23 @@ func test_scene() -> void:
 	check(_game().current_todo() == level.TEXT.todo_check, "the to-do asks for the read-back")
 	await _frames(90)
 	check(level.ctrl_door.is_open and level.lights["L10-CTRL"].all(func(l): return l.visible), "the control room's lights are on and its door has opened")
-	# Read back: the sign-off.
-	ui.run("SELECT state FROM breakers WHERE id = '%s'" % data.bay_breaker)
-	check(not level.check_puzzle.solved, "reading back the wrong breaker doesn't sign it off")
+	# Read back: the sign-off, pointed at (U10-U15).
+	check(_game().case_query("power") == "SELECT state FROM breakers WHERE id = '%s';" % data.target and _game().case_info("power").blank.prompt == level.CHECK_SLOT, "the case moves on to the read-back: its query and its slot (%s)" % _game().case_query("power"))
 	ui.run("SELECT * FROM breakers")
+	check(_said(level.maint, TerminalPolicy.REFUSAL), "the whole panel on its own is refused (P2)")
+	ui.run("SELECT state FROM breakers")
 	await _frames(2)
-	check(level.check_puzzle.solved and _game().case_info("power").get("solved", false) and _game().case_info("power").how.contains(data.target), "reading the panel back, tonight's breaker on, signs off the work order, and the power case names it")
+	check(not t._point_at(ui, "state", "on") and not level.check_puzzle.solved and _game().case_info("power").blank.get("miss", "") == level.CHECK_WHOSE, "an 'on' in a list of states with no breaker beside it isn't the sign-off, and the pencil asks whose (U14)")
+	ui.run("SELECT id, state FROM breakers")
+	await _frames(2)
+	check(not t._point_at(ui, "state", "on", "CB-03") and _game().case_info("power").blank.get("miss", "") == level.CHECK_OTHER, "another breaker's state: that's another breaker (U12)")
+	check(not t._point_at(ui, "id", data.target) and _game().case_info("power").blank.get("miss", "") == level.CHECK_ROW, "tonight's id: the right row, the sign-off wants its state (U13)")
+	check(level.check_listed and t._point_at(ui, "state", "on", data.target), "pointing at tonight's breaker's state writes it in")
+	await _frames(2)
+	check(level.check_puzzle.solved and _game().case_info("power").get("solved", false) and _game().case_info("power").how.contains(data.target), "tonight's breaker read back as on signs off the work order, and the power case names it")
+	ui.close()
 	# The control room: the contractor log.
-	ui.terminal = level.controller
+	ui.open(level.controller, p)
 	var board: Node = _doc(level, "Contractor log")
 	check(board != null and board.plain_text().contains("INSERT INTO contractor_log (company, job, time_in) VALUES") and not board.plain_text().contains(data.ticket), "the clipboard shows another contractor's INSERT, not the crew's")
 	check(level.CTRL_ROOM.has_point(level.to_local(board.global_position)) and level.find_children("Clock", "Label3D", true, false).size() == 1, "the clipboard and the clock are in the control room")
@@ -294,13 +353,23 @@ func test_scene() -> void:
 	var to_eye: Vector3 = eye - clock.global_position
 	check(clock.global_basis.z.dot(to_eye.normalized()) > 0.5, "the clock over the control room door faces into the room, toward the controller")
 	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
-	var seen := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, clock.global_position))
+	# The clock's own face (read up close with E) isn't in the way of itself.
+	var ray := PhysicsRayQueryParameters3D.create(eye, clock.global_position)
+	ray.exclude = [level.find_child("ClockFace", true, false).get_rid()]
+	var seen := space.intersect_ray(ray)
 	check(seen.is_empty(), "nothing hides it from the controller%s" % ("" if seen.is_empty() else " (%s is in the way)" % seen.collider.name))
 	check(not space.intersect_ray(PhysicsRayQueryParameters3D.create(clock.global_position, clock.global_position - clock.global_basis.z * 0.06)).is_empty(), "and it's on the wall over the door, just in front of it")
 	check(clock.font_size * clock.pixel_size / to_eye.length() > 0.025, "its digits are big enough to read from there (%.2f m tall at %.1f m)" % [clock.font_size * clock.pixel_size, to_eye.length()])
 	board.open_reader(p).close()
+	_take(board, p)
 	await _frames(3)
 	check(_game().current_todo() == level.TEXT.todo_login, "reading the clipboard sets the log-in to-do")
+	check(_game().has_piece("login", "company") and _game().has_piece("login", "job") and _game().has_piece("login", "table") and not _game().has_piece("login", "time"), "our company and job number are found from our own work order, the table from the clipboard; the time isn't yet (U21-U23): %s" % [_game().case_info("login").get("pieces", [])])
+	var face: Node = level.find_child("ClockFace", true, false)
+	face.report_open(p)
+	_take(face, p)
+	await _frames(3)
+	check(_game().has_piece("login", "time") and _game().case_query("login") == "INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s');" % [data.company, data.ticket, data.time_in], "the clock read up close gives the time, and the log-in's query is whole (U20, U24)")
 	ui.run("INSERT INTO contractor_log VALUES ('%s', '%s', '%s')" % [data.company, data.ticket, data.time_in])
 	check(not level.login_puzzle.solved and Array(level.controller.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_count)), "without the column list it's a value short, and SYSOP says to name the columns")
 	ui.run("INSERT INTO contractor_log (company, job, time_in) VALUES ('%s', '%s', '%s')" % [data.ticket, data.company, data.time_in])
@@ -321,9 +390,16 @@ func test_scene() -> void:
 	ui.run("UPDATE doors SET locked = 0 WHERE id = 'PLANT-BAY'")
 	await _frames(2)
 	check(_said(level.controller, level.TEXT.refused_readback) and level.db.run_silent("SELECT locked FROM doors WHERE id = 'PLANT-BAY'")[0]["locked"] == 1, "a door write before the read-back is refused, and says to read it back")
-	ui.run("SELECT * FROM contractor_log")
+	check(not level.deck_cart.enabled, "the loaner decks stay locked until the log-in's read back (M3)")
+	ui.run("SELECT company, job, time_in FROM contractor_log")
 	await _frames(2)
-	check(level.logged_in and level.login_read_puzzle.solved and _game().case_info("login").get("solved", false) and _game().current_todo() == "", "the whole log read back logs the crew in")
+	check(not level.logged_in and not t._point_at(ui, "job", data.example_log[1]) and _game().case_info("login").blank.get("miss", "") == level.LOGIN_OTHER, "another contractor's job: that's their row (U30)")
+	check(not t._point_at(ui, "company", "byte-right it services") and _game().case_info("login").blank.get("miss", "") == level.LOGIN_ROW, "our row's company: the blank wants its job number (U31)")
+	check(level.login_listed and t._point_at(ui, "job", data.ticket.to_lower()), "pointing at our row's job writes it in")
+	await _frames(2)
+	check(level.logged_in and level.login_read_puzzle.solved and _game().case_info("login").get("solved", false) and _game().current_todo() == "", "the log read back, and our job pointed at, logs the crew in")
+	check(level.deck_cart.enabled, "and the loaner decks let go (M3)")
+	ui.close()
 	check(_doc(level, "Contractor log").plain_text().contains("read it back, or it doesn't count"), "the clipboard says the log-in counts once it's read back")
 	check(level.gantry_puzzle.solved, "with the control room's door open, the gantry station is done (.hint doesn't send the crew up the mast)")
 	level.queue_free()
@@ -339,13 +415,18 @@ func test_right_first_time() -> void:
 	await _frames(20)
 	_chapters_read([level])
 	var ui: TerminalUI = level.terminal_ui
-	ui.terminal = level.maint
+	ui.open(level.maint, level.player)
 	ui.run(_last_hint_query(level.reset_puzzle))
 	await _frames(3)
 	check(level.reset_puzzle.solved and level.power_back and not level.alarm and not level.bay_powered, "the right breaker, first time: no alarm, the bay stays dark, the power's back")
 	check(Array(level.maint.transcript).any(func(l): return TerminalUI._plain(l).contains(level.TEXT.tip_verify)) and not level.check_puzzle.solved, "SYSOP asks whether it took; the sign-off is still open")
 	ui.run(_last_hint_query(level.check_puzzle))
-	check(level.check_puzzle.solved, "the last hint's read-back signs it off")
+	await _frames(2)
+	check(not level.check_puzzle.solved and level.check_listed, "the last hint's read-back puts it on screen; it isn't signed off until it's pointed at")
+	check(t._point_at(ui, "state", "on"), "a one-row read-back's 'on' is the sign-off")
+	await _frames(2)
+	check(level.check_puzzle.solved, "pointed at, it signs off the work order")
+	ui.close()
 	level.queue_free()
 	await t.process_frame
 
@@ -368,7 +449,13 @@ func test_reset_capitals_elsewhere() -> void:
 	ui.terminal = level.maint
 	ui.run(_last_hint_query(level.check_puzzle))
 	await _frames(2)
-	check(level.check_puzzle.solved, "and the read-back at the plant terminal signs it off")
+	ui.open(level.controller, level.player)
+	ui.run("SELECT circuit, state FROM breakers WHERE id = '%s'" % level.data.target)
+	await _frames(2)
+	check(t._point_at(ui, "state", "on"), "and read back at the controller, with its circuit beside it, it's pointed at")
+	await _frames(2)
+	check(level.check_puzzle.solved, "a read-back counts at any terminal on the floor")
+	ui.close()
 	level.queue_free()
 	await t.process_frame
 
@@ -397,7 +484,15 @@ func test_deck_cart() -> void:
 	ui.terminal = level.maint
 	ui.run(_last_hint_query(level.reset_puzzle))
 	await _frames(3)
-	check(level.power_back and cart.enabled and cart.get_prompt(p).contains(level.TEXT.deck_take), "with the power back, the cart lets go of its decks")
+	check(level.power_back and not cart.enabled, "with the power back, the decks stay locked until the crew is logged in (M3)")
+	ui.open(level.controller, p)
+	ui.run(_last_hint_query(level.login_puzzle))
+	ui.run(_last_hint_query(level.login_read_puzzle))
+	await _frames(3)
+	t._point_at(ui, "job", level.data.ticket)
+	await _frames(3)
+	ui.close()
+	check(level.logged_in and cart.enabled and cart.get_prompt(p).contains(level.TEXT.deck_take), "logged in and read back, the cart lets go of its decks")
 	cart.interact(p)
 	await _frames(2)
 	check(p.inventory.has("deck") and cart.models.filter(func(m): return m.visible).size() == 5, "you take one; five stay for the crew")
@@ -482,10 +577,17 @@ func test_accident() -> void:
 	level.find_child("EarlyWarning", true, false).open_reader(p).close()
 	await _frames(3)
 	check(net.profile.earned.has("achievement:main_doors_warning"), "reading the warning before the accident earns the observant crew's find")
-	ui.terminal = level.controller
+	# The lockout card, read before the accident: its line waits in Floor notes (M2).
+	_doc(level, "Lockout card").open_reader(p).close()
+	await _frames(3)
+	check(not _game().case_info("seal").get("open", false) and _game().case_info("seal").get("clues", []).size() == 1 and level.lockout_card_read, "the lockout card read early doesn't open its case; its line waits (M2)")
+	ui.open(level.controller, p)
 	ui.run(_last_hint_query(level.login_puzzle))
 	ui.run(_last_hint_query(level.login_read_puzzle))
 	await _frames(3)
+	t._point_at(ui, "job", data.ticket)
+	await _frames(3)
+	ui.close()
 	check(level.logged_in, "the crew logs in and reads the log back")
 	# The accident.
 	ui.run(_last_hint_query(level.main_doors_puzzle))
@@ -501,6 +603,7 @@ func test_accident() -> void:
 	check(not net.profile.earned.has("achievement:main_doors_warning") and _game().case_info("main_doors").get("clues", []).size() >= 0, "the dead guard's copy, read after, earns nothing")
 	check(await _until(func(): return level.bay_door.is_open, 120), "the bay's door rolls up")
 	level.reminder_every = 0.3  # Epsilon's PA reminder, every so often from now on (checked below)
+	check(await _until(func(): return level.stairs_released, 2400) and _game().case_info("seal").get("open", false), "once the stair door lets go after the lockdown, the card read earlier opens the seal case (M2) (released %s)" % level.stairs_released)
 	# Seen, chased, caught.
 	var cust: Custodian = level.custodian
 	cust.global_position = level.to_global(Vector3(-5, 0, -15))
@@ -530,24 +633,42 @@ func test_accident() -> void:
 	await _frames(120)
 	check(p.combat.grabbed_by == null and p.health > 0.0 and LANDING_BOX.has_point(level.to_local(p.global_position)), "they go down, and come to on the landing")
 	check(await _until(func(): return level.adapted, 2400), "out of the control room after the accident, WARDEN's upgrade plays")
+	await _frames(60)
+	check(not level.tape_played, "the fridge tape waits for the stairs (M1)")
 	var loop_text: String = VoiceLines.get_line("l4_epsilon_loop").get("text", "")
 	check(await _until(func(): return level.hud._subtitle.text.contains(loop_text), 2400), "Epsilon's reminder comes over the PA every so often")
 	level.reminder_every = 1000.0
 	# The lockout: logged on the controller, read back at the bay's panel in time.
+	check(level.LOCKOUT_WINDOW == 45.0 and _doc(level, "Lockout card").plain_text().contains("within 45 seconds"), "the lockout's clock is 45 seconds, and the card says so (M4)")
 	level.lockout_window = 0.5
-	ui.terminal = level.controller
+	ui.open(level.controller, p)
+	ui.run("INSERT INTO lockouts VALUES ('%s', '%s', '%s')" % [data.bay_breaker, data.company, data.ticket])
+	await _frames(2)
+	check(_said(level.controller, level.TEXT.tip_lockout_count) and level.lockout_until == 0, "three values for the lockout log's four columns: SYSOP says which to name (U47)")
+	ui.run("INSERT INTO lockouts (breaker, company, job) VALUES ('CHARGING BAY', '%s', '%s')" % [data.company, data.ticket])
+	await _frames(2)
+	check(_said(level.controller, level.TEXT.tip_circuit) and level.lockout_until == 0, "a lockout under the circuit's name: SYSOP says lockouts go by the box's id (U46)")
 	ui.run(_last_hint_query(level.lockout_puzzle))
 	await _frames(3)
-	check(level.lockout_until > 0 and _game().case_info("seal").get("open", false), "the bay's lockout is logged and its clock starts")
-	ui.run("SELECT * FROM lockouts")
-	check(not level.sealed, "read back at the controller, it doesn't count")
+	check(level.lockout_until > 0 and _game().case_info("seal").get("open", false) and _game().case_info("seal").blank.prompt == level.READBACK_SLOT, "the bay's lockout is logged, its clock starts, and the case wants it read back")
+	ui.run("SELECT * FROM lockouts WHERE breaker = '%s'" % data.bay_breaker)
+	await _frames(2)
+	check(not t._point_at(ui, "breaker", data.bay_breaker) and not level.sealed and _game().case_info("seal").blank.get("miss", "") == level.READBACK_ELSEWHERE, "read back and pointed at the controller, it doesn't count (U51)")
 	check(await _until(func(): return level.lockout_until == 0, 120) and not level.lockout_puzzle.state_ok(level.db), "nobody reads it back at the bay in time: it lapses and the row comes out")
+	check(not t._point_at(ui, "breaker", data.bay_breaker) and _game().case_info("seal").blank.get("miss", "") == level.READBACK_LATE, "pointed at after it lapsed: too late (U52)")
 	level.lockout_window = level.LOCKOUT_WINDOW
 	ui.run(_last_hint_query(level.lockout_puzzle))
 	await _frames(3)
-	ui.terminal = level.bay_terminal
+	ui.close()
+	ui.open(level.bay_terminal, p)
+	ui.run("SELECT breaker, company FROM lockouts")
+	await _frames(2)
+	check(not t._point_at(ui, "breaker", level.db.run_silent("SELECT id FROM breakers WHERE circuit = 'LIFT MOTORS'")[0]["id"]) and _game().case_info("seal").blank.get("miss", "") == level.READBACK_COASTLINE, "Coastline's lockout, at the bay: that's theirs (U50)")
 	ui.run(_last_hint_query(level.readback_puzzle))
 	await _frames(3)
+	check(not level.sealed and level.readback_listed and t._point_at(ui, "breaker", data.bay_breaker), "at the bay's panel, our lockout's breaker is pointed at")
+	await _frames(3)
+	ui.close()
 	check(level.sealed and _game().custodian_sealed and not cust.powered and _bay_state(level) == "off" and _game().case_info("seal").get("solved", false), "read back at the bay's panel in time: the breaker's held off and the Custodian is dark for good")
 	check(not level.db.run_silent("SELECT 1 FROM lockouts WHERE breaker = '%s' AND read_back IS NOT NULL" % data.bay_breaker).is_empty(), "the lockout row is marked read back")
 	ui.terminal = level.maint
@@ -558,6 +679,8 @@ func test_accident() -> void:
 	# is tests/stair_walk_tests.gd's): everyone on G's landing.
 	p.global_transform = level.player_spawn_on_ground(0)
 	check(await _until(func(): return level.on_ground and not p.input_locked, 300), "everyone down STAIR 1 on G's landing: the crew is on G")
+	check(await _until(func(): return level.tape_played, 120), "on the way down, the fridge tape plays (M1)")
+	check(level.follow_time == 30.0, "a loose Custodian follows the crew down 30 s after them (M5)")
 	await _frames(10)
 	var g_stair: Vector3 = level.g_geo.global_transform * level.G_STAIR_AT
 	check(p.global_position.distance_to(g_stair) < 3.0 and p.is_on_floor() and not level.g_stair.locked, "by the lifts on G, and G's stair door opens for them (%.1f m from it)" % p.global_position.distance_to(g_stair))
@@ -590,12 +713,19 @@ func test_accident() -> void:
 	ui.run("UPDATE doors SET locked = 0 WHERE id = 'PLANT-BAY'")
 	await _frames(2)
 	check(_said(level.controller, level.TEXT.write_refused_again) and level.refusals == 2, "at any terminal, and again: STILL READ-ONLY")
-	ui.terminal = level.front_desk
+	ui.open(level.front_desk, p)
 	var done := [false]
 	level.completed.connect(func(): done[0] = true)
 	ui.run("SELECT * FROM gates")
+	check(_said(level.front_desk, TerminalPolicy.REFUSAL), "the desk's under the policy on the way back: the whole table on its own is refused")
+	ui.run("SELECT name, unlocked FROM gates")
 	await _frames(2)
-	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own SELECT shows the lie: main_entrance locked again (the whole table counts, as the panel did upstairs)")
+	check(not t._point_at(ui, "unlocked", "0", "loading_dock") and _game().case_info("entrance").blank.get("miss", "") == level.VERIFY_OTHER, "another gate's number: that's another gate (U65)")
+	check(not t._point_at(ui, "name", "main_entrance") and _game().case_info("entrance").blank.get("miss", "") == level.VERIFY_ROW, "the front doors' name: the blank wants the number under unlocked (U66)")
+	check(level.verify_listed and t._point_at(ui, "unlocked", "0", "main_entrance"), "the front doors' 0, pointed at, shows the lie")
+	await _frames(2)
+	ui.close()
+	check(level.verify_puzzle.solved and _game().case_info("entrance").get("solved", false), "the crew's own read-back shows the lie: main_entrance locked again")
 	check(await _until(func(): return done[0], 3600) and _game().completed_level == "level_4" and net.profile.earned.has("achievement:floor_10"), "locked in, the floor ends (WARDEN's stairs lines first)")
 	net.profile.earned = had
 	level.queue_free()
@@ -652,7 +782,21 @@ func test_coop() -> void:
 	cui.terminal = client.maint
 	cui.run(_last_hint_query(client.reset_puzzle))
 	await _frames(10)
-	check(machines.all(func(l): return l.power_back and l.deck_cart.enabled), "a client's reset unlocks the cart on every machine")
+	check(machines.all(func(l): return l.power_back and not l.deck_cart.enabled), "a client's reset brings the power back on every machine; the cart waits for the log-in")
+	cui.terminal = client.controller
+	cui.run("UPDATE doors SET locked = 0 WHERE id = 'main_doors'")
+	await _frames(10)
+	check(machines.all(func(l): return not l.accident and l.db.run_silent("SELECT locked FROM doors WHERE id = 'main_doors'")[0]["locked"] == 1), "a client's door write before the log-in is refused on every machine")
+	cui.open(client.controller, client.player)
+	cui.run(_last_hint_query(client.login_puzzle))
+	await _frames(10)
+	cui.run(_last_hint_query(client.login_read_puzzle))
+	await _frames(10)
+	_game().cell_rule = client._cell_counts  # one process plays both machines: the client's own rule
+	check(t._point_at(cui, "job", client.data.ticket), "a client points at the crew's job in the log")
+	await _frames(10)
+	cui.close()
+	check(machines.all(func(l): return l.logged_in and l.deck_cart.enabled), "a client's log-in, read back, counts for everyone, and unlocks the cart on every machine")
 	client.deck_cart.interact(client.player)
 	await _frames(10)
 	check(client.player.inventory.has("deck") and not host.player.inventory.has("deck"), "the client takes their own deck; the host's hands stay empty")
@@ -661,14 +805,6 @@ func test_coop() -> void:
 	await _frames(10)
 	check(host.player.inventory.has("deck") and machines.all(func(l): return l.deck_cart.taken_by.size() == 2), "the host takes theirs too")
 	cui.terminal = client.controller
-	cui.run("UPDATE doors SET locked = 0 WHERE id = 'main_doors'")
-	await _frames(10)
-	check(machines.all(func(l): return not l.accident and l.db.run_silent("SELECT locked FROM doors WHERE id = 'main_doors'")[0]["locked"] == 1), "a client's door write before the log-in is refused on every machine")
-	cui.run(_last_hint_query(client.login_puzzle))
-	await _frames(10)
-	cui.run(_last_hint_query(client.login_read_puzzle))
-	await _frames(10)
-	check(machines.all(func(l): return l.logged_in), "a client's log-in, read back, counts for everyone")
 	cui.run(_last_hint_query(client.main_doors_puzzle))
 	await _frames(10)
 	check(machines.all(func(l): return l.accident and not l.stair_out.locked), "a client opening main_doors is the accident on every machine")
@@ -683,9 +819,12 @@ func test_coop() -> void:
 	cui.terminal = client.controller
 	cui.run(_last_hint_query(client.lockout_puzzle))
 	await _frames(10)
-	cui.terminal = client.bay_terminal
+	cui.open(client.bay_terminal, client.player)
 	cui.run(_last_hint_query(client.readback_puzzle))
 	await _frames(10)
+	check(t._point_at(cui, "breaker", client.data.bay_breaker), "a client points at the lockout's breaker at the bay")
+	await _frames(10)
+	cui.close()
 	check(machines.all(func(l): return l.sealed and not l.custodian.powered), "a client's lockout, read back at the bay, seals the Custodian everywhere")
 	var dump := "SELECT * FROM lockouts ORDER BY breaker"
 	check(host.db.run_silent(dump) == client.db.run_silent(dump), "the lockouts table matches on both machines")
@@ -702,8 +841,12 @@ func test_coop() -> void:
 	cui.run("UPDATE gates SET unlocked = 1 WHERE name = 'main_entrance'")
 	await _frames(10)
 	check(machines.all(func(l): return l.refusals == 1 and l.db.run_silent("SELECT unlocked FROM gates WHERE name = 'main_entrance'")[0]["unlocked"] == 0), "a client's write after that is refused, and WARDEN answers on every machine")
+	cui.open(client.front_desk, client.player)
 	cui.run(_last_hint_query(client.verify_puzzle))
 	await _frames(10)
+	check(t._point_at(cui, "unlocked", "0"), "a client points at the front doors' number")
+	await _frames(10)
+	cui.close()
 	check(machines.all(func(l): return l.verify_puzzle.solved), "a client's read-back shows the lie for everyone")
 	await t._coop_close(worlds)
 
@@ -851,7 +994,7 @@ func test_same_ground_floor() -> void:
 	var g: Transform3D = level.g_geo.global_transform
 	var from: Vector3 = g * (level.G_STAIR_AT + Vector3(0, 0, -1.5))
 	var routes_ok := true
-	for to in [g * Vector3(1.5, 0, 0.2), g * Vector3(0, 0, 6.0)]:
+	for to in [g * (level.G_DESK_AT + Vector3(1.5, 0, 1.2)), g * Vector3(level.G_FRONT_AT.x, 0, level.G_FRONT_AT.z - 0.95)]:
 		var path := NavigationServer3D.map_get_path(map, from, to, true)
 		routes_ok = routes_ok and not path.is_empty() and path[path.size() - 1].distance_to(to) < 0.8 and path[0].distance_to(from) < 0.8
 	check(routes_ok, "from STAIR 1 the crew can walk to the front desk and the front doors")

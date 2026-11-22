@@ -1548,29 +1548,31 @@ func test_dressed_level_0() -> void:
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	t.root.add_child(level)
 	await _frames(10)
-	var unexplained := ArtDress.unexplained_dark(level, DressLevel0.DARK_CHECK)
+	var unexplained := ArtDress.unexplained_dark(level, DressLevel0.dark_check())
 	check(unexplained.is_empty(), "Level 0: every dark patch has a cause you can see, a dead fitting (%s)" % str(unexplained.slice(0, 6)))
 	var boxes := _prop_boxes(level)
 	check(boxes.size() >= 10, "Level 0 is furnished (%d solid props)" % boxes.size())
+	var van_at: Vector3 = level.VAN_AT
+	var tables_z: float = (GroundFloor.CAFE_TABLES_Z[0] + GroundFloor.CAFE_TABLES_Z[1]) / 2.0
 	var keep_clear := [
-		Vector3(0, 0, 8.8), Vector3(-0.5, 0, 0.6), Vector3(10.2, 0, 3), Vector3(0, 0, 5.6),  # Rourke's stops, respawn
-		Vector3(1.5, 0, -0.2), Vector3(-1.5, 0, -0.2),  # in front of the terminal and visitor log
-		Vector3(-2.5, 0, -4.7), Vector3(0, 0, -2.2),  # walkies, and landing over the desk
-		Vector3(-7.4, 0, 4), Vector3(-14.6, 0, 4), Vector3(-18.6, 0, 4.5),  # vent mouth, closet side, the tape
-		Vector3(-0.3, 0, 14.8), Vector3(4.3, 0, 14.8), Vector3(4.3, 0, 15.5), Vector3(4.3, 0, 17.9), Vector3(0, 0, 11.5),  # out of the van (front doors, side door), to the doors
-		Vector3(-6.5, 0, -8.5), Vector3(0, 0, -8.5), Vector3(10.0, 0, -8.5), Vector3(0, 0, -10.6),  # Rourke's walks along the back corridor
-		Vector3(6.2, 0, -11.0), Vector3(6.2, 0, -12.0), Vector3(6.2, 0, -13.2),  # to the vending machines
-		Vector3(10.0, 0, -11.0), Vector3(10.2, 0, -12.6),  # into the IT closet, under the ceiling panel
-		Vector3(-11.5, 0, -15.2), Vector3(-8.5, 0, -16.9),  # into the restroom stalls
-		Vector3(-2.0, 0, -13.75), Vector3(2.0, 0, -13.75),  # between the cafeteria tables
-		Vector3(15.5, 0, -8.5), Vector3(18.0, 0, -2.5),  # the dark corridor
-		Vector3(25.0, 0, 4.05), Vector3(28.5, 0, 3.0),  # holding the elevator, the car's doors
+		level.ROURKE_OUTSIDE, level.DESK_SPOT, Vector3(GroundFloor.SHUTTER_AT.x - 0.8, 0, GroundFloor.HALL_Z), Vector3(GroundFloor.FRONT_AT.x, 0, GroundFloor.LOBBY.end.y - 1.4),  # Rourke's stops, respawn
+		GroundFloor.by_desk(1.5, 0.8), GroundFloor.by_desk(-1.5, 0.8),  # in front of the terminal and visitor log
+		Vector3(GroundFloor.CHARGER_TABLE.x, 0, GroundFloor.CHARGER_TABLE.z + 0.8), GroundFloor.by_desk(0, -1.2),  # walkies, and landing over the desk
+		Vector3(GroundFloor.LOBBY.position.x + 0.6, 0, GroundFloor.VENT_Z), Vector3(GroundFloor.CLOSET.end.x - 0.6, 0, GroundFloor.VENT_Z), GroundFloor.at(GroundFloor.CLOSET, 1.4, 0, 3.5),  # vent mouth, closet side, the tape
+		van_at + Vector3(-2.3, 0, -1.8), van_at + Vector3(2.3, 0, -1.8), van_at + Vector3(2.3, 0, -1.1), van_at + Vector3(2.3, 0, 1.3), GroundFloor.FRONT_AT + Vector3(0, -1.3, 4.55),  # out of the van (front doors, side door), to the doors
+		level.ROUND_THE_DESK[2], level.TO_CAFETERIA[3], level.TO_IT_CLOSET[3], level.TO_CAFETERIA[4],  # Rourke's walks along the back corridor
+		level.TO_CAFETERIA[5], level.TO_CAFETERIA[6], level.TO_CAFETERIA[6] + Vector3(0, 0, -1.2),  # to the vending machines
+		level.TO_IT_CLOSET[4], Vector3(GroundFloor.IT_HATCH.x, 0, GroundFloor.IT_HATCH.z),  # into the IT closet, under the ceiling panel
+		GroundFloor.at(GroundFloor.MENS, 1.5, 0, 2.8), GroundFloor.at(GroundFloor.WOMENS, 1.5, 0, 1.1),  # into the restroom stalls
+		Vector3(-2.0, 0, tables_z), Vector3(2.0, 0, tables_z),  # between the cafeteria tables
+		GroundFloor.mid(GroundFloor.DARK), GroundFloor.at(GroundFloor.PASSAGE, 1.0, 0, 4.5),  # the dark corridor
+		level.HOLD_DOOR_AT, Vector3(GroundFloor.LIFT_AT.x - 1.5, 0, GroundFloor.LIFT_AT.z),  # holding the elevator, the car's doors
 	]
 	var blocked := _blocked(level, boxes, keep_clear)
 	check(blocked.is_empty(), "props keep Level 0's routes and puzzles clear %s" % [blocked])
 	var floor_mat: Material = null
 	for b in level.geo.get_children():
-		if b.name.begins_with("Floor") and absf(b.position.x) < 1 and absf(b.position.z) < 1:
+		if b.name.begins_with("Floor") and b.position.distance_to(GroundFloor.mid(GroundFloor.LOBBY, b.position.y)) < 1:
 			floor_mat = b.get_child(0).material_override
 	check(floor_mat == ArtPalette.surface("carpet"), "the lobby floor is carpeted")
 	var corridor_floor: Node = null
@@ -1595,7 +1597,7 @@ func test_dressed_level_0() -> void:
 	check(van.find_children("Seat*", "Node3D", false, false).size() == 3, "the van has two front seats and a rear bench")
 	check(van.find_child("SteeringWheel", true, false) != null, "and a steering wheel")
 	var round := 0
-	for w in DressVan.wheels(level.geo, Vector3(2, 0, 16.6)):
+	for w in DressVan.wheels(level.geo, level.VAN_AT):
 		round += 1 if not (w.get_child(0) as MeshInstance3D).visible else 0
 	check(round == 4, "the van's wheels are round, not greybox blocks")
 	for seat in level.van_seats:

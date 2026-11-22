@@ -251,10 +251,12 @@ const PUZZLES := {
 		"needs": ["UPDATE", "SET", "WHERE", "breakers", "state", "id", "note"],
 	},
 	# The work order's sign-off: read the breaker back (verify after write, safely).
+	# The read-back: the case board shows its whole query once the breaker's found
+	# (U10, approved 2026-11-21); the step is pointing at the state it reads.
 	"check": {
 		"level": 4,
 		"pressure": false,
-		"teaches": ["Check it took"],
+		"teaches": [],
 		"needs": ["SELECT", "FROM", "WHERE", "breakers", "state", "id"],
 	},
 	# The clipboard by the controller: the crew logs its own job, practised safely.
@@ -272,7 +274,7 @@ const PUZZLES := {
 		"pressure": false,
 		"ladder": "review",
 		"teaches": [],
-		"needs": ["SELECT", "FROM", "contractor_log"],
+		"needs": ["SELECT", "COLUMNS", "FROM", "contractor_log", "company", "job", "time_in"],
 	},
 	# The control room's second way in: the gantry arm moved by UPDATE to the bay under
 	# the access panel (the gantry card numbers the bays). Optional, practised safely.
@@ -291,7 +293,7 @@ const PUZZLES := {
 		"needs": ["UPDATE", "SET", "WHERE", "doors", "locked", "id", "main_doors"],
 	},
 	# Optional, with the Custodian loose: lock out the bay's breaker (INSERT under
-	# pressure), then read it back at the bay's own panel within 30 seconds.
+	# pressure), then read it back at the bay's own panel within 45 seconds.
 	"lockout": {
 		"level": 4,
 		"pressure": true,
@@ -318,7 +320,7 @@ const PUZZLES := {
 		"pressure": true,
 		"ladder": "review",
 		"teaches": [],
-		"needs": ["SELECT", "FROM", "lockouts"],
+		"needs": ["SELECT", "FROM", "WHERE", "lockouts", "breaker"],
 	},
 	# Level 5: the Personnel Wing on 9 (plan/level-5-personnel-wing.md). The database is
 	# read-only, so every change goes through the building's services: a key in a header,

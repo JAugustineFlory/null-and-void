@@ -35,7 +35,14 @@ class ScriptErrors extends Logger:
 
 
 ## Each group is a _group_<name>() function below. CI runs one job per entry here.
-const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints", "policy"]
+const GROUPS := ["core", "floor_g", "floor_14", "floor_22", "floor_22_lab", "floor_18", "floor_10", "floor_9", "floor_b1", "floor_b2", "coop", "combat", "movement", "movement_hands", "stairs", "bodies", "pad", "teaching", "teaching_lab", "teaching_api", "teaching_scripts", "teaching_garage", "scripting", "chapters", "sound", "papers", "garage", "keywords", "levels", "route_data", "coop_runs", "hard", "hints", "policy", "kit", "counterplay"]
+
+
+## Floor G's rooms and named places (GroundFloor), loaded when a test asks: naming
+## the class in this file would compile the game's scripts before the Game
+## autoload exists.
+func _ground_floor() -> GDScript:
+	return load("res://scripts/world/ground_floor.gd")
 
 
 func _run() -> void:
@@ -89,6 +96,7 @@ func _run_group(g: String) -> void:
 		"teaching_lab": await _group_teaching_lab()
 		"teaching_api": await _group_teaching_api()
 		"teaching_scripts": await _group_teaching_scripts()
+		"teaching_garage": await _group_teaching_garage()
 		"scripting": await _group_scripting()
 		"chapters": await _group_chapters()
 		"sound": await _group_sound()
@@ -101,6 +109,8 @@ func _run_group(g: String) -> void:
 		"hard": await _group_hard()
 		"hints": await _group_hints()
 		"policy": await _run_file("res://tests/policy_tests.gd")
+		"kit": await _run_file("res://tests/kit_tests.gd")
+		"counterplay": await _run_file("res://tests/counterplay_tests.gd")
 
 
 ## A run as a whole: its rules, restarting a floor or the run, and joining one
@@ -223,6 +233,10 @@ func test_coop_touch_sounds() -> void:
 	lockers[0].interact(host.player)
 	await _until(func(): return heard[1].size() == 2, 3.0)
 	check(heard[1].size() == 2 and heard[1][1] == 1 and kinds.call(client) == 2, "and the host's, on the client")
+	lockers[1].sound_everywhere("reader_no")  # decided on the client's machine alone
+	var blats := func(l): return l.get_meta("sounds_played", []).filter(func(x): return x.kind == "reader_no").size()
+	await _until(func(): return blats.call(host) == 1, 3.0)
+	check(blats.call(host) == 1 and blats.call(client) == 1, "a sound only one machine could decide (a reader turning them down) plays on every machine")
 	await _coop_close(worlds)
 
 
@@ -294,6 +308,7 @@ func _group_hints() -> void:
 func _group_papers() -> void:
 	await _run_file("res://tests/paper_fit_tests.gd")
 	await _run_file("res://tests/paper_facing_tests.gd")
+	await _run_file("res://tests/facing_tests.gd")
 
 
 ## Co-op: several machines in one process.
@@ -304,6 +319,7 @@ func _group_coop() -> void:
 	await test_coop_terminal_screens()
 	await test_coop_shared_history()
 	await test_coop_notes_huddle()
+	await test_coop_leg_up()
 	await test_coop_looks()
 	await test_coop_sitting()
 	await test_coop_unlocks()
@@ -386,6 +402,11 @@ func _group_teaching_api() -> void:
 ## B1's lost-player walks: the crew's first scripts, warm, then in the cold.
 func _group_teaching_scripts() -> void:
 	await _run_file("res://tests/teaching_tests.gd", "scripts")
+
+
+## The garage lab's practice cases, walked by a player who's never typed a query.
+func _group_teaching_garage() -> void:
+	await _run_file("res://tests/teaching_tests.gd", "garage")
 
 
 ## Scripting and services: the facility API's writes, and deck scripts.
@@ -1477,6 +1498,7 @@ func test_level_select() -> void:
 
 
 func test_level_0_scene() -> void:
+	var G = _ground_floor()
 	print("Level 0 scene")
 	var level = load("res://scenes/level_0.tscn").instantiate()
 	root.add_child(level)
@@ -1495,7 +1517,7 @@ func test_level_0_scene() -> void:
 	check(van_seat is Seat and van_seat.name == "VanSeat" and absf(level.player.global_position.y - van_seat.global_position.y) < 0.1,
 		"sat up on the seat's cushion, as on the garage couch, not down on the van floor (%.2f m above the floor)" % (level.player.global_position.y - level.player._sit_from.origin.y if level.player.get("_sit_from") else 0.0))
 	var lobby_floor: Node3D = level.geo.get_node("Floor")
-	check(lobby_floor.position == Vector3(0, -0.1, 0) and SfxSteps.surface_of(lobby_floor) == "carpet", "the lobby is carpet underfoot")
+	check(lobby_floor.position.is_equal_approx(G.mid(G.LOBBY, -0.1)) and SfxSteps.surface_of(lobby_floor) == "carpet", "the lobby is carpet underfoot")
 	var flickering := 0
 	for id in ["lobby", "hall"]:
 		for l in level.lights[id]:
@@ -1542,7 +1564,7 @@ func test_level_0_scene() -> void:
 	var mpos: Vector3 = mate.global_position
 	check(mpos.x > 3.5 and mpos.y < 0.3 and not mate.input_locked, "a rear-bench player climbs out of the side door (%.1f, %.1f, %.1f)" % [mpos.x, mpos.y, mpos.z])
 	mate.queue_free()
-	level.player.global_position = Vector3(0, 0.1, 11.5)
+	level.player.global_position = G.FRONT_AT + Vector3(0, -1.2, 4.55)  # on the path to the front doors
 	await create_timer(3.5).timeout
 	check(level.front_doors.is_open and level.rourke.global_position.z > 7.5, "Rourke comes out to meet the crew")
 	level.desk_terminal.enabled = true
@@ -1566,10 +1588,10 @@ func test_level_0_scene() -> void:
 	check(_game().query_log.size() >= 2 and _game().concepts_learned.has("ORDER BY"), "queries are logged for Field Notes")
 	_check_l0_documents(level)
 	# Walking into the west end of the counter vaults you over it, and back again.
-	level.rourke.walk_to(Vector3(-0.5, 0, 0.6))
+	level.rourke.walk_to(level.DESK_SPOT)
 	var lp: Player = level.player
 	lp.local_control = false  # driven by the test, not the keyboard
-	lp.global_position = Vector3(-3.6, 0.05, 0.4)
+	lp.global_position = G.by_desk(-3.6, 1.4, 0.05)
 	lp.rotation.y = 0.0
 	await create_timer(0.3).timeout
 	lp.controls.move = Vector2(0, -1)
@@ -1614,7 +1636,7 @@ func test_level_0_scene() -> void:
 			break
 		await physics_frame
 	check(level.shutter.is_open, "Rourke opens the hall shutter all the way (Rourke at %s)" % level.rourke.global_position)
-	level.player.global_position = Vector3(8.2, 0.1, 3)
+	level.player.global_position = Vector3(G.HALL.position.x + 0.2, 0.1, G.HALL_Z)
 	for i in 60:
 		await physics_frame
 	check(level.rourke.state == Rourke.State.WALK and level.rourke._walk_target.x > 20.0, "Rourke leads the way down the hall to Server Room A")
@@ -1628,7 +1650,7 @@ func test_level_0_scene() -> void:
 	var was_seated := crawler.seated
 	crawler.seated = false
 	crawler.local_control = false
-	crawler.global_position = Vector3(-7.0, 0.1, 4)
+	crawler.global_position = Vector3(G.LOBBY.position.x + 1.0, 0.1, G.VENT_Z)
 	crawler.rotation.y = PI / 2  # facing the air return
 	crawler.controls.crouch = true
 	crawler.controls.move = Vector2(0, -1)
@@ -1675,6 +1697,7 @@ func test_level_0_scene() -> void:
 ## on the case page, and that's what moves the story on; listing the directory
 ## alone doesn't.
 func test_caller_answer() -> void:
+	var G = _ground_floor()
 	print("Who called: the answer goes in the case page's blank")
 	for route in ["terminal", "printout"]:
 		_game().new_run(8)
@@ -1685,7 +1708,7 @@ func test_caller_answer() -> void:
 		var p: Player = level.player
 		level._release_camera(p)
 		p.seated = false
-		p.global_position = Vector3(1.0, 0.1, -1.9)
+		p.global_position = G.by_desk(1.0, -0.9, 0.1)
 		for i in 10:
 			await physics_frame
 		level.peek_puzzle.solved = true  # the memo comes first: .hint is the caller's from here
@@ -1813,6 +1836,7 @@ func screen_text(ui: TerminalUI) -> String:
 
 
 func test_ground_floor() -> void:
+	var G = _ground_floor()
 	print("Ground floor")
 	_game().new_run(6)
 	var level = load("res://scenes/level_0.tscn").instantiate()
@@ -1825,14 +1849,16 @@ func test_ground_floor() -> void:
 	p.seated = false
 	# Every room off the lobby can be walked to, and the dark corridor loops back to the hall.
 	var map: RID = p.get_world_3d().navigation_map
-	var lobby := Vector3(0, 0, 3)
-	for room in [["mailroom", Vector3(-16.5, 0, -14)], ["men's", Vector3(-11.5, 0, -13)], ["women's", Vector3(-8.5, 0, -13)],
-			["cafeteria", Vector3(0, 0, -14)], ["IT closet", Vector3(10, 0, -12)], ["dark corridor", Vector3(15, 0, -8.5)],
-			["hall, by the dark passage", Vector3(18, 0, 3)], ["elevator bank", Vector3(27, 0, 3)]]:
+	var lobby: Vector3 = G.mid(G.LOBBY) + Vector3(0, 0, 3)
+	var by_passage := Vector3(G.PASSAGE_X, 0, G.HALL_Z)
+	var east_aisle := Vector3(G.AISLE_X, 0, G.CORRIDOR_Z)
+	for room in [["mailroom", G.mid(G.MAILROOM)], ["men's", G.at(G.MENS, 1.5, 0, 5.0)], ["women's", G.at(G.WOMENS, 1.5, 0, 5.0)],
+			["cafeteria", Vector3(G.CAFETERIA_DOOR_X, 0, G.mid(G.CAFETERIA).z)], ["IT closet", G.mid(G.IT_CLOSET)], ["dark corridor", G.mid(G.DARK)],
+			["hall, by the dark passage", by_passage], ["elevator bank", G.mid(G.LIFT_HALL)]]:
 		var path := NavigationServer3D.map_get_path(map, lobby, room[1], true)
 		check(path.size() > 1 and path[path.size() - 1].distance_to(room[1]) < 1.0, "the %s can be reached from the lobby" % room[0])
-	var loop := NavigationServer3D.map_get_path(map, Vector3(18, 0, 3), Vector3(6.5, 0, -8.5), true)
-	check(loop.size() > 1 and loop[loop.size() - 1].distance_to(Vector3(6.5, 0, -8.5)) < 1.0 and Array(loop).all(func(q): return q.x < 20.0), "from the hall, the dark corridor leads back round to the lobby without the elevator bank")
+	var loop := NavigationServer3D.map_get_path(map, by_passage, east_aisle, true)
+	check(loop.size() > 1 and loop[loop.size() - 1].distance_to(east_aisle) < 1.0 and Array(loop).all(func(q): return q.x < G.HALL.end.x - 1.0), "from the hall, the dark corridor leads back round to the lobby without the elevator bank")
 	for id in ["MAILROOM", "MENS", "WOMENS", "IT-CLOSET"]:
 		var d: Door = level.doors[id]
 		check(d.is_hinged() and not d.locked and d.get_prompt(p).contains("Open"), "the %s door is an ordinary door you can open" % id)
@@ -1842,7 +1868,7 @@ func test_ground_floor() -> void:
 	# The Hum: it grows while you stand in the dark corridor, and fades with your flashlight on.
 	var hum: Hum = level.hum
 	p.flashlight.visible = false
-	p.global_position = Vector3(15, 0.1, -8.5)
+	p.global_position = G.mid(G.DARK, 0.1)
 	await create_timer(2.0).timeout
 	var grown: float = hum.intensity
 	check(grown > 0.1 and hum.is_humming(), "standing in the dark corridor, the Hum grows (%.2f)" % grown)
@@ -1850,7 +1876,7 @@ func test_ground_floor() -> void:
 	await create_timer(1.5).timeout
 	check(hum.intensity < grown - 0.2, "with the flashlight on, it fades (%.2f)" % hum.intensity)
 	p.flashlight.visible = false
-	p.global_position = Vector3(0, 0.1, 3)
+	p.global_position = lobby + Vector3(0, 0.1, 0)
 	await create_timer(3.0).timeout
 	check(not hum.is_humming(), "back in the lit lobby, it's gone")
 	check(level.elevator.button.enabled == false, "the elevator won't go anywhere until Rourke takes the crew up")
@@ -1865,7 +1891,7 @@ func test_ground_floor() -> void:
 		if level.geo.has_node("CoffeeCup"):
 			break
 		await physics_frame
-	check(level.geo.has_node("CoffeeCup") and level.rourke.global_position.distance_to(Vector3(6.2, 0, -12)) < 1.0, "at the vending machine, Rourke knows the trick and gets a coffee out")
+	check(level.geo.has_node("CoffeeCup") and level.rourke.global_position.distance_to(level.TO_CAFETERIA.back()) < 1.0, "at the vending machine, Rourke knows the trick and gets a coffee out")
 	level._on_vending(null)
 	await process_frame
 	check(not level.vending.enabled or level.hud._notice.text.contains("keeps it"), "only once")
@@ -1879,7 +1905,7 @@ func test_ground_floor() -> void:
 		if level.find_children("*", "Document", true, false).any(func(d): return d.title == "Old sticker"):
 			break
 		await physics_frame
-	check(not level.ceiling_hatch.enabled and level.rourke.global_position.distance_to(Vector3(10, 0, -11)) < 1.0, "in the IT closet, he gives a leg up to the stuck ceiling panel")
+	check(not level.ceiling_hatch.enabled and level.rourke.global_position.distance_to(level.TO_IT_CLOSET.back()) < 1.0, "in the IT closet, he gives a leg up to the stuck ceiling panel")
 	for i in 1800:
 		if level.rourke.global_position.distance_to(level.DESK_SPOT) < 0.5:
 			break
@@ -2762,6 +2788,7 @@ func test_coop_six_players() -> void:
 
 
 func test_coop_tape_secret() -> void:
+	var G = _ground_floor()
 	print("Co-op: Mercer's tape")
 	_game().new_run(3)
 	var net: Node = root.get_node("/root/Net")
@@ -2771,8 +2798,8 @@ func test_coop_tape_secret() -> void:
 	_lower_chapters_read(levels)  # about something else: no huddle cuts in
 	await _out_of_van(levels)  # moved about the floor, not riding in
 	var client_id: int = get_multiplayer(worlds[1].get_path()).get_unique_id()
-	levels[0].player.global_position = levels[0].to_global(Vector3(0, 0.1, 6))
-	levels[1].player.global_position = levels[1].to_global(Vector3(-17.5, 0.1, 4))
+	levels[0].player.global_position = levels[0].to_global(Vector3(G.FRONT_AT.x, 0.1, G.LOBBY.end.y - 1.0))
+	levels[1].player.global_position = levels[1].to_global(G.mid(G.CLOSET, 0.1))
 	await _frames(30)  # the host sees the client reach the closet
 	var host_profile := Profile.new()
 	var client_profile := Profile.new()
@@ -2794,6 +2821,7 @@ func test_coop_tape_secret() -> void:
 ## the order the host ran them (Augustine, v0.8): one history per terminal, shared
 ## by everyone who uses it.
 func test_coop_shared_history() -> void:
+	var G = _ground_floor()
 	print("Co-op: each terminal's history is shared")
 	_game().new_run(5)
 	var worlds := await _coop_worlds(1)
@@ -2846,7 +2874,7 @@ func test_coop_shared_history() -> void:
 	# A second terminal on the floor, the same on both machines: its history is its own.
 	var other := []
 	for l in levels:
-		var t := Terminal.spawn(l.geo, Vector3(-1.5, 1.1, -1.0), 0, "BACK OFFICE", l.db, l.terminal_ui)
+		var t := Terminal.spawn(l.geo, G.on_desk(-1.5), 0, "BACK OFFICE", l.db, l.terminal_ui)
 		t.name = "HistoryTestTerminal"
 		other.append(t)
 	await _frames(5)
@@ -3013,6 +3041,53 @@ func test_coop_notes_huddle() -> void:
 	pages.queue_free()
 	await _coop_close(worlds)
 	_game().new_run(6)
+
+
+## E1 (environment play): a leg-up off a teammate braced at a wall, decided by
+## the host (one climber at a time off each of them) and played out on the
+## climber's own machine.
+func test_coop_leg_up() -> void:
+	print("Co-op: a leg-up")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(2)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)
+	await _out_of_van(levels)
+	var ids: Array = worlds.map(func(w): return get_multiplayer(w.get_path()).get_unique_id())
+	# The same yard and wall on every machine, away from the floor's own rooms.
+	var yard := Vector3(300, 0, 300)
+	for l in levels:
+		Greybox.box(l, yard + Vector3(0, -0.1, 0), Vector3(12, 0.2, 12), Color.GRAY)
+		Greybox.box(l, yard + Vector3(0, 1.75, -3), Vector3(6, 3.5, 2), Color.DIM_GRAY)  # face at z = -2
+	var spots := [yard + Vector3(0, 0.05, -1.5), yard + Vector3(-0.3, 0.05, -0.5), yard + Vector3(0.6, 0.05, -0.6)]
+	for i in levels.size():
+		var p: Player = levels[i].player
+		p.local_control = false  # driven by the test, not the keyboard
+		p.velocity = Vector3.ZERO
+		p.global_position = spots[i]
+		p.rotation.y = 0.0
+	levels[0].player.controls.crouch = true  # the host braces at the wall
+	await _frames(40)
+	var base_c1: PlayerPuppet = levels[1].players.puppet(ids[0])
+	var base_c2: PlayerPuppet = levels[2].players.puppet(ids[0])
+	check(base_c1.get_prompt(levels[1].player) == Player.LEG_UP_PROMPT and base_c2.get_prompt(levels[2].player) == Player.LEG_UP_PROMPT,
+		"a teammate crouched at the wall, facing it, offers everyone a leg-up")
+	# Both press E at once: the host lets one go up.
+	base_c1.interact(levels[1].player)
+	base_c2.interact(levels[2].player)
+	await _frames(6)
+	var lifted: Array = [levels[1].player.state == Player.Move.LIFT, levels[2].player.state == Player.Move.LIFT]
+	check(lifted.count(true) == 1 and levels[0].player.is_lifting(), "two press E at once: one goes up, and the one braced holds still")
+	var climber: Player = levels[1].player if lifted[0] else levels[2].player
+	var up := await _until(func(): return climber.state == Player.Move.WALK and climber.is_on_floor() and climber.global_position.y > yard.y + 3.4, 8.0)
+	check(up, "up off them and over the 3.5 m edge, on their own machine (y %.2f)" % climber.global_position.y)
+	var seen: Node3D = levels[0].players.puppet(ids[1] if lifted[0] else ids[2])
+	await _frames(20)
+	check(seen.global_position.y > yard.y + 3.3, "and everyone sees them up there")
+	for l in levels:
+		l.player.controls.crouch = false
+		l.player.local_control = true
+	await _coop_close(worlds)
 
 
 func test_coop_looks() -> void:
@@ -3747,8 +3822,9 @@ func test_coop_achievements() -> void:
 	var real_profile = net.profile
 	Cosmetics.reset()
 	var ids := Achievements.LIST.map(func(a): return a.id)
-	check(ids.all(func(id): return ids.count(id) == 1 and (not Cosmetics.unlocked_by(id).is_empty() or Achievements.hint(id) != "")),
-		"every achievement is one of the unlock ids (or says how to earn it itself), each listed once")
+	# A secret is hidden until it's found, so it needs no hint (floor 10's unlocks nothing).
+	check(ids.all(func(id): return ids.count(id) == 1 and (not Cosmetics.unlocked_by(id).is_empty() or Achievements.hint(id) != "" or Achievements.is_secret(id))),
+		"every achievement is one of the unlock ids (or says how to earn it itself, or is a secret), each listed once")
 	check(Achievements.name_of("achievement:floor_18") == "Filed under F", "floor 18's is called what Augustine approved")
 	check(ids.all(func(id): return Achievements.is_secret(id) == (Achievements.hint(id) == "")), "every achievement but a secret says how to earn it")
 	net.profile = Profile.new()
@@ -5771,6 +5847,7 @@ func test_world() -> void:
 
 ## Shoved off his path, wedged, or out of the world: Rourke's escort never hangs.
 func test_rourke_never_stuck() -> void:
+	var G = _ground_floor()
 	print("Rourke can't be left stuck")
 	_game().new_run(8)
 	var level = load("res://scenes/level_0.tscn").instantiate()
@@ -5779,11 +5856,12 @@ func test_rourke_never_stuck() -> void:
 	var r: Rourke = level.rourke
 	r.visible = true
 	r.state = Rourke.State.IDLE
-	r.global_position = Vector3(-6.3, -40.0, 0.6)
+	var aisle: Vector3 = level.ROUND_THE_DESK[0] + Vector3(0, 0.05, 0)  # in the lobby, west of the desk
+	r.global_position = aisle + Vector3(0, -40.05, 0)
 	r.velocity = Vector3.ZERO
 	check(await _until(func(): return r.is_on_floor() and r.global_position.y > -0.5, 6.0), "out of the world, he's put back on the floor (at %s)" % r.global_position)
 	# Walled in where the navigation can't see: he tries, then is put where he was going.
-	r.global_position = Vector3(-6.3, 0.05, 0.6)
+	r.global_position = aisle
 	var cage := StaticBody3D.new()
 	for side in [Vector3(0.9, 1, 0), Vector3(-0.9, 1, 0), Vector3(0, 1, 0.9), Vector3(0, 1, -0.9)]:
 		var cs := CollisionShape3D.new()
@@ -5795,12 +5873,12 @@ func test_rourke_never_stuck() -> void:
 	cage.position = r.global_position
 	level.add_child(cage)
 	await _frames(5)
-	var goal := Vector3(0, 0, -8.5)
+	var goal := Vector3(G.CAFETERIA_DOOR_X, 0, G.CORRIDOR_Z)
 	var arrived := [false]
 	r.arrived.connect(func(): arrived[0] = true, CONNECT_ONE_SHOT)
 	r.walk_to(goal)
 	await _frames(60)
-	check(not arrived[0] and r.global_position.distance_to(Vector3(-6.3, 0.05, 0.6)) < 1.0, "boxed in, he can't get far at first")
+	check(not arrived[0] and r.global_position.distance_to(aisle) < 1.0, "boxed in, he can't get far at first")
 	check(await _until(func(): return arrived[0], Rourke.STUCK_TIME * Rourke.GIVE_UP_AFTER + 4.0), "but the walk still finishes")
 	check(Vector2(r.global_position.x, r.global_position.z).distance_to(Vector2(goal.x, goal.z)) < 1.0, "with him where he was going (at %s)" % r.global_position)
 	level.queue_free()
@@ -5927,6 +6005,7 @@ func test_visitor_badge() -> void:
 ## more line on the vent closet's tape, after the board and before the room, in the
 ## same take, and it goes in the notebook.
 func test_mercer_back_doors() -> void:
+	var G = _ground_floor()
 	print("Mercer's tape: the back doors")
 	var ids := VoiceLines.ids_in_scene("l0_tape")
 	var at := ids.find("l0_tape_backdoors")
@@ -5941,7 +6020,7 @@ func test_mercer_back_doors() -> void:
 	root.add_child(level)
 	_lower_chapters_read([level])  # about something else: no huddle cuts in
 	await physics_frame
-	level.player.global_position = level.to_global(Vector3(-17.5, 0.1, 4))
+	level.player.global_position = level.to_global(G.mid(G.CLOSET, 0.1))
 	Engine.time_scale = 8.0
 	level._on_tape()
 	var heard: Array = level.hud.heard
@@ -5955,6 +6034,7 @@ func test_mercer_back_doors() -> void:
 
 
 func test_mercer_tape_secret() -> void:
+	var G = _ground_floor()
 	print("Mercer's tape")
 	_game().new_run(3)
 	var net: Node = root.get_node("/root/Net")
@@ -5964,10 +6044,10 @@ func test_mercer_tape_secret() -> void:
 	await physics_frame
 	check(not net.profile.earned.has("secret:mercer_vent_tape"), "the vent closet's secret isn't earned before the tape plays")
 	# Someone works the tape from out in the lobby.
-	level.player.global_position = level.to_global(Vector3(0, 0.1, 6))
+	level.player.global_position = level.to_global(Vector3(G.FRONT_AT.x, 0.1, G.LOBBY.end.y - 1.0))
 	level._on_tape()
 	check(not net.profile.earned.has("secret:mercer_vent_tape") and not level.tape.enabled, "a player outside the vent closet hears the tape but doesn't earn its secret")
-	level.player.global_position = level.to_global(Vector3(-17.5, 0.1, 4))
+	level.player.global_position = level.to_global(G.mid(G.CLOSET, 0.1))
 	level._on_tape()
 	check(net.profile.earned.has("secret:mercer_vent_tape"), "whoever is in the closet when it plays earns it")
 	level.queue_free()
@@ -6584,6 +6664,7 @@ func test_in_world_ui() -> void:
 ## Papers come up off the desk or wall into your hands, and sticky notes go onto
 ## the notebook's page (Game.diegetic_ui).
 func test_pick_up_papers() -> void:
+	var G = _ground_floor()
 	print("Picking up papers and filing sticky notes")
 	_game().new_run(5)
 	_game().diegetic_ui = true
@@ -6595,7 +6676,7 @@ func test_pick_up_papers() -> void:
 	var p: Player = level.player
 	level._release_camera(p)
 	p.seated = false
-	p.global_position = Vector3(1.0, 0.1, -1.9)  # behind the front desk
+	p.global_position = G.by_desk(1.0, -0.9, 0.1)  # behind the front desk
 	p.rotation.y = 0.0
 	for i in 20:
 		await physics_frame
@@ -6612,7 +6693,7 @@ func test_pick_up_papers() -> void:
 	p._ray.force_raycast_update()
 	check(p._look_target() == on_bezel, "looking straight at the sticky on the terminal's bezel aims at the sticky")
 	p.camera.rotation = Vector3.ZERO
-	p.global_position = Vector3(1.0, 0.1, -1.9)
+	p.global_position = G.by_desk(1.0, -0.9, 0.1)
 	p.rotation.y = 0.0
 	for i in 10:
 		await physics_frame
@@ -6653,8 +6734,8 @@ func test_pick_up_papers() -> void:
 	check(not is_instance_valid(reader) and p.held_prop == null and card.global_transform.origin.distance_to(home.origin) < 0.01, "E puts it back where it was")
 	check(flaps.all(func(g): return g.visible), "and back on the desk it's folded as before")
 	# A sheet on a wall comes off the wall the same way, its printed side to you.
-	var sheet := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Wall test", ["one", "two"])
-	p.look_at(Vector3(1.0, p.global_position.y, -3.2))
+	var sheet := Document.place(level.geo, G.by_desk(1.0, -2.2, 1.5), 180.0, "Wall test", ["one", "two"])
+	p.look_at(G.by_desk(1.0, -2.2, p.global_position.y))
 	await physics_frame
 	sheet._on_used(p)
 	for i in 120:
@@ -6687,7 +6768,7 @@ func test_pick_up_papers() -> void:
 	check(p.held_prop == null and not level.notebook.is_open(), "Tab puts a paper down too, without opening the notebook")
 	await physics_frame
 	# A form on the wall is printed small and detailed, the same page you read held up.
-	var form := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Form test", [
+	var form := Document.place(level.geo, G.by_desk(1.0, -2.2, 1.5), 180.0, "Form test", [
 		{"columns": ["NAME", "IN"], "widths": [3.0, 1.0]},
 		{"row": ["PIKE", "22:00"], "hand": true},
 	])
@@ -6709,7 +6790,7 @@ func test_pick_up_papers() -> void:
 	# The sticky by the keyboard can be picked up and read; desk stickies are drawn big.
 	var stickies: Array = level.find_children("*", "Document", true, false).filter(func(d): return d.title == "Sticky note")
 	check(stickies.filter(func(d): return d.plain_text().contains("ORDER matters.") and d.is_sticky() and d.prompt == "Take the sticky note").size() == 1, "the sticky by the keyboard is a sticky note you take, not a paper you read")
-	check(stickies.any(func(d): return d.plain_text().contains("ORDER BY ... DESC") and d.position.distance_to(Vector3(-2.25, 1.102, -0.72)) < 0.5), "and the night desk's DESC reminder sits by the visitor book")
+	check(stickies.any(func(d): return d.plain_text().contains("ORDER BY ... DESC") and d.position.distance_to(G.on_desk(-2.25, 0.28)) < 0.5), "and the night desk's DESC reminder sits by the visitor book")
 	var desk_sticky: StickyNote = level.find_children("*", "StickyNote", true, false).filter(func(n): return not n.on_terminal)[0]
 	check(desk_sticky.find_child("StickyNote", false, false).scale.x > 1.2, "stickies lying on the desk are drawn big enough to read standing up")
 	# The notebook: 1-3 turn to its tabs; Tab closes it.
@@ -6758,7 +6839,7 @@ func test_pick_up_papers() -> void:
 	var memo_page: String = level.notebook.pages.section_text(NotebookPages.Page.CASES)
 	check(memo_page.contains("shredded memo") and not memo_page.contains("ORDER matters.") and level.notebook.pages.section_text(NotebookPages.Page.TABLES).contains("ORDER matters."), "and stays on Floor notes, not the memo's page, until the sort's own case opens")
 	# One stuck on a wall stays there; each player copies it.
-	var wall := Document.place(level.geo, Vector3(1.0, 1.5, -3.2), 180.0, "Sticky note", [{"text": "Bulb's dead.", "hand": true}], false, "sticky")
+	var wall := Document.place(level.geo, G.by_desk(1.0, -2.2, 1.5), 180.0, "Sticky note", [{"text": "Bulb's dead.", "hand": true}], false, "sticky")
 	check(wall.prompt == "Copy the sticky note into your notebook", "a sticky on a wall is copied")
 	wall.take_sticky(null)
 	await physics_frame

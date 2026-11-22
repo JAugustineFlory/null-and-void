@@ -30,9 +30,18 @@ var puzzles: Array = []
 ## player types one literally.
 var blanks := {}
 var locked := false
+## A practice terminal (the garage lab's): what's typed here doesn't count
+## towards retiring a word's button.
+var practice := false
 ## Under the terminal security policy (TerminalPolicy): set by the level, the
 ## same on every machine. Bare SELECT * is refused and results are capped.
 var policy := false
+## Under the policy, this terminal's cap is its own row in the building's
+## terminal_policy table (TerminalPolicy.cap_of): floor 10's four, which a crew
+## can lift. Every other terminal keeps the policy's 20.
+var reads_cap := false
+## Who typed the query being handled now (host): its peer id (on_query).
+var last_peer := 0
 var locked_message := "ACCESS DENIED."
 var _fresh_boot := false
 var _screen: MeshInstance3D
@@ -63,6 +72,8 @@ var skin_color: Color = TerminalScreen.PHOSPHOR
 ## The whole look of its screen (TerminalLook.of: the text theme and the screen
 ## behind it) of whoever sat down first; {} until someone has, which draws standard.
 var look := {}
+## A TerminalRig standing in front of it (switched off, no keyboard...), or null.
+var rig: Node = null
 
 
 static func spawn(parent: Node, pos: Vector3, facing_deg: float, name_text: String, facility_db: FacilityDB, terminal_ui: TerminalUI) -> Terminal:
@@ -149,6 +160,8 @@ func _on_walked_off() -> void:
 ## Looking at the terminal also shows what teammates sitting at it are typing,
 ## big enough to read when their body is between you and the glass.
 func get_prompt(player: Node) -> String:
+	if rig and rig.blocks():
+		return rig.terminal_prompt(player) if enabled else ""
 	var p := super(player)
 	var me := multiplayer.get_unique_id()
 	var net := get_node_or_null("/root/Net")
@@ -165,7 +178,9 @@ func get_prompt(player: Node) -> String:
 
 ## Opening a terminal is local to each player; the host only hears that it happened.
 func interact(player: Node) -> void:
-	if enabled:
+	if enabled and rig and rig.blocks():
+		rig.press_terminal(player)
+	elif enabled:
 		used.emit(player)
 		if not _forwarded("report_open"):
 			opened.emit(player)
@@ -228,7 +243,12 @@ func boot_text() -> Array:
 
 ## Run a query here: under the policy (TerminalPolicy.run) if it's on.
 func query(sql: String) -> Dictionary:
-	return TerminalPolicy.run(db, sql) if policy else db.execute(sql)
+	return TerminalPolicy.run(db, sql, policy_cap()) if policy else db.execute(sql)
+
+
+## How many rows the policy lets this terminal show.
+func policy_cap() -> int:
+	return TerminalPolicy.cap_of(db, terminal_name) if reads_cap else TerminalPolicy.CAP
 
 
 ## Replace the boot text and wipe the screen the next time it is opened.
@@ -257,7 +277,8 @@ func sound(kind: String) -> void:
 	Sfx.play(self, kind, focus_point.position)
 
 
-func on_query(sql: String, result: Dictionary, terminal_ui: TerminalUI) -> void:
+func on_query(sql: String, result: Dictionary, terminal_ui: TerminalUI, from_peer := 0) -> void:
+	last_peer = from_peer
 	queried.emit(sql, result, terminal_ui)
 
 

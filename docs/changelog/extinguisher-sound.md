@@ -1,0 +1,1 @@
+- **Added:** a fire extinguisher bursts and hisses when it's let off.

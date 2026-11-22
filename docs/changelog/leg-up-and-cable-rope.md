@@ -1,0 +1,1 @@
+- **Added:** give a teammate a leg-up: crouch against a wall, facing it, and they can step up off you to edges too high to reach alone.

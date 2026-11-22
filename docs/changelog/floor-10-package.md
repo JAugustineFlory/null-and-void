@@ -1,0 +1,8 @@
+- **Changed:** on floor 10 each case takes you one step at a time: the query on screen follows the step you're on, and you answer a read-back by pointing at the answer in the result.
+- **Added:** on floor 10, a pencil note says why when you point at the wrong cell, and SYSOP says why when a write is nearly right.
+- **Added:** floor 10's terminals run under the security policy, with its card by the plant desk and the front desk.
+- **Added:** floor 10's papers give you their pieces when you click their lines, and the clock over the control room door can be read up close.
+- **Added:** a workshop corner in floor 10's plant hall, and a few more notes left by the people who work there.
+- **Changed:** the loaner decks on floor 10 unlock once your log-in is read back.
+- **Changed:** floor 10's breaker lockout gives you 45 seconds to read it back, and the plant's machine waits a little longer before it follows you down.
+- **Changed:** `.hint` on floor 10 first says where to look on the floor.

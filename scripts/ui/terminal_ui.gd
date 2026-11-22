@@ -1148,7 +1148,7 @@ func run(sql: String) -> void:
 	var result: Dictionary = terminal.query(sql) if terminal.has_method("query") else terminal.db.execute(sql)
 	show_query(terminal, sql, result, multiplayer.get_unique_id())
 	if result.ok:
-		terminal.on_query(sql, result, self)
+		terminal.on_query(sql, result, self, multiplayer.get_unique_id())
 
 
 ## What SYSOP says about an error: a typed-in placeholder gets its own answer.
@@ -1212,7 +1212,7 @@ func show_query(on_terminal: Node, sql: String, result: Dictionary, from_peer: i
 		else:
 			out.append([_format_table(result.columns, result.rows), "result"])
 			if result.get("capped", false):
-				out.append([TerminalPolicy.CAPPED, "info"])
+				out.append([TerminalPolicy.capped_line(int(result.get("cap", TerminalPolicy.CAP))), "info"])
 	# A hint's shape typed in as it is: a quoted blank runs but finds nothing useful
 	# (an unquoted one is an error, explained above). So is ?, which SQLite takes
 	# as an empty value.
@@ -1536,6 +1536,8 @@ func count_words(sql: String, on_terminal: Node = null) -> void:
 	var net := get_node_or_null("/root/Net")
 	if game == null or net == null or net.get("profile") == null or not KeywordHelp.counting:
 		return
+	if on_terminal and on_terminal.get("practice"):
+		return  # the garage lab's practice doesn't count
 	var key := KeywordHelp.same_query(sql)
 	var how: Dictionary = _sent.get(key, {})
 	_sent.erase(key)
