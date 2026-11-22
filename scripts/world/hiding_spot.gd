@@ -14,7 +14,7 @@ extends Seat
 var spot_kind := "locker"
 ## You can see out from inside (a locker's slats).
 var see_out := true
-## Shown while you're inside (draft, plan/approvals/v0.10-environment-strings.md).
+## Shown while you're inside (approved 2026-11-22, plan/approvals/v0.10-environment-strings.md).
 var leave_prompt := LEAVE_PROMPT
 ## E gets you out, the way it got you in (Augustine 2026-11-22); Space still does too.
 var leave_on_interact := true

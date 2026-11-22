@@ -52,7 +52,7 @@ const DARK_SIGHT := 3.0
 ## A light this bright (light_energy) or more counts as light to be seen by.
 const LIT_ENERGY := 0.25
 
-## Prompts and notices (drafts, plan/approvals/v0.10-environment-strings.md).
+## Prompts and notices (approved 2026-11-22, plan/approvals/v0.10-environment-strings.md).
 const THROW_PROMPT := "[Right-click] Throw"  # the block button throws what you hold; G does too
 ## The extinguisher's hiss (Sound's to record), and a thrown thing landing.
 const BLAST_SOUND := "extinguisher"
