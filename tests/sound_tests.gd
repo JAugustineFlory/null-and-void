@@ -19,6 +19,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hum_on_ambience()
 	await test_terminal_sounds()
 	await test_door_sounds()
+	await test_locked_door_stab()
 	await test_elevator_sounds()
 	await test_monster_sounds()
 	test_touch_kinds()
@@ -227,28 +228,85 @@ func test_door_sounds() -> void:
 	var hinged := Door.create(room, "TEST-HINGED", Vector3(8, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
 	await t.process_frame
 	var kinds := func(): return room.get_meta("sounds_played", []).map(func(x): return x.kind)
+	var since := func(n: int): return kinds.call().slice(n)
 	slid.set_open(true)
-	check(kinds.call() == ["door_motor"] and room.get_meta("sounds_played")[0].pos == Vector3(4, 1.2, 0), "a sliding door's motor runs as it opens, at the door")
+	check(kinds.call() == ["clunk"] and room.get_meta("sounds_played")[0].pos == Vector3(4, 1.2, 0), "a sliding door's bolts draw first, at the door")
+	await t.create_timer(1.4).timeout
+	check(kinds.call() == ["clunk", "door_motor", "click"], "then its motor runs it open, and it settles at the stop (%s)" % [kinds.call()])
+	var n: int = kinds.call().size()
 	slid.set_open(false)
-	check(kinds.call().back() == "clunk", "and it thuds shut")
+	await t.create_timer(0.6).timeout
+	check(since.call(n) == ["door_motor", "clunk"], "shutting: the motor, and the thud home (%s)" % [since.call(n)])
+	n = kinds.call().size()
 	hinged.set_open(true)
-	check(kinds.call().back() == "handle", "a hinged door's handle turns and it creaks open")
+	check(since.call(n) == ["handle"], "a hinged door's handle goes down first")
+	await t.create_timer(1.2).timeout
+	check(since.call(n) == ["handle", "door_creak", "tap"], "then it groans round on its hinges, and knocks against its stop (%s)" % [since.call(n)])
+	n = kinds.call().size()
 	hinged.set_open(false)
-	check(kinds.call().back() == "click", "and its latch clicks shut")
+	await t.create_timer(1.0).timeout
+	check(since.call(n) == ["door_closer", "click"], "its closer hisses it back, and the latch clicks (%s)" % [since.call(n)])
+	n = kinds.call().size()
+	hinged.set_open(true, false, 0.0, true)
+	await t.create_timer(1.0).timeout
+	check(since.call(n).size() > 0 and since.call(n)[0] == "door_creak" and not since.call(n).has("handle"), "shoved open, nobody turns the handle: straight into the swing")
+	hinged.set_open(false, true)
 	var stair := Door.create(room, "STAIR-1-G", Vector3(12, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
 	await t.process_frame
+	n = kinds.call().size()
 	stair.set_open(true)
-	check(kinds.call().back() == "push_bar", "a stair door clanks on its push bar")
-	stair.set_open(false)
+	check(since.call(n) == ["push_bar"], "a stair door clanks on its push bar")
+	stair.set_open(false, true)
+	await t.create_timer(1.0).timeout
 	stair.locked = true
-	var n: int = kinds.call().size()
+	n = kinds.call().size()
 	stair.interact(null)
-	check(kinds.call().size() == n + 1 and kinds.call().back() == "lock" and not stair.is_open, "a locked door's handle rattles and it stays shut")
+	check(since.call(n) == ["lock"] and not stair.is_open, "a locked door's handle rattles and it stays shut")
+	await t.create_timer(1.0).timeout
 	var before: int = kinds.call().size()
 	slid.set_open(true, true)
 	slid.set_open(true)
+	await t.create_timer(0.3).timeout
 	check(kinds.call().size() == before, "a door set at once (loading in) or already open makes no sound")
+	for k in SfxDoor.KINDS:
+		var w := SfxDoor.make(k)
+		check(w != null and _peak(w) > 0.2 and _clipped(w) < 0.001 and Sfx.KINDS.has(k) and Sfx.stream(k) != null,
+			"%s is made in code, heard, not clipped, and has its loudness (peak %.2f)" % [k, _peak(w)])
+	check(SfxDoor.make("door_slam") == null, "there's no door sound that isn't listed")
 	room.queue_free()
+	await t.process_frame
+
+
+## Trying a locked door near you: the score answers with a short stab, not every time.
+func test_locked_door_stab() -> void:
+	var stab := MusicSynth.sting("locked")
+	check(stab != null and _peak(stab) > 0.3 and _clipped(stab) < 0.001, "the locked-door stab is there and doesn't clip (peak %.2f)" % _peak(stab))
+	var world := FakeWorld.new()
+	t.root.add_child(world)
+	var room := Node3D.new()
+	world.add_child(room)
+	var me := Node3D.new()
+	room.add_child(me)
+	world.player = me
+	var d := MusicDirector.follow(world)
+	var door := Door.create(room, "TEST-LOCKED", Vector3(2, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
+	await t.process_frame
+	door.locked = true
+	door.interact(null)
+	check(d.tried_player != null and d.tried_player.playing and d.tried_player.bus == Sfx.MUSIC, "a locked door rattles beside you: the score stabs")
+	d.tried_player.stop()
+	door.interact(null)
+	check(not d.tried_player.playing, "trying it again straight away: just the rattle")
+	d._process(MusicDirector.TRIED_GAP + 0.1)
+	me.position = Vector3(2 + MusicDirector.TRIED_NEAR + 5.0, 0, 0)
+	door.interact(null)
+	check(not d.tried_player.playing, "a teammate rattling one down the corridor: just the rattle, far off")
+	me.position = Vector3.ZERO
+	door.interact(null)
+	check(d.tried_player.playing, "and once a while has passed, it stabs again")
+	d.tried_player.stop()
+	world.queue_free()
+	d.get_parent().queue_free()
 	await t.process_frame
 
 

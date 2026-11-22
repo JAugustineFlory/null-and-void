@@ -81,6 +81,8 @@ const KINDS := {
 	"unscrew": {"unit": 1.5, "db": -6.0, "pitch": 0.08},
 	"panel_off": {"unit": 4.0, "pitch": 0.06},
 	"hinge": {"unit": 3.0, "db": -8.0, "pitch": 0.1},
+	"door_creak": {"unit": 3.0, "pitch": 0.08},
+	"door_closer": {"unit": 2.5, "pitch": 0.05},
 	"ceiling_tile": {"unit": 3.0, "db": -4.0, "pitch": 0.08},
 	"duct_crawl": {"unit": 3.0, "pitch": 0.12},
 	# A badge reader's answer.
@@ -152,6 +154,8 @@ static func stream(kind: String) -> AudioStream:
 				_streams[kind] = SfxPunches.takes(kind)
 			elif SfxCreatures.KINDS.has(kind):
 				_streams[kind] = SfxCreatures.make(kind)
+			elif SfxDoor.KINDS.has(kind):
+				_streams[kind] = SfxDoor.make(kind)
 			else:
 				_streams[kind] = SfxSynth.make(kind)
 	return _streams[kind]

@@ -29,6 +29,10 @@ const GROUND_FLOOR := "res://scripts/world/ground_floor.gd"
 const NEAR := 8.0
 ## A door locking closer than this (metres) to you shuts you in.
 const SEAL_NEAR := 30.0
+## Trying a locked door this close to you (metres) gets a stab from the score, at
+## most once every TRIED_GAP seconds.
+const TRIED_NEAR := 8.0
+const TRIED_GAP := 20.0
 ## How long the music stays sealed after a door locks, unless danger cuts in.
 const SEALED_HOLD := 12.0
 ## A lockdown locks several doors at once: one sting, not one a door.
@@ -51,6 +55,9 @@ var _shut_at := {}
 var _clock := 0.0
 ## The sting's player, made the first time a door locks on you.
 var sting_player: AudioStreamPlayer
+## Trying a locked door: its own short sting, and the wait before it can play again.
+var tried_player: AudioStreamPlayer
+var _tried_wait := 0.0
 
 
 ## Follows `w` (the World) for as long as it exists. One per game.
@@ -165,6 +172,7 @@ func _process(delta: float) -> void:
 	_hold = maxf(0.0, _hold - delta)
 	_sealed = maxf(0.0, _sealed - delta)
 	_sting_wait = maxf(0.0, _sting_wait - delta)
+	_tried_wait = maxf(0.0, _tried_wait - delta)
 	_clock += delta
 	_t += delta
 	if _t < POLL:
@@ -210,6 +218,24 @@ func watch_doors() -> void:
 		_locks[id] = locked
 	if shut_in:
 		sealed()
+
+
+## Someone tried a locked door (SfxDoor, on its "rattle", on every machine). Close
+## enough that you heard it, the score answers with a short stab; not again for a while,
+## or a crew trying every door on a corridor gets a stab at each.
+func door_tried(door: Node3D) -> void:
+	var me: Node3D = world.get("player") if is_instance_valid(world) else null
+	if _tried_wait > 0.0 or me == null or me.global_position.distance_to(door.global_position) > TRIED_NEAR:
+		return
+	_tried_wait = TRIED_GAP
+	if tried_player == null:
+		tried_player = AudioStreamPlayer.new()
+		tried_player.name = "Tried"
+		tried_player.bus = Sfx.MUSIC
+		tried_player.volume_db = Music.BASE_DB - 4.0
+		tried_player.stream = MusicSynth.sting("locked")
+		add_child(tried_player)
+	tried_player.play()
 
 
 ## The building has shut you in: the sting, and the music stays sealed a while.

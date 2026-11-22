@@ -121,8 +121,10 @@ static func _relief(out: PackedFloat32Array) -> void:
 
 ## The one-off sounds the score plays over its layers, or null: "sealed", as the
 ## building locks the crew in (a deep boom, and a cluster of low brass that swells
-## and won't resolve). Four seconds, once.
+## and won't resolve; four seconds), and "locked", a short stab when a door won't give.
 static func sting(kind: String) -> AudioStreamWAV:
+	if kind == "locked":
+		return _locked_sting()
 	if kind != "sealed":
 		return null
 	var n := int(4.0 * RATE)
@@ -138,6 +140,23 @@ static func sting(kind: String) -> AudioStreamWAV:
 		for f in cluster:
 			brass += sin(TAU * f * t) + sin(TAU * f * 2.0 * t) * 0.35 + sin(TAU * f * 3.0 * t) * 0.15
 		out[i] = boom * clampf(t / 0.004, 0.0, 1.0) + brass * swell * 0.09
+	return SfxSynth._wav(out, RATE)
+
+
+## "locked": a locked door won't give. A low string stab, a tritone, that dies away
+## over a second and a half.
+static func _locked_sting() -> AudioStreamWAV:
+	var n := int(1.5 * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / RATE
+		var env := clampf(t / 0.02, 0.0, 1.0) * exp(-t * 2.6)
+		var bow := 0.85 + 0.15 * sin(TAU * 5.5 * t)
+		var v := 0.0
+		for f in [98.0, 138.6, 196.0]:
+			v += sin(TAU * f * t) + sin(TAU * f * 2.0 * t) * 0.4 + sin(TAU * f * 3.0 * t) * 0.2
+		out[i] = v * env * bow * 0.18
 	return SfxSynth._wav(out, RATE)
 
 
