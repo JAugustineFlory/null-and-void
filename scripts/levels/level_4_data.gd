@@ -6,6 +6,8 @@ extends RefCounted
 ##                   labelled box per row, with its tag hanging off it)
 ##   contractor_log  the clipboard by the controller terminal: who logged in to work
 ##                   on the plant, and when
+##   terminal_policy Security's after-hours cap on the floor's four terminals (and
+##                   the front desk's): found by .tables, never pointed at
 ## The floor's doors and lights are rows in the building-wide tables.
 ##
 ## What stays the same every run: Tuesday's power event tripped the PLANT CONTROL
@@ -129,6 +131,18 @@ CREATE TABLE gantry (
 );
 INSERT INTO gantry VALUES
 	('GA-1', %d, 0, 'Parks at bay %d. raised = 1 lifts the platform to the rail. Lower it before it travels.');
+
+-- Security's cap on the plant's and the front desk's terminals after hours: each
+-- terminal named here reads its own row (TerminalPolicy.cap_of). Nobody hid it.
+CREATE TABLE terminal_policy (
+	terminal TEXT PRIMARY KEY,
+	max_rows INTEGER CHECK (max_rows > 0)
+);
+INSERT INTO terminal_policy VALUES
+	('PLANT MAINT', 20),
+	('DOOR & LIFT CONTROL', 20),
+	('BAY 10 PANEL', 20),
+	('FRONT DESK', 20);
 
 -- doors and lights are building-wide (FacilityDB.SHARED_SCHEMA). This wing adds floor 10's
 -- rows. The control room's door is unlocked but has no power until its breaker is reset:

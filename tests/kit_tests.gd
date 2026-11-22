@@ -22,6 +22,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_terminal_rig()
 	await test_item_lock()
 	await test_rollup_door()
+	await test_elevator_stall()
 	await test_every_piece_sounds()
 	await test_coop()
 
@@ -247,7 +248,10 @@ func test_terminal_rig() -> void:
 	check(not rig.missing.has("power") and not term.screen.glass.visible and term.get_prompt(level.player) == "The power light's on, but there's no picture.",
 		"switched on, it's still dark: the monitor cable")
 	await _press(level, rig.parts["monitor_cable"])
-	check(rig.lit() and term.screen.glass.visible and term.get_prompt(level.player) == "There's no keyboard." and rig.blocks(), "cable in: a picture, but no keyboard")
+	check(rig.booting and term.get_prompt(level.player) == "" and term.transcript.is_empty(), "a picture at last: it warms up first, the screen still blank")
+	await _until(func(): return not rig.booting, 240)
+	check(term.transcript == term.boot_text(), "then its boot lines come up, one at a time")
+	check(rig.lit() and term.screen.glass.visible and term.get_prompt(level.player) == "There's no keyboard." and rig.blocks(), "booted: a picture, but no keyboard")
 	var kb: RigPart = rig.parts["keyboard"]
 	check(not kb.can_use(KitPiece.hand_of(level.player)) and not term.screen.keyboard.visible, "no keyboard to plug in yet")
 	await _press(level, level.gear["keyboard"])
@@ -290,6 +294,99 @@ func test_rollup_door() -> void:
 	await _frames(120)
 	check(level.chain.is_open and absf(door.gap() - 1.0) < 0.01 and not door.is_open(), "the chain lifts the door to exactly 1.0 m (%.2f): crawl under" % door.gap())
 	await _free(level)
+
+
+## E9: a stuck elevator. Out through the roof hatch and the landing door's release,
+## or by prying the doors (Movement's, which calls release("pry")).
+func test_elevator_stall() -> void:
+	var level = await _bench()
+	var lift: Elevator = level.lift
+	var stall: ElevatorStall = level.stall
+	var p: Player = level.player
+	check(stall.stop_at >= 0.3 and stall.stop_at <= 0.7, "the seed picks where between floors it sticks (%.2f)" % stall.stop_at)
+	var hole := ElevatorStall.HATCH.size
+	check(hole.x >= 1.0 and hole.y >= 1.0 and ElevatorStall.TO_LANDING + 0.1 < ElevatorStall.SHAFT_H - Elevator.DOOR_H + 1.0, "the hatch is at least 1.0 m square, room for every body")
+	# Unarmed, a ride is a ride.
+	p.global_position = lift.to_global(Vector3(0, 0.1, 1.0))
+	lift.open(true)
+	await _frames(2)
+	level._ride()
+	await _until(func(): return level.rides == 1, 600)
+	check(level.rides == 1 and lift_contains(level.lift_to, p) and not stall.stalled, "unarmed, the lift rides to its floor as always")
+	# Armed: it sticks.
+	p.global_position = lift.to_global(Vector3(0, 0.1, 1.0))
+	lift.riding = false
+	lift.open(true)
+	level._arm_stall()
+	await _frames(2)
+	level._ride()
+	await _until(func(): return stall.stalled, 600)
+	await _frames(240)
+	check(stall.stalled and level.rides == 1 and lift.contains(p.global_position), "armed, it jolts to a stop between floors and stays there")
+	check(not lift.press(p) and lift.refusal == "The buttons do nothing.", "the buttons do nothing")
+	check(stall.hatch.enabled and stall.hatch.get_prompt(p) == "[E] Push the hatch open", "the roof hatch can be pushed open")
+	await _press(level, stall.hatch)
+	check(stall.hatch.is_open and stall.hatch.get_children().filter(func(c): return c is CollisionShape3D and not c.disabled).is_empty(), "pushed open, the hatch is a way out")
+	# Up through it (Movement's boost or climb), up the ladder, to the release.
+	p.global_position = lift.to_global(Vector3(-1.0, stall.roof_y() + 0.1, 1.0))
+	await _frames(10)
+	check(lift.to_local(p.global_position).y > Elevator.SIZE.y, "the car's roof holds you")
+	p.global_position = lift.to_global(Vector3(-1.0, stall.roof_y() + ElevatorStall.TO_LANDING - 0.4, 0.45))
+	check(stall.door_release.get_prompt(p) == "[E] Pull the door release", "at the top of the ladder: the landing door's release")
+	await _press(level, stall.door_release)
+	await _until(func(): return level.rides == 2, 300)
+	check(level.rides == 2 and not stall.stalled and lift_contains(level.lift_to, p), "pulling it ends the ride: everyone, even up in the shaft, steps out at the floor")
+	# Once only: the next ride runs.
+	check(not stall.should_stall(), "it stalls once, then rides normally")
+	# The pry: Movement's PryDoors, stood in by a stub with its signal and `enabled`.
+	var pry := PryStub.new()
+	var climb := ClimbStub.new()
+	stall.link_pry(pry)
+	stall.link_hatch_climb(climb)
+	check(not pry.enabled and not climb.active, "Movement's pry and hatch climb are off while the lift isn't stuck")
+	stall.arm()
+	lift.riding = false
+	p.global_position = lift.to_global(Vector3(0, 0.1, 1.0))
+	lift.open(true)
+	await _frames(2)
+	var hows := []
+	stall.released_by.connect(func(how): hows.append(how))
+	level._ride()
+	await _until(func(): return stall.stalled, 600)
+	check(pry.enabled and climb.active, "stuck: the pry is on, and the hatch (still open from before) can be climbed")
+	pry.pried_open.emit()
+	await _until(func(): return level.rides == 3, 300)
+	check(level.rides == 3 and hows == ["pry"] and lift_contains(level.lift_to, p), "prying the doors open ends it the same way")
+	check(not pry.enabled and not climb.active, "and the pry and climb switch off again")
+	pry.free()
+	climb.free()
+	# A condition from the run's choices: its fuse pulled for another puzzle.
+	stall.when(func(): return not level.fuses.is_live("VENDING"))
+	check(not stall.should_stall(), "a condition stalls it only when the run's choices say so")
+	await _press(level, level.fuses.slot("VENDING"))
+	check(stall.should_stall(), "pull that fuse, and the next ride sticks")
+	await _free(level)
+
+
+class PryStub extends Node:
+	signal pried_open
+	var enabled := true
+
+
+class ClimbStub extends Node:
+	var active := true
+
+
+func lift_contains(e: Elevator, p: Node3D) -> bool:
+	return e.contains(p.global_position)
+
+
+func _until(cond: Callable, frames: int) -> bool:
+	for i in frames:
+		if cond.call():
+			return true
+		await t.physics_frame
+	return cond.call()
 
 
 func test_every_piece_sounds() -> void:
@@ -365,4 +462,20 @@ func test_coop() -> void:
 	client.terminal.interact(client.player)
 	await _frames(10)
 	check(machines.all(func(l): return not l.rig.missing.has("power") and not l.rig.missing.has("power_cord")), "a client plugs in the cord and switches it on, for everyone")
+	# The stuck lift: the host arms it, a client gets everyone out by the roof.
+	for l in machines:
+		l.player.global_position = l.lift.to_global(Vector3(0, 0.1, 1.0))
+		l.lift.open(true)
+	await _frames(5)
+	host.sync.event("_arm_stall")
+	host.sync.event("_ride")
+	check(await _until(func(): return machines.all(func(l): return l.stall.stalled), 600), "the lift sticks on every machine")
+	client.stall.hatch.interact(client.player)
+	await _frames(10)
+	check(machines.all(func(l): return l.stall.hatch.is_open), "a client pushes the hatch open for everyone")
+	client.player.global_position = client.lift.to_global(Vector3(-1.0, client.stall.roof_y() + ElevatorStall.TO_LANDING - 0.4, 0.45))
+	await _frames(5)
+	client.stall.door_release.interact(client.player)
+	check(await _until(func(): return machines.all(func(l): return l.rides == 1 and not l.stall.stalled), 300)
+		and machines.all(func(l): return l.lift_to.contains(l.player.global_position)), "the client pulls the release: the ride ends on every machine, with each player at the floor")
 	await t._coop_close(worlds)

@@ -4,6 +4,12 @@ extends CharacterBody3D
 ## looking at it: no player has it on screen with a clear line of sight, and no
 ## working camera covers the spot it stands on. Seen, it freezes mid-step.
 ## Unseen, it walks toward the nearest player, and if it reaches one, they go down.
+##
+## Counterplay (plan/environment-play-e7.md): a flashlight strobe in its face keeps
+## it frozen for a few seconds after everyone looks away. A fire extinguisher's
+## cloud blocks your view of it, so it moves. Any shut door between you holds it.
+## Hiding: from a locker you can see out (staring keeps it frozen); under a desk or
+## in a cabinet you can't, and if it was coming for you, it comes to the spot.
 
 signal caught(player: Node)
 ## Fired the first time it moves after being seen, so levels can warn players.
@@ -18,6 +24,8 @@ const BODY_HEIGHT := 2.1
 const CATCH_COOLDOWN := 3.0
 ## How far off-center a co-op player on another machine can still see it.
 const PUPPET_VIEW_HALF_ANGLE := 50.0
+## Counterplay: a strobe keeps it frozen this long after everyone looks away.
+const STROBE_FREEZE := 3.0
 
 ## Off until the level lets it loose.
 var active := false
@@ -33,6 +41,11 @@ var _body: Node3D
 var _arms: Array[Node3D] = []
 var _cooldown := 0.0
 var _was_moving := false
+## Strobed: frozen while anyone looks, then for _freeze more seconds.
+var _strobed := false
+var _freeze := 0.0
+## A hiding place the one it was coming for got into: it goes there (host).
+var _search: Node3D
 
 
 func _ready() -> void:
@@ -113,8 +126,15 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	_cooldown = max(0.0, _cooldown - delta)
 	seen = is_watched()
+	if _strobed:
+		_freeze = STROBE_FREEZE if seen else _freeze - delta
+		_strobed = _freeze > 0.0
+		seen = true  # still dazzled
 	var target := nearest_player()
-	if not active or seen or target == null or _cooldown > 0.0:
+	if is_instance_valid(_search) and Counterplay.hiding_in(_search) == null:
+		_search = null  # they got out
+	var goal: Node3D = _search if is_instance_valid(_search) else target
+	if not active or seen or goal == null or _cooldown > 0.0:
 		velocity.x = 0
 		velocity.z = 0
 		_was_moving = false
@@ -124,23 +144,62 @@ func _physics_process(delta: float) -> void:
 		_was_moving = true
 		_new_pose()
 		started_moving.emit()
-	_face(target.global_position)
-	if global_position.distance_to(target.global_position) < CATCH_RANGE and _can_reach(target):
+	_face(goal.global_position)
+	if goal == _search:
+		if _flat_to(goal) < CATCH_RANGE + 0.5:
+			_take_from(_search)
+			return
+	elif global_position.distance_to(target.global_position) < CATCH_RANGE and _can_reach(target):
 		_cooldown = CATCH_COOLDOWN
 		velocity = Vector3.ZERO
 		caught.emit(target)
 		return
-	_agent.target_position = target.global_position
+	_agent.target_position = goal.global_position
 	var next := _agent.get_next_path_position()
 	var dir := next - global_position
 	dir.y = 0
 	if dir.length() < 0.05:
-		dir = target.global_position - global_position
+		dir = goal.global_position - global_position
 		dir.y = 0
 	dir = dir.normalized()
 	velocity.x = dir.x * SPEED
 	velocity.z = dir.z * SPEED
 	move_and_slide()
+
+
+## Counterplay (host): `how` is "extinguisher", "strobe" or "thrown". Only the
+## strobe does anything (the cloud works against you: see player_sees).
+func counter(how: String, _from: Vector3) -> void:
+	if how == "strobe":
+		_strobed = true
+		_freeze = STROBE_FREEZE
+
+
+## Counterplay (host): someone got into hiding. It cares if it was coming for them.
+func counter_saw(body: Node3D) -> bool:
+	return active and body == nearest_player(true)
+
+
+## Counterplay (host): the one it was coming for is hiding there: it goes there.
+func counter_search(spot: Node3D) -> void:
+	if spot:
+		_search = spot
+
+
+## At the spot: it pulls them out, and has them.
+func _take_from(spot: Node3D) -> void:
+	_search = null
+	var p := Counterplay.hiding_in(spot)
+	var c := Counterplay.of(self)
+	if p == null or c == null or not c.pull_out(spot):
+		return
+	_cooldown = CATCH_COOLDOWN
+	velocity = Vector3.ZERO
+	caught.emit(p)
+
+
+func _flat_to(n: Node3D) -> float:
+	return Vector2(n.global_position.x - global_position.x, n.global_position.z - global_position.z).length()
 
 
 func is_watched() -> bool:
@@ -160,6 +219,9 @@ func is_watched() -> bool:
 func player_sees(p: Node) -> bool:
 	if p.get("input_locked"):
 		return false
+	var spot := Counterplay.hidden_in(p)
+	if spot and not spot.get("see_out"):
+		return false  # under a desk or in a cabinet: you can't see out
 	var cam: Camera3D = p.get("camera")
 	var head: Node3D = p.get("_head")
 	if cam == null and head == null:
@@ -176,6 +238,8 @@ func player_sees(p: Node) -> bool:
 			continue
 		if not cam and (-eye.global_basis.z).angle_to(pt - eye.global_position) > deg_to_rad(PUPPET_VIEW_HALF_ANGLE):
 			continue
+		if SightCloud.blocks(self, eye.global_position, pt):
+			continue  # an extinguisher's cloud in the way: it moves
 		var q := PhysicsRayQueryParameters3D.create(eye.global_position, pt, 0xFFFFFFFF, exclude)
 		var hit := space.intersect_ray(q)
 		if hit.is_empty() or hit.collider == self:
@@ -183,12 +247,13 @@ func player_sees(p: Node) -> bool:
 	return false
 
 
-## Whoever's closest and still on their feet: it leaves the ones it put down.
-func nearest_player() -> Node3D:
+## Whoever's closest and still on their feet: it leaves the ones it put down, and
+## anyone hiding (`with_hidden` counts them: who was it coming for?).
+func nearest_player(with_hidden := false) -> Node3D:
 	var best: Node3D = null
 	var best_d := INF
 	for p in _players():
-		if CrewVitals.is_down(p):
+		if CrewVitals.is_down(p) or (not with_hidden and Counterplay.hidden_in(p) != null):
 			continue
 		var d := global_position.distance_to(p.global_position)
 		if d < best_d:

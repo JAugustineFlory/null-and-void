@@ -61,7 +61,8 @@ var used_under_threat := {}
 ## walks every floor up to 10 with lab seed 11 and runs the whole-game checks; "lab"
 ## walks Levels 0-1 again (the lab needs what they taught) and then lab seed 42; "api"
 ## walks floor 9, whose services teach everything their stations need on the floor;
-## "scripts" walks B1, where the crew writes its first scripts.
+## "scripts" walks B1, where the crew writes its first scripts; "garage" walks the
+## lab's two practice cases at home base, before the crew's first query at Halcyon.
 func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	t = tree
 	_check = check
@@ -77,6 +78,9 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 		check_teaching_order()
 		if gaps > 0:
 			print("  (%d known teaching gap%s, see tests/curriculum.gd)" % [gaps, "" if gaps == 1 else "s"])
+		return
+	if part == "garage":
+		await walk_garage(47)
 		return
 	if part == "api":
 		await walk_level_5(31, true)
@@ -99,6 +103,7 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 		await walk_level_3(run[0], run[1])
 	await walk_level_4(31, true)
 	await walk_level_4(12, false)
+	await check_limit_lift()
 	check_teaching_order()
 	check_jot_rules()
 	if gaps > 0:
@@ -836,6 +841,117 @@ func walk_level_0() -> void:
 	await t.process_frame
 
 
+## The garage lab's two practice cases (GarageTutorial), solo, as a player who has
+## never typed a query: they ask .hint, go where it says, type only what it shows
+## in white, and point at cells. Every wrong cell they try first pencils why
+## (plan/teaching/garage-lab-cases-draft.md, L11, L12 and L25 to L27).
+func walk_garage(seed_value: int) -> void:
+	var net := t.root.get_node("/root/Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()  # in memory, so the walk never touches a real save
+	var game := _game()
+	game.new_run(seed_value)
+	game.open_at_home = true
+	var world = load("res://scenes/world.tscn").instantiate()
+	t.root.add_child(world)
+	Engine.time_scale = 4.0
+	for i in 30:
+		await t.physics_frame
+	var home = world.home
+	var tut: GarageTutorial = home.lab.tutorial
+	var p: Player = world.player
+	check(await _until(func(): return home.hud.current_todo() == "Read the work order in your notebook", 400.0), "garage: the work order comes first")
+	home.notebook.open()
+	await t.physics_frame
+	home.notebook.close()
+	check(await _until(func(): return home.book_bag.enabled, 400.0), "garage: then the book on the shelf")
+	p.stand_up(true)
+	p.global_position = home.to_global(home.SHELF + Vector3(0, 0.1, -1.2))
+	await t.physics_frame
+	home.book_bag.interact(p)
+	check(await _until(func(): return tut.running and home.hud.current_todo() == GarageTutorial.SIT, 320.0), "garage: after chapter zero, the practice sends them to a lab computer")
+	var pc: Terminal = home.lab.computers[0]
+	var ui: TerminalUI = home.terminal_ui
+	p.global_position = pc.stand_point.global_position
+	pc.interact(p)
+	check(await _until(func(): return game.case_info("lab_kit").get("open", false), 40.0), "garage: sitting down opens the kit's case")
+
+	# The kit: the crate's label, then the shape, which is already the answer's query.
+	var hints := await _garage_lost(home, ui, tut.kit_puzzle, "item", "duct tape")
+	check(hints >= 0 and hints <= 2, "garage: a new player finds the van's kit with the label and one shape (hints %d)" % hints)
+	check(not point_cell(ui, "qty", "0", "duct tape") and game.case_info("lab_kit").blank.get("miss", "") == GarageTutorial.KIT_ROW_MISS,
+		"garage: the right row's qty doesn't answer it, and the page says the blank wants the item's name")
+	check(not point_cell(ui, "item", "ladder") and game.case_info("lab_kit").blank.get("miss", "") == GarageTutorial.KIT_MISS,
+		"garage: an item there's some of doesn't, and the page says which one it wants")
+	check(point_cell(ui, "item", "duct tape", "duct tape"), "garage: pointing at duct tape, on screen, answers the kit's case")
+	check(await _until(func(): return game.case_info("lab_kit").get("solved", false), 40.0), "garage: the kit's case is solved")
+
+	# The jobs: the board, then a shape with a blank, then exactly what to type.
+	check(await _until(func(): return game.case_info("lab_jobs").get("open", false), 160.0), "garage: then the jobs' case opens")
+	if not ui.visible:
+		pc.interact(p)
+		await t.physics_frame
+	hints = await _garage_lost(home, ui, tut.jobs_puzzle, "client", GarageTutorial.OPEN_JOB)
+	check(hints >= 0 and hints <= 3, "garage: a new player finds the open job with the board and the hints (hints %d)" % hints)
+	check(not point_cell(ui, "status", "open", GarageTutorial.OPEN_JOB) and game.case_info("lab_jobs").blank.get("miss", "") == GarageTutorial.JOBS_ROW_MISS,
+		"garage: the open job's status doesn't answer it, and the page says the blank wants the client's name")
+	check(not point_cell(ui, "client", "Kemp Dental") and game.case_info("lab_jobs").blank.get("miss", "") == GarageTutorial.JOBS_DONE_MISS,
+		"garage: a finished job's client doesn't, and the page says that one's done")
+	ui.run("SELECT town FROM jobs;")
+	await t.physics_frame
+	check(not point_cell(ui, "town", "Bexley") and game.case_info("lab_jobs").blank.get("miss", "") == GarageTutorial.JOBS_MISS,
+		"garage: a cell with no client in its row doesn't either, and the page says what the blank wants")
+	ui.run(white_blocks(tut.jobs_puzzle.hints[-1])[0])
+	await t.physics_frame
+	check(point_cell(ui, "client", GarageTutorial.OPEN_JOB, "open"), "garage: pointing at the open job's client answers the jobs' case")
+	check(await _until(func(): return game.case_info("lab_jobs").get("solved", false), 40.0), "garage: the jobs' case is solved")
+	check(await _until(func(): return tut.finished and not tut.running, 160.0), "garage: and the practice is over")
+	ui.close()
+	Engine.time_scale = 1.0
+	tut.forget_tables()
+	world.queue_free()
+	await t.process_frame
+	net.profile = real_profile
+
+
+## The lost player at a lab computer, until `column` holding `value` is on screen:
+## .hint, then the paper it names (read) or the white query it shows (typed, if it
+## has no blank left). The hints used (a spot counts), or -1 if they're stuck.
+func _garage_lost(home, ui: TerminalUI, puzzle: Puzzle, column: String, value: String) -> int:
+	var game := _game()
+	var hints := 0
+	var typed := {}
+	while hints < 4:
+		var lines: Array = ui.noteable_lines()
+		if lines.any(func(l): return l.get("cells", []).any(func(c): return str(c.column).to_lower() == column and str(c.value) == value)):
+			return hints
+		hints += 1
+		ui.run(".hint")
+		await t.physics_frame
+		var said: String = ui.terminal.transcript[-1]
+		var spot := ""
+		for s in puzzle.spots:
+			if TerminalUI._plain(said).contains(str(s.text)):
+				spot = str(s.id)
+		if spot != "":
+			var paper: Document = null
+			for d in home.find_children("*", "Document", true, false):
+				if d.spot == spot:
+					paper = d
+			check(paper != null, "garage: %s's first hint names a paper in the lab (%s)" % [puzzle.id, spot])
+			if paper:
+				paper.report_open(home.player)
+			check(game.spot_found(spot), "garage: reading the paper %s's hint names finds its spot" % puzzle.id)
+			continue
+		for q in white_blocks(said):
+			if not has_blank(q) and not typed.has(q):
+				typed[q] = true
+				ui.run(q)
+				await t.physics_frame
+	check(false, "garage: %s: a new player is still stuck after %d hints" % [puzzle.id, hints])
+	return -1
+
+
 ## Case pages collect clues as they're read (papers, plates), so a clue must never
 ## carry a puzzle's answer: a value its query returns that the query itself doesn't
 ## type. Numbers are left out (extensions and temperatures are inputs, read off
@@ -1562,8 +1678,9 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	var h := await solve(level, ui, level.reset_puzzle, _hunted(level))
 	check(h <= rescue_tier(level.reset_puzzle) and level.reset_puzzle.solved and not level.alarm, "%s: tonight's breaker is reset from the work order's shape and the panel, with no alarm (hints %d)" % [where, h])
 	check(_said(level.maint, level.TEXT.tip_example), "%s: the work order's own UPDATE, copied, gets SYSOP's why" % where)
-	h = await solve(level, ui, level.check_puzzle, _hunted(level))
-	check(h == 0 and level.check_puzzle.solved and _game().case_info("power").get("solved", false), "%s: SYSOP asks whether it took, the panel's SELECT is on the screen, and reading it back signs off the work order (hints %d)" % [where, h])
+	h = await solve(level, ui, level.check_puzzle, _hunted(level), 3, "", false, func(): return level.check_listed)
+	check(h <= rescue_tier(level.check_puzzle) and level.check_listed, "%s: SYSOP asks whether it took, and the read-back is on the screen, from the case's query or the ladder (hints %d)" % [where, h])
+	check(point_cell(ui, "state", "on") and await _until(func(): return level.check_puzzle.solved and _game().case_info("power").get("solved", false), 2.0), "%s: pointing at tonight's breaker's state signs off the work order" % where)
 	ui.close()
 	# A query's answer is what the panel shows now, with tonight's breaker on.
 	check_case_clues(level, where)
@@ -1576,8 +1693,9 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	ui.open(level.controller, p)
 	h = await solve(level, ui, level.login_puzzle, _hunted(level))
 	check(h <= rescue_tier(level.login_puzzle) and level.login_puzzle.solved and not level.logged_in, "%s: the crew's own row goes in, from the crib's shape, the notebook's number and the clock, or the ladder (hints %d)" % [where, h])
-	h = await solve(level, ui, level.login_read_puzzle, _hunted(level))
-	check(h <= rescue_tier(level.login_read_puzzle) and level.logged_in, "%s: read back, the log-in counts (hints %d)" % [where, h])
+	h = await solve(level, ui, level.login_read_puzzle, _hunted(level), 3, "", false, func(): return level.login_listed)
+	check(h <= rescue_tier(level.login_read_puzzle) and level.login_listed, "%s: the log is read back (hints %d)" % [where, h])
+	check(point_cell(ui, "job", level.data.ticket) and await _until(func(): return level.logged_in, 2.0), "%s: pointing at our own job number in it, the log-in counts" % where)
 	# Facilities' notice names the fire exit. Its row would have said CONTAINMENT.
 	h = await solve(level, ui, level.main_doors_puzzle, _hunted(level))
 	check(h <= rescue_tier(level.main_doors_puzzle) and level.accident, "%s: main_doors, opened by the notice's name, is the accident (hints %d)" % [where, h])
@@ -1608,7 +1726,14 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 			h = await solve(level, ui, level.readback_puzzle, _hunted(level), 3, "", true, func():
 				if ended[0] < 0.0 and (level.sealed or level.lockout_until == 0):
 					ended[0] = paced
-				return ended[0] >= 0.0)
+				return ended[0] >= 0.0 or level.readback_listed)
+			if level.readback_listed and level.lockout_until > 0:
+				# Found it on the screen: a moment to find the breaker and click it.
+				await _spend(PACE_THINK)
+				point_cell(ui, "breaker", level.data.bay_breaker)
+				await _until(func(): return level.sealed or level.lockout_until == 0, 2.0)
+			if ended[0] < 0.0:
+				ended[0] = paced
 			ui.close()
 			Engine.time_scale = 1.0
 			print("  INFO  lockout read-back (seed %d, try %d): %s %d s after the lockout went in, of %d (%d hint%s)" % [seed_value, tries, "sealed" if level.sealed else "lapsed", ended[0], level.LOCKOUT_WINDOW, h, "" if h == 1 else "s"])
@@ -1632,8 +1757,10 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	check(await _until(func(): return level.db.read_only, 5.0), "%s: then Epsilon puts the row back" % where)
 	var done := [false]
 	level.completed.connect(func(): done[0] = true)
-	h = await solve(level, ui, level.verify_puzzle, _hunted(level), 3, calm)
-	check(h <= rescue_tier(level.verify_puzzle) and _game().case_info("entrance").get("solved", false), "%s: reading the row back shows the lie (hints %d)" % [where, h])
+	h = await solve(level, ui, level.verify_puzzle, _hunted(level), 3, calm, false, func(): return level.verify_listed)
+	check(h <= rescue_tier(level.verify_puzzle) and level.verify_listed, "%s: the front doors' row is read back (hints %d)" % [where, h])
+	check(point_cell(ui, "unlocked", "0", "main_entrance") or point_cell(ui, "unlocked", "0"), "%s: its unlocked is pointed at" % where)
+	check(await _until(func(): return _game().case_info("entrance").get("solved", false), 2.0), "%s: reading the row back shows the lie" % where)
 	ui.close()
 	Engine.time_scale = 4.0
 	check(await _until(func(): return done[0], 120.0), "%s: locked in, the floor ends" % where)
@@ -1642,6 +1769,65 @@ func walk_level_4(seed_value: int, seal: bool) -> void:
 	board_verdict(where)
 	level.queue_free()
 	await t.process_frame
+
+
+## Floor 10's hidden secret: an UPDATE on terminal_policy lifts a terminal's row
+## cap, with a WHERE on one, without one on all four. It stops there: floors 9, B1
+## and B2 keep 20, a bare SELECT * is still refused, and only whoever typed it
+## gets the secret.
+func check_limit_lift() -> void:
+	_game().new_run(5)
+	var level = load("res://scenes/level_4.tscn").instantiate()
+	t.root.add_child(level)
+	skip_chapters(level)
+	for i in 20:
+		await t.physics_frame
+	var net: Node = t.root.get_node("/root/Net")
+	var earned: Array = net.profile.earned.duplicate()
+	net.profile.earned.erase(level.LIFT_SECRET)
+	level.db.execute("CREATE TABLE big_log (n INTEGER)")
+	for i in 70:
+		level.db.execute("INSERT INTO big_log VALUES (%d)" % i)
+	# A crewmate on another machine lifts the bay's: the secret's theirs, not ours.
+	level.db.execute("UPDATE terminal_policy SET max_rows = 30 WHERE terminal = 'BAY 10 PANEL'")
+	level.bay_terminal.last_peer = 99
+	level._policy_changed(1, "bay")
+	await t.physics_frame
+	check(level.bay_terminal.policy_cap() == 30 and _said(level.bay_terminal, level.TEXT.tip_lifted) and not net.profile.earned.has(level.LIFT_SECRET),
+		"limit lift: raised past 20 by a crewmate, the bay's panel shows 30 rows and SYSOP says so (U70), but the secret goes to them, not us")
+	var ui: TerminalUI = level.terminal_ui
+	ui.open(level.maint, level.player)
+	ui.run("UPDATE terminal_policy SET max_rows = 500 WHERE terminal = 'PLANT MAINT'")
+	await t.physics_frame
+	check(net.profile.earned.has(level.LIFT_SECRET), "limit lift: typed with a WHERE on one listed terminal, the typer gets Security Through Obscurity")
+	ui.run("SELECT n FROM big_log")
+	check(level.maint.policy_cap() == TerminalPolicy.MOST and level.maint.query("SELECT n FROM big_log").rows.size() == TerminalPolicy.MOST and _said(level.maint, TerminalPolicy.capped_line(TerminalPolicy.MOST)),
+		"limit lift: set past 60, the plant terminal shows 60 rows and its footer says 60")
+	check(level.controller.query("SELECT n FROM big_log").rows.size() == TerminalPolicy.CAP and level.front_desk.policy_cap() == TerminalPolicy.CAP, "limit lift: the terminals it didn't name keep 20")
+	ui.run("SELECT * FROM big_log")
+	check(TerminalUI._plain(level.maint.transcript[-1]) == TerminalPolicy.REFUSAL, "limit lift: a bare SELECT * is still refused")
+	ui.run("UPDATE terminal_policy SET max_rows = 0 WHERE terminal = 'FRONT DESK'")
+	check(level.front_desk.policy_cap() == TerminalPolicy.CAP, "limit lift: a cap of 0 is refused by the table's CHECK")
+	ui.run("UPDATE terminal_policy SET max_rows = 40")
+	await t.physics_frame
+	check(_said(level.maint, level.TEXT.tip_lifted_all % 4) and [level.maint, level.controller, level.bay_terminal, level.front_desk].all(func(term): return term.policy_cap() == 40),
+		"limit lift: with no WHERE all four terminals lift, and SYSOP says what no WHERE did (U71)")
+	ui.close()
+	level.queue_free()
+	await t.process_frame
+	for scene in ["level_5", "level_6", "level_7"]:
+		_game().new_run(5)
+		var floor_level = load("res://scenes/%s.tscn" % scene).instantiate()
+		t.root.add_child(floor_level)
+		for i in 10:
+			await t.physics_frame
+		var terms: Array = floor_level.find_children("*", "Terminal", true, false)
+		if floor_level.db.table_names().has(TerminalPolicy.TABLE):
+			floor_level.db.execute("UPDATE terminal_policy SET max_rows = 60")
+		check(not terms.is_empty() and terms.all(func(term): return not term.reads_cap and term.policy_cap() == TerminalPolicy.CAP), "limit lift: no terminal on %s reads terminal_policy; each keeps 20" % scene)
+		floor_level.queue_free()
+		await t.process_frame
+	net.profile.earned = earned
 
 
 ## Something can hunt the crew on floor 10: the Custodian, from the accident until

@@ -8,6 +8,11 @@ extends CharacterBody3D
 ## It can't be blocked. It never sees: crouching and slow walking are quiet, and the
 ## machines in its own room drown out everything near them.
 ##
+## Counterplay (plan/environment-play-e7.md): a fire extinguisher's blast stuns it,
+## but the hiss is loud, so it comes for you once it shakes it off. A flashlight does
+## nothing (it's blind); a thrown thing doesn't hurt it, but it walks to where it
+## lands. A locked door holds it. Hiding is safe unless it heard you get in.
+##
 ## Hearing, on the host: the level feeds it sounds with hear() (a crank, a dropped
 ## box, this machine's player's noise_made), and it listens to every body itself:
 ## one moving faster than a walk is sprinting, which is loud, on every machine.
@@ -48,10 +53,14 @@ const ROAM_AFTER := 8.0
 ## faster than anyone can run was teleported, and makes no sound.
 const SPRINT_LOUDNESS := 0.5
 const TELEPORT_SPEED := 10.0
+## Counterplay: how long a fire extinguisher's blast stuns it.
+const BLAST_STUN := 2.0
+## Counterplay: a hiding spot's door shutting is as loud as footsteps: it hears it this close.
+const HIDE_HEARD := 3.0
 
 ## Awake and hunting. Dormant, it hears nothing: the level wakes it.
 var active := false
-## dormant | listening | turning | investigating | roaming | grabbing | recovering
+## dormant | listening | turning | investigating | roaming | grabbing | recovering | stunned
 var state := "dormant"
 ## The level's CrewVitals, for the grab and the throw. Set by the level.
 var crew: Node
@@ -73,6 +82,10 @@ var _quiet := 0.0
 var _last_pos := {}
 var _roam_i := 0
 var _rng := RandomNumberGenerator.new()
+## A hiding place it heard someone get into: it goes and gets them (host).
+var _search: Node3D
+## It heard something while stunned: it turns to it once it shakes the stun off.
+var _heard_stunned := false
 
 
 func _ready() -> void:
@@ -166,6 +179,11 @@ func hear(at: Vector3, loudness: float) -> bool:
 		return false
 	if dist > loudness * HEAR_RANGE:
 		return false
+	if state == "stunned":
+		target_point = at  # it'll come once it shakes the stun off
+		_heard_stunned = true
+		heard.emit(at)
+		return true
 	target_point = at
 	_timer = FORGET_TIME
 	_quiet = 0.0
@@ -174,6 +192,42 @@ func hear(at: Vector3, loudness: float) -> bool:
 		_timer = LISTEN_TIME
 	heard.emit(at)
 	return true
+
+
+## Counterplay (host): `how` is "extinguisher", "strobe" or "thrown". Only the
+## blast stuns it; it lets go of whoever it holds. (The hiss and a thrown thing's
+## landing reach it as sounds, through hear().)
+func counter(how: String, _from: Vector3) -> void:
+	if not active or how != "extinguisher":
+		return
+	if held:
+		var p := held
+		held = null
+		if is_instance_valid(p) and crew:
+			crew.release(p)
+	state = "stunned"
+	_timer = Counterplay.stun_time(self, BLAST_STUN)
+	_heard_stunned = false
+	_stand()
+	_pose_arms(0.3, 1.1)
+
+
+## Counterplay (host): did it hear `body` get into hiding just now?
+func counter_saw(body: Node3D) -> bool:
+	return active and state != "grabbing" and global_position.distance_to(body.global_position) < HIDE_HEARD
+
+
+## Counterplay (host): it heard someone get in there; it goes and gets them.
+func counter_search(spot: Node3D) -> void:
+	if spot == null:
+		return
+	_search = spot
+	target_point = spot.global_position
+	if state == "stunned":
+		_heard_stunned = true
+	else:
+		state = "investigating"
+		_timer = FORGET_TIME
 
 
 func _masked(at: Vector3) -> bool:
@@ -207,10 +261,21 @@ func _physics_process(delta: float) -> void:
 				_timer = FORGET_TIME
 		"investigating":
 			_timer -= delta
-			if _try_catch():
+			if _try_catch() or _bang_open():
 				return
 			if _walk_to(target_point, SPEED) or _timer <= 0.0:
+				_search = null
 				_settle()
+		"stunned":
+			_stand()
+			_timer -= delta
+			if _timer <= 0.0:
+				if _heard_stunned or is_instance_valid(_search):
+					state = "turning"
+					_timer = LISTEN_TIME
+				else:
+					_settle()
+				_heard_stunned = false
 		"roaming":
 			if _try_catch():
 				return
@@ -245,7 +310,7 @@ func _listen_to_bodies(delta: float) -> void:
 	for p in _players():
 		seen[p] = true
 		var now: Vector3 = p.global_position
-		if _last_pos.has(p) and p != held and not _thrown(p):
+		if _last_pos.has(p) and p != held and not _thrown(p) and Counterplay.hidden_in(p) == null:
 			var moved: Vector3 = now - _last_pos[p]
 			moved.y = 0.0
 			var speed := moved.length() / maxf(delta, 0.001)
@@ -322,10 +387,28 @@ func _thrown(p: Node) -> bool:
 	return combat != null and combat.thrown
 
 
-## Anyone standing within reach, with nothing between: it has them.
+## At the hiding place it heard someone get into: it bangs on it and pulls them out.
+func _bang_open() -> bool:
+	if not is_instance_valid(_search):
+		return false
+	var flat := Vector3(_search.global_position.x - global_position.x, 0, _search.global_position.z - global_position.z)
+	if flat.length() > CATCH_RANGE + 0.5:
+		return false
+	var spot := _search
+	_search = null
+	var p := Counterplay.hiding_in(spot)
+	var c := Counterplay.of(self)
+	if p == null or c == null or not c.pull_out(spot):
+		return false
+	_grab(p)
+	return true
+
+
+## Anyone standing within reach, with nothing between: it has them. Not anyone
+## hiding: it walks right past.
 func _try_catch() -> bool:
 	for p in _players():
-		if CrewVitals.is_down(p) or _thrown(p):
+		if CrewVitals.is_down(p) or _thrown(p) or Counterplay.hidden_in(p) != null:
 			continue
 		if global_position.distance_to(p.global_position) < CATCH_RANGE and _can_reach(p):
 			_grab(p)

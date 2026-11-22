@@ -38,6 +38,10 @@ const W := {
 	"fit_cord": "Plug in the power cord",
 	"no_cord": "The power cord is missing.",
 	"reseat_cable": "Push the monitor cable back in",
+	# A stuck elevator (ElevatorStall).
+	"hatch_open": "Push the hatch open",
+	"door_release": "Pull the door release",
+	"buttons_dead": "The buttons do nothing.",
 }
 
 
