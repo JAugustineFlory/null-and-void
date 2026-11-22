@@ -131,6 +131,16 @@ const MANAGER_DOOR := Vector2(29, -15)
 const BUILDING_SERVICES_DOOR := Vector2(31, -22)
 const KITCHEN_DOOR := Vector2(11, -33)
 const RECEIVING_DOOR := Vector2(-34, -31)
+## Windows onto the lobby, glazed from the sill up: [x, z] of each one's middle,
+## on its wall's line. Visitor badges has one beside its door; the security post's
+## is the guard's view of the front doors.
+const VISITOR_WINDOW := Vector2(-16, -6.1)
+const SECURITY_WINDOW := Vector2(16, 3.0)
+const WINDOW_SILL := 0.9
+const WINDOW_HEAD := 2.2
+## A door's sign: over it, at this height, in this ink.
+const SIGN_Y := 2.45
+const SIGN_INK := Color(0.15, 0.15, 0.2)
 ## Ordinary doors, on hinges: [id, centre, size, hinge edge, swing]. A door in an
 ## east-west wall is DOOR_X; one in a north-south wall is DOOR_Z.
 const DOOR_X := Vector3(1.35, 2.2, 0.08)
@@ -153,7 +163,7 @@ const DOORS := [
 	["KITCHEN", Vector3(KITCHEN_DOOR.x, 1.1, KITCHEN_DOOR.y), DOOR_X, HINGE_X, 90.0],
 	["RECEIVING", Vector3(RECEIVING_DOOR.x, 1.1, RECEIVING_DOOR.y), DOOR_X, HINGE_X, 90.0],
 ]
-## The doors that are locked for the night: the staff rooms that aren't furnished
+## The doors that are locked for the night: the staff's rooms, furnished or not
 ## yet, and the manager's office.
 const LOCKED := ["JANITOR", "VISITOR-BADGES", "SECURITY", "CONFERENCE", "FACILITIES", "FACILITIES-MANAGER", "BUILDING-SERVICES", "KITCHEN", "RECEIVING"]
 ## Its ceiling lights: [room, position, range, energy] (Level 0's lights table names the rooms).
@@ -241,15 +251,19 @@ static func box(room: Rect2, height: float, grow: float = 0.0, below: float = 0.
 
 ## An opening in one of `room`'s walls, for Greybox.room: `where` is its middle's
 ## place in the world, x along a north or south wall, z along an east or west one.
-static func gap(room: Rect2, wall: String, where: float, width: float, height: float) -> Dictionary:
+static func gap(room: Rect2, wall: String, where: float, width: float, height: float, sill: float = 0.0) -> Dictionary:
 	var c := room.get_center()
-	return {"wall": wall, "at": where - (c.x if wall == "n" or wall == "s" else c.y), "width": width, "height": height}
+	var out := {"wall": wall, "at": where - (c.x if wall == "n" or wall == "s" else c.y), "width": width, "height": height}
+	if sill > 0.0:
+		out["bottom"] = sill
+	return out
 
 
 ## Every opening on the floor, each listed once: [the way its wall runs ("x" for
 ## an east-west wall, "z" for a north-south one), its middle's x, its middle's z,
-## width, height]. A room gets a gap wherever one lies on its walls (gaps_of), so
-## the rooms either side of a wall always agree.
+## width, height, and for a window the height of its sill]. A room gets a gap
+## wherever one lies on its walls (gaps_of), so the rooms either side of a wall
+## always agree. A window is glazed (build): seen through, never climbed through.
 static func openings() -> Array:
 	var north := CORRIDOR.position.y
 	return [
@@ -258,6 +272,8 @@ static func openings() -> Array:
 		["z", LOBBY.end.x, HALL_Z, 2.6, 3.0],  # lobby to hall
 		["z", LOBBY.position.x, VENT_Z, VENT_SIZE.x, VENT_SIZE.y], ["z", CLOSET.end.x, VENT_Z, VENT_SIZE.x, VENT_SIZE.y],  # the air return
 		["z", VISITOR_DOOR.x, VISITOR_DOOR.y, 1.4, 2.2],
+		["z", VISITOR_WINDOW.x, VISITOR_WINDOW.y, 2.6, WINDOW_HEAD, WINDOW_SILL],
+		["z", SECURITY_WINDOW.x, SECURITY_WINDOW.y, 3.6, WINDOW_HEAD, WINDOW_SILL],
 		["x", SECURITY_DOOR.x, SECURITY_DOOR.y, 1.4, 2.2], ["x", CONFERENCE_DOOR.x, CONFERENCE_DOOR.y, 1.4, 2.2],
 		["x", FACILITIES_DOOR.x, FACILITIES_DOOR.y, 1.4, 2.2],
 		["x", PASSAGE_X, PASSAGE.end.y, 2.6, 2.6], ["x", PASSAGE_X, PASSAGE.position.y, 2.6, 2.6],  # the dark passage's two ends
@@ -278,16 +294,17 @@ static func gaps_of(room: Rect2) -> Array:
 	for o in openings():
 		var x: float = o[1]
 		var z: float = o[2]
+		var sill: float = o[5] if o.size() > 5 else 0.0
 		if o[0] == "x" and x > room.position.x and x < room.end.x:
 			if is_equal_approx(z, room.position.y):
-				out.append(gap(room, "n", x, o[3], o[4]))
+				out.append(gap(room, "n", x, o[3], o[4], sill))
 			elif is_equal_approx(z, room.end.y):
-				out.append(gap(room, "s", x, o[3], o[4]))
+				out.append(gap(room, "s", x, o[3], o[4], sill))
 		elif o[0] == "z" and z > room.position.y and z < room.end.y:
 			if is_equal_approx(x, room.position.x):
-				out.append(gap(room, "w", z, o[3], o[4]))
+				out.append(gap(room, "w", z, o[3], o[4], sill))
 			elif is_equal_approx(x, room.end.x):
-				out.append(gap(room, "e", z, o[3], o[4]))
+				out.append(gap(room, "e", z, o[3], o[4], sill))
 	return out
 
 
@@ -337,6 +354,9 @@ static func build(geo: Node3D) -> void:
 		for wall in (r[4] if r.size() > 4 else []):
 			gaps.append({"wall": wall, "at": 0.0, "width": maxf(r[0].size.x, r[0].size.y), "height": r[1]})
 		Greybox.room(geo, mid(r[0]), span(r[0], r[1]), {"floor": r[2], "wall": r[3]}, gaps)
+	for o in openings():
+		if o.size() > 5:
+			_window(geo, o)
 	_lobby(geo)
 	_hall(geo)
 	_back(geo)
@@ -345,6 +365,21 @@ static func build(geo: Node3D) -> void:
 	# The manager's office: two partitions across Facilities' north-east corner.
 	Greybox._wall(geo, mid(MANAGER), span(MANAGER, BACK_H), "w", WALL, [gap(MANAGER, "w", MANAGER_DOOR.y, 1.2, 2.2)], 0.2)
 	Greybox._wall(geo, mid(MANAGER), span(MANAGER, BACK_H), "s", WALL, [], 0.2)
+
+
+## The pane in a window (an opening with a sill): solid, and seen through.
+static func _window(geo: Node3D, o: Array) -> void:
+	var tall: float = o[4] - o[5]
+	var size := Vector3(o[3], tall, 0.04) if o[0] == "x" else Vector3(0.04, tall, o[3])
+	var pane := Greybox.box(geo, Vector3(o[1], o[5] + tall / 2.0, o[2]), size, Color(0.7, 0.8, 0.82), "Window")
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.7, 0.8, 0.82, 0.2)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.roughness = 0.05
+	for c in pane.get_children():
+		if c is MeshInstance3D:
+			(c as MeshInstance3D).material_override = glass
+			(c as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## The ordinary doors (DOORS), under `parent`, named `prefix` + id. Returns them by
@@ -379,6 +414,7 @@ static func _lobby(geo: Node3D) -> void:
 	Greybox.box(geo, Vector3(DESK.x - PARTITION_X, 1.1, partition_z), Vector3(0.15, 2.2, behind), Color(0.5, 0.55, 0.6), "PartitionW")
 	Greybox.box(geo, Vector3(DESK.x + PARTITION_X, 1.1, partition_z), Vector3(0.15, 2.2, behind), Color(0.5, 0.55, 0.6), "PartitionE")
 	Greybox.label(geo, Vector3(DESK.x, 1.3, DESK.z + DESK_SIZE.z / 2.0 + 0.02), "FRONT DESK", 64, Color(0.85, 0.8, 0.6))
+	Greybox.label(geo, Vector3(VISITOR_DOOR.x + 0.12, SIGN_Y, VISITOR_DOOR.y), "VISITOR BADGES", 36, SIGN_INK, 90)
 	# A side table behind the desk (Level 0 keeps the walkie-talkies' dock on it).
 	Greybox.box(geo, CHARGER_TABLE, Vector3(1.2, 0.04, 0.6), Color(0.45, 0.35, 0.2), "TableCharger")
 	for leg in [Vector3(-0.55, 0, -0.25), Vector3(0.55, 0, -0.25), Vector3(-0.55, 0, 0.25), Vector3(0.55, 0, 0.25)]:
@@ -393,16 +429,27 @@ static func _lobby(geo: Node3D) -> void:
 ## The hall east to the lift hall.
 static func _hall(geo: Node3D) -> void:
 	Greybox.label(geo, Vector3(HALL.end.x - 0.12, 2.72, HALL_Z), "ELEVATORS  >", 64, Color(0.7, 0.1, 0.1), -90)
+	# Over the staff rooms' doors, on the hall's side of each.
+	Greybox.label(geo, Vector3(SECURITY_DOOR.x, SIGN_Y, SECURITY_DOOR.y - 0.12), "SECURITY", 36, SIGN_INK, 180)
+	Greybox.label(geo, Vector3(CONFERENCE_DOOR.x, SIGN_Y, CONFERENCE_DOOR.y - 0.12), "CONFERENCE ROOM", 36, SIGN_INK, 180)
+	Greybox.label(geo, Vector3(FACILITIES_DOOR.x, SIGN_Y, FACILITIES_DOOR.y + 0.12), "FACILITIES", 36, SIGN_INK)
+	Greybox.label(geo, Vector3(MANAGER_DOOR.x - 0.12, SIGN_Y, MANAGER_DOOR.y), "FACILITIES MANAGER", 36, SIGN_INK, -90)  # inside Facilities
 
 
 ## The north corridor behind the lobby and the rooms off it, and the dark east corridor.
 static func _back(geo: Node3D) -> void:
 	var sign_z := CORRIDOR.position.y + 0.12  # on the corridor's north wall
-	Greybox.label(geo, Vector3(MAILROOM_DOOR_X, 2.45, sign_z), "MAILROOM", 36, Color(0.15, 0.15, 0.2))
-	Greybox.label(geo, Vector3(MENS_DOOR_X, 2.45, sign_z), "MEN", 36, Color(0.15, 0.15, 0.2))
-	Greybox.label(geo, Vector3(WOMENS_DOOR_X, 2.45, sign_z), "WOMEN", 36, Color(0.15, 0.15, 0.2))
-	Greybox.label(geo, Vector3(CAFETERIA_DOOR_X, 2.8, sign_z), "CAFETERIA", 48, Color(0.15, 0.15, 0.2))
-	Greybox.label(geo, Vector3(IT_DOOR_X, 2.45, sign_z), "IT", 36, Color(0.15, 0.15, 0.2))
+	Greybox.label(geo, Vector3(MAILROOM_DOOR_X, SIGN_Y, sign_z), "MAILROOM", 36, SIGN_INK)
+	Greybox.label(geo, Vector3(MENS_DOOR_X, SIGN_Y, sign_z), "MEN", 36, SIGN_INK)
+	Greybox.label(geo, Vector3(JANITOR_DOOR_X, SIGN_Y, sign_z), "JANITOR", 36, SIGN_INK)
+	Greybox.label(geo, Vector3(WOMENS_DOOR_X, SIGN_Y, sign_z), "WOMEN", 36, SIGN_INK)
+	Greybox.label(geo, Vector3(CAFETERIA_DOOR_X, 2.8, sign_z), "CAFETERIA", 48, SIGN_INK)
+	Greybox.label(geo, Vector3(IT_DOOR_X, SIGN_Y, sign_z), "IT", 36, SIGN_INK)
+	# The rooms behind rooms: receiving off the mailroom, the kitchen off the
+	# cafeteria, Building Services off the dark corridor.
+	Greybox.label(geo, Vector3(RECEIVING_DOOR.x, SIGN_Y, RECEIVING_DOOR.y + 0.12), "RECEIVING", 36, SIGN_INK)
+	Greybox.label(geo, Vector3(KITCHEN_DOOR.x, SIGN_Y, KITCHEN_DOOR.y + 0.12), "KITCHEN", 36, SIGN_INK)
+	Greybox.label(geo, Vector3(BUILDING_SERVICES_DOOR.x, SIGN_Y, BUILDING_SERVICES_DOOR.y + 0.12), "BUILDING SERVICES", 36, SIGN_INK)
 
 	# Mailroom. Pigeonholes, a sorting table, a cart.
 	Greybox.box(geo, PIGEONHOLES, Vector3(5.5, 2.2, 0.6), Color(0.45, 0.38, 0.28), "Pigeonholes")
