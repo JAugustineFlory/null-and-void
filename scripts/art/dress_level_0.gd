@@ -211,6 +211,8 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 		# The staff rooms off the lobby and the hall
 		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.VISITOR_BADGES, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(0.85, 0.9, 1.0))},
 		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.SECURITY, 3.5, -0.2, 0.5), "mat": lino},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.FACILITIES, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(1.0, 1.05, 0.95))},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.CONFERENCE, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(1.05, 0.9, 0.85))},
 		# Hall to Server Room A
 		{"names": ["Floor"], "zone": z.hall, "mat": ArtPalette.surface("floor_tile")},
 		{"names": ["Ceiling"], "zone": z.hall, "mat": tiles},
@@ -242,6 +244,9 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 	DressGroundRooms.window_frames(dress)
 	DressGroundRooms.visitor_badges(geo, dress)
 	DressGroundRooms.security_post(geo, dress)
+	DressGroundRooms.facilities(geo, dress)
+	DressGroundRooms.managers_office(geo, dress)
+	DressGroundRooms.conference_room(geo, dress)
 
 	# Hall: one more notice.
 	ArtProps.poster(dress, Vector3(GroundFloor.PASSAGE_X - 3.0, 1.6, GroundFloor.HALL.position.y + 0.11), 180,
