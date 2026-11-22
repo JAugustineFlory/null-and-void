@@ -2144,10 +2144,52 @@ func walk_level_6(seed_value: int, paced_release: bool) -> void:
 
 	# Who's been in there longest: IS NULL, reviewed at the time office, then the
 	# name pointed at (click to solve).
+	# The sign on the time clock is read first, as an arriving crew reads the desk's
+	# papers: it opens the case, whose query on screen names the columns (V1).
 	_b1_at(level, Vector3(-8.6, 0.1, 0.0))
+	_doc(level, "Time clock sign").open_reader(p).close()
+	check(_game().case_info("open").get("open", false), "%s: the time clock's sign opens the open case" % where)
 	ui.open(level.office, p)
 	var longest: String = str(level.data.echoes[0].name)
-	var h := await solve(level, ui, level.open_puzzle, _cold_b1(level), 3, "", false, func(): return point_cell(ui, "name", longest) or level.open_puzzle.solved)
+	var on_screen := func() -> bool:
+		return level.open_puzzle.solved or ui.noteable_lines().any(func(l): return l.get("cells", []).any(func(c): return str(c.column) == "name" and str(c.value) == longest))
+	var h := await solve(level, ui, level.open_puzzle, _cold_b1(level), 3, "", false, on_screen)
+	# The tempting wrong cells first (V7-V11): on the open visits, on all of them, and
+	# down the whole log in clock_in order (the allowed route, curriculum.gd).
+	for q in ["SELECT * FROM freezer_log WHERE clock_out IS NULL;", "SELECT * FROM freezer_log ORDER BY clock_in;"]:
+		ui.run(q)
+		await t.physics_frame
+		await t.physics_frame
+	var first: Dictionary = level.db.run_silent("SELECT card, name FROM freezer_log WHERE clock_out IS NULL ORDER BY clock_in LIMIT 1")[0]
+	var open_want := func(col: String, value: String, row: Dictionary) -> String:
+		var shown := {}
+		for k in row:
+			shown[str(k).to_lower()] = str(row[k])
+		var c := col.to_lower()
+		shown[c] = value
+		var by := ""
+		if shown.has("card") and shown.card != "" and shown.card != "<null>":
+			by = "card = '%s'" % shown.card
+		elif shown.has("name") and shown.has("clock_in"):
+			by = "name = '%s' AND clock_in = '%s'" % [shown.name.replace("'", "''"), shown.clock_in]
+		elif shown.has("name"):
+			by = "name = '%s'" % shown.name.replace("'", "''")
+		var visits: Array = level.db.run_silent("SELECT card, name, clock_out FROM freezer_log WHERE " + by) if by != "" else []
+		var theirs := visits.size() == 1 and str(visits[0].card) == str(first.card)
+		if theirs and c == "name":
+			return "answer"  # V5
+		if theirs:
+			return "That's the right visit. The blank wants the name on it."  # V10
+		var who: String = shown.get("name", str(visits[0].name) if visits.size() == 1 else "")
+		if who == "VISITOR":
+			return "That's us. We punched in at the landing tonight."  # V8, on any line of our own visit
+		if c == "name" and not visits.is_empty():
+			if visits.all(func(v): return v.clock_out != null):
+				return "That visit clocked out. The blank wants someone who never did."  # V7
+			return "Still in there, but not the longest. Who went in first?"  # V9
+		return "Not that one: the blank wants who's been in there the longest."  # V11
+	tempt_cells(ui, "open", "freezer_log", open_want, where)
+	check(point_cell(ui, "name", longest), "%s: the longest-inside name is on the screen to point at" % where)
 	check(h <= rescue_tier(level.open_puzzle) and await _until(func(): return level.open_puzzle.solved, 2.0), "%s: who's been in there longest, found at the time office and pointed at (hints %d)" % [where, h])
 	ui.close()
 
