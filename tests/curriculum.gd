@@ -433,19 +433,36 @@ const PUZZLES := {
 	# from Journey through JavaScript: let, if, while, await sleep and console.log, then
 	# for ... of and db.query ("Once for each"). The cold is the threat: the corridor and
 	# the vaults drain stamina, then health. Warm rooms are safe.
-	# Who's still clocked in: IS NULL, practised on 18, so the review ladder.
+	# Who's been in there longest: IS NULL, practised on 18, so the review ladder; the
+	# name pointed at (v0.10 package). Allowed route: ORDER BY clock_in without IS NULL,
+	# reading clock_out down the sorted log (it shows the oldest open visit within 13
+	# rows on every seed, and reads the right column).
 	"open": {
 		"level": 6,
 		"pressure": false,
 		"ladder": "review",
 		"teaches": ["freezer_log", "clock_out"],
-		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+		"needs": ["SELECT", "COLUMNS", "FROM", "WHERE", "IS NULL", "ORDER BY", "freezer_log"],
+		# Naming columns is floor G's lesson; on B1 the case's shape shows them under
+		# the chip once the first query opens the case (M1), not before.
+		"known_gap": "the named columns show in the case's shape once the first query opens it",
 	},
-	# The first script, at the IT cage: the cradle card's loop with this cradle's key.
+	# The try (v0.10 package, M1): the cradle's self-test label, one set. The editor,
+	# let, a request as a script line and the log, run once. Two tiers, as approved
+	# (V19, V20): its first tier is the label (V18).
+	"try": {
+		"level": 6,
+		"pressure": false,
+		"tiers": 2,
+		"teaches": ["let", "console.log", "api.post", "/earpieces/pair"],
+		"needs": ["let", "console.log", "api.post", "X-Api-Key", "/earpieces/pair"],
+	},
+	# The loop, at the IT cage: the pairing card's script with this cradle's key, for
+	# the crew and Ines and Tomas (M2).
 	"pair": {
 		"level": 6,
 		"pressure": false,
-		"teaches": ["let", "while", "await sleep", "console.log", "api.post", "/earpieces/pair"],
+		"teaches": ["while", "await sleep"],
 		"needs": ["let", "while", "await sleep", "console.log", "api.post", "X-Api-Key", "/earpieces/pair"],
 	},
 	# The names, one a line, still at the IT cage: the warm first use of for and db.query

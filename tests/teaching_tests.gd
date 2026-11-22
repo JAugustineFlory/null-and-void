@@ -2142,18 +2142,24 @@ func walk_level_6(seed_value: int, paced_release: bool) -> void:
 	var p: Player = level.player
 	p.local_control = false
 
-	# Who's still clocked in: IS NULL, reviewed at the time office.
+	# Who's been in there longest: IS NULL, reviewed at the time office, then the
+	# name pointed at (click to solve).
 	_b1_at(level, Vector3(-8.6, 0.1, 0.0))
 	ui.open(level.office, p)
-	var h := await solve(level, ui, level.open_puzzle, _cold_b1(level))
-	check(h <= rescue_tier(level.open_puzzle) and level.open_puzzle.solved, "%s: the visits the clock never closed, found at the time office (hints %d)" % [where, h])
+	var longest: String = str(level.data.echoes[0].name)
+	var h := await solve(level, ui, level.open_puzzle, _cold_b1(level), 3, "", false, func(): return point_cell(ui, "name", longest) or level.open_puzzle.solved)
+	check(h <= rescue_tier(level.open_puzzle) and await _until(func(): return level.open_puzzle.solved, 2.0), "%s: who's been in there longest, found at the time office and pointed at (hints %d)" % [where, h])
 	ui.close()
 
-	# The IT cage, warm: the first script, then the names, one a line.
+	# The IT cage, warm: the try with one set, the loop for everyone, then the names.
 	_b1_at(level, Vector3(5.2, 0.1, -5.5))
+	level.listing_after = 0.5
 	ui.open(level.it_terminal, p)
+	h = await solve_script(level, ui, level.try_puzzle, _cold_b1(level))
+	check(h <= rescue_tier(level.try_puzzle) and level.try_puzzle.solved and not level.pair_puzzle.solved, "%s: the cradle tested with one set, from the label and the ladder (hints %d)" % [where, h])
 	h = await solve_script(level, ui, level.pair_puzzle, _cold_b1(level))
-	check(h <= rescue_tier(level.pair_puzzle) and level.pair_puzzle.solved and level.earpieces, "%s: an earpiece set each, from the card's script and the ladder (hints %d)" % [where, h])
+	check(h <= rescue_tier(level.pair_puzzle) and level.pair_puzzle.solved and level.earpieces, "%s: an earpiece set each, and one each for Ines and Tomas, from the card's script and the ladder (hints %d)" % [where, h])
+	check(await _until(func(): return _game().case_info("list").get("open", false), 10.0), "%s: after the voice in the ear, the listing opens" % where)
 	var key_said := "%s: the card's script, copied, gets the dock cradle's 403 and SYSOP says whose key it is" % where
 	var pair_spec: Dictionary = Curriculum.PUZZLES.get("pair", {})
 	if pair_spec.has("silent_copy"):
@@ -2206,14 +2212,13 @@ func walk_level_6(seed_value: int, paced_release: bool) -> void:
 	ui.close()
 
 	# Leave it tidy (optional): its to-do says stop every script first (^T in each
-	# runner), then the doors, from the deck back in the warm.
+	# runner), then the doors, from the deck back in the warm, where it opens.
 	for term in level._script_terminals():
 		var rt = term.get_meta("script_runtime") if term.has_meta("script_runtime") else null
 		if rt and rt.is_running():
 			rt.stop()
 	_b1_at(level, Vector3(5.2, 0.1, -5.5))
-	for i in 5:
-		await t.physics_frame
+	check(await _until(func(): return _game().case_info("stop").get("open", false), 5.0), "%s: back in the warm, leaving it tidy opens" % where)
 	ui.open(deck, p)
 	h = await solve(level, ui, level.stop_puzzle, _cold_b1(level))
 	check(h <= rescue_tier(level.stop_puzzle) and level.stop_puzzle.solved, "%s: every script stopped and both vault doors locked and read back (hints %d)" % [where, h])
@@ -2328,6 +2333,10 @@ func check_script_ladder(p: Puzzle) -> void:
 	check(exact != "", "%s: the last hint is a whole script to run as it is" % p.id)
 	if mode == "review":
 		check(p.hints.size() == 2, "%s: review: a reminder with the shape, then the whole script (two tiers)" % p.id)
+	elif spec.has("tiers"):
+		# A row may say its ladder is shorter, as approved ("tiers"): the try's shape
+		# says where its one value is, and its first tier is a place (Puzzle.spots).
+		check(p.hints.size() == int(spec.tiers), "%s: %d tiers, as approved: the shape (it says where the value is), then the whole script" % [p.id, int(spec.tiers)])
 	else:
 		check(p.hints.size() >= 3, "%s: three tiers: shape, where the values are, the whole script" % p.id)
 	var m := _shape_match(shape, [exact])
@@ -2397,6 +2406,8 @@ func solve_script(level: Node, ui: TerminalUI, p: Puzzle, threat: bool, then := 
 				for k in needed:
 					if not has_item(taught, k):
 						outside.append(k)
+			if await follow_spot(level, ui, p, pace):
+				continue  # .hint sent them somewhere in the building first: no tier used
 			if hints >= max_hints:
 				check(false, "%s: a lost player gets stuck even after %d hints" % [p.id, hints])
 				return -1

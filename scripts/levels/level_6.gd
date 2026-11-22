@@ -45,6 +45,14 @@ extends LevelBase
 ## since (Teaching's B1 walk, 2026-11-05, in l6-text.md): the listing skips the crew's
 ## own entries (punched in at the landing), its words and tip, and practice's GET line.
 ##
+## v0.10's package (plan/approvals/puzzle-flow-floor-b1.md, approved by Augustine
+## 2026-11-22 word for word, with Ines and Tomas's sets): every case shows its shape
+## on screen, with pieces found in the world; the open case is solved by pointing at
+## who's been inside longest; the pair case is a try with one set, then the loop for
+## the crew and the two night-shifters; each chapter lands with the step that needs it;
+## the listing opens after the voice in the ear; the tidy-up opens back in the warm;
+## and a warm-up area halfway down the corridor.
+##
 ## Layout (level space, north is -z):
 ##   landing      x -4..4,   z 4..8     STAIR 2 (east wall): down from 9, and on to B2
 ##   hall         x -3..3,   z -8..4    warm; the anteroom terminal at its north end
@@ -86,7 +94,7 @@ const TEXT := {
 	"todo_arrive": "Find the time office, off the hall",
 	"todo_down": "Back to the landing, then STAIR 2 down, everyone together",
 	"open_done": "%d visits never closed, the oldest from %d. The rack says %d cards are IN. The log is the record.",
-	"pair_done": "%d earpiece sets paired. The walkie's static is gone; we hear each other in our ears now.",
+	"pair_done": "%d earpiece sets paired, two of them for Ines and Tomas. The walkie's static is gone; we hear each other in our ears now.",
 	"list_done": "%s. One line each, read off the log itself. Now we know who we're going in for.",
 	"hold_done": "Everyone's across into Vault C. The watchdog kept the door from latching.",
 	"hold_done_hand": "Everyone's across into Vault C, between the safety timer's latches.",
@@ -129,7 +137,7 @@ const TEXT := {
 	"tip_pair_endless": "it's still sending: the loop's test never turns false. count paired up inside the loop. and ^T stops a script.",
 	"tip_pair_busy": "409 busy: the cradle pairs one set at a time. wait inside the loop, after each request.",
 	"tip_pair_key": "403: that's the dock cradle's key, from the card. this cradle has its own.",
-	"tip_pair_short": "%d paired, and there are %d of you. one set each: count is how many sets.",
+	"tip_pair_short": "%d paired, and there are %d of you with Ines and Tomas. one set each: count is how many sets.",
 	"tip_list_try": "the service page's loop reads fine with only a log in it: console.log(entry.name), once for each open entry. we're in that log too, as VISITOR: if (entry.name !== \"VISITOR\") around the log keeps us out. try it here, where it's warm. nothing gets written.",  # DRAFT
 	"tip_list_vault": "%d of %d names. that's vault A's query, off the page. the open entries are every vault's, as at the time office: drop the AND.",
 	"tip_list_row": "that's a whole row in one line. log entry.name: one name a line.",
@@ -281,6 +289,55 @@ const SERVICE_PAGE := [
 const AP_LINES := ["VAULT NETWORK  -  ACCESS POINT", "Wireless decks only. No jacks in the vaults."]
 ## The bench's sign.
 const BENCH_LINES := ["IT CAGE  -  DECK BENCH", "Loaner decks. Wireless cards and script runner chips in the drawer.", {"text": "fit both before you go in the cold. no jacks past the anteroom.", "hand": true}]
+## The self-test label on the cradle (V16): one set, the first script. Its last line
+## is the cradle card's own.
+const SELF_TEST := [
+	"EARPIECE CRADLE  -  SELF-TEST  (pairs one set)",
+	{"text": "let key = \"<the IT key>\";", "hand": false},
+	{"text": "let res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key});", "hand": false},
+	{"text": "console.log(res.status);", "hand": false},
+	{"text": "201 = paired. the IT key's on the bench sticky.", "hand": true},
+	{"text": "on a terminal: .script opens the runner. ^S save, ^R run, ^T stop", "hand": true},
+]
+## The sign over the deep freeze's door (V30): its id, as the anteroom's sign shows its own.
+const VAULT_C_DOOR_SIGN := "VAULT C  -  DEEP FREEZE  -  %s"
+const ANTE_DOOR_SIGN := "ANTEROOM  -  %s"
+## The warm-up area's sign (V32).
+const WARM_UP_SIGN := "WARM-UP AREA"
+
+## The queries on screen (the case chip): each case's shape, its pieces colored by
+## kind. The open case's (V1) and the try's (V2); the others are their hint 1's.
+const OPEN_QUERY := "SELECT name, clock_in FROM {table} WHERE {column} IS NULL ORDER BY clock_in;"
+const TRY_QUERY := "let key = \"{key}\";\nlet res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key});\nconsole.log(res.status);"
+## The pieces (V3, V4, V17, V26, V27).
+const TABLE_PIECE := {"id": "table", "label": "The clock's log", "value": "freezer_log", "task": "Find the table the time clock keeps", "where": "The sign on the time clock", "seen_in": "freezer_log", "blank": "enter_table_name"}
+const COLUMN_PIECE := {"id": "column", "label": "Empty while someone's inside", "value": "clock_out", "task": "Find the column a visit fills in on the way out", "where": "The sign on the time clock", "blank": "enter_column"}
+const KEY_PIECE := {"id": "key", "label": "The IT key", "task": "Find the key the cage's cradle answers to", "where": "The sticky on the deck bench", "blank": "enter_key"}
+const ANTE_PIECE := {"id": "ante_door", "label": "The anteroom door", "task": "Find the id of the door that keeps locking", "where": "The sign over the anteroom door", "blank": "enter_door"}
+const FREEZER_PIECE := {"id": "freezer_door", "label": "The deep freeze door", "task": "Find the id of Vault C's door", "where": "The sign over Vault C's door", "blank": "enter_door"}
+## The pair case's steps (V15; step 2 is the case's details).
+const PAIR_STEPS := [{"id": "try", "text": "Test the cradle with one set"}, {"id": "loop", "text": TEXT.case_pair_do}]
+## The open case's slot (V5), and the pencil lines under it for a wrong click (V6-V11).
+const OPEN_SLOT := "In there the longest:"
+const OPEN_RACK := "That's the rack, and the rack is not the record. The blank wants a name from the log."
+const OPEN_CLOSED := "That visit clocked out. The blank wants someone who never did."
+const OPEN_OURS := "That's us. We punched in at the landing tonight."
+const OPEN_NOT_FIRST := "Still in there, but not the longest. Who went in first?"
+const OPEN_ROW := "That's the right visit. The blank wants the name on it."
+const OPEN_MISS := "Not that one: the blank wants who's been in there the longest."
+## A slot no line fills: only the cell in the log does (no paper: the rack is not the record).
+const NO_LINE := ["\u0001"]
+## The first hint tiers, each a place in the building (Puzzle.spots; V12, V18, V21,
+## V25, V28, V29, V31), skipped once it's found.
+const SPOT_CLOCK := "the sign on the time clock, in the time office, says where every punch goes."
+const SPOT_SELF_TEST := "the label on the cradle has a test script that pairs one set."
+const SPOT_CARD := "the pairing card on the bench does it for a whole crew, one set at a time."
+const SPOT_PAGE_LIST := "the service page beside the time clock has a loop over the open visits."
+const SPOT_NOTE := "the IT tech pinned a note by this terminal about the anteroom door."
+const SPOT_VAULT_C := "the sign on Vault C's door says why it won't stay open."
+const SPOT_PAGE_RELEASE := "the service page beside the time clock says how to close an entry."
+## The chapters of Journey through JavaScript, each landing when its step opens (M3).
+const CHAPTER_OF := {"pair": "js_if", "loop": "js_loops", "list": "js_each"}
 
 const CASES := {"open": TEXT.case_open, "pair": TEXT.case_pair, "list": TEXT.case_list, "hold": TEXT.case_hold, "release": TEXT.case_release, "stop": TEXT.case_stop}
 const CASE_DO := {"open": TEXT.case_open_do, "pair": TEXT.case_pair_do, "list": TEXT.case_list_do, "hold": TEXT.case_hold_do, "release": TEXT.case_release_do, "stop": TEXT.case_stop_do}
@@ -304,11 +361,14 @@ const VAULT_A := AABB(Vector3(-12, -0.5, -24), Vector3(8, 4, 8))
 const VAULT_B := AABB(Vector3(-2, -0.5, -24), Vector3(8, 4, 8))
 const VAULT_C := AABB(Vector3(20, -0.5, -20), Vector3(10, 4, 12))
 const PLANT := AABB(Vector3(-22, -0.5, -18), Vector3(8, 4, 8))
+## The warm-up area (M6): a recess off the corridor's north side, halfway between the
+## anteroom and Vault C, outside the corridor's cold.
+const WARM_UP := AABB(Vector3(8.5, -0.5, -19), Vector3(3, 4, 3))
 const VAULT_ROOMS := {"A": VAULT_A, "B": VAULT_B, "C": VAULT_C}
 ## Where the access points hang: the corridor's and each vault's (the vault network).
-const AP_ROOMS := [CORRIDOR, VAULT_A, VAULT_B, VAULT_C]
+const AP_ROOMS := [CORRIDOR, VAULT_A, VAULT_B, VAULT_C, WARM_UP]
 ## Warm rooms, where the cold lets go.
-const WARM_ROOMS := [LANDING, HALL, OFFICE, IT_CAGE, PASSAGE, GOODS, ANTEROOM, PLANT]
+const WARM_ROOMS := [LANDING, HALL, OFFICE, IT_CAGE, PASSAGE, GOODS, ANTEROOM, PLANT, WARM_UP]
 ## The rows in each vault, level space: where an echo stands (and faces).
 const ROWS := {
 	"A-1": [Vector3(-10.5, 0, -18.5), 90.0], "A-2": [Vector3(-8, 0, -21.5), 0.0], "A-3": [Vector3(-5.5, 0, -18.5), -90.0],
@@ -326,7 +386,8 @@ const COLD_LOW := 10.0
 const WARM_HEAL := 3.0
 ## The earpiece cradle pairs one set at a time, this long each.
 const PAIR_TIME := 0.6
-const CRADLE_SLOTS := 6
+## Eight sets: one each for the crew, and for Ines and Tomas (M2).
+const CRADLE_SLOTS := 8
 ## Needless writes to an open door before the relay guard trips, and how long it holds.
 const GUARD_WRITES := 3
 const GUARD_HOLD := 30.0
@@ -444,6 +505,17 @@ var freezer_timer := 8.0
 var punch_interval := 20.0
 var guard_hold := GUARD_HOLD
 var pair_time := PAIR_TIME
+## The listing opens this long after the last set pairs: once the voice in the ear has
+## spoken (M4).
+var listing_after := 8.0
+## The first set the cradle pairs is the try (M1); the run that paired it isn't
+## told it's short of sets.
+var try_puzzle: RequestPuzzle
+var _try_run := false
+## Every entry is closed: the tidy-up opens the first time someone's in the warm (M5).
+var stop_waiting := false
+## Chapters waiting for the book, or for their turn: one lands at each gate (M3).
+var pending_chapters: Array = []
 
 
 ## The floor's services on one network: a request through this link is answered by
@@ -501,6 +573,7 @@ func build() -> void:
 	_build_goods(colors)
 	_build_anteroom(colors)
 	_build_corridor(cold)
+	_build_warm_up(colors)
 	_build_vaults(cold)
 	_build_plant(colors)
 	_place_people()
@@ -553,6 +626,9 @@ func build() -> void:
 	office.api = wired
 	it_terminal.api = _link("wired", -1, "it")
 	ante_terminal.api = _link("wired", -1, "ante")
+	# No escort on file: every B1 screen runs under the security policy (P1).
+	for term in [office, it_terminal, ante_terminal]:
+		term.policy = true
 
 
 ## A link to the floor's services on one network (or a deck's, `deck` >= 0), from
@@ -609,8 +685,7 @@ func _build_hall(colors: Dictionary) -> void:
 	var note := Document.place(geo, Vector3(-2.88, 1.6, -5.4), -90, "Tech's note", _tech_note(), false, "paper", Vector2(0.21, 0.3))
 	note.name = "TechNote"
 	note.clues = [{"case": "hold", "text": "The IT tech's watchdog: while (true), GET the door, if it's locked PATCH it open and log it, then wait. Only write when it's locked, or the relay guard holds it shut 30 s. Change door to hold another."}]
-	note.read_by.connect(func(_p):
-		sync.event("_book_huddle", ["js_if"]))
+	note.spot = "tech_note"
 
 
 func _build_office(colors: Dictionary) -> void:
@@ -624,15 +699,19 @@ func _build_office(colors: Dictionary) -> void:
 	# The slip tray under it: every entry the clock closes tonight prints one here.
 	Greybox.box(geo, Vector3(-3.75, 0.9, -4.2), Vector3(0.5, 0.04, 0.6), Color(0.45, 0.42, 0.36), "SlipTray")
 	var sign := Document.place(geo, Vector3(-3.12, 1.6, -5.3), 90, "Time clock sign", CLOCK_SIGN_LINES, false, "laminated", Vector2(0.28, 0.3))
-	sign.clues = [{"case": "open", "opens": TEXT.case_open, "text": "The time clock: every vault visit punches IN, and OUT again on the way back. The log is freezer_log. Still inside = no clock_out yet."}]
+	sign.name = "ClockSign"
+	sign.clues = [{"case": "open", "text": "The time clock: every vault visit punches IN, and OUT again on the way back. The log is freezer_log. Still inside = no clock_out yet."}]
+	sign.pieces = [{"case": "open", "piece": "table", "text": "freezer_log", "kind": "table"}, {"case": "open", "piece": "column", "text": "clock_out", "kind": "column"}]
+	sign.spot = "clock_sign"
 	sign.read_by.connect(func(_p): sync.event("_ask", ["open"]))
 	var page := Document.place(geo, Vector3(-3.12, 1.6, -3.1), 90, "Clock service page", _service_page(), false, "paper", Vector2(0.21, 0.3))
 	page.name = "ServicePage"
+	# Quiet until the listing: its clues wait in Floor notes until their cases open (M4).
 	page.clues = [
-		{"case": "list", "opens": TEXT.case_list, "text": "The service page's loop: db.query runs the open-visits query from a script, and for (const entry of open) goes once for each row it found. Its query is vault A's."},
+		{"case": "list", "text": "The service page's loop: db.query runs the open-visits query from a script, and for (const entry of open) goes once for each row it found. Its query is vault A's."},
 		{"case": "release", "text": "The clock's service page: POST /clock_outs with {\"entry\": id}, vault network only. Wait for each slip (GET /clock). Visitors are VIS-nn, name VISITOR: never close one who's still inside."},
 	]
-	page.read_by.connect(func(_p): sync.event("_service_read"))
+	page.spot = "service_page"
 	# The card rack on the north wall: the cards in its IN slots, as players see them.
 	Greybox.box(geo, Vector3(-7, 1.4, -7.8), Vector3(2.4, 1.6, 0.2), Color(0.5, 0.45, 0.35), "CardRack")
 	rack = Document.place(geo, Vector3(-7, 1.5, -7.66), 0, "Card rack (IN)", _rack_lines(), false, "clipboard", Vector2(0.3, 0.4))
@@ -654,7 +733,12 @@ func _build_office(colors: Dictionary) -> void:
 		"The database reads (Protocol Epsilon). Services: /clock  /freezer_log",
 	]
 	office.queried.connect(_on_query.bind("office"))
+	office.query_failed.connect(func(_sql, _r):
+		if _is_host() and not Game.case_info("open").get("open", false):
+			sync.event("_ask", ["open"]))  # a refused first look counts too
 	office.requested.connect(_on_request.bind("office"))
+	# The policy's card (P5), beside the floor's first policy terminal.
+	TerminalPolicy.place_card(geo, Vector3(-7.55, 1.002, 1.35), 180, true).name = "PolicyCard"
 	# A space heater humming under the desk: why this room is warm.
 	Greybox.box(geo, Vector3(-6.8, 0.25, 1.6), Vector3(0.5, 0.5, 0.3), Color(0.6, 0.3, 0.2), "Heater")
 	Greybox.ceiling_light(geo, Vector3(-6.8, 0.6, 2.0), 2.0, 0.3, Color(1.0, 0.45, 0.2))
@@ -664,24 +748,27 @@ func _build_it_cage(colors: Dictionary) -> void:
 	Greybox.room(geo, Vector3(6.5, 0, -4.5), Vector3(7, 3.0, 7), {"floor": Color(0.3, 0.3, 0.32), "wall": colors.wall.darkened(0.1)}, [
 		{"wall": "w", "at": -4.5, "width": 1.4, "height": 2.3},
 	])
-	# The cradle on the east wall: six slots, the card beside it.
-	Greybox.box(geo, Vector3(9.6, 1.1, -6.0), Vector3(0.5, 0.2, 1.6), Color(0.2, 0.2, 0.22), "Cradle")
+	# The cradle on the east wall: eight slots, its self-test label beside it (the try).
+	Greybox.box(geo, Vector3(9.6, 1.1, -5.8), Vector3(0.5, 0.2, 2.0), Color(0.2, 0.2, 0.22), "Cradle")
 	for i in CRADLE_SLOTS:
-		Greybox.box(geo, Vector3(9.5, 1.24, -6.6 + i * 0.24), Vector3(0.12, 0.08, 0.12), Color(0.85, 0.2, 0.15), "CradleSlot%d" % i)
-	var card := Document.place(geo, Vector3(9.88, 1.65, -4.4), 90, "Cradle card", _cradle_card(), false, "laminated", Vector2(0.3, 0.36))
+		Greybox.box(geo, Vector3(9.5, 1.24, -6.64 + i * 0.24), Vector3(0.12, 0.08, 0.12), Color(0.85, 0.2, 0.15), "CradleSlot%d" % i)
+	var label := Document.place(geo, Vector3(9.88, 1.65, -4.3), 90, "Cradle self-test label", SELF_TEST, false, "laminated", Vector2(0.3, 0.24))
+	label.name = "SelfTestLabel"
+	label.spot = "self_test"
+	label.read_by.connect(func(_p): sync.event("_ask", ["pair"]))
+	# The cradle card, at the bench's other end, beside the key sticky: the pairing
+	# card, for the loop (step 2). Reading it early only notes its clue (M3).
+	var card := Document.place(geo, Vector3(6.8, 1.55, -7.88), 180, "Pairing card", _cradle_card(), false, "laminated", Vector2(0.3, 0.36))
 	card.name = "CradleCard"
-	card.clues = [{"case": "pair", "opens": TEXT.case_pair, "text": "The cradle card: a pairing script. let makes a box with a name; while repeats while its test is true; await sleep(1000) waits a second. Its key is the dock cradle's."}]
-	card.read_by.connect(func(_p):
-		sync.event("_ask", ["pair"])
-		sync.event("_book_huddle", ["js_if"])
-		sync.event("_book_huddle", ["js_loops"]))
+	card.clues = [{"case": "pair", "text": "The cradle card: a pairing script. let makes a box with a name; while repeats while its test is true; await sleep(1000) waits a second. Its key is the dock cradle's."}]
+	card.spot = "pairing_card"
 	# The IT terminal, on the bench's end.
 	Greybox.box(geo, Vector3(6.5, 0.5, -7.3), Vector3(4.0, 1.0, 0.8), Color(0.38, 0.38, 0.4), "Bench")
 	it_terminal = Terminal.spawn(geo, Vector3(5.2, 1.0, -7.3), 0, "IT CAGE", db, terminal_ui)
 	it_terminal.name = "ITTerminal"
 	it_terminal.set_meta("scripts", true)
 	it_terminal.set_meta("ticked_elsewhere", true)
-	it_terminal.puzzles = [pair_puzzle, list_puzzle]
+	it_terminal.puzzles = [try_puzzle, pair_puzzle, list_puzzle]
 	it_terminal.boot_lines = [
 		"HALCYON IT  -  COLD STORE CAGE",
 		"Services: /earpieces  /doors  /clock      Scripts: .script",
@@ -690,6 +777,8 @@ func _build_it_cage(colors: Dictionary) -> void:
 	var sticky := Document.place(geo, Vector3(6.4, 1.003, -7.1), 0, "Key sticky", [{"text": BENCH_STICKY % data.key, "hand": true}], true, "sticky")
 	sticky.name = "KeySticky"
 	sticky.clues = [{"case": "pair", "text": "On the IT bench: the cage's service key, %s (doors, cradle, clock)." % data.key}]
+	# Every script on the floor wants the key (V17).
+	sticky.pieces = ["pair", "hold", "release", "stop"].map(func(c): return {"case": c, "piece": "key", "text": data.key, "kind": "value"})
 	Document.place(geo, Vector3(8.0, 1.6, -7.88), 180, "Bench sign", BENCH_LINES, false, "laminated", Vector2(0.28, 0.24))
 	# The bench: a loaner deck for anyone without one, and the upgrades for every deck.
 	bench = Interactable.create(self, Vector3(7.6, 1.08, -7.3), Vector3(0.6, 0.12, 0.4), "Fit a deck for scripts (wireless card, script runner)", Color(0.25, 0.3, 0.35))
@@ -737,7 +826,10 @@ func _build_anteroom(colors: Dictionary) -> void:
 	# The strip curtain on the cold side: you walk through it.
 	for i in 6:
 		Greybox.panel(geo, Vector3(-0.65 + i * 0.26, 1.2, -11.95), Vector3(0.24, 2.2, 0.01), Color(0.8, 0.9, 1.0, 0.4), 0.0)
-	Greybox.label(geo, Vector3(0, 2.6, -8.12), "ANTEROOM  -  %s" % data.doors.ante, 22, Color(0.8, 0.85, 0.9), 180)
+	# The sign over its door, hall side: the id the watchdog needs (V26).
+	var sign := Document.place(geo, Vector3(0, 2.5, -7.9), 180, "Sign over the anteroom door", [ANTE_DOOR_SIGN % data.doors.ante], false, "laminated", Vector2(0.5, 0.12))
+	sign.name = "AnteDoorSign"
+	sign.pieces = [{"case": "hold", "piece": "ante_door", "text": data.doors.ante, "kind": "value"}]
 
 
 func _build_corridor(cold: Dictionary) -> void:
@@ -746,15 +838,23 @@ func _build_corridor(cold: Dictionary) -> void:
 		{"wall": "s", "at": 12.0, "width": 1.2, "height": 1.1},
 		{"wall": "n", "at": -11.0, "width": 1.6, "height": 2.3},
 		{"wall": "n", "at": -1.0, "width": 1.6, "height": 2.3},
+		{"wall": "n", "at": 7.0, "width": 1.6, "height": 2.3},
 		{"wall": "e", "at": 0.0, "width": 1.6, "height": 2.5},
 		{"wall": "w", "at": 0.0, "width": 1.6, "height": 2.3},
 	])
 	Greybox.label(geo, Vector3(-8, 2.5, -15.88), "VAULT A  -  SAMPLES", 24, Color(0.2, 0.3, 0.4), 0)
 	Greybox.label(geo, Vector3(2, 2.5, -15.88), "VAULT B  -  RECORDS / FILM", 24, Color(0.2, 0.3, 0.4), 0)
-	Greybox.label(geo, Vector3(19.88, 2.75, -14), "VAULT C  -  DEEP FREEZE", 26, Color(0.6, 0.15, 0.1), -90)
+	Greybox.label(geo, Vector3(10, 2.55, -15.88), WARM_UP_SIGN, 24, Color(0.85, 0.5, 0.2), 0).name = "WarmUpSign"
 	Greybox.label(geo, Vector3(-13.88, 2.5, -14), "PLANT", 26, Color(0.2, 0.3, 0.4), 90)
 	vault_c_door = add_door(data.doors.vault_c, VAULT_C_DOOR_AT, Vector3(0.12, 2.5, 1.6))
-	Document.place(geo, Vector3(19.88, 1.5, -12.6), 90, "Vault C sign", VAULT_C_SIGN, false, "laminated", Vector2(0.26, 0.2))
+	# The door's own sign, with its id (V30, V27), just south of the door (under the
+	# corridor's low ceiling, where it's read from the floor), and the sign beside it.
+	var over := Document.place(geo, Vector3(19.88, 2.2, -15.35), 90, "Vault C door sign", [VAULT_C_DOOR_SIGN % data.doors.vault_c], false, "laminated", Vector2(0.56, 0.1))
+	over.name = "VaultCDoorSign"
+	over.pieces = [{"case": "hold", "piece": "freezer_door", "text": data.doors.vault_c, "kind": "value"}]
+	var sign := Document.place(geo, Vector3(19.88, 1.5, -12.6), 90, "Vault C sign", VAULT_C_SIGN, false, "laminated", Vector2(0.26, 0.2))
+	sign.name = "VaultCSign"
+	sign.spot = "vault_c_sign"
 	_access_point(Vector3(10, 2.9, -12.2), 180)
 	# Frost on the pipes along the ceiling.
 	Greybox.box(geo, Vector3(3, 2.8, -15.6), Vector3(33, 0.12, 0.12), Color(0.9, 0.95, 1.0), "Pipe")
@@ -797,6 +897,18 @@ func _build_plant(colors: Dictionary) -> void:
 		Greybox.box(geo, Vector3(-20.5, 0.8, z), Vector3(1.6, 1.6, 1.8), Color(0.45, 0.5, 0.45), "Compressor")
 	Greybox.label(geo, Vector3(-21.88, 2.4, -14), "COMPRESSORS 1-3", 26, Color(0.8, 0.8, 0.75), 90)
 	Hum.create(geo, AABB(Vector3(-22, 0, -18), Vector3(8, 3, 8)))
+
+
+## The warm-up area (M6, V32): a recess off the corridor's north side, halfway down
+## it, with a space heater like the time office's. Its own access point keeps a deck
+## on the vault network (no jacks past the anteroom).
+func _build_warm_up(colors: Dictionary) -> void:
+	Greybox.room(geo, WARM_UP.get_center() * Vector3(1, 0, 1), Vector3(3, 3.0, 3), {"floor": Color(0.36, 0.32, 0.28), "wall": colors.wall}, [
+		{"wall": "s", "at": 0.0, "width": 1.6, "height": 2.3},
+	])
+	Greybox.box(geo, Vector3(10.9, 0.25, -18.55), Vector3(0.5, 0.5, 0.3), Color(0.6, 0.3, 0.2), "Heater")
+	Greybox.ceiling_light(geo, Vector3(10.9, 0.6, -18.1), 2.0, 0.3, Color(1.0, 0.45, 0.2))
+	_access_point(Vector3(9.2, 2.9, -17.5), 0)
 
 
 ## A ceiling access point with its sticker: the vault network.
@@ -847,6 +959,7 @@ func _make_decks() -> void:
 		d.enabled = false
 		d.boot_lines = ["HALCYON PORTABLE DECK  -  FIELD UNIT", "Network: follows you (jacks in the warm rooms, access points with a wireless card)."]
 		d.puzzles = [hold_puzzle, release_puzzle, stop_puzzle]
+		d.policy = true  # a B1 screen too (P1)
 		d.set_meta("ticked_elsewhere", true)
 		d.requested.connect(_on_request.bind("deck"))
 		# Where its keys click and beep: in its holder's hands (it follows them).
@@ -910,7 +1023,13 @@ func start() -> void:
 		completed.connect(_on_completed)
 	if player and not player.inventory.selected.is_connected(_on_selected):
 		player.inventory.selected.connect(_on_selected)
-	pair_puzzle.hints[2] = "type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(data.key, str(_crew_count()))
+	pair_puzzle.hints[2] = "type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(data.key, str(_pair_count()))
+	Game.cell_rule = _cell_counts  # this floor's slots, from here on
+	_set_cases()
+	if not Game.answer_found.is_connected(_on_answer_found):
+		Game.answer_found.connect(_on_answer_found)
+		Game.cell_missed.connect(_on_cell_missed)
+		Game.line_noted.connect(_on_line_noted)
 	hud.todo(TASK_TITLES.todo_arrive, TEXT.todo_arrive)
 	_lines(["l6_arrive_pa", "l6_arrive_tease"], 0.8)
 	# The landing's reader punches every visitor in to the floor: the crew's own cards
@@ -1396,16 +1515,32 @@ func _punch_floor(card: String) -> void:
 
 func _make_puzzles() -> void:
 	var key: String = data.key
-	# 1. Who's still clocked in? IS NULL was practised on 18: the review ladder.
-	open_puzzle = Puzzle.new("open", "SELECT card, name FROM freezer_log WHERE clock_out IS NULL", ["card"], false, [
+	# 1. Who's been in there longest? IS NULL was practised on 18: the review ladder.
+	# Solved by pointing at the name (the slot, _set_cases), not by the query.
+	open_puzzle = Puzzle.new("open", "SELECT name, clock_in FROM freezer_log WHERE clock_out IS NULL ORDER BY clock_in", ["name", "clock_in"], true, [
 		"the shape, with the empty column left as enter_column:\n" +
-		"    [color=#ffffff]SELECT * FROM freezer_log WHERE enter_column IS NULL;[/color]\n" +
-		"enter_column is the one a visit fills in on the way out. still inside = nothing in it. IS NULL asks for nothing; = NULL never matches.",
+		"    [color=#ffffff]SELECT name, clock_in FROM freezer_log WHERE enter_column IS NULL ORDER BY clock_in;[/color]\n" +
+		"enter_column is the one a visit fills in on the way out. still inside = nothing in it. IS NULL asks for nothing; = NULL never matches. ORDER BY clock_in puts whoever went in first at the top.",
 		"type this:\n" +
-		"    [color=#ffffff]SELECT * FROM freezer_log WHERE clock_out IS NULL;[/color]",
+		"    [color=#ffffff]SELECT name, clock_in FROM freezer_log WHERE clock_out IS NULL ORDER BY clock_in;[/color]\n" +
+		"the top name has been in there the longest. point at it and add it to your notebook.",
 	])
 	open_puzzle.case_id = "open"
-	open_puzzle.accept_also("SELECT name FROM freezer_log WHERE clock_out IS NULL", ["name"], false)
+	open_puzzle.spots = [{"id": "clock_sign", "text": SPOT_CLOCK}]
+	# 2a. The try (M1): the editor, let, a request as a script line and the log, run
+	# once for one set. Any set paired ticks it. Ladder A.
+	try_puzzle = RequestPuzzle.new("try", _try_script(key), func(_l, _r): return paired >= 1, [
+		"the shape, with the key left as enter_key:\n" +
+		"    [color=#ffffff]%s[/color]\n" % _try_script("enter_key") +
+		"  let key = ...   a variable: a box with a name, holding the key\n" +
+		"  let res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key})   the same POST you'd type, as one script line: the path, then the body ({} is empty), then the header. await waits for the cradle's answer, and res holds it\n" +
+		"  console.log(res.status)   writes the answer's code (201, 403, 409) in the runner's log, so you can see each try\n" +
+		"enter_key is this cradle's own key, on the sticky on the bench.\n" +
+		"type .script to open the runner, then ^S saves and ^R runs it.",
+		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _try_script(key),
+	], func(): return paired >= 1)
+	try_puzzle.case_id = "pair"
+	try_puzzle.spots = [{"id": "self_test", "text": SPOT_SELF_TEST}]
 	# 2. One set each: let, while and waiting are new, so ladder A.
 	var script := _pair_script(key, "enter_count")
 	pair_puzzle = RequestPuzzle.new("pair", script, func(_l, _r): return _pair_ok(), [
@@ -1417,12 +1552,13 @@ func _make_puzzles() -> void:
 		"  console.log(res.status)   writes the answer's code (201, 403, 409) in the runner's log, so you can see each try\n" +
 		"  paired = paired + 1   count one more, or the test never turns false\n" +
 		"  await sleep(1000)   wait a second (1000 ms) before the next\n" +
-		"enter_key is this cradle's own key. enter_count is how many sets: one for each of you.\n" +
+		"enter_key is this cradle's own key. enter_count is how many sets: one for each of you, and one each for Ines and Tomas.\n" +
 		"type .script to open the runner, then ^S saves and ^R runs it.",
 		"the card's script is for the dock cradle: its key is the dock's. this cradle's key is on the sticky on the bench. count is how many sets: one each.",
-		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(key, str(_crew_count())),
+		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _pair_script(key, str(_pair_count())),
 	], _pair_ok)
 	pair_puzzle.case_id = "pair"
+	pair_puzzle.spots = [{"id": "pairing_card", "text": SPOT_CARD}]
 	# 2b. The listing, warm: for ... of and db.query are new, so ladder A. Checked by
 	# what the log says (every open name, one a line), never by the code.
 	list_puzzle = RequestPuzzle.new("list", _list_script("clock_out IS NULL"), func(_l, _r): return false, [
@@ -1438,6 +1574,7 @@ func _make_puzzles() -> void:
 		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _list_script("clock_out IS NULL"),
 	], list_ok)
 	list_puzzle.case_id = "list"
+	list_puzzle.spots = [{"id": "service_page", "text": SPOT_PAGE_LIST}]
 	# 3. The practice: the anteroom door held through two sweeps. if is new: ladder A.
 	practice_puzzle = RequestPuzzle.new("practice", _watchdog(key, data.doors.ante), func(_l, _r): return practice_ok(), [
 		"the shape, with the door left as enter_door:\n" +
@@ -1454,6 +1591,7 @@ func _make_puzzles() -> void:
 		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _watchdog(key, data.doors.ante),
 	], practice_ok)
 	practice_puzzle.case_id = "hold"
+	practice_puzzle.spots = [{"id": "tech_note", "text": SPOT_NOTE}]
 	# The pressure: the deep freeze's door, from the deck in the cold. if and the
 	# loop are practised at the anteroom now: the review ladder.
 	hold_puzzle = RequestPuzzle.new("hold", _watchdog(key, data.doors.vault_c), func(_l, _r): return crossed, [
@@ -1463,6 +1601,7 @@ func _make_puzzles() -> void:
 		"on your deck: .script, then this, then ^R. then everyone in:\n    [color=#ffffff]%s[/color]" % _watchdog(key, data.doors.vault_c),
 	], func(): return crossed)
 	hold_puzzle.case_id = "hold"
+	hold_puzzle.spots = [{"id": "vault_c_sign", "text": SPOT_VAULT_C}]
 	# 4. The release, under pressure: ladder A, its loop line given.
 	release_puzzle = RequestPuzzle.new("release", _release_script(key, "visitor", int(punch_interval) * 1000 + 1000), func(_l, _r): return all_free, [
 		"the shape, with the blanks left as enter_ words:\n" +
@@ -1477,6 +1616,7 @@ func _make_puzzles() -> void:
 		"on your deck, in Vault C: .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _release_script(key, "visitor", int(punch_interval) * 1000 + 1000),
 	], func(): return all_free)
 	release_puzzle.case_id = "release"
+	release_puzzle.spots = [{"id": "service_page", "text": SPOT_PAGE_RELEASE}]
 	# 5. Stop what we started: stopping and PATCH are practised now, so the review ladder.
 	stop_puzzle = RequestPuzzle.new("stop", "PATCH /doors/%s\nX-Api-Key: %s\n\n{\"locked\": true}" % [data.doors.vault_c, key], func(line: String, res: Dictionary):
 		return res.status == 200 and _method_of(line) == "GET" and _path_of(line).begins_with("/doors") and stop_ok(), [
@@ -1494,6 +1634,11 @@ func _make_puzzles() -> void:
 ## The pairing script, as the card has it, with this cradle's key and the count.
 static func _pair_script(key: String, count: String) -> String:
 	return "let key = \"%s\";\nlet count = %s;\nlet paired = 0;\nwhile (paired < count) {\n  let res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key});\n  console.log(res.status);\n  paired = paired + 1;\n  await sleep(1000);\n}" % [key, count]
+
+
+## The try (M1): one set, as the cradle's self-test label has it, with `key`.
+static func _try_script(key: String) -> String:
+	return "let key = \"%s\";\nlet res = await api.post(\"/earpieces/pair\", {}, {\"X-Api-Key\": key});\nconsole.log(res.status);" % key
 
 
 ## The listing: the page's loop with only a log in it, and an if that leaves the
@@ -1527,8 +1672,13 @@ func _crew_count() -> int:
 	return players.count() if players else 1
 
 
+## How many sets: one for each of the crew, and one each for Ines and Tomas (M2).
+func _pair_count() -> int:
+	return _crew_count() + 2
+
+
 func _pair_ok() -> bool:
-	return paired >= _crew_count()
+	return paired >= _pair_count()
 
 
 ## The names on the entries still open (the echoes', never the crew's VISITOR).
@@ -1575,7 +1725,7 @@ func _path_of(line: String) -> String:
 
 
 func puzzles() -> Array:
-	return [open_puzzle, pair_puzzle, list_puzzle, practice_puzzle, hold_puzzle, release_puzzle, stop_puzzle]
+	return [open_puzzle, try_puzzle, pair_puzzle, list_puzzle, practice_puzzle, hold_puzzle, release_puzzle, stop_puzzle]
 
 
 ## Host: a SQL read at the time office.
@@ -1586,8 +1736,9 @@ func _on_query(sql: String, result: Dictionary, _ui: TerminalUI, which: String) 
 			sync.event("_tip", ["eq_null", which])
 		elif upper.contains("IS NOT NULL"):
 			sync.event("_tip", ["not_null", which])
-	if not open_puzzle.solved and result.ok and open_puzzle.matches(db, result):
-		sync.event("_on_solved", ["open"])
+	# No paper needed: the first query here opens the case, so the click has a slot.
+	if not Game.case_info("open").get("open", false):
+		sync.event("_ask", ["open"])
 
 
 ## Host: a request typed at a terminal or deck. Its station checks; the services did
@@ -1663,8 +1814,12 @@ func _terminal(which: String) -> Terminal:
 	return ante_terminal
 
 
-## Every machine: the cradle has paired a set. One each, and the case is done.
+## Every machine: the cradle has paired a set. The first is the try (step 1); one
+## each, Ines and Tomas too, and the case is done.
 func _check_pairing() -> void:
+	if not try_puzzle.solved and paired >= 1:
+		_try_run = true
+		_on_solved("try")
 	if not pair_puzzle.solved and _pair_ok():
 		_on_solved("pair")
 
@@ -1681,53 +1836,90 @@ func _on_solved(id: String) -> void:
 			_open_case("open")
 			var open := db.run_silent("SELECT clock_in FROM freezer_log WHERE clock_out IS NULL AND name != 'VISITOR' ORDER BY clock_in")
 			var oldest := int(str(open[0].clock_in).left(4)) if not open.is_empty() else 0
-			Game.solve_case("open", TEXT.open_done % [open.size(), oldest, data.rack_in.size()])
+			_solve("open", TEXT.open_done % [open.size(), oldest, data.rack_in.size()])
 			_lines(["l6_records_pa", "l6_records_tease"])
 			_next_case()
+		"try":
+			# Step 2, the loop, with its chapter (M1, M3).
+			_open_case("pair")
+			Game.tick_step("pair", "try")
+			_set_cases()
+			_gate(CHAPTER_OF.loop)
 		"pair":
 			_open_case("pair")
-			Game.solve_case("pair", TEXT.pair_done % paired)
+			_solve("pair", TEXT.pair_done % paired)
 			_earpieces_in()
-			_next_case()
-			# The listing opens here, at the cage: SYSOP's warm try (and its if) on this
-			# screen now, whether or not the service page by the clock has been read yet.
-			_tip("list_try", "it")
+			# The listing waits for the voice in the ear (M4).
+			if _is_host():
+				_later(listing_after, "_next_case")
 		"list":
 			_open_case("list")
-			Game.solve_case("list", TEXT.list_done % ", ".join(PackedStringArray(_open_names())))
+			_solve("list", TEXT.list_done % ", ".join(PackedStringArray(_open_names())))
 			_next_case()
 		"practice":
 			_open_case("hold")
+			_set_cases()  # the deep freeze: the bare shape, under pressure
+			_gate()
 		"hold":
 			_open_case("hold")
-			Game.solve_case("hold", TEXT.hold_done if watchdog_used else TEXT.hold_done_hand)
+			_solve("hold", TEXT.hold_done if watchdog_used else TEXT.hold_done_hand)
 			_next_case()
 		"release":
 			_open_case("release")
 			var names := PackedStringArray(data.echoes.map(func(e): return e.first))
-			Game.solve_case("release", TEXT.release_done % ", ".join(names))
+			_solve("release", TEXT.release_done % ", ".join(names))
 			_next_case()
 		"stop":
 			_open_case("stop")
-			Game.solve_case("stop", TEXT.stop_done)
+			_solve("stop", TEXT.stop_done)
 			_lines(["l6_stopped_pa", "l6_stopped_tease"])
 			sync.unlock("achievement:b1_left_tidy")
 
 
+## Every machine: case `id` opens (once), with its chapter if it has one, and the
+## crew's next waiting chapter lands (a gate: M3).
 func _open_case(id: String) -> void:
-	Game.open_case(id, CASES[id], ["freezer_log"] if id == "open" else [], CASE_DO[id])
+	if Game.open_case(id, CASES[id], ["freezer_log"] if id == "open" else [], CASE_DO[id]):
+		_gate(CHAPTER_OF.get(id, ""))
+		if id == "list":
+			_tip("list_try", "it")  # SYSOP's warm try, with its if, on the cage's screen (M4)
+
+
+## Every machine: case `id` is solved, with what was found; a gate too.
+func _solve(id: String, how: String) -> void:
+	if Game.case_info(id).get("solved", false):
+		return
+	Game.solve_case(id, how)
+	_gate()
 
 
 ## One case at a time, in order (the case board): the next one opens when the last
-## is done. Case 5 opens once everyone's free, and is optional.
+## is done. Case 5 is optional, and opens back in the warm once everyone's free (M5).
 func _next_case() -> void:
 	for id in CASE_ORDER:
 		if not Game.case_info(id).get("solved", false):
 			_open_case(id)
 			return
 	if all_free and not stop_puzzle.solved:
-		_open_case("stop")
-		hud.todo(TASK_TITLES.todo_down, TEXT.todo_down)
+		stop_waiting = true
+
+
+## Every machine: someone in the crew is back in the warm with every entry closed.
+## Leaving it tidy opens (M5).
+func _open_stop() -> void:
+	if not stop_waiting:
+		return
+	stop_waiting = false
+	_open_case("stop")
+
+
+## Host, each frame while the tidy-up waits: the first of the crew in a warm room.
+func _stop_check() -> void:
+	for id in (players.all_ids() if players else [1]):
+		var body: Node3D = player if (players == null or id == players.id_of(player)) else players.puppet(id)
+		if body and WARM_ROOMS.any(func(r): return r.has_point(to_local(body.global_position))):
+			sync.event("_open_stop")
+			return
 
 
 ## Every machine: a paper opened a case. Only in order: case 2 waits for case 1.
@@ -1739,20 +1931,123 @@ func _ask(id: String) -> void:
 	_open_case(id)
 
 
+## Every machine: each case's pieces, its steps and its query on screen, as it
+## stands now (the case chip shows the selected one's). The open case's slot is the
+## name of whoever's been in there longest.
+func _set_cases() -> void:
+	var key := _piece(KEY_PIECE, data.key)
+	Game.set_pieces("open", [TABLE_PIECE, COLUMN_PIECE], OPEN_QUERY)
+	if Game.case_info("open").get("blank", {}).is_empty():
+		var first: Dictionary = data.echoes[0]  # sorted by clock_in: in there longest
+		Game.set_blank("open", OPEN_SLOT, NO_LINE, str(first.name), {"column": "name", "values": [str(first.name)], "rows": [{"card": str(first.card)}]})
+	Game.set_pieces("pair", [key], _pair_script("{key}", "enter_count") if try_puzzle.solved else TRY_QUERY, PAIR_STEPS)
+	Game.set_pieces("list", [], _list_script("enter_condition"))
+	if practice_puzzle.solved:
+		# The deep freeze, under pressure: the bare shape, never filled in.
+		Game.set_pieces("hold", [key, _piece(FREEZER_PIECE, data.doors.vault_c)], _watchdog("{key}", "{freezer_door}"))
+		Game.set_assemble("hold", false)
+	else:
+		Game.set_pieces("hold", [key, _piece(ANTE_PIECE, data.doors.ante)], _watchdog("{key}", "{ante_door}"))
+	Game.set_pieces("release", [key], _release_shape().replace("enter_key", "{key}"))
+	Game.set_assemble("release", false)
+	Game.set_pieces("stop", [key], "PATCH /doors/enter_door\nX-Api-Key: {key}\n\n{\"locked\": true}\n\nGET /doors\nX-Api-Key: {key}", [], true)
+
+
+static func _piece(def: Dictionary, value: String) -> Dictionary:
+	var p := def.duplicate()
+	p["value"] = value
+	return p
+
+
+# --- Pointing at the answer ------------------------------------------------------------------
+
+## Game.cell_rule: B1's one slot is the open case's, and its own rule (set_blank's)
+## says it all. Set here so an earlier floor's rule doesn't judge it.
+func _cell_counts(_case_id: String, _f: Dictionary) -> bool:
+	return true
+
+
+## This player's click filled a slot: the host hears whose it was.
+func _on_answer_found(id: String) -> void:
+	if id == "open":
+		sync.report_answer(id)
+
+
+## Host: a player put the open case's answer in its slot.
+func case_answered(answer: String, _peer: int) -> void:
+	if answer == "open" and not open_puzzle.solved:
+		sync.event("_on_solved", ["open"])
+
+
+## The freezer_log entry a result row shows, as far as it shows one: by its id, its
+## card, or its name and clock_in (a staff name can be on many visits). {} if none.
+func _log_row(row: Dictionary) -> Dictionary:
+	var shown := {}
+	for k in row:
+		shown[str(k).to_lower()] = row[k]
+	var where := ""
+	if shown.has("id") and str(shown.id).is_valid_int():
+		where = "id = %d" % int(str(shown.id))
+	elif shown.has("card") and shown.card != null:
+		where = "card = '%s'" % str(shown.card).replace("'", "''")
+	elif shown.has("name") and shown.has("clock_in") and shown.name != null and shown.clock_in != null:
+		where = "name = '%s' AND clock_in = '%s'" % [str(shown.name).replace("'", "''"), str(shown.clock_in).replace("'", "''")]
+	if where == "":
+		return {}
+	var rows := db.run_silent("SELECT * FROM freezer_log WHERE " + where)
+	return rows[0] if rows.size() == 1 else {}
+
+
+## This player pointed at a cell that isn't who's been in there longest: a pencil
+## line under the blank says why (V7-V11; this player's notebook only).
+func _on_cell_missed(column: String, value: String, row: Dictionary) -> void:
+	var c: Dictionary = Game.case_info("open")
+	if not c.get("open", false) or c.get("solved", false):
+		return
+	var col := column.to_lower()
+	var shown := {}
+	for k in row:
+		shown[str(k).to_lower()] = row[k]
+	if not shown.has(col):
+		shown[col] = value
+	var log_cols := ["card", "name", "vault", "clock_in", "clock_out"]
+	if not log_cols.any(func(k): return shown.has(k)) and Game.case_selected() != "open":
+		return  # nothing to do with the log, and another case in hand
+	var first: Dictionary = data.echoes[0]
+	var entry := _log_row(shown)
+	var who := str(shown.get("name", entry.get("name", "")))
+	var note := OPEN_MISS
+	if who == "VISITOR":
+		note = OPEN_OURS
+	elif not entry.is_empty() and str(entry.card) == str(first.card):
+		note = OPEN_ROW
+	elif col == "name":
+		var visits := db.run_silent("SELECT clock_out FROM freezer_log WHERE name = '%s'" % who.replace("'", "''"))
+		if not entry.is_empty():
+			visits = [entry]
+		if not visits.is_empty() and visits.all(func(r): return r.clock_out != null):
+			note = OPEN_CLOSED
+		elif not visits.is_empty() and visits.any(func(r): return r.clock_out == null):
+			note = OPEN_NOT_FIRST
+	Game.blank_miss("open", note)
+
+
+## This player noted a line off a paper: one of the card rack's, for the open case's
+## blank, isn't the record (V6).
+func _on_line_noted(text: String, kind: String) -> void:
+	var c: Dictionary = Game.case_info("open")
+	if kind != "document" or not c.get("open", false) or c.get("solved", false) or rack == null:
+		return
+	if rack.doc_lines.any(func(l): return str(l.text).strip_edges() == text.strip_edges() and str(l.text).begins_with("C-")):
+		Game.blank_miss("open", OPEN_RACK)
+
+
 func _rack_read() -> void:
 	_ask("open")
 	if not tips_sent.has("ines_whitlow"):
 		tips_sent["ines_whitlow"] = true
 		await _say("l6_ines_whitlow")
 		_say("l6_tomas_whitlow")
-
-
-## Every machine: the service page's loop is the third chapter's, and a warm first
-## use of it (only a log) is a case of its own: SYSOP suggests it at the IT cage.
-func _service_read() -> void:
-	_book_huddle("js_each")
-	_ask("list")
-	_tip("list_try", "it")
 
 
 # --- The listing (every script runner is listened to) --------------------------------------
@@ -1802,10 +2097,12 @@ func _on_script_finished(term: Node, ok: bool) -> void:
 	listed.clear()
 	listed_ours = false
 	var which := _which_of(term)
-	if ok and which == _pair_from and not _pair_409_run and not pair_puzzle.solved and paired > 0 and paired < _crew_count():
-		sync.event("_tip", ["pair_short", which, [paired, _crew_count()]])
+	# The run that paired the first set was the try: it's step 1 done, not short (M1).
+	if ok and which == _pair_from and not _pair_409_run and not _try_run and not pair_puzzle.solved and paired > 0 and paired < _pair_count():
+		sync.event("_tip", ["pair_short", which, [paired, _pair_count()]])
 	if which == _pair_from:
 		_pair_409_run = false
+		_try_run = false
 
 
 ## The screen name of a terminal or deck (what its link says).
@@ -2022,22 +2319,30 @@ func _book_found(peer_id: int) -> void:
 	for id in ["l6_book_find", "l6_book_open"]:
 		if not VoiceLines.get_line(id).is_empty():
 			await hud.line(id)
-	for id in _pending_chapters.duplicate():
-		_book_huddle(id)
-	_pending_chapters.clear()
+	_gate()  # the earliest chapter waiting; the rest one per step after (M3)
 
 
-var _pending_chapters: Array = []
+## Every machine: a gate (a case or a step opening, a case solved). Its own chapter,
+## if it has one, joins the wait; once the book is found, the earliest one waiting
+## lands, quietly: the book's notice only (nothing stops, nothing is spoken on B1).
+## One per gate.
+func _gate(chapter := "") -> void:
+	var huddle := Huddle.of(self)
+	if huddle == null:
+		return
+	if chapter != "" and not huddle.done.has(chapter) and not pending_chapters.has(chapter) and not Books.chapter(chapter).is_empty():
+		pending_chapters.append(chapter)
+	if not book_found:
+		return
+	while not pending_chapters.is_empty() and huddle.done.has(pending_chapters[0]):
+		pending_chapters.pop_front()
+	if not pending_chapters.is_empty():
+		_book_huddle(pending_chapters.pop_front())
 
 
-## Every machine: a paper brings a chapter into the crew's book, quietly (nothing
-## stops). Before the book's found, it waits.
+## Every machine: chapter `id` of Journey through JavaScript lands in the crew's book.
 func _book_huddle(id: String) -> void:
 	if Huddle.of(self) == null or Huddle.of(self).done.has(id) or Books.chapter(id).is_empty():
-		return
-	if not book_found:
-		if not _pending_chapters.has(id):
-			_pending_chapters.append(id)
 		return
 	await Huddle.of(self).run(id, Huddle.REMEMBERED)
 
@@ -2054,6 +2359,8 @@ func _process(delta: float) -> void:
 			_since_sweep = 0.0
 			sync.event("_sweep")
 		_deck_nets()
+		if stop_waiting:
+			_stop_check()
 		if custodian_down:
 			_custodian_clock += delta
 			if _custodian_clock >= CUSTODIAN_EVERY:
