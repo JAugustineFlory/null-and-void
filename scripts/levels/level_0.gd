@@ -238,7 +238,7 @@ func build() -> void:
 
 	# A receptionist's monitor, facing behind the desk until Rourke turns it round
 	# for the crew (_turn_monitor).
-	desk_terminal = Terminal.spawn(geo, GroundFloor.on_desk(1.5), 180, "FRONT DESK", db, terminal_ui)
+	desk_terminal = Terminal.spawn(geo, GroundFloor.on_desk(GroundFloor.TERMINAL_ALONG), 180, "FRONT DESK", db, terminal_ui)
 	desk_terminal.boot_lines = [
 		"HALCYON DATA SYSTEMS  -  WARDEN v3.1  -  FRONT DESK",
 		"Visitor session opened 23:04.",
@@ -288,9 +288,9 @@ func build() -> void:
 	]
 	# The front desk phone, with its own extension on it (G1), and the night desk's
 	# reminder beside it: which table the phone list is (G2, G3).
-	_mesh(geo, GroundFloor.on_desk(3.4, 0.0, 0.03), Vector3(0.22, 0.06, 0.24), Color(0.16, 0.16, 0.17)).name = "DeskPhone"
-	_mesh(geo, GroundFloor.on_desk(3.4, -0.04, 0.08), Vector3(0.2, 0.04, 0.06), Color(0.12, 0.12, 0.13)).name = "DeskPhoneHandset"
-	Greybox.label(geo, GroundFloor.on_desk(3.4, 0.125, 0.05), PHONE_LABEL % data.front_desk, 12, Color(0.9, 0.9, 0.85), 0)
+	_mesh(geo, GroundFloor.on_desk(GroundFloor.PHONE_ALONG, 0.0, 0.03), Vector3(0.22, 0.06, 0.24), Color(0.16, 0.16, 0.17)).name = "DeskPhone"
+	_mesh(geo, GroundFloor.on_desk(GroundFloor.PHONE_ALONG, -0.04, 0.08), Vector3(0.2, 0.04, 0.06), Color(0.12, 0.12, 0.13)).name = "DeskPhoneHandset"
+	Greybox.label(geo, GroundFloor.on_desk(GroundFloor.PHONE_ALONG, 0.125, 0.05), PHONE_LABEL % data.front_desk, 12, Color(0.9, 0.9, 0.85), 0)
 	phone_note = Document.place(geo, GroundFloor.on_desk(3.78, 0.18, PAPER), 6.0, "Sticky note", [
 		{"text": "Who's on what ext.?", "hand": true},
 		{"text": "Phone list is on the terminal:", "hand": true},

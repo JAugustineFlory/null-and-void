@@ -1888,6 +1888,16 @@ func test_ground_floor() -> void:
 	# Two stalls in each restroom, with a doorway and a floor the biggest of the crew fits.
 	var wide: float = CrewBody.largest().radius * 2.0
 	check([G.MENS, G.WOMENS].all(func(room): return G.stalls(room).size() == 2) and G.STALL_DOORWAY > wide + 0.2 and minf(G.STALL.x, G.STALL.y) > wide + 0.6, "each restroom has two stalls the biggest of the crew fits into (%.2f m across)" % wide)
+	# The front office, behind the desk: places to work, and still no way in but over the counter.
+	var office: AABB = G.box(G.FRONT_OFFICE, 2.0)
+	var seats: Array = level.find_children("*", "Seat", true, false).filter(func(s): return office.has_point(level.to_local(s.global_position)))
+	var at_counter: int = seats.filter(func(s): return level.to_local(s.global_position).z > G.FRONT_OFFICE.end.y - 1.5).size()
+	check(seats.size() == 4 and at_counter == 2, "the front office has a chair at the terminal, one at the phones and one at each back desk (%d, %d at the counter)" % [seats.size(), at_counter])
+	var screens: Array = level.find_children("CRT*", "Node3D", true, false).filter(func(m): return office.has_point(level.to_local(m.global_position)) and not m.get_parent() is Terminal)
+	check(screens.size() == G.BACK_DESKS.size(), "and each back desk has a screen (%d)" % screens.size())
+	var in_office: Vector3 = G.mid(G.FRONT_OFFICE)
+	var over := NavigationServer3D.map_get_path(map, lobby, in_office, true)
+	check(over.is_empty() or over[over.size() - 1].distance_to(in_office) > 1.5, "and nobody walks into it: the only way behind the desk is over it")
 	# Nothing discoverable is labelled.
 	var labels: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text.to_upper())
 	check(not labels.any(func(t): return t.contains("VENT") or t.contains("AIR RETURN")), "vents carry no labels")

@@ -1,0 +1,1 @@
+- **Added:** the front office behind the lobby's desk is a place people work: a chair at the receptionist's terminal and one at the phones, two desks at the back that watch the counter, a fax and a printer, filing, and a shelf of things visitors left behind.

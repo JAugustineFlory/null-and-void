@@ -70,6 +70,103 @@ static func apply(level: LevelBase) -> void:
 		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
 
 
+## The front office, behind reception, where the front desk's staff work by day:
+## the receptionist's chair at her terminal and a second at the phones, two back
+## desks that face the counter, a table for the fax and the printer, filing along
+## the walls, and the lost property shelf beside the radios' charger. Left tidy
+## for the night, screens off. No words anywhere.
+static func _front_office(geo: Node3D, dress: Node3D) -> void:
+	var office := GroundFloor.FRONT_OFFICE
+	var desk := GroundFloor.DESK
+	var behind := office.end.y  # the counter's back edge
+	# At the counter: the receptionist's chair pushed back from her terminal, as she
+	# left it (the floor in front of the screen stays clear), and one at the phones.
+	ArtProps.sittable(ArtProps.office_chair(geo, Vector3(desk.x + GroundFloor.TERMINAL_ALONG + 0.75, 0, behind - 0.95), 160), ArtProps.OFFICE_SEAT)
+	ArtProps.sittable(ArtProps.office_chair(geo, Vector3(desk.x + GroundFloor.PHONE_ALONG + 0.5, 0, behind - 0.55), 172), ArtProps.OFFICE_SEAT)
+	_bin(dress, Vector3(desk.x + GroundFloor.TERMINAL_ALONG - 0.9, 0, behind - 0.2))
+	# The back desks: a screen (off), an in-tray, and a chair on the far side, so
+	# whoever sits there looks over the counter at the doors.
+	var turns := [186.0, 170.0]
+	for i in GroundFloor.BACK_DESKS.size():
+		var at: Vector3 = GroundFloor.BACK_DESKS[i]
+		ArtProps.desk(geo, at, 0, 1.6)
+		ArtProps.crt_monitor(dress, at + Vector3(-0.3, 0.76, 0.15), [8.0, -6.0][i], "off")
+		_in_tray(dress, at + Vector3(0.48, 0.76, 0.05), 3 - i * 2)
+		ArtProps.sittable(ArtProps.office_chair(geo, at + Vector3(-0.25, 0, -0.8), turns[i]), ArtProps.OFFICE_SEAT)
+		_bin(dress, at + Vector3(0.62, 0, -0.55))
+	# The machines' table, against the east partition.
+	var table := GroundFloor.MACHINES_TABLE
+	ArtProps.desk(geo, table, 90, 1.6)
+	ArtProps.fax_machine(dress, table + Vector3(0.05, 0.76, 0.4), 90)
+	ArtProps.dot_matrix_printer(dress, table + Vector3(0.05, 0.76, -0.38), 90)
+	ArtProps.boxes(geo, table + Vector3(-0.05, 0, -1.3), 80, 2)  # printer paper
+	# Filing: along the back wall, and down the west partition.
+	for x in [3.4, 3.9, 4.4]:
+		ArtProps.filing_cabinet(geo, Vector3(desk.x + x, 0, office.position.y + 0.4), 180)
+	for z in [2.2, 2.7, 3.2]:
+		ArtProps.filing_cabinet(geo, Vector3(office.position.x + 0.42, 0, behind - z), -90)
+	ArtProps.boxes(geo, Vector3(desk.x - 4.3, 0, office.position.y + 0.5), 10, 2)
+	ArtProps.potted_plant(geo, Vector3(office.end.x - 0.6, 0, office.position.y + 0.6))
+	# Lost property, beside the radios' charger.
+	var charger := GroundFloor.CHARGER_TABLE
+	_lost_property(geo, Vector3(charger.x - 1.35, 0, charger.z))
+
+
+## A desk's in-tray with `sheets` centimetres of paper in it. `pos` is on the desk top.
+static func _in_tray(parent: Node3D, pos: Vector3, sheets: int) -> void:
+	var m := ArtMesh.new()
+	var wire := Color(0.2, 0.2, 0.22)
+	m.box(Vector3(0, 0.006, 0), Vector3(0.26, 0.012, 0.34), wire)
+	for sx in [-1.0, 1.0]:
+		m.box(Vector3(sx * 0.125, 0.03, 0), Vector3(0.01, 0.05, 0.34), wire)
+	m.box(Vector3(0, 0.03, 0.165), Vector3(0.26, 0.05, 0.01), wire)
+	if sheets > 0:
+		m.box(Vector3(0.005, 0.012 + sheets * 0.005, -0.005), Vector3(0.21, sheets * 0.01, 0.3), Color(0.93, 0.92, 0.86), 3.0)
+	var tray := ArtProps._node(parent, pos, 0, "InTray")
+	m.commit(tray, "Tray")
+
+
+## A wastepaper bin, standing on `pos`.
+static func _bin(parent: Node3D, pos: Vector3) -> void:
+	var m := ArtMesh.new()
+	m.rod(Vector3(0, 0.0, 0), Vector3(0, 0.3, 0), 0.13, Color(0.2, 0.21, 0.23), 10, true)
+	m.rod(Vector3(0, 0.3, 0), Vector3(0, 0.302, 0), 0.115, Color(0.07, 0.07, 0.08), 10, true)  # the dark inside
+	m.commit(ArtProps._node(parent, pos, 0, "Bin"), "Bin")
+
+
+## The front office's lost property: open shelves facing the counter, with what
+## visitors have left behind. One mesh. `pos` is on the floor under its middle.
+static func _lost_property(geo: Node3D, pos: Vector3) -> void:
+	var w := 1.1
+	var h := 1.0
+	var d := 0.4
+	var body := ArtProps._body(geo, pos, 0, "LostProperty", Vector3(w, h, d), Vector3(0, h / 2.0, 0))
+	var m := ArtMesh.new()
+	var board := Color(0.5, 0.4, 0.28)
+	for sx in [-1.0, 1.0]:
+		m.box(Vector3(sx * (w / 2.0 - 0.015), h / 2.0, 0), Vector3(0.03, h, d), board)
+	m.box(Vector3(0, h / 2.0, -d / 2.0 + 0.01), Vector3(w - 0.06, h, 0.02), board.darkened(0.15))  # its back
+	var shelves: Array[float] = [0.06, 0.5, h - 0.015]
+	for y in shelves:
+		m.box(Vector3(0, y, 0), Vector3(w - 0.06, 0.03, d), board)
+	# Bottom: a gym bag and one shoe.
+	m.box(Vector3(-0.2, shelves[0] + 0.125, 0.0), Vector3(0.46, 0.22, 0.26), Color(0.16, 0.3, 0.22), 4.0)
+	m.box(Vector3(-0.2, shelves[0] + 0.245, 0.0), Vector3(0.3, 0.02, 0.03), Color(0.1, 0.1, 0.1), 4.0)  # its strap
+	m.box(Vector3(0.32, shelves[0] + 0.06, 0.03), Vector3(0.1, 0.09, 0.27), Color(0.85, 0.85, 0.82), -12.0)
+	# Middle: an umbrella, a flask and a glove.
+	m.rod(Vector3(-0.45, shelves[1] + 0.045, 0.08), Vector3(0.3, shelves[1] + 0.045, 0.02), 0.028, Color(0.1, 0.12, 0.25))
+	m.rod(Vector3(0.3, shelves[1] + 0.045, 0.02), Vector3(0.42, shelves[1] + 0.045, 0.01), 0.012, Color(0.45, 0.3, 0.15))  # its handle
+	m.rod(Vector3(0.38, shelves[1] + 0.015, -0.1), Vector3(0.38, shelves[1] + 0.26, -0.1), 0.04, Color(0.55, 0.12, 0.1), 8, true)
+	m.box(Vector3(-0.1, shelves[1] + 0.03, -0.09), Vector3(0.1, 0.03, 0.2), Color(0.75, 0.6, 0.2), 25.0)
+	# Top: a lunch box, a folded scarf and a cap.
+	m.box(Vector3(-0.3, shelves[2] + 0.085, 0.0), Vector3(0.24, 0.14, 0.16), Color(0.2, 0.35, 0.6), -8.0)
+	m.box(Vector3(-0.3, shelves[2] + 0.165, 0.0), Vector3(0.1, 0.02, 0.02), Color(0.9, 0.9, 0.88), -8.0)  # its handle
+	m.box(Vector3(0.08, shelves[2] + 0.045, 0.02), Vector3(0.26, 0.06, 0.18), Color(0.6, 0.15, 0.15), 6.0)
+	m.box(Vector3(0.4, shelves[2] + 0.06, -0.03), Vector3(0.17, 0.09, 0.17), Color(0.15, 0.2, 0.4), 20.0)
+	m.box(Vector3(0.43, shelves[2] + 0.025, 0.09), Vector3(0.16, 0.012, 0.1), Color(0.15, 0.2, 0.4), 20.0)  # its peak
+	m.commit(body, "Shelves", true)
+
+
 ## The ground floor indoors (GroundFloor's rooms, under `geo`, in Level 0's
 ## coordinates): Level 0's, and Level 4's when the crew come back down to it.
 ## Solid props go in `geo`, the rest in `dress`, which stands where `geo` does.
@@ -138,11 +235,7 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 		"WARDEN v3.1\n\nDoors, lights and climate,\nmanaged for you.\n\nWARDEN keeps you safe.")
 	ArtProps.exit_sign(dress, Vector3(lobby.end.x - 0.12, 3.3, GroundFloor.HALL_Z), 90)
 
-	# Behind reception: cabinets, the receptionist's chair, archive boxes.
-	for x in [3.4, 3.9, 4.4]:
-		ArtProps.filing_cabinet(geo, Vector3(desk.x + x, 0, lobby.position.y + 0.4), 180)
-	ArtProps.sittable(ArtProps.office_chair(geo, Vector3(desk.x + 3.0, 0, desk.z - 0.9), 180), ArtProps.OFFICE_SEAT)
-	ArtProps.boxes(geo, Vector3(desk.x - 4.3, 0, lobby.position.y + 0.5), 10, 2)
+	_front_office(geo, dress)
 
 	# Hall: one more notice.
 	ArtProps.poster(dress, Vector3(GroundFloor.PASSAGE_X - 3.0, 1.6, GroundFloor.HALL.position.y + 0.11), 180,

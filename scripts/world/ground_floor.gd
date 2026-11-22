@@ -89,8 +89,18 @@ const VENT_SIZE := Vector2(0.9, 1.0)
 const DESK := Vector3(0, 0.55, -9.0)
 const DESK_SIZE := Vector3(12, 1.1, 0.8)
 const PARTITION_X := 6.0
+## Along the desk, east of its middle: the receptionist's terminal, and the phone.
+const TERMINAL_ALONG := 1.5
+const PHONE_ALONG := 3.4
+## The front office: behind the desk, between its partitions, back to the lobby's
+## north wall. No door and no gate: the only way in is over the desk.
+const FRONT_OFFICE := Rect2(DESK.x - PARTITION_X, LOBBY.position.y, PARTITION_X * 2.0, DESK.z - DESK_SIZE.z / 2.0 - LOBBY.position.y)
 ## The side table behind the desk (Level 0 keeps the walkie-talkies' dock on it).
 const CHARGER_TABLE := Vector3(-2.5, 0.68, -13.5)
+## The front office's two back desks (whoever sits at one faces the counter), and
+## the table for its machines, against the east partition.
+const BACK_DESKS := [Vector3(FRONT_OFFICE.position.x + 3.0, 0, FRONT_OFFICE.position.y + 3.2), Vector3(FRONT_OFFICE.position.x + 7.0, 0, FRONT_OFFICE.position.y + 3.2)]
+const MACHINES_TABLE := Vector3(FRONT_OFFICE.end.x - 0.5, 0, FRONT_OFFICE.position.y + 5.8)
 ## The front doors (glass, sliding), in the lobby's south wall.
 const FRONT_AT := Vector3(0, 1.3, 6.95)
 const FRONT_SIZE := Vector3(3.2, 2.6, 0.12)
