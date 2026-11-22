@@ -61,7 +61,8 @@ var used_under_threat := {}
 ## walks every floor up to 10 with lab seed 11 and runs the whole-game checks; "lab"
 ## walks Levels 0-1 again (the lab needs what they taught) and then lab seed 42; "api"
 ## walks floor 9, whose services teach everything their stations need on the floor;
-## "scripts" walks B1, where the crew writes its first scripts.
+## "scripts" walks B1, where the crew writes its first scripts; "garage" walks the
+## lab's two practice cases at home base, before the crew's first query at Halcyon.
 func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	t = tree
 	_check = check
@@ -77,6 +78,9 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 		check_teaching_order()
 		if gaps > 0:
 			print("  (%d known teaching gap%s, see tests/curriculum.gd)" % [gaps, "" if gaps == 1 else "s"])
+		return
+	if part == "garage":
+		await walk_garage(47)
 		return
 	if part == "api":
 		await walk_level_5(31, true)
@@ -835,6 +839,117 @@ func walk_level_0() -> void:
 	board_verdict("lobby")
 	level.queue_free()
 	await t.process_frame
+
+
+## The garage lab's two practice cases (GarageTutorial), solo, as a player who has
+## never typed a query: they ask .hint, go where it says, type only what it shows
+## in white, and point at cells. Every wrong cell they try first pencils why
+## (plan/teaching/garage-lab-cases-draft.md, L11, L12 and L25 to L27).
+func walk_garage(seed_value: int) -> void:
+	var net := t.root.get_node("/root/Net")
+	var real_profile = net.profile
+	net.profile = Profile.new()  # in memory, so the walk never touches a real save
+	var game := _game()
+	game.new_run(seed_value)
+	game.open_at_home = true
+	var world = load("res://scenes/world.tscn").instantiate()
+	t.root.add_child(world)
+	Engine.time_scale = 4.0
+	for i in 30:
+		await t.physics_frame
+	var home = world.home
+	var tut: GarageTutorial = home.lab.tutorial
+	var p: Player = world.player
+	check(await _until(func(): return home.hud.current_todo() == "Read the work order in your notebook", 400.0), "garage: the work order comes first")
+	home.notebook.open()
+	await t.physics_frame
+	home.notebook.close()
+	check(await _until(func(): return home.book_bag.enabled, 400.0), "garage: then the book on the shelf")
+	p.stand_up(true)
+	p.global_position = home.to_global(home.SHELF + Vector3(0, 0.1, -1.2))
+	await t.physics_frame
+	home.book_bag.interact(p)
+	check(await _until(func(): return tut.running and home.hud.current_todo() == GarageTutorial.SIT, 320.0), "garage: after chapter zero, the practice sends them to a lab computer")
+	var pc: Terminal = home.lab.computers[0]
+	var ui: TerminalUI = home.terminal_ui
+	p.global_position = pc.stand_point.global_position
+	pc.interact(p)
+	check(await _until(func(): return game.case_info("lab_kit").get("open", false), 40.0), "garage: sitting down opens the kit's case")
+
+	# The kit: the crate's label, then the shape, which is already the answer's query.
+	var hints := await _garage_lost(home, ui, tut.kit_puzzle, "item", "duct tape")
+	check(hints >= 0 and hints <= 2, "garage: a new player finds the van's kit with the label and one shape (hints %d)" % hints)
+	check(not point_cell(ui, "qty", "0", "duct tape") and game.case_info("lab_kit").blank.get("miss", "") == GarageTutorial.KIT_ROW_MISS,
+		"garage: the right row's qty doesn't answer it, and the page says the blank wants the item's name")
+	check(not point_cell(ui, "item", "ladder") and game.case_info("lab_kit").blank.get("miss", "") == GarageTutorial.KIT_MISS,
+		"garage: an item there's some of doesn't, and the page says which one it wants")
+	check(point_cell(ui, "item", "duct tape", "duct tape"), "garage: pointing at duct tape, on screen, answers the kit's case")
+	check(await _until(func(): return game.case_info("lab_kit").get("solved", false), 40.0), "garage: the kit's case is solved")
+
+	# The jobs: the board, then a shape with a blank, then exactly what to type.
+	check(await _until(func(): return game.case_info("lab_jobs").get("open", false), 160.0), "garage: then the jobs' case opens")
+	if not ui.visible:
+		pc.interact(p)
+		await t.physics_frame
+	hints = await _garage_lost(home, ui, tut.jobs_puzzle, "client", GarageTutorial.OPEN_JOB)
+	check(hints >= 0 and hints <= 3, "garage: a new player finds the open job with the board and the hints (hints %d)" % hints)
+	check(not point_cell(ui, "status", "open", GarageTutorial.OPEN_JOB) and game.case_info("lab_jobs").blank.get("miss", "") == GarageTutorial.JOBS_ROW_MISS,
+		"garage: the open job's status doesn't answer it, and the page says the blank wants the client's name")
+	check(not point_cell(ui, "client", "Kemp Dental") and game.case_info("lab_jobs").blank.get("miss", "") == GarageTutorial.JOBS_DONE_MISS,
+		"garage: a finished job's client doesn't, and the page says that one's done")
+	ui.run("SELECT town FROM jobs;")
+	await t.physics_frame
+	check(not point_cell(ui, "town", "Bexley") and game.case_info("lab_jobs").blank.get("miss", "") == GarageTutorial.JOBS_MISS,
+		"garage: a cell with no client in its row doesn't either, and the page says what the blank wants")
+	ui.run(white_blocks(tut.jobs_puzzle.hints[-1])[0])
+	await t.physics_frame
+	check(point_cell(ui, "client", GarageTutorial.OPEN_JOB, "open"), "garage: pointing at the open job's client answers the jobs' case")
+	check(await _until(func(): return game.case_info("lab_jobs").get("solved", false), 40.0), "garage: the jobs' case is solved")
+	check(await _until(func(): return tut.finished and not tut.running, 160.0), "garage: and the practice is over")
+	ui.close()
+	Engine.time_scale = 1.0
+	tut.forget_tables()
+	world.queue_free()
+	await t.process_frame
+	net.profile = real_profile
+
+
+## The lost player at a lab computer, until `column` holding `value` is on screen:
+## .hint, then the paper it names (read) or the white query it shows (typed, if it
+## has no blank left). The hints used (a spot counts), or -1 if they're stuck.
+func _garage_lost(home, ui: TerminalUI, puzzle: Puzzle, column: String, value: String) -> int:
+	var game := _game()
+	var hints := 0
+	var typed := {}
+	while hints < 4:
+		var lines: Array = ui.noteable_lines()
+		if lines.any(func(l): return l.get("cells", []).any(func(c): return str(c.column).to_lower() == column and str(c.value) == value)):
+			return hints
+		hints += 1
+		ui.run(".hint")
+		await t.physics_frame
+		var said: String = ui.terminal.transcript[-1]
+		var spot := ""
+		for s in puzzle.spots:
+			if TerminalUI._plain(said).contains(str(s.text)):
+				spot = str(s.id)
+		if spot != "":
+			var paper: Document = null
+			for d in home.find_children("*", "Document", true, false):
+				if d.spot == spot:
+					paper = d
+			check(paper != null, "garage: %s's first hint names a paper in the lab (%s)" % [puzzle.id, spot])
+			if paper:
+				paper.report_open(home.player)
+			check(game.spot_found(spot), "garage: reading the paper %s's hint names finds its spot" % puzzle.id)
+			continue
+		for q in white_blocks(said):
+			if not has_blank(q) and not typed.has(q):
+				typed[q] = true
+				ui.run(q)
+				await t.physics_frame
+	check(false, "garage: %s: a new player is still stuck after %d hints" % [puzzle.id, hints])
+	return -1
 
 
 ## Case pages collect clues as they're read (papers, plates), so a clue must never
