@@ -7,7 +7,7 @@ extends Node
 ##   Music.of(self).set_mood("hunted")
 ##
 ## A recorded track in audio/music/<layer>.ogg replaces that layer (it must be
-## the same length: 16 beats at 96 BPM, 10 seconds).
+## the same length: 16 beats at 96 BPM, 10 seconds; the lobby's are 32 beats, 20).
 
 const DIR := "res://audio/music/"
 ## How loud each layer is in each mood, 0 to 1. Layers not listed are silent.
@@ -23,6 +23,10 @@ const MOODS := {
 	"chase": {"drone": 1.0, "pulse": 1.0, "heart": 1.0, "tension": 1.0},
 	## Safe for now.
 	"checkpoint": {"drone": 0.3, "relief": 0.8},
+	## The ground floor's lobby: hold music, nearly normal.
+	"lobby": {"lobby": 0.8, "lobby_off": 0.12},
+	## The same lobby, after: the tune thinned out, its shadow come up under it.
+	"lobby_late": {"drone": 0.4, "lobby": 0.45, "lobby_off": 0.8},
 }
 ## Seconds for a layer to fade fully in or out. Danger comes in faster than it leaves.
 const FADE_IN := 1.5
@@ -84,7 +88,8 @@ func _layers_made(made: Dictionary) -> void:
 	set_mood(mood)
 
 
-## Changes the mood: "silent", "calm", "uneasy", "hunted", "chase" or "checkpoint".
+## Changes the mood: "silent", "calm", "uneasy", "hunted", "chase", "checkpoint",
+## "lobby" or "lobby_late".
 func set_mood(new_mood: String) -> void:
 	if not MOODS.has(new_mood):
 		push_error("Music: no mood called '%s'" % new_mood)
