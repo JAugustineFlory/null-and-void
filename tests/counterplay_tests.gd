@@ -83,6 +83,26 @@ func hold(p: Player, item: String) -> void:
 		p.inventory.use_slot(p.inventory.hotbar.find(item))
 
 
+## `p` presses `action` (as if this machine's player).
+## (Block goes in from the pad's left trigger: a headless run has no captured mouse.)
+func press(p: Player, action: String) -> void:
+	var ev: InputEvent
+	if action == "block":
+		var m := InputEventJoypadMotion.new()
+		m.axis = JOY_AXIS_TRIGGER_LEFT
+		m.axis_value = 1.0
+		ev = m
+	else:
+		var act := InputEventAction.new()
+		act.action = action
+		act.pressed = true
+		ev = act
+	var was := p.local_control
+	p.local_control = true
+	p._unhandled_input(ev)
+	p.local_control = was
+
+
 ## The `n`th thrown thing lying on the floor under `root`, or null.
 func landed_gear(root: Node, n := 1) -> GearPickup:
 	var g := root.find_child("Thrown%d" % n, true, false)
@@ -167,11 +187,15 @@ func test_throw() -> void:
 	await frames(20)
 	hold(p, "screwdriver")
 	check(cp.prompt_for(p) != Counterplay.THROW_PROMPT and not cp.throw_held(), "a screwdriver isn't for throwing")
+	press(p, "block")
+	check(p.combat.guard.is_up(p.combat._clock) and p.inventory.has("screwdriver"), "so right-click blocks, as always")
+	await frames(int((Guard.WINDOW + Guard.RECOVER) * 60) + 5)
 	hold(p, Counterplay.EXTINGUISHER)
 	cp.blasts_left = 2
 	check(cp.prompt_for(p) == Counterplay.THROW_PROMPT, "an extinguisher in your hands: \"%s\"" % Counterplay.THROW_PROMPT)
 	c.activate()
-	check(cp.throw_held() and not p.inventory.has(Counterplay.EXTINGUISHER), "thrown, it leaves your hands")
+	press(p, "block")
+	check(not p.inventory.has(Counterplay.EXTINGUISHER) and not p.combat.guard.is_up(p.combat._clock), "right-click throws it (no block): it leaves your hands")
 	check(a.find_children("Flying*", "ThrownItem", true, false).size() == 1, "it flies")
 	check(await until(func(): return c.state == "stunned", 90), "it hits the Custodian: a flinch")
 	check(await until(func(): return landed_gear(a) != null, 90) and landed_gear(a).global_position.y < 0.4 \
@@ -226,8 +250,10 @@ func test_hide() -> void:
 	c.global_position = Vector3(0, 0.1, 3.0)  # right in front of the locker now
 	await frames(90)
 	check(c.held == null and c.target == null, "it walks right past: it never saw you get in")
-	p.stand_up(true)
-	await frames(5)
+	check(p._leave_by_interact() and spot.leave_prompt == "[E] Get out", "inside: \"[E] Get out\"")
+	press(p, "interact")
+	check(await until(func(): return not p.is_sitting(), 120), "E gets you out, the way it got you in")
+	await frames(2)
 	check(Counterplay.hidden_in(p) == null and cp.hidden.is_empty(), "out again, you're in plain sight")
 	check(await until(func(): return c.held == p, 120), "and it has you")
 	spot.interact(p)

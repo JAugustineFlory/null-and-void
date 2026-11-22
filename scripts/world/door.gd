@@ -88,6 +88,7 @@ static func create(parent: Node, id: String, pos: Vector3, door_size: Vector3, c
 func _ready() -> void:
 	_capture_closed_pose()
 	sync_to_physics = false
+	SfxDoor.attach(self)  # its sounds follow `moved` (scripts/audio/sfx_door.gd)
 	_furnish.call_deferred()  # once its caller has made it hinged, one-way or a stair door
 
 
@@ -144,8 +145,6 @@ func rattle() -> void:
 	if is_open:
 		return
 	_phase(&"rattle")
-	if get_parent() is Node3D:
-		Sfx.play(get_parent(), "lock", position)
 
 
 ## The swing sign (+1 or -1) that opens this shut door away from `body`; 0 to keep
@@ -183,8 +182,6 @@ func set_open(open: bool, instant: bool = false, away: float = 0.0, pushed: bool
 		if away != 0.0 and not one_way:
 			swing_deg = absf(swing_deg) * away
 	is_open = open
-	if not instant:
-		_sound(open)
 	if _tween:
 		_tween.kill()
 	if is_hinged():
@@ -262,14 +259,6 @@ func _slide_shut(target: Vector3) -> void:
 
 func _phase(phase: StringName) -> void:
 	moved.emit(phase)
-
-
-## A sliding door's motor runs it open and it thuds shut; a hinged one's latch clicks.
-func _sound(opening: bool) -> void:
-	var parent := get_parent()
-	if parent is Node3D:
-		var hinged := "push_bar" if String(name).contains("STAIR") else ("handle" if opening else "click")
-		Sfx.play(parent, hinged if is_hinged() else ("door_motor" if opening else "clunk"), position)
 
 
 ## Called when the database row changes. A hinged door's row is its lock: it

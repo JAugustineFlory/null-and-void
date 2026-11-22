@@ -1,0 +1,1 @@
+- **Changed:** the cafeteria's vending machines stand just inside its door, so a coffee is a shorter walk.

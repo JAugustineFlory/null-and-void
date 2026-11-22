@@ -1921,9 +1921,15 @@ func test_ground_floor() -> void:
 	level._on_hatch(null)
 	await process_frame
 	check(level.hud._notice.text.contains("stuck"), "the ceiling panel in the IT closet is stuck and too high alone")
+	var coffee_walk := 0.0
+	var walk_from: Vector3 = level.DESK_SPOT
+	for spot in level.TO_CAFETERIA:
+		coffee_walk += walk_from.distance_to(spot)
+		walk_from = spot
+	check(coffee_walk < 42.0, "the vending machines stand by the cafeteria's door, so Rourke's coffee walk isn't the whole floor (%.0f m)" % coffee_walk)
 	level._rourke_free = true
 	level._on_vending(null)
-	for i in 3600:  # it's a walk: round the desk, along the north corridor, across the cafeteria
+	for i in 3600:  # it's a walk: round the desk, along the north corridor, in at the cafeteria's door
 		if level.geo.has_node("CoffeeCup"):
 			break
 		await physics_frame

@@ -189,7 +189,11 @@ const CAFE_TABLES_X := [-10.0, -5.0, 0.0, 5.0, 10.0]
 const CAFE_TABLES_Z := [-25.5, -29.0]
 const SERVING_COUNTER := Vector3(0, 0.5, CAFETERIA.position.y + 0.6)
 const SERVING_COUNTER_SIZE := Vector3(16.0, 1.0, 0.9)
-const VENDING_AT := Vector3(CAFETERIA.end.x - 0.6, 0.9, -25.0)
+## The two vending machines stand against the cafeteria's south wall, just east of
+## its door, facing the room: the coffee machine, then the snack machine beside it.
+const VENDING_AT := Vector3(CAFETERIA_DOOR_X + 2.2, 0.9, CAFETERIA.end.y - 0.6)
+const VENDING_NEXT := Vector3(1.2, 0, 0)
+const VENDING_SIZE := Vector3(0.8, 1.8, 0.9)
 const IT_CRATE := Vector3(IT_CLOSET.position.x + 4.8, 0.3, IT_CLOSET.position.y + 0.6)
 const IT_HATCH := Vector3(IT_CLOSET.position.x + 4.2, BACK_H - 0.03, IT_CLOSET.position.y + 1.4)
 const CLOSET_SHELF := Vector3(CLOSET.position.x + 0.5, 0.9, VENT_Z)
@@ -422,8 +426,8 @@ static func _back(geo: Node3D) -> void:
 		for tz in CAFE_TABLES_Z:
 			Greybox.box(geo, Vector3(tx, 0.375, tz), Vector3(2.0, 0.75, 1.0), Color(0.55, 0.42, 0.3), "CafTable")
 	Greybox.box(geo, SERVING_COUNTER, SERVING_COUNTER_SIZE, Color(0.6, 0.6, 0.62), "ServingCounter")
-	Greybox.box(geo, VENDING_AT, Vector3(0.9, 1.8, 0.8), Color(0.25, 0.3, 0.5), "VendingMachine")
-	Greybox.box(geo, VENDING_AT + Vector3(0, 0, -1.2), Vector3(0.9, 1.8, 0.8), Color(0.6, 0.15, 0.12), "VendingMachine")
+	Greybox.box(geo, VENDING_AT, VENDING_SIZE, Color(0.25, 0.3, 0.5), "VendingMachine")
+	Greybox.box(geo, VENDING_AT + VENDING_NEXT, VENDING_SIZE, Color(0.6, 0.15, 0.12), "VendingMachine")
 
 	# IT closet. Shelves of spares and a patch panel.
 	Greybox.box(geo, at(IT_CLOSET, 0.4, 1.0, 3.0), Vector3(0.6, 2.0, 3.4), Color(0.4, 0.4, 0.42), "SpareShelf")

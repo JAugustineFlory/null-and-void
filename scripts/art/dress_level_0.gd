@@ -338,9 +338,10 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 			ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, rows[0] + 0.65), (n % 3 - 1) * 6, shells[n % 3]), ArtProps.CAFE_SEAT)
 			ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, rows[1] - 0.65), 180 + (n % 3 - 1) * 5, shells[(n + 1) % 3]), ArtProps.CAFE_SEAT)
 			n += 1
-	var vending := GroundFloor.VENDING_AT + Vector3(-0.455, 0, 0)  # the coffee machine's front
-	ArtProps.vending_front(dress, vending, 90, Vector2(0.8, 1.8), Color(0.18, 0.28, 0.5), true)
-	ArtProps.vending_front(dress, vending + Vector3(0, 0, -1.2), 90, Vector2(0.8, 1.8), Color(0.55, 0.12, 0.1))
+	var face: Vector3 = GroundFloor.VENDING_SIZE
+	var vending := GroundFloor.VENDING_AT + Vector3(0, 0, -face.z / 2.0 - 0.005)  # the coffee machine's front
+	ArtProps.vending_front(dress, vending, 0, Vector2(face.x, face.y), Color(0.18, 0.28, 0.5), true)
+	ArtProps.vending_front(dress, vending + GroundFloor.VENDING_NEXT, 0, Vector2(face.x, face.y), Color(0.55, 0.12, 0.1))
 	# The serving counter, along the north wall.
 	var counter_size: Vector3 = GroundFloor.SERVING_COUNTER_SIZE
 	var counter: Vector3 = GroundFloor.SERVING_COUNTER + Vector3(0, counter_size.y / 2.0, 0)  # its top

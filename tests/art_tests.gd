@@ -1561,7 +1561,7 @@ func test_dressed_level_0() -> void:
 		Vector3(GroundFloor.LOBBY.position.x + 0.6, 0, GroundFloor.VENT_Z), Vector3(GroundFloor.CLOSET.end.x - 0.6, 0, GroundFloor.VENT_Z), GroundFloor.at(GroundFloor.CLOSET, 1.4, 0, 3.5),  # vent mouth, closet side, the tape
 		van_at + Vector3(-2.3, 0, -1.8), van_at + Vector3(2.3, 0, -1.8), van_at + Vector3(2.3, 0, -1.1), van_at + Vector3(2.3, 0, 1.3), GroundFloor.FRONT_AT + Vector3(0, -1.3, 4.55),  # out of the van (front doors, side door), to the doors
 		level.ROUND_THE_DESK[2], level.TO_CAFETERIA[3], level.TO_IT_CLOSET[3], level.TO_CAFETERIA[4],  # Rourke's walks along the back corridor
-		level.TO_CAFETERIA[5], level.TO_CAFETERIA[6], level.TO_CAFETERIA[6] + Vector3(0, 0, -1.2),  # to the vending machines
+		level.TO_CAFETERIA[5], level.TO_CAFETERIA[6], level.TO_CAFETERIA[6] + GroundFloor.VENDING_NEXT,  # to the vending machines
 		level.TO_IT_CLOSET[4], Vector3(GroundFloor.IT_HATCH.x, 0, GroundFloor.IT_HATCH.z),  # into the IT closet, under the ceiling panel
 		GroundFloor.at(GroundFloor.MENS, 1.5, 0, 2.8), GroundFloor.at(GroundFloor.WOMENS, 1.5, 0, 1.1),  # into the restroom stalls
 		Vector3(-2.0, 0, tables_z), Vector3(2.0, 0, tables_z),  # between the cafeteria tables

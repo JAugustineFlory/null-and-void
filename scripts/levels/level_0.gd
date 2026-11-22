@@ -978,7 +978,7 @@ func _build_ground_floor() -> void:
 	in_mailroom.entered.connect(func(_b): sync.event("_on_mailroom_entered"), CONNECT_ONE_SHOT)
 
 	# The cafeteria's vending machine takes your coins.
-	vending = Interactable.create(geo, GroundFloor.VENDING_AT + Vector3(-0.48, 0.1, 0), Vector3(0.06, 0.6, 0.6), "Buy a coffee", Color.WHITE, false)
+	vending = Interactable.create(geo, GroundFloor.VENDING_AT + Vector3(0, 0.1, -GroundFloor.VENDING_SIZE.z / 2.0 - 0.03), Vector3(0.6, 0.6, 0.06), "Buy a coffee", Color.WHITE, false)
 	vending.used.connect(_on_vending)
 	# The IT closet's ceiling access panel sticks: out of reach without a leg up.
 	ceiling_hatch = Interactable.create(self, GroundFloor.IT_HATCH, Vector3(0.7, 0.04, 0.7), "Push the ceiling panel", Color(0.78, 0.78, 0.74))
@@ -1658,8 +1658,8 @@ const ROUND_THE_DESK_EAST := [
 const TO_CAFETERIA := ROUND_THE_DESK + [
 	Vector3(GroundFloor.CAFETERIA_DOOR_X, 0, GroundFloor.CORRIDOR_Z),
 	Vector3(GroundFloor.CAFETERIA_DOOR_X, 0, GroundFloor.CORRIDOR.position.y - 0.6),
-	Vector3(GroundFloor.VENDING_AT.x - 1.2, 0, GroundFloor.CORRIDOR.position.y - 1.0),
-	Vector3(GroundFloor.VENDING_AT.x - 1.2, 0, GroundFloor.VENDING_AT.z),
+	Vector3(GroundFloor.CAFETERIA_DOOR_X, 0, GroundFloor.VENDING_AT.z - 1.2),
+	Vector3(GroundFloor.VENDING_AT.x, 0, GroundFloor.VENDING_AT.z - 1.2),
 ]
 const TO_IT_CLOSET := ROUND_THE_DESK_EAST + [
 	Vector3(GroundFloor.IT_DOOR_X, 0, GroundFloor.CORRIDOR_Z),
@@ -1734,7 +1734,7 @@ func _on_coffee() -> void:
 	cup.mesh = cm
 	cup.material_override = Greybox.mat(Color(0.92, 0.9, 0.85))
 	cup.name = "CoffeeCup"
-	cup.position = GroundFloor.VENDING_AT + Vector3(-0.55, -0.35, 0)
+	cup.position = GroundFloor.VENDING_AT + Vector3(0, -0.35, -GroundFloor.VENDING_SIZE.z / 2.0 - 0.1)
 	geo.add_child(cup)
 	if sync.is_host():
 		_rourke_back_to_desk(TO_CAFETERIA)
