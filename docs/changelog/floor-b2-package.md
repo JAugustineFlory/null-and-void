@@ -1,0 +1,7 @@
+- **Changed:** on B2 each case shows its request or script on screen, and you answer the token and the auth log by pointing at the value in the result.
+- **Changed:** B2's bench takes it one step at a time: a first test on a single zone, then the function the bench calls itself, and it says why when the function doesn't return, ignores its zone or stops partway.
+- **Added:** three new chapters in Journey through JavaScript, each landing with the case that needs it.
+- **Added:** B2's terminals and decks run under the security policy, with its card in the office.
+- **Added:** a tag on every lamp, a runbook page by the office and a copy in the network closet, a sticky note on the watchdog, and a card by the lift call panel.
+- **Changed:** B2's last stretch comes at you one danger at a time, with a little more warning before each.
+- **Changed:** `.hint` on B2 first says where to look on the floor, and what to do first when something's counting down.

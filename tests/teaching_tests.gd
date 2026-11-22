@@ -85,6 +85,8 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	if part == "api":
 		await walk_level_5(31, true)
 		await walk_level_5(12, false)
+		for b2_seed in [4242, 77]:
+			await check_b2_pieces(b2_seed)
 		check_teaching_order()
 		if gaps > 0:
 			print("  (%d known teaching gap%s, see tests/curriculum.gd)" % [gaps, "" if gaps == 1 else "s"])
@@ -541,6 +543,128 @@ func point_cell(ui: TerminalUI, column: String, value: String, row_has: String =
 			if (column == "" or str(cells[j].column).to_lower() == column.to_lower()) and str(cells[j].value) == value:
 				return ui.use_cell(i, j)
 	return false
+
+
+## B2's pieces found by pointing (the approved package, X4, X10, X21 and X22), read as a
+## new player would: every other cell in the same answer is pointed at first, and
+## none may find the piece. Then the one the package names finds it.
+func tempt_piece(ui: TerminalUI, case_id: String, piece_id: String, on: String, want: Callable, where: String) -> void:
+	var lines: Array = ui.noteable_lines()
+	var tried := 0
+	var wrong := []
+	var answer := []
+	for i in lines.size():
+		if not str(lines[i].get("query", "")).contains(on):
+			continue
+		var cells: Array = lines[i].get("cells", [])
+		for j in cells.size():
+			if want.call(str(cells[j].column), str(cells[j].value), ui._row_of(i)):
+				answer.append([i, j])
+				continue
+			ui.use_cell(i, j)
+			tried += 1
+			await t.physics_frame
+			if _game().has_piece(case_id, piece_id):
+				wrong.append("%s %s" % [cells[j].column, cells[j].value])
+				_game().forget(case_id, [piece_id])
+	ui._cancel_note()
+	check(tried > 0 and wrong.is_empty(), "%s: no other cell in the answer (%d tried) finds %s%s" % [where, tried, piece_id, "" if wrong.is_empty() else " (" + ", ".join(wrong.slice(0, 4)) + ")"])
+	var found := false
+	if not answer.is_empty():
+		ui.use_cell(answer[0][0], answer[0][1])
+		await t.physics_frame
+		await t.physics_frame
+		found = _game().has_piece(case_id, piece_id)
+	ui._cancel_note()
+	check(found, "%s: pointing at the cell the package names finds %s" % [where, piece_id])
+
+
+## B2 (Level 7): the crew's token in B2's answer (X4), a zone's id and the ring's in
+## GET /lights (X10, X21), and WARDEN's token in the auth log once he's logged in
+## (X22), each found by pointing, on the admin terminal's screen.
+func check_b2_pieces(seed_value: int) -> void:
+	_game().new_run(seed_value)
+	var level = load("res://scenes/level_7.tscn").instantiate()
+	t.root.add_child(level)
+	skip_chapters(level)
+	for i in 10:
+		await t.physics_frame
+	var where := "machine room B2 (seed %d)" % seed_value
+	var ui: TerminalUI = level.terminal_ui
+	var p: Player = level.player
+	p.local_control = false
+	ui.open(level.admin_terminal, p)
+	var key: String = level.data.key
+	ui.run("POST /auth/token {\"key\": \"%s\"}" % key)
+	await t.physics_frame
+	await t.physics_frame
+	var tok := ""
+	for l in ui.noteable_lines():
+		for c in l.get("cells", []):
+			if str(c.column) == "token":
+				tok = str(c.value)
+	var token_line := func(col: String, _v: String, row: Dictionary) -> bool:
+		return col == "token" and row.has("expires_in")  # X4: the token's line in B2's answer
+	await tempt_piece(ui, "token", "token", "/auth/token", token_line, where)
+	ui.run("GET /lights\nAuthorization: Bearer %s" % tok)
+	await t.physics_frame
+	await t.physics_frame
+	var ids: Array = level.data.zones.map(func(z): return str(z.id))
+	var is_id := func(col: String, v: String, row: Dictionary) -> bool:
+		return col == "id" and row.has("circuit") and (ids.has(v) or v == str(level.data.emergency.id))
+	await tempt_piece(ui, "restore", "zone", "/lights", is_id, where)  # X10: any circuit's id, the emergency one too
+	_game().forget("restore", ["zone"])
+	_game().forget("zones", ["zones"])  # a ring id finds both: start the ring's sweep clean
+	var ring_id := func(col: String, v: String, row: Dictionary) -> bool:
+		return col == "id" and row.has("circuit") and ids.has(v)  # X21: a ring zone's
+	await tempt_piece(ui, "zones", "zones", "/lights", ring_id, where)
+	# He fights back: logged in, his token is in the auth log (X22).
+	level.fight_stage = 1
+	level._begin_stage2()
+	ui.run("GET /auth/log\nAuthorization: Bearer %s" % tok)
+	await t.physics_frame
+	await t.physics_frame
+	var his := func(col: String, _v: String, row: Dictionary) -> bool:
+		return col == "token" and str(row.get("holder", "")) == "WARDEN"  # X22: his entry's token line
+	await tempt_piece(ui, "warden", "warden_token", "/auth/log", his, where)
+	ui.close()
+	level.queue_free()
+	for i in 3:
+		await t.physics_frame
+
+
+## Floor 9's finds, from the approved package (plan/approvals/puzzle-flow-floor-9.md),
+## read as a new player would: every cell on the screen that isn't the answer is
+## pointed at in turn. None may fill the slot, and each must leave the pencil line the
+## package gives it, so no wrong click goes unanswered. `on` picks the answers to sweep
+## by their request; `want` reads a cell (column, value, record) as the package does and
+## gives "answer" or the pencil line.
+func tempt_cells(ui: TerminalUI, case_id: String, on: String, want: Callable, where: String) -> void:
+	var lines: Array = ui.noteable_lines()
+	var tried := 0
+	var wrong := []
+	for i in lines.size():
+		if not str(lines[i].get("query", "")).contains(on):
+			continue
+		var cells: Array = lines[i].get("cells", [])
+		for j in cells.size():
+			var col := str(cells[j].column)
+			var value := str(cells[j].value)
+			var w: String = want.call(col, value, ui._row_of(i))
+			if w == "answer":
+				continue
+			var blank: Dictionary = _game().case_info(case_id).get("blank", {})
+			blank["miss"] = ""
+			ui.use_cell(i, j)
+			tried += 1
+			var c: Dictionary = _game().case_info(case_id)
+			var got := str(c.get("blank", {}).get("miss", ""))
+			if c.get("solved", false) or str(c.get("blank", {}).get("filled", "")) != "":
+				wrong.append("%s %s fills the slot" % [col, value])
+			elif got != w:
+				wrong.append("%s %s: \"%s\"" % [col, value, got if got != "" else "no pencil line"])
+	ui._cancel_note()
+	check(tried > 0 and wrong.is_empty(), "%s: every wrong cell at the %s case (%d tried) leaves the package's pencil line, and none fills the slot%s" % [where, case_id, tried, "" if wrong.is_empty() else " (" + "; ".join(wrong.slice(0, 4)) + ")"])
 
 
 func rescue_tier(p: Puzzle) -> int:
@@ -1887,6 +2011,22 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 	h = await solve(level, ui, level.frame_puzzle, _hunted_9(level), 3, "", false, func(): return level.frame_listed)
 	check(h <= rescue_tier(level.frame_puzzle) and level.frame_listed, "%s: our own badge's log is on the screen, from the pass list and the poster or the ladder (hints %d)" % [where, h])
 	var lab: Array = level.swipes.filter(func(w): return w.badge == level._my_badge() and w.reader == "LAB-B")
+	# The tempting wrong cells first, on our badge's log and on the whole log.
+	ui.run("GET /swipes\nX-Api-Key: %s" % level.data.keys.hr)
+	await t.physics_frame
+	await t.physics_frame
+	var crew: Array = level.issued
+	var frame_want := func(col: String, _v: String, row: Dictionary) -> String:
+		var swipe := row.has("reader") and row.has("time")
+		var ours := swipe and crew.has(str(row.get("badge", "")).to_upper()) and str(row.reader) == "LAB-B"
+		if ours and col == "time":
+			return "answer"  # N11
+		if ours:
+			return "That's the lab swipe. The blank wants its time."  # N12
+		if swipe and col == "time":
+			return "That's a swipe at another reader. The blank wants the one at LAB-B, Vale's lab."  # N13
+		return "Not that one: the blank wants when our badges were swiped into Vale's lab."  # N14
+	tempt_cells(ui, "frame", "/swipes", frame_want, where)
 	check(point_cell(ui, "time", lab[0].time) and await _until(func(): return level.frame_puzzle.solved and _game().case_info("frame").get("solved", false), 2.0), "%s: pointing at the lab swipe's time solves the frame" % where)
 	check(_game().case_info("panel_power").get("open", false), "%s: and opens the power case" % where)
 	ui.close()
@@ -1933,6 +2073,20 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 	check(_said(level.panel, level.TEXT.tip_lure), "%s: SYSOP's word on it is on the screen the crew last typed at" % where)
 	h = await solve(level, ui, level.swipes_puzzle, _hunted_9(level), 3, "", false, func(): return level.radio_listed)
 	check(h <= rescue_tier(level.swipes_puzzle) and level.radio_listed and not level.dock_opened, "%s: the voice's badge's log is on the screen, and the loading door stays shut (hints %d)" % [where, h])
+	_game().selected_case = "radio"
+	for q in ["GET /swipes/%s" % level._my_badge(), "GET /swipes"]:
+		ui.run("%s\nX-Api-Key: %s" % [q, level.data.keys.hr])
+		await t.physics_frame
+		await t.physics_frame
+	var mine: String = level._my_badge()
+	var exposed := "No visitor badge %s was issued tonight." % level.lure_badge
+	var radio_want := func(col: String, value: String, row: Dictionary) -> String:
+		if col == "error" and value == exposed:
+			return "answer"  # N27, solo
+		if str(row.get("badge", "")).to_upper() == mine:
+			return "That's your own badge. The voice said it had the next one in the book."  # N29
+		return "Not that one: the blank wants what the log says about the voice's badge."  # N30
+	tempt_cells(ui, "radio", "/swipes", radio_want, where)
 	check(point_cell(ui, "error", level._no_badge(level.lure_badge)) and await _until(func(): return level.swipes_puzzle.solved and _game().case_info("radio").get("solved", false), 2.0),
 		"%s: pointing at what the log says about it: it isn't who it sounds like" % where)
 	check(_game().case_info("people").get("open", false), "%s: the radio done opens the people case" % where)
@@ -1972,6 +2126,20 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 			return ui.noteable_lines().any(func(l): return l.get("cells", []).any(func(c): return c.column == "edited_by"))
 		h = await solve(level, ui, level.vale_puzzle, _hunted_9(level), 3, "", false, on_screen)
 		check(h <= rescue_tier(level.vale_puzzle) and on_screen.call(), "%s: Vale's record, by her badge from the staff list (hints %d)" % [where, h])
+		for q in ["GET /staff", "GET /staff/ST-0077"]:
+			ui.run("%s\nX-Api-Key: %s" % [q, level.data.keys.hr])
+			await t.physics_frame
+			await t.physics_frame
+		var vale_want := func(col: String, _v: String, row: Dictionary) -> String:
+			var hers := str(row.get("id", "")).to_upper() == "ST-0077"
+			if hers and col == "edited_by":
+				return "answer"  # N40
+			if hers and col == "last_edited":
+				return "That's when it was edited. The blank wants who by."  # N41
+			if hers:
+				return "That's Vale's record. The blank wants who edited it last."  # N42
+			return "Not that one: the blank wants who last edited Vale's record."  # N43
+		tempt_cells(ui, "vale", "/staff", vale_want, where)
 		check(point_cell(ui, "edited_by", Level5Data.VALE.edited_by) and await _until(func(): return _game().case_info("vale").get("solved", false), 2.0), "%s: pointing at who last edited it solves her case" % where)
 	ui.close()
 
@@ -2064,18 +2232,66 @@ func walk_level_6(seed_value: int, paced_release: bool) -> void:
 	var p: Player = level.player
 	p.local_control = false
 
-	# Who's still clocked in: IS NULL, reviewed at the time office.
+	# Who's been in there longest: IS NULL, reviewed at the time office, then the
+	# name pointed at (click to solve).
+	# The sign on the time clock is read first, as an arriving crew reads the desk's
+	# papers: it opens the case, whose query on screen names the columns (V1).
 	_b1_at(level, Vector3(-8.6, 0.1, 0.0))
+	_doc(level, "Time clock sign").open_reader(p).close()
+	check(_game().case_info("open").get("open", false), "%s: the time clock's sign opens the open case" % where)
 	ui.open(level.office, p)
-	var h := await solve(level, ui, level.open_puzzle, _cold_b1(level))
-	check(h <= rescue_tier(level.open_puzzle) and level.open_puzzle.solved, "%s: the visits the clock never closed, found at the time office (hints %d)" % [where, h])
+	var longest: String = str(level.data.echoes[0].name)
+	var on_screen := func() -> bool:
+		return level.open_puzzle.solved or ui.noteable_lines().any(func(l): return l.get("cells", []).any(func(c): return str(c.column) == "name" and str(c.value) == longest))
+	var h := await solve(level, ui, level.open_puzzle, _cold_b1(level), 3, "", false, on_screen)
+	# The tempting wrong cells first (V7-V11): on the open visits, on all of them, and
+	# down the whole log in clock_in order (the allowed route, curriculum.gd).
+	for q in ["SELECT * FROM freezer_log WHERE clock_out IS NULL;", "SELECT * FROM freezer_log ORDER BY clock_in;"]:
+		ui.run(q)
+		await t.physics_frame
+		await t.physics_frame
+	var first: Dictionary = level.db.run_silent("SELECT card, name FROM freezer_log WHERE clock_out IS NULL ORDER BY clock_in LIMIT 1")[0]
+	var open_want := func(col: String, value: String, row: Dictionary) -> String:
+		var shown := {}
+		for k in row:
+			shown[str(k).to_lower()] = str(row[k])
+		var c := col.to_lower()
+		shown[c] = value
+		var by := ""
+		if shown.has("card") and shown.card != "" and shown.card != "<null>":
+			by = "card = '%s'" % shown.card
+		elif shown.has("name") and shown.has("clock_in"):
+			by = "name = '%s' AND clock_in = '%s'" % [shown.name.replace("'", "''"), shown.clock_in]
+		elif shown.has("name"):
+			by = "name = '%s'" % shown.name.replace("'", "''")
+		var visits: Array = level.db.run_silent("SELECT card, name, clock_out FROM freezer_log WHERE " + by) if by != "" else []
+		var theirs := visits.size() == 1 and str(visits[0].card) == str(first.card)
+		if theirs and c == "name":
+			return "answer"  # V5
+		if theirs:
+			return "That's the right visit. The blank wants the name on it."  # V10
+		var who: String = shown.get("name", str(visits[0].name) if visits.size() == 1 else "")
+		if who == "VISITOR":
+			return "That's us. We punched in at the landing tonight."  # V8, on any line of our own visit
+		if c == "name" and not visits.is_empty():
+			if visits.all(func(v): return v.clock_out != null):
+				return "That visit clocked out. The blank wants someone who never did."  # V7
+			return "Still in there, but not the longest. Who went in first?"  # V9
+		return "Not that one: the blank wants who's been in there the longest."  # V11
+	tempt_cells(ui, "open", "freezer_log", open_want, where)
+	check(point_cell(ui, "name", longest), "%s: the longest-inside name is on the screen to point at" % where)
+	check(h <= rescue_tier(level.open_puzzle) and await _until(func(): return level.open_puzzle.solved, 2.0), "%s: who's been in there longest, found at the time office and pointed at (hints %d)" % [where, h])
 	ui.close()
 
-	# The IT cage, warm: the first script, then the names, one a line.
+	# The IT cage, warm: the try with one set, the loop for everyone, then the names.
 	_b1_at(level, Vector3(5.2, 0.1, -5.5))
+	level.listing_after = 0.5
 	ui.open(level.it_terminal, p)
+	h = await solve_script(level, ui, level.try_puzzle, _cold_b1(level))
+	check(h <= rescue_tier(level.try_puzzle) and level.try_puzzle.solved and not level.pair_puzzle.solved, "%s: the cradle tested with one set, from the label and the ladder (hints %d)" % [where, h])
 	h = await solve_script(level, ui, level.pair_puzzle, _cold_b1(level))
-	check(h <= rescue_tier(level.pair_puzzle) and level.pair_puzzle.solved and level.earpieces, "%s: an earpiece set each, from the card's script and the ladder (hints %d)" % [where, h])
+	check(h <= rescue_tier(level.pair_puzzle) and level.pair_puzzle.solved and level.earpieces, "%s: an earpiece set each, and one each for Ines and Tomas, from the card's script and the ladder (hints %d)" % [where, h])
+	check(await _until(func(): return _game().case_info("list").get("open", false), 10.0), "%s: after the voice in the ear, the listing opens" % where)
 	var key_said := "%s: the card's script, copied, gets the dock cradle's 403 and SYSOP says whose key it is" % where
 	var pair_spec: Dictionary = Curriculum.PUZZLES.get("pair", {})
 	if pair_spec.has("silent_copy"):
@@ -2128,14 +2344,13 @@ func walk_level_6(seed_value: int, paced_release: bool) -> void:
 	ui.close()
 
 	# Leave it tidy (optional): its to-do says stop every script first (^T in each
-	# runner), then the doors, from the deck back in the warm.
+	# runner), then the doors, from the deck back in the warm, where it opens.
 	for term in level._script_terminals():
 		var rt = term.get_meta("script_runtime") if term.has_meta("script_runtime") else null
 		if rt and rt.is_running():
 			rt.stop()
 	_b1_at(level, Vector3(5.2, 0.1, -5.5))
-	for i in 5:
-		await t.physics_frame
+	check(await _until(func(): return _game().case_info("stop").get("open", false), 5.0), "%s: back in the warm, leaving it tidy opens" % where)
 	ui.open(deck, p)
 	h = await solve(level, ui, level.stop_puzzle, _cold_b1(level))
 	check(h <= rescue_tier(level.stop_puzzle) and level.stop_puzzle.solved, "%s: every script stopped and both vault doors locked and read back (hints %d)" % [where, h])
@@ -2250,6 +2465,10 @@ func check_script_ladder(p: Puzzle) -> void:
 	check(exact != "", "%s: the last hint is a whole script to run as it is" % p.id)
 	if mode == "review":
 		check(p.hints.size() == 2, "%s: review: a reminder with the shape, then the whole script (two tiers)" % p.id)
+	elif spec.has("tiers"):
+		# A row may say its ladder is shorter, as approved ("tiers"): the try's shape
+		# says where its one value is, and its first tier is a place (Puzzle.spots).
+		check(p.hints.size() == int(spec.tiers), "%s: %d tiers, as approved: the shape (it says where the value is), then the whole script" % [p.id, int(spec.tiers)])
 	else:
 		check(p.hints.size() >= 3, "%s: three tiers: shape, where the values are, the whole script" % p.id)
 	var m := _shape_match(shape, [exact])
@@ -2319,6 +2538,8 @@ func solve_script(level: Node, ui: TerminalUI, p: Puzzle, threat: bool, then := 
 				for k in needed:
 					if not has_item(taught, k):
 						outside.append(k)
+			if await follow_spot(level, ui, p, pace):
+				continue  # .hint sent them somewhere in the building first: no tier used
 			if hints >= max_hints:
 				check(false, "%s: a lost player gets stuck even after %d hints" % [p.id, hints])
 				return -1

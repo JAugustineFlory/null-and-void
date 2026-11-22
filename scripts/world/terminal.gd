@@ -305,9 +305,19 @@ func hint_case() -> String:
 	return ""
 
 
+## A level's line that answers the next `.hint` before any case's (B2: a plant
+## room's gas counting down): Callable() -> String, "" for none. It says each
+## line once, so the case's own ladder comes back on the next `.hint`.
+var hint_first: Callable
+
+
 func next_hint() -> String:
 	if locked:
 		return "This terminal is locked. Find a way to authorize it."
+	if hint_first.is_valid():
+		var urgent: String = hint_first.call()
+		if urgent != "":
+			return urgent
 	if hint_station.is_valid():
 		var picked = hint_station.call()
 		if picked == null:
