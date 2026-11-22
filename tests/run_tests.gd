@@ -321,6 +321,7 @@ func _group_coop() -> void:
 	await test_coop_notes_huddle()
 	await test_coop_leg_up()
 	await test_coop_crate()
+	await test_coop_pry()
 	await test_coop_looks()
 	await test_coop_sitting()
 	await test_coop_unlocks()
@@ -3173,6 +3174,57 @@ func test_coop_crate() -> void:
 		"stacked on it, in the same place on every machine (%s)" % b_host.global_position)
 	check(crates[0][0].get_prompt(hp) == "" and crates[1][0].get_prompt(cp) == "", "and nobody can pull the bottom one out")
 	for l in levels:
+		l.player.local_control = true
+	await _coop_close(worlds)
+
+
+## E9: two players pry a stuck lift's doors, the host deciding from who they
+## play (PlayableCrew.STRONG) and what they carry.
+func test_coop_pry() -> void:
+	print("Co-op: prying a stuck lift's doors")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)
+	await _out_of_van(levels)
+	var yard := Vector3(300, 0, 300)
+	var doors := []
+	for l in levels:
+		Greybox.box(l, yard + Vector3(0, -0.1, 0), Vector3(12, 0.2, 12), Color.GRAY)
+		doors.append(PryDoors.make(l, yard + Vector3(0, 1.0, -2.0), Vector3.BACK, 0.5))
+	var hp: Player = levels[0].player
+	var cp: Player = levels[1].player
+	var spots := [yard + Vector3(-0.4, 0.05, -1.4), yard + Vector3(0.4, 0.05, -1.4)]
+	for i in 2:
+		var p: Player = levels[i].player
+		p.local_control = false
+		p.velocity = Vector3.ZERO
+		p.rotation.y = 0.0
+		p.global_position = spots[i]
+	await _frames(20)
+	var strong := [PlayableCrew.is_strong(hp.crew), PlayableCrew.is_strong(str(NetPlayers.look_for(levels[0], get_multiplayer(worlds[1].get_path()).get_unique_id()).get("crew", "")))]
+	hp.controls.use = true
+	doors[0].grips[0].interact(hp)
+	cp.controls.use = true
+	doors[1].grips[1].interact(cp)
+	await _frames(20)
+	check(hp.gripping == doors[0].grips[0] and cp.gripping == doors[1].grips[1] and doors[0].holders == doors[1].holders, "each holds a door, and every machine agrees who")
+	var opened := await _until(func(): return doors[1].opened, PryDoors.PRY_TIME + 1.0)
+	check(opened == (strong[0] and strong[1]), "the pair opens it only if both are strong (%s)" % [strong])
+	if not opened:
+		check(doors[1].prompt_for(1, cp) == PryDoors.WONT_BUDGE, "and the one on the client is told it won't budge")
+		cp.controls.use = false
+		await _frames(10)
+		check(doors[0].holders[1] == 0, "letting go there frees the door on the host")
+		cp.inventory = Inventory.new()  # its own, not the host's
+		cp.inventory.add("crowbar")
+		cp.controls.use = true
+		doors[1].grips[1].interact(cp)
+		opened = await _until(func(): return doors[0].opened and doors[1].opened, PryDoors.PRY_TIME + 2.0)
+		check(opened, "with the client's crowbar, they pry it open, on every machine")
+	check(hp.gripping == null and cp.gripping == null, "and both let go")
+	for l in levels:
+		l.player.controls.use = false
 		l.player.local_control = true
 	await _coop_close(worlds)
 

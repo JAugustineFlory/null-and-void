@@ -10,7 +10,7 @@ extends Interactable
 
 ## What you tie off.
 const ITEM := "cable"
-## New words, waiting on Augustine's OK.
+## Augustine approved these words (2026-11-22).
 const TIE := "Tie the network cable off"
 const UNTIE := "Untie the network cable"
 ## Shown at an anchor with nothing tied to it, to someone with no cable.

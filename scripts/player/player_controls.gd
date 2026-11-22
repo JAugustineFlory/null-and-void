@@ -13,6 +13,8 @@ var crouch := false
 var jump := false
 ## Edge, like jump: sit down on the floor, or stand back up.
 var sit := false
+## Held: the use key (E) is down (holding a grip with both hands, PryDoors).
+var use := false
 ## Sprint pressed on a gamepad (L3) stays on until you stop moving.
 var _sprint_latched := false
 
@@ -23,6 +25,7 @@ func read_local(locked: bool) -> void:
 		move = Vector2.ZERO
 		sprint = false
 		crouch = false
+		use = false
 		_sprint_latched = false
 		return
 	move = PadInput.move_vector()
@@ -32,6 +35,7 @@ func read_local(locked: bool) -> void:
 		_sprint_latched = false
 	sprint = _sprint_latched or Input.is_action_pressed("sprint")
 	crouch = Input.is_action_pressed("crouch")
+	use = Input.is_action_pressed("interact")
 	jump = jump or Input.is_action_just_pressed("jump")
 	sit = sit or Input.is_action_just_pressed("sit")
 
