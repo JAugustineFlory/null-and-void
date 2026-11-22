@@ -340,9 +340,9 @@ func _shove_doors() -> void:
 			continue  # it would swing into it: it can push, not pull
 		var sync := LevelSync.of(self)
 		if sync:
-			sync.run_on(door, "set_open", [true])
+			sync.run_on(door, "set_open", [true, false, 0.0, true])  # a shove, not a hand on the handle
 		else:
-			door.set_open(true)
+			door.set_open(true, false, 0.0, true)
 
 
 ## Walk toward `to`; true once it's there.

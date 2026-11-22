@@ -28,6 +28,21 @@ var one_way := false
 var locked := false
 
 var is_open := false
+
+## Each step of the door's motion as it plays (art and sound follow it; it plays
+## on every machine, since set_open does):
+##   hinged: "unlatch" (the handle goes down: HOLD before the leaf moves), "swing",
+##           "stop" (at the stop, a small rebound), then "close" and "latch";
+##           and "rattle" when someone tries it locked;
+##   sliding: "unlock" (the bolts draw, the motor lurches it), "run", "stop", then
+##           "close" and "thud" (it bumps the floor or the jamb, a little rebound).
+## Set at once (`instant`), a door moves without a sound or a phase.
+signal moved(phase: StringName)
+
+## How long a hand holds the handle down, or a motor takes to draw the bolts,
+## before the leaf moves. A shove (the Shredder walking into a door) skips it.
+const HOLD := 0.12
+
 var _closed_pos := Vector3.ZERO
 var _closed_rot := 0.0
 var _tween: Tween
@@ -73,6 +88,12 @@ static func create(parent: Node, id: String, pos: Vector3, door_size: Vector3, c
 func _ready() -> void:
 	_capture_closed_pose()
 	sync_to_physics = false
+	_furnish.call_deferred()  # once its caller has made it hinged, one-way or a stair door
+
+
+## Its handles, push bar and closer (scripts/art/art_door.gd), which follow `moved`.
+func _furnish() -> void:
+	ArtDoor.furnish(self)
 
 
 ## A shut door at rest is in its closed pose. Taken again each time it starts to
@@ -101,15 +122,30 @@ func get_prompt(_player: Node) -> String:
 ## by its leaf; shut again, it keeps that side (what it offers to anything that can
 ## only push, like the Shredder). A `one_way` door keeps its own side.
 func interact(player: Node) -> void:
-	if is_hinged() and locked and get_parent() is Node3D:
-		Sfx.play(get_parent(), "lock", position)  # the handle won't turn
-	if not is_hinged() or locked:
+	if not is_hinged():
 		return
 	var sync := LevelSync.of(self)
+	if sync != null and sync.forward(self, "interact"):
+		return  # the host decides, and every machine plays it out
+	if locked:
+		if sync:
+			sync.run_on(self, "rattle")
+		else:
+			rattle()
+		return
 	if sync == null:
 		set_open(not is_open, false, away_from(player))
-	elif not sync.forward(self, "interact"):
+	else:
 		sync.run_on(self, "set_open", [not is_open, false, away_from(player)])
+
+
+## Someone tried a locked door: the handle won't turn. Plays on every machine.
+func rattle() -> void:
+	if is_open:
+		return
+	_phase(&"rattle")
+	if get_parent() is Node3D:
+		Sfx.play(get_parent(), "lock", position)
 
 
 ## The swing sign (+1 or -1) that opens this shut door away from `body`; 0 to keep
@@ -137,33 +173,95 @@ func _pose_swing() -> void:
 
 
 ## `away` (+1/-1, from away_from) picks the side a shut hinged door swings to.
-func set_open(open: bool, instant: bool = false, away: float = 0.0) -> void:
+## `pushed`: shoved open, not by its handle (no HOLD; it starts moving at once).
+func set_open(open: bool, instant: bool = false, away: float = 0.0, pushed: bool = false) -> void:
 	if open == is_open:
 		return
-	if open and not (_tween and _tween.is_running()) and swing == 0.0:
+	var moving := _tween != null and _tween.is_running()
+	if open and not moving and swing == 0.0:
 		_capture_closed_pose()
 		if away != 0.0 and not one_way:
 			swing_deg = absf(swing_deg) * away
 	is_open = open
 	if not instant:
 		_sound(open)
+	if _tween:
+		_tween.kill()
 	if is_hinged():
-		if _tween:
-			_tween.kill()
 		if instant:
 			swing = 1.0 if open else 0.0
 			return
 		_tween = create_tween()
-		_tween.tween_property(self, "swing", 1.0 if open else 0.0, 0.9 if open else 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		if open:
+			_swing_open(pushed or swing > 0.0)
+		else:
+			_swing_shut()
 		return
 	var target := _closed_pos + (slide_axis * (size.y - 0.15) if open else Vector3.ZERO)
-	if _tween:
-		_tween.kill()
 	if instant:
 		position = target
 		return
 	_tween = create_tween()
-	_tween.tween_property(self, "position", target, 1.1 if open else 0.35).set_trans(Tween.TRANS_QUAD)
+	if open:
+		_slide_open(target, moving)
+	else:
+		_slide_shut(target)
+
+
+## Handle down, a beat, then the leaf eases round to its stop and rebounds a
+## touch off it (back toward shut, never past open into a wall or a teammate).
+func _swing_open(unlatched: bool) -> void:
+	if not unlatched:
+		_phase(&"unlatch")
+		_tween.tween_interval(HOLD)
+		_tween.tween_callback(_phase.bind(&"swing"))
+	else:
+		_phase(&"swing")
+	var left := 1.0 - swing
+	_tween.tween_property(self, "swing", 1.0, 0.25 + 0.47 * left).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if unlatched else Tween.EASE_IN_OUT)
+	_tween.tween_callback(_phase.bind(&"stop"))
+	_tween.tween_property(self, "swing", 0.97, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(self, "swing", 1.0, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## A closer's sweep: steady, slowing as it nears the frame, then the last few
+## degrees snap it onto the latch.
+func _swing_shut() -> void:
+	_phase(&"close")
+	_tween.tween_property(self, "swing", 0.04, maxf(0.15, 0.55 * swing)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(self, "swing", 0.0, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_tween.tween_callback(_phase.bind(&"latch"))
+
+
+## The bolts draw and the motor lurches it a centimetre, then it runs open and
+## stops. One already moving just turns round.
+func _slide_open(target: Vector3, moving: bool) -> void:
+	var dir := (target - _closed_pos).normalized()
+	if not moving and position.distance_to(_closed_pos) < 0.001:
+		_phase(&"unlock")
+		_tween.tween_property(self, "position", _closed_pos + dir * 0.012, HOLD * 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_tween.tween_property(self, "position", _closed_pos + dir * 0.004, HOLD * 0.6).set_trans(Tween.TRANS_SINE)
+		_tween.tween_callback(_phase.bind(&"run"))
+	else:
+		_phase(&"run")
+	var left := position.distance_to(target) / maxf(0.01, _closed_pos.distance_to(target))
+	_tween.tween_property(self, "position", target, 0.3 + 0.65 * left).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_tween.tween_callback(_phase.bind(&"stop"))
+
+
+## It runs shut fast, thuds home and bounces a centimetre off the floor or jamb.
+func _slide_shut(target: Vector3) -> void:
+	_phase(&"close")
+	var open_at := _closed_pos + slide_axis * (size.y - 0.15)
+	var dir := (open_at - target).normalized()
+	_tween.tween_property(self, "position", target, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_tween.tween_callback(_phase.bind(&"thud"))
+	_tween.tween_property(self, "position", target + dir * 0.01, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(self, "position", target, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+
+func _phase(phase: StringName) -> void:
+	moved.emit(phase)
 
 
 ## A sliding door's motor runs it open and it thuds shut; a hinged one's latch clicks.

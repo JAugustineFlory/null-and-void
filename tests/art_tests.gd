@@ -48,6 +48,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_held_notebook()
 	await test_terminal_screen()
 	test_tool_skins()
+	await test_door_motion()
+	await test_door_hardware()
 
 
 func check(cond: bool, name: String) -> void:
@@ -2486,3 +2488,108 @@ class _FakeTerminal extends Node:
 	var typing := {}
 	var skin_color: Variant = null
 	var look := {}
+
+
+## Doors move in steps others can follow (`Door.moved`): a hand on the handle,
+## the swing, the stop, the latch; a motor's lurch, run and thud. Quick enough
+## that nobody waits on a door.
+func test_door_motion() -> void:
+	var stage := _stage()
+	var hinged := Door.create(stage, "T-HINGED", Vector3(0, 1.1, 0), Vector3(1.2, 2.2, 0.08)).make_hinged(Vector3(-0.6, 0, 0), 90.0)
+	var slid := Door.create(stage, "T-SLID", Vector3(4, 1.2, 0), Vector3(1.6, 2.4, 0.2))
+	await _frames(2)
+	var seen := {"h": [], "s": []}
+	hinged.moved.connect(func(p): seen.h.append(p))
+	slid.moved.connect(func(p): seen.s.append(p))
+	hinged.set_open(true)
+	check(hinged.is_open and seen.h == [&"unlatch"], "opening a door: the hand goes to the handle first (and it's open at once, for co-op)")
+	await t.create_timer(Door.HOLD * 0.6).timeout
+	check(hinged.swing == 0.0, "the leaf holds while the latch draws")
+	await t.create_timer(0.95).timeout
+	check(seen.h == [&"unlatch", &"swing", &"stop"] and hinged.swing > 0.95, "then it swings round to its stop inside a second")
+	var widest := 0.0
+	for k in 20:
+		widest = maxf(widest, hinged.swing)
+		await t.process_frame
+	check(is_equal_approx(hinged.swing, 1.0) and widest <= 1.0, "it settles fully open, never swinging past it into a wall")
+	hinged.set_open(false)
+	await t.create_timer(0.75).timeout
+	check(seen.h.slice(3) == [&"close", &"latch"] and hinged.swing == 0.0, "shut, the closer sweeps it home and the latch catches")
+	hinged.locked = true
+	hinged.interact(null)
+	check(seen.h.back() == &"rattle" and not hinged.is_open, "trying it locked: the handle rattles, it stays shut")
+	hinged.locked = false
+	seen.h.clear()
+	hinged.set_open(true, false, 0.0, true)
+	check(seen.h == [&"swing"], "a shove skips the handle and moves the leaf at once")
+	await t.create_timer(0.05).timeout
+	check(hinged.swing > 0.0, "a shoved door is already moving")
+	slid.set_open(true)
+	await t.create_timer(1.2).timeout
+	check(seen.s == [&"unlock", &"run", &"stop"] and slid.position.distance_to(Vector3(4, 1.2, 0) + Vector3.UP * 2.25) < 0.001, "a security door unlocks, runs up and stops")
+	slid.set_open(false)
+	await t.create_timer(0.5).timeout
+	check(seen.s.slice(3) == [&"close", &"thud"] and slid.position.distance_to(Vector3(4, 1.2, 0)) < 0.001, "and it runs down, thuds and comes to rest shut")
+	seen.s.clear()
+	slid.set_open(true, true)
+	check(seen.s.is_empty(), "a door set at once (loading in) moves without steps")
+	stage.free()
+
+
+## Hinged doors wear hardware on the leaf: levers that go down under a hand, and a
+## stair door's push bar, kick plates and closer, whose arm stays on the frame.
+func test_door_hardware() -> void:
+	var stage := _stage()
+	var office := Door.create(stage, "T-OFFICE", Vector3(0, 1.1, 0), Vector3(1.35, 2.2, 0.08)).make_hinged(Vector3(-0.675, 0, 0), 90.0)
+	var side := Door.create(stage, "T-SIDE", Vector3(4, 1.15, 0), Vector3(0.1, 2.3, 1.0)).make_hinged(Vector3(0, 0, -0.5), -90.0)
+	var stair := Door.create(stage, "T-STAIR", Vector3(8, 1.1, 0), Vector3(Stairwell.DOOR_W, Stairwell.DOOR_H, 0.08))
+	stair.rotation_degrees.y = 90.0
+	stair.make_hinged(Vector3(-Stairwell.DOOR_W / 2.0, 0, 0), Stairwell.DOOR_SWING)
+	stair.one_way = true
+	stair.set_meta("stairwell", stage)
+	var slid := Door.create(stage, "T-SLID", Vector3(12, 1.2, 0), Vector3(1.6, 2.4, 0.2))
+	for k in 3:  # past the long frame that builds them, so the timings below hold
+		await t.process_frame
+	var hw: ArtDoor = office.get_node_or_null("Hardware")
+	check(hw != null and hw.levers.size() == 2 and hw.push_bar == null and (side.get_node("Hardware") as ArtDoor).levers.size() == 2,
+		"an office door has a lever on each face, whichever way it's built")
+	check(slid.get_node_or_null("Hardware") == null, "a security door keeps its plain slab")
+	check(office.find_children("*", "CollisionObject3D", true, false).is_empty() and office.get_child_count() > 3, "door hardware is visual only")
+	var stripe_shown := false
+	for c in office.get_children():
+		if c is MeshInstance3D and c.mesh is BoxMesh and is_equal_approx(c.mesh.size.y, 0.12):
+			stripe_shown = c.visible
+	check(not stripe_shown, "the greybox stripe goes once the door has its handles")
+	# A hand on the handle: the lever's end goes down, then springs back.
+	var lever_end := func(): return hw.levers[0].global_transform * (Vector3.LEFT * 0.12)  # it points to the hinge, at -x
+	var rest_y: float = lever_end.call().y
+	office.set_open(true, false, 1.0)
+	await t.create_timer(Door.HOLD).timeout
+	check(lever_end.call().y < rest_y - 0.04, "opening it, the lever goes down under the hand")
+	await t.create_timer(0.8).timeout
+	check(absf(hw.press) < 0.05, "and springs back up once the door's moving")
+	# The stair door: push bar on the stairwell side (away from where it swings),
+	# a lever on the lobby side, and a closer.
+	var shw: ArtDoor = stair.get_node("Hardware")
+	check(shw.push_bar != null and shw.levers.size() == 1, "a stair door has a push bar inside and a lever outside")
+	var swing_side: Vector3 = stair.to_global(stair.hinge + Basis(Vector3.UP, deg_to_rad(stair.swing_deg)) * -stair.hinge) - stair.global_position
+	check((shw.push_bar.global_position - stair.global_position).dot(swing_side) < 0.0, "the push bar is on the side you push from")
+	var shoe: Node3D = shw.get_node("Shoe")
+	var shoe_at := shoe.global_position
+	var main: Node3D = shw.get_node("MainArm")
+	var fore: Node3D = shw.get_node("Forearm")
+	stair.set_open(true)
+	var drift := 0.0
+	var stretch := 0.0
+	var until := Time.get_ticks_msec() + 3000
+	while (stair._tween.is_running() or stair.swing < 1.0) and Time.get_ticks_msec() < until:
+		await t.process_frame
+		drift = maxf(drift, shoe.global_position.distance_to(shoe_at))
+		var elbow: Vector3 = main.global_transform * Vector3(ArtDoor.MAIN_ARM, 0, 0)
+		var fore_end: Vector3 = fore.global_transform * Vector3(ArtDoor.FOREARM, 0, 0)
+		stretch = maxf(stretch, Vector2(elbow.x - fore.global_position.x, elbow.z - fore.global_position.z).length() + Vector2(fore_end.x - shoe.global_position.x, fore_end.z - shoe.global_position.z).length())
+	check(stair.swing == 1.0 and drift < 0.002, "the closer's shoe stays on the frame as the door swings")
+	check(stretch < 0.003, "and its two arms stay joined, spindle to elbow to shoe")
+	check((ArtDoor.furnish_copy(Greybox.box(stage, Vector3(16, 1.1, 0), Vector3(1.2, 2.2, 0.08), Color.GRAY, "CopyDoor"), Vector3(1.2, 2.2, 0.08), Vector3(-0.6, 0, 0), Stairwell.DOOR_SWING)).push_bar != null,
+		"a stairwell's painted copy of its door looks the same")
+	stage.free()
