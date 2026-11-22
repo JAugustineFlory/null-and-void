@@ -261,6 +261,7 @@ func _host_leg_up(climber_id: int, base_id: int) -> void:
 @rpc("authority", "call_local", "reliable")
 func _leg_up(climber_id: int, base_id: int) -> void:
 	var me := multiplayer.get_unique_id()
+	SfxKit.leg_up(player if base_id == me else puppet(base_id))  # the grunt and the boot, everywhere
 	if climber_id == me:
 		var base := puppet(base_id)
 		if base:

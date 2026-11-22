@@ -150,6 +150,7 @@ func _refresh() -> void:
 ## Every machine: it came on. A dark screen warms up, then its usual boot lines
 ## come up one at a time (the same lines it always boots with), then the prompt.
 func _boot() -> void:
+	Sfx.play(terminal, "crt_on", terminal.focus_point.position)  # the relay, the degauss thrum, static
 	booting = true
 	terminal.clear_screen()
 	var lines := terminal.boot_text()
