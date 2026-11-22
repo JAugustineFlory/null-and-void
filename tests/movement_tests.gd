@@ -41,6 +41,8 @@ func _run_moves() -> void:
 	await test_pry_doors()
 	await test_hatch()
 	await test_stuck_lift()
+	await test_ducts()
+	await test_vent_entries()
 	await test_same_controls_same_moves()
 	await test_first_person_motion()
 
@@ -1183,6 +1185,150 @@ func test_stuck_lift() -> void:
 	await frames(3)
 	check(not stall.stalled and not climb.active and shape.disabled and q.gripping == null, "moving again: the grips and the climb are gone, and nobody's left holding on")
 	await done(a)
+
+
+## Crawl `p` toward `to` (flat), face first; true once there.
+func _crawl_to(p: Player, to: Vector3, seconds: float = 8.0) -> bool:
+	for i in int(seconds * 60):
+		var d := to - p.global_position
+		d.y = 0.0
+		if d.length() < 0.2:
+			p.controls.move = Vector2.ZERO
+			return true
+		p.rotation.y = atan2(-d.x, -d.z)
+		p.controls.crouch = true
+		p.controls.move = Vector2(0, -1)
+		await frames(1)
+	p.controls.move = Vector2.ZERO
+	return false
+
+
+## E10: a duct network. Runs join at turns and T-junctions with no wall across the
+## joint; outside corners and dead ends are shut; every body crawls it.
+func test_ducts() -> void:
+	print("Movement: duct networks")
+	for big in [false, true]:
+		var a := arena()
+		var runs := [
+			[Vector3(0, 0, -2), Vector3(6, 0, -2)],
+			[Vector3(6, 0, -2), Vector3(6, 0, -8)],  # an L turn
+			[Vector3(3, 0, -2), Vector3(3, 0, 2)],  # a T off the first run
+		]
+		var vols := Traversal.ducts(a, runs, Vector2(1.0, 1.0), [Vector3(0, 0, -2)])
+		var p := spawn(a, Vector3(-1.5, 0.05, -2)) if not big else _spawn_sized(a, Vector3(-1.5, 0.05, -2), CrewBody.largest())
+		await frames(10)
+		var name := "largest body" if big else "standard body"
+		var ok := await _crawl_to(p, Vector3(1.0, 0, -2))
+		ok = ok and await _crawl_to(p, Vector3(6, 0, -2))
+		ok = ok and await _crawl_to(p, Vector3(6, 0, -7.6))
+		check(ok and vols.size() == 3 and p.crawling, "%s: in at the open end and round the turn to the far end, crawling (%.1f, %.1f)" % [name, p.global_position.x, p.global_position.z])
+		ok = await _crawl_to(p, Vector3(6, 0, -2))
+		ok = ok and await _crawl_to(p, Vector3(3, 0, -2))
+		ok = ok and await _crawl_to(p, Vector3(3, 0, 1.6))
+		check(ok, "%s: back, and into the T's branch" % name)
+		if not big:
+			var space := a.get_world_3d().direct_space_state
+			var ray := func(from: Vector3, to: Vector3) -> bool:
+				return not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to)).is_empty()
+			check(ray.call(Vector3(6, 0.5, -2), Vector3(7.5, 0.5, -0.5)) and ray.call(Vector3(6, 0.5, -2), Vector3(7.5, 0.5, -2)), "the turn's outside corner is shut")
+			check(ray.call(Vector3(6, 0.5, -7), Vector3(6, 0.5, -9)) and ray.call(Vector3(3, 0.5, 1), Vector3(3, 0.5, 3)), "dead ends are capped")
+			check(ray.call(Vector3(1.5, 0.5, -2), Vector3(1.5, 0.5, -0.5)) and not ray.call(Vector3(3, 0.5, -2.3), Vector3(3, 0.5, 0)), "the run's side is a wall, except where the T joins it")
+			check(not ray.call(Vector3(-1, 0.5, -2), Vector3(1, 0.5, -2)), "the open end is open")
+		await done(a)
+
+
+## E10's ways in and out: a floor vent (its grille unscrewed) dropped into and
+## climbed out of, a ceiling vent jumped up into, and a drop down a shaft and back
+## up its rungs.
+func test_vent_entries() -> void:
+	print("Movement: into and out of the ducts")
+	for big in [false, true]:
+		var a := arena()
+		var name := "largest body" if big else "standard body"
+		# A duct under a raised floor (its top 1.1 m up), with a floor vent at x 11.
+		Traversal.ducts(a, [[Vector3(10, 0, 0), Vector3(16, 0, 0)]], Vector2(1.0, 1.0), [], [Vector3(11, 1.0, 0)])
+		for slab in [[Vector3(9.75, 1.05, 0), Vector3(1.5, 0.1, 4)], [Vector3(14.0, 1.05, 0), Vector3(5.0, 0.1, 4)], [Vector3(11, 1.05, 1.25), Vector3(1, 0.1, 1.5)], [Vector3(11, 1.05, -1.25), Vector3(1, 0.1, 1.5)]]:
+			Greybox.box(a, slab[0], slab[1], Color.GRAY, "RaisedFloor")
+		var grille := VentGrille.make(a, "test", Vector3(11, 1.12, 0), Vector3.UP)
+		var out := Traversal.hatch(a, Vector3(11, 1.1, 0), Vector2(1.0, 1.0), Vector3(11, 1.1, 1.2))
+		var p := spawn(a, Vector3(11, 1.15, 1.2)) if not big else _spawn_sized(a, Vector3(11, 1.15, 1.2), CrewBody.largest())
+		p.rotation.y = 0.0  # facing -z, at the grille
+		await frames(15)
+		var shut: String = grille.get_prompt(p)
+		await _crawl_to(p, Vector3(11, 0, 0.0), 1.0)
+		p.controls.crouch = false
+		await frames(30)
+		var held_up := p.global_position.y > 1.0
+		p.inventory.add(VentGrille.ITEM)
+		var can: String = grille.get_prompt(p)
+		grille.interact(p)
+		await frames(5)
+		await _crawl_to(p, Vector3(11, 0, 0), 3.0)
+		if not big:
+			check(shut == VentGrille.SCREWED and can == "[E] " + VentGrille.UNSCREW and held_up, "a floor vent's grille is screwed shut, and holds you; with the screwdriver, unscrew it")
+		var t := 0
+		while p.global_position.y > 0.3 and t < 120:
+			await frames(1)
+			t += 1
+		var fell := p.global_position.y < 0.3
+		var ok := await _crawl_to(p, Vector3(15, 0, 0))
+		check(grille.is_open and fell and ok, "%s: off, you drop through into the duct and crawl along it (open %s, fell %s, at %s)" % [name, grille.is_open, fell, p.global_position])
+		ok = await _crawl_to(p, Vector3(11, 0, 0))
+		p.controls.crouch = false
+		var up := false
+		for i in 3:
+			p.controls.jump = true
+			for f in 60:
+				await frames(1)
+				if p.state == Player.Move.WALK and p.global_position.y > 1.05:
+					up = true
+					break
+			if up:
+				break
+		check(ok and fell and up and out.active, "%s: back under it, Space climbs you out (y %.2f)" % [name, p.global_position.y])
+		await done(a)
+		# A duct up at 2.6 m, over open floor: a ceiling vent at x 3, and at x 7 a
+		# drop back down a shaft to the floor.
+		a = arena()
+		Traversal.ducts(a, [[Vector3(2, 2.6, 0), Vector3(8, 2.6, 0)]], Vector2(1.0, 1.0), [], [Vector3(3, 2.6, 0), Vector3(7, 2.6, 0)])
+		Traversal.hatch(a, Vector3(3, 2.61, 0), Vector2(1.0, 1.0), Vector3(4.2, 2.61, 0))
+		var rungs := Traversal.drop(a, Vector3(7, 2.6, 0), 2.6, Vector3.LEFT)
+		p = spawn(a, Vector3(3, 0.05, 0)) if not big else _spawn_sized(a, Vector3(3, 0.05, 0), CrewBody.largest())
+		await frames(15)
+		up = false
+		for i in 3:
+			p.controls.jump = true
+			for f in 90:
+				await frames(1)
+				if p.state == Player.Move.WALK and p.global_position.y > 2.5:
+					up = true
+					break
+			if up:
+				break
+		check(up and p.crawling, "%s: jump at a ceiling vent, catch its rim and pull up into the duct (y %.2f)" % [name, p.global_position.y])
+		ok = await _crawl_to(p, Vector3(7, 0, 0))
+		t = 0
+		while p.global_position.y > 0.3 and t < 120:
+			await frames(1)
+			t += 1
+			if p.state == Player.Move.HANG:
+				p.controls.move = Vector2(0, 1)  # caught the far edge: let go
+		p.controls.move = Vector2.ZERO
+		check(ok and p.global_position.y < 0.3, "%s: crawl over the drop and down the shaft you go (%s, at %s)" % [name, ok, p.global_position])
+		p.controls.crouch = false
+		p.rotation.y = atan2(1.0, 0.0)  # facing -x, the rungs
+		await frames(20)
+		var climbed := false
+		p.controls.move = Vector2(0, -1)
+		p.controls.jump = true
+		for f in 300:
+			await frames(1)
+			if p.state == Player.Move.WALK and p.global_position.y > 2.5:
+				climbed = true
+				break
+		p.controls.move = Vector2.ZERO
+		check(climbed and rungs != null, "%s: and back up its rungs, out onto the duct's floor (y %.2f)" % [name, p.global_position.y])
+		await done(a)
 
 
 func test_shoulders() -> void:

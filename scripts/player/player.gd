@@ -1754,7 +1754,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * speed * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * speed * delta)
 
-	if state == Move.WALK and rider == null and not in_vent and not _hands_full():
+	if state == Move.WALK and rider == null and (not in_vent or _can_stand()) and not _hands_full():
 		var climb := in_volume(MovementVolume.Kind.CLIMB)
 		# W + Space starts a climb (or W while already in the air), so walking past
 		# a pipe never grabs it.
