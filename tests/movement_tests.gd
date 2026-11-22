@@ -37,6 +37,7 @@ func _run_moves() -> void:
 	await test_shoulders()
 	await test_leg_up()
 	await test_cable_rope()
+	await test_crate_stack()
 	await test_same_controls_same_moves()
 	await test_first_person_motion()
 
@@ -928,6 +929,82 @@ func _until_state(p: Player, s: Player.Move, n: int) -> bool:
 			return true
 		await frames(1)
 	return p.state == s
+
+
+## E1's solo route: carry two crates to the wall, stack them, and climb an edge
+## that would otherwise take a leg-up.
+func test_crate_stack() -> void:
+	print("Movement: stacking crates")
+	var a := arena()
+	_high_wall(a, 3.4)  # face at z = -2
+	var one := Crate.make(a, Vector3(2.0, 0, 1.0))
+	var two := Crate.make(a, Vector3(-2.0, 0, 1.0))
+	var p := spawn(a, Vector3(2.0, 0.05, 1.8))
+	await frames(15)
+	check(one.get_prompt(p) == "[E] " + Crate.PICK_UP, "a crate: pick it up")
+	one.interact(p)
+	await frames(2)
+	check(p.carrying == one and one.collision_layer == 0 and p._hands_full(), "it's in both hands")
+	forward(p, true)
+	await frames(60)
+	stop(p)
+	var carried := Vector2(p.global_position.x - 2.0, p.global_position.z - 1.8).length()
+	check(carried < Player.NOTEBOOK_WALK_SPEED * 1.0 + 0.2, "carrying it you walk slowly, even sprinting (%.2f m in a second)" % carried)
+	var ahead := one.global_position - p.global_position
+	check(Vector2(ahead.x, ahead.z).length() > 0.5 and ahead.y > 0.5, "it's in front of you, chest high")
+	# To the wall and down against it.
+	p.global_position = Vector3(0, 0.05, -2.0 + 0.6 + Crate.SET_AHEAD + 0.02)
+	p.rotation.y = 0.0
+	await frames(5)
+	var spot := one.set_down_spot(p)
+	check(one.set_down(p) and p.carrying == null, "E sets it down in front of you (%s, from %s)" % [spot, p.global_position])
+	await frames(2)
+	check(absf(one.global_position.y - Crate.SIZE / 2.0) < 0.02 and one.global_position.z < -1.6 and one.collision_layer != 0, "on the floor against the wall (z %.2f)" % one.global_position.z)
+	# The second, onto the first.
+	p.global_position = Vector3(-2.0, 0.05, 1.8)
+	await frames(10)
+	two.interact(p)
+	await frames(2)
+	check(not one.get_prompt(p).contains(Crate.PICK_UP), "with one in your hands you can't pick up another")
+	p.global_position = Vector3(0.1, 0.05, -2.0 + 0.6 + Crate.SET_AHEAD + 0.02)
+	await frames(5)
+	check(two.set_down(p), "and set it down on top of the first")
+	await frames(2)
+	check(absf(two.global_position.y - Crate.SIZE * 1.5) < 0.02 and absf(two.global_position.x - one.global_position.x) < 0.01 and absf(two.global_position.z - one.global_position.z) < 0.01,
+		"it squares up on it: a stack %.1f m high" % (Crate.SIZE * 2))
+	check(one.get_prompt(p) == "", "and the bottom one can't be pulled out from under it")
+	# Up the stack and up the wall.
+	p.global_position = Vector3(0, 0.05, -0.8)
+	await frames(10)
+	var up := false
+	for i in 4:
+		forward(p)
+		p.controls.jump = true
+		for f in 80:
+			await frames(1)
+			if p.state == Player.Move.HANG:
+				p.controls.jump = true
+			if p.state == Player.Move.WALK and p.is_on_floor() and p.global_position.y > 3.3:
+				up = true
+				break
+		if up:
+			break
+	stop(p)
+	check(up, "up the stack, then up the %.1f m wall (y %.2f)" % [3.4, p.global_position.y])
+	await done(a)
+
+	# No setting it down through a wall, or too high.
+	a = arena()
+	Greybox.box(a, Vector3(0, 1.5, -1.0), Vector3(6, 3, 0.1), Color.DIM_GRAY)
+	var c := Crate.make(a, Vector3(0, 0, 0.5))
+	p = spawn(a, Vector3(0, 0.05, 1.2))
+	await frames(10)
+	c.interact(p)
+	await frames(2)
+	p.global_position = Vector3(0, 0.05, -0.7)
+	await frames(5)
+	check(not c.set_down(p) and p.carrying == c and p.hud == null, "up against a wall there's no room in front of you: you keep it")
+	await done(a)
 
 
 func test_shoulders() -> void:
