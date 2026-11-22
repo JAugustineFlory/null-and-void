@@ -49,6 +49,7 @@ var _search: Node3D
 
 
 func _ready() -> void:
+	SfxMonster.attach(self)  # its voice and footfalls, heard on every machine
 	add_to_group("npc")
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()

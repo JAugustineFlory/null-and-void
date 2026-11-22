@@ -93,6 +93,21 @@ const KINDS := {
 	"lift_ride": {"unit": 3.0, "db": -8.0},
 	# A fire extinguisher let off (Combat): a burst and a hiss.
 	"extinguisher": {"unit": 6.0, "pitch": 0.05},
+	# The monsters (SfxMonster, SfxCreatures): big things carry.
+	"shredder_breath": {"unit": 5.0, "db": -4.0, "pitch": 0.08},
+	"shredder_roar": {"unit": 12.0, "pitch": 0.06},
+	"shredder_snarl": {"unit": 8.0, "pitch": 0.1},
+	"heavy_step": {"unit": 8.0, "pitch": 0.1},
+	"servo": {"unit": 5.0, "db": -6.0},
+	"robot_step": {"unit": 7.0, "db": -2.0, "pitch": 0.08},
+	"robot_boot": {"unit": 10.0},
+	"robot_alert": {"unit": 10.0, "db": -2.0},
+	"robot_down": {"unit": 8.0, "db": -2.0},
+	"sparks": {"unit": 5.0, "pitch": 0.15},
+	"watcher_step": {"unit": 2.0, "db": -8.0, "pitch": 0.1},
+	"watcher_creak": {"unit": 3.0, "db": -4.0, "pitch": 0.08},
+	"echo_hum": {"unit": 1.5, "db": -10.0, "max": 10.0},
+	"echo_release": {"unit": 4.0, "db": -4.0},
 	"fluorescent_buzz": {"bus": AMBIENCE, "unit": 1.2, "db": -18.0, "max": 10.0},
 	"crt_whine": {"bus": AMBIENCE, "unit": 0.8, "db": -20.0, "max": 5.0},
 	"server_hum": {"bus": AMBIENCE, "unit": 3.0, "db": -10.0, "max": 18.0},
@@ -133,7 +148,12 @@ static func stream(kind: String) -> AudioStream:
 	if not _streams.has(kind):
 		_streams[kind] = _recorded(kind, DIR)
 		if _streams[kind] == null:
-			_streams[kind] = SfxPunches.takes(kind) if SfxPunches.KINDS.has(kind) else SfxSynth.make(kind)
+			if SfxPunches.KINDS.has(kind):
+				_streams[kind] = SfxPunches.takes(kind)
+			elif SfxCreatures.KINDS.has(kind):
+				_streams[kind] = SfxCreatures.make(kind)
+			else:
+				_streams[kind] = SfxSynth.make(kind)
 	return _streams[kind]
 
 
