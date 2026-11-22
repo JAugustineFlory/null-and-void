@@ -208,6 +208,9 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 		{"names": ["LostFound"], "zone": z.lobby, "mat": ArtPalette.surface("laminate", Color(0.8, 0.8, 0.8))},
 		{"names": ["Partition"], "zone": z.lobby, "mat": ArtPalette.surface("partition")},
 		{"names": ["Chair"], "zone": z.lobby, "mat": ArtPalette.flat(Color(0.36, 0.14, 0.16), 0.95)},  # maroon waiting-room fabric
+		# The staff rooms off the lobby and the hall
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.VISITOR_BADGES, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(0.85, 0.9, 1.0))},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.SECURITY, 3.5, -0.2, 0.5), "mat": lino},
 		# Hall to Server Room A
 		{"names": ["Floor"], "zone": z.hall, "mat": ArtPalette.surface("floor_tile")},
 		{"names": ["Ceiling"], "zone": z.hall, "mat": tiles},
@@ -236,6 +239,9 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 	ArtProps.exit_sign(dress, Vector3(lobby.end.x - 0.12, 3.3, GroundFloor.HALL_Z), 90)
 
 	_front_office(geo, dress)
+	DressGroundRooms.window_frames(dress)
+	DressGroundRooms.visitor_badges(geo, dress)
+	DressGroundRooms.security_post(geo, dress)
 
 	# Hall: one more notice.
 	ArtProps.poster(dress, Vector3(GroundFloor.PASSAGE_X - 3.0, 1.6, GroundFloor.HALL.position.y + 0.11), 180,

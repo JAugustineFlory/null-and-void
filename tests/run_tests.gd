@@ -1899,9 +1899,40 @@ func test_ground_floor() -> void:
 	var in_office: Vector3 = G.mid(G.FRONT_OFFICE)
 	var over := NavigationServer3D.map_get_path(map, lobby, in_office, true)
 	check(over.is_empty() or over[over.size() - 1].distance_to(in_office) > 1.5, "and nobody walks into it: the only way behind the desk is over it")
+	# Front of house: visitor badges and the security post are furnished, seen through
+	# their windows from the lobby, and still shut for the night (their doors are
+	# among the locked ones above).
+	var all_seats: Array = level.find_children("*", "Seat", true, false)
+	var badges: AABB = G.box(G.VISITOR_BADGES, 2.5)
+	var post: AABB = G.box(G.SECURITY, 2.5)
+	var badge_seats: Array = all_seats.filter(func(s): return badges.has_point(level.to_local(s.global_position)))
+	var waiting: int = badge_seats.filter(func(s): return s.get_parent().name.begins_with("CafeChair")).size()
+	check(badge_seats.size() == 7 and waiting == 5 and level.geo.has_node("BadgeCounter") and level.geo.has_node("IdCamera"),
+		"visitor badges has its counter, the ID camera, the clerk's two chairs and five to wait on (%d seats, %d waiting)" % [badge_seats.size(), waiting])
+	var post_seats: Array = all_seats.filter(func(s): return post.has_point(level.to_local(s.global_position)))
+	var monitors: Array = level.find_children("CameraMonitors", "Node3D", true, false)
+	check(post_seats.size() == 1 and post_seats[0].get_parent().has_node("Jacket"), "the security post has one chair, empty, a jacket over its back (%d)" % post_seats.size())
+	check(monitors.size() == 1 and post.has_point(level.to_local(monitors[0].global_position)) and monitors[0].get_node("MonitorGlow").visible
+			and (-monitors[0].global_basis.z).dot(post_seats[0].global_position - monitors[0].global_position) > 0.0,
+		"and its camera monitors are on, their screens toward that chair")
+	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
+	for w in [["visitor badges", G.VISITOR_WINDOW, -1.0], ["the security post", G.SECURITY_WINDOW, 1.0]]:
+		var eye: Vector3 = level.to_global(Vector3(w[1].x - w[2] * 1.5, 1.6, w[1].y))  # in the lobby, at the glass
+		var into: Vector3 = eye + Vector3(w[2] * 4.0, 0, 0)
+		var q := PhysicsRayQueryParameters3D.create(eye, into)
+		var pane := space.intersect_ray(q)
+		var is_pane: bool = not pane.is_empty() and str(pane.collider.name).begins_with("Window")
+		if is_pane:
+			q.exclude = [pane.rid]
+		check(is_pane and space.intersect_ray(q).is_empty(), "from the lobby you look through a window into %s, and the glass is solid" % w[0])
 	# Nothing discoverable is labelled.
 	var labels: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text.to_upper())
 	check(not labels.any(func(t): return t.contains("VENT") or t.contains("AIR RETURN")), "vents carry no labels")
+	# The staff rooms' doors carry their signs, word for word as approved (2026-11-22), once each.
+	var signs := ["VISITOR BADGES", "SECURITY", "FACILITIES", "FACILITIES MANAGER", "CONFERENCE ROOM", "BUILDING SERVICES", "JANITOR", "KITCHEN", "RECEIVING"]
+	var missing: Array = signs.filter(func(s): return labels.count(s) != 1)
+	check(missing.is_empty(), "each staff room's door has its sign (not right: %s)" % [missing])
+	check(not labels.any(func(t): return t.contains("LOST")), "and the lost property shelf carries no label")
 	# The Hum: it grows while you stand in the dark corridor, and fades with your flashlight on.
 	var hum: Hum = level.hum
 	p.flashlight.visible = false
