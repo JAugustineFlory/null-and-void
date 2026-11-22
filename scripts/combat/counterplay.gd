@@ -69,8 +69,6 @@ var blasts_left := BLASTS
 var log := []
 
 var _had_extinguisher := false
-## Blasts the extinguisher just picked up (off the floor) has; -1 for a full one.
-var _incoming_blasts := -1
 var _blast_cd := 0.0
 var _strobe_cd := 0.0
 var _strobe_held := 0.0
@@ -105,9 +103,23 @@ func _ready() -> void:
 	if inv:
 		_had_extinguisher = inv.has(EXTINGUISHER)
 		inv.changed.connect(_on_inventory_changed)
+	# Gear on the floor: an extinguisher picked up has the blasts it had.
+	for g in level.find_children("*", "GearPickup", true, false):
+		_watch_gear(g)
+	get_tree().node_added.connect(func(n): if n is GearPickup: _watch_gear.call_deferred(n))
 
 
 # --- What enemies ask --------------------------------------------------------
+
+## Whoever is hiding in `spot` (a Player or a teammate's puppet), or null.
+static func hiding_in(spot: Node) -> Node3D:
+	if spot == null or not spot.is_inside_tree():
+		return null
+	for b in spot.get_tree().get_nodes_in_group("player"):
+		if b.get_viewport() == spot.get_viewport() and hidden_in(b) == spot:
+			return b
+	return null
+
 
 ## The HidingSpot `body` (a Player or a teammate's puppet) is in, or null.
 static func hidden_in(body: Node) -> Node:
@@ -262,11 +274,6 @@ func report_hide(spot: Node, on: bool) -> void:
 	_ask("_host_hide", [level.get_path_to(spot) if on else NodePath(""), on])
 
 
-## This machine's player picks up a thrown thing.
-func pick_up(it: Node) -> void:
-	_ask("_host_pick_up", [level.get_path_to(it)])
-
-
 func _process(delta: float) -> void:
 	_lights_age += delta
 	_blast_cd = maxf(0.0, _blast_cd - delta)
@@ -297,9 +304,25 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_inventory_changed() -> void:
 	var has: bool = _my_inventory().has(EXTINGUISHER)
 	if has and not _had_extinguisher:
-		blasts_left = _incoming_blasts if _incoming_blasts >= 0 else BLASTS
-	_incoming_blasts = -1
+		blasts_left = BLASTS  # a full one, unless the gear it came off says otherwise (_on_gear_picked)
 	_had_extinguisher = has
+
+
+func _watch_gear(g: Node) -> void:
+	if is_instance_valid(g) and level.is_ancestor_of(g) and not g.picked.is_connected(_on_gear_picked):
+		g.picked.connect(_on_gear_picked.bind(g))
+
+
+## Every machine: someone took gear `got` off the floor, leaving `left` there.
+func _on_gear_picked(peer: int, got: String, left: String, g: Node) -> void:
+	if peer != _my_id():
+		return
+	if got == EXTINGUISHER:
+		blasts_left = int(g.get_meta("blasts", BLASTS))
+		g.remove_meta("blasts")
+	if left == EXTINGUISHER:
+		# The one we put down keeps what we had left in it, on every machine.
+		_ask("_host_gear_blasts", [level.get_path_to(g), blasts_left])
 
 
 # --- The host decides ------------------------------------------------------------
@@ -332,12 +355,12 @@ func _host_throw(id: int, item: String, eye: Vector3, dir: Vector3, left: int) -
 	if is_instance_valid(hit):
 		hit.counter("thrown", land)
 	_hear(land, THROW_LOUDNESS)
-	_run("_landed", [land])
+	var flat := land - path[0]
+	_run("_landed", [item, land, left, "Thrown%d" % _throws, rad_to_deg(atan2(-flat.x, -flat.z))])
 
 
-func _host_pick_up(id: int, path: NodePath) -> void:
-	if level.get_node_or_null(path) is ThrownItem:
-		_run("_picked", [path, id])
+func _host_gear_blasts(_id: int, path: NodePath, left: int) -> void:
+	_run("_gear_blasts", [path, left])
 
 
 func _host_hide(id: int, path: NodePath, on: bool) -> void:
@@ -469,29 +492,28 @@ func _strobe_fx(id: int) -> void:
 	tw.tween_property(torch, "light_energy", base, 0.01)
 
 
-func _thrown_fx(item: String, path: PackedVector3Array, time: float, left: int, node_name: String) -> void:
-	var it := ThrownItem.make(level, item, path[0], left)
-	it.name = node_name
+func _thrown_fx(item: String, path: PackedVector3Array, time: float, _left: int, node_name: String) -> void:
+	var it := ThrownItem.make(level, item, path[0])
+	it.name = "Flying" + node_name
 	it.fly(path, time)
 
 
-func _landed(at: Vector3) -> void:
+## Down: it lies where it landed as gear anyone can pick up (the same node on every machine).
+func _landed(item: String, at: Vector3, left: int, node_name: String, yaw_deg: float) -> void:
+	var flying := level.get_node_or_null("Flying" + node_name)
+	if flying:
+		flying.queue_free()
+	var g := GearPickup.make(level, item, (level as Node3D).to_local(at), yaw_deg)
+	g.name = node_name
+	if left >= 0:
+		g.set_meta("blasts", left)
 	Sfx.play(level, LAND_SOUND, (level as Node3D).to_local(at))
 
 
-func _picked(path: NodePath, id: int) -> void:
-	var it := level.get_node_or_null(path)
-	if not it is ThrownItem:
-		return
-	var item: String = it.item
-	var left: int = it.blasts
-	it.queue_free()
-	if id != _my_id():
-		return
-	var inv = _my_inventory()
-	if inv and not inv.has(item):
-		_incoming_blasts = left
-		inv.add(item)
+func _gear_blasts(path: NodePath, left: int) -> void:
+	var g := level.get_node_or_null(path)
+	if g:
+		g.set_meta("blasts", left)
 
 
 # --- Plumbing --------------------------------------------------------------------
@@ -505,7 +527,7 @@ func _ask(method: String, args: Array) -> void:
 
 @rpc("any_peer", "reliable")
 func _ask_host(method: String, args: Array) -> void:
-	if _is_host() and method in ["_host_blast", "_host_strobe", "_host_throw", "_host_pick_up", "_host_hide"]:
+	if _is_host() and method in ["_host_blast", "_host_strobe", "_host_throw", "_host_gear_blasts", "_host_hide"]:
 		callv(method, [multiplayer.get_remote_sender_id()] + args)
 
 

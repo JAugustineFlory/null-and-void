@@ -1,0 +1,1 @@
+- **Added:** strobe your flashlight at the Watcher, and it stays frozen for a moment after you look away.
