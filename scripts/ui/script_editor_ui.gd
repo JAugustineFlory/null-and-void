@@ -64,6 +64,9 @@ var _log_label: Label
 var _caps: Array = []
 var _key_names: Array = []
 var _error_line := -1
+## The selected case's script shape, with its pieces (Game.case_query), above the
+## editor while a script case is selected.
+var _case_line: RichTextLabel
 ## A one-off message on the status line ("Saved, 4 lines."), until the next change.
 var _message := ""
 
@@ -96,6 +99,23 @@ func _ready() -> void:
 	top_row.add_child(_title)
 	_modified = _text("", 18, INK)
 	top_row.add_child(_modified)
+
+	_case_line = RichTextLabel.new()
+	_case_line.name = "CaseQuery"
+	_case_line.bbcode_enabled = true
+	_case_line.fit_content = true
+	_case_line.scroll_active = false
+	_case_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_case_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for f in ["normal_font", "bold_font", "italics_font"]:
+		_case_line.add_theme_font_override(f, ThemeUtil.mono())
+		_case_line.add_theme_font_size_override(f + "_size", 15)
+	_case_line.add_theme_color_override("default_color", Color(0.85, 1.0, 0.85))
+	_case_line.visible = false
+	vbox.add_child(_case_line)
+	var game := get_node_or_null("/root/Game")
+	if game and game.has_signal("notebook_changed"):
+		game.notebook_changed.connect(show_case_query)
 
 	_code = CodeEdit.new()
 	_code.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -215,7 +235,23 @@ func open(rt: ScriptRuntime, ctx := {}) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	visible = true
 	_show_state()
+	show_case_query()
 	_code.grab_focus()
+
+
+## The selected case's query, if it's a script (a case worked in the runner): its
+## shape, with each piece found written in, in its kind's color.
+func show_case_query() -> void:
+	if _case_line == null:
+		return
+	var game := get_node_or_null("/root/Game")
+	if game == null:
+		return
+	var id: String = game.case_selected()
+	var q: String = game.case_query(id) if id != "" else ""
+	var is_script := RegEx.create_from_string("(?m)^\\s*(let |const |for \\(|while \\(|await )").search(q) != null
+	_case_line.text = PieceKind.query_bbcode(game.case_info(id), game.PIECE_MISSING) if is_script else ""
+	_case_line.visible = is_script
 
 
 func close() -> void:
