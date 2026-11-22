@@ -1,0 +1,2 @@
+- **Added:** doors sound the way they move: handles going down, hinges groaning, the knock against the stop, closers hissing them shut and the latch clicking home; sliding doors' bolts drawing and motors whirring.
+- **Added:** try a locked door and the music answers.
