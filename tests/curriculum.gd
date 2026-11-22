@@ -504,8 +504,8 @@ const PUZZLES := {
 		"needs": ["PATCH", "GET", "X-Api-Key", "/doors"],
 	},
 	# Level 7: B2, the machine room (plan/approvals/l7-text.md, DRAFT). Journey through
-	# JavaScript's last three chapters: a function (function, return, async), a list
-	# ([ ], length) and testing (the test bench, assert). Tokens are looked up off the
+	# JavaScript's last three chapters: testing (the test bench, assert), a function
+	# (function, return, async) and a list ([ ], length). Tokens are looked up off the
 	# admin's runbook, with no chapter. Nothing hunts on the bench; the dark comes next.
 	# A token: trade the key for one, then send it as a header.
 	"token": {
@@ -514,11 +514,18 @@ const PUZZLES := {
 		"teaches": ["/auth/token", "Authorization: Bearer"],
 		"needs": ["POST", "GET", "/auth/token", "Authorization: Bearer", "/lights"],
 	},
+	# The bench's first test (M1): one zone lit, and asserted.
+	"test": {
+		"level": 7,
+		"pressure": false,
+		"teaches": ["assert"],
+		"needs": ["let", "assert", "api.patch", "api.post", "/auth/token", "Authorization: Bearer", "/lights"],
+	},
 	# One zone on the bench: the admin's function, finished with return, and tested.
 	"restore": {
 		"level": 7,
 		"pressure": false,
-		"teaches": ["async function", "return", "assert"],
+		"teaches": ["async function", "return"],
 		"needs": ["let", "if", "!==", "async function", "return", "assert", "api.get", "api.patch", "api.post", "/auth/token", "Authorization: Bearer", "/lights"],
 	},
 	# Every zone on the bench, from a list, each asserted.

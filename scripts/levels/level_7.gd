@@ -50,6 +50,18 @@ extends LevelBase
 ## text. Every line players read or hear is a DRAFT in plan/approvals/l7-text.md
 ## until Augustine approves it word for word.
 ##
+## v0.10 package (plan/approvals/puzzle-flow-floor-b2.md, approved 2026-11-22: moves
+## M1-M5, lines X1-X34, word for word). Each case's request or script shows under its
+## chip, its blanks filled by pieces: the key off the sticky, the crew's token and
+## WARDEN's by pointing at them in an answer, a zone's id off a bench lamp or GET
+## /lights. The bench's first case is two steps: a first test (one lamp, one assert),
+## then the function, which the bench calls itself after every run on a lamp of its
+## own (bench_zone) and checks what comes back (X15-X19). The book's last three
+## chapters land with their steps. WARDEN's first cut follows the token; each plant
+## room's door locks as its gas is armed, one room at a time, the motor room 30 s
+## into the fight back; Rourke comes down 60 s in. Every screen runs under the
+## security policy.
+##
 ## Layout (level space, north is -z):
 ##   landing      x -4..4,   z 4..8     STAIR 2 (east wall): down from B1, the bottom
 ##   lift lobby   x -4..4,   z -6..4    lifts 1-4's doors (two come down here), the
@@ -101,6 +113,18 @@ const TEXT := {
 	"tip_controller": "409: the ring follows WARDEN's uplink while it's connected. it's patched in the network closet.",
 	"tip_no_sleep": "a loop that never waits never lets the building answer. put await sleep(1000); inside it.",
 	"tip_gas": "the suppression panel takes an empty body: POST /suppression/%s/abort {} with your token.",
+	"tip_key_header": "on B2 the key goes in the body of the token request, not a header: POST /auth/token {\"key\": \"...\"}",
+	"tip_not_bench": "that ran on the real floor, not the bench. this case wants it tested on the test bench first: same script, the bench's terminal.",
+	# The bench's own test of the script's restore(zone), after every run (X15-X19).
+	"bench_call_pass": "BENCH: called restore(\"%s\"). PASS: it handed back the zone, lit.",
+	"bench_call_none": "BENCH: called restore(\"%s\"). FAIL: it handed back nothing (undefined).",
+	"bench_call_dark": "BENCH: called restore(\"%s\"). FAIL: it handed back an answer, but %s is still dark.",
+	"bench_call_stopped": "BENCH: called restore(\"%s\"). FAIL: it stopped: %s",
+	"bench_call_missing": "BENCH: no restore(zone) in the script, so nothing to call.",
+	# The bench's first case, step 1 (X8); step 2 is case_restore_do.
+	"case_restore_test": "Light one lamp on the bench and check it with assert",
+	# .hint while a plant room's gas counts down (X29): its name, its id.
+	"hint_gas": "the %s's gas is counting down. the sign by its door has the abort: POST /suppression/%s/abort {}, with your token.",
 	# The fight (case 4) and the lifts (case 5).
 	"case_lights": "He's cutting the lights. Run it for real",
 	"case_lights_do": "From a deck or the admin terminal, run your tested script on the real floor: every ring zone lit at once, with a fresh token at the top",
@@ -124,7 +148,7 @@ const TEXT := {
 	"warden_done_watchdog": "The watchdog caught him holding a zone, and the fault took it off him.",
 	"beaten": "Every light in the ring comes on, and stays on.",
 	"trapped": "%s's door slams shut. The lock won't open from inside.",
-	"gas_armed": "Gas suppression armed in the %s. %s is inside. Discharge in %d seconds.",
+	"gas_armed": "Gas suppression armed in the %s. %s is inside. Discharge in %d seconds. Abort it with a token: POST /suppression/%s/abort {}",
 	"gas_warn": "Thirty seconds until the %s discharges.",
 	"gas_saved": "The suppression panel reads ABORTED. %s is safe in there.",
 	"gas_lost": "A roar of gas behind the %s's door. Then nothing. %s doesn't answer.",
@@ -204,8 +228,65 @@ const BENCH_CARD := [
 	"Its own fake floor. Nothing here touches the building.",
 	"Every run starts with the mock dark.",
 	"The bench counts every assert() that passes. That's a test.",
+	"A test for one lamp, after the token lines:",
+	{"text": "let res = await api.patch(\"/lights/<zone>\", {\"on\": true}, auth);", "hand": false},
+	{"text": "assert(res.body.on, \"<zone> is lit\");", "hand": false},
+	"If a script has a restore(zone), the bench calls it too, on a lamp",
+	"of its own, and checks what comes back.",
 	{"text": "test before you touch. every time. - G.P.", "hand": true},
+	{"text": "the emergency lamp never goes in a list.", "hand": true},
 ]
+## Runbook page 15, pinned beside page 14 in the admin office, with a copy taped to
+## the network closet's door (X23).
+const RUNBOOK_15 := [
+	"B2 BUILDING SERVICES  -  RUNBOOK  -  p.15  TOKENS",
+	"Who holds a token, and how to end one. Send your token with both, as on p.14.",
+	"1. Every token B2 has given out, oldest first:",
+	{"text": "GET /auth/log", "hand": false},
+	"   Each entry: the token, its holder, when it was issued, and its state: ok, expired or revoked.",
+	"2. To end a token before it runs out:",
+	{"text": "POST /auth/revoke {\"token\": \"<the token>\"}", "hand": false},
+	"   A token can always revoke itself. One traded for the admin key can revoke anyone's.",
+	{"text": "lost a token? revoke it. don't wait for it to run out. - G.P.", "hand": true},
+]
+## G.P.'s sticky on the test bench (X24).
+const WATCHDOG_STICKY := "if the ring flickers: a watchdog. while (true): restore every zone, assert each one, sleep a second, go again. never leave out the sleep. G.P."
+## The laminated card by the elevator call panel in the lobby (X30).
+const LIFT_CARD := [
+	"ELEVATORS  -  RESTART AFTER A FAULT",
+	"From building services, with a token:",
+	{"text": "POST /lifts/<id>/restart {}", "hand": false},
+	"Then GET /lifts/<id> until it says in service.",
+	"GET /lifts lists the ids: LIFT-1 is elevator 1.",
+	"The freight elevator has its own sign.",
+]
+
+## The requests and scripts under each case's chip (X1, X2, and each station's hint
+## 1 shape), {piece} where a piece goes.
+const TOKEN_QUERY := "POST /auth/token {\"key\": \"{key}\"}"
+const TOKEN_READ_QUERY := "GET /lights\nAuthorization: Bearer {token}"
+const TEST_QUERY := "let key = \"{key}\";\nlet login = await api.post(\"/auth/token\", {\"key\": key});\nlet auth = {\"Authorization\": \"Bearer \" + login.body.token};\nlet res = await api.patch(\"/lights/{zone}\", {\"on\": true}, auth);\nassert(res.body.on, \"{zone} is lit\");"
+const ROUTES_QUERY := "PATCH /controller {\"source\": \"local\"}\nGET /auth/log\nPOST /auth/revoke {\"token\": \"{warden_token}\"}"
+const LIFTS_QUERY := "GET /lifts\nPOST /lifts/enter_id/restart {}"
+## The pieces (X3, X4, X10, X21, X22).
+const KEY_PIECE := {"id": "key", "label": "B2's service key", "task": "Find the key B2's services answer to", "where": "The sticky under the admin's keyboard", "blank": "enter_key"}
+const TOKEN_PIECE := {"id": "token", "label": "A token of our own", "task": "Trade the key for a token", "where": "B2's answer to POST /auth/token", "blank": "enter_token"}
+const ZONE_PIECE := {"id": "zone", "label": "A zone's id", "task": "Find the id of a zone to light", "where": "The lamps on the test bench", "blank": "enter_zone"}
+const ZONES_PIECE := {"id": "zones", "label": "Every ring zone's id", "task": "Find the ids of all six ring zones", "where": "The lamps on the test bench", "blank": "enter_zones"}
+const WARDEN_PIECE := {"id": "warden_token", "label": "WARDEN's token", "task": "Find the token WARDEN is using", "where": "B2's auth log: GET /auth/log", "blank": "enter_token"}
+## The bench's first case's two steps (M1): the first test (X8), then the function.
+const RESTORE_STEPS := [{"id": "test", "text": TEXT.case_restore_test}, {"id": "function", "text": TEXT.case_restore_do}]
+## `.hint`'s first tiers, each a paper in the building, skipped once someone's read it.
+const SPOT_RUNBOOK := "the runbook page pinned by this terminal says how B2's services take requests now."
+const SPOT_KEY := "the service key's on a sticky under this desk's keyboard."
+const SPOT_BENCH_CARD := "the card on the bench says what the bench counts as a test."
+const SPOT_PRINTOUT := "every B2 script starts with a token. the admin's printout over the bench starts that way."
+const SPOT_RUNBOOK_15 := "page 15 of the runbook, beside page 14 in the admin office, says how to see every token and end one."
+const SPOT_WATCHDOG := "the admin left a sticky on the test bench about keeping the ring lit."
+const SPOT_PLATE := "the plate on the lighting controller, inside the network closet, says what to do once the uplink's out."
+const SPOT_LIFT_CARD := "the card by the elevator doors, in the lobby, says how to restart a car."
+## Which chapter lands with which moment (M2).
+const CHAPTER_OF := {"restore": "js_testing", "test": "js_functions", "zones": "js_lists"}
 ## The admin's printout, taped over the bench: a function to light one zone, never
 ## finished (it doesn't hand its answer back). %s is the key; DRAFT.
 const PRINTOUT := [
@@ -296,8 +377,6 @@ const RING_HEIGHT := 2.8
 const LAMP_OFF := Color(0.14, 0.14, 0.13)
 const LAMP_ON := Color(1.0, 0.85, 0.45)
 const LAMP_STANDBY := Color(0.55, 0.08, 0.06)
-## WARDEN's first cut, this long after the crew steps off the stairs.
-const FIRST_CUT_AFTER := 14.0
 
 var data: Dictionary
 ## The floor's services, and the test bench's mock of them.
@@ -331,13 +410,15 @@ var _voice: Voice
 signal completed
 
 var token_puzzle: RequestPuzzle
+## The bench's first case, step 1 (M1): one lamp and an assert. restore_puzzle is
+## step 2, the function the bench calls itself.
+var test_puzzle: RequestPuzzle
 var restore_puzzle: RequestPuzzle
 var zones_puzzle: RequestPuzzle
 var lights_puzzle: RequestPuzzle
 var warden_puzzle: RequestPuzzle
 var lifts_puzzle: RequestPuzzle
 ## Timings, here so tests can shorten them.
-var first_cut_after := FIRST_CUT_AFTER
 ## WARDEN's beat in the fight (<= 0: the run's, data.cut_every), the waits before his
 ## failovers, the lifts' restart, the car, the ride; and each plant room's gas
 ## countdown (empty: the run's, data.suppression).
@@ -348,6 +429,14 @@ var lift_start := 4.0
 var car_after := 3.0
 var ride_time := 12.0
 var gas_seconds := {}
+## M3: WARDEN's first cut, this long after B2 first answers the crew (the token).
+var token_cut_after := 6.0
+## M5: the motor room arms this long into the fight back (or at the first route step,
+## if that's sooner); the battery room no sooner than this after it; Rourke comes
+## down this long into the fight back.
+var motor_after := 30.0
+var ups_gap := 30.0
+var rourke_after := 60.0
 ## A watchdog's run counts once it has relit this many zones WARDEN cut.
 var watchdog_relights := 3
 
@@ -395,6 +484,29 @@ var _cut_rng := RandomNumberGenerator.new()
 var _relit := {}
 ## Each floor screen's watchdog count for the run going now.
 var _relights := {}
+## The bench's own call of the script's restore(zone), for the run going now (host):
+## "" not called, "called", then "answered" with what came back.
+var _bench_call := ""
+var _bench_answer: Variant = null
+## The bench's report as the script left it, before the bench's own call.
+var _report_lit := -1
+var _report_passes := 0
+## Chapters waiting to land, one at a time (M2).
+var _chapters: Array = []
+var _landing := false
+## Rooms whose gas is counting down and whose `.hint` line (X29) is still owed.
+var _gas_hint: Array = []
+## Seconds since the fight back started (stage 2), for the motor room's arming and Rourke.
+var _fight_clock := 0.0
+var _ups_wanted := false
+var _rourke_sent := false
+## The fight clock when each room was armed (host).
+var _armed_at := {}
+## The token case's shape is on its second request; the values the crew pointed at.
+var _token_asked := false
+var _token_value := ""
+var _zone_value := ""
+var _warden_value := ""
 
 
 ## A screen's way into the services: the floor's own, or the bench's mock. Every
@@ -413,6 +525,14 @@ class Link:
 		var res: Dictionary = to.send(method, path, headers, body)
 		level._on_sent(self, method, path, headers, res)
 		return res
+
+	## The bench's own test, run after the script's lines (JSRuntime): if the script
+	## has a restore(zone), the bench calls it on its own lamp and checks the answer.
+	func script_suffix() -> String:
+		return level.bench_suffix() if service == "bench" else ""
+
+	func script_globals() -> Dictionary:
+		return level.bench_globals() if service == "bench" else {}
 
 
 func build() -> void:
@@ -513,6 +633,11 @@ func _build_lobby(colors: Dictionary) -> void:
 	Greybox.box(geo, Vector3(-2.4, 0.5, -3.3), Vector3(0.5, 1.0, 0.1), Color(0.85, 0.75, 0.1), "OutOfServiceStand")
 	Document.place(geo, Vector3(-2.4, 0.8, -3.24), 180, "Lift stand", STAND_LINES, false, "laminated", Vector2(0.4, 0.3))
 	Document.place(geo, Vector3(-3.87, 1.5, -0.6), -90, "Facilities memo", MEMO_LINES, false, "paper")
+	# The call panel beside the first car's doors, and the restart card by it (X30).
+	Greybox.box(geo, Vector3(-3.95, 1.1, -3.45), Vector3(0.06, 0.3, 0.14), Color(0.55, 0.55, 0.58), "LiftCallPanel")
+	var lift_card := Document.place(geo, Vector3(-3.87, 1.55, -3.2), -90, "Elevator card", LIFT_CARD, false, "laminated", Vector2(0.24, 0.18))
+	lift_card.name = "LiftCard"
+	lift_card.spot = "lift_card"
 
 
 func _build_motor_room(colors: Dictionary) -> void:
@@ -546,13 +671,23 @@ func _build_office(colors: Dictionary) -> void:
 		"Services: /auth/token  /lights  /lifts      Scripts: .script",
 	]
 	admin_terminal.requested.connect(_on_request.bind("admin"))
+	admin_terminal.policy = true  # P1, under its first line
 	var sticky := Document.place(geo, Vector3(13.1, 1.003, -2.6), -90, "Key sticky", [{"text": KEY_STICKY % data.key, "hand": true}], true, "sticky")
 	sticky.name = "KeySticky"
+	sticky.spot = "key_sticky"
 	sticky.clues = [{"case": "token", "text": "Under the admin's keyboard: B2's service key, %s (lights, lifts)." % data.key}]
+	sticky.pieces = ["token", "restore", "zones", "lights_out"].map(func(c): return {"case": c, "piece": "key", "text": data.key, "kind": "value"})
 	var runbook := Document.place(geo, Vector3(13.88, 1.6, -1.6), 90, "Runbook page", _runbook(), false, "paper", Vector2(0.21, 0.3))
 	runbook.name = "Runbook"
+	runbook.spot = "runbook"
 	runbook.clues = [{"case": "token", "opens": TEXT.case_token, "text": "The runbook: POST /auth/token {\"key\": ...} trades the key for a token. Then every request sends Authorization: Bearer <token>. Tokens run out; the page's example is long dead."}]
 	runbook.read_by.connect(func(_p): sync.event("_ask", ["token"]))
+	# Page 15 beside it (X23): who holds a token, and how to end one.
+	var page_15 := Document.place(geo, Vector3(13.88, 1.6, -1.12), 90, "Runbook page 15", RUNBOOK_15, false, "paper", Vector2(0.21, 0.3))
+	page_15.name = "Runbook15"
+	page_15.spot = "runbook_15"
+	# The policy card (P5), on the desk left of the keyboard.
+	TerminalPolicy.place_card(geo, Vector3(13.05, 1.002, -4.05), -90, true).name = "PolicyCard"
 	# The test bench along the north wall: the mock lighting panel, its terminal, its
 	# card, and the admin's unfinished function taped above it.
 	Greybox.box(geo, Vector3(8.5, 0.5, -5.4), Vector3(5.0, 1.0, 0.9), Color(0.32, 0.34, 0.36), "TestBench")
@@ -566,6 +701,14 @@ func _build_office(colors: Dictionary) -> void:
 		lamp.name = "Lamp_" + z.id
 		_bench_lamps[z.id] = lamp
 		Greybox.label(geo, at + Vector3(0, -0.24, 0.01), z.id, 14, Color(0.85, 0.85, 0.8), 0).name = "LampLabel_" + z.id
+		# Its id on a laminated tag behind the label: pointing at it finds a zone's id
+		# (any lamp: the emergency one's is real too, and gets its 403), and any ring
+		# lamp's finds the row's (X10, X21).
+		var tag := Document.place(geo, at + Vector3(0, -0.24, 0.0), 180, "Lamp " + z.id, [z.id], false, "laminated", Vector2(0.3, 0.06))
+		tag.name = "LampTag_" + z.id
+		tag.pieces = [{"case": "restore", "piece": "zone", "text": z.id, "kind": "value"}]
+		if z.id != data.emergency.id:
+			tag.pieces.append({"case": "zones", "piece": "zones", "text": z.id, "kind": "value"})
 	Greybox.label(geo, Vector3(8.5, 1.18, -5.78), EM_LABEL, 11, Color(0.85, 0.3, 0.25), 0)
 	_bench_readout = Greybox.label(geo, Vector3(8.5, 2.12, -5.78), "", 18, Color(0.5, 1.0, 0.6), 0)
 	_bench_readout.name = "BenchReadout"
@@ -573,7 +716,8 @@ func _build_office(colors: Dictionary) -> void:
 	bench_terminal.name = "BenchTerminal"
 	bench_terminal.set_meta("scripts", true)
 	bench_terminal.set_meta("ticked_elsewhere", true)
-	bench_terminal.puzzles = [restore_puzzle, zones_puzzle]
+	bench_terminal.puzzles = [test_puzzle, restore_puzzle, zones_puzzle]
+	bench_terminal.policy = true
 	bench_terminal.boot_lines = [
 		"TEST BENCH  -  MOCK B2 LIGHTING",
 		"Same paths as the floor: /auth/token  /lights      Scripts: .script",
@@ -582,14 +726,17 @@ func _build_office(colors: Dictionary) -> void:
 	bench_terminal.requested.connect(_on_request.bind("bench"))
 	var card := Document.place(geo, Vector3(10.6, 1.003, -5.2), 0, "Bench card", BENCH_CARD, true, "laminated", Vector2(0.28, 0.22))
 	card.name = "BenchCard"
+	card.spot = "bench_card"
 	card.clues = [{"case": "restore", "text": "The test bench mocks B2's lighting: the same paths and zone ids, its own fake floor, dark at the start of every run. It counts every assert() that passes."}]
-	card.read_by.connect(func(_p): sync.event("_book_huddle", ["js_testing"]))
 	var printout := Document.place(geo, Vector3(11.2, 1.6, -5.92), 180, "Admin's printout", _printout(), false, "paper", Vector2(0.21, 0.3))
 	printout.name = "Printout"
-	printout.clues = [{"case": "restore", "opens": TEXT.case_restore, "text": "The admin's function: async function restore(zone) GETs a zone and PATCHes it on if it's dark. It never hands its answer back, so the test after it fails."}]
-	printout.read_by.connect(func(_p):
-		sync.event("_ask", ["restore"])
-		sync.event("_book_huddle", ["js_functions"]))
+	printout.spot = "printout"
+	printout.clues = [{"case": "restore", "text": "The admin's function: async function restore(zone) GETs a zone and PATCHes it on if it's dark. It never hands its answer back, so the test after it fails."}]
+	printout.read_by.connect(func(_p): sync.event("_ask", ["restore"]))
+	# G.P.'s sticky about keeping the ring lit (X24).
+	var dog := Document.place(geo, Vector3(9.7, 1.003, -5.15), 0, "Admin's sticky", [{"text": WATCHDOG_STICKY, "hand": true}], true, "sticky")
+	dog.name = "WatchdogSticky"
+	dog.spot = "watchdog_sticky"
 	_show_bench()
 
 
@@ -631,6 +778,10 @@ func _build_ring() -> void:
 		{"wall": "s", "at": 0.0, "width": 1.2, "height": 2.2},
 	])
 	closet_door = add_door("B2-NETCL", Vector3(-8, 1.1, -9), Vector3(1.2, 2.2, 0.12))
+	# Runbook page 15's copy, taped to the door's outside (X23).
+	var copy := Document.place(closet_door, Vector3(0.25, 0.4, 0.07), 180, "Runbook page 15 (copy)", RUNBOOK_15, false, "paper", Vector2(0.21, 0.3))
+	copy.name = "Runbook15Copy"
+	copy.spot = "runbook_15"
 	Greybox.label(geo, Vector3(-8, 2.45, -8.88), "NETWORK CLOSET", 22, Color(0.8, 0.8, 0.75), 0)
 	for x in [-10.2, -9.2]:
 		Greybox.box(geo, Vector3(x, 1.0, -14.4), Vector3(0.8, 2.0, 0.8), Color(0.15, 0.16, 0.18), "PatchRack")
@@ -677,7 +828,9 @@ func _build_shelters() -> void:
 		if fight_stage in [2, 3] and not uplink_pulled:
 			sync.event("_pull_uplink"))
 	Greybox.label(geo, Vector3(-9.2, 1.6, -13.88), "SECURITY UPLINK  -  W.A.R.D.E.N.", 12, Color(0.6, 0.75, 1.0), 0)
-	Document.place(geo, Vector3(-5.82, 1.5, -12.5), 90, "Controller plate", CONTROLLER_PLATE, false, "laminated", Vector2(0.24, 0.18)).name = "ControllerPlate"
+	var plate := Document.place(geo, Vector3(-5.82, 1.5, -12.5), 90, "Controller plate", CONTROLLER_PLATE, false, "laminated", Vector2(0.24, 0.18))
+	plate.name = "ControllerPlate"
+	plate.spot = "controller_plate"
 
 
 func _gas_sign(room: String) -> Array:
@@ -787,7 +940,8 @@ func _make_decks() -> void:
 		d.set_meta("scripts", true)
 		d.set_meta("ticked_elsewhere", true)
 		d.requested.connect(_on_request.bind("deck"))
-		d.puzzles = [token_puzzle, restore_puzzle, zones_puzzle, lights_puzzle, warden_puzzle, lifts_puzzle]
+		d.policy = true  # a B2 screen too (P1)
+		d.puzzles = [token_puzzle, test_puzzle, restore_puzzle, zones_puzzle, lights_puzzle, warden_puzzle, lifts_puzzle]
 		d.focus_point = Marker3D.new()
 		d.focus_point.name = "FocusPoint"
 		d.focus_point.position = Vector3(0, 1.1, -0.3)
@@ -851,8 +1005,15 @@ func start() -> void:
 		player.inventory.selected.connect(_on_selected)
 	hud.todo(TASK_TITLES.todo_arrive, TEXT.todo_arrive)
 	_lines(["l7_arrive_pa", "l7_arrive_tease", "l7_ines_lobby"], 0.8)
-	# WARDEN hears the crew below him, and starts on the ring's lights.
-	_later(first_cut_after, "_cut", [data.first_cut])
+	# WARDEN's first cut waits for the crew's first token (M3: _on_solved).
+	for t in _script_terminals():
+		t.hint_first = _gas_hint_line
+	Game.cell_rule = Callable()  # B2 has no answer slots: its pieces are pointed at
+	if not Game.cell_missed.is_connected(_on_cell_missed):
+		Game.cell_missed.connect(_on_cell_missed)
+	if not Game.piece_found.is_connected(_on_piece_found):
+		Game.piece_found.connect(_on_piece_found)
+	_set_cases()
 
 
 ## A line by id: Voice's recording and subtitle once VoiceLines has it.
@@ -920,6 +1081,7 @@ func _make_api(bench: bool) -> FacilityAPI:
 		return {"status": 200, "body": _lift_json(l)}, "lifts", "token")
 	a.route("POST", "/lifts/:id/restart", func(p, req):
 		return _restart(str(p[0]), req), "lifts", "token")
+	a.empty_body_ok("POST", "/lifts/:id/restart")  # a restart with no body counts as {}
 	# The fight's services: the ring's controller, the auth log, the plant rooms' gas.
 	a.route("GET", "/controller", func(_p):
 		return {"status": 200, "body": _controller_json()}, "lights", "token")
@@ -931,6 +1093,7 @@ func _make_api(bench: bool) -> FacilityAPI:
 		return {"status": 200, "body": {"rooms": gas.keys().map(_gas_json)}}, "plant", "token")
 	a.route("POST", "/suppression/:id/abort", func(p, req):
 		return _abort_gas(str(p[0]).to_upper(), req), "plant", "token")
+	a.empty_body_ok("POST", "/suppression/:id/abort")
 	return a
 
 
@@ -1007,9 +1170,10 @@ func _cut(ids: Array) -> void:
 		_lines(["l7_cut_pa", "l7_cut_tease"], 0.8)
 
 
+## A lift by id; the walls' bare number works too ("1" is LIFT-1).
 func _lift(id: String) -> Dictionary:
 	for l in data.lifts:
-		if str(l.id).to_upper() == id.to_upper():
+		if str(l.id).to_upper() == id.to_upper() or str(l.id).to_upper() == "LIFT-" + id.to_upper():
 			return l
 	return {}
 
@@ -1097,6 +1261,19 @@ func _make_puzzles() -> void:
 		"then this, with the token it gave you after Bearer, and Enter twice:\n    [color=#ffffff]GET /lights\nAuthorization: Bearer <the token>[/color]",
 	], func(): return false)
 	token_puzzle.case_id = "token"
+	token_puzzle.spots = [{"id": "runbook", "text": SPOT_RUNBOOK}, {"id": "key_sticky", "text": SPOT_KEY}]
+	# 2a. The bench's first test (M1, step 1): one lamp, one assert. assert is new.
+	test_puzzle = RequestPuzzle.new("test", _test_script(key, data.zones[0].id), func(_l, _r): return false, [
+		"the shape, with the zone left as enter_zone:\n" +
+		"    [color=#ffffff]%s[/color]\n" % _test_script("enter_key", "enter_zone") +
+		"  the first three lines   the printout's top: a token for the key, and the header that carries it\n" +
+		"  api.patch(...)   the PATCH you'd type, from a script. res holds the answer\n" +
+		"  assert(res.body.on, \"... is lit\")   a test: stops the script with your words if it isn't true. on the bench, every assert that passes counts\n" +
+		"enter_key is the service key. enter_zone is a lamp's id. type .script to open the runner, then ^S saves and ^R runs it.",
+		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _test_script(key, data.zones[0].id),
+	], func(): return false)
+	test_puzzle.case_id = "restore"
+	test_puzzle.spots = [{"id": "bench_card", "text": SPOT_BENCH_CARD}, {"id": "printout", "text": SPOT_PRINTOUT}]
 	# 2. One zone on the bench: function, return, async and assert are new. Ladder A.
 	var zone: String = data.zones[0].id
 	restore_puzzle = RequestPuzzle.new("restore", _one_script(key, zone), func(_l, _r): return false, [
@@ -1148,6 +1325,7 @@ func _make_puzzles() -> void:
 		"lockout: when the closet's door opens, go in and pull the uplink (E). then type this, with your token:\n    [color=#ffffff]PATCH /controller\nAuthorization: Bearer <the token>\n\n{\"source\": \"local\"}[/color]",
 	], func(): return fight_stage >= 4)
 	warden_puzzle.case_id = "warden"
+	warden_puzzle.spots = [{"id": "runbook_15", "text": SPOT_RUNBOOK_15}, {"id": "watchdog_sticky", "text": SPOT_WATCHDOG}, {"id": "controller_plate", "text": SPOT_PLATE}]
 	# 5. The lifts: GET, then a POST for each car (a list again). Review ladder.
 	var passenger: Array = data.lifts.filter(func(l): return l.kind == "passenger").map(func(l): return l.id)
 	passenger.sort()
@@ -1159,12 +1337,18 @@ func _make_puzzles() -> void:
 		"type .script, then this, then ^R:\n    [color=#ffffff]%s[/color]" % _lifts_script(key, passenger),
 	], func(): return Game.case_info("lifts").get("solved", false))
 	lifts_puzzle.case_id = "lifts"
+	lifts_puzzle.spots = [{"id": "lift_card", "text": SPOT_LIFT_CARD}]
 
 
 ## The top every B2 script needs: a token for the key, and the header that carries it,
 ## then the admin's function, finished (it returns its answer).
 static func _restore_fn(key: String) -> String:
 	return "let key = \"%s\";\nlet login = await api.post(\"/auth/token\", {\"key\": key});\nlet auth = {\"Authorization\": \"Bearer \" + login.body.token};\n\nasync function restore(zone) {\n  let res = await api.get(\"/lights/\" + zone, auth);\n  if (res.body.on !== true) {\n    res = await api.patch(\"/lights/\" + zone, {\"on\": true}, auth);\n  }\n  return res;\n}\n" % key
+
+
+## The bench's first test (X2): the printout's top, one PATCH, one assert.
+static func _test_script(key: String, zone: String) -> String:
+	return TEST_QUERY.replace("{key}", key).replace("{zone}", zone)
 
 
 static func _one_script(key: String, zone: String) -> String:
@@ -1204,7 +1388,7 @@ static func _lifts_script(key: String, ids: Array) -> String:
 
 
 func puzzles() -> Array:
-	return [token_puzzle, restore_puzzle, zones_puzzle, lights_puzzle, warden_puzzle, lifts_puzzle]
+	return [token_puzzle, test_puzzle, restore_puzzle, zones_puzzle, lights_puzzle, warden_puzzle, lifts_puzzle]
 
 
 ## Host: a request typed at a terminal or deck. The services did the rest already,
@@ -1230,9 +1414,20 @@ func _on_sent(link: Link, method: String, path: String, headers: Dictionary, res
 		if str(h).to_lower() == "authorization":
 			auth = str(headers[h]).strip_edges()
 	var token := auth.substr(7).strip_edges() if auth.to_lower().begins_with("bearer ") else ""
+	var key_header := headers.keys().any(func(h): return str(h).to_lower() == "x-api-key")
+	if status == 201 and method == "POST" and path == "/auth/token" and link.service == "floor" and not _token_asked:
+		sync.event("_token_step")  # step 2 of the token case's shape: the GET with it
+	if status == 400 and method == "POST" and path == "/auth/token" and key_header:
+		sync.event("_tip", ["key_header", which])  # floor 9's habit (X7)
 	if status == 200 and (path.begins_with("/lights") or path.begins_with("/lifts")):
 		if not token_puzzle.solved:
 			sync.event("_on_solved", ["token"])
+	# A bench case's script run on the real floor (X20): lit for real, counted for nothing.
+	if status == 200 and method == "PATCH" and path.begins_with("/lights/") and link.service == "floor" and _bench_case_open():
+		var runner := _terminal(which)
+		var live = runner.get_meta("script_runtime") if runner and runner.has_meta("script_runtime") else null
+		if live and live.is_running():
+			sync.event("_tip", ["not_bench", which])
 	elif status == 401:
 		sync.event("_ask", ["token"])
 		if error.begins_with("This service takes tokens"):
@@ -1253,6 +1448,8 @@ func _on_sent(link: Link, method: String, path: String, headers: Dictionary, res
 		if link.service == "bench":
 			_bench_em = true
 		sync.event("_tip", ["em", which])
+		if _zone_value == data.emergency.id:
+			sync.event("_forget_zone")  # its 403 says so: the next lamp or id pointed at fills the blank
 	elif status == 404 and path.ends_with("/undefined"):
 		sync.event("_tip", ["no_zone", which, [data.zones[0].id]])
 	elif status == 423:
@@ -1284,6 +1481,18 @@ func _on_sent(link: Link, method: String, path: String, headers: Dictionary, res
 		sync.event("_tip", ["controller", which])
 	elif status == 400 and path.begins_with("/suppression/"):
 		sync.event("_tip", ["gas", which, [path.get_slice("/", 2).to_upper()]])
+
+
+## A bench case is the one waiting: its scripts belong on the bench.
+func _bench_case_open() -> bool:
+	return ["restore", "zones"].any(func(id): return Game.case_info(id).get("open", false) and not Game.case_info(id).get("solved", false))
+
+
+## Every machine: the crew traded the key for a token on the floor's services; the
+## token case's shape moves on to the request that uses it (X1).
+func _token_step() -> void:
+	_token_asked = true
+	_set_cases()
 
 
 ## Every machine: a SYSOP tip on the screen it was earned at (once per run). `args`
@@ -1323,24 +1532,33 @@ func _on_solved(id: String) -> void:
 			_open_case("token")
 			Game.solve_case("token", TEXT.token_done % [data.zones.size(), int(data.token_seconds)])
 			_next_case()
+			# M3: WARDEN hears them in B2's auth log, and starts on the ring's lights.
+			_later(token_cut_after, "_cut", [data.first_cut])
+		"test":
+			# The bench's first case, step 1 (M1): the function's chapter lands with it.
+			_open_case("restore")
+			Game.tick_step("restore", "test")
+			_set_cases()
+			_gate(CHAPTER_OF.test)
 		"restore":
 			_open_case("restore")
-			var lit: Array = data.zones.filter(func(z): return bench_on.get(z.id, false)).map(func(z): return z.id)
-			Game.solve_case("restore", TEXT.restore_done % (lit[0] if not lit.is_empty() else "A zone"))
-			_book_huddle("js_functions")
+			test_puzzle.solved = true
+			Game.solve_case("restore", TEXT.restore_done % data.bench_zone)
 			_next_case()
 		"zones":
 			_open_case("zones")
 			Game.solve_case("zones", TEXT.zones_done)
-			_book_huddle("js_lists")
-			_book_huddle("js_testing")
 			if hud and is_inside_tree():
 				hud.todo(TASK_TITLES.todo_floor, TEXT.todo_floor)
 			_begin_fight()
 
 
+## Opens a case on the board; the first time, its chapter lands (M2).
 func _open_case(id: String) -> void:
+	var new: bool = not Game.case_info(id).get("open", false)
 	Game.open_case(id, CASES[id], [], CASE_DO[id])
+	if new and CHAPTER_OF.has(id):
+		_gate(CHAPTER_OF[id])
 
 
 ## One case at a time, in order (the case board): the next one opens when the last
@@ -1361,13 +1579,110 @@ func _ask(id: String) -> void:
 	_open_case(id)
 
 
-## Every machine: a paper brings a chapter into the crew's book, quietly (nothing
-## stops). Teaching writes B2's three (Functions, Lists, Test before you touch); until
-## they're in the book, nothing happens.
+## Every machine: a chapter of Journey through JavaScript lands in the crew's book
+## with its step (M2), quietly, one at a time and each once: Checking your work as
+## the bench's first case opens, Functions as its first test passes, Lists as the
+## every-zone case opens.
+func _gate(chapter: String) -> void:
+	var huddle := Huddle.of(self)
+	if huddle == null or huddle.done.has(chapter) or _chapters.has(chapter) or Books.chapter(chapter).is_empty():
+		return
+	_chapters.append(chapter)
+	if _landing:
+		return
+	_landing = true
+	while not _chapters.is_empty() and is_inside_tree():
+		await _book_huddle(_chapters[0])
+		_chapters.pop_front()
+	_landing = false
+
+
 func _book_huddle(id: String) -> void:
 	if Huddle.of(self) == null or Huddle.of(self).done.has(id) or Books.chapter(id).is_empty():
 		return
 	await Huddle.of(self).run(id, Huddle.REMEMBERED)
+
+
+# --- The cases' shapes and pieces (v0.10) ------------------------------------------------
+
+static func _piece(def: Dictionary, value: String) -> Dictionary:
+	var p := def.duplicate()
+	p["value"] = value
+	return p
+
+
+## Every machine: each case's pieces, and the request or script under its chip for
+## the step it's on. Under pressure (lights out, the elevators) it's the bare shape.
+func _set_cases() -> void:
+	var key := _piece(KEY_PIECE, data.key)
+	var zones := _piece(ZONES_PIECE, ", ".join(PackedStringArray(data.zones.map(func(z): return "\"%s\"" % z.id))))
+	var zone := _piece(ZONE_PIECE, _zone_value if _zone_value != "" else data.zones[0].id)
+	Game.set_pieces("token", [key, _piece(TOKEN_PIECE, _token_value)], TOKEN_READ_QUERY if _token_asked else TOKEN_QUERY)
+	Game.set_pieces("restore", [key, zone], TEST_QUERY if not test_puzzle.solved else _one_script("{key}", "{zone}"), RESTORE_STEPS)
+	var every := _every_script("{key}", ["enter_zones"]).replace("enter_zones", "{zones}")
+	Game.set_pieces("zones", [key, zones], every)
+	Game.set_pieces("lights_out", [key, zones], every)
+	Game.set_assemble("lights_out", false)
+	# The revoke's blank is WARDEN's token, written in once someone points at it (X22).
+	Game.set_pieces("warden", [_piece(WARDEN_PIECE, _warden_value)], ROUTES_QUERY)
+	Game.set_pieces("lifts", [], LIFTS_QUERY)
+	Game.set_assemble("lifts", false)
+
+
+## This player pointed at a field in an answer: the crew's own token in B2's answer
+## to POST /auth/token (X4), WARDEN's in the auth log (X22), a zone's id in GET
+## /lights (X10, X21). The host hears it, and it's found for the whole crew.
+func _on_cell_missed(column: String, value: String, row: Dictionary) -> void:
+	var col := column.to_lower()
+	if col == "token" and row.has("expires_in") and api.token_label(value) == "IT admin":
+		sync.report_answer("piece@token@token@" + value)
+	elif col == "token" and str(row.get("holder", "")) == "WARDEN":
+		sync.report_answer("piece@warden@warden_token@" + value)
+	elif col == "id" and row.has("circuit") and not Level7Data.zone(data, value).is_empty():
+		sync.report_answer("piece@restore@zone@" + value)
+		if value.to_upper() != str(data.emergency.id).to_upper():
+			sync.report_answer("piece@zones@zones@" + value)
+
+
+## Host: a player's find. A piece pointed at in an answer goes to everyone.
+func case_answered(answer: String, peer: int) -> void:
+	var parts := answer.split("@")
+	if parts.size() == 4 and parts[0] == "piece":
+		var net := get_node_or_null("/root/Net")
+		var by: String = net.display_name(peer) if net and net.has_method("display_name") and peer != 0 else ""
+		sync.event("_cell_piece", [parts[1], parts[2], parts[3], by, peer])
+
+
+## Every machine: a piece found by pointing at it, with the value pointed at.
+func _cell_piece(case_id: String, piece_id: String, value: String, by: String, peer: int) -> void:
+	if Game.has_piece(case_id, piece_id):
+		return
+	match piece_id:
+		"token": _token_value = value
+		"warden_token": _warden_value = value
+		"zone": _zone_value = value
+	_set_cases()
+	var mine := peer == 0 or not is_inside_tree() or multiplayer.get_unique_id() == peer
+	Game.collect_piece(case_id, piece_id, "B2's services", "" if mine else by)
+
+
+## Every machine: the emergency circuit's id was noted for the first test, and its 403
+## came back (X10): the zone's blank is open again for a ring lamp's.
+func _forget_zone() -> void:
+	_zone_value = ""
+	Game.forget("restore", ["zone"])
+	_set_cases()
+
+
+## Every machine: a lamp's tag on the bench was pointed at: the zone written into the
+## first test is that lamp's.
+func _on_piece_found(case_id: String, piece_id: String) -> void:
+	if case_id != "restore" or piece_id != "zone" or _zone_value != "":
+		return
+	for p in Game.case_info("restore").get("pieces", []):
+		if p.id == "zone" and str(p.get("from", "")).begins_with("Lamp "):
+			_zone_value = str(p.from).trim_prefix("Lamp ")
+			_set_cases()
 
 
 # --- The script runners (every one is listened to) ----------------------------------------
@@ -1399,7 +1714,39 @@ func _watch_scripts() -> void:
 ## Host: a run starts on the bench.
 func _on_bench_started() -> void:
 	if _is_host():
+		_bench_call = ""
+		_bench_answer = null
+		_report_lit = -1
 		sync.event("_bench_reset")
+
+
+## The lines the bench runs after the script's own (JSRuntime, through the bench's
+## Link): if the script has a restore(zone), the bench calls it on its own lamp, the
+## way a test runner does, and hands what comes back to bench_globals' __bench.
+func bench_suffix() -> String:
+	return "if (typeof restore === \"function\") {\n  __bench.calling();\n  let __answer = await restore(\"%s\");\n  __bench.answer(__answer);\n}" % data.bench_zone
+
+
+func bench_globals() -> Dictionary:
+	return {"__bench": {"calling": _bench_calling, "answer": _bench_answered}}
+
+
+## Where the script runs (the host online): the script's own lines are done, and the
+## bench calls restore(). The report is what the script left; the bench's lamp starts
+## dark, so a function that ignores its zone can't pass on a lamp lit before.
+func _bench_calling(_vm, _a: Array) -> Variant:
+	_bench_call = "called"
+	_report_lit = bench_lit()
+	_report_passes = bench_passes
+	if bench_on.get(data.bench_zone, false):
+		sync.event("_set_zone", [data.bench_zone, false, true])
+	return null
+
+
+func _bench_answered(_vm, a: Array) -> Variant:
+	_bench_call = "answered"
+	_bench_answer = JSStdlib.from_js(a[0]) if not a.is_empty() else null
+	return null
 
 
 ## Host: a line the bench's run printed. A passing assert says PASS.
@@ -1414,25 +1761,61 @@ func _on_bench_finished(ok: bool, err: Dictionary) -> void:
 	if not _is_host():
 		return
 	var message := str(err.get("message", ""))
-	if not ok and message.contains("is undefined, so it has no"):
+	var called := _bench_call
+	_bench_call = ""
+	if not ok and called == "" and message.contains("is undefined, so it has no"):
 		sync.event("_tip", ["no_return", "bench"])
 	var stopped := not ok and err.is_empty()
 	if stopped:
 		return
-	sync.event("_bench_report", [bench_lit(), bench_passes, _bench_em])
-	if not ok:
+	# The script's own lines ran to the end once the bench got to call restore().
+	var script_ok := ok or called != ""
+	var lit := bench_lit() if called == "" else _report_lit
+	var passes := bench_passes if called == "" else _report_passes
+	sync.event("_bench_report", [lit, passes, _bench_em])
+	if not script_ok:
 		return
-	var lit := bench_lit()
-	if lit > 0 and bench_passes == 0:
+	var bench_ready: bool = Game.case_info("token").get("solved", false)
+	# Step 1, a first test: a zone lit, and an assert that passed (M1).
+	if lit > 0 and passes == 0:
 		sync.event("_tip", ["no_assert", "bench"])
-		return
-	if lit == 0 or bench_passes == 0:
-		return
-	if not restore_puzzle.solved and Game.case_info("token").get("solved", false):
+	elif lit > 0 and bench_ready and not test_puzzle.solved:
+		sync.event("_on_solved", ["test"])
+	# Step 2: the bench's own call of restore(zone), and what it handed back (X15-X19).
+	var verdict := ""
+	match called:
+		"":
+			verdict = "missing" if test_puzzle.solved else ""
+		"called":
+			verdict = "stopped"
+		"answered":
+			var said_on: bool = _bench_answer is Dictionary and _bench_answer.get("body") is Dictionary and _bench_answer.body.get("on") == true
+			if _bench_answer == null:
+				verdict = "none"
+			elif not bench_on.get(data.bench_zone, false) or not said_on:
+				verdict = "dark"
+			else:
+				verdict = "pass"
+	if verdict != "":
+		sync.event("_bench_verdict", [verdict, message])
+	if verdict == "none":
+		sync.event("_tip", ["no_return", "bench"])
+	if verdict == "pass" and bench_ready and test_puzzle.solved and not restore_puzzle.solved:
 		sync.event("_on_solved", ["restore"])
-	if restore_puzzle.solved or Game.case_info("restore").get("solved", false):
-		if lit == data.zones.size() and not zones_puzzle.solved:
-			sync.event("_on_solved", ["zones"])
+	# Every zone: all six lit, and six tests passed (one for each).
+	if restore_puzzle.solved and lit == data.zones.size() and passes >= data.zones.size() and not zones_puzzle.solved:
+		sync.event("_on_solved", ["zones"])
+
+
+## Every machine: the bench's own test of restore(zone), printed under its report.
+func _bench_verdict(verdict: String, message: String) -> void:
+	var z: String = data.bench_zone
+	match verdict:
+		"pass": bench_terminal.print_line(TEXT.bench_call_pass % z)
+		"none": bench_terminal.print_line(TEXT.bench_call_none % z)
+		"dark": bench_terminal.print_line(TEXT.bench_call_dark % [z, z])
+		"stopped": bench_terminal.print_line(TEXT.bench_call_stopped % [z, message])
+		"missing": bench_terminal.print_line(TEXT.bench_call_missing)
 
 
 ## Host: a script on the floor ended. On the watchdog's last stand, an assert that
@@ -1580,13 +1963,12 @@ func _begin_stage2() -> void:
 		hud.todo(TASK_TITLES.todo_warden, TEXT.case_warden_do)
 		hud.notice(TEXT.stage2, 5.0, ThemeUtil.RED)
 	_lines(["l7_stage2_pa", "l7_stage2_tease"], 0.8)
+	_fight_clock = 0.0
 	if _is_host():
 		_cut_clock = cut_interval() - 2.0  # he answers at once
-		_arm("B2-MOTOR")
 		if custodian:
 			custodian.activate()
-		if rourke:
-			_later(4.0, "_rourke_arrives")
+	# The gas and Rourke come later (M5: _gas_tick), one at a time.
 
 
 ## Every machine: a route's step is done. The first one done on any route starts the
@@ -1598,8 +1980,7 @@ func _route_step(route: String) -> void:
 	if fight_stage == 2:
 		fight_stage = 3
 		_lines(["l7_stage3_tease"])
-		if _is_host():
-			_arm("B2-UPS")
+		_ups_wanted = true  # the battery room arms now, but never within 30 s of the motor room (M5)
 	match route:
 		"revoke":
 			if hud and is_inside_tree():
@@ -1710,20 +2091,27 @@ func _on_staffer_arrived(k: String) -> void:
 		sync.event("_trap", [k])
 
 
-## Every machine: they're inside, and WARDEN locks the door behind them.
+## Every machine: they're inside their plant room, sheltering. The door stays open
+## until WARDEN arms the room's gas (M4: _gas_armed locks it).
 func _trap(k: String) -> void:
 	if shift_state[k] != "walking":
 		return
-	shift_state[k] = "trapped"
+	shift_state[k] = "sheltered"
 	if staffers.has(k):
 		staffers[k].global_position = to_global(NIGHT_SHIFT[k].inside)
 		staffers[k].state = "waiting"
+
+
+## Every machine: WARDEN locks a plant room's door as he arms its gas, with whoever's
+## inside (still walking there, they're in by now).
+func _lock_in(k: String) -> void:
+	if not shift_state[k] in ["walking", "sheltered"]:
+		return
+	if shift_state[k] == "walking" and staffers.has(k):
+		staffers[k].global_position = to_global(NIGHT_SHIFT[k].inside)
+		staffers[k].state = "waiting"
+	shift_state[k] = "trapped"
 	_set_door(NIGHT_SHIFT[k].room, true)
-	if hud and is_inside_tree():
-		hud.notice(TEXT.trapped % NIGHT_SHIFT[k].first, 4.0, ThemeUtil.RED)
-	if not said.has("l7_trap_pa"):
-		said["l7_trap_pa"] = true
-		_lines(["l7_trap_pa", "l7_trap_tease"], 0.8)
 
 
 ## Every machine: a door on the building's doors table opens (false) or locks (true).
@@ -1743,10 +2131,12 @@ func _gas_time(room: String) -> float:
 	return float(gas_seconds.get(room, data.suppression[room]))
 
 
-## Host: WARDEN arms a plant room's gas suppression with someone inside.
+## Host: WARDEN arms a plant room's gas suppression with someone inside. Never once
+## he's beaten (M5).
 func _arm(room: String) -> void:
-	if gas.get(room, "") != "idle" or shift_state.get(_who_in(room), "") == "dead":
+	if gas.get(room, "") != "idle" or shift_state.get(_who_in(room), "") == "dead" or not fight_stage in [2, 3]:
 		return
+	_armed_at[room] = _fight_clock
 	sync.event("_gas_armed", [room])
 	var t := _gas_time(room)
 	if t > 30.0:
@@ -1754,16 +2144,52 @@ func _arm(room: String) -> void:
 	_later(t, "_discharge", [room])
 
 
-## Every machine: the countdown starts.
+## Every machine: the countdown starts, and the room's door locks (M4). The first
+## room's arming brings the trap lines, just before its gas lines; the notice names
+## the abort (X28), and the next `.hint` answers it (X29).
 func _gas_armed(room: String) -> void:
 	if gas[room] != "idle":
 		return
 	gas[room] = "armed"
 	_gas_armed_msec[room] = Time.get_ticks_msec()
 	var k := _who_in(room)
+	_lock_in(k)
+	_gas_hint.append(room)
 	if hud and is_inside_tree():
-		hud.notice(TEXT.gas_armed % [SHELTER_NAMES[room], NIGHT_SHIFT[k].first, int(_gas_time(room))], 6.0, ThemeUtil.RED)
-	_lines(GAS_LINES[room], 0.6)
+		hud.notice(TEXT.trapped % NIGHT_SHIFT[k].first, 3.0, ThemeUtil.RED)
+		hud.notice(TEXT.gas_armed % [SHELTER_NAMES[room], NIGHT_SHIFT[k].first, int(_gas_time(room)), room], 8.0, ThemeUtil.RED, HUD.Turn.NORMAL)
+	if not said.has("l7_trap_pa"):
+		said["l7_trap_pa"] = true
+		_lines(["l7_trap_pa", "l7_trap_tease"] + GAS_LINES[room], 0.8)
+	else:
+		_lines(GAS_LINES[room], 0.6)
+
+
+## Host, every frame of the fight back: the motor room arms 30 s in (or at the first
+## route step), the battery room at the first route step but 30 s after the motor
+## room at the soonest, and Rourke comes down STAIR 2 60 s in (M5).
+func _gas_tick(delta: float) -> void:
+	if not fight_stage in [2, 3]:
+		return
+	_fight_clock += delta
+	if gas["B2-MOTOR"] == "idle" and not _armed_at.has("B2-MOTOR") and (_fight_clock >= motor_after or fight_stage == 3):
+		_arm("B2-MOTOR")
+	if _ups_wanted and gas["B2-UPS"] == "idle" and not _armed_at.has("B2-UPS"):
+		if not _armed_at.has("B2-MOTOR") or _fight_clock - float(_armed_at["B2-MOTOR"]) >= ups_gap:
+			_arm("B2-UPS")
+	if rourke and not _rourke_sent and _fight_clock >= rourke_after:
+		_rourke_sent = true
+		sync.event("_rourke_arrives")
+
+
+## `.hint`, at any terminal or deck, while a room counts down: the first after each
+## room arms says where its abort is (X29), before the case's own tiers.
+func _gas_hint_line() -> String:
+	while not _gas_hint.is_empty():
+		var room: String = _gas_hint.pop_front()
+		if gas.get(room, "") == "armed":
+			return TEXT.hint_gas % [SHELTER_NAMES[room], room]
+	return ""
 
 
 func _gas_warn(room: String) -> void:
@@ -1819,7 +2245,7 @@ func _abort_gas(room: String, req: Dictionary) -> Dictionary:
 ## Every machine: a shelter's door opens again, and whoever's alive in there comes out
 ## to the lobby to wait for the lifts.
 func _let_out(k: String) -> void:
-	if shift_state[k] != "trapped":
+	if not shift_state[k] in ["trapped", "sheltered", "walking"]:
 		return
 	_set_door(NIGHT_SHIFT[k].room, false)
 	shift_state[k] = "out"
@@ -2085,6 +2511,7 @@ func _process(delta: float) -> void:
 	_watch_scripts()
 	if _is_host():
 		_fight_tick(delta)
+		_gas_tick(delta)
 		if not said.has("l7_tomas_ring") and player and _in_ring(to_local(player.global_position)):
 			sync.event("_say_once", ["l7_tomas_ring"])
 	# Solo: B2's scripts keep running while you're away from their runner. (Online,

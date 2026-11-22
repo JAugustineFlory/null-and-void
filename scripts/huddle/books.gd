@@ -698,10 +698,13 @@ const BOOKS := {
 	},
 	# The third in the series, found under a mug on B1's IT bench (Level 6): the deck's
 	# first scripts, in JavaScript. Title is Augustine's (2026-11-05, call 7: "Journey
-	# through JavaScript"). Its first three chapters land on B1; functions, lists and
-	# testing come on the floor below. Pages, questions and why lines approved by him
-	# word for word 2026-11-05: plan/approvals/l6-text.md. The examples use the
-	# garage's own job board (/jobs, the same records as Easy SQL), never the building's.
+	# through JavaScript"). Its first three chapters land on B1; the last three
+	# (Checking your work, Functions, Lists) land on B2, the floor below. Pages,
+	# questions and why lines approved by him word for word: B1's 2026-11-05
+	# (plan/approvals/l6-text.md), B2's 2026-11-22 (X32-X34 in
+	# plan/approvals/puzzle-flow-floor-b2.md; each question's right answer is listed
+	# first, and the quiz shuffles them). The examples use the garage's own job board
+	# and van kit, never the building's.
 	"journey_js": {
 		"title": "JOURNEY THROUGH JAVASCRIPT",
 		"name": "Journey through JavaScript",
@@ -789,6 +792,91 @@ const BOOKS := {
 						"options": ["the database takes a moment to answer", "it makes the query shorter", "every query needs two words"], "answer": 0, "why": "await waits for the answer, as it does for a request, before the next line runs."},
 					{"word": "db.query", "q": "With a row in job, its client column is...",
 						"options": ["client.job", "job(\"client\")", "job.client"], "answer": 2, "why": "A row's columns are read with a dot: the row, then the column's name."},
+				],
+			},
+			{
+				"id": "js_testing",
+				"title": "Checking your work",
+				"when": "B2, the test bench's first case",
+				"required": false,
+				"words": ["assert", "a test"],
+				"lines": [],
+				"pages": [
+					"assert\n\nassert checks that something is true. If it is, the script carries on. If it isn't, the script stops right there, with your words.\n\nlet res = await api.get(\"/jobs/14\");\nassert(res.body.paid, \"job 14 is paid\");\n\nFirst in the parentheses: what should be true. Then your words for it. If job 14 isn't paid, the log says: assert failed: job 14 is paid.",
+					"a test\n\nA test is a check you keep in the script, so it runs every time, not just the once.\n\nlet res = await api.patch(\"/van_kit/rope\", {\"qty\": 3});\nassert(res.body.qty === 3, \"the rope's qty is 3\");\n\nMake the change, then assert it took. Run it somewhere safe first, on a copy where a mistake costs nothing. Then run the same script on the real thing, checks and all.",
+				],
+				"quiz": [
+					{"word": "assert", "q": "assert(res.body.paid, \"job 14 is paid\") runs, and job 14 isn't paid. What happens?",
+						"options": ["the script stops: assert failed: job 14 is paid", "job 14 gets paid", "the script carries on"], "answer": 0, "why": "assert only lets the script go on when its check is true. Otherwise it stops there, with your words."},
+					{"word": "assert", "q": "assert(res.status === 200, \"saved\") runs, and the answer was 200. Then...",
+						"options": ["the next line runs", "the script stops", "it sends the request again"], "answer": 0, "why": "The check is true, so assert lets the script carry on."},
+					{"word": "assert", "q": "In assert(check, \"words\"), the words are...",
+						"options": ["what the log shows if the check fails", "what gets saved", "how long to wait"], "answer": 0, "why": "They say what you were checking, so a failure tells you which check it was."},
+					{"word": "a test", "q": "Why try a script on a copy first?",
+						"options": ["a mistake there breaks nothing real", "copies run faster", "the real thing can't run scripts"], "answer": 0, "why": "Fix it where it's safe, then run it for real."},
+					{"word": "a test", "q": "You PATCH the rope's qty to 3. A test for it is...",
+						"options": ["assert the answer's qty is 3", "PATCH it to 3 a second time", "console.log(\"done\")"], "answer": 0, "why": "A test checks that the change took, not just that you sent it."},
+					{"word": "a test", "q": "The script passed on the copy. To run it on the real thing, you...",
+						"options": ["keep the checks in", "take the checks out", "don't: it passed"], "answer": 0, "why": "The real thing isn't the copy. If something's different, the checks catch it."},
+				],
+			},
+			{
+				"id": "js_functions",
+				"title": "Functions",
+				"when": "B2, the bench's first test passed",
+				"required": false,
+				"words": ["function", "return", "async"],
+				"lines": [],
+				"pages": [
+					"function\n\nA function is steps with a name. You write them once, then run them whenever you like by calling the name.\n\nfunction thank(client) {\n  console.log(\"thanks, \" + client);\n}\n\nthank(\"Nash\");\nthank(\"Kemp Dental\");\n\nclient is what you hand it: whatever's in the parentheses when you call it. Two calls, two lines in the log.",
+					"return\n\nreturn hands an answer back to whoever called the function, and ends it there.\n\nfunction total(fee, extra) {\n  return fee + extra;\n}\n\nlet due = total(80, 10);\n\ndue holds 90. Without return, the function still does its steps, but hands back nothing: undefined.",
+					"async\n\nA function that waits inside, with await, says so: async goes in front of it.\n\nasync function feeOf(id) {\n  let res = await api.get(\"/jobs/\" + id);\n  return res.body.fee;\n}\n\nlet fee = await feeOf(14);\n\nIts answer takes a moment, so the call waits too: await in front of it. await only works in an async function, or at the top of a script.",
+				],
+				"quiz": [
+					{"word": "function", "q": "function thank(client) { ... } on its own does...",
+						"options": ["nothing yet: it runs when you call it", "runs once, straight away", "runs for every client"], "answer": 0, "why": "Writing it only names the steps. thank(\"Nash\") runs them."},
+					{"word": "function", "q": "thank(\"Nash\"); hands the function...",
+						"options": ["\"Nash\", as client", "nothing", "every client on the board"], "answer": 0, "why": "What's in the parentheses goes into client for that call."},
+					{"word": "function", "q": "Why put steps in a function?",
+						"options": ["to run them again, with something different each time", "to make them run faster", "to keep them out of the log"], "answer": 0, "why": "Write them once, then call it with whatever each time needs."},
+					{"word": "return", "q": "function total(fee, extra) { return fee + extra; } After let due = total(80, 10); due holds...",
+						"options": ["90", "undefined", "80"], "answer": 0, "why": "return hands back 80 + 10."},
+					{"word": "return", "q": "A function with no return hands back...",
+						"options": ["undefined", "0", "what it last logged"], "answer": 0, "why": "No return, no answer: undefined."},
+					{"word": "return", "q": "The log says: answer is undefined, so it has no .body. The function most likely...",
+						"options": ["never says return", "ran twice", "needs a longer wait"], "answer": 0, "why": "Whoever called it got nothing back. Add return with the answer."},
+					{"word": "async", "q": "Which function needs async in front?",
+						"options": ["one with await inside", "every function", "one with return"], "answer": 0, "why": "await only works inside an async function, or at the top of a script."},
+					{"word": "async", "q": "let fee = await feeOf(14); The await...",
+						"options": ["waits for feeOf to hand back its answer", "runs feeOf twice", "makes fee a list"], "answer": 0, "why": "feeOf takes a moment to answer. await waits for it before the next line."},
+					{"word": "async", "q": "Where does async go?",
+						"options": ["in front of function", "after return", "inside the parentheses"], "answer": 0, "why": "async function feeOf(id) { ... }"},
+				],
+			},
+			{
+				"id": "js_lists",
+				"title": "Lists",
+				"when": "B2, the every-zone case",
+				"required": false,
+				"words": ["[ ] (a list)", "length"],
+				"lines": [],
+				"pages": [
+					"[ ] (a list)\n\nA list is a whole line of things, in square brackets, split by commas.\n\nlet towns = [\"Ashford\", \"Bexley\", \"Zebulon\"];\nfor (const town of towns) {\n  console.log(town);\n}\n\nOne box holds all three, in order, and for ... of goes down it once for each. One more town? Add it to the list. The loop stays as it is.",
+					"length\n\n.length is how many things are in a list.\n\nconsole.log(towns.length + \" towns\");\n\nwrites 3 towns. The list counts itself, so the number stays right when you add one.",
+				],
+				"quiz": [
+					{"word": "[ ] (a list)", "q": "Which one is a list?",
+						"options": ["[\"Ashford\", \"Bexley\"]", "{\"Ashford\", \"Bexley\"}", "(\"Ashford\", \"Bexley\")"], "answer": 0, "why": "Square brackets, with the things split by commas."},
+					{"word": "[ ] (a list)", "q": "let fees = [80, 120, 45]; fees holds...",
+						"options": ["three fees, in that order", "one fee, 245", "the text 80, 120, 45"], "answer": 0, "why": "A list keeps every thing in it, in order. Numbers go in without quotes."},
+					{"word": "[ ] (a list)", "q": "To do the same for one more town, you...",
+						"options": ["add the town to the list", "write the loop again", "add one to length"], "answer": 0, "why": "The loop goes over whatever's in the list."},
+					{"word": "length", "q": "[\"Ashford\", \"Bexley\", \"Zebulon\"].length is...",
+						"options": ["3", "2", "Zebulon"], "answer": 0, "why": "There are three things in the list."},
+					{"word": "length", "q": "You add a fourth town to towns. towns.length is now...",
+						"options": ["4", "3", "whatever you set it to"], "answer": 0, "why": "The list counts itself."},
+					{"word": "length", "q": "console.log(towns.length + \" towns\") with three towns writes...",
+						"options": ["3 towns", "towns.length towns", "Ashford towns"], "answer": 0, "why": "length is a number, and + joins it to the words."},
 				],
 			},
 		],
