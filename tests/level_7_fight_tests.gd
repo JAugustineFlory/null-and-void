@@ -20,6 +20,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_scripts_compile()
 	await test_hunters()
 	await test_lockout()
+	await test_gas_shift()
 	await test_revoke()
 	await test_watchdog()
 
@@ -88,7 +89,9 @@ func _to_stage2(seed_value: int, rourke_fate := "unknown", custodian_sealed := f
 	_game().rourke_fate = rourke_fate
 	_game().custodian_sealed = custodian_sealed
 	var level: Node = load("res://scenes/level_7.tscn").instantiate()
-	level.first_cut_after = 999.0
+	level.token_cut_after = 999.0
+	level.motor_after = 999.0
+	level.rourke_after = 0.5
 	level.cut_every = 0.4
 	level.failover_after = 0.3
 	level.mint_after = 0.3
@@ -169,19 +172,32 @@ func test_lockout() -> void:
 		"his first cut takes the closet's zone, and its maglock fails open in the dark")
 	var res := _req(deck, _bearer("PATCH /controller", _token(deck, key), "{\"source\": \"local\"}"))
 	check(res.status == 409 and _said(deck, level.TEXT.tip_controller), "the controller won't go local while his uplink's in: 409, and SYSOP says where it's patched")
-	# The night-shifters are in their rooms by now; Ines's gas is counting.
+	# The night-shifters are in their rooms by now, sheltering with the doors open (M4).
 	level._trap("ines")
 	level._trap("tomas")
-	check(level.shift_state.ines == "trapped" and level.shift_state.tomas == "trapped" and level.said.has("l7_trap_pa"), "WARDEN locks Ines and Tomas in the plant rooms")
+	check(level.shift_state.ines == "sheltered" and level.shift_state.tomas == "sheltered" and not _locked(level, "B2-MOTOR") and not _locked(level, "B2-UPS") and not level.said.has("l7_trap_pa"),
+		"Ines and Tomas shelter in the plant rooms, doors open, and no gas yet")
+	res = _req(deck, _bearer("POST /suppression/B2-MOTOR/abort", _token(deck, key), "{}"))
+	check(res.status == 409, "nothing to abort in the motor room yet")
+	level.motor_after = 0.0  # half a minute into the fight back (M5)
+	await _until(func(): return level.gas["B2-MOTOR"] == "armed", 60)
+	check(level.gas["B2-MOTOR"] == "armed" and level.shift_state.ines == "trapped" and _locked(level, "B2-MOTOR") and level.said.has("l7_trap_pa"),
+		"then WARDEN arms the motor room's gas and locks Ines in, with the trap lines")
+	check(level.gas["B2-UPS"] == "idle" and level.shift_state.tomas == "sheltered" and not _locked(level, "B2-UPS"), "the battery room waits: one room at a time")
 	res = _req(deck, _bearer("POST /suppression/B2-UPS/abort", _token(deck, key), "{}"))
 	check(res.status == 409, "nothing to abort in the battery room yet")
-	res = _req(deck, _bearer("POST /suppression/B2-MOTOR/abort", _token(deck, key), "{}"))
-	check(res.status == 200 and level.gas["B2-MOTOR"] == "aborted" and level.shift_state.ines == "trapped", "the motor room's gas aborted: Ines is safe, still locked in")
+	res = _req(deck, _bearer("POST /suppression/B2-MOTOR/abort", _token(deck, key)))
+	check(res.status == 200 and level.gas["B2-MOTOR"] == "aborted" and level.shift_state.ines == "trapped", "the motor room's gas aborted, with no body at all: Ines is safe, still locked in")
 	var before: float = level.cut_interval()
 	level.uplink.interact(null)
 	await _frames(2)
 	check(level.uplink_pulled and level.controller_source == "none" and level.route_done.lockout == 1 and level.fight_stage == 3, "pull the uplink: the ring stops taking his orders, and it's the last stand")
-	check(level.cut_interval() > before and level.gas["B2-UPS"] == "armed", "every stage done stretches his beat; and he arms the battery room's gas")
+	check(level.cut_interval() > before, "every stage done stretches his beat")
+	await _frames(10)
+	check(level.gas["B2-UPS"] == "idle", "the battery room's gas waits half a minute after the motor room's")
+	level.ups_gap = 0.0
+	await _until(func(): return level.gas["B2-UPS"] == "armed", 60)
+	check(level.gas["B2-UPS"] == "armed" and level.shift_state.tomas == "trapped" and _locked(level, "B2-UPS"), "then he arms the battery room's gas, and locks Tomas in")
 	await _until(func(): return level.controller_source == "uplink-b", 120)
 	check(level.controller_source == "uplink-b" and level.warden_can_cut(), "he fails over to the backup uplink, and cuts again")
 	res = _req(deck, _bearer("PATCH /controller", _token(deck, key), "{\"source\": \"uplink\"}"))
@@ -198,6 +214,39 @@ func test_lockout() -> void:
 	check(level.shift_state.ines == "out" and _game().case_info("warden").solved and not _game().case_info("lifts").is_empty(), "Ines comes out; the lifts are next")
 	await _lifts(level, deck, "achievement:b2_ines_only")
 	await _free(level)
+
+
+## M5: the fight back paces its gas. The first route step arms the motor room at once;
+## beat him before the battery room's turn and it never arms: Tomas walks out, Ines
+## once her room's aborted.
+func test_gas_shift() -> void:
+	print("B2: the gas, one room at a time")
+	var level := await _to_stage2(751)
+	var deck: Terminal = level.decks[0]
+	var key: String = level.data.key
+	level._trap("ines")
+	level._trap("tomas")
+	await _frames(10)
+	check(level.gas["B2-MOTOR"] == "idle" and level.gas["B2-UPS"] == "idle", "no gas in the fight back's first moments")
+	await _until(func(): return level.closet_open, 300)
+	level.uplink.interact(null)
+	await _frames(2)
+	check(level.fight_stage == 3 and level.gas["B2-MOTOR"] == "armed" and level.gas["B2-UPS"] == "idle", "the first route step arms the motor room at once; the battery room waits its turn")
+	var res := _req(deck, _bearer("PATCH /controller", _token(deck, key), "{\"source\": \"local\"}"))
+	await _frames(2)
+	check(res.status == 200 and level.fight_stage == 4, "the ring on local control beats him")
+	level.ups_gap = 0.0
+	await _frames(10)
+	check(level.gas["B2-UPS"] == "idle" and level.shift_state.tomas == "out" and not _locked(level, "B2-UPS"), "beaten before the battery room's turn: its gas never arms, and Tomas walks out")
+	check(level.shift_state.ines == "trapped" and _locked(level, "B2-MOTOR"), "Ines waits behind her locked door while her room counts down")
+	res = _req(deck, _bearer("POST /suppression/B2-MOTOR/abort", _token(deck, key)))
+	check(res.status == 200 and level.shift_state.ines == "out" and not _locked(level, "B2-MOTOR"), "abort it and she's out too")
+	check(level.night_shift_achievement() == "achievement:b2_both_saved", "both alive: nobody left behind")
+	await _free(level)
+
+
+func _locked(level: Node, door: String) -> bool:
+	return int(level.db.run_silent("SELECT locked FROM doors WHERE id = '%s'" % door)[0].locked) == 1
 
 
 ## The lifts: the freight lift's 409, each car restarted and in service, the car

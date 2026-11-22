@@ -110,6 +110,9 @@ static func _fight(data: Dictionary, rng: RandomNumberGenerator) -> void:
 			"issued": "%s %02d:%02d" % [day, rng.randi_range(0, 23), rng.randi_range(0, 59)], "state": "expired"})
 	var at := rng.randi_range(n / 2, n)
 	entries.insert(at, {"token": data.warden_token, "holder": "WARDEN", "issued": "Wed 10/15 19:00", "state": "ok"})
+	# Oldest first, as its runbook page says (p.15): WARDEN's Wednesday 19:00 lands
+	# among Wednesday's last, just above the crew's own tokens.
+	entries.sort_custom(func(a, b): return _when(a.issued) < _when(b.issued))
 	data["auth_log"] = entries
 	# His cuts: one beat between them, quickening as the crew wins (level_7.gd), and
 	# the zone he holds on the watchdog route's last stand (never the closet's).
@@ -117,12 +120,22 @@ static func _fight(data: Dictionary, rng: RandomNumberGenerator) -> void:
 	var held: Array = data.zones.slice(1).map(func(z): return z.id)
 	data["held_zone"] = held[rng.randi_range(0, held.size() - 1)]
 	# The two plant rooms the night-shifters shelter in, and how long each room's gas
-	# suppression counts down once WARDEN arms it.
-	data["suppression"] = {"B2-MOTOR": float(rng.randi_range(110, 140)), "B2-UPS": float(rng.randi_range(110, 140))}
+	# suppression counts down once WARDEN arms it (140 to 170 s on the doubled floor).
+	data["suppression"] = {"B2-MOTOR": float(rng.randi_range(110, 140) + 30), "B2-UPS": float(rng.randi_range(110, 140) + 30)}
 	# The car that comes for the crew: the first passenger lift that serves B2.
 	var cars: Array = data.lifts.filter(func(l): return l.kind == "passenger").map(func(l): return l.id)
 	cars.sort()
 	data["car"] = cars[0]
+	# The bench's own lamp, the one it calls restore() on after every run: a ring zone,
+	# never the printout's. Drawn last, so everything above stays the same for a seed.
+	data["bench_zone"] = data.zones[rng.randi_range(1, data.zones.size() - 1)].id
+
+
+## An auth log entry's "Wed 10/15 19:00" as minutes since Monday, for sorting.
+static func _when(issued: String) -> int:
+	var day := ["Mon", "Tue", "Wed", "Thu", "Fri"].find(issued.get_slice(" ", 0))
+	var hm := issued.get_slice(" ", 2)
+	return day * 1440 + int(hm.get_slice(":", 0)) * 60 + int(hm.get_slice(":", 1))
 
 
 static func _token(rng: RandomNumberGenerator) -> String:
