@@ -1248,8 +1248,8 @@ func _on_cell_missed(column: String, _value: String, row: Dictionary) -> void:
 			if not _open_unsolved("radio") or lures == 0:
 				return
 			var note := RADIO_MISS
-			if lure_peer > 0 and swipe and badge == lure_badge:
-				note = RADIO_OLDER
+			if lure_peer > 0 and swipe and badge == lure_badge and str(row.get("time", "")) != str(_last_swipe(lure_badge).get("time", "")):
+				note = RADIO_OLDER  # N28 is for older swipes only; the newest's other cells get N30
 			elif lure_peer <= 0 and issued.has(badge):
 				note = RADIO_OWN
 			Game.blank_miss("radio", note)
