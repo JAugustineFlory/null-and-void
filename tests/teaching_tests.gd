@@ -1877,50 +1877,67 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 	level.lure_delay = 0.3
 
 	# The HR front desk: the desk sheet's request carries the HR key in a header.
+	check(_game().case_info("frame").get("open", false), "%s: arriving, the frame case is open" % where)
 	_doc(level, "Personnel request sheet").open_reader(p).close()
 	ui.open(level.hr, p)
 	var h := await solve(level, ui, level.key_puzzle, _hunted_9(level))
 	check(h <= rescue_tier(level.key_puzzle) and level.key_puzzle.solved, "%s: the HR service answers to the manager's key, from the desk sheet or the ladder (hints %d)" % [where, h])
 	check(_said(level.hr, level.TEXT.tip_header), "%s: the sheet's request, sent without a key, gets 401 and SYSOP's word on where a key goes" % where)
-	check(await _until(func(): return level.lures == 1, 5.0), "%s: then a voice on the radio wants the loading door" % where)
-	h = await solve(level, ui, level.swipes_puzzle, _hunted_9(level))
-	check(h <= rescue_tier(level.swipes_puzzle) and level.swipes_puzzle.solved and not level.dock_opened, "%s: the readers' log shows it isn't who it sounds like, and the loading door stays shut (hints %d)" % [where, h])
+	# The frame, practised safely on our own badge: its log, then the lab swipe's time.
+	h = await solve(level, ui, level.frame_puzzle, _hunted_9(level), 3, "", false, func(): return level.frame_listed)
+	check(h <= rescue_tier(level.frame_puzzle) and level.frame_listed, "%s: our own badge's log is on the screen, from the pass list and the poster or the ladder (hints %d)" % [where, h])
+	var lab: Array = level.swipes.filter(func(w): return w.badge == level._my_badge() and w.reader == "LAB-B")
+	check(point_cell(ui, "time", lab[0].time) and await _until(func(): return level.frame_puzzle.solved and _game().case_info("frame").get("solved", false), 2.0), "%s: pointing at the lab swipe's time solves the frame" % where)
+	check(_game().case_info("panel_power").get("open", false), "%s: and opens the power case" % where)
 	ui.close()
 	check_case_clues(level, where)
 	check_jots(level, where)
 
 	# Payroll's panel. The clipboard's crib is another panel's circuit and the carbon
 	# copy another floor's order: copied, each gets SYSOP's why.
-	if not seal:
-		level.prop_time = 0.3
-		level.prop.used.emit(p)  # propped on the way up: the floor clears without a work order
-		check(await _until(func(): return level.air_cleared, 5.0), "%s: the stair door propped, the air clears" % where)
 	_doc(level, "Facilities clipboard").open_reader(p).close()
 	_doc(level, "Carbon copy").open_reader(p).close()
 	ui.open(level.panel, p)
 	h = await solve(level, ui, level.circuits_puzzle, _hunted_9(level))
 	check(h <= rescue_tier(level.circuits_puzzle) and level.power_back, "%s: payroll's lights and the cage lock come back, the copiers off first, from the clipboard or the ladder (hints %d)" % [where, h])
 	check(_said(level.panel, level.TEXT.tip_example), "%s: the clipboard's crib, copied, answers 404 and SYSOP says it's another panel's" % where)
+	check(_game().case_info("air").get("open", false) and not _game().case_info("panel_power").get("solved", false), "%s: the power back opens the air case; the power's waits for its read-back" % where)
+	_game().selected_case = "panel_power"  # the crew picks the power's page to finish it
 	if seal:
-		# From the power on, the air counts: the read-back and the work order, at a
-		# first-timer's pace, inside the grace.
+		# From the power on, the air counts (once the crew asks anything): the
+		# read-back and the work order, at a first-timer's pace, inside the grace.
 		Engine.time_scale = 4.0
 		paced = 0.0
 		h = await solve(level, ui, level.check_circuits_puzzle, _hunted_9(level), 3, "", true)
-		check(h <= rescue_tier(level.check_circuits_puzzle) and level.check_circuits_puzzle.solved, "%s: the panel read back (hints %d)" % [where, h])
+		check(h <= rescue_tier(level.check_circuits_puzzle) and level.check_circuits_puzzle.solved and _game().case_info("panel_power").get("solved", false), "%s: the panel read back solves the power case (hints %d)" % [where, h])
 		var read_back := paced
 		h = await solve(level, ui, level.air_puzzle, _hunted_9(level), 3, "", true)
 		Engine.time_scale = 1.0
 		print("  INFO  work order (seed %d): logged %d s after the power came back (the panel's read-back %d s, then the order), of the air's %d s grace (%d hint%s)" % [seed_value, paced, read_back, level.air_grace, h, "" if h == 1 else "s"])
-		check(h <= rescue_tier(level.air_puzzle) and level.air_on, "%s: the work order logged for this floor's unit, from the carbon copy's shape and the clipboard, or the ladder (hints %d)" % [where, h])
-		gap(level._air_ticks == 0, "%s: a first-time player reads the panel back and logs the work order before the air hurts (%d s of %d; told the architect 2026-10-22: a longer grace, or the clock from the read-back)" % [where, paced, level.air_grace])
+		check(h <= rescue_tier(level.air_puzzle) and level.air_on, "%s: the work order logged for this floor's unit, from the carbon copy's shape and the grille's tag, or the ladder (hints %d)" % [where, h])
+		check(level._air_ticks == 0, "%s: a first-time player reads the panel back and logs the work order before the air hurts (%d s of %d: the grace starts at the first request after the air case opens)" % [where, paced, level.air_grace])
 		check(_said(level.panel, level.TEXT.tip_unit), "%s: the carbon copy's order, copied, goes in for floor 14's unit and SYSOP says so" % where)
+		_game().selected_case = "air"  # the radio may already be open: the crew stays on the air's page
 		h = await solve(level, ui, level.check_air_puzzle, _hunted_9(level))
-		check(h <= rescue_tier(level.check_air_puzzle) and level.check_air_puzzle.solved, "%s: the work order read back (hints %d)" % [where, h])
+		check(h <= rescue_tier(level.check_air_puzzle) and level.check_air_puzzle.solved and _game().case_info("air").get("solved", false), "%s: the work order read back solves the air case (hints %d)" % [where, h])
 	else:
 		h = await solve(level, ui, level.check_circuits_puzzle, _hunted_9(level))
 		check(h <= rescue_tier(level.check_circuits_puzzle) and level.check_circuits_puzzle.solved, "%s: the panel read back (hints %d)" % [where, h])
-		check(level.custodian_timed and not _hunted_9(level), "%s: with the power back and the air clear, the Custodian starts up the dock stairs" % where)
+		level.prop_time = 0.3
+		level.lure_delay_propped = 0.3
+		level.prop.used.emit(p)  # the stair door propped: the floor clears without a work order
+		check(await _until(func(): return level.air_cleared, 5.0), "%s: the stair door propped, the air clears" % where)
+
+	# The radio lies once the air is back or clear: the voice's badge's log, pointed at.
+	check(await _until(func(): return level.lures == 1, 5.0), "%s: then a voice on the radio wants the loading door" % where)
+	check(_said(level.panel, level.TEXT.tip_lure), "%s: SYSOP's word on it is on the screen the crew last typed at" % where)
+	h = await solve(level, ui, level.swipes_puzzle, _hunted_9(level), 3, "", false, func(): return level.radio_listed)
+	check(h <= rescue_tier(level.swipes_puzzle) and level.radio_listed and not level.dock_opened, "%s: the voice's badge's log is on the screen, and the loading door stays shut (hints %d)" % [where, h])
+	check(point_cell(ui, "error", level._no_badge(level.lure_badge)) and await _until(func(): return level.swipes_puzzle.solved and _game().case_info("radio").get("solved", false), 2.0),
+		"%s: pointing at what the log says about it: it isn't who it sounds like" % where)
+	check(_game().case_info("people").get("open", false), "%s: the radio done opens the people case" % where)
+	if not seal:
+		check(level.custodian_timed and not _hunted_9(level), "%s: with the people case open, the Custodian starts up the dock stairs" % where)
 		level._custodian_arrives()  # its climb, cut short
 		level.custodian.process_mode = Node.PROCESS_MODE_DISABLED  # keep the walk deterministic: it's loose, but stands still
 		check(_hunted_9(level), "%s: the Custodian is loose on the floor" % where)
@@ -1941,9 +1958,21 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 	h = await solve(level, ui, level.check_lockup_puzzle, _hunted_9(level), 3, calm)
 	check(h <= rescue_tier(level.check_lockup_puzzle) and level.released, "%s: read back, STAIR 2 releases (hints %d)" % [where, h])
 	if seal:
-		# Optional, and safe here: Vale's own record (the review ladder, once the rest is done).
-		h = await solve(level, ui, level.vale_puzzle, _hunted_9(level))
-		check(h <= rescue_tier(level.vale_puzzle) and _game().case_info("vale").get("solved", false), "%s: Vale's record, by her badge from the staff list (hints %d)" % [where, h])
+		# Optional, and safe here: Vale's own record (the review ladder, once the rest is
+		# done), and who last edited it, pointed at.
+		if not _game().case_info("vale").get("open", false):
+			# The key was first answered by the desk sheet's own record: the staff
+			# list is what has Vale's row in it.
+			ui.run("GET /staff\nX-Api-Key: %s" % level.data.keys.hr)
+			await t.physics_frame
+			await t.physics_frame
+		check(_game().case_info("vale").get("open", false), "%s: the staff list opens Vale's case" % where)
+		_game().selected_case = "vale"
+		var on_screen := func() -> bool:
+			return ui.noteable_lines().any(func(l): return l.get("cells", []).any(func(c): return c.column == "edited_by"))
+		h = await solve(level, ui, level.vale_puzzle, _hunted_9(level), 3, "", false, on_screen)
+		check(h <= rescue_tier(level.vale_puzzle) and on_screen.call(), "%s: Vale's record, by her badge from the staff list (hints %d)" % [where, h])
+		check(point_cell(ui, "edited_by", Level5Data.VALE.edited_by) and await _until(func(): return _game().case_info("vale").get("solved", false), 2.0), "%s: pointing at who last edited it solves her case" % where)
 	ui.close()
 
 	var done := [false]

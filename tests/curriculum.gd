@@ -336,6 +336,17 @@ const PUZZLES := {
 		"teaches": ["X-Api-Key", "401", "/staff"],
 		"needs": ["GET", "X-Api-Key", "/staff"],
 	},
+	# The frame, the floor's first case: our own visitor badges' log (GET with an id in
+	# the path) says we were swiped into Vale's lab while we were on 14. Practised
+	# safely on the crew's own badges, before the radio needs it under pressure; the
+	# time is pointed at. GET is long practised: a review ladder.
+	"frame": {
+		"level": 5,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": ["/swipes"],
+		"needs": ["GET", "X-Api-Key", "/swipes"],
+	},
 	# The panel: PATCH the shed circuits back on; the lights don't fit under the night
 	# limit until the copiers go off (409). Practised safely.
 	"circuits": {
@@ -353,9 +364,9 @@ const PUZZLES := {
 		"needs": ["GET", "X-Api-Key", "/circuits"],
 	},
 	# The work order: POST with a body of three fields (400 names a missing one, 201
-	# means it was made). Practised safely: the air only counts once the carbon copy is
-	# read and the power is back, and its grace is long enough for a first-timer (the
-	# sealed walk paces it).
+	# means it was made). Practised safely: the air only counts once the power is back
+	# and the crew has asked something since, and its grace is long enough for a
+	# first-timer (the sealed walk paces it).
 	"air": {
 		"level": 5,
 		"pressure": false,
@@ -366,19 +377,18 @@ const PUZZLES := {
 		"level": 5,
 		"pressure": false,
 		"ladder": "review",
-		"shape_gap": "hint 1 also says GET /work_orders/enter_order_id: told the architect 2026-10-22",
 		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/work_orders"],
 	},
 	# A voice on the walkie wants the loading door: the badge log says where that badge
-	# really is (GET with an id in the path, used under pressure on 22's stairwell). The
-	# voice lies, but nothing hunts the crew while they check it: the Mimics never attack,
-	# and the Custodian only comes once the power and the air are back.
+	# really is (practised at the frame), pointed at. The voice lies, but nothing hunts
+	# the crew while they check it: the Mimics never attack, and the Custodian's clock
+	# starts with the people case, once the radio is done.
 	"swipes": {
 		"level": 5,
 		"pressure": false,
 		"ladder": "review",
-		"teaches": ["/swipes"],
+		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/swipes"],
 	},
 	# Escort passes for the two real night-shifters (POST, practised at the work order),
