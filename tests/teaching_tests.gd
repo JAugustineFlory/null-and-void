@@ -543,6 +543,40 @@ func point_cell(ui: TerminalUI, column: String, value: String, row_has: String =
 	return false
 
 
+## Floor 9's finds, from the approved package (plan/approvals/puzzle-flow-floor-9.md),
+## read as a new player would: every cell on the screen that isn't the answer is
+## pointed at in turn. None may fill the slot, and each must leave the pencil line the
+## package gives it, so no wrong click goes unanswered. `on` picks the answers to sweep
+## by their request; `want` reads a cell (column, value, record) as the package does and
+## gives "answer" or the pencil line.
+func tempt_cells(ui: TerminalUI, case_id: String, on: String, want: Callable, where: String) -> void:
+	var lines: Array = ui.noteable_lines()
+	var tried := 0
+	var wrong := []
+	for i in lines.size():
+		if not str(lines[i].get("query", "")).contains(on):
+			continue
+		var cells: Array = lines[i].get("cells", [])
+		for j in cells.size():
+			var col := str(cells[j].column)
+			var value := str(cells[j].value)
+			var w: String = want.call(col, value, ui._row_of(i))
+			if w == "answer":
+				continue
+			var blank: Dictionary = _game().case_info(case_id).get("blank", {})
+			blank["miss"] = ""
+			ui.use_cell(i, j)
+			tried += 1
+			var c: Dictionary = _game().case_info(case_id)
+			var got := str(c.get("blank", {}).get("miss", ""))
+			if c.get("solved", false) or str(c.get("blank", {}).get("filled", "")) != "":
+				wrong.append("%s %s fills the slot" % [col, value])
+			elif got != w:
+				wrong.append("%s %s: \"%s\"" % [col, value, got if got != "" else "no pencil line"])
+	ui._cancel_note()
+	check(tried > 0 and wrong.is_empty(), "%s: every wrong cell at the %s case (%d tried) leaves the package's pencil line, and none fills the slot%s" % [where, case_id, tried, "" if wrong.is_empty() else " (" + "; ".join(wrong.slice(0, 4)) + ")"])
+
+
 func rescue_tier(p: Puzzle) -> int:
 	if p.hints.is_empty():
 		return 0
@@ -1887,6 +1921,22 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 	h = await solve(level, ui, level.frame_puzzle, _hunted_9(level), 3, "", false, func(): return level.frame_listed)
 	check(h <= rescue_tier(level.frame_puzzle) and level.frame_listed, "%s: our own badge's log is on the screen, from the pass list and the poster or the ladder (hints %d)" % [where, h])
 	var lab: Array = level.swipes.filter(func(w): return w.badge == level._my_badge() and w.reader == "LAB-B")
+	# The tempting wrong cells first, on our badge's log and on the whole log.
+	ui.run("GET /swipes\nX-Api-Key: %s" % level.data.keys.hr)
+	await t.physics_frame
+	await t.physics_frame
+	var crew: Array = level.issued
+	var frame_want := func(col: String, _v: String, row: Dictionary) -> String:
+		var swipe := row.has("reader") and row.has("time")
+		var ours := swipe and crew.has(str(row.get("badge", "")).to_upper()) and str(row.reader) == "LAB-B"
+		if ours and col == "time":
+			return "answer"  # N11
+		if ours:
+			return "That's the lab swipe. The blank wants its time."  # N12
+		if swipe and col == "time":
+			return "That's a swipe at another reader. The blank wants the one at LAB-B, Vale's lab."  # N13
+		return "Not that one: the blank wants when our badges were swiped into Vale's lab."  # N14
+	tempt_cells(ui, "frame", "/swipes", frame_want, where)
 	check(point_cell(ui, "time", lab[0].time) and await _until(func(): return level.frame_puzzle.solved and _game().case_info("frame").get("solved", false), 2.0), "%s: pointing at the lab swipe's time solves the frame" % where)
 	check(_game().case_info("panel_power").get("open", false), "%s: and opens the power case" % where)
 	ui.close()
@@ -1933,6 +1983,20 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 	check(_said(level.panel, level.TEXT.tip_lure), "%s: SYSOP's word on it is on the screen the crew last typed at" % where)
 	h = await solve(level, ui, level.swipes_puzzle, _hunted_9(level), 3, "", false, func(): return level.radio_listed)
 	check(h <= rescue_tier(level.swipes_puzzle) and level.radio_listed and not level.dock_opened, "%s: the voice's badge's log is on the screen, and the loading door stays shut (hints %d)" % [where, h])
+	_game().selected_case = "radio"
+	for q in ["GET /swipes/%s" % level._my_badge(), "GET /swipes"]:
+		ui.run("%s\nX-Api-Key: %s" % [q, level.data.keys.hr])
+		await t.physics_frame
+		await t.physics_frame
+	var mine: String = level._my_badge()
+	var exposed := "No visitor badge %s was issued tonight." % level.lure_badge
+	var radio_want := func(col: String, value: String, row: Dictionary) -> String:
+		if col == "error" and value == exposed:
+			return "answer"  # N27, solo
+		if str(row.get("badge", "")).to_upper() == mine:
+			return "That's your own badge. The voice said it had the next one in the book."  # N29
+		return "Not that one: the blank wants what the log says about the voice's badge."  # N30
+	tempt_cells(ui, "radio", "/swipes", radio_want, where)
 	check(point_cell(ui, "error", level._no_badge(level.lure_badge)) and await _until(func(): return level.swipes_puzzle.solved and _game().case_info("radio").get("solved", false), 2.0),
 		"%s: pointing at what the log says about it: it isn't who it sounds like" % where)
 	check(_game().case_info("people").get("open", false), "%s: the radio done opens the people case" % where)
@@ -1972,6 +2036,20 @@ func walk_level_5(seed_value: int, seal: bool) -> void:
 			return ui.noteable_lines().any(func(l): return l.get("cells", []).any(func(c): return c.column == "edited_by"))
 		h = await solve(level, ui, level.vale_puzzle, _hunted_9(level), 3, "", false, on_screen)
 		check(h <= rescue_tier(level.vale_puzzle) and on_screen.call(), "%s: Vale's record, by her badge from the staff list (hints %d)" % [where, h])
+		for q in ["GET /staff", "GET /staff/ST-0077"]:
+			ui.run("%s\nX-Api-Key: %s" % [q, level.data.keys.hr])
+			await t.physics_frame
+			await t.physics_frame
+		var vale_want := func(col: String, _v: String, row: Dictionary) -> String:
+			var hers := str(row.get("id", "")).to_upper() == "ST-0077"
+			if hers and col == "edited_by":
+				return "answer"  # N40
+			if hers and col == "last_edited":
+				return "That's when it was edited. The blank wants who by."  # N41
+			if hers:
+				return "That's Vale's record. The blank wants who edited it last."  # N42
+			return "Not that one: the blank wants who last edited Vale's record."  # N43
+		tempt_cells(ui, "vale", "/staff", vale_want, where)
 		check(point_cell(ui, "edited_by", Level5Data.VALE.edited_by) and await _until(func(): return _game().case_info("vale").get("solved", false), 2.0), "%s: pointing at who last edited it solves her case" % where)
 	ui.close()
 
