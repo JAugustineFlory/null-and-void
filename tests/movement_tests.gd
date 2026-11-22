@@ -43,6 +43,7 @@ func _run_moves() -> void:
 	await test_stuck_lift()
 	await test_ducts()
 	await test_vent_entries()
+	await test_grille_sides()
 	await test_same_controls_same_moves()
 	await test_first_person_motion()
 
@@ -1249,8 +1250,9 @@ func test_vent_entries() -> void:
 		Traversal.ducts(a, [[Vector3(10, 0, 0), Vector3(16, 0, 0)]], Vector2(1.0, 1.0), [], [Vector3(11, 1.0, 0)])
 		for slab in [[Vector3(9.75, 1.05, 0), Vector3(1.5, 0.1, 4)], [Vector3(14.0, 1.05, 0), Vector3(5.0, 0.1, 4)], [Vector3(11, 1.05, 1.25), Vector3(1, 0.1, 1.5)], [Vector3(11, 1.05, -1.25), Vector3(1, 0.1, 1.5)]]:
 			Greybox.box(a, slab[0], slab[1], Color.GRAY, "RaisedFloor")
-		var grille := VentGrille.make(a, "test", Vector3(11, 1.12, 0), Vector3.UP)
-		var out := Traversal.hatch(a, Vector3(11, 1.1, 0), Vector2(1.0, 1.0), Vector3(11, 1.1, 1.2))
+		var grille := VentGrille.place(a, "test", Vector3(11, 1.12, 0), Vector3.UP, Vector2(1.0, 1.0), VentGrille.SCREWDRIVER, VentGrille.UNSCREW, "", Vector3(11, 1.1, 1.2))
+		var out := grille.climb_out
+		var shut_climb := not out.active
 		var p := spawn(a, Vector3(11, 1.15, 1.2)) if not big else _spawn_sized(a, Vector3(11, 1.15, 1.2), CrewBody.largest())
 		p.rotation.y = 0.0  # facing -z, at the grille
 		await frames(15)
@@ -1259,13 +1261,13 @@ func test_vent_entries() -> void:
 		p.controls.crouch = false
 		await frames(30)
 		var held_up := p.global_position.y > 1.0
-		p.inventory.add(VentGrille.ITEM)
+		p.inventory.add(VentGrille.SCREWDRIVER)
 		var can: String = grille.get_prompt(p)
 		grille.interact(p)
 		await frames(5)
 		await _crawl_to(p, Vector3(11, 0, 0), 3.0)
 		if not big:
-			check(shut == VentGrille.SCREWED and can == "[E] " + VentGrille.UNSCREW and held_up, "a floor vent's grille is screwed shut, and holds you; with the screwdriver, unscrew it")
+			check(shut == VentGrille.SCREWED and can == "[E] " + VentGrille.UNSCREW and held_up and shut_climb, "a floor vent's grille is screwed shut, and holds you; with the screwdriver, unscrew it")
 		var t := 0
 		while p.global_position.y > 0.3 and t < 120:
 			await frames(1)
@@ -1329,6 +1331,50 @@ func test_vent_entries() -> void:
 		p.controls.move = Vector2.ZERO
 		check(climbed and rungs != null, "%s: and back up its rungs, out onto the duct's floor (y %.2f)" % [name, p.global_position.y])
 		await done(a)
+
+
+## E10's grilles from inside the duct: a screwed one stays shut from there (its
+## screws are on the room side); one that lifts out pushes up from underneath.
+func test_grille_sides() -> void:
+	print("Movement: vent grilles from inside the duct")
+	var a := arena()
+	Traversal.ducts(a, [[Vector3(10, 0, 0), Vector3(16, 0, 0)]], Vector2(1.0, 1.0), [Vector3(10, 0, 0)], [Vector3(12, 1.0, 0), Vector3(14, 1.0, 0)])
+	for slab in [[Vector3(11.25, 1.05, 0), Vector3(1.5, 0.1, 4)], [Vector3(13, 1.05, 0), Vector3(1, 0.1, 4)], [Vector3(15.25, 1.05, 0), Vector3(1.5, 0.1, 4)], [Vector3(13, 1.05, 1.25), Vector3(4, 0.1, 1.5)], [Vector3(13, 1.05, -1.25), Vector3(4, 0.1, 1.5)]]:
+		Greybox.box(a, slab[0], slab[1], Color.GRAY, "RaisedFloor")
+	var screwed := VentGrille.place(a, "screwed", Vector3(12, 1.12, 0), Vector3.UP, Vector2(1.0, 1.0), VentGrille.SCREWDRIVER, VentGrille.UNSCREW, "", Vector3(12, 1.1, 1.2))
+	var loose := VentGrille.place(a, "loose", Vector3(14, 1.12, 0), Vector3.UP, Vector2(1.0, 1.0), "", "Lift the grille out", "Push the grille up", Vector3(14, 1.1, 1.2))
+	var p := spawn(a, Vector3(8.5, 0.05, 0))
+	p.inventory.add(VentGrille.SCREWDRIVER)
+	await frames(10)
+	await _crawl_to(p, Vector3(12, 0, 0))
+	await frames(5)
+	var said: String = screwed.get_prompt(p)
+	screwed.interact(p)
+	await frames(5)
+	check(said == VentGrille.SCREWED and not screwed.is_open, "under a screwed grille, screwdriver or not: it's screwed shut from in here")
+	await _crawl_to(p, Vector3(14, 0, 0))
+	await frames(5)
+	said = loose.get_prompt(p)
+	loose.interact(p)
+	await frames(5)
+	check(said == "[E] Push the grille up" and loose.is_open and loose.climb_out.active, "under one that lifts out: push it up")
+	p.controls.crouch = false
+	var up := false
+	for i in 3:
+		p.controls.jump = true
+		for f in 60:
+			await frames(1)
+			if p.state == Player.Move.WALK and p.global_position.y > 1.05:
+				up = true
+				break
+		if up:
+			break
+	check(up, "and climb out through it (y %.2f)" % p.global_position.y)
+	var room := spawn(a, Vector3(12, 1.15, 1.2))
+	room.inventory.add(VentGrille.SCREWDRIVER)
+	await frames(10)
+	check(screwed.get_prompt(room) == "[E] " + VentGrille.UNSCREW, "from the room, the same screwed grille unscrews")
+	await done(a)
 
 
 func test_shoulders() -> void:
