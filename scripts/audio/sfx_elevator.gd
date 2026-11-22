@@ -56,6 +56,11 @@ func _process(delta: float) -> void:
 			ride_loop.queue_free()
 		ride_loop = null
 	_riding = lift.riding
+	# Stuck between floors (ElevatorStall): the hoist has died, but the car still
+	# hangs on its cables, and they still groan.
+	var stuck: bool = lift.stall != null and lift.stall.get("stalled") == true
+	if is_instance_valid(ride_loop):
+		ride_loop.stream_paused = stuck
 	if _riding:
 		_creak_in -= delta
 		if _creak_in <= 0.0:

@@ -85,6 +85,7 @@ static func make(parent: Node3D, at_top: Vector3, wall_out: Vector3, drop: float
 	parent.add_child(a)
 	a.add_to_group("interactable")
 	a.used.connect(a._on_used)
+	SfxKit.attach_anchor(a)  # tied off and untied, heard on every machine
 	return a
 
 

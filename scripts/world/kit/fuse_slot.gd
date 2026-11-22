@@ -64,12 +64,13 @@ func _set_state(peer: int, to: String) -> void:
 	else:
 		_take(peer, "fuse")
 	_show(to)
-	_sound_for(peer, "clunk")
+	_sound_for(peer, "fuse_pull" if to == "empty" else "fuse_fit")
 	if box:
 		box.circuit_changed.emit(circuit, to == "good", peer)
 
 
 func _show(to: String) -> void:
+	if to == "blown" and state != "blown" and is_inside_tree(): Sfx.play(get_parent(), "fuse_pop", position)  # it blows, where it is
 	state = to
 	_fuse.visible = to != "empty"
 	_wire.visible = to == "good"

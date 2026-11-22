@@ -1,0 +1,3 @@
+- **Added:** the building's odd jobs sound right: gears grinding to a stop on a crowbar and spinning back up, fuses snapping in and blowing with a crack, patch leads and plugs seating home, and an old monitor's relay, thrum and whine as it comes on.
+- **Added:** crates scrape as they're lifted and set down, a tied-off cable creaks as you climb it, ladders clang rung by rung, and a leg-up comes with a grunt and a boot scuff.
+- **Added:** a stuck lift lurches and its motor dies, the roof hatch bangs open and the landing doors roll apart.

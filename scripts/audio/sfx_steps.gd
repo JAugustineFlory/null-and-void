@@ -42,6 +42,10 @@ var _step_t := 0.0
 var _fall := 0.0
 var _was_on_floor := true
 var _move := ""
+## Climbing: last frame's rise, how long it's been a climb, and how far since a rung.
+var _vy := 0.0
+var _climbing := 0.0
+var _climbed := 0.0
 
 
 ## Steps for `b`, on every machine that has it, and its fight sounds (SfxCombat).
@@ -71,6 +75,7 @@ func _physics_process(delta: float) -> void:
 	var floor_hit := _floor()
 	var on_floor := not floor_hit.is_empty()
 	_moves()
+	_climb(delta, v, flat, on_floor)
 	if not on_floor:
 		_fall = maxf(_fall, -v.y)
 		_step_t = 0.0
@@ -143,6 +148,25 @@ func _upright() -> bool:
 
 func _crouched() -> bool:
 	return body.get("crouching") == true or body.get("crawling") == true
+
+
+## Off the floor, going steadily up or down at a climber's pace (falling speeds up;
+## climbing doesn't): a rung every RUNG metres, or the cable creaking if it's a
+## tied-off cable. Worked out from how the body moves, so a teammate's climb is heard too.
+func _climb(delta: float, v: Vector3, flat: float, on_floor: bool) -> void:
+	var steady := absf(v.y - _vy) / delta < 4.0
+	_vy = v.y
+	if on_floor or flat > 0.8 or absf(v.y) < 0.3 or absf(v.y) > SfxKit.CLIMB_SPEED or not steady:
+		_climbing = 0.0
+		_climbed = 0.0
+		return
+	_climbing += delta
+	if _climbing < 0.2:
+		return
+	_climbed += absf(v.y) * delta
+	if _climbed >= SfxKit.RUNG:
+		_climbed = 0.0
+		_play(SfxKit.climb_sound(body.get_tree(), body.global_position), -8.0)
 
 
 ## Your own player's vaults, mantles and ledge grabs, as they start.

@@ -82,6 +82,15 @@ const KINDS := {
 	"panel_off": {"unit": 4.0, "pitch": 0.06},
 	"hinge": {"unit": 3.0, "db": -8.0, "pitch": 0.1},
 	"door_creak": {"unit": 3.0, "pitch": 0.08},
+	# The environment kit's own (SfxKit).
+	"gear_jam": {"unit": 5.0}, "gear_free": {"unit": 5.0},
+	"fuse_pull": {"unit": 2.0, "pitch": 0.05}, "fuse_fit": {"unit": 2.0, "pitch": 0.05}, "fuse_pop": {"unit": 4.0},
+	"patch_plug": {"unit": 1.5, "pitch": 0.08}, "plug_in": {"unit": 2.0, "pitch": 0.05}, "power_button": {"unit": 1.5},
+	"crt_on": {"unit": 2.5, "db": -4.0},
+	"crate_lift": {"unit": 3.0, "pitch": 0.08}, "crate_down": {"unit": 4.0, "pitch": 0.08},
+	"rope_tie": {"unit": 2.5}, "rope_untie": {"unit": 2.5}, "rope_creak": {"unit": 3.0, "pitch": 0.1},
+	"climb_rung": {"unit": 3.0, "pitch": 0.1}, "effort": {"unit": 2.5, "pitch": 0.12}, "boot_scuff": {"unit": 2.0, "pitch": 0.1},
+	"lift_stall": {"unit": 8.0}, "hatch_lid": {"unit": 5.0}, "landing_release": {"unit": 6.0},
 	"door_closer": {"unit": 2.5, "pitch": 0.05},
 	"ceiling_tile": {"unit": 3.0, "db": -4.0, "pitch": 0.08},
 	"duct_crawl": {"unit": 3.0, "pitch": 0.12},
@@ -156,6 +165,8 @@ static func stream(kind: String) -> AudioStream:
 				_streams[kind] = SfxCreatures.make(kind)
 			elif SfxDoor.KINDS.has(kind):
 				_streams[kind] = SfxDoor.make(kind)
+			elif SfxKit.KINDS.has(kind):
+				_streams[kind] = SfxKit.make(kind)
 			else:
 				_streams[kind] = SfxSynth.make(kind)
 	return _streams[kind]

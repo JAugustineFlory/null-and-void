@@ -21,6 +21,9 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_door_sounds()
 	await test_locked_door_stab()
 	await test_elevator_sounds()
+	test_kit_kinds()
+	await test_kit_sounds()
+	await test_climbing()
 	await test_monster_sounds()
 	test_touch_kinds()
 	check(Sfx.KINDS.has(Counterplay.BLAST_SOUND) and Sfx.stream(Counterplay.BLAST_SOUND) != null, "a fire extinguisher's blast has its burst and hiss")
@@ -343,6 +346,105 @@ func test_elevator_sounds() -> void:
 	check(other.get_meta("sounds_played", []).is_empty() and kinds.call().size() == n, "a car already open when a floor loads makes no sound")
 	room.queue_free()
 	await t.process_frame
+
+## The environment kit's sounds, made in code on their own budget.
+func test_kit_kinds() -> void:
+	var total := 0
+	for k in SfxKit.KINDS:
+		var w := SfxKit.make(k)
+		if w == null:
+			check(false, "kit sound %s is made in code" % k)
+			continue
+		total += w.data.size()
+		check(_peak(w) > 0.2 and _clipped(w) < 0.001 and Sfx.KINDS.has(k) and Sfx.stream(k) != null,
+			"kit sound %s is made, heard, not clipped, and has its loudness (peak %.2f)" % [k, _peak(w)])
+	check(SfxKit.make("kazoo") == null, "there's no kit sound that isn't listed")
+	check(total < 400_000, "the kit's sounds stay under 400 KB (%d bytes)" % total)
+
+
+## Crates, the cable rope, a leg-up and a stalled car, from what they do on every machine.
+func test_kit_sounds() -> void:
+	var room := Node3D.new()
+	t.root.add_child(room)
+	Greybox.box(room, Vector3(0, -0.1, 0), Vector3(20, 0.2, 20), Color.GRAY, "Floor")
+	var kinds := func(): return room.get_meta("sounds_played", []).map(func(x): return x.kind)
+	var crate := Crate.make(room, Vector3(2, 0, 1))
+	var carrier := Node3D.new()
+	room.add_child(carrier)
+	await t.process_frame
+	crate.pick_up(7, carrier)
+	check(kinds.call() == ["crate_lift"], "a crate hefted up")
+	crate.place(Vector3(3, 0, 1), 0.0)
+	check(kinds.call() == ["crate_lift", "crate_down"] and room.get_meta("sounds_played")[1].pos.distance_to(crate.position) < 0.01,
+		"and set down with a scrape, where it lands")
+	var anchor := CableAnchor.make(room, Vector3(-4, 3.6, -2), Vector3.BACK, 3.6)
+	await t.process_frame
+	var n: int = kinds.call().size()
+	anchor.tie(7)
+	check(kinds.call().slice(n) == ["rope_tie"], "a cable knotted round its post")
+	var foot: Vector3 = anchor.volume.a
+	check(SfxKit.climb_sound(t, foot + Vector3.UP * 1.5) == "rope_creak", "climbing it, the cable creaks")
+	check(SfxKit.climb_sound(t, Vector3(6, 1.5, 6)) == "climb_rung", "climbing anything else: steel rungs")
+	anchor.untie(7)
+	check(kinds.call().slice(n) == ["rope_tie", "rope_untie"], "and worked loose again")
+	check(SfxKit.climb_sound(t, foot + Vector3.UP * 1.5) == "climb_rung", "no cable tied there now, nothing to creak")
+	var base := Node3D.new()
+	base.position = Vector3(1, 0, -3)
+	room.add_child(base)
+	n = kinds.call().size()
+	SfxKit.leg_up(base)
+	check(kinds.call().slice(n) == ["effort"], "a leg-up: the one lifting grunts")
+	await t.create_timer(0.25).timeout
+	check(kinds.call().slice(n) == ["effort", "boot_scuff"], "and the climber's boot scuffs on them")
+	room.queue_free()
+	await t.process_frame
+	# A car stuck between floors: the hoist dies, the cables don't.
+	room = Node3D.new()
+	t.root.add_child(room)
+	var lift := Elevator.create(room, room, Vector3(0, 0, 0), 0.0, "G", ["14", "G"], "14")
+	await t.process_frame
+	lift.ride(3.0)
+	await t.process_frame
+	await t.process_frame
+	var sounds: SfxElevator = lift.get_node("Sounds")
+	check(is_instance_valid(sounds.ride_loop) and not sounds.ride_loop.stream_paused, "riding, the hoist hums")
+	var stall := FakeStall.new()
+	room.add_child(stall)
+	lift.stall = stall
+	await t.process_frame
+	await t.process_frame
+	check(is_instance_valid(sounds.ride_loop) and sounds.ride_loop.stream_paused, "stalled between floors, the hum dies")
+	stall.stalled = false
+	await t.process_frame
+	await t.process_frame
+	check(is_instance_valid(sounds.ride_loop) and not sounds.ride_loop.stream_paused, "moving again, it hums again")
+	room.queue_free()
+	await t.process_frame
+
+
+## Someone climbing (a teammate's puppet, as the host sends where they are): a rung
+## each 0.35 m at a climber's pace. A fall or a jump isn't a climb.
+func test_climbing() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	Greybox.box(a, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "Floor")
+	var mate := PlayerPuppet.create(a, 7, "Mate", {}, Transform3D(Basis(), Vector3(0, 1.0, 5)))
+	var steps: SfxSteps = mate.get_node("Steps")
+	for i in 120:
+		mate.apply_state(Vector3(0, 1.0 + i * 0.025, 5), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	var rungs := steps.heard.filter(func(h): return h.kind == "climb_rung")
+	check(rungs.size() >= 4, "a teammate climbing a ladder: rung after rung (%d)" % rungs.size())
+	steps.heard.clear()
+	# Dropping off the top: falling speeds up, so it's no climb.
+	for i in 40:
+		var s := i / 60.0
+		mate.apply_state(Vector3(0, 9.0 - 4.9 * s * s, 5), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(not steps.heard.any(func(h): return h.kind in ["climb_rung", "rope_creak"]), "falling isn't climbing (%s)" % [steps.heard])
+	a.queue_free()
+	await t.process_frame
+
 
 ## The monsters, heard from what they do. Their brains are off here, as on a client's
 ## machine: only their state and where they are change, as the host sends them.
@@ -926,6 +1028,13 @@ class FakeWorld extends Node:
 	var current: Node
 	var home: Node
 	var player: Node3D
+
+
+## Stands in for ElevatorStall: stuck, or not.
+class FakeStall extends Node:
+	var stalled := true
+	func should_stall() -> bool:
+		return false
 
 
 ## Stands in for a floor: its key, and (Floor 10) its copy of the ground floor.

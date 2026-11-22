@@ -61,6 +61,7 @@ static func make(parent: Node3D, at: Vector3, yaw: float = 0.0, id: String = "")
 	parent.add_child(c)
 	c.add_to_group("interactable")
 	c.used.connect(c._on_used)
+	SfxKit.attach_crate(c)  # lifted and set down, heard on every machine
 	return c
 
 
