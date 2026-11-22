@@ -38,6 +38,8 @@ func _run_moves() -> void:
 	await test_leg_up()
 	await test_cable_rope()
 	await test_crate_stack()
+	await test_pry_doors()
+	await test_hatch()
 	await test_same_controls_same_moves()
 	await test_first_person_motion()
 
@@ -1005,6 +1007,120 @@ func test_crate_stack() -> void:
 	await frames(5)
 	check(not c.set_down(p) and p.carrying == c and p.hud == null, "up against a wall there's no room in front of you: you keep it")
 	await done(a)
+
+
+## Two players pull on a stuck lift's doors (E9): strong crew together, or
+## anyone with a crowbar between them.
+func _pry(crews: Array, crowbar: bool) -> Dictionary:
+	var a := arena()
+	var doors := PryDoors.make(a, Vector3(0, 1.0, -2.0), Vector3.BACK, 0.5)
+	var ps := []
+	for i in 2:
+		var p := spawn(a, Vector3(-0.4 + 0.8 * i, 0.05, -1.4))
+		p.crew = crews[i]
+		ps.append(p)
+	if crowbar:
+		ps[1].inventory.add("crowbar")
+	await frames(10)
+	var prompt: String = doors.grips[0].get_prompt(ps[0])
+	ps[0].controls.use = true
+	doors.grips[0].interact(ps[0])
+	await frames(5)
+	var alone: String = doors.prompt_for(0, ps[0])
+	ps[1].controls.use = true
+	doors.grips[1].interact(ps[1])
+	var held := false
+	for f in 30:
+		await frames(1)
+		held = held or (ps[0].gripping != null and ps[1].gripping != null)
+	var both: String = doors.prompt_for(0, ps[0])
+	var opened := false
+	for f in int(PryDoors.PRY_TIME * 60) + 30:
+		await frames(1)
+		if doors.opened:
+			opened = true
+			break
+	var out := {"prompt": prompt, "alone": alone, "both": both, "held": held, "opened": opened,
+		"free": ps[0].gripping == null and ps[1].gripping == null, "taken": doors.grips[0].get_prompt(ps[1])}
+	# Letting go ends it.
+	ps[0].controls.use = false
+	await frames(3)
+	out["let_go"] = ps[0].gripping == null and doors.holders[0] == 0
+	await done(a)
+	return out
+
+
+func test_pry_doors() -> void:
+	print("Movement: prying a stuck lift's doors")
+	var r := await _pry(["sam", "dana"], false)
+	check(r.prompt == PryDoors.HOLD and r.alone == PryDoors.WAITING, "a door's edge: hold E on it; on your own, someone needs the other door")
+	check(r.held and r.both == PryDoors.PRYING and r.opened, "two strong crew pulling together pry it open")
+	check(r.free, "and let go once it gives")
+	r = await _pry(["theo", "ike"], false)
+	check(r.held and r.both == PryDoors.WONT_BUDGE and not r.opened, "two who aren't strong: it won't budge")
+	check(r.let_go, "letting go of E lets go of the door")
+	r = await _pry(["theo", "ike"], true)
+	check(r.opened, "with a crowbar between them, anyone can")
+	r = await _pry(["sam", "theo"], false)
+	check(not r.opened, "one strong and one not isn't enough")
+	check(PlayableCrew.STRONG.size() == 5 and PlayableCrew.STRONG.any(func(s): return PlayableCrew.info(s).body == 2), "five crew are strong, women among them")
+	var a := arena()
+	var doors := PryDoors.make(a, Vector3(0, 1.0, -2.0), Vector3.BACK, 0.5)
+	var p := spawn(a, Vector3(-0.4, 0.05, -1.4))
+	var q := spawn(a, Vector3(0.4, 0.05, -1.4))
+	await frames(10)
+	p.controls.use = true
+	doors.grips[0].interact(p)
+	await frames(3)
+	q.controls.use = true
+	doors.grips[0].interact(q)
+	await frames(3)
+	check(p.gripping == doors.grips[0] and q.gripping == null and doors.grips[0].get_prompt(q) == "", "one pair of hands to each door")
+	doors.enabled = false
+	await frames(3)
+	check(p.gripping == null and doors.holders == [0, 0] and doors.grips[1].get_prompt(q) == "", "switched off (the car's moving again), nobody's holding and there's nothing to hold")
+	doors.enabled = true
+	p.controls.use = true
+	doors.grips[0].interact(p)
+	await frames(3)
+	var at := p.global_position
+	p.controls.move = Vector2(0, 1)
+	await frames(30)
+	check(p.global_position.distance_to(at) < 0.1, "holding on, you stay at the door (%.2f m)" % p.global_position.distance_to(at))
+	await done(a)
+
+
+## E9's roof hatch: Space under it with the rim in reach, or a jump to catch a
+## higher one, pulls you up through it onto the roof.
+func test_hatch() -> void:
+	print("Movement: up through a roof hatch")
+	for big in [false, true]:
+		var a := arena()
+		# A 2.5 m ceiling with a 0.8 m hatch in it, and the roof over it.
+		Greybox.box(a, Vector3(0, 2.55, -2.9), Vector3(4, 0.1, 3.0), Color.GRAY)  # z -4.4 .. -1.4
+		Greybox.box(a, Vector3(0, 2.55, 0.9), Vector3(4, 0.1, 3.0), Color.GRAY)  # z -0.6 .. 2.4
+		Greybox.box(a, Vector3(-1.2, 2.55, -1.0), Vector3(1.6, 0.1, 0.8), Color.GRAY)
+		Greybox.box(a, Vector3(1.2, 2.55, -1.0), Vector3(1.6, 0.1, 0.8), Color.GRAY)
+		var vol := Traversal.hatch(a, Vector3(0, 2.6, -1.0), Vector2(0.8, 0.8), Vector3(0, 2.6, -2.0))
+		vol.active = false
+		var p := spawn(a, Vector3(0, 0.05, -1.0)) if not big else _spawn_sized(a, Vector3(0, 0.05, -1.0), CrewBody.largest())
+		await frames(15)
+		p.controls.jump = true
+		await frames(60)
+		var shut_ok := p.global_position.y < 0.3
+		vol.active = true
+		var up := false
+		for i in 3:
+			p.controls.jump = true
+			for f in 60:
+				await frames(1)
+				if p.state == Player.Move.WALK and p.is_on_floor() and p.global_position.y > 2.5:
+					up = true
+					break
+			if up:
+				break
+		check(shut_ok and up, "%s: shut, a jump goes nowhere; open, you jump, catch the rim and pull up onto the roof (y %.2f)" % ["largest body" if big else "standard body", p.global_position.y])
+		await done(a)
 
 
 func test_shoulders() -> void:

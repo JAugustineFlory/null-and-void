@@ -21,6 +21,15 @@ const CAST := [
 	{"slug": "walt", "name": "Walt Henley", "age": "30s", "body": 1, "about": "Power-company lineman between storm callouts"},
 ]
 
+## Strong enough that two of them can pry a stuck lift's doors apart (E9,
+## plan/environment-play.md). Augustine 2026-11-21: five, women among them
+## (22:08Z), the fifth June (22:51Z).
+const STRONG := ["dana", "sam", "walt", "marcus", "june"]
+
+
+static func is_strong(slug: String) -> bool:
+	return STRONG.has(slug)
+
 
 static func slugs() -> Array:
 	return CAST.map(func(c): return c.slug)

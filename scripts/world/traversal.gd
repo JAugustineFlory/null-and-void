@@ -56,6 +56,19 @@ static func climbable(parent: Node, bottom: Vector3, top: Vector3, out: Vector3,
 	return v
 
 
+## A hatch in a ceiling (a lift car's roof hatch): the opening's rim is at
+## `rim` (the middle of it), `size` across (x and z); `out` is where you stand
+## on top once you've pulled yourself up through it. Space under it (or a jump,
+## if the rim's out of reach: it catches it) takes you up. Set the volume's
+## `active` false while the hatch is shut. At least 0.8 m square fits everyone.
+static func hatch(parent: Node, rim: Vector3, size: Vector2, out: Vector3) -> MovementVolume:
+	var v := MovementVolume.create(parent, rim + Vector3.DOWN * 1.3, Vector3(size.x, 2.6, size.y), MovementVolume.Kind.HATCH)
+	v.name = "Hatch"
+	v.a = rim
+	v.b = out
+	return v
+
+
 ## A narrow ledge along a wall from `a` to `b` (points on the ledge top, on the
 ## wall's face). `out` points away from the wall, over the drop.
 static func ledge(parent: Node, a: Vector3, b: Vector3, out: Vector3, depth: float = 0.45) -> MovementVolume:
