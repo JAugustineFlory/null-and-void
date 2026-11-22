@@ -4,5 +4,5 @@
 - **Changed:** Journey through JavaScript's chapters land one at a time, each with the step that needs it.
 - **Changed:** on B1 the names case opens a moment after the earpieces go in, and leaving it tidy opens once you're back in the warm.
 - **Added:** B1's terminals and decks run under the security policy, with its card on the supervisor's desk.
-- **Added:** a warm-up area halfway down B1's vault corridor, and door ids on the signs over the anteroom and the deep freeze.
+- **Added:** a warm-up area halfway down B1's vault corridor, and door ids on the anteroom's and the deep freeze's signs.
 - **Changed:** `.hint` on B1 first says where to look on the floor, and the script runner shows the case's shape above the editor.

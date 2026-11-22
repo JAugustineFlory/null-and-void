@@ -847,8 +847,9 @@ func _build_corridor(cold: Dictionary) -> void:
 	Greybox.label(geo, Vector3(10, 2.55, -15.88), WARM_UP_SIGN, 24, Color(0.85, 0.5, 0.2), 0).name = "WarmUpSign"
 	Greybox.label(geo, Vector3(-13.88, 2.5, -14), "PLANT", 26, Color(0.2, 0.3, 0.4), 90)
 	vault_c_door = add_door(data.doors.vault_c, VAULT_C_DOOR_AT, Vector3(0.12, 2.5, 1.6))
-	# The sign over its door, with its id (V30, V27), and the sign beside it.
-	var over := Document.place(geo, Vector3(19.88, 2.57, -14), -90, "Sign over Vault C's door", [VAULT_C_DOOR_SIGN % data.doors.vault_c], false, "laminated", Vector2(0.56, 0.1))
+	# The door's own sign, with its id (V30, V27), just south of the door (under the
+	# corridor's low ceiling, where it's read from the floor), and the sign beside it.
+	var over := Document.place(geo, Vector3(19.88, 2.2, -15.35), 90, "Vault C door sign", [VAULT_C_DOOR_SIGN % data.doors.vault_c], false, "laminated", Vector2(0.56, 0.1))
 	over.name = "VaultCDoorSign"
 	over.pieces = [{"case": "hold", "piece": "freezer_door", "text": data.doors.vault_c, "kind": "value"}]
 	var sign := Document.place(geo, Vector3(19.88, 1.5, -12.6), 90, "Vault C sign", VAULT_C_SIGN, false, "laminated", Vector2(0.26, 0.2))
