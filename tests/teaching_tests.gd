@@ -85,6 +85,8 @@ func run(tree: SceneTree, check: Callable, part := "main") -> void:
 	if part == "api":
 		await walk_level_5(31, true)
 		await walk_level_5(12, false)
+		for b2_seed in [4242, 77]:
+			await check_b2_pieces(b2_seed)
 		check_teaching_order()
 		if gaps > 0:
 			print("  (%d known teaching gap%s, see tests/curriculum.gd)" % [gaps, "" if gaps == 1 else "s"])
@@ -541,6 +543,94 @@ func point_cell(ui: TerminalUI, column: String, value: String, row_has: String =
 			if (column == "" or str(cells[j].column).to_lower() == column.to_lower()) and str(cells[j].value) == value:
 				return ui.use_cell(i, j)
 	return false
+
+
+## B2's pieces found by pointing (the approved package, X4, X10, X21 and X22), read as a
+## new player would: every other cell in the same answer is pointed at first, and
+## none may find the piece. Then the one the package names finds it.
+func tempt_piece(ui: TerminalUI, case_id: String, piece_id: String, on: String, want: Callable, where: String) -> void:
+	var lines: Array = ui.noteable_lines()
+	var tried := 0
+	var wrong := []
+	var answer := []
+	for i in lines.size():
+		if not str(lines[i].get("query", "")).contains(on):
+			continue
+		var cells: Array = lines[i].get("cells", [])
+		for j in cells.size():
+			if want.call(str(cells[j].column), str(cells[j].value), ui._row_of(i)):
+				answer.append([i, j])
+				continue
+			ui.use_cell(i, j)
+			tried += 1
+			await t.physics_frame
+			if _game().has_piece(case_id, piece_id):
+				wrong.append("%s %s" % [cells[j].column, cells[j].value])
+				_game().forget(case_id, [piece_id])
+	ui._cancel_note()
+	check(tried > 0 and wrong.is_empty(), "%s: no other cell in the answer (%d tried) finds %s%s" % [where, tried, piece_id, "" if wrong.is_empty() else " (" + ", ".join(wrong.slice(0, 4)) + ")"])
+	var found := false
+	if not answer.is_empty():
+		ui.use_cell(answer[0][0], answer[0][1])
+		await t.physics_frame
+		await t.physics_frame
+		found = _game().has_piece(case_id, piece_id)
+	ui._cancel_note()
+	check(found, "%s: pointing at the cell the package names finds %s" % [where, piece_id])
+
+
+## B2 (Level 7): the crew's token in B2's answer (X4), a zone's id and the ring's in
+## GET /lights (X10, X21), and WARDEN's token in the auth log once he's logged in
+## (X22), each found by pointing, on the admin terminal's screen.
+func check_b2_pieces(seed_value: int) -> void:
+	_game().new_run(seed_value)
+	var level = load("res://scenes/level_7.tscn").instantiate()
+	t.root.add_child(level)
+	skip_chapters(level)
+	for i in 10:
+		await t.physics_frame
+	var where := "machine room B2 (seed %d)" % seed_value
+	var ui: TerminalUI = level.terminal_ui
+	var p: Player = level.player
+	p.local_control = false
+	ui.open(level.admin_terminal, p)
+	var key: String = level.data.key
+	ui.run("POST /auth/token {\"key\": \"%s\"}" % key)
+	await t.physics_frame
+	await t.physics_frame
+	var tok := ""
+	for l in ui.noteable_lines():
+		for c in l.get("cells", []):
+			if str(c.column) == "token":
+				tok = str(c.value)
+	var token_line := func(col: String, _v: String, row: Dictionary) -> bool:
+		return col == "token" and row.has("expires_in")  # X4: the token's line in B2's answer
+	await tempt_piece(ui, "token", "token", "/auth/token", token_line, where)
+	ui.run("GET /lights\nAuthorization: Bearer %s" % tok)
+	await t.physics_frame
+	await t.physics_frame
+	var ids: Array = level.data.zones.map(func(z): return str(z.id))
+	var is_id := func(col: String, v: String, row: Dictionary) -> bool:
+		return col == "id" and row.has("circuit") and (ids.has(v) or v == str(level.data.emergency.id))
+	await tempt_piece(ui, "restore", "zone", "/lights", is_id, where)  # X10: any circuit's id, the emergency one too
+	_game().forget("restore", ["zone"])
+	_game().forget("zones", ["zones"])  # a ring id finds both: start the ring's sweep clean
+	var ring_id := func(col: String, v: String, row: Dictionary) -> bool:
+		return col == "id" and row.has("circuit") and ids.has(v)  # X21: a ring zone's
+	await tempt_piece(ui, "zones", "zones", "/lights", ring_id, where)
+	# He fights back: logged in, his token is in the auth log (X22).
+	level.fight_stage = 1
+	level._begin_stage2()
+	ui.run("GET /auth/log\nAuthorization: Bearer %s" % tok)
+	await t.physics_frame
+	await t.physics_frame
+	var his := func(col: String, _v: String, row: Dictionary) -> bool:
+		return col == "token" and str(row.get("holder", "")) == "WARDEN"  # X22: his entry's token line
+	await tempt_piece(ui, "warden", "warden_token", "/auth/log", his, where)
+	ui.close()
+	level.queue_free()
+	for i in 3:
+		await t.physics_frame
 
 
 ## Floor 9's finds, from the approved package (plan/approvals/puzzle-flow-floor-9.md),
