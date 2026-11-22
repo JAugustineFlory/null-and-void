@@ -223,7 +223,8 @@ static func _band(y: float) -> int:
 
 
 ## Storey -> how many of `n` kits it gets, by its walkable area (largest
-## remainder), only storeys with somewhere to put one.
+## remainder), only storeys with somewhere to put one. A storey other than the
+## floor's own gets no more than half of them.
 static func _shares(nav: Array, spots: Array, n: int) -> Dictionary:
 	var area := {}
 	for poly in nav:
@@ -247,6 +248,14 @@ static func _shares(nav: Array, spots: Array, n: int) -> Dictionary:
 	rest.sort_custom(func(x, y): return x[0] > y[0] or (x[0] == y[0] and x[1] > y[1]))
 	for i in n - given:
 		out[rest[i][1]] += 1
+	# A storey that isn't the floor's own (floor 10's ground-floor beat) takes at most
+	# half the kits, however much floor it has: the rest stay on the floor itself.
+	var own := _band(0.0)
+	var most := int(ceil(n / 2.0))
+	for b in out.keys():
+		if b != own and out.has(own) and out[b] > most:
+			out[own] += out[b] - most
+			out[b] = most
 	for b in out.keys():
 		if out[b] == 0:
 			out.erase(b)

@@ -304,7 +304,7 @@ static func rooms() -> Array:
 static func shut_rooms() -> Array[AABB]:
 	var out: Array[AABB] = []
 	for room in [VISITOR_BADGES, SECURITY, CONFERENCE, FACILITIES, BUILDING_SERVICES, JANITOR, KITCHEN, RECEIVING]:
-		out.append(box(room, BACK_H, 0.0, 0.5))
+		out.append(box(room, BACK_H, 0.0, 0.5, 0.5))  # its roof too
 	return out
 
 

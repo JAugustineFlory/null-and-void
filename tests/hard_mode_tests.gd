@@ -80,6 +80,10 @@ func test_kit_cabinets() -> void:
 			_check.call(cabs.size() == want, "%s, %s: %d cabinets for %d m² of floor (want %d)" % ["Hard" if hard else "Normal", level.name, cabs.size(), int(area), want])
 			var shut: Array = level.shut_rooms
 			_check.call(cabs.all(func(c): return not shut.any(func(room): return room.has_point(c.position))), "%s: none of them in a room nobody can get into" % level.name)
+			if k == 4:
+				# Floor 10's ground-floor beat is a bigger floor than 10 itself, and still takes no more than half.
+				var on_ten: int = cabs.filter(func(c): return c.position.y > -10.0).size()
+				_check.call(on_ten == (1 if hard else 3) and cabs.size() - on_ten == (2 if hard else 3), "floor 10 keeps its kits: %d on 10, %d on its ground floor" % [on_ten, cabs.size() - on_ten])
 			if not hard:
 				# Nothing in front of any of them: from where you'd stand, you see the cabinet itself.
 				var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
