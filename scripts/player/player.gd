@@ -263,6 +263,8 @@ var _crouch_was := false
 var _roll_queued := false
 var _was_on_floor := true
 var _air_time := 0.0
+## Feet height where you last stood: a hatch only catches you from below it.
+var _air_from := 0.0
 var _mantle_path: Array[Vector3] = []
 var _hang_normal := Vector3.ZERO
 var _hang_top := 0.0
@@ -1736,6 +1738,8 @@ func in_volume(kind: MovementVolume.Kind) -> MovementVolume:
 func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 	var on_floor := is_on_floor()
 	_air_time = 0.0 if on_floor else _air_time + delta
+	if on_floor:
+		_air_from = global_position.y
 	if not on_floor:
 		velocity.y -= gravity * delta
 		if crouch_pressed:
@@ -1809,7 +1813,8 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			_clamp_ledge_yaw()
 			return
 		var hatch := in_volume(MovementVolume.Kind.HATCH)
-		if hatch and (jump_pressed or (not on_floor and _air_time > 0.1 and velocity.y < 1.5)) and _try_hatch(hatch):
+		# Jumped up at it (not falling in through it from above) and it catches you.
+		if hatch and (jump_pressed or (not on_floor and _air_time > 0.1 and velocity.y < 1.5 and _air_from < hatch.a.y - 0.5)) and _try_hatch(hatch):
 			return
 		if jump_pressed:
 			# A direction key plus Space: vault something low, mantle or grab something

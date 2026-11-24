@@ -1273,9 +1273,27 @@ func test_vent_entries() -> void:
 		while p.global_position.y > 0.3 and t < 120:
 			await frames(1)
 			t += 1
-		var fell := p.global_position.y < 0.3
+		await frames(90)  # landed, and stays down there
+		var fell := p.global_position.y < 0.3 and p.state == Player.Move.WALK
 		var ok := await _crawl_to(p, Vector3(15, 0, 0))
+		ok = ok and p.global_position.y < 0.3 and p.crawling
 		check(grille.is_open and fell and ok, "%s: off, you drop through into the duct and crawl along it (open %s, fell %s, at %s)" % [name, grille.is_open, fell, p.global_position])
+		# Walking in upright, and crouch-walking in, you land in the duct too.
+		for crouched in [false, true]:
+			var q := spawn(a, Vector3(11, 1.15, 1.4)) if not big else _spawn_sized(a, Vector3(11, 1.15, 1.4), CrewBody.largest())
+			await frames(10)
+			q.controls.crouch = crouched
+			q.rotation.y = 0.0
+			q.controls.move = Vector2(0, -1)
+			for f in 40:
+				await frames(1)
+				if q.global_position.y < 0.9:
+					break
+			q.controls.move = Vector2.ZERO
+			await frames(120)
+			check(q.global_position.y < 0.3 and q.state == Player.Move.WALK, "%s: %s into the open vent, you land in the duct (y %.2f)" % [name, "crouch-walking" if crouched else "walking", q.global_position.y])
+			q.queue_free()
+			await frames(2)
 		ok = await _crawl_to(p, Vector3(11, 0, 0))
 		p.controls.crouch = false
 		var up := false
