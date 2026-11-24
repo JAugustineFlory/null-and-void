@@ -131,11 +131,16 @@ const MANAGER_DOOR := Vector2(29, -15)
 const BUILDING_SERVICES_DOOR := Vector2(31, -22)
 const KITCHEN_DOOR := Vector2(11, -33)
 const RECEIVING_DOOR := Vector2(-34, -31)
-## Windows onto the lobby, glazed from the sill up: [x, z] of each one's middle,
-## on its wall's line. Visitor badges has one beside its door; the security post's
-## is the guard's view of the front doors.
+## Windows, glazed from the sill up: [x, z] of each one's middle, on its wall's
+## line. Onto the lobby: visitor badges has one beside its door, and the security
+## post's is the guard's view of the front doors. Along the hall: Facilities on
+## its north side, the conference room on its south. And the manager's office
+## looks out over Facilities through its south partition.
 const VISITOR_WINDOW := Vector2(-16, -6.1)
 const SECURITY_WINDOW := Vector2(16, 3.0)
+const FACILITIES_WINDOW := Vector2(27.5, -3)
+const CONFERENCE_WINDOW := Vector2(37, 0)
+const MANAGER_WINDOW := Vector2(32, -13)
 const WINDOW_SILL := 0.9
 const WINDOW_HEAD := 2.2
 ## A door's sign: over it, at this height, in this ink.
@@ -204,6 +209,20 @@ const SERVING_COUNTER_SIZE := Vector3(16.0, 1.0, 0.9)
 const VENDING_AT := Vector3(CAFETERIA_DOOR_X + 2.2, 0.9, CAFETERIA.end.y - 0.6)
 const VENDING_NEXT := Vector3(1.2, 0, 0)
 const VENDING_SIZE := Vector3(0.8, 1.8, 0.9)
+## Facilities: the counter inside its door where work orders are handed in (its
+## public side faces the door), six cubicles in two rows of three, back to back
+## along a spine (CUBICLES is the spine's west end; each cubicle is CUBICLE wide
+## and deep), and the plan table, in view of the hall's glass.
+const FACILITIES_COUNTER := Vector3(FACILITIES_DOOR.x, 0, FACILITIES.end.y - 4.2)
+const FACILITIES_COUNTER_LONG := 5.0
+const CUBICLES := Vector3(FACILITIES.position.x + 1.2, 0, FACILITIES.position.y + 5.0)
+const CUBICLE := Vector2(2.6, 2.4)
+const PLAN_TABLE := Vector3(FACILITIES_WINDOW.x + 2.0, 0, FACILITIES.end.y - 6.0)
+## The manager's desk (whoever sits at it faces the office's glass), and the
+## conference room's table.
+const MANAGER_DESK := Vector3(MANAGER.position.x + 3.3, 0, MANAGER.position.y + 2.4)
+const CONFERENCE_TABLE := Vector3(CONFERENCE.position.x + 7.5, 0, CONFERENCE.position.y + 3.7)
+const CONFERENCE_TABLE_SIZE := Vector3(6.0, 0.74, 1.4)
 const IT_CRATE := Vector3(IT_CLOSET.position.x + 4.8, 0.3, IT_CLOSET.position.y + 0.6)
 const IT_HATCH := Vector3(IT_CLOSET.position.x + 4.2, BACK_H - 0.03, IT_CLOSET.position.y + 1.4)
 const CLOSET_SHELF := Vector3(CLOSET.position.x + 0.5, 0.9, VENT_Z)
@@ -274,6 +293,8 @@ static func openings() -> Array:
 		["z", VISITOR_DOOR.x, VISITOR_DOOR.y, 1.4, 2.2],
 		["z", VISITOR_WINDOW.x, VISITOR_WINDOW.y, 2.6, WINDOW_HEAD, WINDOW_SILL],
 		["z", SECURITY_WINDOW.x, SECURITY_WINDOW.y, 3.6, WINDOW_HEAD, WINDOW_SILL],
+		["x", FACILITIES_WINDOW.x, FACILITIES_WINDOW.y, 6.0, WINDOW_HEAD, WINDOW_SILL],
+		["x", CONFERENCE_WINDOW.x, CONFERENCE_WINDOW.y, 6.0, WINDOW_HEAD, WINDOW_SILL],
 		["x", SECURITY_DOOR.x, SECURITY_DOOR.y, 1.4, 2.2], ["x", CONFERENCE_DOOR.x, CONFERENCE_DOOR.y, 1.4, 2.2],
 		["x", FACILITIES_DOOR.x, FACILITIES_DOOR.y, 1.4, 2.2],
 		["x", PASSAGE_X, PASSAGE.end.y, 2.6, 2.6], ["x", PASSAGE_X, PASSAGE.position.y, 2.6, 2.6],  # the dark passage's two ends
@@ -286,6 +307,14 @@ static func openings() -> Array:
 		["z", LIFT_AT.x, LIFT_AT.z, Elevator.DOORWAY, Elevator.DOOR_H],
 		["x", STAIR_AT.x, STAIR_AT.z, Stairwell.DOOR_W, Stairwell.DOOR_H],
 	]
+
+
+## Every window on the floor, as openings() lists one: the rooms' own, and the
+## one in the manager's office's partition.
+static func windows() -> Array:
+	var out := openings().filter(func(o): return o.size() > 5)
+	out.append(["x", MANAGER_WINDOW.x, MANAGER_WINDOW.y, 3.0, WINDOW_HEAD, WINDOW_SILL])
+	return out
 
 
 ## `room`'s openings, as Greybox.room's gaps.
@@ -339,6 +368,16 @@ static func shut_rooms() -> Array[AABB]:
 	return out
 
 
+## Facilities' cubicles: [the middle of its floor, which way it opens (-1 north,
+## +1 south)], the north row first, west to east.
+static func cubicles() -> Array:
+	var out := []
+	for side in [-1.0, 1.0]:
+		for k in 3:
+			out.append([CUBICLES + Vector3(CUBICLE.x * (k + 0.5), 0, side * CUBICLE.y / 2.0), side])
+	return out
+
+
 ## The floor centre of each of `room`'s stalls (a restroom), north one first.
 static func stalls(room: Rect2) -> Array:
 	var out := []
@@ -354,9 +393,8 @@ static func build(geo: Node3D) -> void:
 		for wall in (r[4] if r.size() > 4 else []):
 			gaps.append({"wall": wall, "at": 0.0, "width": maxf(r[0].size.x, r[0].size.y), "height": r[1]})
 		Greybox.room(geo, mid(r[0]), span(r[0], r[1]), {"floor": r[2], "wall": r[3]}, gaps)
-	for o in openings():
-		if o.size() > 5:
-			_window(geo, o)
+	for o in windows():
+		_window(geo, o)
 	_lobby(geo)
 	_hall(geo)
 	_back(geo)
@@ -364,7 +402,7 @@ static func build(geo: Node3D) -> void:
 	_closet(geo)
 	# The manager's office: two partitions across Facilities' north-east corner.
 	Greybox._wall(geo, mid(MANAGER), span(MANAGER, BACK_H), "w", WALL, [gap(MANAGER, "w", MANAGER_DOOR.y, 1.2, 2.2)], 0.2)
-	Greybox._wall(geo, mid(MANAGER), span(MANAGER, BACK_H), "s", WALL, [], 0.2)
+	Greybox._wall(geo, mid(MANAGER), span(MANAGER, BACK_H), "s", WALL, [gap(MANAGER, "s", MANAGER_WINDOW.x, 3.0, WINDOW_HEAD, WINDOW_SILL)], 0.2)
 
 
 ## The pane in a window (an opening with a sill): solid, and seen through.

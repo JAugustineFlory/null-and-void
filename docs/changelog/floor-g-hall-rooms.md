@@ -1,0 +1,1 @@
+- **Added:** along the ground floor's hall you can look through glass into Facilities, with its counter, cubicles and plan table, and into the conference room. At the back of Facilities, the manager's office is locked, and someone has left the desk lamp on.

@@ -1925,6 +1925,40 @@ func test_ground_floor() -> void:
 		if is_pane:
 			q.exclude = [pane.rid]
 		check(is_pane and space.intersect_ray(q).is_empty(), "from the lobby you look through a window into %s, and the glass is solid" % w[0])
+	# The hall's rooms: Facilities with its counter and six cubicles, the manager's
+	# office with the lamp left on, and the conference room, seen through the hall's glass.
+	var screens_g: Array = level.find_children("CRT*", "Node3D", true, false).filter(func(m): return not m.get_parent() is Terminal)
+	var kept := 0
+	for c in G.cubicles():
+		var here := func(n: Node3D) -> bool: return Vector2(level.to_local(n.global_position).x - c[0].x, level.to_local(n.global_position).z - c[0].z).length() < 1.3
+		if all_seats.filter(here).size() == 1 and screens_g.filter(here).size() == 1:
+			kept += 1
+	check(kept == 6 and level.geo.has_node("FacilitiesCounter") and level.geo.has_node("PlanTable"), "Facilities has its counter, its plan table and six cubicles, each with a desk's screen and a chair (%d)" % kept)
+	var boss: AABB = G.box(G.MANAGER, 2.5)
+	var boss_seats: int = all_seats.filter(func(s): return boss.has_point(level.to_local(s.global_position))).size()
+	var lamps: Array = level.find_children("DeskLamp", "Node3D", true, false).filter(func(l): return boss.has_point(level.to_local(l.global_position)))
+	check(boss_seats == 3 and lamps.size() == 1 and lamps[0].has_node("LampLight") and level.doors["FACILITIES-MANAGER"].locked, "the manager's office is locked, tidy, and its desk lamp is on (%d seats)" % boss_seats)
+	var meet: AABB = G.box(G.CONFERENCE, 2.5)
+	var meet_seats: int = all_seats.filter(func(s): return meet.has_point(level.to_local(s.global_position))).size()
+	check(meet_seats == 10 and level.geo.has_node("ConferenceTable"), "the conference room has its table and ten chairs (%d)" % meet_seats)
+	# From the hall you see the lamp: through Facilities' glass, across the room, through the office's.
+	var from_hall: Vector3 = level.to_global(Vector3(G.FACILITIES_WINDOW.x, 1.6, G.HALL_Z))
+	var lamp_q := PhysicsRayQueryParameters3D.create(from_hall, lamps[0].global_position + Vector3.UP * 0.3 if lamps.size() == 1 else from_hall)
+	var panes := 0
+	var other := ""
+	for i in 4:
+		var hit := space.intersect_ray(lamp_q)
+		if hit.is_empty():
+			break
+		if str(hit.collider.name).begins_with("Window"):
+			panes += 1
+		else:
+			other = str(hit.collider.name)
+		lamp_q.exclude = lamp_q.exclude + [hit.rid]
+	check(panes == 2 and other == "", "from the hall the office's lamp shows through two panes of glass, nothing in the way (%d panes, %s)" % [panes, other])
+	var into_meet := PhysicsRayQueryParameters3D.create(level.to_global(Vector3(G.CONFERENCE_WINDOW.x, 1.6, G.HALL_Z)), level.to_global(Vector3(G.CONFERENCE_WINDOW.x, 1.6, G.CONFERENCE_WINDOW.y + 3.0)))
+	var meet_pane := space.intersect_ray(into_meet)
+	check(not meet_pane.is_empty() and str(meet_pane.collider.name).begins_with("Window"), "and the conference room is behind glass on the hall's other side")
 	# Nothing discoverable is labelled.
 	var labels: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text.to_upper())
 	check(not labels.any(func(t): return t.contains("VENT") or t.contains("AIR RETURN")), "vents carry no labels")
