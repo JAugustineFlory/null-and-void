@@ -263,6 +263,8 @@ var _crouch_was := false
 var _roll_queued := false
 var _was_on_floor := true
 var _air_time := 0.0
+## Feet height where you last stood: a hatch only catches you from below it.
+var _air_from := 0.0
 var _mantle_path: Array[Vector3] = []
 var _hang_normal := Vector3.ZERO
 var _hang_top := 0.0
@@ -1589,8 +1591,20 @@ func leg_up_ledge(base: Node3D) -> Dictionary:
 	var p := _ledge_probe(-brace.normal, feet)
 	_lift_base = was
 	if p.is_empty() or p.height > HANG_REACH:
-		return {}
+		var hatch := _hatch_over(feet)
+		return {"hatch": hatch, "height": hatch.a.y - feet.y} if hatch else {}
 	return p
+
+
+## An open hatch (a ceiling vent, a lift's roof) right over `feet`, its rim in
+## reach from there; or null.
+func _hatch_over(feet: Vector3) -> MovementVolume:
+	for v in get_tree().get_nodes_in_group("movement_volume"):
+		var m := v as MovementVolume
+		if m and m.kind == MovementVolume.Kind.HATCH and m.active and m.has_point(feet + Vector3.UP * 0.1) \
+				and m.a.y - feet.y <= HANG_REACH and m.a.y >= feet.y + body.crouch * 0.5:
+			return m
+	return null
 
 
 ## Can you take a leg-up off `base` right now? You on your feet with your hands
@@ -1680,6 +1694,9 @@ func _step_lift(delta: float) -> void:
 	state = Move.WALK
 	var dir := _lift_dir
 	_end_lift()
+	var hatch := in_volume(MovementVolume.Kind.HATCH)
+	if hatch and _try_hatch(hatch):
+		return  # a hole in the ceiling over them: up through it
 	if _try_ledge(true, dir):
 		_hang_jump = state == Move.HANG  # caught it: straight on up
 		return
@@ -1721,6 +1738,8 @@ func in_volume(kind: MovementVolume.Kind) -> MovementVolume:
 func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> void:
 	var on_floor := is_on_floor()
 	_air_time = 0.0 if on_floor else _air_time + delta
+	if on_floor:
+		_air_from = global_position.y
 	if not on_floor:
 		velocity.y -= gravity * delta
 		if crouch_pressed:
@@ -1771,7 +1790,7 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * speed * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * speed * delta)
 
-	if state == Move.WALK and rider == null and not in_vent and not _hands_full():
+	if state == Move.WALK and rider == null and (not in_vent or _can_stand()) and not _hands_full():
 		var climb := in_volume(MovementVolume.Kind.CLIMB)
 		# W + Space starts a climb (or W while already in the air), so walking past
 		# a pipe never grabs it.
@@ -1794,7 +1813,8 @@ func _step_ground(delta: float, jump_pressed: bool, crouch_pressed: bool) -> voi
 			_clamp_ledge_yaw()
 			return
 		var hatch := in_volume(MovementVolume.Kind.HATCH)
-		if hatch and (jump_pressed or (not on_floor and _air_time > 0.1 and velocity.y < 1.5)) and _try_hatch(hatch):
+		# Jumped up at it (not falling in through it from above) and it catches you.
+		if hatch and (jump_pressed or (not on_floor and _air_time > 0.1 and velocity.y < 1.5 and _air_from < hatch.a.y - 0.5)) and _try_hatch(hatch):
 			return
 		if jump_pressed:
 			# A direction key plus Space: vault something low, mantle or grab something

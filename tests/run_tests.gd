@@ -321,6 +321,7 @@ func _group_coop() -> void:
 	await test_coop_notes_huddle()
 	await test_coop_leg_up()
 	await test_coop_crate()
+	await test_coop_grille()
 	await test_coop_pry()
 	await test_coop_looks()
 	await test_coop_sitting()
@@ -3238,6 +3239,47 @@ func test_coop_crate() -> void:
 		and absf(b_host.global_position.y - (yard.y + Crate.SIZE * 1.5)) < 0.02 and absf(b_host.global_position.x - (yard.x + 1.5)) < 0.01,
 		"stacked on it, in the same place on every machine (%s)" % b_host.global_position)
 	check(crates[0][0].get_prompt(hp) == "" and crates[1][0].get_prompt(cp) == "", "and nobody can pull the bottom one out")
+	for l in levels:
+		l.player.local_control = true
+	await _coop_close(worlds)
+
+
+## E10: a client works vent grilles. The host decides, from where their puppet
+## stands: a screwed one opens only from the room side; one that lifts out opens
+## from underneath too. Every machine swings it.
+func test_coop_grille() -> void:
+	print("Co-op: vent grilles")
+	_game().new_run(6)
+	var worlds := await _coop_worlds(1)
+	var levels := await _coop_load(worlds, "res://scenes/level_0.tscn")
+	_lower_chapters_read(levels)
+	await _out_of_van(levels)
+	var yard := Vector3(300, 0, 300)
+	var gs := []
+	for l in levels:
+		Greybox.box(l, yard + Vector3(0, -0.1, 0), Vector3(12, 0.2, 12), Color.GRAY)
+		Greybox.box(l, yard + Vector3(0, 1.05, 2.5), Vector3(4, 0.1, 1.5), Color.DIM_GRAY)  # a raised floor beside them
+		gs.append([VentGrille.place(l, "screwed", yard + Vector3(0, 1.1, 0), Vector3.UP),
+			VentGrille.place(l, "loose", yard + Vector3(3, 1.1, 0), Vector3.UP, Vector2(1.0, 1.0), "", "Lift the grille out", "Push the grille up")])
+	var cp: Player = levels[1].player
+	var hp: Player = levels[0].player
+	for p in [hp, cp]:
+		p.local_control = false
+		p.velocity = Vector3.ZERO
+	hp.global_position = yard + Vector3(-4, 0.05, -4)
+	cp.global_position = yard + Vector3(1.5, 0.05, 1.2)  # below the grilles' level
+	cp.inventory.add(VentGrille.SCREWDRIVER)
+	await _frames(30)
+	gs[1][0].interact(cp)
+	gs[1][1].interact(cp)
+	await _frames(20)
+	check(not gs[0][0].is_open and not gs[1][0].is_open, "from underneath, a screwed grille stays shut on every machine")
+	check(gs[0][1].is_open and gs[1][1].is_open, "one that lifts out pushes up from underneath, on every machine")
+	cp.global_position = yard + Vector3(0, 1.15, 2.5)  # up on the floor beside it
+	await _frames(30)
+	gs[1][0].interact(cp)
+	await _frames(20)
+	check(gs[0][0].is_open and gs[1][0].is_open, "from the room side, the client unscrews it, and it's off everywhere")
 	for l in levels:
 		l.player.local_control = true
 	await _coop_close(worlds)
