@@ -3,7 +3,8 @@ extends RefCounted
 ## Floor G, as the crew walk in: the lobby with its front desk, the hall to the
 ## lift hall, the north corridor and the rooms off it, the dark east corridor, the
 ## forgotten closet behind the air return, and the staff's rooms, locked for the
-## night. Level 0 builds it where it stands;
+## night, with what stands in the back of house (the kitchen's walk-in, the air
+## handler, receiving's racking and cage). Level 0 builds it where it stands;
 ## Level 4 builds it again for the walk out at the end, so it's the same lobby
 ## (Augustine, v0.8). Static geometry only, in Level 0's coordinates, under `geo`
 ## (navigation bakes from it). Each level adds its own doors' states, lights,
@@ -18,6 +19,7 @@ const WALL := Color(0.62, 0.58, 0.5)
 const CARPET := Color(0.22, 0.2, 0.24)
 const LINO := Color(0.3, 0.31, 0.3)
 const TILE := Color(0.75, 0.76, 0.74)
+const STEEL := Color(0.6, 0.6, 0.62)
 
 # --- The rooms --------------------------------------------------------------------
 # Each is Rect2(its west wall's x, its north wall's z, how wide east, how deep
@@ -223,6 +225,43 @@ const PLAN_TABLE := Vector3(FACILITIES_WINDOW.x + 2.0, 0, FACILITIES.end.y - 6.0
 const MANAGER_DESK := Vector3(MANAGER.position.x + 3.3, 0, MANAGER.position.y + 2.4)
 const CONFERENCE_TABLE := Vector3(CONFERENCE.position.x + 7.5, 0, CONFERENCE.position.y + 3.7)
 const CONFERENCE_TABLE_SIZE := Vector3(6.0, 0.74, 1.4)
+## The kitchen. Its serving hatch is over the cafeteria's serving counter (the
+## counter's top is its sill), shut for the night by a roller grille you can see
+## through; the pass counter is under it on the kitchen's side. The walk-in cold
+## room fills the north-east corner, its door in its west side. The dish station
+## is along the east wall (DISH_STATION is on its top).
+const SERVING_HATCH := Vector2(SERVING_COUNTER.x, CAFETERIA.position.y)
+const SERVING_HATCH_WIDE := 8.0
+const SERVING_HATCH_HEAD := 2.3
+const PASS_COUNTER_SIZE := Vector3(SERVING_HATCH_WIDE, 0.9, 0.7)
+const PASS_COUNTER := Vector3(SERVING_HATCH.x, PASS_COUNTER_SIZE.y / 2.0, KITCHEN.end.y - 0.1 - PASS_COUNTER_SIZE.z / 2.0)
+const WALK_IN := Rect2(KITCHEN.end.x - 3.0, KITCHEN.position.y, 3.0, 3.0)
+const WALK_IN_DOOR := Vector3(WALK_IN.position.x, 1.0, WALK_IN.position.y + 1.6)
+const WALK_IN_DOOR_SIZE := Vector3(0.08, 2.0, 1.0)
+const DISH_STATION := Vector3(KITCHEN.end.x - 0.5, 0.9, KITCHEN.end.y - 2.3)
+## The janitor's closet: the shelves on its north wall (the floor under their middle).
+const JANITOR_SHELVES := Vector3(JANITOR.position.x + 1.7, 0, JANITOR.position.y + 0.3)
+## Building Services. The air handler stands against the west wall, its top flat
+## and clear of the ceiling by more than a crawl; its supply drops into the floor
+## through the plenum on its south end, and the floor south of that is kept clear.
+## The engineer's bench is along the east wall (ENGINEERS_BENCH is on its top).
+const AIR_HANDLER := Rect2(BUILDING_SERVICES.position.x + 0.5, BUILDING_SERVICES.position.y + 3.5, 3.4, 4.6)
+const AIR_HANDLER_H := 1.9
+const PLENUM := Vector3(AIR_HANDLER.position.x + 1.5, 0.6, AIR_HANDLER.end.y + 0.45)
+const PLENUM_SIZE := Vector3(1.2, 1.2, 0.9)
+const ENGINEERS_BENCH := Vector3(BUILDING_SERVICES.end.x - 0.5, 0.9, BUILDING_SERVICES.end.y - 3.2)
+const ENGINEERS_BENCH_LONG := 4.0
+## Receiving. The roll-up door to the dock is in the north wall, shut. Pallet
+## racking runs along the west wall: two decks (RACK_DECKS are their tops), the top
+## one clear of the ceiling by more than a crawl. The parcel cage fills the
+## north-east corner, mesh to the ceiling, its gate in its west side.
+const ROLLUP_DOOR := Vector3(RECEIVING_DOOR.x, 1.3, RECEIVING.position.y + 0.14)
+const ROLLUP_DOOR_SIZE := Vector3(3.0, 2.6, 0.08)
+const RACKING := Rect2(RECEIVING.position.x + 0.1, RECEIVING.position.y + 0.6, 1.1, 7.2)
+const RACK_DECKS := [0.95, 1.9]
+const PARCEL_CAGE := Rect2(RECEIVING.end.x - 3.0, RECEIVING.position.y, 3.0, 4.0)
+const CAGE_GATE := Vector3(PARCEL_CAGE.position.x, 1.05, PARCEL_CAGE.end.y - 1.0)
+const CAGE_GATE_SIZE := Vector3(0.04, 2.1, 1.1)
 const IT_CRATE := Vector3(IT_CLOSET.position.x + 4.8, 0.3, IT_CLOSET.position.y + 0.6)
 const IT_HATCH := Vector3(IT_CLOSET.position.x + 4.2, BACK_H - 0.03, IT_CLOSET.position.y + 1.4)
 const CLOSET_SHELF := Vector3(CLOSET.position.x + 0.5, 0.9, VENT_Z)
@@ -280,9 +319,11 @@ static func gap(room: Rect2, wall: String, where: float, width: float, height: f
 
 ## Every opening on the floor, each listed once: [the way its wall runs ("x" for
 ## an east-west wall, "z" for a north-south one), its middle's x, its middle's z,
-## width, height, and for a window the height of its sill]. A room gets a gap
-## wherever one lies on its walls (gaps_of), so the rooms either side of a wall
-## always agree. A window is glazed (build): seen through, never climbed through.
+## width, height, and for a window or a hatch the height of its sill; a hatch
+## then says what shuts it]. A room gets a gap wherever one lies on its walls
+## (gaps_of), so the rooms either side of a wall always agree. A window is glazed
+## (build): seen through, never climbed through. The kitchen's serving hatch has
+## its roller grille down.
 static func openings() -> Array:
 	var north := CORRIDOR.position.y
 	return [
@@ -303,6 +344,7 @@ static func openings() -> Array:
 		["x", MAILROOM_DOOR_X, north, 1.4, 2.2], ["x", MENS_DOOR_X, north, 1.4, 2.2], ["x", JANITOR_DOOR_X, north, 1.1, 2.2],
 		["x", WOMENS_DOOR_X, north, 1.4, 2.2], ["x", CAFETERIA_DOOR_X, north, 2.4, 2.6], ["x", IT_DOOR_X, north, 1.4, 2.2],
 		["x", KITCHEN_DOOR.x, KITCHEN_DOOR.y, 1.4, 2.2], ["x", RECEIVING_DOOR.x, RECEIVING_DOOR.y, 1.4, 2.2],
+		["x", SERVING_HATCH.x, SERVING_HATCH.y, SERVING_HATCH_WIDE, SERVING_HATCH_HEAD, SERVING_COUNTER_SIZE.y, "grille"],
 		["z", HALL.end.x, HALL_Z, 1.8, 2.4],  # into the lift hall
 		["z", LIFT_AT.x, LIFT_AT.z, Elevator.DOORWAY, Elevator.DOOR_H],
 		["x", STAIR_AT.x, STAIR_AT.z, Stairwell.DOOR_W, Stairwell.DOOR_H],
@@ -312,7 +354,7 @@ static func openings() -> Array:
 ## Every window on the floor, as openings() lists one: the rooms' own, and the
 ## one in the manager's office's partition.
 static func windows() -> Array:
-	var out := openings().filter(func(o): return o.size() > 5)
+	var out := openings().filter(func(o): return o.size() == 6)
 	out.append(["x", MANAGER_WINDOW.x, MANAGER_WINDOW.y, 3.0, WINDOW_HEAD, WINDOW_SILL])
 	return out
 
@@ -395,9 +437,13 @@ static func build(geo: Node3D) -> void:
 		Greybox.room(geo, mid(r[0]), span(r[0], r[1]), {"floor": r[2], "wall": r[3]}, gaps)
 	for o in windows():
 		_window(geo, o)
+	for o in openings():
+		if o.size() > 6:
+			_see_through(Greybox.box(geo, Vector3(o[1], (o[4] + o[5]) / 2.0, o[2]), Vector3(o[3], o[4] - o[5], 0.05), STEEL, "ServingGrille"), 0.5)
 	_lobby(geo)
 	_hall(geo)
 	_back(geo)
+	_back_of_house(geo)
 	_lift_hall(geo)
 	_closet(geo)
 	# The manager's office: two partitions across Facilities' north-east corner.
@@ -409,14 +455,19 @@ static func build(geo: Node3D) -> void:
 static func _window(geo: Node3D, o: Array) -> void:
 	var tall: float = o[4] - o[5]
 	var size := Vector3(o[3], tall, 0.04) if o[0] == "x" else Vector3(0.04, tall, o[3])
-	var pane := Greybox.box(geo, Vector3(o[1], o[5] + tall / 2.0, o[2]), size, Color(0.7, 0.8, 0.82), "Window")
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.7, 0.8, 0.82, 0.2)
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass.roughness = 0.05
-	for c in pane.get_children():
+	_see_through(Greybox.box(geo, Vector3(o[1], o[5] + tall / 2.0, o[2]), size, Color(0.7, 0.8, 0.82), "Window"), 0.2, 0.05)
+
+
+## Make a Greybox piece one you see through (glass, a grille, mesh): it stays solid.
+static func _see_through(body: StaticBody3D, alpha: float, roughness := 0.6) -> void:
+	for c in body.get_children():
 		if c is MeshInstance3D:
-			(c as MeshInstance3D).material_override = glass
+			var mat := StandardMaterial3D.new()
+			var tint: Color = ((c as MeshInstance3D).material_override as StandardMaterial3D).albedo_color
+			mat.albedo_color = Color(tint.r, tint.g, tint.b, alpha)
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mat.roughness = roughness
+			(c as MeshInstance3D).material_override = mat
 			(c as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
@@ -521,6 +572,55 @@ static func _back(geo: Node3D) -> void:
 
 	# The dark east corridor and its passage south to the hall. No working lights.
 	Greybox.panel(geo, DEAD_LIGHT, Vector3(1.2, 0.05, 0.3), Color(0.3, 0.3, 0.3))  # a dead light
+
+
+## What stands in the back of house, behind the staff's locked doors: the
+## kitchen's pass counter and walk-in, Building Services' air handler, and
+## receiving's roll-up door, racking and parcel cage. Their furniture is
+## DressGroundBack's.
+static func _back_of_house(geo: Node3D) -> void:
+	# The kitchen: the pass under the hatch, and the walk-in, panelled to the ceiling.
+	Greybox.box(geo, PASS_COUNTER, PASS_COUNTER_SIZE, STEEL, "PassCounter")
+	var panel := Color(0.8, 0.81, 0.8)
+	var t := 0.1
+	var wi := WALK_IN
+	Greybox.box(geo, Vector3(wi.get_center().x, BACK_H / 2.0, wi.end.y - t / 2.0), Vector3(wi.size.x, BACK_H, t), panel, "WalkIn")  # its south side
+	_side_with_doorway(geo, wi.position.x + t / 2.0, wi.position.y, wi.end.y, WALK_IN_DOOR.z, WALK_IN_DOOR_SIZE.z, WALK_IN_DOOR_SIZE.y, t, panel, "WalkIn")
+	Greybox.box(geo, WALK_IN_DOOR + Vector3(t / 2.0, 0, 0), WALK_IN_DOOR_SIZE, panel.darkened(0.12), "WalkInDoor")  # shut
+
+	# Building Services: the air handler, the plenum that takes its supply down
+	# into the floor, and the return duct into its top.
+	var unit := Color(0.55, 0.6, 0.62)
+	var ah := AIR_HANDLER
+	Greybox.box(geo, mid(ah, AIR_HANDLER_H / 2.0), span(ah, AIR_HANDLER_H), unit, "AirHandler")
+	Greybox.box(geo, PLENUM, PLENUM_SIZE, unit, "Plenum")
+	Greybox.box(geo, Vector3(ah.get_center().x, (AIR_HANDLER_H + BACK_H) / 2.0, ah.position.y + 0.8), Vector3(1.2, BACK_H - AIR_HANDLER_H, 1.2), unit, "ReturnDuct")
+
+	# Receiving: the roll-up door, down; the racking; the parcel cage, its gate
+	# swung right back against it.
+	Greybox.box(geo, ROLLUP_DOOR, ROLLUP_DOOR_SIZE, Color(0.6, 0.62, 0.6), "RollUpDoor")
+	var rk := RACKING
+	for top in RACK_DECKS:
+		Greybox.box(geo, Vector3(rk.get_center().x, top - 0.04, rk.get_center().y), Vector3(rk.size.x, 0.08, rk.size.y), Color(0.7, 0.55, 0.35), "RackDeck")
+	for k in 3:
+		for x in [rk.position.x + 0.04, rk.end.x - 0.04]:
+			Greybox.box(geo, Vector3(x, RACK_DECKS[1] / 2.0, rk.position.y + 0.04 + k * (rk.size.y - 0.08) / 2.0), Vector3(0.08, RACK_DECKS[1], 0.08), Color(0.2, 0.3, 0.55), "RackPost")
+	var mesh := Color(0.45, 0.47, 0.5)
+	var cg := PARCEL_CAGE
+	_see_through(Greybox.box(geo, Vector3(cg.get_center().x, BACK_H / 2.0, cg.end.y), Vector3(cg.size.x, BACK_H, 0.06), mesh, "CagePanel"), 0.4)  # its south side
+	for piece in _side_with_doorway(geo, cg.position.x, cg.position.y, cg.end.y, CAGE_GATE.z, CAGE_GATE_SIZE.z, CAGE_GATE_SIZE.y, 0.06, mesh, "CagePanel"):
+		_see_through(piece, 0.4)
+	_see_through(Greybox.box(geo, CAGE_GATE + Vector3(-0.06, 0, -CAGE_GATE_SIZE.z), CAGE_GATE_SIZE, mesh, "CageGate"), 0.4)
+
+
+## A north-south partition to the ceiling at `x`, from z `north` to `south`, with a
+## doorway `wide` and `tall` whose middle is at z `door`. Returns its pieces.
+static func _side_with_doorway(geo: Node3D, x: float, north: float, south: float, door: float, wide: float, tall: float, t: float, color: Color, piece_name: String) -> Array:
+	var out := []
+	var jambs := [[north, door - wide / 2.0, 0.0], [door + wide / 2.0, south, 0.0], [door - wide / 2.0, door + wide / 2.0, tall]]
+	for j in jambs:
+		out.append(Greybox.box(geo, Vector3(x, (j[2] + BACK_H) / 2.0, (j[0] + j[1]) / 2.0), Vector3(t, BACK_H - j[2], j[1] - j[0]), color, piece_name))
+	return out
 
 
 ## The lift hall, through the door at the end of the hall. Two of its three

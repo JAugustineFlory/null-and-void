@@ -1959,6 +1959,56 @@ func test_ground_floor() -> void:
 	var into_meet := PhysicsRayQueryParameters3D.create(level.to_global(Vector3(G.CONFERENCE_WINDOW.x, 1.6, G.HALL_Z)), level.to_global(Vector3(G.CONFERENCE_WINDOW.x, 1.6, G.CONFERENCE_WINDOW.y + 3.0)))
 	var meet_pane := space.intersect_ray(into_meet)
 	check(not meet_pane.is_empty() and str(meet_pane.collider.name).begins_with("Window"), "and the conference room is behind glass on the hall's other side")
+	# The back of house, behind its locked doors. The kitchen shows from the cafeteria
+	# through the serving hatch, whose grille is down for the night.
+	var hatch_x: float = G.SERVING_HATCH.x + 1.0
+	var into_kitchen := PhysicsRayQueryParameters3D.create(level.to_global(Vector3(hatch_x, 1.6, G.SERVING_HATCH.y + 2.5)), level.to_global(Vector3(hatch_x, 1.6, G.SERVING_HATCH.y - 3.0)))
+	var grille := space.intersect_ray(into_kitchen)
+	var is_grille: bool = not grille.is_empty() and str(grille.collider.name) == "ServingGrille"
+	if is_grille:
+		into_kitchen.exclude = [grille.rid]
+	check(is_grille and space.intersect_ray(into_kitchen).is_empty(), "from the cafeteria you look into the kitchen through the serving hatch, and its grille is down")
+	var hood: Array = level.find_children("HoodLight", "OmniLight3D", true, false)
+	check(hood.size() == 1 and G.box(G.KITCHEN, 3.0).has_point(level.to_local(hood[0].global_position))
+			and ["PassCounter", "KitchenRange", "Fryer", "Fridge", "PrepTable", "DryShelves", "DishStation"].all(func(n): return level.geo.has_node(n)),
+		"the kitchen has its pass, its line under the hood (the hood's light left on), prep tables, the dry store and the dish station")
+	var room_for := func(at: Vector3, size: Vector3) -> bool:  # nothing solid in a box of `size` centred on `at`
+		var probe := PhysicsShapeQueryParameters3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		probe.shape = shape
+		probe.transform = Transform3D(Basis.IDENTITY, level.to_global(at))
+		return space.intersect_shape(probe, 1).is_empty()
+	var first_hit := func(from: Vector3, to: Vector3) -> String:
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(level.to_global(from), level.to_global(to)))
+		return "" if hit.is_empty() else str(hit.collider.name)
+	var cold: Vector3 = G.mid(G.WALK_IN, 1.0)
+	check(room_for.call(cold, Vector3(1.4, 1.6, 1.4)) and first_hit.call(cold, cold + Vector3(-3.0, 0, 0)) == "WalkInDoor"
+			and first_hit.call(cold, cold + Vector3(0, 0, 3.0)).begins_with("WalkIn"),
+		"the walk-in is a room of its own in the kitchen's corner, its door shut")
+	check(["MopSink", "JanitorShelves", "JanitorCart", "MopBucket"].all(func(n): return level.geo.has_node(n))
+			and room_for.call(Vector3(G.JANITOR_DOOR_X, 0.9, G.JANITOR.end.y - 0.8), Vector3(0.8, 1.6, 0.8)),
+		"the janitor's closet has its sink, shelves, cart and bucket, and room to step inside the door")
+	var plant: AABB = G.box(G.BUILDING_SERVICES, 2.5)
+	var plant_seats: int = all_seats.filter(func(s): return plant.has_point(level.to_local(s.global_position))).size()
+	check(plant_seats == 1 and ["AirHandler", "Plenum", "WaterTank", "EngineersBench", "PartsRack", "PipeRack"].all(func(n): return level.geo.has_node(n)),
+		"Building Services has the air handler, the engineer's bench, his racks and his desk (%d seat)" % plant_seats)
+	var handler: Rect2 = G.AIR_HANDLER
+	check(room_for.call(Vector3(handler.position.x + 0.6, G.AIR_HANDLER_H + 0.52, handler.end.y - 0.7), Vector3(1.0, 1.0, 1.0))
+			and room_for.call(Vector3(G.PLENUM.x, 0.9, G.PLENUM.z + G.PLENUM_SIZE.z / 2.0 + 0.6), Vector3(1.0, 1.6, 1.0)),
+		"the air handler's top is clear to crawl onto, and the floor south of its plenum is clear")
+	var dock: AABB = G.box(G.RECEIVING, 2.5)
+	var dock_seats: int = all_seats.filter(func(s): return dock.has_point(level.to_local(s.global_position))).size()
+	var decks: Array = level.geo.find_children("RackDeck*", "StaticBody3D", false, false)
+	var rack: Rect2 = G.RACKING
+	check(dock_seats == 1 and decks.size() == 2 and level.geo.has_node("RollUpDoor") and level.geo.has_node("ParcelScale")
+			and room_for.call(Vector3(rack.get_center().x, G.RACK_DECKS[1] + 0.53, rack.get_center().y), Vector3(0.9, 1.0, 0.9)),
+		"receiving has its roll-up door (down), the receiving desk, the scale, and racking with a top deck clear to crawl along")
+	var cage: Rect2 = G.PARCEL_CAGE
+	check(first_hit.call(Vector3(cage.position.x - 1.0, 1.0, G.CAGE_GATE.z), Vector3(cage.position.x + 1.0, 1.0, G.CAGE_GATE.z)) == ""
+			and first_hit.call(Vector3(cage.position.x - 1.0, 1.0, cage.position.y + 0.3), Vector3(cage.position.x + 1.0, 1.0, cage.position.y + 0.3)).begins_with("CagePanel")
+			and first_hit.call(Vector3(cage.get_center().x, 1.0, cage.end.y + 1.0), Vector3(cage.get_center().x, 1.0, cage.end.y - 1.0)).begins_with("CagePanel"),
+		"and the parcel cage: mesh on two sides, its gate standing open")
 	# Nothing discoverable is labelled.
 	var labels: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text.to_upper())
 	check(not labels.any(func(t): return t.contains("VENT") or t.contains("AIR RETURN")), "vents carry no labels")
