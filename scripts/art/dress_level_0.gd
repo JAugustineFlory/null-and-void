@@ -213,6 +213,17 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.SECURITY, 3.5, -0.2, 0.5), "mat": lino},
 		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.FACILITIES, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(1.0, 1.05, 0.95))},
 		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.CONFERENCE, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(1.05, 0.9, 0.85))},
+		# The back of house
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.KITCHEN, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("floor_tile", Color(1.0, 0.72, 0.6))},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.BUILDING_SERVICES, 3.5, -0.2, 0.5), "mat": concrete},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.RECEIVING, 3.5, -0.2, 0.5), "mat": concrete},
+		{"names": ["PassCounter"], "mat": metal},
+		{"names": ["WalkInDoor"], "mat": ArtPalette.flat(Color(0.8, 0.81, 0.8), 0.35, 0.4)},
+		{"names": ["WalkIn"], "mat": ArtPalette.flat(Color(0.87, 0.88, 0.86), 0.45, 0.25)},
+		{"names": ["AirHandler", "Plenum", "ReturnDuct"], "mat": ArtPalette.flat(Color(0.5, 0.56, 0.58), 0.5, 0.4)},
+		{"names": ["RollUpDoor"], "mat": ArtPalette.flat(Color(0.6, 0.64, 0.6), 0.5, 0.5)},
+		{"names": ["RackDeck"], "mat": ArtPalette.flat(Color(0.72, 0.6, 0.4), 0.8)},
+		{"names": ["RackPost"], "mat": ArtPalette.flat(Color(0.16, 0.28, 0.5), 0.5, 0.4)},
 		# Hall to Server Room A
 		{"names": ["Floor"], "zone": z.hall, "mat": ArtPalette.surface("floor_tile")},
 		{"names": ["Ceiling"], "zone": z.hall, "mat": tiles},
@@ -247,6 +258,11 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 	DressGroundRooms.facilities(geo, dress)
 	DressGroundRooms.managers_office(geo, dress)
 	DressGroundRooms.conference_room(geo, dress)
+	DressGroundBack.serving_hatch(geo, dress)
+	DressGroundBack.kitchen(geo, dress)
+	DressGroundBack.janitors_closet(geo, dress)
+	DressGroundBack.building_services(geo, dress)
+	DressGroundBack.receiving(geo, dress)
 
 	# Hall: one more notice.
 	ArtProps.poster(dress, Vector3(GroundFloor.PASSAGE_X - 3.0, 1.6, GroundFloor.HALL.position.y + 0.11), 180,
@@ -361,7 +377,7 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	ArtDress.trim(dress, counter + Vector3(0, 0.01, 0), Vector3(counter_size.x + 0.04, 0.02, counter_size.z + 0.04), ArtPalette.flat(Color(0.75, 0.76, 0.77), 0.3, 0.8))  # steel top
 	var guard := ArtPalette.glass(Color(0.6, 0.7, 0.72))
 	ArtDress.trim(dress, counter + Vector3(counter_size.x / 4.0, 0.35, 0.4), Vector3(counter_size.x / 2.0, 0.5, 0.01), guard)  # sneeze guard
-	ArtProps.poster(dress, Vector3(counter.x, 2.5, cafe.position.y + 0.11), 180,
+	ArtProps.poster(dress, Vector3(counter.x, 2.9, cafe.position.y + 0.11), 180,  # over the serving hatch
 		"TODAY\n\nSoup of the day  1.50\nTuna melt  2.75\nChef salad  3.25\nCoffee  .50", Vector2(1.4, 0.8))
 	var cafe_board := ArtProps.corkboard(dress, GroundFloor.at(cafe, 2.5, 1.6, cafe.size.y - 0.11), 0, Vector2(1.4, 0.9))
 	ArtProps.memo(cafe_board, Vector3(-0.4, 0.05, -0.017), 0, "PLEASE LABEL FOOD\nin the fridge")

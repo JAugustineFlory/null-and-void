@@ -1,0 +1,1 @@
+- **Added:** the ground floor's back of house is furnished. The cafeteria's kitchen is behind a serving hatch, its grille pulled down for the night, and the light over the range is still on. Behind their locked doors are the janitor's closet, the building engineer's workshop and the receiving room.
