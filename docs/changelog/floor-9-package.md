@@ -1,0 +1,7 @@
+- **Changed:** on floor 9 each case takes you one step at a time: the query on screen follows the step you're on, and you answer the badge log and the staff records by pointing at the answer in the result.
+- **Added:** on floor 9, a pencil note says why when you point at the wrong cell, and SYSOP says why when a work order is nearly right.
+- **Added:** floor 9's terminals run under the security policy, with its card on the HR desk.
+- **Added:** a visitor pass list in the HR desk's tray, a security notice by the HR front, a plate on payroll's copier bank and a tag on payroll's air grille.
+- **Changed:** floor 9's cases open one at a time, as you get to them, and Acceptable API's chapters land with their cases, one at a time.
+- **Changed:** the radio on floor 9 waits until the air is back, and SYSOP's word about it shows on the screen you were last using.
+- **Changed:** `.hint` on floor 9 first says where to look on the floor, and follows the case you're on at either terminal.

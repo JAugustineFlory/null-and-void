@@ -126,7 +126,7 @@ func stall_ride(from: int, to: int, seconds: float) -> void:
 		conditions.clear()
 	e._set_car_light(0.35)
 	if e.get_parent() is Node3D:
-		Sfx.play(e, "clunk", Vector3(0, Elevator.SIZE.y, Elevator.SIZE.z / 2))
+		Sfx.play(e, "lift_stall", Vector3(0, Elevator.SIZE.y, Elevator.SIZE.z / 2))
 	hatch.enabled = not hatch.is_open
 	door_release.enabled = true
 	_sync_links()
@@ -205,7 +205,7 @@ func _build(geo: Node3D) -> void:
 	# The hatch: its lid is the piece. Pushed open, the lid swings up and away.
 	hatch = ItemLock.make(e, "hatch", Vector3(HATCH.position.x, h + 0.05, HATCH.position.y), Vector3(HATCH.size.x, 0.1, HATCH.size.y), "",
 		KitWords.say("hatch_open"), "")
-	hatch.sound = "hinge" if Sfx.KINDS.has("hinge") else "clunk"
+	hatch.sound = "hatch_lid"
 	hatch.kind = "lever"
 	hatch.enabled = false
 	_hatch_frame = Node3D.new()
@@ -223,7 +223,7 @@ func _build(geo: Node3D) -> void:
 	# The landing door's release, on the shaft side of the doors, by the ladder.
 	door_release = ItemLock.make(e, "door_release", Vector3(-Elevator.DOORWAY / 2.0 + 0.1, sill + 1.1, -0.18), Vector3(0.2, 0.3, 0.1), "",
 		KitWords.say("door_release"), "")
-	door_release.sound = "lever"
+	door_release.sound = "landing_release"
 	door_release.enabled = false
 	KitPiece._box(door_release, Vector3.ZERO, Vector3(0.05, 0.22, 0.04), Color(0.75, 0.6, 0.1))
 	door_release.opened.connect(func(_peer):

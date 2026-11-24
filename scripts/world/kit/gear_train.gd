@@ -113,7 +113,7 @@ func _jam(peer: int, on: bool, at: float) -> void:
 	else:
 		_give(peer, jam_item)
 	_set_state(on, at)
-	_sound_for(peer, "clatter" if on else "rattle")
+	_sound_for(peer, "gear_jam" if on else "gear_free")
 	jam_changed.emit(on, peer)
 
 

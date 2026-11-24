@@ -34,7 +34,7 @@ const ITEMS := {
 	"keyboard": {"name": "Keyboard", "about": "Beige, with a coiled cord. Plugs into a terminal."},
 	"power_cord": {"name": "Power cord", "about": "A spare monitor power cable. A dead screen might just need one."},
 	"fuse": {"name": "Fuse", "about": "A glass cartridge fuse. Fits the fuse boxes in this building."},
-	# "throwable": Combat's throw ([G]) works on it (scripts/combat/).
+	# "throwable": Combat's throw (right-click, or G) works on it (scripts/combat/).
 	"crowbar": {"name": "Crowbar", "about": "Pries open what's stuck. Heavy.", "throwable": true},
 	"fire_extinguisher": {"name": "Fire extinguisher", "about": "Three good blasts.", "throwable": true},
 }

@@ -65,6 +65,14 @@ func route(method: String, path: String, handler: Callable, scope := "", auth :=
 	_routes["%s %s" % [method.to_upper(), path]] = {"handler": handler, "scope": scope, "auth": auth}
 
 
+## A route whose body is always empty (B2's restarts and aborts): sent with no body
+## at all, it gets {} as if the empty object had been typed.
+func empty_body_ok(method: String, path: String) -> void:
+	var key := "%s %s" % [method.to_upper(), path]
+	if _routes.has(key):
+		_routes[key]["empty_ok"] = true
+
+
 ## Adds the auth service: POST /auth/token trades a valid key for a bearer token good
 ## for `seconds`; POST /auth/revoke {"token": ...} ends one (its own, or any with a key
 ## that has the "auth_admin" scope). Tokens are drawn from `seed_value`.
@@ -289,6 +297,8 @@ func _call(r: Dictionary, params: Array, method: String, path: String, headers: 
 		if not j.ok:
 			return {"status": 400, "body": {"error": "The body isn't valid JSON (line %d): %s" % [j.line, j.message]}}
 		parsed = j.value
+	elif r.get("empty_ok", false):
+		parsed = {}
 	elif method == "POST" or method == "PUT" or method == "PATCH":
 		return {"status": 400, "body": {"error": "%s needs a JSON body, like %s %s {\"name\": value}" % [method, method, path]}}
 	var handler: Callable = r.handler

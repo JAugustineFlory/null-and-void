@@ -27,6 +27,9 @@ const DESK_TURN := 60.0
 ## Work surfaces: tops this far above the floor, and at least this long.
 const SURFACE_TOP := Vector2(0.6, 1.15)
 const SURFACE_LONG := 0.9
+## And at least this deep: a window's sill (the wall under its glass) is nobody's
+## desk, and chairs wait with their backs to it.
+const SURFACE_DEEP := 0.3
 ## The room a body needs to stand in front of a screen.
 const BODY := Vector2(0.25, 1.6)
 ## Found facing the wrong way on floors that are waiting for their own rebuild:
@@ -359,7 +362,7 @@ static func _work_surfaces(level: Node3D) -> Array:
 		var box := _box_of(b)
 		if box == null:
 			continue
-		if box.size.y > 1.3 or maxf(box.size.x, box.size.z) < SURFACE_LONG:
+		if box.size.y > 1.3 or maxf(box.size.x, box.size.z) < SURFACE_LONG or minf(box.size.x, box.size.z) < SURFACE_DEEP:
 			continue
 		out.append(b)
 	return out

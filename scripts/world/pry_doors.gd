@@ -15,7 +15,7 @@ signal changed
 
 const PRY_TIME := 2.0
 const CROWBAR := "crowbar"
-## Words, waiting on Augustine's OK.
+## Augustine approved these words (2026-11-22).
 const HOLD := "Hold [E] to pry the door"
 const WAITING := "Someone needs to pull the other door."
 const WONT_BUDGE := "It won't budge. It takes two strong pairs of hands, or a crowbar."

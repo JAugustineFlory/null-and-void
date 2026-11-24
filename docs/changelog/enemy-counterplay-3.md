@@ -1,0 +1,1 @@
+- **Added:** more of what haunts the building reacts to your flashlight's strobe.

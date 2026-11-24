@@ -19,7 +19,12 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_hum_on_ambience()
 	await test_terminal_sounds()
 	await test_door_sounds()
+	await test_locked_door_stab()
 	await test_elevator_sounds()
+	test_kit_kinds()
+	await test_kit_sounds()
+	await test_climbing()
+	await test_monster_sounds()
 	test_touch_kinds()
 	check(Sfx.KINDS.has(Counterplay.BLAST_SOUND) and Sfx.stream(Counterplay.BLAST_SOUND) != null, "a fire extinguisher's blast has its burst and hiss")
 	await test_touch()
@@ -37,6 +42,8 @@ func run(tree: SceneTree, check: Callable) -> void:
 	await test_music_moods()
 	test_npc_danger()
 	await test_music_director()
+	await test_room_reverb()
+	await test_floor_beds()
 	test_volume_sliders()
 
 
@@ -76,12 +83,20 @@ func test_made_sounds() -> void:
 	check(Sfx.stream("glass") == Sfx.stream("glass"), "each sound is made once and kept")
 	# Made at load, never shipped: still, keep them small in memory.
 	check(total < 1_000_000, "every made sound together is under 1 MB in memory (%d bytes)" % total)
+	var monsters := 0
+	for kind in SfxCreatures.KINDS:
+		var w := SfxCreatures.make(kind)
+		monsters += w.data.size()
+		var peak := _peak(w)
+		check(peak > 0.05 and _clipped(w) < 0.01 and Sfx.KINDS.has(kind) and (w.loop_mode == AudioStreamWAV.LOOP_FORWARD) == (kind in SfxCreatures.LOOPS),
+			"monster sound %s is made, audible, not clipped and in Sfx.KINDS (peak %.2f)" % [kind, peak])
+	check(monsters < 400_000, "the monsters' sounds stay under 400 KB (%d bytes)" % monsters)
 
 
 ## A loop's last sample runs on into its first: no click each time round.
 func test_loops_have_no_seam() -> void:
-	for kind in SfxSynth.LOOPS:
-		var w := SfxSynth.make(kind)
+	for kind in SfxSynth.LOOPS + SfxCreatures.LOOPS:
+		var w: AudioStreamWAV = SfxSynth.make(kind) if kind in SfxSynth.LOOPS else SfxCreatures.make(kind)
 		var n := w.loop_end
 		var first := w.data.decode_s16(0) / 26000.0
 		var last := w.data.decode_s16((n - 1) * 2) / 26000.0
@@ -216,28 +231,85 @@ func test_door_sounds() -> void:
 	var hinged := Door.create(room, "TEST-HINGED", Vector3(8, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
 	await t.process_frame
 	var kinds := func(): return room.get_meta("sounds_played", []).map(func(x): return x.kind)
+	var since := func(n: int): return kinds.call().slice(n)
 	slid.set_open(true)
-	check(kinds.call() == ["door_motor"] and room.get_meta("sounds_played")[0].pos == Vector3(4, 1.2, 0), "a sliding door's motor runs as it opens, at the door")
+	check(kinds.call() == ["clunk"] and room.get_meta("sounds_played")[0].pos == Vector3(4, 1.2, 0), "a sliding door's bolts draw first, at the door")
+	await t.create_timer(1.4).timeout
+	check(kinds.call() == ["clunk", "door_motor", "click"], "then its motor runs it open, and it settles at the stop (%s)" % [kinds.call()])
+	var n: int = kinds.call().size()
 	slid.set_open(false)
-	check(kinds.call().back() == "clunk", "and it thuds shut")
+	await t.create_timer(0.6).timeout
+	check(since.call(n) == ["door_motor", "clunk"], "shutting: the motor, and the thud home (%s)" % [since.call(n)])
+	n = kinds.call().size()
 	hinged.set_open(true)
-	check(kinds.call().back() == "handle", "a hinged door's handle turns and it creaks open")
+	check(since.call(n) == ["handle"], "a hinged door's handle goes down first")
+	await t.create_timer(1.2).timeout
+	check(since.call(n) == ["handle", "door_creak", "tap"], "then it groans round on its hinges, and knocks against its stop (%s)" % [since.call(n)])
+	n = kinds.call().size()
 	hinged.set_open(false)
-	check(kinds.call().back() == "click", "and its latch clicks shut")
+	await t.create_timer(1.0).timeout
+	check(since.call(n) == ["door_closer", "click"], "its closer hisses it back, and the latch clicks (%s)" % [since.call(n)])
+	n = kinds.call().size()
+	hinged.set_open(true, false, 0.0, true)
+	await t.create_timer(1.0).timeout
+	check(since.call(n).size() > 0 and since.call(n)[0] == "door_creak" and not since.call(n).has("handle"), "shoved open, nobody turns the handle: straight into the swing")
+	hinged.set_open(false, true)
 	var stair := Door.create(room, "STAIR-1-G", Vector3(12, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
 	await t.process_frame
+	n = kinds.call().size()
 	stair.set_open(true)
-	check(kinds.call().back() == "push_bar", "a stair door clanks on its push bar")
-	stair.set_open(false)
+	check(since.call(n) == ["push_bar"], "a stair door clanks on its push bar")
+	stair.set_open(false, true)
+	await t.create_timer(1.0).timeout
 	stair.locked = true
-	var n: int = kinds.call().size()
+	n = kinds.call().size()
 	stair.interact(null)
-	check(kinds.call().size() == n + 1 and kinds.call().back() == "lock" and not stair.is_open, "a locked door's handle rattles and it stays shut")
+	check(since.call(n) == ["lock"] and not stair.is_open, "a locked door's handle rattles and it stays shut")
+	await t.create_timer(1.0).timeout
 	var before: int = kinds.call().size()
 	slid.set_open(true, true)
 	slid.set_open(true)
+	await t.create_timer(0.3).timeout
 	check(kinds.call().size() == before, "a door set at once (loading in) or already open makes no sound")
+	for k in SfxDoor.KINDS:
+		var w := SfxDoor.make(k)
+		check(w != null and _peak(w) > 0.2 and _clipped(w) < 0.001 and Sfx.KINDS.has(k) and Sfx.stream(k) != null,
+			"%s is made in code, heard, not clipped, and has its loudness (peak %.2f)" % [k, _peak(w)])
+	check(SfxDoor.make("door_slam") == null, "there's no door sound that isn't listed")
 	room.queue_free()
+	await t.process_frame
+
+
+## Trying a locked door near you: the score answers with a short stab, not every time.
+func test_locked_door_stab() -> void:
+	var stab := MusicSynth.sting("locked")
+	check(stab != null and _peak(stab) > 0.3 and _clipped(stab) < 0.001, "the locked-door stab is there and doesn't clip (peak %.2f)" % _peak(stab))
+	var world := FakeWorld.new()
+	t.root.add_child(world)
+	var room := Node3D.new()
+	world.add_child(room)
+	var me := Node3D.new()
+	room.add_child(me)
+	world.player = me
+	var d := MusicDirector.follow(world)
+	var door := Door.create(room, "TEST-LOCKED", Vector3(2, 1.2, 0), Vector3(0.1, 2.4, 0.9)).make_hinged(Vector3(0, 0, -0.45))
+	await t.process_frame
+	door.locked = true
+	door.interact(null)
+	check(d.tried_player != null and d.tried_player.playing and d.tried_player.bus == Sfx.MUSIC, "a locked door rattles beside you: the score stabs")
+	d.tried_player.stop()
+	door.interact(null)
+	check(not d.tried_player.playing, "trying it again straight away: just the rattle")
+	d._process(MusicDirector.TRIED_GAP + 0.1)
+	me.position = Vector3(2 + MusicDirector.TRIED_NEAR + 5.0, 0, 0)
+	door.interact(null)
+	check(not d.tried_player.playing, "a teammate rattling one down the corridor: just the rattle, far off")
+	me.position = Vector3.ZERO
+	door.interact(null)
+	check(d.tried_player.playing, "and once a while has passed, it stabs again")
+	d.tried_player.stop()
+	world.queue_free()
+	d.get_parent().queue_free()
 	await t.process_frame
 
 
@@ -274,6 +346,182 @@ func test_elevator_sounds() -> void:
 	check(other.get_meta("sounds_played", []).is_empty() and kinds.call().size() == n, "a car already open when a floor loads makes no sound")
 	room.queue_free()
 	await t.process_frame
+
+## The environment kit's sounds, made in code on their own budget.
+func test_kit_kinds() -> void:
+	var total := 0
+	for k in SfxKit.KINDS:
+		var w := SfxKit.make(k)
+		if w == null:
+			check(false, "kit sound %s is made in code" % k)
+			continue
+		total += w.data.size()
+		check(_peak(w) > 0.2 and _clipped(w) < 0.001 and Sfx.KINDS.has(k) and Sfx.stream(k) != null,
+			"kit sound %s is made, heard, not clipped, and has its loudness (peak %.2f)" % [k, _peak(w)])
+	check(SfxKit.make("kazoo") == null, "there's no kit sound that isn't listed")
+	check(total < 400_000, "the kit's sounds stay under 400 KB (%d bytes)" % total)
+
+
+## Crates, the cable rope, a leg-up and a stalled car, from what they do on every machine.
+func test_kit_sounds() -> void:
+	var room := Node3D.new()
+	t.root.add_child(room)
+	Greybox.box(room, Vector3(0, -0.1, 0), Vector3(20, 0.2, 20), Color.GRAY, "Floor")
+	var kinds := func(): return room.get_meta("sounds_played", []).map(func(x): return x.kind)
+	var crate := Crate.make(room, Vector3(2, 0, 1))
+	var carrier := Node3D.new()
+	room.add_child(carrier)
+	await t.process_frame
+	crate.pick_up(7, carrier)
+	check(kinds.call() == ["crate_lift"], "a crate hefted up")
+	crate.place(Vector3(3, 0, 1), 0.0)
+	check(kinds.call() == ["crate_lift", "crate_down"] and room.get_meta("sounds_played")[1].pos.distance_to(crate.position) < 0.01,
+		"and set down with a scrape, where it lands")
+	var anchor := CableAnchor.make(room, Vector3(-4, 3.6, -2), Vector3.BACK, 3.6)
+	await t.process_frame
+	var n: int = kinds.call().size()
+	anchor.tie(7)
+	check(kinds.call().slice(n) == ["rope_tie"], "a cable knotted round its post")
+	var foot: Vector3 = anchor.volume.a
+	check(SfxKit.climb_sound(t, foot + Vector3.UP * 1.5) == "rope_creak", "climbing it, the cable creaks")
+	check(SfxKit.climb_sound(t, Vector3(6, 1.5, 6)) == "climb_rung", "climbing anything else: steel rungs")
+	anchor.untie(7)
+	check(kinds.call().slice(n) == ["rope_tie", "rope_untie"], "and worked loose again")
+	check(SfxKit.climb_sound(t, foot + Vector3.UP * 1.5) == "climb_rung", "no cable tied there now, nothing to creak")
+	var base := Node3D.new()
+	base.position = Vector3(1, 0, -3)
+	room.add_child(base)
+	n = kinds.call().size()
+	SfxKit.leg_up(base)
+	check(kinds.call().slice(n) == ["effort"], "a leg-up: the one lifting grunts")
+	await t.create_timer(0.25).timeout
+	check(kinds.call().slice(n) == ["effort", "boot_scuff"], "and the climber's boot scuffs on them")
+	room.queue_free()
+	await t.process_frame
+	# A car stuck between floors: the hoist dies, the cables don't.
+	room = Node3D.new()
+	t.root.add_child(room)
+	var lift := Elevator.create(room, room, Vector3(0, 0, 0), 0.0, "G", ["14", "G"], "14")
+	await t.process_frame
+	lift.ride(3.0)
+	await t.process_frame
+	await t.process_frame
+	var sounds: SfxElevator = lift.get_node("Sounds")
+	check(is_instance_valid(sounds.ride_loop) and not sounds.ride_loop.stream_paused, "riding, the hoist hums")
+	var stall := FakeStall.new()
+	room.add_child(stall)
+	lift.stall = stall
+	await t.process_frame
+	await t.process_frame
+	check(is_instance_valid(sounds.ride_loop) and sounds.ride_loop.stream_paused, "stalled between floors, the hum dies")
+	stall.stalled = false
+	await t.process_frame
+	await t.process_frame
+	check(is_instance_valid(sounds.ride_loop) and not sounds.ride_loop.stream_paused, "moving again, it hums again")
+	room.queue_free()
+	await t.process_frame
+
+
+## Someone climbing (a teammate's puppet, as the host sends where they are): a rung
+## each 0.35 m at a climber's pace. A fall or a jump isn't a climb.
+func test_climbing() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	Greybox.box(a, Vector3(0, -0.1, 0), Vector3(40, 0.2, 40), Color.GRAY, "Floor")
+	var mate := PlayerPuppet.create(a, 7, "Mate", {}, Transform3D(Basis(), Vector3(0, 1.0, 5)))
+	var steps: SfxSteps = mate.get_node("Steps")
+	for i in 120:
+		mate.apply_state(Vector3(0, 1.0 + i * 0.025, 5), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	var rungs := steps.heard.filter(func(h): return h.kind == "climb_rung")
+	check(rungs.size() >= 4, "a teammate climbing a ladder: rung after rung (%d)" % rungs.size())
+	steps.heard.clear()
+	# Dropping off the top: falling speeds up, so it's no climb.
+	for i in 40:
+		var s := i / 60.0
+		mate.apply_state(Vector3(0, 9.0 - 4.9 * s * s, 5), 0.0, 0.0, PlayerPuppet.STAND_HEIGHT, false)
+		await t.physics_frame
+	check(not steps.heard.any(func(h): return h.kind in ["climb_rung", "rope_creak"]), "falling isn't climbing (%s)" % [steps.heard])
+	a.queue_free()
+	await t.process_frame
+
+
+## The monsters, heard from what they do. Their brains are off here, as on a client's
+## machine: only their state and where they are change, as the host sends them.
+func test_monster_sounds() -> void:
+	var a := Node3D.new()
+	t.root.add_child(a)
+	Greybox.box(a, Vector3(0, -0.1, 0), Vector3(60, 0.2, 60), Color.GRAY, "Floor")
+	var heard := func(): return a.get_meta("sounds_played", []).map(func(x): return x.kind)
+	var walk := func(n: Node3D, metres: float):
+		for i in int(metres / 0.05):
+			n.global_position.x += 0.05
+			await t.process_frame
+	var sh := Shredder.new()
+	sh.position = Vector3(-20, 0, -20)
+	a.add_child(sh)
+	sh.set_physics_process(false)
+	await t.process_frame
+	sh.state = "listening"
+	await t.process_frame
+	check(heard.call().has("shredder_roar"), "the Shredder roars as it wakes")
+	await walk.call(sh, 4.5)
+	check(heard.call().count("heavy_step") >= 2, "its feet come down heavy as it walks (%d)" % heard.call().count("heavy_step"))
+	sh.state = "turning"
+	await t.process_frame
+	check(heard.call().back() == "shredder_snarl", "it snarls as it turns to a sound")
+	sh.state = "stunned"
+	await t.process_frame
+	check(heard.call().back() == "shredder_roar", "a blast in the face makes it roar")
+	var cu := Custodian.new()
+	cu.position = Vector3(-10, 0, -10)
+	a.add_child(cu)
+	cu.set_physics_process(false)
+	await t.process_frame
+	cu.state = "hunting"
+	await t.process_frame
+	check(heard.call().back() == "robot_boot", "the Custodian boots up as it leaves its bay")
+	var cu_voice: SfxMonster = cu.get_node("Voice")
+	await walk.call(cu, 3.0)
+	check(heard.call().has("robot_step") and is_instance_valid(cu_voice.loop_player), "it clanks along, its servos whining")
+	await t.create_timer(1.0).timeout
+	check(cu_voice.loop_player == null, "standing still, the servos stop")
+	cu.state = "stunned"
+	await t.process_frame
+	await t.process_frame
+	check(heard.call().back() == "sparks", "stunned, it spits sparks")
+	var wa := Watcher.new()
+	wa.position = Vector3(0, 0, 10)
+	a.add_child(wa)
+	wa.set_physics_process(false)
+	await t.process_frame
+	await walk.call(wa, 2.5)
+	check(heard.call().has("watcher_step"), "the Watcher's feet drag as it comes, unseen")
+	await t.create_timer(1.0).timeout
+	check(heard.call().back() == "watcher_creak", "seen, it stops dead and its joints creak")
+	var mi := Mimic.new()
+	mi.position = Vector3(10, 0, 10)
+	a.add_child(mi)
+	mi.set_physics_process(false)
+	await t.process_frame
+	mi.state = "leaving"
+	await t.process_frame
+	check(heard.call().back() == "vault", "a Mimic's clothes rustle as it gets up to leave")
+	var n: int = heard.call().size()
+	mi.global_position += Vector3(10, 0, 0)  # turns up somewhere else
+	await t.process_frame
+	check(heard.call().size() == n, "and turning up somewhere else makes no footstep")
+	var ec := Echo.make(a, "TEST", "Test", Vector3(20, 0, 0), 0.0)
+	await t.process_frame
+	await t.process_frame
+	var ec_voice: SfxMonster = ec.get_node("Voice")
+	check(is_instance_valid(ec_voice.loop_player) and ec_voice.loop_player.playing, "an Echo hums, cold and thin, at its row")
+	ec.begin_release()
+	await t.process_frame
+	check(heard.call().back() == "echo_release" and ec_voice.loop_player == null, "punched out, it shimmers up and the hum is gone")
+	a.queue_free()
+	await t.process_frame
+
 
 ## What each thing you can use sounds like, from what it is and what its prompt says.
 func test_touch_kinds() -> void:
@@ -716,14 +964,24 @@ func test_music_layers() -> void:
 		var start := Time.get_ticks_msec()
 		var w := MusicSynth.make(layer)
 		ms += Time.get_ticks_msec() - start
-		check(w != null and w.loop_mode == AudioStreamWAV.LOOP_FORWARD and w.loop_end == MusicSynth.samples(),
-			"music layer %s loops, the same length as the rest" % layer)
+		var secs := float(w.loop_end) / w.mix_rate if w else 0.0
+		var loops := secs / MusicSynth.LENGTH
+		check(w != null and w.loop_mode == AudioStreamWAV.LOOP_FORWARD and is_equal_approx(secs, MusicSynth.seconds(layer))
+			and loops >= 1.0 and is_equal_approx(loops, roundf(loops)),
+			"music layer %s loops, a whole number of the others' loops long (%.2f s)" % [layer, secs])
 		var peak := _peak(w, 7)
 		check(peak > 0.1 and _clipped(w, 7) < 0.001, "music layer %s is audible and not clipped (peak %.2f)" % [layer, peak])
 		var first := w.data.decode_s16(0) / 26000.0
 		var last := w.data.decode_s16((w.loop_end - 1) * 2) / 26000.0
 		check(absf(first - last) < 0.05, "music layer %s loops without a click (seam %.3f)" % [layer, absf(first - last)])
 	print("    (music made in %d ms)" % ms)
+	var lobby := MusicSynth.make("lobby")
+	check(lobby.mix_rate == MusicSynth.LOBBY_RATE and is_equal_approx(MusicSynth.seconds("lobby"), MusicSynth.LENGTH * 2.0),
+		"the lobby's tune runs two of the others' loops, through a ceiling speaker")
+	check(MusicSynth.LOBBY_TUNE.back()[2] == 72 and MusicSynth.SAG > 0.0 and MusicSynth.SAG < 0.5,
+		"the tune's last note sags, a little: not quite right, not obviously wrong")
+	# The shadow is quieter than the tune itself.
+	check(_peak(MusicSynth.make("lobby_off"), 7) < _peak(lobby, 7), "the lobby's shadow sits under the tune")
 	check(MusicSynth.make("kazoo") == null, "there's no layer that isn't listed")
 	for m in Music.MOODS:
 		for layer in Music.MOODS[m]:
@@ -769,6 +1027,20 @@ class FakeWorld extends Node:
 	signal checkpoint_reached(wing_id: String)
 	var current: Node
 	var home: Node
+	var player: Node3D
+
+
+## Stands in for ElevatorStall: stuck, or not.
+class FakeStall extends Node:
+	var stalled := true
+	func should_stall() -> bool:
+		return false
+
+
+## Stands in for a floor: its key, and (Floor 10) its copy of the ground floor.
+class FakeWing extends Node3D:
+	var wing_id := ""
+	var g_root: Node3D
 
 
 func test_npc_danger() -> void:
@@ -824,8 +1096,21 @@ func test_music_director() -> void:
 	s.active = true
 	s.state = "roaming"
 	check(d.pick() == "hunted", "a threat loose on this floor: hunted")
+	# Close to it, you hear your own heart; the rest of the crew, across the floor, don't.
+	var me := Node3D.new()
+	floor_wing.add_child(me)
+	world.player = me
+	s.global_position = Vector3(30, 0, 0)
+	me.global_position = Vector3(30 + MusicDirector.NEAR - 2.0, 0, 0)
+	check(d.pick() == "close", "a threat a few metres from you: close")
+	me.global_position = Vector3(30 + MusicDirector.NEAR + 5.0, 0, 0)
+	check(d.pick() == "hunted", "further off: hunted")
 	s.state = "grabbing"
 	check(d.pick() == "chase", "it has someone: chase")
+	me.global_position = Vector3(30 + MusicDirector.NEAR - 2.0, 0, 0)
+	check(d.pick() == "chase", "chase wins over close")
+	world.player = null
+	me.free()
 	s.active = false
 	world.checkpoint_reached.emit("level_3")
 	check(d.pick() == "checkpoint", "a floor done: relief")
@@ -837,6 +1122,9 @@ func test_music_director() -> void:
 	s.reparent(other)
 	s.active = true
 	check(d.pick() == "uneasy", "a threat on another floor doesn't count")
+	await _alarm_moods(world, d)
+	await _sealed_moods(world, d)
+	await _lobby_moods(world, d, game)
 	world.home = Node3D.new()
 	world.current = world.home
 	check(d.pick() == "checkpoint", "at home base, relief")
@@ -846,6 +1134,314 @@ func test_music_director() -> void:
 	check(d.pick() == "silent", "with no world, silence")
 	game.rourke_fate = fate
 	d.get_parent().queue_free()
+	await t.process_frame
+
+
+## Stands in for a floor's doors, which follow the doors table.
+class FakeDoor extends Node3D:
+	var locked := false
+
+
+class DoorWing extends Node3D:
+	var wing_id := "level_0"
+	var doors := {}
+
+
+func _sealed_moods(world: FakeWorld, d: MusicDirector) -> void:
+	var sting := MusicSynth.sting("sealed")
+	check(sting != null and sting.loop_mode == AudioStreamWAV.LOOP_DISABLED and _peak(sting) > 0.3 and _clipped(sting) < 0.001,
+		"the sealed sting plays once, and doesn't clip (peak %.2f)" % _peak(sting))
+	check(MusicSynth.sting("party") == null, "there's no sting that isn't listed")
+	var was: Node = world.current
+	var g := DoorWing.new()
+	world.add_child(g)
+	for id in ["LOBBY-FRONT", "LOBBY-HALL-END", "FAR"]:
+		var door := FakeDoor.new()
+		g.add_child(door)
+		g.doors[id] = door
+	g.doors["LOBBY-HALL-END"].locked = true  # locked when the floor was built
+	g.doors["FAR"].position = Vector3(MusicDirector.SEAL_NEAR + 20.0, 0, 0)
+	var me := Node3D.new()
+	g.add_child(me)
+	me.position = Vector3(2, 0, 2)
+	world.player = me
+	world.current = g
+	d.watch_doors()
+	check(d.pick() != "sealed", "a floor's doors locked from the start aren't the building locking you in")
+	g.doors["FAR"].locked = true
+	d.watch_doors()
+	check(d.pick() != "sealed", "a door locking across the floor, far from you, isn't either")
+	g.doors["LOBBY-FRONT"].locked = true
+	g.doors["LOBBY-HALL-END"].locked = false
+	d.watch_doors()
+	check(d.pick() == "sealed" and d.sting_player != null and d.sting_player.playing and d.sting_player.bus == Sfx.MUSIC,
+		"the front doors lock behind you: the sting, and the music sealed")
+	g.doors["LOBBY-HALL-END"].locked = true
+	d.watch_doors()
+	d._process(0.0)
+	check(d._sting_wait > MusicDirector.STING_GAP - 0.5, "a lockdown's doors locking one after another: one sting, not one each")
+	d._process(MusicDirector.SEALED_HOLD + 0.1)
+	check(d.pick() != "sealed", "after a while, back to the floor's mood")
+	# B1's sweeps relock the same door over and over: it shuts you in once.
+	g.doors["LOBBY-FRONT"].locked = false
+	d.watch_doors()
+	g.doors["LOBBY-FRONT"].locked = true
+	d.watch_doors()
+	check(d.pick() != "sealed", "the same door relocking a minute later doesn't sting again")
+	d._process(MusicDirector.DOOR_AGAIN)
+	d._process(MusicDirector.STING_GAP)
+	g.doors["LOBBY-FRONT"].locked = false
+	d.watch_doors()
+	g.doors["LOBBY-FRONT"].locked = true
+	d.watch_doors()
+	check(d.pick() == "sealed", "but long after, it does")
+	d._process(MusicDirector.SEALED_HOLD + 0.1)
+	d.sting_player.stop()
+	world.current = was
+	world.player = null
+	g.free()
+	await t.process_frame
+
+
+## Stands in for a floor with an alarm (Floor 10) or gas suppression (B2).
+class AlarmWing extends Node3D:
+	var wing_id := "level_4"
+	var alarm := false
+	var gas := {"B2-MOTOR": "idle", "B2-UPS": "idle"}
+
+
+func _alarm_moods(world: FakeWorld, d: MusicDirector) -> void:
+	var was: Node = world.current
+	var w := AlarmWing.new()
+	world.add_child(w)
+	world.current = w
+	check(d.pick() == "uneasy", "no alarm: the floor's own mood")
+	w.alarm = true
+	check(d.pick() == "alarm", "the breakers out of place and the alarm going: the music hears it")
+	w.alarm = false
+	w.gas["B2-UPS"] = "armed"
+	check(d.pick() == "alarm", "a gas discharge counting down: alarm")
+	var c := Custodian.new()
+	w.add_child(c)
+	c.set_process(false)
+	c.set_physics_process(false)
+	c.state = "hunting"
+	check(d.pick() == "chase", "something after you wins over the alarm")
+	c.free()
+	w.gas["B2-UPS"] = "discharged"
+	check(d.pick() == "uneasy", "once it's over, back to the floor's mood")
+	var m: Music = d.get_parent()
+	m.set_mood("alarm")
+	m._process(Music.FADE_IN)
+	check(m.level["siren"] > 0.6 and m.level["pulse"] == 1.0, "alarm: the siren through the wall, and the pulse driving")
+	m.set_mood("silent")
+	m._process(Music.FADE_OUT)
+	world.current = was
+	w.free()
+	await t.process_frame
+
+
+## The ground floor plays its own hold music inside; out by the van, the home theme.
+func _lobby_moods(world: FakeWorld, d: MusicDirector, game: Node) -> void:
+	var gf: Script = load(MusicDirector.GROUND_FLOOR)
+	var was: Node = world.current
+	var g := FakeWing.new()
+	g.wing_id = "level_0"
+	world.add_child(g)
+	world.current = g
+	var me := Node3D.new()
+	world.add_child(me)
+	world.player = me
+	game.rourke_fate = "unknown"
+	me.global_position = Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0)
+	check(d.pick() == "lobby", "in the lobby, its own hold music")
+	me.global_position = gf.mid(gf.LIFT_HALL)
+	check(d.pick() == "lobby", "all the way through the ground floor, to the lifts")
+	me.global_position = Vector3(gf.FRONT_AT.x, 0, gf.LOBBY.end.y + 9.0)
+	check(d.pick() == "checkpoint", "out in the car park, by the van, the home theme still")
+	me.global_position = Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0)
+	var s := Shredder.new()
+	s.position = gf.mid(gf.LIFT_HALL)  # down the hall, not on top of you
+	g.add_child(s)
+	s.set_process(false)
+	s.set_physics_process(false)
+	s.active = true
+	s.state = "roaming"
+	check(d.pick() == "hunted", "danger in the lobby hands over to the score")
+	s.free()
+	# Floor 10's walk out, through the same lobby, built somewhere else entirely.
+	var f10 := FakeWing.new()
+	f10.wing_id = "level_4"
+	world.add_child(f10)
+	f10.position = Vector3(74, 0, -140)
+	f10.g_root = Node3D.new()
+	f10.add_child(f10.g_root)
+	f10.g_root.position = Vector3(0, -40, 0)
+	world.current = f10
+	game.rourke_fate = "tied"
+	me.global_position = f10.g_root.to_global(Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0))
+	check(d.pick() == "lobby_late", "the same lobby on the way out, after Rourke: the tune gone wrong")
+	me.global_position = f10.to_global(Vector3(0, 0, 0))
+	check(d.pick() == "uneasy", "the rest of floor 10 is floor 10")
+	game.rourke_fate = "unknown"
+	me.global_position = f10.g_root.to_global(Vector3(gf.DESK.x, 0, gf.DESK.z + 2.0))
+	check(d.pick() == "lobby", "(the lobby itself, if Rourke hadn't turned)")
+	world.current = was
+	world.player = null
+	for n in [g, f10, me]:
+		n.free()
+	game.rourke_fate = "tied"
+	var m: Music = d.get_parent()
+	m.set_mood("lobby")
+	m._process(Music.FADE_IN)
+	check(m.level["lobby"] > 0.7 and m.level["lobby_off"] < 0.2 and m.level["drone"] == 0.0, "lobby: the tune, its shadow just under it")
+	m.set_mood("lobby_late")
+	m._process(Music.FADE_OUT)
+	check(m.level["lobby_off"] > m.level["lobby"] and m.level["drone"] > 0.0, "lobby_late: the shadow over the tune, and the drone back")
+	await t.process_frame
+
+
+## A closed box of walls, floor and ceiling, `size` across, centred on `at` (its floor at at.y).
+func _box_room(parent: Node3D, at: Vector3, size: Vector3, roof := true) -> void:
+	var slabs := [
+		[Vector3(0, -0.1, 0), Vector3(size.x, 0.2, size.z)],
+		[Vector3(-size.x / 2 - 0.1, size.y / 2, 0), Vector3(0.2, size.y, size.z)],
+		[Vector3(size.x / 2 + 0.1, size.y / 2, 0), Vector3(0.2, size.y, size.z)],
+		[Vector3(0, size.y / 2, -size.z / 2 - 0.1), Vector3(size.x, size.y, 0.2)],
+		[Vector3(0, size.y / 2, size.z / 2 + 0.1), Vector3(size.x, size.y, 0.2)],
+	]
+	if roof:
+		slabs.append([Vector3(0, size.y + 0.1, 0), Vector3(size.x, 0.2, size.z)])
+	for s in slabs:
+		var body := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		shape.shape = BoxShape3D.new()
+		shape.shape.size = s[1]
+		body.add_child(shape)
+		body.position = at + s[0]
+		parent.add_child(body)
+
+
+func test_room_reverb() -> void:
+	check(SfxRooms.ensure_reverb() == SfxRooms.ensure_reverb(), "the SFX bus gets one reverb, never two")
+	var bus := AudioServer.get_bus_index(Sfx.SFX)
+	var on_sfx := false
+	for i in AudioServer.get_bus_effect_count(bus):
+		on_sfx = on_sfx or AudioServer.get_bus_effect(bus, i) == SfxRooms.ensure_reverb()
+	check(on_sfx, "it sits on the SFX bus, so footsteps, doors and monsters all go through it")
+	var site := Node3D.new()
+	t.root.add_child(site)
+	var office := Vector3(500, 0, 0)
+	var hall := Vector3(600, 0, 0)
+	var duct := Vector3(700, 0, 0)
+	var yard := Vector3(800, 0, 0)
+	_box_room(site, office, Vector3(4, 2.7, 4))
+	_box_room(site, hall, Vector3(24, 8, 24))
+	_box_room(site, duct, Vector3(1.0, 1.0, 1.0))
+	var ground := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	shape.shape.size = Vector3(80, 0.2, 80)
+	ground.add_child(shape)
+	ground.position = yard + Vector3(0, -0.1, 0)
+	site.add_child(ground)
+	await t.physics_frame
+	await t.physics_frame
+	var space := site.get_world_3d().direct_space_state
+	var none: Array[RID] = []
+	var m := {}
+	for room in [["office", office, 1.6], ["hall", hall, 1.6], ["duct", duct, 0.4], ["yard", yard, 1.6]]:
+		m[room[0]] = SfxRooms.measure(space, room[1] + Vector3(0, room[2], 0), 0xFFFFFFFF, none)
+	check(absf(m.office.across - 4.0) < 0.6 and absf(m.office.up - 1.1) < 0.2, "it measures an office: walls 4 m apart, ceiling a metre up (%.1f, %.1f)" % [m.office.across, m.office.up])
+	check(m.hall.across > 20.0 and m.hall.up > 6.0, "and a hall (%.1f, %.1f)" % [m.hall.across, m.hall.up])
+	check(m.yard.open > 0.9, "out in the open, there's nothing to bounce off (%.2f)" % m.yard.open)
+	var f := {}
+	for k in m:
+		f[k] = SfxRooms.feel(m[k].across, m[k].up, m[k].open)
+	check(f.hall.wet > f.office.wet + 0.1 and f.hall.room_size > f.office.room_size + 0.3, "a hall rings on, an office is nearly dry")
+	check(f.hall.predelay_msec > f.office.predelay_msec, "and its far wall answers later")
+	check(f.duct.room_size < 0.2 and f.duct.damping < 0.2 and f.duct.predelay_msec < 5.0 and f.duct.wet >= f.office.wet,
+		"inside a duct it's close and tinny")
+	check(f.yard.wet < 0.05, "outside, no echo")
+	# It follows this machine's player from room to room.
+	var world := FakeWorld.new()
+	t.root.add_child(world)
+	var me := Node3D.new()
+	site.add_child(me)
+	me.global_position = office
+	world.player = me
+	var r := SfxRooms.follow(world)
+	check(SfxRooms.follow(world) == r, "one room-follower per game")
+	r._measure()
+	for i in 60:
+		r._process(0.05)
+	var was_wet := r.reverb.wet
+	check(absf(was_wet - f.office.wet) < 0.03, "standing in the office, the reverb is the office's (%.2f)" % was_wet)
+	me.global_position = hall
+	r._measure()
+	r._process(0.1)
+	check(r.reverb.wet > was_wet and r.reverb.wet < f.hall.wet - 0.02, "walking into the hall, it opens up over a moment, not with a jump")
+	for i in 60:
+		r._process(0.05)
+	check(absf(r.reverb.wet - f.hall.wet) < 0.03 and absf(r.reverb.room_size - f.hall.room_size) < 0.03, "then it's the hall's")
+	world.queue_free()
+	site.queue_free()
+	r.queue_free()
+	await t.process_frame
+
+
+func test_floor_beds() -> void:
+	var route: Array = load("res://scripts/world/world.gd").ROUTE
+	for entry in route:
+		check(SfxBeds.FLOORS.get(entry.key, "") in SfxBeds.BEDS, "floor %s has its own room tone" % entry.key)
+	var made := {}
+	for kind in SfxBeds.BEDS:
+		var w := SfxBeds.make(kind)
+		made[kind] = w
+		check(w.loop_mode == AudioStreamWAV.LOOP_FORWARD and w.data.size() < 200_000, "%s loops, and is small (%d KB)" % [kind, w.data.size() / 1024])
+		var peak := _peak(w)
+		check(peak > 0.3 and _clipped(w) == 0.0, "%s is there and doesn't clip (peak %.2f)" % [kind, peak])
+		var n := w.loop_end
+		var first := w.data.decode_s16(0) / 26000.0
+		var last := w.data.decode_s16((n - 1) * 2) / 26000.0
+		var before := w.data.decode_s16((n - 2) * 2) / 26000.0
+		check(absf(first - last) <= maxf(absf(last - before) * 3.0, 0.05), "%s loops without a click (seam %.3f)" % [kind, absf(first - last)])
+	check(SfxBeds.make("disco") == null, "there's no bed that isn't listed")
+	check(_bite(made["archive"]) < _bite(made["server_floor"]), "the archive is stiller than the server floor")
+	# It follows the floor the crew is on.
+	var world := FakeWorld.new()
+	t.root.add_child(world)
+	var b6 := FakeWing.new()
+	b6.wing_id = "level_6"
+	world.add_child(b6)
+	world.current = b6
+	var beds := SfxBeds.follow(world)
+	check(SfxBeds.follow(world) == beds, "one set of beds per game")
+	beds._process(0.1)
+	check(beds.bed == "cold_store" and beds._players.has("cold_store") and beds._players.cold_store.bus == Sfx.AMBIENCE,
+		"in the cold store, its compressors, on the Ambience bus")
+	var cold: AudioStreamPlayer = beds._players.cold_store
+	check(cold.volume_db < SfxBeds.DB.cold_store, "fading in, not starting loud")
+	for i in 40:
+		beds._process(0.1)
+	check(is_equal_approx(cold.volume_db, SfxBeds.DB.cold_store), "then at its level")
+	var b7 := FakeWing.new()
+	b7.wing_id = "level_7"
+	world.add_child(b7)
+	world.current = b7
+	beds._process(1.0)
+	check(beds.bed == "machine_room" and beds._players.has("cold_store") and beds._players.has("machine_room"), "down the stairs, one floor fades into the next")
+	for i in 40:
+		beds._process(0.1)
+	check(not beds._players.has("cold_store") and not beds._streams.has("cold_store"), "and the last floor's is let go")
+	world.home = Node3D.new()
+	world.add_child(world.home)
+	world.current = world.home
+	for i in 40:
+		beds._process(0.1)
+	check(beds.bed == "" and beds._players.is_empty(), "the garage is quiet")
+	world.queue_free()
+	beds.queue_free()
 	await t.process_frame
 
 

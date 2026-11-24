@@ -1,7 +1,7 @@
 class_name HidingSpot
 extends Seat
 ## Somewhere to hide from an enemy (E7, Counterplay): a locker, under a desk, a
-## cabinet. Look at it and press E to tuck yourself in; Space gets you out. Inside,
+## cabinet. Look at it and press E to tuck yourself in; E again (or Space) gets you out. Inside,
 ## no enemy sees you and you make no sound, unless one saw (or heard) you get in:
 ## then it comes and searches here, and pulls you out if you're still inside.
 ## A locker has slats: from inside you can still see out (a Watcher stays frozen
@@ -14,11 +14,13 @@ extends Seat
 var spot_kind := "locker"
 ## You can see out from inside (a locker's slats).
 var see_out := true
-## Shown while you're inside (draft, plan/approvals/v0.10-environment-strings.md).
+## Shown while you're inside (approved 2026-11-22, plan/approvals/v0.10-environment-strings.md).
 var leave_prompt := LEAVE_PROMPT
+## E gets you out, the way it got you in (Augustine 2026-11-22); Space still does too.
+var leave_on_interact := true
 
 const HIDE_PROMPT := "Hide"
-const LEAVE_PROMPT := "[Space] Get out"
+const LEAVE_PROMPT := "[E] Get out"
 
 
 ## A hiding spot whose floor is at `floor_point` (level space), facing out `yaw`

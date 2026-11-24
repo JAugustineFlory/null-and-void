@@ -1,0 +1,2 @@
+- **Added:** off the lobby, the visitor badge office and the security post are furnished, and you can look into both through their windows: the badge counter, the ID camera and the chairs to wait on, and the guard's desk with its camera monitors still on.
+- **Added:** the ground floor's staff doors have their signs.

@@ -336,6 +336,17 @@ const PUZZLES := {
 		"teaches": ["X-Api-Key", "401", "/staff"],
 		"needs": ["GET", "X-Api-Key", "/staff"],
 	},
+	# The frame, the floor's first case: our own visitor badges' log (GET with an id in
+	# the path) says we were swiped into Vale's lab while we were on 14. Practised
+	# safely on the crew's own badges, before the radio needs it under pressure; the
+	# time is pointed at. GET is long practised: a review ladder.
+	"frame": {
+		"level": 5,
+		"pressure": false,
+		"ladder": "review",
+		"teaches": ["/swipes"],
+		"needs": ["GET", "X-Api-Key", "/swipes"],
+	},
 	# The panel: PATCH the shed circuits back on; the lights don't fit under the night
 	# limit until the copiers go off (409). Practised safely.
 	"circuits": {
@@ -353,9 +364,9 @@ const PUZZLES := {
 		"needs": ["GET", "X-Api-Key", "/circuits"],
 	},
 	# The work order: POST with a body of three fields (400 names a missing one, 201
-	# means it was made). Practised safely: the air only counts once the carbon copy is
-	# read and the power is back, and its grace is long enough for a first-timer (the
-	# sealed walk paces it).
+	# means it was made). Practised safely: the air only counts once the power is back
+	# and the crew has asked something since, and its grace is long enough for a
+	# first-timer (the sealed walk paces it).
 	"air": {
 		"level": 5,
 		"pressure": false,
@@ -366,19 +377,18 @@ const PUZZLES := {
 		"level": 5,
 		"pressure": false,
 		"ladder": "review",
-		"shape_gap": "hint 1 also says GET /work_orders/enter_order_id: told the architect 2026-10-22",
 		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/work_orders"],
 	},
 	# A voice on the walkie wants the loading door: the badge log says where that badge
-	# really is (GET with an id in the path, used under pressure on 22's stairwell). The
-	# voice lies, but nothing hunts the crew while they check it: the Mimics never attack,
-	# and the Custodian only comes once the power and the air are back.
+	# really is (practised at the frame), pointed at. The voice lies, but nothing hunts
+	# the crew while they check it: the Mimics never attack, and the Custodian's clock
+	# starts with the people case, once the radio is done.
 	"swipes": {
 		"level": 5,
 		"pressure": false,
 		"ladder": "review",
-		"teaches": ["/swipes"],
+		"teaches": [],
 		"needs": ["GET", "X-Api-Key", "/swipes"],
 	},
 	# Escort passes for the two real night-shifters (POST, practised at the work order),
@@ -423,19 +433,35 @@ const PUZZLES := {
 	# from Journey through JavaScript: let, if, while, await sleep and console.log, then
 	# for ... of and db.query ("Once for each"). The cold is the threat: the corridor and
 	# the vaults drain stamina, then health. Warm rooms are safe.
-	# Who's still clocked in: IS NULL, practised on 18, so the review ladder.
+	# Who's been in there longest: IS NULL, practised on 18, so the review ladder; the
+	# name pointed at (v0.10 package). Allowed route: ORDER BY clock_in without IS NULL,
+	# reading clock_out down the sorted log (it shows the oldest open visit within 13
+	# rows on every seed, and reads the right column).
 	"open": {
 		"level": 6,
 		"pressure": false,
 		"ladder": "review",
 		"teaches": ["freezer_log", "clock_out"],
-		"needs": ["SELECT", "FROM", "WHERE", "IS NULL", "freezer_log"],
+		# Naming columns is floor G's lesson; on B1 the case's query on screen names
+		# them (V1) once the time clock's sign (or the first query) opens the case.
+		"needs": ["SELECT", "COLUMNS", "FROM", "WHERE", "IS NULL", "ORDER BY", "freezer_log"],
 	},
-	# The first script, at the IT cage: the cradle card's loop with this cradle's key.
+	# The try (v0.10 package, M1): the cradle's self-test label, one set. The editor,
+	# let, a request as a script line and the log, run once. Two tiers, as approved
+	# (V19, V20): its first tier is the label (V18).
+	"try": {
+		"level": 6,
+		"pressure": false,
+		"tiers": 2,
+		"teaches": ["let", "console.log", "api.post", "/earpieces/pair"],
+		"needs": ["let", "console.log", "api.post", "X-Api-Key", "/earpieces/pair"],
+	},
+	# The loop, at the IT cage: the pairing card's script with this cradle's key, for
+	# the crew and Ines and Tomas (M2).
 	"pair": {
 		"level": 6,
 		"pressure": false,
-		"teaches": ["let", "while", "await sleep", "console.log", "api.post", "/earpieces/pair"],
+		"teaches": ["while", "await sleep"],
 		"needs": ["let", "while", "await sleep", "console.log", "api.post", "X-Api-Key", "/earpieces/pair"],
 	},
 	# The names, one a line, still at the IT cage: the warm first use of for and db.query
@@ -477,8 +503,8 @@ const PUZZLES := {
 		"needs": ["PATCH", "GET", "X-Api-Key", "/doors"],
 	},
 	# Level 7: B2, the machine room (plan/approvals/l7-text.md, DRAFT). Journey through
-	# JavaScript's last three chapters: a function (function, return, async), a list
-	# ([ ], length) and testing (the test bench, assert). Tokens are looked up off the
+	# JavaScript's last three chapters: testing (the test bench, assert), a function
+	# (function, return, async) and a list ([ ], length). Tokens are looked up off the
 	# admin's runbook, with no chapter. Nothing hunts on the bench; the dark comes next.
 	# A token: trade the key for one, then send it as a header.
 	"token": {
@@ -487,11 +513,18 @@ const PUZZLES := {
 		"teaches": ["/auth/token", "Authorization: Bearer"],
 		"needs": ["POST", "GET", "/auth/token", "Authorization: Bearer", "/lights"],
 	},
+	# The bench's first test (M1): one zone lit, and asserted.
+	"test": {
+		"level": 7,
+		"pressure": false,
+		"teaches": ["assert"],
+		"needs": ["let", "assert", "api.patch", "api.post", "/auth/token", "Authorization: Bearer", "/lights"],
+	},
 	# One zone on the bench: the admin's function, finished with return, and tested.
 	"restore": {
 		"level": 7,
 		"pressure": false,
-		"teaches": ["async function", "return", "assert"],
+		"teaches": ["async function", "return"],
 		"needs": ["let", "if", "!==", "async function", "return", "assert", "api.get", "api.patch", "api.post", "/auth/token", "Authorization: Bearer", "/lights"],
 	},
 	# Every zone on the bench, from a list, each asserted.

@@ -1600,19 +1600,19 @@ func test_level_0_scene() -> void:
 	lp.controls.move = Vector2(0, -1)
 	var vaulted := false
 	for i in 120:
-		lp.controls.jump = not vaulted and lp.global_position.z < -0.1  # W + Space at the counter
+		lp.controls.jump = not vaulted and lp.global_position.z < G.DESK.z + 0.9  # W + Space at the counter
 		await physics_frame
 		vaulted = vaulted or lp.state == Player.Move.VAULT
 	pos = lp.global_position
-	check(vaulted and pos.z < -1.6 and pos.y < 0.3, "W + Space at the counter vaults you over to the back (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
+	check(vaulted and pos.z < G.DESK.z - 0.6 and pos.y < 0.3, "W + Space at the counter vaults you over to the back (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z])
 	lp.rotation.y = PI
-	lp.global_position.z = -2.6
+	lp.global_position.z = G.DESK.z - 1.6
 	vaulted = false
 	for i in 120:
-		lp.controls.jump = not vaulted and lp.global_position.z > -1.9
+		lp.controls.jump = not vaulted and lp.global_position.z > G.DESK.z - 0.9
 		await physics_frame
 		vaulted = vaulted or lp.state == Player.Move.VAULT
-	check(vaulted and lp.global_position.z > -0.4, "and back to the lobby side")
+	check(vaulted and lp.global_position.z > G.DESK.z + 0.6, "and back to the lobby side")
 	lp.controls.move = Vector2.ZERO
 	lp.local_control = true
 	# Let the greeting on the steps finish and the crew come inside first, as in play.
@@ -1865,9 +1865,109 @@ func test_ground_floor() -> void:
 	for id in ["MAILROOM", "MENS", "WOMENS", "IT-CLOSET"]:
 		var d: Door = level.doors[id]
 		check(d.is_hinged() and not d.locked and d.get_prompt(p).contains("Open"), "the %s door is an ordinary door you can open" % id)
+	# The staff's rooms are shut for the night: locked doors, with nobody's kit behind them.
+	check(G.LOCKED.all(func(id): return level.doors[id].is_hinged() and level.doors[id].locked and level.doors[id].get_prompt(p) == "Locked"), "the staff rooms' doors are locked for the night (%d)" % G.LOCKED.size())
+	var shut: Array = level.shut_rooms
+	var kits: Array = level.find_children("KitCabinet*", "FirstAidCabinet", false, false)
+	check(shut.size() == 8 and not kits.is_empty() and kits.all(func(k): return not shut.any(func(room): return room.has_point(k.position))), "and no first-aid cabinet hangs in a room nobody can get into")
+	check(not level.lights.values().any(func(ls): return ls.any(func(l): return shut.any(func(room): return room.has_point(l.position)))), "and no light burns in one")
+	# Every opening is one hole in the wall: the rooms either side of it agree.
+	var outside := 0
+	var odd := []
+	for o in G.openings():
+		var sides := 0
+		for r in G.rooms():
+			for g in G.gaps_of(r[0]):
+				var along: float = (o[1] if g.wall in ["n", "s"] else o[2]) - (r[0].get_center().x if g.wall in ["n", "s"] else r[0].get_center().y)
+				var on_line: float = {"n": r[0].position.y, "s": r[0].end.y, "w": r[0].position.x, "e": r[0].end.x}[g.wall]
+				if is_equal_approx(g.at, along) and is_equal_approx(on_line, o[2] if g.wall in ["n", "s"] else o[1]) and is_equal_approx(g.width, o[3]):
+					sides += 1
+		if sides == 1:
+			outside += 1
+		elif sides != 2:
+			odd.append(o)
+	check(odd.is_empty() and outside == 5, "every doorway is cut through both rooms it joins; only the front doors, the lift, STAIR 1 and the air return's two ends open onto something else (%d; odd ones %s)" % [outside, odd])
+	# Two stalls in each restroom, with a doorway and a floor the biggest of the crew fits.
+	var wide: float = CrewBody.largest().radius * 2.0
+	check([G.MENS, G.WOMENS].all(func(room): return G.stalls(room).size() == 2) and G.STALL_DOORWAY > wide + 0.2 and minf(G.STALL.x, G.STALL.y) > wide + 0.6, "each restroom has two stalls the biggest of the crew fits into (%.2f m across)" % wide)
+	# The front office, behind the desk: places to work, and still no way in but over the counter.
+	var office: AABB = G.box(G.FRONT_OFFICE, 2.0)
+	var seats: Array = level.find_children("*", "Seat", true, false).filter(func(s): return office.has_point(level.to_local(s.global_position)))
+	var at_counter: int = seats.filter(func(s): return level.to_local(s.global_position).z > G.FRONT_OFFICE.end.y - 1.5).size()
+	check(seats.size() == 4 and at_counter == 2, "the front office has a chair at the terminal, one at the phones and one at each back desk (%d, %d at the counter)" % [seats.size(), at_counter])
+	var screens: Array = level.find_children("CRT*", "Node3D", true, false).filter(func(m): return office.has_point(level.to_local(m.global_position)) and not m.get_parent() is Terminal)
+	check(screens.size() == G.BACK_DESKS.size(), "and each back desk has a screen (%d)" % screens.size())
+	var in_office: Vector3 = G.mid(G.FRONT_OFFICE)
+	var over := NavigationServer3D.map_get_path(map, lobby, in_office, true)
+	check(over.is_empty() or over[over.size() - 1].distance_to(in_office) > 1.5, "and nobody walks into it: the only way behind the desk is over it")
+	# Front of house: visitor badges and the security post are furnished, seen through
+	# their windows from the lobby, and still shut for the night (their doors are
+	# among the locked ones above).
+	var all_seats: Array = level.find_children("*", "Seat", true, false)
+	var badges: AABB = G.box(G.VISITOR_BADGES, 2.5)
+	var post: AABB = G.box(G.SECURITY, 2.5)
+	var badge_seats: Array = all_seats.filter(func(s): return badges.has_point(level.to_local(s.global_position)))
+	var waiting: int = badge_seats.filter(func(s): return s.get_parent().name.begins_with("CafeChair")).size()
+	check(badge_seats.size() == 7 and waiting == 5 and level.geo.has_node("BadgeCounter") and level.geo.has_node("IdCamera"),
+		"visitor badges has its counter, the ID camera, the clerk's two chairs and five to wait on (%d seats, %d waiting)" % [badge_seats.size(), waiting])
+	var post_seats: Array = all_seats.filter(func(s): return post.has_point(level.to_local(s.global_position)))
+	var monitors: Array = level.find_children("CameraMonitors", "Node3D", true, false)
+	check(post_seats.size() == 1 and post_seats[0].get_parent().has_node("Jacket"), "the security post has one chair, empty, a jacket over its back (%d)" % post_seats.size())
+	check(monitors.size() == 1 and post.has_point(level.to_local(monitors[0].global_position)) and monitors[0].get_node("MonitorGlow").visible
+			and (-monitors[0].global_basis.z).dot(post_seats[0].global_position - monitors[0].global_position) > 0.0,
+		"and its camera monitors are on, their screens toward that chair")
+	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
+	for w in [["visitor badges", G.VISITOR_WINDOW, -1.0], ["the security post", G.SECURITY_WINDOW, 1.0]]:
+		var eye: Vector3 = level.to_global(Vector3(w[1].x - w[2] * 1.5, 1.6, w[1].y))  # in the lobby, at the glass
+		var into: Vector3 = eye + Vector3(w[2] * 4.0, 0, 0)
+		var q := PhysicsRayQueryParameters3D.create(eye, into)
+		var pane := space.intersect_ray(q)
+		var is_pane: bool = not pane.is_empty() and str(pane.collider.name).begins_with("Window")
+		if is_pane:
+			q.exclude = [pane.rid]
+		check(is_pane and space.intersect_ray(q).is_empty(), "from the lobby you look through a window into %s, and the glass is solid" % w[0])
+	# The hall's rooms: Facilities with its counter and six cubicles, the manager's
+	# office with the lamp left on, and the conference room, seen through the hall's glass.
+	var screens_g: Array = level.find_children("CRT*", "Node3D", true, false).filter(func(m): return not m.get_parent() is Terminal)
+	var kept := 0
+	for c in G.cubicles():
+		var here := func(n: Node3D) -> bool: return Vector2(level.to_local(n.global_position).x - c[0].x, level.to_local(n.global_position).z - c[0].z).length() < 1.3
+		if all_seats.filter(here).size() == 1 and screens_g.filter(here).size() == 1:
+			kept += 1
+	check(kept == 6 and level.geo.has_node("FacilitiesCounter") and level.geo.has_node("PlanTable"), "Facilities has its counter, its plan table and six cubicles, each with a desk's screen and a chair (%d)" % kept)
+	var boss: AABB = G.box(G.MANAGER, 2.5)
+	var boss_seats: int = all_seats.filter(func(s): return boss.has_point(level.to_local(s.global_position))).size()
+	var lamps: Array = level.find_children("DeskLamp", "Node3D", true, false).filter(func(l): return boss.has_point(level.to_local(l.global_position)))
+	check(boss_seats == 3 and lamps.size() == 1 and lamps[0].has_node("LampLight") and level.doors["FACILITIES-MANAGER"].locked, "the manager's office is locked, tidy, and its desk lamp is on (%d seats)" % boss_seats)
+	var meet: AABB = G.box(G.CONFERENCE, 2.5)
+	var meet_seats: int = all_seats.filter(func(s): return meet.has_point(level.to_local(s.global_position))).size()
+	check(meet_seats == 10 and level.geo.has_node("ConferenceTable"), "the conference room has its table and ten chairs (%d)" % meet_seats)
+	# From the hall you see the lamp: through Facilities' glass, across the room, through the office's.
+	var from_hall: Vector3 = level.to_global(Vector3(G.FACILITIES_WINDOW.x, 1.6, G.HALL_Z))
+	var lamp_q := PhysicsRayQueryParameters3D.create(from_hall, lamps[0].global_position + Vector3.UP * 0.3 if lamps.size() == 1 else from_hall)
+	var panes := 0
+	var other := ""
+	for i in 4:
+		var hit := space.intersect_ray(lamp_q)
+		if hit.is_empty():
+			break
+		if str(hit.collider.name).begins_with("Window"):
+			panes += 1
+		else:
+			other = str(hit.collider.name)
+		lamp_q.exclude = lamp_q.exclude + [hit.rid]
+	check(panes == 2 and other == "", "from the hall the office's lamp shows through two panes of glass, nothing in the way (%d panes, %s)" % [panes, other])
+	var into_meet := PhysicsRayQueryParameters3D.create(level.to_global(Vector3(G.CONFERENCE_WINDOW.x, 1.6, G.HALL_Z)), level.to_global(Vector3(G.CONFERENCE_WINDOW.x, 1.6, G.CONFERENCE_WINDOW.y + 3.0)))
+	var meet_pane := space.intersect_ray(into_meet)
+	check(not meet_pane.is_empty() and str(meet_pane.collider.name).begins_with("Window"), "and the conference room is behind glass on the hall's other side")
 	# Nothing discoverable is labelled.
 	var labels: Array = level.find_children("*", "Label3D", true, false).map(func(l): return l.text.to_upper())
 	check(not labels.any(func(t): return t.contains("VENT") or t.contains("AIR RETURN")), "vents carry no labels")
+	# The staff rooms' doors carry their signs, word for word as approved (2026-11-22), once each.
+	var signs := ["VISITOR BADGES", "SECURITY", "FACILITIES", "FACILITIES MANAGER", "CONFERENCE ROOM", "BUILDING SERVICES", "JANITOR", "KITCHEN", "RECEIVING"]
+	var missing: Array = signs.filter(func(s): return labels.count(s) != 1)
+	check(missing.is_empty(), "each staff room's door has its sign (not right: %s)" % [missing])
+	check(not labels.any(func(t): return t.contains("LOST")), "and the lost property shelf carries no label")
 	# The Hum: it grows while you stand in the dark corridor, and fades with your flashlight on.
 	var hum: Hum = level.hum
 	p.flashlight.visible = false
@@ -1888,17 +1988,23 @@ func test_ground_floor() -> void:
 	level._on_hatch(null)
 	await process_frame
 	check(level.hud._notice.text.contains("stuck"), "the ceiling panel in the IT closet is stuck and too high alone")
+	var coffee_walk := 0.0
+	var walk_from: Vector3 = level.DESK_SPOT
+	for spot in level.TO_CAFETERIA:
+		coffee_walk += walk_from.distance_to(spot)
+		walk_from = spot
+	check(coffee_walk < 42.0, "the vending machines stand by the cafeteria's door, so Rourke's coffee walk isn't the whole floor (%.0f m)" % coffee_walk)
 	level._rourke_free = true
 	level._on_vending(null)
-	for i in 1800:
+	for i in 3600:  # it's a walk: round the desk, along the north corridor, in at the cafeteria's door
 		if level.geo.has_node("CoffeeCup"):
 			break
 		await physics_frame
-	check(level.geo.has_node("CoffeeCup") and level.rourke.global_position.distance_to(level.TO_CAFETERIA.back()) < 1.0, "at the vending machine, Rourke knows the trick and gets a coffee out")
+	check(level.geo.has_node("CoffeeCup") and level.rourke.global_position.distance_to(level.TO_CAFETERIA.back()) < 1.0, "at the vending machine, Rourke knows the trick and gets a coffee out (he's at %s)" % level.rourke.global_position)
 	level._on_vending(null)
 	await process_frame
 	check(not level.vending.enabled or level.hud._notice.text.contains("keeps it"), "only once")
-	for i in 1800:
+	for i in 3600:
 		if level._rourke_can_help():
 			break
 		await physics_frame
@@ -4214,9 +4320,10 @@ func test_coop_world() -> void:
 		if lobby_h.sync._gates.has("rourke_holds_door") and lobby_c.sync._gates.has("rourke_holds_door"):
 			break
 	# Both walk past him into the elevator bank; once the door shuts, the car opens.
-	for w in machines:
-		w.player.global_position = Vector3(28.0, 0.2, 1.5)
-	client.player.global_position = Vector3(28.0, 0.2, 4.5)
+	var G = _ground_floor()
+	var past_door := Vector3(G.LIFT_HALL.position.x + 4.0, 0.2, G.HALL_Z)  # clear of its swing
+	host.player.global_position = lobby_h.to_global(past_door + Vector3(0, 0, -1.5))
+	client.player.global_position = lobby_c.to_global(past_door + Vector3(0, 0, 1.5))
 	for f in 1200:
 		await physics_frame
 		if lobby_h.elevator.open_amount > 0.99 and lobby_c.elevator.open_amount > 0.99 and lobby_h.sync._gates.has("rourke_in_lift"):
@@ -6038,8 +6145,9 @@ func test_rourke_leads_in() -> void:
 	var sra = world.wings.get("level_1")
 	var p: Player = world.player
 	lobby._release_camera(p)
-	p.global_position = Vector3(20.5, 0.2, 3)
-	lobby.rourke.global_position = Vector3(22.4, 0.05, 3)
+	var G = _ground_floor()
+	p.global_position = lobby.to_global(lobby.HALL_END_SPOT + Vector3(-1.9, 0.2, 0))
+	lobby.rourke.global_position = lobby.to_global(lobby.HALL_END_SPOT + Vector3(0, 0.05, 0))
 	lobby.rourke.watch = p
 	for i in 30:
 		await physics_frame
@@ -6053,11 +6161,11 @@ func test_rourke_leads_in() -> void:
 		await physics_frame
 	check(lobby.exit_door.is_open and lobby.exit_door.swing > 0.9, "he swings the elevator bank's door open and goes in first")
 	check(r.global_position.distance_to(lobby.HOLD_DOOR_AT) < 0.5, "then holds it, beside the doorway, out of the crew's way (%s)" % r.global_position)
-	p.global_position = Vector3(25.0, 0.2, 3)  # in the doorway, still in the door's swing
+	p.global_position = lobby.to_global(Vector3(G.LIFT_HALL.position.x + 1.0, 0.2, G.HALL_Z))  # in the doorway, still in the door's swing
 	for i in 60:
 		await physics_frame
 	check(lobby.exit_door.is_open, "the door stays open while anyone is still in its swing")
-	p.global_position = Vector3(28.0, 0.2, 1.5)  # past him, clear of the swing
+	p.global_position = lobby.to_global(Vector3(G.LIFT_HALL.position.x + 4.0, 0.2, G.HALL_Z - 1.5))  # past him, clear of the swing
 	for i in 1200:  # his elevator line waits its turn first
 		if not lobby.exit_door.is_open:
 			break

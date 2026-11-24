@@ -249,6 +249,7 @@ func test_terminal_rig() -> void:
 		"switched on, it's still dark: the monitor cable")
 	await _press(level, rig.parts["monitor_cable"])
 	check(rig.booting and term.get_prompt(level.player) == "" and term.transcript.is_empty(), "a picture at last: it warms up first, the screen still blank")
+	check(term.get_meta("sounds_played", []).any(func(s): return s.kind == "crt_on"), "it comes on with the relay's click and the tube's thrum")
 	await _until(func(): return not rig.booting, 240)
 	check(term.transcript == term.boot_text(), "then its boot lines come up, one at a time")
 	check(rig.lit() and term.screen.glass.visible and term.get_prompt(level.player) == "There's no keyboard." and rig.blocks(), "booted: a picture, but no keyboard")
@@ -404,7 +405,7 @@ func test_every_piece_sounds() -> void:
 	level.kit.set_meta("sounds_played", [])
 	await _press(level, level.gears)
 	var played: Array = level.kit.get_meta("sounds_played", [])
-	check(played.any(func(s): return s.kind == "clatter"), "jamming gears clatters, where they are")
+	check(played.any(func(s): return s.kind == "gear_jam"), "jamming gears clatters, where they are")
 	check(level.gears.get_node_or_null("Loop_gears") != null and Sfx.stream("gears") != null, "turning gears grind")
 	await _free(level)
 

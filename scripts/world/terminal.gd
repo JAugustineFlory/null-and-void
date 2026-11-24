@@ -286,19 +286,44 @@ func on_request(line: String, response: Dictionary, terminal_ui: TerminalUI) -> 
 	requested.emit(line, response, terminal_ui)
 
 
+## A level's own pick of the station `.hint` serves here (floor 9: the selected
+## case's, from either terminal): Callable() -> Puzzle, null for none. Unset, it's
+## the first unsolved one in `puzzles`.
+var hint_station: Callable
+
+
 ## The case page the next hint is for, or "".
 func hint_case() -> String:
 	if locked:
 		return ""
+	if hint_station.is_valid():
+		var picked = hint_station.call()
+		return picked.case_id if picked else ""
 	for p in puzzles:
 		if not p.solved:
 			return p.case_id
 	return ""
 
 
+## A level's line that answers the next `.hint` before any case's (B2: a plant
+## room's gas counting down): Callable() -> String, "" for none. It says each
+## line once, so the case's own ladder comes back on the next `.hint`.
+var hint_first: Callable
+
+
 func next_hint() -> String:
 	if locked:
 		return "This terminal is locked. Find a way to authorize it."
+	if hint_first.is_valid():
+		var urgent: String = hint_first.call()
+		if urgent != "":
+			return urgent
+	if hint_station.is_valid():
+		var picked = hint_station.call()
+		if picked == null:
+			return "Nothing left to solve here. Keep moving."
+		var at: String = picked.spot_hint(get_node("/root/Game"))
+		return at if at != "" else picked.next_hint()
 	for p in puzzles:
 		if not p.solved:
 			var spot: String = p.spot_hint(get_node("/root/Game"))

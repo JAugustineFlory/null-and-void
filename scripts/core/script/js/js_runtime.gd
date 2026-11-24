@@ -64,7 +64,21 @@ func start(library: BuildingLibrary, seed_value := 0) -> void:
 		push_error("JSRuntime.start needs a script that compiled")
 		return
 	_library = library
+	# A service that checks what a script leaves behind (B2's test bench calls the
+	# script's own restore(zone)) adds lines after the script's, run as part of it,
+	# and the names those lines call. The script's own lines keep their numbers.
+	var extra := {}
+	if library and library.api and library.api.has_method("script_suffix"):
+		var tail: String = library.api.script_suffix()
+		if tail != "":
+			var mine := source
+			if not compile(mine + "\n" + tail).ok:
+				compile(mine)
+			source = mine
+		extra = library.api.script_globals()
 	_vm = JSVM.new()
+	for name in extra:
+		_vm.globals[name] = JSStdlib._host_obj(extra[name])
 	_vm.globals["api"] = _api_object()
 	_vm.globals["db"] = JSStdlib._host_obj({"query": func(vm: JSVM, a: Array): return _db_query(vm, a)})
 	_vm.printed.connect(func(text: String, kind: String): printed.emit(text, kind))

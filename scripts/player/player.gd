@@ -129,7 +129,7 @@ const LEG_UP_TIME := 0.55
 ## you up sits between them.
 const SOLO_REACH := 3.2
 const LEG_UP_REACH := 3.75
-## What you see on a braced teammate. New words, waiting on Augustine's OK.
+## What you see on a braced teammate. Augustine approved these words (2026-11-22).
 const LEG_UP_PROMPT := "[E] Take a leg-up"
 ## Falling faster than this lands loudly, unless you roll.
 const HARD_LANDING := 7.0
@@ -535,6 +535,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			and event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
 		inventory.use_slot(event.physical_keycode - KEY_1)  # reading, 1-4 turn the notebook's tabs
 	elif event.is_action_pressed("interact"):
+		if _leave_by_interact():
+			stand_up()  # E got you into a hiding spot; E gets you out
+			return
 		if carrying:
 			carrying.set_down(self)  # E with a crate in your hands sets it down
 			return
@@ -548,12 +551,26 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("hotbar_next") and not _reading():
 		_next_hotbar_item()
 	elif event.is_action_pressed("block") and not _reading() and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or _from_pad(event)):
-		combat.raise_guard()
+		if not _counter_throw():
+			combat.raise_guard()
 	elif event.is_action_pressed("attack") and not _hands_full():
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _from_pad(event):
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		elif not FirstAidCabinet.use_on_self(self) and not _counter_blast():  # (the kit in your hands patches you up)
 			_strike()
+
+
+## Something throwable in your hands: the block button throws it (Counterplay).
+func _counter_throw() -> bool:
+	if inventory == null or not Counterplay.throwable(inventory.active_item()):
+		return false
+	var c := Counterplay.of(self)
+	return c != null and c.throw_held()
+
+
+## Sitting in a seat you leave with E (a hiding spot), and free to get up.
+func _leave_by_interact() -> bool:
+	return state == Move.SIT and not _sit_leaving and not sit_held and is_instance_valid(seat) and seat.get("leave_on_interact") == true
 
 
 ## A fire extinguisher in your hands: a blast instead of a punch (Counterplay).
@@ -2521,6 +2538,8 @@ func _update_prompt() -> void:
 		var target := _look_target()
 		if carrying:
 			text = Crate.SET_DOWN if carrying.set_down_spot(self).x != INF else ""
+		elif _leave_by_interact():
+			text = seat.leave_prompt  # E is for getting out, whatever you look at
 		elif target and target.has_method("get_prompt"):
 			text = target.get_prompt(self)
 		if text == "" and state == Move.SIT and not _sit_leaving:

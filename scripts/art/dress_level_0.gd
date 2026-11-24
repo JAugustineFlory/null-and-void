@@ -11,7 +11,7 @@ extends RefCounted
 ## short of their walls, so a wall two rooms share takes the corridor's look.
 static func zones() -> Dictionary:
 	return {
-		"lobby": _zone(GroundFloor.LOBBY, 4.5, 0.3, 0.3, 0.3, 0.3),
+		"lobby": _zone(GroundFloor.LOBBY, GroundFloor.LOBBY_H + 0.5, 0.3, 0.3, 0.3, 0.3),
 		"hall": _zone(GroundFloor.HALL, 3.5, 0.1, 0.2, 0.2, 0.2),
 		"closet": _zone(GroundFloor.CLOSET, 3.5, 0.5, 0.5, 0.1, 0.5),
 		"corridor": _zone(GroundFloor.CORRIDOR, 3.5, 0.2, 0.2, 0.2, 0.2),
@@ -19,7 +19,8 @@ static func zones() -> Dictionary:
 		"restrooms": _zone(GroundFloor.MENS.merge(GroundFloor.WOMENS), 3.5, -0.2, -0.2, -0.2, -0.2),
 		"cafeteria": _zone(GroundFloor.CAFETERIA, 4.0, -0.2, -0.2, -0.2, -0.2),
 		"it_closet": _zone(GroundFloor.IT_CLOSET, 3.5, -0.2, -0.2, -0.2, -0.2),
-		"dark": _zone(GroundFloor.DARK.merge(GroundFloor.PASSAGE), 3.5, 0.0, 0.2, 0.2, -0.2),
+		"dark": _zone(GroundFloor.DARK, 3.5, 0.0, 0.2, 0.2, 0.2),
+		"passage": _zone(GroundFloor.PASSAGE, 3.5, 0.2, 0.2, 0.2, -0.2),
 		"lifts": _zone(GroundFloor.LIFT_HALL, 3.5, 0.1, 0.1, 0.1, 0.1),
 	}
 
@@ -69,6 +70,103 @@ static func apply(level: LevelBase) -> void:
 		NpcLook.attach(rourke, CharacterLooks.rourke(), level.hud)
 
 
+## The front office, behind reception, where the front desk's staff work by day:
+## the receptionist's chair at her terminal and a second at the phones, two back
+## desks that face the counter, a table for the fax and the printer, filing along
+## the walls, and the lost property shelf beside the radios' charger. Left tidy
+## for the night, screens off. No words anywhere.
+static func _front_office(geo: Node3D, dress: Node3D) -> void:
+	var office := GroundFloor.FRONT_OFFICE
+	var desk := GroundFloor.DESK
+	var behind := office.end.y  # the counter's back edge
+	# At the counter: the receptionist's chair pushed back from her terminal, as she
+	# left it (the floor in front of the screen stays clear), and one at the phones.
+	ArtProps.sittable(ArtProps.office_chair(geo, Vector3(desk.x + GroundFloor.TERMINAL_ALONG + 0.75, 0, behind - 0.95), 160), ArtProps.OFFICE_SEAT)
+	ArtProps.sittable(ArtProps.office_chair(geo, Vector3(desk.x + GroundFloor.PHONE_ALONG + 0.5, 0, behind - 0.55), 172), ArtProps.OFFICE_SEAT)
+	_bin(dress, Vector3(desk.x + GroundFloor.TERMINAL_ALONG - 0.9, 0, behind - 0.2))
+	# The back desks: a screen (off), an in-tray, and a chair on the far side, so
+	# whoever sits there looks over the counter at the doors.
+	var turns := [186.0, 170.0]
+	for i in GroundFloor.BACK_DESKS.size():
+		var at: Vector3 = GroundFloor.BACK_DESKS[i]
+		ArtProps.desk(geo, at, 0, 1.6)
+		ArtProps.crt_monitor(dress, at + Vector3(-0.3, 0.76, 0.15), [8.0, -6.0][i], "off")
+		_in_tray(dress, at + Vector3(0.48, 0.76, 0.05), 3 - i * 2)
+		ArtProps.sittable(ArtProps.office_chair(geo, at + Vector3(-0.25, 0, -0.8), turns[i]), ArtProps.OFFICE_SEAT)
+		_bin(dress, at + Vector3(0.62, 0, -0.55))
+	# The machines' table, against the east partition.
+	var table := GroundFloor.MACHINES_TABLE
+	ArtProps.desk(geo, table, 90, 1.6)
+	ArtProps.fax_machine(dress, table + Vector3(0.05, 0.76, 0.4), 90)
+	ArtProps.dot_matrix_printer(dress, table + Vector3(0.05, 0.76, -0.38), 90)
+	ArtProps.boxes(geo, table + Vector3(-0.05, 0, -1.3), 80, 2)  # printer paper
+	# Filing: along the back wall, and down the west partition.
+	for x in [3.4, 3.9, 4.4]:
+		ArtProps.filing_cabinet(geo, Vector3(desk.x + x, 0, office.position.y + 0.4), 180)
+	for z in [2.2, 2.7, 3.2]:
+		ArtProps.filing_cabinet(geo, Vector3(office.position.x + 0.42, 0, behind - z), -90)
+	ArtProps.boxes(geo, Vector3(desk.x - 4.3, 0, office.position.y + 0.5), 10, 2)
+	ArtProps.potted_plant(geo, Vector3(office.end.x - 0.6, 0, office.position.y + 0.6))
+	# Lost property, beside the radios' charger.
+	var charger := GroundFloor.CHARGER_TABLE
+	_lost_property(geo, Vector3(charger.x - 1.35, 0, charger.z))
+
+
+## A desk's in-tray with `sheets` centimetres of paper in it. `pos` is on the desk top.
+static func _in_tray(parent: Node3D, pos: Vector3, sheets: int) -> void:
+	var m := ArtMesh.new()
+	var wire := Color(0.2, 0.2, 0.22)
+	m.box(Vector3(0, 0.006, 0), Vector3(0.26, 0.012, 0.34), wire)
+	for sx in [-1.0, 1.0]:
+		m.box(Vector3(sx * 0.125, 0.03, 0), Vector3(0.01, 0.05, 0.34), wire)
+	m.box(Vector3(0, 0.03, 0.165), Vector3(0.26, 0.05, 0.01), wire)
+	if sheets > 0:
+		m.box(Vector3(0.005, 0.012 + sheets * 0.005, -0.005), Vector3(0.21, sheets * 0.01, 0.3), Color(0.93, 0.92, 0.86), 3.0)
+	var tray := ArtProps._node(parent, pos, 0, "InTray")
+	m.commit(tray, "Tray")
+
+
+## A wastepaper bin, standing on `pos`.
+static func _bin(parent: Node3D, pos: Vector3) -> void:
+	var m := ArtMesh.new()
+	m.rod(Vector3(0, 0.0, 0), Vector3(0, 0.3, 0), 0.13, Color(0.2, 0.21, 0.23), 10, true)
+	m.rod(Vector3(0, 0.3, 0), Vector3(0, 0.302, 0), 0.115, Color(0.07, 0.07, 0.08), 10, true)  # the dark inside
+	m.commit(ArtProps._node(parent, pos, 0, "Bin"), "Bin")
+
+
+## The front office's lost property: open shelves facing the counter, with what
+## visitors have left behind. One mesh. `pos` is on the floor under its middle.
+static func _lost_property(geo: Node3D, pos: Vector3) -> void:
+	var w := 1.1
+	var h := 1.0
+	var d := 0.4
+	var body := ArtProps._body(geo, pos, 0, "LostProperty", Vector3(w, h, d), Vector3(0, h / 2.0, 0))
+	var m := ArtMesh.new()
+	var board := Color(0.5, 0.4, 0.28)
+	for sx in [-1.0, 1.0]:
+		m.box(Vector3(sx * (w / 2.0 - 0.015), h / 2.0, 0), Vector3(0.03, h, d), board)
+	m.box(Vector3(0, h / 2.0, -d / 2.0 + 0.01), Vector3(w - 0.06, h, 0.02), board.darkened(0.15))  # its back
+	var shelves: Array[float] = [0.06, 0.5, h - 0.015]
+	for y in shelves:
+		m.box(Vector3(0, y, 0), Vector3(w - 0.06, 0.03, d), board)
+	# Bottom: a gym bag and one shoe.
+	m.box(Vector3(-0.2, shelves[0] + 0.125, 0.0), Vector3(0.46, 0.22, 0.26), Color(0.16, 0.3, 0.22), 4.0)
+	m.box(Vector3(-0.2, shelves[0] + 0.245, 0.0), Vector3(0.3, 0.02, 0.03), Color(0.1, 0.1, 0.1), 4.0)  # its strap
+	m.box(Vector3(0.32, shelves[0] + 0.06, 0.03), Vector3(0.1, 0.09, 0.27), Color(0.85, 0.85, 0.82), -12.0)
+	# Middle: an umbrella, a flask and a glove.
+	m.rod(Vector3(-0.45, shelves[1] + 0.045, 0.08), Vector3(0.3, shelves[1] + 0.045, 0.02), 0.028, Color(0.1, 0.12, 0.25))
+	m.rod(Vector3(0.3, shelves[1] + 0.045, 0.02), Vector3(0.42, shelves[1] + 0.045, 0.01), 0.012, Color(0.45, 0.3, 0.15))  # its handle
+	m.rod(Vector3(0.38, shelves[1] + 0.015, -0.1), Vector3(0.38, shelves[1] + 0.26, -0.1), 0.04, Color(0.55, 0.12, 0.1), 8, true)
+	m.box(Vector3(-0.1, shelves[1] + 0.03, -0.09), Vector3(0.1, 0.03, 0.2), Color(0.75, 0.6, 0.2), 25.0)
+	# Top: a lunch box, a folded scarf and a cap.
+	m.box(Vector3(-0.3, shelves[2] + 0.085, 0.0), Vector3(0.24, 0.14, 0.16), Color(0.2, 0.35, 0.6), -8.0)
+	m.box(Vector3(-0.3, shelves[2] + 0.165, 0.0), Vector3(0.1, 0.02, 0.02), Color(0.9, 0.9, 0.88), -8.0)  # its handle
+	m.box(Vector3(0.08, shelves[2] + 0.045, 0.02), Vector3(0.26, 0.06, 0.18), Color(0.6, 0.15, 0.15), 6.0)
+	m.box(Vector3(0.4, shelves[2] + 0.06, -0.03), Vector3(0.17, 0.09, 0.17), Color(0.15, 0.2, 0.4), 20.0)
+	m.box(Vector3(0.43, shelves[2] + 0.025, 0.09), Vector3(0.16, 0.012, 0.1), Color(0.15, 0.2, 0.4), 20.0)  # its peak
+	m.commit(body, "Shelves", true)
+
+
 ## The ground floor indoors (GroundFloor's rooms, under `geo`, in Level 0's
 ## coordinates): Level 0's, and Level 4's when the crew come back down to it.
 ## Solid props go in `geo`, the rest in `dress`, which stands where `geo` does.
@@ -78,16 +176,20 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 	var concrete := ArtPalette.surface("concrete")
 	var metal := ArtPalette.surface("metal")
 	var lino := ArtPalette.surface("floor_tile", Color(1.0, 1.02, 1.02))
+	var dim_floor := ArtPalette.surface("floor_tile", Color(0.55, 0.56, 0.56))  # the dark corridor's and its passage's
+	var dim_wall := ArtPalette.surface("drywall", Color(0.7, 0.7, 0.68))
 	var z := zones()
 	ArtDress.reskin(geo, [
-		# The rooms off the back corridor
+		# The rooms off the north corridor
 		{"names": ["Floor"], "zone": z.restrooms, "mat": ArtPalette.surface("floor_tile", Color(1.25, 1.27, 1.28))},
 		{"names": ["Floor"], "zone": z.mailroom, "mat": lino},
 		{"names": ["Floor"], "zone": z.cafeteria, "mat": ArtPalette.surface("floor_tile", Color(0.95, 0.85, 0.72))},
 		{"names": ["Floor"], "zone": z.it_closet, "mat": ArtPalette.surface("floor_tile", Color(0.62, 0.62, 0.62))},
 		{"names": ["Floor"], "zone": z.lifts, "mat": ArtPalette.surface("floor_tile", Color(1.05, 0.98, 0.9))},
-		{"names": ["Floor"], "zone": z.dark, "mat": ArtPalette.surface("floor_tile", Color(0.55, 0.56, 0.56))},
-		{"names": ["Wall_"], "zone": z.dark, "mat": ArtPalette.surface("drywall", Color(0.7, 0.7, 0.68))},
+		{"names": ["Floor"], "zone": z.dark, "mat": dim_floor},
+		{"names": ["Floor"], "zone": z.passage, "mat": dim_floor},
+		{"names": ["Wall_"], "zone": z.dark, "mat": dim_wall},
+		{"names": ["Wall_"], "zone": z.passage, "mat": dim_wall},
 		{"names": ["Pigeonholes"], "mat": ArtPalette.flat(Color(0.45, 0.32, 0.2), 0.7)},
 		{"names": ["SortingTable", "CafTable"], "mat": ArtPalette.surface("laminate")},
 		{"names": ["MailCart", "ServingCounter"], "mat": metal},
@@ -106,6 +208,11 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 		{"names": ["LostFound"], "zone": z.lobby, "mat": ArtPalette.surface("laminate", Color(0.8, 0.8, 0.8))},
 		{"names": ["Partition"], "zone": z.lobby, "mat": ArtPalette.surface("partition")},
 		{"names": ["Chair"], "zone": z.lobby, "mat": ArtPalette.flat(Color(0.36, 0.14, 0.16), 0.95)},  # maroon waiting-room fabric
+		# The staff rooms off the lobby and the hall
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.VISITOR_BADGES, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(0.85, 0.9, 1.0))},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.SECURITY, 3.5, -0.2, 0.5), "mat": lino},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.FACILITIES, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(1.0, 1.05, 0.95))},
+		{"names": ["Floor"], "zone": GroundFloor.box(GroundFloor.CONFERENCE, 3.5, -0.2, 0.5), "mat": ArtPalette.surface("carpet", Color(1.05, 0.9, 0.85))},
 		# Hall to Server Room A
 		{"names": ["Floor"], "zone": z.hall, "mat": ArtPalette.surface("floor_tile")},
 		{"names": ["Ceiling"], "zone": z.hall, "mat": tiles},
@@ -125,10 +232,7 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 	ArtProps.potted_plant(geo, Vector3(lobby.position.x + 0.7, 0, lobby.end.y - 0.7))
 	ArtProps.potted_plant(geo, Vector3(lobby.end.x - 0.7, 0, lobby.end.y - 0.7))
 	ArtProps.water_cooler(geo, Vector3(lobby.end.x - 0.5, 0, lobby.end.y - 1.4))
-	ArtDress.skirting(dress, GroundFloor.mid(lobby), GroundFloor.span(lobby, GroundFloor.LOBBY_H), [
-		GroundFloor.gap(lobby, "e", GroundFloor.HALL_Z, 2.0, 3.0),
-		GroundFloor.gap(lobby, "s", GroundFloor.FRONT_AT.x, GroundFloor.FRONT_SIZE.x, GroundFloor.FRONT_SIZE.y),
-	])
+	ArtDress.skirting(dress, GroundFloor.mid(lobby), GroundFloor.span(lobby, GroundFloor.LOBBY_H), GroundFloor.gaps_of(lobby))
 	# On the side walls, beside the desk.
 	ArtProps.poster(dress, Vector3(lobby.position.x + 0.11, 1.8, desk.z - 2.0), -90,
 		"HALCYON DATA SYSTEMS\n\nEMPLOYEE OF THE MONTH\n\nOctober\nDale Rourke, Facilities\n\"Always happy to help!\"")
@@ -136,19 +240,22 @@ static func ground(geo: Node3D, dress: Node3D) -> void:
 		"WARDEN v3.1\n\nDoors, lights and climate,\nmanaged for you.\n\nWARDEN keeps you safe.")
 	ArtProps.exit_sign(dress, Vector3(lobby.end.x - 0.12, 3.3, GroundFloor.HALL_Z), 90)
 
-	# Behind reception: cabinets, the receptionist's chair, archive boxes.
-	for x in [3.4, 3.9, 4.4]:
-		ArtProps.filing_cabinet(geo, Vector3(desk.x + x, 0, lobby.position.y + 0.4), 180)
-	ArtProps.sittable(ArtProps.office_chair(geo, Vector3(desk.x + 3.0, 0, desk.z - 0.9), 180), ArtProps.OFFICE_SEAT)
-	ArtProps.boxes(geo, Vector3(desk.x - 4.3, 0, lobby.position.y + 0.5), 10, 2)
+	_front_office(geo, dress)
+	DressGroundRooms.window_frames(dress)
+	DressGroundRooms.visitor_badges(geo, dress)
+	DressGroundRooms.security_post(geo, dress)
+	DressGroundRooms.facilities(geo, dress)
+	DressGroundRooms.managers_office(geo, dress)
+	DressGroundRooms.conference_room(geo, dress)
 
 	# Hall: one more notice.
 	ArtProps.poster(dress, Vector3(GroundFloor.PASSAGE_X - 3.0, 1.6, GroundFloor.HALL.position.y + 0.11), 180,
 		"CLEAN DESK POLICY\n\nLock your screen.\nShred what you print.\nDon't share your PIN.", Vector2(0.5, 0.6))
 
 	# Closet: forgotten archive boxes, clear of the duct and the shelf.
-	ArtProps.boxes(geo, GroundFloor.at(GroundFloor.CLOSET, 4.4, 0, 0.6), 0, 3)
-	ArtProps.boxes(geo, GroundFloor.at(GroundFloor.CLOSET, 3.6, 0, 5.4), 20, 2)
+	var closet := GroundFloor.CLOSET
+	ArtProps.boxes(geo, GroundFloor.at(closet, closet.size.x - 1.6, 0, 0.6), 0, 3)
+	ArtProps.boxes(geo, GroundFloor.at(closet, closet.size.x - 2.4, 0, closet.size.y - 0.6), 20, 2)
 
 	var legs := ArtPalette.flat(Color(0.6, 0.61, 0.62), 0.3, 0.8)
 	for b in geo.get_children():
@@ -163,10 +270,10 @@ static func _tower(level: LevelBase, dress: Node3D) -> void:
 	var sky := ArtSkyline.backdrop(level, "level_0")
 	var roof := ArtSkyline.roof_height()
 	# Set back a metre behind the front facade, which is 6 m tall.
-	var w := GroundFloor.CORRIDOR.position.x - 0.6
-	var e := GroundFloor.HALL.end.x + 0.2
-	var front := GroundFloor.LOBBY.end.y - 0.75
-	var back := GroundFloor.MAILROOM.position.y - 0.4
+	var w := GroundFloor.OUTSIDE.position.x
+	var e := GroundFloor.OUTSIDE.end.x
+	var front := GroundFloor.OUTSIDE.end.y - 0.75
+	var back := GroundFloor.OUTSIDE.position.y
 	var core := Vector2((w + e) / 2.0 + 0.2, (front + back) / 2.0 - 0.925)  # the plant room and mast, a little off centre
 	ArtSkyline.facade(sky, PackedVector2Array([Vector2(e, back), Vector2(e, front), Vector2(w, front), Vector2(w, back), Vector2(e, back)]),
 		ArtSkyline.LOBBY_H, roof, "Tower", true)
@@ -188,19 +295,14 @@ static func _tower(level: LevelBase, dress: Node3D) -> void:
 			ArtSkyline.beacon(sky, Vector3(c.x + out.x, ArtSkyline.floor_height(15), c.y + out.y), false)
 
 
-## The rest of the ground floor: the back corridor and the rooms off it, the dark
+## The rest of the ground floor: the north corridor and the rooms off it, the dark
 ## east corridor and the elevator bank. Ordinary office life, nothing wrong yet.
 static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
-	# Back corridor: skirting, an extinguisher, notices between the doors.
+	# North corridor: skirting, an extinguisher, notices between the doors.
 	var corridor := GroundFloor.CORRIDOR
 	var lobby := GroundFloor.LOBBY
 	var south_wall := corridor.end.y - 0.11
-	ArtDress.skirting(dress, GroundFloor.mid(corridor), GroundFloor.span(corridor, GroundFloor.BACK_H), [
-		GroundFloor.gap(corridor, "s", -GroundFloor.AISLE_X, 1.6, 2.6), GroundFloor.gap(corridor, "s", GroundFloor.AISLE_X, 1.6, 2.6),
-		GroundFloor.gap(corridor, "e", GroundFloor.CORRIDOR_Z, 2.8, 3.0), GroundFloor.gap(corridor, "n", GroundFloor.MAILROOM_DOOR_X, 1.4, 2.2),
-		GroundFloor.gap(corridor, "n", GroundFloor.MENS_DOOR_X, 1.4, 2.2), GroundFloor.gap(corridor, "n", GroundFloor.WOMENS_DOOR_X, 1.4, 2.2),
-		GroundFloor.gap(corridor, "n", GroundFloor.CAFETERIA_DOOR_X, 2.4, 2.6), GroundFloor.gap(corridor, "n", GroundFloor.IT_DOOR_X, 1.4, 2.2),
-	])
+	ArtDress.skirting(dress, GroundFloor.mid(corridor), GroundFloor.span(corridor, GroundFloor.BACK_H), GroundFloor.gaps_of(corridor))
 	ArtProps.fire_extinguisher(dress, Vector3(lobby.position.x - 6.0, 1.1, south_wall), 0)
 	ArtProps.fire_extinguisher(dress, Vector3(lobby.end.x, 1.1, south_wall), 0)
 	ArtProps.poster(dress, Vector3(corridor.position.x + 0.11, 1.6, GroundFloor.CORRIDOR_Z), -90,
@@ -212,26 +314,27 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	# Mailroom: pigeonholes full of post, parcels on the table and the cart, a
 	# corkboard of notices.
 	var mail := GroundFloor.MAILROOM
-	ArtProps.pigeonhole_front(dress, GroundFloor.at(mail, 3.5, 1.1, 0.7), 180, Vector2(5.5, 2.2), 12, 7)
-	ArtProps.boxes(dress, GroundFloor.at(mail, 2.6, 0.9, 3.5), 12, 1)  # on the sorting table
-	ArtProps.clipboard(dress, GroundFloor.at(mail, 4.4, 0.9, 3.8), -10, "MAIL LOG")
+	var table: Vector3 = GroundFloor.SORTING_TABLE + Vector3(0, 0.45, 0)  # the sorting table's top
+	ArtProps.pigeonhole_front(dress, GroundFloor.PIGEONHOLES + Vector3(0, 0, 0.3), 180, Vector2(5.5, 2.2), 12, 7)
+	ArtProps.boxes(dress, table + Vector3(-0.9, 0, 0), 12, 1)
+	ArtProps.clipboard(dress, table + Vector3(0.9, 0, 0.3), -10, "MAIL LOG")
 	for i in 3:
-		ArtProps.memo(dress, GroundFloor.at(mail, 3.6 + i * 0.07, 0.902 + i * 0.002, 3.3 + i * 0.03), 8 - i * 9, "", true)
-	ArtProps.boxes(dress, GroundFloor.at(mail, 1.0, 1.0, 5.8), 80, 2)  # on the cart
+		ArtProps.memo(dress, table + Vector3(0.1 + i * 0.07, 0.002 + i * 0.002, -0.2 + i * 0.03), 8 - i * 9, "", true)
+	ArtProps.boxes(dress, GroundFloor.MAIL_CART + Vector3(0, 0.5, -0.2), 80, 2)  # on the cart
 	var board := ArtProps.corkboard(dress, GroundFloor.at(mail, mail.size.x - 0.11, 1.6, 4.0), 90, Vector2(1.3, 0.9))
 	ArtProps.memo(board, Vector3(-0.35, 0.05, -0.017), 0, "OUTGOING MAIL\nleaves at 4:30")
 	ArtProps.memo(board, Vector3(0.25, 0.1, -0.017), 0, "FEDEX ACCOUNT #\nask reception")
 	ArtProps.sticky_note(board, Vector3(0.5, -0.25, -0.017), 0, "stamps in top drawer", ArtProps.STICKY_COLORS[1])
 
-	# Restrooms: tiled to shoulder height, a mirror and dryer by the sinks, a
-	# toilet in each stall.
+	# Restrooms: tiled to shoulder height, a mirror over the sinks and a dryer
+	# across from them, a toilet in each stall.
 	var tile := ArtPalette.surface("floor_tile", Color(1.3, 1.33, 1.34))
 	for room in [GroundFloor.MENS, GroundFloor.WOMENS]:
-		ArtDress.skirting(dress, GroundFloor.mid(room), GroundFloor.span(room, GroundFloor.BACK_H), [GroundFloor.gap(room, "s", GroundFloor.mid(room).x, 1.4, 2.2)], 1.5, tile)
-		ArtProps.restroom_mirror(dress, GroundFloor.at(room, 0.11, 1.5, 5.7), -90, 0.5)
-		ArtProps.hand_dryer(dress, GroundFloor.at(room, room.size.x - 0.11, 1.2, 7.0), 90)
-		for south in [2.8, 1.1]:  # one in each stall
-			ArtProps.toilet(dress, GroundFloor.at(room, 2.55, 0, south), 90)
+		ArtDress.skirting(dress, GroundFloor.mid(room), GroundFloor.span(room, GroundFloor.BACK_H), GroundFloor.gaps_of(room), 1.5, tile)
+		ArtProps.restroom_mirror(dress, GroundFloor.at(room, 0.11, 1.5, 5.0), -90, 1.8)
+		ArtProps.hand_dryer(dress, GroundFloor.at(room, room.size.x - 0.11, 1.2, 6.0), 90)
+		for stall in GroundFloor.stalls(room):
+			ArtProps.toilet(dress, Vector3(room.end.x - 0.45, 0, stall.z), 90)
 	ArtProps.wet_floor_sign(dress, GroundFloor.at(GroundFloor.WOMENS, 2.0, 0, 5.4), 30)
 
 	# Cafeteria: chairs on the tables' outer sides (the gaps between rows stay
@@ -246,16 +349,19 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 			ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, rows[0] + 0.65), (n % 3 - 1) * 6, shells[n % 3]), ArtProps.CAFE_SEAT)
 			ArtProps.sittable(ArtProps.cafe_chair(geo, Vector3(tx + sx, 0, rows[1] - 0.65), 180 + (n % 3 - 1) * 5, shells[(n + 1) % 3]), ArtProps.CAFE_SEAT)
 			n += 1
-	var vending := GroundFloor.VENDING_AT + Vector3(-0.455, 0, 0)  # the coffee machine's front
-	ArtProps.vending_front(dress, vending, 90, Vector2(0.8, 1.8), Color(0.18, 0.28, 0.5), true)
-	ArtProps.vending_front(dress, vending + Vector3(0, 0, -1.2), 90, Vector2(0.8, 1.8), Color(0.55, 0.12, 0.1))
+	var face: Vector3 = GroundFloor.VENDING_SIZE
+	var vending := GroundFloor.VENDING_AT + Vector3(0, 0, -face.z / 2.0 - 0.005)  # the coffee machine's front
+	ArtProps.vending_front(dress, vending, 0, Vector2(face.x, face.y), Color(0.18, 0.28, 0.5), true)
+	ArtProps.vending_front(dress, vending + GroundFloor.VENDING_NEXT, 0, Vector2(face.x, face.y), Color(0.55, 0.12, 0.1))
 	# The serving counter, along the north wall.
-	ArtProps.microwave(dress, GroundFloor.at(cafe, 4.2, 1.0, 0.5), 180)
-	ArtProps.microwave(dress, GroundFloor.at(cafe, 4.8, 1.0, 0.5), 180)
-	ArtDress.trim(dress, GroundFloor.at(cafe, 7.5, 1.01, 0.6), Vector3(8.04, 0.02, 0.94), ArtPalette.flat(Color(0.75, 0.76, 0.77), 0.3, 0.8))  # steel top
+	var counter_size: Vector3 = GroundFloor.SERVING_COUNTER_SIZE
+	var counter: Vector3 = GroundFloor.SERVING_COUNTER + Vector3(0, counter_size.y / 2.0, 0)  # its top
+	ArtProps.microwave(dress, counter + Vector3(-counter_size.x / 2.0 + 1.0, 0, -0.1), 180)
+	ArtProps.microwave(dress, counter + Vector3(-counter_size.x / 2.0 + 1.6, 0, -0.1), 180)
+	ArtDress.trim(dress, counter + Vector3(0, 0.01, 0), Vector3(counter_size.x + 0.04, 0.02, counter_size.z + 0.04), ArtPalette.flat(Color(0.75, 0.76, 0.77), 0.3, 0.8))  # steel top
 	var guard := ArtPalette.glass(Color(0.6, 0.7, 0.72))
-	ArtDress.trim(dress, GroundFloor.at(cafe, 9.0, 1.35, 1.0), Vector3(4.0, 0.5, 0.01), guard)  # sneeze guard
-	ArtProps.poster(dress, GroundFloor.at(cafe, 7.5, 2.5, 0.11), 180,
+	ArtDress.trim(dress, counter + Vector3(counter_size.x / 4.0, 0.35, 0.4), Vector3(counter_size.x / 2.0, 0.5, 0.01), guard)  # sneeze guard
+	ArtProps.poster(dress, Vector3(counter.x, 2.5, cafe.position.y + 0.11), 180,
 		"TODAY\n\nSoup of the day  1.50\nTuna melt  2.75\nChef salad  3.25\nCoffee  .50", Vector2(1.4, 0.8))
 	var cafe_board := ArtProps.corkboard(dress, GroundFloor.at(cafe, 2.5, 1.6, cafe.size.y - 0.11), 0, Vector2(1.4, 0.9))
 	ArtProps.memo(cafe_board, Vector3(-0.4, 0.05, -0.017), 0, "PLEASE LABEL FOOD\nin the fridge")
@@ -269,14 +375,15 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 	var shelf := ArtPalette.flat(Color(0.3, 0.31, 0.33), 0.4, 0.7)
 	var it := GroundFloor.IT_CLOSET
 	for y in [0.4, 0.9, 1.4, 1.9]:
-		ArtDress.trim(dress, GroundFloor.at(it, 0.71, y, 2.0), Vector3(0.02, 0.03, 3.4), shelf)
-	ArtProps.crt_monitor(dress, GroundFloor.at(it, 0.4, 2.0, 3.0), -90, "off")
-	ArtProps.boxes(dress, GroundFloor.at(it, 0.4, 2.0, 1.4), -90, 1)
+		ArtDress.trim(dress, GroundFloor.at(it, 0.71, y, 3.0), Vector3(0.02, 0.03, 3.4), shelf)
+	ArtProps.crt_monitor(dress, GroundFloor.at(it, 0.4, 2.0, 4.0), -90, "off")
+	ArtProps.boxes(dress, GroundFloor.at(it, 0.4, 2.0, 2.4), -90, 1)
+	var panel := it.size.x - 0.455  # the patch panel's face
 	for y in [1.0, 1.2, 1.4, 1.6]:
-		ArtDress.trim(dress, GroundFloor.at(it, 3.545, y, 1.5), Vector3(0.01, 0.05, 1.4), ArtPalette.flat(Color(0.25, 0.27, 0.3), 0.5))
+		ArtDress.trim(dress, GroundFloor.at(it, panel, y, 1.5), Vector3(0.01, 0.05, 1.4), ArtPalette.flat(Color(0.25, 0.27, 0.3), 0.5))
 		for k in 6:  # a link light here and there
-			ArtDress.trim(dress, GroundFloor.at(it, 3.538, y + 0.012, 0.9 + k * 0.23 + float((k + int(y * 10.0)) % 3) * 0.04), Vector3(0.004, 0.008, 0.012), ArtPalette.glow(Color(0.2, 1.0, 0.35), 0.8))
-	ArtProps.clipboard(dress, GroundFloor.at(it, it.size.x - 0.11, 1.5, 3.1), 90, "EQUIPMENT SIGN-OUT", false)
+			ArtDress.trim(dress, GroundFloor.at(it, panel - 0.007, y + 0.012, 0.9 + k * 0.23 + float((k + int(y * 10.0)) % 3) * 0.04), Vector3(0.004, 0.008, 0.012), ArtPalette.glow(Color(0.2, 1.0, 0.35), 0.8))
+	ArtProps.clipboard(dress, GroundFloor.at(it, it.size.x - 0.11, 1.5, it.size.y - 1.9), 90, "EQUIPMENT SIGN-OUT", false)
 
 	# The dark east corridor: stacked spare chairs and boxes against the walls,
 	# a sign someone knocked over. Left mostly bare.
@@ -289,12 +396,14 @@ static func _ground_floor(geo: Node3D, dress: Node3D) -> void:
 			c.visible = false
 	ArtProps.dead_troffer(dress, Vector3(GroundFloor.DEAD_LIGHT.x, GroundFloor.BACK_H, GroundFloor.DEAD_LIGHT.z), 0.0, true)
 
-	# Elevator bank: plants either side, a bin and a fire notice by the doors.
+	# Elevator bank: plants either side, a fire notice between the lifts' doors.
 	var lifts := GroundFloor.LIFT_HALL
+	var lift := GroundFloor.LIFT_AT
 	ArtProps.potted_plant(geo, GroundFloor.at(lifts, lifts.size.x - 0.6, 0, 0.6))
 	ArtProps.potted_plant(geo, GroundFloor.at(lifts, lifts.size.x - 0.6, 0, lifts.size.y - 0.6))
-	ArtProps.poster(dress, Vector3(lifts.end.x - 0.11, 1.5, GroundFloor.LIFT_AT.z + 2.0), 90,
+	ArtProps.poster(dress, Vector3(lifts.end.x - 0.11, 1.5, (lift.z + GroundFloor.SPARE_LIFTS_Z[0]) / 2.0), 90,
 		"IN CASE OF FIRE\nDO NOT USE ELEVATOR\n\nUSE STAIRS", Vector2(0.5, 0.4), Color(0.93, 0.92, 0.86), 22)
-	ArtDress.skirting(dress, GroundFloor.mid(lifts), GroundFloor.span(lifts, GroundFloor.LIFT_HALL_H), [
-		GroundFloor.gap(lifts, "w", GroundFloor.HALL_Z, 1.8, 2.4), GroundFloor.gap(lifts, "e", GroundFloor.LIFT_AT.z, Elevator.DOORWAY, Elevator.DOOR_H),
-	])
+	var lift_gaps := GroundFloor.gaps_of(lifts)
+	for spare_z in GroundFloor.SPARE_LIFTS_Z:  # the two that are out of service
+		lift_gaps.append(GroundFloor.gap(lifts, "e", spare_z, Elevator.DOORWAY, Elevator.DOOR_H))
+	ArtDress.skirting(dress, GroundFloor.mid(lifts), GroundFloor.span(lifts, GroundFloor.LIFT_HALL_H), lift_gaps)

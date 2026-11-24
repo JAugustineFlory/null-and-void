@@ -16,11 +16,13 @@ signal checkpoint_reached(wing_id: String)
 ## Play order, and where each wing sits in the building (its origin and facing).
 ## Each floor is reached by elevator: the ride carries the crew from one floor's
 ## car into the next floor's arrival car, so floors sit side by side, apart, rather
-## than stacked. The server floor is set well back from the ground floor's car park.
+## than stacked. The server floor is set well back from the ground floor's car park,
+## and floor 22 stands clear of the ground floor's lift hall (its sky's radius,
+## ArtSkyline.VIEWS, mustn't reach it).
 const ROUTE := [
 	{"key": "level_0", "scene": "res://scenes/level_0.tscn", "at": Transform3D.IDENTITY},
 	{"key": "level_1", "scene": "res://scenes/level_1.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(38, 0, 63))},
-	{"key": "level_2", "scene": "res://scenes/level_2.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -1))},
+	{"key": "level_2", "scene": "res://scenes/level_2.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(90, 0, -1))},
 	# Floor 18 is reached by the stairs down from 22. It sits apart like the other
 	# floors: StairLinks makes 22's stairwell and 18's one flight of stairs.
 	{"key": "level_3", "scene": "res://scenes/level_3.tscn", "at": Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(74, 0, -70))},

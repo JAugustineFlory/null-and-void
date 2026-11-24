@@ -23,6 +23,7 @@ func run(tree: SceneTree, check: Callable) -> void:
 	test_tokens()
 	test_guards()
 	await test_floor()
+	await test_one_run()
 
 
 func check(cond: bool, name: String) -> void:
@@ -93,6 +94,10 @@ func test_data_every_seed() -> void:
 	var ok_sql := true
 	var ok_times := true
 	var ok_scripts := true
+	var ok_log := true
+	var ok_bench := true
+	var ok_gas := true
+	var benches := {}
 	var keys := {}
 	var ids := {}
 	var orders := {}
@@ -118,13 +123,25 @@ func test_data_every_seed() -> void:
 		decoys[",".join(PackedStringArray(d.lifts.map(func(l): return l.id)))] = true
 		# The hints' scripts compile for every run's key and zones.
 		var zone_list: Array = d.zones.map(func(z): return z.id)
-		for code in [l7_script._one_script(d.key, zone_list[0]), l7_script._every_script(d.key, zone_list)]:
+		for code in [l7_script._test_script(d.key, zone_list[0]), l7_script._one_script(d.key, zone_list[0]), l7_script._every_script(d.key, zone_list)]:
 			ok_scripts = ok_scripts and ScriptRuntime.for_language("javascript").compile(code).ok
+		# The auth log, oldest first (p.15); WARDEN's Wednesday 19:00 among Wednesday's last.
+		var whens: Array = d.auth_log.map(func(e): return Level7Data._when(e.issued))
+		var sorted := whens.duplicate()
+		sorted.sort()
+		var his: int = d.auth_log.map(func(e): return e.holder).find("WARDEN")
+		ok_log = ok_log and whens == sorted and d.auth_log.size() >= 23 and d.auth_log.size() <= 29 and his >= d.auth_log.size() - 6
+		ok_bench = ok_bench and zone_list.has(d.bench_zone) and d.bench_zone != zone_list[0]
+		benches[d.bench_zone] = true
+		ok_gas = ok_gas and d.suppression.values().all(func(v): return v >= 140.0 and v <= 170.0)
 	check(ok_zones, "every run has six ring zones with different ids, the emergency circuit apart, all seven listed, two cut first")
 	check(ok_lifts, "two of lifts 1 to 4 come down to B2, and the freight lift")
 	check(ok_sql, "the lights table has the six zones and the emergency circuit on standby")
 	check(ok_times, "a token lasts 150 to 240 s; the runbook's example token is a real-looking one")
 	check(ok_scripts, "the hints' scripts compile for every seed's key and zones")
+	check(ok_log, "the auth log is oldest first, 23 to 29 entries, and WARDEN's Wednesday 19:00 is among the last")
+	check(ok_bench and benches.size() > 30, "the bench's own lamp is a ring zone, never the printout's, and changes with the seed (%d)" % benches.size())
+	check(ok_gas, "each plant room's gas counts down 140 to 170 s")
 	check(keys.size() > 50 and ids.size() > 30 and orders.size() > 50 and decoys.size() > 6, "keys, zone ids, the listing's order and which lifts come down change with the seed (%d, %d, %d, %d)" % [keys.size(), ids.size(), orders.size(), decoys.size()])
 
 
@@ -206,18 +223,25 @@ func test_floor() -> void:
 	print("B2: the floor")
 	_game().new_run(4242)
 	var level: Node = load("res://scenes/level_7.tscn").instantiate()
-	level.first_cut_after = 0.5
+	level.token_cut_after = 0.3
 	t.root.add_child(level)
 	await _frames(5)
 	check(level.db.read_only, "the database only reads (Epsilon)")
 	check(level.decks.size() == 6 and level.admin_terminal and level.bench_terminal, "a deck for every player slot, the admin terminal and the bench")
 	check(level.lights.has(level.data.zones[0].id) and level.lights[level.data.zones[0].id].size() == 2, "each ring zone has its lights")
 	check(_game().current_todo() == level.TEXT.todo_arrive, "the to-do: find the IT admin office")
-	await _until(func(): return level.cut_zones.size() == 2, 120)
-	var cut: Array = level.data.first_cut
-	check(cut.all(func(id): return not level.zone_on(id) and not level.lights[id][0].visible), "WARDEN cuts two zones of the ring: dark in the lights table, and their lights out")
+	check([level.admin_terminal, level.bench_terminal, level.decks[0]].all(func(tm): return tm.policy and tm.boot_text().find(TerminalPolicy.BOOT_LINE) == 1), "every B2 screen runs under the policy, P1 second (admin, bench, decks)")
+	var card: Node3D = level.find_child("PolicyCard", true, false)
+	check(card != null and level.OFFICE.has_point(level.to_local(card.global_position)), "the policy's card is on the admin desk (P5)")
+	check(level.find_child("Runbook15", true, false) != null and level.find_child("Runbook15Copy", true, false) != null and level.find_child("WatchdogSticky", true, false) != null and level.find_child("LiftCard", true, false) != null,
+		"runbook page 15 by page 14 and on the closet door, G.P.'s watchdog sticky, the elevator card (X23, X24, X30)")
+	await _frames(30)
+	check(level.cut_zones.is_empty(), "WARDEN waits: no cut before B2 has answered the crew (M3)")
 
 	await _case_token(level)
+	await _until(func(): return level.cut_zones.size() == 2, 120)
+	var cut: Array = level.data.first_cut
+	check(cut.all(func(id): return not level.zone_on(id) and not level.lights[id][0].visible), "then WARDEN cuts two zones of the ring: dark in the lights table, and their lights out")
 	await _services(level)
 	await _case_restore(level)
 	await _case_zones(level)
@@ -230,14 +254,27 @@ func _case_token(level: Node) -> void:
 	var admin: Terminal = level.admin_terminal
 	var key: String = level.data.key
 	check(not _game().case_info("token").get("open", false), "no case yet: nothing's been asked of B2")
+	check(level.token_puzzle.spot_hint(_game()) == level.SPOT_RUNBOOK, ".hint first points at the runbook page (X5)")
 	var res := _req(admin, "GET /lights\nX-Api-Key: " + key)
 	check(res.status == 401 and level.tips_sent.has("key_not_token") and not level.token_puzzle.solved, "the key on its own: 401, and SYSOP says B2 takes tokens")
 	check(_game().case_info("token").get("open", false), "the first 401 opens the token case")
 	res = _req(admin, _bearer("GET /lights", level.data.example_token))
 	check(res.status == 401 and level.tips_sent.has("example_token"), "the runbook's example token ran out long ago: 401, and SYSOP says whose it was")
+	check(_game().case_query("token") == "POST /auth/token {\"key\": \"enter_key\"}", "the token case's shape: step 1, the key left as enter_key (X1, X3)")
+	level.find_child("KeySticky", true, false).take_line(null, 0)
+	await _frames(2)
+	check(_game().case_query("token") == "POST /auth/token {\"key\": \"%s\"}" % key and _game().has_piece("restore", "key"), "reading the sticky finds the key, for every case on the floor (X3)")
+	res = _req(admin, "POST /auth/token\nX-Api-Key: " + key)
+	check(res.status == 400 and level.tips_sent.has("key_header"), "the key in a header, floor 9's way: 400, and SYSOP says it goes in the body (X7)")
 	res = _req(admin, "POST /auth/token {\"key\": \"%s\"}" % key)
 	var tok: String = res.body.get("token", "")
 	check(res.status == 201 and level.api.token_state(tok) == "ok" and not level.token_puzzle.solved, "the key trades for a token (not the case yet: nothing's been read with it)")
+	check(_game().case_query("token") == "GET /lights\nAuthorization: Bearer enter_token", "then the shape's step 2: the GET, the token left blank")
+	_game().add_cell("token", level.data.example_token, {"token": level.data.example_token})
+	check(not _game().has_piece("token", "token"), "the runbook's example token only notes it")
+	_game().add_cell("token", tok, {"token": tok, "type": "Bearer", "expires_in": int(level.data.token_seconds)})
+	await _frames(2)
+	check(_game().has_piece("token", "token") and _game().case_query("token") == "GET /lights\nAuthorization: Bearer " + tok, "pointing at the token in B2's answer finds it, and writes it into the header (X4)")
 	res = _req(admin, "GET /lights\nAuthorization: " + tok)
 	check(res.status == 401 and level.tips_sent.has("bearer"), "the token without the word Bearer: 401, and how it's written")
 	var bench_tok := _token(level.bench_terminal, key)
@@ -268,9 +305,19 @@ func _services(level: Node) -> void:
 	res = _req(admin, _bearer("POST /lifts/LIFT-F/restart", tok, "{}"))
 	check(res.status == 409 and str(res.body.error).contains("Tue 10/14"), "the freight lift's out of service since Tuesday, as its sign says")
 	check(_req(admin, _bearer("POST /lifts/LIFT-9/restart", tok, "{}")).status == 404, "a lift that doesn't come down here: 404")
+	res = _req(admin, _bearer("POST /lifts/%s/restart" % str(car.id).trim_prefix("LIFT-"), tok))
+	check(res.status == 423, "the wall's bare number, with no body at all, is the same car: held, not 404 or 400")
+	res = _req(admin, _bearer("GET /lights", tok))
+	var em_row: Dictionary = res.body.zones.filter(func(zz): return zz.id == level.data.emergency.id)[0]
+	_game().add_cell("id", level.data.emergency.id, em_row)
+	await _frames(2)
+	check(not _game().has_piece("zones", "zones") and _game().has_piece("restore", "zone") and _game().case_query("restore").contains("/lights/%s\"" % level.data.emergency.id),
+		"pointing at the emergency circuit's id notes it for the first test, but doesn't count as a ring zone's (X10)")
 	var em: String = level.data.emergency.id
 	res = _req(admin, _bearer("PATCH /lights/" + em, tok, "{\"on\": true}"))
 	check(res.status == 403 and level.tips_sent.has("em"), "the emergency circuit is life safety: 403, not ours")
+	await _frames(2)
+	check(not _game().has_piece("restore", "zone") and _game().case_query("restore").contains("/lights/enter_zone"), "and its 403 opens the zone's blank again, for a ring lamp's")
 	var z: String = level.data.first_cut[0]
 	res = _req(admin, _bearer("PATCH /lights/" + z, tok, "{\"on\": true}"))
 	check(res.status == 200 and res.body.on and level.zone_on(z) and level.lights[z][0].visible, "PATCH a zone on by hand: lit in the table and in the ring")
@@ -283,18 +330,28 @@ func _case_restore(level: Node) -> void:
 	var bench: Terminal = level.bench_terminal
 	var key: String = level.data.key
 	var zone: String = level.data.zones[0].id
+	var own: String = level.data.bench_zone
 	var floor_before: Array = level.data.zones.map(func(zz): return level.zone_on(zz.id))
+	var h: Node = t._huddle_of(level)
+	check(await t._huddle_opens(level, "js_testing", 30.0) and not h.done.has("js_functions"), "the bench's case opens: Checking your work lands, and only it (M2)")
+	check(_game().case_info("restore").steps.size() == 2 and _game().case_info("restore").steps[0].text == level.TEXT.case_restore_test, "its first step: one lamp and an assert (X8)")
+	check(_game().case_query("restore").begins_with("let key = \"" + key + "\";") and _game().case_query("restore").contains("/lights/enter_zone"), "its shape: the first test, the key in, the zone left blank (X2)")
+	check(level.test_puzzle.spot_hint(_game()) == level.SPOT_BENCH_CARD and level.test_puzzle.hints[0].contains("enter_zone") and level.test_puzzle.hints[0].contains("assert(res.body.on"), ".hint: the bench card first, then the shape (X11, X13)")
+	var tag: Document = level.find_child("LampTag_" + own, true, false)
+	tag.take_line(null, 0)
+	await _frames(2)
+	check(_game().has_piece("restore", "zone") and _game().case_query("restore").contains("/lights/%s\"" % own) and _game().has_piece("zones", "zones"), "pointing at a lamp's tag finds a zone's id, and the row's (X10, X21)")
 	# The printout as it is: no return. The zone lights, the test fails on undefined.
 	var printout := "\n".join(PackedStringArray(level._printout().map(func(l): return str(l.text) if l is Dictionary else str(l)).slice(0, 15))).replace("<the key>", key)
 	var rt := _run(level, bench, printout)
 	await _done(rt)
 	check(rt.state == ScriptRuntime.State.FAILED and str(rt.error.message).contains("undefined"), "the admin's printout: the function never returns, so the test fails on undefined (%s)" % rt.error)
-	check(level.bench_on[zone] and level.tips_sent.has("no_return") and not level.restore_puzzle.solved, "it did light the bench's zone; SYSOP: hand the answer back with return")
+	check(level.bench_on[zone] and level.tips_sent.has("no_return") and not level.test_puzzle.solved, "it did light the bench's zone; SYSOP: hand the answer back with return")
 	check(bench.transcript.any(func(l): return l.contains("BENCH: 1 of 6 zones lit")), "the bench prints how it went")
 	# No assert: it lights, but nothing checked it.
 	rt = _run(level, bench, level._restore_fn(key) + "\nawait restore(\"%s\");" % zone)
 	await _done(rt)
-	check(rt.state == ScriptRuntime.State.DONE and level.bench_lit() == 1 and level.bench_passes == 0 and level.tips_sent.has("no_assert") and not level.restore_puzzle.solved, "no assert: the zone lights, but no test passed, so it doesn't count")
+	check(rt.state == ScriptRuntime.State.DONE and level._report_passes == 0 and level.tips_sent.has("no_assert") and not level.test_puzzle.solved, "no assert: the zone lights, but no test passed, so it doesn't count")
 	# No zone in the call: zone is undefined, /lights/undefined is 404, the test fails.
 	rt = _run(level, bench, level._restore_fn(key) + "\nlet answer = await restore();\nassert(answer.body.on, \"lit\");")
 	await _done(rt)
@@ -303,30 +360,83 @@ func _case_restore(level: Node) -> void:
 	var plain := ScriptRuntime.for_language("javascript")
 	var c := plain.compile(level._one_script(key, zone).replace("async function", "function"))
 	check(not c.ok and str(c.error.message).contains("async"), "no async: the runner says await only works inside an async function")
-	# Every run starts with the mock dark.
-	check(not level.restore_puzzle.solved, "nothing's passed yet")
-	# The last hint: one zone, returned and asserted.
+	# The first test, run on the real floor while the bench's case waits (X20).
+	var admin: Terminal = level.admin_terminal
+	rt = _run(level, admin, level._test_script(key, zone))
+	await _done(rt)
+	check(level.tips_sent.has("not_bench") and _deck_said(admin, level.TEXT.tip_not_bench) and not level.test_puzzle.solved, "the first test run on the real floor: SYSOP says it belongs on the bench, and it counts for nothing")
+	_req(admin, _bearer("PATCH /lights/" + zone, _token(admin, key), "{\"on\": %s}" % ("true" if floor_before[0] else "false")))
+	# Step 1: the first test (X14), one lamp and an assert. No function yet: nothing to call.
+	rt = _run(level, bench, level.test_puzzle.hints[-1].get_slice("[color=#ffffff]", 1).get_slice("[/color]", 0))
+	await _done(rt)
+	check(rt.state == ScriptRuntime.State.DONE and level.test_puzzle.solved and not level.restore_puzzle.solved and _game().case_info("restore").steps[0].done, "the first test passes step 1, and only step 1")
+	check(bench.transcript.any(func(l): return l == level.TEXT.bench_call_missing), "the bench: no restore(zone) in the script, so nothing to call (X19)")
+	check(await t._huddle_opens(level, "js_functions", 30.0), "step 1 passed: Functions lands (M2)")
+	check(_game().case_query("restore").contains("async function restore(zone)"), "the shape moves on to the function (step 2)")
+	# A function with no return: the bench gets nothing back (X16).
+	var no_return: String = level._restore_fn(key).replace("  return res;\n", "")
+	rt = _run(level, bench, no_return)
+	await _done(rt)
+	check(rt.state == ScriptRuntime.State.DONE and bench.transcript.any(func(l): return l == level.TEXT.bench_call_none % own) and not level.restore_puzzle.solved, "no return: the bench calls it, and gets undefined back (X16)")
+	# One that ignores its zone: the bench's lamp stays dark (X17).
+	var deaf: String = level._restore_fn(key).replace("\"/lights/\" + zone", "\"/lights/%s\"" % zone)
+	rt = _run(level, bench, deaf)
+	await _done(rt)
+	check(bench.transcript.any(func(l): return l == level.TEXT.bench_call_dark % [own, own]) and not level.restore_puzzle.solved and not level.bench_on[own], "one that ignores its zone: an answer, but the bench's lamp stays dark (X17)")
+	# One that stops partway: the runner's own error (X18).
+	var broken: String = level._restore_fn(key).replace("  return res;", "  return res.body.nope.on;")
+	rt = _run(level, bench, broken)
+	await _done(rt)
+	check(bench.transcript.any(func(l): return l.begins_with(level.TEXT.bench_call_stopped.get_slice("%s", 0) + own)) and not level.restore_puzzle.solved, "one that stops partway: the bench says it stopped, with the runner's error (X18)")
+	check(not level.restore_puzzle.solved, "nothing's passed step 2 yet")
+	# The last hint: the function, called once and asserted; the bench calls it too.
 	var code: String = level.restore_puzzle.hints[-1].get_slice("[color=#ffffff]", 1).get_slice("[/color]", 0)
 	var said := []
 	rt = _run(level, bench, code)
 	rt.printed.connect(func(text, kind): said.append([text, kind]))
 	await _done(rt)
 	check(rt.state == ScriptRuntime.State.DONE and said.has(["PASS  %s is lit" % zone, "pass"]), "the last hint's script: the bench logs PASS for its assert (%s)" % [said])
-	check(level.restore_puzzle.solved and _game().case_info("restore").solved and level.bench_passes == 1 and level.bench_lit() == 1, "one zone lit and tested: the case closes")
+	check(bench.transcript.any(func(l): return l == level.TEXT.bench_call_pass % own), "and the bench's own call passes: the zone, handed back lit (X15)")
+	check(level.restore_puzzle.solved and _game().case_info("restore").solved and str(_game().case_info("restore").how).contains(own), "both steps: the case closes, its solved line naming the bench's zone")
 	check(_game().case_info("zones").get("open", false), "then every zone's case opens")
+	check(await t._huddle_opens(level, "js_lists", 30.0), "and Lists lands with it (M2)")
 	check(level.data.zones.map(func(zz): return level.zone_on(zz.id)) == floor_before, "nothing on the bench touched the building's lights")
 	check(level.restore_puzzle.hints[0].contains("enter_zone") and level.restore_puzzle.hints[0].contains("return") and level.restore_puzzle.hints[0].contains("assert"), "hint 1: the shape, with a line for each new word")
+
+
+## The approved hint's whole script passes both of the bench's first steps in one run
+## (M1), on a fresh floor.
+func test_one_run() -> void:
+	print("B2: the function's hint, straight away")
+	_game().new_run(5150)
+	var level: Node = load("res://scenes/level_7.tscn").instantiate()
+	t.root.add_child(level)
+	await _frames(5)
+	level._on_solved("token")
+	var code: String = level.restore_puzzle.hints[-1].get_slice("[color=#ffffff]", 1).get_slice("[/color]", 0)
+	var rt := _run(level, level.bench_terminal, code)
+	await _done(rt)
+	check(level.test_puzzle.solved and level.restore_puzzle.solved and _game().case_info("restore").solved and _game().case_info("zones").get("open", false),
+		"the function's whole script passes both steps in one run")
+	level.queue_free()
+	await _frames(2)
 
 
 func _case_zones(level: Node) -> void:
 	var bench: Terminal = level.bench_terminal
 	var key: String = level.data.key
 	var ids: Array = level.data.zones.map(func(z): return z.id)
-	# A list missing a zone: five lit and tested, the bench names the sixth.
-	var rt := _run(level, bench, level._every_script(key, ids.slice(0, 5)))
+	# A list missing a zone (not the bench's own): five lit and tested, the bench names the sixth.
+	var missing: String = ids.filter(func(i): return i != level.data.bench_zone)[-1]
+	var rt := _run(level, bench, level._every_script(key, ids.filter(func(i): return i != missing)))
 	await _done(rt)
 	check(rt.state == ScriptRuntime.State.DONE and level.bench_lit() == 5 and level.bench_passes == 5 and not level.zones_puzzle.solved, "a list one zone short: five lit, not done")
-	check(bench.transcript.any(func(l): return l.contains("still dark") and l.contains(ids[5])), "the bench names the zone still dark")
+	check(bench.transcript.any(func(l): return l.contains("still dark") and l.contains(missing)), "the bench names the zone still dark")
+	# All six lit, but only five asserted: the case wants each one tested.
+	var five: String = level._every_script(key, ids).replace("  assert(answer.body.on, zone + \" is lit\");\n", "  if (zone !== \"%s\") {\n    assert(answer.body.on, zone + \" is lit\");\n  }\n" % missing)
+	rt = _run(level, bench, five)
+	await _done(rt)
+	check(rt.state == ScriptRuntime.State.DONE and level.bench_lit() == 6 and level.bench_passes == 5 and not level.zones_puzzle.solved, "all six lit, one not asserted: not done (six passes)")
 	# The service's whole list, emergency circuit and all: 403 on it, and its test fails.
 	var all: String = level._restore_fn(key) + "\nlet all = await api.get(\"/lights\", auth);\nfor (const z of all.body.zones) {\n  let answer = await restore(z.id);\n  assert(answer.body.on, z.id + \" is lit\");\n}"
 	rt = _run(level, bench, all)
@@ -363,7 +473,24 @@ func _on_the_floor(level: Node) -> void:
 	await _done(rt)
 	check(rt.state == ScriptRuntime.State.DONE and level.data.zones.all(func(z): return level.zone_on(z.id)) and level.cut_zones.is_empty(), "the bench's script, run from a deck on the floor, lights every zone WARDEN cut")
 	check(level.bench_lit() == 0, "and the bench's mock is untouched")
-	check(level.fight_stage == 2 and _game().case_info("lights_out").solved and not _game().case_info("warden").is_empty() and level.gas["B2-MOTOR"] == "armed",
-		"the whole ring lit at once: he fights back (the next case), and arms the motor room's gas")
+	check(level.fight_stage == 2 and _game().case_info("lights_out").solved and not _game().case_info("warden").is_empty() and level.gas["B2-MOTOR"] == "idle",
+		"the whole ring lit at once: he fights back (the next case), but no gas in its first seconds (M5)")
+	level.motor_after = 0.3
+	await _until(func(): return level.gas["B2-MOTOR"] == "armed", 120)
+	check(level.gas["B2-MOTOR"] == "armed" and level.gas["B2-UPS"] == "idle" and level.db.run_silent("SELECT locked FROM doors WHERE id = 'B2-MOTOR'")[0].locked == 1,
+		"then he arms the motor room, alone, and its door locks with the countdown (M4, M5)")
+	check(level.said.has("l7_trap_pa"), "the trap lines come with the first room's arming")
+	var hint: String = level.admin_terminal.next_hint()
+	check(hint == level.TEXT.hint_gas % ["lift motor room", "B2-MOTOR"] and level.admin_terminal.next_hint() != hint, ".hint answers the gas first, once (X29)")
+	check(level.TEXT.gas_armed.contains("POST /suppression/%s/abort {}"), "the armed notice names the abort (X28)")
 	res = _req(deck, _bearer("GET /auth/log", _token(deck, level.data.key)))
 	check(res.status == 200 and res.body.entries.filter(func(e): return e.holder == "WARDEN" and e.state == "ok").size() == 1, "now his token is in the auth log")
+	var other: Dictionary = res.body.entries.filter(func(e): return e.holder != "WARDEN")[0]
+	_game().add_cell("token", other.token, other)
+	await _frames(2)
+	check(not _game().has_piece("warden", "warden_token"), "any other token in the log only notes it")
+	var his: Dictionary = res.body.entries.filter(func(e): return e.holder == "WARDEN")[0]
+	_game().add_cell("token", his.token, his)
+	await _frames(2)
+	check(_game().has_piece("warden", "warden_token") and _game().case_query("warden").contains("POST /auth/revoke {\"token\": \"%s\"}" % his.token), "pointing at his entry's token finds it, and writes it into the revoke (X22)")
+	check(level.warden_puzzle.spot_hint(_game()) == level.SPOT_RUNBOOK_15, ".hint points at runbook page 15 first (X25)")

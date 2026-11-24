@@ -11,7 +11,7 @@ extends Interactable
 const SIZE := 0.6
 const COLOR := Color(0.46, 0.36, 0.24)
 const SLAT := Color(0.36, 0.27, 0.17)
-## Words, waiting on Augustine's OK.
+## Augustine approved these words (2026-11-22).
 const PICK_UP := "Pick up the crate"
 const SET_DOWN := "[E] Set the crate down"
 ## How far in front of your body you set it down, and the highest above your
@@ -61,6 +61,7 @@ static func make(parent: Node3D, at: Vector3, yaw: float = 0.0, id: String = "")
 	parent.add_child(c)
 	c.add_to_group("interactable")
 	c.used.connect(c._on_used)
+	SfxKit.attach_crate(c)  # lifted and set down, heard on every machine
 	return c
 
 
